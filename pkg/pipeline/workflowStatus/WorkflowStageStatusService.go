@@ -111,7 +111,7 @@ func (impl *WorkFlowStageStatusServiceImpl) updatePodStages(currentWorkflowStage
 	}
 	//update pod stage status by using convertPodStatusToDevtronStatus
 	for _, stage := range currentWorkflowStages {
-		if stage.StatusType == bean2.WORKFLOW_STAGE_STATUS_TYPE_POD {
+		if stage.StatusFor == bean2.WORKFLOW_STAGE_STATUS_TYPE_POD {
 			// add pod name in stage metadata if not empty
 			if len(podName) > 0 {
 				marshalledMetadata, _ := json.Marshal(map[string]string{"podName": podName})
@@ -190,7 +190,7 @@ func (impl *WorkFlowStageStatusServiceImpl) updateWorkflowStagesToDevtronStatus(
 
 		//if pod is running, update preparation and execution stages
 		for _, stage := range currentWorkflowStages {
-			if stage.StatusType == bean2.WORKFLOW_STAGE_STATUS_TYPE_WORKFLOW {
+			if stage.StatusFor == bean2.WORKFLOW_STAGE_STATUS_TYPE_WORKFLOW {
 				//mark preparation stage as completed
 				if stage.StageName == bean2.WORKFLOW_PREPARATION {
 					if stage.Status == bean2.WORKFLOW_STAGE_STATUS_RUNNING {
@@ -219,7 +219,7 @@ func (impl *WorkFlowStageStatusServiceImpl) updateWorkflowStagesToDevtronStatus(
 
 		//if pod is succeeded, update execution stage
 		for _, stage := range currentWorkflowStages {
-			if stage.StatusType == bean2.WORKFLOW_STAGE_STATUS_TYPE_WORKFLOW {
+			if stage.StatusFor == bean2.WORKFLOW_STAGE_STATUS_TYPE_WORKFLOW {
 				//mark execution stage as completed
 				if stage.StageName == bean2.WORKFLOW_EXECUTION {
 					if stage.Status == bean2.WORKFLOW_STAGE_STATUS_RUNNING {
@@ -234,7 +234,7 @@ func (impl *WorkFlowStageStatusServiceImpl) updateWorkflowStagesToDevtronStatus(
 
 		//if pod is failed, update execution stage
 		for _, stage := range currentWorkflowStages {
-			if stage.StatusType == bean2.WORKFLOW_STAGE_STATUS_TYPE_WORKFLOW {
+			if stage.StatusFor == bean2.WORKFLOW_STAGE_STATUS_TYPE_WORKFLOW {
 				//mark execution stage as completed
 				if stage.StageName == bean2.WORKFLOW_EXECUTION {
 					if stage.Status == bean2.WORKFLOW_STAGE_STATUS_RUNNING {
@@ -269,7 +269,7 @@ func (impl *WorkFlowStageStatusServiceImpl) updateWorkflowStagesToDevtronStatus(
 		impl.logger.Errorw("unknown pod status", "podStatus", podStatus)
 		//mark workflow stage status as unknown
 		for _, stage := range currentWorkflowStages {
-			if stage.StatusType == bean2.WORKFLOW_STAGE_STATUS_TYPE_WORKFLOW {
+			if stage.StatusFor == bean2.WORKFLOW_STAGE_STATUS_TYPE_WORKFLOW {
 				//mark execution stage as completed
 				if stage.StageName == bean2.WORKFLOW_EXECUTION {
 					if stage.Status == bean2.WORKFLOW_STAGE_STATUS_RUNNING {
@@ -361,7 +361,7 @@ func (impl *WorkFlowStageStatusServiceImpl) ConvertDBWorkflowStageToMap(workflow
 	}
 	for _, wfStage := range workflowStages {
 		if wfStage.WorkflowId == wfId {
-			wfMap[wfStage.StatusType.ToString()] = append(wfMap[wfStage.StatusType.ToString()], adapter.ConvertDBWorkflowStageToDto(wfStage))
+			wfMap[wfStage.StatusFor.ToString()] = append(wfMap[wfStage.StatusFor.ToString()], adapter.ConvertDBWorkflowStageToDto(wfStage))
 			foundInDb = true
 		}
 	}

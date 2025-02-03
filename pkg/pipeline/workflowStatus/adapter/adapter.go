@@ -78,7 +78,7 @@ func GetDefaultWorkflowPreparationStage(workflowId int, workflowType string) *re
 	return &repository.WorkflowExecutionStage{
 		StageName:    bean.WORKFLOW_PREPARATION,
 		Status:       bean.WORKFLOW_STAGE_STATUS_RUNNING,
-		StatusType:   bean.WORKFLOW_STAGE_STATUS_TYPE_WORKFLOW,
+		StatusFor:    bean.WORKFLOW_STAGE_STATUS_TYPE_WORKFLOW,
 		StartTime:    time.Now().Format(bean3.LayoutRFC3339),
 		WorkflowId:   workflowId,
 		WorkflowType: workflowType,
@@ -95,7 +95,7 @@ func GetDefaultWorkflowExecutionStage(workflowId int, workflowType string) *repo
 	return &repository.WorkflowExecutionStage{
 		StageName:    bean.WORKFLOW_EXECUTION,
 		Status:       bean.WORKFLOW_STAGE_STATUS_NOT_STARTED,
-		StatusType:   bean.WORKFLOW_STAGE_STATUS_TYPE_WORKFLOW,
+		StatusFor:    bean.WORKFLOW_STAGE_STATUS_TYPE_WORKFLOW,
 		StartTime:    "",
 		WorkflowId:   workflowId,
 		WorkflowType: workflowType,
@@ -112,7 +112,7 @@ func GetDefaultPodExecutionStage(workflowId int, workflowType string) *repositor
 	return &repository.WorkflowExecutionStage{
 		StageName:    bean.POD_EXECUTION,
 		Status:       bean.WORKFLOW_STAGE_STATUS_NOT_STARTED,
-		StatusType:   bean.WORKFLOW_STAGE_STATUS_TYPE_POD,
+		StatusFor:    bean.WORKFLOW_STAGE_STATUS_TYPE_POD,
 		StartTime:    "",
 		WorkflowId:   workflowId,
 		WorkflowType: workflowType,

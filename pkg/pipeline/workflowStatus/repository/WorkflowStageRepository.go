@@ -23,17 +23,17 @@ type WorkflowStageRepositoryImpl struct {
 }
 
 type WorkflowExecutionStage struct {
-	tableName    struct{}                     `sql:"workflow_execution_stage" pg:",discard_unknown_columns"`
-	Id           int                          `sql:"id,pk"`
-	StageName    bean.WorkflowStageName       `sql:"stage_name,notnull"` // same as app name
-	Status       bean.WorkflowStageStatus     `sql:"status"`
-	StatusType   bean.WorkflowStageStatusType `sql:"status_type"`
-	Message      string                       `sql:"message"`
-	Metadata     string                       `sql:"metadata"`
-	WorkflowId   int                          `sql:"workflow_id,notnull"`
-	WorkflowType string                       `sql:"workflow_type,notnull"`
-	StartTime    string                       `sql:"start_time"`
-	EndTime      string                       `sql:"end_time"`
+	tableName    struct{}                    `sql:"workflow_execution_stage" pg:",discard_unknown_columns"`
+	Id           int                         `sql:"id,pk"`
+	StageName    bean.WorkflowStageName      `sql:"stage_name,notnull"` // same as app name
+	Status       bean.WorkflowStageStatus    `sql:"status"`
+	StatusFor    bean.WorkflowStageStatusFor `sql:"status_type"`
+	Message      string                      `sql:"message"`
+	Metadata     string                      `sql:"metadata"`
+	WorkflowId   int                         `sql:"workflow_id,notnull"`
+	WorkflowType string                      `sql:"workflow_type,notnull"`
+	StartTime    string                      `sql:"start_time"`
+	EndTime      string                      `sql:"end_time"`
 
 	sql.AuditLog
 }

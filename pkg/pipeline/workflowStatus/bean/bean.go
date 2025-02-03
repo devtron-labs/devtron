@@ -12,14 +12,14 @@ func (n WorkflowStageName) ToString() string {
 	return string(n)
 }
 
-type WorkflowStageStatusType string
+type WorkflowStageStatusFor string
 
 const (
-	WORKFLOW_STAGE_STATUS_TYPE_WORKFLOW WorkflowStageStatusType = "workflow"
-	WORKFLOW_STAGE_STATUS_TYPE_POD      WorkflowStageStatusType = "pod"
+	WORKFLOW_STAGE_STATUS_TYPE_WORKFLOW WorkflowStageStatusFor = "workflow"
+	WORKFLOW_STAGE_STATUS_TYPE_POD      WorkflowStageStatusFor = "pod"
 )
 
-func (n WorkflowStageStatusType) ToString() string {
+func (n WorkflowStageStatusFor) ToString() string {
 	return string(n)
 }
 

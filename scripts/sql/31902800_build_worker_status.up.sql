@@ -3,8 +3,9 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_workflow_execution_stage;
 CREATE TABLE IF NOT EXISTS public.workflow_execution_stage (
                                                  id int4 NOT NULL DEFAULT nextval('id_seq_workflow_execution_stage'::regclass),
                                                  stage_name varchar(50) NULL,
+                                                 step_name varchar(50) NULL,
                                                  status varchar(50) NULL,
-                                                 status_type varchar(50) NULL,
+                                                 status_for varchar(50) NULL,
                                                  message text NULL,
                                                  metadata text NULL,
                                                  workflow_id int4 NOT NULL,
