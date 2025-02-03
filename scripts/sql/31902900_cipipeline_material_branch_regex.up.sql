@@ -1,1 +1,1 @@
-ALTER TABLE ci_pipeline_material ALTER COLUMN regex TYPE TEXT;
+ALTER TABLE ci_pipeline_material ALTER COLUMN regex TYPE varchar(250);
