@@ -31,12 +31,15 @@ import (
 	"github.com/devtron-labs/devtron/pkg/argoApplication/read/config"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/common/read"
 	"github.com/devtron-labs/devtron/pkg/k8s/application"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s/bean"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
+	"slices"
 )
 
 type ArgoApplicationService interface {
@@ -57,6 +60,7 @@ type ArgoApplicationServiceImpl struct {
 	helmAppService               service.HelmAppService
 	k8sApplicationService        application.K8sApplicationService
 	argoApplicationConfigService config.ArgoApplicationConfigService
+	deploymentConfigReadService  read.DeploymentConfigReadService
 }
 
 func NewArgoApplicationServiceImpl(logger *zap.SugaredLogger,
@@ -65,7 +69,8 @@ func NewArgoApplicationServiceImpl(logger *zap.SugaredLogger,
 	helmAppClient gRPC.HelmAppClient,
 	helmAppService service.HelmAppService,
 	k8sApplicationService application.K8sApplicationService,
-	argoApplicationConfigService config.ArgoApplicationConfigService) *ArgoApplicationServiceImpl {
+	argoApplicationConfigService config.ArgoApplicationConfigService,
+	deploymentConfigReadService read.DeploymentConfigReadService) *ArgoApplicationServiceImpl {
 	return &ArgoApplicationServiceImpl{
 		logger:                       logger,
 		clusterRepository:            clusterRepository,
@@ -74,6 +79,7 @@ func NewArgoApplicationServiceImpl(logger *zap.SugaredLogger,
 		helmAppClient:                helmAppClient,
 		k8sApplicationService:        k8sApplicationService,
 		argoApplicationConfigService: argoApplicationConfigService,
+		deploymentConfigReadService:  deploymentConfigReadService,
 	}
 
 }
@@ -133,7 +139,19 @@ func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*b
 		appLists := getApplicationListDtos(resp, clusterObj.ClusterName, clusterObj.Id)
 		appListFinal = append(appListFinal, appLists...)
 	}
-	return appListFinal, nil
+	appListClusterIds := sliceUtil.NewSliceFromFuncExec(appListFinal, func(app *bean.ArgoApplicationListDto) int {
+		return app.ClusterId
+	})
+	allDevtronManagedArgoAppNames, err := impl.deploymentConfigReadService.GetAllArgoAppNamesByCluster(appListClusterIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting all argo app names by cluster", "err", err, "clusterIds", appListClusterIds)
+		return nil, err
+	}
+	filteredAppList := make([]*bean.ArgoApplicationListDto, 0)
+	sliceUtil.Filter(filteredAppList, appListFinal, func(app *bean.ArgoApplicationListDto) bool {
+		return !slices.Contains(allDevtronManagedArgoAppNames, app.Name)
+	})
+	return filteredAppList, nil
 }
 
 func getApplicationListDtos(resp *k8s.ClusterResourceListMap, clusterName string, clusterId int) []*bean.ArgoApplicationListDto {

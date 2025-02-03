@@ -5,29 +5,38 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
+	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/common/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"go.uber.org/zap"
 )
 
 type DeploymentConfigReadService interface {
 	GetDeploymentAppTypeForCDInBulk(pipelines []*pipelineConfig.Pipeline, appIdToGitOpsConfiguredMap map[int]bool) (map[int]*bean.DeploymentConfigMin, error)
+	GetAllArgoAppNamesByCluster(clusterIds []int) ([]string, error)
 }
 
 type DeploymentConfigReadServiceImpl struct {
 	logger                      *zap.SugaredLogger
-	deploymentServiceTypeConfig *util.DeploymentServiceTypeConfig
 	deploymentConfigRepository  deploymentConfig.Repository
+	pipelineRepository          pipelineConfig.PipelineRepository
+	installedAppReadServiceEA   installedAppReader.InstalledAppReadServiceEA
+	deploymentServiceTypeConfig *util.DeploymentServiceTypeConfig
 }
 
 func NewDeploymentConfigReadServiceImpl(logger *zap.SugaredLogger,
 	deploymentConfigRepository deploymentConfig.Repository,
+	pipelineRepository pipelineConfig.PipelineRepository,
+	installedAppReadServiceEA installedAppReader.InstalledAppReadServiceEA,
 	envVariables *util.EnvironmentVariables) *DeploymentConfigReadServiceImpl {
 	return &DeploymentConfigReadServiceImpl{
 		logger:                      logger,
-		deploymentServiceTypeConfig: envVariables.DeploymentServiceTypeConfig,
 		deploymentConfigRepository:  deploymentConfigRepository,
+		pipelineRepository:          pipelineRepository,
+		installedAppReadServiceEA:   installedAppReadServiceEA,
+		deploymentServiceTypeConfig: envVariables.DeploymentServiceTypeConfig,
 	}
 }
 
@@ -64,4 +73,21 @@ func (impl *DeploymentConfigReadServiceImpl) GetDeploymentAppTypeForCDInBulk(pip
 		}
 	}
 	return resp, nil
+}
+
+func (impl *DeploymentConfigReadServiceImpl) GetAllArgoAppNamesByCluster(clusterIds []int) ([]string, error) {
+	allDevtronManagedArgoAppNames := make([]string, 0)
+	devtronArgoAppNames, err := impl.pipelineRepository.GetAllArgoAppNamesByCluster(clusterIds)
+	if err != nil {
+		impl.logger.Errorw("error while fetching argo app names", "clusterIds", clusterIds, "error", err)
+		return allDevtronManagedArgoAppNames, err
+	}
+	allDevtronManagedArgoAppNames = append(allDevtronManagedArgoAppNames, devtronArgoAppNames...)
+	chartStoreArgoAppNames, err := impl.installedAppReadServiceEA.GetAllArgoAppNamesByCluster(clusterIds)
+	if err != nil {
+		impl.logger.Errorw("error while fetching argo app names from chart store", "clusterIds", clusterIds, "error", err)
+		return allDevtronManagedArgoAppNames, err
+	}
+	allDevtronManagedArgoAppNames = append(allDevtronManagedArgoAppNames, chartStoreArgoAppNames...)
+	return sliceUtil.GetUniqueElements(allDevtronManagedArgoAppNames), nil
 }
