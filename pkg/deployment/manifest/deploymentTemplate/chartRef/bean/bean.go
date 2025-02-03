@@ -17,9 +17,7 @@
 package bean
 
 import (
-	"fmt"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"strings"
 )
 
 const (
@@ -81,40 +79,6 @@ type ChartRefDto struct {
 	IsAppMetricsSupported  bool   `json:"isAppMetricsSupported"`
 	DeploymentStrategyPath string `json:"deploymentStrategyPath"`
 	JsonPathForStrategy    string `json:"jsonPathForStrategy"`
-}
-
-// GetChartName returns the chart name based on the chart type.
-//
-// Devtron chart cases:
-//
-//	'Deployment' -> 'deployment-chart_<version>'
-//	'StatefulSet' -> 'statefulset-chart_<version>'
-//	'Knative' -> 'knative-chart_<version>'
-//	'workflow-chart' -> 'workflow-chart_<version>'
-//	'Rollout Deployment' -> 'reference-chart_<version>'
-//	'Job & CronJob' -> 'cronjob-chart_<version>'
-//
-// TODO Asutosh: remove this logic
-func (c *ChartRefDto) GetChartName() string {
-	if c.UserUploaded {
-		return c.Name
-	}
-	switch c.Name {
-	case DeploymentChartType:
-		return fmt.Sprintf("%s%s", DeploymentChartNamePrefix, strings.ReplaceAll(c.Version, ".", "-"))
-	case StatefulSetChartType:
-		return fmt.Sprintf("%s%s", StatefulSetChartNamePrefix, strings.ReplaceAll(c.Version, ".", "-"))
-	case KnativeChartType:
-		return fmt.Sprintf("%s%s", KnativeChartNamePrefix, strings.ReplaceAll(c.Version, ".", "-"))
-	case WorkflowChartType:
-		return fmt.Sprintf("%s%s", WorkflowChartNamePrefix, strings.ReplaceAll(c.Version, ".", "-"))
-	case JobAndCronJobType:
-		return fmt.Sprintf("%s%s", JobAndCronJobNamePrefix, strings.ReplaceAll(c.Version, ".", "-"))
-	case RolloutChartType:
-		return fmt.Sprintf("%s%s", RolloutChartNamePrefix, strings.ReplaceAll(c.Version, ".", "-"))
-	default:
-		return c.Name
-	}
 }
 
 // TODO: below objects are created/moved while refactoring to remove db object usage, to remove/replace them with the common objects mentioned above

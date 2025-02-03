@@ -164,7 +164,9 @@ func (impl *RepositoryImpl) GetAppAndEnvLevelConfigsInBulk(appIdToEnvIdsMap map[
 				if len(envIds) == 0 {
 					continue
 				}
-				query = query.Where("app_id = ?", appId).Where("environment_id in (?)", pg.In((envIds))).Where("active = ?", true)
+				query = query.Where("app_id = ?", appId).
+					Where("environment_id in (?)", pg.In(envIds)).
+					Where("active = ?", true)
 			}
 			return query, nil
 		}).Select()
@@ -206,11 +208,10 @@ func (impl *RepositoryImpl) GetConfigByAppIds(appIds []int) ([]*DeploymentConfig
 	return results, err
 }
 
-// TODO Asutosh: why filter only Custom. Should be all !!!!
 func (impl *RepositoryImpl) GetAllConfigsWithCustomGitOpsURL() ([]*DeploymentConfig, error) {
 	result := make([]*DeploymentConfig, 0)
 	err := impl.dbConnection.Model(&result).
-		Where("active = ? and config_type = ? ", true, Custom).
+		Where("active = ?", true).
 		Select()
 	return result, err
 }

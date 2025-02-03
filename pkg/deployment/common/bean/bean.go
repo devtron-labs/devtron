@@ -2,6 +2,7 @@ package bean
 
 import (
 	"fmt"
+	apiGitOpsBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/util"
 	"strconv"
 	"strings"
@@ -151,8 +152,9 @@ type ManagedNamespaceMetadata struct {
 }
 
 type DeploymentConfigMin struct {
-	DeploymentAppType string
-	ReleaseMode       string
+	DeploymentAppType      string
+	ReleaseMode            string
+	IsGitOpsRepoConfigured bool
 }
 
 type DeploymentConfig struct {
@@ -203,6 +205,10 @@ func (d *DeploymentConfig) IsArgoAppCreationRequired(deploymentAppCreated bool) 
 
 func (d *DeploymentConfig) IsEmpty() bool {
 	return d == nil || d.Id == 0
+}
+
+func (d *DeploymentConfig) IsPipelineGitOpsRepoConfigured(isAppLevelGitOpsConfigured bool) bool {
+	return isAppLevelGitOpsConfigured || !apiGitOpsBean.IsGitOpsRepoNotConfigured(d.GetRepoURL())
 }
 
 func (d *DeploymentConfig) GetRepoURL() string {

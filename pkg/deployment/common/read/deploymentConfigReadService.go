@@ -12,7 +12,7 @@ import (
 )
 
 type DeploymentConfigReadService interface {
-	GetDeploymentAppTypeForCDInBulk(pipelines []*pipelineConfig.Pipeline) (map[int]*bean.DeploymentConfigMin, error)
+	GetDeploymentAppTypeForCDInBulk(pipelines []*pipelineConfig.Pipeline, appIdToGitOpsConfiguredMap map[int]bool) (map[int]*bean.DeploymentConfigMin, error)
 }
 
 type DeploymentConfigReadServiceImpl struct {
@@ -31,7 +31,7 @@ func NewDeploymentConfigReadServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *DeploymentConfigReadServiceImpl) GetDeploymentAppTypeForCDInBulk(pipelines []*pipelineConfig.Pipeline) (map[int]*bean.DeploymentConfigMin, error) {
+func (impl *DeploymentConfigReadServiceImpl) GetDeploymentAppTypeForCDInBulk(pipelines []*pipelineConfig.Pipeline, appIdToGitOpsConfiguredMap map[int]bool) (map[int]*bean.DeploymentConfigMin, error) {
 	resp := make(map[int]*bean.DeploymentConfigMin, len(pipelines)) //map of pipelineId and deploymentAppType
 	if impl.deploymentServiceTypeConfig.UseDeploymentConfigData {
 		appIdEnvIdMapping := make(map[int][]int, len(pipelines))
@@ -46,13 +46,21 @@ func (impl *DeploymentConfigReadServiceImpl) GetDeploymentAppTypeForCDInBulk(pip
 			return nil, err
 		}
 		for _, config := range configs {
-			pipelineId := appIdEnvIdKeyPipelineIdMap[fmt.Sprintf("%d-%d", config.AppId, config.EnvironmentId)]
-			resp[pipelineId] = adapter.NewDeploymentConfigMin(config.DeploymentAppType, config.ReleaseMode)
+			configBean, err := adapter.ConvertDeploymentConfigDbObjToDTO(config)
+			if err != nil {
+				impl.logger.Errorw("error, ConvertDeploymentConfigDbObjToDTO", "config", config, "err", err)
+				return nil, err
+			}
+			pipelineId := appIdEnvIdKeyPipelineIdMap[fmt.Sprintf("%d-%d", configBean.AppId, configBean.EnvironmentId)]
+			isGitOpsRepoConfigured := configBean.IsPipelineGitOpsRepoConfigured(appIdToGitOpsConfiguredMap[configBean.AppId])
+			resp[pipelineId] = adapter.NewDeploymentConfigMin(configBean.DeploymentAppType, configBean.ReleaseMode, isGitOpsRepoConfigured)
 		}
 	}
 	for _, pipeline := range pipelines {
-		if _, ok := resp[pipeline.Id]; !ok { //not found in map, either flag is disabled or config not migrated yet. Getting from old data
-			resp[pipeline.Id] = adapter.NewDeploymentConfigMin(pipeline.DeploymentAppType, util2.PIPELINE_RELEASE_MODE_CREATE)
+		if _, ok := resp[pipeline.Id]; !ok {
+			isGitOpsRepoConfigured := appIdToGitOpsConfiguredMap[pipeline.AppId]
+			// not found in map, either flag is disabled or config not migrated yet. Getting from old data
+			resp[pipeline.Id] = adapter.NewDeploymentConfigMin(pipeline.DeploymentAppType, util2.PIPELINE_RELEASE_MODE_CREATE, isGitOpsRepoConfigured)
 		}
 	}
 	return resp, nil

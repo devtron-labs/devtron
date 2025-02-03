@@ -22,6 +22,7 @@ import (
 	errors3 "errors"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	commonBean2 "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	models2 "github.com/devtron-labs/devtron/api/helm-app/models"
@@ -650,14 +651,6 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		IsLinkable:          false,
 		ApplicationMetadata: pipelineConfigBean.NewEmptyApplicationMetadata(),
 	}
-	appModel, err := impl.appRepo.FindById(appId)
-	if err != nil && !errors3.Is(err, pg.ErrNoRows) {
-		impl.logger.Errorw("error in fetching app", "error", err, "appId", appId)
-		response.SetUnknownErrorDetail(err)
-	} else if errors3.Is(err, pg.ErrNoRows) {
-		impl.logger.Errorw("app not found", "appId", appId)
-		response.SetUnknownErrorDetail(util.NewApiError(http.StatusBadRequest, "app not found", "app not found"))
-	}
 	application, err := impl.argoClientWrapperService.GetArgoAppByNameWithK8sClient(context.Background(), applicationObjectClusterId, applicationObjectNamespace, acdAppName)
 	if err != nil {
 		impl.logger.Errorw("error in fetching application", "deploymentAppName", acdAppName, "err", err)
@@ -716,19 +709,22 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 
 	targetClusterURL := argoApplicationSpec.Spec.Destination.Server
 	targetClusterNamespace := argoApplicationSpec.Spec.Destination.Namespace
-
-	response.ApplicationMetadata.Destination.ClusterServerUrl = targetClusterURL
-	response.ApplicationMetadata.Destination.Namespace = targetClusterNamespace
-
-	targetCluster, err := impl.clusterReadService.FindByClusterURL(targetClusterURL)
-	if err != nil {
-		impl.logger.Errorw("error in getting targetCluster by url", "clusterURL", targetClusterURL, "err", err)
-		if errors3.Is(err, pg.ErrNoRows) {
-			return response.SetErrorDetail(pipelineConfigBean.ClusterNotFound, "targetCluster not added in global configuration")
-		}
-		return response.SetUnknownErrorDetail(err)
+	var targetCluster *bean3.ClusterBean
+	if targetClusterURL == commonBean2.DefaultClusterUrl {
+		targetCluster, err = impl.clusterReadService.FindById(request.ApplicationObjectClusterId)
+	} else {
+		targetCluster, err = impl.clusterReadService.FindByClusterURL(targetClusterURL)
 	}
+	if err != nil && !errors3.Is(err, pg.ErrNoRows) {
+		impl.logger.Errorw("error in getting targetCluster by url", "clusterURL", targetClusterURL, "err", err)
+		return response.SetUnknownErrorDetail(err)
+	} else if errors3.Is(err, pg.ErrNoRows) {
+		impl.logger.Debugw("targetCluster not found by url", "clusterURL", targetClusterURL)
+		return response.SetErrorDetail(pipelineConfigBean.ClusterNotFound, "targetCluster not added in global configuration")
+	}
+	response.ApplicationMetadata.Destination.ClusterServerUrl = targetCluster.ServerUrl
 	response.ApplicationMetadata.Destination.ClusterName = targetCluster.ClusterName
+	response.ApplicationMetadata.Destination.Namespace = targetClusterNamespace
 
 	targetEnv, err := impl.environmentRepository.FindOneByNamespaceAndClusterId(targetClusterNamespace, targetCluster.Id)
 	if err != nil {
@@ -772,21 +768,15 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 	}
 	response.ApplicationMetadata.Source.ChartMetadata = pipelineConfigBean.ChartMetadata{
 		RequiredChartVersion: applicationChartVersion,
-		SavedChartName:       chartRef.GetChartName(),
+		SavedChartName:       chartRef.Name,
 		ValuesFilename:       argoApplicationSpec.Spec.Source.Helm.ValueFiles[0],
 		RequiredChartName:    applicationChartName,
 	}
 
-	if chartRef.UserUploaded {
-		if chartRef.GetChartName() != applicationChartName {
-			return response.SetErrorDetail(pipelineConfigBean.ChartTypeMismatch, fmt.Sprintf(pipelineConfigBean.ChartTypeMismatchErrorMsg, applicationChartName, chartRef.Name))
-		}
-	} else {
-		// TODO Asutosh: remove this logic
-		if appModel.AppName != applicationChartName {
-			return response.SetErrorDetail(pipelineConfigBean.ChartTypeMismatch, fmt.Sprintf(pipelineConfigBean.ChartTypeMismatchErrorMsg, applicationChartName, chartRef.Name))
-		}
+	if chartRef.Name != applicationChartName {
+		return response.SetErrorDetail(pipelineConfigBean.ChartTypeMismatch, fmt.Sprintf(pipelineConfigBean.ChartTypeMismatchErrorMsg, applicationChartName, chartRef.Name))
 	}
+
 	_, err = impl.chartRefReadService.FindByVersionAndName(applicationChartVersion, chartRef.Name)
 	if err != nil && !errors3.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in finding chart ref by chart name and version", "chartName", applicationChartName, "chartVersion", applicationChartVersion, "err", err)
@@ -1550,15 +1540,6 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 	for _, item := range appWorkflowMappings {
 		pipelineWorkflowMapping[item.ComponentId] = item
 	}
-	isAppLevelGitOpsConfigured := false
-	gitOpsConfigStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
-	if err != nil {
-		impl.logger.Errorw("error in fetching global GitOps configuration")
-		return nil, err
-	}
-	if gitOpsConfigStatus.IsGitOpsConfiguredAndArgoCdInstalled() && !gitOpsConfigStatus.AllowCustomRepository {
-		isAppLevelGitOpsConfigured = true
-	}
 	var strPipelineIds []string
 	for _, pipelineId := range pipelineIds {
 		strPipelineIds = append(strPipelineIds, strconv.Itoa(pipelineId))
@@ -1583,13 +1564,6 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 				CounterX: customTagPostCD.AutoIncreasingNumber,
 			}
 			customTagStage = repository5.PIPELINE_STAGE_TYPE_POST_CD
-		}
-		if !isAppLevelGitOpsConfigured {
-			isAppLevelGitOpsConfigured, err = impl.chartService.IsGitOpsRepoConfiguredForDevtronApp(dbPipeline.AppId)
-			if err != nil {
-				impl.logger.Errorw("error in fetching latest chart details for app by appId")
-				return nil, err
-			}
 		}
 
 		pipeline := &bean.CDPipelineConfigObject{
@@ -1617,7 +1591,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 			PostDeployStage:               dbPipeline.PostDeployStage,
 			CustomTagObject:               customTag,
 			CustomTagStage:                &customTagStage,
-			IsGitOpsRepoNotConfigured:     !isAppLevelGitOpsConfigured,
+			IsGitOpsRepoNotConfigured:     dbPipeline.IsGitOpsRepoNotConfigured,
 		}
 		pipelines = append(pipelines, pipeline)
 	}

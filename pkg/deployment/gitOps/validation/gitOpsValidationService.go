@@ -235,7 +235,6 @@ func (impl *GitOpsValidationServiceImpl) getDesiredGitRepoUrl(request *gitOpsBea
 		return "", clientErr
 	}
 	gitOpsConfig.GitRepoName = impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(request.RequestedGitUrl)
-	// TODO Asutosh: skip SSH providers in enterprise edition
 	desiredRepoUrl, err := client.GetRepoUrl(gitOpsConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting repo url", "err", err, "request", request)
@@ -344,7 +343,6 @@ func (impl *GitOpsValidationServiceImpl) getValidationErrorForNonOrganisationalU
 }
 
 func (impl *GitOpsValidationServiceImpl) validateUniqueGitOpsRepo(repoUrl string) (isValid bool) {
-	// TODO Asutosh: multiple formats of repo url can be present, need to handle them
 	isDevtronAppRegistered, err := impl.chartService.IsGitOpsRepoAlreadyRegistered(repoUrl)
 	if err != nil || isDevtronAppRegistered {
 		return isValid

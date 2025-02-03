@@ -6,10 +6,11 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 )
 
-func NewDeploymentConfigMin(deploymentAppType, releaseMode string) *bean.DeploymentConfigMin {
+func NewDeploymentConfigMin(deploymentAppType, releaseMode string, isGitOpsRepoConfigured bool) *bean.DeploymentConfigMin {
 	return &bean.DeploymentConfigMin{
-		DeploymentAppType: deploymentAppType,
-		ReleaseMode:       releaseMode,
+		DeploymentAppType:      deploymentAppType,
+		ReleaseMode:            releaseMode,
+		IsGitOpsRepoConfigured: isGitOpsRepoConfigured,
 	}
 }
 

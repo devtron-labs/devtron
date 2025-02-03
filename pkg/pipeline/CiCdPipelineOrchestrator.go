@@ -1965,7 +1965,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			DeploymentAppCreated:          dbPipeline.DeploymentAppCreated,
 			DeploymentAppDeleteRequest:    dbPipeline.DeploymentAppDeleteRequest,
 			IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
-			IsGitOpsRepoNotConfigured:     !isAppLevelGitOpsConfigured,
+			IsGitOpsRepoNotConfigured:     !envDeploymentConfig.IsPipelineGitOpsRepoConfigured(isAppLevelGitOpsConfigured),
 		}
 		if pipelineStages, ok := pipelineIdAndPrePostStageMapping[dbPipeline.Id]; ok {
 			pipeline.PreDeployStage = pipelineStages[0]
@@ -2014,22 +2014,24 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 		impl.logger.Errorw("error in fetching pipelineIdAndPrePostStageMapping", "err", err)
 		return nil, err
 	}
-	appIdAppLevelGitOpsConfiguredMap, err := impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(appIds)
+	appIdToGitOpsConfiguredMap, err := impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(appIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching latest chart details for app by appId")
 		return nil, err
 	}
 	pipelines := make([]*bean.CDPipelineConfigObject, 0, len(dbPipelines))
-	pipelineIdDeploymentTypeMap, err := impl.deploymentConfigReadService.GetDeploymentAppTypeForCDInBulk(dbPipelines)
+	pipelineIdDeploymentTypeMap, err := impl.deploymentConfigReadService.GetDeploymentAppTypeForCDInBulk(dbPipelines, appIdToGitOpsConfiguredMap)
 	if err != nil {
 		impl.logger.Errorw("error, GetDeploymentAppTypeForCDInBulk", "pipelines", dbPipelines, "err", err)
 		return nil, err
 	}
 	for _, dbPipeline := range dbPipelines {
 		var deploymentAppType, releaseMode string
+		var isGitOpsRepoNotConfigured bool
 		if envDeploymentConfigMin, ok := pipelineIdDeploymentTypeMap[dbPipeline.Id]; ok {
 			deploymentAppType = envDeploymentConfigMin.DeploymentAppType
 			releaseMode = envDeploymentConfigMin.ReleaseMode
+			isGitOpsRepoNotConfigured = !envDeploymentConfigMin.IsGitOpsRepoConfigured
 		} else {
 			// error handling if data is not found; as it is a required field
 			impl.logger.Errorw("error in fetching deploymentAppType and release mode for pipeline", "pipelineId", dbPipeline.Id, "pipelineIdDeploymentTypeMap", pipelineIdDeploymentTypeMap)
@@ -2051,7 +2053,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 			TeamId:                    dbPipeline.App.TeamId,
 			EnvironmentIdentifier:     dbPipeline.Environment.EnvironmentIdentifier,
 			IsVirtualEnvironment:      dbPipeline.Environment.IsVirtualEnvironment,
-			IsGitOpsRepoNotConfigured: !appIdAppLevelGitOpsConfiguredMap[dbPipeline.AppId],
+			IsGitOpsRepoNotConfigured: isGitOpsRepoNotConfigured,
 		}
 		if len(dbPipeline.PreStageConfig) > 0 {
 			preStage := bean.CdStage{}
@@ -2156,6 +2158,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 			impl.logger.Errorw("error in fetching latest chart details for app by appId")
 			return nil, err
 		}
+		// TODO Asutosh: why not getting deployment config ??
 		pipeline := &bean.CDPipelineConfigObject{
 			Id:                            dbPipeline.Id,
 			Name:                          dbPipeline.Name,
