@@ -84,9 +84,11 @@ func GetQueryForGroupListingWithFilters(req *bean.ListingRequest) (string, []int
 
 	orderCondition := ""
 	if len(req.SortBy) > 0 && !req.CountCheck {
-		orderCondition += fmt.Sprintf(" order by %s ", req.SortBy)
+		orderCondition += " order by  "
 		if req.SortOrder == bean2.Desc {
-			orderCondition += fmt.Sprintf(" %s ", bean2.Desc)
+			orderCondition += fmt.Sprintf(" %s %s ", req.SortBy, bean2.Desc)
+		} else {
+			orderCondition += fmt.Sprintf(" %s ", req.SortBy)
 		}
 	}
 	if req.Size > 0 && !req.CountCheck && !req.ShowAll {
@@ -103,9 +105,10 @@ func GetQueryForGroupListingWithFilters(req *bean.ListingRequest) (string, []int
 
 }
 
-func GetEmailSearchQuery(usersTableAlias string, emailId string) string {
+func GetEmailSearchQuery(usersTableAlias string, emailId string) (string, []interface{}) {
+	queryParams := []interface{}{emailId, emailId}
 	expression := fmt.Sprintf(
-		"( (%s.user_type is NULL and %s.email_id ILIKE '%s' ) or (%s.user_type='apiToken' and %s.email_id='%s') )",
-		usersTableAlias, usersTableAlias, emailId, usersTableAlias, usersTableAlias, emailId)
-	return expression
+		"( (%s.user_type is NULL and %s.email_id ILIKE ? ) or (%s.user_type='apiToken' and %s.email_id=?) )",
+		usersTableAlias, usersTableAlias, usersTableAlias, usersTableAlias)
+	return expression, queryParams
 }

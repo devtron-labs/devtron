@@ -508,6 +508,13 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 		TerminationMessagePath: workFlow.GetTerminalLogFilePath(),
 		Resources:              workflowRequest.GetLimitReqCpuMem(config, infraConfigurations),
 	}
+	// add volumeMount for downwardAPI volume
+	workflowMainContainer.VolumeMounts = append(workflowMainContainer.VolumeMounts,
+		v1.VolumeMount{
+			Name:      utils.DEVTRON_SELF_DOWNWARD_API_VOLUME,
+			MountPath: utils.DEVTRON_SELF_DOWNWARD_API_VOLUME_PATH,
+		},
+	)
 	if workflowRequest.Type == bean.CI_WORKFLOW_PIPELINE_TYPE || workflowRequest.Type == bean.JOB_WORKFLOW_PIPELINE_TYPE {
 		workflowMainContainer.Ports = []v1.ContainerPort{{
 			// exposed for user specific data from ci container
@@ -558,7 +565,7 @@ func (workflowRequest *WorkflowRequest) updateVolumeMountsForCi(config *CiCdConf
 		return err
 	}
 	workflowTemplate.Volumes = append(workflowTemplate.Volumes, volume...)
-	workflowMainContainer.VolumeMounts = volumeMounts
+	workflowMainContainer.VolumeMounts = append(workflowMainContainer.VolumeMounts, volumeMounts...)
 	return nil
 }
 

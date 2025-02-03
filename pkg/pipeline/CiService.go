@@ -835,14 +835,32 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ImageScanRetryDelay:         impl.config.ImageScanRetryDelay,
 		UseDockerApiToGetDigest:     impl.config.UseDockerApiToGetDigest,
 	}
-	if pipeline.App.AppType == helper.Job {
-		workflowRequest.AppName = pipeline.App.DisplayName
-	}
+	workflowRequest.SetAwsInspectorConfig("")
 	//in oss, there is no pipeline level workflow cache config, so we pass inherit to get the app level config
 	workflowCacheConfig := impl.ciCdPipelineOrchestrator.GetWorkflowCacheConfig(pipeline.App.AppType, trigger.PipelineType, common.WorkflowCacheConfigInherit)
 	workflowRequest.IgnoreDockerCachePush = !workflowCacheConfig.Value
 	workflowRequest.IgnoreDockerCachePull = !workflowCacheConfig.Value
 	impl.Logger.Debugw("Ignore Cache values", "IgnoreDockerCachePush", workflowRequest.IgnoreDockerCachePush, "IgnoreDockerCachePull", workflowRequest.IgnoreDockerCachePull)
+	if pipeline.App.AppType == helper.Job {
+		workflowRequest.AppName = pipeline.App.DisplayName
+	}
+	if pipeline.ScanEnabled {
+		scanToolMetadata, scanVia, err := impl.fetchImageScanExecutionMedium()
+		if err != nil {
+			impl.Logger.Errorw("error occurred getting scanned via", "err", err)
+			return nil, err
+		}
+		workflowRequest.SetExecuteImageScanningVia(scanVia)
+		if scanVia.IsScanMediumExternal() {
+			imageScanExecutionSteps, refPlugins, err := impl.fetchImageScanExecutionStepsForWfRequest(scanToolMetadata)
+			if err != nil {
+				impl.Logger.Errorw("error occurred, fetchImageScanExecutionStepsForWfRequest", "scanToolMetadata", scanToolMetadata, "err", err)
+				return nil, err
+			}
+			workflowRequest.SetImageScanningSteps(imageScanExecutionSteps)
+			workflowRequest.RefPlugins = append(workflowRequest.RefPlugins, refPlugins...)
+		}
+	}
 
 	if dockerRegistry != nil {
 		workflowRequest.DockerRegistryId = dockerRegistry.Id

@@ -17,9 +17,7 @@
 package pipelineConfig
 
 import (
-	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/go-pg/pg"
@@ -236,10 +234,9 @@ func (impl *CiWorkflowRepositoryImpl) FindById(id int) (*CiWorkflow, error) {
 
 func (impl *CiWorkflowRepositoryImpl) FindRetriedWorkflowCountByReferenceId(id int) (int, error) {
 	retryCount := 0
-	query := fmt.Sprintf("select count(*) "+
-		"from ci_workflow where ref_ci_workflow_id = %v", id)
+	query := "select count(*) from ci_workflow where ref_ci_workflow_id = ?"
 
-	_, err := impl.dbConnection.Query(&retryCount, query)
+	_, err := impl.dbConnection.Query(&retryCount, query, id)
 	return retryCount, err
 }
 
@@ -339,9 +336,8 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowGitTriggersByArti
 	}
 	query := "SELECT cw.git_triggers,cw.id,cw.triggered_by,cw.ci_pipeline_id,cia.id as ci_artifact_id" +
 		" FROM ci_workflow cw INNER JOIN ci_artifact cia on cia.ci_workflow_id = cw.id " +
-		" WHERE cia.id IN (%s)"
-	query = fmt.Sprintf(query, helper.GetCommaSepratedString(ciArtifactIds))
-	_, err := impl.dbConnection.Query(&workflows, query)
+		" WHERE cia.id IN (?)"
+	_, err := impl.dbConnection.Query(&workflows, query, pg.In(ciArtifactIds))
 	return workflows, err
 }
 
