@@ -7,5 +7,6 @@
 ## Enhancements
 ## Documentation
 ## Others
+- misc: common-lib change (#6347)
 - sync: Release candidate v0.28.0 (#6340)
 - misc: Fix typo: Cronjob → CronJob (#6335)
