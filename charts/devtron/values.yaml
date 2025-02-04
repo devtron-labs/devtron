@@ -24,7 +24,7 @@ global:
 extraManifests: []
 installer:
   repo: "devtron-labs/devtron"
-  release: "v1.2.0"
+  release: "v1.2.1"
   registry: ""
   image: inception
   tag: 473deaa4-185-21582
@@ -81,8 +81,8 @@ components:
     imagePullPolicy: IfNotPresent
   devtron:
     registry: ""
-    image: "hyperion:564fe991-280-28985"
-    cicdImage: "devtron:564fe991-434-28986"
+    image: "hyperion:69603019-280-29389"
+    cicdImage: "devtron:69603019-434-29388"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     serviceMonitor:
@@ -108,7 +108,7 @@ components:
       #      - devtron.example.com
   ciRunner:
     registry: ""
-    image: "ci-runner:0a3d5e84-138-28964"
+    image: "ci-runner:343b24f5-138-29387"
   argocdDexServer:
     registry: ""
     image: "dex:v2.30.2"
