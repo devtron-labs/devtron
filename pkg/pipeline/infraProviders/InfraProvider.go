@@ -17,10 +17,9 @@
 package infraProviders
 
 import (
-	"github.com/devtron-labs/devtron/pkg/infraConfig/service"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders/infraGetters"
-	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders/infraGetters/ciPipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders/infraGetters/ci"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders/infraGetters/job"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -36,11 +35,13 @@ type InfraProviderImpl struct {
 	jobInfraGetter infraGetters.InfraGetter
 }
 
-func NewInfraProviderImpl(logger *zap.SugaredLogger, service service.InfraConfigService) *InfraProviderImpl {
+func NewInfraProviderImpl(logger *zap.SugaredLogger,
+	jobInfraGetter *job.InfraGetter,
+	ciInfraGetter *ci.InfraGetter) *InfraProviderImpl {
 	return &InfraProviderImpl{
 		logger:         logger,
-		ciInfraGetter:  ciPipeline.NewCiInfraGetter(service),
-		jobInfraGetter: job.NewJobInfraGetter(),
+		ciInfraGetter:  ciInfraGetter,
+		jobInfraGetter: jobInfraGetter,
 	}
 }
 

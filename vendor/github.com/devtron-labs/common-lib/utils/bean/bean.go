@@ -84,3 +84,7 @@ type PgQueryEvent struct {
 	Error     error
 	Query     string
 }
+
+type TargetPlatform struct {
+	Name string `json:"name"`
+}

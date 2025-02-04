@@ -22,6 +22,7 @@ import (
 	"github.com/argoproj/argo-workflows/v3/workflow/common"
 	"github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/common-lib/utils"
+	bean7 "github.com/devtron-labs/common-lib/utils/bean"
 	"github.com/devtron-labs/common-lib/utils/workFlow"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -31,7 +32,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	bean5 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
-	bean6 "github.com/devtron-labs/devtron/pkg/infraConfig/bean"
+	infraBean "github.com/devtron-labs/devtron/pkg/infraConfig/bean/v1"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/plugin/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
@@ -160,7 +161,7 @@ func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {
 		workflowRequest.IsExtRun = true
 	}
 	// Check for external in case of JOB
-	if env != nil && env.Id != 0 && workflowRequest.CheckForJob() {
+	if env != nil && env.Id != 0 && workflowRequest.IsDevtronJob() {
 		workflowRequest.EnvironmentId = env.Id
 		workflowRequest.IsExtRun = true
 	}
@@ -351,6 +352,11 @@ func (workflowRequest *WorkflowRequest) AddNodeConstraintsFromConfig(workflowTem
 
 }
 
+func (workflowRequest *WorkflowRequest) AddInfraConfigurations(workflowTemplate *bean.WorkflowTemplate, infraConfiguration *infraBean.InfraConfig) {
+	timeout := infraConfiguration.GetCiTimeoutInt()
+	workflowTemplate.SetActiveDeadlineSeconds(timeout)
+}
+
 func (workflowRequest *WorkflowRequest) GetGlobalCmCsNamePrefix() string {
 	switch workflowRequest.Type {
 	case bean.CI_WORKFLOW_PIPELINE_TYPE, bean.JOB_WORKFLOW_PIPELINE_TYPE:
@@ -411,8 +417,12 @@ func (workflowRequest *WorkflowRequest) GetExistingCmCsNamePrefix() string {
 	}
 }
 
-func (workflowRequest *WorkflowRequest) CheckForJob() bool {
+func (workflowRequest *WorkflowRequest) IsDevtronJob() bool {
 	return workflowRequest.Type == bean.JOB_WORKFLOW_PIPELINE_TYPE
+}
+
+func (workflowRequest *WorkflowRequest) IsDevtronCI() bool {
+	return workflowRequest.Type == bean.CI_WORKFLOW_PIPELINE_TYPE
 }
 
 func (workflowRequest *WorkflowRequest) GetNodeConstraints(config *CiCdConfig) *bean.NodeConstraints {
@@ -442,7 +452,7 @@ func (workflowRequest *WorkflowRequest) GetNodeConstraints(config *CiCdConfig) *
 	}
 }
 
-func (workflowRequest *WorkflowRequest) GetLimitReqCpuMem(config *CiCdConfig, infraConfigurations *bean6.InfraConfig) v1.ResourceRequirements {
+func (workflowRequest *WorkflowRequest) GetLimitReqCpuMem(config *CiCdConfig, infraConfigurations *infraBean.InfraConfig) v1.ResourceRequirements {
 	limitReqCpuMem := &bean.LimitReqCpuMem{}
 	switch workflowRequest.Type {
 	case bean.CI_WORKFLOW_PIPELINE_TYPE, bean.JOB_WORKFLOW_PIPELINE_TYPE:
@@ -483,7 +493,7 @@ func (workflowRequest *WorkflowRequest) getWorkflowImage() string {
 	}
 }
 
-func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdConfig, infraConfigurations *bean6.InfraConfig, workflowJson []byte, workflowTemplate *bean.WorkflowTemplate, workflowConfigMaps []bean3.ConfigSecretMap, workflowSecrets []bean3.ConfigSecretMap) (v1.Container, error) {
+func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdConfig, infraConfigurations *infraBean.InfraConfig, workflowJson []byte, workflowTemplate *bean.WorkflowTemplate, workflowConfigMaps []bean3.ConfigSecretMap, workflowSecrets []bean3.ConfigSecretMap) (v1.Container, error) {
 	privileged := true
 	pvc := workflowRequest.getPVCForWorkflowRequest()
 	containerEnvVariables := workflowRequest.getContainerEnvVariables(config, workflowJson)
@@ -497,6 +507,13 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 		TerminationMessagePath: workFlow.GetTerminalLogFilePath(),
 		Resources:              workflowRequest.GetLimitReqCpuMem(config, infraConfigurations),
 	}
+	// add volumeMount for downwardAPI volume
+	workflowMainContainer.VolumeMounts = append(workflowMainContainer.VolumeMounts,
+		v1.VolumeMount{
+			Name:      utils.DEVTRON_SELF_DOWNWARD_API_VOLUME,
+			MountPath: utils.DEVTRON_SELF_DOWNWARD_API_VOLUME_PATH,
+		},
+	)
 	if workflowRequest.Type == bean.CI_WORKFLOW_PIPELINE_TYPE || workflowRequest.Type == bean.JOB_WORKFLOW_PIPELINE_TYPE {
 		workflowMainContainer.Ports = []v1.ContainerPort{{
 			// exposed for user specific data from ci container
@@ -547,7 +564,7 @@ func (workflowRequest *WorkflowRequest) updateVolumeMountsForCi(config *CiCdConf
 		return err
 	}
 	workflowTemplate.Volumes = append(workflowTemplate.Volumes, volume...)
-	workflowMainContainer.VolumeMounts = volumeMounts
+	workflowMainContainer.VolumeMounts = append(workflowMainContainer.VolumeMounts, volumeMounts...)
 	return nil
 }
 
@@ -660,6 +677,7 @@ type WorkflowResponse struct {
 	CustomTag            *bean3.CustomTagErrorResponse               `json:"customTag,omitempty"`
 	PipelineType         string                                      `json:"pipelineType"`
 	ReferenceWorkflowId  int                                         `json:"referenceWorkflowId"`
+	TargetPlatforms      []*bean7.TargetPlatform                     `json:"targetPlatforms"`
 }
 
 type ConfigMapSecretDto struct {

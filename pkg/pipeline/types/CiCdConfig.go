@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/caarlos0/env"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	bean2 "github.com/devtron-labs/common-lib/utils/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/bean/common"
@@ -558,6 +559,7 @@ type GitTriggerInfoResponse struct {
 	Default          bool                                        `json:"default,omitempty"`
 	ImageTaggingData ImageTaggingResponseDTO                     `json:"imageTaggingData"`
 	Image            string                                      `json:"image"`
+	TargetPlatforms  []*bean2.TargetPlatform                     `json:"targetPlatforms"`
 }
 
 type Trigger struct {
