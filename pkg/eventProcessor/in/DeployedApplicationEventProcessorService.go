@@ -224,8 +224,8 @@ func (impl *DeployedApplicationEventProcessorImpl) updateArgoAppDeleteStatus(app
 			impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", p.AppId, "environmentId", p.EnvironmentId, "err", err)
 			return err
 		}
-		if dc.ReleaseConfiguration.ArgoCDSpec.GetApplicationObjectClusterId() == applicationDetail.ClusterId &&
-			dc.ReleaseConfiguration.ArgoCDSpec.GetApplicationObjectNamespace() == app.Namespace {
+		if dc.GetApplicationObjectClusterId() == applicationDetail.ClusterId &&
+			dc.GetApplicationObjectNamespace() == app.Namespace {
 			pipeline = p
 			break
 		}

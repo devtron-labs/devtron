@@ -235,8 +235,8 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 			impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", pipeline.AppId, "environmentId", pipeline.EnvironmentId, "err", err)
 			return nil, isTimelineUpdated
 		}
-		applicationObjectClusterId := dc.ReleaseConfiguration.ArgoCDSpec.GetApplicationObjectClusterId()
-		applicationObjectNamespace := dc.ReleaseConfiguration.ArgoCDSpec.GetApplicationObjectNamespace()
+		applicationObjectClusterId := dc.GetApplicationObjectClusterId()
+		applicationObjectNamespace := dc.GetApplicationObjectNamespace()
 
 		appMapObj, err := impl.argocdClientWrapperService.GetArgoAppByNameWithK8sClient(context.Background(), applicationObjectClusterId, applicationObjectNamespace, pipeline.DeploymentAppName)
 
@@ -318,7 +318,7 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 			impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", pipeline.AppId, "environmentId", pipeline.EnvironmentId, "err", err)
 			return nil, isTimelineUpdated
 		}
-		applicationObjectClusterId := dc.ReleaseConfiguration.ArgoCDSpec.GetApplicationObjectClusterId()
+		applicationObjectClusterId := dc.GetApplicationObjectClusterId()
 
 		impl.logger.Debugw("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "checkingDeploymentStatus", "installedApp", installedApp, "installedAppVersionHistory", installedAppVersionHistory)
 		if util3.IsTerminalRunnerStatus(installedAppVersionHistory.Status) {
