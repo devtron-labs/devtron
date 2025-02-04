@@ -476,7 +476,7 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 		K8SVersion:      sanitizedK8sVersion,
 		ChartRepository: ChartRepository,
 		ReleaseIdentifier: &gRPC.ReleaseIdentifier{
-			ReleaseName:      fmt.Sprintf("%s-%s", request.AppName, request.EnvName),
+			ReleaseName:      util2.BuildDeployedAppName(request.AppName, request.EnvName),
 			ReleaseNamespace: request.Namespace,
 		},
 		ChartContent: &gRPC.ChartContent{
