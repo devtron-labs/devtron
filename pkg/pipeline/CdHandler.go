@@ -494,7 +494,7 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 			wfIdToWfTypeMap[item.Id] = item
 		}
 	}
-	wfRunnerIdToStageDetailMap, err := impl.workflowStageStatusService.GetPrePostWorkflowStagesByWorkflowRunnerIdsList(wfIdToWfTypeMap)
+	wfRunnerIdToStageDetailMap, err := impl.cdWorkflowRunnerService.GetPrePostWorkflowStagesByWorkflowRunnerIdsList(wfIdToWfTypeMap)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching pre/post stage data", "err", err)
 		return cdWorkflowArtifact, err
@@ -640,7 +640,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	if workflowR.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE || workflowR.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
 		//get execution stage data
 		impl.Logger.Infow("fetching pre/post workflow stages", "workflowId", workflowR.Id, "workflowType", workflowR.WorkflowType)
-		workflowStageData, err := impl.workflowStageStatusService.GetPrePostWorkflowStagesByWorkflowIdAndType(workflowR.Id, workflowR.WorkflowType.String())
+		workflowStageData, err := impl.workflowStageStatusService.GetWorkflowStagesByWorkflowIdAndType(workflowR.Id, workflowR.WorkflowType.String())
 		if err != nil {
 			impl.Logger.Errorw("error in fetching pre/post workflow stages", "err", err)
 			return types.WorkflowResponse{}, err

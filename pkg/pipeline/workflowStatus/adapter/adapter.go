@@ -2,6 +2,7 @@ package adapter
 
 import (
 	"encoding/json"
+	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	bean3 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
@@ -44,19 +45,19 @@ func getMetadataJson(metadata string) map[string]interface{} {
 func ConvertStatusToDevtronStatus(wfStatus string, wfMessage string) bean.WorkflowStageStatus {
 	// implementation
 	switch strings.ToLower(wfStatus) {
-	case "pending", strings.ToLower(cdWorkflow.WorkflowWaitingToStart):
+	case strings.ToLower(string(v1alpha1.NodePending)), strings.ToLower(cdWorkflow.WorkflowWaitingToStart):
 		return bean.WORKFLOW_STAGE_STATUS_NOT_STARTED
-	case "starting", "running":
+	case strings.ToLower(cdWorkflow.WorkflowStarting), strings.ToLower(string(v1alpha1.NodeRunning)):
 		return bean.WORKFLOW_STAGE_STATUS_RUNNING
-	case "succeeded":
+	case strings.ToLower(cdWorkflow.WorkflowSucceeded):
 		return bean.WORKFLOW_STAGE_STATUS_SUCCEEDED
-	case "failed", "error", "errored":
+	case strings.ToLower(cdWorkflow.WorkflowFailed), strings.ToLower(string(v1alpha1.NodeError)), "errored":
 		if strings.ToLower(wfMessage) == strings.ToLower(constants.POD_TIMEOUT_MESSAGE) {
 			return bean.WORKFLOW_STAGE_STATUS_TIMEOUT
 		} else {
 			return bean.WORKFLOW_STAGE_STATUS_FAILED
 		}
-	case "aborted", "cancelled":
+	case strings.ToLower(cdWorkflow.WorkflowAborted), strings.ToLower(cdWorkflow.WorkflowCancel):
 		return bean.WORKFLOW_STAGE_STATUS_ABORTED
 	default:
 		log.Println("unknown wf status", "wf", wfStatus)

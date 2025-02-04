@@ -21,8 +21,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
+	bean4 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
+	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/adapter"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/bean"
@@ -34,6 +36,7 @@ type CdWorkflowRunnerService interface {
 	UpdateIsArtifactUploaded(wfrId int, isArtifactUploaded bool) error
 	SaveCDWorkflowRunnerWithStage(wfr *pipelineConfig.CdWorkflowRunner) (*pipelineConfig.CdWorkflowRunner, error)
 	UpdateCdWorkflowRunnerWithStage(wfr *pipelineConfig.CdWorkflowRunner) error
+	GetPrePostWorkflowStagesByWorkflowRunnerIdsList(wfIdWfTypeMap map[int]bean4.CdWorkflowWithArtifact) (map[int]map[string][]*bean3.WorkflowStageDto, error)
 }
 
 type CdWorkflowRunnerServiceImpl struct {
@@ -155,4 +158,42 @@ func (impl *CdWorkflowRunnerServiceImpl) UpdateCdWorkflowRunnerWithStage(wfr *pi
 	}
 	return nil
 
+}
+
+func (impl *CdWorkflowRunnerServiceImpl) GetPrePostWorkflowStagesByWorkflowRunnerIdsList(wfIdWfTypeMap map[int]bean4.CdWorkflowWithArtifact) (map[int]map[string][]*bean3.WorkflowStageDto, error) {
+	// implementation
+	resp := map[int]map[string][]*bean3.WorkflowStageDto{}
+	if len(wfIdWfTypeMap) == 0 {
+		return resp, nil
+	}
+	//first create a map of pre-runner ids and post-runner ids
+	prePostRunnerIds := map[string][]int{}
+	for wfId, wf := range wfIdWfTypeMap {
+		if wf.WorkflowType == bean2.CD_WORKFLOW_TYPE_PRE.String() {
+			prePostRunnerIds[bean2.CD_WORKFLOW_TYPE_PRE.String()] = append(prePostRunnerIds[bean2.CD_WORKFLOW_TYPE_PRE.String()], wfId)
+		} else if wf.WorkflowType == bean2.CD_WORKFLOW_TYPE_POST.String() {
+			prePostRunnerIds[bean2.CD_WORKFLOW_TYPE_POST.String()] = append(prePostRunnerIds[bean2.CD_WORKFLOW_TYPE_POST.String()], wfId)
+		}
+	}
+
+	preCdDbData, err := impl.workflowStageService.GetWorkflowStagesByWorkflowIdsAndWfType(prePostRunnerIds[bean2.CD_WORKFLOW_TYPE_PRE.String()], bean2.CD_WORKFLOW_TYPE_PRE.String())
+	if err != nil {
+		impl.logger.Errorw("error in getting pre-ci workflow stages", "error", err)
+		return resp, err
+	}
+	//do the above for post cd
+	postCdDbData, err := impl.workflowStageService.GetWorkflowStagesByWorkflowIdsAndWfType(prePostRunnerIds[bean2.CD_WORKFLOW_TYPE_POST.String()], bean2.CD_WORKFLOW_TYPE_POST.String())
+	if err != nil {
+		impl.logger.Errorw("error in getting post-ci workflow stages", "error", err)
+		return resp, err
+	}
+	//iterate over prePostRunnerIds and create response structure using ConvertDBWorkflowStageToMap function
+	for wfId, wf := range wfIdWfTypeMap {
+		if wf.WorkflowType == bean2.CD_WORKFLOW_TYPE_PRE.String() {
+			resp[wfId] = impl.workflowStageService.ConvertDBWorkflowStageToMap(preCdDbData, wfId, wf.Status, wf.PodStatus, wf.Message, wf.WorkflowType, wf.StartedOn, wf.FinishedOn)
+		} else if wf.WorkflowType == bean2.CD_WORKFLOW_TYPE_POST.String() {
+			resp[wfId] = impl.workflowStageService.ConvertDBWorkflowStageToMap(postCdDbData, wfId, wf.Status, wf.PodStatus, wf.Message, wf.WorkflowType, wf.StartedOn, wf.FinishedOn)
+		}
+	}
+	return resp, nil
 }

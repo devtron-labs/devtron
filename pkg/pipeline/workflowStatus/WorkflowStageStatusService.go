@@ -7,7 +7,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	bean3 "github.com/devtron-labs/devtron/pkg/bean"
-	bean4 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus/adapter"
@@ -23,10 +22,8 @@ import (
 )
 
 type WorkFlowStageStatusService interface {
-	//todo move read functions for ci and cd from here to their respective services. CiService and CdWorkflowRunnerService
-	GetCiWorkflowStagesByWorkflowIds(wfIds []int) ([]*repository.WorkflowExecutionStage, error)
-	GetPrePostWorkflowStagesByWorkflowIdAndType(wfId int, wfType string) ([]*repository.WorkflowExecutionStage, error)
-	GetPrePostWorkflowStagesByWorkflowRunnerIdsList(wfIdWfTypeMap map[int]bean4.CdWorkflowWithArtifact) (map[int]map[string][]*bean2.WorkflowStageDto, error)
+	GetWorkflowStagesByWorkflowIdsAndWfType(wfIds []int, wfType string) ([]*repository.WorkflowExecutionStage, error)
+	GetWorkflowStagesByWorkflowIdAndType(wfId int, wfType string) ([]*repository.WorkflowExecutionStage, error)
 
 	SaveWorkflowStages(wfId int, wfType, wfName string, tx *pg.Tx) error
 	UpdateWorkflowStages(wfId int, wfType, wfName, wfStatus, podStatus, message, podName string, tx *pg.Tx) (string, string, error)
@@ -284,10 +281,10 @@ func (impl *WorkFlowStageStatusServiceImpl) updateWorkflowStagesToDevtronStatus(
 	return currentWorkflowStages, updatedWfStatus
 }
 
-func (impl *WorkFlowStageStatusServiceImpl) GetCiWorkflowStagesByWorkflowIds(wfIds []int) ([]*repository.WorkflowExecutionStage, error) {
+func (impl *WorkFlowStageStatusServiceImpl) GetWorkflowStagesByWorkflowIdsAndWfType(wfIds []int, wfType string) ([]*repository.WorkflowExecutionStage, error) {
 	// implementation
 
-	dbData, err := impl.workflowStatusRepository.GetCiWorkflowStagesByWorkflowIds(wfIds)
+	dbData, err := impl.workflowStatusRepository.GetWorkflowStagesByWorkflowIdsAndWtype(wfIds, wfType)
 	if err != nil {
 		impl.logger.Errorw("error in getting ci workflow stages", "error", err)
 		return nil, err
@@ -299,7 +296,7 @@ func (impl *WorkFlowStageStatusServiceImpl) GetCiWorkflowStagesByWorkflowIds(wfI
 	}
 }
 
-func (impl *WorkFlowStageStatusServiceImpl) GetPrePostWorkflowStagesByWorkflowIdAndType(wfId int, wfType string) ([]*repository.WorkflowExecutionStage, error) {
+func (impl *WorkFlowStageStatusServiceImpl) GetWorkflowStagesByWorkflowIdAndType(wfId int, wfType string) ([]*repository.WorkflowExecutionStage, error) {
 	// implementation
 
 	dbData, err := impl.workflowStatusRepository.GetWorkflowStagesByWorkflowIdAndWtype(wfId, wfType)
@@ -312,44 +309,6 @@ func (impl *WorkFlowStageStatusServiceImpl) GetPrePostWorkflowStagesByWorkflowId
 	} else {
 		return dbData, nil
 	}
-}
-
-func (impl *WorkFlowStageStatusServiceImpl) GetPrePostWorkflowStagesByWorkflowRunnerIdsList(wfIdWfTypeMap map[int]bean4.CdWorkflowWithArtifact) (map[int]map[string][]*bean2.WorkflowStageDto, error) {
-	// implementation
-	resp := map[int]map[string][]*bean2.WorkflowStageDto{}
-	if len(wfIdWfTypeMap) == 0 {
-		return resp, nil
-	}
-	//first create a map of pre-runner ids and post-runner ids
-	prePostRunnerIds := map[string][]int{}
-	for wfId, wf := range wfIdWfTypeMap {
-		if wf.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE.String() {
-			prePostRunnerIds[bean.CD_WORKFLOW_TYPE_PRE.String()] = append(prePostRunnerIds[bean.CD_WORKFLOW_TYPE_PRE.String()], wfId)
-		} else if wf.WorkflowType == bean.CD_WORKFLOW_TYPE_POST.String() {
-			prePostRunnerIds[bean.CD_WORKFLOW_TYPE_POST.String()] = append(prePostRunnerIds[bean.CD_WORKFLOW_TYPE_POST.String()], wfId)
-		}
-	}
-
-	preCdDbData, err := impl.workflowStatusRepository.GetWorkflowStagesByWorkflowIdsAndWtype(prePostRunnerIds[bean.CD_WORKFLOW_TYPE_PRE.String()], bean.CD_WORKFLOW_TYPE_PRE.String())
-	if err != nil {
-		impl.logger.Errorw("error in getting pre-ci workflow stages", "error", err)
-		return resp, err
-	}
-	//do the above for post cd
-	postCdDbData, err := impl.workflowStatusRepository.GetWorkflowStagesByWorkflowIdsAndWtype(prePostRunnerIds[bean.CD_WORKFLOW_TYPE_POST.String()], bean.CD_WORKFLOW_TYPE_POST.String())
-	if err != nil {
-		impl.logger.Errorw("error in getting post-ci workflow stages", "error", err)
-		return resp, err
-	}
-	//iterate over prePostRunnerIds and create response structure using ConvertDBWorkflowStageToMap function
-	for wfId, wf := range wfIdWfTypeMap {
-		if wf.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE.String() {
-			resp[wfId] = impl.ConvertDBWorkflowStageToMap(preCdDbData, wfId, wf.Status, wf.PodStatus, wf.Message, wf.WorkflowType, wf.StartedOn, wf.FinishedOn)
-		} else if wf.WorkflowType == bean.CD_WORKFLOW_TYPE_POST.String() {
-			resp[wfId] = impl.ConvertDBWorkflowStageToMap(postCdDbData, wfId, wf.Status, wf.PodStatus, wf.Message, wf.WorkflowType, wf.StartedOn, wf.FinishedOn)
-		}
-	}
-	return resp, nil
 }
 
 func (impl *WorkFlowStageStatusServiceImpl) ConvertDBWorkflowStageToMap(workflowStages []*repository.WorkflowExecutionStage, wfId int, status, podStatus, message, wfType string, startTime, endTime time.Time) map[string][]*bean2.WorkflowStageDto {

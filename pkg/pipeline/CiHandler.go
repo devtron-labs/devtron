@@ -537,7 +537,7 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 		workflowIds = append(workflowIds, w.Id)
 	}
 
-	allWfStagesDetail, err := impl.workFlowStageStatusService.GetCiWorkflowStagesByWorkflowIds(workflowIds)
+	allWfStagesDetail, err := impl.workFlowStageStatusService.GetWorkflowStagesByWorkflowIdsAndWfType(workflowIds, bean2.CI_WORKFLOW_TYPE.String())
 	if err != nil {
 		impl.Logger.Errorw("error in fetching allWfStagesDetail", "err", err, "workflowIds", workflowIds)
 		return nil, err
@@ -793,7 +793,7 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 		impl.ciWorkflowRepository.MigrateIsArtifactUploaded(workflow.Id, ciArtifact.IsArtifactUploaded)
 		isArtifactUploaded = ciArtifact.IsArtifactUploaded
 	}
-	wfStagesDetail, err := impl.workFlowStageStatusService.GetCiWorkflowStagesByWorkflowIds([]int{workflow.Id})
+	wfStagesDetail, err := impl.workFlowStageStatusService.GetWorkflowStagesByWorkflowIdsAndWfType([]int{workflow.Id}, bean2.CI_WORKFLOW_TYPE.String())
 	if err != nil {
 		impl.Logger.Errorw("error in fetching allWfStagesDetail", "err", err, "workflowId", workflow.Id)
 		return types.WorkflowResponse{}, err

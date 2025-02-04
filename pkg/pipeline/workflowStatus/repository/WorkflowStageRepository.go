@@ -1,7 +1,6 @@
 package repository
 
 import (
-	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -12,7 +11,6 @@ type WorkflowStageRepository interface {
 	SaveWorkflowStages(workflowStage []*WorkflowExecutionStage, tx *pg.Tx) ([]*WorkflowExecutionStage, error)
 	UpdateWorkflowStages(workflowStage []*WorkflowExecutionStage, tx *pg.Tx) ([]*WorkflowExecutionStage, error)
 	GetWorkflowStagesByWorkflowIdAndType(workflowId int, workflowType string) ([]*WorkflowExecutionStage, error)
-	GetCiWorkflowStagesByWorkflowIds(wfIds []int) ([]*WorkflowExecutionStage, error)
 	GetWorkflowStagesByWorkflowIdAndWtype(wfId int, wfType string) ([]*WorkflowExecutionStage, error)
 	GetWorkflowStagesByWorkflowIdsAndWtype(wfIds []int, wfType string) ([]*WorkflowExecutionStage, error)
 }
@@ -69,16 +67,6 @@ func (impl *WorkflowStageRepositoryImpl) UpdateWorkflowStages(workflowStages []*
 func (impl *WorkflowStageRepositoryImpl) GetWorkflowStagesByWorkflowIdAndType(workflowId int, workflowType string) ([]*WorkflowExecutionStage, error) {
 	var workflowStages []*WorkflowExecutionStage
 	err := impl.dbConnection.Model(&workflowStages).Where("workflow_id = ?", workflowId).Where("workflow_type = ?", workflowType).Order("id ASC").Select()
-	return workflowStages, err
-}
-
-func (impl *WorkflowStageRepositoryImpl) GetCiWorkflowStagesByWorkflowIds(wfIds []int) ([]*WorkflowExecutionStage, error) {
-	var workflowStages []*WorkflowExecutionStage
-	err := impl.dbConnection.Model(&workflowStages).Where("workflow_id in (?)", pg.In(wfIds)).Where("workflow_type = ?", bean2.CI_WORKFLOW_TYPE).Order("id ASC").Select()
-	if err != nil {
-		impl.logger.Errorw("error in fetching ci workflow stages", "err", err)
-		return workflowStages, err
-	}
 	return workflowStages, err
 }
 
