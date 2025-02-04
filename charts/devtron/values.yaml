@@ -82,7 +82,7 @@ components:
   devtron:
     registry: ""
     image: "hyperion:59884f08-280-29330"
-    cicdImage: "devtron:564fe991-434-28986"
+    cicdImage: "devtron:69603019-434-29388"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     serviceMonitor:
