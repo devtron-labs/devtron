@@ -6,18 +6,11 @@ import (
 	"fmt"
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/devtron-labs/common-lib/utils/k8s"
-	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
-	"github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
-	"github.com/devtron-labs/devtron/pkg/argoApplication/read/config"
-	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/util"
-	"go.uber.org/zap"
 	v12 "k8s.io/api/apps/v1"
 	"strings"
 	"time"
@@ -28,25 +21,11 @@ type ArgoApplicationServiceExtendedImpl struct {
 	acdClientWrapper argocdServer.ArgoClientWrapperService
 }
 
-func NewArgoApplicationServiceExtendedServiceImpl(logger *zap.SugaredLogger,
-	clusterRepository clusterRepository.ClusterRepository,
-	k8sUtil *k8s.K8sServiceImpl,
-	helmAppClient gRPC.HelmAppClient,
-	helmAppService service.HelmAppService,
-	k8sApplicationService application.K8sApplicationService,
-	argoApplicationConfigService config.ArgoApplicationConfigService,
+func NewArgoApplicationServiceExtendedServiceImpl(argoApplicationServiceImpl *ArgoApplicationServiceImpl,
 	acdClientWrapper argocdServer.ArgoClientWrapperService) *ArgoApplicationServiceExtendedImpl {
 	return &ArgoApplicationServiceExtendedImpl{
-		ArgoApplicationServiceImpl: &ArgoApplicationServiceImpl{
-			logger:                       logger,
-			clusterRepository:            clusterRepository,
-			k8sUtil:                      k8sUtil,
-			helmAppService:               helmAppService,
-			helmAppClient:                helmAppClient,
-			k8sApplicationService:        k8sApplicationService,
-			argoApplicationConfigService: argoApplicationConfigService,
-		},
-		acdClientWrapper: acdClientWrapper,
+		ArgoApplicationServiceImpl: argoApplicationServiceImpl,
+		acdClientWrapper:           acdClientWrapper,
 	}
 }
 
