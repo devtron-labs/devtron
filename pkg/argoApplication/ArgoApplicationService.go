@@ -148,7 +148,7 @@ func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*b
 		return nil, err
 	}
 	filteredAppList := make([]*bean.ArgoApplicationListDto, 0)
-	sliceUtil.Filter(filteredAppList, appListFinal, func(app *bean.ArgoApplicationListDto) bool {
+	filteredAppList = sliceUtil.Filter(filteredAppList, appListFinal, func(app *bean.ArgoApplicationListDto) bool {
 		return !slices.Contains(allDevtronManagedArgoAppNames, app.Name)
 	})
 	return filteredAppList, nil
