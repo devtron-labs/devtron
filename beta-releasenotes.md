@@ -5,6 +5,7 @@
 - fix: sql injection fixes (#6334)
 - fix: role group k8s permissions duplication (#6336)
 ## Enhancements
+- feat: sql script changes for operation audit  (#6342)
 ## Documentation
 ## Others
 - misc: common-lib change (#6347)
