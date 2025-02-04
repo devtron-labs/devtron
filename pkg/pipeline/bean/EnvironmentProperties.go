@@ -42,6 +42,7 @@ type EnvironmentProperties struct {
 	Description       string                      `json:"description" validate:"max=40"`
 	ClusterId         int                         `json:"clusterId"`
 	MergeStrategy     models.MergeStrategy        `json:"mergeStrategy"`
+	MigratedFrom      *bean.ExternalReleaseType   `json:"migratedFrom,omitempty"`
 }
 
 type EnvironmentOverrideCreateInternalDTO struct {
@@ -57,14 +58,13 @@ type EnvironmentOverrideCreateInternalDTO struct {
 }
 
 type EnvironmentPropertiesResponse struct {
-	EnvironmentConfig EnvironmentProperties     `json:"environmentConfig"`
-	GlobalConfig      json.RawMessage           `json:"globalConfig"`
-	AppMetrics        *bool                     `json:"appMetrics"`
-	IsOverride        bool                      `sql:"is_override"`
-	GlobalChartRefId  int                       `json:"globalChartRefId,omitempty"  validate:"number"`
-	ChartRefId        int                       `json:"chartRefId,omitempty"  validate:"number"`
-	Namespace         string                    `json:"namespace" validate:"name-space-component"`
-	Schema            json.RawMessage           `json:"schema"`
-	Readme            string                    `json:"readme"`
-	MigratedFrom      *bean.ExternalReleaseType `json:"migratedFrom,omitempty"`
+	EnvironmentConfig EnvironmentProperties `json:"environmentConfig"`
+	GlobalConfig      json.RawMessage       `json:"globalConfig"`
+	AppMetrics        *bool                 `json:"appMetrics"`
+	IsOverride        bool                  `sql:"is_override"`
+	GlobalChartRefId  int                   `json:"globalChartRefId,omitempty"  validate:"number"`
+	ChartRefId        int                   `json:"chartRefId,omitempty"  validate:"number"`
+	Namespace         string                `json:"namespace" validate:"name-space-component"`
+	Schema            json.RawMessage       `json:"schema"`
+	Readme            string                `json:"readme"`
 }

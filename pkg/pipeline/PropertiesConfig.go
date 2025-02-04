@@ -204,7 +204,7 @@ func (impl PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environm
 		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", appId, "envId", environmentId, "err", err)
 		return nil, err
 	}
-	environmentPropertiesResponse.MigratedFrom = externalReleaseType
+	environmentPropertiesResponse.EnvironmentConfig.MigratedFrom = externalReleaseType
 
 	return environmentPropertiesResponse, nil
 }
