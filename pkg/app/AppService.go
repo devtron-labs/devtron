@@ -452,8 +452,8 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValid(app *v1alpha1.Appl
 			impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", p.AppId, "environmentId", p.EnvironmentId, "err", err)
 			return isValid, pipeline, cdWfr, pipelineOverride, err
 		}
-		if dc.ReleaseConfiguration.ArgoCDSpec.GetApplicationObjectClusterId() == applicationClusterId &&
-			dc.ReleaseConfiguration.ArgoCDSpec.GetApplicationObjectNamespace() == app.Namespace {
+		if dc.GetApplicationObjectClusterId() == applicationClusterId &&
+			dc.GetApplicationObjectNamespace() == app.Namespace {
 			pipeline = p
 			break
 		}

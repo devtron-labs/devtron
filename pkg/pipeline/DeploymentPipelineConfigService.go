@@ -695,8 +695,8 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		if err != nil {
 			return response.SetUnknownErrorDetail(err)
 		}
-		if dc.ReleaseConfiguration.ArgoCDSpec.GetApplicationObjectClusterId() == applicationObjectClusterId &&
-			dc.ReleaseConfiguration.ArgoCDSpec.GetApplicationObjectNamespace() == applicationObjectNamespace {
+		if dc.GetApplicationObjectClusterId() == applicationObjectClusterId &&
+			dc.GetApplicationObjectNamespace() == applicationObjectNamespace {
 			return response.SetErrorDetail(pipelineConfigBean.ApplicationAlreadyPresent, pipelineConfigBean.PipelineAlreadyPresentMsg)
 		}
 	}

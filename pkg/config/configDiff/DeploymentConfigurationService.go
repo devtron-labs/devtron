@@ -278,7 +278,7 @@ func (impl *DeploymentConfigurationServiceImpl) GetManifest(ctx context.Context,
 
 	releaseName := app.AppName
 	if len(envName) > 0 {
-		releaseName = fmt.Sprintf("%s-%s", app.AppName, envName)
+		releaseName = util2.BuildDeployedAppName(app.AppName, envName)
 	}
 	installReleaseRequest := &gRPC.InstallReleaseRequest{
 		AppName:         app.AppName,

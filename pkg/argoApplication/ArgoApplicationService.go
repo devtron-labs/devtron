@@ -31,7 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/argoApplication/read/config"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/deployment/common/read"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/k8s/application"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s/bean"
 	"github.com/devtron-labs/devtron/util"
@@ -60,7 +60,7 @@ type ArgoApplicationServiceImpl struct {
 	helmAppService               service.HelmAppService
 	k8sApplicationService        application.K8sApplicationService
 	argoApplicationConfigService config.ArgoApplicationConfigService
-	deploymentConfigReadService  read.DeploymentConfigReadService
+	deploymentConfigService      common.DeploymentConfigService
 }
 
 func NewArgoApplicationServiceImpl(logger *zap.SugaredLogger,
@@ -70,7 +70,7 @@ func NewArgoApplicationServiceImpl(logger *zap.SugaredLogger,
 	helmAppService service.HelmAppService,
 	k8sApplicationService application.K8sApplicationService,
 	argoApplicationConfigService config.ArgoApplicationConfigService,
-	deploymentConfigReadService read.DeploymentConfigReadService) *ArgoApplicationServiceImpl {
+	deploymentConfigService common.DeploymentConfigService) *ArgoApplicationServiceImpl {
 	return &ArgoApplicationServiceImpl{
 		logger:                       logger,
 		clusterRepository:            clusterRepository,
@@ -79,7 +79,7 @@ func NewArgoApplicationServiceImpl(logger *zap.SugaredLogger,
 		helmAppClient:                helmAppClient,
 		k8sApplicationService:        k8sApplicationService,
 		argoApplicationConfigService: argoApplicationConfigService,
-		deploymentConfigReadService:  deploymentConfigReadService,
+		deploymentConfigService:      deploymentConfigService,
 	}
 
 }
@@ -142,7 +142,7 @@ func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*b
 	appListClusterIds := sliceUtil.NewSliceFromFuncExec(appListFinal, func(app *bean.ArgoApplicationListDto) int {
 		return app.ClusterId
 	})
-	allDevtronManagedArgoAppNames, err := impl.deploymentConfigReadService.GetAllArgoAppNamesByCluster(appListClusterIds)
+	allDevtronManagedArgoAppNames, err := impl.deploymentConfigService.GetAllArgoAppNamesByCluster(appListClusterIds)
 	if err != nil {
 		impl.logger.Errorw("error in getting all argo app names by cluster", "err", err, "clusterIds", appListClusterIds)
 		return nil, err

@@ -76,7 +76,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
-	read2 "github.com/devtron-labs/devtron/pkg/deployment/common/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
@@ -253,9 +252,6 @@ func InitializeApp() (*App, error) {
 
 		deploymentConfig.NewRepositoryImpl,
 		wire.Bind(new(deploymentConfig.Repository), new(*deploymentConfig.RepositoryImpl)),
-
-		read2.NewDeploymentConfigReadServiceImpl,
-		wire.Bind(new(read2.DeploymentConfigReadService), new(*read2.DeploymentConfigReadServiceImpl)),
 
 		common.NewDeploymentConfigServiceImpl,
 		wire.Bind(new(common.DeploymentConfigService), new(*common.DeploymentConfigServiceImpl)),

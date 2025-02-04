@@ -28,14 +28,6 @@ func (a *ArgoCDSpec) SetApplicationObjectClusterId(clusterId int) {
 	a.Metadata.ClusterId = clusterId
 }
 
-func (a *ArgoCDSpec) GetApplicationObjectClusterId() int {
-	return a.Metadata.ClusterId
-}
-
-func (a *ArgoCDSpec) GetApplicationObjectNamespace() string {
-	return a.Metadata.Namespace
-}
-
 type ApplicationMetadata struct {
 	ClusterId int    `json:"clusterId"`
 	Namespace string `json:"namespace"`
@@ -252,60 +244,68 @@ func (d *DeploymentConfig) SetRepoURL(repoURL string) *DeploymentConfig {
 	return d
 }
 
-func (c *DeploymentConfig) SetChartLocation(chartLocation string) {
-	if c.ReleaseConfiguration != nil && c.ReleaseConfiguration.ArgoCDSpec.Spec.Source != nil {
-		c.ReleaseConfiguration.ArgoCDSpec.Spec.Source.Chart = chartLocation
+func (d *DeploymentConfig) SetChartLocation(chartLocation string) {
+	if d.ReleaseConfiguration == nil || d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil {
+		return
 	}
+	d.ReleaseConfiguration.ArgoCDSpec.Spec.Source.Chart = chartLocation
 }
 
-func (c *DeploymentConfig) GetRevision() string {
-	if c.ReleaseConfiguration != nil && c.ReleaseConfiguration.ArgoCDSpec.Spec.Source != nil {
-		return c.ReleaseConfiguration.ArgoCDSpec.Spec.Source.TargetRevision
+func (d *DeploymentConfig) GetRevision() string {
+	if d.ReleaseConfiguration == nil || d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil {
+		return ""
 	}
-	return ""
+	return d.ReleaseConfiguration.ArgoCDSpec.Spec.Source.TargetRevision
 }
 
-func (c *DeploymentConfig) GetAcdAppName() string {
-	if c.ReleaseConfiguration != nil {
-		return c.ReleaseConfiguration.ArgoCDSpec.Metadata.Name
+func (d *DeploymentConfig) GetAcdAppName() string {
+	if d.ReleaseConfiguration == nil {
+		return ""
 	}
-	return ""
+	return d.ReleaseConfiguration.ArgoCDSpec.Metadata.Name
 }
 
-func (c *DeploymentConfig) GetValuesFileName() string {
-	if c.ReleaseConfiguration != nil && c.ReleaseConfiguration.ArgoCDSpec.Spec.Source != nil &&
-		c.ReleaseConfiguration.ArgoCDSpec.Spec.Source.Helm != nil {
-		return c.ReleaseConfiguration.ArgoCDSpec.Spec.Source.Helm.ValueFiles[0]
+func (d *DeploymentConfig) GetValuesFileName() string {
+	if d.ReleaseConfiguration == nil || d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil ||
+		d.ReleaseConfiguration.ArgoCDSpec.Spec.Source.Helm == nil {
+		return ""
 	}
-	return ""
+	return d.ReleaseConfiguration.ArgoCDSpec.Spec.Source.Helm.ValueFiles[0]
 }
 
-func (c *DeploymentConfig) GetDestinationClusterURL() string {
-	if c.ReleaseConfiguration != nil && c.ReleaseConfiguration.ArgoCDSpec.Spec.Destination != nil {
-		return c.ReleaseConfiguration.ArgoCDSpec.Spec.Destination.Server
+func (d *DeploymentConfig) GetDestinationClusterURL() string {
+	if d.ReleaseConfiguration == nil || d.ReleaseConfiguration.ArgoCDSpec.Spec.Destination == nil {
+		return ""
 	}
-	return ""
+	return d.ReleaseConfiguration.ArgoCDSpec.Spec.Destination.Server
 }
 
-func (c *DeploymentConfig) GetDestinationNamespace() string {
-	if c.ReleaseConfiguration != nil && c.ReleaseConfiguration.ArgoCDSpec.Spec.Destination != nil {
-		return c.ReleaseConfiguration.ArgoCDSpec.Spec.Destination.Namespace
+func (d *DeploymentConfig) GetDestinationNamespace() string {
+	if d.ReleaseConfiguration == nil || d.ReleaseConfiguration.ArgoCDSpec.Spec.Destination == nil {
+		return ""
 	}
-	return ""
+	return d.ReleaseConfiguration.ArgoCDSpec.Spec.Destination.Namespace
 }
 
-func (c *DeploymentConfig) GetApplicationObjectClusterId() int {
-	if c.ReleaseConfiguration != nil {
-		return c.ReleaseConfiguration.ArgoCDSpec.GetApplicationObjectClusterId()
+func (d *DeploymentConfig) SetApplicationObjectClusterId(id int) {
+	if d.ReleaseConfiguration == nil {
+		return
 	}
-	return 0
+	d.ReleaseConfiguration.ArgoCDSpec.SetApplicationObjectClusterId(id)
 }
 
-func (c *DeploymentConfig) SetApplicationObjectClusterId(id int) {
-	if c.ReleaseConfiguration != nil {
-		c.ReleaseConfiguration.ArgoCDSpec.SetApplicationObjectClusterId(id)
+func (d *DeploymentConfig) GetApplicationObjectClusterId() int {
+	if d.ReleaseConfiguration == nil {
+		return 0
 	}
-	return
+	return d.ReleaseConfiguration.ArgoCDSpec.Metadata.ClusterId
+}
+
+func (d *DeploymentConfig) GetApplicationObjectNamespace() string {
+	if d.ReleaseConfiguration == nil {
+		return ""
+	}
+	return d.ReleaseConfiguration.ArgoCDSpec.Metadata.Namespace
 }
 
 type UniqueDeploymentConfigIdentifier string
