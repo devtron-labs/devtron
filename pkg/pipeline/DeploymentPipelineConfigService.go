@@ -43,6 +43,8 @@ import (
 	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	bean6 "github.com/devtron-labs/devtron/pkg/chart/bean"
+	read3 "github.com/devtron-labs/devtron/pkg/chart/read"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	clutserBean "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
@@ -183,6 +185,7 @@ type CdPipelineConfigServiceImpl struct {
 	gitFactory                        *git.GitFactory
 	clusterReadService                read2.ClusterReadService
 	installedAppReadService           installedAppReader.InstalledAppReadService
+	chartReadService                  read3.ChartReadService
 }
 
 func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -214,7 +217,8 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 	chartTemplateService util.ChartTemplateService,
 	gitFactory *git.GitFactory,
 	clusterReadService read2.ClusterReadService,
-	installedAppReadService installedAppReader.InstalledAppReadService) *CdPipelineConfigServiceImpl {
+	installedAppReadService installedAppReader.InstalledAppReadService,
+	chartReadService read3.ChartReadService) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
 		logger:                            logger,
 		pipelineRepository:                pipelineRepository,
@@ -258,6 +262,7 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 		gitFactory:                        gitFactory,
 		clusterReadService:                clusterReadService,
 		installedAppReadService:           installedAppReadService,
+		chartReadService:                  chartReadService,
 	}
 }
 
@@ -756,7 +761,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 	}
 
 	applicationChartName, applicationChartVersion := helmChart.Metadata.Name, helmChart.Metadata.Version
-	latestChart, err := impl.chartService.FindLatestChartForAppByAppId(appId)
+	latestChart, err := impl.chartReadService.FindLatestChartForAppByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in finding latest chart by appId", "appId", appId, "err", err)
 		return response.SetUnknownErrorDetail(err)
@@ -2195,7 +2200,7 @@ func (impl *CdPipelineConfigServiceImpl) parseEnvOverrideCreateRequestForExterna
 		return nil, err
 	}
 	if errors3.Is(err, pg.ErrNoRows) {
-		chartCreateRequest := chart.TemplateRequest{
+		chartCreateRequest := bean6.TemplateRequest{
 			AppId:               app.Id,
 			ChartRefId:          chartRef.Id,
 			ValuesOverride:      []byte("{}"),

@@ -32,6 +32,7 @@ import (
 	app2 "github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/chart/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
@@ -78,6 +79,7 @@ type AppDeploymentTypeChangeManagerImpl struct {
 	workflowEventPublishService out.WorkflowEventPublishService
 	deploymentConfigService     common.DeploymentConfigService
 	ArgoClientWrapperService    argocdServer.ArgoClientWrapperService
+	chartReadService            read.ChartReadService
 }
 
 func NewAppDeploymentTypeChangeManagerImpl(
@@ -91,7 +93,8 @@ func NewAppDeploymentTypeChangeManagerImpl(
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	chartService chartService.ChartService,
 	workflowEventPublishService out.WorkflowEventPublishService,
-	deploymentConfigService common.DeploymentConfigService) *AppDeploymentTypeChangeManagerImpl {
+	deploymentConfigService common.DeploymentConfigService,
+	chartReadService read.ChartReadService) *AppDeploymentTypeChangeManagerImpl {
 	return &AppDeploymentTypeChangeManagerImpl{
 		logger:                      logger,
 		pipelineRepository:          pipelineRepository,
@@ -104,6 +107,7 @@ func NewAppDeploymentTypeChangeManagerImpl(
 		chartService:                chartService,
 		workflowEventPublishService: workflowEventPublishService,
 		deploymentConfigService:     deploymentConfigService,
+		chartReadService:            chartReadService,
 	}
 }
 
@@ -499,7 +503,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 					AcdRegisterErr, RepoURLUpdateErr,
 					createGitRepoErr, gitOpsRepoNotFound error
 				)
-				chart, chartServiceErr := impl.chartService.FindLatestChartForAppByAppId(pipeline.AppId)
+				chart, chartServiceErr := impl.chartReadService.FindLatestChartForAppByAppId(pipeline.AppId)
 				if chartServiceErr != nil {
 					impl.logger.Errorw("Error in fetching latest chart for pipeline", "err", err, "appId", pipeline.AppId)
 				}

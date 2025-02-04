@@ -34,6 +34,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	pipeline2 "github.com/devtron-labs/devtron/pkg/build/pipeline"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	bean5 "github.com/devtron-labs/devtron/pkg/chart/bean"
+	read3 "github.com/devtron-labs/devtron/pkg/chart/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -62,6 +64,7 @@ type AppCloneServiceImpl struct {
 	pipelineRepository      pipelineConfig.PipelineRepository
 	ciPipelineConfigService pipeline.CiPipelineConfigService
 	gitOpsConfigReadService config.GitOpsConfigReadService
+	chartReadService        read3.ChartReadService
 }
 
 func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
@@ -76,7 +79,8 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 	appRepository app2.AppRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciPipelineConfigService pipeline.CiPipelineConfigService,
-	gitOpsConfigReadService config.GitOpsConfigReadService) *AppCloneServiceImpl {
+	gitOpsConfigReadService config.GitOpsConfigReadService,
+	chartReadService read3.ChartReadService) *AppCloneServiceImpl {
 	return &AppCloneServiceImpl{
 		logger:                  logger,
 		pipelineBuilder:         pipelineBuilder,
@@ -93,6 +97,7 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 		pipelineRepository:      pipelineRepository,
 		ciPipelineConfigService: ciPipelineConfigService,
 		gitOpsConfigReadService: gitOpsConfigReadService,
+		chartReadService:        chartReadService,
 	}
 }
 
@@ -332,13 +337,13 @@ func (impl *AppCloneServiceImpl) CreateCiTemplate(oldAppId, newAppId int, userId
 	return res, err
 }
 
-func (impl *AppCloneServiceImpl) CreateDeploymentTemplate(oldAppId, newAppId int, userId int32, context context.Context) (*chart.TemplateRequest, error) {
-	refTemplate, err := impl.chartService.FindLatestChartForAppByAppId(oldAppId)
+func (impl *AppCloneServiceImpl) CreateDeploymentTemplate(oldAppId, newAppId int, userId int32, context context.Context) (*bean5.TemplateRequest, error) {
+	refTemplate, err := impl.chartReadService.FindLatestChartForAppByAppId(oldAppId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching ref app chart ", "app", oldAppId, "err", err)
 		return nil, err
 	}
-	templateReq := chart.TemplateRequest{
+	templateReq := bean5.TemplateRequest{
 		Id:                0,
 		AppId:             newAppId,
 		Latest:            refTemplate.Latest,
@@ -520,7 +525,7 @@ func (impl *AppCloneServiceImpl) createEnvOverride(oldAppId, newAppId int, userI
 		createResp, err := impl.propertiesConfigService.CreateEnvironmentProperties(newAppId, envPropertiesReq)
 		if err != nil {
 			if err.Error() == bean2.NOCHARTEXIST {
-				templateRequest := chart.TemplateRequest{
+				templateRequest := bean5.TemplateRequest{
 					AppId:             newAppId,
 					ChartRefId:        envPropertiesReq.ChartRefId,
 					ValuesOverride:    []byte("{}"),

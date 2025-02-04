@@ -31,6 +31,7 @@ import (
 	repository6 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	read2 "github.com/devtron-labs/devtron/pkg/chart/read"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/common/read"
@@ -149,6 +150,7 @@ type CiCdPipelineOrchestratorImpl struct {
 	deploymentConfigService       common.DeploymentConfigService
 	deploymentConfigReadService   read.DeploymentConfigReadService
 	workflowCacheConfig           types.WorkflowCacheConfig
+	chartReadService              read2.ChartReadService
 }
 
 func NewCiCdPipelineOrchestrator(
@@ -179,7 +181,8 @@ func NewCiCdPipelineOrchestrator(
 	chartService chart.ChartService, transactionManager sql.TransactionWrapper,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	deploymentConfigService common.DeploymentConfigService,
-	deploymentConfigReadService read.DeploymentConfigReadService) *CiCdPipelineOrchestratorImpl {
+	deploymentConfigReadService read.DeploymentConfigReadService,
+	chartReadService read2.ChartReadService) *CiCdPipelineOrchestratorImpl {
 	_, workflowCacheConfig, err := types.GetCiConfigWithWorkflowCacheConfig()
 	if err != nil {
 		logger.Errorw("Error in getting workflow cache config, continuing with default values", "err", err)
@@ -216,6 +219,7 @@ func NewCiCdPipelineOrchestrator(
 		deploymentConfigService:       deploymentConfigService,
 		deploymentConfigReadService:   deploymentConfigReadService,
 		workflowCacheConfig:           workflowCacheConfig,
+		chartReadService:              chartReadService,
 	}
 }
 
@@ -2014,7 +2018,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 		impl.logger.Errorw("error in fetching pipelineIdAndPrePostStageMapping", "err", err)
 		return nil, err
 	}
-	appIdToGitOpsConfiguredMap, err := impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(appIds)
+	appIdToGitOpsConfiguredMap, err := impl.chartReadService.IsGitOpsRepoConfiguredForDevtronApps(appIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching latest chart details for app by appId")
 		return nil, err

@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig/bean"
+	"github.com/devtron-labs/devtron/pkg/chart/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
@@ -51,6 +52,7 @@ type DevtronAppGitOpConfigServiceImpl struct {
 	gitOpsValidationService  validation.GitOpsValidationService
 	argoClientWrapperService argocdServer.ArgoClientWrapperService
 	deploymentConfigService  common.DeploymentConfigService
+	chartReadService         read.ChartReadService
 }
 
 func NewDevtronAppGitOpConfigServiceImpl(logger *zap.SugaredLogger,
@@ -59,7 +61,8 @@ func NewDevtronAppGitOpConfigServiceImpl(logger *zap.SugaredLogger,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	gitOpsValidationService validation.GitOpsValidationService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
-	deploymentConfigService common.DeploymentConfigService) *DevtronAppGitOpConfigServiceImpl {
+	deploymentConfigService common.DeploymentConfigService,
+	chartReadService read.ChartReadService) *DevtronAppGitOpConfigServiceImpl {
 	return &DevtronAppGitOpConfigServiceImpl{
 		logger:                   logger,
 		chartRepository:          chartRepository,
@@ -68,6 +71,7 @@ func NewDevtronAppGitOpConfigServiceImpl(logger *zap.SugaredLogger,
 		gitOpsValidationService:  gitOpsValidationService,
 		argoClientWrapperService: argoClientWrapperService,
 		deploymentConfigService:  deploymentConfigService,
+		chartReadService:         chartReadService,
 	}
 }
 
@@ -103,7 +107,7 @@ func (impl *DevtronAppGitOpConfigServiceImpl) SaveAppLevelGitOpsConfiguration(ap
 		return apiErr
 	}
 
-	appDeploymentTemplate, err := impl.chartService.FindLatestChartForAppByAppId(appGitOpsRequest.AppId)
+	appDeploymentTemplate, err := impl.chartReadService.FindLatestChartForAppByAppId(appGitOpsRequest.AppId)
 	if util.IsErrNoRows(err) {
 		impl.logger.Errorw("no base charts configured for app", "appId", appGitOpsRequest.AppId, "err", err)
 		apiErr := &util.ApiError{
@@ -173,7 +177,7 @@ func (impl *DevtronAppGitOpConfigServiceImpl) GetAppLevelGitOpsConfiguration(app
 		}
 		return nil, apiErr
 	}
-	appDeploymentTemplate, err := impl.chartService.FindLatestChartForAppByAppId(appId)
+	appDeploymentTemplate, err := impl.chartReadService.FindLatestChartForAppByAppId(appId)
 	if util.IsErrNoRows(err) {
 		impl.logger.Errorw("no base charts configured for app", "appId", appId, "err", err)
 		apiErr := &util.ApiError{

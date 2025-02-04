@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package chart
+package bean
 
 import (
 	"encoding/json"

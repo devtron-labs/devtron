@@ -27,6 +27,7 @@ import (
 	gitProviderRead "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
 	bean3 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
+	read5 "github.com/devtron-labs/devtron/pkg/chart/read"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
@@ -136,6 +137,7 @@ type PipelineConfigRestHandlerImpl struct {
 	ciCdPipelineOrchestrator            pipeline.CiCdPipelineOrchestrator
 	teamReadService                     read3.TeamReadService
 	environmentRepository               repository2.EnvironmentRepository
+	chartReadService                    read5.ChartReadService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -168,7 +170,8 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator,
 	gitProviderReadService gitProviderRead.GitProviderReadService,
 	teamReadService read3.TeamReadService,
-	EnvironmentRepository repository2.EnvironmentRepository) *PipelineConfigRestHandlerImpl {
+	EnvironmentRepository repository2.EnvironmentRepository,
+	chartReadService read5.ChartReadService) *PipelineConfigRestHandlerImpl {
 	envConfig := &PipelineRestHandlerEnvConfig{}
 	err := env.Parse(envConfig)
 	if err != nil {
@@ -209,6 +212,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		gitProviderReadService:              gitProviderReadService,
 		teamReadService:                     teamReadService,
 		environmentRepository:               EnvironmentRepository,
+		chartReadService:                    chartReadService,
 	}
 }
 

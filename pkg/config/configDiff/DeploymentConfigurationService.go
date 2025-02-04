@@ -18,6 +18,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	bean3 "github.com/devtron-labs/devtron/pkg/bean"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
+	read4 "github.com/devtron-labs/devtron/pkg/chart/read"
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/config/configDiff/adaptor"
 	bean2 "github.com/devtron-labs/devtron/pkg/config/configDiff/bean"
@@ -80,6 +81,7 @@ type DeploymentConfigurationServiceImpl struct {
 	k8sUtil                              k8sUtil.K8sService
 	mergeUtil                            util.MergeUtil
 	HelmAppReadService                   read3.HelmAppReadService
+	chartReadService                     read4.ChartReadService
 }
 
 func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
@@ -107,6 +109,7 @@ func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
 	k8sUtil k8sUtil.K8sService,
 	mergeUtil util.MergeUtil,
 	HelmAppReadService read3.HelmAppReadService,
+	chartReadService read4.ChartReadService,
 ) (*DeploymentConfigurationServiceImpl, error) {
 	deploymentConfigurationService := &DeploymentConfigurationServiceImpl{
 		logger:                               logger,
@@ -134,6 +137,7 @@ func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
 		k8sUtil:                              k8sUtil,
 		mergeUtil:                            mergeUtil,
 		HelmAppReadService:                   HelmAppReadService,
+		chartReadService:                     chartReadService,
 	}
 
 	return deploymentConfigurationService, nil
@@ -469,7 +473,7 @@ func (impl *DeploymentConfigurationServiceImpl) getConfiguredChartRef(envId int,
 		if envOverride != nil && envOverride.Chart != nil {
 			chartRefId = envOverride.Chart.ChartRefId
 		} else {
-			chart, err := impl.chartService.FindLatestChartForAppByAppId(appId)
+			chart, err := impl.chartReadService.FindLatestChartForAppByAppId(appId)
 			if err != nil && err != pg.ErrNoRows {
 				impl.logger.Errorw("error in fetching latest chart", "err", err)
 				return 0, nil
@@ -478,7 +482,7 @@ func (impl *DeploymentConfigurationServiceImpl) getConfiguredChartRef(envId int,
 			chartRefId = chart.ChartRefId
 		}
 	} else {
-		chart, err := impl.chartService.FindLatestChartForAppByAppId(appId)
+		chart, err := impl.chartReadService.FindLatestChartForAppByAppId(appId)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in fetching latest chart", "err", err)
 			return 0, nil
@@ -1207,7 +1211,7 @@ func (impl *DeploymentConfigurationServiceImpl) getPublishedPipelineStrategyConf
 }
 
 func (impl *DeploymentConfigurationServiceImpl) getBaseDeploymentTemplate(appId int) (*bean2.DeploymentTemplateMetadata, error) {
-	deploymentTemplateData, err := impl.chartService.FindLatestChartForAppByAppId(appId)
+	deploymentTemplateData, err := impl.chartReadService.FindLatestChartForAppByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in getting base deployment template for appId", "appId", appId, "err", err)
 		return nil, err

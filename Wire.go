@@ -128,6 +128,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bulkAction"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
+	read2 "github.com/devtron-labs/devtron/pkg/chart/read"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	"github.com/devtron-labs/devtron/pkg/config"
@@ -356,6 +357,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(gitOpsConfig.DevtronAppGitOpConfigService), new(*gitOpsConfig.DevtronAppGitOpConfigServiceImpl)),
 		chart.NewChartServiceImpl,
 		wire.Bind(new(chart.ChartService), new(*chart.ChartServiceImpl)),
+		read2.NewChartReadServiceImpl,
+		wire.Bind(new(read2.ChartReadService), new(*read2.ChartReadServiceImpl)),
 		bulkAction.NewBulkUpdateServiceImpl,
 		wire.Bind(new(bulkAction.BulkUpdateService), new(*bulkAction.BulkUpdateServiceImpl)),
 
