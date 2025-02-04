@@ -20,8 +20,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	bean3 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
@@ -31,6 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	"net/http"
 	"time"
 
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -195,6 +198,14 @@ func (impl PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environm
 		return nil, err
 	}
 	environmentPropertiesResponse.AppMetrics = &isAppMetricsEnabled
+
+	externalReleaseType, err := impl.deploymentConfigService.GetExternalReleaseType(appId, environmentId)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", appId, "envId", environmentId, "err", err)
+		return nil, err
+	}
+	environmentPropertiesResponse.MigratedFrom = externalReleaseType
+
 	return environmentPropertiesResponse, nil
 }
 
@@ -211,6 +222,18 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 		impl.logger.Errorw("create new chart set latest=false", "a", "b")
 		return nil, fmt.Errorf("NOCHARTEXIST")
 	}
+
+	externalReleaseType, err := impl.deploymentConfigService.GetExternalReleaseType(chart.AppId, environmentProperties.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", chart.AppId, "envId", environmentProperties.EnvironmentId, "err", err)
+		return nil, err
+	}
+	if externalReleaseType != nil && *externalReleaseType == bean3.ArgoApplication {
+		return nil, util.NewApiError(http.StatusConflict,
+			"chart version change is not allowed for external argo application",
+			"chart version change is not allowed for external argo application")
+	}
+
 	chart.GlobalOverride = string(environmentProperties.EnvOverrideValues)
 	appMetrics := false
 	if environmentProperties.AppMetrics != nil {

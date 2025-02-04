@@ -353,3 +353,21 @@ const (
 func (d DeploymentConfigCredentialType) String() string {
 	return string(d)
 }
+
+type ExternalReleaseType string
+
+const (
+	ArgoApplication ExternalReleaseType = "argoApplication"
+	HelmRelease     ExternalReleaseType = "helmRelease"
+)
+
+func (d *DeploymentConfig) GetMigratedFrom() (migratedFrom ExternalReleaseType, isLinked bool) {
+	if d.ReleaseMode == util.PIPELINE_RELEASE_MODE_LINK {
+		if d.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+			return ArgoApplication, true
+		} else if d.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
+			return HelmRelease, true
+		}
+	}
+	return "", false
+}

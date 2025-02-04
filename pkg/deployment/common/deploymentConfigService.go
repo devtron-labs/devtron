@@ -54,6 +54,7 @@ type DeploymentConfigService interface {
 	GetConfigsByAppIds(appIds []int) ([]*bean.DeploymentConfig, error)
 	GetAllConfigsWithCustomGitOpsURL() ([]*bean.DeploymentConfig, error)
 	UpdateChartLocationInDeploymentConfig(appId, envId, chartRefId int, userId int32, chartVersion string) error
+	GetExternalReleaseType(appId, environmentId int) (*bean.ExternalReleaseType, error)
 }
 
 type DeploymentConfigServiceImpl struct {
@@ -756,4 +757,17 @@ func (impl *DeploymentConfigServiceImpl) UpdateChartLocationInDeploymentConfig(a
 		}
 	}
 	return nil
+}
+
+func (impl *DeploymentConfigServiceImpl) GetExternalReleaseType(appId, environmentId int) (*bean.ExternalReleaseType, error) {
+	deploymentConfig, err := impl.GetConfigForDevtronApps(appId, environmentId)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", appId, "envId", environmentId, "err", err)
+		return nil, err
+	}
+	externalHelmReleaseType, isLinked := deploymentConfig.GetMigratedFrom()
+	if isLinked {
+		return &externalHelmReleaseType, nil
+	}
+	return nil, nil
 }

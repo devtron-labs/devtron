@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 )
 
 type EnvironmentProperties struct {
@@ -56,13 +57,14 @@ type EnvironmentOverrideCreateInternalDTO struct {
 }
 
 type EnvironmentPropertiesResponse struct {
-	EnvironmentConfig EnvironmentProperties `json:"environmentConfig"`
-	GlobalConfig      json.RawMessage       `json:"globalConfig"`
-	AppMetrics        *bool                 `json:"appMetrics"`
-	IsOverride        bool                  `sql:"is_override"`
-	GlobalChartRefId  int                   `json:"globalChartRefId,omitempty"  validate:"number"`
-	ChartRefId        int                   `json:"chartRefId,omitempty"  validate:"number"`
-	Namespace         string                `json:"namespace" validate:"name-space-component"`
-	Schema            json.RawMessage       `json:"schema"`
-	Readme            string                `json:"readme"`
+	EnvironmentConfig EnvironmentProperties     `json:"environmentConfig"`
+	GlobalConfig      json.RawMessage           `json:"globalConfig"`
+	AppMetrics        *bool                     `json:"appMetrics"`
+	IsOverride        bool                      `sql:"is_override"`
+	GlobalChartRefId  int                       `json:"globalChartRefId,omitempty"  validate:"number"`
+	ChartRefId        int                       `json:"chartRefId,omitempty"  validate:"number"`
+	Namespace         string                    `json:"namespace" validate:"name-space-component"`
+	Schema            json.RawMessage           `json:"schema"`
+	Readme            string                    `json:"readme"`
+	MigratedFrom      *bean.ExternalReleaseType `json:"migratedFrom,omitempty"`
 }
