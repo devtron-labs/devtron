@@ -456,6 +456,12 @@ func (impl *DeploymentConfigServiceImpl) parseEnvLevelReleaseConfigForDevtronApp
 			latestChart = envOverride.Chart
 		}
 
+		app, err := impl.appRepository.FindById(appId)
+		if err != nil {
+			impl.logger.Errorw("error in fetch app", "appId", appId, "err", err)
+			return nil, err
+		}
+
 		env, err := impl.environmentRepository.FindById(envId)
 		if err != nil {
 			impl.logger.Errorw("error in finding environment by id", "envId", envId, "err", err)
@@ -468,6 +474,7 @@ func (impl *DeploymentConfigServiceImpl) parseEnvLevelReleaseConfigForDevtronApp
 		}
 		releaseConfig.ArgoCDSpec = bean.ArgoCDSpec{
 			Metadata: bean.ApplicationMetadata{
+				Name:      util.BuildDeployedAppName(app.AppName, env.Name),
 				ClusterId: bean2.DefaultClusterId,
 				Namespace: argocdServer.DevtronInstalationNs,
 			},
