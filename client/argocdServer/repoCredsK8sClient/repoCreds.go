@@ -573,7 +573,7 @@ func (impl *RepositoryCredsK8sClientImpl) DeleteChartRepository(argoK8sConfig *a
 		retryCount = retryCount + 1
 
 		var isFoundInArgoCdCm bool
-		cm, err := impl.K8sService.GetConfigMap(argoK8sConfig.AcdConfigMapName, argoK8sConfig.AcdConfigMapName, k8sClient)
+		cm, err := impl.K8sService.GetConfigMap(argoK8sConfig.AcdNamespace, argoK8sConfig.AcdConfigMapName, k8sClient)
 		if err != nil {
 			return err
 		}

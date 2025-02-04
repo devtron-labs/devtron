@@ -175,18 +175,18 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 		}
 	} else {
 		if shouldAddExistingCmCsInWorkflow {
-			workflowConfigMaps, workflowSecrets, err = impl.addExistingCmCsInWorkflowForCDStage(workflowRequest, workflowConfigMaps, workflowSecrets)
+			cdStageConfigMaps, cdStageSecrets, err := impl.addExistingCmCsInWorkflowForCDStage(workflowRequest)
 			if err != nil {
 				impl.Logger.Errorw("error occurred while adding existing cm/ cs", "err", err)
 				return bean3.WorkflowTemplate{}, err
 			}
-			cdStageConfigMaps, cdStageSecrets, err := impl.prepareCmCsForWorkflowTemplate(workflowRequest, workflowConfigMaps, workflowSecrets)
+			cdStageModifiedConfigMaps, cdStageModifiedSecrets, err := impl.prepareCmCsForWorkflowTemplate(workflowRequest, cdStageConfigMaps, cdStageSecrets)
 			if err != nil {
 				impl.Logger.Errorw("error occurred while preparing cd stage cm/ cs for workflow template", "err", err)
 				return bean3.WorkflowTemplate{}, err
 			}
-			workflowConfigMaps = append(workflowConfigMaps, cdStageConfigMaps...)
-			workflowSecrets = append(workflowSecrets, cdStageSecrets...)
+			workflowConfigMaps = append(workflowConfigMaps, cdStageModifiedConfigMaps...)
+			workflowSecrets = append(workflowSecrets, cdStageModifiedSecrets...)
 		}
 	}
 	// internally inducing BlobStorageCmName and BlobStorageSecretName for getting logs, caches and artifacts from
@@ -273,7 +273,9 @@ func (impl *WorkflowServiceImpl) appendGlobalCMCS(workflowRequest *types.Workflo
 	return workflowConfigMaps, workflowSecrets, nil
 }
 
-func (impl *WorkflowServiceImpl) addExistingCmCsInWorkflowForCDStage(workflowRequest *types.WorkflowRequest, workflowConfigMaps []bean.ConfigSecretMap, workflowSecrets []bean.ConfigSecretMap) ([]bean.ConfigSecretMap, []bean.ConfigSecretMap, error) {
+func (impl *WorkflowServiceImpl) addExistingCmCsInWorkflowForCDStage(workflowRequest *types.WorkflowRequest) ([]bean.ConfigSecretMap, []bean.ConfigSecretMap, error) {
+	workflowConfigMaps := make([]bean.ConfigSecretMap, 0)
+	workflowSecrets := make([]bean.ConfigSecretMap, 0)
 	existingConfigMap, existingSecrets, err := impl.configMapService.GetCmCsForPrePostStageTrigger(workflowRequest.Scope, workflowRequest.AppId, workflowRequest.EnvironmentId, false)
 	if err != nil {
 		impl.Logger.Errorw("failed to get configmap data", "err", err)
