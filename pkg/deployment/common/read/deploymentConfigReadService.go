@@ -9,13 +9,11 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/common/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"go.uber.org/zap"
 )
 
 type DeploymentConfigReadService interface {
 	GetDeploymentAppTypeForCDInBulk(pipelines []*pipelineConfig.Pipeline, appIdToGitOpsConfiguredMap map[int]bool) (map[int]*bean.DeploymentConfigMin, error)
-	GetAllArgoAppNamesByCluster(clusterIds []int) ([]string, error)
 }
 
 type DeploymentConfigReadServiceImpl struct {
@@ -73,21 +71,4 @@ func (impl *DeploymentConfigReadServiceImpl) GetDeploymentAppTypeForCDInBulk(pip
 		}
 	}
 	return resp, nil
-}
-
-func (impl *DeploymentConfigReadServiceImpl) GetAllArgoAppNamesByCluster(clusterIds []int) ([]string, error) {
-	allDevtronManagedArgoAppNames := make([]string, 0)
-	devtronArgoAppNames, err := impl.pipelineRepository.GetAllArgoAppNamesByCluster(clusterIds)
-	if err != nil {
-		impl.logger.Errorw("error while fetching argo app names", "clusterIds", clusterIds, "error", err)
-		return allDevtronManagedArgoAppNames, err
-	}
-	allDevtronManagedArgoAppNames = append(allDevtronManagedArgoAppNames, devtronArgoAppNames...)
-	chartStoreArgoAppNames, err := impl.installedAppReadServiceEA.GetAllArgoAppNamesByCluster(clusterIds)
-	if err != nil {
-		impl.logger.Errorw("error while fetching argo app names from chart store", "clusterIds", clusterIds, "error", err)
-		return allDevtronManagedArgoAppNames, err
-	}
-	allDevtronManagedArgoAppNames = append(allDevtronManagedArgoAppNames, chartStoreArgoAppNames...)
-	return sliceUtil.GetUniqueElements(allDevtronManagedArgoAppNames), nil
 }

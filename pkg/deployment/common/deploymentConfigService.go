@@ -36,6 +36,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/helper"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"github.com/go-pg/pg"
 	errors2 "github.com/juju/errors"
 	"go.uber.org/zap"
@@ -54,6 +55,7 @@ type DeploymentConfigService interface {
 	GetConfigsByAppIds(appIds []int) ([]*bean.DeploymentConfig, error)
 	GetAllConfigsWithCustomGitOpsURL() ([]*bean.DeploymentConfig, error)
 	UpdateChartLocationInDeploymentConfig(appId, envId, chartRefId int, userId int32, chartVersion string) error
+	GetAllArgoAppNamesByCluster(clusterIds []int) ([]string, error)
 }
 
 type DeploymentConfigServiceImpl struct {
@@ -756,4 +758,21 @@ func (impl *DeploymentConfigServiceImpl) UpdateChartLocationInDeploymentConfig(a
 		}
 	}
 	return nil
+}
+
+func (impl *DeploymentConfigServiceImpl) GetAllArgoAppNamesByCluster(clusterIds []int) ([]string, error) {
+	allDevtronManagedArgoAppNames := make([]string, 0)
+	devtronArgoAppNames, err := impl.pipelineRepository.GetAllArgoAppNamesByCluster(clusterIds)
+	if err != nil {
+		impl.logger.Errorw("error while fetching argo app names", "clusterIds", clusterIds, "error", err)
+		return allDevtronManagedArgoAppNames, err
+	}
+	allDevtronManagedArgoAppNames = append(allDevtronManagedArgoAppNames, devtronArgoAppNames...)
+	chartStoreArgoAppNames, err := impl.installedAppReadService.GetAllArgoAppNamesByCluster(clusterIds)
+	if err != nil {
+		impl.logger.Errorw("error while fetching argo app names from chart store", "clusterIds", clusterIds, "error", err)
+		return allDevtronManagedArgoAppNames, err
+	}
+	allDevtronManagedArgoAppNames = append(allDevtronManagedArgoAppNames, chartStoreArgoAppNames...)
+	return sliceUtil.GetUniqueElements(allDevtronManagedArgoAppNames), nil
 }
