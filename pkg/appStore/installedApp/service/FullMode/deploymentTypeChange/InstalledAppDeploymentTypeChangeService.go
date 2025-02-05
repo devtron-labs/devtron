@@ -38,6 +38,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
+	bean4 "github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
@@ -269,7 +270,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) AnnotateCRDsIfExist(ctx
 	query := &application.ResourcesQuery{
 		ApplicationName: &deploymentAppName,
 	}
-	resp, err := impl.argoApplicationService.ResourceTree(ctx, query)
+	resp, err := impl.argoApplicationService.ResourceTree(ctx, bean4.NewImperativeQueryRequest(query))
 	if err != nil {
 		impl.logger.Errorw("error in fetching resource tree", "err", err)
 		err = &util.ApiError{

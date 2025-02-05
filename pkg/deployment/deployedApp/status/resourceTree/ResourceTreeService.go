@@ -35,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
 	argoApplication2 "github.com/devtron-labs/devtron/pkg/argoApplication"
+	bean2 "github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
@@ -102,7 +103,14 @@ func (impl *ServiceImpl) FetchResourceTree(ctx context.Context, appId int, envId
 			ApplicationName: &cdPipeline.DeploymentAppName,
 		}
 		start := time.Now()
-		resp, err := impl.argoApplicationService.ResourceTree(ctx, query)
+		acdQueryRequest := bean2.NewImperativeQueryRequest(query)
+		if deploymentConfig.IsLinkedRelease() {
+			if argocdAppNamespace := deploymentConfig.GetApplicationObjectNamespace(); argocdAppNamespace != "" {
+				query.AppNamespace = &argocdAppNamespace
+			}
+			acdQueryRequest = bean2.NewDeclarativeQueryRequest(query, deploymentConfig.GetApplicationObjectClusterId())
+		}
+		resp, err := impl.argoApplicationService.ResourceTree(ctx, acdQueryRequest)
 		elapsed := time.Since(start)
 		impl.logger.Debugw("FetchAppDetailsV2, time elapsed in fetching application for environment ", "elapsed", elapsed, "appId", appId, "envId", envId)
 		if err != nil {

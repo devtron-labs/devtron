@@ -3,9 +3,8 @@ package read
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
-	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
+	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/common/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/util"
@@ -13,32 +12,26 @@ import (
 )
 
 type DeploymentConfigReadService interface {
-	GetDeploymentAppTypeForCDInBulk(pipelines []*pipelineConfig.Pipeline, appIdToGitOpsConfiguredMap map[int]bool) (map[int]*bean.DeploymentConfigMin, error)
+	GetDeploymentAppTypeForCDInBulk(pipelines []*bean2.CDPipelineMinConfig, appIdToGitOpsConfiguredMap map[int]bool) (map[int]*bean.DeploymentConfigMin, error)
 }
 
 type DeploymentConfigReadServiceImpl struct {
 	logger                      *zap.SugaredLogger
 	deploymentConfigRepository  deploymentConfig.Repository
-	pipelineRepository          pipelineConfig.PipelineRepository
-	installedAppReadServiceEA   installedAppReader.InstalledAppReadServiceEA
 	deploymentServiceTypeConfig *util.DeploymentServiceTypeConfig
 }
 
 func NewDeploymentConfigReadServiceImpl(logger *zap.SugaredLogger,
 	deploymentConfigRepository deploymentConfig.Repository,
-	pipelineRepository pipelineConfig.PipelineRepository,
-	installedAppReadServiceEA installedAppReader.InstalledAppReadServiceEA,
 	envVariables *util.EnvironmentVariables) *DeploymentConfigReadServiceImpl {
 	return &DeploymentConfigReadServiceImpl{
 		logger:                      logger,
 		deploymentConfigRepository:  deploymentConfigRepository,
-		pipelineRepository:          pipelineRepository,
-		installedAppReadServiceEA:   installedAppReadServiceEA,
 		deploymentServiceTypeConfig: envVariables.DeploymentServiceTypeConfig,
 	}
 }
 
-func (impl *DeploymentConfigReadServiceImpl) GetDeploymentAppTypeForCDInBulk(pipelines []*pipelineConfig.Pipeline, appIdToGitOpsConfiguredMap map[int]bool) (map[int]*bean.DeploymentConfigMin, error) {
+func (impl *DeploymentConfigReadServiceImpl) GetDeploymentAppTypeForCDInBulk(pipelines []*bean2.CDPipelineMinConfig, appIdToGitOpsConfiguredMap map[int]bool) (map[int]*bean.DeploymentConfigMin, error) {
 	resp := make(map[int]*bean.DeploymentConfigMin, len(pipelines)) //map of pipelineId and deploymentAppType
 	if impl.deploymentServiceTypeConfig.UseDeploymentConfigData {
 		appIdEnvIdMapping := make(map[int][]int, len(pipelines))

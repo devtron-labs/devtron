@@ -656,6 +656,23 @@ type CDPipelineConfigObject struct {
 	ReleaseMode string `json:"releaseMode" default:"create" validate:"oneof=link create"`
 }
 
+type CDPipelineMinConfig struct {
+	Id                         int
+	Name                       string
+	CiPipelineId               int
+	EnvironmentId              int
+	EnvironmentName            string
+	EnvironmentIdentifier      string
+	Namespace                  string
+	IsProdEnv                  bool
+	AppId                      int
+	AppName                    string
+	TeamId                     int
+	DeploymentAppDeleteRequest bool
+	DeploymentAppCreated       bool
+	DeploymentAppType          string
+}
+
 type CDPipelineAddType string
 
 const (

@@ -9,9 +9,11 @@ import (
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/util"
 	v12 "k8s.io/api/apps/v1"
+	"net/http"
 	"strings"
 	"time"
 )
@@ -32,76 +34,136 @@ func NewArgoApplicationServiceExtendedServiceImpl(argoApplicationServiceImpl *Ar
 func (c *ArgoApplicationServiceExtendedImpl) ListApplications(clusterIds []int) ([]*bean.ArgoApplicationListDto, error) {
 	return c.ArgoApplicationServiceImpl.ListApplications(clusterIds)
 }
+
 func (c *ArgoApplicationServiceExtendedImpl) HibernateArgoApplication(ctx context.Context, app *bean.ArgoAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
 	return c.ArgoApplicationServiceImpl.HibernateArgoApplication(ctx, app, hibernateRequest)
 }
+
 func (c *ArgoApplicationServiceExtendedImpl) UnHibernateArgoApplication(ctx context.Context, app *bean.ArgoAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
 	return c.ArgoApplicationServiceImpl.UnHibernateArgoApplication(ctx, app, hibernateRequest)
 }
 
-func (impl *ArgoApplicationServiceExtendedImpl) ResourceTree(ctxt context.Context, query *application2.ResourcesQuery) (*argoApplication.ResourceTreeResponse, error) {
-	//all the apps deployed via argo are fetching status from here
-	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutSlow)
-	defer cancel()
-
-	asc, conn, err := impl.acdClientWrapper.GetArgoClient(ctxt)
-	if err != nil {
-		impl.logger.Errorw("Error in GetArgoClient", "err", err)
-		return nil, err
-	}
-	defer util.Close(conn, impl.logger)
-	impl.logger.Debugw("GRPC_GET_RESOURCETREE", "req", query)
-	resp, err := asc.ResourceTree(ctx, query)
-	if err != nil {
-		impl.logger.Errorw("GRPC_GET_RESOURCETREE", "req", query, "err", err)
-		return nil, err
-	}
-	responses := impl.parseResult(resp, query, ctx, asc, err)
-	podMetadata, newReplicaSets := impl.buildPodMetadata(resp, responses)
-
-	appQuery := application2.ApplicationQuery{Name: query.ApplicationName}
-	app, err := asc.Watch(ctxt, &appQuery)
-	var conditions = make([]v1alpha1.ApplicationCondition, 0)
+func (c *ArgoApplicationServiceExtendedImpl) getArgoAppStatusMetaData(application *v1alpha1.Application,
+	resp *v1alpha1.ApplicationTree) ([]v1alpha1.ApplicationCondition, map[string]string, string, string) {
+	conditions := make([]v1alpha1.ApplicationCondition, 0)
 	resourcesSyncResultMap := make(map[string]string)
 	status := "Unknown"
 	hash := ""
+	if application != nil {
+		// https://github.com/argoproj/argo-cd/issues/11234 workaround
+		updateNodeHealthStatus(resp, application)
+		argoApplicationStatus := application.Status
+		status = string(argoApplicationStatus.Health.Status)
+		hash = argoApplicationStatus.Sync.Revision
+		conditions = argoApplicationStatus.Conditions
+		for _, condition := range conditions {
+			if condition.Type != v1alpha1.ApplicationConditionSharedResourceWarning {
+				status = "Degraded"
+			}
+		}
+		if argoApplicationStatus.OperationState != nil && argoApplicationStatus.OperationState.SyncResult != nil {
+			resourcesSyncResults := argoApplicationStatus.OperationState.SyncResult.Resources
+			for _, resourcesSyncResult := range resourcesSyncResults {
+				if resourcesSyncResult == nil {
+					continue
+				}
+				resourceIdentifier := fmt.Sprintf("%s/%s", resourcesSyncResult.Kind, resourcesSyncResult.Name)
+				resourcesSyncResultMap[resourceIdentifier] = resourcesSyncResult.Message
+			}
+		}
+		if status == "" {
+			status = "Unknown"
+		}
+	}
+	return conditions, resourcesSyncResultMap, status, hash
+}
+
+func (c *ArgoApplicationServiceExtendedImpl) getApplicationObjectWithK8sClient(ctxt context.Context,
+	acdQueryRequest *bean.AcdClientQueryRequest) (*v1alpha1.Application, error) {
+	var appNamespace, applicationName string
+	if acdQueryRequest.Query.AppNamespace == nil {
+		appNamespace = *acdQueryRequest.Query.AppNamespace
+	}
+	if acdQueryRequest.Query.ApplicationName == nil {
+		applicationName = *acdQueryRequest.Query.ApplicationName
+	}
+	application, err := c.acdClientWrapper.GetArgoAppByNameWithK8sClient(ctxt, acdQueryRequest.ClusterId, appNamespace, applicationName)
+	if err != nil {
+		c.logger.Errorw("error in fetching application", "acdQueryRequest", acdQueryRequest, "err", err)
+		return nil, err
+	}
+	applicationJSON, err := json.Marshal(application)
+	if err != nil {
+		c.logger.Errorw("error in marshalling application", "acdQueryRequest", acdQueryRequest, "err", err)
+		return nil, err
+	}
+	var argoApplicationSpec v1alpha1.Application
+	if err = json.Unmarshal(applicationJSON, &argoApplicationSpec); err != nil {
+		c.logger.Errorw("error in unmarshalling application", "acdQueryRequest", acdQueryRequest, "err", err)
+		return nil, err
+	}
+	return &argoApplicationSpec, nil
+}
+
+func (c *ArgoApplicationServiceExtendedImpl) getApplicationObjectWithAcdClient(ctxt context.Context,
+	asc application2.ApplicationServiceClient, acdQueryRequest *bean.AcdClientQueryRequest) *v1alpha1.Application {
+	appQuery := application2.ApplicationQuery{Name: acdQueryRequest.Query.ApplicationName, AppNamespace: acdQueryRequest.Query.AppNamespace}
+	app, _ := asc.Watch(ctxt, &appQuery)
 	if app != nil {
 		appResp, err := app.Recv()
 		if err == nil {
-			// https://github.com/argoproj/argo-cd/issues/11234 workaround
-			updateNodeHealthStatus(resp, appResp)
-			argoApplicationStatus := appResp.Application.Status
-			status = string(argoApplicationStatus.Health.Status)
-			hash = argoApplicationStatus.Sync.Revision
-			conditions = argoApplicationStatus.Conditions
-			for _, condition := range conditions {
-				if condition.Type != v1alpha1.ApplicationConditionSharedResourceWarning {
-					status = "Degraded"
-				}
-			}
-			if argoApplicationStatus.OperationState != nil && argoApplicationStatus.OperationState.SyncResult != nil {
-				resourcesSyncResults := argoApplicationStatus.OperationState.SyncResult.Resources
-				for _, resourcesSyncResult := range resourcesSyncResults {
-					if resourcesSyncResult == nil {
-						continue
-					}
-					resourceIdentifier := fmt.Sprintf("%s/%s", resourcesSyncResult.Kind, resourcesSyncResult.Name)
-					resourcesSyncResultMap[resourceIdentifier] = resourcesSyncResult.Message
-				}
-			}
-			if status == "" {
-				status = "Unknown"
-			}
+			return &appResp.Application
 		}
 	}
+	return nil
+}
+
+func (c *ArgoApplicationServiceExtendedImpl) getApplicationObject(ctxt context.Context,
+	asc application2.ApplicationServiceClient, acdQueryRequest *bean.AcdClientQueryRequest) *v1alpha1.Application {
+	if acdQueryRequest.Mode.IsDeclarative() {
+		argoApplicationSpec, err := c.getApplicationObjectWithK8sClient(ctxt, acdQueryRequest)
+		if err != nil {
+			c.logger.Errorw("error in fetching application", "acdQueryRequest", acdQueryRequest, "err", err)
+			return nil
+		}
+		return argoApplicationSpec
+	} else {
+		return c.getApplicationObjectWithAcdClient(ctxt, asc, acdQueryRequest)
+	}
+}
+
+func (c *ArgoApplicationServiceExtendedImpl) ResourceTree(ctx context.Context, acdQueryRequest *bean.AcdClientQueryRequest) (*argoApplication.ResourceTreeResponse, error) {
+	if acdQueryRequest == nil || acdQueryRequest.Query == nil {
+		return nil, util2.NewApiError(http.StatusInternalServerError, "something went wrong!", "invalid argo application query request")
+	}
+	//all the apps deployed via argo are fetching status from here
+	newCtx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutSlow)
+	defer cancel()
+
+	asc, conn, err := c.acdClientWrapper.GetArgoClient(ctx)
+	if err != nil {
+		c.logger.Errorw("Error in GetArgoClient", "err", err)
+		return nil, err
+	}
+	defer util.Close(conn, c.logger)
+	c.logger.Debugw("GRPC_GET_RESOURCETREE", "req", acdQueryRequest)
+	resp, err := asc.ResourceTree(newCtx, acdQueryRequest.Query)
+	if err != nil {
+		c.logger.Errorw("GRPC_GET_RESOURCETREE", "req", acdQueryRequest, "err", err)
+		return nil, err
+	}
+	responses := c.parseResult(resp, acdQueryRequest.Query, newCtx, asc, err)
+	podMetadata, newReplicaSets := c.buildPodMetadata(resp, responses)
+
+	conditions, resourcesSyncResultMap, status, hash := c.getArgoAppStatusMetaData(c.getApplicationObject(ctx, asc, acdQueryRequest), resp)
 	return &argoApplication.ResourceTreeResponse{
 		ApplicationTree:          resp,
+		PodMetadata:              podMetadata,
+		NewGenerationReplicaSets: newReplicaSets,
+		Conditions:               conditions,
+		ResourcesSyncResultMap:   resourcesSyncResultMap,
 		Status:                   status,
 		RevisionHash:             hash,
-		PodMetadata:              podMetadata,
-		Conditions:               conditions,
-		NewGenerationReplicaSets: newReplicaSets,
-		ResourcesSyncResultMap:   resourcesSyncResultMap,
 	}, err
 }
 
@@ -767,16 +829,16 @@ func updateMetadataOfDuplicatePods(podsMetadataFromPods []*argoApplication.PodMe
 }
 
 // fill the health status in node from app resources
-func updateNodeHealthStatus(resp *v1alpha1.ApplicationTree, appResp *v1alpha1.ApplicationWatchEvent) {
-	if resp == nil || len(resp.Nodes) == 0 || appResp == nil || len(appResp.Application.Status.Resources) == 0 {
-		return
+func updateNodeHealthStatus(resp *v1alpha1.ApplicationTree, application *v1alpha1.Application) *v1alpha1.ApplicationTree {
+	if resp == nil || len(resp.Nodes) == 0 || len(application.Status.Resources) == 0 {
+		return resp
 	}
 
 	for index, node := range resp.Nodes {
 		if node.Health != nil {
 			continue
 		}
-		for _, resource := range appResp.Application.Status.Resources {
+		for _, resource := range application.Status.Resources {
 			if node.Group != resource.Group || node.Version != resource.Version || node.Kind != resource.Kind ||
 				node.Name != resource.Name || node.Namespace != resource.Namespace {
 				continue
@@ -794,4 +856,5 @@ func updateNodeHealthStatus(resp *v1alpha1.ApplicationTree, appResp *v1alpha1.Ap
 			break
 		}
 	}
+	return resp
 }

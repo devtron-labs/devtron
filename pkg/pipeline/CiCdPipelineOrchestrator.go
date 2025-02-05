@@ -27,6 +27,7 @@ import (
 	"fmt"
 	constants2 "github.com/devtron-labs/devtron/internal/sql/constants"
 	attributesBean "github.com/devtron-labs/devtron/pkg/attributes/bean"
+	adapter2 "github.com/devtron-labs/devtron/pkg/bean/adapter"
 	common2 "github.com/devtron-labs/devtron/pkg/bean/common"
 	repository6 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
@@ -39,6 +40,7 @@ import (
 	constants3 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	util4 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"github.com/devtron-labs/devtron/pkg/plugin"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"golang.org/x/exp/slices"
 	"net/http"
 	"path"
@@ -2024,7 +2026,10 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 		return nil, err
 	}
 	pipelines := make([]*bean.CDPipelineConfigObject, 0, len(dbPipelines))
-	pipelineIdDeploymentTypeMap, err := impl.deploymentConfigReadService.GetDeploymentAppTypeForCDInBulk(dbPipelines, appIdToGitOpsConfiguredMap)
+	cdPipelineMinObjs := sliceUtil.NewSliceFromFuncExec(dbPipelines, func(dbPipeline *pipelineConfig.Pipeline) *bean.CDPipelineMinConfig {
+		return adapter2.NewCDPipelineMinConfigFromModel(dbPipeline)
+	})
+	pipelineIdDeploymentTypeMap, err := impl.deploymentConfigReadService.GetDeploymentAppTypeForCDInBulk(cdPipelineMinObjs, appIdToGitOpsConfiguredMap)
 	if err != nil {
 		impl.logger.Errorw("error, GetDeploymentAppTypeForCDInBulk", "pipelines", dbPipelines, "err", err)
 		return nil, err

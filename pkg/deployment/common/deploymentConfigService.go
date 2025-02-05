@@ -33,6 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/common/bean"
+	read2 "github.com/devtron-labs/devtron/pkg/deployment/common/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/helper"
 	"github.com/devtron-labs/devtron/util"
@@ -70,6 +71,7 @@ type DeploymentConfigServiceImpl struct {
 	envConfigOverrideService    read.EnvConfigOverrideService
 	environmentRepository       repository.EnvironmentRepository
 	chartRefRepository          chartRepoRepository.ChartRefRepository
+	deploymentConfigReadService read2.DeploymentConfigReadService
 }
 
 func NewDeploymentConfigServiceImpl(
@@ -83,6 +85,7 @@ func NewDeploymentConfigServiceImpl(
 	envConfigOverrideService read.EnvConfigOverrideService,
 	environmentRepository repository.EnvironmentRepository,
 	chartRefRepository chartRepoRepository.ChartRefRepository,
+	deploymentConfigReadService read2.DeploymentConfigReadService,
 ) *DeploymentConfigServiceImpl {
 
 	return &DeploymentConfigServiceImpl{
@@ -96,6 +99,7 @@ func NewDeploymentConfigServiceImpl(
 		envConfigOverrideService:    envConfigOverrideService,
 		environmentRepository:       environmentRepository,
 		chartRefRepository:          chartRefRepository,
+		deploymentConfigReadService: deploymentConfigReadService,
 	}
 }
 

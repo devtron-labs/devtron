@@ -17,6 +17,7 @@
 package bean
 
 import (
+	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -86,3 +87,35 @@ type ArgoAppIdentifier struct {
 	Namespace string `json:"namespace"`
 	AppName   string `json:"appName"`
 }
+
+type AcdClientQueryRequest struct {
+	Mode      ClientMode
+	Query     *application2.ResourcesQuery
+	ClusterId int
+}
+
+func NewDeclarativeQueryRequest(query *application2.ResourcesQuery, clusterId int) *AcdClientQueryRequest {
+	return &AcdClientQueryRequest{
+		Mode:      DeclarativeClient,
+		Query:     query,
+		ClusterId: clusterId,
+	}
+}
+
+func NewImperativeQueryRequest(query *application2.ResourcesQuery) *AcdClientQueryRequest {
+	return &AcdClientQueryRequest{
+		Mode:  ImperativeClient,
+		Query: query,
+	}
+}
+
+type ClientMode string
+
+func (c ClientMode) IsDeclarative() bool {
+	return c == DeclarativeClient
+}
+
+const (
+	ImperativeClient  ClientMode = "imperative"
+	DeclarativeClient ClientMode = "declarative"
+)
