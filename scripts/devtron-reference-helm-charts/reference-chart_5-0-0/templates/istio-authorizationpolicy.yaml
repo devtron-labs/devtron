@@ -3,7 +3,11 @@
 apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
 metadata:
+  {{- if .authorizationPolicy.name }}
+  name: {{ .authorizationPolicy.name }}
+  {{- else }}
   name: {{ template ".Chart.Name .fullname" $ }}
+  {{- end }}
   labels:
     app: {{ template ".Chart.Name .name" $ }}
     appId: {{ $.Values.app | quote }}

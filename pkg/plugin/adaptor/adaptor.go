@@ -8,12 +8,12 @@ import (
 
 func GetPluginParentMetadataDbObject(pluginDto *pluginBean.PluginParentMetadataDto, userId int32) *repository.PluginParentMetadata {
 	return repository.NewPluginParentMetadata().CreateAuditLog(userId).
-		WithBasicMetadata(pluginDto.Name, pluginDto.PluginIdentifier, pluginDto.Description, pluginDto.Icon, repository.PLUGIN_TYPE_SHARED)
+		WithBasicMetadata(pluginDto.Name, pluginDto.PluginIdentifier, pluginDto.Description, pluginDto.Icon, repository.PLUGIN_TYPE_SHARED, pluginDto.IsExposed)
 }
 
 func GetPluginVersionMetadataDbObject(pluginDto *pluginBean.PluginParentMetadataDto, userId int32) *repository.PluginMetadata {
 	versionDto := pluginDto.Versions.DetailedPluginVersionData[0]
-	return repository.NewPluginVersionMetadata().CreateAuditLog(userId).WithBasicMetadata(pluginDto.Name, versionDto.Description, versionDto.Version, versionDto.DocLink)
+	return repository.NewPluginVersionMetadata().CreateAuditLog(userId).WithBasicMetadata(pluginDto.Name, versionDto.Description, versionDto.Version, versionDto.DocLink, versionDto.IsExposed)
 }
 
 func GetPluginStepDbObject(pluginStepDto *pluginBean.PluginStepsDto, pluginVersionMetadataId int, userId int32) *repository.PluginStep {

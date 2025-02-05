@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2020-2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package common
 
 import (
@@ -18,6 +34,7 @@ import (
 
 type DeploymentConfigService interface {
 	CreateOrUpdateConfig(tx *pg.Tx, config *bean.DeploymentConfig, userId int32) (*bean.DeploymentConfig, error)
+	CreateOrUpdateConfigInBulk(tx *pg.Tx, configToBeCreated, configToBeUpdated []*bean.DeploymentConfig, userId int32) error
 	IsDeploymentConfigUsed() bool
 	GetConfigForDevtronApps(appId, envId int) (*bean.DeploymentConfig, error)
 	GetAndMigrateConfigIfAbsentForDevtronApps(appId, envId int) (*bean.DeploymentConfig, error)
@@ -27,6 +44,7 @@ type DeploymentConfigService interface {
 	GetAppLevelConfigForDevtronApp(appId int) (*bean.DeploymentConfig, error)
 	UpdateRepoUrlForAppAndEnvId(repoURL string, appId, envId int) error
 	GetDeploymentAppTypeForCDInBulk(pipelines []*pipelineConfig.Pipeline) (map[int]string, error)
+	GetConfigsByAppIds(appIds []int) ([]*bean.DeploymentConfig, error)
 }
 
 type DeploymentConfigServiceImpl struct {
@@ -88,6 +106,41 @@ func (impl *DeploymentConfigServiceImpl) CreateOrUpdateConfig(tx *pg.Tx, config 
 	}
 
 	return ConvertDeploymentConfigDbObjToDTO(newDBObj), nil
+}
+
+func (impl *DeploymentConfigServiceImpl) CreateOrUpdateConfigInBulk(tx *pg.Tx, configToBeCreated, configToBeUpdated []*bean.DeploymentConfig, userId int32) error {
+
+	dbObjCreate := make([]*deploymentConfig.DeploymentConfig, 0, len(configToBeCreated))
+	for i := range configToBeCreated {
+		dbObj := ConvertDeploymentConfigDTOToDbObj(configToBeCreated[i])
+		dbObj.AuditLog.CreateAuditLog(userId)
+		dbObjCreate = append(dbObjCreate, dbObj)
+	}
+
+	dbObjUpdate := make([]*deploymentConfig.DeploymentConfig, 0, len(configToBeUpdated))
+	for i := range configToBeUpdated {
+		dbObj := ConvertDeploymentConfigDTOToDbObj(configToBeUpdated[i])
+		dbObj.AuditLog.UpdateAuditLog(userId)
+		dbObjUpdate = append(dbObjUpdate, dbObj)
+	}
+
+	if len(dbObjCreate) > 0 {
+		_, err := impl.deploymentConfigRepository.SaveAll(tx, dbObjCreate)
+		if err != nil {
+			impl.logger.Errorw("error in saving deploymentConfig", "dbObjCreate", dbObjCreate, "err", err)
+			return err
+		}
+	}
+
+	if len(dbObjUpdate) > 0 {
+		_, err := impl.deploymentConfigRepository.UpdateAll(tx, dbObjUpdate)
+		if err != nil {
+			impl.logger.Errorw("error in updating deploymentConfig", "dbObjUpdate", dbObjUpdate, "err", err)
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (impl *DeploymentConfigServiceImpl) IsDeploymentConfigUsed() bool {
@@ -475,6 +528,22 @@ func (impl *DeploymentConfigServiceImpl) GetDeploymentAppTypeForCDInBulk(pipelin
 		if _, ok := resp[pipeline.Id]; !ok { //not found in map, either flag is disabled or config not migrated yet. Getting from old data
 			resp[pipeline.Id] = pipeline.DeploymentAppType
 		}
+	}
+	return resp, nil
+}
+
+func (impl *DeploymentConfigServiceImpl) GetConfigsByAppIds(appIds []int) ([]*bean.DeploymentConfig, error) {
+	if len(appIds) == 0 {
+		return nil, nil
+	}
+	configs, err := impl.deploymentConfigRepository.GetConfigByAppIds(appIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment config db object by appIds", "appIds", appIds, "err", err)
+		return nil, err
+	}
+	resp := make([]*bean.DeploymentConfig, 0, len(configs))
+	for _, config := range configs {
+		resp = append(resp, ConvertDeploymentConfigDbObjToDTO(config))
 	}
 	return resp, nil
 }

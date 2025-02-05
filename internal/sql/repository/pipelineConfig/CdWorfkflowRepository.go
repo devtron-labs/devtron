@@ -19,7 +19,6 @@ package pipelineConfig
 import (
 	"context"
 	"errors"
-	"fmt"
 	apiBean "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -539,10 +538,9 @@ func (impl *CdWorkflowRepositoryImpl) FindBasicWorkflowRunnerById(wfrId int) (*C
 
 func (impl *CdWorkflowRepositoryImpl) FindRetriedWorkflowCountByReferenceId(wfrId int) (int, error) {
 	retryCount := 0
-	query := fmt.Sprintf("select count(id) "+
-		"from cd_workflow_runner where ref_cd_workflow_runner_id = %v", wfrId)
+	query := "select count(id) from cd_workflow_runner where ref_cd_workflow_runner_id = ?"
 
-	_, err := impl.dbConnection.Query(&retryCount, query)
+	_, err := impl.dbConnection.Query(&retryCount, query, wfrId)
 	return retryCount, err
 }
 

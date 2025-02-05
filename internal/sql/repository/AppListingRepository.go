@@ -308,10 +308,10 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironmentV2(appListingFilter h
 
 	// if any pipeline found get the latest deployment time
 	if len(pipelineIds) > 0 {
-		query := impl.appListingRepositoryQueryBuilder.BuildAppListingQueryLastDeploymentTimeV2(pipelineIds)
+		query, queryParams := impl.appListingRepositoryQueryBuilder.BuildAppListingQueryLastDeploymentTimeV2(pipelineIds)
 		impl.Logger.Debugw("basic app detail query: ", query)
 		start := time.Now()
-		_, err := impl.dbConnection.Query(&lastDeployedTimeDTO, query)
+		_, err := impl.dbConnection.Query(&lastDeployedTimeDTO, query, queryParams...)
 		middleware.AppListingDuration.WithLabelValues("buildAppListingQueryLastDeploymentTime", "devtron").Observe(time.Since(start).Seconds())
 		if err != nil {
 			impl.Logger.Errorw("error in getting latest deployment time for given pipelines", "err", err, "pipelines", pipelineIds, "query", query)
