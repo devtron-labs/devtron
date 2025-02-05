@@ -91,7 +91,7 @@ func (c *ArgoApplicationServiceExtendedImpl) getApplicationObjectWithK8sClient(c
 	if acdQueryRequest.Query.ApplicationName == nil {
 		applicationName = *acdQueryRequest.Query.ApplicationName
 	}
-	application, err := c.acdClientWrapper.GetArgoAppByNameWithK8sClient(ctx, acdQueryRequest.ClusterId, appNamespace, applicationName)
+	application, err := c.acdClientWrapper.GetArgoAppByNameWithK8sClient(ctx, acdQueryRequest.ArgoAppClusterId, appNamespace, applicationName)
 	if err != nil {
 		c.logger.Errorw("error in fetching application", "acdQueryRequest", acdQueryRequest, "err", err)
 		return nil, err

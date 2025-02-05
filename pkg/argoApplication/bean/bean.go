@@ -89,16 +89,20 @@ type ArgoAppIdentifier struct {
 }
 
 type AcdClientQueryRequest struct {
-	Mode      ClientMode
-	Query     *application2.ResourcesQuery
-	ClusterId int
+	Mode             ClientMode
+	Query            *application2.ResourcesQuery
+	ArgoAppClusterId int
 }
 
-func NewDeclarativeQueryRequest(query *application2.ResourcesQuery, clusterId int) *AcdClientQueryRequest {
+func (a *AcdClientQueryRequest) WithArgoAppClusterId(clusterId int) *AcdClientQueryRequest {
+	a.ArgoAppClusterId = clusterId
+	return a
+}
+
+func NewDeclarativeQueryRequest(query *application2.ResourcesQuery) *AcdClientQueryRequest {
 	return &AcdClientQueryRequest{
-		Mode:      DeclarativeClient,
-		Query:     query,
-		ClusterId: clusterId,
+		Mode:  DeclarativeClient,
+		Query: query,
 	}
 }
 

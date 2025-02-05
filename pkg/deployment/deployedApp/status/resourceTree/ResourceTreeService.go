@@ -108,7 +108,8 @@ func (impl *ServiceImpl) FetchResourceTree(ctx context.Context, appId int, envId
 			if argocdAppNamespace := deploymentConfig.GetApplicationObjectNamespace(); argocdAppNamespace != "" {
 				query.AppNamespace = &argocdAppNamespace
 			}
-			acdQueryRequest = bean2.NewDeclarativeQueryRequest(query, deploymentConfig.GetApplicationObjectClusterId())
+			acdQueryRequest = bean2.NewDeclarativeQueryRequest(query).
+				WithArgoAppClusterId(deploymentConfig.GetApplicationObjectClusterId())
 		}
 		resp, err := impl.argoApplicationService.GetResourceTree(ctx, acdQueryRequest)
 		elapsed := time.Since(start)
