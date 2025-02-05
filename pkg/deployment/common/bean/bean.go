@@ -248,7 +248,7 @@ func (d *DeploymentConfig) SetChartLocation(chartLocation string) {
 	if d.ReleaseConfiguration == nil || d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil {
 		return
 	}
-	d.ReleaseConfiguration.ArgoCDSpec.Spec.Source.Chart = chartLocation
+	d.ReleaseConfiguration.ArgoCDSpec.Spec.Source.Path = chartLocation
 }
 
 func (d *DeploymentConfig) GetRevision() string {
