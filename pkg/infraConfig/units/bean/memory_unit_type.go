@@ -41,6 +41,8 @@ const (
 
 func (memoryUnitStr MemoryUnitStr) GetUnitSuffix() UnitType {
 	switch memoryUnitStr {
+	case MILLIBYTE:
+		return MilliByte
 	case BYTE:
 		return Byte
 	case KIBYTE:
