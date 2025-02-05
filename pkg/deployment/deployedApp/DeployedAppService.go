@@ -114,6 +114,7 @@ func (impl *DeployedAppServiceImpl) stopStartApp(ctx context.Context, stopReques
 		err = impl.setStopTemplate(stopRequest)
 		if err != nil {
 			impl.logger.Errorw("error in configuring stopTemplate stopStartApp", "stopRequest", stopRequest, "err", err)
+			return 0, err
 		}
 		overrideRequest.AdditionalOverride = json.RawMessage([]byte(stopRequest.StopPatch))
 		overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_STOP
