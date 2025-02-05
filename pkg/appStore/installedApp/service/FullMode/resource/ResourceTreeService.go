@@ -226,7 +226,7 @@ func (impl *InstalledAppResourceServiceImpl) fetchResourceTreeForACD(rctx contex
 	}
 	defer cancel()
 	start := time.Now()
-	resp, err := impl.argoApplicationService.ResourceTree(ctx, bean3.NewImperativeQueryRequest(query))
+	resp, err := impl.argoApplicationService.GetResourceTree(ctx, bean3.NewImperativeQueryRequest(query))
 	elapsed := time.Since(start)
 	impl.logger.Debugf("Time elapsed %s in fetching app-store installed application %s for environment %s", elapsed, deploymentAppName, envId)
 	if err != nil {

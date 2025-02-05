@@ -110,7 +110,7 @@ func (impl *ServiceImpl) FetchResourceTree(ctx context.Context, appId int, envId
 			}
 			acdQueryRequest = bean2.NewDeclarativeQueryRequest(query, deploymentConfig.GetApplicationObjectClusterId())
 		}
-		resp, err := impl.argoApplicationService.ResourceTree(ctx, acdQueryRequest)
+		resp, err := impl.argoApplicationService.GetResourceTree(ctx, acdQueryRequest)
 		elapsed := time.Since(start)
 		impl.logger.Debugw("FetchAppDetailsV2, time elapsed in fetching application for environment ", "elapsed", elapsed, "appId", appId, "envId", envId)
 		if err != nil {

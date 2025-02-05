@@ -270,7 +270,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) AnnotateCRDsIfExist(ctx
 	query := &application.ResourcesQuery{
 		ApplicationName: &deploymentAppName,
 	}
-	resp, err := impl.argoApplicationService.ResourceTree(ctx, bean4.NewImperativeQueryRequest(query))
+	resp, err := impl.argoApplicationService.GetResourceTree(ctx, bean4.NewImperativeQueryRequest(query))
 	if err != nil {
 		impl.logger.Errorw("error in fetching resource tree", "err", err)
 		err = &util.ApiError{

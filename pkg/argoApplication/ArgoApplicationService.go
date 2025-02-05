@@ -48,7 +48,7 @@ type ArgoApplicationService interface {
 
 	//FUll mode
 	// ResourceTree	returns the status for all Apps deployed via ArgoCd
-	ResourceTree(ctx context.Context, acdQueryRequest *bean.AcdClientQueryRequest) (*argoApplication.ResourceTreeResponse, error)
+	GetResourceTree(ctx context.Context, acdQueryRequest *bean.AcdClientQueryRequest) (*argoApplication.ResourceTreeResponse, error)
 }
 
 type ArgoApplicationServiceImpl struct {
@@ -229,6 +229,6 @@ func (impl *ArgoApplicationServiceImpl) UnHibernateArgoApplication(ctx context.C
 	return response, nil
 }
 
-func (impl *ArgoApplicationServiceImpl) ResourceTree(ctx context.Context, acdQueryRequest *bean.AcdClientQueryRequest) (*argoApplication.ResourceTreeResponse, error) {
+func (impl *ArgoApplicationServiceImpl) GetResourceTree(ctx context.Context, acdQueryRequest *bean.AcdClientQueryRequest) (*argoApplication.ResourceTreeResponse, error) {
 	return nil, util2.DefaultApiError().WithHttpStatusCode(http.StatusNotFound).WithInternalMessage(util.NotSupportedErr).WithUserMessage(util.NotSupportedErr)
 }

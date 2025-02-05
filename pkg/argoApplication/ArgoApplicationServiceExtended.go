@@ -43,15 +43,15 @@ func (c *ArgoApplicationServiceExtendedImpl) UnHibernateArgoApplication(ctx cont
 	return c.ArgoApplicationServiceImpl.UnHibernateArgoApplication(ctx, app, hibernateRequest)
 }
 
-func (c *ArgoApplicationServiceExtendedImpl) getArgoAppStatusMetaData(application *v1alpha1.Application,
-	resp *v1alpha1.ApplicationTree) ([]v1alpha1.ApplicationCondition, map[string]string, string, string) {
+func (c *ArgoApplicationServiceExtendedImpl) updateArgoAppStatusMetaDataInResourceTree(application *v1alpha1.Application,
+	resourceTreeResponse *argoApplication.ResourceTreeResponse) *argoApplication.ResourceTreeResponse {
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
 	resourcesSyncResultMap := make(map[string]string)
 	status := "Unknown"
 	hash := ""
 	if application != nil {
 		// https://github.com/argoproj/argo-cd/issues/11234 workaround
-		updateNodeHealthStatus(resp, application)
+		resourceTreeResponse.ApplicationTree = updateNodeHealthStatus(resourceTreeResponse.ApplicationTree, application)
 		argoApplicationStatus := application.Status
 		status = string(argoApplicationStatus.Health.Status)
 		hash = argoApplicationStatus.Sync.Revision
@@ -75,10 +75,14 @@ func (c *ArgoApplicationServiceExtendedImpl) getArgoAppStatusMetaData(applicatio
 			status = "Unknown"
 		}
 	}
-	return conditions, resourcesSyncResultMap, status, hash
+	resourceTreeResponse.Conditions = conditions
+	resourceTreeResponse.ResourcesSyncResultMap = resourcesSyncResultMap
+	resourceTreeResponse.Status = status
+	resourceTreeResponse.RevisionHash = hash
+	return resourceTreeResponse
 }
 
-func (c *ArgoApplicationServiceExtendedImpl) getApplicationObjectWithK8sClient(ctxt context.Context,
+func (c *ArgoApplicationServiceExtendedImpl) getApplicationObjectWithK8sClient(ctx context.Context,
 	acdQueryRequest *bean.AcdClientQueryRequest) (*v1alpha1.Application, error) {
 	var appNamespace, applicationName string
 	if acdQueryRequest.Query.AppNamespace == nil {
@@ -87,7 +91,7 @@ func (c *ArgoApplicationServiceExtendedImpl) getApplicationObjectWithK8sClient(c
 	if acdQueryRequest.Query.ApplicationName == nil {
 		applicationName = *acdQueryRequest.Query.ApplicationName
 	}
-	application, err := c.acdClientWrapper.GetArgoAppByNameWithK8sClient(ctxt, acdQueryRequest.ClusterId, appNamespace, applicationName)
+	application, err := c.acdClientWrapper.GetArgoAppByNameWithK8sClient(ctx, acdQueryRequest.ClusterId, appNamespace, applicationName)
 	if err != nil {
 		c.logger.Errorw("error in fetching application", "acdQueryRequest", acdQueryRequest, "err", err)
 		return nil, err
@@ -105,38 +109,40 @@ func (c *ArgoApplicationServiceExtendedImpl) getApplicationObjectWithK8sClient(c
 	return &argoApplicationSpec, nil
 }
 
-func (c *ArgoApplicationServiceExtendedImpl) getApplicationObjectWithAcdClient(ctxt context.Context,
-	asc application2.ApplicationServiceClient, acdQueryRequest *bean.AcdClientQueryRequest) *v1alpha1.Application {
+func (c *ArgoApplicationServiceExtendedImpl) getApplicationObjectWithAcdClient(ctx context.Context,
+	asc application2.ApplicationServiceClient, acdQueryRequest *bean.AcdClientQueryRequest) (*v1alpha1.Application, error) {
 	appQuery := application2.ApplicationQuery{Name: acdQueryRequest.Query.ApplicationName, AppNamespace: acdQueryRequest.Query.AppNamespace}
-	app, _ := asc.Watch(ctxt, &appQuery)
+	// TODO Asutosh: why not asc.Get(ctx, &appQuery) is used?
+	app, err := asc.Watch(ctx, &appQuery)
 	if app != nil {
-		appResp, err := app.Recv()
-		if err == nil {
-			return &appResp.Application
+		appResp, argoErr := app.Recv()
+		if argoErr == nil {
+			return &appResp.Application, nil
 		}
+		// TODO Asutosh: why argoErr is not handled?
 	}
-	return nil
+	return nil, err
 }
 
-func (c *ArgoApplicationServiceExtendedImpl) getApplicationObject(ctxt context.Context,
-	asc application2.ApplicationServiceClient, acdQueryRequest *bean.AcdClientQueryRequest) *v1alpha1.Application {
+func (c *ArgoApplicationServiceExtendedImpl) getApplicationObject(ctx context.Context,
+	asc application2.ApplicationServiceClient, acdQueryRequest *bean.AcdClientQueryRequest) (*v1alpha1.Application, error) {
 	if acdQueryRequest.Mode.IsDeclarative() {
-		argoApplicationSpec, err := c.getApplicationObjectWithK8sClient(ctxt, acdQueryRequest)
+		argoApplicationSpec, err := c.getApplicationObjectWithK8sClient(ctx, acdQueryRequest)
 		if err != nil {
 			c.logger.Errorw("error in fetching application", "acdQueryRequest", acdQueryRequest, "err", err)
-			return nil
+			return nil, err
 		}
-		return argoApplicationSpec
+		return argoApplicationSpec, nil
 	} else {
-		return c.getApplicationObjectWithAcdClient(ctxt, asc, acdQueryRequest)
+		return c.getApplicationObjectWithAcdClient(ctx, asc, acdQueryRequest)
 	}
 }
 
-func (c *ArgoApplicationServiceExtendedImpl) ResourceTree(ctx context.Context, acdQueryRequest *bean.AcdClientQueryRequest) (*argoApplication.ResourceTreeResponse, error) {
+func (c *ArgoApplicationServiceExtendedImpl) GetResourceTree(ctx context.Context, acdQueryRequest *bean.AcdClientQueryRequest) (*argoApplication.ResourceTreeResponse, error) {
 	if acdQueryRequest == nil || acdQueryRequest.Query == nil {
 		return nil, util2.NewApiError(http.StatusInternalServerError, "something went wrong!", "invalid argo application query request")
 	}
-	//all the apps deployed via argo are fetching status from here
+	// all the apps deployed via argo are fetching status from here
 	newCtx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutSlow)
 	defer cancel()
 
@@ -154,17 +160,14 @@ func (c *ArgoApplicationServiceExtendedImpl) ResourceTree(ctx context.Context, a
 	}
 	responses := c.parseResult(resp, acdQueryRequest.Query, newCtx, asc, err)
 	podMetadata, newReplicaSets := c.buildPodMetadata(resp, responses)
-
-	conditions, resourcesSyncResultMap, status, hash := c.getArgoAppStatusMetaData(c.getApplicationObject(ctx, asc, acdQueryRequest), resp)
-	return &argoApplication.ResourceTreeResponse{
+	applicationObj, err := c.getApplicationObject(ctx, asc, acdQueryRequest)
+	// TODO Asutosh: why error is not handled here?
+	resourceTreeResponse := &argoApplication.ResourceTreeResponse{
 		ApplicationTree:          resp,
 		PodMetadata:              podMetadata,
 		NewGenerationReplicaSets: newReplicaSets,
-		Conditions:               conditions,
-		ResourcesSyncResultMap:   resourcesSyncResultMap,
-		Status:                   status,
-		RevisionHash:             hash,
-	}, err
+	}
+	return c.updateArgoAppStatusMetaDataInResourceTree(applicationObj, resourceTreeResponse), err
 }
 
 func (impl *ArgoApplicationServiceImpl) parseResult(resp *v1alpha1.ApplicationTree, query *application2.ResourcesQuery, ctx context.Context, asc application2.ApplicationServiceClient, err error) []*argoApplication.Result {
@@ -830,7 +833,7 @@ func updateMetadataOfDuplicatePods(podsMetadataFromPods []*argoApplication.PodMe
 
 // fill the health status in node from app resources
 func updateNodeHealthStatus(resp *v1alpha1.ApplicationTree, application *v1alpha1.Application) *v1alpha1.ApplicationTree {
-	if resp == nil || len(resp.Nodes) == 0 || len(application.Status.Resources) == 0 {
+	if resp == nil || len(resp.Nodes) == 0 || application == nil || len(application.Status.Resources) == 0 {
 		return resp
 	}
 
