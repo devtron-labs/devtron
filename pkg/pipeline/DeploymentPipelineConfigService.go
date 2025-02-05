@@ -745,6 +745,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 
 	validateRequest := &validationBean.ValidateGitOpsRepoUrlRequest{
 		RequestedGitUrl: argoApplicationSpec.Spec.Source.RepoURL,
+		UseActiveGitOps: true, // oss only supports active gitops
 	}
 	sanitisedRepoUrl, err := impl.gitOpsValidationService.ValidateGitOpsRepoUrl(validateRequest)
 	if err != nil {

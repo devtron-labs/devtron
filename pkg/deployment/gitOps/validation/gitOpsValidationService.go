@@ -264,12 +264,16 @@ func (impl *GitOpsValidationServiceImpl) validateForGitOpsOrg(request *gitOpsBea
 	matchedGitopsConfig, err := impl.getMatchedGitopsConfig(request)
 	if err != nil {
 		impl.logger.Errorw("error in getting matched gitops config", "err", err, "request", request)
-		return "", err
+		errMsg := fmt.Sprintf("error in getting matched gitops config: %s", err.Error())
+		return "", util.NewApiError(http.StatusBadRequest, errMsg, errMsg).
+			WithCode(constants.InvalidGitOpsRepoUrlForPipeline)
 	}
 	desiredRepoUrl, gitErr := impl.getDesiredGitRepoUrl(request, matchedGitopsConfig)
 	if gitErr != nil {
 		impl.logger.Errorw("error in getting desired git repo url", "err", gitErr, "request", request)
-		return "", gitErr
+		errMsg := fmt.Sprintf("error in getting desired git repo url: %s", gitErr.Error())
+		return "", util.NewApiError(http.StatusBadRequest, errMsg, errMsg).
+			WithCode(constants.InvalidGitOpsRepoUrlForPipeline)
 	}
 	sanitiseGitRepoUrl := git.SanitiseCustomGitRepoURL(matchedGitopsConfig, request.RequestedGitUrl)
 	orgRepoUrl := strings.TrimSuffix(desiredRepoUrl, ".git")
