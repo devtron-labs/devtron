@@ -778,6 +778,7 @@ func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) pip
 		workflow.Image = wfr.CdWorkflow.CiArtifact.Image
 		workflow.PipelineId = wfr.CdWorkflow.PipelineId
 		workflow.CiArtifactId = wfr.CdWorkflow.CiArtifactId
+		// TODO: FIXME :- if wfr status is terminal then only migrate isArtifactUploaded flag.
 		isArtifactUploaded, isMigrationRequired := wfr.GetIsArtifactUploaded()
 		if isMigrationRequired {
 			// Migrate isArtifactUploaded. For old records, set isArtifactUploaded -> Uploaded

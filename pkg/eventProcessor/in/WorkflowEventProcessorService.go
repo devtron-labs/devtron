@@ -170,6 +170,9 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDStageCompleteEvent() error {
 			return
 		}
 		wfr.IsArtifactUploaded = cdStageCompleteEvent.IsArtifactUploaded
+		// currently, CD_STAGE_COMPLETE_TOPIC is published from ci-runner only for pre/post CD success or failure events.
+		// no other wfr status are sent other than these two.
+		// a check is in place for all terminal states to ensure future compatibility.
 		if !slices.Contains(cdWorkflowModelBean.WfrTerminalStatusList, wfr.Status) {
 			impl.logger.Debugw("event received from ci runner, updating workflow runner status as succeeded", "savedWorkflowRunnerId", wfr.Id, "oldStatus", wfr.Status, "podStatus", wfr.PodStatus)
 			if cdStageCompleteEvent.IsFailed {
@@ -182,11 +185,6 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDStageCompleteEvent() error {
 				impl.logger.Errorw("update cd-wf-runner failed for id ", "cdWfrId", wfr.Id, "err", err)
 				return
 			}
-
-			triggerContext := triggerBean.TriggerContext{
-				ReferenceId: pointer.String(msg.MsgId),
-			}
-			impl.handleCDStageCompleteEvent(triggerContext, cdStageCompleteEvent, wfr)
 		} else {
 			err = impl.cdWorkflowRunnerService.UpdateIsArtifactUploaded(wfr.Id, cdStageCompleteEvent.IsArtifactUploaded)
 			if err != nil {
@@ -194,6 +192,10 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDStageCompleteEvent() error {
 				return
 			}
 		}
+		triggerContext := triggerBean.TriggerContext{
+			ReferenceId: pointer.String(msg.MsgId),
+		}
+		impl.handleCDStageCompleteEvent(triggerContext, cdStageCompleteEvent, wfr)
 	}
 
 	// add required logging here
