@@ -144,6 +144,7 @@ type K8sService interface {
 	//below functions are exposed for K8sUtilExtended
 	GetRestConfigByClusterWithoutCustomTransport(clusterConfig *ClusterConfig) (*rest.Config, error)
 	OverrideRestConfigWithCustomTransport(restConfig *rest.Config) (*rest.Config, error)
+	CreateNsWithLabels(namespace string, labels map[string]string, client *v12.CoreV1Client) (ns *v1.Namespace, err error)
 	CreateNs(namespace string, client *v12.CoreV1Client) (ns *v1.Namespace, err error)
 }
 
@@ -299,12 +300,12 @@ func (impl *K8sServiceImpl) CreateNsIfNotExists(namespace string, clusterConfig 
 	}
 	ns, exists, err := impl.GetNsIfExists(namespace, v12Client)
 	if err != nil {
-		impl.logger.Errorw("error", "error", err, "clusterConfig", clusterConfig)
+		impl.logger.Errorw("error", "error", err)
 		return ns, false, err
 	}
 	if exists {
 		nsCreated = false
-		impl.logger.Infow("namesapce already exist")
+		impl.logger.Infow("namespace already exist", "namespace", namespace)
 		return ns, nsCreated, nil
 	}
 	impl.logger.Infow("ns not exists creating", "ns", namespace)
@@ -350,6 +351,17 @@ func (impl *K8sServiceImpl) GetNsIfExists(namespace string, client *v12.CoreV1Cl
 
 func (impl *K8sServiceImpl) CreateNs(namespace string, client *v12.CoreV1Client) (ns *v1.Namespace, err error) {
 	nsSpec := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
+	ns, err = client.Namespaces().Create(context.Background(), nsSpec, metav1.CreateOptions{})
+	if err != nil {
+		impl.logger.Errorw("error in creating ns", "err", err)
+		return nil, err
+	} else {
+		return ns, nil
+	}
+}
+
+func (impl *K8sServiceImpl) CreateNsWithLabels(namespace string, labels map[string]string, client *v12.CoreV1Client) (ns *v1.Namespace, err error) {
+	nsSpec := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace, Labels: labels}}
 	ns, err = client.Namespaces().Create(context.Background(), nsSpec, metav1.CreateOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in creating ns", "err", err)
