@@ -43,3 +43,7 @@ type StopAppRequest struct {
 	StopPatch                    string // for internal use only
 	IsHibernationPatchConfigured bool   //for internal use only
 }
+
+type HibernationPatchResponse struct {
+	IsHibernationPatchConfigured bool `json:"isHibernationPatchConfigured"`
+}
