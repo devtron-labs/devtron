@@ -403,7 +403,7 @@ func (impl *ChartRefServiceImpl) FetchCustomChartsInfo() ([]*bean.ChartDto, erro
 	for _, resultMetadata := range resultsMetadata {
 		chartsMetadata[resultMetadata.ChartName] = resultMetadata.ChartDescription
 	}
-	repo, err := impl.chartRefRepository.GetAllWithUserEmail()
+	repo, err := impl.chartRefRepository.GetAllChartsWithUserUploadedEmail()
 	if err != nil {
 		return nil, err
 	}

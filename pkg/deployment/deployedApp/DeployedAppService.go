@@ -105,7 +105,7 @@ func (impl *DeployedAppServiceImpl) stopStartApp(ctx context.Context, stopReques
 	if stopRequest.RequestType == bean.STOP {
 		err = impl.setStopTemplate(stopRequest)
 		if err != nil {
-			impl.logger.Errorw("error in StopStartApp", "err", err)
+			impl.logger.Errorw("error in stopStartApp", "stopRequest", stopRequest, "err", err)
 		}
 		overrideRequest.AdditionalOverride = json.RawMessage([]byte(stopRequest.StopPatch))
 		overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_STOP
@@ -155,7 +155,7 @@ func (impl *DeployedAppServiceImpl) setStopTemplate(stopRequest *bean.StopAppReq
 	if stopRequest.IsHibernationPatchConfigured {
 		stopTemplate, err := impl.getTemplate(stopRequest)
 		if err != nil {
-			impl.logger.Errorw("error in getting hibernation patch configuration", "err", err)
+			impl.logger.Errorw("error in getting hibernation patch configuration", "stopRequest", stopRequest, "err", err)
 			return err
 		}
 		stopRequest.StopPatch = stopTemplate
@@ -163,7 +163,7 @@ func (impl *DeployedAppServiceImpl) setStopTemplate(stopRequest *bean.StopAppReq
 	} else {
 		stopTemplate, err := impl.getTemplateDefault()
 		if err != nil {
-			impl.logger.Errorw("error in getting hibernation patch configuration", "err", err)
+			impl.logger.Errorw("error in getting hibernation patch configuration", "stopRequest", stopRequest, "err", err)
 			return err
 		}
 		stopRequest.StopPatch = stopTemplate

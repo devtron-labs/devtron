@@ -41,6 +41,10 @@ type ChartRef struct {
 	sql.AuditLog
 }
 
+type ChartRefExt struct {
+	ChartRef
+	EmailId string `sql:"email_id"`
+}
 type ChartRefMetaData struct {
 	tableName        struct{} `sql:"chart_ref_metadata" pg:",discard_unknown_columns"`
 	ChartName        string   `sql:"chart_name,pk"`
@@ -59,7 +63,7 @@ type ChartRefRepository interface {
 	FetchChart(name string) ([]*ChartRef, error)
 	FetchInfoOfChartConfiguredInApp(appId int) (*ChartRef, error)
 	FetchAllNonUserUploadedChartInfo() ([]*ChartRef, error)
-	GetAllWithUserEmail() ([]*ChartRef, error)
+	GetAllChartsWithUserUploadedEmail() ([]*ChartRefExt, error)
 }
 type ChartRefRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -173,14 +177,17 @@ func (impl ChartRefRepositoryImpl) FetchInfoOfChartConfiguredInApp(appId int) (*
 	return &repo, nil
 }
 
-func (impl ChartRefRepositoryImpl) GetAllWithUserEmail() ([]*ChartRef, error) {
-	var chartRefs []*ChartRef
+func (impl ChartRefRepositoryImpl) GetAllChartsWithUserUploadedEmail() ([]*ChartRefExt, error) {
+	var chartRefs []*ChartRefExt
 	err := impl.dbConnection.
-		Model(&chartRefs).
-		Column("chart_ref.id", "chart_ref.name", "chart_ref.chart_description", "chart_ref.version", "chart_ref.user_uploaded", "users.email_id"). // Include user email in the query
-		Join("JOIN users ON users.id = chart_ref.created_by"). // Join with users table
-		Where("chart_ref.active = ?", true). // Filter by active charts
-		Select()
+		Model().
+		Table("chart_ref").
+		Column("chart_ref.id", "chart_ref.name", "chart_ref.chart_description", "chart_ref.version", "chart_ref.user_uploaded"). // Include user email in the query
+		ColumnExpr("users.email_id AS email_id").
+		Join("INNER JOIN users").                  // Join with users table
+		JoinOn("users.id = chart_ref.created_by"). // Join with users table
+		Where("chart_ref.active = ?", true).       // Filter by active charts
+		Select(&chartRefs)
 	return chartRefs, err
 }
 
