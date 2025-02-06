@@ -565,24 +565,13 @@ func (handler *PipelineConfigRestHandlerImpl) GetCiPipeline(w http.ResponseWrite
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	ciConf, err := handler.getCiPipelineRespResolved(appId)
+	ciConf, err := handler.pipelineBuilder.GetCiPipelineRespResolved(appId)
 	if err != nil {
-		handler.Logger.Errorw("service err, GetCiPipeline", "err", err, "appId", appId)
+		handler.Logger.Errorw("service err, GetCiPipelineRespResolved", "appId", appId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
-}
-
-func (handler *PipelineConfigRestHandlerImpl) getCiPipelineRespResolved(appId int) (*bean.CiConfigRequest, error) {
-	ciConf, err := handler.pipelineBuilder.GetCiPipeline(appId)
-	if err != nil {
-		return nil, err
-	}
-	if ciConf == nil || ciConf.Id == 0 {
-		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no data found"}
-	}
-	return ciConf, err
 }
 
 func (handler *PipelineConfigRestHandlerImpl) GetExternalCi(w http.ResponseWriter, r *http.Request) {

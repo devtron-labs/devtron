@@ -55,6 +55,8 @@ import (
 )
 
 type CiPipelineConfigService interface {
+	// GetCiPipelineRespResolved : gets the ci pipeline get response after resolving empty data response as expected by FE
+	GetCiPipelineRespResolved(appId int) (*bean.CiConfigRequest, error)
 	//GetCiPipeline : retrieves CI pipeline configuration (CiConfigRequest) for a specific application (appId).
 	// It fetches CI pipeline data, including pipeline materials, scripts, and associated configurations.
 	// It returns a detailed CiConfigRequest.
@@ -509,6 +511,17 @@ func (impl *CiPipelineConfigServiceImpl) getCiTemplateVariables(appId int) (ciCo
 		ciConfig.DockerRegistry = dockerRegistry.Id
 	}
 	return ciConfig, err
+}
+
+func (impl *CiPipelineConfigServiceImpl) GetCiPipelineRespResolved(appId int) (*bean.CiConfigRequest, error) {
+	ciConf, err := impl.GetCiPipeline(appId)
+	if err != nil {
+		return nil, err
+	}
+	if ciConf == nil || ciConf.Id == 0 {
+		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no data found"}
+	}
+	return ciConf, err
 }
 
 func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfigRequest, err error) {
