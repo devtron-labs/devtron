@@ -102,7 +102,6 @@ import (
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository8 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
@@ -136,7 +135,6 @@ import (
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	deployment2 "github.com/devtron-labs/devtron/pkg/deployment"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
-	"github.com/devtron-labs/devtron/pkg/deployment/common/read"
 	git2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
@@ -939,15 +937,7 @@ func InitializeApp() (*App, error) {
 		cel.NewCELServiceImpl,
 		wire.Bind(new(cel.EvaluatorService), new(*cel.EvaluatorServiceImpl)),
 
-		deploymentConfig.NewRepositoryImpl,
-		wire.Bind(new(deploymentConfig.Repository), new(*deploymentConfig.RepositoryImpl)),
-
-		// TODO Asutosh: common wire set
-		read.NewDeploymentConfigReadServiceImpl,
-		wire.Bind(new(read.DeploymentConfigReadService), new(*read.DeploymentConfigReadServiceImpl)),
-
-		common.NewDeploymentConfigServiceImpl,
-		wire.Bind(new(common.DeploymentConfigService), new(*common.DeploymentConfigServiceImpl)),
+		common.WireSet,
 
 		repoCredsK8sClient.NewRepositoryCredsK8sClientImpl,
 		wire.Bind(new(repoCredsK8sClient.RepositoryCredsK8sClient), new(*repoCredsK8sClient.RepositoryCredsK8sClientImpl)),
