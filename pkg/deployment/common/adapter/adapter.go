@@ -34,6 +34,10 @@ func ConvertDeploymentConfigDTOToDbObj(config *bean.DeploymentConfig) (*deployme
 
 func ConvertDeploymentConfigDbObjToDTO(dbObj *deploymentConfig.DeploymentConfig) (*bean.DeploymentConfig, error) {
 
+	if dbObj == nil {
+		return nil, nil
+	}
+
 	var releaseConfig bean.ReleaseConfiguration
 
 	if len(dbObj.ReleaseConfig) != 0 {

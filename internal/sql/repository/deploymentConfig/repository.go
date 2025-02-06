@@ -64,7 +64,7 @@ type Repository interface {
 	GetByAppIdAndEnvIdEvenIfInactive(appId, envId int) (*DeploymentConfig, error)
 	UpdateRepoUrlByAppIdAndEnvId(repoUrl string, appId, envId int) error
 	GetConfigByAppIds(appIds []int) ([]*DeploymentConfig, error)
-	GetAllConfigsWithCustomGitOpsURL() ([]*DeploymentConfig, error)
+	GetAllConfigs() ([]*DeploymentConfig, error)
 }
 
 type RepositoryImpl struct {
@@ -208,7 +208,7 @@ func (impl *RepositoryImpl) GetConfigByAppIds(appIds []int) ([]*DeploymentConfig
 	return results, err
 }
 
-func (impl *RepositoryImpl) GetAllConfigsWithCustomGitOpsURL() ([]*DeploymentConfig, error) {
+func (impl *RepositoryImpl) GetAllConfigs() ([]*DeploymentConfig, error) {
 	result := make([]*DeploymentConfig, 0)
 	err := impl.dbConnection.Model(&result).
 		Where("active = ?", true).

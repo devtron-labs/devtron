@@ -54,10 +54,10 @@ type DeploymentConfigService interface {
 	GetAndMigrateConfigIfAbsentForHelmApp(appId, envId int) (*bean.DeploymentConfig, error)
 	UpdateRepoUrlForAppAndEnvId(repoURL string, appId, envId int) error
 	GetConfigsByAppIds(appIds []int) ([]*bean.DeploymentConfig, error)
-	GetAllConfigsWithCustomGitOpsURL() ([]*bean.DeploymentConfig, error)
 	UpdateChartLocationInDeploymentConfig(appId, envId, chartRefId int, userId int32, chartVersion string) error
 	GetAllArgoAppNamesByCluster(clusterIds []int) ([]string, error)
 	GetExternalReleaseType(appId, environmentId int) (*bean.ExternalReleaseType, error)
+	CheckIfURLAlreadyPresent(repoURL string) (bool, error)
 }
 
 type DeploymentConfigServiceImpl struct {
@@ -723,24 +723,6 @@ func (impl *DeploymentConfigServiceImpl) GetConfigsByAppIds(appIds []int) ([]*be
 	return resp, nil
 }
 
-func (impl *DeploymentConfigServiceImpl) GetAllConfigsWithCustomGitOpsURL() ([]*bean.DeploymentConfig, error) {
-	dbConfigs, err := impl.deploymentConfigRepository.GetAllConfigsWithCustomGitOpsURL()
-	if err != nil {
-		impl.logger.Errorw("error in getting all configs with custom gitops url", "err", err)
-		return nil, err
-	}
-	var configs []*bean.DeploymentConfig
-	for _, dbConfig := range dbConfigs {
-		config, err := adapter.ConvertDeploymentConfigDbObjToDTO(dbConfig)
-		if err != nil {
-			impl.logger.Error("error in converting dbObj to dto", "err", err)
-			return nil, err
-		}
-		configs = append(configs, config)
-	}
-	return configs, nil
-}
-
 func (impl *DeploymentConfigServiceImpl) UpdateChartLocationInDeploymentConfig(appId, envId, chartRefId int, userId int32, chartVersion string) error {
 	config, err := impl.GetConfigForDevtronApps(appId, envId)
 	if err != nil {
@@ -793,4 +775,38 @@ func (impl *DeploymentConfigServiceImpl) GetExternalReleaseType(appId, environme
 		return &externalHelmReleaseType, nil
 	}
 	return nil, nil
+}
+
+func (impl *DeploymentConfigServiceImpl) CheckIfURLAlreadyPresent(repoURL string) (bool, error) {
+	//TODO: optimisation
+	configs, err := impl.getAllConfigsWithCustomGitOpsURL()
+	if err != nil {
+		impl.logger.Errorw("error in getting all configs", "err", err)
+		return false, err
+	}
+	for _, dc := range configs {
+		if dc.GetRepoURL() == repoURL {
+			impl.logger.Warnw("repository is already in use for helm app", "repoUrl", repoURL)
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (impl *DeploymentConfigServiceImpl) getAllConfigsWithCustomGitOpsURL() ([]*bean.DeploymentConfig, error) {
+	dbConfigs, err := impl.deploymentConfigRepository.GetAllConfigs()
+	if err != nil {
+		impl.logger.Errorw("error in getting all configs with custom gitops url", "err", err)
+		return nil, err
+	}
+	var configs []*bean.DeploymentConfig
+	for _, dbConfig := range dbConfigs {
+		config, err := adapter.ConvertDeploymentConfigDbObjToDTO(dbConfig)
+		if err != nil {
+			impl.logger.Error("error in converting dbObj to dto", "err", err)
+			return nil, err
+		}
+		configs = append(configs, config)
+	}
+	return configs, nil
 }
