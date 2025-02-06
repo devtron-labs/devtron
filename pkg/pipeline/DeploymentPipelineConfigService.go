@@ -692,15 +692,9 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		return response.SetUnknownErrorDetail(err)
 	}
 
-	for _, p := range pipelines {
-		dc, err := impl.deploymentConfigService.GetConfigForDevtronApps(p.AppId, p.EnvironmentId)
-		if err != nil {
-			return response.SetUnknownErrorDetail(err)
-		}
-		if dc.GetApplicationObjectClusterId() == applicationObjectClusterId &&
-			dc.GetApplicationObjectNamespace() == applicationObjectNamespace {
-			return response.SetErrorDetail(pipelineConfigBean.ApplicationAlreadyPresent, pipelineConfigBean.PipelineAlreadyPresentMsg)
-		}
+	pipeline := impl.deploymentConfigService.FilterPipelinesByApplicationClusterIdAndNamespace(pipelines, applicationObjectClusterId, applicationObjectNamespace)
+	if pipeline.Id != 0 {
+		return response.SetErrorDetail(pipelineConfigBean.ApplicationAlreadyPresent, pipelineConfigBean.PipelineAlreadyPresentMsg)
 	}
 
 	installedApp, err := impl.installedAppReadService.GetInstalledAppByGitOpsAppName(acdAppName)

@@ -58,6 +58,7 @@ type DeploymentConfigService interface {
 	GetAllArgoAppNamesByCluster(clusterIds []int) ([]string, error)
 	GetExternalReleaseType(appId, environmentId int) (*bean.ExternalReleaseType, error)
 	CheckIfURLAlreadyPresent(repoURL string) (bool, error)
+	FilterPipelinesByApplicationClusterIdAndNamespace(pipelines []pipelineConfig.Pipeline, applicationObjectClusterId int, applicationObjectNamespace string) pipelineConfig.Pipeline
 }
 
 type DeploymentConfigServiceImpl struct {
@@ -809,4 +810,21 @@ func (impl *DeploymentConfigServiceImpl) getAllConfigsWithCustomGitOpsURL() ([]*
 		configs = append(configs, config)
 	}
 	return configs, nil
+}
+
+func (impl *DeploymentConfigServiceImpl) FilterPipelinesByApplicationClusterIdAndNamespace(pipelines []pipelineConfig.Pipeline, applicationObjectClusterId int, applicationObjectNamespace string) pipelineConfig.Pipeline {
+	pipeline := pipelineConfig.Pipeline{}
+	for _, p := range pipelines {
+		dc, err := impl.GetConfigForDevtronApps(p.AppId, p.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", p.AppId, "environmentId", p.EnvironmentId, "err", err)
+			return pipelineConfig.Pipeline{}
+		}
+		if dc.GetApplicationObjectClusterId() == applicationObjectClusterId &&
+			dc.GetApplicationObjectNamespace() == applicationObjectNamespace {
+			pipeline = p
+			break
+		}
+	}
+	return pipeline
 }

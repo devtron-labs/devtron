@@ -216,20 +216,8 @@ func (impl *DeployedApplicationEventProcessorImpl) updateArgoAppDeleteStatus(app
 		impl.logger.Errorw("error in fetching pipeline from Pipeline Repository", "err", err)
 		return err
 	}
-	var pipeline pipelineConfig.Pipeline
-	//TODO: verify/test this logic
-	for _, p := range pipelines {
-		dc, err := impl.DeploymentConfigService.GetConfigForDevtronApps(p.AppId, p.EnvironmentId)
-		if err != nil {
-			impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", p.AppId, "environmentId", p.EnvironmentId, "err", err)
-			return err
-		}
-		if dc.GetApplicationObjectClusterId() == applicationDetail.ClusterId &&
-			dc.GetApplicationObjectNamespace() == app.Namespace {
-			pipeline = p
-			break
-		}
-	}
+
+	pipeline := impl.DeploymentConfigService.FilterPipelinesByApplicationClusterIdAndNamespace(pipelines, applicationDetail.ClusterId, app.Namespace)
 
 	if pipeline.Deleted == true {
 		impl.logger.Errorw("invalid nats message, pipeline already deleted")
