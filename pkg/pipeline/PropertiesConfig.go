@@ -56,7 +56,7 @@ type PropertiesConfigService interface {
 
 	GetAppIdByChartEnvId(chartEnvId int) (*bean4.EnvConfigOverride, error)
 	GetLatestEnvironmentProperties(appId, environmentId int) (*bean.EnvironmentProperties, error)
-	ResetEnvironmentProperties(id, userId int) (bool, error)
+	ResetEnvironmentProperties(id int, userId int32) (bool, error)
 	CreateEnvironmentPropertiesWithNamespace(appId int, propertiesRequest *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error)
 
 	FetchEnvProperties(appId, envId, chartRefId int) (*bean4.EnvConfigOverride, error)
@@ -596,7 +596,7 @@ func (impl PropertiesConfigServiceImpl) GetLatestEnvironmentProperties(appId, en
 	return environmentProperties, nil
 }
 
-func (impl PropertiesConfigServiceImpl) ResetEnvironmentProperties(id, userId int) (bool, error) {
+func (impl PropertiesConfigServiceImpl) ResetEnvironmentProperties(id int, userId int32) (bool, error) {
 	envOverride, err := impl.envConfigOverrideReadService.GetByIdIncludingInactive(id)
 	if err != nil {
 		return false, err
@@ -618,7 +618,7 @@ func (impl PropertiesConfigServiceImpl) ResetEnvironmentProperties(id, userId in
 	}
 
 	chart, err := impl.chartRepo.FindLatestChartForAppByAppId(envOverride.Chart.AppId)
-	err = impl.deploymentConfigService.UpdateChartLocationInDeploymentConfig(envOverride.Chart.AppId, envOverride.TargetEnvironment, chart.ChartRefId, int32(userId), chart.ChartVersion)
+	err = impl.deploymentConfigService.UpdateChartLocationInDeploymentConfig(envOverride.Chart.AppId, envOverride.TargetEnvironment, chart.ChartRefId, userId, chart.ChartVersion)
 	if err != nil {
 		impl.logger.Errorw("error in UpdateChartLocationInDeploymentConfig", "appId", envOverride.Chart.AppId, "envId", envOverride.TargetEnvironment, "err", err)
 		return false, err
