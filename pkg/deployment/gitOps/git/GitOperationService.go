@@ -318,8 +318,8 @@ func (impl *GitOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(ctx context
 			return nil, "", err
 		}
 	}
-	acdAppName := globalUtil.BuildDeployedAppName(pushChartToGitRequest.AppName, pushChartToGitRequest.EnvName)
-	dir := filepath.Join(clonedDir, acdAppName)
+	gitOpsChartLocation := fmt.Sprintf("%s-%s", pushChartToGitRequest.AppName, pushChartToGitRequest.EnvName)
+	dir := filepath.Join(clonedDir, gitOpsChartLocation)
 	err := os.MkdirAll(dir, os.ModePerm)
 	if err != nil {
 		impl.logger.Errorw("error in making dir", "err", err)
@@ -347,7 +347,7 @@ func (impl *GitOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(ctx context
 		impl.logger.Warn("re-trying, taking pull and then push again")
 		err = impl.GitPull(clonedDir, pushChartToGitRequest.RepoURL, pushChartToGitRequest.TargetRevision)
 		if err != nil {
-			impl.logger.Errorw("error in git pull", "err", err, "appName", acdAppName)
+			impl.logger.Errorw("error in git pull", "err", err, "appName", gitOpsChartLocation)
 			return nil, "", err
 		}
 		err = dirCopy.Copy(pushChartToGitRequest.TempChartRefDir, dir)
@@ -363,7 +363,7 @@ func (impl *GitOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(ctx context
 	}
 	impl.logger.Debugw("template committed", "url", pushChartToGitRequest.RepoURL, "commit", commit)
 	defer impl.chartTemplateService.CleanDir(clonedDir)
-	return &commonBean.ChartGitAttribute{RepoUrl: pushChartToGitRequest.RepoURL, ChartLocation: acdAppName}, commit, err
+	return &commonBean.ChartGitAttribute{RepoUrl: pushChartToGitRequest.RepoURL, ChartLocation: gitOpsChartLocation}, commit, err
 }
 
 func (impl *GitOperationServiceImpl) GetClonedDir(ctx context.Context, chartDir, repoUrl, targetRevision string) (string, error) {

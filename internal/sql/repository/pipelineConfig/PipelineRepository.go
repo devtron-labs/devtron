@@ -92,6 +92,7 @@ type PipelineRepository interface {
 	GetByEnvOverrideId(envOverrideId int) ([]Pipeline, error)
 	GetByEnvOverrideIdAndEnvId(envOverrideId, envId int) (Pipeline, error)
 	FindActiveByAppIdAndEnvironmentId(appId int, environmentId int) (pipelines []*Pipeline, err error)
+	FindOneByAppIdAndEnvId(appId int, envId int) (*Pipeline, error)
 	UniqueAppEnvironmentPipelines() ([]*Pipeline, error)
 	FindByCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error)
 	FindByParentCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error)
@@ -272,6 +273,19 @@ func (impl *PipelineRepositoryImpl) FindActiveByAppIdAndEnvironmentId(appId int,
 		Where("environment_id = ? ", environmentId).
 		Select()
 	return pipelines, err
+}
+
+func (impl *PipelineRepositoryImpl) FindOneByAppIdAndEnvId(appId int, envId int) (*Pipeline, error) {
+	pipeline := Pipeline{}
+	err := impl.dbConnection.Model(&pipeline).
+		Column("pipeline.*").
+		Where("app_id = ?", appId).
+		Where("deleted = ?", false).
+		Where("environment_id = ? ", envId).
+		Order("id DESC").
+		Limit(1).
+		Select()
+	return &pipeline, err
 }
 
 func (impl *PipelineRepositoryImpl) FindActiveByAppIdAndEnvironmentIdV2() (pipelines []*Pipeline, err error) {

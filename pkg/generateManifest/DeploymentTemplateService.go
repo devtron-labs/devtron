@@ -319,6 +319,7 @@ func (impl DeploymentTemplateServiceImpl) setRequestMetadata(request *Deployment
 			// not returning the error as this will break the UX
 		}
 		request.PipelineName = cdPipeline.Name
+		request.DeploymentAppName = cdPipeline.DeploymentAppName
 	}
 
 	return *request
@@ -467,6 +468,10 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 		sanitizedK8sVersion = k8s2.StripPrereleaseFromK8sVersion(sanitizedK8sVersion)
 	}
 
+	releaseName := util2.BuildDeployedAppName(request.AppName, request.EnvName)
+	if len(request.DeploymentAppName) != 0 {
+		releaseName = request.DeploymentAppName
+	}
 	mergedValuesYaml := impl.patchReleaseAttributes(request, valuesYaml)
 	installReleaseRequest := &gRPC.InstallReleaseRequest{
 		AppName:         request.AppName,
@@ -476,7 +481,7 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 		K8SVersion:      sanitizedK8sVersion,
 		ChartRepository: ChartRepository,
 		ReleaseIdentifier: &gRPC.ReleaseIdentifier{
-			ReleaseName:      util2.BuildDeployedAppName(request.AppName, request.EnvName),
+			ReleaseName:      releaseName,
 			ReleaseNamespace: request.Namespace,
 		},
 		ChartContent: &gRPC.ChartContent{

@@ -3,6 +3,7 @@ package configDiff
 import (
 	"context"
 	"encoding/json"
+	errors2 "errors"
 	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	k8sUtil "github.com/devtron-labs/common-lib/utils/k8s"
@@ -216,6 +217,7 @@ func (impl *DeploymentConfigurationServiceImpl) GetManifest(ctx context.Context,
 		impl.logger.Errorw("error in finding app by id", "appId", appId, "err", err)
 		return nil, err
 	}
+	releaseName := app.AppName
 
 	refChart, chartInBytes, err := impl.getRefChartBytes(ctx, envId, appId, app)
 	if err != nil {
@@ -239,12 +241,25 @@ func (impl *DeploymentConfigurationServiceImpl) GetManifest(ctx context.Context,
 			impl.logger.Errorw("error in getting environment", "envId", envId, "err", err)
 			return nil, err
 		}
-		envName = environment.Name
-		scope.ClusterId = environment.ClusterId
-		scope.SystemMetadata.EnvironmentName = envName
-		scope.SystemMetadata.ClusterName = environment.Cluster.ClusterName
-		namespace = environment.Namespace
-		scope.SystemMetadata.Namespace = namespace
+		if environment != nil {
+			envName = environment.Name
+			scope.ClusterId = environment.ClusterId
+			scope.SystemMetadata.EnvironmentName = envName
+			scope.SystemMetadata.ClusterName = environment.Cluster.ClusterName
+			namespace = environment.Namespace
+			scope.SystemMetadata.Namespace = namespace
+			if len(envName) != 0 {
+				releaseName = util2.BuildDeployedAppName(app.AppName, envName)
+			}
+		}
+		pipelineModel, err := impl.pipelineRepository.FindOneByAppIdAndEnvId(appId, envId)
+		if err != nil && !errors2.Is(err, pg.ErrNoRows) {
+			impl.logger.Errorw("error in getting pipeline model", "appId", appId, "envId", envId, "err", err)
+			return nil, err
+		}
+		if pipelineModel != nil && len(pipelineModel.DeploymentAppName) != 0 {
+			releaseName = pipelineModel.DeploymentAppName
+		}
 	}
 
 	isSuperAdmin, err := util2.GetIsSuperAdminFromContext(ctx)
@@ -276,10 +291,6 @@ func (impl *DeploymentConfigurationServiceImpl) GetManifest(ctx context.Context,
 
 	sanitizedK8sVersion := k8sServerVersion.String()
 
-	releaseName := app.AppName
-	if len(envName) > 0 {
-		releaseName = util2.BuildDeployedAppName(app.AppName, envName)
-	}
 	installReleaseRequest := &gRPC.InstallReleaseRequest{
 		AppName:         app.AppName,
 		ChartName:       refChart.Name,

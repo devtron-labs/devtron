@@ -562,6 +562,7 @@ func BuildJobListingResponse(jobContainers []*AppView.JobListingContainer, JobsL
 	return result
 }
 
+// fetchACDAppStatus FIXME - Dead code here
 func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest FetchAppListingRequest, existingAppEnvContainers []*AppView.AppEnvironmentContainer) (map[string][]*AppView.AppEnvironmentContainer, error) {
 	appEnvMapping := make(map[string][]*AppView.AppEnvironmentContainer)
 	var appNames []string
