@@ -283,25 +283,26 @@ func (impl *WorkFlowStageStatusServiceImpl) updateWorkflowStagesToDevtronStatus(
 						updatedWfStatus = bean2.WORKFLOW_STAGE_STATUS_UNKNOWN.ToString()
 					}
 				}
-			}
-			if stage.StageName == bean2.WORKFLOW_PREPARATION && !stage.Status.IsTerminal() {
-				//assumption: once pod is running we don't internally do any extra operation which would call this function and simply update status accrording to kubewatch events
-				//that's why we are getting pod status as unknown because we don't explicity set pod status
-				//this is the case when our internal code has called to update status before actually scheduling pod
-				//update wf status as given in request, don't change that
-				updatedWfStatus = util.ComputeWorkflowStatus(currentWfDBstatus, wfStatus, "")
-				extractedStatus := adapter.ConvertStatusToDevtronStatus(wfStatus, wfMessage)
-				if extractedStatus.IsTerminal() {
-					stage.Status = extractedStatus
-					stage.EndTime = time.Now().Format(bean3.LayoutRFC3339)
-					if extractedStatus == bean2.WORKFLOW_STAGE_STATUS_TIMEOUT {
-						updatedWfStatus = cdWorkflow.WorkflowTimedOut
-					}
-					if extractedStatus == bean2.WORKFLOW_STAGE_STATUS_ABORTED {
-						updatedWfStatus = cdWorkflow.WorkflowCancel
+				if stage.StageName == bean2.WORKFLOW_PREPARATION && !stage.Status.IsTerminal() {
+					//assumption: once pod is running we don't internally do any extra operation which would call this function and simply update status accrording to kubewatch events
+					//that's why we are getting pod status as unknown because we don't explicity set pod status
+					//this is the case when our internal code has called to update status before actually scheduling pod
+					//update wf status as given in request, don't change that
+					updatedWfStatus = util.ComputeWorkflowStatus(currentWfDBstatus, wfStatus, "")
+					extractedStatus := adapter.ConvertStatusToDevtronStatus(wfStatus, wfMessage)
+					if extractedStatus.IsTerminal() {
+						stage.Status = extractedStatus
+						stage.EndTime = time.Now().Format(bean3.LayoutRFC3339)
+						if extractedStatus == bean2.WORKFLOW_STAGE_STATUS_TIMEOUT {
+							updatedWfStatus = cdWorkflow.WorkflowTimedOut
+						}
+						if extractedStatus == bean2.WORKFLOW_STAGE_STATUS_ABORTED {
+							updatedWfStatus = cdWorkflow.WorkflowCancel
+						}
 					}
 				}
 			}
+
 		}
 	}
 
