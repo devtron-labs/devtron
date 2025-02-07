@@ -1,13 +1,12 @@
 package cdPipeline
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging/read"
+	read2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	historyBean "github.com/devtron-labs/devtron/pkg/devtronResource/bean/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/history/bean"
 	"go.uber.org/zap"
 )
@@ -18,27 +17,25 @@ type DeploymentHistoryService interface {
 }
 
 type DeploymentHistoryServiceImpl struct {
-	logger                              *zap.SugaredLogger
-	cdHandler                           pipeline.CdHandler
-	imageTaggingReadService             read.ImageTaggingReadService
-	imageTaggingService                 imageTagging.ImageTaggingService
-	pipelineRepository                  pipelineConfig.PipelineRepository
-	deployedConfigurationHistoryService history.DeployedConfigurationHistoryService
+	logger                               *zap.SugaredLogger
+	cdHandler                            pipeline.CdHandler
+	imageTaggingReadService              read.ImageTaggingReadService
+	imageTaggingService                  imageTagging.ImageTaggingService
+	deploymentTemplateHistoryReadService read2.DeploymentTemplateHistoryReadService
 }
 
 func NewDeploymentHistoryServiceImpl(logger *zap.SugaredLogger,
 	cdHandler pipeline.CdHandler,
 	imageTaggingReadService read.ImageTaggingReadService,
 	imageTaggingService imageTagging.ImageTaggingService,
-	pipelineRepository pipelineConfig.PipelineRepository,
-	deployedConfigurationHistoryService history.DeployedConfigurationHistoryService) *DeploymentHistoryServiceImpl {
+	deploymentTemplateHistoryReadService read2.DeploymentTemplateHistoryReadService,
+) *DeploymentHistoryServiceImpl {
 	return &DeploymentHistoryServiceImpl{
-		logger:                              logger,
-		cdHandler:                           cdHandler,
-		imageTaggingReadService:             imageTaggingReadService,
-		imageTaggingService:                 imageTaggingService,
-		pipelineRepository:                  pipelineRepository,
-		deployedConfigurationHistoryService: deployedConfigurationHistoryService,
+		logger:                               logger,
+		cdHandler:                            cdHandler,
+		imageTaggingReadService:              imageTaggingReadService,
+		imageTaggingService:                  imageTaggingService,
+		deploymentTemplateHistoryReadService: deploymentTemplateHistoryReadService,
 	}
 }
 
@@ -69,7 +66,7 @@ func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistory(req *hi
 }
 
 func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistoryConfigList(req *historyBean.CdPipelineDeploymentHistoryConfigListReq) (resp []*bean2.DeployedHistoryComponentMetadataDto, err error) {
-	res, err := impl.deployedConfigurationHistoryService.GetDeployedHistoryComponentList(req.PipelineId, req.BaseConfigurationId, req.HistoryComponent, req.HistoryComponentName)
+	res, err := impl.deploymentTemplateHistoryReadService.GetDeployedHistoryComponentList(req.PipelineId, req.BaseConfigurationId, req.HistoryComponent, req.HistoryComponentName)
 	if err != nil {
 		impl.logger.Errorw("service err, GetDeployedHistoryComponentList", "err", err, "pipelineId", req.PipelineId)
 		return nil, err

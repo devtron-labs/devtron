@@ -58,6 +58,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	bean10 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/bean"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/publish"
@@ -114,64 +115,64 @@ type TriggerService interface {
 }
 
 type TriggerServiceImpl struct {
-	logger                              *zap.SugaredLogger
-	cdWorkflowCommonService             cd.CdWorkflowCommonService
-	gitOpsManifestPushService           publish.GitOpsPushService
-	gitOpsConfigReadService             config.GitOpsConfigReadService
-	argoK8sClient                       argocdServer.ArgoK8sClient
-	ACDConfig                           *argocdServer.ACDConfig
-	argoClientWrapperService            argocdServer.ArgoClientWrapperService
-	pipelineStatusTimelineService       status.PipelineStatusTimelineService
-	chartTemplateService                util.ChartTemplateService
-	eventFactory                        client.EventFactory
-	eventClient                         client.EventClient
-	globalEnvVariables                  *globalUtil.GlobalEnvVariables
-	workflowEventPublishService         out.WorkflowEventPublishService
-	manifestCreationService             manifest.ManifestCreationService
-	deployedConfigurationHistoryService history.DeployedConfigurationHistoryService
-	pipelineStageService                pipeline.PipelineStageService
-	globalPluginService                 plugin.GlobalPluginService
-	customTagService                    pipeline.CustomTagService
-	pluginInputVariableParser           pipeline.PluginInputVariableParser
-	prePostCdScriptHistoryService       history.PrePostCdScriptHistoryService
-	scopedVariableManager               variables.ScopedVariableCMCSManager
-	cdWorkflowService                   pipeline.WorkflowService
-	imageDigestPolicyService            imageDigestPolicy.ImageDigestPolicyService
-	userService                         user.UserService
-	gitSensorClient                     gitSensorClient.Client
-	config                              *types.CdConfig
-	helmAppService                      client2.HelmAppService
-	imageScanService                    security2.ImageScanService
-	enforcerUtil                        rbac.EnforcerUtil
-	userDeploymentRequestService        service.UserDeploymentRequestService
-	helmAppClient                       gRPC.HelmAppClient //TODO refactoring: use helm app service instead
-	appRepository                       appRepository.AppRepository
-	ciPipelineMaterialRepository        pipelineConfig.CiPipelineMaterialRepository
-	imageScanHistoryReadService         read2.ImageScanHistoryReadService
-	imageScanDeployInfoService          security2.ImageScanDeployInfoService
-	imageScanDeployInfoReadService      read2.ImageScanDeployInfoReadService
-	pipelineRepository                  pipelineConfig.PipelineRepository
-	pipelineOverrideRepository          chartConfig.PipelineOverrideRepository
-	manifestPushConfigRepository        repository.ManifestPushConfigRepository
-	chartRepository                     chartRepoRepository.ChartRepository
-	envRepository                       repository2.EnvironmentRepository
-	cdWorkflowRepository                pipelineConfig.CdWorkflowRepository
-	ciWorkflowRepository                pipelineConfig.CiWorkflowRepository
-	ciArtifactRepository                repository3.CiArtifactRepository
-	ciTemplateService                   pipeline2.CiTemplateReadService
-	gitMaterialReadService              read.GitMaterialReadService
-	appLabelRepository                  pipelineConfig.AppLabelRepository
-	ciPipelineRepository                pipelineConfig.CiPipelineRepository
-	appWorkflowRepository               appWorkflow.AppWorkflowRepository
-	dockerArtifactStoreRepository       repository4.DockerArtifactStoreRepository
-	K8sUtil                             *util5.K8sServiceImpl
-	transactionUtilImpl                 *sql.TransactionUtilImpl
-	deploymentConfigService             common.DeploymentConfigService
-	deploymentServiceTypeConfig         *globalUtil.DeploymentServiceTypeConfig
-	ciCdPipelineOrchestrator            pipeline.CiCdPipelineOrchestrator
-	gitOperationService                 git.GitOperationService
-	attributeService                    attributes.AttributesService
-	clusterRepository                   repository5.ClusterRepository
+	logger                           *zap.SugaredLogger
+	cdWorkflowCommonService          cd.CdWorkflowCommonService
+	gitOpsManifestPushService        publish.GitOpsPushService
+	gitOpsConfigReadService          config.GitOpsConfigReadService
+	argoK8sClient                    argocdServer.ArgoK8sClient
+	ACDConfig                        *argocdServer.ACDConfig
+	argoClientWrapperService         argocdServer.ArgoClientWrapperService
+	pipelineStatusTimelineService    status.PipelineStatusTimelineService
+	chartTemplateService             util.ChartTemplateService
+	eventFactory                     client.EventFactory
+	eventClient                      client.EventClient
+	globalEnvVariables               *globalUtil.GlobalEnvVariables
+	workflowEventPublishService      out.WorkflowEventPublishService
+	manifestCreationService          manifest.ManifestCreationService
+	pipelineStageService             pipeline.PipelineStageService
+	globalPluginService              plugin.GlobalPluginService
+	customTagService                 pipeline.CustomTagService
+	pluginInputVariableParser        pipeline.PluginInputVariableParser
+	prePostCdScriptHistoryService    history.PrePostCdScriptHistoryService
+	scopedVariableManager            variables.ScopedVariableCMCSManager
+	cdWorkflowService                pipeline.WorkflowService
+	imageDigestPolicyService         imageDigestPolicy.ImageDigestPolicyService
+	userService                      user.UserService
+	gitSensorClient                  gitSensorClient.Client
+	config                           *types.CdConfig
+	helmAppService                   client2.HelmAppService
+	imageScanService                 security2.ImageScanService
+	enforcerUtil                     rbac.EnforcerUtil
+	userDeploymentRequestService     service.UserDeploymentRequestService
+	helmAppClient                    gRPC.HelmAppClient //TODO refactoring: use helm app service instead
+	appRepository                    appRepository.AppRepository
+	ciPipelineMaterialRepository     pipelineConfig.CiPipelineMaterialRepository
+	imageScanHistoryReadService      read2.ImageScanHistoryReadService
+	imageScanDeployInfoService       security2.ImageScanDeployInfoService
+	imageScanDeployInfoReadService   read2.ImageScanDeployInfoReadService
+	pipelineRepository               pipelineConfig.PipelineRepository
+	pipelineOverrideRepository       chartConfig.PipelineOverrideRepository
+	manifestPushConfigRepository     repository.ManifestPushConfigRepository
+	chartRepository                  chartRepoRepository.ChartRepository
+	envRepository                    repository2.EnvironmentRepository
+	cdWorkflowRepository             pipelineConfig.CdWorkflowRepository
+	ciWorkflowRepository             pipelineConfig.CiWorkflowRepository
+	ciArtifactRepository             repository3.CiArtifactRepository
+	ciTemplateService                pipeline2.CiTemplateReadService
+	gitMaterialReadService           read.GitMaterialReadService
+	appLabelRepository               pipelineConfig.AppLabelRepository
+	ciPipelineRepository             pipelineConfig.CiPipelineRepository
+	appWorkflowRepository            appWorkflow.AppWorkflowRepository
+	dockerArtifactStoreRepository    repository4.DockerArtifactStoreRepository
+	K8sUtil                          *util5.K8sServiceImpl
+	transactionUtilImpl              *sql.TransactionUtilImpl
+	deploymentConfigService          common.DeploymentConfigService
+	deploymentServiceTypeConfig      *globalUtil.DeploymentServiceTypeConfig
+	ciCdPipelineOrchestrator         pipeline.CiCdPipelineOrchestrator
+	gitOperationService              git.GitOperationService
+	attributeService                 attributes.AttributesService
+	clusterRepository                repository5.ClusterRepository
+	deploymentTemplateHistoryService deploymentTemplate.DeploymentTemplateHistoryService
 }
 
 func NewTriggerServiceImpl(logger *zap.SugaredLogger,
@@ -185,7 +186,6 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 	chartTemplateService util.ChartTemplateService,
 	workflowEventPublishService out.WorkflowEventPublishService,
 	manifestCreationService manifest.ManifestCreationService,
-	deployedConfigurationHistoryService history.DeployedConfigurationHistoryService,
 	pipelineStageService pipeline.PipelineStageService,
 	globalPluginService plugin.GlobalPluginService,
 	customTagService pipeline.CustomTagService,
@@ -230,34 +230,34 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 	gitOperationService git.GitOperationService,
 	attributeService attributes.AttributesService,
 	clusterRepository repository5.ClusterRepository,
+	deploymentTemplateHistoryService deploymentTemplate.DeploymentTemplateHistoryService,
 ) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
-		logger:                              logger,
-		cdWorkflowCommonService:             cdWorkflowCommonService,
-		gitOpsManifestPushService:           gitOpsManifestPushService,
-		gitOpsConfigReadService:             gitOpsConfigReadService,
-		argoK8sClient:                       argoK8sClient,
-		ACDConfig:                           ACDConfig,
-		argoClientWrapperService:            argoClientWrapperService,
-		pipelineStatusTimelineService:       pipelineStatusTimelineService,
-		chartTemplateService:                chartTemplateService,
-		workflowEventPublishService:         workflowEventPublishService,
-		manifestCreationService:             manifestCreationService,
-		deployedConfigurationHistoryService: deployedConfigurationHistoryService,
-		pipelineStageService:                pipelineStageService,
-		globalPluginService:                 globalPluginService,
-		customTagService:                    customTagService,
-		pluginInputVariableParser:           pluginInputVariableParser,
-		prePostCdScriptHistoryService:       prePostCdScriptHistoryService,
-		scopedVariableManager:               scopedVariableManager,
-		cdWorkflowService:                   cdWorkflowService,
-		imageDigestPolicyService:            imageDigestPolicyService,
-		userService:                         userService,
-		gitSensorClient:                     gitSensorClient,
-		helmAppService:                      helmAppService,
-		enforcerUtil:                        enforcerUtil,
-		eventFactory:                        eventFactory,
-		eventClient:                         eventClient,
+		logger:                        logger,
+		cdWorkflowCommonService:       cdWorkflowCommonService,
+		gitOpsManifestPushService:     gitOpsManifestPushService,
+		gitOpsConfigReadService:       gitOpsConfigReadService,
+		argoK8sClient:                 argoK8sClient,
+		ACDConfig:                     ACDConfig,
+		argoClientWrapperService:      argoClientWrapperService,
+		pipelineStatusTimelineService: pipelineStatusTimelineService,
+		chartTemplateService:          chartTemplateService,
+		workflowEventPublishService:   workflowEventPublishService,
+		manifestCreationService:       manifestCreationService,
+		pipelineStageService:          pipelineStageService,
+		globalPluginService:           globalPluginService,
+		customTagService:              customTagService,
+		pluginInputVariableParser:     pluginInputVariableParser,
+		prePostCdScriptHistoryService: prePostCdScriptHistoryService,
+		scopedVariableManager:         scopedVariableManager,
+		cdWorkflowService:             cdWorkflowService,
+		imageDigestPolicyService:      imageDigestPolicyService,
+		userService:                   userService,
+		gitSensorClient:               gitSensorClient,
+		helmAppService:                helmAppService,
+		enforcerUtil:                  enforcerUtil,
+		eventFactory:                  eventFactory,
+		eventClient:                   eventClient,
 
 		globalEnvVariables:             envVariables.GlobalEnvVariables,
 		userDeploymentRequestService:   userDeploymentRequestService,
@@ -287,11 +287,12 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 
 		transactionUtilImpl: transactionUtilImpl,
 
-		deploymentConfigService:     deploymentConfigService,
-		deploymentServiceTypeConfig: envVariables.DeploymentServiceTypeConfig,
-		ciCdPipelineOrchestrator:    ciCdPipelineOrchestrator,
-		gitOperationService:         gitOperationService,
-		attributeService:            attributeService,
+		deploymentConfigService:          deploymentConfigService,
+		deploymentServiceTypeConfig:      envVariables.DeploymentServiceTypeConfig,
+		ciCdPipelineOrchestrator:         ciCdPipelineOrchestrator,
+		gitOperationService:              gitOperationService,
+		attributeService:                 attributeService,
+		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 
 		clusterRepository: clusterRepository,
 	}
@@ -823,7 +824,7 @@ func (impl *TriggerServiceImpl) auditDeploymentTriggerHistory(cdWfrId int, value
 		impl.logger.Warnw("unable to save histories for deployment trigger, invalid valuesOverrideResponse received", "cdWfrId", cdWfrId)
 		return nil
 	}
-	err1 := impl.deployedConfigurationHistoryService.CreateHistoriesForDeploymentTrigger(ctx, valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggeredAt, triggeredBy)
+	err1 := impl.deploymentTemplateHistoryService.CreateHistoriesForDeploymentTrigger(ctx, valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggeredAt, triggeredBy)
 	if err1 != nil {
 		impl.logger.Errorw("error in saving histories for deployment trigger", "err", err1, "pipelineId", valuesOverrideResponse.Pipeline.Id, "cdWfrId", cdWfrId)
 		return nil

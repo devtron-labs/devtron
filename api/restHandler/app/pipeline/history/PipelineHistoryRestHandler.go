@@ -19,7 +19,7 @@ package history
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret"
-	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	"net/http"
 	"strconv"
 
@@ -42,37 +42,35 @@ type PipelineHistoryRestHandler interface {
 }
 
 type PipelineHistoryRestHandlerImpl struct {
-	logger                              *zap.SugaredLogger
-	userAuthService                     user.UserService
-	enforcer                            casbin.Enforcer
-	strategyHistoryService              history2.PipelineStrategyHistoryService
-	deploymentTemplateHistoryService    deploymentTemplate.DeploymentTemplateHistoryService
-	configMapHistoryService             configMapAndSecret.ConfigMapHistoryService
-	prePostCiScriptHistoryService       history2.PrePostCiScriptHistoryService
-	prePostCdScriptHistoryService       history2.PrePostCdScriptHistoryService
-	enforcerUtil                        rbac.EnforcerUtil
-	deployedConfigurationHistoryService history2.DeployedConfigurationHistoryService
+	logger                               *zap.SugaredLogger
+	userAuthService                      user.UserService
+	enforcer                             casbin.Enforcer
+	strategyHistoryService               history2.PipelineStrategyHistoryService
+	configMapHistoryService              configMapAndSecret.ConfigMapHistoryService
+	prePostCiScriptHistoryService        history2.PrePostCiScriptHistoryService
+	prePostCdScriptHistoryService        history2.PrePostCdScriptHistoryService
+	enforcerUtil                         rbac.EnforcerUtil
+	deploymentTemplateHistoryReadService read.DeploymentTemplateHistoryReadService
 }
 
 func NewPipelineHistoryRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, strategyHistoryService history2.PipelineStrategyHistoryService,
-	deploymentTemplateHistoryService deploymentTemplate.DeploymentTemplateHistoryService,
 	configMapHistoryService configMapAndSecret.ConfigMapHistoryService,
 	prePostCiScriptHistoryService history2.PrePostCiScriptHistoryService,
 	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService,
 	enforcerUtil rbac.EnforcerUtil,
-	deployedConfigurationHistoryService history2.DeployedConfigurationHistoryService) *PipelineHistoryRestHandlerImpl {
+	deploymentTemplateHistoryReadService read.DeploymentTemplateHistoryReadService,
+) *PipelineHistoryRestHandlerImpl {
 	return &PipelineHistoryRestHandlerImpl{
-		logger:                              logger,
-		userAuthService:                     userAuthService,
-		enforcer:                            enforcer,
-		strategyHistoryService:              strategyHistoryService,
-		deploymentTemplateHistoryService:    deploymentTemplateHistoryService,
-		configMapHistoryService:             configMapHistoryService,
-		prePostCdScriptHistoryService:       prePostCdScriptHistoryService,
-		prePostCiScriptHistoryService:       prePostCiScriptHistoryService,
-		enforcerUtil:                        enforcerUtil,
-		deployedConfigurationHistoryService: deployedConfigurationHistoryService,
+		logger:                               logger,
+		userAuthService:                      userAuthService,
+		enforcer:                             enforcer,
+		strategyHistoryService:               strategyHistoryService,
+		configMapHistoryService:              configMapHistoryService,
+		prePostCdScriptHistoryService:        prePostCdScriptHistoryService,
+		prePostCiScriptHistoryService:        prePostCiScriptHistoryService,
+		enforcerUtil:                         enforcerUtil,
+		deploymentTemplateHistoryReadService: deploymentTemplateHistoryReadService,
 	}
 }
 
@@ -112,7 +110,7 @@ func (handler *PipelineHistoryRestHandlerImpl) FetchDeployedConfigurationsForWor
 	}
 	//RBAC END
 
-	res, err := handler.deployedConfigurationHistoryService.GetDeployedConfigurationByWfrId(r.Context(), pipelineId, wfrId)
+	res, err := handler.deploymentTemplateHistoryReadService.GetDeployedConfigurationByWfrId(r.Context(), pipelineId, wfrId)
 	if err != nil {
 		handler.logger.Errorw("service err, GetDeployedConfigurationByWfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -171,7 +169,7 @@ func (handler *PipelineHistoryRestHandlerImpl) FetchDeployedHistoryComponentList
 	}
 	//RBAC END
 
-	res, err := handler.deployedConfigurationHistoryService.GetDeployedHistoryComponentList(pipelineId, baseConfigurationId, historyComponent, historyComponentName)
+	res, err := handler.deploymentTemplateHistoryReadService.GetDeployedHistoryComponentList(pipelineId, baseConfigurationId, historyComponent, historyComponentName)
 	if err != nil {
 		handler.logger.Errorw("service err, GetDeployedHistoryComponentList", "err", err, "pipelineId", pipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -234,7 +232,7 @@ func (handler *PipelineHistoryRestHandlerImpl) FetchDeployedHistoryComponentDeta
 
 	ctx := r.Context()
 	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
-	res, err := handler.deployedConfigurationHistoryService.GetDeployedHistoryComponentDetail(ctx, pipelineId, id, historyComponent, historyComponentName, userHasAdminAccess)
+	res, err := handler.deploymentTemplateHistoryReadService.GetDeployedHistoryComponentDetail(ctx, pipelineId, id, historyComponent, historyComponentName, userHasAdminAccess)
 	if err != nil {
 		handler.logger.Errorw("service err, GetDeployedHistoryComponentDetail", "err", err, "pipelineId", pipelineId, "id", id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -277,7 +275,7 @@ func (handler *PipelineHistoryRestHandlerImpl) GetAllDeployedConfigurationHistor
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	ctx := r.Context()
 	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
-	res, err := handler.deployedConfigurationHistoryService.GetAllDeployedConfigurationByPipelineIdAndLatestWfrId(ctx, pipelineId, userHasAdminAccess)
+	res, err := handler.deploymentTemplateHistoryReadService.GetAllDeployedConfigurationByPipelineIdAndLatestWfrId(ctx, pipelineId, userHasAdminAccess)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAllDeployedConfigurationByPipelineIdAndLatestWfrId", "err", err, "pipelineId", pipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -327,7 +325,7 @@ func (handler *PipelineHistoryRestHandlerImpl) GetAllDeployedConfigurationHistor
 	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
 	//checking if user has admin access
 	userHasAdminAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName)
-	res, err := handler.deployedConfigurationHistoryService.GetAllDeployedConfigurationByPipelineIdAndWfrId(ctx, pipelineId, wfrId, userHasAdminAccess)
+	res, err := handler.deploymentTemplateHistoryReadService.GetAllDeployedConfigurationByPipelineIdAndWfrId(ctx, pipelineId, wfrId, userHasAdminAccess)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAllDeployedConfigurationByPipelineIdAndWfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

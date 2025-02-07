@@ -769,8 +769,6 @@ func InitializeApp() (*App, error) {
 		history3.NewGitMaterialHistoryServiceImpl,
 		wire.Bind(new(history3.GitMaterialHistoryService), new(*history3.GitMaterialHistoryServiceImpl)),
 
-		history3.NewDeployedConfigurationHistoryServiceImpl,
-		wire.Bind(new(history3.DeployedConfigurationHistoryService), new(*history3.DeployedConfigurationHistoryServiceImpl)),
 		// history ends
 
 		// plugin starts
