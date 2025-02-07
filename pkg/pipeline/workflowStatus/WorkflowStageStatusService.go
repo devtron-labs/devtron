@@ -36,7 +36,7 @@ type WorkFlowStageStatusServiceImpl struct {
 	ciWorkflowRepository     pipelineConfig.CiWorkflowRepository
 	cdWorkflowRepository     pipelineConfig.CdWorkflowRepository
 	transactionManager       sql.TransactionWrapper
-	config                   *types.CiCdConfig
+	config                   *types.CiConfig
 }
 
 func NewWorkflowStageFlowStatusServiceImpl(logger *zap.SugaredLogger,
@@ -52,11 +52,11 @@ func NewWorkflowStageFlowStatusServiceImpl(logger *zap.SugaredLogger,
 		cdWorkflowRepository:     cdWorkflowRepository,
 		transactionManager:       transactionManager,
 	}
-	ciCdConfig, err := types.GetCiCdConfig()
+	ciConfig, err := types.GetCiConfig()
 	if err != nil {
 		return nil
 	}
-	wfStageServiceImpl.config = ciCdConfig
+	wfStageServiceImpl.config = ciConfig
 	return wfStageServiceImpl
 }
 
@@ -93,7 +93,7 @@ func (impl *WorkFlowStageStatusServiceImpl) getUpdatedPipelineStagesForWorkflow(
 	}
 
 	impl.logger.Infow("step-1", "wfId", wfId, "wfType", wfType, "wfStatus", wfStatus, "currentWfDBstatus", currentWfDBstatus, "podStatus", podStatus, "currentPodStatus", currentPodStatus, "message", message)
-	currentWorkflowStages, updatedPodStatus := impl.updatePodStages(currentWorkflowStages, podStatus, currentPodStatus, message, podName)
+	currentWorkflowStages, updatedPodStatus := impl.updatePodStages(currentWorkflowStages, podStatus, currentPodStatus, message, podName, wfStatus)
 	impl.logger.Infow("step-2", "updatedPodStatus", updatedPodStatus, "updated pod stages", currentWorkflowStages)
 	currentWorkflowStages, updatedWfStatus := impl.updateWorkflowStagesToDevtronStatus(currentWorkflowStages, wfStatus, currentWfDBstatus, message, podStatus)
 	impl.logger.Infow("step-3", "updatedWfStatus", updatedWfStatus, "updatedPodStatus", updatedPodStatus, "updated workflow stages", currentWorkflowStages)
@@ -101,7 +101,7 @@ func (impl *WorkFlowStageStatusServiceImpl) getUpdatedPipelineStagesForWorkflow(
 	return currentWorkflowStages, updatedWfStatus, updatedPodStatus
 }
 
-func (impl *WorkFlowStageStatusServiceImpl) updatePodStages(currentWorkflowStages []*repository.WorkflowExecutionStage, podStatus string, currentPodStatus string, message string, podName string) ([]*repository.WorkflowExecutionStage, string) {
+func (impl *WorkFlowStageStatusServiceImpl) updatePodStages(currentWorkflowStages []*repository.WorkflowExecutionStage, podStatus string, currentPodStatus string, message string, podName string, wfStatus string) ([]*repository.WorkflowExecutionStage, string) {
 	updatedPodStatus := currentPodStatus
 	if !slices.Contains(cdWorkflow.WfrTerminalStatusList, currentPodStatus) {
 		updatedPodStatus = podStatus
@@ -147,9 +147,18 @@ func (impl *WorkFlowStageStatusServiceImpl) updatePodStages(currentWorkflowStage
 				}
 			default:
 				impl.logger.Errorw("unknown pod status", "podStatus", podStatus, "message", message)
-				stage.Message = message
-				stage.Status = bean2.WORKFLOW_STAGE_STATUS_UNKNOWN
-				stage.EndTime = time.Now().Format(bean3.LayoutRFC3339)
+				if stage.Status == bean2.WORKFLOW_STAGE_STATUS_NOT_STARTED {
+					extractedStatus := adapter.ConvertStatusToDevtronStatus(wfStatus, "")
+					if extractedStatus.IsTerminal() {
+						stage.Status = extractedStatus
+						stage.EndTime = time.Now().Format(bean3.LayoutRFC3339)
+						updatedPodStatus = wfStatus
+					}
+				} else {
+					stage.Message = message
+					stage.Status = bean2.WORKFLOW_STAGE_STATUS_UNKNOWN
+					stage.EndTime = time.Now().Format(bean3.LayoutRFC3339)
+				}
 			}
 		}
 	}
@@ -272,6 +281,24 @@ func (impl *WorkFlowStageStatusServiceImpl) updateWorkflowStagesToDevtronStatus(
 					if stage.Status == bean2.WORKFLOW_STAGE_STATUS_RUNNING {
 						stage.Status = bean2.WORKFLOW_STAGE_STATUS_UNKNOWN
 						updatedWfStatus = bean2.WORKFLOW_STAGE_STATUS_UNKNOWN.ToString()
+					}
+				}
+			}
+			if stage.StageName == bean2.WORKFLOW_PREPARATION && !stage.Status.IsTerminal() {
+				//assumption: once pod is running we don't internally do any extra operation which would call this function and simply update status accrording to kubewatch events
+				//that's why we are getting pod status as unknown because we don't explicity set pod status
+				//this is the case when our internal code has called to update status before actually scheduling pod
+				//update wf status as given in request, don't change that
+				updatedWfStatus = util.ComputeWorkflowStatus(currentWfDBstatus, wfStatus, "")
+				extractedStatus := adapter.ConvertStatusToDevtronStatus(wfStatus, wfMessage)
+				if extractedStatus.IsTerminal() {
+					stage.Status = extractedStatus
+					stage.EndTime = time.Now().Format(bean3.LayoutRFC3339)
+					if extractedStatus == bean2.WORKFLOW_STAGE_STATUS_TIMEOUT {
+						updatedWfStatus = cdWorkflow.WorkflowTimedOut
+					}
+					if extractedStatus == bean2.WORKFLOW_STAGE_STATUS_ABORTED {
+						updatedWfStatus = cdWorkflow.WorkflowCancel
 					}
 				}
 			}

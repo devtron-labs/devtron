@@ -44,7 +44,7 @@ type CdWorkflowRunnerServiceImpl struct {
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
 	workflowStageService workflowStatus.WorkFlowStageStatusService
 	transactionManager   sql.TransactionWrapper
-	config               *types.CiCdConfig
+	config               *types.CiConfig
 }
 
 func NewCdWorkflowRunnerServiceImpl(logger *zap.SugaredLogger,
@@ -57,11 +57,11 @@ func NewCdWorkflowRunnerServiceImpl(logger *zap.SugaredLogger,
 		workflowStageService: workflowStageService,
 		transactionManager:   transactionManager,
 	}
-	ciCdConfig, err := types.GetCiCdConfig()
+	ciConfig, err := types.GetCiConfig()
 	if err != nil {
 		return nil
 	}
-	impl.config = ciCdConfig
+	impl.config = ciConfig
 	return impl
 }
 

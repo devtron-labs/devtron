@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/utils"
 	bean3 "github.com/devtron-labs/common-lib/utils/bean"
@@ -1149,6 +1150,7 @@ func (impl *CiServiceImpl) SaveCiWorkflowWithStage(wf *pipelineConfig.CiWorkflow
 	}()
 	if impl.config.EnableWorkflowExecutionStage {
 		wf.Status = cdWorkflow.WorkflowWaitingToStart
+		wf.PodStatus = string(v1alpha1.NodePending)
 	}
 	err = impl.ciWorkflowRepository.SaveWorkFlowWithTx(wf, tx)
 	if err != nil {

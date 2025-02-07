@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	commonBean "github.com/devtron-labs/common-lib/workflow"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
@@ -251,6 +252,7 @@ func (impl *TriggerServiceImpl) createStartingWfAndRunner(request bean.TriggerRe
 		WorkflowType:          request.WorkflowType,
 		ExecutorType:          impl.config.GetWorkflowExecutorType(),
 		Status:                cdWorkflow.WorkflowStarting, // starting PreStage
+		PodStatus:             string(v1alpha1.NodePending),
 		TriggeredBy:           triggeredBy,
 		StartedOn:             triggeredAt,
 		Namespace:             request.RunStageInEnvNamespace,
