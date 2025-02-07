@@ -133,7 +133,7 @@ func (impl *CdWorkflowRunnerServiceImpl) UpdateCdWorkflowRunnerWithStage(wfr *pi
 
 	defer func() {
 		dbErr := impl.transactionManager.RollbackTx(tx)
-		if dbErr != nil {
+		if dbErr != nil && dbErr.Error() != util.SqlAlreadyCommitedErrMsg {
 			impl.logger.Errorw("error in rolling back transaction", "workflowName", wfr.Name, "error", dbErr)
 		}
 	}()

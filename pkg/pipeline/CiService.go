@@ -1145,7 +1145,7 @@ func (impl *CiServiceImpl) SaveCiWorkflowWithStage(wf *pipelineConfig.CiWorkflow
 
 	defer func() {
 		dbErr := impl.transactionManager.RollbackTx(tx)
-		if dbErr != nil {
+		if dbErr != nil && dbErr.Error() != util3.SqlAlreadyCommitedErrMsg {
 			impl.Logger.Errorw("error in rolling back transaction", "workflowName", wf.Name, "error", dbErr)
 		}
 	}()
