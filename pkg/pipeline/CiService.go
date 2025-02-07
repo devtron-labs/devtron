@@ -40,6 +40,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
 	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"path"
 	"path/filepath"
@@ -1183,7 +1184,7 @@ func (impl *CiServiceImpl) UpdateCiWorkflowWithStage(wf *pipelineConfig.CiWorkfl
 
 	defer func() {
 		dbErr := impl.transactionManager.RollbackTx(tx)
-		if dbErr != nil {
+		if dbErr != nil && dbErr.Error() != util3.SqlAlreadyCommitedErrMsg {
 			impl.Logger.Errorw("error in rolling back transaction", "workflowName", wf.Name, "error", dbErr)
 		}
 	}()

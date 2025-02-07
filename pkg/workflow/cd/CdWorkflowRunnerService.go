@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/adapter"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/bean"
+	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 )
 
@@ -95,7 +96,7 @@ func (impl *CdWorkflowRunnerServiceImpl) SaveCDWorkflowRunnerWithStage(wfr *pipe
 
 	defer func() {
 		dbErr := impl.transactionManager.RollbackTx(tx)
-		if dbErr != nil {
+		if dbErr != nil && dbErr.Error() != util.SqlAlreadyCommitedErrMsg {
 			impl.logger.Errorw("error in rolling back transaction", "workflowName", wfr.Name, "error", dbErr)
 		}
 	}()
