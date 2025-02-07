@@ -155,6 +155,8 @@ import (
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
+	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
+	repository6 "github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus/repository"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
@@ -470,6 +472,11 @@ func InitializeApp() (*App, error) {
 
 		pipeline.NewCiServiceImpl,
 		wire.Bind(new(pipeline.CiService), new(*pipeline.CiServiceImpl)),
+
+		workflowStatus.NewWorkflowStageFlowStatusServiceImpl,
+		wire.Bind(new(workflowStatus.WorkFlowStageStatusService), new(*workflowStatus.WorkFlowStageStatusServiceImpl)),
+		repository6.NewWorkflowStageRepositoryImpl,
+		wire.Bind(new(repository6.WorkflowStageRepository), new(*repository6.WorkflowStageRepositoryImpl)),
 
 		pipelineConfig.NewCiWorkflowRepositoryImpl,
 		wire.Bind(new(pipelineConfig.CiWorkflowRepository), new(*pipelineConfig.CiWorkflowRepositoryImpl)),

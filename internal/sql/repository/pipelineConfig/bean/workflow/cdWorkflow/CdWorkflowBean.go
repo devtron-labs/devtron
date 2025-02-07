@@ -6,7 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/bean"
 )
 
-var WfrTerminalStatusList = []string{WorkflowAborted, WorkflowFailed, WorkflowSucceeded, bean.HIBERNATING, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded)}
+var WfrTerminalStatusList = []string{WorkflowAborted, WorkflowFailed, WorkflowSucceeded, bean.HIBERNATING, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded), WorkflowTimedOut, WorkflowCancel}
 
 type WorkflowStatus int
 
@@ -34,6 +34,7 @@ const (
 	WorkflowTypeDeploy         = "DEPLOY"
 	WorkflowTypePre            = "PRE"
 	WorkflowTypePost           = "POST"
+	WorkflowWaitingToStart     = "WaitingToStart"
 )
 
 func (a WorkflowStatus) String() string {
@@ -60,3 +61,6 @@ type CdWorkflowRunnerArtifactMetadata struct {
 	ParentCiArtifact int  `pg:"parent_ci_artifact"`
 	Scanned          bool `pg:"scanned"`
 }
+
+const WorkflowCancel = "CANCELLED"
+const POD_DELETED_MESSAGE = "pod deleted"
