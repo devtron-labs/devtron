@@ -129,14 +129,24 @@ func (r *PluginParentMetadata) CreateAuditLog(userId int32) *PluginParentMetadat
 	r.UpdatedOn = time.Now()
 	return r
 }
+func (r *PluginParentMetadata) WithIsExposed(isExposed bool) *PluginParentMetadata {
+	r.IsExposed = isExposed
+	return r
+}
 
-func (r *PluginParentMetadata) WithBasicMetadata(name, identifier, description, icon string, pluginType PluginType) *PluginParentMetadata {
+func (r *PluginParentMetadata) WithBasicMetadata(name, identifier, description, icon string, pluginType PluginType, isExposed *bool) *PluginParentMetadata {
 	r.Name = name
 	r.Identifier = identifier
 	r.Description = description
 	r.Icon = icon
 	r.Type = pluginType
 	r.Deleted = false
+	if isExposed != nil {
+		r.IsExposed = *isExposed
+	} else {
+		//default set true
+		r.IsExposed = true
+	}
 	return r
 }
 
@@ -189,13 +199,19 @@ func (r *PluginMetadata) CreateAuditLog(userId int32) *PluginMetadata {
 	return r
 }
 
-func (r *PluginMetadata) WithBasicMetadata(name, description, pluginVersion, docLink string) *PluginMetadata {
+func (r *PluginMetadata) WithBasicMetadata(name, description, pluginVersion, docLink string, isExposed *bool) *PluginMetadata {
 	r.Name = name
 	r.PluginVersion = pluginVersion
 	r.Description = description
 	r.DocLink = docLink
 	r.Deleted = false
 	r.IsDeprecated = false
+	if isExposed != nil {
+		r.IsExposed = *isExposed
+	} else {
+		//default value is true
+		r.IsExposed = true
+	}
 	return r
 }
 

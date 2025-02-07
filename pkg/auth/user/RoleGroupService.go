@@ -89,11 +89,15 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 	defer tx.Rollback()
 
 	if request.Id > 0 {
-		_, err := impl.roleGroupRepository.GetRoleGroupById(request.Id)
+		roleGroup, err := impl.roleGroupRepository.GetRoleGroupById(request.Id)
 		if err != nil {
 			impl.logger.Errorw("error while fetching user from db", "error", err)
 			return nil, err
 		}
+		if roleGroup != nil && len(roleGroup.Name) > 0 {
+			return nil, util.GetApiErrorAdapter(400, "400", "role group already exist with the given id", "role group already exist with the given id")
+		}
+		return nil, util.GetApiErrorAdapter(400, "400", "id not supported in create request", "id not supported in create request")
 	} else {
 		//loading policy for safety
 		casbin2.LoadPolicy()
