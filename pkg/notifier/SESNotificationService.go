@@ -60,6 +60,12 @@ func (impl *SESNotificationServiceImpl) SaveOrEditNotificationConfig(channelReq 
 	for _, config := range sesConfigs {
 		if config.Id != 0 {
 
+			model, err := impl.sesRepository.FindOne(config.Id)
+			if err != nil && !util.IsErrNoRows(err) {
+				impl.logger.Errorw("err while fetching ses config", "err", err)
+				return []int{}, err
+			}
+
 			if config.Default {
 				_, err := impl.sesRepository.UpdateSESConfigDefault()
 				if err != nil && !util.IsErrNoRows(err) {
@@ -67,6 +73,10 @@ func (impl *SESNotificationServiceImpl) SaveOrEditNotificationConfig(channelReq 
 					return []int{}, err
 				}
 			} else {
+				// check if this config is already default, we don't want to reverse it
+				if model.Default {
+					return []int{}, fmt.Errorf("cannot update default config to non default")
+				}
 				_, err := impl.sesRepository.FindDefault()
 				if err != nil && !util.IsErrNoRows(err) {
 					impl.logger.Errorw("err while updating ses config", "err", err)
@@ -76,11 +86,6 @@ func (impl *SESNotificationServiceImpl) SaveOrEditNotificationConfig(channelReq 
 				}
 			}
 
-			model, err := impl.sesRepository.FindOne(config.Id)
-			if err != nil && !util.IsErrNoRows(err) {
-				impl.logger.Errorw("err while fetching ses config", "err", err)
-				return []int{}, err
-			}
 			adapter.BuildConfigUpdateModelForSES(config, model, userId)
 			model, uErr := impl.sesRepository.UpdateSESConfig(model)
 			if uErr != nil {
