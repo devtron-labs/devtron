@@ -73,6 +73,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial"
+	"github.com/devtron-labs/devtron/pkg/commonService"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps"
@@ -246,6 +247,15 @@ func InitializeApp() (*App, error) {
 		// chart group repository layer wire injection ended
 
 		// end: docker registry wire set injection
+
+		router.NewCommonRouterImpl,
+		wire.Bind(new(router.CommonRouter), new(*router.CommonRouterImpl)),
+		restHandler.NewCommonRestHandlerImpl,
+		wire.Bind(new(restHandler.CommonRestHandler), new(*restHandler.CommonRestHandlerImpl)),
+
+		commonService.NewCommonBaseServiceImpl,
+		wire.Bind(new(commonService.CommonService), new(*commonService.CommonBaseServiceImpl)),
+
 		cron.NewCronLoggerImpl,
 		appStore.EAModeWireSet,
 
