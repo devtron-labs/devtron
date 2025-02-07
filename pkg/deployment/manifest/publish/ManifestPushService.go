@@ -216,7 +216,7 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(ctx context.Context, manife
 	}
 	gitCommitTimeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(manifestPushTemplate.WorkflowRunnerId, timelineStatus.TIMELINE_STATUS_GIT_COMMIT, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_GIT_COMMIT, manifestPushTemplate.UserId)
 	timelines := []*pipelineConfig.PipelineStatusTimeline{gitCommitTimeline}
-	if impl.acdConfig.IsManualSyncEnabled() {
+	if impl.acdConfig.IsManualSyncEnabled() && manifestPushTemplate.IsArgoSyncSupported {
 		// if manual sync is enabled, add ARGOCD_SYNC_INITIATED_TIMELINE
 		argoCDSyncInitiatedTimeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(manifestPushTemplate.WorkflowRunnerId, timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_INITIATED, manifestPushTemplate.UserId)
 		timelines = append(timelines, argoCDSyncInitiatedTimeline)

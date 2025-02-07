@@ -1039,6 +1039,7 @@ func (impl *TriggerServiceImpl) buildManifestPushTemplate(overrideRequest *bean3
 		manifestPushTemplate.ValuesFilePath = valuesOverrideResponse.DeploymentConfig.GetValuesFilePath()
 		manifestPushTemplate.ReleaseMode = valuesOverrideResponse.DeploymentConfig.ReleaseMode
 		manifestPushTemplate.IsCustomGitRepository = common.IsCustomGitOpsRepo(valuesOverrideResponse.DeploymentConfig.ConfigType)
+		manifestPushTemplate.IsArgoSyncSupported = valuesOverrideResponse.DeploymentConfig.IsArgoAppSyncAndRefreshSupported()
 	}
 	return manifestPushTemplate, nil
 }

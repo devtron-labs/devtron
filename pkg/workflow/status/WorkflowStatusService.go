@@ -221,13 +221,6 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 			return nil, isTimelineUpdated
 		}
 
-		if impl.acdConfig.IsManualSyncEnabled() {
-			// if manual sync check for application sync status
-			isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatus(cdWfr.Id)
-			if !isArgoAppSynced {
-				return nil, isTimelineUpdated
-			}
-		}
 		// this should only be called when we have git-ops configured
 		// try fetching status from argo cd
 		dc, err := impl.deploymentConfigService.GetConfigForDevtronApps(pipeline.AppId, pipeline.EnvironmentId)
@@ -235,9 +228,17 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 			impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", pipeline.AppId, "environmentId", pipeline.EnvironmentId, "err", err)
 			return nil, isTimelineUpdated
 		}
+
+		if impl.acdConfig.IsManualSyncEnabled() && dc.IsArgoAppSyncAndRefreshSupported() {
+			// if manual sync check for application sync status
+			isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatus(cdWfr.Id)
+			if !isArgoAppSynced {
+				return nil, isTimelineUpdated
+			}
+		}
+
 		applicationObjectClusterId := dc.GetApplicationObjectClusterId()
 		applicationObjectNamespace := dc.GetApplicationObjectNamespace()
-
 		appMapObj, err := impl.argocdClientWrapperService.GetArgoAppByNameWithK8sClient(context.Background(), applicationObjectClusterId, applicationObjectNamespace, pipeline.DeploymentAppName)
 
 		app, err := argocdServer.GetAppObject(appMapObj)
@@ -558,6 +559,9 @@ func (impl *WorkflowStatusServiceImpl) syncACDHelmApps(deployedBeforeMinutes int
 		if err != nil {
 			impl.logger.Errorw("error in getting deployment config db object by appId and envId", "appId", appDetails.Id, "envId", envDetails.Id, "err", err)
 			return err
+		}
+		if deploymentConfig.IsArgoAppSyncAndRefreshSupported() {
+			return nil
 		}
 		targetRevision := deploymentConfig.GetTargetRevision()
 		syncErr := impl.argocdClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(ctx, argoAppName, targetRevision)

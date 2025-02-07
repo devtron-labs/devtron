@@ -474,7 +474,12 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValid(app *v1alpha1.Appl
 		// drop event
 		return isValid, pipeline, cdWfr, pipelineOverride, nil
 	}
-	if impl.acdConfig.IsManualSyncEnabled() {
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(pipeline.AppId, pipeline.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment config by appId and environmentId", "appId", pipeline.AppId, "environmentId", pipeline.EnvironmentId, "err", err)
+		return isValid, pipeline, cdWfr, pipelineOverride, err
+	}
+	if impl.acdConfig.IsManualSyncEnabled() && deploymentConfig.IsArgoAppSyncAndRefreshSupported() {
 		// if manual sync, proceed only if ARGOCD_SYNC_COMPLETED timeline is created
 		isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatus(cdWfr.Id)
 		if !isArgoAppSynced {
