@@ -103,8 +103,8 @@ func (impl *DeployedApplicationEventProcessorImpl) SubscribeArgoAppUpdate() erro
 			applicationDetail.StatusTime = time.Now()
 		}
 		isAppStoreApplication := false
-		_, err = impl.pipelineRepository.GetArgoPipelineByArgoAppName(app.ObjectMeta.Name)
-		if err != nil && err == pg.ErrNoRows {
+		pipelines, err := impl.pipelineRepository.GetArgoPipelineByArgoAppName(app.ObjectMeta.Name)
+		if err != nil && len(pipelines) == 0 {
 			impl.logger.Infow("this app not found in pipeline table looking in installed_apps table", "appName", app.ObjectMeta.Name)
 			// if not found in pipeline table then search in installed_apps table
 			installedAppModel, err := impl.installedAppReadService.GetInstalledAppByGitOpsAppName(app.ObjectMeta.Name)
@@ -223,7 +223,7 @@ func (impl *DeployedApplicationEventProcessorImpl) updateArgoAppDeleteStatus(app
 		impl.logger.Errorw("invalid nats message, pipeline already deleted")
 		return errors.New("invalid nats message, pipeline already deleted")
 	}
-	if err == pg.ErrNoRows {
+	if err == pg.ErrNoRows || len(pipelines) == 0 {
 		// Helm app deployed using argocd
 		var gitHash string
 		if app.Operation != nil && app.Operation.Sync != nil {
