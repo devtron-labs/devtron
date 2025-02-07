@@ -63,6 +63,8 @@ type CiPipelineConfigService interface {
 	//If any errors occur during the retrieval process  CI pipeline configuration remains nil.
 	//If you want less detail of ciPipeline ,Please refer GetCiPipelineMin
 	GetCiPipeline(appId int) (ciConfig *bean.CiConfigRequest, err error)
+	// GetCiPipelineByIdWithDefaultTag : Retrieve ciPipeline for given ciPipelineId with defaultTagData
+	GetCiPipelineByIdWithDefaultTag(pipelineId int) (ciPipeline *bean.CiPipeline, err error)
 	//GetCiPipelineById : Retrieve ciPipeline for given ciPipelineId
 	GetCiPipelineById(pipelineId int) (ciPipeline *bean.CiPipeline, err error)
 	//GetTriggerViewCiPipeline : retrieves a detailed view of the CI pipelines configured for a specific application (appId).
@@ -686,6 +688,16 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 	ciConfig.CiPipelines = ciPipelineResp
 	//--------pipeline population end
 	return ciConfig, err
+}
+
+func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByIdWithDefaultTag(pipelineId int) (ciPipeline *bean.CiPipeline, err error) {
+	ciPipeline, err = impl.GetCiPipelineById(pipelineId)
+	if err != nil {
+		impl.logger.Infow("service error, GetCIPipelineById", "pipelineId", pipelineId, "err", err)
+		return nil, err
+	}
+	ciPipeline.DefaultTag = []string{"{git_hash}", "{ci_pipeline_id}", "{global_counter}"}
+	return ciPipeline, nil
 }
 
 func (impl *CiPipelineConfigServiceImpl) GetCiPipelineById(pipelineId int) (ciPipeline *bean.CiPipeline, err error) {

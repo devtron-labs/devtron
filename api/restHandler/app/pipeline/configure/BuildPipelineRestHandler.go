@@ -1283,13 +1283,12 @@ func (handler *PipelineConfigRestHandlerImpl) GetCIPipelineById(w http.ResponseW
 		}
 	}
 
-	ciPipeline, err := handler.pipelineBuilder.GetCiPipelineById(pipelineId)
+	ciPipeline, err := handler.pipelineBuilder.GetCiPipelineByIdWithDefaultTag(pipelineId)
 	if err != nil {
-		handler.Logger.Infow("service error, GetCIPipelineById", "err", err, "appId", appId, "pipelineId", pipelineId)
+		handler.Logger.Infow("service error, GetCiPipelineByIdWithDefaultTag", "err", err, "appId", appId, "pipelineId", pipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	ciPipeline.DefaultTag = []string{"{git_hash}", "{ci_pipeline_id}", "{global_counter}"}
 	common.WriteJsonResp(w, err, ciPipeline, http.StatusOK)
 }
 
