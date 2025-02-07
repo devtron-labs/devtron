@@ -548,19 +548,24 @@ func (impl *AppCloneServiceImpl) configDataClone(cfData []*bean3.ConfigData) []*
 	var copiedData []*bean3.ConfigData
 	for _, refdata := range cfData {
 		data := &bean3.ConfigData{
-			Name:               refdata.Name,
-			Type:               refdata.Type,
-			External:           refdata.External,
-			MountPath:          refdata.MountPath,
-			Data:               refdata.Data,
-			DefaultData:        refdata.DefaultData,
-			DefaultMountPath:   refdata.DefaultMountPath,
-			Global:             refdata.Global,
-			ExternalSecretType: refdata.ExternalSecretType,
-			FilePermission:     refdata.FilePermission,
-			SubPath:            refdata.SubPath,
-			ESOSubPath:         refdata.ESOSubPath,
-			MergeStrategy:      refdata.MergeStrategy,
+			Name:                  refdata.Name,
+			Type:                  refdata.Type,
+			External:              refdata.External,
+			MountPath:             refdata.MountPath,
+			Data:                  refdata.Data,
+			DefaultData:           refdata.DefaultData,
+			DefaultMountPath:      refdata.DefaultMountPath,
+			Global:                refdata.Global,
+			ExternalSecretType:    refdata.ExternalSecretType,
+			FilePermission:        refdata.FilePermission,
+			SubPath:               refdata.SubPath,
+			ESOSubPath:            refdata.ESOSubPath,
+			MergeStrategy:         refdata.MergeStrategy,
+			ESOSecretData:         refdata.ESOSecretData,
+			DefaultESOSecretData:  refdata.DefaultESOSecretData,
+			ExternalSecret:        refdata.ExternalSecret,
+			DefaultExternalSecret: refdata.DefaultExternalSecret,
+			RoleARN:               refdata.RoleARN,
 		}
 		copiedData = append(copiedData, data)
 	}
