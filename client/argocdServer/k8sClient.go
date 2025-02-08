@@ -211,7 +211,7 @@ func (impl ArgoK8sClientImpl) GetArgoApplication(k8sConfig *bean.ArgoK8sConfig, 
 	response := make(map[string]interface{})
 	if err != nil {
 		impl.logger.Errorw("error in get argo application", "err", err)
-		return nil, impl.handleArgoAppCreationError(res, err)
+		return nil, impl.handleArgoAppGetError(res, err)
 	}
 	err = json.Unmarshal(res, &response)
 	if err != nil {

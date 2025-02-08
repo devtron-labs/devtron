@@ -85,10 +85,10 @@ func (c *ArgoApplicationServiceExtendedImpl) updateArgoAppStatusMetaDataInResour
 func (c *ArgoApplicationServiceExtendedImpl) getApplicationObjectWithK8sClient(ctx context.Context,
 	acdQueryRequest *bean.AcdClientQueryRequest) (*v1alpha1.Application, error) {
 	var appNamespace, applicationName string
-	if acdQueryRequest.Query.AppNamespace == nil {
+	if acdQueryRequest.Query.AppNamespace != nil {
 		appNamespace = *acdQueryRequest.Query.AppNamespace
 	}
-	if acdQueryRequest.Query.ApplicationName == nil {
+	if acdQueryRequest.Query.ApplicationName != nil {
 		applicationName = *acdQueryRequest.Query.ApplicationName
 	}
 	application, err := c.acdClientWrapper.GetArgoAppByNameWithK8sClient(ctx, acdQueryRequest.ArgoAppClusterId, appNamespace, applicationName)
