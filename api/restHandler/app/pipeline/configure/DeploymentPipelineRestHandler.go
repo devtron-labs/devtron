@@ -39,7 +39,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
@@ -1920,15 +1919,9 @@ func (handler *PipelineConfigRestHandlerImpl) GetCdPipelineById(w http.ResponseW
 		return
 	}
 
-	cdPipeline, err := handler.pipelineBuilder.GetCdPipelineById(pipelineId)
+	cdResp, err := handler.pipelineBuilder.GetCdPipelineByIdResolved(pipelineId, version)
 	if err != nil {
-		handler.Logger.Errorw("service err, GetCdPipelineById", "err", err, "appId", appId, "pipelineId", pipelineId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	cdResp, err := pipeline.CreatePreAndPostStageResponse(cdPipeline, version)
-	if err != nil {
-		handler.Logger.Errorw("service err, CheckForVersionAndCreatePreAndPostStagePayload", "err", err, "appId", appId, "pipelineId", pipelineId)
+		handler.Logger.Errorw("service err, GetCdPipelineByIdResolved", "appId", appId, "pipelineId", pipelineId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
