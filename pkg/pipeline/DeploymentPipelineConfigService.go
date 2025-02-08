@@ -559,7 +559,9 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 				}
 				envDeploymentConfig.ConfigType = appDeploymentConfig.ConfigType
 			}
-			envDeploymentConfig.RepoURL = releaseConfig.ArgoCDSpec.Spec.Source.RepoURL //for backward compatibility
+			if releaseConfig != nil && releaseConfig.ArgoCDSpec.Spec.Source != nil {
+				envDeploymentConfig.RepoURL = releaseConfig.ArgoCDSpec.Spec.Source.RepoURL //for backward compatibility
+			}
 			envDeploymentConfig.ReleaseConfiguration = releaseConfig
 			envDeploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, pipelineCreateRequest.UserId)
 			if err != nil {
