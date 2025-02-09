@@ -2472,7 +2472,9 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipelinePartial(pipeline *pipel
 				}
 			}
 			impl.logger.Debugw("acd app is already deleted for this pipeline", "pipeline", pipeline)
-			if _, err := impl.argoClientWrapperService.DeleteArgoApp(ctx, deploymentAppName, cascadeDelete); err != nil {
+			applicationObjectClusterId := envDeploymentConfig.GetApplicationObjectClusterId()
+			applicationNamespace := envDeploymentConfig.GetDestinationNamespace()
+			if err = impl.argoClientWrapperService.DeleteArgoAppWithK8sClient(ctx, applicationObjectClusterId, applicationNamespace, deploymentAppName, cascadeDelete); err != nil {
 				impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
 
 				if forceDelete {

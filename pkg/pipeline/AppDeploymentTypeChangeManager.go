@@ -488,7 +488,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 		// delete request
 		var err error
 		if envDeploymentConfig.DeploymentAppType == bean3.ArgoCd {
-			err = impl.deleteArgoCdApp(ctx, pipeline, pipeline.DeploymentAppName, true)
+			err = impl.deleteArgoCdApp(ctx, pipeline, envDeploymentConfig, true)
 
 		} else {
 
@@ -776,12 +776,15 @@ func (impl *AppDeploymentTypeChangeManagerImpl) fetchDeletedApp(ctx context.Cont
 
 // deleteArgoCdApp takes context and deployment app name used in argo cd and deletes
 // the application in argo cd.
-func (impl *AppDeploymentTypeChangeManagerImpl) deleteArgoCdApp(ctx context.Context, pipeline *pipelineConfig.Pipeline, deploymentAppName string,
+func (impl *AppDeploymentTypeChangeManagerImpl) deleteArgoCdApp(ctx context.Context, pipeline *pipelineConfig.Pipeline, envDeploymentConfig *bean4.DeploymentConfig,
 	cascadeDelete bool) error {
 	if !pipeline.DeploymentAppCreated {
 		return nil
 	}
-	_, err := impl.ArgoClientWrapperService.DeleteArgoApp(ctx, deploymentAppName, cascadeDelete)
+	var err error
+	applicationObjectClusterId := envDeploymentConfig.GetApplicationObjectClusterId()
+	applicationNamespace := envDeploymentConfig.GetDestinationNamespace()
+	err = impl.ArgoClientWrapperService.DeleteArgoAppWithK8sClient(ctx, applicationObjectClusterId, applicationNamespace, pipeline.DeploymentAppName, cascadeDelete)
 	if err != nil {
 		impl.logger.Errorw("error in deleting argocd application", "err", err)
 		// Possible that argocd app got deleted but db updation failed
