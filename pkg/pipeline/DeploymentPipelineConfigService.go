@@ -714,7 +714,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 	targetClusterNamespace := argoApplicationSpec.Spec.Destination.Namespace
 
 	if len(targetClusterNamespace) == 0 {
-		targetClusterNamespace = "default"
+		//TODO: handling
 	}
 
 	var targetCluster *bean3.ClusterBean
