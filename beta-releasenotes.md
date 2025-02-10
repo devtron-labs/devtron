@@ -6,5 +6,6 @@
 - feat: separate build worker status timeline (#6320)
 - feat: send notification with chosen config (#6331)
 ## Documentation
+- doc: updated devtron user list in users.md (#6363)
 ## Others
 - sync: Main sync develop (#6375)
