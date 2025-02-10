@@ -25,7 +25,7 @@ type WorkflowExecutionStage struct {
 	Id           int                         `sql:"id,pk"`
 	StageName    bean.WorkflowStageName      `sql:"stage_name,notnull"` // same as app name
 	Status       bean.WorkflowStageStatus    `sql:"status"`
-	StatusFor    bean.WorkflowStageStatusFor `sql:"status_type"`
+	StatusFor    bean.WorkflowStageStatusFor `sql:"status_for"`
 	Message      string                      `sql:"message"`
 	Metadata     string                      `sql:"metadata"`
 	WorkflowId   int                         `sql:"workflow_id,notnull"`
