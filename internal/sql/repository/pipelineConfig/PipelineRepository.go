@@ -282,8 +282,6 @@ func (impl *PipelineRepositoryImpl) FindOneByAppIdAndEnvId(appId int, envId int)
 		Where("app_id = ?", appId).
 		Where("deleted = ?", false).
 		Where("environment_id = ? ", envId).
-		Order("id DESC").
-		Limit(1).
 		Select()
 	return &pipeline, err
 }

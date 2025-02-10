@@ -25,21 +25,7 @@ type ApplicationMetadata struct {
 }
 
 func NewEmptyApplicationMetadata() ApplicationMetadata {
-	return ApplicationMetadata{
-		Source: Source{
-			RepoURL:       "",
-			ChartPath:     "",
-			ChartMetadata: ChartMetadata{},
-		},
-		Destination: Destination{
-			ClusterName:      "",
-			ClusterServerUrl: "",
-			Namespace:        "",
-			EnvironmentName:  "",
-			EnvironmentId:    0,
-		},
-		Status: "",
-	}
+	return ApplicationMetadata{}
 }
 
 type Source struct {

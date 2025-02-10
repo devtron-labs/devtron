@@ -401,6 +401,8 @@ func (impl *ChartServiceImpl) CreateChartFromEnvOverride(templateRequest bean3.T
 		gitRepoUrl = currentLatestChart.GitRepoUrl
 	}
 
+	// maintained for backward compatibility;
+	// adding git repo url to both deprecated and new state
 	deploymentConfig.RepoURL = gitRepoUrl
 	deploymentConfig.SetRepoURL(gitRepoUrl)
 	deploymentConfig.SetChartLocation(chartLocation)

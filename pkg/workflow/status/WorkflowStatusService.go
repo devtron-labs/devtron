@@ -240,13 +240,6 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 		applicationObjectClusterId := dc.GetApplicationObjectClusterId()
 		applicationObjectNamespace := dc.GetApplicationObjectNamespace()
 		appMapObj, err := impl.argocdClientWrapperService.GetArgoAppByNameWithK8sClient(context.Background(), applicationObjectClusterId, applicationObjectNamespace, pipeline.DeploymentAppName)
-
-		app, err := argocdServer.GetAppObject(appMapObj)
-		if err != nil {
-			impl.logger.Errorw("error in getting app object by app name and id", "err", err)
-			return nil, isTimelineUpdated
-		}
-
 		if err != nil {
 			impl.logger.Errorw("error in getting acd application", "err", err, "argoAppName", pipeline)
 			// updating cdWfr status
@@ -277,17 +270,22 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 				return err, isTimelineUpdated
 			}
 		} else {
-			if app == nil {
+			appObject, err := argocdServer.GetAppObject(appMapObj)
+			if err != nil {
+				impl.logger.Errorw("error in getting app object by app name and id", "err", err)
+				return nil, isTimelineUpdated
+			}
+			if appObject == nil {
 				impl.logger.Errorw("found empty argo application object", "appName", pipeline.DeploymentAppName)
 				return fmt.Errorf("found empty argo application object"), isTimelineUpdated
 			}
-			isSucceeded, isTimelineUpdated, pipelineOverride, err = impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, applicationObjectClusterId, time.Now(), isAppStore)
+			isSucceeded, isTimelineUpdated, pipelineOverride, err = impl.appService.UpdateDeploymentStatusForGitOpsPipelines(appObject, applicationObjectClusterId, time.Now(), isAppStore)
 			if err != nil {
-				impl.logger.Errorw("error in updating deployment status for gitOps cd pipelines", "app", app, "err", err)
+				impl.logger.Errorw("error in updating deployment status for gitOps cd pipelines", "app", appObject, "err", err)
 				return err, isTimelineUpdated
 			}
 
-			appStatus, err := impl.appService.ComputeAppstatus(pipeline.AppId, pipeline.EnvironmentId, app.Status.Health.Status)
+			appStatus, err := impl.appService.ComputeAppstatus(pipeline.AppId, pipeline.EnvironmentId, appObject.Status.Health.Status)
 			if err != nil {
 				impl.logger.Errorw("error in checking if last release is stop type", "err", err, pipeline.AppId, "envId", pipeline.EnvironmentId)
 				return err, isTimelineUpdated

@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	errors3 "errors"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	commonBean2 "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
@@ -53,6 +52,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
+	errors4 "github.com/devtron-labs/devtron/pkg/deployment/common/errors"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
@@ -454,7 +454,6 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 		}
 	}
 
-	isGitOpsRequiredForCD := impl.IsGitOpsRequiredForCD(pipelineCreateRequest)
 	app, err := impl.appRepo.FindById(pipelineCreateRequest.AppId)
 
 	if err != nil {
@@ -490,9 +489,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 
 	// TODO: creating git repo for all apps irrespective of acd or helm
 	if gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled() &&
-		isGitOpsRequiredForCD &&
-		!pipelineCreateRequest.IsCloneAppReq &&
-		!pipelineCreateRequest.Pipelines[0].IsExternalArgoAppLinkRequest() { //TODO: ayush revisit
+		impl.IsGitOpsRequiredForCD(pipelineCreateRequest) { //TODO: ayush revisit
 
 		if gitOps.IsGitOpsRepoNotConfigured(appDeploymentConfig.GetRepoURL()) {
 			if gitOpsConfigurationStatus.AllowCustomRepository || appDeploymentConfig.ConfigType == bean4.CUSTOM.String() {
@@ -606,7 +603,7 @@ func (impl *CdPipelineConfigServiceImpl) parseReleaseConfigForACDApp(app *app2.A
 		return nil, err
 	}
 	var latestChart *chartRepoRepository.Chart
-	if envOverride == nil || envOverride.Id == 0 || (envOverride.Id > 0 && !envOverride.IsOverride) {
+	if !envOverride.IsOverridden() {
 		latestChart, err = impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
 		if err != nil {
 			return nil, err
@@ -665,19 +662,11 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		impl.logger.Errorw("error in fetching application", "deploymentAppName", acdAppName, "err", err)
 		return response.SetUnknownErrorDetail(err)
 	}
-
-	applicationJSON, err := json.Marshal(application)
+	argoApplicationSpec, err := argocdServer.GetAppObject(application)
 	if err != nil {
-		impl.logger.Errorw("error in marshalling application", "applicationName", acdAppName, "err", err)
+		impl.logger.Errorw("error in getting app object", "deploymentAppName", acdAppName, "application", application, "err", err)
 		return response.SetUnknownErrorDetail(err)
 	}
-
-	var argoApplicationSpec v1alpha1.Application
-	if err := json.Unmarshal(applicationJSON, &argoApplicationSpec); err != nil {
-		impl.logger.Errorw("error in unmarshalling application", "applicationName", acdAppName, "err", err)
-		return response.SetUnknownErrorDetail(err)
-	}
-
 	if argoApplicationSpec.Spec.HasMultipleSources() {
 		return response.SetErrorDetail(pipelineConfigBean.UnsupportedApplicationSpec, "application with multiple sources not supported")
 	}
@@ -703,8 +692,11 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		return response.SetUnknownErrorDetail(err)
 	}
 
-	pipeline := impl.deploymentConfigService.FilterPipelinesByApplicationClusterIdAndNamespace(pipelines, applicationObjectClusterId, applicationObjectNamespace)
-	if pipeline.Id != 0 {
+	pipeline, err := impl.deploymentConfigService.FilterPipelinesByApplicationClusterIdAndNamespace(pipelines, applicationObjectClusterId, applicationObjectNamespace)
+	if err != nil && !errors3.Is(err, errors4.PipelineNotFoundError) {
+		impl.logger.Errorw("error in filtering pipelines by application clusterId and namespace", "applicationObjectClusterId", applicationObjectClusterId, "applicationObjectNamespace", applicationObjectNamespace, "err", err)
+		return response.SetUnknownErrorDetail(err)
+	} else if pipeline.Id != 0 {
 		return response.SetErrorDetail(pipelineConfigBean.ApplicationAlreadyPresent, pipelineConfigBean.PipelineAlreadyPresentMsg)
 	}
 
@@ -1783,12 +1775,16 @@ func (impl *CdPipelineConfigServiceImpl) GetBulkActionImpactedPipelines(dto *bea
 }
 
 func (impl *CdPipelineConfigServiceImpl) IsGitOpsRequiredForCD(pipelineCreateRequest *bean.CdPipelines) bool {
-
+	if pipelineCreateRequest.IsCloneAppReq {
+		// if clone app request is there than gitops is not required
+		return false
+	}
 	// if deploymentAppType is not coming in request than hasAtLeastOneGitOps will be false
-
 	haveAtLeastOneGitOps := false
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
-		if pipeline.EnvironmentId > 0 && pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		if pipeline.EnvironmentId > 0 &&
+			pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD &&
+			!pipeline.IsExternalArgoAppLinkRequest() {
 			haveAtLeastOneGitOps = true
 		}
 	}
@@ -2201,11 +2197,10 @@ func (impl *CdPipelineConfigServiceImpl) parseEnvOverrideCreateRequestForExterna
 	}
 
 	chartForOverride, err := impl.chartRepository.FindChartByAppIdAndRefId(app.Id, chartRef.Id)
-	if err != nil && errors3.Is(err, pg.ErrNoRows) {
+	if err != nil && !errors3.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in finding chart for this app and chart_ref_id", "appId", app.Id, "chartRefId", chartRef.Id, "err", err)
 		return nil, err
-	}
-	if errors3.Is(err, pg.ErrNoRows) {
+	} else if errors3.Is(err, pg.ErrNoRows) {
 		chartCreateRequest := bean6.TemplateRequest{
 			AppId:               app.Id,
 			ChartRefId:          chartRef.Id,
@@ -2222,6 +2217,9 @@ func (impl *CdPipelineConfigServiceImpl) parseEnvOverrideCreateRequestForExterna
 		if err != nil && !errors3.Is(err, pg.ErrNoRows) {
 			impl.logger.Errorw("error in finding chart for this app and chart_ref_id", "appId", app.Id, "chartRefId", chartRef.Id, "err", err)
 			return nil, err
+		} else if errors3.Is(err, pg.ErrNoRows) {
+			impl.logger.Errorw("chart not found after creation", "appId", app.Id, "chartRefId", chartRef.Id)
+			return nil, fmt.Errorf("base deployment chart not found")
 		}
 	}
 	chartForOverride.GlobalOverride = string(values)

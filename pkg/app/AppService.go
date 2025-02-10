@@ -446,7 +446,11 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValid(app *v1alpha1.Appl
 		impl.logger.Errorw("error in getting cd pipeline by argoAppName", "err", err, "argoAppName", argoAppName)
 		return isValid, pipeline, cdWfr, pipelineOverride, err
 	}
-	pipeline = impl.deploymentConfigService.FilterPipelinesByApplicationClusterIdAndNamespace(pipelines, applicationClusterId, app.Namespace)
+	pipeline, err = impl.deploymentConfigService.FilterPipelinesByApplicationClusterIdAndNamespace(pipelines, applicationClusterId, app.Namespace)
+	if err != nil {
+		impl.logger.Errorw("error in getting cd pipeline by applicationClusterId", "err", err, "applicationClusterId", applicationClusterId)
+		return isValid, pipeline, cdWfr, pipelineOverride, err
+	}
 	// getting latest pipelineOverride for app (by appId and envId)
 	pipelineOverride, err = impl.pipelineOverrideRepository.FindLatestByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId, bean4.ArgoCd)
 	if err != nil {

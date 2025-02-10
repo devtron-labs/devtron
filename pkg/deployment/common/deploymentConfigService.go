@@ -33,6 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/common/bean"
+	commonErr "github.com/devtron-labs/devtron/pkg/deployment/common/errors"
 	read2 "github.com/devtron-labs/devtron/pkg/deployment/common/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/helper"
@@ -58,7 +59,7 @@ type DeploymentConfigService interface {
 	GetAllArgoAppNamesByCluster(clusterIds []int) ([]string, error)
 	GetExternalReleaseType(appId, environmentId int) (*bean.ExternalReleaseType, error)
 	CheckIfURLAlreadyPresent(repoURL string) (bool, error)
-	FilterPipelinesByApplicationClusterIdAndNamespace(pipelines []pipelineConfig.Pipeline, applicationObjectClusterId int, applicationObjectNamespace string) pipelineConfig.Pipeline
+	FilterPipelinesByApplicationClusterIdAndNamespace(pipelines []pipelineConfig.Pipeline, applicationObjectClusterId int, applicationObjectNamespace string) (pipelineConfig.Pipeline, error)
 }
 
 type DeploymentConfigServiceImpl struct {
@@ -452,7 +453,7 @@ func (impl *DeploymentConfigServiceImpl) parseEnvLevelReleaseConfigForDevtronApp
 			return nil, err
 		}
 		var latestChart *chartRepoRepository.Chart
-		if envOverride == nil || envOverride.Id == 0 || (envOverride.Id > 0 && !envOverride.IsOverride) {
+		if !envOverride.IsOverridden() {
 			latestChart, err = impl.chartRepository.FindLatestChartForAppByAppId(appId)
 			if err != nil {
 				return nil, err
@@ -810,19 +811,18 @@ func (impl *DeploymentConfigServiceImpl) getAllConfigsWithCustomGitOpsURL() ([]*
 	return configs, nil
 }
 
-func (impl *DeploymentConfigServiceImpl) FilterPipelinesByApplicationClusterIdAndNamespace(pipelines []pipelineConfig.Pipeline, applicationObjectClusterId int, applicationObjectNamespace string) pipelineConfig.Pipeline {
+func (impl *DeploymentConfigServiceImpl) FilterPipelinesByApplicationClusterIdAndNamespace(pipelines []pipelineConfig.Pipeline, applicationObjectClusterId int, applicationObjectNamespace string) (pipelineConfig.Pipeline, error) {
 	pipeline := pipelineConfig.Pipeline{}
 	for _, p := range pipelines {
 		dc, err := impl.GetConfigForDevtronApps(p.AppId, p.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", p.AppId, "environmentId", p.EnvironmentId, "err", err)
-			return pipelineConfig.Pipeline{}
+			return pipeline, err
 		}
 		if dc.GetApplicationObjectClusterId() == applicationObjectClusterId &&
 			dc.GetApplicationObjectNamespace() == applicationObjectNamespace {
-			pipeline = p
-			break
+			return p, nil
 		}
 	}
-	return pipeline
+	return pipeline, commonErr.PipelineNotFoundError
 }

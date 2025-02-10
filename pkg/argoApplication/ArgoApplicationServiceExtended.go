@@ -96,17 +96,12 @@ func (c *ArgoApplicationServiceExtendedImpl) getApplicationObjectWithK8sClient(c
 		c.logger.Errorw("error in fetching application", "acdQueryRequest", acdQueryRequest, "err", err)
 		return nil, err
 	}
-	applicationJSON, err := json.Marshal(application)
+	argoApplicationSpec, err := argocdServer.GetAppObject(application)
 	if err != nil {
-		c.logger.Errorw("error in marshalling application", "acdQueryRequest", acdQueryRequest, "err", err)
+		c.logger.Errorw("error in fetching application", "acdQueryRequest", acdQueryRequest, "err", err)
 		return nil, err
 	}
-	var argoApplicationSpec v1alpha1.Application
-	if err = json.Unmarshal(applicationJSON, &argoApplicationSpec); err != nil {
-		c.logger.Errorw("error in unmarshalling application", "acdQueryRequest", acdQueryRequest, "err", err)
-		return nil, err
-	}
-	return &argoApplicationSpec, nil
+	return argoApplicationSpec, nil
 }
 
 func (c *ArgoApplicationServiceExtendedImpl) getApplicationObjectWithAcdClient(ctx context.Context,
