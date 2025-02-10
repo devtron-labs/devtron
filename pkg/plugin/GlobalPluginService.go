@@ -1941,7 +1941,7 @@ func (impl *GlobalPluginServiceImpl) MigratePluginDataToParentPluginMetadata(plu
 				continue
 			}
 			parentMetadata := repository.NewPluginParentMetadata()
-			parentMetadata.SetParentPluginMetadata(pluginMetadata).CreateAuditLog(bean.SystemUserId)
+			parentMetadata.SetParentPluginMetadata(pluginMetadata).CreateAuditLog(bean.SystemUserId).WithIsExposed(true)
 			parentMetadata.Identifier = identifier
 			parentMetadata, err = impl.globalPluginRepository.SavePluginParentMetadata(tx, parentMetadata)
 			if err != nil {
