@@ -1223,17 +1223,25 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 			impl.Logger.Error("update wf failed for id " + strconv.Itoa(savedWorkflow.Id))
 			return 0, err
 		}
-		if string(v1alpha1.NodeError) == savedWorkflow.Status || string(v1alpha1.NodeFailed) == savedWorkflow.Status {
-			impl.Logger.Warnw("ci failed for workflow: ", "wfId", savedWorkflow.Id)
-
-			if extractErrorCode(savedWorkflow.Message) != workFlow.CiStageFailErrorCode {
-				go impl.WriteCIFailEvent(savedWorkflow)
-			} else {
-				impl.Logger.Infof("Step failed notification received for wfID %d with message %s", savedWorkflow.Id, savedWorkflow.Message)
-			}
-		}
+		impl.sendCIFailEvent(savedWorkflow, status, message)
 	}
 	return savedWorkflow.Id, nil
+}
+
+func (impl *CiHandlerImpl) sendCIFailEvent(savedWorkflow *pipelineConfig.CiWorkflow, status, message string) {
+	if string(v1alpha1.NodeError) == savedWorkflow.Status || string(v1alpha1.NodeFailed) == savedWorkflow.Status {
+		if executors.CheckIfReTriggerRequired(status, message, savedWorkflow.Status) {
+			impl.Logger.Infow("not sending failure notification for re-trigger workflow", "workflowId", savedWorkflow.Id)
+			return
+		}
+		impl.Logger.Warnw("ci failed for workflow: ", "wfId", savedWorkflow.Id)
+
+		if extractErrorCode(savedWorkflow.Message) != workFlow.CiStageFailErrorCode {
+			go impl.WriteCIFailEvent(savedWorkflow)
+		} else {
+			impl.Logger.Infof("Step failed notification received for wfID %d with message %s", savedWorkflow.Id, savedWorkflow.Message)
+		}
+	}
 }
 
 func extractErrorCode(msg string) int {

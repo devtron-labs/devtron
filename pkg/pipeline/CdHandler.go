@@ -68,7 +68,7 @@ const (
 )
 
 type CdHandler interface {
-	UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, string, error)
+	UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, string, bool, error)
 	GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]pipelineBean.CdWorkflowWithArtifact, error)
 	GetRunningWorkflowLogs(environmentId int, pipelineId int, workflowId int) (*bufio.Reader, func() error, error)
 	FetchCdWorkflowDetails(appId int, environmentId int, pipelineId int, buildId int) (types.WorkflowResponse, error)
@@ -262,23 +262,23 @@ func (impl *CdHandlerImpl) handleForceAbortCaseForCdStage(workflowRunner *pipeli
 	return nil
 }
 
-func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, string, error) {
+func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, string, bool, error) {
 	wfStatusRs := impl.extractWorkfowStatus(workflowStatus)
 	workflowName, status, podStatus, message, podName := wfStatusRs.WorkflowName, wfStatusRs.Status, wfStatusRs.PodStatus, wfStatusRs.Message, wfStatusRs.PodName
 	impl.Logger.Debugw("cd update for ", "wf ", workflowName, "status", status)
 	if workflowName == "" {
-		return 0, "", errors.New("invalid wf name")
+		return 0, "", false, errors.New("invalid wf name")
 	}
 	workflowId, err := strconv.Atoi(workflowName[:strings.Index(workflowName, "-")])
 	if err != nil {
 		impl.Logger.Error("invalid wf status update req", "err", err)
-		return 0, "", err
+		return 0, "", false, err
 	}
 
 	savedWorkflow, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(workflowId)
 	if err != nil {
 		impl.Logger.Error("cannot get saved wf", "err", err)
-		return 0, "", err
+		return 0, "", false, err
 	}
 
 	cdArtifactLocationFormat := impl.config.GetArtifactLocationFormat()
@@ -299,21 +299,21 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		err = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(savedWorkflow)
 		if err != nil {
 			impl.Logger.Error("update wf failed for id " + strconv.Itoa(savedWorkflow.Id))
-			return 0, "", err
+			return 0, "", true, err
 		}
 		appId := savedWorkflow.CdWorkflow.Pipeline.AppId
 		envId := savedWorkflow.CdWorkflow.Pipeline.EnvironmentId
 		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
 		if err != nil {
 			impl.Logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
-			return 0, "", err
+			return 0, "", true, err
 		}
 		util3.TriggerCDMetrics(cdWorkflow.GetTriggerMetricsFromRunnerObj(savedWorkflow, envDeploymentConfig), impl.config.ExposeCDMetrics)
 		if string(v1alpha1.NodeError) == savedWorkflow.Status || string(v1alpha1.NodeFailed) == savedWorkflow.Status {
 			impl.Logger.Warnw("cd stage failed for workflow: ", "wfId", savedWorkflow.Id)
 		}
 	}
-	return savedWorkflow.Id, savedWorkflow.Status, nil
+	return savedWorkflow.Id, savedWorkflow.Status, false, nil
 }
 
 func (impl *CdHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.WorkflowStatus) *types.WorkflowStatus {
