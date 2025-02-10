@@ -383,6 +383,7 @@ func NewMigrateReleaseValidationRequest(pipeline *bean.CDPipelineConfigObject) *
 	request := &pipelineConfigBean.MigrateReleaseValidationRequest{
 		AppId:             pipeline.AppId,
 		DeploymentAppName: pipeline.DeploymentAppName,
+		DeploymentAppType: pipeline.DeploymentAppType,
 	}
 	request.ApplicationObjectClusterId = pipeline.ApplicationObjectClusterId
 	request.ApplicationObjectNamespace = pipeline.ApplicationObjectNamespace

@@ -111,7 +111,8 @@ const (
 	// Pipeline Config GitOps Config Errors
 	// Sequence 5100-5199
 
-	InvalidGitOpsRepoUrlForPipeline string = "5101"
+	InvalidGitOpsRepoUrlForPipeline     string = "5101"
+	InvalidDeploymentAppTypeForPipeline string = "5102"
 
 	// Pipeline Errors End -------------------
 )

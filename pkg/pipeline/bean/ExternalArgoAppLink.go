@@ -81,6 +81,8 @@ const (
 	ChartVersionNotFound       LinkFailedReason = "ChartVersionNotFound"
 	GitOpsNotFound             LinkFailedReason = "GitOpsNotFound"
 	InternalServerError        LinkFailedReason = "InternalServerError"
+	EnvironmentAlreadyPresent  LinkFailedReason = "EnvironmentAlreadyPresent"
+	EnforcedPolicyViolation    LinkFailedReason = "EnforcedPolicyViolation"
 )
 
 const (

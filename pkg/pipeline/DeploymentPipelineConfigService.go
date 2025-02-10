@@ -99,9 +99,9 @@ type CdPipelineConfigService interface {
 	// if any error occur , will get empty object or nil
 	GetCdPipelineById(pipelineId int) (cdPipeline *bean.CDPipelineConfigObject, err error)
 	CreateCdPipelines(cdPipelines *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error)
+	ValidateLinkExternalArgoCDRequest(request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ArgoCdAppLinkValidationResponse
 	// PatchCdPipelines : Handle CD pipeline patch requests, making necessary changes to the configuration and returning the updated version.
 	// Performs Create ,Update and Delete operation.
-	ValidateLinkExternalArgoCDRequest(request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ArgoCdAppLinkValidationResponse
 	PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error)
 	DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, deleteAction int, acdDelete bool, userId int32) (*bean.AppDeleteResponseDTO, error)
 	DeleteACDAppCdPipelineWithNonCascade(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool, userId int32) (err error)
@@ -647,7 +647,6 @@ func (impl *CdPipelineConfigServiceImpl) parseReleaseConfigForACDApp(app *app2.A
 }
 
 func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ArgoCdAppLinkValidationResponse {
-
 	appId := request.AppId
 	applicationObjectClusterId := request.ApplicationObjectClusterId
 	applicationObjectNamespace := request.ApplicationObjectNamespace
@@ -657,6 +656,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		IsLinkable:          false,
 		ApplicationMetadata: pipelineConfigBean.NewEmptyApplicationMetadata(),
 	}
+
 	application, err := impl.argoClientWrapperService.GetArgoAppByNameWithK8sClient(context.Background(), applicationObjectClusterId, applicationObjectNamespace, acdAppName)
 	if err != nil {
 		impl.logger.Errorw("error in fetching application", "deploymentAppName", acdAppName, "err", err)
@@ -697,7 +697,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		impl.logger.Errorw("error in filtering pipelines by application clusterId and namespace", "applicationObjectClusterId", applicationObjectClusterId, "applicationObjectNamespace", applicationObjectNamespace, "err", err)
 		return response.SetUnknownErrorDetail(err)
 	} else if pipeline.Id != 0 {
-		return response.SetErrorDetail(pipelineConfigBean.ApplicationAlreadyPresent, pipelineConfigBean.PipelineAlreadyPresentMsg)
+		return response.SetErrorDetail(pipelineConfigBean.EnvironmentAlreadyPresent, pipelineConfigBean.PipelineAlreadyPresentMsg)
 	}
 
 	installedApp, err := impl.installedAppReadService.GetInstalledAppByGitOpsAppName(acdAppName)
@@ -789,6 +789,19 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 	}
 	response.IsLinkable = true
 	response.ApplicationMetadata.Status = string(argoApplicationSpec.Status.Health.Status)
+
+	overrideDeploymentType, err := impl.deploymentTypeOverrideService.ValidateAndOverrideDeploymentAppType(util.PIPELINE_DEPLOYMENT_TYPE_ACD, true, targetEnv.Id)
+	if err != nil {
+		impl.logger.Errorw("validation error for the used deployment type", "targetEnvId", targetEnv.Id, "deploymentAppType", request.DeploymentAppType, "err", err)
+		if apiError, ok := err.(*util.ApiError); ok && apiError.Code == constants.InvalidDeploymentAppTypeForPipeline {
+			return response.SetErrorDetail(pipelineConfigBean.EnforcedPolicyViolation, apiError.UserDetailMessage)
+		}
+		return response.SetUnknownErrorDetail(err)
+	}
+	if overrideDeploymentType != util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		errMsg := fmt.Sprintf("Cannot migrate Argo CD Application. Deployment via %q is enforced on the target environment.", overrideDeploymentType)
+		return response.SetErrorDetail(pipelineConfigBean.EnforcedPolicyViolation, errMsg)
+	}
 	return response
 }
 
