@@ -224,7 +224,7 @@ func (impl ArgoK8sClientImpl) GetArgoApplication(k8sConfig *bean.ArgoK8sConfig, 
 
 func (impl ArgoK8sClientImpl) DeleteArgoApplication(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string, cascadeDelete bool) error {
 
-	patchType := types.JSONPatchType
+	patchType := types.MergePatchType
 	patchJSON := ""
 
 	//TODO: ayush test cascade delete
