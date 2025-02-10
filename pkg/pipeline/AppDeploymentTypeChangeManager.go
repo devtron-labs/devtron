@@ -783,7 +783,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) deleteArgoCdApp(ctx context.Cont
 	}
 	var err error
 	applicationObjectClusterId := envDeploymentConfig.GetApplicationObjectClusterId()
-	applicationNamespace := envDeploymentConfig.GetDestinationNamespace()
+	applicationNamespace := envDeploymentConfig.GetApplicationObjectNamespace()
 	err = impl.ArgoClientWrapperService.DeleteArgoAppWithK8sClient(ctx, applicationObjectClusterId, applicationNamespace, pipeline.DeploymentAppName, cascadeDelete)
 	if err != nil {
 		impl.logger.Errorw("error in deleting argocd application", "err", err)

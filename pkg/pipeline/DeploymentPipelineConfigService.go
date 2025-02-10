@@ -1190,7 +1190,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 			if deleteFromAcd {
 				//TODO: ayush test
 				applicationObjectClusterId := envDeploymentConfig.GetApplicationObjectClusterId()
-				applicationNamespace := envDeploymentConfig.GetDestinationNamespace()
+				applicationNamespace := envDeploymentConfig.GetApplicationObjectNamespace()
 
 				if err := impl.argoClientWrapperService.DeleteArgoAppWithK8sClient(ctx, applicationObjectClusterId, applicationNamespace, deploymentAppName, cascadeDelete); err != nil {
 					impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
@@ -1271,7 +1271,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteACDAppCdPipelineWithNonCascade(pi
 		return err
 	}
 	applicationObjectClusterId := envDeploymentConfig.GetApplicationObjectClusterId()
-	applicationObjectNamespace := envDeploymentConfig.GetDestinationNamespace()
+	applicationObjectNamespace := envDeploymentConfig.GetApplicationObjectNamespace()
 	//delete app from argo cd with non-cascade, if created
 	if pipeline.DeploymentAppCreated && util.IsAcdApp(envDeploymentConfig.DeploymentAppType) {
 		deploymentAppName := pipeline.DeploymentAppName
@@ -2473,7 +2473,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipelinePartial(pipeline *pipel
 			}
 			impl.logger.Debugw("acd app is already deleted for this pipeline", "pipeline", pipeline)
 			applicationObjectClusterId := envDeploymentConfig.GetApplicationObjectClusterId()
-			applicationNamespace := envDeploymentConfig.GetDestinationNamespace()
+			applicationNamespace := envDeploymentConfig.GetApplicationObjectNamespace()
 			if err = impl.argoClientWrapperService.DeleteArgoAppWithK8sClient(ctx, applicationObjectClusterId, applicationNamespace, deploymentAppName, cascadeDelete); err != nil {
 				impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
 
