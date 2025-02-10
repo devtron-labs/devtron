@@ -357,9 +357,14 @@ func (d DeploymentConfigCredentialType) String() string {
 
 type ExternalReleaseType string
 
+func (e ExternalReleaseType) IsArgoApplication() bool {
+	return e == ArgoApplication
+}
+
 const (
 	ArgoApplication ExternalReleaseType = "argoApplication"
 	HelmRelease     ExternalReleaseType = "helmRelease"
+	Undefined       ExternalReleaseType = ""
 )
 
 func (d *DeploymentConfig) GetMigratedFrom() (migratedFrom ExternalReleaseType, isLinked bool) {
@@ -370,5 +375,5 @@ func (d *DeploymentConfig) GetMigratedFrom() (migratedFrom ExternalReleaseType, 
 			return HelmRelease, true
 		}
 	}
-	return "", false
+	return Undefined, false
 }

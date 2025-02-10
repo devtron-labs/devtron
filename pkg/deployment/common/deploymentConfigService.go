@@ -57,7 +57,7 @@ type DeploymentConfigService interface {
 	GetConfigsByAppIds(appIds []int) ([]*bean.DeploymentConfig, error)
 	UpdateChartLocationInDeploymentConfig(appId, envId, chartRefId int, userId int32, chartVersion string) error
 	GetAllArgoAppNamesByCluster(clusterIds []int) ([]string, error)
-	GetExternalReleaseType(appId, environmentId int) (*bean.ExternalReleaseType, error)
+	GetExternalReleaseType(appId, environmentId int) (bean.ExternalReleaseType, error)
 	CheckIfURLAlreadyPresent(repoURL string) (bool, error)
 	FilterPipelinesByApplicationClusterIdAndNamespace(pipelines []pipelineConfig.Pipeline, applicationObjectClusterId int, applicationObjectNamespace string) (pipelineConfig.Pipeline, error)
 }
@@ -764,17 +764,14 @@ func (impl *DeploymentConfigServiceImpl) GetAllArgoAppNamesByCluster(clusterIds 
 	return sliceUtil.GetUniqueElements(allDevtronManagedArgoAppNames), nil
 }
 
-func (impl *DeploymentConfigServiceImpl) GetExternalReleaseType(appId, environmentId int) (*bean.ExternalReleaseType, error) {
-	deploymentConfig, err := impl.GetConfigForDevtronApps(appId, environmentId)
+func (impl *DeploymentConfigServiceImpl) GetExternalReleaseType(appId, environmentId int) (bean.ExternalReleaseType, error) {
+	config, err := impl.GetConfigForDevtronApps(appId, environmentId)
 	if err != nil {
 		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", appId, "envId", environmentId, "err", err)
-		return nil, err
+		return bean.Undefined, err
 	}
-	externalHelmReleaseType, isLinked := deploymentConfig.GetMigratedFrom()
-	if isLinked {
-		return &externalHelmReleaseType, nil
-	}
-	return nil, nil
+	externalHelmReleaseType, _ := config.GetMigratedFrom()
+	return externalHelmReleaseType, nil
 }
 
 func (impl *DeploymentConfigServiceImpl) CheckIfURLAlreadyPresent(repoURL string) (bool, error) {
