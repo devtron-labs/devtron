@@ -1,0 +1,102 @@
+openapi: 3.1.0
+info:
+  title: Resource Options
+  description: Resource Options
+  version: 1.0.0
+servers:
+  - url: 'https'
+paths:
+  /orchestrator/user/resource/options/{kind}/{version}/{entity/accessType}: # <1>
+    post:
+      summary: Get Resource Options
+      description: Get Resource Options
+      parameters:
+        - name: kind
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: entity
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: accessType
+          required: false
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                teamIds:
+                  type: array
+                  description: set team ids to get application which are in set teams for kind application
+      responses:
+        '200':
+          description: Returns Resource Options as response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                  result:
+                    $ref: '#/components/schemas/ResourceOptions'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    ResourceOptions:
+      required:
+        - data
+      properties:
+        data:
+          type: object
+          description: generic data field which will contain relevant data
+    ErrorResponse:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        status:
+          type: string
+          description: Error message
+        errors:
+          type: array
+          description: errors
+          items:
+            $ref: '#/components/schemas/Error'
+
+    Error:
+      type: object
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: string
+          description: Error internal code
+        internalMessage:
+          type: string
+          description: Error internal message
+        userMessage:
+          type: string
+          description: Error user message
