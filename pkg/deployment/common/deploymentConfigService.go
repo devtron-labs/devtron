@@ -105,19 +105,17 @@ func NewDeploymentConfigServiceImpl(
 }
 
 func (impl *DeploymentConfigServiceImpl) CreateOrUpdateConfig(tx *pg.Tx, config *bean.DeploymentConfig, userId int32) (*bean.DeploymentConfig, error) {
-
-	configDbObj, err := impl.GetConfigDBObj(config.AppId, config.EnvironmentId)
-	if err != nil && !errors.Is(err, pg.ErrNoRows) {
-		impl.logger.Errorw("error in fetching deployment config from DB by appId and envId",
-			"appId", config.AppId, "envId", config.EnvironmentId, "err", err)
-	}
-
 	newDBObj, err := adapter.ConvertDeploymentConfigDTOToDbObj(config)
 	if err != nil {
 		impl.logger.Errorw("error in converting deployment config DTO to db object", "appId", config.AppId, "envId", config.EnvironmentId)
 		return nil, err
 	}
 
+	configDbObj, err := impl.GetConfigDBObj(config.AppId, config.EnvironmentId)
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
+		impl.logger.Errorw("error in fetching deployment config from DB by appId and envId",
+			"appId", config.AppId, "envId", config.EnvironmentId, "err", err)
+	}
 	if configDbObj == nil || configDbObj.Id == 0 {
 		newDBObj.AuditLog.CreateAuditLog(userId)
 		newDBObj, err = impl.deploymentConfigRepository.Save(tx, newDBObj)

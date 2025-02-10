@@ -109,6 +109,7 @@ import (
 	resourceGroup "github.com/devtron-labs/devtron/internal/sql/repository/resourceGroup"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
+	read4 "github.com/devtron-labs/devtron/pkg/app/appDetails/read"
 	"github.com/devtron-labs/devtron/pkg/app/dbMigration"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/appClone"
@@ -375,6 +376,10 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(appList.AppListingRouter), new(*appList.AppListingRouterImpl)),
 		appList2.NewAppListingRestHandlerImpl,
 		wire.Bind(new(appList2.AppListingRestHandler), new(*appList2.AppListingRestHandlerImpl)),
+
+		read4.NewAppDetailsReadServiceImpl,
+		wire.Bind(new(read4.AppDetailsReadService), new(*read4.AppDetailsReadServiceImpl)),
+
 		app.NewAppListingServiceImpl,
 		wire.Bind(new(app.AppListingService), new(*app.AppListingServiceImpl)),
 		repository.NewAppListingRepositoryImpl,

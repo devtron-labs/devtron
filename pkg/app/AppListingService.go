@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
+	read4 "github.com/devtron-labs/devtron/pkg/app/appDetails/read"
 	userrepository "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	ciConfig "github.com/devtron-labs/devtron/pkg/build/pipeline/read"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -130,6 +131,7 @@ func (req FetchAppListingRequest) GetNamespaceClusterMapping() (namespaceCluster
 type AppListingServiceImpl struct {
 	Logger                         *zap.SugaredLogger
 	appRepository                  app.AppRepository
+	appDetailsReadService          read4.AppDetailsReadService
 	appListingRepository           repository.AppListingRepository
 	appListingViewBuilder          AppListingViewBuilder
 	pipelineRepository             pipelineConfig.PipelineRepository
@@ -147,7 +149,9 @@ type AppListingServiceImpl struct {
 	ciPipelineConfigReadService    ciConfig.CiPipelineConfigReadService
 }
 
-func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository,
+func NewAppListingServiceImpl(Logger *zap.SugaredLogger,
+	appListingRepository repository.AppListingRepository,
+	appDetailsReadService read4.AppDetailsReadService,
 	appRepository app.AppRepository,
 	appListingViewBuilder AppListingViewBuilder, pipelineRepository pipelineConfig.PipelineRepository,
 	linkoutsRepository repository.LinkoutsRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
@@ -157,9 +161,10 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService, ciArtifactRepository repository.CiArtifactRepository,
 	envConfigOverrideReadService read.EnvConfigOverrideService,
 	ciPipelineConfigReadService ciConfig.CiPipelineConfigReadService) *AppListingServiceImpl {
-	serviceImpl := &AppListingServiceImpl{
+	return &AppListingServiceImpl{
 		Logger:                         Logger,
 		appListingRepository:           appListingRepository,
+		appDetailsReadService:          appDetailsReadService,
 		appRepository:                  appRepository,
 		appListingViewBuilder:          appListingViewBuilder,
 		pipelineRepository:             pipelineRepository,
@@ -176,7 +181,6 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 		envConfigOverrideReadService:   envConfigOverrideReadService,
 		ciPipelineConfigReadService:    ciPipelineConfigReadService,
 	}
-	return serviceImpl
 }
 
 const AcdInvalidAppErr = "invalid acd app name and env"
@@ -757,7 +761,7 @@ func (impl AppListingServiceImpl) fetchACDAppStatusV2(fetchAppListingRequest Fet
 }
 
 func (impl AppListingServiceImpl) FetchAppDetails(ctx context.Context, appId int, envId int) (AppView.AppDetailContainer, error) {
-	appDetailContainer, err := impl.appListingRepository.FetchAppDetail(ctx, appId, envId)
+	appDetailContainer, err := impl.appDetailsReadService.FetchAppDetail(ctx, appId, envId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app detail", "error", err)
 		return AppView.AppDetailContainer{}, err
@@ -829,7 +833,7 @@ func (impl AppListingServiceImpl) FetchAppTriggerView(appId int) ([]AppView.Trig
 }
 
 func (impl AppListingServiceImpl) FetchAppStageStatus(appId int, appType int) ([]AppView.AppStageStatus, error) {
-	appStageStatuses, err := impl.appListingRepository.FetchAppStageStatus(appId, appType)
+	appStageStatuses, err := impl.appDetailsReadService.FetchAppStageStatus(appId, appType)
 	return appStageStatuses, err
 }
 

@@ -2,9 +2,10 @@ package read
 
 import (
 	"fmt"
+	apiGitOpsBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
-	util2 "github.com/devtron-labs/devtron/internal/util"
-	bean2 "github.com/devtron-labs/devtron/pkg/bean"
+	interalUtil "github.com/devtron-labs/devtron/internal/util"
+	serviceBean "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/common/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/util"
@@ -12,7 +13,8 @@ import (
 )
 
 type DeploymentConfigReadService interface {
-	GetDeploymentAppTypeForCDInBulk(pipelines []*bean2.CDPipelineMinConfig, appIdToGitOpsConfiguredMap map[int]bool) (map[int]*bean.DeploymentConfigMin, error)
+	GetDeploymentConfigMinForAppAndEnv(appId, envId int) (*bean.DeploymentConfigMin, error)
+	GetDeploymentAppTypeForCDInBulk(pipelines []*serviceBean.CDPipelineMinConfig, appIdToGitOpsConfiguredMap map[int]bool) (map[int]*bean.DeploymentConfigMin, error)
 }
 
 type DeploymentConfigReadServiceImpl struct {
@@ -31,7 +33,31 @@ func NewDeploymentConfigReadServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *DeploymentConfigReadServiceImpl) GetDeploymentAppTypeForCDInBulk(pipelines []*bean2.CDPipelineMinConfig, appIdToGitOpsConfiguredMap map[int]bool) (map[int]*bean.DeploymentConfigMin, error) {
+func (impl *DeploymentConfigReadServiceImpl) GetDeploymentConfigMinForAppAndEnv(appId, envId int) (*bean.DeploymentConfigMin, error) {
+	deploymentDetail := &bean.DeploymentConfigMin{}
+	config, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(appId, envId)
+	if err != nil && !interalUtil.IsErrNoRows(err) {
+		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
+		return deploymentDetail, err
+	} else if interalUtil.IsErrNoRows(err) {
+		deploymentDetail.ReleaseMode = interalUtil.PIPELINE_RELEASE_MODE_CREATE
+		return deploymentDetail, nil
+	}
+	configBean, err := adapter.ConvertDeploymentConfigDbObjToDTO(config)
+	if err != nil {
+		impl.logger.Errorw("error, ConvertDeploymentConfigDbObjToDTO", "config", config, "err", err)
+		return nil, err
+	}
+	if configBean != nil {
+		deploymentDetail.DeploymentAppType = configBean.DeploymentAppType
+		deploymentDetail.ReleaseMode = configBean.ReleaseMode
+		deploymentDetail.GitRepoUrl = configBean.GetRepoURL()
+		deploymentDetail.IsGitOpsRepoConfigured = !apiGitOpsBean.IsGitOpsRepoNotConfigured(configBean.GetRepoURL())
+	}
+	return deploymentDetail, nil
+}
+
+func (impl *DeploymentConfigReadServiceImpl) GetDeploymentAppTypeForCDInBulk(pipelines []*serviceBean.CDPipelineMinConfig, appIdToGitOpsConfiguredMap map[int]bool) (map[int]*bean.DeploymentConfigMin, error) {
 	resp := make(map[int]*bean.DeploymentConfigMin, len(pipelines)) //map of pipelineId and deploymentAppType
 	if impl.deploymentServiceTypeConfig.UseDeploymentConfigData {
 		appIdEnvIdMapping := make(map[int][]int, len(pipelines))
@@ -60,7 +86,7 @@ func (impl *DeploymentConfigReadServiceImpl) GetDeploymentAppTypeForCDInBulk(pip
 		if _, ok := resp[pipeline.Id]; !ok {
 			isGitOpsRepoConfigured := appIdToGitOpsConfiguredMap[pipeline.AppId]
 			// not found in map, either flag is disabled or config not migrated yet. Getting from old data
-			resp[pipeline.Id] = adapter.NewDeploymentConfigMin(pipeline.DeploymentAppType, util2.PIPELINE_RELEASE_MODE_CREATE, isGitOpsRepoConfigured)
+			resp[pipeline.Id] = adapter.NewDeploymentConfigMin(pipeline.DeploymentAppType, interalUtil.PIPELINE_RELEASE_MODE_CREATE, isGitOpsRepoConfigured)
 		}
 	}
 	return resp, nil

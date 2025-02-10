@@ -146,6 +146,7 @@ type ManagedNamespaceMetadata struct {
 type DeploymentConfigMin struct {
 	DeploymentAppType      string
 	ReleaseMode            string
+	GitRepoUrl             string
 	IsGitOpsRepoConfigured bool
 }
 
