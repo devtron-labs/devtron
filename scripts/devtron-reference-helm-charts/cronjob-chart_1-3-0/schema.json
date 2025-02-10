@@ -372,7 +372,7 @@
         "description": "Kind is a string value representing the object type.",
         "enum": [
           "Job",
-          "Cronjob",
+          "CronJob",
           "ScaledJob"
         ],
         "title": "Kind"

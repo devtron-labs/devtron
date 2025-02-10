@@ -115,7 +115,6 @@ type K8sService interface {
 	GetConfigMapWithCtx(ctx context.Context, namespace string, name string, client *v12.CoreV1Client) (*v1.ConfigMap, error)
 	GetNsIfExists(namespace string, client *v12.CoreV1Client) (ns *v1.Namespace, exists bool, err error)
 	CreateNsIfNotExists(namespace string, clusterConfig *ClusterConfig) (ns *v1.Namespace, nsCreated bool, err error)
-	CreateNsWithLabelsIfNotExists(namespace string, labels map[string]string, clusterConfig *ClusterConfig) (ns *v1.Namespace, nsCreated bool, err error)
 	UpdateNSLabels(namespace *v1.Namespace, labels map[string]string, clusterConfig *ClusterConfig) (ns *v1.Namespace, err error)
 	GetK8sDiscoveryClientInCluster() (*discovery.DiscoveryClient, error)
 	GetK8sDiscoveryClient(clusterConfig *ClusterConfig) (*discovery.DiscoveryClient, error)
@@ -311,32 +310,6 @@ func (impl *K8sServiceImpl) CreateNsIfNotExists(namespace string, clusterConfig 
 	}
 	impl.logger.Infow("ns not exists creating", "ns", namespace)
 	ns, err = impl.CreateNs(namespace, v12Client)
-	if err != nil {
-		impl.logger.Errorw("error in creating ns", "namespace", namespace, "err", err)
-		return nil, false, err
-	}
-	nsCreated = true
-	return ns, nsCreated, err
-}
-
-func (impl *K8sServiceImpl) CreateNsWithLabelsIfNotExists(namespace string, labels map[string]string, clusterConfig *ClusterConfig) (ns *v1.Namespace, nsCreated bool, err error) {
-	v12Client, err := impl.GetCoreV1Client(clusterConfig)
-	if err != nil {
-		impl.logger.Errorw("error", "error", err, "clusterConfig", clusterConfig)
-		return nil, false, err
-	}
-	ns, exists, err := impl.GetNsIfExists(namespace, v12Client)
-	if err != nil {
-		impl.logger.Errorw("error", "error", err)
-		return ns, false, err
-	}
-	if exists {
-		nsCreated = false
-		impl.logger.Infow("namespace already exist", "namespace", namespace)
-		return ns, nsCreated, nil
-	}
-	impl.logger.Infow("ns not exists creating", "ns", namespace)
-	ns, err = impl.CreateNsWithLabels(namespace, labels, v12Client)
 	if err != nil {
 		impl.logger.Errorw("error in creating ns", "namespace", namespace, "err", err)
 		return nil, false, err
