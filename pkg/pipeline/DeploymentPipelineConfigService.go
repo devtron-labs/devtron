@@ -685,6 +685,15 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		return response.SetErrorDetail(pipelineConfigBean.UnsupportedApplicationSpec, "application with multiple/ empty helm value files are not supported")
 	}
 
+	targetClusterURL := argoApplicationSpec.Spec.Destination.Server
+	if len(targetClusterURL) == 0 {
+		return response.SetErrorDetail(pipelineConfigBean.UnsupportedApplicationSpec, "application with empty destination server is not supported")
+	}
+	targetClusterNamespace := argoApplicationSpec.Spec.Destination.Namespace
+	if len(targetClusterNamespace) == 0 {
+		return response.SetErrorDetail(pipelineConfigBean.UnsupportedApplicationSpec, "application with empty destination namespace is not supported")
+	}
+
 	response.ApplicationMetadata.Source.RepoURL = argoApplicationSpec.Spec.Source.RepoURL
 	response.ApplicationMetadata.Source.ChartPath = argoApplicationSpec.Spec.Source.Chart
 	response.ApplicationMetadata.Status = string(argoApplicationSpec.Status.Health.Status)
@@ -708,13 +717,6 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		if bean3.DefaultClusterId == applicationObjectClusterId && argocdServer.DevtronInstalationNs == applicationObjectNamespace {
 			return response.SetErrorDetail(pipelineConfigBean.ApplicationAlreadyPresent, pipelineConfigBean.HelmAppAlreadyPresentMsg)
 		}
-	}
-
-	targetClusterURL := argoApplicationSpec.Spec.Destination.Server
-	targetClusterNamespace := argoApplicationSpec.Spec.Destination.Namespace
-
-	if len(targetClusterNamespace) == 0 {
-		//TODO: handling
 	}
 
 	var targetCluster *bean3.ClusterBean
