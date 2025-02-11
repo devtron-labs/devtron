@@ -769,8 +769,7 @@ func (impl *DeploymentConfigServiceImpl) GetExternalReleaseType(appId, environme
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", appId, "envId", environmentId, "err", err)
 		return bean.Undefined, err
-	}
-	if errors.Is(err, pg.ErrNoRows) {
+	} else if errors.Is(err, pg.ErrNoRows) {
 		return bean.Undefined, nil
 	}
 	externalHelmReleaseType, _ := config.GetMigratedFrom()

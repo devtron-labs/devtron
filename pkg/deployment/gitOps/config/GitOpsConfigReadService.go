@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	internalUtil "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config/bean"
 	moduleBean "github.com/devtron-labs/devtron/pkg/module/bean"
 	moduleRead "github.com/devtron-labs/devtron/pkg/module/read"
@@ -156,28 +157,7 @@ func (impl *GitOpsConfigReadServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsC
 		impl.logger.Errorw("error, GetGitOpsConfigActive", "err", err)
 		return nil, err
 	}
-	config := &bean2.GitOpsConfigDto{
-		Id:                    model.Id,
-		Provider:              model.Provider,
-		GitHubOrgId:           model.GitHubOrgId,
-		GitLabGroupId:         model.GitLabGroupId,
-		Active:                model.Active,
-		Token:                 model.Token,
-		Host:                  model.Host,
-		Username:              model.Username,
-		UserId:                model.CreatedBy,
-		AzureProjectName:      model.AzureProject,
-		BitBucketWorkspaceId:  model.BitBucketWorkspaceId,
-		BitBucketProjectKey:   model.BitBucketProjectKey,
-		AllowCustomRepository: model.AllowCustomRepository,
-		EnableTLSVerification: true,
-		TLSConfig: &bean3.TLSConfig{
-			CaData:      model.CaCert,
-			TLSCertData: model.TlsCert,
-			TLSKeyData:  model.TlsKey,
-		},
-	}
-	return config, err
+	return adapter.GetGitOpsConfigBean(model), err
 }
 
 func (impl *GitOpsConfigReadServiceImpl) GetConfiguredGitOpsCount() (int, error) {
