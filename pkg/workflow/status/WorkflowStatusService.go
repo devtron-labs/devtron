@@ -316,7 +316,7 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 			impl.logger.Errorw("error in getting latest installedAppVersionHistory by installedAppId", "err", err, "installedAppId", installedApp.Id)
 			return nil, isTimelineUpdated
 		}
-		dc, err := impl.deploymentConfigService.GetConfigForDevtronApps(installedApp.AppId, installedApp.EnvironmentId)
+		dc, err := impl.deploymentConfigService.GetConfigForHelmApps(installedApp.AppId, installedApp.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", pipeline.AppId, "environmentId", pipeline.EnvironmentId, "err", err)
 			return nil, isTimelineUpdated
