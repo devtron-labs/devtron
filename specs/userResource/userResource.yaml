@@ -55,8 +55,6 @@ paths:
                   type: array
                   items:
                     type: integer
-                appType:
-                  type: string
                 appNames:
                   type: array
                   items:
