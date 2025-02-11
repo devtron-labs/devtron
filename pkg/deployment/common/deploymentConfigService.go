@@ -766,9 +766,12 @@ func (impl *DeploymentConfigServiceImpl) GetAllArgoAppNamesByCluster(clusterIds 
 
 func (impl *DeploymentConfigServiceImpl) GetExternalReleaseType(appId, environmentId int) (bean.ExternalReleaseType, error) {
 	config, err := impl.GetConfigForDevtronApps(appId, environmentId)
-	if err != nil {
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", appId, "envId", environmentId, "err", err)
 		return bean.Undefined, err
+	}
+	if errors.Is(err, pg.ErrNoRows) {
+		return bean.Undefined, nil
 	}
 	externalHelmReleaseType, _ := config.GetMigratedFrom()
 	return externalHelmReleaseType, nil
