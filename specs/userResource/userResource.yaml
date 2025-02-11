@@ -1,41 +1,92 @@
 openapi: 3.0.0
 info:
-  title: Resource Options
-  description: Resource Options
+  title: OPI Orchestrator API
+  description: API for fetching user resource options based on kind and version.
   version: 1.0.0
-servers:
-  - url: 'https'
+
 paths:
-  /orchestrator/user/resource/options/{kind}/{version}/{entity/accessType}: # <1>
+  /orchestrator/user/resource/options/{kind}/{version}:
     post:
-      summary: Get Resource Options
-      description: Get Resource Options
+      summary: Get user resource options
+      description: Returns options based on the kind and version of the user resource.
       parameters:
         - name: kind
           in: path
           required: true
           schema:
             type: string
+            enum:
+              - team
+              - environment
+              - application/devtron-application
+              - application/helm-application
+              - environment/helm
+              - cluster
+              - chartGroup
+              - jobs
+              - workflow
+              - cluster/namespaces
+              - cluster/apiResources
+              - cluster/resources
+          description: Type of user resource.
         - name: version
           in: path
           required: true
           schema:
             type: string
-        - name: entity/accessType
-          in: path
-          required: true
-          schema:
-            type: string
+            enum:
+              - v1
+          description: API version.
+
       requestBody:
-        required: false
+        required: true
         content:
           application/json:
             schema:
               type: object
+              required:
+                - entity
               properties:
+                entity:
+                  type: string
+                accessType:
+                  type: string
                 teamIds:
                   type: array
-                  description: set team ids to get application which are in set teams for kind application
+                  items:
+                    type: integer
+                appType:
+                  type: string
+                appNames:
+                  type: array
+                  items:
+                    type: string
+                clusterId:
+                  type: integer
+                k8sRequest:
+                  type: object
+                  properties:
+                    resourceIdentifier:
+                      type: object
+                      properties:
+                        groupVersionKind:
+                          type: object
+                          properties:
+                            Group:
+                              type: string
+                              example: "generators.external-secrets.io"
+                            Version:
+                              type: string
+                              example: "v1alpha1"
+                            Kind:
+                              type: string
+                              example: "ACRAccessToken"
+                        namespace:
+                          type: string
+                          example: ""
+
+
+
       responses:
         '200':
           description: Returns Resource Options as response
@@ -53,6 +104,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+
 components:
   schemas:
     ResourceOptions:
