@@ -49,6 +49,10 @@ type GitOpsConfigDto struct {
 	UserId         int32  `json:"-"`
 }
 
+func (dto GitOpsConfigDto) GetHostUrl() string {
+	return dto.Host
+}
+
 type GitRepoRequestDto struct {
 	Host                 string `json:"host"`
 	Provider             string `json:"provider"`

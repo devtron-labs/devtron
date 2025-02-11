@@ -17,6 +17,7 @@
 package deploymentConfig
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
@@ -56,13 +57,10 @@ type Repository interface {
 	SaveAll(tx *pg.Tx, configs []*DeploymentConfig) ([]*DeploymentConfig, error)
 	Update(tx *pg.Tx, config *DeploymentConfig) (*DeploymentConfig, error)
 	UpdateAll(tx *pg.Tx, config []*DeploymentConfig) ([]*DeploymentConfig, error)
-	GetById(id int) (*DeploymentConfig, error)
 	GetByAppIdAndEnvId(appId, envId int) (*DeploymentConfig, error)
 	GetAppLevelConfigForDevtronApps(appId int) (*DeploymentConfig, error)
-	GetAppLevelConfigByAppIds(appIds []int) ([]*DeploymentConfig, error)
 	GetAppAndEnvLevelConfigsInBulk(appIdToEnvIdsMap map[int][]int) ([]*DeploymentConfig, error)
 	GetByAppIdAndEnvIdEvenIfInactive(appId, envId int) (*DeploymentConfig, error)
-	UpdateRepoUrlByAppIdAndEnvId(repoUrl string, appId, envId int) error
 	GetConfigByAppIds(appIds []int) ([]*DeploymentConfig, error)
 	GetAllConfigs() ([]*DeploymentConfig, error)
 }
@@ -120,19 +118,19 @@ func (impl *RepositoryImpl) UpdateAll(tx *pg.Tx, configs []*DeploymentConfig) ([
 	return configs, err
 }
 
-func (impl *RepositoryImpl) GetById(id int) (*DeploymentConfig, error) {
-	result := &DeploymentConfig{}
-	err := impl.dbConnection.Model(result).Where("id = ?", id).Where("active = ?", true).Select()
-	return result, err
-}
-
 func (impl *RepositoryImpl) GetByAppIdAndEnvId(appId, envId int) (*DeploymentConfig, error) {
 	result := &DeploymentConfig{}
 	err := impl.dbConnection.Model(result).
-		Where("app_id = ?", appId).
-		Where("environment_id = ? ", envId).
-		Where("active = ?", true).
-		Order("id DESC").Limit(1).
+		Join("INNER JOIN app a").
+		JoinOn("deployment_config.app_id = a.id").
+		Join("INNER JOIN environment e").
+		JoinOn("deployment_config.environment_id = e.id").
+		Where("a.active = ?", true).
+		Where("e.active = ?", true).
+		Where("deployment_config.app_id = ?", appId).
+		Where("deployment_config.environment_id = ?", envId).
+		Where("deployment_config.active = ?", true).
+		Order("deployment_config.id DESC").Limit(1).
 		Select()
 	return result, err
 }
@@ -140,33 +138,36 @@ func (impl *RepositoryImpl) GetByAppIdAndEnvId(appId, envId int) (*DeploymentCon
 func (impl *RepositoryImpl) GetAppLevelConfigForDevtronApps(appId int) (*DeploymentConfig, error) {
 	result := &DeploymentConfig{}
 	err := impl.dbConnection.Model(result).
-		Where("app_id = ? ", appId).
-		Where("environment_id is NULL").
-		Where("active = ?", true).
-		Select()
-	return result, err
-}
-
-func (impl *RepositoryImpl) GetAppLevelConfigByAppIds(appIds []int) ([]*DeploymentConfig, error) {
-	var result []*DeploymentConfig
-	err := impl.dbConnection.Model(&result).
-		Where("app_id in (?) and environment_id is NULL ", pg.In(appIds)).
-		Where("active = ?", true).
+		Join("INNER JOIN app a").
+		JoinOn("deployment_config.app_id = a.id").
+		Where("a.active = ?", true).
+		Where("deployment_config.app_id = ? ", appId).
+		Where("deployment_config.environment_id is NULL").
+		Where("deployment_config.active = ?", true).
 		Select()
 	return result, err
 }
 
 func (impl *RepositoryImpl) GetAppAndEnvLevelConfigsInBulk(appIdToEnvIdsMap map[int][]int) ([]*DeploymentConfig, error) {
 	var result []*DeploymentConfig
+	if len(appIdToEnvIdsMap) == 0 {
+		return result, nil
+	}
 	err := impl.dbConnection.Model(&result).
+		Join("INNER JOIN app a").
+		JoinOn("deployment_config.app_id = a.id").
+		Join("INNER JOIN environment e").
+		JoinOn("deployment_config.environment_id = e.id").
+		Where("a.active = ?", true).
+		Where("e.active = ?", true).
 		WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
 			for appId, envIds := range appIdToEnvIdsMap {
 				if len(envIds) == 0 {
 					continue
 				}
-				query = query.Where("app_id = ?", appId).
-					Where("environment_id in (?)", pg.In(envIds)).
-					Where("active = ?", true)
+				query = query.Where("deployment_config.app_id = ?", appId).
+					Where("deployment_config.environment_id in (?)", pg.In(envIds)).
+					Where("deployment_config.active = ?", true)
 			}
 			return query, nil
 		}).Select()
@@ -174,36 +175,63 @@ func (impl *RepositoryImpl) GetAppAndEnvLevelConfigsInBulk(appIdToEnvIdsMap map[
 }
 
 func (impl *RepositoryImpl) GetByAppIdAndEnvIdEvenIfInactive(appId, envId int) (*DeploymentConfig, error) {
+	if envId == 0 {
+		return impl.getByAppIdEvenIfInactive(appId)
+	}
+	return impl.getByAppIdAndEnvIdEvenIfInactive(appId, envId)
+}
+
+func (impl *RepositoryImpl) getByAppIdEvenIfInactive(appId int) (*DeploymentConfig, error) {
 	result := &DeploymentConfig{}
 	err := impl.dbConnection.Model(result).
+		Join("INNER JOIN app a").
+		JoinOn("deployment_config.app_id = a.id").
+		Where("a.active = ?", true).
 		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
-			query = query.Where("app_id = ?", appId)
-			if envId == 0 {
-				query = query.Where("environment_id is NULL")
-			} else {
-				query = query.Where("environment_id = ? ", envId)
-			}
+			query = query.Where("deployment_config.app_id = ?", appId).
+				Where("deployment_config.environment_id is NULL")
 			return query, nil
 		}).
-		Order("id DESC").Limit(1).
+		Order("deployment_config.id DESC").
+		Limit(1).
 		Select()
 	return result, err
 }
 
-func (impl *RepositoryImpl) UpdateRepoUrlByAppIdAndEnvId(repoUrl string, appId, envId int) error {
-	_, err := impl.dbConnection.
-		Model((*DeploymentConfig)(nil)).
-		Set("repo_url = ? ", repoUrl).
-		Where("app_id = ? and environment_id = ? ", appId, envId).
-		Update()
-	return err
+func (impl *RepositoryImpl) getByAppIdAndEnvIdEvenIfInactive(appId, envId int) (*DeploymentConfig, error) {
+	if envId == 0 {
+		return nil, fmt.Errorf("empty envId passed for deployment config")
+	}
+	result := &DeploymentConfig{}
+	err := impl.dbConnection.Model(result).
+		Join("INNER JOIN app a").
+		JoinOn("deployment_config.app_id = a.id").
+		Join("INNER JOIN environment e").
+		JoinOn("deployment_config.environment_id = e.id").
+		Where("a.active = ?", true).
+		Where("e.active = ?", true).
+		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
+			query = query.Where("deployment_config.app_id = ?", appId).
+				Where("deployment_config.environment_id = ?", envId)
+			return query, nil
+		}).
+		Order("deployment_config.id DESC").
+		Limit(1).
+		Select()
+	return result, err
 }
 
 func (impl *RepositoryImpl) GetConfigByAppIds(appIds []int) ([]*DeploymentConfig, error) {
 	var results []*DeploymentConfig
+	if len(appIds) == 0 {
+		return results, nil
+	}
 	err := impl.dbConnection.Model(&results).
-		Where("app_id in (?) ", pg.In(appIds)).
-		Where("active = ?", true).
+		Join("INNER JOIN app a").
+		JoinOn("deployment_config.app_id = a.id").
+		Where("a.active = ?", true).
+		Where("deployment_config.app_id in (?) ", pg.In(appIds)).
+		Where("deployment_config.active = ?", true).
 		Select()
 	return results, err
 }
@@ -211,7 +239,10 @@ func (impl *RepositoryImpl) GetConfigByAppIds(appIds []int) ([]*DeploymentConfig
 func (impl *RepositoryImpl) GetAllConfigs() ([]*DeploymentConfig, error) {
 	result := make([]*DeploymentConfig, 0)
 	err := impl.dbConnection.Model(&result).
-		Where("active = ?", true).
+		Join("INNER JOIN app a").
+		JoinOn("deployment_config.app_id = a.id").
+		Where("a.active = ?", true).
+		Where("deployment_config.active = ?", true).
 		Select()
 	return result, err
 }

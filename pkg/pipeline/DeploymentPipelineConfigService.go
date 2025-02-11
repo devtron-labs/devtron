@@ -745,7 +745,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 	sanitisedRepoUrl, err := impl.gitOpsValidationService.ValidateGitOpsRepoUrl(validateRequest)
 	if err != nil {
 		if apiError, ok := err.(*util.ApiError); ok && apiError.Code == constants.InvalidGitOpsRepoUrlForPipeline {
-			return response.SetErrorDetail(pipelineConfigBean.GitOpsNotFound, apiError.UserDetailMessage)
+			return response.SetErrorDetail(pipelineConfigBean.GitOpsNotFound, apiError.InternalMessage)
 		}
 		return response.SetUnknownErrorDetail(err)
 	}
@@ -794,7 +794,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 	if err != nil {
 		impl.logger.Errorw("validation error for the used deployment type", "targetEnvId", targetEnv.Id, "deploymentAppType", request.DeploymentAppType, "err", err)
 		if apiError, ok := err.(*util.ApiError); ok && apiError.Code == constants.InvalidDeploymentAppTypeForPipeline {
-			return response.SetErrorDetail(pipelineConfigBean.EnforcedPolicyViolation, apiError.UserDetailMessage)
+			return response.SetErrorDetail(pipelineConfigBean.EnforcedPolicyViolation, apiError.InternalMessage)
 		}
 		return response.SetUnknownErrorDetail(err)
 	}
