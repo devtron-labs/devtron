@@ -89,8 +89,8 @@ var mapOfKindWithEntityAccessTypeKeyToResourceOptionRbacExtendedFunc = map[strin
 	getUserResourceKindWithEntityAccessKey(bean.KindWorkflow, bean.Alpha1Version, bean2.EntityJobs, bean2.EmptyAccessType):              (*UserResourceExtendedServiceImpl).enforceRbacForJobsWfs,
 }
 
-func getResourceOptionRbacExtendedFunc(kind bean.UserResourceKind, entity string, accessType string) func(impl *UserResourceExtendedServiceImpl, token string, params *apiBean.PathParams, resourceOptions *bean.ResourceOptionsDto) (*bean.UserResourceResponseDto, error) {
-	if f, ok := mapOfKindWithEntityAccessTypeKeyToResourceOptionRbacExtendedFunc[getUserResourceKindWithEntityAccessKey(kind, "", entity, accessType)]; ok {
+func getResourceOptionRbacExtendedFunc(kind bean.UserResourceKind, version bean.Version, entity string, accessType string) func(impl *UserResourceExtendedServiceImpl, token string, params *apiBean.PathParams, resourceOptions *bean.ResourceOptionsDto) (*bean.UserResourceResponseDto, error) {
+	if f, ok := mapOfKindWithEntityAccessTypeKeyToResourceOptionRbacExtendedFunc[getUserResourceKindWithEntityAccessKey(kind, version, entity, accessType)]; ok {
 		return f
 	}
 	return nil
