@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2020-2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package read
 
 import (
@@ -22,6 +38,8 @@ import (
 type ArgoApplicationReadService interface {
 	ValidateArgoResourceRequest(ctx context.Context, appIdentifier *bean.ArgoAppIdentifier, request *k8s.K8sRequestBean) (bool, error)
 	GetAppDetail(resourceName, resourceNamespace string, clusterId int) (*bean.ArgoApplicationDetailDto, error)
+	GetArgoManagedResources(resourceName, resourceNamespace string, clusterConfig *k8s.ClusterConfig) (*bean.ArgoManagedResourceResponse, error)
+	GetArgoAppResourceTree(clusterConfig *k8s.ClusterConfig, targetClusterId int, resp *bean.ArgoManagedResourceResponse) (*gRPC.ResourceTreeResponse, error)
 }
 
 type ArgoApplicationReadServiceImpl struct {
@@ -78,33 +96,46 @@ func (impl *ArgoApplicationReadServiceImpl) GetAppDetail(resourceName, resourceN
 	}
 	clusterBean := adapter.GetClusterBean(clusterWithApplicationObject)
 	clusterConfig := clusterBean.GetClusterConfig()
-	restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
+	resp, err := impl.GetArgoManagedResources(resourceName, resourceNamespace, clusterConfig)
 	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterWithApplicationObject.Id)
+		impl.logger.Errorw("error in getting argo managed resources", "err", err)
 		return nil, err
 	}
-	resp, err := impl.k8sUtil.GetResource(context.Background(), resourceNamespace, resourceName, bean.GvkForArgoApplication, restConfig)
+	targetClusterId := 0
+	if resp.DestinationServer == k8sCommonBean.DefaultClusterUrl {
+		targetClusterId = clusterWithApplicationObject.Id
+	} else if clusterIdFromMap, ok := clusterServerUrlIdMap[resp.DestinationServer]; ok {
+		targetClusterId = clusterIdFromMap
+	}
+	appDetail.Manifest = resp.ManifestResponse.Manifest.Object
+	appDetail.HealthStatus = resp.HealthStatus
+	appDetail.SyncStatus = resp.SyncStatus
+	resourceTree, err := impl.GetArgoAppResourceTree(clusterConfig, targetClusterId, resp)
 	if err != nil {
-		impl.logger.Errorw("error in getting resource list", "err", err)
+		impl.logger.Errorw("error in getting argo app resource tree", "err", err)
 		return nil, err
 	}
-	var destinationServer string
-	var argoManagedResources []*bean.ArgoManagedResource
-	if resp != nil && resp.Manifest.Object != nil {
-		appDetail.Manifest = resp.Manifest.Object
-		appDetail.HealthStatus, appDetail.SyncStatus, destinationServer, argoManagedResources =
-			helper.GetHealthSyncStatusDestinationServerAndManagedResourcesForArgoK8sRawObject(resp.Manifest.Object)
+	appDetail.ResourceTree = resourceTree
+	return appDetail, nil
+}
+
+func (impl *ArgoApplicationReadServiceImpl) GetArgoAppResourceTree(clusterConfig *k8s.ClusterConfig, targetClusterId int, resp *bean.ArgoManagedResourceResponse) (*gRPC.ResourceTreeResponse, error) {
+	if resp.ManifestResponse == nil || resp.ManifestResponse.Manifest.Object == nil {
+		return nil, fmt.Errorf("error in getting argo managed resources")
 	}
-	appDeployedOnClusterId := 0
-	if destinationServer == k8sCommonBean.DefaultClusterUrl {
-		appDeployedOnClusterId = clusterWithApplicationObject.Id
-	} else if clusterIdFromMap, ok := clusterServerUrlIdMap[destinationServer]; ok {
-		appDeployedOnClusterId = clusterIdFromMap
-	}
-	var configOfClusterWhereAppIsDeployed bean.ArgoClusterConfigObj
-	if appDeployedOnClusterId < 1 {
+	var targetClusterConfig bean.ArgoClusterConfigObj
+	if targetClusterId < 1 {
+		restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
+		if err != nil {
+			impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterHostUrl", clusterConfig.Host)
+			return nil, err
+		}
 		// cluster is not added on devtron, need to get server config from secret which argo-cd saved
 		coreV1Client, err := impl.k8sUtil.GetCoreV1ClientByRestConfig(restConfig)
+		if err != nil {
+			impl.logger.Errorw("error in getting core v1 client", "err", err, "clusterHostUrl", clusterConfig.Host)
+			return nil, err
+		}
 		secrets, err := coreV1Client.Secrets(bean.AllNamespaces).List(context.Background(), v1.ListOptions{
 			LabelSelector: labels.SelectorFromSet(labels.Set{"argocd.argoproj.io/secret-type": "cluster"}).String(),
 		})
@@ -115,9 +146,9 @@ func (impl *ArgoApplicationReadServiceImpl) GetAppDetail(resourceName, resourceN
 		for _, secret := range secrets.Items {
 			if secret.Data != nil {
 				if val, ok := secret.Data["server"]; ok {
-					if string(val) == destinationServer {
+					if string(val) == resp.DestinationServer {
 						if config, ok := secret.Data["config"]; ok {
-							err = json.Unmarshal(config, &configOfClusterWhereAppIsDeployed)
+							err = json.Unmarshal(config, &targetClusterConfig)
 							if err != nil {
 								impl.logger.Errorw("error in unmarshaling", "err", err)
 								return nil, err
@@ -129,17 +160,43 @@ func (impl *ArgoApplicationReadServiceImpl) GetAppDetail(resourceName, resourceN
 			}
 		}
 	}
-	resourceTreeResp, err := impl.getResourceTreeForExternalCluster(appDeployedOnClusterId, destinationServer, configOfClusterWhereAppIsDeployed, argoManagedResources)
+	resourceTreeResp, err := impl.getResourceTreeForExternalCluster(targetClusterId, targetClusterConfig, resp.DestinationServer, resp.ArgoManagedResources)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource tree response", "err", err)
 		return nil, err
 	}
-	appDetail.ResourceTree = resourceTreeResp
-	return appDetail, nil
+	return resourceTreeResp, nil
 }
 
-func (impl *ArgoApplicationReadServiceImpl) getResourceTreeForExternalCluster(clusterId int, destinationServer string,
-	configOfClusterWhereAppIsDeployed bean.ArgoClusterConfigObj, argoManagedResources []*bean.ArgoManagedResource) (*gRPC.ResourceTreeResponse, error) {
+func (impl *ArgoApplicationReadServiceImpl) GetArgoManagedResources(resourceName, resourceNamespace string, clusterConfig *k8s.ClusterConfig) (*bean.ArgoManagedResourceResponse, error) {
+	restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterConfig.ClusterId)
+		return nil, err
+	}
+	resp, err := impl.k8sUtil.GetResource(context.Background(), resourceNamespace, resourceName, bean.GvkForArgoApplication, restConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource list", "err", err)
+		return nil, err
+	}
+	impl.logger.Infow("resp for argo external", "resp", resp)
+
+	if resp != nil && resp.Manifest.Object != nil {
+		healthStatus, syncStatus, destinationServer, argoManagedResources :=
+			helper.GetHealthSyncStatusDestinationServerAndManagedResourcesForArgoK8sRawObject(resp.Manifest.Object)
+		return &bean.ArgoManagedResourceResponse{
+			ManifestResponse:     resp,
+			HealthStatus:         healthStatus,
+			SyncStatus:           syncStatus,
+			DestinationServer:    destinationServer,
+			ArgoManagedResources: argoManagedResources,
+		}, nil
+	} else {
+		return &bean.ArgoManagedResourceResponse{}, nil
+	}
+}
+
+func (impl *ArgoApplicationReadServiceImpl) getResourceTreeForExternalCluster(clusterId int, configOfClusterWhereAppIsDeployed bean.ArgoClusterConfigObj, destinationServer string, argoManagedResources []*bean.ArgoManagedResource) (*gRPC.ResourceTreeResponse, error) {
 	var resources []*gRPC.ExternalResourceDetail
 	for _, argoManagedResource := range argoManagedResources {
 		resources = append(resources, &gRPC.ExternalResourceDetail{
