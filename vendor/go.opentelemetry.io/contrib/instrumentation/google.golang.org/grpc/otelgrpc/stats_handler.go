@@ -194,10 +194,13 @@ func (c *config) handleRPC(ctx context.Context, rs stats.RPCStats) {
 		span.End()
 
 		metricAttrs = append(metricAttrs, rpcStatusAttr)
-		c.rpcDuration.Record(wctx, float64(rs.EndTime.Sub(rs.BeginTime)), metric.WithAttributes(metricAttrs...))
-		c.rpcRequestsPerRPC.Record(wctx, gctx.messagesReceived, metric.WithAttributes(metricAttrs...))
-		c.rpcResponsesPerRPC.Record(wctx, gctx.messagesSent, metric.WithAttributes(metricAttrs...))
 
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedTime := float64(rs.EndTime.Sub(rs.BeginTime)) / float64(time.Millisecond)
+
+		c.rpcDuration.Record(wctx, elapsedTime, metric.WithAttributes(metricAttrs...))
+		c.rpcRequestsPerRPC.Record(wctx, atomic.LoadInt64(&gctx.messagesReceived), metric.WithAttributes(metricAttrs...))
+		c.rpcResponsesPerRPC.Record(wctx, atomic.LoadInt64(&gctx.messagesSent), metric.WithAttributes(metricAttrs...))
 	default:
 		return
 	}
