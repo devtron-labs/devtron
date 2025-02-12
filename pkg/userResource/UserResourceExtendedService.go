@@ -56,7 +56,7 @@ func (impl *UserResourceExtendedServiceImpl) GetResourceOptions(context context.
 		impl.logger.Errorw("error in GetResourceOptions", "err", err, "reqBean", reqBean)
 		return nil, err
 	}
-	f := getResourceOptionExtendedFunc(bean5.UserResourceKind(params.Kind))
+	f := getResourceOptionExtendedFunc(bean5.UserResourceKind(params.Kind), bean5.Version(params.Version))
 	if f == nil {
 		impl.logger.Errorw("error encountered in GetResourceOptions, not supported kind", "params", params)
 		return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean5.RequestInvalidKindVersionErrMessage, bean5.RequestInvalidKindVersionErrMessage)

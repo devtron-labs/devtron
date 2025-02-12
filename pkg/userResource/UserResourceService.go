@@ -66,7 +66,7 @@ func (impl *UserResourceServiceImpl) GetResourceOptions(context context.Context,
 		return nil, err
 	}
 	// validation based on kind ,sub kind and entity and access type
-	f := getResourceOptionFunc(bean5.UserResourceKind(params.Kind))
+	f := getResourceOptionFunc(bean5.UserResourceKind(params.Kind), bean5.Version(params.Version))
 	if f == nil {
 		impl.logger.Errorw("error encountered in GetResourceOptions, not supported kind", "params", params)
 		return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean5.RequestInvalidKindVersionErrMessage, bean5.RequestInvalidKindVersionErrMessage)
@@ -77,7 +77,7 @@ func (impl *UserResourceServiceImpl) GetResourceOptions(context context.Context,
 		return nil, err
 	}
 	// rbac function get and enforce at service level
-	f2 := getResourceOptionRbacFunc(bean5.UserResourceKind(params.Kind), reqBean.Entity, reqBean.AccessType)
+	f2 := getResourceOptionRbacFunc(bean5.UserResourceKind(params.Kind), bean5.Version(params.Version), reqBean.Entity, reqBean.AccessType)
 	if f2 == nil {
 		impl.logger.Errorw("error encountered in GetResourceOptions, not supported kind for rbac", "params", params)
 		return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean5.RequestInvalidKindVersionErrMessage, bean5.RequestInvalidKindVersionErrMessage)

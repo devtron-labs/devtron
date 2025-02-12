@@ -98,5 +98,5 @@ const (
 )
 
 const (
-	VersionV1 Version = "v1"
+	Alpha1Version Version = "alpha1"
 )
