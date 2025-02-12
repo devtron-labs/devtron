@@ -44,14 +44,14 @@ func NewCommonBaseServiceImpl(logger *zap.SugaredLogger, envVariables *util.Envi
 
 func (impl *CommonBaseServiceImpl) isGitOpsEnable() (*FeatureGitOpsVariables, error) {
 	featureGitOpsFlags := &FeatureGitOpsVariables{
-		IsFeatureArgoCdMigrationEnabled: impl.globalEnvVariables.DeploymentServiceTypeConfig.EnableMigrateArgoCdApplication,
+		IsFeatureArgoCdMigrationEnabled: impl.globalEnvVariables.DeploymentServiceTypeConfig.IsFeatureMigrateArgoCdApplicationEnable(),
 	}
 	argoModule, err := impl.moduleReadService.GetModuleInfoByName(bean.ModuleNameArgoCd)
 	if err != nil && !errors.Is(err, moduleErr.ModuleNotFoundError) {
 		impl.logger.Errorw("error in getting argo module", "error", err)
 		return featureGitOpsFlags, err
 	}
-	if !impl.globalEnvVariables.DeploymentServiceTypeConfig.EnableMigrateArgoCdApplication {
+	if !impl.globalEnvVariables.DeploymentServiceTypeConfig.IsFeatureMigrateArgoCdApplicationEnable() {
 		featureGitOpsFlags.IsFeatureGitOpsEnabled = argoModule.IsInstalled()
 		featureGitOpsFlags.IsFeatureUserDefinedGitOpsEnabled = argoModule.IsInstalled()
 		return featureGitOpsFlags, nil
