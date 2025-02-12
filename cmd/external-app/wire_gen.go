@@ -127,6 +127,7 @@ import (
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/pkg/webhook/helm"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/commonEnforcementFunctionsUtil"
 	"github.com/devtron-labs/devtron/util/cron"
 	"github.com/devtron-labs/devtron/util/rbac"
 )
@@ -343,8 +344,8 @@ func InitializeApp() (*App, error) {
 	helmAppRestHandlerImpl := client2.NewHelmAppRestHandlerImpl(sugaredLogger, helmAppServiceImpl, enforcerImpl, clusterServiceImpl, enforcerUtilHelmImpl, appStoreDeploymentServiceImpl, installedAppDBServiceImpl, userServiceImpl, attributesServiceImpl, serverEnvConfigServerEnvConfig, fluxApplicationServiceImpl, argoApplicationServiceImpl)
 	helmAppRouterImpl := client2.NewHelmAppRouterImpl(helmAppRestHandlerImpl)
 	environmentReadServiceImpl := read5.NewEnvironmentReadServiceImpl(sugaredLogger, environmentRepositoryImpl)
-	rbacEnforcementUtilImpl := rbac.NewRbacEnforcementUtilImpl(enforcerImpl)
-	environmentRestHandlerImpl := cluster2.NewEnvironmentRestHandlerImpl(environmentServiceImpl, environmentReadServiceImpl, sugaredLogger, userServiceImpl, validate, enforcerImpl, deleteServiceImpl, k8sServiceImpl, k8sCommonServiceImpl, rbacEnforcementUtilImpl)
+	commonEnforcementUtilImpl := commonEnforcementFunctionsUtil.NewCommonEnforcementUtilImpl(enforcerImpl, enforcerUtilImpl)
+	environmentRestHandlerImpl := cluster2.NewEnvironmentRestHandlerImpl(environmentServiceImpl, environmentReadServiceImpl, sugaredLogger, userServiceImpl, validate, enforcerImpl, deleteServiceImpl, k8sServiceImpl, k8sCommonServiceImpl, commonEnforcementUtilImpl)
 	environmentRouterImpl := cluster2.NewEnvironmentRouterImpl(environmentRestHandlerImpl)
 	argoApplicationReadServiceImpl := read6.NewArgoApplicationReadServiceImpl(sugaredLogger, clusterRepositoryImpl, k8sServiceImpl, helmAppClientImpl, helmAppServiceImpl)
 	k8sApplicationRestHandlerImpl := application2.NewK8sApplicationRestHandlerImpl(sugaredLogger, k8sApplicationServiceImpl, pumpImpl, terminalSessionHandlerImpl, enforcerImpl, enforcerUtilHelmImpl, enforcerUtilImpl, helmAppServiceImpl, userServiceImpl, k8sCommonServiceImpl, validate, environmentVariables, fluxApplicationServiceImpl, argoApplicationReadServiceImpl)
@@ -455,7 +456,7 @@ func InitializeApp() (*App, error) {
 	materialRepositoryImpl := repository12.NewMaterialRepositoryImpl(db)
 	gitMaterialReadServiceImpl := read7.NewGitMaterialReadServiceImpl(sugaredLogger, materialRepositoryImpl)
 	appCrudOperationServiceImpl := app2.NewAppCrudOperationServiceImpl(appLabelRepositoryImpl, sugaredLogger, appRepositoryImpl, userRepositoryImpl, installedAppRepositoryImpl, genericNoteServiceImpl, installedAppDBServiceImpl, crudOperationServiceConfig, dbMigrationServiceImpl, gitMaterialReadServiceImpl)
-	appInfoRestHandlerImpl := appInfo.NewAppInfoRestHandlerImpl(sugaredLogger, appCrudOperationServiceImpl, userServiceImpl, validate, enforcerUtilImpl, enforcerImpl, helmAppServiceImpl, enforcerUtilHelmImpl, genericNoteServiceImpl)
+	appInfoRestHandlerImpl := appInfo.NewAppInfoRestHandlerImpl(sugaredLogger, appCrudOperationServiceImpl, userServiceImpl, validate, enforcerUtilImpl, enforcerImpl, helmAppServiceImpl, enforcerUtilHelmImpl, genericNoteServiceImpl, commonEnforcementUtilImpl)
 	appInfoRouterImpl := appInfo2.NewAppInfoRouterImpl(sugaredLogger, appInfoRestHandlerImpl)
 	appFilteringRestHandlerImpl := appList.NewAppFilteringRestHandlerImpl(sugaredLogger, teamServiceImpl, enforcerImpl, userServiceImpl, clusterServiceImpl, environmentServiceImpl, teamReadServiceImpl)
 	appFilteringRouterImpl := appList2.NewAppFilteringRouterImpl(appFilteringRestHandlerImpl)
@@ -467,7 +468,7 @@ func InitializeApp() (*App, error) {
 	argoApplicationRouterImpl := argoApplication2.NewArgoApplicationRouterImpl(argoApplicationRestHandlerImpl)
 	fluxApplicationRestHandlerImpl := fluxApplication2.NewFluxApplicationRestHandlerImpl(fluxApplicationServiceImpl, sugaredLogger, enforcerImpl)
 	fluxApplicationRouterImpl := fluxApplication2.NewFluxApplicationRouterImpl(fluxApplicationRestHandlerImpl)
-	userResourceServiceImpl := userResource.NewUserResourceServiceImpl(sugaredLogger, teamServiceImpl, environmentServiceImpl, clusterServiceImpl, k8sApplicationServiceImpl, rbacEnforcementUtilImpl, appCrudOperationServiceImpl)
+	userResourceServiceImpl := userResource.NewUserResourceServiceImpl(sugaredLogger, teamServiceImpl, environmentServiceImpl, clusterServiceImpl, k8sApplicationServiceImpl, enforcerUtilImpl, commonEnforcementUtilImpl, enforcerImpl, appCrudOperationServiceImpl)
 	restHandlerImpl := userResource2.NewUserResourceRestHandler(sugaredLogger, userServiceImpl, userResourceServiceImpl)
 	routerImpl := userResource2.NewUserResourceRouterImpl(restHandlerImpl)
 	muxRouter := NewMuxRouter(sugaredLogger, ssoLoginRouterImpl, teamRouterImpl, userAuthRouterImpl, userRouterImpl, clusterRouterImpl, dashboardRouterImpl, helmAppRouterImpl, environmentRouterImpl, k8sApplicationRouterImpl, chartRepositoryRouterImpl, appStoreDiscoverRouterImpl, appStoreValuesRouterImpl, appStoreDeploymentRouterImpl, chartProviderRouterImpl, dockerRegRouterImpl, dashboardTelemetryRouterImpl, commonDeploymentRouterImpl, externalLinkRouterImpl, moduleRouterImpl, serverRouterImpl, apiTokenRouterImpl, k8sCapacityRouterImpl, webhookHelmRouterImpl, userAttributesRouterImpl, telemetryRouterImpl, userTerminalAccessRouterImpl, attributesRouterImpl, appRouterEAModeImpl, rbacRoleRouterImpl, argoApplicationRouterImpl, fluxApplicationRouterImpl, routerImpl)

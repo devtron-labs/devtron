@@ -261,6 +261,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	status2 "github.com/devtron-labs/devtron/pkg/workflow/status"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/commonEnforcementFunctionsUtil"
 	"github.com/devtron-labs/devtron/util/cron"
 	"github.com/devtron-labs/devtron/util/rbac"
 )
@@ -448,18 +449,18 @@ func InitializeApp() (*App, error) {
 	ociRegistryConfigRepositoryImpl := repository9.NewOCIRegistryConfigRepositoryImpl(db)
 	dockerRegistryConfigImpl := pipeline.NewDockerRegistryConfigImpl(sugaredLogger, helmAppServiceImpl, dockerArtifactStoreRepositoryImpl, dockerRegistryIpsConfigRepositoryImpl, ociRegistryConfigRepositoryImpl, argoClientWrapperServiceImpl)
 	deleteServiceExtendedImpl := delete2.NewDeleteServiceExtendedImpl(sugaredLogger, teamServiceImpl, clusterServiceImplExtended, environmentServiceImpl, appRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, chartRepositoryServiceImpl, installedAppRepositoryImpl, dockerRegistryConfigImpl, dockerArtifactStoreRepositoryImpl, k8sServiceImpl, k8sInformerFactoryImpl)
-	rbacEnforcementUtilImpl := rbac.NewRbacEnforcementUtilImpl(enforcerImpl)
-	environmentRestHandlerImpl := cluster3.NewEnvironmentRestHandlerImpl(environmentServiceImpl, environmentReadServiceImpl, sugaredLogger, userServiceImpl, validate, enforcerImpl, deleteServiceExtendedImpl, k8sServiceImpl, k8sCommonServiceImpl, rbacEnforcementUtilImpl)
-	environmentRouterImpl := cluster3.NewEnvironmentRouterImpl(environmentRestHandlerImpl)
 	transactionUtilImpl := sql.NewTransactionUtilImpl(db)
+	ciPipelineRepositoryImpl := pipelineConfig.NewCiPipelineRepositoryImpl(db, sugaredLogger, transactionUtilImpl)
+	enforcerUtilImpl := rbac.NewEnforcerUtilImpl(sugaredLogger, teamRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, clusterRepositoryImpl, enforcerImpl, dbMigrationServiceImpl, teamReadServiceImpl)
+	commonEnforcementUtilImpl := commonEnforcementFunctionsUtil.NewCommonEnforcementUtilImpl(enforcerImpl, enforcerUtilImpl)
+	environmentRestHandlerImpl := cluster3.NewEnvironmentRestHandlerImpl(environmentServiceImpl, environmentReadServiceImpl, sugaredLogger, userServiceImpl, validate, enforcerImpl, deleteServiceExtendedImpl, k8sServiceImpl, k8sCommonServiceImpl, commonEnforcementUtilImpl)
+	environmentRouterImpl := cluster3.NewEnvironmentRouterImpl(environmentRestHandlerImpl)
 	genericNoteRepositoryImpl := repository10.NewGenericNoteRepositoryImpl(db, transactionUtilImpl)
 	genericNoteHistoryRepositoryImpl := repository10.NewGenericNoteHistoryRepositoryImpl(db, transactionUtilImpl)
 	genericNoteHistoryServiceImpl := genericNotes.NewGenericNoteHistoryServiceImpl(genericNoteHistoryRepositoryImpl, sugaredLogger)
 	genericNoteServiceImpl := genericNotes.NewGenericNoteServiceImpl(genericNoteRepositoryImpl, genericNoteHistoryServiceImpl, userRepositoryImpl, sugaredLogger)
 	clusterDescriptionRepositoryImpl := repository5.NewClusterDescriptionRepositoryImpl(db, sugaredLogger)
 	clusterDescriptionServiceImpl := cluster.NewClusterDescriptionServiceImpl(clusterDescriptionRepositoryImpl, userRepositoryImpl, sugaredLogger)
-	ciPipelineRepositoryImpl := pipelineConfig.NewCiPipelineRepositoryImpl(db, sugaredLogger, transactionUtilImpl)
-	enforcerUtilImpl := rbac.NewEnforcerUtilImpl(sugaredLogger, teamRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, clusterRepositoryImpl, enforcerImpl, dbMigrationServiceImpl, teamReadServiceImpl)
 	clusterRbacServiceImpl := rbac2.NewClusterRbacServiceImpl(environmentServiceImpl, enforcerImpl, enforcerUtilImpl, clusterServiceImplExtended, sugaredLogger, userServiceImpl, clusterReadServiceImpl)
 	clusterRestHandlerImpl := cluster3.NewClusterRestHandlerImpl(clusterServiceImplExtended, genericNoteServiceImpl, clusterDescriptionServiceImpl, sugaredLogger, userServiceImpl, validate, enforcerImpl, deleteServiceExtendedImpl, environmentServiceImpl, clusterRbacServiceImpl)
 	clusterRouterImpl := cluster3.NewClusterRouterImpl(clusterRestHandlerImpl)
@@ -933,7 +934,7 @@ func InitializeApp() (*App, error) {
 	serviceImpl := resourceTree.NewServiceImpl(sugaredLogger, appListingServiceImpl, appStatusServiceImpl, argoApplicationServiceExtendedImpl, cdApplicationStatusUpdateHandlerImpl, helmAppReadServiceImpl, helmAppServiceImpl, k8sApplicationServiceImpl, k8sCommonServiceImpl)
 	appListingRestHandlerImpl := appList.NewAppListingRestHandlerImpl(appListingServiceImpl, enforcerImpl, pipelineBuilderImpl, sugaredLogger, enforcerUtilImpl, deploymentGroupServiceImpl, userServiceImpl, k8sCommonServiceImpl, installedAppDBExtendedServiceImpl, installedAppResourceServiceImpl, pipelineRepositoryImpl, k8sApplicationServiceImpl, deploymentConfigServiceImpl, serviceImpl)
 	appListingRouterImpl := appList2.NewAppListingRouterImpl(appListingRestHandlerImpl)
-	appInfoRestHandlerImpl := appInfo.NewAppInfoRestHandlerImpl(sugaredLogger, appCrudOperationServiceImpl, userServiceImpl, validate, enforcerUtilImpl, enforcerImpl, helmAppServiceImpl, enforcerUtilHelmImpl, genericNoteServiceImpl)
+	appInfoRestHandlerImpl := appInfo.NewAppInfoRestHandlerImpl(sugaredLogger, appCrudOperationServiceImpl, userServiceImpl, validate, enforcerUtilImpl, enforcerImpl, helmAppServiceImpl, enforcerUtilHelmImpl, genericNoteServiceImpl, commonEnforcementUtilImpl)
 	appInfoRouterImpl := appInfo2.NewAppInfoRouterImpl(sugaredLogger, appInfoRestHandlerImpl)
 	pipelineDeploymentConfigServiceImpl := pipeline.NewPipelineDeploymentConfigServiceImpl(sugaredLogger, chartRepositoryImpl, pipelineRepositoryImpl, pipelineConfigRepositoryImpl, configMapRepositoryImpl, scopedVariableCMCSManagerImpl, deployedAppMetricsServiceImpl, chartRefServiceImpl, configMapHistoryReadServiceImpl, envConfigOverrideReadServiceImpl)
 	pipelineTriggerRestHandlerImpl := trigger.NewPipelineRestHandler(appServiceImpl, userServiceImpl, validate, enforcerImpl, teamServiceImpl, sugaredLogger, enforcerUtilImpl, deploymentGroupServiceImpl, pipelineDeploymentConfigServiceImpl, deployedAppServiceImpl, triggerServiceImpl, workflowEventPublishServiceImpl)
@@ -1053,7 +1054,7 @@ func InitializeApp() (*App, error) {
 	fluxApplicationRouterImpl := fluxApplication2.NewFluxApplicationRouterImpl(fluxApplicationRestHandlerImpl)
 	scanningResultRestHandlerImpl := resourceScan.NewScanningResultRestHandlerImpl(sugaredLogger, userServiceImpl, imageScanServiceImpl, enforcerImpl, enforcerUtilImpl, validate)
 	scanningResultRouterImpl := resourceScan.NewScanningResultRouterImpl(scanningResultRestHandlerImpl)
-	userResourceExtendedServiceImpl := userResource.NewUserResourceExtendedServiceImpl(sugaredLogger, teamServiceImpl, environmentServiceImpl, appCrudOperationServiceImpl, chartGroupServiceImpl, appListingServiceImpl, appWorkflowServiceImpl, k8sApplicationServiceImpl, clusterServiceImplExtended, rbacEnforcementUtilImpl)
+	userResourceExtendedServiceImpl := userResource.NewUserResourceExtendedServiceImpl(sugaredLogger, teamServiceImpl, environmentServiceImpl, appCrudOperationServiceImpl, chartGroupServiceImpl, appListingServiceImpl, appWorkflowServiceImpl, k8sApplicationServiceImpl, clusterServiceImplExtended, commonEnforcementUtilImpl, enforcerUtilImpl, enforcerImpl)
 	restHandlerImpl := userResource2.NewUserResourceRestHandler(sugaredLogger, userServiceImpl, userResourceExtendedServiceImpl)
 	routerImpl := userResource2.NewUserResourceRouterImpl(restHandlerImpl)
 	muxRouter := router.NewMuxRouter(sugaredLogger, environmentRouterImpl, clusterRouterImpl, webhookRouterImpl, userAuthRouterImpl, gitProviderRouterImpl, gitHostRouterImpl, dockerRegRouterImpl, notificationRouterImpl, teamRouterImpl, userRouterImpl, chartRefRouterImpl, configMapRouterImpl, appStoreRouterImpl, chartRepositoryRouterImpl, releaseMetricsRouterImpl, deploymentGroupRouterImpl, batchOperationRouterImpl, chartGroupRouterImpl, imageScanRouterImpl, policyRouterImpl, gitOpsConfigRouterImpl, dashboardRouterImpl, attributesRouterImpl, userAttributesRouterImpl, commonRouterImpl, grafanaRouterImpl, ssoLoginRouterImpl, telemetryRouterImpl, telemetryEventClientImplExtended, bulkUpdateRouterImpl, webhookListenerRouterImpl, appRouterImpl, coreAppRouterImpl, helmAppRouterImpl, k8sApplicationRouterImpl, pProfRouterImpl, deploymentConfigRouterImpl, dashboardTelemetryRouterImpl, commonDeploymentRouterImpl, externalLinkRouterImpl, globalPluginRouterImpl, moduleRouterImpl, serverRouterImpl, apiTokenRouterImpl, cdApplicationStatusUpdateHandlerImpl, k8sCapacityRouterImpl, webhookHelmRouterImpl, globalCMCSRouterImpl, userTerminalAccessRouterImpl, jobRouterImpl, ciStatusUpdateCronImpl, resourceGroupingRouterImpl, rbacRoleRouterImpl, scopedVariableRouterImpl, ciTriggerCronImpl, proxyRouterImpl, deploymentConfigurationRouterImpl, infraConfigRouterImpl, argoApplicationRouterImpl, devtronResourceRouterImpl, fluxApplicationRouterImpl, scanningResultRouterImpl, routerImpl)

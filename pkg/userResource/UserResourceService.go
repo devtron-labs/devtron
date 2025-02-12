@@ -15,6 +15,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/team"
 	bean5 "github.com/devtron-labs/devtron/pkg/userResource/bean"
 	"github.com/devtron-labs/devtron/pkg/userResource/helper"
+	"github.com/devtron-labs/devtron/util/commonEnforcementFunctionsUtil"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
 	"net/http"
@@ -31,7 +32,7 @@ type UserResourceServiceImpl struct {
 	clusterService        cluster.ClusterService
 	k8sApplicationService application2.K8sApplicationService
 	enforcerUtil          rbac.EnforcerUtil
-	rbacEnforcementUtil   rbac.RbacEnforcementUtil
+	rbacEnforcementUtil   commonEnforcementFunctionsUtil.CommonEnforcementUtil
 	enforcer              casbin.Enforcer
 	appService            app.AppCrudOperationService
 }
@@ -42,7 +43,7 @@ func NewUserResourceServiceImpl(logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	k8sApplicationService application2.K8sApplicationService,
 	enforcerUtil rbac.EnforcerUtil,
-	rbacEnforcementUtil rbac.RbacEnforcementUtil,
+	rbacEnforcementUtil commonEnforcementFunctionsUtil.CommonEnforcementUtil,
 	enforcer casbin.Enforcer,
 	appService app.AppCrudOperationService) *UserResourceServiceImpl {
 	return &UserResourceServiceImpl{

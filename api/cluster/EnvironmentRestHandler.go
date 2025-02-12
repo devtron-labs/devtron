@@ -23,7 +23,7 @@ import (
 	request "github.com/devtron-labs/devtron/pkg/cluster/environment"
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/read"
-	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/devtron-labs/devtron/util/commonEnforcementFunctionsUtil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -73,7 +73,7 @@ type EnvironmentRestHandlerImpl struct {
 	deleteService                     delete2.DeleteService
 	k8sUtil                           *k8s2.K8sServiceImpl
 	cfg                               *bean.Config
-	rbacEnforcementUtil               rbac.RbacEnforcementUtil
+	rbacEnforcementUtil               commonEnforcementFunctionsUtil.CommonEnforcementUtil
 }
 
 type ClusterReachableResponse struct {
@@ -82,7 +82,7 @@ type ClusterReachableResponse struct {
 }
 
 func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, environmentReadService read.EnvironmentReadService, logger *zap.SugaredLogger, userService user.UserService, validator *validator.Validate, enforcer casbin.Enforcer, deleteService delete2.DeleteService, k8sUtil *k8s2.K8sServiceImpl, k8sCommonService k8s.K8sCommonService,
-	rbacEnforcementUtil rbac.RbacEnforcementUtil) *EnvironmentRestHandlerImpl {
+	rbacEnforcementUtil commonEnforcementFunctionsUtil.CommonEnforcementUtil) *EnvironmentRestHandlerImpl {
 	cfg := &bean.Config{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -322,29 +322,7 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 	var grantedEnvironment = environments
 	start = time.Now()
 	if !impl.cfg.IgnoreAuthCheck {
-		grantedEnvironment = make([]bean2.EnvironmentBean, 0)
-		// RBAC enforcer applying
-		var envIdentifierList []string
-		for _, item := range environments {
-			envIdentifierList = append(envIdentifierList, strings.ToLower(item.EnvironmentIdentifier))
-		}
-
-		result := impl.enforcer.EnforceInBatch(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
-		for _, item := range environments {
-
-			var hasAccess bool
-			EnvironmentIdentifier := item.ClusterName + "__" + item.Namespace
-			if item.EnvironmentIdentifier != EnvironmentIdentifier {
-				// fix for futuristic case
-				hasAccess = result[strings.ToLower(EnvironmentIdentifier)] || result[strings.ToLower(item.EnvironmentIdentifier)]
-			} else {
-				hasAccess = result[strings.ToLower(item.EnvironmentIdentifier)]
-			}
-			if hasAccess {
-				grantedEnvironment = append(grantedEnvironment, item)
-			}
-		}
-		//RBAC enforcer Ends
+		grantedEnvironment = impl.rbacEnforcementUtil.CheckAuthorisationForEnvAutocomplete(token, environments)
 	}
 	elapsedTime := time.Since(start)
 	impl.logger.Infow("Env elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime",

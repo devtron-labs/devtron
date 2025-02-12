@@ -170,6 +170,7 @@ import (
 	workflow3 "github.com/devtron-labs/devtron/pkg/workflow"
 	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/commonEnforcementFunctionsUtil"
 	cron2 "github.com/devtron-labs/devtron/util/cron"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/google/wire"
@@ -497,8 +498,8 @@ func InitializeApp() (*App, error) {
 		rbac.NewEnforcerUtilImpl,
 		wire.Bind(new(rbac.EnforcerUtil), new(*rbac.EnforcerUtilImpl)),
 
-		rbac.NewRbacEnforcementUtilImpl,
-		wire.Bind(new(rbac.RbacEnforcementUtil), new(*rbac.RbacEnforcementUtilImpl)),
+		commonEnforcementFunctionsUtil.NewCommonEnforcementUtilImpl,
+		wire.Bind(new(commonEnforcementFunctionsUtil.CommonEnforcementUtil), new(*commonEnforcementFunctionsUtil.CommonEnforcementUtilImpl)),
 
 		chartConfig.NewPipelineConfigRepository,
 		wire.Bind(new(chartConfig.PipelineConfigRepository), new(*chartConfig.PipelineConfigRepositoryImpl)),

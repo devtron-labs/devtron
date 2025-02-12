@@ -86,6 +86,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/commonEnforcementFunctionsUtil"
 	"github.com/devtron-labs/devtron/util/cron"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/google/wire"
@@ -143,8 +144,8 @@ func InitializeApp() (*App, error) {
 		rbac.NewEnforcerUtilImpl,
 		wire.Bind(new(rbac.EnforcerUtil), new(*rbac.EnforcerUtilImpl)),
 
-		rbac.NewRbacEnforcementUtilImpl,
-		wire.Bind(new(rbac.RbacEnforcementUtil), new(*rbac.RbacEnforcementUtilImpl)),
+		commonEnforcementFunctionsUtil.NewCommonEnforcementUtilImpl,
+		wire.Bind(new(commonEnforcementFunctionsUtil.CommonEnforcementUtil), new(*commonEnforcementFunctionsUtil.CommonEnforcementUtilImpl)),
 
 		appInfo2.NewAppInfoRouterImpl,
 		wire.Bind(new(appInfo2.AppInfoRouter), new(*appInfo2.AppInfoRouterImpl)),
