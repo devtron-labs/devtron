@@ -1748,7 +1748,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCDPipelines(pipelineRequest *bean
 		AuditLog:                      sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
 
-	if pipelineRequest.ReleaseMode == util.PIPELINE_RELEASE_MODE_LINK {
+	if pipelineRequest.IsLinkedRelease() {
 		if len(pipelineRequest.DeploymentAppName) == 0 {
 			return 0, util.DefaultApiError().
 				WithHttpStatusCode(http.StatusUnprocessableEntity).

@@ -150,6 +150,10 @@ type DeploymentConfigMin struct {
 	IsGitOpsRepoConfigured bool
 }
 
+func (d *DeploymentConfigMin) IsLinkedRelease() bool {
+	return d.ReleaseMode == util.PIPELINE_RELEASE_MODE_LINK
+}
+
 type DeploymentConfig struct {
 	Id                   int
 	AppId                int
@@ -368,7 +372,7 @@ const (
 )
 
 func (d *DeploymentConfig) GetMigratedFrom() (migratedFrom ExternalReleaseType, isLinked bool) {
-	if d.ReleaseMode == util.PIPELINE_RELEASE_MODE_LINK {
+	if d.IsLinkedRelease() {
 		if d.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 			return ArgoApplication, true
 		} else if d.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {

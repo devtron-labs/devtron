@@ -34,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	read3 "github.com/devtron-labs/devtron/pkg/deployment/common/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
@@ -67,6 +68,7 @@ type DeploymentTemplateService interface {
 	GetDeploymentTemplateWithResolvedData(ctx context.Context, request DeploymentTemplateRequest) (DeploymentTemplateResponse, error)
 	ResolveTemplateVariables(ctx context.Context, values string, request DeploymentTemplateRequest) (string, map[string]string, error)
 }
+
 type DeploymentTemplateServiceImpl struct {
 	Logger                               *zap.SugaredLogger
 	chartService                         chart.ChartService
@@ -87,6 +89,7 @@ type DeploymentTemplateServiceImpl struct {
 	restartWorkloadConfig                *RestartWorkloadConfig
 	mergeUtil                            *util.MergeUtil
 	deploymentTemplateHistoryReadService read.DeploymentTemplateHistoryReadService
+	deploymentConfigReadService          read3.DeploymentConfigReadService
 }
 
 func GetRestartWorkloadConfig() (*RestartWorkloadConfig, error) {
@@ -112,6 +115,7 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 	pipelineRepository pipelineConfig.PipelineRepository,
 	mergeUtil *util.MergeUtil,
 	deploymentTemplateHistoryReadService read.DeploymentTemplateHistoryReadService,
+	deploymentConfigReadService read3.DeploymentConfigReadService,
 ) (*DeploymentTemplateServiceImpl, error) {
 	deploymentTemplateServiceImpl := &DeploymentTemplateServiceImpl{
 		Logger:                               Logger,
@@ -132,6 +136,7 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 		pipelineRepository:                   pipelineRepository,
 		mergeUtil:                            mergeUtil,
 		deploymentTemplateHistoryReadService: deploymentTemplateHistoryReadService,
+		deploymentConfigReadService:          deploymentConfigReadService,
 	}
 	cfg, err := GetRestartWorkloadConfig()
 	if err != nil {
@@ -435,7 +440,14 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 		Name:    request.AppName,
 		Version: refChart.Version,
 	}
-
+	deploymentConfigMin, err := impl.deploymentConfigReadService.GetDeploymentConfigMinForAppAndEnv(request.AppId, request.EnvId)
+	if err != nil {
+		impl.Logger.Errorw("error in getting deployment config", "appId", request.AppId, "envId", request.EnvId, "err", err)
+		return nil, err
+	}
+	if deploymentConfigMin.IsLinkedRelease() {
+		chartMetaData.Name = refChart.Name
+	}
 	refChartPath, err := impl.chartRefService.GetChartLocation(refChart.Location, refChart.ChartData)
 	if err != nil {
 		impl.Logger.Errorw("error in getting chart location", "chartMetaData", chartMetaData, "refChartLocation", refChart.Location)

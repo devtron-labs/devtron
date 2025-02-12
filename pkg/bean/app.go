@@ -652,8 +652,18 @@ type CDPipelineConfigObject struct {
 	ApplicationObjectClusterId    int                                    `json:"applicationObjectClusterId"` //ACDAppClusterId
 	ApplicationObjectNamespace    string                                 `json:"applicationObjectNamespace"` //ACDAppNamespace
 	DeploymentAppName             string                                 `json:"deploymentAppName"`
-	// TODO Asutosh: default tag does not work. Need to check
-	ReleaseMode string `json:"releaseMode" default:"create" validate:"oneof=link create"`
+	ReleaseMode                   string                                 `json:"releaseMode" validate:"omitempty,oneof=link create"`
+}
+
+func (cdPipelineConfig *CDPipelineConfigObject) IsLinkedRelease() bool {
+	return cdPipelineConfig.GetReleaseMode() == util.PIPELINE_RELEASE_MODE_LINK
+}
+
+func (cdPipelineConfig *CDPipelineConfigObject) GetReleaseMode() string {
+	if cdPipelineConfig == nil || len(cdPipelineConfig.ReleaseMode) == 0 {
+		return util.PIPELINE_RELEASE_MODE_CREATE
+	}
+	return cdPipelineConfig.ReleaseMode
 }
 
 type CDPipelineMinConfig struct {
@@ -691,7 +701,7 @@ func (cdPipelineConfig *CDPipelineConfigObject) PatchSourceInfo() (int, string) 
 
 func (cdPipelineConfig *CDPipelineConfigObject) IsExternalArgoAppLinkRequest() bool {
 	return cdPipelineConfig.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD &&
-		cdPipelineConfig.ReleaseMode == util.PIPELINE_RELEASE_MODE_LINK
+		cdPipelineConfig.GetReleaseMode() == util.PIPELINE_RELEASE_MODE_LINK
 }
 
 type PreStageConfigMapSecretNames struct {

@@ -537,7 +537,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 				EnvironmentId:     pipeline.EnvironmentId,
 				DeploymentAppType: pipeline.DeploymentAppType,
 				RepoURL:           appDeploymentConfig.RepoURL,
-				ReleaseMode:       pipeline.ReleaseMode,
+				ReleaseMode:       pipeline.GetReleaseMode(),
 				Active:            true,
 			}
 			var releaseConfig *bean4.ReleaseConfiguration
@@ -1456,7 +1456,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			RunPreStageInEnv:              dbPipeline.RunPreStageInEnv,
 			RunPostStageInEnv:             dbPipeline.RunPostStageInEnv,
 			DeploymentAppType:             dbPipeline.DeploymentAppType,
-			ReleaseMode:                   dbPipeline.ReleaseMode,
+			ReleaseMode:                   dbPipeline.GetReleaseMode(),
 			DeploymentAppCreated:          dbPipeline.DeploymentAppCreated,
 			ParentPipelineType:            appToWorkflowMapping.ParentType,
 			ParentPipelineId:              appToWorkflowMapping.ParentId,
@@ -1597,7 +1597,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 			RunPreStageInEnv:              dbPipeline.RunPreStageInEnv,
 			RunPostStageInEnv:             dbPipeline.RunPostStageInEnv,
 			DeploymentAppType:             dbPipeline.DeploymentAppType,
-			ReleaseMode:                   dbPipeline.ReleaseMode,
+			ReleaseMode:                   dbPipeline.GetReleaseMode(),
 			ParentPipelineType:            pipelineWorkflowMapping[dbPipeline.Id].ParentType,
 			ParentPipelineId:              pipelineWorkflowMapping[dbPipeline.Id].ParentId,
 			AppName:                       dbPipeline.AppName,
