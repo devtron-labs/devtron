@@ -35,7 +35,7 @@ paths:
           schema:
             type: string
             enum:
-              - v1
+              - alpha1
           description: API version.
 
       requestBody:
