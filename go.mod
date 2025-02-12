@@ -27,8 +27,8 @@ require (
 	github.com/evanphx/json-patch v5.7.0+incompatible
 	github.com/gammazero/workerpool v1.1.3
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
-	github.com/go-git/go-billy/v5 v5.6.0
-	github.com/go-git/go-git/v5 v5.13.0
+	github.com/go-git/go-billy/v5 v5.6.2
+	github.com/go-git/go-git/v5 v5.13.2
 	github.com/go-pg/pg v6.15.1+incompatible
 	github.com/go-resty/resty/v2 v2.7.0
 	github.com/gogo/protobuf v1.3.2
@@ -74,7 +74,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.20.0
 	go.opentelemetry.io/otel/trace v1.20.0
 	go.uber.org/zap v1.21.0
-	golang.org/x/crypto v0.31.0
+	golang.org/x/crypto v0.32.0
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
 	golang.org/x/mod v0.19.0
 	golang.org/x/oauth2 v0.21.0
@@ -116,7 +116,7 @@ require (
 	github.com/MakeNowJust/heredoc v1.0.0 // indirect
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
-	github.com/ProtonMail/go-crypto v1.1.3 // indirect
+	github.com/ProtonMail/go-crypto v1.1.5 // indirect
 	github.com/agext/levenshtein v1.2.1 // indirect
 	github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20230305170008-8188dc5388df // indirect
 	github.com/apparentlymart/go-textseg v1.0.0 // indirect
@@ -132,7 +132,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
 	github.com/cloudflare/circl v1.3.7 // indirect
-	github.com/cyphar/filepath-securejoin v0.2.5 // indirect
+	github.com/cyphar/filepath-securejoin v0.3.6 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/cli v24.0.6+incompatible // indirect
@@ -215,7 +215,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0-rc5 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
-	github.com/pjbgf/sha1cd v0.3.0 // indirect
+	github.com/pjbgf/sha1cd v0.3.2 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_model v0.4.1-0.20230718164431-9a2bf3000d16 // indirect
 	github.com/prometheus/common v0.44.0 // indirect
@@ -247,10 +247,10 @@ require (
 	go.starlark.net v0.0.0-20230525235612-a134d8f9ddca // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/net v0.33.0 // indirect
+	golang.org/x/net v0.34.0 // indirect
 	golang.org/x/sync v0.10.0 // indirect
-	golang.org/x/sys v0.28.0 // indirect
-	golang.org/x/term v0.27.0 // indirect
+	golang.org/x/sys v0.29.0 // indirect
+	golang.org/x/term v0.28.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.23.0 // indirect
@@ -288,8 +288,8 @@ require gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 
 replace (
 	github.com/argoproj/argo-workflows/v3 v3.5.10 => github.com/devtron-labs/argo-workflows/v3 v3.5.13
-	github.com/devtron-labs/authenticator => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250212095806-fc9c6b7e6f1f
-	github.com/devtron-labs/common-lib => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250212095806-fc9c6b7e6f1f
+	github.com/devtron-labs/authenticator => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250212120117-7e3d667325aa
+	github.com/devtron-labs/common-lib => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250212120117-7e3d667325aa
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.5.5
 	k8s.io/api => k8s.io/api v0.29.7
