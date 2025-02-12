@@ -7,9 +7,9 @@ toolchain go1.21.8
 require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/Pallinder/go-randomdata v1.2.0
-	github.com/argoproj/argo-cd/v2 v2.12.4
+	github.com/argoproj/argo-cd/v2 v2.12.10
 	github.com/argoproj/argo-workflows/v3 v3.5.10
-	github.com/argoproj/gitops-engine v0.7.1-0.20240718175351-6b2984ebc470
+	github.com/argoproj/gitops-engine v0.7.1-0.20250129155113-faf5a4e5c37d
 	github.com/aws/aws-sdk-go v1.50.8
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/caarlos0/env/v6 v6.7.2
@@ -27,8 +27,8 @@ require (
 	github.com/evanphx/json-patch v5.9.0+incompatible
 	github.com/gammazero/workerpool v1.1.3
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
-	github.com/go-git/go-billy/v5 v5.5.0
-	github.com/go-git/go-git/v5 v5.12.0
+	github.com/go-git/go-billy/v5 v5.6.1
+	github.com/go-git/go-git/v5 v5.13.1
 	github.com/go-pg/pg v6.15.1+incompatible
 	github.com/go-resty/resty/v2 v2.7.0
 	github.com/gogo/protobuf v1.3.2
@@ -59,7 +59,7 @@ require (
 	github.com/prometheus/client_golang v1.18.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/satori/go.uuid v1.2.0
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	github.com/tidwall/gjson v1.14.4
 	github.com/tidwall/sjson v1.2.4
 	github.com/xanzy/go-gitlab v0.107.0
@@ -75,8 +75,8 @@ require (
 	go.opentelemetry.io/otel/trace v1.21.0
 	go.uber.org/zap v1.21.0
 	golang.org/x/crypto v0.31.0
-	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225
-	golang.org/x/mod v0.17.0
+	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
+	golang.org/x/mod v0.19.0
 	golang.org/x/oauth2 v0.21.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20230822172742-b8732ec3820d
 	google.golang.org/grpc v1.59.0
@@ -116,7 +116,7 @@ require (
 	github.com/MakeNowJust/heredoc v1.0.0 // indirect
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
-	github.com/ProtonMail/go-crypto v1.0.0 // indirect
+	github.com/ProtonMail/go-crypto v1.1.3 // indirect
 	github.com/agext/levenshtein v1.2.1 // indirect
 	github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20230305170008-8188dc5388df // indirect
 	github.com/apparentlymart/go-textseg v1.0.0 // indirect
@@ -132,7 +132,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
 	github.com/cloudflare/circl v1.3.7 // indirect
-	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
+	github.com/cyphar/filepath-securejoin v0.3.6 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/cli v24.0.6+incompatible // indirect
@@ -223,7 +223,7 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/skeema/knownhosts v1.2.2 // indirect
+	github.com/skeema/knownhosts v1.3.0 // indirect
 	github.com/spf13/cobra v1.8.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stoewer/go-strcase v1.2.0 // indirect
@@ -252,7 +252,7 @@ require (
 	golang.org/x/term v0.27.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
-	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
+	golang.org/x/tools v0.23.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/api v0.132.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
