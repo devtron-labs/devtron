@@ -69,6 +69,8 @@ type InstalledAppDBService interface {
 	GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(version int) (int, error)
 	GetInstalledAppVersionHistoryByVersionId(id int) ([]*appStoreRepo.InstalledAppVersionHistory, error)
 	UpdateDeploymentHistoryMessage(installedAppVersionHistoryId int, message string) error
+
+	IsInstalledAppManagedByArgoCd(appId int) (bool, error)
 }
 
 type InstalledAppDBServiceImpl struct {
@@ -532,4 +534,13 @@ func (impl *InstalledAppDBServiceImpl) MarkInstalledAppVersionModelInActive(inst
 		return err
 	}
 	return nil
+}
+
+func (impl *InstalledAppDBServiceImpl) IsInstalledAppManagedByArgoCd(appId int) (bool, error) {
+	installedApp, err := impl.InstalledAppRepository.GetInstalledAppsMinByAppId(appId)
+	if err != nil {
+		impl.Logger.Errorw("error while fetching installed_app min data by appId", "appId", appId, "error", err)
+		return false, err
+	}
+	return util.IsAcdApp(installedApp.DeploymentAppType), nil
 }

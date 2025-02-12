@@ -463,22 +463,22 @@ func convertUrlToHttpsIfSshType(url string) string {
 }
 
 // getAppAndProjectForAppIdentifier, returns app db model for an app unique identifier or from display_name if both exists else it throws pg.ErrNoRows
-func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIdentifier *helmBean.AppIdentifier) (*appRepository.App, error) {
+func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIdentifier *helmBean.AppIdentifier) (*appRepository.App, bool, error) {
 	app := &appRepository.App{}
 	var err error
 	appNameUniqueIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
 	app, err = impl.appRepository.FindAppAndProjectByAppName(appNameUniqueIdentifier)
 	if err != nil && err != pg.ErrNoRows && err != pg.ErrMultiRows {
 		impl.logger.Errorw("error in fetching app meta data by unique app identifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
-		return app, err
+		return app, false, err
 	}
 	if err == pg.ErrMultiRows {
 		validApp, err := impl.dbMigration.FixMultipleAppsForInstalledApp(appNameUniqueIdentifier)
 		if err != nil {
 			impl.logger.Errorw("error in fixing multiple installed app entries", "appName", appNameUniqueIdentifier, "err", err)
-			return app, err
+			return app, false, err
 		}
-		return validApp, err
+		return validApp, false, err
 	}
 	if util.IsErrNoRows(err) {
 		//find app by display name if not found by unique identifier
@@ -487,16 +487,28 @@ func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIden
 			validApp, err := impl.dbMigration.FixMultipleAppsForInstalledApp(appNameUniqueIdentifier)
 			if err != nil {
 				impl.logger.Errorw("error in fixing multiple installed app entries", "appName", appNameUniqueIdentifier, "err", err)
-				return app, err
+				return app, false, err
 			}
-			return validApp, err
+			return validApp, false, err
 		}
 		if err != nil {
 			impl.logger.Errorw("error in fetching app meta data by display name", "displayName", appIdentifier.ReleaseName, "err", err)
-			return app, err
+			return app, false, err
+		}
+		// there can be a case when an app whose installed_app is deployed via argocd and same appName is also deployed externally
+		// via helm then we need to check if app model found is not deployed by argocd.
+		isManagedByArgocd, err := impl.installedAppDbService.IsInstalledAppManagedByArgoCd(app.Id)
+		if err != nil {
+			impl.logger.Errorw("error in checking if installed app linked to this app is managed via argocd or not ", "appId", app.Id, "err", err)
+			return app, false, err
+		}
+		if isManagedByArgocd {
+			// if this helm app is managed by argocd then we don't want to process this req. any further.
+			return app, true, nil
 		}
 	}
-	return app, nil
+
+	return app, false, nil
 }
 
 // updateAppNameToUniqueAppIdentifierInApp, migrates values of app_name col. in app table to unique identifier and also updates display_name with releaseName
@@ -540,6 +552,7 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 	app := &appRepository.App{}
 	var err error
 	var displayName string
+	var isManagedByArgocd bool
 	impl.logger.Info("request payload, appId", appId)
 	if len(appIdSplitted) > 1 {
 		appIdDecoded, err := client.DecodeExternalAppAppId(appId)
@@ -547,10 +560,16 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 			impl.logger.Errorw("error in decoding app id for external app", "appId", appId, "err", err)
 			return nil, err
 		}
-		app, err = impl.getAppAndProjectForAppIdentifier(appIdDecoded)
+		app, isManagedByArgocd, err = impl.getAppAndProjectForAppIdentifier(appIdDecoded)
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.logger.Errorw("GetHelmAppMetaInfo, error in getAppAndProjectForAppIdentifier for external apps", "appIdentifier", appIdDecoded, "err", err)
 			return nil, err
+		}
+		if isManagedByArgocd {
+			info := &bean.AppMetaInfoDto{
+				AppName: appIdDecoded.ReleaseName,
+			}
+			return info, nil
 		}
 		// if app.DisplayName is empty then that app_name is not yet migrated to app name unique identifier
 		if app.Id > 0 && len(app.DisplayName) == 0 {
