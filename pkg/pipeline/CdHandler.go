@@ -312,6 +312,7 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		if string(v1alpha1.NodeError) == savedWorkflow.Status || string(v1alpha1.NodeFailed) == savedWorkflow.Status {
 			impl.Logger.Warnw("cd stage failed for workflow: ", "wfId", savedWorkflow.Id)
 		}
+		return savedWorkflow.Id, savedWorkflow.Status, true, nil
 	}
 	return savedWorkflow.Id, savedWorkflow.Status, false, nil
 }
