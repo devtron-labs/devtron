@@ -210,7 +210,7 @@ func (d *DeploymentConfig) IsPipelineGitOpsRepoConfigured(isAppLevelGitOpsConfig
 
 func (d *DeploymentConfig) GetRepoURL() string {
 	if d.ReleaseConfiguration == nil || d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil {
-		return ""
+		return d.RepoURL
 	}
 	return d.ReleaseConfiguration.ArgoCDSpec.Spec.Source.RepoURL
 }
@@ -242,6 +242,7 @@ func (d *DeploymentConfig) GetChartLocation() string {
 }
 
 func (d *DeploymentConfig) SetRepoURL(repoURL string) *DeploymentConfig {
+	d.RepoURL = repoURL
 	if d.ReleaseConfiguration == nil || d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil {
 		return d
 	}
