@@ -438,51 +438,55 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 			return
 		}
 
-		wfrId, wfrStatus, err := impl.cdHandler.UpdateWorkflow(wfStatus)
+		wfrId, wfrStatus, stateChanged, err := impl.cdHandler.UpdateWorkflow(wfStatus)
 		impl.logger.Debugw("UpdateWorkflow", "wfrId", wfrId, "wfrStatus", wfrStatus)
 		if err != nil {
 			impl.logger.Error("err", err)
 			return
 		}
 
-		wfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(wfrId)
-		if err != nil {
-			impl.logger.Errorw("could not get wf runner", "err", err)
-			return
-		}
-		if wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
-			if len(wfr.ImagePathReservationIds) > 0 {
-				err := impl.cdHandler.DeactivateImageReservationPathsOnFailure(wfr.ImagePathReservationIds)
-				if err != nil {
-					impl.logger.Errorw("error in removing image path reservation ")
-				}
-			}
-		}
-		if wfrStatus == string(v1alpha1.NodeSucceeded) || wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
-			eventType := eventUtil.EventType(0)
-			if wfrStatus == string(v1alpha1.NodeSucceeded) {
-				eventType = eventUtil.Success
-			} else if wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
-				eventType = eventUtil.Fail
+		if stateChanged {
+			wfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(wfrId)
+			if err != nil {
+				impl.logger.Errorw("could not get wf runner", "wfrId", wfrId, "err", err)
+				return
 			}
 
-			if wfr != nil && executors.CheckIfReTriggerRequired(wfrStatus, wfStatus.Message, wfr.Status) {
-				err = impl.workflowDagExecutor.HandleCdStageReTrigger(wfr)
-				if err != nil {
-					//check if this log required or not
-					impl.logger.Errorw("error in HandleCdStageReTrigger", "error", err)
+			if wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
+				if len(wfr.ImagePathReservationIds) > 0 {
+					err := impl.cdHandler.DeactivateImageReservationPathsOnFailure(wfr.ImagePathReservationIds)
+					if err != nil {
+						impl.logger.Errorw("error in removing image path reservation ", "imagePathReservationIds", wfr.ImagePathReservationIds, "err", err)
+					}
 				}
 			}
 
-			if wfr.WorkflowType == apiBean.CD_WORKFLOW_TYPE_PRE || wfr.WorkflowType == apiBean.CD_WORKFLOW_TYPE_POST {
-				event, _ := impl.eventFactory.Build(eventType, &wfr.CdWorkflow.PipelineId, wfr.CdWorkflow.Pipeline.AppId, &wfr.CdWorkflow.Pipeline.EnvironmentId, eventUtil.CD)
-				impl.logger.Debugw("event pre stage", "event", event)
-				event = impl.eventFactory.BuildExtraCDData(event, wfr, 0, wfr.WorkflowType)
-				_, evtErr := impl.eventClient.WriteNotificationEvent(event)
-				if evtErr != nil {
-					impl.logger.Errorw("CD stage post fail or success event unable to sent", "error", evtErr)
+			wfStatusInEvent := string(wfStatus.Phase)
+			if wfStatusInEvent == string(v1alpha1.NodeSucceeded) || wfStatusInEvent == string(v1alpha1.NodeFailed) || wfStatusInEvent == string(v1alpha1.NodeError) {
+				// the re-trigger should only happen when we get a pod deleted event.
+				if wfr != nil && executors.CheckIfReTriggerRequired(wfrStatus, wfStatus.Message, wfr.Status) {
+					err = impl.workflowDagExecutor.HandleCdStageReTrigger(wfr)
+					if err != nil {
+						// check if this log required or not
+						impl.logger.Errorw("error in HandleCdStageReTrigger", "workflowRunnerId", wfr.Id, "workflowStatus", wfrStatus, "workflowStatusMessage", wfStatus.Message, "error", err)
+					}
+					impl.logger.Debugw("re-triggered cd stage", "workflowRunnerId", wfr.Id, "workflowStatus", wfrStatus, "workflowStatusMessage", wfStatus.Message)
+				} else {
+					// we send this notification on *workflow_runner* status, both success and failure
+					// during workflow runner failure, particularly when failure occurred due to pod deletion , we get two events from kubewatch.
+					// event1: with failure status + exit-code [need to send notification]
+					// event2: with failure status + pod deletion message [skip notification]
+					eventType := eventUtil.EventType(0)
+					if wfStatusInEvent == string(v1alpha1.NodeSucceeded) {
+						eventType = eventUtil.Success
+					} else if wfStatusInEvent == string(v1alpha1.NodeFailed) || wfStatusInEvent == string(v1alpha1.NodeError) {
+						eventType = eventUtil.Fail
+					}
+					impl.sendPrePostCdNotificationEvent(eventType, wfr)
 				}
 			}
+		} else {
+			impl.logger.Debugw("no state change detected for the cd workflow status update, ignoring this event", "workflowRunnerId", wfrId, "wfrStatus", wfrStatus)
 		}
 	}
 
@@ -503,6 +507,18 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 		return err
 	}
 	return nil
+}
+
+func (impl *WorkflowEventProcessorImpl) sendPrePostCdNotificationEvent(eventType eventUtil.EventType, wfr *pipelineConfig.CdWorkflowRunner) {
+	if wfr.WorkflowType == apiBean.CD_WORKFLOW_TYPE_PRE || wfr.WorkflowType == apiBean.CD_WORKFLOW_TYPE_POST {
+		event, _ := impl.eventFactory.Build(eventType, &wfr.CdWorkflow.PipelineId, wfr.CdWorkflow.Pipeline.AppId, &wfr.CdWorkflow.Pipeline.EnvironmentId, eventUtil.CD)
+		impl.logger.Debugw("event pre stage", "event", event)
+		event = impl.eventFactory.BuildExtraCDData(event, wfr, 0, wfr.WorkflowType)
+		_, evtErr := impl.eventClient.WriteNotificationEvent(event)
+		if evtErr != nil {
+			impl.logger.Errorw("CD stage post fail or success event unable to sent", "error", evtErr)
+		}
+	}
 }
 
 func (impl *WorkflowEventProcessorImpl) extractCiCompleteEventFrom(msg *model.PubSubMsg) (bean.CiCompleteEvent, error) {

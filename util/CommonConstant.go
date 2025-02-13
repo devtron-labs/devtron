@@ -30,4 +30,5 @@ const (
 	ConfigMapSecretUsageTypeVolume      string = "volume"
 	YamlSeparator                       string = "---\n"
 	NotSupportedErr                            = "This feature is not supported"
+	SqlAlreadyCommitedErrMsg                   = "sql: transaction has already been committed or rolled back"
 )
