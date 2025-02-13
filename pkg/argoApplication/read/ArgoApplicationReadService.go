@@ -37,7 +37,7 @@ import (
 
 type ArgoApplicationReadService interface {
 	ValidateArgoResourceRequest(ctx context.Context, appIdentifier *bean.ArgoAppIdentifier, request *k8s.K8sRequestBean) (bool, error)
-	GetAppDetail(resourceName, resourceNamespace string, clusterId int) (*bean.ArgoApplicationDetailDto, error)
+	GetAppDetailEA(ctx context.Context, resourceName, resourceNamespace string, clusterId int) (*bean.ArgoApplicationDetailDto, error)
 	GetArgoManagedResources(resourceName, resourceNamespace string, clusterConfig *k8s.ClusterConfig) (*bean.ArgoManagedResourceResponse, error)
 	GetArgoAppResourceTree(clusterConfig *k8s.ClusterConfig, targetClusterId int, resp *bean.ArgoManagedResourceResponse) (*gRPC.ResourceTreeResponse, error)
 }
@@ -65,7 +65,7 @@ func NewArgoApplicationReadServiceImpl(logger *zap.SugaredLogger,
 
 }
 
-func (impl *ArgoApplicationReadServiceImpl) GetAppDetail(resourceName, resourceNamespace string, clusterId int) (*bean.ArgoApplicationDetailDto, error) {
+func (impl *ArgoApplicationReadServiceImpl) GetAppDetailEA(ctx context.Context, resourceName, resourceNamespace string, clusterId int) (*bean.ArgoApplicationDetailDto, error) {
 	appDetail := &bean.ArgoApplicationDetailDto{
 		ArgoApplicationListDto: &bean.ArgoApplicationListDto{
 			Name:      resourceName,
@@ -102,20 +102,24 @@ func (impl *ArgoApplicationReadServiceImpl) GetAppDetail(resourceName, resourceN
 		return nil, err
 	}
 	targetClusterId := 0
-	if resp.DestinationServer == k8sCommonBean.DefaultClusterUrl {
-		targetClusterId = clusterWithApplicationObject.Id
-	} else if clusterIdFromMap, ok := clusterServerUrlIdMap[resp.DestinationServer]; ok {
-		targetClusterId = clusterIdFromMap
+	if len(resp.DestinationServer) != 0 {
+		if resp.DestinationServer == k8sCommonBean.DefaultClusterUrl {
+			targetClusterId = clusterWithApplicationObject.Id
+		} else if clusterIdFromMap, ok := clusterServerUrlIdMap[resp.DestinationServer]; ok {
+			targetClusterId = clusterIdFromMap
+		}
 	}
-	appDetail.Manifest = resp.ManifestResponse.Manifest.Object
-	appDetail.HealthStatus = resp.HealthStatus
-	appDetail.SyncStatus = resp.SyncStatus
 	resourceTree, err := impl.GetArgoAppResourceTree(clusterConfig, targetClusterId, resp)
 	if err != nil {
 		impl.logger.Errorw("error in getting argo app resource tree", "err", err)
 		return nil, err
 	}
 	appDetail.ResourceTree = resourceTree
+	if resp.ManifestResponse != nil {
+		appDetail.Manifest = resp.ManifestResponse.Manifest.Object
+	}
+	appDetail.HealthStatus = resp.HealthStatus
+	appDetail.SyncStatus = resp.SyncStatus
 	return appDetail, nil
 }
 
@@ -227,7 +231,7 @@ func (impl *ArgoApplicationReadServiceImpl) getResourceTreeForExternalCluster(cl
 }
 
 func (impl *ArgoApplicationReadServiceImpl) ValidateArgoResourceRequest(ctx context.Context, appIdentifier *bean.ArgoAppIdentifier, request *k8s.K8sRequestBean) (bool, error) {
-	app, err := impl.GetAppDetail(appIdentifier.AppName, appIdentifier.Namespace, appIdentifier.ClusterId)
+	app, err := impl.GetAppDetailEA(ctx, appIdentifier.AppName, appIdentifier.Namespace, appIdentifier.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting app detail", "err", err, "appDetails", appIdentifier)
 		apiError := clientErrors.ConvertToApiError(err)
@@ -257,39 +261,40 @@ func (impl *ArgoApplicationReadServiceImpl) ValidateArgoResourceRequest(ctx cont
 	appDetail := &gRPC.AppDetail{
 		ResourceTreeResponse: app.ResourceTree,
 	}
-	return validateContainerNameIfReqd(valid, request, appDetail), nil
+	if !valid {
+		valid = validateContainerName(request, appDetail)
+	}
+	return valid, nil
 }
 
-func validateContainerNameIfReqd(valid bool, request *k8s.K8sRequestBean, app *gRPC.AppDetail) bool {
-	if !valid {
-		requestContainerName := request.PodLogsRequest.ContainerName
-		podName := request.ResourceIdentifier.Name
-		for _, pod := range app.ResourceTreeResponse.PodMetadata {
-			if pod.Name == podName {
+func validateContainerName(request *k8s.K8sRequestBean, app *gRPC.AppDetail) bool {
+	requestContainerName := request.PodLogsRequest.ContainerName
+	podName := request.ResourceIdentifier.Name
+	for _, pod := range app.ResourceTreeResponse.PodMetadata {
+		if pod.Name == podName {
 
-				// finding the container name in main Containers
-				for _, container := range pod.Containers {
-					if container == requestContainerName {
-						return true
-					}
+			// finding the container name in main Containers
+			for _, container := range pod.Containers {
+				if container == requestContainerName {
+					return true
 				}
-
-				// finding the container name in init containers
-				for _, initContainer := range pod.InitContainers {
-					if initContainer == requestContainerName {
-						return true
-					}
-				}
-
-				// finding the container name in ephemeral containers
-				for _, ephemeralContainer := range pod.EphemeralContainers {
-					if ephemeralContainer.Name == requestContainerName {
-						return true
-					}
-				}
-
 			}
+
+			// finding the container name in init containers
+			for _, initContainer := range pod.InitContainers {
+				if initContainer == requestContainerName {
+					return true
+				}
+			}
+
+			// finding the container name in ephemeral containers
+			for _, ephemeralContainer := range pod.EphemeralContainers {
+				if ephemeralContainer.Name == requestContainerName {
+					return true
+				}
+			}
+
 		}
 	}
-	return valid
+	return false
 }

@@ -303,7 +303,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 		}
 		//RBAC enforcer Ends
 
-		appDetail, err := handler.argoApplicationReadService.GetAppDetail(appIdentifier.AppName, appIdentifier.Namespace, appIdentifier.ClusterId)
+		appDetail, err := handler.argoApplicationReadService.GetAppDetailEA(r.Context(), appIdentifier.AppName, appIdentifier.Namespace, appIdentifier.ClusterId)
 		if err != nil {
 			apiError := clientErrors.ConvertToApiError(err)
 			if apiError != nil {

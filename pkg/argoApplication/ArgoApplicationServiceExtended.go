@@ -186,7 +186,7 @@ func (c *ArgoApplicationServiceExtendedImpl) GetResourceTree(ctx context.Context
 
 func (c *ArgoApplicationServiceExtendedImpl) getArgoResourceTreeAndPodMetadata(ctx context.Context, asc application2.ApplicationServiceClient, acdQueryRequest *bean.AcdClientQueryRequest) (*v1alpha1.ApplicationTree, []*argoApplication.PodMetadata, error) {
 	if acdQueryRequest.Mode.IsDeclarative() {
-		argoResourceTree, podMetadataList, err := c.getResourceTreeUsingCache(ctx, acdQueryRequest)
+		argoResourceTree, podMetadataList, err := c.getResourceTreeUsingK8sClient(ctx, acdQueryRequest)
 		if err != nil {
 			c.logger.Errorw("Error in getArgoResourceTreeAndPodMetadata, calling fallback function to get from argo", "acdQueryRequest", acdQueryRequest, "err", err)
 		} else {
@@ -195,6 +195,10 @@ func (c *ArgoApplicationServiceExtendedImpl) getArgoResourceTreeAndPodMetadata(c
 	}
 
 	//fallback
+	return c.getResourceTreeUsingArgoClient(ctx, asc, acdQueryRequest)
+}
+
+func (c *ArgoApplicationServiceExtendedImpl) getResourceTreeUsingArgoClient(ctx context.Context, asc application2.ApplicationServiceClient, acdQueryRequest *bean.AcdClientQueryRequest) (*v1alpha1.ApplicationTree, []*argoApplication.PodMetadata, error) {
 	//all the apps deployed via argo are fetching status from here
 	argoCtx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutSlow)
 	defer cancel()
@@ -208,7 +212,16 @@ func (c *ArgoApplicationServiceExtendedImpl) getArgoResourceTreeAndPodMetadata(c
 	return rtResp, podMetadata, nil
 }
 
-func (c *ArgoApplicationServiceExtendedImpl) getArgoResourceTreeResponse(ctx context.Context, clusterConfig *k8s.ClusterConfig, acdQueryRequest *bean.AcdClientQueryRequest) (*v1alpha1.ApplicationTree, []*argoApplication.PodMetadata, error) {
+func (c *ArgoApplicationServiceExtendedImpl) getResourceTreeUsingK8sClient(ctx context.Context, acdQueryRequest *bean.AcdClientQueryRequest) (*v1alpha1.ApplicationTree, []*argoApplication.PodMetadata, error) {
+	clusterConfig, err := c.clusterService.GetClusterConfigByClusterId(acdQueryRequest.ArgoClusterId)
+	if err != nil {
+		c.logger.Errorw("Error in getting cluster config by clusterId", "acdQueryRequest", acdQueryRequest, "err", err)
+		return nil, nil, err
+	}
+	return c.getAcdResourceTreeUsingK8sClient(ctx, clusterConfig, acdQueryRequest)
+}
+
+func (c *ArgoApplicationServiceExtendedImpl) getAcdResourceTreeUsingK8sClient(ctx context.Context, clusterConfig *k8s.ClusterConfig, acdQueryRequest *bean.AcdClientQueryRequest) (*v1alpha1.ApplicationTree, []*argoApplication.PodMetadata, error) {
 	argoCdAppNamespace := acdQueryRequest.GetAppNamespace(c.aCDAuthConfig.ACDConfigMapNamespace)
 	argoMangedResourceResp, err := c.argoApplicationReadService.GetArgoManagedResources(acdQueryRequest.GetApplicationName(), argoCdAppNamespace, clusterConfig)
 	if err != nil {
@@ -228,15 +241,6 @@ func (c *ArgoApplicationServiceExtendedImpl) getArgoResourceTreeResponse(ctx con
 		podMetadataList := adapter.GetArgoPodMetadata(resourceTreeResp.PodMetadata)
 		return argoResourceTree, podMetadataList, nil
 	}
-}
-
-func (c *ArgoApplicationServiceExtendedImpl) getResourceTreeUsingCache(ctx context.Context, acdQueryRequest *bean.AcdClientQueryRequest) (*v1alpha1.ApplicationTree, []*argoApplication.PodMetadata, error) {
-	clusterConfig, err := c.clusterService.GetClusterConfigByClusterId(acdQueryRequest.ArgoClusterId)
-	if err != nil {
-		c.logger.Errorw("Error in getting cluster config by clusterId", "acdQueryRequest", acdQueryRequest, "err", err)
-		return nil, nil, err
-	}
-	return c.getArgoResourceTreeResponse(ctx, clusterConfig, acdQueryRequest)
 }
 
 func (c *ArgoApplicationServiceExtendedImpl) parseResult(resp *v1alpha1.ApplicationTree, query *application2.ResourcesQuery, ctx context.Context, asc application2.ApplicationServiceClient, err error) []*argoApplication.Result {
