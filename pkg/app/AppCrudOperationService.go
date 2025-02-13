@@ -497,7 +497,7 @@ func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIden
 		}
 		// there can be a case when an app whose installed_app is deployed via argocd and same appName is also deployed externally
 		// via helm then we need to check if app model found is not deployed by argocd.
-		isManagedByArgocd, err := impl.installedAppDbService.IsInstalledAppManagedByArgoCd(app.Id)
+		isManagedByArgocd, err := impl.installedAppDbService.IsChartStoreAppManagedByArgoCd(app.Id)
 		if err != nil {
 			impl.logger.Errorw("error in checking if installed app linked to this app is managed via argocd or not ", "appId", app.Id, "err", err)
 			return app, false, err
