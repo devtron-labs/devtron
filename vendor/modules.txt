@@ -150,7 +150,7 @@ github.com/argoproj/argo-cd/v2/util/regex
 github.com/argoproj/argo-cd/v2/util/security
 github.com/argoproj/argo-cd/v2/util/settings
 github.com/argoproj/argo-cd/v2/util/tls
-# github.com/argoproj/argo-workflows/v3 v3.5.10 => github.com/devtron-labs/argo-workflows/v3 v3.5.13
+# github.com/argoproj/argo-workflows/v3 v3.5.13 => github.com/devtron-labs/argo-workflows/v3 v3.5.13
 ## explicit; go 1.21
 github.com/argoproj/argo-workflows/v3/errors
 github.com/argoproj/argo-workflows/v3/pkg/apis/workflow

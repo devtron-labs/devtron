@@ -8,7 +8,7 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/argoproj/argo-cd/v2 v2.12.10
-	github.com/argoproj/argo-workflows/v3 v3.5.10
+	github.com/argoproj/argo-workflows/v3 v3.5.13
 	github.com/argoproj/gitops-engine v0.7.1-0.20250129155113-faf5a4e5c37d
 	github.com/aws/aws-sdk-go v1.50.8
 	github.com/caarlos0/env v3.5.0+incompatible
@@ -290,7 +290,7 @@ require (
 )
 
 replace (
-	github.com/argoproj/argo-workflows/v3 v3.5.10 => github.com/devtron-labs/argo-workflows/v3 v3.5.13
+	github.com/argoproj/argo-workflows/v3 v3.5.13 => github.com/devtron-labs/argo-workflows/v3 v3.5.13
 	github.com/devtron-labs/authenticator => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250210055647-3ce7e36ba884
 	github.com/devtron-labs/common-lib => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250210055647-3ce7e36ba884
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
