@@ -9,6 +9,7 @@
 ## Documentation
 - doc: updated devtron user list in users.md (#6363)
 ## Others
+- sync: Main sync develop (#6396)
 - sync: vendor update on release 29 (#6395)
 - sync: Release candidate v0.29.0 (#6394)
 - sync: Main sync develop (#6375)
