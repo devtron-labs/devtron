@@ -30,12 +30,12 @@ ALTER TABLE rbac_role_resource_detail ADD COLUMN IF NOT EXISTS "role_resource_ve
 INSERT INTO rbac_role_resource_detail ("resource", "role_resource_key", "role_resource_update_key",
                                        "eligible_entity_access_types","role_resource_version", "deleted", "created_on", "created_by",
                                        "updated_on", "updated_by")
-VALUES ('action', 'Action', 'Action', ARRAY['apps/devtron-app','apps/helm-app','cluster','jobs','release','chart-group'], ARRAY['base','v1'],false, now(), 1, now(), 1);
+VALUES ('action', 'Action', 'Action', ARRAY['apps/devtron-app','apps/helm-app','cluster','jobs','release','chart-group'], ARRAY['v1'],false, now(), 1, now(), 1);
 
 
 INSERT INTO rbac_role_resource_detail ("resource", "role_resource_key", "role_resource_update_key",
                                        "eligible_entity_access_types","role_resource_version", "deleted", "created_on", "created_by",
                                        "updated_on", "updated_by")
-VALUES ('subAction', 'SubAction', 'SubAction', ARRAY['apps/devtron-app','apps/helm-app','cluster','jobs','release','chart-group'], ARRAY['base','v1'],false, now(), 1, now(), 1);
+VALUES ('subAction', 'SubAction', 'SubAction', ARRAY['apps/devtron-app','apps/helm-app','cluster','jobs','release','chart-group'], ARRAY['v1'],false, now(), 1, now(), 1);
 
 COMMIT ;
