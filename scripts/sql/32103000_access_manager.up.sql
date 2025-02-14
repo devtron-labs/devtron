@@ -38,4 +38,35 @@ INSERT INTO rbac_role_resource_detail ("resource", "role_resource_key", "role_re
                                        "updated_on", "updated_by")
 VALUES ('subAction', 'SubAction', 'SubAction', ARRAY['apps/devtron-app','apps/helm-app','cluster','jobs','release','chart-group'], ARRAY['v1'],false, now(), 1, now(), 1);
 
+INSERT into default_rbac_role_data (role,
+                                    default_role_data,
+                                    created_on,
+                                    created_by,
+                                    updated_on,
+                                    updated_by,
+                                    enabled)
+VALUES ('accessManager',
+        '{
+    "entity": "apps",
+    "roleName": "accessManager",
+    "accessType": "devtron-app",
+    "roleDescription": "can manage access for devtron apps",
+    "roleDisplayName": "Access Manager",
+    "policyResourceList":
+    [
+        {
+            "actions":
+            [
+                "*"
+            ],
+            "resource": "user/entity/accessType"
+        }
+    ],
+    "updatePoliciesForExistingProvidedRoles": false
+}',
+        now(),
+        1,
+        now(),
+        1,
+        true);
 COMMIT ;
