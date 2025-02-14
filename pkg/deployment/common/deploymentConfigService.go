@@ -389,9 +389,6 @@ func (impl *DeploymentConfigServiceImpl) GetConfigForHelmApps(appId, envId int) 
 }
 
 func (impl *DeploymentConfigServiceImpl) IsChartStoreAppManagedByArgoCd(appId int) (bool, error) {
-	if !impl.deploymentServiceTypeConfig.UseDeploymentConfigData {
-		return impl.installedAppReadService.IsChartStoreAppManagedByArgoCd(appId)
-	}
 	deploymentAppType, err := impl.deploymentConfigRepository.GetDeploymentAppTypeForChartStoreAppByAppId(appId)
 	if err != nil && !util2.IsErrNoRows(err) {
 		impl.logger.Errorw("error in GetDeploymentAppTypeForChartStoreAppByAppId", "appId", appId, "err", err)
