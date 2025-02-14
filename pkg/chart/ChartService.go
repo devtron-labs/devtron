@@ -72,6 +72,8 @@ type ChartService interface {
 	IsGitOpsRepoConfiguredForDevtronApp(appId int) (bool, error)
 	IsGitOpsRepoConfiguredForDevtronApps(appIds []int) (map[int]bool, error)
 	IsGitOpsRepoAlreadyRegistered(gitOpsRepoUrl string) (bool, error)
+
+	GetDeploymentTemplateDataByAppIdAndCharRefId(appId, chartRefId int) (map[string]interface{}, error)
 }
 
 type ChartServiceImpl struct {
@@ -1072,4 +1074,73 @@ func (impl *ChartServiceImpl) IsGitOpsRepoAlreadyRegistered(gitOpsRepoUrl string
 	}
 	impl.logger.Errorw("repository is already in use for devtron app", "repoUrl", gitOpsRepoUrl, "appId", chartModel.AppId)
 	return true, nil
+}
+
+func (impl *ChartServiceImpl) GetDeploymentTemplateDataByAppIdAndCharRefId(appId, chartRefId int) (map[string]interface{}, error) {
+	appConfigResponse := make(map[string]interface{})
+	appConfigResponse["globalConfig"] = nil
+
+	err := impl.chartRefService.CheckChartExists(chartRefId)
+	if err != nil {
+		impl.logger.Errorw("refChartDir Not Found err, JsonSchemaExtractFromFile", err)
+		return nil, err
+	}
+
+	schema, readme, err := impl.chartRefService.GetSchemaAndReadmeForTemplateByChartRefId(chartRefId)
+	if err != nil {
+		impl.logger.Errorw("err in getting schema and readme, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+	}
+
+	template, err := impl.FindLatestChartForAppByAppId(appId)
+	if err != nil && pg.ErrNoRows != err {
+		impl.logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+		return nil, err
+	}
+
+	if pg.ErrNoRows == err {
+		appOverride, _, err := impl.chartRefService.GetAppOverrideForDefaultTemplate(chartRefId)
+		if err != nil {
+			impl.logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+			return nil, err
+		}
+		appOverride["schema"] = json.RawMessage(schema)
+		appOverride["readme"] = string(readme)
+		mapB, err := json.Marshal(appOverride)
+		if err != nil {
+			impl.logger.Errorw("marshal err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+			return nil, err
+		}
+		appConfigResponse["globalConfig"] = json.RawMessage(mapB)
+	} else {
+		if template.ChartRefId != chartRefId {
+			templateRequested, err := impl.GetByAppIdAndChartRefId(appId, chartRefId)
+			if err != nil && err != pg.ErrNoRows {
+				impl.logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+				return nil, err
+			}
+
+			if pg.ErrNoRows == err {
+				template.ChartRefId = chartRefId
+				template.Id = 0
+				template.Latest = false
+			} else {
+				template.ChartRefId = templateRequested.ChartRefId
+				template.Id = templateRequested.Id
+				template.ChartRepositoryId = templateRequested.ChartRepositoryId
+				template.RefChartTemplate = templateRequested.RefChartTemplate
+				template.RefChartTemplateVersion = templateRequested.RefChartTemplateVersion
+				template.Latest = templateRequested.Latest
+			}
+		}
+		template.Schema = schema
+		template.Readme = string(readme)
+		bytes, err := json.Marshal(template)
+		if err != nil {
+			impl.logger.Errorw("marshal err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+			return nil, err
+		}
+		appOverride := json.RawMessage(bytes)
+		appConfigResponse["globalConfig"] = appOverride
+	}
+	return appConfigResponse, nil
 }

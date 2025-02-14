@@ -76,6 +76,8 @@ import (
 )
 
 type CdPipelineConfigService interface {
+	// GetCdPipelineByIdResolved : Retrieve cdPipeline for given cdPipelineId and update response as per version(change of pre/post stage data)
+	GetCdPipelineByIdResolved(pipelineId int, version string) (cdPipeline *bean.CDPipelineConfigObject, err error)
 	// GetCdPipelineById : Retrieve cdPipeline for given cdPipelineId.
 	// getting cdPipeline,environment and strategies ,preDeployStage, postDeployStage,appWorkflowMapping from respective repository and service layer
 	// converting above data in proper bean object and then assigning to CDPipelineConfigObject
@@ -222,6 +224,20 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 		deploymentTypeOverrideService:     deploymentTypeOverrideService,
 		deploymentConfigService:           deploymentConfigService,
 	}
+}
+
+func (impl *CdPipelineConfigServiceImpl) GetCdPipelineByIdResolved(pipelineId int, version string) (cdPipeline *bean.CDPipelineConfigObject, err error) {
+	cdPipeline, err = impl.GetCdPipelineById(pipelineId)
+	if err != nil {
+		impl.logger.Errorw("service err, GetCdPipelineById", "pipelineId", pipelineId, "err", err)
+		return
+	}
+	cdResp, err := CreatePreAndPostStageResponse(cdPipeline, version)
+	if err != nil {
+		impl.logger.Errorw("service err, CheckForVersionAndCreatePreAndPostStagePayload", "pipelineId", pipelineId, "err", err)
+		return
+	}
+	return cdResp, nil
 }
 
 func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPipeline *bean.CDPipelineConfigObject, err error) {
