@@ -58,6 +58,7 @@ type CdWorkflowCommonServiceImpl struct {
 	pipelineRepository               pipelineConfig.PipelineRepository
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository
 	deploymentConfigService          common2.DeploymentConfigService
+	cdWorkflowRunnerService          CdWorkflowRunnerService
 }
 
 func NewCdWorkflowCommonServiceImpl(logger *zap.SugaredLogger,
@@ -65,7 +66,8 @@ func NewCdWorkflowCommonServiceImpl(logger *zap.SugaredLogger,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
-	deploymentConfigService common2.DeploymentConfigService) (*CdWorkflowCommonServiceImpl, error) {
+	deploymentConfigService common2.DeploymentConfigService,
+	cdWorkflowRunnerService CdWorkflowRunnerService) (*CdWorkflowCommonServiceImpl, error) {
 	config, err := types.GetCdConfig()
 	if err != nil {
 		return nil, err
@@ -78,6 +80,7 @@ func NewCdWorkflowCommonServiceImpl(logger *zap.SugaredLogger,
 		pipelineRepository:               pipelineRepository,
 		pipelineStatusTimelineRepository: pipelineStatusTimelineRepository,
 		deploymentConfigService:          deploymentConfigService,
+		cdWorkflowRunnerService:          cdWorkflowRunnerService,
 	}, nil
 }
 
@@ -171,7 +174,7 @@ func (impl *CdWorkflowCommonServiceImpl) MarkCurrentDeploymentFailed(runner *pip
 	runner.Message = util.GetClientErrorDetailedMessage(releaseErr)
 	runner.FinishedOn = time.Now()
 	runner.UpdateAuditLog(triggeredBy)
-	err1 := impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+	err1 := impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(runner)
 	if err1 != nil {
 		impl.logger.Errorw("error updating cd wf runner status", "err", releaseErr, "currentRunner", runner)
 		return err1
@@ -223,7 +226,7 @@ func (impl *CdWorkflowCommonServiceImpl) UpdateNonTerminalStatusInRunner(ctx con
 	}
 	cdWfr.Status = status
 	cdWfr.UpdateAuditLog(userId)
-	err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(cdWfr)
+	err = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(cdWfr)
 	if err != nil {
 		impl.logger.Errorw("error on update cd workflow runner, UpdateNonTerminalStatusInRunner", "cdWfr", cdWfr, "err", err)
 		return err
