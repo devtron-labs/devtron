@@ -226,6 +226,7 @@ type NotificationRequest struct {
 	UpdateType                util.UpdateType              `json:"updateType,omitempty"`
 	Providers                 []*bean.Provider             `json:"providers"`
 	NotificationConfigRequest []*NotificationConfigRequest `json:"notificationConfigRequest" validate:"required"`
+	SesConfigId               int                          `json:"sesConfigId"`
 }
 
 type NotificationUpdateRequest struct {

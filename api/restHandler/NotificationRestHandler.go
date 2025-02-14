@@ -52,6 +52,7 @@ const (
 
 type NotificationRestHandler interface {
 	SaveNotificationSettings(w http.ResponseWriter, r *http.Request)
+	SaveNotificationSettingsV2(w http.ResponseWriter, r *http.Request)
 	UpdateNotificationSettings(w http.ResponseWriter, r *http.Request)
 	SaveNotificationChannelConfig(w http.ResponseWriter, r *http.Request)
 	FindSESConfig(w http.ResponseWriter, r *http.Request)
@@ -118,6 +119,65 @@ func NewNotificationRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistry
 }
 
 func (impl NotificationRestHandlerImpl) SaveNotificationSettings(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var notificationSetting beans.NotificationRequest
+	err = json.NewDecoder(r.Body).Decode(&notificationSetting)
+	if err != nil {
+		impl.logger.Errorw("request err, SaveNotificationSettings", "err", err, "payload", notificationSetting)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	impl.logger.Infow("request payload, SaveNotificationSettings", "err", err, "payload", notificationSetting)
+	err = impl.validator.Struct(notificationSetting)
+	if err != nil {
+		impl.logger.Errorw("validation err, SaveNotificationSettings", "err", err, "payload", notificationSetting)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	//RBAC
+	token := r.Header.Get("token")
+	if isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !isSuperAdmin {
+		common.WriteJsonResp(w, err, nil, http.StatusForbidden)
+		return
+	}
+	//RBAC
+
+	providers := notificationSetting.Providers
+
+	if len(providers) != 0 {
+		for _, provider := range providers {
+			if provider.Destination == "smtp" || provider.Destination == "ses" {
+				if provider.Recipient == "" {
+					userEmail, err := impl.userAuthService.GetEmailById(int32(provider.ConfigId))
+					if err != nil {
+						impl.logger.Errorw("service err, SaveNotificationSettings", "err", err, "payload", notificationSetting)
+						common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+						return
+					}
+					provider.Recipient = userEmail
+				}
+				// get default configID for SES and SMTP
+				provider.ConfigId = notificationSetting.SesConfigId
+			}
+		}
+	}
+
+	res, err := impl.notificationService.CreateOrUpdateNotificationSettings(&notificationSetting, userId)
+	if err != nil {
+		impl.logger.Errorw("service err, SaveNotificationSettings", "err", err, "payload", notificationSetting)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
+}
+
+func (impl NotificationRestHandlerImpl) SaveNotificationSettingsV2(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
