@@ -1,4 +1,5 @@
 ## Bugs
+- fix: when a helm app is managed by argocd then skip argo app update when same name ext helm app is installed (#6389)
 - fix: upgraded to go-git/v5 v5.13.0 (#6388)
 - fix: fix for ci cd workflow fake success status and multiple post/pre cd success notifications (#6370)
 - fix: fix for while cloning app or workflow when external secret is present in any pipeline then that pipeline is not cloned (#6368)
