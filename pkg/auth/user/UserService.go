@@ -425,27 +425,12 @@ func (impl *UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, emai
 		}
 		// END GROUP POLICY
 	} else if userInfo.SuperAdmin == true {
-		flag, err := impl.userAuthRepository.CreateRoleForSuperAdminIfNotExists(tx, userInfo.UserId)
-		if err != nil || flag == false {
-			return nil, err
-		}
-		roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", userBean.SUPER_ADMIN, "", "", "", "", "", "", "", false, "")
+		policiesToBeAdded, err := impl.CreateAndAddPoliciesForSuperAdmin(tx, userInfo.UserId, model.EmailId, model.Id)
 		if err != nil {
+			impl.logger.Errorw("error in createUserIfNotExists", "err", err)
 			return nil, err
 		}
-		if roleModel.Id > 0 {
-			userRoleModel := &repository.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id, AuditLog: sql.AuditLog{
-				CreatedBy: userInfo.UserId,
-				CreatedOn: time.Now(),
-				UpdatedBy: userInfo.UserId,
-				UpdatedOn: time.Now(),
-			}}
-			userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
-			if err != nil {
-				return nil, err
-			}
-			policies = append(policies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
-		}
+		policies = append(policies, policiesToBeAdded...)
 	}
 	impl.logger.Infow("Checking the length of policies to be added and Adding in casbin ")
 	if len(policies) > 0 {
@@ -461,6 +446,28 @@ func (impl *UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, emai
 	//loading policy for syncing orchestrator to casbin with newly added policies
 	casbin2.LoadPolicy()
 	return userInfo, nil
+}
+
+// CreateAndAddPoliciesForSuperAdmin : checks if super Admin roles else creates and creates mapping in orchestrator , returns casbin polices
+func (impl *UserServiceImpl) CreateAndAddPoliciesForSuperAdmin(tx *pg.Tx, userLoggedInId int32, emailId string, userModelId int32) ([]casbin2.Policy, error) {
+	policies := make([]casbin2.Policy, 0)
+	flag, err := impl.userAuthRepository.CreateRoleForSuperAdminIfNotExists(tx, userLoggedInId)
+	if err != nil || flag == false {
+		return nil, err
+	}
+	roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", userBean.SUPER_ADMIN, "", "", "", "", "", "", "", false, "")
+	if err != nil {
+		return nil, err
+	}
+	if roleModel.Id > 0 {
+		userRoleModel := &repository.UserRoleModel{UserId: userModelId, RoleId: roleModel.Id, AuditLog: sql.NewDefaultAuditLog(userLoggedInId)}
+		userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
+		if err != nil {
+			return nil, err
+		}
+		policies = append(policies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(emailId), Obj: casbin2.Object(roleModel.Role)})
+	}
+	return policies, nil
 }
 
 func (impl *UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.RoleFilter, userId int32, model *repository.UserModel, existingRoles map[int]repository.UserRoleModel, tx *pg.Tx, entity string, capacity int) ([]casbin2.Policy, bool, error) {
@@ -785,22 +792,12 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, c
 			}
 		}
 	} else if userInfo.SuperAdmin == true {
-		flag, err := impl.userAuthRepository.CreateRoleForSuperAdminIfNotExists(tx, userInfo.UserId)
-		if err != nil || flag == false {
-			return nil, err
-		}
-		roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", userBean.SUPER_ADMIN, "", "", "", "", "", "", "", false, "")
+		policiesToBeAdded, err := impl.CreateAndAddPoliciesForSuperAdmin(tx, userInfo.UserId, model.EmailId, model.Id)
 		if err != nil {
+			impl.logger.Errorw("error in update user", "err", err)
 			return nil, err
 		}
-		if roleModel.Id > 0 {
-			userRoleModel := &repository.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
-			userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
-			if err != nil {
-				return nil, err
-			}
-			addedPolicies = append(addedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
-		}
+		addedPolicies = append(addedPolicies, policiesToBeAdded...)
 	}
 
 	if checkRBACForUserUpdate != nil {

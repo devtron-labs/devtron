@@ -138,26 +138,12 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 
 		var policies = make([]casbin2.Policy, 0)
 		if request.SuperAdmin {
-			flag, err := impl.userAuthRepository.CreateRoleForSuperAdminIfNotExists(tx, request.UserId)
-			if err != nil || flag == false {
-				impl.logger.Errorw("error in CreateRoleForSuperAdminIfNotExists ", "err", err, "roleGroupName", request.Name)
-				return nil, err
-			}
-			roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, "", "", "", "", "", "", "", false, "")
+			policiesToBeAdded, err := impl.CreateAndAddPolicesForSuperAdmin(tx, request.UserId, model.Id, model.CasbinName)
 			if err != nil {
-				impl.logger.Errorw("error in getting role by filter for all Types for superAdmin", "err", err)
+				impl.logger.Errorw("error encountered in CreateRoleGroup", "err", err)
 				return nil, err
 			}
-			if roleModel.Id > 0 {
-				roleGroupMappingModel := &repository.RoleGroupRoleMapping{RoleGroupId: model.Id, RoleId: roleModel.Id}
-				roleGroupMappingModel.AuditLog = sql.NewDefaultAuditLog(request.UserId)
-				roleGroupMappingModel, err = impl.roleGroupRepository.CreateRoleGroupRoleMapping(roleGroupMappingModel, tx)
-				if err != nil {
-					impl.logger.Errorw("error in creating role group role mapping", "err", err, "RoleGroupId", model.Id)
-					return nil, err
-				}
-				policies = append(policies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.CasbinName), Obj: casbin2.Object(roleModel.Role)})
-			}
+			policies = append(policies, policiesToBeAdded...)
 		} else {
 			policiesToBeAdded, err := impl.createAndAddPolciesForNonSuperAdmin(tx, request.RoleFilters, request.UserId, model)
 			if err != nil {
@@ -181,6 +167,31 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 		return nil, err
 	}
 	return request, nil
+}
+
+func (impl RoleGroupServiceImpl) CreateAndAddPolicesForSuperAdmin(tx *pg.Tx, userLoggedInId int32, roleGroupId int32, groupCasbinName string) ([]casbin2.Policy, error) {
+	policies := make([]casbin2.Policy, 0)
+	flag, err := impl.userAuthRepository.CreateRoleForSuperAdminIfNotExists(tx, userLoggedInId)
+	if err != nil || flag == false {
+		impl.logger.Errorw("error in CreateRoleForSuperAdminIfNotExists ", "err", err, "groupCasbinName", groupCasbinName)
+		return nil, err
+	}
+	roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, "", "", "", "", "", "", "", false, "")
+	if err != nil {
+		impl.logger.Errorw("error in getting role by filter for all Types for superAdmin", "err", err)
+		return nil, err
+	}
+	if roleModel.Id > 0 {
+		roleGroupMappingModel := &repository.RoleGroupRoleMapping{RoleGroupId: roleGroupId, RoleId: roleModel.Id}
+		roleGroupMappingModel.AuditLog = sql.NewDefaultAuditLog(userLoggedInId)
+		roleGroupMappingModel, err = impl.roleGroupRepository.CreateRoleGroupRoleMapping(roleGroupMappingModel, tx)
+		if err != nil {
+			impl.logger.Errorw("error in creating role group role mapping", "err", err, "RoleGroupId", roleGroupId)
+			return nil, err
+		}
+		policies = append(policies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(groupCasbinName), Obj: casbin2.Object(roleModel.Role)})
+	}
+	return policies, nil
 }
 
 func (impl RoleGroupServiceImpl) createAndAddPolciesForNonSuperAdmin(tx *pg.Tx, roleFilters []bean.RoleFilter, userLoggedInId int32, model *repository.RoleGroup) ([]casbin2.Policy, error) {
@@ -441,26 +452,12 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 	var eliminatedRoleModels []*repository.RoleModel
 
 	if request.SuperAdmin {
-		flag, err := impl.userAuthRepository.CreateRoleForSuperAdminIfNotExists(tx, request.UserId)
-		if err != nil || flag == false {
-			impl.logger.Errorw("error in CreateRoleForSuperAdminIfNotExists ", "err", err, "roleGroupName", request.Name)
-			return nil, err
-		}
-		roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, "", "", "", "", "", "", "", false, "")
+		policiesToBeAdded, err := impl.CreateAndAddPolicesForSuperAdmin(tx, request.UserId, roleGroup.Id, roleGroup.CasbinName)
 		if err != nil {
-			impl.logger.Errorw("error in getting role by filter for all Types for superAdmin", "err", err)
+			impl.logger.Errorw("error encountered in UpdateRoleGroup", "error", err, "roleGroupId", roleGroup.Id)
 			return nil, err
 		}
-		if roleModel.Id > 0 {
-			roleGroupMappingModel := &repository.RoleGroupRoleMapping{RoleGroupId: roleGroup.Id, RoleId: roleModel.Id}
-			roleGroupMappingModel.CreateAuditLog(request.UserId)
-			roleGroupMappingModel, err = impl.roleGroupRepository.CreateRoleGroupRoleMapping(roleGroupMappingModel, tx)
-			if err != nil {
-				impl.logger.Errorw("error in creating role group role mapping", "err", err, "RoleGroupId", roleGroup.Id)
-				return nil, err
-			}
-			policies = append(policies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(roleGroup.CasbinName), Obj: casbin2.Object(roleModel.Role)})
-		}
+		policies = append(policies, policiesToBeAdded...)
 	} else {
 		var policiesToBeAdded, policiesToBeEliminated []casbin2.Policy
 		policiesToBeAdded, policiesToBeEliminated, eliminatedRoleModels, err = impl.UpdateAndAddPoliciesForNonSuperAdmin(tx, request, roleGroup, token, managerAuth)
@@ -470,7 +467,6 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 		}
 		policies = append(policies, policiesToBeAdded...)
 		eliminatedPolicies = append(eliminatedPolicies, policiesToBeEliminated...)
-
 	}
 
 	if checkRBACForGroupUpdate != nil {
