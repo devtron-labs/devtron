@@ -118,6 +118,7 @@ func NewNotificationRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistry
 	}
 }
 
+// SaveNotificationSettings will be deprecated in future
 func (impl NotificationRestHandlerImpl) SaveNotificationSettings(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -151,7 +152,7 @@ func (impl NotificationRestHandlerImpl) SaveNotificationSettings(w http.Response
 
 	if len(providers) != 0 {
 		for _, provider := range providers {
-			if provider.Destination == "smtp" || provider.Destination == "ses" {
+			if provider.Destination == util.SMTP || provider.Destination == util.SES {
 				if provider.Recipient == "" {
 					userEmail, err := impl.userAuthService.GetEmailById(int32(provider.ConfigId))
 					if err != nil {
