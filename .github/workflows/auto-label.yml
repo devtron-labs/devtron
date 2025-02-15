@@ -1,4 +1,4 @@
-name: Devtron-auto-labeller
+name: Devtron-auto-labeler
 
 on:
   issue_comment:
@@ -25,7 +25,7 @@ jobs:
           ISSUE_NUMBER=$(jq -r '.issue.number // .pull_request.number' "$GITHUB_EVENT_PATH")
           COMMENT_AUTHOR=$(jq -r '.comment.user.login' "$GITHUB_EVENT_PATH")
 
-          ORG_NAME="satyam-tests"
+          ORG_NAME="devtron-labs"
 
           # Check if the person is authorized to add labels
           curl -s -H "Authorization: token $GH_TOKEN" "https://api.github.com/orgs/$ORG_NAME/members/$COMMENT_AUTHOR" > /dev/null
