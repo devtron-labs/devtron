@@ -4,6 +4,7 @@ import (
 	"fmt"
 	apiGitOpsBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/util"
+	util2 "github.com/devtron-labs/devtron/util"
 	"strconv"
 	"strings"
 )
@@ -217,7 +218,7 @@ func (d *DeploymentConfig) GetRepoURL() string {
 
 func (d *DeploymentConfig) GetTargetRevision() string {
 	if d.ReleaseConfiguration == nil || d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil {
-		return ""
+		return util2.GetDefaultTargetRevision()
 	}
 	return d.ReleaseConfiguration.ArgoCDSpec.Spec.Source.TargetRevision
 }
@@ -242,7 +243,7 @@ func (d *DeploymentConfig) GetChartLocation() string {
 }
 
 func (d *DeploymentConfig) SetRepoURL(repoURL string) *DeploymentConfig {
-	d.RepoURL = repoURL
+	d.RepoURL = repoURL // maintain for backward compatibility
 	if d.ReleaseConfiguration == nil || d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil {
 		return d
 	}

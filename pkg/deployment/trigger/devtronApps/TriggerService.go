@@ -1224,7 +1224,7 @@ func (impl *TriggerServiceImpl) deployArgoCdApp(ctx context.Context, overrideReq
 // update repoUrl, revision and argo app sync mode (auto/manual) if needed
 func (impl *TriggerServiceImpl) updateArgoPipeline(ctx context.Context, pipeline *pipelineConfig.Pipeline, envOverride *bean10.EnvConfigOverride, deploymentConfig *bean9.DeploymentConfig) (bool, error) {
 	if !deploymentConfig.IsArgoAppPatchSupported() {
-		impl.logger.Debugw("argo app patch not supported", "pipelineId", pipeline.Id, "pipelineName", pipeline.Name)
+		impl.logger.Infow("argo app patch not supported", "pipelineId", pipeline.Id, "pipelineName", pipeline.Name)
 		return false, nil
 	}
 	if ctx == nil {

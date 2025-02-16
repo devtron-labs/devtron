@@ -403,8 +403,7 @@ func (impl *ChartServiceImpl) CreateChartFromEnvOverride(templateRequest bean3.T
 
 	// maintained for backward compatibility;
 	// adding git repo url to both deprecated and new state
-	deploymentConfig.RepoURL = gitRepoUrl
-	deploymentConfig.SetRepoURL(gitRepoUrl)
+	deploymentConfig = deploymentConfig.SetRepoURL(gitRepoUrl)
 	deploymentConfig.SetChartLocation(chartLocation)
 
 	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, templateRequest.UserId)
@@ -1014,8 +1013,7 @@ func (impl *ChartServiceImpl) ConfigureGitOpsRepoUrlForApp(appId int, repoUrl, c
 		impl.logger.Errorw("error in getting deployment config", "appId", appId, "error", err)
 		return nil, err
 	}
-	deploymentConfig.RepoURL = repoUrl
-	deploymentConfig.SetRepoURL(repoUrl)
+	deploymentConfig = deploymentConfig.SetRepoURL(repoUrl)
 	deploymentConfig.SetChartLocation(chartLocation)
 
 	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, userId)
