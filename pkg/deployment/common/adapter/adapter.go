@@ -59,3 +59,23 @@ func ConvertDeploymentConfigDbObjToDTO(dbObj *deploymentConfig.DeploymentConfig)
 		ReleaseConfiguration: &releaseConfig,
 	}, nil
 }
+
+func NewAppLevelReleaseConfigFromChart(gitRepoURL, chartLocation string) *bean.ReleaseConfiguration {
+	return &bean.ReleaseConfiguration{
+		Version: bean.Version,
+		ArgoCDSpec: bean.ArgoCDSpec{
+			Spec: bean.ApplicationSpec{
+				Source: &bean.ApplicationSource{
+					RepoURL: gitRepoURL,
+					Path:    chartLocation,
+				},
+			},
+		}}
+}
+
+func GetDeploymentConfigType(isCustomGitOpsRepo bool) string {
+	if isCustomGitOpsRepo {
+		return string(bean.CUSTOM)
+	}
+	return string(bean.SYSTEM_GENERATED)
+}

@@ -243,7 +243,7 @@ func (d *DeploymentConfig) GetChartLocation() string {
 }
 
 func (d *DeploymentConfig) SetRepoURL(repoURL string) *DeploymentConfig {
-	d.RepoURL = repoURL
+	d.RepoURL = repoURL // maintain for backward compatibility
 	if d.ReleaseConfiguration == nil || d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil {
 		return d
 	}

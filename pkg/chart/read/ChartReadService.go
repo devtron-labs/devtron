@@ -11,6 +11,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	util2 "github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 	"strings"
 )
@@ -116,8 +117,10 @@ func (impl *ChartReadServiceImpl) chartAdaptor(chartInput *chartRepoRepository.C
 		return &bean.TemplateRequest{}, &util.ApiError{UserMessage: "no chartInput found"}
 	}
 	gitRepoUrl := ""
+	targetRevision := util2.GetDefaultTargetRevision()
 	if !apiGitOpsBean.IsGitOpsRepoNotConfigured(deploymentConfig.GetRepoURL()) {
 		gitRepoUrl = deploymentConfig.GetRepoURL()
+		targetRevision = deploymentConfig.GetTargetRevision()
 	}
 	templateRequest := &bean.TemplateRequest{
 		RefChartTemplate:        chartInput.ReferenceTemplate,
@@ -134,6 +137,7 @@ func (impl *ChartReadServiceImpl) chartAdaptor(chartInput *chartRepoRepository.C
 		GitRepoUrl:              gitRepoUrl,
 		IsCustomGitRepository:   deploymentConfig.ConfigType == bean2.CUSTOM.String(),
 		ImageDescriptorTemplate: chartInput.ImageDescriptorTemplate,
+		TargetRevision:          targetRevision,
 	}
 	if chartInput.Latest {
 		templateRequest.LatestChartVersion = chartInput.ChartVersion

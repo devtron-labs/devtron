@@ -430,7 +430,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 	envIds := make([]*int, 0)
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 		// skip creation of pipeline if envId is not set
-		if pipeline.EnvironmentId <= 0 || pipeline.IsExternalArgoAppLinkRequest() {
+		if pipeline.EnvironmentId <= 0 || pipeline.IsLinkedRelease() {
 			continue
 		}
 		// making environment array for fetching the clusterIds
@@ -553,10 +553,10 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 				}
 				envDeploymentConfig.ConfigType = appDeploymentConfig.ConfigType
 			}
-			if releaseConfig != nil && releaseConfig.ArgoCDSpec.Spec.Source != nil {
-				envDeploymentConfig.RepoURL = releaseConfig.ArgoCDSpec.Spec.Source.RepoURL //for backward compatibility
-			}
 			envDeploymentConfig.ReleaseConfiguration = releaseConfig
+			if releaseConfig != nil && releaseConfig.ArgoCDSpec.Spec.Source != nil {
+				envDeploymentConfig = envDeploymentConfig.SetRepoURL(releaseConfig.ArgoCDSpec.Spec.Source.RepoURL) //for backward compatibility
+			}
 			envDeploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, pipelineCreateRequest.UserId)
 			if err != nil {
 				impl.logger.Errorw("error in fetching creating env config", "appId", app.Id, "envId", pipeline.EnvironmentId, "err", err)

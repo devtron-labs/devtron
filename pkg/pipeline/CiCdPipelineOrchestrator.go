@@ -1385,13 +1385,13 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) erro
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
 		return err
 	}
-	envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(appId, 0)
+	appDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(appId, 0)
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "err", err)
 		return err
 	}
-	envDeploymentConfig.Active = false
-	envDeploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(tx, envDeploymentConfig, userId)
+	appDeploymentConfig.Active = false
+	appDeploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(tx, appDeploymentConfig, userId)
 	if err != nil {
 		impl.logger.Errorw("error in deleting deployment config for pipeline", "appId", appId, "err", err)
 		return err
