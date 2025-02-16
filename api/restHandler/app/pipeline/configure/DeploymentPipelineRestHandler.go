@@ -229,6 +229,15 @@ func (handler *PipelineConfigRestHandlerImpl) CreateCdPipeline(w http.ResponseWr
 	}
 	ok := true
 	for _, deploymentPipeline := range cdPipeline.Pipelines {
+
+		if deploymentPipeline.IsLinkedRelease() {
+			//only super admin is allowed to link pipeline to external helm release/ acd Application
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
+				common.WriteJsonResp(w, errors.New("unauthorized User"), nil, http.StatusForbidden)
+				return
+			}
+		}
+
 		//handling case of change of source from CI_PIPELINE to external-ci type (other change of type any -> any has been handled in ci-pipeline/patch api)
 		if deploymentPipeline.IsSwitchCiPipelineRequest() {
 			cdPipelines, err := handler.getCdPipelinesForCdPatchRbac(deploymentPipeline)
@@ -248,7 +257,6 @@ func (handler *PipelineConfigRestHandlerImpl) CreateCdPipeline(w http.ResponseWr
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
-		// TODO Asutosh: check for super-admin if user tries to migrate an external argocd app/ helm release
 	}
 	//RBAC
 

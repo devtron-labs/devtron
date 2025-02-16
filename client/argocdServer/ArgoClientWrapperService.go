@@ -86,7 +86,7 @@ type ApplicationClientWrapper interface {
 	// GetArgoAppByName fetches an argoCd app by its name
 	GetArgoAppByName(ctx context.Context, appName string) (*v1alpha1.Application, error)
 
-	GetArgoAppByNameWithK8sClient(ctx context.Context, clusterId int, namespace, appName string) (map[string]interface{}, error)
+	GetArgoAppByNameWithK8sClient(ctx context.Context, clusterId int, namespace, appName string) (*v1alpha1.Application, error)
 
 	DeleteArgoAppWithK8sClient(ctx context.Context, clusterId int, namespace, appName string, cascadeDelete bool) error
 
@@ -407,7 +407,7 @@ func (impl *ArgoClientWrapperServiceImpl) GetArgoAppByName(ctx context.Context, 
 	return argoApplication, nil
 }
 
-func (impl *ArgoClientWrapperServiceImpl) GetArgoAppByNameWithK8sClient(ctx context.Context, clusterId int, namespace, appName string) (map[string]interface{}, error) {
+func (impl *ArgoClientWrapperServiceImpl) GetArgoAppByNameWithK8sClient(ctx context.Context, clusterId int, namespace, appName string) (*v1alpha1.Application, error) {
 	k8sConfig, err := impl.acdConfigGetter.GetK8sConfigWithClusterIdAndNamespace(clusterId, namespace)
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s config", "err", err)
@@ -418,7 +418,12 @@ func (impl *ArgoClientWrapperServiceImpl) GetArgoAppByNameWithK8sClient(ctx cont
 		impl.logger.Errorw("err in getting argo app by name", "app", appName)
 		return nil, err
 	}
-	return argoApplication, nil
+	application, err := GetAppObject(argoApplication)
+	if err != nil {
+		impl.logger.Errorw("error in getting app object", "deploymentAppName", appName, "err", err)
+		return nil, err
+	}
+	return application, nil
 }
 
 func (impl *ArgoClientWrapperServiceImpl) DeleteArgoAppWithK8sClient(ctx context.Context, clusterId int, namespace, appName string, cascadeDelete bool) error {

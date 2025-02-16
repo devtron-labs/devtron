@@ -654,14 +654,9 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		ApplicationMetadata: pipelineConfigBean.NewEmptyApplicationMetadata(),
 	}
 
-	application, err := impl.argoClientWrapperService.GetArgoAppByNameWithK8sClient(context.Background(), applicationObjectClusterId, applicationObjectNamespace, acdAppName)
+	argoApplicationSpec, err := impl.argoClientWrapperService.GetArgoAppByNameWithK8sClient(context.Background(), applicationObjectClusterId, applicationObjectNamespace, acdAppName)
 	if err != nil {
 		impl.logger.Errorw("error in fetching application", "deploymentAppName", acdAppName, "err", err)
-		return response.SetUnknownErrorDetail(err)
-	}
-	argoApplicationSpec, err := argocdServer.GetAppObject(application)
-	if err != nil {
-		impl.logger.Errorw("error in getting app object", "deploymentAppName", acdAppName, "application", application, "err", err)
 		return response.SetUnknownErrorDetail(err)
 	}
 	if argoApplicationSpec.Spec.HasMultipleSources() {
