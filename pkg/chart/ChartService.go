@@ -31,6 +31,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	adapter2 "github.com/devtron-labs/devtron/pkg/deployment/common/adapter"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
@@ -291,7 +292,7 @@ func (impl *ChartServiceImpl) Create(templateRequest bean3.TemplateRequest, ctx 
 
 	deploymentConfig := &bean2.DeploymentConfig{
 		AppId:      templateRequest.AppId,
-		ConfigType: common.GetDeploymentConfigType(templateRequest.IsCustomGitRepository),
+		ConfigType: adapter2.GetDeploymentConfigType(templateRequest.IsCustomGitRepository),
 		RepoURL:    gitRepoUrl,
 		ReleaseConfiguration: &bean2.ReleaseConfiguration{
 			Version: bean2.Version,
@@ -719,7 +720,7 @@ func (impl *ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateReq
 
 	deploymentConfig := &bean2.DeploymentConfig{
 		AppId:      template.AppId,
-		ConfigType: common.GetDeploymentConfigType(template.IsCustomGitRepository),
+		ConfigType: adapter2.GetDeploymentConfigType(template.IsCustomGitRepository),
 		RepoURL:    config.GetRepoURL(),
 		ReleaseConfiguration: &bean2.ReleaseConfiguration{
 			Version: bean2.Version,
