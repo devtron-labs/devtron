@@ -4,6 +4,7 @@ import (
 	"fmt"
 	apiGitOpsBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/util"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"strconv"
 	"strings"
 )
@@ -217,7 +218,7 @@ func (d *DeploymentConfig) GetRepoURL() string {
 
 func (d *DeploymentConfig) GetTargetRevision() string {
 	if d.ReleaseConfiguration == nil || d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil {
-		return ""
+		return globalUtil.GetDefaultTargetRevision()
 	}
 	return d.ReleaseConfiguration.ArgoCDSpec.Spec.Source.TargetRevision
 }

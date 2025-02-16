@@ -116,8 +116,8 @@ func (impl *ChartReadServiceImpl) chartAdaptor(chartInput *chartRepoRepository.C
 		return &bean.TemplateRequest{}, &util.ApiError{UserMessage: "no chartInput found"}
 	}
 	gitRepoUrl := ""
-	if !apiGitOpsBean.IsGitOpsRepoNotConfigured(deploymentConfig.RepoURL) {
-		gitRepoUrl = deploymentConfig.RepoURL
+	if !apiGitOpsBean.IsGitOpsRepoNotConfigured(deploymentConfig.GetRepoURL()) {
+		gitRepoUrl = deploymentConfig.GetRepoURL()
 	}
 	templateRequest := &bean.TemplateRequest{
 		RefChartTemplate:        chartInput.ReferenceTemplate,

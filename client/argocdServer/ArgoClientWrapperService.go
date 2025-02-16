@@ -436,6 +436,12 @@ func (impl *ArgoClientWrapperServiceImpl) DeleteArgoAppWithK8sClient(ctx context
 }
 
 func (impl *ArgoClientWrapperServiceImpl) IsArgoAppPatchRequired(argoAppSpec *v1alpha1.ApplicationSource, currentGitRepoUrl, currentTargetRevision, currentChartPath string) bool {
+	if argoAppSpec == nil {
+		// if argo app spec is nil, then no need to patch
+		// this means the argo app object is in corrupted state
+		impl.logger.Warnw("received argo app spec is nil, skipping for patch request...")
+		return false
+	}
 	return (len(currentGitRepoUrl) != 0 && argoAppSpec.RepoURL != currentGitRepoUrl) ||
 		argoAppSpec.Path != currentChartPath ||
 		argoAppSpec.TargetRevision != currentTargetRevision

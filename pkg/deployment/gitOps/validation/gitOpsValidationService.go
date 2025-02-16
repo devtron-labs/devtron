@@ -28,7 +28,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	gitOpsBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation/bean"
-	moduleReadBean "github.com/devtron-labs/devtron/pkg/module/read/bean"
 	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/xanzy/go-gitlab"
@@ -43,7 +42,7 @@ type GitOpsValidationService interface {
 	// GitOpsValidateDryRun performs the following validations:
 	// "Get Repo URL", "Create Repo (if it doesn't exist)", "Create Readme", "Clone Http", "Clone Ssh", "Commit On Rest", "Push", "Delete Repo"
 	// And returns: gitOps.DetailedErrorGitOpsConfigResponse
-	GitOpsValidateDryRun(argoModule *moduleReadBean.ModuleInfoMin, config *apiBean.GitOpsConfigDto) apiBean.DetailedErrorGitOpsConfigResponse
+	GitOpsValidateDryRun(isArgoModuleInstalled bool, config *apiBean.GitOpsConfigDto) apiBean.DetailedErrorGitOpsConfigResponse
 	// ValidateGitOpsRepoUrl performs the following validations:
 	// "Organisational URL Validation", "Unique GitOps Repo"
 	// And returns: SanitisedRepoUrl and error
@@ -82,8 +81,8 @@ func NewGitOpsValidationServiceImpl(Logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *GitOpsValidationServiceImpl) GitOpsValidateDryRun(argoModule *moduleReadBean.ModuleInfoMin, config *apiBean.GitOpsConfigDto) apiBean.DetailedErrorGitOpsConfigResponse {
-	if config.AllowCustomRepository || !argoModule.IsInstalled() {
+func (impl *GitOpsValidationServiceImpl) GitOpsValidateDryRun(isArgoModuleInstalled bool, config *apiBean.GitOpsConfigDto) apiBean.DetailedErrorGitOpsConfigResponse {
+	if config.AllowCustomRepository || !isArgoModuleInstalled {
 		return apiBean.DetailedErrorGitOpsConfigResponse{
 			ValidationSkipped: true,
 		}

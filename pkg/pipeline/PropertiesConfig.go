@@ -618,6 +618,10 @@ func (impl PropertiesConfigServiceImpl) ResetEnvironmentProperties(id int, userI
 	}
 
 	chart, err := impl.chartRepo.FindLatestChartForAppByAppId(envOverride.Chart.AppId)
+	if err != nil {
+		impl.logger.Errorw("error in chartRefRepository.FindById", "chartRefId", envOverride.Chart.ChartRefId, "err", err)
+		return false, err
+	}
 	err = impl.deploymentConfigService.UpdateChartLocationInDeploymentConfig(envOverride.Chart.AppId, envOverride.TargetEnvironment, chart.ChartRefId, userId, chart.ChartVersion)
 	if err != nil {
 		impl.logger.Errorw("error in UpdateChartLocationInDeploymentConfig", "appId", envOverride.Chart.AppId, "envId", envOverride.TargetEnvironment, "err", err)
