@@ -500,10 +500,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 				}
 				return nil, apiErr
 			}
-			targetRevision := globalUtil.GetDefaultTargetRevision()
-			if len(appDeploymentConfig.GetTargetRevision()) != 0 {
-				targetRevision = appDeploymentConfig.GetTargetRevision()
-			}
+			targetRevision := appDeploymentConfig.GetTargetRevision()
 			_, chartGitAttr, err := impl.appService.CreateGitOpsRepo(app, targetRevision, pipelineCreateRequest.UserId)
 			if err != nil {
 				impl.logger.Errorw("error in creating git repo", "err", err)
@@ -636,7 +633,7 @@ func (impl *CdPipelineConfigServiceImpl) parseReleaseConfigForACDApp(app *app2.A
 				Source: &bean4.ApplicationSource{
 					RepoURL:        AppDeploymentConfig.GetRepoURL(),
 					Path:           chartLocation,
-					TargetRevision: "master",
+					TargetRevision: globalUtil.GetDefaultTargetRevision(),
 					Helm: &bean4.ApplicationSourceHelm{
 						ValueFiles: []string{fmt.Sprintf("_%d-values.yaml", env.Id)},
 					},
@@ -682,9 +679,10 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 	if len(targetClusterNamespace) == 0 {
 		return response.SetErrorDetail(pipelineConfigBean.UnsupportedApplicationSpec, "application with empty destination namespace is not supported")
 	}
-
-	response.ApplicationMetadata.Source.RepoURL = argoApplicationSpec.Spec.Source.RepoURL
-	response.ApplicationMetadata.Source.ChartPath = argoApplicationSpec.Spec.Source.Chart
+	if argoApplicationSpec.Spec.Source != nil {
+		response.ApplicationMetadata.Source.RepoURL = argoApplicationSpec.Spec.Source.RepoURL
+		response.ApplicationMetadata.Source.ChartPath = argoApplicationSpec.Spec.Source.Chart
+	}
 	response.ApplicationMetadata.Status = string(argoApplicationSpec.Status.Health.Status)
 
 	pipelines, err := impl.pipelineRepository.GetArgoPipelineByArgoAppName(acdAppName)
@@ -738,8 +736,12 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 	response.ApplicationMetadata.Destination.EnvironmentName = targetEnv.Name
 	response.ApplicationMetadata.Destination.EnvironmentId = targetEnv.Id
 
+	var requestedGitUrl string
+	if argoApplicationSpec.Spec.Source != nil {
+		requestedGitUrl = argoApplicationSpec.Spec.Source.RepoURL
+	}
 	validateRequest := &validationBean.ValidateGitOpsRepoUrlRequest{
-		RequestedGitUrl: argoApplicationSpec.Spec.Source.RepoURL,
+		RequestedGitUrl: requestedGitUrl,
 		UseActiveGitOps: true, // oss only supports active gitops
 	}
 	sanitisedRepoUrl, err := impl.gitOpsValidationService.ValidateGitOpsRepoUrl(validateRequest)
@@ -749,9 +751,11 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		}
 		return response.SetUnknownErrorDetail(err)
 	}
-
-	chartPath := argoApplicationSpec.Spec.Source.Path
-	targetRevision := argoApplicationSpec.Spec.Source.TargetRevision
+	var chartPath, targetRevision string
+	if argoApplicationSpec.Spec.Source != nil {
+		chartPath = argoApplicationSpec.Spec.Source.Path
+		targetRevision = argoApplicationSpec.Spec.Source.TargetRevision
+	}
 	helmChart, err := impl.extractHelmChartForExternalArgoApp(sanitisedRepoUrl, targetRevision, chartPath)
 	if err != nil {
 		impl.logger.Errorw("error in extracting helm chart from application spec", "acdAppName", acdAppName, "err", err)
@@ -769,10 +773,14 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		impl.logger.Errorw("error in finding chart ref by chartRefId", "chartRefId", latestChart.ChartRefId, "err", err)
 		return response.SetUnknownErrorDetail(err)
 	}
+	var valuesFilename string
+	if argoApplicationSpec.Spec.Source != nil && argoApplicationSpec.Spec.Source.Helm != nil {
+		valuesFilename = argoApplicationSpec.Spec.Source.Helm.ValueFiles[0]
+	}
 	response.ApplicationMetadata.Source.ChartMetadata = pipelineConfigBean.ChartMetadata{
 		RequiredChartVersion: applicationChartVersion,
 		SavedChartName:       chartRef.Name,
-		ValuesFilename:       argoApplicationSpec.Spec.Source.Helm.ValueFiles[0],
+		ValuesFilename:       valuesFilename,
 		RequiredChartName:    applicationChartName,
 	}
 

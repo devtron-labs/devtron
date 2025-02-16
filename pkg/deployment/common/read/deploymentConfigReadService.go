@@ -81,28 +81,26 @@ func (impl *DeploymentConfigReadServiceImpl) GetDeploymentConfigMinForAppAndEnv(
 
 func (impl *DeploymentConfigReadServiceImpl) GetDeploymentAppTypeForCDInBulk(pipelines []*serviceBean.CDPipelineMinConfig, appIdToGitOpsConfiguredMap map[int]bool) (map[int]*bean.DeploymentConfigMin, error) {
 	resp := make(map[int]*bean.DeploymentConfigMin, len(pipelines)) //map of pipelineId and deploymentAppType
-	if impl.deploymentServiceTypeConfig.UseDeploymentConfigData {
-		appIdEnvIdMapping := make(map[int][]int, len(pipelines))
-		appIdEnvIdKeyPipelineIdMap := make(map[string]int, len(pipelines))
-		for _, pipeline := range pipelines {
-			appIdEnvIdMapping[pipeline.AppId] = append(appIdEnvIdMapping[pipeline.AppId], pipeline.EnvironmentId)
-			appIdEnvIdKeyPipelineIdMap[fmt.Sprintf("%d-%d", pipeline.AppId, pipeline.EnvironmentId)] = pipeline.Id
-		}
-		configs, err := impl.deploymentConfigRepository.GetAppAndEnvLevelConfigsInBulk(appIdEnvIdMapping)
+	appIdEnvIdMapping := make(map[int][]int, len(pipelines))
+	appIdEnvIdKeyPipelineIdMap := make(map[string]int, len(pipelines))
+	for _, pipeline := range pipelines {
+		appIdEnvIdMapping[pipeline.AppId] = append(appIdEnvIdMapping[pipeline.AppId], pipeline.EnvironmentId)
+		appIdEnvIdKeyPipelineIdMap[fmt.Sprintf("%d-%d", pipeline.AppId, pipeline.EnvironmentId)] = pipeline.Id
+	}
+	configs, err := impl.deploymentConfigRepository.GetAppAndEnvLevelConfigsInBulk(appIdEnvIdMapping)
+	if err != nil {
+		impl.logger.Errorw("error, GetAppAndEnvLevelConfigsInBulk", "appIdEnvIdMapping", appIdEnvIdMapping, "err", err)
+		return nil, err
+	}
+	for _, config := range configs {
+		configBean, err := adapter.ConvertDeploymentConfigDbObjToDTO(config)
 		if err != nil {
-			impl.logger.Errorw("error, GetAppAndEnvLevelConfigsInBulk", "appIdEnvIdMapping", appIdEnvIdMapping, "err", err)
+			impl.logger.Errorw("error, ConvertDeploymentConfigDbObjToDTO", "config", config, "err", err)
 			return nil, err
 		}
-		for _, config := range configs {
-			configBean, err := adapter.ConvertDeploymentConfigDbObjToDTO(config)
-			if err != nil {
-				impl.logger.Errorw("error, ConvertDeploymentConfigDbObjToDTO", "config", config, "err", err)
-				return nil, err
-			}
-			pipelineId := appIdEnvIdKeyPipelineIdMap[fmt.Sprintf("%d-%d", configBean.AppId, configBean.EnvironmentId)]
-			isGitOpsRepoConfigured := configBean.IsPipelineGitOpsRepoConfigured(appIdToGitOpsConfiguredMap[configBean.AppId])
-			resp[pipelineId] = adapter.NewDeploymentConfigMin(configBean.DeploymentAppType, configBean.ReleaseMode, isGitOpsRepoConfigured)
-		}
+		pipelineId := appIdEnvIdKeyPipelineIdMap[fmt.Sprintf("%d-%d", configBean.AppId, configBean.EnvironmentId)]
+		isGitOpsRepoConfigured := configBean.IsPipelineGitOpsRepoConfigured(appIdToGitOpsConfiguredMap[configBean.AppId])
+		resp[pipelineId] = adapter.NewDeploymentConfigMin(configBean.DeploymentAppType, configBean.ReleaseMode, isGitOpsRepoConfigured)
 	}
 	for _, pipeline := range pipelines {
 		if _, ok := resp[pipeline.Id]; !ok {

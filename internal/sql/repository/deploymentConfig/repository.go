@@ -236,6 +236,10 @@ func (impl *RepositoryImpl) GetConfigByAppIds(appIds []int) ([]*DeploymentConfig
 	return results, err
 }
 
+// GetAllConfigs returns all deployment configs for active apps
+// INNER JOIN app a is used to filter out inactive apps
+// NOTE: earlier we were not deleting the deployment configs on app delete,
+// so we need to filter out inactive deployment configs
 func (impl *RepositoryImpl) GetAllConfigs() ([]*DeploymentConfig, error) {
 	result := make([]*DeploymentConfig, 0)
 	err := impl.dbConnection.Model(&result).
