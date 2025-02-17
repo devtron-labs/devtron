@@ -62,7 +62,8 @@ type Repository interface {
 	GetAppAndEnvLevelConfigsInBulk(appIdToEnvIdsMap map[int][]int) ([]*DeploymentConfig, error)
 	GetByAppIdAndEnvIdEvenIfInactive(appId, envId int) (*DeploymentConfig, error)
 	GetConfigByAppIds(appIds []int) ([]*DeploymentConfig, error)
-	GetAllConfigs() ([]*DeploymentConfig, error)
+	GetAllAppLevelConfigs() ([]*DeploymentConfig, error)
+	GetAllEnvLevelConfigsWithReleaseMode(releaseMode string) ([]*DeploymentConfig, error)
 }
 
 type RepositoryImpl struct {
@@ -236,17 +237,37 @@ func (impl *RepositoryImpl) GetConfigByAppIds(appIds []int) ([]*DeploymentConfig
 	return results, err
 }
 
-// GetAllConfigs returns all deployment configs for active apps
+// GetAllAppLevelConfigs returns all deployment configs for active apps
 // INNER JOIN app a is used to filter out inactive apps
 // NOTE: earlier we were not deleting the deployment configs on app delete,
 // so we need to filter out inactive deployment configs
-func (impl *RepositoryImpl) GetAllConfigs() ([]*DeploymentConfig, error) {
+func (impl *RepositoryImpl) GetAllAppLevelConfigs() ([]*DeploymentConfig, error) {
 	result := make([]*DeploymentConfig, 0)
 	err := impl.dbConnection.Model(&result).
 		Join("INNER JOIN app a").
 		JoinOn("deployment_config.app_id = a.id").
 		Where("a.active = ?", true).
 		Where("deployment_config.active = ?", true).
+		Select()
+	return result, err
+}
+
+// GetAllEnvLevelConfigsWithReleaseMode returns all deployment configs for active apps and envs
+// INNER JOIN app a is used to filter out inactive apps
+// INNER JOIN environment e is used to filter out inactive envs
+// NOTE: earlier we were not deleting the deployment configs on app delete,
+// so we need to filter out inactive deployment configs
+func (impl *RepositoryImpl) GetAllEnvLevelConfigsWithReleaseMode(releaseMode string) ([]*DeploymentConfig, error) {
+	result := make([]*DeploymentConfig, 0)
+	err := impl.dbConnection.Model(&result).
+		Join("INNER JOIN app a").
+		JoinOn("deployment_config.app_id = a.id").
+		Join("INNER JOIN environment e").
+		JoinOn("deployment_config.environment_id = e.id").
+		Where("a.active = ?", true).
+		Where("e.active = ?", true).
+		Where("deployment_config.active = ?", true).
+		Where("deployment_config.release_mode = ?", releaseMode).
 		Select()
 	return result, err
 }

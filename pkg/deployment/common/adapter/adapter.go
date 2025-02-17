@@ -79,3 +79,11 @@ func GetDeploymentConfigType(isCustomGitOpsRepo bool) string {
 	}
 	return string(bean.SYSTEM_GENERATED)
 }
+
+func GetDevtronArgoCdAppInfo(acdAppName string, acdAppClusterId int, acdDefaultNamespace string) *bean.DevtronArgoCdAppInfo {
+	return &bean.DevtronArgoCdAppInfo{
+		ArgoCdAppName:    acdAppName,
+		ArgoAppClusterId: acdAppClusterId,
+		ArgoAppNamespace: acdDefaultNamespace,
+	}
+}

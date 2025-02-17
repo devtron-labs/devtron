@@ -18,6 +18,7 @@ package common
 
 import (
 	"errors"
+	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -27,7 +28,7 @@ import (
 	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
 	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common/adapter"
@@ -35,8 +36,8 @@ import (
 	commonErr "github.com/devtron-labs/devtron/pkg/deployment/common/errors"
 	read2 "github.com/devtron-labs/devtron/pkg/deployment/common/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
+	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"path/filepath"
@@ -53,7 +54,7 @@ type DeploymentConfigService interface {
 	UpdateRepoUrlForAppAndEnvId(repoURL string, appId, envId int) error
 	GetConfigsByAppIds(appIds []int) ([]*bean.DeploymentConfig, error)
 	UpdateChartLocationInDeploymentConfig(appId, envId, chartRefId int, userId int32, chartVersion string) error
-	GetAllArgoAppNamesByCluster(clusterIds []int) ([]string, error)
+	GetAllArgoAppNamesByCluster(clusterIds []int) ([]*bean.DevtronArgoCdAppInfo, error)
 	GetExternalReleaseType(appId, environmentId int) (bean.ExternalReleaseType, error)
 	CheckIfURLAlreadyPresent(repoURL string) (bool, error)
 	FilterPipelinesByApplicationClusterIdAndNamespace(pipelines []pipelineConfig.Pipeline, applicationObjectClusterId int, applicationObjectNamespace string) (pipelineConfig.Pipeline, error)
@@ -71,6 +72,7 @@ type DeploymentConfigServiceImpl struct {
 	environmentRepository       repository.EnvironmentRepository
 	chartRefRepository          chartRepoRepository.ChartRefRepository
 	deploymentConfigReadService read2.DeploymentConfigReadService
+	acdAuthConfig               *util3.ACDAuthConfig
 }
 
 func NewDeploymentConfigServiceImpl(
@@ -85,6 +87,7 @@ func NewDeploymentConfigServiceImpl(
 	environmentRepository repository.EnvironmentRepository,
 	chartRefRepository chartRepoRepository.ChartRefRepository,
 	deploymentConfigReadService read2.DeploymentConfigReadService,
+	acdAuthConfig *util3.ACDAuthConfig,
 ) *DeploymentConfigServiceImpl {
 
 	return &DeploymentConfigServiceImpl{
@@ -99,6 +102,7 @@ func NewDeploymentConfigServiceImpl(
 		environmentRepository:       environmentRepository,
 		chartRefRepository:          chartRefRepository,
 		deploymentConfigReadService: deploymentConfigReadService,
+		acdAuthConfig:               acdAuthConfig,
 	}
 }
 
@@ -327,21 +331,47 @@ func (impl *DeploymentConfigServiceImpl) UpdateChartLocationInDeploymentConfig(a
 	return nil
 }
 
-func (impl *DeploymentConfigServiceImpl) GetAllArgoAppNamesByCluster(clusterIds []int) ([]string, error) {
-	allDevtronManagedArgoAppNames := make([]string, 0)
-	devtronArgoAppNames, err := impl.pipelineRepository.GetAllArgoAppNamesByCluster(clusterIds)
+func (impl *DeploymentConfigServiceImpl) GetAllArgoAppNamesByCluster(clusterIds []int) ([]*bean.DevtronArgoCdAppInfo, error) {
+	allDevtronManagedArgoAppsInfo := make([]*bean.DevtronArgoCdAppInfo, 0)
+	linkedReleaseConfig, err := impl.getAllEnvLevelConfigsForLinkedReleases()
+	if err != nil {
+		impl.logger.Errorw("error while fetching linked release configs", "clusterIds", clusterIds, "error", err)
+		return allDevtronManagedArgoAppsInfo, err
+	}
+	linkedReleaseConfigMap := make(map[string]*bean.DeploymentConfig)
+	for _, config := range linkedReleaseConfig {
+		uniqueKey := fmt.Sprintf("%d-%d", config.AppId, config.EnvironmentId)
+		linkedReleaseConfigMap[uniqueKey] = config
+	}
+	devtronArgoAppsInfo, err := impl.pipelineRepository.GetAllArgoAppNamesByCluster(clusterIds)
 	if err != nil {
 		impl.logger.Errorw("error while fetching argo app names", "clusterIds", clusterIds, "error", err)
-		return allDevtronManagedArgoAppNames, err
+		return allDevtronManagedArgoAppsInfo, err
 	}
-	allDevtronManagedArgoAppNames = append(allDevtronManagedArgoAppNames, devtronArgoAppNames...)
+	for _, acdAppInfo := range devtronArgoAppsInfo {
+		uniqueKey := fmt.Sprintf("%d-%d", acdAppInfo.AppId, acdAppInfo.EnvironmentId)
+		var devtronArgoCdAppInfo *bean.DevtronArgoCdAppInfo
+		if config, ok := linkedReleaseConfigMap[uniqueKey]; ok &&
+			config.IsAcdRelease() && config.IsLinkedRelease() {
+			acdAppClusterId := config.GetApplicationObjectClusterId()
+			acdDefaultNamespace := config.GetApplicationObjectNamespace()
+			devtronArgoCdAppInfo = adapter.GetDevtronArgoCdAppInfo(acdAppInfo.DeploymentAppName, acdAppClusterId, acdDefaultNamespace)
+		} else {
+			devtronArgoCdAppInfo = adapter.GetDevtronArgoCdAppInfo(acdAppInfo.DeploymentAppName, clusterBean.DefaultClusterId, impl.acdAuthConfig.ACDConfigMapNamespace)
+		}
+		allDevtronManagedArgoAppsInfo = append(allDevtronManagedArgoAppsInfo, devtronArgoCdAppInfo)
+	}
 	chartStoreArgoAppNames, err := impl.installedAppReadService.GetAllArgoAppNamesByCluster(clusterIds)
 	if err != nil {
 		impl.logger.Errorw("error while fetching argo app names from chart store", "clusterIds", clusterIds, "error", err)
-		return allDevtronManagedArgoAppNames, err
+		return allDevtronManagedArgoAppsInfo, err
 	}
-	allDevtronManagedArgoAppNames = append(allDevtronManagedArgoAppNames, chartStoreArgoAppNames...)
-	return sliceUtil.GetUniqueElements(allDevtronManagedArgoAppNames), nil
+	for _, chartStoreArgoAppName := range chartStoreArgoAppNames {
+		// NOTE: Chart Store doesn't support linked releases
+		chartStoreArgoCdAppInfo := adapter.GetDevtronArgoCdAppInfo(chartStoreArgoAppName, clusterBean.DefaultClusterId, impl.acdAuthConfig.ACDConfigMapNamespace)
+		allDevtronManagedArgoAppsInfo = append(allDevtronManagedArgoAppsInfo, chartStoreArgoCdAppInfo)
+	}
+	return allDevtronManagedArgoAppsInfo, nil
 }
 
 func (impl *DeploymentConfigServiceImpl) GetExternalReleaseType(appId, environmentId int) (bean.ExternalReleaseType, error) {
@@ -358,7 +388,7 @@ func (impl *DeploymentConfigServiceImpl) GetExternalReleaseType(appId, environme
 
 func (impl *DeploymentConfigServiceImpl) CheckIfURLAlreadyPresent(repoURL string) (bool, error) {
 	//TODO: optimisation
-	configs, err := impl.getAllConfigsWithCustomGitOpsURL()
+	configs, err := impl.getAllAppLevelConfigsWithCustomGitOpsURL()
 	if err != nil {
 		impl.logger.Errorw("error in getting all configs", "err", err)
 		return false, err
@@ -486,7 +516,7 @@ func (impl *DeploymentConfigServiceImpl) parseReleaseConfigForHelmApps(appId int
 			Version: bean.Version,
 			ArgoCDSpec: bean.ArgoCDSpec{
 				Metadata: bean.ApplicationMetadata{
-					ClusterId: bean2.DefaultClusterId,
+					ClusterId: clusterBean.DefaultClusterId,
 					Namespace: argocdServer.DevtronInstalationNs,
 				},
 				Spec: bean.ApplicationSpec{
@@ -509,13 +539,31 @@ func (impl *DeploymentConfigServiceImpl) parseReleaseConfigForHelmApps(appId int
 	return releaseConfig, nil
 }
 
-func (impl *DeploymentConfigServiceImpl) getAllConfigsWithCustomGitOpsURL() ([]*bean.DeploymentConfig, error) {
-	dbConfigs, err := impl.deploymentConfigRepository.GetAllConfigs()
+func (impl *DeploymentConfigServiceImpl) getAllAppLevelConfigsWithCustomGitOpsURL() ([]*bean.DeploymentConfig, error) {
+	dbConfigs, err := impl.deploymentConfigRepository.GetAllAppLevelConfigs()
 	if err != nil {
 		impl.logger.Errorw("error in getting all configs with custom gitops url", "err", err)
 		return nil, err
 	}
 	var configs []*bean.DeploymentConfig
+	for _, dbConfig := range dbConfigs {
+		config, err := adapter.ConvertDeploymentConfigDbObjToDTO(dbConfig)
+		if err != nil {
+			impl.logger.Error("error in converting dbObj to dto", "err", err)
+			return nil, err
+		}
+		configs = append(configs, config)
+	}
+	return configs, nil
+}
+
+func (impl *DeploymentConfigServiceImpl) getAllEnvLevelConfigsForLinkedReleases() ([]*bean.DeploymentConfig, error) {
+	dbConfigs, err := impl.deploymentConfigRepository.GetAllEnvLevelConfigsWithReleaseMode(util2.PIPELINE_RELEASE_MODE_LINK)
+	if err != nil {
+		impl.logger.Errorw("error in getting all env level configs with custom gitops url", "err", err)
+		return nil, err
+	}
+	configs := make([]*bean.DeploymentConfig, 0)
 	for _, dbConfig := range dbConfigs {
 		config, err := adapter.ConvertDeploymentConfigDbObjToDTO(dbConfig)
 		if err != nil {

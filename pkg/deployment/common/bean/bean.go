@@ -383,3 +383,9 @@ func (d *DeploymentConfig) GetMigratedFrom() (migratedFrom ExternalReleaseType, 
 	}
 	return Undefined, false
 }
+
+type DevtronArgoCdAppInfo struct {
+	ArgoCdAppName    string
+	ArgoAppClusterId int
+	ArgoAppNamespace string
+}
