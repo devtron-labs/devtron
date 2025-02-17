@@ -134,7 +134,7 @@ func (impl *WorkFlowStageStatusServiceImpl) updatePodStages(currentWorkflowStage
 					stage.Status = bean2.WORKFLOW_STAGE_STATUS_SUCCEEDED
 					stage.EndTime = time.Now().Format(bean3.LayoutRFC3339)
 				}
-			case string(v1alpha1.NodeFailed), string(v1alpha1.NodeError):
+			case string(v1alpha1.NodeFailed), string(v1alpha1.NodeError), string(v1alpha1.NodeSkipped):
 				if stage.Status == bean2.WORKFLOW_STAGE_STATUS_RUNNING ||
 					stage.Status == bean2.WORKFLOW_STAGE_STATUS_NOT_STARTED ||
 					stage.Status == bean2.WORKFLOW_STAGE_STATUS_UNKNOWN {
