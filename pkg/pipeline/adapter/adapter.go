@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/ciPipeline"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -385,7 +386,11 @@ func NewMigrateReleaseValidationRequest(pipeline *bean.CDPipelineConfigObject) *
 		DeploymentAppName: pipeline.DeploymentAppName,
 		DeploymentAppType: pipeline.DeploymentAppType,
 	}
-	request.ApplicationObjectClusterId = pipeline.ApplicationObjectClusterId
-	request.ApplicationObjectNamespace = pipeline.ApplicationObjectNamespace
+	if pipeline.DeploymentAppType == bean3.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		request.ApplicationMetadataRequest = pipelineConfigBean.ApplicationMetadataRequest{
+			ApplicationObjectClusterId: pipeline.ApplicationObjectClusterId,
+			ApplicationObjectNamespace: pipeline.ApplicationObjectNamespace,
+		}
+	}
 	return request
 }
