@@ -66,9 +66,14 @@ func NewDeploymentConfigReadServiceImpl(logger *zap.SugaredLogger,
 func (impl *DeploymentConfigReadServiceImpl) GetDeploymentConfigMinForAppAndEnv(appId, envId int) (*bean.DeploymentConfigMin, error) {
 	deploymentDetail := &bean.DeploymentConfigMin{}
 	configBean, err := impl.getDeploymentConfigMinForAppAndEnv(appId, envId)
-	if err != nil {
+	if err != nil && !interalUtil.IsErrNoRows(err) {
 		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
 		return deploymentDetail, err
+	} else if interalUtil.IsErrNoRows(err) {
+		// case: deployment config data not found in app level or env level
+		// this means deployment template is not yet created for this app and env
+		deploymentDetail.ReleaseMode = interalUtil.PIPELINE_RELEASE_MODE_CREATE
+		return deploymentDetail, nil
 	}
 	if configBean != nil {
 		deploymentDetail.DeploymentAppType = configBean.DeploymentAppType
