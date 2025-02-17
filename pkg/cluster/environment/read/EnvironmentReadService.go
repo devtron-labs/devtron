@@ -7,6 +7,7 @@ import (
 )
 
 type EnvironmentReadService interface {
+	GetClusterIdByEnvId(envId int) (int, error)
 	GetAll() ([]bean2.EnvironmentBean, error)
 }
 
@@ -22,6 +23,16 @@ func NewEnvironmentReadServiceImpl(logger *zap.SugaredLogger,
 		environmentRepository: environmentRepository,
 	}
 }
+
+func (impl *EnvironmentReadServiceImpl) GetClusterIdByEnvId(envId int) (int, error) {
+	model, err := impl.environmentRepository.FindById(envId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment", "err", err, "envId", envId)
+		return 0, err
+	}
+	return model.ClusterId, nil
+}
+
 func (impl *EnvironmentReadServiceImpl) GetAll() ([]bean2.EnvironmentBean, error) {
 	models, err := impl.environmentRepository.FindAll()
 	if err != nil {

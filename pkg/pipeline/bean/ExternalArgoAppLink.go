@@ -1,20 +1,24 @@
 package bean
 
 type MigrateReleaseValidationRequest struct {
-	AppId             int    `json:"appId"`
-	DeploymentAppName string `json:"deploymentAppName"`
-	DeploymentAppType string `json:"deploymentAppType"`
-	ArgoCdApplicationDetails
+	AppId                      int                        `json:"appId"`
+	DeploymentAppName          string                     `json:"deploymentAppName"`
+	DeploymentAppType          string                     `json:"deploymentAppType"`
+	ApplicationMetadataRequest ApplicationMetadataRequest `json:"applicationMetadata"`
 }
 
-type ArgoCdApplicationDetails struct {
+type ApplicationMetadataRequest struct {
 	ApplicationObjectClusterId int    `json:"applicationObjectClusterId"`
 	ApplicationObjectNamespace string `json:"applicationObjectNamespace"`
 }
 
 type ArgoCdAppLinkValidationResponse struct {
-	IsLinkable          bool                `json:"isLinkable"`
-	ErrorDetail         ErrorDetail         `json:"errorDetail"`
+	IsLinkable           bool                 `json:"isLinkable"`
+	ErrorDetail          ErrorDetail          `json:"errorDetail"`
+	AdditionalProperties AdditionalProperties `json:"additionalProperties"`
+}
+
+type AdditionalProperties struct {
 	ApplicationMetadata ApplicationMetadata `json:"applicationMetadata"`
 }
 

@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2020-2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package argoApplication
 
 import (
@@ -6,11 +22,17 @@ import (
 	"fmt"
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/devtron-labs/common-lib/utils/k8s"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	util2 "github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/app/appDetails/adapter"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/read"
+	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	util5 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/util"
 	v12 "k8s.io/api/apps/v1"
 	"net/http"
@@ -20,7 +42,11 @@ import (
 
 type ArgoApplicationServiceExtendedImpl struct {
 	*ArgoApplicationServiceImpl
-	acdClientWrapper argocdServer.ArgoClientWrapperService
+	environmentService         environment.EnvironmentService
+	aCDAuthConfig              *util5.ACDAuthConfig
+	argoApplicationReadService read.ArgoApplicationReadService
+	clusterService             cluster.ClusterService
+	acdClientWrapper           argocdServer.ArgoClientWrapperService
 }
 
 func NewArgoApplicationServiceExtendedServiceImpl(argoApplicationServiceImpl *ArgoApplicationServiceImpl,
@@ -91,17 +117,12 @@ func (c *ArgoApplicationServiceExtendedImpl) getApplicationObjectWithK8sClient(c
 	if acdQueryRequest.Query.ApplicationName != nil {
 		applicationName = *acdQueryRequest.Query.ApplicationName
 	}
-	application, err := c.acdClientWrapper.GetArgoAppByNameWithK8sClient(ctx, acdQueryRequest.ArgoAppClusterId, appNamespace, applicationName)
+	application, err := c.acdClientWrapper.GetArgoAppByNameWithK8sClient(ctx, acdQueryRequest.ArgoClusterId, appNamespace, applicationName)
 	if err != nil {
 		c.logger.Errorw("error in fetching application", "acdQueryRequest", acdQueryRequest, "err", err)
 		return nil, err
 	}
-	argoApplicationSpec, err := argocdServer.GetAppObject(application)
-	if err != nil {
-		c.logger.Errorw("error in fetching application", "acdQueryRequest", acdQueryRequest, "err", err)
-		return nil, err
-	}
-	return argoApplicationSpec, nil
+	return application, nil
 }
 
 func (c *ArgoApplicationServiceExtendedImpl) getApplicationObjectWithAcdClient(ctx context.Context,
@@ -137,10 +158,6 @@ func (c *ArgoApplicationServiceExtendedImpl) GetResourceTree(ctx context.Context
 	if acdQueryRequest == nil || acdQueryRequest.Query == nil {
 		return nil, util2.NewApiError(http.StatusInternalServerError, "something went wrong!", "invalid argo application query request")
 	}
-	// all the apps deployed via argo are fetching status from here
-	newCtx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutSlow)
-	defer cancel()
-
 	asc, conn, err := c.acdClientWrapper.GetArgoClient(ctx)
 	if err != nil {
 		c.logger.Errorw("Error in GetArgoClient", "err", err)
@@ -148,24 +165,80 @@ func (c *ArgoApplicationServiceExtendedImpl) GetResourceTree(ctx context.Context
 	}
 	defer util.Close(conn, c.logger)
 	c.logger.Debugw("GRPC_GET_RESOURCETREE", "req", acdQueryRequest)
-	resp, err := asc.ResourceTree(newCtx, acdQueryRequest.Query)
+	appTree, podMetadata, err := c.getArgoResourceTreeAndPodMetadata(ctx, asc, acdQueryRequest)
 	if err != nil {
-		c.logger.Errorw("GRPC_GET_RESOURCETREE", "req", acdQueryRequest, "err", err)
+		c.logger.Errorw("error in getting resource tree using cache", "acdQueryRequest", acdQueryRequest, "err", err)
 		return nil, err
 	}
-	responses := c.parseResult(resp, acdQueryRequest.Query, newCtx, asc, err)
-	podMetadata, newReplicaSets := c.buildPodMetadata(resp, responses)
 	applicationObj, err := c.getApplicationObject(ctx, asc, acdQueryRequest)
 	// TODO Asutosh: why error is not handled here?
 	resourceTreeResponse := &argoApplication.ResourceTreeResponse{
-		ApplicationTree:          resp,
-		PodMetadata:              podMetadata,
-		NewGenerationReplicaSets: newReplicaSets,
+		ApplicationTree: appTree,
+		PodMetadata:     podMetadata,
 	}
 	return c.updateArgoAppStatusMetaDataInResourceTree(applicationObj, resourceTreeResponse), err
 }
 
-func (impl *ArgoApplicationServiceImpl) parseResult(resp *v1alpha1.ApplicationTree, query *application2.ResourcesQuery, ctx context.Context, asc application2.ApplicationServiceClient, err error) []*argoApplication.Result {
+func (c *ArgoApplicationServiceExtendedImpl) getArgoResourceTreeAndPodMetadata(ctx context.Context, asc application2.ApplicationServiceClient, acdQueryRequest *bean.AcdClientQueryRequest) (*v1alpha1.ApplicationTree, []*argoApplication.PodMetadata, error) {
+	if acdQueryRequest.Mode.IsDeclarative() {
+		argoResourceTree, podMetadataList, err := c.getResourceTreeUsingK8sClient(ctx, acdQueryRequest)
+		if err != nil {
+			c.logger.Errorw("Error in getArgoResourceTreeAndPodMetadata, calling fallback function to get from argo", "acdQueryRequest", acdQueryRequest, "err", err)
+		} else {
+			return argoResourceTree, podMetadataList, err
+		}
+	}
+
+	//fallback
+	return c.getResourceTreeUsingArgoClient(ctx, asc, acdQueryRequest)
+}
+
+func (c *ArgoApplicationServiceExtendedImpl) getResourceTreeUsingArgoClient(ctx context.Context, asc application2.ApplicationServiceClient, acdQueryRequest *bean.AcdClientQueryRequest) (*v1alpha1.ApplicationTree, []*argoApplication.PodMetadata, error) {
+	//all the apps deployed via argo are fetching status from here
+	argoCtx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutSlow)
+	defer cancel()
+	rtResp, err := asc.ResourceTree(argoCtx, acdQueryRequest.Query)
+	if err != nil {
+		c.logger.Errorw("Error in getting resource tree", "err", err)
+		return nil, nil, err
+	}
+	responses := c.parseResult(rtResp, acdQueryRequest.Query, ctx, asc, err)
+	podMetadata := c.buildPodMetadata(rtResp, responses)
+	return rtResp, podMetadata, nil
+}
+
+func (c *ArgoApplicationServiceExtendedImpl) getResourceTreeUsingK8sClient(ctx context.Context, acdQueryRequest *bean.AcdClientQueryRequest) (*v1alpha1.ApplicationTree, []*argoApplication.PodMetadata, error) {
+	clusterConfig, err := c.clusterService.GetClusterConfigByClusterId(acdQueryRequest.ArgoClusterId)
+	if err != nil {
+		c.logger.Errorw("Error in getting cluster config by clusterId", "acdQueryRequest", acdQueryRequest, "err", err)
+		return nil, nil, err
+	}
+	return c.getAcdResourceTreeUsingK8sClient(ctx, clusterConfig, acdQueryRequest)
+}
+
+func (c *ArgoApplicationServiceExtendedImpl) getAcdResourceTreeUsingK8sClient(ctx context.Context, clusterConfig *k8s.ClusterConfig, acdQueryRequest *bean.AcdClientQueryRequest) (*v1alpha1.ApplicationTree, []*argoApplication.PodMetadata, error) {
+	argoCdAppNamespace := acdQueryRequest.GetAppNamespace(c.aCDAuthConfig.ACDConfigMapNamespace)
+	argoMangedResourceResp, err := c.argoApplicationReadService.GetArgoManagedResources(acdQueryRequest.GetApplicationName(), argoCdAppNamespace, clusterConfig)
+	if err != nil {
+		c.logger.Errorw("Error in getting argo managed resources", "acdQueryRequest", acdQueryRequest, "err", err)
+		return nil, nil, err
+	}
+	resourceTreeResp, err := c.argoApplicationReadService.GetArgoAppResourceTree(clusterConfig, acdQueryRequest.TargetClusterId, argoMangedResourceResp)
+	if err != nil {
+		c.logger.Errorw("Error in getting resource tree for argo app using cache", "acdQueryRequest", acdQueryRequest, "err", err)
+		return nil, nil, err
+	} else {
+		argoResourceTree, err := adapter.GetArgoApplicationTreeForNodes(resourceTreeResp.GetNodes())
+		if err != nil {
+			c.logger.Errorw("Error in building argo app details", "acdQueryRequest", acdQueryRequest, "err", err)
+			return nil, nil, err
+		}
+		podMetadataList := adapter.GetArgoPodMetadata(resourceTreeResp.PodMetadata)
+		return argoResourceTree, podMetadataList, nil
+	}
+}
+
+func (c *ArgoApplicationServiceExtendedImpl) parseResult(resp *v1alpha1.ApplicationTree, query *application2.ResourcesQuery, ctx context.Context, asc application2.ApplicationServiceClient, err error) []*argoApplication.Result {
 	var responses = make([]*argoApplication.Result, 0)
 	qCount := 0
 	response := make(chan argoApplication.Result)
@@ -201,7 +274,7 @@ func (impl *ArgoApplicationServiceImpl) parseResult(resp *v1alpha1.ApplicationTr
 		}
 	}
 
-	impl.logger.Debugw("needPods", "pods", needPods)
+	c.logger.Debugw("needPods", "pods", needPods)
 
 	for _, node := range podParents {
 		queryNodes = append(queryNodes, node)
@@ -247,9 +320,9 @@ func (impl *ArgoApplicationServiceImpl) parseResult(resp *v1alpha1.ApplicationTr
 			startTime := time.Now()
 			res, err := asc.GetResource(ctx, &request)
 			if err != nil {
-				impl.logger.Errorw("GRPC_GET_RESOURCE", "data", request, "timeTaken", time.Since(startTime), "err", err)
+				c.logger.Errorw("GRPC_GET_RESOURCE", "data", request, "timeTaken", time.Since(startTime), "err", err)
 			} else {
-				impl.logger.Debugw("GRPC_GET_RESOURCE", "data", request, "timeTaken", time.Since(startTime))
+				c.logger.Debugw("GRPC_GET_RESOURCE", "data", request, "timeTaken", time.Since(startTime))
 			}
 			if res != nil || err != nil {
 				response <- argoApplication.Result{Response: res, Error: err, Request: &request}
@@ -281,7 +354,7 @@ func (impl *ArgoApplicationServiceImpl) parseResult(resp *v1alpha1.ApplicationTr
 	return responses
 }
 
-func (impl *ArgoApplicationServiceImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, responses []*argoApplication.Result) (podMetaData []*argoApplication.PodMetadata, newReplicaSets []string) {
+func (c *ArgoApplicationServiceExtendedImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, responses []*argoApplication.Result) (podMetaData []*argoApplication.PodMetadata) {
 	rolloutManifests := make([]map[string]interface{}, 0)
 	statefulSetManifest := make(map[string]interface{})
 	deploymentManifests := make([]map[string]interface{}, 0)
@@ -290,6 +363,7 @@ func (impl *ArgoApplicationServiceImpl) buildPodMetadata(resp *v1alpha1.Applicat
 	podManifests := make([]map[string]interface{}, 0)
 	controllerRevisionManifests := make([]map[string]interface{}, 0)
 	jobsManifest := make(map[string]interface{})
+	newReplicaSets := make([]string, 0)
 	var parentWorkflow []string
 	for _, response := range responses {
 		if response != nil && response.Response != nil {
@@ -299,7 +373,7 @@ func (impl *ArgoApplicationServiceImpl) buildPodMetadata(resp *v1alpha1.Applicat
 				manifest := make(map[string]interface{})
 				err := json.Unmarshal([]byte(manifestFromResponse), &manifest)
 				if err != nil {
-					impl.logger.Error(err)
+					c.logger.Error(err)
 				} else {
 					rolloutManifests = append(rolloutManifests, manifest)
 				}
@@ -307,45 +381,45 @@ func (impl *ArgoApplicationServiceImpl) buildPodMetadata(resp *v1alpha1.Applicat
 				manifest := make(map[string]interface{})
 				err := json.Unmarshal([]byte(manifestFromResponse), &manifest)
 				if err != nil {
-					impl.logger.Error(err)
+					c.logger.Error(err)
 				} else {
 					deploymentManifests = append(deploymentManifests, manifest)
 				}
 			} else if kind == "StatefulSet" {
 				err := json.Unmarshal([]byte(manifestFromResponse), &statefulSetManifest)
 				if err != nil {
-					impl.logger.Error(err)
+					c.logger.Error(err)
 				}
 			} else if kind == "DaemonSet" {
 				err := json.Unmarshal([]byte(manifestFromResponse), &daemonSetManifest)
 				if err != nil {
-					impl.logger.Error(err)
+					c.logger.Error(err)
 				}
 			} else if kind == "ReplicaSet" {
 				manifest := make(map[string]interface{})
 				err := json.Unmarshal([]byte(manifestFromResponse), &manifest)
 				if err != nil {
-					impl.logger.Error(err)
+					c.logger.Error(err)
 				}
 				replicaSetManifests = append(replicaSetManifests, manifest)
 			} else if kind == "Pod" {
 				manifest := make(map[string]interface{})
 				err := json.Unmarshal([]byte(manifestFromResponse), &manifest)
 				if err != nil {
-					impl.logger.Error(err)
+					c.logger.Error(err)
 				}
 				podManifests = append(podManifests, manifest)
 			} else if kind == "ControllerRevision" {
 				manifest := make(map[string]interface{})
 				err := json.Unmarshal([]byte(manifestFromResponse), &manifest)
 				if err != nil {
-					impl.logger.Error(err)
+					c.logger.Error(err)
 				}
 				controllerRevisionManifests = append(controllerRevisionManifests, manifest)
 			} else if kind == "Job" {
 				err := json.Unmarshal([]byte(manifestFromResponse), &jobsManifest)
 				if err != nil {
-					impl.logger.Error(err)
+					c.logger.Error(err)
 				}
 			}
 		}

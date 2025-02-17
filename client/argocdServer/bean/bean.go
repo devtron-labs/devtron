@@ -67,12 +67,11 @@ type Result struct {
 
 type ResourceTreeResponse struct {
 	*v1alpha1.ApplicationTree
-	NewGenerationReplicaSets []string                        `json:"newGenerationReplicaSets"`
-	Status                   string                          `json:"status"`
-	RevisionHash             string                          `json:"revisionHash"`
-	PodMetadata              []*PodMetadata                  `json:"podMetadata"`
-	Conditions               []v1alpha1.ApplicationCondition `json:"conditions"`
-	ResourcesSyncResultMap   map[string]string               `json:"resourcesSyncResult"`
+	Status                 string                          `json:"status"`
+	RevisionHash           string                          `json:"revisionHash"`
+	PodMetadata            []*PodMetadata                  `json:"podMetadata"`
+	Conditions             []v1alpha1.ApplicationCondition `json:"conditions"`
+	ResourcesSyncResultMap map[string]string               `json:"resourcesSyncResult"`
 }
 
 type PodMetadata struct {

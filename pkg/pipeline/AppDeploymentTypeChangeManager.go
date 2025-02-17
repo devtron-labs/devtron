@@ -34,6 +34,7 @@ import (
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/chart/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	"github.com/devtron-labs/devtron/pkg/deployment/common/adapter"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
@@ -43,8 +44,8 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	"strconv"
-	"strings"
 )
 
 type AppDeploymentTypeChangeManager interface {
@@ -524,7 +525,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 									if RepoURLUpdateErr != nil {
 										impl.logger.Errorw("error in updating git repo url in charts", "err", RepoURLUpdateErr)
 									}
-									envDeploymentConfig.ConfigType = common.GetDeploymentConfigType(chart.IsCustomGitRepository)
+									envDeploymentConfig.ConfigType = adapter.GetDeploymentConfigType(chart.IsCustomGitRepository)
 									envDeploymentConfig.SetRepoURL(chartGitAttr.RepoUrl)
 
 									envDeploymentConfig, RepoURLUpdateErr = impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, userId)
@@ -788,7 +789,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) deleteArgoCdApp(ctx context.Cont
 	if err != nil {
 		impl.logger.Errorw("error in deleting argocd application", "err", err)
 		// Possible that argocd app got deleted but db updation failed
-		if strings.Contains(err.Error(), "code = NotFound") {
+		if errors2.IsNotFound(err) {
 			return nil
 		}
 		return err

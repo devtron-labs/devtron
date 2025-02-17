@@ -36,6 +36,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStatus"
 	argoApplication2 "github.com/devtron-labs/devtron/pkg/argoApplication"
 	bean2 "github.com/devtron-labs/devtron/pkg/argoApplication/bean"
+	read2 "github.com/devtron-labs/devtron/pkg/cluster/environment/read"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
@@ -64,6 +65,7 @@ type ServiceImpl struct {
 	helmAppService                   service.HelmAppService
 	k8sApplicationService            application2.K8sApplicationService
 	k8sCommonService                 k8s.K8sCommonService
+	environmentReadService           read2.EnvironmentReadService
 }
 
 func NewServiceImpl(logger *zap.SugaredLogger,
@@ -74,7 +76,9 @@ func NewServiceImpl(logger *zap.SugaredLogger,
 	helmAppReadService read.HelmAppReadService,
 	helmAppService service.HelmAppService,
 	k8sApplicationService application2.K8sApplicationService,
-	k8sCommonService k8s.K8sCommonService) *ServiceImpl {
+	k8sCommonService k8s.K8sCommonService,
+	environmentReadService read2.EnvironmentReadService,
+) *ServiceImpl {
 	serviceImpl := &ServiceImpl{
 		logger:                           logger,
 		appListingService:                appListingService,
@@ -85,6 +89,7 @@ func NewServiceImpl(logger *zap.SugaredLogger,
 		helmAppService:                   helmAppService,
 		k8sApplicationService:            k8sApplicationService,
 		k8sCommonService:                 k8sCommonService,
+		environmentReadService:           environmentReadService,
 	}
 	return serviceImpl
 }
@@ -108,8 +113,18 @@ func (impl *ServiceImpl) FetchResourceTree(ctx context.Context, appId int, envId
 			if argocdAppNamespace := deploymentConfig.GetApplicationObjectNamespace(); argocdAppNamespace != "" {
 				query.AppNamespace = &argocdAppNamespace
 			}
+			targetClusterId := cdPipeline.Environment.ClusterId
+			if targetClusterId == 0 {
+				clusterId, err := impl.environmentReadService.GetClusterIdByEnvId(cdPipeline.EnvironmentId)
+				if err != nil && !util.IsErrNoRows(err) {
+					impl.logger.Errorw("error in fetching cluster id by env id", "envId", cdPipeline.EnvironmentId, "err", err)
+					return resourceTree, err
+				}
+				targetClusterId = clusterId
+			}
 			acdQueryRequest = bean2.NewDeclarativeQueryRequest(query).
-				WithArgoAppClusterId(deploymentConfig.GetApplicationObjectClusterId())
+				WithArgoClusterId(deploymentConfig.GetApplicationObjectClusterId()).
+				WithTargetClusterId(targetClusterId)
 		}
 		resp, err := impl.argoApplicationService.GetResourceTree(ctx, acdQueryRequest)
 		elapsed := time.Since(start)

@@ -61,16 +61,16 @@ func ReadFromUrlWithRetry(url string) ([]byte, error) {
 	return nil, err
 }
 
-func GetHost(urlStr string) (string, error) {
+func GetHost(urlStr string) (string, string, error) {
 	u, err := url.Parse(urlStr)
 	if err == nil {
-		return u.Host, nil
+		return u.Host, u.Scheme, nil
 	}
 	u, err = url.Parse("//" + urlStr)
 	if err != nil {
-		return "", fmt.Errorf("invalid url: %w", err)
+		return "", "", fmt.Errorf("invalid url: %w", err)
 	}
-	return u.Host, nil
+	return u.Host, u.Scheme, nil
 }
 
 func GetTlsConfig(TLSKey, TLSCert, CACert, folderPath string) (*tls.Config, error) {

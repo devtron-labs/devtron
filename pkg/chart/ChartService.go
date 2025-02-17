@@ -31,6 +31,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	adapter2 "github.com/devtron-labs/devtron/pkg/deployment/common/adapter"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
@@ -291,7 +292,7 @@ func (impl *ChartServiceImpl) Create(templateRequest bean3.TemplateRequest, ctx 
 
 	deploymentConfig := &bean2.DeploymentConfig{
 		AppId:      templateRequest.AppId,
-		ConfigType: common.GetDeploymentConfigType(templateRequest.IsCustomGitRepository),
+		ConfigType: adapter2.GetDeploymentConfigType(templateRequest.IsCustomGitRepository),
 		RepoURL:    gitRepoUrl,
 		ReleaseConfiguration: &bean2.ReleaseConfiguration{
 			Version: bean2.Version,
@@ -403,8 +404,7 @@ func (impl *ChartServiceImpl) CreateChartFromEnvOverride(templateRequest bean3.T
 
 	// maintained for backward compatibility;
 	// adding git repo url to both deprecated and new state
-	deploymentConfig.RepoURL = gitRepoUrl
-	deploymentConfig.SetRepoURL(gitRepoUrl)
+	deploymentConfig = deploymentConfig.SetRepoURL(gitRepoUrl)
 	deploymentConfig.SetChartLocation(chartLocation)
 
 	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, templateRequest.UserId)
@@ -720,7 +720,7 @@ func (impl *ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateReq
 
 	deploymentConfig := &bean2.DeploymentConfig{
 		AppId:      template.AppId,
-		ConfigType: common.GetDeploymentConfigType(template.IsCustomGitRepository),
+		ConfigType: adapter2.GetDeploymentConfigType(template.IsCustomGitRepository),
 		RepoURL:    config.GetRepoURL(),
 		ReleaseConfiguration: &bean2.ReleaseConfiguration{
 			Version: bean2.Version,
@@ -1014,8 +1014,7 @@ func (impl *ChartServiceImpl) ConfigureGitOpsRepoUrlForApp(appId int, repoUrl, c
 		impl.logger.Errorw("error in getting deployment config", "appId", appId, "error", err)
 		return nil, err
 	}
-	deploymentConfig.RepoURL = repoUrl
-	deploymentConfig.SetRepoURL(repoUrl)
+	deploymentConfig = deploymentConfig.SetRepoURL(repoUrl)
 	deploymentConfig.SetChartLocation(chartLocation)
 
 	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, userId)

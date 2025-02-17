@@ -292,10 +292,11 @@ func (impl *DeployedApplicationEventProcessorImpl) updateDevtronAppArgoAppDelete
 func (impl *DeployedApplicationEventProcessorImpl) updateArgoAppDeleteStatus(applicationDetail bean3.ApplicationDetail) error {
 	application := applicationDetail.Application
 	pipelines, err := impl.pipelineRepository.GetArgoPipelineByArgoAppName(application.ObjectMeta.Name)
-	if err != nil && !errors.Is(err, pg.ErrNoRows) {
+	if err != nil {
 		impl.logger.Errorw("error in fetching pipeline from Pipeline Repository", "err", err)
 		return err
-	} else if errors.Is(err, pg.ErrNoRows) || len(pipelines) == 0 {
+	}
+	if len(pipelines) == 0 {
 		return impl.updateHelmAppArgoAppDeleteStatus(application)
 	}
 	return impl.updateDevtronAppArgoAppDeleteStatus(applicationDetail, pipelines)

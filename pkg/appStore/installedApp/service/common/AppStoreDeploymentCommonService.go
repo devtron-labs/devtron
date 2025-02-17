@@ -32,6 +32,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -142,7 +143,7 @@ func (impl *AppStoreDeploymentCommonServiceImpl) GetDeploymentHistoryInfoFromDB(
 
 	// as virtual environment doesn't exist on actual cluster, we will use default cluster for running helm template command
 	if installedApp.IsVirtualEnvironment {
-		clusterId = appStoreBean.DEFAULT_CLUSTER_ID
+		clusterId = clusterBean.DefaultClusterId
 		installedApp.Namespace = appStoreBean.DEFAULT_NAMESPACE
 	}
 
