@@ -650,10 +650,8 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 	acdAppName := request.DeploymentAppName
 
 	response := pipelineConfigBean.ArgoCdAppLinkValidationResponse{
-		IsLinkable: false,
-		AdditionalProperties: pipelineConfigBean.AdditionalProperties{
-			ApplicationMetadata: pipelineConfigBean.NewEmptyApplicationMetadata(),
-		},
+		IsLinkable:          false,
+		ApplicationMetadata: pipelineConfigBean.NewEmptyApplicationMetadata(),
 	}
 
 	argoApplicationSpec, err := impl.argoClientWrapperService.GetArgoAppByNameWithK8sClient(context.Background(), applicationObjectClusterId, applicationObjectNamespace, acdAppName)
@@ -677,10 +675,10 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		return response.SetErrorDetail(pipelineConfigBean.UnsupportedApplicationSpec, "application with empty destination namespace is not supported")
 	}
 	if argoApplicationSpec.Spec.Source != nil {
-		response.AdditionalProperties.ApplicationMetadata.Source.RepoURL = argoApplicationSpec.Spec.Source.RepoURL
-		response.AdditionalProperties.ApplicationMetadata.Source.ChartPath = argoApplicationSpec.Spec.Source.Chart
+		response.ApplicationMetadata.Source.RepoURL = argoApplicationSpec.Spec.Source.RepoURL
+		response.ApplicationMetadata.Source.ChartPath = argoApplicationSpec.Spec.Source.Chart
 	}
-	response.AdditionalProperties.ApplicationMetadata.Status = string(argoApplicationSpec.Status.Health.Status)
+	response.ApplicationMetadata.Status = string(argoApplicationSpec.Status.Health.Status)
 
 	pipelines, err := impl.pipelineRepository.GetArgoPipelineByArgoAppName(acdAppName)
 	if err != nil && !errors3.Is(err, pg.ErrNoRows) {
@@ -720,9 +718,9 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		return response.SetErrorDetail(pipelineConfigBean.ClusterNotFound, "targetCluster not added in global configuration")
 	}
 
-	response.AdditionalProperties.ApplicationMetadata.Destination.ClusterServerUrl = targetCluster.ServerUrl
-	response.AdditionalProperties.ApplicationMetadata.Destination.ClusterName = targetCluster.ClusterName
-	response.AdditionalProperties.ApplicationMetadata.Destination.Namespace = targetClusterNamespace
+	response.ApplicationMetadata.Destination.ClusterServerUrl = targetCluster.ServerUrl
+	response.ApplicationMetadata.Destination.ClusterName = targetCluster.ClusterName
+	response.ApplicationMetadata.Destination.Namespace = targetClusterNamespace
 
 	targetEnv, err := impl.environmentRepository.FindOneByNamespaceAndClusterId(targetClusterNamespace, targetCluster.Id)
 	if err != nil {
@@ -731,8 +729,8 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		}
 		return response.SetUnknownErrorDetail(err)
 	}
-	response.AdditionalProperties.ApplicationMetadata.Destination.EnvironmentName = targetEnv.Name
-	response.AdditionalProperties.ApplicationMetadata.Destination.EnvironmentId = targetEnv.Id
+	response.ApplicationMetadata.Destination.EnvironmentName = targetEnv.Name
+	response.ApplicationMetadata.Destination.EnvironmentId = targetEnv.Id
 
 	var requestedGitUrl string
 	if argoApplicationSpec.Spec.Source != nil {
@@ -775,7 +773,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 	if argoApplicationSpec.Spec.Source != nil && argoApplicationSpec.Spec.Source.Helm != nil {
 		valuesFilename = argoApplicationSpec.Spec.Source.Helm.ValueFiles[0]
 	}
-	response.AdditionalProperties.ApplicationMetadata.Source.ChartMetadata = pipelineConfigBean.ChartMetadata{
+	response.ApplicationMetadata.Source.ChartMetadata = pipelineConfigBean.ChartMetadata{
 		RequiredChartVersion: applicationChartVersion,
 		SavedChartName:       chartRef.Name,
 		ValuesFilename:       valuesFilename,
@@ -794,7 +792,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		return response.SetErrorDetail(pipelineConfigBean.ChartVersionNotFound, fmt.Sprintf(pipelineConfigBean.ChartVersionNotFoundErrorMsg, applicationChartVersion, chartRef.Name))
 	}
 	response.IsLinkable = true
-	response.AdditionalProperties.ApplicationMetadata.Status = string(argoApplicationSpec.Status.Health.Status)
+	response.ApplicationMetadata.Status = string(argoApplicationSpec.Status.Health.Status)
 
 	overrideDeploymentType, err := impl.deploymentTypeOverrideService.ValidateAndOverrideDeploymentAppType(util.PIPELINE_DEPLOYMENT_TYPE_ACD, true, targetEnv.Id)
 	if err != nil {
