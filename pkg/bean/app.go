@@ -652,7 +652,35 @@ type CDPipelineConfigObject struct {
 	ApplicationObjectClusterId    int                                    `json:"applicationObjectClusterId"` //ACDAppClusterId
 	ApplicationObjectNamespace    string                                 `json:"applicationObjectNamespace"` //ACDAppNamespace
 	DeploymentAppName             string                                 `json:"deploymentAppName"`
-	ReleaseMode                   string                                 `json:"releaseMode" validate:"oneof=create"`
+	ReleaseMode                   string                                 `json:"releaseMode" validate:"omitempty,oneof=link create"`
+}
+
+func (cdPipelineConfig *CDPipelineConfigObject) IsLinkedRelease() bool {
+	return cdPipelineConfig.GetReleaseMode() == util.PIPELINE_RELEASE_MODE_LINK
+}
+
+func (cdPipelineConfig *CDPipelineConfigObject) GetReleaseMode() string {
+	if cdPipelineConfig == nil || len(cdPipelineConfig.ReleaseMode) == 0 {
+		return util.PIPELINE_RELEASE_MODE_CREATE
+	}
+	return cdPipelineConfig.ReleaseMode
+}
+
+type CDPipelineMinConfig struct {
+	Id                         int
+	Name                       string
+	CiPipelineId               int
+	EnvironmentId              int
+	EnvironmentName            string
+	EnvironmentIdentifier      string
+	Namespace                  string
+	IsProdEnv                  bool
+	AppId                      int
+	AppName                    string
+	TeamId                     int
+	DeploymentAppDeleteRequest bool
+	DeploymentAppCreated       bool
+	DeploymentAppType          string
 }
 
 type CDPipelineAddType string
@@ -673,7 +701,7 @@ func (cdPipelineConfig *CDPipelineConfigObject) PatchSourceInfo() (int, string) 
 
 func (cdPipelineConfig *CDPipelineConfigObject) IsExternalArgoAppLinkRequest() bool {
 	return cdPipelineConfig.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD &&
-		cdPipelineConfig.ReleaseMode == util.PIPELINE_RELEASE_MODE_LINK
+		cdPipelineConfig.GetReleaseMode() == util.PIPELINE_RELEASE_MODE_LINK
 }
 
 type PreStageConfigMapSecretNames struct {

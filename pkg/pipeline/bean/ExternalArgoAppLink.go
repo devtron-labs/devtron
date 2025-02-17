@@ -1,15 +1,24 @@
 package bean
 
-type ArgoCDAppLinkValidationRequest struct {
-	AppId         int    `json:"appId"`
-	ClusterId     int    `json:"clusterId"`
-	Namespace     string `json:"namespace"`
-	ArgoCDAppName string `json:"argoCDAppName"`
+type MigrateReleaseValidationRequest struct {
+	AppId                      int                        `json:"appId"`
+	DeploymentAppName          string                     `json:"deploymentAppName"`
+	DeploymentAppType          string                     `json:"deploymentAppType"`
+	ApplicationMetadataRequest ApplicationMetadataRequest `json:"applicationMetadata"`
+}
+
+type ApplicationMetadataRequest struct {
+	ApplicationObjectClusterId int    `json:"applicationObjectClusterId"`
+	ApplicationObjectNamespace string `json:"applicationObjectNamespace"`
 }
 
 type ArgoCdAppLinkValidationResponse struct {
-	IsLinkable          bool                `json:"isLinkable"`
-	ErrorDetail         ErrorDetail         `json:"errorDetail"`
+	IsLinkable           bool                 `json:"isLinkable"`
+	ErrorDetail          ErrorDetail          `json:"errorDetail"`
+	AdditionalProperties AdditionalProperties `json:"additionalProperties"`
+}
+
+type AdditionalProperties struct {
 	ApplicationMetadata ApplicationMetadata `json:"applicationMetadata"`
 }
 
@@ -20,21 +29,7 @@ type ApplicationMetadata struct {
 }
 
 func NewEmptyApplicationMetadata() ApplicationMetadata {
-	return ApplicationMetadata{
-		Source: Source{
-			RepoURL:       "",
-			ChartPath:     "",
-			ChartMetadata: ChartMetadata{},
-		},
-		Destination: Destination{
-			ClusterName:      "",
-			ClusterServerURL: "",
-			Namespace:        "",
-			EnvironmentName:  "",
-			EnvironmentId:    0,
-		},
-		Status: "",
-	}
+	return ApplicationMetadata{}
 }
 
 type Source struct {
@@ -44,15 +39,15 @@ type Source struct {
 }
 
 type ChartMetadata struct {
-	ChartVersion      string `json:"chartVersion"`
-	SavedChartName    string `json:"savedChartName"`
-	ValuesFilename    string `json:"valuesFilename"`
-	RequiredChartName string `json:"requiredChartName"`
+	RequiredChartVersion string `json:"requiredChartVersion"`
+	SavedChartName       string `json:"savedChartName"`
+	ValuesFilename       string `json:"valuesFilename"`
+	RequiredChartName    string `json:"requiredChartName"`
 }
 
 type Destination struct {
 	ClusterName      string `json:"clusterName"`
-	ClusterServerURL string `json:"clusterServerURL"`
+	ClusterServerUrl string `json:"clusterServerUrl"`
 	Namespace        string `json:"namespace"`
 	EnvironmentName  string `json:"environmentName"`
 	EnvironmentId    int    `json:"environmentId"`
@@ -90,6 +85,8 @@ const (
 	ChartVersionNotFound       LinkFailedReason = "ChartVersionNotFound"
 	GitOpsNotFound             LinkFailedReason = "GitOpsNotFound"
 	InternalServerError        LinkFailedReason = "InternalServerError"
+	EnvironmentAlreadyPresent  LinkFailedReason = "EnvironmentAlreadyPresent"
+	EnforcedPolicyViolation    LinkFailedReason = "EnforcedPolicyViolation"
 )
 
 const (

@@ -140,12 +140,25 @@ func (impl ArgoK8sClientImpl) CreateArgoApplication(ctx context.Context, namespa
 	return err
 }
 
+func (impl ArgoK8sClientImpl) handleArgoAppGetError(res []byte, err error) error {
+	// default error set
+	apiError := &util.ApiError{
+		InternalMessage: "error getting argo cd application",
+		UserMessage:     "error getting argo cd application",
+	}
+	return impl.convertArgoK8sClientError(apiError, res, err)
+}
+
 func (impl ArgoK8sClientImpl) handleArgoAppCreationError(res []byte, err error) error {
 	// default error set
 	apiError := &util.ApiError{
 		InternalMessage: "error creating argo cd app",
 		UserMessage:     "error creating argo cd app",
 	}
+	return impl.convertArgoK8sClientError(apiError, res, err)
+}
+
+func (impl ArgoK8sClientImpl) convertArgoK8sClientError(apiError *util.ApiError, res []byte, err error) error {
 	// error override for errors.StatusError
 	if statusError := (&k8sError.StatusError{}); errors.As(err, &statusError) {
 		apiError.HttpStatusCode = int(statusError.Status().Code)
@@ -197,11 +210,13 @@ func (impl ArgoK8sClientImpl) GetArgoApplication(k8sConfig *bean.ArgoK8sConfig, 
 		Do(context.Background()).Raw()
 	response := make(map[string]interface{})
 	if err != nil {
-		err := json.Unmarshal(res, &response)
-		if err != nil {
-			impl.logger.Errorw("unmarshal error on app update status", "err", err)
-			return nil, fmt.Errorf("error get argo cd app")
-		}
+		impl.logger.Errorw("error in get argo application", "err", err)
+		return nil, impl.handleArgoAppGetError(res, err)
+	}
+	err = json.Unmarshal(res, &response)
+	if err != nil {
+		impl.logger.Errorw("unmarshal error on app update status", "err", err)
+		return nil, fmt.Errorf("error get argo cd app")
 	}
 	impl.logger.Infow("get argo cd application", "res", response, "err", err)
 	return response, err
@@ -209,7 +224,7 @@ func (impl ArgoK8sClientImpl) GetArgoApplication(k8sConfig *bean.ArgoK8sConfig, 
 
 func (impl ArgoK8sClientImpl) DeleteArgoApplication(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string, cascadeDelete bool) error {
 
-	patchType := types.JSONPatchType
+	patchType := types.MergePatchType
 	patchJSON := ""
 
 	//TODO: ayush test cascade delete

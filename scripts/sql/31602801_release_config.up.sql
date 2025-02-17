@@ -1,1 +1,0 @@
-ALTER TABLE deployment_config ADD COLUMN release_config jsonb;

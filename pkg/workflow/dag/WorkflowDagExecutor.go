@@ -46,7 +46,6 @@ import (
 	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
-	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
 	repository3 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
@@ -119,6 +118,8 @@ type WorkflowDagExecutorImpl struct {
 	eventFactory                  client.EventFactory
 	customTagService              pipeline.CustomTagService
 	pipelineStatusTimelineService status.PipelineStatusTimelineService
+	cdWorkflowRunnerService       cd.CdWorkflowRunnerService
+	ciService                     pipeline.CiService
 
 	helmAppService client2.HelmAppService
 
@@ -148,6 +149,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	eventFactory client.EventFactory,
 	customTagService pipeline.CustomTagService,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
+	cdWorkflowRunnerService cd.CdWorkflowRunnerService,
+	ciService pipeline.CiService,
 	helmAppService client2.HelmAppService,
 	cdWorkflowCommonService cd.CdWorkflowCommonService,
 	cdTriggerService devtronApps.TriggerService,
@@ -184,6 +187,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		asyncRunnable:                 asyncRunnable,
 		scanHistoryRepository:         scanHistoryRepository,
 		imageScanService:              imageScanService,
+		cdWorkflowRunnerService:       cdWorkflowRunnerService,
+		ciService:                     ciService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -332,7 +337,7 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.
 			}
 			cdWfr.UpdatedBy = 1
 			cdWfr.UpdatedOn = time.Now()
-			err := impl.cdWorkflowRepository.UpdateWorkFlowRunner(cdWfr)
+			err := impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(cdWfr)
 			if err != nil {
 				impl.logger.Errorw("error on update cd workflow runner", "wfr", cdWfr, "err", err)
 				return
@@ -403,7 +408,7 @@ func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncInstallRequest(cdAsyncIn
 		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "err", err)
 		return err
 	}
-	releaseId, _, releaseErr := impl.cdTriggerService.TriggerRelease(overrideRequest, envDeploymentConfig, newCtx, cdAsyncInstallReq.TriggeredAt, cdAsyncInstallReq.TriggeredBy)
+	releaseId, _, releaseErr := impl.cdTriggerService.TriggerRelease(newCtx, overrideRequest, envDeploymentConfig, cdAsyncInstallReq.TriggeredAt, cdAsyncInstallReq.TriggeredBy)
 	if releaseErr != nil {
 		impl.logger.Errorw("error encountered in ProcessDevtronAsyncInstallRequest", "err", releaseErr, "cdWfrId", cdWfr.Id)
 		impl.handleAsyncTriggerReleaseError(newCtx, releaseErr, cdWfr, overrideRequest)
@@ -742,13 +747,13 @@ func (impl *WorkflowDagExecutorImpl) UpdateCiWorkflowForCiSuccess(request *bean2
 		return err
 	}
 	// if workflow already cancelled then return, this state arises when user force aborts a ci
-	if savedWorkflow.Status == executors.WorkflowCancel {
+	if savedWorkflow.Status == cdWorkflow2.WorkflowCancel {
 		return err
 	}
 	savedWorkflow.Status = string(v1alpha1.NodeSucceeded)
 	savedWorkflow.IsArtifactUploaded = workflow.GetArtifactUploadedType(request.IsArtifactUploaded)
 	impl.logger.Debugw("updating workflow ", "savedWorkflow", savedWorkflow)
-	err = impl.ciWorkflowRepository.UpdateWorkFlow(savedWorkflow)
+	err = impl.ciService.UpdateCiWorkflowWithStage(savedWorkflow)
 	if err != nil {
 		impl.logger.Errorw("update wf failed for id ", "err", err)
 		return err

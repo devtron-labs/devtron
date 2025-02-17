@@ -160,15 +160,17 @@ func (impl AppListingRepositoryQueryBuilder) TestForCommonAppFilter(appListingFi
 	return query, queryParams
 }
 
-func (impl AppListingRepositoryQueryBuilder) BuildAppListingQueryLastDeploymentTimeV2(pipelineIDs []int) string {
+func (impl AppListingRepositoryQueryBuilder) BuildAppListingQueryLastDeploymentTimeV2(pipelineIDs []int) (string, []interface{}) {
 	whereCondition := ""
+	queryParams := []interface{}{}
 	if len(pipelineIDs) > 0 {
-		whereCondition += fmt.Sprintf(" Where pco.pipeline_id IN (%s) ", GetCommaSepratedString(pipelineIDs))
+		whereCondition += " Where pco.pipeline_id IN (?) "
+		queryParams = append(queryParams, pg.In(pipelineIDs))
 	}
 	query := "select pco.pipeline_id , MAX(pco.created_on) as last_deployed_time" +
 		" from pipeline_config_override pco" + whereCondition +
 		" GROUP BY pco.pipeline_id;"
-	return query
+	return query, queryParams
 }
 
 func (impl AppListingRepositoryQueryBuilder) GetAppIdsQueryWithPaginationForLastDeployedSearch(appListingFilter AppListingFilter) (string, []interface{}) {

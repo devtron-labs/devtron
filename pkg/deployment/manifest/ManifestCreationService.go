@@ -35,7 +35,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
-	bean9 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
+	deploymentBean "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
@@ -67,11 +67,10 @@ import (
 )
 
 type ManifestCreationService interface {
-	BuildManifestForTrigger(overrideRequest *bean.ValuesOverrideRequest, envDeploymentConfig *bean9.DeploymentConfig, triggeredAt time.Time,
-		ctx context.Context) (valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string, err error)
+	BuildManifestForTrigger(ctx context.Context, overrideRequest *bean.ValuesOverrideRequest, envDeploymentConfig *deploymentBean.DeploymentConfig, triggeredAt time.Time) (valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string, err error)
 
 	//TODO: remove below method
-	GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*app.ValuesOverrideResponse, error)
+	GetValuesOverrideForTrigger(ctx context.Context, overrideRequest *bean.ValuesOverrideRequest, envDeploymentConfig *deploymentBean.DeploymentConfig, triggeredAt time.Time) (*app.ValuesOverrideResponse, error)
 }
 
 type ManifestCreationServiceImpl struct {
@@ -155,24 +154,15 @@ func NewManifestCreationServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *ManifestCreationServiceImpl) BuildManifestForTrigger(overrideRequest *bean.ValuesOverrideRequest, envDeploymentConfig *bean9.DeploymentConfig, triggeredAt time.Time,
-	ctx context.Context) (valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string, err error) {
-	valuesOverrideResponse = &app.ValuesOverrideResponse{}
-	valuesOverrideResponse, err = impl.GetValuesOverrideForTrigger(overrideRequest, triggeredAt, ctx)
+func (impl *ManifestCreationServiceImpl) BuildManifestForTrigger(ctx context.Context, overrideRequest *bean.ValuesOverrideRequest,
+	envDeploymentConfig *deploymentBean.DeploymentConfig, triggeredAt time.Time) (valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string, err error) {
+	valuesOverrideResponse, err = impl.GetValuesOverrideForTrigger(ctx, overrideRequest, envDeploymentConfig, triggeredAt)
 	if err != nil {
 		impl.logger.Errorw("error in fetching values for trigger", "err", err)
 		return valuesOverrideResponse, "", err
 	}
-	if envDeploymentConfig == nil || envDeploymentConfig.Id == 0 {
-		envDeploymentConfig, err1 := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(overrideRequest.AppId, overrideRequest.EnvId)
-		if err1 != nil {
-			impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "err", err1)
-			return valuesOverrideResponse, "", err
-		}
-		valuesOverrideResponse.DeploymentConfig = envDeploymentConfig
-	}
 	valuesOverrideResponse.DeploymentConfig = envDeploymentConfig
-	builtChartPath, err = impl.deploymentTemplateService.BuildChartAndGetPath(overrideRequest.AppName, valuesOverrideResponse.EnvOverride, valuesOverrideResponse.DeploymentConfig, ctx)
+	builtChartPath, err = impl.deploymentTemplateService.BuildChartAndGetPath(overrideRequest.AppName, valuesOverrideResponse.EnvOverride, envDeploymentConfig, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in parsing reference chart", "err", err)
 		return valuesOverrideResponse, "", err
@@ -180,7 +170,8 @@ func (impl *ManifestCreationServiceImpl) BuildManifestForTrigger(overrideRequest
 	return valuesOverrideResponse, builtChartPath, err
 }
 
-func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*app.ValuesOverrideResponse, error) {
+func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(ctx context.Context, overrideRequest *bean.ValuesOverrideRequest,
+	envDeploymentConfig *deploymentBean.DeploymentConfig, triggeredAt time.Time) (*app.ValuesOverrideResponse, error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.GetValuesOverrideForTrigger")
 	defer span.End()
 	helper.ResolveDeploymentTypeAndUpdate(overrideRequest)
@@ -293,7 +284,7 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 				// error is not returned as it's not blocking for deployment process
 				// blocking deployments based on this use case can vary for user to user
 			}
-			mergedValues, err = impl.autoscalingCheckBeforeTrigger(newCtx, appName, envOverride.Namespace, mergedValues, overrideRequest)
+			mergedValues, err = impl.autoscalingCheckBeforeTrigger(newCtx, appName, envOverride.Namespace, mergedValues, overrideRequest, envDeploymentConfig)
 			if err != nil {
 				impl.logger.Errorw("error in autoscaling check before trigger", "pipelineId", overrideRequest.PipelineId, "err", err)
 				return valuesOverrideResponse, err
@@ -1020,12 +1011,12 @@ func (impl *ManifestCreationServiceImpl) updatedExternalCmCsHashForTrigger(ctx c
 	return merged, nil
 }
 
-func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, appName string, namespace string, merged []byte, overrideRequest *bean.ValuesOverrideRequest) ([]byte, error) {
+func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, appName string, namespace string, merged []byte,
+	overrideRequest *bean.ValuesOverrideRequest, envDeploymentConfig *deploymentBean.DeploymentConfig) ([]byte, error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.autoscalingCheckBeforeTrigger")
 	defer span.End()
 	pipelineId := overrideRequest.PipelineId
-	var appDeploymentType = overrideRequest.DeploymentAppType
-	var clusterId = overrideRequest.ClusterId
+	clusterId := overrideRequest.ClusterId
 	deploymentType := overrideRequest.DeploymentType
 	templateMap := make(map[string]interface{})
 	err := json.Unmarshal(merged, &templateMap)
@@ -1038,7 +1029,7 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 	impl.logger.Debugw("autoscalingCheckBeforeTrigger", "pipelineId", pipelineId, "hpaResourceRequest", hpaResourceRequest)
 	if hpaResourceRequest.IsEnable {
 		var resourceManifest map[string]interface{}
-		if util.IsAcdApp(appDeploymentType) {
+		if envDeploymentConfig.IsArgoCdClientSupported() {
 			resourceManifest, err = impl.getArgoCdHPAResourceManifest(newCtx, appName, namespace, hpaResourceRequest)
 			if err != nil {
 				return merged, err

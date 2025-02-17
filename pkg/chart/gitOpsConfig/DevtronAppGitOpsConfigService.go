@@ -22,11 +22,13 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig/bean"
+	"github.com/devtron-labs/devtron/pkg/chart/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation/bean"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"net/http"
 	"path/filepath"
 
@@ -50,6 +52,7 @@ type DevtronAppGitOpConfigServiceImpl struct {
 	gitOpsValidationService  validation.GitOpsValidationService
 	argoClientWrapperService argocdServer.ArgoClientWrapperService
 	deploymentConfigService  common.DeploymentConfigService
+	chartReadService         read.ChartReadService
 }
 
 func NewDevtronAppGitOpConfigServiceImpl(logger *zap.SugaredLogger,
@@ -58,7 +61,8 @@ func NewDevtronAppGitOpConfigServiceImpl(logger *zap.SugaredLogger,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	gitOpsValidationService validation.GitOpsValidationService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
-	deploymentConfigService common.DeploymentConfigService) *DevtronAppGitOpConfigServiceImpl {
+	deploymentConfigService common.DeploymentConfigService,
+	chartReadService read.ChartReadService) *DevtronAppGitOpConfigServiceImpl {
 	return &DevtronAppGitOpConfigServiceImpl{
 		logger:                   logger,
 		chartRepository:          chartRepository,
@@ -67,6 +71,7 @@ func NewDevtronAppGitOpConfigServiceImpl(logger *zap.SugaredLogger,
 		gitOpsValidationService:  gitOpsValidationService,
 		argoClientWrapperService: argoClientWrapperService,
 		deploymentConfigService:  deploymentConfigService,
+		chartReadService:         chartReadService,
 	}
 }
 
@@ -76,7 +81,7 @@ func (impl *DevtronAppGitOpConfigServiceImpl) SaveAppLevelGitOpsConfiguration(ap
 		impl.logger.Errorw("error in fetching active gitOps config", "err", err)
 		return err
 	}
-	if !gitOpsConfigurationStatus.IsGitOpsConfigured {
+	if !gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled() {
 		apiErr := &util.ApiError{
 			HttpStatusCode:  http.StatusPreconditionFailed,
 			UserMessage:     "GitOps integration is not installed/configured. Please install/configure GitOps.",
@@ -102,7 +107,7 @@ func (impl *DevtronAppGitOpConfigServiceImpl) SaveAppLevelGitOpsConfiguration(ap
 		return apiErr
 	}
 
-	appDeploymentTemplate, err := impl.chartService.FindLatestChartForAppByAppId(appGitOpsRequest.AppId)
+	appDeploymentTemplate, err := impl.chartReadService.FindLatestChartForAppByAppId(appGitOpsRequest.AppId)
 	if util.IsErrNoRows(err) {
 		impl.logger.Errorw("no base charts configured for app", "appId", appGitOpsRequest.AppId, "err", err)
 		apiErr := &util.ApiError{
@@ -115,13 +120,14 @@ func (impl *DevtronAppGitOpConfigServiceImpl) SaveAppLevelGitOpsConfiguration(ap
 		impl.logger.Errorw("error in fetching latest chart for app by appId", "appId", appGitOpsRequest.AppId, "err", err)
 		return err
 	}
-	validateCustomGitRepoURLRequest := bean3.ValidateCustomGitRepoURLRequest{
+	validateCustomGitRepoURLRequest := bean3.ValidateGitOpsRepoRequest{
 		GitRepoURL:     appGitOpsRequest.GitOpsRepoURL,
 		UserId:         appGitOpsRequest.UserId,
 		AppName:        appName,
 		GitOpsProvider: gitOpsConfigurationStatus.Provider,
+		TargetRevision: globalUtil.GetDefaultTargetRevision(),
 	}
-	repoUrl, _, validationErr := impl.gitOpsValidationService.ValidateCustomGitRepoURL(validateCustomGitRepoURLRequest)
+	repoUrl, _, validationErr := impl.gitOpsValidationService.ValidateCustomGitOpsConfig(validateCustomGitRepoURLRequest)
 	if validationErr != nil {
 		apiErr := &util.ApiError{
 			HttpStatusCode:  http.StatusBadRequest,
@@ -130,13 +136,14 @@ func (impl *DevtronAppGitOpConfigServiceImpl) SaveAppLevelGitOpsConfiguration(ap
 		}
 		return apiErr
 	}
-	// ValidateCustomGitRepoURL returns sanitized repo url after validation
+	// ValidateCustomGitOpsConfig returns sanitized repo url after validation
 	appGitOpsRequest.GitOpsRepoURL = repoUrl
 	chartGitAttr := &commonBean.ChartGitAttribute{
-		RepoUrl:       repoUrl,
-		ChartLocation: filepath.Join(appDeploymentTemplate.RefChartTemplate, appDeploymentTemplate.LatestChartVersion),
+		RepoUrl:        repoUrl,
+		TargetRevision: globalUtil.GetDefaultTargetRevision(),
+		ChartLocation:  filepath.Join(appDeploymentTemplate.RefChartTemplate, appDeploymentTemplate.LatestChartVersion),
 	}
-	err = impl.argoClientWrapperService.RegisterGitOpsRepoInArgoWithRetry(ctx, chartGitAttr.RepoUrl, appGitOpsRequest.UserId)
+	err = impl.argoClientWrapperService.RegisterGitOpsRepoInArgoWithRetry(ctx, chartGitAttr.RepoUrl, chartGitAttr.TargetRevision, appGitOpsRequest.UserId)
 	if err != nil {
 		impl.logger.Errorw("error while register git repo in argo", "err", err)
 		return err
@@ -155,7 +162,7 @@ func (impl *DevtronAppGitOpConfigServiceImpl) GetAppLevelGitOpsConfiguration(app
 	if err != nil {
 		impl.logger.Errorw("error in fetching active gitOps config", "err", err)
 		return nil, err
-	} else if !gitOpsConfigurationStatus.IsGitOpsConfigured {
+	} else if !gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled() {
 		apiErr := &util.ApiError{
 			HttpStatusCode:  http.StatusPreconditionFailed,
 			UserMessage:     "GitOps integration is not installed/configured. Please install/configure GitOps.",
@@ -170,7 +177,7 @@ func (impl *DevtronAppGitOpConfigServiceImpl) GetAppLevelGitOpsConfiguration(app
 		}
 		return nil, apiErr
 	}
-	appDeploymentTemplate, err := impl.chartService.FindLatestChartForAppByAppId(appId)
+	appDeploymentTemplate, err := impl.chartReadService.FindLatestChartForAppByAppId(appId)
 	if util.IsErrNoRows(err) {
 		impl.logger.Errorw("no base charts configured for app", "appId", appId, "err", err)
 		apiErr := &util.ApiError{

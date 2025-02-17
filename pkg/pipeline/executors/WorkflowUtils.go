@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/util"
@@ -287,12 +288,9 @@ func GetClientInstance(config *rest.Config, namespace string) (v1alpha12.Workflo
 
 func CheckIfReTriggerRequired(status, message, workflowRunnerStatus string) bool {
 	return ((status == string(v1alpha1.NodeError) || status == string(v1alpha1.NodeFailed)) &&
-		message == POD_DELETED_MESSAGE) && workflowRunnerStatus != WorkflowCancel
+		message == cdWorkflow.POD_DELETED_MESSAGE) && (workflowRunnerStatus != cdWorkflow.WorkflowCancel && workflowRunnerStatus != cdWorkflow.WorkflowAborted)
 
 }
-
-const WorkflowCancel = "CANCELLED"
-const POD_DELETED_MESSAGE = "pod deleted"
 
 func GetWorkflowLabelsForSystemExecutor(workflowTemplate bean.WorkflowTemplate) map[string]string {
 	return map[string]string{

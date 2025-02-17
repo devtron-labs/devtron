@@ -62,7 +62,7 @@ func (impl *ArgoClientWrapperServiceEAImpl) DeleteArgoAppWithK8sClient(ctx conte
 	return nil
 }
 
-func (impl *ArgoClientWrapperServiceEAImpl) SyncArgoCDApplicationIfNeededAndRefresh(ctx context.Context, argoAppName string) error {
+func (impl *ArgoClientWrapperServiceEAImpl) SyncArgoCDApplicationIfNeededAndRefresh(ctx context.Context, argoAppName, targetRevision string) error {
 	impl.logger.Info("not implemented")
 	return nil
 }
@@ -72,7 +72,7 @@ func (impl *ArgoClientWrapperServiceEAImpl) UpdateArgoCDSyncModeIfNeeded(ctx con
 	return nil
 }
 
-func (impl *ArgoClientWrapperServiceEAImpl) RegisterGitOpsRepoInArgoWithRetry(ctx context.Context, gitOpsRepoUrl string, userId int32) error {
+func (impl *ArgoClientWrapperServiceEAImpl) RegisterGitOpsRepoInArgoWithRetry(ctx context.Context, gitOpsRepoUrl, targetRevision string, userId int32) error {
 	impl.logger.Info("not implemented")
 	return nil
 }
@@ -127,12 +127,12 @@ func (impl *ArgoClientWrapperServiceEAImpl) GetArgoAppByName(ctx context.Context
 	return nil, nil
 }
 
-func (impl *ArgoClientWrapperServiceEAImpl) GetArgoAppByNameWithK8sClient(ctx context.Context, clusterId int, namespace, appName string) (map[string]interface{}, error) {
+func (impl *ArgoClientWrapperServiceEAImpl) GetArgoAppByNameWithK8sClient(ctx context.Context, clusterId int, namespace, appName string) (*v1alpha1.Application, error) {
 	impl.logger.Info("not implemented for EA mode")
 	return nil, nil
 }
 
-func (impl *ArgoClientWrapperServiceEAImpl) IsArgoAppPatchRequired(argoAppSpec *v1alpha1.ApplicationSource, currentGitRepoUrl, currentChartPath string) bool {
+func (impl *ArgoClientWrapperServiceEAImpl) IsArgoAppPatchRequired(argoAppSpec *v1alpha1.ApplicationSource, currentGitRepoUrl, currentTargetRevision, currentChartPath string) bool {
 	impl.logger.Info("not implemented for EA mode")
 	return false
 }

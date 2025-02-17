@@ -32,6 +32,7 @@ type InstalledAppReadServiceEA interface {
 	// Additional details like app store details are also fetched.
 	// Refer bean.InstalledAppVersionWithAppStoreDetails for more details.
 	GetInstalledAppVersionIncludingDeleted(installedAppVersionId int) (*bean.InstalledAppVersionWithAppStoreDetails, error)
+	GetAllArgoAppNamesByCluster(clusterId []int) ([]string, error)
 }
 
 type InstalledAppReadServiceEAImpl struct {
@@ -96,4 +97,8 @@ func (impl *InstalledAppReadServiceEAImpl) GetInstalledAppVersionIncludingDelete
 		return nil, err
 	}
 	return adapter.GetInstalledAppVersionWithAppStoreDetails(installedAppVersionModel), nil
+}
+
+func (impl *InstalledAppReadServiceEAImpl) GetAllArgoAppNamesByCluster(clusterId []int) ([]string, error) {
+	return impl.installedAppRepository.GetAllArgoAppsByCluster(clusterId)
 }

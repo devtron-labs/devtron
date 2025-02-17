@@ -1,0 +1,1 @@
+ALTER TABLE deployment_config DROP COLUMN IF EXISTS release_config;
