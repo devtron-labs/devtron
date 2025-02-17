@@ -18,6 +18,7 @@ package bean
 
 import (
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -64,6 +65,14 @@ type ArgoApplicationDetailDto struct {
 	Manifest     map[string]interface{}     `json:"manifest"`
 }
 
+type ArgoManagedResourceResponse struct {
+	ManifestResponse     *k8s.ManifestResponse
+	HealthStatus         string
+	SyncStatus           string
+	DestinationServer    string
+	ArgoManagedResources []*ArgoManagedResource
+}
+
 type ArgoManagedResource struct {
 	Group     string
 	Kind      string
@@ -89,13 +98,33 @@ type ArgoAppIdentifier struct {
 }
 
 type AcdClientQueryRequest struct {
-	Mode             ClientMode
-	Query            *application2.ResourcesQuery
-	ArgoAppClusterId int
+	Mode            ClientMode
+	Query           *application2.ResourcesQuery
+	ArgoClusterId   int
+	TargetClusterId int
 }
 
-func (a *AcdClientQueryRequest) WithArgoAppClusterId(clusterId int) *AcdClientQueryRequest {
-	a.ArgoAppClusterId = clusterId
+func (a *AcdClientQueryRequest) GetApplicationName() string {
+	if a.Query.ApplicationName == nil {
+		return ""
+	}
+	return *a.Query.ApplicationName
+}
+
+func (a *AcdClientQueryRequest) GetAppNamespace(defaultAppNs string) string {
+	if a.Query.AppNamespace == nil {
+		return defaultAppNs
+	}
+	return *a.Query.AppNamespace
+}
+
+func (a *AcdClientQueryRequest) WithTargetClusterId(clusterId int) *AcdClientQueryRequest {
+	a.TargetClusterId = clusterId
+	return a
+}
+
+func (a *AcdClientQueryRequest) WithArgoClusterId(clusterId int) *AcdClientQueryRequest {
+	a.ArgoClusterId = clusterId
 	return a
 }
 

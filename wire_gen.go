@@ -940,7 +940,7 @@ func InitializeApp() (*App, error) {
 	webhookListenerRouterImpl := router.NewWebhookListenerRouterImpl(webhookEventHandlerImpl)
 	appFilteringRestHandlerImpl := appList.NewAppFilteringRestHandlerImpl(sugaredLogger, teamServiceImpl, enforcerImpl, userServiceImpl, clusterServiceImplExtended, environmentServiceImpl, teamReadServiceImpl)
 	appFilteringRouterImpl := appList2.NewAppFilteringRouterImpl(appFilteringRestHandlerImpl)
-	serviceImpl := resourceTree.NewServiceImpl(sugaredLogger, appListingServiceImpl, appStatusServiceImpl, argoApplicationServiceExtendedImpl, cdApplicationStatusUpdateHandlerImpl, helmAppReadServiceImpl, helmAppServiceImpl, k8sApplicationServiceImpl, k8sCommonServiceImpl)
+	serviceImpl := resourceTree.NewServiceImpl(sugaredLogger, appListingServiceImpl, appStatusServiceImpl, argoApplicationServiceExtendedImpl, cdApplicationStatusUpdateHandlerImpl, helmAppReadServiceImpl, helmAppServiceImpl, k8sApplicationServiceImpl, k8sCommonServiceImpl, environmentReadServiceImpl)
 	appListingRestHandlerImpl := appList.NewAppListingRestHandlerImpl(appListingServiceImpl, enforcerImpl, pipelineBuilderImpl, sugaredLogger, enforcerUtilImpl, deploymentGroupServiceImpl, userServiceImpl, k8sCommonServiceImpl, installedAppDBExtendedServiceImpl, installedAppResourceServiceImpl, pipelineRepositoryImpl, k8sApplicationServiceImpl, deploymentConfigServiceImpl, serviceImpl)
 	appListingRouterImpl := appList2.NewAppListingRouterImpl(appListingRestHandlerImpl)
 	appInfoRestHandlerImpl := appInfo.NewAppInfoRestHandlerImpl(sugaredLogger, appCrudOperationServiceImpl, userServiceImpl, validate, enforcerUtilImpl, enforcerImpl, helmAppServiceImpl, enforcerUtilHelmImpl, genericNoteServiceImpl)
