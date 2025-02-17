@@ -78,7 +78,7 @@ func (impl *GitOpsConfigReadServiceImpl) IsGitOpsConfigured() (*bean.GitOpsConfi
 	argoModule, err := impl.moduleReadService.GetModuleInfoByName(moduleBean.ModuleNameArgoCd)
 	if err != nil && !errors.Is(err, moduleErr.ModuleNotFoundError) {
 		impl.logger.Errorw("error in getting argo module", "error", err)
-		return nil, err
+		return gitOpsConfigurationStatus, err
 	}
 	gitOpsConfigurationStatus.IsArgoCdInstalled = argoModule.IsInstalled()
 	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()

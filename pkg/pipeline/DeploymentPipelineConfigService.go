@@ -438,7 +438,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 		// validate and override deployment app type
 		// NOTE: using gitOpsConfigurationStatus.IsGitOpsConfigured instead of gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled()
 		// as we need to allow the user to create pipeline with linked acd app, even if argo cd is not installed
-		overrideDeploymentType, err := impl.deploymentTypeOverrideService.ValidateAndOverrideDeploymentAppType(pipeline.DeploymentAppType, gitOpsConfigurationStatus.IsGitOpsConfigured, pipeline.EnvironmentId)
+		overrideDeploymentType, err := impl.deploymentTypeOverrideService.ValidateAndOverrideDeploymentAppType(pipeline.DeploymentAppType, gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled(), pipeline.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw("validation error in creating pipeline", "name", pipeline.Name, "err", err)
 			return nil, err
