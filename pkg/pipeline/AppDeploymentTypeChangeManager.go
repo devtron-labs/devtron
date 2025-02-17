@@ -44,8 +44,8 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	"strconv"
-	"strings"
 )
 
 type AppDeploymentTypeChangeManager interface {
@@ -789,7 +789,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) deleteArgoCdApp(ctx context.Cont
 	if err != nil {
 		impl.logger.Errorw("error in deleting argocd application", "err", err)
 		// Possible that argocd app got deleted but db updation failed
-		if strings.Contains(err.Error(), "code = NotFound") {
+		if errors2.IsNotFound(err) {
 			return nil
 		}
 		return err
