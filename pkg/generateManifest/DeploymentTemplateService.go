@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/utils/k8s"
-	"github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	read2 "github.com/devtron-labs/devtron/api/helm-app/service/read"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
@@ -33,6 +32,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	read3 "github.com/devtron-labs/devtron/pkg/deployment/common/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
@@ -500,7 +500,7 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 			Content: chartInBytes,
 		},
 	}
-	config, err := impl.helmAppReadService.GetClusterConf(bean.DEFAULT_CLUSTER_ID)
+	config, err := impl.helmAppReadService.GetClusterConf(clusterBean.DefaultClusterId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching cluster detail", "clusterId", 1, "err", err)
 		return nil, err

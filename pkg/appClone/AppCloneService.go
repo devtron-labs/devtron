@@ -1011,7 +1011,7 @@ func (impl *AppCloneServiceImpl) createClonedCdPipeline(req *cloneCdPipelineRequ
 	}
 
 	// TODO Asutosh: skip pipeline and it's children
-	if refCdPipeline.IsExternalArgoAppLinkRequest() && !gitOpsConfigurationStatus.IsArgoCdInstalled {
+	if refCdPipeline.IsExternalArgoAppLinkRequest() {
 		impl.logger.Warnw("argo cd is not installed, skipping creation of linked cd pipeline", "cdPipelineId", refCdPipeline.Id)
 		apiErr := &util.ApiError{
 			HttpStatusCode:  http.StatusPreconditionFailed,

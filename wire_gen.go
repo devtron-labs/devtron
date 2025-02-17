@@ -574,8 +574,8 @@ func InitializeApp() (*App, error) {
 	installedAppVersionHistoryRepositoryImpl := repository3.NewInstalledAppVersionHistoryRepositoryImpl(sugaredLogger, db)
 	repositoryImpl := deploymentConfig.NewRepositoryImpl(db)
 	chartRefRepositoryImpl := chartRepoRepository.NewChartRefRepositoryImpl(db)
-	deploymentConfigReadServiceImpl := read11.NewDeploymentConfigReadServiceImpl(sugaredLogger, repositoryImpl, environmentVariables)
-	deploymentConfigServiceImpl := common.NewDeploymentConfigServiceImpl(repositoryImpl, sugaredLogger, chartRepositoryImpl, pipelineRepositoryImpl, appRepositoryImpl, installedAppReadServiceEAImpl, environmentVariables, envConfigOverrideReadServiceImpl, environmentRepositoryImpl, chartRefRepositoryImpl, deploymentConfigReadServiceImpl)
+	deploymentConfigReadServiceImpl := read11.NewDeploymentConfigReadServiceImpl(sugaredLogger, repositoryImpl, environmentVariables, chartRepositoryImpl, pipelineRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, envConfigOverrideReadServiceImpl)
+	deploymentConfigServiceImpl := common.NewDeploymentConfigServiceImpl(repositoryImpl, sugaredLogger, chartRepositoryImpl, pipelineRepositoryImpl, appRepositoryImpl, installedAppReadServiceEAImpl, environmentVariables, envConfigOverrideReadServiceImpl, environmentRepositoryImpl, chartRefRepositoryImpl, deploymentConfigReadServiceImpl, acdAuthConfig)
 	pipelineStatusTimelineServiceImpl := status.NewPipelineStatusTimelineServiceImpl(sugaredLogger, pipelineStatusTimelineRepositoryImpl, cdWorkflowRepositoryImpl, userServiceImpl, pipelineStatusTimelineResourcesServiceImpl, pipelineStatusSyncDetailServiceImpl, installedAppRepositoryImpl, installedAppVersionHistoryRepositoryImpl, deploymentConfigServiceImpl)
 	appServiceConfig, err := app2.GetAppServiceConfig()
 	if err != nil {

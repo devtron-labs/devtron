@@ -8,7 +8,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	k8sUtil "github.com/devtron-labs/common-lib/utils/k8s"
 	bean4 "github.com/devtron-labs/devtron/api/bean"
-	bean5 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
 	read3 "github.com/devtron-labs/devtron/api/helm-app/service/read"
@@ -20,6 +19,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/bean"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	read4 "github.com/devtron-labs/devtron/pkg/chart/read"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/config/configDiff/adaptor"
 	bean2 "github.com/devtron-labs/devtron/pkg/config/configDiff/bean"
@@ -304,7 +304,7 @@ func (impl *DeploymentConfigurationServiceImpl) GetManifest(ctx context.Context,
 			ReleaseName: releaseName,
 		},
 	}
-	config, err := impl.HelmAppReadService.GetClusterConf(bean5.DEFAULT_CLUSTER_ID)
+	config, err := impl.HelmAppReadService.GetClusterConf(clusterBean.DefaultClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "clusterId", 1, "err", err)
 		return nil, err

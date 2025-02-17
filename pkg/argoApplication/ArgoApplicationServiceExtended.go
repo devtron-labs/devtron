@@ -122,12 +122,7 @@ func (c *ArgoApplicationServiceExtendedImpl) getApplicationObjectWithK8sClient(c
 		c.logger.Errorw("error in fetching application", "acdQueryRequest", acdQueryRequest, "err", err)
 		return nil, err
 	}
-	argoApplicationSpec, err := argocdServer.GetAppObject(application)
-	if err != nil {
-		c.logger.Errorw("error in fetching application", "acdQueryRequest", acdQueryRequest, "err", err)
-		return nil, err
-	}
-	return argoApplicationSpec, nil
+	return application, nil
 }
 
 func (c *ArgoApplicationServiceExtendedImpl) getApplicationObjectWithAcdClient(ctx context.Context,

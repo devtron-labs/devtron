@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	commonBean "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s/application"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s/bean"
 	"github.com/devtron-labs/devtron/util"
@@ -38,7 +39,6 @@ import (
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
-	"slices"
 )
 
 type ArgoApplicationService interface {
@@ -141,14 +141,19 @@ func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*b
 	appListClusterIds := sliceUtil.NewSliceFromFuncExec(appListFinal, func(app *bean.ArgoApplicationListDto) int {
 		return app.ClusterId
 	})
-	allDevtronManagedArgoAppNames, err := impl.deploymentConfigService.GetAllArgoAppNamesByCluster(appListClusterIds)
+	allDevtronManagedArgoAppsInfo, err := impl.deploymentConfigService.GetAllArgoAppNamesByCluster(appListClusterIds)
 	if err != nil {
 		impl.logger.Errorw("error in getting all argo app names by cluster", "err", err, "clusterIds", appListClusterIds)
 		return nil, err
 	}
 	filteredAppList := make([]*bean.ArgoApplicationListDto, 0)
 	filteredAppList = sliceUtil.Filter(filteredAppList, appListFinal, func(app *bean.ArgoApplicationListDto) bool {
-		return !slices.Contains(allDevtronManagedArgoAppNames, app.Name)
+		_, found := sliceUtil.Find(allDevtronManagedArgoAppsInfo, func(info *commonBean.DevtronArgoCdAppInfo) bool {
+			return info.ArgoAppClusterId == app.ClusterId &&
+				info.ArgoAppNamespace == app.Namespace &&
+				info.ArgoCdAppName == app.Name
+		})
+		return !found
 	})
 	return filteredAppList, nil
 }

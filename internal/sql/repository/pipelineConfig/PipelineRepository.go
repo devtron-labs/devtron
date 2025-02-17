@@ -134,7 +134,7 @@ type PipelineRepository interface {
 	FindDeploymentAppTypeByAppIdAndEnvId(appId, envId int) (string, error)
 	FindByAppIdToEnvIdsMapping(appIdToEnvIds map[int][]int) ([]*Pipeline, error)
 	FindDeploymentAppTypeByIds(ids []int) (pipelines []*Pipeline, err error)
-	GetAllArgoAppNamesByCluster(clusterIds []int) ([]string, error)
+	GetAllArgoAppNamesByCluster(clusterIds []int) ([]*PipelineDeploymentConfigObj, error)
 }
 
 type CiArtifactDTO struct {
@@ -151,6 +151,12 @@ type DeploymentObject struct {
 	DeploymentType models.DeploymentType `sql:"deployment_type"`
 	PipelineId     int                   `sql:"pipeline_id"`
 	Status         string                `sql:"status"`
+}
+
+type PipelineDeploymentConfigObj struct {
+	DeploymentAppName string `json:"deployment_app_name"`
+	AppId             int    `json:"app_id"`
+	EnvironmentId     int    `json:"environment_id"`
 }
 
 type PipelineRepositoryImpl struct {
@@ -862,14 +868,16 @@ func (impl *PipelineRepositoryImpl) FindDeploymentAppTypeByIds(ids []int) (pipel
 	return pipelines, err
 }
 
-func (impl *PipelineRepositoryImpl) GetAllArgoAppNamesByCluster(clusterIds []int) ([]string, error) {
-	result := make([]string, 0)
+func (impl *PipelineRepositoryImpl) GetAllArgoAppNamesByCluster(clusterIds []int) ([]*PipelineDeploymentConfigObj, error) {
+	result := make([]*PipelineDeploymentConfigObj, 0)
 	if len(clusterIds) == 0 {
 		return result, nil
 	}
 	err := impl.dbConnection.Model().
 		Table("pipeline").
-		ColumnExpr("deployment_app_name").
+		ColumnExpr("pipeline.deployment_app_name AS deployment_app_name").
+		ColumnExpr("pipeline.app_id AS app_id").
+		ColumnExpr("pipeline.environment_id AS environment_id").
 		// inner join with app
 		Join("INNER JOIN app").
 		JoinOn("pipeline.app_id = app.id").

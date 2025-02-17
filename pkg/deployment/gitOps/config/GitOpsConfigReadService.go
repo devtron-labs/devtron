@@ -181,18 +181,20 @@ func (impl *GitOpsConfigReadServiceImpl) GetGitOpsProviderByRepoURL(gitRepoUrl s
 		return nil, err
 	}
 
-	requestHost, err := util.GetHost(gitRepoUrl)
+	inputHostURL, inputScheme, err := util.GetHost(gitRepoUrl)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse host from repo URL: %s", gitRepoUrl)
 	}
 
 	for _, model := range models {
 		configBean := adapter.GetGitOpsConfigBean(model)
-		host, err := util.GetHost(configBean.GetHostUrl())
+		hostURL, scheme, err := util.GetHost(configBean.GetHostUrl())
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse host from repo URL: %s", gitRepoUrl)
 		}
-		if host == requestHost {
+		if len(hostURL) > 0 && len(inputHostURL) > 0 &&
+			strings.HasPrefix(inputHostURL, hostURL) &&
+			scheme == inputScheme {
 			// written with assumption that only one GitOpsConfig is present in DB for each provider(github, gitlab, etc)
 			return configBean, nil
 		}

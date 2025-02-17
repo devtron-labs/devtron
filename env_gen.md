@@ -21,7 +21,7 @@
  | REVISION_HISTORY_LIMIT_HELM_APP | int |1 |  |  | false |
  | RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS | bool |false |  |  | false |
  | SHOULD_CHECK_NAMESPACE_ON_CLONE | bool |false | should we check if namespace exists or not while cloning app |  | false |
- | USE_DEPLOYMENT_CONFIG_DATA | bool |false |  |  | false |
+ | USE_DEPLOYMENT_CONFIG_DATA | bool |false | use deployment config data from deployment_config table |  | true |
 
 
 ## CI_RUNNER Related Environment Variables
