@@ -129,6 +129,13 @@ type InstallAppVersionDTO struct {
 	IsChartLinkRequest           bool
 }
 
+func (chart *InstallAppVersionDTO) GetTargetRevision() string {
+	if len(chart.TargetRevision) == 0 {
+		return util.GetDefaultTargetRevision()
+	}
+	return chart.TargetRevision
+}
+
 func (chart *InstallAppVersionDTO) GetAppIdentifierString() string {
 	displayName := chart.DisplayName
 	if len(displayName) == 0 {

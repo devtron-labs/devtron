@@ -138,7 +138,7 @@ func (impl *FullModeDeploymentServiceImpl) UpdateAppGitOpsOperations(manifest *b
 		if noTargetFoundForRequirements || noTargetFoundForValues {
 			//create repo again and try again  -  auto fix
 			_, _, err := impl.createGitOpsRepo(impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(installAppVersionRequest.GitOpsRepoURL),
-				installAppVersionRequest.TargetRevision, installAppVersionRequest.UserId)
+				installAppVersionRequest.GetTargetRevision(), installAppVersionRequest.UserId)
 			if err != nil {
 				impl.Logger.Errorw("error in creating GitOps repo for valuesCommitErr or requirementsCommitErr", "gitRepoUrl", installAppVersionRequest.GitOpsRepoURL)
 				return nil, err
@@ -151,7 +151,7 @@ func (impl *FullModeDeploymentServiceImpl) UpdateAppGitOpsOperations(manifest *b
 	gitOpsResponse.GitHash = gitHash
 	gitOpsResponse.ChartGitAttribute = &commonBean.ChartGitAttribute{
 		RepoUrl:        installAppVersionRequest.GitOpsRepoURL,
-		TargetRevision: installAppVersionRequest.TargetRevision,
+		TargetRevision: installAppVersionRequest.GetTargetRevision(),
 		ChartLocation:  installAppVersionRequest.ACDAppName,
 	}
 	return gitOpsResponse, nil
@@ -203,7 +203,7 @@ func (impl *FullModeDeploymentServiceImpl) createGitOpsRepoAndPushChart(installA
 			return nil, "", fmt.Errorf("Invalid request! Git repository URL is not found for installed app '%s'", installAppVersionRequest.AppName)
 		}
 		gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(installAppVersionRequest.AppName)
-		gitOpsRepoURL, isNew, err := impl.createGitOpsRepo(gitOpsRepoName, installAppVersionRequest.TargetRevision, installAppVersionRequest.UserId)
+		gitOpsRepoURL, isNew, err := impl.createGitOpsRepo(gitOpsRepoName, installAppVersionRequest.GetTargetRevision(), installAppVersionRequest.UserId)
 		if err != nil {
 			impl.Logger.Errorw("Error in creating gitops repo for ", "appName", installAppVersionRequest.AppName, "err", err)
 			return nil, "", err
@@ -348,7 +348,7 @@ func (impl *FullModeDeploymentServiceImpl) getGitCommitConfig(installAppVersionR
 		ChartName:      installAppVersionRequest.AppName,
 		ChartLocation:  argoCdAppName,
 		ChartRepoName:  gitOpsRepoName,
-		TargetRevision: installAppVersionRequest.TargetRevision,
+		TargetRevision: installAppVersionRequest.GetTargetRevision(),
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
 		UserEmailId:    userEmailId,
 		UserName:       userName,

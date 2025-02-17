@@ -35,7 +35,7 @@ func ParseChartGitPushRequest(installAppRequestDTO *appStoreBean.InstallAppVersi
 		EnvName:           installAppRequestDTO.EnvironmentName,
 		ChartAppStoreName: installAppRequestDTO.AppStoreName,
 		RepoURL:           installAppRequestDTO.GitOpsRepoURL,
-		TargetRevision:    installAppRequestDTO.TargetRevision,
+		TargetRevision:    installAppRequestDTO.GetTargetRevision(),
 		TempChartRefDir:   tempRefChart,
 		UserId:            installAppRequestDTO.UserId,
 	}
