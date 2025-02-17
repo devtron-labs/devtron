@@ -179,7 +179,7 @@ func (impl GitLabClient) CreateRepository(ctx context.Context, config *bean2.Git
 		return "", true, detailedErrorGitOpsConfigActions
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateReadmeStage)
-	validated, err = impl.ensureProjectAvailabilityOnSsh(config.GitRepoName, repoUrl)
+	validated, err = impl.ensureProjectAvailabilityOnSsh(config.GitRepoName, repoUrl, config.TargetRevision)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "gitlab project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
@@ -259,7 +259,7 @@ func (impl GitLabClient) ensureProjectAvailability(projectName string) (bool, er
 	return false, nil
 }
 
-func (impl GitLabClient) ensureProjectAvailabilityOnSsh(projectName string, repoUrl string) (bool, error) {
+func (impl GitLabClient) ensureProjectAvailabilityOnSsh(projectName string, repoUrl, targetRevision string) (bool, error) {
 	var err error
 	start := time.Now()
 	defer func() {
@@ -269,7 +269,7 @@ func (impl GitLabClient) ensureProjectAvailabilityOnSsh(projectName string, repo
 	count := 0
 	for count < 3 {
 		count = count + 1
-		_, err := impl.gitOpsHelper.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName))
+		_, err := impl.gitOpsHelper.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName), targetRevision)
 		if err == nil {
 			impl.logger.Infow("gitlab ensureProjectAvailability clone passed", "try count", count, "repoUrl", repoUrl)
 			return true, nil
@@ -314,13 +314,13 @@ func (impl GitLabClient) CreateReadme(ctx context.Context, config *bean2.GitOpsC
 	fileAction := gitlab.FileCreate
 	filePath := "README.md"
 	fileContent := "devtron licence"
-	exists, _ := impl.checkIfFileExists(config.GitRepoName, "master", filePath)
+	exists, _ := impl.checkIfFileExists(config.GitRepoName, config.TargetRevision, filePath)
 	if exists {
 		fileAction = gitlab.FileUpdate
 	}
 	actions := &gitlab.CreateCommitOptions{
-		Branch:        gitlab.String("master"),
-		CommitMessage: gitlab.String("test commit"),
+		Branch:        gitlab.Ptr(config.TargetRevision),
+		CommitMessage: gitlab.Ptr("test commit"),
 		Actions:       []*gitlab.CommitActionOptions{{Action: &fileAction, FilePath: &filePath, Content: &fileContent}},
 		AuthorEmail:   &config.UserEmailId,
 		AuthorName:    &config.Username,
@@ -346,7 +346,7 @@ func (impl GitLabClient) CommitValues(ctx context.Context, config *ChartConfig, 
 		util.TriggerGitOpsMetrics("CommitValues", "GitLabClient", start, err)
 	}()
 
-	branch := "master"
+	branch := config.TargetRevision
 	path := filepath.Join(config.ChartLocation, config.FileName)
 	exists, err := impl.checkIfFileExists(config.ChartRepoName, branch, path)
 	var fileAction gitlab.FileActionValue

@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	util2 "github.com/devtron-labs/devtron/internal/util"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/util"
@@ -110,6 +111,7 @@ type InstallAppVersionDTO struct {
 	IsVirtualEnvironment         bool                           `json:"isVirtualEnvironment"`
 	HelmPackageName              string                         `json:"helmPackageName"`
 	GitOpsRepoURL                string                         `json:"gitRepoURL"`
+	TargetRevision               string                         `json:"-"`
 	IsCustomRepository           bool                           `json:"-"`
 	IsNewGitOpsRepo              bool                           `json:"-"`
 	ACDAppName                   string                         `json:"-"`
@@ -225,7 +227,7 @@ func (chart *InstallAppVersionDTO) GetDeploymentConfig() *bean2.DeploymentConfig
 			Version: bean2.Version,
 			ArgoCDSpec: bean2.ArgoCDSpec{
 				Metadata: bean2.ApplicationMetadata{
-					ClusterId: DEFAULT_CLUSTER_ID,
+					ClusterId: clusterBean.DefaultClusterId,
 					Namespace: argocdServer.DevtronInstalationNs,
 				},
 				Spec: bean2.ApplicationSpec{
@@ -239,7 +241,7 @@ func (chart *InstallAppVersionDTO) GetDeploymentConfig() *bean2.DeploymentConfig
 						Helm: &bean2.ApplicationSourceHelm{
 							ValueFiles: []string{"values.yaml"},
 						},
-						TargetRevision: "master",
+						TargetRevision: util.GetDefaultTargetRevision(),
 					},
 					SyncPolicy: nil,
 				},
@@ -478,7 +480,6 @@ type ChartComponent struct {
 }
 
 const (
-	DEFAULT_CLUSTER_ID                          = 1
 	DEFAULT_NAMESPACE                           = "default"
 	DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT = "devtron"
 	CLUSTER_COMPONENT_DIR_PATH                  = "/cluster/component"

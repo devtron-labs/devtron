@@ -119,7 +119,7 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) (*
 		runner.Status = cdWorkflow.WorkflowFailed
 		runner.Message = err.Error()
 		runner.FinishedOn = time.Now()
-		_ = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+		_ = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(runner)
 		return nil, err
 	}
 
@@ -129,7 +129,7 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) (*
 		runner.Status = cdWorkflow.WorkflowFailed
 		runner.Message = err.Error()
 		runner.FinishedOn = time.Now()
-		_ = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+		_ = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(runner)
 		return nil, err
 	}
 	manifestPushTempate, err := impl.getManifestPushTemplateForPostStage(request, envDevploymentConfig, jobHelmPackagePath, cdStageWorkflowRequest, cdWf, runner, pipeline, triggeredBy, triggeredAt)
@@ -143,7 +143,7 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) (*
 		return nil, err
 	}
 	wfr.ImagePathReservationIds = pluginImagePathReservationIds
-	err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(&wfr)
+	err = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(&wfr)
 	if err != nil {
 		impl.logger.Error("error in updating image path reservation ids in cd workflow runner", "err", "err")
 	}

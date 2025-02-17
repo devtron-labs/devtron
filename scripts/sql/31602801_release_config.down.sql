@@ -1,1 +1,0 @@
-ALTER TABLE deployment_config DROP COLUMN release_config;

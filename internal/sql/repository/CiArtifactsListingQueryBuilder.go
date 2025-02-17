@@ -20,24 +20,28 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/go-pg/pg"
 )
 
 const EmptyLikeRegex = "%%"
 
-func BuildQueryForParentTypeCIOrWebhook(listingFilterOpts bean.ArtifactsListFilterOptions) string {
-	commonPaginatedQueryPart := fmt.Sprintf(" cia.image LIKE '%v'", listingFilterOpts.SearchString)
+func BuildQueryForParentTypeCIOrWebhook(listingFilterOpts bean.ArtifactsListFilterOptions) (string, []interface{}) {
+	commonPaginatedQueryPart, commonPaginatedQueryParams := " cia.image LIKE ?", []interface{}{listingFilterOpts.SearchString}
 	orderByClause := " ORDER BY cia.id DESC"
-	limitOffsetQueryPart := fmt.Sprintf(" LIMIT %v OFFSET %v", listingFilterOpts.Limit, listingFilterOpts.Offset)
+	limitOffsetQueryPart, limitOffsetQueryParams := fmt.Sprintf(" LIMIT ? OFFSET ?"), []interface{}{listingFilterOpts.Limit, listingFilterOpts.Offset}
 	finalQuery := ""
+	var finalQueryParams []interface{}
+	var remainingQueryParams []interface{}
 	if listingFilterOpts.ParentStageType == bean.CI_WORKFLOW_TYPE {
 		selectQuery := " SELECT cia.* "
 		remainingQuery := " FROM ci_artifact cia" +
 			" INNER JOIN ci_pipeline cp ON (cp.id=cia.pipeline_id or (cp.id=cia.component_id and cia.data_source='post_ci' ) )" +
-			" INNER JOIN pipeline p ON (p.ci_pipeline_id = cp.id and p.id=%v )" +
+			" INNER JOIN pipeline p ON (p.ci_pipeline_id = cp.id and p.id=? )" +
 			" WHERE "
-		remainingQuery = fmt.Sprintf(remainingQuery, listingFilterOpts.PipelineId)
+		remainingQueryParams = []interface{}{listingFilterOpts.PipelineId}
 		if len(listingFilterOpts.ExcludeArtifactIds) > 0 {
-			remainingQuery += fmt.Sprintf("cia.id NOT IN (%s) AND ", helper.GetCommaSepratedString(listingFilterOpts.ExcludeArtifactIds))
+			remainingQuery += "cia.id NOT IN (?) AND "
+			remainingQueryParams = append(remainingQueryParams, pg.In(listingFilterOpts.ExcludeArtifactIds))
 		}
 
 		countQuery := " SELECT count(cia.id)  as total_count"
@@ -47,19 +51,24 @@ func BuildQueryForParentTypeCIOrWebhook(listingFilterOpts bean.ArtifactsListFilt
 	} else if listingFilterOpts.ParentStageType == bean.WEBHOOK_WORKFLOW_TYPE {
 		selectQuery := " SELECT cia.* "
 		remainingQuery := " FROM ci_artifact cia " +
-			" WHERE cia.external_ci_pipeline_id = %v AND "
-		remainingQuery = fmt.Sprintf(remainingQuery, listingFilterOpts.ParentId)
+			" WHERE cia.external_ci_pipeline_id = ? AND "
+		remainingQueryParams = []interface{}{listingFilterOpts.ParentId}
 		if len(listingFilterOpts.ExcludeArtifactIds) > 0 {
-			remainingQuery += fmt.Sprintf("cia.id NOT IN (%s) AND ", helper.GetCommaSepratedString(listingFilterOpts.ExcludeArtifactIds))
+			remainingQuery += "cia.id NOT IN (?) AND "
+			remainingQueryParams = append(remainingQueryParams, pg.In(listingFilterOpts.ExcludeArtifactIds))
 		}
 
 		countQuery := " SELECT count(cia.id)  as total_count"
 		totalCountQuery := countQuery + remainingQuery + commonPaginatedQueryPart
 		selectQuery = fmt.Sprintf("%s,(%s) ", selectQuery, totalCountQuery)
 		finalQuery = selectQuery + remainingQuery + commonPaginatedQueryPart + orderByClause + limitOffsetQueryPart
-
 	}
-	return finalQuery
+	finalQueryParams = append(finalQueryParams, remainingQueryParams...)
+	finalQueryParams = append(finalQueryParams, commonPaginatedQueryParams...)
+	finalQueryParams = append(finalQueryParams, remainingQueryParams...)
+	finalQueryParams = append(finalQueryParams, commonPaginatedQueryParams...)
+	finalQueryParams = append(finalQueryParams, limitOffsetQueryParams...)
+	return finalQuery, finalQueryParams
 }
 
 func BuildQueryForArtifactsForCdStage(listingFilterOptions bean.ArtifactsListFilterOptions) string {

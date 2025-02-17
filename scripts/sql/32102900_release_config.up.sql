@@ -1,0 +1,1 @@
+ALTER TABLE deployment_config ADD COLUMN IF NOT EXISTS release_config jsonb;

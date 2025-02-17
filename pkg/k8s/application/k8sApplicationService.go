@@ -109,9 +109,8 @@ type K8sApplicationServiceImpl struct {
 	ephemeralContainerService    cluster.EphemeralContainerService
 	ephemeralContainerRepository repository.EphemeralContainersRepository
 	ephemeralContainerConfig     *EphemeralContainerConfig
-	//argoApplicationService       argoApplication.ArgoApplicationService
-	fluxApplicationService fluxApplication.FluxApplicationService
-	clusterReadService     read.ClusterReadService
+	fluxApplicationService       fluxApplication.FluxApplicationService
+	clusterReadService           read.ClusterReadService
 }
 
 func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, pump connector.Pump, helmAppService client.HelmAppService, K8sUtil *k8s2.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig, K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService,

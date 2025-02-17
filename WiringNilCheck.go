@@ -114,6 +114,8 @@ func skipUnnecessaryFieldsForCheck(fieldName, valName string) bool {
 		"modulecronserviceimpl":        {"cron"},
 		"oteltracingserviceimpl":       {"traceprovider"},
 		"terminalaccessrepositoryimpl": {"templatescache"},
+		"grpcapiclientimpl":            {"serviceclient"},
+		"serverenvconfig":              {"errorencounteredongettingdevtronhelmrelease"},
 	}
 	if _, ok := fieldAndValName[valName]; ok {
 		for _, ignoreFieldName := range fieldAndValName[valName] {

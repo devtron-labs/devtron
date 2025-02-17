@@ -19,6 +19,7 @@ package bean
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"time"
 )
 
@@ -167,4 +168,41 @@ type BulkDeleteRequest struct {
 
 type UserRoleGroup struct {
 	RoleGroup *RoleGroup `json:"roleGroup"`
+}
+
+type GroupPermissionsAuditDto struct {
+	RoleGroupInfo *RoleGroup   `json:"roleGroupInfo,omitempty"`
+	EntityAudit   sql.AuditLog `json:"entityAudit,omitempty"`
+}
+
+func NewGroupPermissionsAuditDto() *GroupPermissionsAuditDto {
+	return &GroupPermissionsAuditDto{}
+}
+
+func (pa *GroupPermissionsAuditDto) WithRoleGroupInfo(roleGroupInfo *RoleGroup) *GroupPermissionsAuditDto {
+	pa.RoleGroupInfo = roleGroupInfo
+	return pa
+}
+func (pa *GroupPermissionsAuditDto) WithEntityAudit(entityAudit sql.AuditLog) *GroupPermissionsAuditDto {
+	pa.EntityAudit = entityAudit
+	return pa
+}
+
+type UserPermissionsAuditDto struct {
+	UserInfo    *UserInfo    `json:"userInfo,omitempty"`
+	EntityAudit sql.AuditLog `json:"entityAudit,omitempty"`
+}
+
+func NewUserPermissionsAuditDto() *UserPermissionsAuditDto {
+	return &UserPermissionsAuditDto{}
+}
+
+func (pa *UserPermissionsAuditDto) WithUserInfo(userInfo *UserInfo) *UserPermissionsAuditDto {
+	pa.UserInfo = userInfo
+	return pa
+}
+
+func (pa *UserPermissionsAuditDto) WithEntityAudit(entityAudit sql.AuditLog) *UserPermissionsAuditDto {
+	pa.EntityAudit = entityAudit
+	return pa
 }

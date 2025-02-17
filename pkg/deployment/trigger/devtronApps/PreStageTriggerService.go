@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	commonBean "github.com/devtron-labs/common-lib/workflow"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
@@ -135,11 +136,11 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) (*b
 		runner.Status = cdWorkflow.WorkflowFailed
 		runner.Message = err.Error()
 		runner.FinishedOn = time.Now()
-		_ = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+		_ = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(runner)
 		return nil, err
 	} else {
 		runner.ImagePathReservationIds = imagePathReservationIds
-		_ = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+		_ = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(runner)
 	}
 
 	_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowService.SubmitWorkflow")
@@ -152,7 +153,7 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) (*b
 		runner.Status = cdWorkflow.WorkflowFailed
 		runner.Message = err.Error()
 		runner.FinishedOn = time.Now()
-		_ = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+		_ = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(runner)
 		return nil, err
 	}
 	manifestPushTemplate, err := impl.getManifestPushTemplateForPreStage(ctx, envDeploymentConfig, pipeline, artifact, jobHelmPackagePath, cdWf, runner, triggeredBy, triggeredAt, request)
@@ -251,6 +252,7 @@ func (impl *TriggerServiceImpl) createStartingWfAndRunner(request bean.TriggerRe
 		WorkflowType:          request.WorkflowType,
 		ExecutorType:          impl.config.GetWorkflowExecutorType(),
 		Status:                cdWorkflow.WorkflowStarting, // starting PreStage
+		PodStatus:             string(v1alpha1.NodePending),
 		TriggeredBy:           triggeredBy,
 		StartedOn:             triggeredAt,
 		Namespace:             request.RunStageInEnvNamespace,
@@ -262,7 +264,7 @@ func (impl *TriggerServiceImpl) createStartingWfAndRunner(request bean.TriggerRe
 		ReferenceId:           request.TriggerContext.ReferenceId,
 	}
 	_, span := otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.SaveWorkFlowRunner")
-	_, err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+	_, err = impl.cdWorkflowRunnerService.SaveCDWorkflowRunnerWithStage(runner)
 	span.End()
 	if err != nil {
 		return nil, nil, err
@@ -311,7 +313,7 @@ func (impl *TriggerServiceImpl) checkVulnerabilityStatusAndFailWfIfNeeded(ctx co
 		runner.FinishedOn = time.Now()
 		runner.UpdatedOn = time.Now()
 		runner.UpdatedBy = triggeredBy
-		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+		err = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(runner)
 		if err != nil {
 			impl.logger.Errorw("error in updating wfr status due to vulnerable image", "err", err)
 			return err

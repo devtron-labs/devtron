@@ -45,6 +45,7 @@ type PushChartToGitRequestDTO struct {
 	EnvName           string
 	ChartAppStoreName string
 	RepoURL           string
+	TargetRevision    string
 	TempChartRefDir   string
 	UserId            int32
 }

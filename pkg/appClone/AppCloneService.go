@@ -34,11 +34,14 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	pipeline2 "github.com/devtron-labs/devtron/pkg/build/pipeline"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	bean5 "github.com/devtron-labs/devtron/pkg/chart/bean"
+	read3 "github.com/devtron-labs/devtron/pkg/chart/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"net/http"
 	"strings"
 )
 
@@ -61,6 +64,7 @@ type AppCloneServiceImpl struct {
 	pipelineRepository      pipelineConfig.PipelineRepository
 	ciPipelineConfigService pipeline.CiPipelineConfigService
 	gitOpsConfigReadService config.GitOpsConfigReadService
+	chartReadService        read3.ChartReadService
 }
 
 func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
@@ -75,7 +79,8 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 	appRepository app2.AppRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciPipelineConfigService pipeline.CiPipelineConfigService,
-	gitOpsConfigReadService config.GitOpsConfigReadService) *AppCloneServiceImpl {
+	gitOpsConfigReadService config.GitOpsConfigReadService,
+	chartReadService read3.ChartReadService) *AppCloneServiceImpl {
 	return &AppCloneServiceImpl{
 		logger:                  logger,
 		pipelineBuilder:         pipelineBuilder,
@@ -92,6 +97,7 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 		pipelineRepository:      pipelineRepository,
 		ciPipelineConfigService: ciPipelineConfigService,
 		gitOpsConfigReadService: gitOpsConfigReadService,
+		chartReadService:        chartReadService,
 	}
 }
 
@@ -331,13 +337,13 @@ func (impl *AppCloneServiceImpl) CreateCiTemplate(oldAppId, newAppId int, userId
 	return res, err
 }
 
-func (impl *AppCloneServiceImpl) CreateDeploymentTemplate(oldAppId, newAppId int, userId int32, context context.Context) (*chart.TemplateRequest, error) {
-	refTemplate, err := impl.chartService.FindLatestChartForAppByAppId(oldAppId)
+func (impl *AppCloneServiceImpl) CreateDeploymentTemplate(oldAppId, newAppId int, userId int32, context context.Context) (*bean5.TemplateRequest, error) {
+	refTemplate, err := impl.chartReadService.FindLatestChartForAppByAppId(oldAppId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching ref app chart ", "app", oldAppId, "err", err)
 		return nil, err
 	}
-	templateReq := chart.TemplateRequest{
+	templateReq := bean5.TemplateRequest{
 		Id:                0,
 		AppId:             newAppId,
 		Latest:            refTemplate.Latest,
@@ -519,7 +525,7 @@ func (impl *AppCloneServiceImpl) createEnvOverride(oldAppId, newAppId int, userI
 		createResp, err := impl.propertiesConfigService.CreateEnvironmentProperties(newAppId, envPropertiesReq)
 		if err != nil {
 			if err.Error() == bean2.NOCHARTEXIST {
-				templateRequest := chart.TemplateRequest{
+				templateRequest := bean5.TemplateRequest{
 					AppId:             newAppId,
 					ChartRefId:        envPropertiesReq.ChartRefId,
 					ValuesOverride:    []byte("{}"),
@@ -548,19 +554,24 @@ func (impl *AppCloneServiceImpl) configDataClone(cfData []*bean3.ConfigData) []*
 	var copiedData []*bean3.ConfigData
 	for _, refdata := range cfData {
 		data := &bean3.ConfigData{
-			Name:               refdata.Name,
-			Type:               refdata.Type,
-			External:           refdata.External,
-			MountPath:          refdata.MountPath,
-			Data:               refdata.Data,
-			DefaultData:        refdata.DefaultData,
-			DefaultMountPath:   refdata.DefaultMountPath,
-			Global:             refdata.Global,
-			ExternalSecretType: refdata.ExternalSecretType,
-			FilePermission:     refdata.FilePermission,
-			SubPath:            refdata.SubPath,
-			ESOSubPath:         refdata.ESOSubPath,
-			MergeStrategy:      refdata.MergeStrategy,
+			Name:                  refdata.Name,
+			Type:                  refdata.Type,
+			External:              refdata.External,
+			MountPath:             refdata.MountPath,
+			Data:                  refdata.Data,
+			DefaultData:           refdata.DefaultData,
+			DefaultMountPath:      refdata.DefaultMountPath,
+			Global:                refdata.Global,
+			ExternalSecretType:    refdata.ExternalSecretType,
+			FilePermission:        refdata.FilePermission,
+			SubPath:               refdata.SubPath,
+			ESOSubPath:            refdata.ESOSubPath,
+			MergeStrategy:         refdata.MergeStrategy,
+			ESOSecretData:         refdata.ESOSecretData,
+			DefaultESOSecretData:  refdata.DefaultESOSecretData,
+			ExternalSecret:        refdata.ExternalSecret,
+			DefaultExternalSecret: refdata.DefaultExternalSecret,
+			RoleARN:               refdata.RoleARN,
 		}
 		copiedData = append(copiedData, data)
 	}
@@ -715,7 +726,7 @@ func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []bean4.AppWork
 				sourceToNewPipelineId: sourceToNewPipelineIdMapping,
 				externalCiPipelineId:  createWorkflowMappingDto.externalCiPipelineId,
 			}
-			pipeline, err := impl.CreateCdPipeline(cdCloneReq, ctx)
+			pipeline, err := impl.createClonedCdPipeline(cdCloneReq, ctx)
 			impl.logger.Debugw("cd pipeline created", "pipeline", pipeline)
 			if err != nil {
 				impl.logger.Errorw("error in getting cd-pipeline", "refAppId", createWorkflowMappingDto.oldAppId, "newAppId", createWorkflowMappingDto.newAppId, "err", err)
@@ -769,7 +780,7 @@ func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []bean4.AppWork
 			refAppName:            refApp.AppName,
 			sourceToNewPipelineId: sourceToNewPipelineIdMapping,
 		}
-		pipeline, err := impl.CreateCdPipeline(cdCloneReq, ctx)
+		pipeline, err := impl.createClonedCdPipeline(cdCloneReq, ctx)
 		if err != nil {
 			impl.logger.Errorw("error in creating cd pipeline, app clone", "err", err)
 			return createWorkflowMappingDto, err
@@ -961,7 +972,7 @@ type cloneCdPipelineRequest struct {
 	externalCiPipelineId  int
 }
 
-func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, ctx context.Context) (*bean.CdPipelines, error) {
+func (impl *AppCloneServiceImpl) createClonedCdPipeline(req *cloneCdPipelineRequest, ctx context.Context) (*bean.CdPipelines, error) {
 	refPipelines, err := impl.pipelineBuilder.GetCdPipelinesForApp(req.refAppId)
 	if err != nil {
 		return nil, err
@@ -986,11 +997,11 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		util.PIPELINE_DEPLOYMENT_TYPE_ACD:  true,
 		util.PIPELINE_DEPLOYMENT_TYPE_HELM: true,
 	}
-	DeploymentAppConfigForEnvironment, err := impl.attributesService.GetDeploymentEnforcementConfig(refCdPipeline.EnvironmentId)
+	deploymentAppConfigForEnvironment, err := impl.attributesService.GetDeploymentEnforcementConfig(refCdPipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching deployment config for environment", "err", err)
 	}
-	for deploymentType, allowed := range DeploymentAppConfigForEnvironment {
+	for deploymentType, allowed := range deploymentAppConfigForEnvironment {
 		AllowedDeploymentAppTypes[deploymentType] = allowed
 	}
 	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
@@ -998,10 +1009,24 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		impl.logger.Errorw("error in checking if gitOps configured", "err", err)
 		return nil, err
 	}
+
+	// TODO Asutosh: skip pipeline and it's children
+	if refCdPipeline.IsExternalArgoAppLinkRequest() {
+		impl.logger.Warnw("argo cd is not installed, skipping creation of linked cd pipeline", "cdPipelineId", refCdPipeline.Id)
+		apiErr := &util.ApiError{
+			HttpStatusCode:  http.StatusPreconditionFailed,
+			UserMessage:     "GitOps integration is not installed/configured. Please install/configure GitOps.",
+			InternalMessage: "GitOps integration is not installed/configured. Please install/configure GitOps.",
+		}
+		return nil, apiErr
+	}
+
 	var deploymentAppType string
 	if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_ACD] && AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_HELM] {
 		deploymentAppType = refCdPipeline.DeploymentAppType
-	} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_ACD] && gitOpsConfigurationStatus.IsGitOpsConfigured {
+	} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_ACD] && gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled() {
+		// if GitOps is configured and ArgoCD is installed, then the deployment type should be ACD
+		// if GitOps is configured and ArgoCD is not installed, then the deployment type should be Helm
 		deploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
 	} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_HELM] {
 		deploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
