@@ -163,14 +163,6 @@ func (impl *ServiceImpl) FetchResourceTree(ctx context.Context, appId int, envId
 				resp.Status = argoApplication.HIBERNATING
 			}
 		}
-		if resp.Status == string(health.HealthStatusDegraded) {
-			count, err := impl.appListingService.GetReleaseCount(appId, envId)
-			if err != nil {
-				impl.logger.Errorw("service err, FetchAppDetailsV2, release count", "err", err, "app", appId, "env", envId)
-			} else if count == 0 {
-				resp.Status = app.NotDeployed
-			}
-		}
 		resourceTree = util2.InterfaceToMapAdapter(resp)
 		go func() {
 			if resp.Status == string(health.HealthStatusHealthy) {
