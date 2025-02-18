@@ -26,9 +26,9 @@ import (
 )
 
 type CiWorkflowRepository interface {
-	SaveWorkFlow(wf *CiWorkflow) error
+	SaveWorkFlowWithTx(wf *CiWorkflow, tx *pg.Tx) error
 	FindLastTriggeredWorkflow(pipelineId int) (*CiWorkflow, error)
-	UpdateWorkFlow(wf *CiWorkflow) error
+	UpdateWorkFlowWithTx(wf *CiWorkflow, tx *pg.Tx) error
 	UpdateArtifactUploaded(id int, isUploaded workflow.ArtifactUploadedType) error
 	FindByStatusesIn(activeStatuses []string) ([]*CiWorkflow, error)
 	FindByPipelineId(pipelineId int, offset int, size int) ([]WorkflowWithArtifact, error)
@@ -263,13 +263,13 @@ func (impl *CiWorkflowRepositoryImpl) FindCiWorkflowGitTriggersByIds(ids []int) 
 	return workflows, err
 }
 
-func (impl *CiWorkflowRepositoryImpl) SaveWorkFlow(wf *CiWorkflow) error {
-	err := impl.dbConnection.Insert(wf)
+func (impl *CiWorkflowRepositoryImpl) SaveWorkFlowWithTx(wf *CiWorkflow, tx *pg.Tx) error {
+	err := tx.Insert(wf)
 	return err
 }
 
-func (impl *CiWorkflowRepositoryImpl) UpdateWorkFlow(wf *CiWorkflow) error {
-	err := impl.dbConnection.Update(wf)
+func (impl *CiWorkflowRepositoryImpl) UpdateWorkFlowWithTx(wf *CiWorkflow, tx *pg.Tx) error {
+	err := tx.Update(wf)
 	return err
 }
 

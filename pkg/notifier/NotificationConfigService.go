@@ -294,23 +294,14 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 		if config.Providers != nil && len(config.Providers) > 0 {
 			var slackIds []*int
 			var webhookIds []*int
-			var sesUserIds []int32
-			var smtpUserIds []int32
 			var providerConfigs []*beans.ProvidersConfig
 			for _, item := range config.Providers {
-				// if item.ConfigId > 0 that means, user is of user repository, else user email is custom
-				if item.ConfigId > 0 {
-					if item.Destination == util.Slack {
-						slackIds = append(slackIds, &item.ConfigId)
-					} else if item.Destination == util.SES {
-						sesUserIds = append(sesUserIds, int32(item.ConfigId))
-					} else if item.Destination == util.SMTP {
-						smtpUserIds = append(smtpUserIds, int32(item.ConfigId))
-					} else if item.Destination == util.Webhook {
-						webhookIds = append(webhookIds, &item.ConfigId)
-					}
+				if item.Destination == util.Slack {
+					slackIds = append(slackIds, &item.ConfigId)
+				} else if item.Destination == util.Webhook {
+					webhookIds = append(webhookIds, &item.ConfigId)
 				} else {
-					providerConfigs = append(providerConfigs, &beans.ProvidersConfig{Dest: string(item.Destination), Recipient: item.Recipient})
+					providerConfigs = append(providerConfigs, &beans.ProvidersConfig{Dest: string(item.Destination), Recipient: item.Recipient, Id: item.ConfigId})
 				}
 			}
 			if len(slackIds) > 0 {
@@ -331,27 +322,6 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 				}
 				for _, item := range webhookConfigs {
 					providerConfigs = append(providerConfigs, &beans.ProvidersConfig{Id: item.Id, ConfigName: item.ConfigName, Dest: string(util.Webhook)})
-				}
-			}
-
-			if len(sesUserIds) > 0 {
-				sesConfigs, err := impl.userRepository.GetByIds(sesUserIds)
-				if err != nil && err != pg.ErrNoRows {
-					impl.logger.Errorw("error in fetching user", "sesUserIds", sesUserIds, "error", err)
-					return notificationSettingsResponses, deletedItemCount, err
-				}
-				for _, item := range sesConfigs {
-					providerConfigs = append(providerConfigs, &beans.ProvidersConfig{Id: int(item.Id), ConfigName: item.EmailId, Dest: string(util.SES)})
-				}
-			}
-			if len(smtpUserIds) > 0 {
-				smtpConfigs, err := impl.userRepository.GetByIds(smtpUserIds)
-				if err != nil && err != pg.ErrNoRows {
-					impl.logger.Errorw("error in fetching user", "smtpUserIds", smtpUserIds, "error", err)
-					return notificationSettingsResponses, deletedItemCount, err
-				}
-				for _, item := range smtpConfigs {
-					providerConfigs = append(providerConfigs, &beans.ProvidersConfig{Id: int(item.Id), ConfigName: item.EmailId, Dest: string(util.SMTP)})
 				}
 			}
 			notificationSettingsResponse.ProvidersConfig = providerConfigs

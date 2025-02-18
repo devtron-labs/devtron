@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/util/stringsUtil"
 	"golang.org/x/exp/maps"
 	"io"
@@ -45,7 +46,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean1 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	resourceGroup "github.com/devtron-labs/devtron/pkg/resourceGroup"
@@ -663,7 +663,7 @@ func (handler *PipelineConfigRestHandlerImpl) validateCiTriggerRBAC(token string
 	// This is being done for jobs, jobs execute in default-env (devtron-ci) namespace by default. so considering DefaultCiNamespace as env for rbac enforcement
 	envName := ""
 	if triggerEnvironmentId == 0 {
-		envName = pipeline.DefaultCiWorkflowNamespace
+		envName = constants2.DefaultCiWorkflowNamespace
 	}
 	appObject := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
 	workflowObject := handler.enforcerUtil.GetWorkflowRBACByCiPipelineId(ciPipelineId, workflowName)

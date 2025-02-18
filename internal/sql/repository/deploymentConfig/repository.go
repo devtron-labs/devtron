@@ -17,6 +17,7 @@
 package deploymentConfig
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
@@ -63,6 +64,7 @@ type Repository interface {
 	GetByAppIdAndEnvIdEvenIfInactive(appId, envId int) (*DeploymentConfig, error)
 	UpdateRepoUrlByAppIdAndEnvId(repoUrl string, appId, envId int) error
 	GetConfigByAppIds(appIds []int) ([]*DeploymentConfig, error)
+	GetDeploymentAppTypeForChartStoreAppByAppId(appId int) (string, error)
 }
 
 type RepositoryImpl struct {
@@ -202,4 +204,17 @@ func (impl *RepositoryImpl) GetConfigByAppIds(appIds []int) ([]*DeploymentConfig
 		Where("active = ?", true).
 		Select()
 	return results, err
+}
+
+func (impl *RepositoryImpl) GetDeploymentAppTypeForChartStoreAppByAppId(appId int) (string, error) {
+	result := &DeploymentConfig{}
+	err := impl.dbConnection.Model(result).
+		Join("inner join app a").
+		JoinOn("deployment_config.app_id = a.id").
+		Where("deployment_config.app_id = ? ", appId).
+		Where("deployment_config.active = ?", true).
+		Where("a.active = ?", true).
+		Where("a.app_type = ? ", helper.ChartStoreApp).
+		Select()
+	return result.DeploymentAppType, err
 }
