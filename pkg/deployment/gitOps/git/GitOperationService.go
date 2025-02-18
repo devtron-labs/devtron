@@ -363,7 +363,11 @@ func (impl *GitOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(ctx context
 	}
 	impl.logger.Debugw("template committed", "url", pushChartToGitRequest.RepoURL, "commit", commit)
 	defer impl.chartTemplateService.CleanDir(clonedDir)
-	return &commonBean.ChartGitAttribute{RepoUrl: pushChartToGitRequest.RepoURL, ChartLocation: gitOpsChartLocation}, commit, err
+	return &commonBean.ChartGitAttribute{
+		RepoUrl:        pushChartToGitRequest.RepoURL,
+		ChartLocation:  gitOpsChartLocation,
+		TargetRevision: pushChartToGitRequest.TargetRevision,
+	}, commit, err
 }
 
 func (impl *GitOperationServiceImpl) GetClonedDir(ctx context.Context, chartDir, repoUrl, targetRevision string) (string, error) {
