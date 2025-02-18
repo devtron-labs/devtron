@@ -217,7 +217,9 @@ func (d *DeploymentConfig) GetRepoURL() string {
 }
 
 func (d *DeploymentConfig) GetTargetRevision() string {
-	if d.ReleaseConfiguration == nil || d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil {
+	if d.ReleaseConfiguration == nil ||
+		d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil ||
+		len(d.ReleaseConfiguration.ArgoCDSpec.Spec.Source.TargetRevision) == 0 {
 		return globalUtil.GetDefaultTargetRevision()
 	}
 	return d.ReleaseConfiguration.ArgoCDSpec.Spec.Source.TargetRevision
