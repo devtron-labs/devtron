@@ -69,6 +69,8 @@ type InstalledAppDBService interface {
 	GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(version int) (int, error)
 	GetInstalledAppVersionHistoryByVersionId(id int) ([]*appStoreRepo.InstalledAppVersionHistory, error)
 	UpdateDeploymentHistoryMessage(installedAppVersionHistoryId int, message string) error
+
+	IsChartStoreAppManagedByArgoCd(appId int) (bool, error)
 }
 
 type InstalledAppDBServiceImpl struct {
@@ -532,4 +534,8 @@ func (impl *InstalledAppDBServiceImpl) MarkInstalledAppVersionModelInActive(inst
 		return err
 	}
 	return nil
+}
+
+func (impl *InstalledAppDBServiceImpl) IsChartStoreAppManagedByArgoCd(appId int) (bool, error) {
+	return impl.DeploymentConfigService.IsChartStoreAppManagedByArgoCd(appId)
 }

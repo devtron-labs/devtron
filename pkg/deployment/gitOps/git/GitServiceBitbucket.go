@@ -299,6 +299,10 @@ func (impl GitBitbucketClient) CommitValues(ctx context.Context, config *ChartCo
 	}
 	fileName := filepath.Join(config.ChartLocation, config.FileName)
 
+	branch := config.TargetRevision
+	if len(branch) == 0 {
+		branch = util.GetDefaultTargetRevision()
+	}
 	//bitbucket needs author as - "Name <email-Id>"
 	authorBitbucket := fmt.Sprintf("%s <%s>", config.UserName, config.UserEmailId)
 	repoWriteOptions := &bitbucket.RepositoryBlobWriteOptions{
@@ -307,7 +311,7 @@ func (impl GitBitbucketClient) CommitValues(ctx context.Context, config *ChartCo
 		FilePath: bitbucketCommitFilePath,
 		FileName: fileName,
 		Message:  config.ReleaseMessage,
-		Branch:   config.TargetRevision,
+		Branch:   branch,
 		Author:   authorBitbucket,
 	}
 	repoWriteOptions.WithContext(ctx)

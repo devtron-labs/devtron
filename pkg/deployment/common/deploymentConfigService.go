@@ -49,6 +49,7 @@ type DeploymentConfigService interface {
 	GetConfigForDevtronApps(appId, envId int) (*bean.DeploymentConfig, error)
 	GetAndMigrateConfigIfAbsentForDevtronApps(appId, envId int) (*bean.DeploymentConfig, error)
 	GetConfigForHelmApps(appId, envId int) (*bean.DeploymentConfig, error)
+	IsChartStoreAppManagedByArgoCd(appId int) (bool, error)
 	GetConfigEvenIfInactive(appId, envId int) (*bean.DeploymentConfig, error)
 	GetAndMigrateConfigIfAbsentForHelmApp(appId, envId int) (*bean.DeploymentConfig, error)
 	UpdateRepoUrlForAppAndEnvId(repoURL string, appId, envId int) error
@@ -235,6 +236,17 @@ func (impl *DeploymentConfigServiceImpl) GetConfigForHelmApps(appId, envId int) 
 		return nil, err
 	}
 	return helmDeploymentConfig, nil
+}
+
+func (impl *DeploymentConfigServiceImpl) IsChartStoreAppManagedByArgoCd(appId int) (bool, error) {
+	deploymentAppType, err := impl.deploymentConfigRepository.GetDeploymentAppTypeForChartStoreAppByAppId(appId)
+	if err != nil && !util2.IsErrNoRows(err) {
+		impl.logger.Errorw("error in GetDeploymentAppTypeForChartStoreAppByAppId", "appId", appId, "err", err)
+		return false, err
+	} else if util2.IsErrNoRows(err) {
+		return impl.installedAppReadService.IsChartStoreAppManagedByArgoCd(appId)
+	}
+	return util2.IsAcdApp(deploymentAppType), nil
 }
 
 func (impl *DeploymentConfigServiceImpl) GetConfigEvenIfInactive(appId, envId int) (*bean.DeploymentConfig, error) {

@@ -18,6 +18,7 @@ package deploymentConfig
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
@@ -64,6 +65,7 @@ type Repository interface {
 	GetConfigByAppIds(appIds []int) ([]*DeploymentConfig, error)
 	GetAllAppLevelConfigs() ([]*DeploymentConfig, error)
 	GetAllEnvLevelConfigsWithReleaseMode(releaseMode string) ([]*DeploymentConfig, error)
+	GetDeploymentAppTypeForChartStoreAppByAppId(appId int) (string, error)
 }
 
 type RepositoryImpl struct {
@@ -270,4 +272,17 @@ func (impl *RepositoryImpl) GetAllEnvLevelConfigsWithReleaseMode(releaseMode str
 		Where("deployment_config.release_mode = ?", releaseMode).
 		Select()
 	return result, err
+}
+
+func (impl *RepositoryImpl) GetDeploymentAppTypeForChartStoreAppByAppId(appId int) (string, error) {
+	result := &DeploymentConfig{}
+	err := impl.dbConnection.Model(result).
+		Join("inner join app a").
+		JoinOn("deployment_config.app_id = a.id").
+		Where("deployment_config.app_id = ? ", appId).
+		Where("deployment_config.active = ?", true).
+		Where("a.active = ?", true).
+		Where("a.app_type = ? ", helper.ChartStoreApp).
+		Select()
+	return result.DeploymentAppType, err
 }

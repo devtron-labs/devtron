@@ -216,6 +216,9 @@ func (impl GitHubClient) CommitValues(ctx context.Context, config *ChartConfig, 
 	}()
 
 	branch := config.TargetRevision
+	if len(branch) == 0 {
+		branch = globalUtil.GetDefaultTargetRevision()
+	}
 	path := filepath.Join(config.ChartLocation, config.FileName)
 	newFile := false
 	fc, _, _, err := impl.client.Repositories.GetContents(ctx, impl.org, config.ChartRepoName, path, &github.RepositoryContentGetOptions{Ref: branch})

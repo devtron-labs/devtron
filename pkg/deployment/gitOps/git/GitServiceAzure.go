@@ -197,6 +197,9 @@ func (impl GitAzureClient) CreateReadme(ctx context.Context, config *bean2.GitOp
 
 func (impl GitAzureClient) CommitValues(ctx context.Context, config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error) {
 	branch := config.TargetRevision
+	if len(branch) == 0 {
+		branch = globalUtil.GetDefaultTargetRevision()
+	}
 	branchRefHead := gitUtil.GetRefBranchHead(branch)
 	path := filepath.Join(config.ChartLocation, config.FileName)
 	newFile := true

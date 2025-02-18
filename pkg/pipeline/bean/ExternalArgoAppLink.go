@@ -13,12 +13,8 @@ type ApplicationMetadataRequest struct {
 }
 
 type ArgoCdAppLinkValidationResponse struct {
-	IsLinkable           bool                 `json:"isLinkable"`
-	ErrorDetail          ErrorDetail          `json:"errorDetail"`
-	AdditionalProperties AdditionalProperties `json:"additionalProperties"`
-}
-
-type AdditionalProperties struct {
+	IsLinkable          bool                `json:"isLinkable"`
+	ErrorDetail         ErrorDetail         `json:"errorDetail"`
 	ApplicationMetadata ApplicationMetadata `json:"applicationMetadata"`
 }
 

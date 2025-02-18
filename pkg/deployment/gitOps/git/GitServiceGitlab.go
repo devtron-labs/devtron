@@ -347,6 +347,9 @@ func (impl GitLabClient) CommitValues(ctx context.Context, config *ChartConfig, 
 	}()
 
 	branch := config.TargetRevision
+	if len(branch) == 0 {
+		branch = util.GetDefaultTargetRevision()
+	}
 	path := filepath.Join(config.ChartLocation, config.FileName)
 	exists, err := impl.checkIfFileExists(config.ChartRepoName, branch, path)
 	var fileAction gitlab.FileActionValue

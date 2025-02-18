@@ -289,6 +289,8 @@ func (impl *DeploymentConfigReadServiceImpl) parseEnvLevelMigrationDataForDevtro
 	}
 	config.ReleaseConfiguration = releaseConfig
 
+	config.RepoURL = config.GetRepoURL() //for backward compatibility
+
 	return config, nil
 }
 
@@ -388,6 +390,7 @@ func (impl *DeploymentConfigReadServiceImpl) parseAppLevelMigrationDataForDevtro
 		AppId:                appId,
 		ConfigType:           adapter.GetDeploymentConfigType(chart.IsCustomGitRepository),
 		Active:               true,
+		RepoURL:              chart.GitRepoUrl, //for backward compatibility
 		ReleaseConfiguration: releaseConfig,
 	}
 	return config, nil
