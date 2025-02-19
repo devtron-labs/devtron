@@ -63,7 +63,7 @@ VALUES ('accessManager',
         }
     ],
     "updatePoliciesForExistingProvidedRoles": false,
-    "roleResourceVersions": ["base","v1"]
+    "roleResourceVersions": ["v1"]
 }',
         now(),
         1,
