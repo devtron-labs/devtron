@@ -175,7 +175,6 @@ func (impl *UserServiceImpl) validateUserRequest(userInfo *bean.UserInfo) (bool,
 }
 
 func (impl *UserServiceImpl) SelfRegisterUserIfNotExists(userInfo *bean.UserInfo) ([]*bean.UserInfo, error) {
-	var pass []string
 	var userResponse []*bean.UserInfo
 	emailIds := strings.Split(userInfo.EmailId, ",")
 	dbConnection := impl.userRepository.GetConnection()
@@ -227,8 +226,6 @@ func (impl *UserServiceImpl) SelfRegisterUserIfNotExists(userInfo *bean.UserInfo
 			}
 			policies = append(policies, bean4.Policy{Type: "g", Sub: bean4.Subject(userInfo.EmailId), Obj: bean4.Object(roleModel.Role)})
 		}
-
-		pass = append(pass, emailId)
 		userInfo.EmailId = emailId
 		userInfo.Exist = dbUser.Active
 		userResponse = append(userResponse, &bean.UserInfo{Id: userInfo.Id, EmailId: emailId, Groups: userInfo.Groups, RoleFilters: userInfo.RoleFilters, SuperAdmin: userInfo.SuperAdmin})
