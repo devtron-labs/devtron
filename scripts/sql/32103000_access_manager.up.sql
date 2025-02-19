@@ -50,7 +50,7 @@ VALUES ('accessManager',
     "entity": "apps",
     "roleName": "accessManager",
     "accessType": "devtron-app",
-    "roleDescription": "can manage access for devtron apps",
+    "roleDescription": "Can manage access of users with specific roles",
     "roleDisplayName": "Access Manager",
     "policyResourceList":
     [
