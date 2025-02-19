@@ -565,7 +565,11 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsById(id int32) (*bean.RoleGroup,
 		return nil, err
 	}
 
-	roleFilters, superAdmin := impl.getRoleGroupMetadata(roleGroup)
+	roleFilters, superAdmin, err := impl.getRoleGroupMetadata(roleGroup)
+	if err != nil {
+		impl.logger.Errorw("error encountered in FetchRoleGroupsById", "err", err)
+		return nil, err
+	}
 	bean := &bean.RoleGroup{
 		Id:          roleGroup.Id,
 		Name:        roleGroup.Name,
@@ -576,10 +580,11 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsById(id int32) (*bean.RoleGroup,
 	return bean, nil
 }
 
-func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository.RoleGroup) ([]bean.RoleFilter, bool) {
+func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository.RoleGroup) ([]bean.RoleFilter, bool, error) {
 	roles, err := impl.userAuthRepository.GetRolesByGroupId(roleGroup.Id)
 	if err != nil {
 		impl.logger.Errorw("No Roles Found for user", "roleGroupId", roleGroup.Id)
+		return nil, false, err
 	}
 	var roleFilters []bean.RoleFilter
 	isSuperAdmin := helper2.CheckIfSuperAdminFromRoles(roles)
@@ -590,7 +595,7 @@ func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository.Role
 	if len(roleFilters) == 0 {
 		roleFilters = make([]bean.RoleFilter, 0)
 	}
-	return roleFilters, isSuperAdmin
+	return roleFilters, isSuperAdmin, nil
 }
 
 func (impl RoleGroupServiceImpl) FetchDetailedRoleGroups(req *bean.ListingRequest) ([]*bean.RoleGroup, error) {
@@ -600,9 +605,22 @@ func (impl RoleGroupServiceImpl) FetchDetailedRoleGroups(req *bean.ListingReques
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
 	}
+	list, err := impl.populateDetailedRoleGroupFromModel(roleGroups)
+	if err != nil {
+		impl.logger.Errorw("error encountered in FetchDetailedRoleGroups", "err", err)
+		return nil, err
+	}
+	return list, nil
+}
+
+func (impl RoleGroupServiceImpl) populateDetailedRoleGroupFromModel(roleGroups []*repository.RoleGroup) ([]*bean.RoleGroup, error) {
 	var list []*bean.RoleGroup
 	for _, roleGroup := range roleGroups {
-		roleFilters, isSuperAdmin := impl.getRoleGroupMetadata(roleGroup)
+		roleFilters, isSuperAdmin, err := impl.getRoleGroupMetadata(roleGroup)
+		if err != nil {
+			impl.logger.Errorw("error encountered in FetchDetailedRoleGroups", "err", err)
+			return nil, err
+		}
 		for index, roleFilter := range roleFilters {
 			if roleFilter.Entity == "" {
 				roleFilters[index].Entity = bean2.ENTITY_APPS
@@ -689,31 +707,21 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(request *bean.Listin
 		return nil, err
 	}
 
-	response := impl.fetchRoleGroupResponseFromModel(roleGroup, totalCount)
-	return response, nil
+	return impl.fetchRoleGroupResponseFromModel(roleGroup, totalCount)
 }
 
-func (impl RoleGroupServiceImpl) fetchRoleGroupResponseFromModel(roleGroup []*repository.RoleGroup, totalCount int) *bean.RoleGroupListingResponse {
-	var list []*bean.RoleGroup
-	for _, item := range roleGroup {
-		bean := &bean.RoleGroup{
-			Id:          item.Id,
-			Name:        item.Name,
-			Description: item.Description,
-			RoleFilters: make([]bean.RoleFilter, 0),
-		}
-		list = append(list, bean)
-	}
-
-	if len(list) == 0 {
-		list = make([]*bean.RoleGroup, 0)
+func (impl RoleGroupServiceImpl) fetchRoleGroupResponseFromModel(roleGroup []*repository.RoleGroup, totalCount int) (*bean.RoleGroupListingResponse, error) {
+	list, err := impl.populateDetailedRoleGroupFromModel(roleGroup)
+	if err != nil {
+		impl.logger.Errorw("error encountered in fetchRoleGroupResponseFromModel", "err", err)
+		return nil, err
 	}
 
 	response := &bean.RoleGroupListingResponse{
 		RoleGroups: list,
 		TotalCount: totalCount,
 	}
-	return response
+	return response, nil
 }
 
 func (impl RoleGroupServiceImpl) FetchRoleGroupsByName(name string) ([]*bean.RoleGroup, error) {
