@@ -62,7 +62,8 @@ VALUES ('accessManager',
             "resource": "user/entity/accessType"
         }
     ],
-    "updatePoliciesForExistingProvidedRoles": false
+    "updatePoliciesForExistingProvidedRoles": false,
+    "roleResourceVersions": ["base","v1"]
 }',
         now(),
         1,
