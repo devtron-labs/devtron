@@ -41,12 +41,18 @@ func (router UserRouterImpl) InitUserRouter(userAuthRouter *mux.Router) {
 		HandlerFunc(router.userRestHandler.GetAllV2).Methods("GET")
 	userAuthRouter.Path("/{id}").
 		HandlerFunc(router.userRestHandler.GetById).Methods("GET")
+	userAuthRouter.Path("v2/{id}").
+		HandlerFunc(router.userRestHandler.GetById).Methods("GET") // v2 apis are opened for consistent dashboard handling, internally V1 methods are used
 	userAuthRouter.Path("").
 		HandlerFunc(router.userRestHandler.CreateUser).Methods("POST")
+	userAuthRouter.Path("/v2").
+		HandlerFunc(router.userRestHandler.CreateUser).Methods("POST") // v2 apis are opened for consistent dashboard handling, internally V1 methods are used
 	userAuthRouter.Path("").
 		HandlerFunc(router.userRestHandler.GetAll).Methods("GET")
 	userAuthRouter.Path("").
 		HandlerFunc(router.userRestHandler.UpdateUser).Methods("PUT")
+	userAuthRouter.Path("/v2").
+		HandlerFunc(router.userRestHandler.UpdateUser).Methods("PUT") // v2 apis are opened for consistent dashboard handling, internally V1 methods are used
 	userAuthRouter.Path("/bulk").
 		HandlerFunc(router.userRestHandler.BulkDeleteUsers).Methods("DELETE")
 	userAuthRouter.Path("/{id}").
@@ -58,10 +64,16 @@ func (router UserRouterImpl) InitUserRouter(userAuthRouter *mux.Router) {
 		HandlerFunc(router.userRestHandler.FetchRoleGroupsV2).Methods("GET")
 	userAuthRouter.Path("/role/group/{id}").
 		HandlerFunc(router.userRestHandler.FetchRoleGroupById).Methods("GET")
+	userAuthRouter.Path("/role/group/v2/{id}").
+		HandlerFunc(router.userRestHandler.FetchRoleGroupById).Methods("GET") // v2 apis are opened for consistent dashboard handling, internally V1 methods are used
 	userAuthRouter.Path("/role/group").
 		HandlerFunc(router.userRestHandler.CreateRoleGroup).Methods("POST")
+	userAuthRouter.Path("/role/group/v2").
+		HandlerFunc(router.userRestHandler.CreateRoleGroup).Methods("POST") // v2 apis are opened for consistent dashboard handling, internally V1 methods are used
 	userAuthRouter.Path("/role/group").
 		HandlerFunc(router.userRestHandler.UpdateRoleGroup).Methods("PUT")
+	userAuthRouter.Path("/role/group/v2").
+		HandlerFunc(router.userRestHandler.UpdateRoleGroup).Methods("PUT") // v2 apis are opened for consistent dashboard handling, internally V1 methods are used
 	userAuthRouter.Path("/role/group").
 		HandlerFunc(router.userRestHandler.FetchRoleGroups).Methods("GET")
 	userAuthRouter.Path("/role/group/detailed/get").
