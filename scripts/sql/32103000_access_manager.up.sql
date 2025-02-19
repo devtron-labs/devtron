@@ -70,4 +70,8 @@ VALUES ('accessManager',
         now(),
         1,
         true);
+
+-- UPDATING ONLY DESCRIPTION FOR DEFAULT ROLES
+UPDATE default_rbac_role_data set default_role_data = jsonb_set(default_role_data, '{roleDescription}', '"Can approve artifact promotion requests for the selected applications and environment combinations"', true) where role = 'artifactPromoter';
+UPDATE default_rbac_role_data set default_role_data = jsonb_set(default_role_data, '{roleDescription}', '"Can approve configuration change requests for the selected applications and environment combinations"', true) where role = 'configApprover';
 COMMIT ;
