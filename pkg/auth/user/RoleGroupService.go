@@ -605,7 +605,7 @@ func (impl RoleGroupServiceImpl) FetchDetailedRoleGroups(req *bean.ListingReques
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
 	}
-	list, err := impl.populateDetailedRoleGroupFromModel(roleGroups)
+	list, err := impl.populateDetailedRoleGroupFromModel(roleGroups, false)
 	if err != nil {
 		impl.logger.Errorw("error encountered in FetchDetailedRoleGroups", "err", err)
 		return nil, err
@@ -613,7 +613,7 @@ func (impl RoleGroupServiceImpl) FetchDetailedRoleGroups(req *bean.ListingReques
 	return list, nil
 }
 
-func (impl RoleGroupServiceImpl) populateDetailedRoleGroupFromModel(roleGroups []*repository.RoleGroup) ([]*bean.RoleGroup, error) {
+func (impl RoleGroupServiceImpl) populateDetailedRoleGroupFromModel(roleGroups []*repository.RoleGroup, hidePermissions bool) ([]*bean.RoleGroup, error) {
 	var list []*bean.RoleGroup
 	for _, roleGroup := range roleGroups {
 		roleFilters, isSuperAdmin, err := impl.getRoleGroupMetadata(roleGroup)
@@ -633,8 +633,10 @@ func (impl RoleGroupServiceImpl) populateDetailedRoleGroupFromModel(roleGroups [
 			Id:          roleGroup.Id,
 			Name:        roleGroup.Name,
 			Description: roleGroup.Description,
-			RoleFilters: roleFilters,
 			SuperAdmin:  isSuperAdmin,
+		}
+		if !hidePermissions {
+			roleGrp.RoleFilters = roleFilters
 		}
 		list = append(list, roleGrp)
 	}
@@ -711,7 +713,7 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(request *bean.Listin
 }
 
 func (impl RoleGroupServiceImpl) fetchRoleGroupResponseFromModel(roleGroup []*repository.RoleGroup, totalCount int) (*bean.RoleGroupListingResponse, error) {
-	list, err := impl.populateDetailedRoleGroupFromModel(roleGroup)
+	list, err := impl.populateDetailedRoleGroupFromModel(roleGroup, true)
 	if err != nil {
 		impl.logger.Errorw("error encountered in fetchRoleGroupResponseFromModel", "err", err)
 		return nil, err
