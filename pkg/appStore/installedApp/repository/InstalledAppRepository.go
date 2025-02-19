@@ -165,6 +165,7 @@ type InstalledAppRepository interface {
 	FindInstalledAppsByAppId(appId int) ([]*InstalledApps, error)
 	// GetInstalledAppsMinByAppId will return the installed app by app id.
 	// Extra Environment, App, Team, Cluster details are not fetched
+	FindAllByEnvironmentId(envId int) ([]*InstalledApps, error)
 	GetInstalledAppsMinByAppId(appId int) (*InstalledApps, error)
 	GetAllArgoAppsByCluster(clusterIds []int) ([]string, error)
 }
@@ -997,6 +998,22 @@ func (impl *InstalledAppRepositoryImpl) FindInstalledAppsByAppId(appId int) ([]*
 		Select()
 	if err != nil {
 		impl.Logger.Errorw("error on fetching installed apps by appId", "appId", appId)
+	}
+	return installedApps, err
+}
+
+func (impl InstalledAppRepositoryImpl) FindAllByEnvironmentId(envId int) ([]*InstalledApps, error) {
+	var installedApps []*InstalledApps
+	err := impl.dbConnection.Model(&installedApps).
+		Column("installed_apps.*", "App", "Environment").
+		Join("inner join app a on installed_apps.app_id = a.id").
+		Join("inner join environment e on installed_apps.environment_id = e.id").
+		Where("installed_apps.environment_id = ?", envId).
+		Where("installed_apps.active = true").
+		Select()
+	if err != nil {
+		impl.Logger.Errorw("error on fetching installed apps by appId", "environment_id", envId, "err", err)
+		return nil, err
 	}
 	return installedApps, err
 }
