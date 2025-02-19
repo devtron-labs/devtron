@@ -11,7 +11,7 @@ VALUES ('user/entity/accessType', '{
                 "indexKeyMap":
                 {
                 	"5": "Entity",
-		            "7": "AccessType",
+		            "7": "AccessType"
                 }
             }', ARRAY['get','update','create','delete','patch'],'{
                 "value": "%/%/%/%/%",
