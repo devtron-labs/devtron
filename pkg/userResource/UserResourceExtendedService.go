@@ -96,7 +96,7 @@ func (impl *UserResourceExtendedServiceImpl) getChartGroupResourceOptions(contex
 	reqBean *apiBean.ResourceOptionsReqDto, params *apiBean.PathParams) (*bean5.ResourceOptionsDto, error) {
 	// get chart group resource options
 	// max is passed as 0 to get all chart groups, default behaviour
-	chartGroups, err := impl.chartGroupService.ChartGroupList(0)
+	chartGroups, err := impl.chartGroupService.GetChartGroupList(0)
 	if err != nil {
 		impl.logger.Errorw("error in getChartGroupResourceOptions", "err", err)
 		return nil, err

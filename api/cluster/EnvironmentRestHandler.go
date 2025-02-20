@@ -322,7 +322,7 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 	var grantedEnvironment = environments
 	start = time.Now()
 	if !impl.cfg.IgnoreAuthCheck {
-		grantedEnvironment = impl.rbacEnforcementUtil.CheckAuthorisationForEnvAutocomplete(token, environments)
+		grantedEnvironment = impl.rbacEnforcementUtil.CheckAuthorisationForEnvs(token, environments)
 	}
 	elapsedTime := time.Since(start)
 	impl.logger.Infow("Env elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime",

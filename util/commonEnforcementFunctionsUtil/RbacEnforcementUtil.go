@@ -11,7 +11,7 @@ import (
 type CommonEnforcementUtil interface {
 	CheckAuthorizationForGlobalEnvironment(token string, object string) bool
 	CheckAuthorizationByEmailInBatchForGlobalEnvironment(token string, object []string) map[string]bool
-	CheckAuthorisationForEnvAutocomplete(token string, environments []bean2.EnvironmentBean) []bean2.EnvironmentBean
+	CheckAuthorisationForEnvs(token string, environments []bean2.EnvironmentBean) []bean2.EnvironmentBean
 	CheckAuthorisationOnApp(token string, projectWiseApps []*app.TeamAppBean) []*app.TeamAppBean
 }
 type CommonEnforcementUtilImpl struct {
@@ -42,7 +42,7 @@ func (impl *CommonEnforcementUtilImpl) CheckAuthorizationByEmailInBatchForGlobal
 	return objectResult
 }
 
-func (impl *CommonEnforcementUtilImpl) CheckAuthorisationForEnvAutocomplete(token string, environments []bean2.EnvironmentBean) []bean2.EnvironmentBean {
+func (impl *CommonEnforcementUtilImpl) CheckAuthorisationForEnvs(token string, environments []bean2.EnvironmentBean) []bean2.EnvironmentBean {
 	grantedEnvironment := make([]bean2.EnvironmentBean, 0, len(environments))
 	// RBAC enforcer applying
 	var envIdentifierList []string
