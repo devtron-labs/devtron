@@ -99,7 +99,8 @@ type CdPipelineConfigService interface {
 	// if any error occur , will get empty object or nil
 	GetCdPipelineById(pipelineId int) (cdPipeline *bean.CDPipelineConfigObject, err error)
 	CreateCdPipelines(cdPipelines *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error)
-	ValidateLinkExternalArgoCDRequest(request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ArgoCdAppLinkValidationResponse
+	ValidateLinkExternalArgoCDRequest(request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ExternalAppLinkValidationResponse
+	ValidateLinkHelmAppRequest(ctx context.Context, request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ExternalAppLinkValidationResponse
 	// PatchCdPipelines : Handle CD pipeline patch requests, making necessary changes to the configuration and returning the updated version.
 	// Performs Create ,Update and Delete operation.
 	PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error)
@@ -643,13 +644,13 @@ func (impl *CdPipelineConfigServiceImpl) parseReleaseConfigForACDApp(app *app2.A
 	}, nil
 }
 
-func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ArgoCdAppLinkValidationResponse {
+func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ExternalAppLinkValidationResponse {
 	appId := request.AppId
 	applicationObjectClusterId := request.ApplicationMetadataRequest.ApplicationObjectClusterId
 	applicationObjectNamespace := request.ApplicationMetadataRequest.ApplicationObjectNamespace
 	acdAppName := request.DeploymentAppName
 
-	response := pipelineConfigBean.ArgoCdAppLinkValidationResponse{
+	response := pipelineConfigBean.ExternalAppLinkValidationResponse{
 		IsLinkable:          false,
 		ApplicationMetadata: pipelineConfigBean.NewEmptyApplicationMetadata(),
 	}
@@ -759,16 +760,13 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 	}
 
 	applicationChartName, applicationChartVersion := helmChart.Metadata.Name, helmChart.Metadata.Version
-	latestChart, err := impl.chartReadService.FindLatestChartForAppByAppId(appId)
+
+	chartRef, err := impl.chartReadService.GetChartRefConfiguredForApp(appId)
 	if err != nil {
-		impl.logger.Errorw("error in finding latest chart by appId", "appId", appId, "err", err)
+		impl.logger.Errorw("error in finding chart configured for app ", "appId", appId, "err", err)
 		return response.SetUnknownErrorDetail(err)
 	}
-	chartRef, err := impl.chartRefReadService.FindById(latestChart.ChartRefId)
-	if err != nil {
-		impl.logger.Errorw("error in finding chart ref by chartRefId", "chartRefId", latestChart.ChartRefId, "err", err)
-		return response.SetUnknownErrorDetail(err)
-	}
+
 	var valuesFilename string
 	if argoApplicationSpec.Spec.Source != nil && argoApplicationSpec.Spec.Source.Helm != nil {
 		valuesFilename = argoApplicationSpec.Spec.Source.Helm.ValueFiles[0]
@@ -832,6 +830,96 @@ func (impl *CdPipelineConfigServiceImpl) parseReleaseConfigForExternalAcdApp(clu
 		Version:    bean4.Version,
 		ArgoCDSpec: argoApplicationSpec,
 	}, nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) ValidateLinkHelmAppRequest(ctx context.Context, request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ExternalAppLinkValidationResponse {
+
+	response := pipelineConfigBean.ExternalAppLinkValidationResponse{
+		IsLinkable: false,
+		HelmReleaseMetadata: pipelineConfigBean.HelmReleaseMetadata{
+			Name:        request.DeploymentAppName,
+			Info:        pipelineConfigBean.HelmReleaseInfo{},
+			Chart:       pipelineConfigBean.HelmReleaseChart{},
+			Destination: pipelineConfigBean.Destination{},
+		},
+	}
+
+	appId := request.AppId
+	releaseClusterId := request.HelmReleaseMetadataRequest.ReleaseClusterId
+	releaseNamespace := request.HelmReleaseMetadataRequest.ReleaseNamespace
+
+	appIdentifier := &helmBean.AppIdentifier{
+		ClusterId:   request.HelmReleaseMetadataRequest.ReleaseClusterId,
+		Namespace:   request.HelmReleaseMetadataRequest.ReleaseNamespace,
+		ReleaseName: request.DeploymentAppName,
+	}
+
+	release, err := impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
+	if err != nil {
+		impl.logger.Errorw("error in getting application detail", "appIdentifier", appIdentifier, "err", err)
+		return response.SetUnknownErrorDetail(err)
+	}
+
+	cluster, err := impl.clusterReadService.FindById(releaseClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster by id", "clusterId", releaseClusterId, "err", err)
+		return response.SetUnknownErrorDetail(err)
+	}
+
+	env, err := impl.environmentRepository.FindOneByNamespaceAndClusterId(releaseNamespace, releaseClusterId)
+	if err != nil {
+		if errors3.Is(err, pg.ErrNoRows) {
+			return response.SetErrorDetail(pipelineConfigBean.EnvironmentNotFound, "environment not added in global configuration")
+		}
+		return response.SetUnknownErrorDetail(err)
+	}
+
+	response.HelmReleaseMetadata.Info = pipelineConfigBean.HelmReleaseInfo{
+		Status: release.ReleaseStatus.Status,
+	}
+
+	response.HelmReleaseMetadata.Destination = pipelineConfigBean.Destination{
+		ClusterName:      cluster.ClusterName,
+		ClusterServerUrl: cluster.ServerUrl,
+		Namespace:        release.EnvironmentDetails.Namespace,
+		EnvironmentName:  env.Name,
+		EnvironmentId:    env.Id,
+	}
+
+	chartRef, err := impl.chartReadService.GetChartRefConfiguredForApp(appId)
+	if err != nil {
+		impl.logger.Errorw("error in finding chart configured for app ", "appId", appId, "err", err)
+		return response.SetUnknownErrorDetail(err)
+	}
+
+	releaseChartName, releaseChartVersion := release.ChartMetadata.ChartName, release.ChartMetadata.ChartVersion
+	if chartRef.Name != releaseChartName {
+		return response.SetErrorDetail(pipelineConfigBean.ChartTypeMismatch, fmt.Sprintf(pipelineConfigBean.ChartTypeMismatchErrorMsg, releaseChartName, chartRef.Name))
+	}
+
+	_, err = impl.chartRefReadService.FindByVersionAndName(releaseChartVersion, releaseChartName)
+	if err != nil && !errors3.Is(err, pg.ErrNoRows) {
+		impl.logger.Errorw("error in finding chart ref by chart name and version", "chartName", releaseChartName, "chartVersion", releaseChartVersion, "err", err)
+		return response.SetUnknownErrorDetail(err)
+	} else if errors3.Is(err, pg.ErrNoRows) {
+		return response.SetErrorDetail(pipelineConfigBean.ChartVersionNotFound, fmt.Sprintf(pipelineConfigBean.ChartVersionNotFoundErrorMsg, releaseChartVersion, chartRef.Name))
+	}
+
+	overrideDeploymentType, err := impl.deploymentTypeOverrideService.ValidateAndOverrideDeploymentAppType(util.PIPELINE_DEPLOYMENT_TYPE_HELM, false, env.Id)
+	if err != nil {
+		impl.logger.Errorw("validation error for the used deployment type", "targetEnvId", env.Id, "deploymentAppType", request.DeploymentAppType, "err", err)
+		if apiError, ok := err.(*util.ApiError); ok && apiError.Code == constants.InvalidDeploymentAppTypeForPipeline {
+			return response.SetErrorDetail(pipelineConfigBean.EnforcedPolicyViolation, apiError.InternalMessage)
+		}
+		return response.SetUnknownErrorDetail(err)
+	}
+
+	if overrideDeploymentType != util.PIPELINE_DEPLOYMENT_TYPE_HELM {
+		errMsg := fmt.Sprintf("Cannot migrate Helm Release. Deployment via %q is enforced on the target environment.", overrideDeploymentType)
+		return response.SetErrorDetail(pipelineConfigBean.EnforcedPolicyViolation, errMsg)
+	}
+
+	return response
 }
 
 func (impl *CdPipelineConfigServiceImpl) CDPipelineCustomTagDBOperations(pipeline *bean.CDPipelineConfigObject) error {

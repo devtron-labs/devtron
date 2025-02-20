@@ -11,6 +11,8 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
+	chartRefRead "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/read"
 	util2 "github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 	"strings"
@@ -20,6 +22,7 @@ type ChartReadService interface {
 	GetByAppIdAndChartRefId(appId int, chartRefId int) (chartTemplate *bean.TemplateRequest, err error)
 	IsGitOpsRepoConfiguredForDevtronApps(appIds []int) (map[int]bool, error)
 	FindLatestChartForAppByAppId(appId int) (chartTemplate *bean.TemplateRequest, err error)
+	GetChartRefConfiguredForApp(appId int) (*bean3.ChartRefDto, error)
 }
 
 type ChartReadServiceImpl struct {
@@ -28,19 +31,22 @@ type ChartReadServiceImpl struct {
 	deploymentConfigService   common.DeploymentConfigService
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService
 	gitOpsConfigReadService   config.GitOpsConfigReadService
+	ChartRefReadService       chartRefRead.ChartRefReadService
 }
 
 func NewChartReadServiceImpl(logger *zap.SugaredLogger,
 	chartRepository chartRepoRepository.ChartRepository,
 	deploymentConfigService common.DeploymentConfigService,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
-	gitOpsConfigReadService config.GitOpsConfigReadService) *ChartReadServiceImpl {
+	gitOpsConfigReadService config.GitOpsConfigReadService,
+	ChartRefReadService chartRefRead.ChartRefReadService) *ChartReadServiceImpl {
 	return &ChartReadServiceImpl{
 		logger:                    logger,
 		chartRepository:           chartRepository,
 		deploymentConfigService:   deploymentConfigService,
 		deployedAppMetricsService: deployedAppMetricsService,
 		gitOpsConfigReadService:   gitOpsConfigReadService,
+		ChartRefReadService:       ChartRefReadService,
 	}
 
 }
@@ -143,6 +149,20 @@ func (impl *ChartReadServiceImpl) chartAdaptor(chartInput *chartRepoRepository.C
 		templateRequest.LatestChartVersion = chartInput.ChartVersion
 	}
 	return templateRequest, nil
+}
+
+func (impl *ChartReadServiceImpl) GetChartRefConfiguredForApp(appId int) (*bean3.ChartRefDto, error) {
+	latestChart, err := impl.FindLatestChartForAppByAppId(appId)
+	if err != nil {
+		impl.logger.Errorw("error in finding latest chart by appId", "appId", appId, "err", err)
+		return nil, nil
+	}
+	chartRef, err := impl.ChartRefReadService.FindById(latestChart.ChartRefId)
+	if err != nil {
+		impl.logger.Errorw("error in finding latest chart by appId", "appId", appId, "err", err)
+		return nil, nil
+	}
+	return chartRef, nil
 }
 
 func (impl *ChartReadServiceImpl) getParentChartVersion(childVersion string) string {

@@ -5,6 +5,7 @@ type MigrateReleaseValidationRequest struct {
 	DeploymentAppName          string                     `json:"deploymentAppName"`
 	DeploymentAppType          string                     `json:"deploymentAppType"`
 	ApplicationMetadataRequest ApplicationMetadataRequest `json:"applicationMetadata"`
+	HelmReleaseMetadataRequest HelmReleaseMetadataRequest `json:"helmReleaseMetadata"`
 }
 
 type ApplicationMetadataRequest struct {
@@ -12,10 +13,16 @@ type ApplicationMetadataRequest struct {
 	ApplicationObjectNamespace string `json:"applicationObjectNamespace"`
 }
 
-type ArgoCdAppLinkValidationResponse struct {
+type HelmReleaseMetadataRequest struct {
+	ReleaseClusterId int    `json:"releaseClusterId"`
+	ReleaseNamespace string `json:"releaseNamespace"`
+}
+
+type ExternalAppLinkValidationResponse struct {
 	IsLinkable          bool                `json:"isLinkable"`
 	ErrorDetail         ErrorDetail         `json:"errorDetail"`
 	ApplicationMetadata ApplicationMetadata `json:"applicationMetadata"`
+	HelmReleaseMetadata HelmReleaseMetadata `json:"helmReleaseMetadata"`
 }
 
 type ApplicationMetadata struct {
@@ -49,7 +56,32 @@ type Destination struct {
 	EnvironmentId    int    `json:"environmentId"`
 }
 
-func (a *ArgoCdAppLinkValidationResponse) SetErrorDetail(ValidationFailedReason LinkFailedReason, ValidationFailedMessage string) ArgoCdAppLinkValidationResponse {
+type HelmReleaseMetadata struct {
+	Name        string           `json:"name"`
+	Info        HelmReleaseInfo  `json:"info"`
+	Chart       HelmReleaseChart `json:"helmReleaseChart"`
+	Destination Destination      `json:"destination"`
+}
+
+type HelmReleaseChart struct {
+	HelmReleaseChartMetadata HelmReleaseChartMetadata `json:"metadata"`
+}
+
+type HelmReleaseChartMetadata struct {
+	RequiredChartName string `json:"requiredChartName"`
+	SavedChartName    string `json:"savedChartName"`
+	Home              string `json:"home"`
+	Version           string `json:"version"`
+	Icon              string `json:"icon"`
+	ApiVersion        string `json:"apiVersion"`
+	Deprecated        bool   `json:"deprecated"`
+}
+
+type HelmReleaseInfo struct {
+	Status string `json:"status"`
+}
+
+func (a *ExternalAppLinkValidationResponse) SetErrorDetail(ValidationFailedReason LinkFailedReason, ValidationFailedMessage string) ExternalAppLinkValidationResponse {
 	a.ErrorDetail = ErrorDetail{
 		ValidationFailedReason:  ValidationFailedReason,
 		ValidationFailedMessage: ValidationFailedMessage,
@@ -57,7 +89,7 @@ func (a *ArgoCdAppLinkValidationResponse) SetErrorDetail(ValidationFailedReason 
 	return *a
 }
 
-func (a *ArgoCdAppLinkValidationResponse) SetUnknownErrorDetail(err error) ArgoCdAppLinkValidationResponse {
+func (a *ExternalAppLinkValidationResponse) SetUnknownErrorDetail(err error) ExternalAppLinkValidationResponse {
 	a.ErrorDetail = ErrorDetail{
 		ValidationFailedReason:  InternalServerError,
 		ValidationFailedMessage: err.Error(),
