@@ -368,7 +368,7 @@ argo-cd:
 security:
   enabled: false
   imageScanner:
-    image: "image-scanner:0a3d5e84-141-28953"
+    image: "image-scanner:0dde3b1a-141-30093"
     configs:
       TRIVY_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-db
       TRIVY_JAVA_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-java-db
