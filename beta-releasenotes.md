@@ -13,6 +13,7 @@
 ## Documentation
 - doc: updated devtron user list in users.md (#6363)
 ## Others
+- misc: pipeline listing in app Group (#6410)
 - misc: Notif back com (#6398)
 - sync: Main sync develop (#6396)
 - sync: vendor update on release 29 (#6395)
