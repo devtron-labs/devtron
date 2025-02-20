@@ -82,7 +82,7 @@ func (handler *DeploymentConfigRestHandlerImpl) CreateChartFromFile(w http.Respo
 	}
 
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -177,7 +177,7 @@ func (handler *DeploymentConfigRestHandlerImpl) SaveChart(w http.ResponseWriter,
 	}
 
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -234,7 +234,7 @@ func (handler *DeploymentConfigRestHandlerImpl) DownloadChart(w http.ResponseWri
 	}
 
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}

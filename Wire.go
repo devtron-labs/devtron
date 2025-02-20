@@ -125,7 +125,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/build"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	pipeline6 "github.com/devtron-labs/devtron/pkg/build/pipeline"
-	"github.com/devtron-labs/devtron/pkg/bulkAction"
+	"github.com/devtron-labs/devtron/pkg/bulkAction/service"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -357,8 +357,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(gitOpsConfig.DevtronAppGitOpConfigService), new(*gitOpsConfig.DevtronAppGitOpConfigServiceImpl)),
 		chart.NewChartServiceImpl,
 		wire.Bind(new(chart.ChartService), new(*chart.ChartServiceImpl)),
-		bulkAction.NewBulkUpdateServiceImpl,
-		wire.Bind(new(bulkAction.BulkUpdateService), new(*bulkAction.BulkUpdateServiceImpl)),
+		service.NewBulkUpdateServiceImpl,
+		wire.Bind(new(service.BulkUpdateService), new(*service.BulkUpdateServiceImpl)),
 
 		repository.NewImageTagRepository,
 		wire.Bind(new(repository.ImageTagRepository), new(*repository.ImageTagRepositoryImpl)),

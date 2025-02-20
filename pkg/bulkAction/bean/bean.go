@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package bulkAction
+package bean
 
 type NameIncludesExcludes struct {
 	Names []string `json:"names"`
