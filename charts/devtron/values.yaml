@@ -175,7 +175,7 @@ components:
   # Values for lens
   lens:
     registry: ""
-    image: "lens:0a3d5e84-333-28951"
+    image: "lens:0dde3b1a-333-30090"
     imagePullPolicy: IfNotPresent
     secrets: {}
     resources: {}
