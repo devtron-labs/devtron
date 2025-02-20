@@ -196,7 +196,7 @@ func (impl *InstalledAppResourceServiceImpl) FetchResourceTreeWithHibernateForAC
 	}
 	defer cancel()
 	deploymentAppName := util2.BuildDeployedAppName(appDetail.AppName, appDetail.EnvironmentName)
-	resourceTree, err := impl.fetchResourceTreeForACD(rctx, cn, appDetail.InstalledAppId, appDetail.EnvironmentId, appDetail.ClusterId, deploymentAppName, appDetail.Namespace)
+	resourceTree, err := impl.fetchResourceTreeForACD(rctx, cn, appDetail.AppId, appDetail.EnvironmentId, appDetail.ClusterId, deploymentAppName, appDetail.Namespace)
 	appDetail.ResourceTree = resourceTree
 	if err != nil {
 		return *appDetail
