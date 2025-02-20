@@ -158,13 +158,6 @@ func (impl *GitOpsHelper) init(ctx git.GitContext, rootDir string, remoteUrl str
 }
 
 func (impl *GitOpsHelper) getBranch(ctx git.GitContext, rootDir, targetRevision string) (string, error) {
-	if len(targetRevision) != 0 {
-		return targetRevision, nil
-	}
-	return impl.getDefaultBranch(ctx, rootDir)
-}
-
-func (impl *GitOpsHelper) getDefaultBranch(ctx git.GitContext, rootDir string) (string, error) {
 	response, errMsg, err := impl.gitCommandManager.ListBranch(ctx, rootDir)
 	if err != nil {
 		impl.logger.Errorw("error on git pull", "response", response, "errMsg", errMsg, "err", err)
@@ -173,24 +166,26 @@ func (impl *GitOpsHelper) getDefaultBranch(ctx git.GitContext, rootDir string) (
 	branches := strings.Split(response, "\n")
 	impl.logger.Infow("total branch available in git repo", "branch length", len(branches))
 	branch := ""
-	// the preferred branch is bean.TargetRevisionMaster
-	for _, item := range branches {
-		if util.IsDefaultTargetRevision(item) {
-			branch = util.GetDefaultTargetRevision()
-		}
-	}
-	// if git repo has some branch take pull of the first branch, but eventually proxy chart will push into master branch
-	if len(branch) == 0 {
-		if len(branches) != 0 {
-			branch = strings.TrimSpace(branches[0])
-		} else {
-			branch = util.GetDefaultTargetRevision()
-		}
-	}
 	if strings.HasPrefix(branch, "origin/") {
 		strings.TrimPrefix(branch, "origin/")
 	}
 	return branch, nil
+}
+
+func (impl *GitOpsHelper) getDefaultBranch(branches []string, targetRevision string) (branch string) {
+	// the preferred branch is bean.TargetRevisionMaster
+	for _, item := range branches {
+		if len(targetRevision) != 0 && item == targetRevision {
+			return targetRevision
+		} else if util.IsDefaultTargetRevision(item) {
+			return util.GetDefaultTargetRevision()
+		}
+	}
+	// if git repo has some branch take pull of the first branch, but eventually proxy chart will push into master branch
+	if len(branches) != 0 {
+		return strings.TrimSpace(branches[0])
+	}
+	return util.GetDefaultTargetRevision()
 }
 
 /*
