@@ -444,12 +444,14 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 			impl.logger.Error("err", err)
 			return
 		}
+
 		if stateChanged {
 			wfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(wfrId)
 			if err != nil {
 				impl.logger.Errorw("could not get wf runner", "wfrId", wfrId, "err", err)
 				return
 			}
+
 			if wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
 				if len(wfr.ImagePathReservationIds) > 0 {
 					err := impl.cdHandler.DeactivateImageReservationPathsOnFailure(wfr.ImagePathReservationIds)
@@ -458,22 +460,28 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 					}
 				}
 			}
-			if wfrStatus == string(v1alpha1.NodeSucceeded) || wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
-				eventType := eventUtil.EventType(0)
-				if wfrStatus == string(v1alpha1.NodeSucceeded) {
-					eventType = eventUtil.Success
-				} else if wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
-					eventType = eventUtil.Fail
-				}
 
+			wfStatusInEvent := string(wfStatus.Phase)
+			if wfStatusInEvent == string(v1alpha1.NodeSucceeded) || wfStatusInEvent == string(v1alpha1.NodeFailed) || wfStatusInEvent == string(v1alpha1.NodeError) {
+				// the re-trigger should only happen when we get a pod deleted event.
 				if wfr != nil && executors.CheckIfReTriggerRequired(wfrStatus, wfStatus.Message, wfr.Status) {
 					err = impl.workflowDagExecutor.HandleCdStageReTrigger(wfr)
 					if err != nil {
-						//check if this log required or not
+						// check if this log required or not
 						impl.logger.Errorw("error in HandleCdStageReTrigger", "workflowRunnerId", wfr.Id, "workflowStatus", wfrStatus, "workflowStatusMessage", wfStatus.Message, "error", err)
 					}
 					impl.logger.Debugw("re-triggered cd stage", "workflowRunnerId", wfr.Id, "workflowStatus", wfrStatus, "workflowStatusMessage", wfStatus.Message)
 				} else {
+					// we send this notification on *workflow_runner* status, both success and failure
+					// during workflow runner failure, particularly when failure occurred due to pod deletion , we get two events from kubewatch.
+					// event1: with failure status + exit-code [need to send notification]
+					// event2: with failure status + pod deletion message [skip notification]
+					eventType := eventUtil.EventType(0)
+					if wfStatusInEvent == string(v1alpha1.NodeSucceeded) {
+						eventType = eventUtil.Success
+					} else if wfStatusInEvent == string(v1alpha1.NodeFailed) || wfStatusInEvent == string(v1alpha1.NodeError) {
+						eventType = eventUtil.Fail
+					}
 					impl.sendPrePostCdNotificationEvent(eventType, wfr)
 				}
 			}
