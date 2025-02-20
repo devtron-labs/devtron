@@ -3,8 +3,10 @@ package commonEnforcementFunctionsUtil
 import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"go.uber.org/zap"
 	"strings"
 )
 
@@ -13,17 +15,27 @@ type CommonEnforcementUtil interface {
 	CheckAuthorizationByEmailInBatchForGlobalEnvironment(token string, object []string) map[string]bool
 	CheckAuthorisationForEnvs(token string, environments []bean2.EnvironmentBean) []bean2.EnvironmentBean
 	CheckAuthorisationOnApp(token string, projectWiseApps []*app.TeamAppBean) []*app.TeamAppBean
+	CheckRbacForMangerAndAboveAccess(token string, userId int32) (bool, error)
 }
 type CommonEnforcementUtilImpl struct {
-	enforcer     casbin.Enforcer
-	enforcerUtil rbac.EnforcerUtil
+	enforcer          casbin.Enforcer
+	enforcerUtil      rbac.EnforcerUtil
+	logger            *zap.SugaredLogger
+	userService       user.UserService
+	userCommonService user.UserCommonService
 }
 
 func NewCommonEnforcementUtilImpl(enforcer casbin.Enforcer,
-	enforcerUtil rbac.EnforcerUtil) *CommonEnforcementUtilImpl {
+	enforcerUtil rbac.EnforcerUtil,
+	logger *zap.SugaredLogger,
+	userService user.UserService,
+	userCommonService user.UserCommonService) *CommonEnforcementUtilImpl {
 	return &CommonEnforcementUtilImpl{
-		enforcer:     enforcer,
-		enforcerUtil: enforcerUtil,
+		enforcer:          enforcer,
+		enforcerUtil:      enforcerUtil,
+		logger:            logger,
+		userService:       userService,
+		userCommonService: userCommonService,
 	}
 }
 
