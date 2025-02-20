@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"golang.org/x/exp/slices"
+	"net/http"
 	"strings"
 )
 
@@ -111,4 +112,27 @@ func CheckIfSuperAdminFromRoles(roles []*repository.RoleModel) bool {
 		}
 	}
 	return false
+}
+
+func ValidateRoleFilters(rolefilters []bean2.RoleFilter) error {
+	invalid := false
+	for _, roleFilter := range rolefilters {
+		if len(roleFilter.Team) > 0 && len(roleFilter.Action) > 0 {
+			//
+		} else if len(roleFilter.Entity) > 0 { //this will pass roleFilter for clusterEntity as well as chart-group
+			//
+		} else {
+			invalid = true
+		}
+	}
+	if invalid {
+		err := &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "Invalid request, please provide role filters"}
+		return err
+	}
+	return nil
+}
+
+// ValidateUserRoleGroupRequest returns nil for oss implementation
+func ValidateUserRoleGroupRequest(userRoleGroups []bean2.UserRoleGroup) error {
+	return nil
 }

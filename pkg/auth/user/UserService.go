@@ -151,27 +151,25 @@ func (impl *UserServiceImpl) lockUnlockUserReqState(userId int32, lock bool) err
 	return err
 }
 
-func (impl *UserServiceImpl) validateUserRequest(userInfo *bean.UserInfo) (bool, error) {
+func (impl *UserServiceImpl) validateUserRequest(userInfo *bean.UserInfo) error {
 	if len(userInfo.RoleFilters) == 1 &&
 		userInfo.RoleFilters[0].Team == "" && userInfo.RoleFilters[0].Environment == "" && userInfo.RoleFilters[0].Action == "" {
 		//skip
 	} else {
-		invalid := false
-		for _, roleFilter := range userInfo.RoleFilters {
-			if len(roleFilter.Team) > 0 && len(roleFilter.Action) > 0 {
-				//
-			} else if len(roleFilter.Entity) > 0 { //this will pass roleFilter for clusterEntity as well as chart-group
-				//
-			} else {
-				invalid = true
-			}
+		err := userHelper.ValidateRoleFilters(userInfo.RoleFilters)
+		if err != nil {
+			impl.logger.Errorw("error in validateUserRequest", "err", err)
+			return err
 		}
-		if invalid {
-			err := &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "Invalid request, please provide role filters"}
-			return false, err
-		}
+		//TODO: check for access role filters what can be done
 	}
-	return true, nil
+	// validation for checking conflicting user RoleGroups
+	err := userHelper.ValidateUserRoleGroupRequest(userInfo.UserRoleGroup)
+	if err != nil {
+		impl.logger.Errorw("error in validateUserRequest", "err", err)
+		return err
+	}
+	return nil
 }
 
 func (impl *UserServiceImpl) SelfRegisterUserIfNotExists(userInfo *bean.UserInfo) ([]*bean.UserInfo, error) {
@@ -208,23 +206,24 @@ func (impl *UserServiceImpl) SelfRegisterUserIfNotExists(userInfo *bean.UserInfo
 			}
 			return nil, err
 		}
-
-		roles, err := impl.userAuthRepository.GetRoleByRoles(userInfo.Roles)
-		if err != nil {
-			err = &util.ApiError{
-				Code:            constants.UserCreateDBFailed,
-				InternalMessage: "configured roles for selfregister are wrong",
-				UserMessage:     fmt.Sprintf("requested by %d", userInfo.UserId),
-			}
-			return nil, err
-		}
-		for _, roleModel := range roles {
-			userRoleModel := &repository.UserRoleModel{UserId: userInfo.Id, RoleId: roleModel.Id}
-			userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
+		if len(userInfo.Roles) > 0 {
+			roles, err := impl.userAuthRepository.GetRoleByRoles(userInfo.Roles)
 			if err != nil {
+				err = &util.ApiError{
+					Code:            constants.UserCreateDBFailed,
+					InternalMessage: "configured roles for selfregister are wrong",
+					UserMessage:     fmt.Sprintf("requested by %d", userInfo.UserId),
+				}
 				return nil, err
 			}
-			policies = append(policies, bean4.Policy{Type: "g", Sub: bean4.Subject(userInfo.EmailId), Obj: bean4.Object(roleModel.Role)})
+			for _, roleModel := range roles {
+				userRoleModel := &repository.UserRoleModel{UserId: userInfo.Id, RoleId: roleModel.Id}
+				userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
+				if err != nil {
+					return nil, err
+				}
+				policies = append(policies, bean4.Policy{Type: "g", Sub: bean4.Subject(userInfo.EmailId), Obj: bean4.Object(roleModel.Role)})
+			}
 		}
 		userInfo.EmailId = emailId
 		userInfo.Exist = dbUser.Active
@@ -255,9 +254,9 @@ func (impl *UserServiceImpl) saveUser(userInfo *bean.UserInfo, emailId string) (
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	_, err = impl.validateUserRequest(userInfo)
+	err = impl.validateUserRequest(userInfo)
 	if err != nil {
-		err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "Invalid request, please provide role filters"}
+		impl.logger.Errorw("error in saveUser", "request", userInfo, "err", err)
 		return nil, err
 	}
 
@@ -281,11 +280,11 @@ func (impl *UserServiceImpl) saveUser(userInfo *bean.UserInfo, emailId string) (
 		return nil, err
 	}
 	userInfo.Id = model.Id
+	userInfo.SetEntityAudit(model.AuditLog)
 	return userInfo, nil
 }
 
 func (impl *UserServiceImpl) CreateUser(userInfo *bean.UserInfo, token string, managerAuth func(resource, token string, object string) bool) ([]*bean.UserInfo, error) {
-
 	var pass []string
 	var userResponse []*bean.UserInfo
 	emailIds := strings.Split(userInfo.EmailId, ",")
@@ -317,7 +316,7 @@ func (impl *UserServiceImpl) CreateUser(userInfo *bean.UserInfo, token string, m
 		pass = append(pass, emailId)
 		userInfo.EmailId = emailId
 		userInfo.Exist = dbUser.Active
-		userResponse = append(userResponse, &bean.UserInfo{Id: userInfo.Id, EmailId: emailId, Groups: userInfo.Groups, RoleFilters: userInfo.RoleFilters, SuperAdmin: userInfo.SuperAdmin, UserRoleGroup: userInfo.UserRoleGroup})
+		userResponse = append(userResponse, adapter.BuildUserInfoResponseAdapter(userInfo, emailId))
 	}
 
 	return userResponse, nil
@@ -338,7 +337,8 @@ func (impl *UserServiceImpl) updateUserIfExists(userInfo *bean.UserInfo, dbUser 
 	updateUserInfo.Groups = impl.mergeGroups(updateUserInfo.Groups, userInfo.Groups)
 	updateUserInfo.UserRoleGroup = impl.mergeUserRoleGroup(updateUserInfo.UserRoleGroup, userInfo.UserRoleGroup)
 	updateUserInfo.UserId = userInfo.UserId
-	updateUserInfo.EmailId = emailId                                               // override case sensitivity
+	updateUserInfo.EmailId = emailId // override case sensitivity
+	impl.logger.Debugw("update user called through create user flow", "user", updateUserInfo)
 	updateUserInfo, err = impl.UpdateUser(updateUserInfo, token, nil, managerAuth) //rbac already checked in create request handled
 	if err != nil {
 		impl.logger.Errorw("error while update user", "error", err)
@@ -357,7 +357,7 @@ func (impl *UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, emai
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	_, err = impl.validateUserRequest(userInfo)
+	err = impl.validateUserRequest(userInfo)
 	if err != nil {
 		err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "Invalid request, please provide role filters"}
 		return nil, err
@@ -704,7 +704,7 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, c
 		}
 
 		//validate role filters
-		_, err = impl.validateUserRequest(userInfo)
+		err = impl.validateUserRequest(userInfo)
 		if err != nil {
 			err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "Invalid request, please provide role filters"}
 			return nil, err

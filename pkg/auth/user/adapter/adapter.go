@@ -38,3 +38,14 @@ func CreateRestrictedGroup(roleGroupName string, hasSuperAdminPermission bool) b
 		HasSuperAdminPermission: hasSuperAdminPermission,
 	}
 }
+
+func BuildUserInfoResponseAdapter(requestUserInfo *bean.UserInfo, emailId string) *bean.UserInfo {
+	return &bean.UserInfo{
+		Id:            requestUserInfo.Id,
+		EmailId:       emailId,
+		Groups:        requestUserInfo.Groups,
+		RoleFilters:   requestUserInfo.RoleFilters,
+		SuperAdmin:    requestUserInfo.SuperAdmin,
+		UserRoleGroup: requestUserInfo.UserRoleGroup,
+	}
+}

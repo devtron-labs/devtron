@@ -47,6 +47,11 @@ type UserInfo struct {
 	UserId        int32           `json:"-"` // created or modified user id
 }
 
+func (ui *UserInfo) SetEntityAudit(auditLog sql.AuditLog) *UserInfo {
+	// doing nothing, ent implementation differs
+	return ui
+}
+
 type RoleGroup struct {
 	Id          int32        `json:"id" validate:"number"`
 	Name        string       `json:"name,omitempty"`
