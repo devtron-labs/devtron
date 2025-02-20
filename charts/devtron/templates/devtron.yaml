@@ -294,6 +294,8 @@ spec:
               name: "devtron-custom-cm"
           - secretRef:
               name: "devtron-custom-secret"
+          - configMapRef:
+              name: "devtron-common-cm"
           volumeMounts:
             - mountPath: /cluster/component
               name: devtron-cluster-components-vol

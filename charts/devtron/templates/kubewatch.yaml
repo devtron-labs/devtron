@@ -193,7 +193,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             {{- if .dbconfig }}
-            - name: DB_PWD
+            - name: PG_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ .dbconfig.secretName }}
@@ -204,6 +204,8 @@ spec:
               name: kubewatch-cm
           - secretRef:
               name: kubewatch-secret
+          - configMapRef:
+              name: devtron-common-cm
           volumeMounts:
           - name: kubewatch-resources-config
             mountPath: /root/.kubewatch.yaml

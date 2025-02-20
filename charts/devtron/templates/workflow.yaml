@@ -1312,6 +1312,9 @@ spec:
             fieldRef:
               apiVersion: v1
               fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: "devtron-common-cm"
         {{- if $.Values.workflowController.IMDSv2Enforced }}
         - name: POD_NAMES
           value: v1

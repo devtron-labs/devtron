@@ -86,3 +86,13 @@ Return full image
     {{- end }}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Get the storage class name.
+If storageClass is defined in values.yaml under global.storageClass, use that.
+*/}}
+{{- define "common.storageclass" -}}
+{{- if $.Values.global.storageClass }}
+storageClassName: {{ $.Values.global.storageClass }}
+{{- end }}
+{{- end -}}

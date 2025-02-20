@@ -21,6 +21,9 @@ spec:
       - name: grafana-restart
         image: {{ include "common.image" (dict "component" $.Values.components.migrator "global" $.Values.global "extraImage" $.Values.components.migrator.kubectlImage ) }}
         command: ["sh", "/tmp/kubectl-grafana.sh"]
+        envFrom:
+        - configMapRef:
+            name: "devtron-common-cm"
         volumeMounts:
           - name: grafana-org-volume
             mountPath: "/tmp/"
@@ -34,6 +37,9 @@ spec:
               secretKeyRef:
                 name: devtron-grafana-cred-secret
                 key: admin-password
+        envFrom:
+        - configMapRef:
+            name: "devtron-common-cm"
         volumeMounts:
             - name: grafana-org-volume
               mountPath: "/tmp/"
@@ -346,6 +352,7 @@ metadata:
 spec:
   accessModes:
     - "ReadWriteOnce"
+  {{- include "common.storageclass" $ | indent 2 }}
   resources:
     requests:
       storage: {{ $.Values.monitoring.grafana.persistence.storage }}
@@ -521,6 +528,9 @@ spec:
             runAsNonRoot: false
             runAsUser: 0
           command: ["chown", "-R", "472:472", "/var/lib/grafana"]
+          envFrom:
+          - configMapRef:
+              name: "devtron-common-cm"
           resources: {}
           volumeMounts:
             - name: storage
@@ -532,6 +542,9 @@ spec:
           args: [ "-c", "mkdir -p /var/lib/grafana/dashboards/default && /bin/sh /etc/grafana/download_dashboards.sh" ]
           resources: {}
           env:
+          envFrom:
+          - configMapRef:
+              name: "devtron-common-cm"
           volumeMounts:
             - name: config
               mountPath: "/etc/grafana/download_dashboards.sh"
@@ -569,10 +582,16 @@ spec:
               value: "/tmp/dashboards"
             - name: RESOURCE
               value: "both"
+          envFrom:
+          - configMapRef:
+              name: "devtron-common-cm"
           {{- if .resources }}
           resources:
 {{ toYaml .resources | indent 12 }}
           {{- end }}
+          envFrom:
+          - configMapRef:
+              name: "devtron-common-cm"
           volumeMounts:
             - name: sc-dashboard-volume
               mountPath: "/tmp/dashboards"
@@ -615,6 +634,9 @@ spec:
                 secretKeyRef:
                   name: devtron-grafana-cred-secret
                   key: admin-password
+          envFrom:
+          - configMapRef:
+              name: "devtron-common-cm"
           {{- if .resources }}
           resources:
 {{ toYaml .resources | indent 12 }}
@@ -667,6 +689,9 @@ spec:
       image: {{ include "common.image" (dict "component" $.Values.monitoring.grafana "global" $.Values.global "extraImage" $.Values.monitoring.grafana.batsImage ) }}
       imagePullPolicy: "IfNotPresent"
       command: ["/opt/bats/bin/bats", "-t", "/tests/run.sh"]
+      envFrom:
+      - configMapRef:
+          name: "devtron-common-cm"
       volumeMounts:
         - mountPath: /tests
           name: tests
