@@ -634,9 +634,10 @@ func (impl RoleGroupServiceImpl) populateDetailedRoleGroupFromModel(roleGroups [
 			Name:        roleGroup.Name,
 			Description: roleGroup.Description,
 			SuperAdmin:  isSuperAdmin,
+			RoleFilters: roleFilters,
 		}
-		if !hidePermissions {
-			roleGrp.RoleFilters = roleFilters
+		if hidePermissions {
+			HidePermissions(roleGrp)
 		}
 		list = append(list, roleGrp)
 	}
