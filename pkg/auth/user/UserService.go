@@ -477,17 +477,17 @@ func (impl *UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.
 	var err error
 	rolesChanged := false
 	if entity == userBean.CLUSTER_ENTITIY {
-		policiesToBeAdded, rolesChanged, err = impl.createOrUpdateUserRolesForClusterEntity(roleFilter, userId, model, existingRoles, tx, entity, capacity)
+		policiesToBeAdded, rolesChanged, err = impl.createOrUpdateUserRolesForClusterEntity(tx, roleFilter, model, existingRoles, entity, capacity, userId)
 		if err != nil {
 			return nil, false, err
 		}
 	} else if entity == userBean.EntityJobs {
-		policiesToBeAdded, rolesChanged, err = impl.createOrUpdateUserRolesForJobsEntity(roleFilter, userId, model, existingRoles, tx, entity, capacity)
+		policiesToBeAdded, rolesChanged, err = impl.createOrUpdateUserRolesForJobsEntity(tx, roleFilter, model, existingRoles, entity, capacity, userId)
 		if err != nil {
 			return nil, false, err
 		}
 	} else {
-		policiesToBeAdded, rolesChanged, err = impl.createOrUpdateUserRolesForOtherEntity(roleFilter, userId, model, existingRoles, tx, entity, capacity)
+		policiesToBeAdded, rolesChanged, err = impl.createOrUpdateUserRolesForOtherEntity(tx, roleFilter, model, existingRoles, entity, capacity, userId)
 		if err != nil {
 			return nil, false, err
 		}
@@ -495,7 +495,7 @@ func (impl *UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.
 	return policiesToBeAdded, rolesChanged, nil
 }
 
-func (impl *UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter bean.RoleFilter, userId int32, model *repository.UserModel, existingRoles map[int]repository.UserRoleModel, tx *pg.Tx, entity string, capacity int) ([]bean4.Policy, bool, error) {
+func (impl *UserServiceImpl) createOrUpdateUserRolesForClusterEntity(tx *pg.Tx, roleFilter bean.RoleFilter, model *repository.UserModel, existingRoles map[int]repository.UserRoleModel, entity string, capacity int, userId int32) ([]bean4.Policy, bool, error) {
 
 	//var policiesToBeAdded []casbin2.Policy
 	rolesChanged := false
@@ -1716,7 +1716,7 @@ func (impl *UserServiceImpl) GetRoleFiltersByUserRoleGroups(userRoleGroups []bea
 	return roleFilters, nil
 }
 
-func (impl *UserServiceImpl) createOrUpdateUserRolesForOtherEntity(roleFilter bean.RoleFilter, userId int32, model *repository.UserModel, existingRoles map[int]repository.UserRoleModel, tx *pg.Tx, entity string, capacity int) ([]bean4.Policy, bool, error) {
+func (impl *UserServiceImpl) createOrUpdateUserRolesForOtherEntity(tx *pg.Tx, roleFilter bean.RoleFilter, model *repository.UserModel, existingRoles map[int]repository.UserRoleModel, entity string, capacity int, userId int32) ([]bean4.Policy, bool, error) {
 	rolesChanged := false
 	var policiesToBeAdded = make([]bean4.Policy, 0, capacity)
 	actionType := roleFilter.Action
@@ -1770,7 +1770,7 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForOtherEntity(roleFilter be
 	return policiesToBeAdded, rolesChanged, nil
 }
 
-func (impl *UserServiceImpl) createOrUpdateUserRolesForJobsEntity(roleFilter bean.RoleFilter, userId int32, model *repository.UserModel, existingRoles map[int]repository.UserRoleModel, tx *pg.Tx, entity string, capacity int) ([]bean4.Policy, bool, error) {
+func (impl *UserServiceImpl) createOrUpdateUserRolesForJobsEntity(tx *pg.Tx, roleFilter bean.RoleFilter, model *repository.UserModel, existingRoles map[int]repository.UserRoleModel, entity string, capacity int, userId int32) ([]bean4.Policy, bool, error) {
 	rolesChanged := false
 	actionType := roleFilter.Action
 	accessType := roleFilter.AccessType
