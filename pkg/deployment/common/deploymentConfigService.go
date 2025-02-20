@@ -355,7 +355,7 @@ func (impl *DeploymentConfigServiceImpl) GetAllArgoAppNamesByCluster(clusterIds 
 		uniqueKey := fmt.Sprintf("%d-%d", config.AppId, config.EnvironmentId)
 		linkedReleaseConfigMap[uniqueKey] = config
 	}
-	devtronArgoAppsInfo, err := impl.pipelineRepository.GetAllArgoAppNamesByCluster(clusterIds)
+	devtronArgoAppsInfo, err := impl.pipelineRepository.GetAllAppsByClusterAndDeploymentAppType(clusterIds, bean4.PIPELINE_DEPLOYMENT_TYPE_ACD)
 	if err != nil {
 		impl.logger.Errorw("error while fetching argo app names", "clusterIds", clusterIds, "error", err)
 		return allDevtronManagedArgoAppsInfo, err
@@ -380,7 +380,7 @@ func (impl *DeploymentConfigServiceImpl) GetAllArgoAppNamesByCluster(clusterIds 
 	}
 	for _, chartStoreArgoAppName := range chartStoreArgoAppNames {
 		// NOTE: Chart Store doesn't support linked releases
-		chartStoreArgoCdAppInfo := adapter.GetDevtronArgoCdAppInfo(chartStoreArgoAppName, clusterBean.DefaultClusterId, impl.acdAuthConfig.ACDConfigMapNamespace)
+		chartStoreArgoCdAppInfo := adapter.GetDevtronArgoCdAppInfo(chartStoreArgoAppName.DeploymentAppName, clusterBean.DefaultClusterId, impl.acdAuthConfig.ACDConfigMapNamespace)
 		allDevtronManagedArgoAppsInfo = append(allDevtronManagedArgoAppsInfo, chartStoreArgoCdAppInfo)
 	}
 	return allDevtronManagedArgoAppsInfo, nil

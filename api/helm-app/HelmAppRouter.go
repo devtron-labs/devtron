@@ -46,7 +46,6 @@ func (impl *HelmAppRouterImpl) InitAppListRouter(helmRouter *mux.Router) {
 	helmRouter.Path("/unhibernate").Queries("appType", "{appType}").HandlerFunc(impl.helmAppRestHandler.UnHibernate).Methods("POST")
 
 	helmRouter.Path("/external-helm-release").
-		Queries("envId", "{envId}").
 		HandlerFunc(impl.helmAppRestHandler.ListHelmApplicationsForEnvironment).
 		Methods("GET")
 

@@ -25,6 +25,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
 	util3 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -167,7 +168,7 @@ type InstalledAppRepository interface {
 	// Extra Environment, App, Team, Cluster details are not fetched
 	FindAllByEnvironmentId(envId int) ([]*InstalledApps, error)
 	GetInstalledAppsMinByAppId(appId int) (*InstalledApps, error)
-	GetAllArgoAppsByCluster(clusterIds []int) ([]string, error)
+	GetAllAppsByClusterAndDeploymentAppType(clusterIds []int, deploymentAppType string) ([]bean.DeployedInstalledAppInfo, error)
 }
 
 type InstalledAppRepositoryImpl struct {
@@ -1018,13 +1019,15 @@ func (impl InstalledAppRepositoryImpl) FindAllByEnvironmentId(envId int) ([]*Ins
 	return installedApps, err
 }
 
-func (impl *InstalledAppRepositoryImpl) GetAllArgoAppsByCluster(clusterIds []int) ([]string, error) {
-	result := make([]string, 0)
+func (impl *InstalledAppRepositoryImpl) GetAllAppsByClusterAndDeploymentAppType(clusterIds []int, deploymentAppType string) ([]bean.DeployedInstalledAppInfo, error) {
+	result := make([]bean.DeployedInstalledAppInfo, 0)
 	if len(clusterIds) == 0 {
 		return result, nil
 	}
 	err := impl.dbConnection.Model().
 		Table("installed_apps").
+		ColumnExpr("environment.cluster_id as cluster_id").
+		ColumnExpr("environment.namespace as namespace").
 		ColumnExpr("CONCAT(app.app_name, '-', environment.environment_name) AS deployment_app_name").
 		// inner join with app
 		Join("INNER JOIN app").
@@ -1043,8 +1046,8 @@ func (impl *InstalledAppRepositoryImpl) GetAllArgoAppsByCluster(clusterIds []int
 		Where("app.active = ?", true).
 		Where("environment.active = ?", true).
 		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
-			return query.WhereOr("installed_apps.deployment_app_type = ?", util2.PIPELINE_DEPLOYMENT_TYPE_ACD).
-				WhereOr("deployment_config.deployment_app_type = ?", util2.PIPELINE_DEPLOYMENT_TYPE_ACD), nil
+			return query.WhereOr("installed_apps.deployment_app_type = ?", deploymentAppType).
+				WhereOr("deployment_config.deployment_app_type = ?", deploymentAppType), nil
 		}).
 		Select(&result)
 	return result, err

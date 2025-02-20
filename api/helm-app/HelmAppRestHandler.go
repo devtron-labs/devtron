@@ -592,8 +592,16 @@ func (handler *HelmAppRestHandlerImpl) SaveHelmAppDetailsViewedTelemetryData(w h
 
 func (handler *HelmAppRestHandlerImpl) ListHelmApplicationsForEnvironment(w http.ResponseWriter, r *http.Request) {
 
-	vars := mux.Vars(r)
-	envIdString := vars["envId"]
+	query := r.URL.Query()
+
+	clusterIdString := query.Get("clusterId")
+	clusterId, err := strconv.Atoi(clusterIdString)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	envIdString := query.Get("envId")
 	envId, err := strconv.Atoi(envIdString)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -605,7 +613,7 @@ func (handler *HelmAppRestHandlerImpl) ListHelmApplicationsForEnvironment(w http
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	releaseList, err := handler.helmAppService.ListHelmApplicatonForEnvironment(r.Context(), envId)
+	releaseList, err := handler.helmAppService.ListHelmApplicationsForClusterOrEnv(r.Context(), clusterId, envId)
 	if err != nil {
 		handler.logger.Errorw("error in fetching helm release for given env", "err", err)
 		common.WriteJsonResp(w, err, "error in fetching helm release", http.StatusInternalServerError)
