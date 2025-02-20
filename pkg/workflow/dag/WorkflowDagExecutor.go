@@ -467,7 +467,8 @@ func (impl *WorkflowDagExecutorImpl) handleWebhookExternalCiEvent(artifact *repo
 			err = &util.ApiError{Code: "401", HttpStatusCode: 401, UserMessage: "Unauthorized"}
 			return hasAnyTriggered, err
 		}
-		if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_MANUAL {
+		isQualifiedForCdAutoTrigger := helper.IsCdQualifiedForAutoTriggerForWebhookCiEvent(pipeline)
+		if !isQualifiedForCdAutoTrigger {
 			impl.logger.Warnw("skipping deployment for manual trigger for webhook", "pipeline", pipeline)
 			continue
 		}
