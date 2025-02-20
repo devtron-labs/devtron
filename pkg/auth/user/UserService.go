@@ -19,6 +19,7 @@ package user
 import (
 	"context"
 	"fmt"
+	bean4 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
 	userHelper "github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
@@ -174,7 +175,6 @@ func (impl *UserServiceImpl) validateUserRequest(userInfo *bean.UserInfo) (bool,
 }
 
 func (impl *UserServiceImpl) SelfRegisterUserIfNotExists(userInfo *bean.UserInfo) ([]*bean.UserInfo, error) {
-	var pass []string
 	var userResponse []*bean.UserInfo
 	emailIds := strings.Split(userInfo.EmailId, ",")
 	dbConnection := impl.userRepository.GetConnection()
@@ -185,7 +185,7 @@ func (impl *UserServiceImpl) SelfRegisterUserIfNotExists(userInfo *bean.UserInfo
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	var policies []casbin2.Policy
+	var policies []bean4.Policy
 	for _, emailId := range emailIds {
 		dbUser, err := impl.userRepository.FetchActiveOrDeletedUserByEmail(emailId)
 		if err != nil && err != pg.ErrNoRows {
@@ -224,10 +224,8 @@ func (impl *UserServiceImpl) SelfRegisterUserIfNotExists(userInfo *bean.UserInfo
 			if err != nil {
 				return nil, err
 			}
-			policies = append(policies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(userInfo.EmailId), Obj: casbin2.Object(roleModel.Role)})
+			policies = append(policies, bean4.Policy{Type: "g", Sub: bean4.Subject(userInfo.EmailId), Obj: bean4.Object(roleModel.Role)})
 		}
-
-		pass = append(pass, emailId)
 		userInfo.EmailId = emailId
 		userInfo.Exist = dbUser.Active
 		userResponse = append(userResponse, &bean.UserInfo{Id: userInfo.Id, EmailId: emailId, Groups: userInfo.Groups, RoleFilters: userInfo.RoleFilters, SuperAdmin: userInfo.SuperAdmin})
@@ -393,7 +391,7 @@ func (impl *UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, emai
 	//Starts Role and Mapping
 	capacity, mapping := impl.userCommonService.GetCapacityForRoleFilter(userInfo.RoleFilters)
 	//var policies []casbin2.Policy
-	var policies = make([]casbin2.Policy, 0, capacity)
+	var policies = make([]bean4.Policy, 0, capacity)
 	if userInfo.SuperAdmin == false {
 		for index, roleFilter := range userInfo.RoleFilters {
 			impl.logger.Infow("Creating Or updating User Roles for RoleFilter ")
@@ -412,7 +410,7 @@ func (impl *UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, emai
 			if err != nil {
 				return nil, err
 			}
-			policies = append(policies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(userInfo.EmailId), Obj: casbin2.Object(userGroup.CasbinName)})
+			policies = append(policies, bean4.Policy{Type: "g", Sub: bean4.Subject(userInfo.EmailId), Obj: bean4.Object(userGroup.CasbinName)})
 			// below is old code where we used to re check group access, but not needed now as we have moved group rbac to restHandler
 
 			//hasAccessToGroup, hasSuperAdminPermission := impl.checkGroupAuth(userGroup.CasbinName, token, managerAuth, isActionPerformingUserSuperAdmin)
@@ -449,8 +447,8 @@ func (impl *UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, emai
 }
 
 // CreateAndAddPoliciesForSuperAdmin : checks if super Admin roles else creates and creates mapping in orchestrator , returns casbin polices
-func (impl *UserServiceImpl) CreateAndAddPoliciesForSuperAdmin(tx *pg.Tx, userLoggedInId int32, emailId string, userModelId int32) ([]casbin2.Policy, error) {
-	policies := make([]casbin2.Policy, 0)
+func (impl *UserServiceImpl) CreateAndAddPoliciesForSuperAdmin(tx *pg.Tx, userLoggedInId int32, emailId string, userModelId int32) ([]bean4.Policy, error) {
+	policies := make([]bean4.Policy, 0)
 	flag, err := impl.userAuthRepository.CreateRoleForSuperAdminIfNotExists(tx, userLoggedInId)
 	if err != nil || flag == false {
 		return nil, err
@@ -465,14 +463,14 @@ func (impl *UserServiceImpl) CreateAndAddPoliciesForSuperAdmin(tx *pg.Tx, userLo
 		if err != nil {
 			return nil, err
 		}
-		policies = append(policies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(emailId), Obj: casbin2.Object(roleModel.Role)})
+		policies = append(policies, bean4.Policy{Type: "g", Sub: bean4.Subject(emailId), Obj: bean4.Object(roleModel.Role)})
 	}
 	return policies, nil
 }
 
-func (impl *UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.RoleFilter, userId int32, model *repository.UserModel, existingRoles map[int]repository.UserRoleModel, tx *pg.Tx, entity string, capacity int) ([]casbin2.Policy, bool, error) {
+func (impl *UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.RoleFilter, userId int32, model *repository.UserModel, existingRoles map[int]repository.UserRoleModel, tx *pg.Tx, entity string, capacity int) ([]bean4.Policy, bool, error) {
 	//var policiesToBeAdded []casbin2.Policy
-	var policiesToBeAdded = make([]casbin2.Policy, 0, capacity)
+	var policiesToBeAdded = make([]bean4.Policy, 0, capacity)
 	var err error
 	rolesChanged := false
 	if entity == userBean.CLUSTER_ENTITIY {
@@ -494,7 +492,7 @@ func (impl *UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.
 	return policiesToBeAdded, rolesChanged, nil
 }
 
-func (impl *UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter bean.RoleFilter, userId int32, model *repository.UserModel, existingRoles map[int]repository.UserRoleModel, tx *pg.Tx, entity string, capacity int) ([]casbin2.Policy, bool, error) {
+func (impl *UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter bean.RoleFilter, userId int32, model *repository.UserModel, existingRoles map[int]repository.UserRoleModel, tx *pg.Tx, entity string, capacity int) ([]bean4.Policy, bool, error) {
 
 	//var policiesToBeAdded []casbin2.Policy
 	rolesChanged := false
@@ -506,7 +504,7 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter 
 	//capacity := len(namespaces) * len(groups) * len(kinds) * len(resources) * 2
 	actionType := roleFilter.Action
 	accessType := roleFilter.AccessType
-	var policiesToBeAdded = make([]casbin2.Policy, 0, capacity)
+	var policiesToBeAdded = make([]bean4.Policy, 0, capacity)
 	for _, namespace := range namespaces {
 		for _, group := range groups {
 			for _, kind := range kinds {
@@ -534,7 +532,7 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter 
 					}
 					if _, ok := existingRoles[roleModel.Id]; ok {
 						//Adding policies which are removed
-						policiesToBeAdded = append(policiesToBeAdded, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
+						policiesToBeAdded = append(policiesToBeAdded, bean4.Policy{Type: "g", Sub: bean4.Subject(model.EmailId), Obj: bean4.Object(roleModel.Role)})
 					} else {
 						if roleModel.Id > 0 {
 							rolesChanged = true
@@ -551,7 +549,7 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter 
 							if err != nil {
 								return nil, rolesChanged, err
 							}
-							policiesToBeAdded = append(policiesToBeAdded, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
+							policiesToBeAdded = append(policiesToBeAdded, bean4.Policy{Type: "g", Sub: bean4.Subject(model.EmailId), Obj: bean4.Object(roleModel.Role)})
 						}
 					}
 				}
@@ -685,9 +683,9 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, c
 		return nil, err
 	}
 
-	var eliminatedPolicies []casbin2.Policy
+	var eliminatedPolicies []bean4.Policy
 	capacity, mapping := impl.userCommonService.GetCapacityForRoleFilter(userInfo.RoleFilters)
-	var addedPolicies = make([]casbin2.Policy, 0, capacity)
+	var addedPolicies = make([]bean4.Policy, 0, capacity)
 	//loading policy for safety
 	casbin2.LoadPolicy()
 	var eliminatedRoles, eliminatedGroupRoles []*repository.RoleModel
@@ -713,7 +711,7 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, c
 		}
 
 		// DELETE Removed Items
-		var items []casbin2.Policy
+		var items []bean4.Policy
 		items, eliminatedRoles, err = impl.userCommonService.RemoveRolesAndReturnEliminatedPolicies(userInfo, existingRoleIds, eliminatedRoleIds, tx, token, managerAuth)
 		if err != nil {
 			return nil, err
@@ -750,7 +748,7 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, c
 			}
 			newGroupMap[userGroup.CasbinName] = userGroup.CasbinName
 			if _, ok := oldGroupMap[userGroup.CasbinName]; !ok {
-				addedPolicies = append(addedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(userInfo.EmailId), Obj: casbin2.Object(userGroup.CasbinName)})
+				addedPolicies = append(addedPolicies, bean4.Policy{Type: "g", Sub: bean4.Subject(userInfo.EmailId), Obj: bean4.Object(userGroup.CasbinName)})
 				// //check permission for new group which is going to add
 				//hasAccessToGroup, hasSuperAdminPermission := impl.checkGroupAuth(userGroup.CasbinName, token, managerAuth, isActionPerformingUserSuperAdmin)
 				//if hasAccessToGroup {
@@ -768,7 +766,7 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, c
 				if item != bean.SUPERADMIN {
 					//check permission for group which is going to eliminate
 					if strings.HasPrefix(item, "group:") {
-						eliminatedPolicies = append(eliminatedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(userInfo.EmailId), Obj: casbin2.Object(item)})
+						eliminatedPolicies = append(eliminatedPolicies, bean4.Policy{Type: "g", Sub: bean4.Subject(userInfo.EmailId), Obj: bean4.Object(item)})
 						eliminatedGroupCasbinNames = append(eliminatedGroupCasbinNames, item)
 						//hasAccessToGroup, hasSuperAdminPermission := impl.checkGroupAuth(item, token, managerAuth, isActionPerformingUserSuperAdmin)
 						//if hasAccessToGroup {
@@ -1715,9 +1713,9 @@ func (impl *UserServiceImpl) GetRoleFiltersByUserRoleGroups(userRoleGroups []bea
 	return roleFilters, nil
 }
 
-func (impl *UserServiceImpl) createOrUpdateUserRolesForOtherEntity(roleFilter bean.RoleFilter, userId int32, model *repository.UserModel, existingRoles map[int]repository.UserRoleModel, tx *pg.Tx, entity string, capacity int) ([]casbin2.Policy, bool, error) {
+func (impl *UserServiceImpl) createOrUpdateUserRolesForOtherEntity(roleFilter bean.RoleFilter, userId int32, model *repository.UserModel, existingRoles map[int]repository.UserRoleModel, tx *pg.Tx, entity string, capacity int) ([]bean4.Policy, bool, error) {
 	rolesChanged := false
-	var policiesToBeAdded = make([]casbin2.Policy, 0, capacity)
+	var policiesToBeAdded = make([]bean4.Policy, 0, capacity)
 	actionType := roleFilter.Action
 	accessType := roleFilter.AccessType
 	entityNames := strings.Split(roleFilter.EntityName, ",")
@@ -1746,7 +1744,7 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForOtherEntity(roleFilter be
 			}
 			if _, ok := existingRoles[roleModel.Id]; ok {
 				//Adding policies which is removed
-				policiesToBeAdded = append(policiesToBeAdded, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
+				policiesToBeAdded = append(policiesToBeAdded, bean4.Policy{Type: "g", Sub: bean4.Subject(model.EmailId), Obj: bean4.Object(roleModel.Role)})
 			} else if roleModel.Id > 0 {
 				rolesChanged = true
 				userRoleModel := &repository.UserRoleModel{
@@ -1762,18 +1760,18 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForOtherEntity(roleFilter be
 				if err != nil {
 					return nil, rolesChanged, err
 				}
-				policiesToBeAdded = append(policiesToBeAdded, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
+				policiesToBeAdded = append(policiesToBeAdded, bean4.Policy{Type: "g", Sub: bean4.Subject(model.EmailId), Obj: bean4.Object(roleModel.Role)})
 			}
 		}
 	}
 	return policiesToBeAdded, rolesChanged, nil
 }
 
-func (impl *UserServiceImpl) createOrUpdateUserRolesForJobsEntity(roleFilter bean.RoleFilter, userId int32, model *repository.UserModel, existingRoles map[int]repository.UserRoleModel, tx *pg.Tx, entity string, capacity int) ([]casbin2.Policy, bool, error) {
+func (impl *UserServiceImpl) createOrUpdateUserRolesForJobsEntity(roleFilter bean.RoleFilter, userId int32, model *repository.UserModel, existingRoles map[int]repository.UserRoleModel, tx *pg.Tx, entity string, capacity int) ([]bean4.Policy, bool, error) {
 	rolesChanged := false
 	actionType := roleFilter.Action
 	accessType := roleFilter.AccessType
-	var policiesToBeAdded = make([]casbin2.Policy, 0, capacity)
+	var policiesToBeAdded = make([]bean4.Policy, 0, capacity)
 	entityNames := strings.Split(roleFilter.EntityName, ",")
 	environments := strings.Split(roleFilter.Environment, ",")
 	workflows := strings.Split(roleFilter.Workflow, ",")
@@ -1802,7 +1800,7 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForJobsEntity(roleFilter bea
 				}
 				if _, ok := existingRoles[roleModel.Id]; ok {
 					//Adding policies which is removed
-					policiesToBeAdded = append(policiesToBeAdded, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
+					policiesToBeAdded = append(policiesToBeAdded, bean4.Policy{Type: "g", Sub: bean4.Subject(model.EmailId), Obj: bean4.Object(roleModel.Role)})
 				} else if roleModel.Id > 0 {
 					rolesChanged = true
 					userRoleModel := &repository.UserRoleModel{
@@ -1818,7 +1816,7 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForJobsEntity(roleFilter bea
 					if err != nil {
 						return nil, rolesChanged, err
 					}
-					policiesToBeAdded = append(policiesToBeAdded, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
+					policiesToBeAdded = append(policiesToBeAdded, bean4.Policy{Type: "g", Sub: bean4.Subject(model.EmailId), Obj: bean4.Object(roleModel.Role)})
 				}
 			}
 		}
