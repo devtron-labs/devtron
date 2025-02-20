@@ -880,7 +880,7 @@ func (impl *PipelineRepositoryImpl) GetAllAppsByClusterAndDeploymentAppType(clus
 		ColumnExpr("pipeline.deployment_app_name AS deployment_app_name").
 		ColumnExpr("pipeline.app_id AS app_id").
 		ColumnExpr("pipeline.environment_id AS environment_id").
-		ColumnExpr("pipeline.environment.cluster_id AS cluster_id").
+		ColumnExpr("environment.cluster_id AS cluster_id").
 		ColumnExpr("environment.namespace AS namespace").
 		// inner join with app
 		Join("INNER JOIN app").
