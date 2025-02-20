@@ -243,24 +243,7 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 	token := r.Header.Get("token")
 	// NOTE: if no role assigned, user will be visible to all manager.
 	// RBAC enforcer applying
-	filteredRoleFilter := make([]bean.RoleFilter, 0)
-	if res.RoleFilters != nil && len(res.RoleFilters) > 0 {
-		isUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
-		for _, filter := range res.RoleFilters {
-			authPass := handler.checkRbacForFilter(token, filter, isUserSuperAdmin)
-			if authPass {
-				filteredRoleFilter = append(filteredRoleFilter, filter)
-			}
-		}
-	}
-	for index, roleFilter := range filteredRoleFilter {
-		if roleFilter.Entity == "" {
-			filteredRoleFilter[index].Entity = bean2.ENTITY_APPS
-			if roleFilter.AccessType == "" {
-				filteredRoleFilter[index].AccessType = bean2.DEVTRON_APP
-			}
-		}
-	}
+	filteredRoleFilter := handler.GetFilteredRoleFiltersAccordingToAccess(token, res.RoleFilters)
 	res.RoleFilters = filteredRoleFilter
 	//RBAC enforcer Ends
 
@@ -476,58 +459,12 @@ func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *
 	// NOTE: if no role assigned, user will be visible to all manager.
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	filteredRoleFilter := make([]bean.RoleFilter, 0)
-	if res.RoleFilters != nil && len(res.RoleFilters) > 0 {
-		isUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
-		for _, filter := range res.RoleFilters {
-			authPass := handler.checkRbacForFilter(token, filter, isUserSuperAdmin)
-			if authPass {
-				filteredRoleFilter = append(filteredRoleFilter, filter)
-			}
-		}
-	}
-	for index, roleFilter := range filteredRoleFilter {
-		if roleFilter.Entity == "" {
-			filteredRoleFilter[index].Entity = bean2.ENTITY_APPS
-		}
-		if roleFilter.Entity == bean2.ENTITY_APPS && roleFilter.AccessType == "" {
-			filteredRoleFilter[index].AccessType = bean2.DEVTRON_APP
-		}
-	}
+	filteredRoleFilter := handler.GetFilteredRoleFiltersAccordingToAccess(token, res.RoleFilters)
 
 	res.RoleFilters = filteredRoleFilter
 	//RBAC enforcer Ends
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
-}
-
-func (handler UserRestHandlerImpl) checkRbacForFilter(token string, filter bean.RoleFilter, isUserSuperAdmin bool) bool {
-	isAuthorised := true
-	switch {
-	case isUserSuperAdmin:
-		isAuthorised = true
-	case filter.AccessType == bean2.APP_ACCESS_TYPE_HELM || filter.Entity == bean2.EntityJobs:
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
-			isAuthorised = false
-		}
-
-	case len(filter.Team) > 0:
-		// this is case of devtron app
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, filter.Team); !ok {
-			isAuthorised = false
-		}
-
-	case filter.Entity == bean.CLUSTER_ENTITIY:
-		isValidAuth := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth)
-		if !isValidAuth {
-			isAuthorised = false
-		}
-	case filter.Entity == bean.CHART_GROUP_ENTITY:
-		isAuthorised = true
-	default:
-		isAuthorised = false
-	}
-	return isAuthorised
 }
 
 func (handler UserRestHandlerImpl) CreateRoleGroup(w http.ResponseWriter, r *http.Request) {
