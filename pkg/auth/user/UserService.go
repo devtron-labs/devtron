@@ -362,7 +362,7 @@ func (impl *UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, emai
 
 	err = impl.validateUserRequest(userInfo)
 	if err != nil {
-		err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "Invalid request, please provide role filters"}
+		impl.logger.Errorw("error in createUserIfNotExists", "request", userInfo, "err", err)
 		return nil, err
 	}
 
@@ -709,7 +709,7 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, c
 		//validate role filters
 		err = impl.validateUserRequest(userInfo)
 		if err != nil {
-			err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "Invalid request, please provide role filters"}
+			impl.logger.Errorw("error in UpdateUser", "request", userInfo, "err", err)
 			return nil, err
 		}
 
