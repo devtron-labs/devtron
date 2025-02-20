@@ -167,7 +167,7 @@ func (impl *GitOpsHelper) getBranch(ctx git.GitContext, rootDir, targetRevision 
 	impl.logger.Infow("total branch available in git repo", "branch length", len(branches))
 	branch := impl.getDefaultBranch(branches, targetRevision)
 	if strings.HasPrefix(branch, "origin/") {
-		strings.TrimPrefix(branch, "origin/")
+		branch = strings.TrimPrefix(branch, "origin/")
 	}
 	return branch, nil
 }
