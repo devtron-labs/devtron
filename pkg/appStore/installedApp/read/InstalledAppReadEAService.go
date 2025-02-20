@@ -1,6 +1,7 @@
 package read
 
 import (
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/read/adapter"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/read/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
@@ -32,6 +33,8 @@ type InstalledAppReadServiceEA interface {
 	// Additional details like app store details are also fetched.
 	// Refer bean.InstalledAppVersionWithAppStoreDetails for more details.
 	GetInstalledAppVersionIncludingDeleted(installedAppVersionId int) (*bean.InstalledAppVersionWithAppStoreDetails, error)
+	// IsChartStoreAppManagedByArgoCd returns if a chart store app is deployed via argo-cd or not
+	IsChartStoreAppManagedByArgoCd(appId int) (bool, error)
 }
 
 type InstalledAppReadServiceEAImpl struct {
@@ -96,4 +99,13 @@ func (impl *InstalledAppReadServiceEAImpl) GetInstalledAppVersionIncludingDelete
 		return nil, err
 	}
 	return adapter.GetInstalledAppVersionWithAppStoreDetails(installedAppVersionModel), nil
+}
+
+func (impl *InstalledAppReadServiceEAImpl) IsChartStoreAppManagedByArgoCd(appId int) (bool, error) {
+	installedAppModel, err := impl.installedAppRepository.GetInstalledAppsMinByAppId(appId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching installed apps by app id", "appId", appId, "error", err)
+		return false, err
+	}
+	return util.IsAcdApp(installedAppModel.DeploymentAppType), nil
 }
