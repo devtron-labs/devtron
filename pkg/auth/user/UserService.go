@@ -227,7 +227,10 @@ func (impl *UserServiceImpl) SelfRegisterUserIfNotExists(userInfo *bean.UserInfo
 		}
 		userInfo.EmailId = emailId
 		userInfo.Exist = dbUser.Active
-		userResponse = append(userResponse, &bean.UserInfo{Id: userInfo.Id, EmailId: emailId, Groups: userInfo.Groups, RoleFilters: userInfo.RoleFilters, SuperAdmin: userInfo.SuperAdmin})
+		userResponseInfo := adapter.BuildUserInfoResponseAdapter(userInfo, emailId)
+		//TODO Audit
+
+		userResponse = append(userResponse, userResponseInfo)
 	}
 
 	if len(policies) > 0 {
