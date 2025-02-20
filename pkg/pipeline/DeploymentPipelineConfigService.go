@@ -690,7 +690,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		impl.logger.Errorw("error in filtering pipelines by application clusterId and namespace", "applicationObjectClusterId", applicationObjectClusterId, "applicationObjectNamespace", applicationObjectNamespace, "err", err)
 		return response.SetUnknownErrorDetail(err)
 	} else if pipeline.Id != 0 {
-		return response.SetErrorDetail(pipelineConfigBean.EnvironmentAlreadyPresent, pipelineConfigBean.PipelineAlreadyPresentMsg)
+		return response.SetErrorDetail(pipelineConfigBean.ApplicationAlreadyPresent, pipelineConfigBean.PipelineAlreadyPresentMsg)
 	}
 
 	installedApp, err := impl.installedAppReadService.GetInstalledAppByGitOpsAppName(acdAppName)
