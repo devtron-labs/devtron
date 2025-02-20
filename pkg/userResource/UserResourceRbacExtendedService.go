@@ -39,7 +39,7 @@ func (impl *UserResourceServiceImpl) enforceRbacForEnvForDevtronApp(token string
 	if isSuperAdmin {
 		result = resourceOptions.EnvResp
 	} else {
-		result = impl.rbacEnforcementUtil.CheckAuthorisationForEnvAutocomplete(token, resourceOptions.EnvResp)
+		result = impl.rbacEnforcementUtil.CheckAuthorisationForEnvs(token, resourceOptions.EnvResp)
 	}
 
 	return adapter.BuildUserResourceResponseDto(result), nil
@@ -56,7 +56,7 @@ func (impl *UserResourceServiceImpl) enforceRbacForDevtronApps(token string, par
 	result := impl.rbacEnforcementUtil.CheckAuthorisationOnApp(token, resourceOptions.TeamAppResp)
 	return adapter.BuildUserResourceResponseDto(result), nil
 }
-func (impl *UserResourceServiceImpl) enforceRbacForHelmApps(token string, params *apiBean.PathParams, resourceOptions *bean.ResourceOptionsDto) (*bean.UserResourceResponseDto, error) {
+func (impl *UserResourceServiceImpl) enforceRbacForHelmAppsListing(token string, params *apiBean.PathParams, resourceOptions *bean.ResourceOptionsDto) (*bean.UserResourceResponseDto, error) {
 	isAuthorised := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*")
 	if !isAuthorised {
 		return nil, util.GetApiErrorAdapter(http2.StatusForbidden, "403", bean.UnAuthorizedAccess, bean.UnAuthorizedAccess)

@@ -56,7 +56,7 @@ func getResourceOptionExtendedFunc(kind bean.UserResourceKind, version bean.Vers
 
 var mapOfKindWithEntityAccessTypeKeyToResourceOptionRbacFunc = map[string]func(impl *UserResourceServiceImpl, token string, params *apiBean.PathParams, resourceOptions *bean.ResourceOptionsDto) (*bean.UserResourceResponseDto, error){
 	getUserResourceKindWithEntityAccessKey(bean.KindTeam, bean.Alpha1Version, bean2.ENTITY_APPS, bean2.APP_ACCESS_TYPE_HELM):            (*UserResourceServiceImpl).enforceRbacForTeamForHelmApp,
-	getUserResourceKindWithEntityAccessKey(bean.KindHelmApplication, bean.Alpha1Version, bean2.ENTITY_APPS, bean2.DEVTRON_APP):          (*UserResourceServiceImpl).enforceRbacForHelmApps,
+	getUserResourceKindWithEntityAccessKey(bean.KindHelmApplication, bean.Alpha1Version, bean2.ENTITY_APPS, bean2.DEVTRON_APP):          (*UserResourceServiceImpl).enforceRbacForHelmAppsListing,
 	getUserResourceKindWithEntityAccessKey(bean.KindHelmEnvironment, bean.Alpha1Version, bean2.ENTITY_APPS, bean2.APP_ACCESS_TYPE_HELM): (*UserResourceServiceImpl).enforceRbacForEnvForHelmApp,
 	getUserResourceKindWithEntityAccessKey(bean.KindCluster, bean.Alpha1Version, bean2.CLUSTER_ENTITIY, bean2.EmptyAccessType):          (*UserResourceServiceImpl).enforceRbacForClusterList,
 	getUserResourceKindWithEntityAccessKey(bean.ClusterApiResources, bean.Alpha1Version, bean2.CLUSTER_ENTITIY, bean2.EmptyAccessType):  (*UserResourceServiceImpl).enforceRbacForClusterApiResource,
@@ -73,7 +73,7 @@ func getResourceOptionRbacFunc(kind bean.UserResourceKind, version bean.Version,
 
 var mapOfKindWithEntityAccessTypeKeyToResourceOptionRbacExtendedFunc = map[string]func(impl *UserResourceExtendedServiceImpl, token string, params *apiBean.PathParams, resourceOptions *bean.ResourceOptionsDto) (*bean.UserResourceResponseDto, error){
 	getUserResourceKindWithEntityAccessKey(bean.KindTeam, bean.Alpha1Version, bean2.ENTITY_APPS, bean2.APP_ACCESS_TYPE_HELM):            (*UserResourceExtendedServiceImpl).enforceRbacForTeamForHelmApp,
-	getUserResourceKindWithEntityAccessKey(bean.KindHelmApplication, bean.Alpha1Version, bean2.ENTITY_APPS, bean2.APP_ACCESS_TYPE_HELM): (*UserResourceExtendedServiceImpl).enforceRbacForHelmApps,
+	getUserResourceKindWithEntityAccessKey(bean.KindHelmApplication, bean.Alpha1Version, bean2.ENTITY_APPS, bean2.APP_ACCESS_TYPE_HELM): (*UserResourceExtendedServiceImpl).enforceRbacForHelmAppsListing,
 	getUserResourceKindWithEntityAccessKey(bean.KindHelmEnvironment, bean.Alpha1Version, bean2.ENTITY_APPS, bean2.APP_ACCESS_TYPE_HELM): (*UserResourceExtendedServiceImpl).enforceRbacForEnvForHelmApp,
 	getUserResourceKindWithEntityAccessKey(bean.KindCluster, bean.Alpha1Version, bean2.CLUSTER_ENTITIY, bean2.EmptyAccessType):          (*UserResourceExtendedServiceImpl).enforceRbacForClusterList,
 	getUserResourceKindWithEntityAccessKey(bean.ClusterApiResources, bean.Alpha1Version, bean2.CLUSTER_ENTITIY, bean2.EmptyAccessType):  (*UserResourceExtendedServiceImpl).enforceRbacForClusterApiResource,
