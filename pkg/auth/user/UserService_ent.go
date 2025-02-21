@@ -8,6 +8,6 @@ func (impl *UserServiceImpl) UpdateDataForGroupClaims(dto *userBean.SelfRegister
 	return nil
 }
 
-func (impl *UserServiceImpl) mergeAccessRoleFiltersAndUserGroups(requestUserInfo, currentUserInfo *userBean.UserInfo) {
+func (impl *UserServiceImpl) mergeAccessRoleFiltersAndUserGroups(currentUserInfo, requestUserInfo *userBean.UserInfo) {
 	return
 }
