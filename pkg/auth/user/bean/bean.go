@@ -16,6 +16,8 @@
 
 package bean
 
+import "github.com/devtron-labs/devtron/api/bean"
+
 type RoleType string
 
 func (r RoleType) String() string {
@@ -135,3 +137,10 @@ const (
 	ApplicationBasedKey MergingBaseKey = "application"
 	EnvironmentBasedKey MergingBaseKey = "environment"
 )
+
+type SelfRegisterDto struct {
+	UserInfo *bean.UserInfo
+	//ent only fields
+	GroupsFromClaims        []string
+	GroupClaimsConfigActive bool
+}

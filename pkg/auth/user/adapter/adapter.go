@@ -18,6 +18,7 @@ package adapter
 
 import (
 	"github.com/devtron-labs/devtron/api/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"strings"
 	"time"
@@ -47,5 +48,11 @@ func BuildUserInfoResponseAdapter(requestUserInfo *bean.UserInfo, emailId string
 		RoleFilters:   requestUserInfo.RoleFilters,
 		SuperAdmin:    requestUserInfo.SuperAdmin,
 		UserRoleGroup: requestUserInfo.UserRoleGroup,
+	}
+}
+
+func BuildSelfRegisterDto(userInfo *bean.UserInfo) *bean2.SelfRegisterDto {
+	return &bean2.SelfRegisterDto{
+		UserInfo: userInfo,
 	}
 }

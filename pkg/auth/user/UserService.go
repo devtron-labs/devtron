@@ -53,7 +53,7 @@ const (
 
 type UserService interface {
 	CreateUser(userInfo *bean.UserInfo, token string, managerAuth func(resource, token string, object string) bool) ([]*bean.UserInfo, error)
-	SelfRegisterUserIfNotExists(userInfo *bean.UserInfo) ([]*bean.UserInfo, error)
+	SelfRegisterUserIfNotExists(selfRegisterDto *userBean.SelfRegisterDto) ([]*bean.UserInfo, error)
 	UpdateUser(userInfo *bean.UserInfo, token string, checkRBACForUserUpdate func(token string, userInfo *bean.UserInfo, isUserAlreadySuperAdmin bool,
 		eliminatedRoleFilters, eliminatedGroupRoles []*repository.RoleModel, mapOfExistingUserRoleGroup map[string]bool) (isAuthorised bool, err error), managerAuth func(resource, token string, object string) bool) (*bean.UserInfo, error)
 	GetById(id int32) (*bean.UserInfo, error)
@@ -172,8 +172,9 @@ func (impl *UserServiceImpl) validateUserRequest(userInfo *bean.UserInfo) error 
 	return nil
 }
 
-func (impl *UserServiceImpl) SelfRegisterUserIfNotExists(userInfo *bean.UserInfo) ([]*bean.UserInfo, error) {
+func (impl *UserServiceImpl) SelfRegisterUserIfNotExists(selfRegisterDto *userBean.SelfRegisterDto) ([]*bean.UserInfo, error) {
 	var userResponse []*bean.UserInfo
+	userInfo := selfRegisterDto.UserInfo
 	emailIds := strings.Split(userInfo.EmailId, ",")
 	dbConnection := impl.userRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -204,6 +205,11 @@ func (impl *UserServiceImpl) SelfRegisterUserIfNotExists(userInfo *bean.UserInfo
 				InternalMessage: "failed to create new user in db",
 				UserMessage:     fmt.Sprintf("requested by %d", userInfo.UserId),
 			}
+			return nil, err
+		}
+		err = impl.UpdateDataForGroupClaims(selfRegisterDto)
+		if err != nil {
+			impl.logger.Errorw("error in SelfRegisterUserIfNotExists", "selfRegisterDto", selfRegisterDto, "err", err)
 			return nil, err
 		}
 		if len(userInfo.Roles) > 0 {
