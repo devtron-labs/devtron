@@ -66,6 +66,7 @@ const (
 const (
 	DEVTRON_APP          = "devtron-app"
 	APP_ACCESS_TYPE_HELM = "helm-app"
+	EmptyAccessType      = ""
 )
 
 const (

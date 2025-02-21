@@ -19,6 +19,7 @@ package appInfo
 import (
 	"encoding/json"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/util/commonEnforcementFunctionsUtil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -48,31 +49,34 @@ type AppInfoRestHandler interface {
 }
 
 type AppInfoRestHandlerImpl struct {
-	logger             *zap.SugaredLogger
-	appService         app.AppCrudOperationService
-	userAuthService    user.UserService
-	validator          *validator.Validate
-	enforcerUtil       rbac.EnforcerUtil
-	enforcer           casbin.Enforcer
-	helmAppService     client.HelmAppService
-	enforcerUtilHelm   rbac.EnforcerUtilHelm
-	genericNoteService genericNotes.GenericNoteService
+	logger              *zap.SugaredLogger
+	appService          app.AppCrudOperationService
+	userAuthService     user.UserService
+	validator           *validator.Validate
+	enforcerUtil        rbac.EnforcerUtil
+	enforcer            casbin.Enforcer
+	helmAppService      client.HelmAppService
+	enforcerUtilHelm    rbac.EnforcerUtilHelm
+	genericNoteService  genericNotes.GenericNoteService
+	rbacEnforcementUtil commonEnforcementFunctionsUtil.CommonEnforcementUtil
 }
 
 func NewAppInfoRestHandlerImpl(logger *zap.SugaredLogger, appService app.AppCrudOperationService,
 	userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
 	enforcer casbin.Enforcer, helmAppService client.HelmAppService, enforcerUtilHelm rbac.EnforcerUtilHelm,
-	genericNoteService genericNotes.GenericNoteService) *AppInfoRestHandlerImpl {
+	genericNoteService genericNotes.GenericNoteService,
+	rbacEnforcementUtil commonEnforcementFunctionsUtil.CommonEnforcementUtil) *AppInfoRestHandlerImpl {
 	handler := &AppInfoRestHandlerImpl{
-		logger:             logger,
-		appService:         appService,
-		userAuthService:    userAuthService,
-		validator:          validator,
-		enforcerUtil:       enforcerUtil,
-		enforcer:           enforcer,
-		helmAppService:     helmAppService,
-		enforcerUtilHelm:   enforcerUtilHelm,
-		genericNoteService: genericNoteService,
+		logger:              logger,
+		appService:          appService,
+		userAuthService:     userAuthService,
+		validator:           validator,
+		enforcerUtil:        enforcerUtil,
+		enforcer:            enforcer,
+		helmAppService:      helmAppService,
+		enforcerUtilHelm:    enforcerUtilHelm,
+		genericNoteService:  genericNoteService,
+		rbacEnforcementUtil: rbacEnforcementUtil,
 	}
 	return handler
 }
@@ -299,7 +303,6 @@ func (handler AppInfoRestHandlerImpl) GetAppListByTeamIds(w http.ResponseWriter,
 		return
 	}
 	token := r.Header.Get("token")
-	isActionUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 
 	appType := v.Get("appType")
 	handler.logger.Infow("request payload, GetAppListByTeamIds", "payload", params)
@@ -321,23 +324,7 @@ func (handler AppInfoRestHandlerImpl) GetAppListByTeamIds(w http.ResponseWriter,
 	}
 
 	// RBAC
-	for _, project := range projectWiseApps {
-		var accessedApps []*app.AppBean
-		for _, app := range project.AppList {
-			if isActionUserSuperAdmin {
-				accessedApps = append(accessedApps, app)
-				continue
-			}
-			object := handler.enforcerUtil.GetAppRBACNameByAppAndProjectName(project.ProjectName, app.Name)
-			if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); ok {
-				accessedApps = append(accessedApps, app)
-			}
-		}
-		if len(accessedApps) == 0 {
-			accessedApps = make([]*app.AppBean, 0)
-		}
-		project.AppList = accessedApps
-	}
+	projectWiseApps = handler.rbacEnforcementUtil.CheckAuthorisationOnApp(token, projectWiseApps)
 	// RBAC
 	common.WriteJsonResp(w, err, projectWiseApps, http.StatusOK)
 }
