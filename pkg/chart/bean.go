@@ -19,6 +19,7 @@ package chart
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	chartRefBean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 )
 
 var ReservedChartRefNamesList *[]ReservedChartList
@@ -61,6 +62,15 @@ type ChartRefChangeRequest struct {
 	AppId            int `json:"appId" validate:"required"`
 	EnvId            int `json:"envId" validate:"required"`
 	TargetChartRefId int `json:"targetChartRefId" validate:"required"`
+}
+
+type ChartChangeType struct {
+	NewChartType string
+	OldChartType string
+}
+
+func (c *ChartChangeType) IsFlaggerCanarySupported() bool {
+	return c.NewChartType == chartRefBean.DeploymentChartType
 }
 
 type PipelineConfigRequest struct {

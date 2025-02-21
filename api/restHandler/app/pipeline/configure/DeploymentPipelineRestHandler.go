@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	devtronAppGitOpConfigBean "github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig/bean"
-	chartRefBean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 	"io"
 	"net/http"
@@ -514,6 +513,26 @@ func (handler *PipelineConfigRestHandlerImpl) HandleTriggerDeploymentAfterTypeCh
 	return
 }
 
+func (handler *PipelineConfigRestHandlerImpl) chartSpecificPatchOperations(templateValues json.RawMessage, chartChangeType *chart.ChartChangeType) (json.RawMessage, error) {
+	if !chartChangeType.IsFlaggerCanarySupported() {
+		enabled, err := handler.deploymentTemplateValidationService.FlaggerCanaryEnabled(templateValues)
+		if err != nil {
+			handler.Logger.Errorw("error in checking flaggerCanary, ChangeChartRef", "err", err, "payload", templateValues)
+			return templateValues, err
+		} else if enabled {
+			handler.Logger.Errorw("rollout charts do not support flaggerCanary, ChangeChartRef", "templateValues", templateValues)
+			errMsg := fmt.Sprintf("%q charts do not support flaggerCanary", chartChangeType.NewChartType)
+			return templateValues, util.NewApiError(http.StatusUnprocessableEntity, errMsg, errMsg)
+		}
+	}
+	var err error
+	templateValues, err = handler.chartService.ChartSpecificPatchOperations(templateValues, chartChangeType)
+	if err != nil {
+		return templateValues, err
+	}
+	return templateValues, nil
+}
+
 func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -536,30 +555,20 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 	}
 	if !envConfigProperties.IsOverride {
 		handler.Logger.Errorw("isOverride is not true, ChangeChartRef", "err", err, "payload", request)
-		common.WriteJsonResp(w, err, "specific environment is not overriden", http.StatusUnprocessableEntity)
+		common.WriteJsonResp(w, err, "specific environment is not overridden", http.StatusUnprocessableEntity)
 		return
 	}
-	compatible, oldChartType, newChartType := handler.chartRefService.ChartRefIdsCompatible(envConfigProperties.ChartRefId, request.TargetChartRefId)
+	compatible, chartChangeType := handler.chartRefService.ChartRefIdsCompatible(envConfigProperties.ChartRefId, request.TargetChartRefId)
 	if !compatible {
 		common.WriteJsonResp(w, fmt.Errorf("charts not compatible"), "chart not compatible", http.StatusUnprocessableEntity)
 		return
 	}
-
-	envConfigProperties.EnvOverrideValues, err = handler.chartService.PatchEnvOverrides(envConfigProperties.EnvOverrideValues, oldChartType, newChartType)
+	envConfigProperties.EnvOverrideValues, err = handler.chartSpecificPatchOperations(envConfigProperties.EnvOverrideValues, chartChangeType)
 	if err != nil {
-		common.WriteJsonResp(w, err, "error in patching env override", http.StatusInternalServerError)
+		handler.Logger.Errorw("error in chart specific patch operations, ChangeChartRef", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
-	if newChartType == chartRefBean.RolloutChartType {
-		enabled, err := handler.deploymentTemplateValidationService.FlaggerCanaryEnabled(envConfigProperties.EnvOverrideValues)
-		if err != nil || enabled {
-			handler.Logger.Errorw("rollout charts do not support flaggerCanary, ChangeChartRef", "err", err, "payload", request)
-			common.WriteJsonResp(w, err, "rollout charts do not support flaggerCanary, ChangeChartRef", http.StatusBadRequest)
-			return
-		}
-	}
-
 	envMetrics, err := handler.deployedAppMetricsService.GetMetricsFlagByAppIdAndEnvId(request.AppId, request.EnvId)
 	if err != nil {
 		handler.Logger.Errorw("could not find envMetrics for, ChangeChartRef", "err", err, "payload", request)

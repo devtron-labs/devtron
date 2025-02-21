@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
+	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
@@ -57,7 +58,7 @@ type ChartRefDbReadService interface {
 	FetchInfoOfChartConfiguredInApp(appId int) (*bean.ChartRefDto, error)
 	ChartRefAutocomplete() ([]*bean.ChartRefAutocompleteDto, error)
 	CheckChartExists(chartRefId int) error
-	ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, string, string)
+	ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, *chartService.ChartChangeType)
 }
 
 type CustomChartService interface {
@@ -147,16 +148,19 @@ func (impl *ChartRefServiceImpl) GetAllChartMetadata() (map[string]bean.ChartRef
 	return chartsMetadataMap, nil
 }
 
-func (impl *ChartRefServiceImpl) ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, string, string) {
+func (impl *ChartRefServiceImpl) ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, *chartService.ChartChangeType) {
+	chartChangeType := &chartService.ChartChangeType{}
 	oldChart, err := impl.FindById(oldChartRefId)
 	if err != nil {
-		return false, "", ""
+		return false, chartChangeType
 	}
 	newChart, err := impl.FindById(newChartRefId)
 	if err != nil {
-		return false, "", ""
+		return false, chartChangeType
 	}
-	return CheckCompatibility(oldChart.Name, newChart.Name), oldChart.Name, newChart.Name
+	chartChangeType.NewChartType = newChart.Name
+	chartChangeType.OldChartType = oldChart.Name
+	return CheckCompatibility(oldChart.Name, newChart.Name), chartChangeType
 }
 
 func (impl *ChartRefServiceImpl) FindById(chartRefId int) (*bean.ChartRefDto, error) {
