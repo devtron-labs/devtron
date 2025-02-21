@@ -164,7 +164,11 @@ func (impl *UserServiceImpl) validateUserRequest(userInfo *userBean.UserInfo) er
 			impl.logger.Errorw("error in validateUserRequest", "err", err)
 			return err
 		}
-		//TODO: check for access role filters what can be done
+		err = validateAccessRoleFilters(userInfo)
+		if err != nil {
+			impl.logger.Errorw("error in validateUserRequest", "err", err)
+			return err
+		}
 	}
 	// validation for checking conflicting user RoleGroups
 	err := userHelper.ValidateUserRoleGroupRequest(userInfo.UserRoleGroup)
@@ -237,7 +241,11 @@ func (impl *UserServiceImpl) SelfRegisterUserIfNotExists(selfRegisterDto *userBe
 		userInfo.EmailId = emailId
 		userInfo.Exist = dbUser.Active
 		userResponseInfo := adapter.BuildUserInfoResponseAdapter(userInfo, emailId)
-		//TODO Audit
+		err = impl.createAuditForCreateOperation(tx, userResponseInfo)
+		if err != nil {
+			impl.logger.Errorw("error in creating audit for user", "err", err, "id", userResponseInfo.Id)
+			return nil, err
+		}
 
 		userResponse = append(userResponse, userResponseInfo)
 	}
@@ -528,7 +536,6 @@ func (impl *UserServiceImpl) getGroupIdRoleGroupMap(userRoleGroups []userBean.Us
 }
 
 func (impl *UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(tx *pg.Tx, roleFilter userBean.RoleFilter, model *repository.UserModel, existingRoles map[int]repository.UserRoleModel, entity string, capacity int, userId int32) ([]bean4.Policy, bool, error) {
-	//var policiesToBeAdded []casbin2.Policy
 	var policiesToBeAdded = make([]bean4.Policy, 0, capacity)
 	var err error
 	rolesChanged := false

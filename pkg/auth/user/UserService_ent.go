@@ -29,3 +29,11 @@ func (impl *UserServiceImpl) checkAndPerformOperationsForGroupClaims(tx *pg.Tx, 
 func getFinalRoleFiltersToBeConsidered(userInfo *userBean.UserInfo) []userBean.RoleFilter {
 	return userInfo.RoleFilters
 }
+
+func validateAccessRoleFilters(info *userBean.UserInfo) error {
+	return nil
+}
+
+func (impl *UserServiceImpl) createAuditForCreateOperation(tx *pg.Tx, userResponseInfo *userBean.UserInfo) error {
+	return nil
+}
