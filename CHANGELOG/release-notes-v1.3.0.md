@@ -1,3 +1,5 @@
+## v1.3.0
+
 ## Bugs
 - fix: panic fixes  (#6411)
 - fix: auto pre-cd not getting triggered (if cd is manual) after webhook ci event is captured (#6407)
@@ -31,3 +33,5 @@
 - sync: Release candidate v0.28.0 (#6340)
 - misc: Fix typo: Cronjob → CronJob (#6335)
 - sync: Main sync develop  (#6358)
+
+
