@@ -24,7 +24,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bulkAction/bean"
 	"github.com/devtron-labs/devtron/pkg/bulkAction/service"
-	chartBean "github.com/devtron-labs/devtron/pkg/chart/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	jsonpatch "github.com/evanphx/json-patch"
 	"io"
