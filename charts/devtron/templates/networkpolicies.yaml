@@ -100,7 +100,9 @@ spec:
   podSelector:
     matchLabels:
       app: kubelink
+
 {{- if has "cicd" $.Values.installer.modules }}
+---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
