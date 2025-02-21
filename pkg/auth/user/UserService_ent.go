@@ -1,6 +1,7 @@
 package user
 
 import (
+	"fmt"
 	bean4 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
 	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
@@ -47,4 +48,13 @@ func (impl *UserServiceImpl) createAuditForCreateOperation(tx *pg.Tx, userRespon
 func (impl *UserServiceImpl) getCasbinPolicyForGroup(tx *pg.Tx, emailId, userGroupCasbinName string, userRoleGroup userBean.UserRoleGroup, userLoggedInId int32) (bean4.Policy, error) {
 	casbinPolicy := adapter.GetCasbinGroupPolicy(emailId, userGroupCasbinName)
 	return casbinPolicy, nil
+}
+
+func getUniqueKeyForRoleFilter(role userBean.RoleFilter) string {
+	return fmt.Sprintf("%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s", role.Entity, role.Team, role.Environment,
+		role.EntityName, role.Action, role.AccessType, role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource, role.Workflow)
+}
+
+func getUniqueKeyForUserRoleGroup(userRoleGroup userBean.UserRoleGroup) string {
+	return fmt.Sprintf("%s", userRoleGroup.RoleGroup.Name)
 }

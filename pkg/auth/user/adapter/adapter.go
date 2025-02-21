@@ -72,3 +72,20 @@ func BuildSelfRegisterDto(userInfo *bean2.UserInfo) *bean2.SelfRegisterDto {
 		UserInfo: userInfo,
 	}
 }
+
+func BuildRoleFilterFromRoleF(roleF bean2.RoleFilter) bean2.RoleFilter {
+	return bean2.RoleFilter{
+		Entity:      roleF.Entity,
+		Team:        roleF.Team,
+		Environment: roleF.Environment,
+		EntityName:  roleF.EntityName,
+		Action:      roleF.Action,
+		AccessType:  roleF.AccessType,
+		Cluster:     roleF.Cluster,
+		Namespace:   roleF.Namespace,
+		Group:       roleF.Group,
+		Kind:        roleF.Kind,
+		Resource:    roleF.Resource,
+		Workflow:    roleF.Workflow,
+	}
+}
