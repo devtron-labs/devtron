@@ -21,3 +21,7 @@ func (impl *UserServiceImpl) setTimeoutWindowConfigIdInUserModel(tx *pg.Tx, user
 func (impl *UserServiceImpl) assignUserGroups(tx *pg.Tx, userInfo *userBean.UserInfo, model *userrepo.UserModel) error {
 	return nil
 }
+
+func (impl *UserServiceImpl) checkAndPerformOperationsForGroupClaims(tx *pg.Tx, userInfo *userBean.UserInfo) (bool, error) {
+	return false, nil
+}

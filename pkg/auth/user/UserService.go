@@ -396,55 +396,62 @@ func (impl *UserServiceImpl) createUserIfNotExists(userInfo *userBean.UserInfo, 
 
 	userInfo.Id = model.Id
 	userInfo.SetEntityAudit(model.AuditLog)
-	//loading policy for safety
-	casbin2.LoadPolicy()
+	// check for global authorisationConfig and perform operations.
+	operationDone, err := impl.checkAndPerformOperationsForGroupClaims(tx, userInfo)
+	if err != nil {
+		impl.logger.Errorw("error encountered in createUserIfNotExists", "err", err)
+		return nil, err
+	}
+	if !operationDone {
+		//loading policy for safety
+		casbin2.LoadPolicy()
+		//Starts Role and Mapping
+		capacity, mapping := impl.userCommonService.GetCapacityForRoleFilter(userInfo.RoleFilters)
+		//var policies []casbin2.Policy
+		var policies = make([]bean4.Policy, 0, capacity)
+		if userInfo.SuperAdmin == false {
+			for index, roleFilter := range userInfo.RoleFilters {
+				impl.logger.Infow("Creating Or updating User Roles for RoleFilter ")
+				entity := roleFilter.Entity
+				policiesToBeAdded, _, err := impl.CreateOrUpdateUserRolesForAllTypes(roleFilter, userInfo.UserId, model, nil, tx, entity, mapping[index])
+				if err != nil {
+					impl.logger.Errorw("error in creating user roles for Alltypes", "err", err)
+					return nil, err
+				}
+				policies = append(policies, policiesToBeAdded...)
+			}
 
-	//Starts Role and Mapping
-	capacity, mapping := impl.userCommonService.GetCapacityForRoleFilter(userInfo.RoleFilters)
-	//var policies []casbin2.Policy
-	var policies = make([]bean4.Policy, 0, capacity)
-	if userInfo.SuperAdmin == false {
-		for index, roleFilter := range userInfo.RoleFilters {
-			impl.logger.Infow("Creating Or updating User Roles for RoleFilter ")
-			entity := roleFilter.Entity
-			policiesToBeAdded, _, err := impl.CreateOrUpdateUserRolesForAllTypes(roleFilter, userInfo.UserId, model, nil, tx, entity, mapping[index])
+			// START GROUP POLICY
+			for _, item := range userInfo.UserRoleGroup {
+				userGroup, err := impl.roleGroupRepository.GetRoleGroupByName(item.RoleGroup.Name)
+				if err != nil {
+					return nil, err
+				}
+				policies = append(policies, bean4.Policy{Type: "g", Sub: bean4.Subject(userInfo.EmailId), Obj: bean4.Object(userGroup.CasbinName)})
+			}
+			// END GROUP POLICY
+		} else if userInfo.SuperAdmin == true {
+			policiesToBeAdded, err := impl.CreateAndAddPoliciesForSuperAdmin(tx, userInfo.UserId, model.EmailId, model.Id)
 			if err != nil {
-				impl.logger.Errorw("error in creating user roles for Alltypes", "err", err)
+				impl.logger.Errorw("error in createUserIfNotExists", "err", err)
 				return nil, err
 			}
 			policies = append(policies, policiesToBeAdded...)
 		}
-
-		// START GROUP POLICY
-		for _, item := range userInfo.UserRoleGroup {
-			userGroup, err := impl.roleGroupRepository.GetRoleGroupByName(item.RoleGroup.Name)
-			if err != nil {
-				return nil, err
-			}
-			policies = append(policies, bean4.Policy{Type: "g", Sub: bean4.Subject(userInfo.EmailId), Obj: bean4.Object(userGroup.CasbinName)})
+		impl.logger.Infow("Checking the length of policies to be added and Adding in casbin ")
+		if len(policies) > 0 {
+			impl.logger.Infow("Adding policies in casbin")
+			pRes := casbin2.AddPolicy(policies)
+			println(pRes)
 		}
-		// END GROUP POLICY
-	} else if userInfo.SuperAdmin == true {
-		policiesToBeAdded, err := impl.CreateAndAddPoliciesForSuperAdmin(tx, userInfo.UserId, model.EmailId, model.Id)
+		//Ends
+		err = tx.Commit()
 		if err != nil {
-			impl.logger.Errorw("error in createUserIfNotExists", "err", err)
 			return nil, err
 		}
-		policies = append(policies, policiesToBeAdded...)
+		//loading policy for syncing orchestrator to casbin with newly added policies
+		casbin2.LoadPolicy()
 	}
-	impl.logger.Infow("Checking the length of policies to be added and Adding in casbin ")
-	if len(policies) > 0 {
-		impl.logger.Infow("Adding policies in casbin")
-		pRes := casbin2.AddPolicy(policies)
-		println(pRes)
-	}
-	//Ends
-	err = tx.Commit()
-	if err != nil {
-		return nil, err
-	}
-	//loading policy for syncing orchestrator to casbin with newly added policies
-	casbin2.LoadPolicy()
 	return userInfo, nil
 }
 
