@@ -3,7 +3,9 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: netpol-devtron-casbin-svc
+  labels:
+    app: casbin
+  name: netpol-devtron-casbin
   namespace: devtroncd
 spec:
   policyTypes:
@@ -24,7 +26,9 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: devtron-for-postgress
+  labels:
+    app: postgresql
+  name: netpol-devtron-postgress
   namespace: devtroncd
 spec:
   policyTypes:
@@ -44,7 +48,9 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: netpol-devtron-for-dashboard
+  labels:
+    app: dashboard
+  name: netpol-devtron-dashboard
   namespace: devtroncd
 spec:
   policyTypes:
@@ -63,7 +69,9 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: netpol-devtron-for-argocddex
+  labels:
+    app: argocd-dex-server
+  name: netpol-devtron-argocddex
   namespace: devtroncd
 spec:
   policyTypes:
@@ -84,7 +92,9 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: netpol-devtron-for-kubelink
+  labels:
+    app: kubelink
+  name: netpol-devtron-kubelink
   namespace: devtroncd
 spec:
   policyTypes:
@@ -106,7 +116,9 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: netpol-devtron-lens-svc
+  labels:
+    app: lens
+  name: netpol-devtron-lens
   namespace: devtroncd
 spec:
   policyTypes:
@@ -125,7 +137,9 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: netpol-devtron-git-sensor-svc
+  labels:
+    app: git-sensor
+  name: netpol-devtron-gitsensor
   namespace: devtroncd
 spec:
   policyTypes:
@@ -145,7 +159,9 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: netpol-devtron-kubewatch-svc
+  labels:
+    app: kubewatch
+  name: netpol-devtron-kubewatch
   namespace: devtroncd
 spec:
   policyTypes:
@@ -165,7 +181,9 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: netpol-devtron-grafana-svc
+  labels:
+    app: grafana
+  name: netpol-devtron-grafana
   namespace: devtroncd
 spec:
   policyTypes:
@@ -187,7 +205,9 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: netpol-devtron-nats-svc
+  labels:
+    app: nats
+  name: netpol-devtron-nats
   namespace: devtroncd
 spec:
   policyTypes:
