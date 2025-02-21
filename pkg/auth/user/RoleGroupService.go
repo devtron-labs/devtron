@@ -51,6 +51,7 @@ type RoleGroupService interface {
 	DeleteRoleGroup(model *bean2.RoleGroup) (bool, error)
 	BulkDeleteRoleGroups(request *bean2.BulkDeleteRequest) (bool, error)
 	FetchRolesForUserRoleGroups(userRoleGroups []bean2.UserRoleGroup) ([]*bean2.RoleFilter, error)
+	GetGroupIdVsRoleGroupMapForIds(ids []int32) (map[int32]*repository.RoleGroup, error)
 }
 
 type RoleGroupServiceImpl struct {
@@ -1001,4 +1002,20 @@ func (impl RoleGroupServiceImpl) FetchRolesForUserRoleGroups(userRoleGroups []be
 		list = append(list, bean)
 	}
 	return list, nil
+}
+
+func (impl RoleGroupServiceImpl) GetGroupIdVsRoleGroupMapForIds(ids []int32) (map[int32]*repository.RoleGroup, error) {
+	groupIdVsRoleGroupMap := make(map[int32]*repository.RoleGroup)
+	if len(ids) > 0 {
+		roleGroups, err := impl.roleGroupRepository.GetRoleGroupListByIds(ids)
+		if err != nil {
+			impl.logger.Errorw("error in GetRoleIdVsRoleGroupMapForIds", "ids", ids, "err", err)
+			return nil, err
+		}
+		for _, group := range roleGroups {
+			groupIdVsRoleGroupMap[group.Id] = group
+		}
+	}
+	return groupIdVsRoleGroupMap, nil
+
 }

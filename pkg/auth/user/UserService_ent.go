@@ -25,3 +25,7 @@ func (impl *UserServiceImpl) assignUserGroups(tx *pg.Tx, userInfo *userBean.User
 func (impl *UserServiceImpl) checkAndPerformOperationsForGroupClaims(tx *pg.Tx, userInfo *userBean.UserInfo) (bool, error) {
 	return false, nil
 }
+
+func getFinalRoleFiltersToBeConsidered(userInfo *userBean.UserInfo) []userBean.RoleFilter {
+	return userInfo.RoleFilters
+}
