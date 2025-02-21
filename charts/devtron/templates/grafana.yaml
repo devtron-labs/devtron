@@ -10,7 +10,7 @@ apiVersion: batch/v1beta1
 {{- end }}
 kind: Job
 metadata:
-  name: grafana-org-job
+  name: grafana-org-job-{{ randAlphaNum 5 | lower }}
 spec:
   ttlSecondsAfterFinished: 1000
   template:
