@@ -37,9 +37,6 @@ spec:
               secretKeyRef:
                 name: devtron-grafana-cred-secret
                 key: admin-password
-        envFrom:
-        - configMapRef:
-            name: devtron-common-cm
         volumeMounts:
             - name: grafana-org-volume
               mountPath: "/tmp/"
