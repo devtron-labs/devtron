@@ -164,7 +164,7 @@ spec:
           value: $(POD_NAME).devtron-nats.$(POD_NAMESPACE).svc.cluster.local
         envFrom:
         - configMapRef:
-            name: "devtron-common-cm"
+            name: devtron-common-cm
         volumeMounts:
           - name: config-volume
             mountPath: /etc/nats-config
@@ -221,7 +221,7 @@ spec:
          - "/etc/nats-config/nats.conf"
         envFrom:
         - configMapRef:
-            name: "devtron-common-cm"
+            name: devtron-common-cm
         volumeMounts:
           - name: config-volume
             mountPath: /etc/nats-config
@@ -254,7 +254,7 @@ spec:
           name: metrics
         envFrom:
         - configMapRef:
-            name: "devtron-common-cm"
+            name: devtron-common-cm
 
 
   volumeClaimTemplates:
@@ -286,7 +286,7 @@ spec:
           value: devtron-nats
       envFrom:
       - configMapRef:
-          name: "devtron-common-cm"
+          name: devtron-common-cm
       command:
         - /bin/sh
         - -ec

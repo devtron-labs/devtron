@@ -104,7 +104,7 @@ spec:
           - secretRef:
               name: devtron-dashboard-secret
           - configMapRef:
-              name: "devtron-common-cm"
+              name: devtron-common-cm
           volumeMounts: []
           {{- if .resources }}
           resources:

@@ -90,7 +90,7 @@ spec:
         - containerPort: 5558
         envFrom:
         - configMapRef:
-            name: "devtron-common-cm"
+            name: devtron-common-cm
         volumeMounts:
         - mountPath: /shared
           name: static-files
@@ -113,7 +113,7 @@ spec:
         {{- end }}
         envFrom:
         - configMapRef:
-            name: "devtron-common-cm"
+            name: devtron-common-cm
         volumeMounts:
         - mountPath: /shared
           name: static-files

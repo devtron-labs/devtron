@@ -435,7 +435,7 @@ spec:
           value: postgresql-postgresql
         envFrom:
         - configMapRef:
-            name: "devtron-common-cm"
+            name: devtron-common-cm
         command:
           - /bin/sh
           - -c

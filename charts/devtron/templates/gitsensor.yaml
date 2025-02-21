@@ -86,7 +86,7 @@ spec:
           resources: {}
           envFrom:
           - configMapRef:
-              name: "devtron-common-cm"
+              name: devtron-common-cm
           securityContext:
             runAsUser: 0
           terminationMessagePath: /dev/termination-log

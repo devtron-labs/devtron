@@ -296,7 +296,7 @@ spec:
                   key: secretkey
           envFrom:
           - configMapRef:
-              name: "devtron-common-cm"
+              name: devtron-common-cm
           resources: {}
       volumes:
         - name: minio-user
@@ -356,7 +356,7 @@ spec:
               value: "9000"
           envFrom:
           - configMapRef:
-              name: "devtron-common-cm"
+              name: devtron-common-cm
           volumeMounts:
             - name: minio-configuration
               mountPath: /config
@@ -419,7 +419,7 @@ spec:
                   key: secretkey
           envFrom:
           - configMapRef:
-              name: "devtron-common-cm"
+              name: devtron-common-cm
       volumes:
         - name: minio-user
           secret:
