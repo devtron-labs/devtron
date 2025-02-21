@@ -18,13 +18,20 @@ global:
   #     effect: "NoSchedule"
   # imagePullSecrets:
   #     - name: your-image-pull-secret
+
+  # Set the storage class to be used for PVCs (would use default sc if not specified)
+  storageClass: ""
+  
+  # Add Proxy Configs to be propagated to all the Devtron Microservices.
+  configs: {}
+
   nodeSelector: {}
   tolerations: []
   imagePullSecrets: []
 extraManifests: []
 installer:
   repo: "devtron-labs/devtron"
-  release: "v1.2.2"
+  release: "v1.3.0"
   registry: ""
   image: inception
   tag: 473deaa4-185-21582
@@ -77,12 +84,12 @@ components:
         FEATURE_USER_DEFINED_GITOPS_REPO_ENABLE: "true"
         ENABLE_RESOURCE_SCAN: "true"
     registry: ""
-    image: "dashboard:4eb1a17a-690-28956"
+    image: "dashboard:1c40d516-690-30089"
     imagePullPolicy: IfNotPresent
   devtron:
     registry: ""
-    image: "hyperion:a9968961-280-29449"
-    cicdImage: "devtron:a9968961-434-29448"
+    image: "hyperion:e67c3b76-280-30100"
+    cicdImage: "devtron:e67c3b76-434-30101"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     serviceMonitor:
@@ -108,7 +115,7 @@ components:
       #      - devtron.example.com
   ciRunner:
     registry: ""
-    image: "ci-runner:343b24f5-138-29387"
+    image: "ci-runner:0dde3b1a-138-30091"
   argocdDexServer:
     registry: ""
     image: "dex:v2.30.2"
@@ -117,7 +124,7 @@ components:
       authenticator: "authenticator:e414faff-393-13273"
   kubelink:
     registry: ""
-    image: "kubelink:0a3d5e84-564-28948"
+    image: "kubelink:0dde3b1a-564-30082"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
@@ -135,7 +142,7 @@ components:
       keyName: postgresql-password
   kubewatch:
     registry: ""
-    image: "kubewatch:0a3d5e84-419-28949"
+    image: "kubewatch:0dde3b1a-419-30080"
     imagePullPolicy: IfNotPresent
     configs:
       devtroncd_NAMESPACE: "devtron-ci"
@@ -144,6 +151,14 @@ components:
       ACD_NAMESPACE: "devtroncd"
       ACD_INFORMER: "true"
       NATS_STREAM_MAX_AGE: "10800"
+      PG_ADDR: postgresql-postgresql.devtroncd
+      PG_DATABASE: orchestrator
+      PG_LOG_QUERY: "true"
+      PG_PORT: "5432"
+      PG_USER: postgres
+    dbconfig:
+      secretName: postgresql-postgresql
+      keyName: postgresql-password
   postgres:
     registry: ""
     image: "postgres:11.9.0-debian-10-r26"
@@ -157,7 +172,7 @@ components:
       volumeSize: "20Gi"
   gitsensor:
     registry: ""
-    image: "git-sensor:0a3d5e84-200-28960"
+    image: "git-sensor:0dde3b1a-200-30085"
     imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
@@ -175,7 +190,7 @@ components:
   # Values for lens
   lens:
     registry: ""
-    image: "lens:0a3d5e84-333-28951"
+    image: "lens:0dde3b1a-333-30090"
     imagePullPolicy: IfNotPresent
     secrets: {}
     resources: {}
@@ -222,7 +237,7 @@ components:
         DB_NAME: "lens"
   chartSync:
     registry: ""
-    image: chart-sync:0a3d5e84-836-28979
+    image: chart-sync:0dde3b1a-836-30095
     schedule: "0 19 * * *"
     extraConfigs: {}
 # values for argocd integration
@@ -368,7 +383,7 @@ argo-cd:
 security:
   enabled: false
   imageScanner:
-    image: "image-scanner:0a3d5e84-141-28953"
+    image: "image-scanner:0dde3b1a-141-30093"
     configs:
       TRIVY_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-db
       TRIVY_JAVA_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-java-db
@@ -386,7 +401,7 @@ security:
 notifier:
   enabled: false
   imagePullPolicy: IfNotPresent
-  image: "notifier:9aa5e510-372-28961"
+  image: "notifier:5e9c010b-372-30094"
   configs:
     CD_ENVIRONMENT: PROD
     DB: orchestrator

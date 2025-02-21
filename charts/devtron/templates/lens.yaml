@@ -107,6 +107,8 @@ spec:
                 name: lens-cm
             - secretRef:
                 name: lens-secret
+            - configMapRef:
+                name: devtron-common-cm
           {{- if .resources }}        
           resources:
           {{- toYaml .resources | nindent 12 }}

@@ -162,6 +162,9 @@ spec:
               fieldPath: metadata.namespace
         - name: CLUSTER_ADVERTISE
           value: $(POD_NAME).devtron-nats.$(POD_NAMESPACE).svc.cluster.local
+        envFrom:
+        - configMapRef:
+            name: devtron-common-cm
         volumeMounts:
           - name: config-volume
             mountPath: /etc/nats-config
@@ -216,6 +219,9 @@ spec:
          - "/var/run/nats/nats.pid"
          - "-config"
          - "/etc/nats-config/nats.conf"
+        envFrom:
+        - configMapRef:
+            name: devtron-common-cm
         volumeMounts:
           - name: config-volume
             mountPath: /etc/nats-config
@@ -246,6 +252,9 @@ spec:
         ports:
         - containerPort: 7777
           name: metrics
+        envFrom:
+        - configMapRef:
+            name: devtron-common-cm
 
 
   volumeClaimTemplates:
@@ -253,6 +262,7 @@ spec:
       name: data
     spec:
       accessModes: [ "ReadWriteOnce" ]
+      {{- include "common.storageclass" $ | indent 6 }}
       resources:
         requests:
           storage: {{ .persistence.storage }}

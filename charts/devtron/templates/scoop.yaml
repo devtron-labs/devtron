@@ -57,6 +57,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: scoop-cm
+            - configMapRef:
+                name: devtron-common-cm
           ports:
             - containerPort: 8080
               name: app

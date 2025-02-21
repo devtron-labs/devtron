@@ -88,6 +88,9 @@ spec:
         - containerPort: 5556
         - containerPort: 5557
         - containerPort: 5558
+        envFrom:
+        - configMapRef:
+            name: devtron-common-cm
         volumeMounts:
         - mountPath: /shared
           name: static-files
@@ -108,6 +111,9 @@ spec:
         securityContext:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 10 }}
         {{- end }}
+        envFrom:
+        - configMapRef:
+            name: devtron-common-cm
         volumeMounts:
         - mountPath: /shared
           name: static-files
