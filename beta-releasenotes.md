@@ -1,4 +1,5 @@
 ## Bugs
+- fix: panic fixes  (#6411)
 - fix: auto pre-cd not getting triggered (if cd is manual) after webhook ci event is captured (#6407)
 - fix: Base update (#6405)
 - fix: devtron apps deployed via helm showing in helm apps list (#6397)
