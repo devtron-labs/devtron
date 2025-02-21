@@ -125,7 +125,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/build"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	pipeline6 "github.com/devtron-labs/devtron/pkg/build/pipeline"
-	"github.com/devtron-labs/devtron/pkg/bulkAction"
+	"github.com/devtron-labs/devtron/pkg/bulkAction/service"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
 	read2 "github.com/devtron-labs/devtron/pkg/chart/read"
@@ -360,8 +360,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(chart.ChartService), new(*chart.ChartServiceImpl)),
 		read2.NewChartReadServiceImpl,
 		wire.Bind(new(read2.ChartReadService), new(*read2.ChartReadServiceImpl)),
-		bulkAction.NewBulkUpdateServiceImpl,
-		wire.Bind(new(bulkAction.BulkUpdateService), new(*bulkAction.BulkUpdateServiceImpl)),
+		service.NewBulkUpdateServiceImpl,
+		wire.Bind(new(service.BulkUpdateService), new(*service.BulkUpdateServiceImpl)),
 
 		repository.NewImageTagRepository,
 		wire.Bind(new(repository.ImageTagRepository), new(*repository.ImageTagRepositoryImpl)),
