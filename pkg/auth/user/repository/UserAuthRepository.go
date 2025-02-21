@@ -476,7 +476,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entity
 		return false, err, nil
 	}
 	//getting updated role
-	var roleData bean.RoleData
+	var roleData bean2.RoleData
 	err = json.Unmarshal([]byte(role), &roleData)
 	if err != nil {
 		impl.Logger.Errorw("decode err", "err", err)
@@ -493,7 +493,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entity
 	return true, nil, policiesToBeAdded
 }
 func (impl UserAuthRepositoryImpl) CreateRolesWithAccessTypeAndEntity(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32, role string) (bool, error) {
-	roleData := bean.RoleData{
+	roleData := bean2.RoleData{
 		Role:        role,
 		Entity:      entity,
 		Team:        team,
@@ -528,7 +528,7 @@ func (impl UserAuthRepositoryImpl) CreateRoleForSuperAdminIfNotExists(tx *pg.Tx,
 	if roleModel.Id == 0 || err == pg.ErrNoRows {
 		roleManager := "{\r\n    \"role\": \"role:super-admin___\",\r\n    \"casbinSubjects\": [\r\n        \"role:super-admin___\"\r\n    ],\r\n    \"team\": \"\",\r\n    \"entityName\": \"\",\r\n    \"environment\": \"\",\r\n    \"action\": \"super-admin\"\r\n}"
 
-		var roleManagerData bean.RoleData
+		var roleManagerData bean2.RoleData
 		err = json.Unmarshal([]byte(roleManager), &roleManagerData)
 		if err != nil {
 			impl.Logger.Errorw("decode err", "err", err)
@@ -546,7 +546,7 @@ func (impl UserAuthRepositoryImpl) CreateRoleForSuperAdminIfNotExists(tx *pg.Tx,
 	return true, nil
 }
 
-func (impl UserAuthRepositoryImpl) createRole(roleData *bean.RoleData, UserId int32) (bool, error) {
+func (impl UserAuthRepositoryImpl) createRole(roleData *bean2.RoleData, UserId int32) (bool, error) {
 	roleModel := &RoleModel{
 		Role:        roleData.Role,
 		Entity:      roleData.Entity,

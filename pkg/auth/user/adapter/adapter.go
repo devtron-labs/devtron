@@ -17,7 +17,6 @@
 package adapter
 
 import (
-	"github.com/devtron-labs/devtron/api/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"strings"
@@ -32,16 +31,16 @@ func GetLastLoginTime(model repository.UserModel) time.Time {
 	return lastLoginTime
 }
 
-func CreateRestrictedGroup(roleGroupName string, hasSuperAdminPermission bool) bean.RestrictedGroup {
+func CreateRestrictedGroup(roleGroupName string, hasSuperAdminPermission bool) bean2.RestrictedGroup {
 	trimmedGroup := strings.TrimPrefix(roleGroupName, "group:")
-	return bean.RestrictedGroup{
+	return bean2.RestrictedGroup{
 		Group:                   trimmedGroup,
 		HasSuperAdminPermission: hasSuperAdminPermission,
 	}
 }
 
-func BuildUserInfoResponseAdapter(requestUserInfo *bean.UserInfo, emailId string) *bean.UserInfo {
-	return &bean.UserInfo{
+func BuildUserInfoResponseAdapter(requestUserInfo *bean2.UserInfo, emailId string) *bean2.UserInfo {
+	return &bean2.UserInfo{
 		Id:            requestUserInfo.Id,
 		EmailId:       emailId,
 		Groups:        requestUserInfo.Groups,
@@ -51,7 +50,7 @@ func BuildUserInfoResponseAdapter(requestUserInfo *bean.UserInfo, emailId string
 	}
 }
 
-func BuildSelfRegisterDto(userInfo *bean.UserInfo) *bean2.SelfRegisterDto {
+func BuildSelfRegisterDto(userInfo *bean2.UserInfo) *bean2.SelfRegisterDto {
 	return &bean2.SelfRegisterDto{
 		UserInfo: userInfo,
 	}

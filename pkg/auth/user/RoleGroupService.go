@@ -27,7 +27,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	casbin2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -40,18 +39,18 @@ import (
 )
 
 type RoleGroupService interface {
-	CreateRoleGroup(request *bean.RoleGroup) (*bean.RoleGroup, error)
-	UpdateRoleGroup(request *bean.RoleGroup, token string, checkRBACForGroupUpdate func(token string, groupInfo *bean.RoleGroup,
-		eliminatedRoleFilters []*repository.RoleModel, isRoleGroupAlreadySuperAdmin bool) (isAuthorised bool, err error), managerAuth func(resource, token string, object string) bool) (*bean.RoleGroup, error)
-	FetchDetailedRoleGroups(req *bean.ListingRequest) ([]*bean.RoleGroup, error)
-	FetchRoleGroupsById(id int32) (*bean.RoleGroup, error)
-	FetchRoleGroups() ([]*bean.RoleGroup, error)
-	FetchRoleGroupsV2(req *bean.ListingRequest) (*bean.RoleGroupListingResponse, error)
-	FetchRoleGroupsWithFilters(request *bean.ListingRequest) (*bean.RoleGroupListingResponse, error)
-	FetchRoleGroupsByName(name string) ([]*bean.RoleGroup, error)
-	DeleteRoleGroup(model *bean.RoleGroup) (bool, error)
-	BulkDeleteRoleGroups(request *bean.BulkDeleteRequest) (bool, error)
-	FetchRolesForUserRoleGroups(userRoleGroups []bean.UserRoleGroup) ([]*bean.RoleFilter, error)
+	CreateRoleGroup(request *bean2.RoleGroup) (*bean2.RoleGroup, error)
+	UpdateRoleGroup(request *bean2.RoleGroup, token string, checkRBACForGroupUpdate func(token string, groupInfo *bean2.RoleGroup,
+		eliminatedRoleFilters []*repository.RoleModel, isRoleGroupAlreadySuperAdmin bool) (isAuthorised bool, err error), managerAuth func(resource, token string, object string) bool) (*bean2.RoleGroup, error)
+	FetchDetailedRoleGroups(req *bean2.ListingRequest) ([]*bean2.RoleGroup, error)
+	FetchRoleGroupsById(id int32) (*bean2.RoleGroup, error)
+	FetchRoleGroups() ([]*bean2.RoleGroup, error)
+	FetchRoleGroupsV2(req *bean2.ListingRequest) (*bean2.RoleGroupListingResponse, error)
+	FetchRoleGroupsWithFilters(request *bean2.ListingRequest) (*bean2.RoleGroupListingResponse, error)
+	FetchRoleGroupsByName(name string) ([]*bean2.RoleGroup, error)
+	DeleteRoleGroup(model *bean2.RoleGroup) (bool, error)
+	BulkDeleteRoleGroups(request *bean2.BulkDeleteRequest) (bool, error)
+	FetchRolesForUserRoleGroups(userRoleGroups []bean2.UserRoleGroup) ([]*bean2.RoleFilter, error)
 }
 
 type RoleGroupServiceImpl struct {
@@ -76,7 +75,7 @@ func NewRoleGroupServiceImpl(userAuthRepository repository.UserAuthRepository,
 	return serviceImpl
 }
 
-func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean.RoleGroup, error) {
+func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean2.RoleGroup) (*bean2.RoleGroup, error) {
 	validationPassed := util2.CheckValidationForRoleGroupCreation(request.Name)
 	if !validationPassed {
 		return nil, errors.New(bean2.VALIDATION_FAILED_ERROR_MSG)
@@ -195,7 +194,7 @@ func (impl RoleGroupServiceImpl) CreateAndAddPolicesForSuperAdmin(tx *pg.Tx, use
 	return policies, nil
 }
 
-func (impl RoleGroupServiceImpl) createAndAddPolciesForNonSuperAdmin(tx *pg.Tx, roleFilters []bean.RoleFilter, userLoggedInId int32, model *repository.RoleGroup) ([]bean3.Policy, error) {
+func (impl RoleGroupServiceImpl) createAndAddPolciesForNonSuperAdmin(tx *pg.Tx, roleFilters []bean2.RoleFilter, userLoggedInId int32, model *repository.RoleGroup) ([]bean3.Policy, error) {
 	capacity, mapping := impl.userCommonService.GetCapacityForRoleFilter(roleFilters)
 	var policies = make([]bean3.Policy, 0, capacity)
 	for index, roleFilter := range roleFilters {
@@ -210,7 +209,7 @@ func (impl RoleGroupServiceImpl) createAndAddPolciesForNonSuperAdmin(tx *pg.Tx, 
 	return policies, nil
 }
 
-func (impl RoleGroupServiceImpl) createOrUpdateRoleGroupRoleMappingForAllTypes(tx *pg.Tx, roleFilter bean.RoleFilter, model *repository.RoleGroup, existingRoles map[int]*repository.RoleGroupRoleMapping, entity string, capacity int, userId int32) ([]bean3.Policy, error) {
+func (impl RoleGroupServiceImpl) createOrUpdateRoleGroupRoleMappingForAllTypes(tx *pg.Tx, roleFilter bean2.RoleFilter, model *repository.RoleGroup, existingRoles map[int]*repository.RoleGroupRoleMapping, entity string, capacity int, userId int32) ([]bean3.Policy, error) {
 	var policiesToBeAdded = make([]bean3.Policy, 0, capacity)
 	var err error
 	if entity == bean2.CLUSTER_ENTITIY {
@@ -235,7 +234,7 @@ func (impl RoleGroupServiceImpl) createOrUpdateRoleGroupRoleMappingForAllTypes(t
 	return policiesToBeAdded, nil
 }
 
-func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFilter bean.RoleFilter, userId int32, model *repository.RoleGroup, existingRoles map[int]*repository.RoleGroupRoleMapping, tx *pg.Tx, capacity int) ([]bean3.Policy, error) {
+func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFilter bean2.RoleFilter, userId int32, model *repository.RoleGroup, existingRoles map[int]*repository.RoleGroupRoleMapping, tx *pg.Tx, capacity int) ([]bean3.Policy, error) {
 	//var policiesToBeAdded []casbin2.Policy
 	namespaces := strings.Split(roleFilter.Namespace, ",")
 	groups := strings.Split(roleFilter.Group, ",")
@@ -293,7 +292,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFil
 	return policiesToBeAdded, nil
 }
 
-func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForOtherEntity(roleFilter bean.RoleFilter, userLoggedInId int32, model *repository.RoleGroup, existingRoles map[int]*repository.RoleGroupRoleMapping, tx *pg.Tx, capacity int) ([]bean3.Policy, error) {
+func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForOtherEntity(roleFilter bean2.RoleFilter, userLoggedInId int32, model *repository.RoleGroup, existingRoles map[int]*repository.RoleGroupRoleMapping, tx *pg.Tx, capacity int) ([]bean3.Policy, error) {
 	actionType := roleFilter.Action
 	accessType := roleFilter.AccessType
 	entity := roleFilter.Entity
@@ -344,7 +343,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForOtherEntity(roleFilte
 	return policiesToBeAdded, nil
 }
 
-func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForJobsEntity(roleFilter bean.RoleFilter, userId int32, model *repository.RoleGroup, existingRoles map[int]*repository.RoleGroupRoleMapping, tx *pg.Tx, capacity int) ([]bean3.Policy, error) {
+func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForJobsEntity(roleFilter bean2.RoleFilter, userId int32, model *repository.RoleGroup, existingRoles map[int]*repository.RoleGroupRoleMapping, tx *pg.Tx, capacity int) ([]bean3.Policy, error) {
 	actionType := roleFilter.Action
 	accessType := roleFilter.AccessType
 	entity := roleFilter.Entity
@@ -414,8 +413,8 @@ func (impl RoleGroupServiceImpl) checkIfRoleGroupSuperAdmin(casbinName string) (
 
 }
 
-func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token string, checkRBACForGroupUpdate func(token string, groupInfo *bean.RoleGroup,
-	eliminatedRoleFilters []*repository.RoleModel, isRoleGroupAlreadySuperAdmin bool) (isAuthorised bool, err error), managerAuth func(resource, token string, object string) bool) (*bean.RoleGroup, error) {
+func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean2.RoleGroup, token string, checkRBACForGroupUpdate func(token string, groupInfo *bean2.RoleGroup,
+	eliminatedRoleFilters []*repository.RoleModel, isRoleGroupAlreadySuperAdmin bool) (isAuthorised bool, err error), managerAuth func(resource, token string, object string) bool) (*bean2.RoleGroup, error) {
 	dbConnection := impl.roleGroupRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -509,7 +508,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 	return request, nil
 }
 
-func (impl RoleGroupServiceImpl) UpdateAndAddPoliciesForNonSuperAdmin(tx *pg.Tx, request *bean.RoleGroup, roleGroup *repository.RoleGroup, token string, managerAuth func(resource string, token string, object string) bool) ([]bean3.Policy, []bean3.Policy, []*repository.RoleModel, error) {
+func (impl RoleGroupServiceImpl) UpdateAndAddPoliciesForNonSuperAdmin(tx *pg.Tx, request *bean2.RoleGroup, roleGroup *repository.RoleGroup, token string, managerAuth func(resource string, token string, object string) bool) ([]bean3.Policy, []bean3.Policy, []*repository.RoleModel, error) {
 	var eliminatedPolicies []bean3.Policy
 	capacity, mapping := impl.userCommonService.GetCapacityForRoleFilter(request.RoleFilters)
 	var policies = make([]bean3.Policy, 0, capacity)
@@ -558,7 +557,7 @@ const (
 	AllWorkflow    string = ""
 )
 
-func (impl RoleGroupServiceImpl) FetchRoleGroupsById(id int32) (*bean.RoleGroup, error) {
+func (impl RoleGroupServiceImpl) FetchRoleGroupsById(id int32) (*bean2.RoleGroup, error) {
 	roleGroup, err := impl.roleGroupRepository.GetRoleGroupById(id)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
@@ -570,7 +569,7 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsById(id int32) (*bean.RoleGroup,
 		impl.logger.Errorw("error encountered in FetchRoleGroupsById", "err", err)
 		return nil, err
 	}
-	bean := &bean.RoleGroup{
+	bean := &bean2.RoleGroup{
 		Id:          roleGroup.Id,
 		Name:        roleGroup.Name,
 		Description: roleGroup.Description,
@@ -580,25 +579,25 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsById(id int32) (*bean.RoleGroup,
 	return bean, nil
 }
 
-func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository.RoleGroup) ([]bean.RoleFilter, bool, error) {
+func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository.RoleGroup) ([]bean2.RoleFilter, bool, error) {
 	roles, err := impl.userAuthRepository.GetRolesByGroupId(roleGroup.Id)
 	if err != nil {
 		impl.logger.Errorw("No Roles Found for user", "roleGroupId", roleGroup.Id)
 		return nil, false, err
 	}
-	var roleFilters []bean.RoleFilter
+	var roleFilters []bean2.RoleFilter
 	isSuperAdmin := helper2.CheckIfSuperAdminFromRoles(roles)
 	// merging considering base as env  first
 	roleFilters = impl.userCommonService.BuildRoleFiltersAfterMerging(ConvertRolesToEntityProcessors(roles), bean2.EnvironmentBasedKey)
 	// merging role filters based on application now, first took env as base merged, now application as base , merged
 	roleFilters = impl.userCommonService.BuildRoleFiltersAfterMerging(ConvertRoleFiltersToEntityProcessors(roleFilters), bean2.ApplicationBasedKey)
 	if len(roleFilters) == 0 {
-		roleFilters = make([]bean.RoleFilter, 0)
+		roleFilters = make([]bean2.RoleFilter, 0)
 	}
 	return roleFilters, isSuperAdmin, nil
 }
 
-func (impl RoleGroupServiceImpl) FetchDetailedRoleGroups(req *bean.ListingRequest) ([]*bean.RoleGroup, error) {
+func (impl RoleGroupServiceImpl) FetchDetailedRoleGroups(req *bean2.ListingRequest) ([]*bean2.RoleGroup, error) {
 	query, queryParams := helper.GetQueryForGroupListingWithFilters(req)
 	roleGroups, err := impl.roleGroupRepository.GetAllExecutingQuery(query, queryParams)
 	if err != nil {
@@ -613,8 +612,8 @@ func (impl RoleGroupServiceImpl) FetchDetailedRoleGroups(req *bean.ListingReques
 	return list, nil
 }
 
-func (impl RoleGroupServiceImpl) populateDetailedRoleGroupFromModel(roleGroups []*repository.RoleGroup, hidePermissions bool) ([]*bean.RoleGroup, error) {
-	var list []*bean.RoleGroup
+func (impl RoleGroupServiceImpl) populateDetailedRoleGroupFromModel(roleGroups []*repository.RoleGroup, hidePermissions bool) ([]*bean2.RoleGroup, error) {
+	var list []*bean2.RoleGroup
 	for _, roleGroup := range roleGroups {
 		roleFilters, isSuperAdmin, err := impl.getRoleGroupMetadata(roleGroup)
 		if err != nil {
@@ -629,7 +628,7 @@ func (impl RoleGroupServiceImpl) populateDetailedRoleGroupFromModel(roleGroups [
 				roleFilters[index].AccessType = bean2.DEVTRON_APP
 			}
 		}
-		roleGrp := &bean.RoleGroup{
+		roleGrp := &bean2.RoleGroup{
 			Id:          roleGroup.Id,
 			Name:        roleGroup.Name,
 			Description: roleGroup.Description,
@@ -643,41 +642,41 @@ func (impl RoleGroupServiceImpl) populateDetailedRoleGroupFromModel(roleGroups [
 	}
 
 	if len(list) == 0 {
-		list = make([]*bean.RoleGroup, 0)
+		list = make([]*bean2.RoleGroup, 0)
 	}
 	return list, nil
 }
 
-func (impl RoleGroupServiceImpl) FetchRoleGroups() ([]*bean.RoleGroup, error) {
+func (impl RoleGroupServiceImpl) FetchRoleGroups() ([]*bean2.RoleGroup, error) {
 	roleGroup, err := impl.roleGroupRepository.GetAllRoleGroup()
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
 	}
-	var list []*bean.RoleGroup
+	var list []*bean2.RoleGroup
 	for _, item := range roleGroup {
-		bean := &bean.RoleGroup{
+		bean := &bean2.RoleGroup{
 			Id:          item.Id,
 			Name:        item.Name,
 			Description: item.Description,
-			RoleFilters: make([]bean.RoleFilter, 0),
+			RoleFilters: make([]bean2.RoleFilter, 0),
 		}
 		list = append(list, bean)
 	}
 
 	if len(list) == 0 {
-		list = make([]*bean.RoleGroup, 0)
+		list = make([]*bean2.RoleGroup, 0)
 	}
 	return list, nil
 }
 
-func (impl RoleGroupServiceImpl) FetchRoleGroupsV2(req *bean.ListingRequest) (*bean.RoleGroupListingResponse, error) {
+func (impl RoleGroupServiceImpl) FetchRoleGroupsV2(req *bean2.ListingRequest) (*bean2.RoleGroupListingResponse, error) {
 	list, err := impl.FetchDetailedRoleGroups(req)
 	if err != nil {
 		impl.logger.Errorw("error in FetchDetailedRoleGroups", "err", err)
 		return nil, err
 	}
-	response := &bean.RoleGroupListingResponse{
+	response := &bean2.RoleGroupListingResponse{
 		RoleGroups: list,
 		TotalCount: len(list),
 	}
@@ -685,7 +684,7 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsV2(req *bean.ListingRequest) (*b
 }
 
 // FetchRoleGroupsWithFilters takes listing request as input and outputs RoleGroupListingResponse based on the request filters.
-func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(request *bean.ListingRequest) (*bean.RoleGroupListingResponse, error) {
+func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(request *bean2.ListingRequest) (*bean2.RoleGroupListingResponse, error) {
 	// default values will be used if not provided
 	impl.userCommonService.SetDefaultValuesIfNotPresent(request, true)
 	if request.ShowAll {
@@ -713,33 +712,33 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(request *bean.Listin
 	return impl.fetchRoleGroupResponseFromModel(roleGroup, totalCount)
 }
 
-func (impl RoleGroupServiceImpl) fetchRoleGroupResponseFromModel(roleGroup []*repository.RoleGroup, totalCount int) (*bean.RoleGroupListingResponse, error) {
+func (impl RoleGroupServiceImpl) fetchRoleGroupResponseFromModel(roleGroup []*repository.RoleGroup, totalCount int) (*bean2.RoleGroupListingResponse, error) {
 	list, err := impl.populateDetailedRoleGroupFromModel(roleGroup, true)
 	if err != nil {
 		impl.logger.Errorw("error encountered in fetchRoleGroupResponseFromModel", "err", err)
 		return nil, err
 	}
 
-	response := &bean.RoleGroupListingResponse{
+	response := &bean2.RoleGroupListingResponse{
 		RoleGroups: list,
 		TotalCount: totalCount,
 	}
 	return response, nil
 }
 
-func (impl RoleGroupServiceImpl) FetchRoleGroupsByName(name string) ([]*bean.RoleGroup, error) {
+func (impl RoleGroupServiceImpl) FetchRoleGroupsByName(name string) ([]*bean2.RoleGroup, error) {
 	roleGroup, err := impl.roleGroupRepository.GetRoleGroupListByName(name)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
 	}
-	var list []*bean.RoleGroup
+	var list []*bean2.RoleGroup
 	for _, item := range roleGroup {
-		bean := &bean.RoleGroup{
+		bean := &bean2.RoleGroup{
 			Id:          item.Id,
 			Name:        item.Name,
 			Description: item.Description,
-			RoleFilters: make([]bean.RoleFilter, 0),
+			RoleFilters: make([]bean2.RoleFilter, 0),
 		}
 		list = append(list, bean)
 
@@ -747,7 +746,7 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsByName(name string) ([]*bean.Rol
 	return list, nil
 }
 
-func (impl RoleGroupServiceImpl) DeleteRoleGroup(bean *bean.RoleGroup) (bool, error) {
+func (impl RoleGroupServiceImpl) DeleteRoleGroup(bean *bean2.RoleGroup) (bool, error) {
 
 	dbConnection := impl.roleGroupRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -816,7 +815,7 @@ func (impl RoleGroupServiceImpl) DeleteRoleGroup(bean *bean.RoleGroup) (bool, er
 }
 
 // BulkDeleteRoleGroups takes in bulk delete request and return error
-func (impl RoleGroupServiceImpl) BulkDeleteRoleGroups(request *bean.BulkDeleteRequest) (bool, error) {
+func (impl RoleGroupServiceImpl) BulkDeleteRoleGroups(request *bean2.BulkDeleteRequest) (bool, error) {
 	// it handles ListingRequest if filters are applied will delete those users or will consider the given user ids.
 	if request.ListingRequest != nil {
 		filteredGroupIds, err := impl.getGroupIdsHonoringFilters(request.ListingRequest)
@@ -837,7 +836,7 @@ func (impl RoleGroupServiceImpl) BulkDeleteRoleGroups(request *bean.BulkDeleteRe
 }
 
 // getGroupIdsHonoringFilters get the filtered group ids according to the request filters and returns groupIds and error(not nil) if any exception is caught.
-func (impl *RoleGroupServiceImpl) getGroupIdsHonoringFilters(request *bean.ListingRequest) ([]int32, error) {
+func (impl *RoleGroupServiceImpl) getGroupIdsHonoringFilters(request *bean2.ListingRequest) ([]int32, error) {
 	//query to get particular models respecting filters
 	query, queryParams := helper.GetQueryForGroupListingWithFilters(request)
 	models, err := impl.roleGroupRepository.GetAllExecutingQuery(query, queryParams)
@@ -854,7 +853,7 @@ func (impl *RoleGroupServiceImpl) getGroupIdsHonoringFilters(request *bean.Listi
 }
 
 // deleteRoleGroupsByIds delete role groups by ids takes in bulk delete request and return error
-func (impl RoleGroupServiceImpl) deleteRoleGroupsByIds(request *bean.BulkDeleteRequest) error {
+func (impl RoleGroupServiceImpl) deleteRoleGroupsByIds(request *bean2.BulkDeleteRequest) error {
 	tx, err := impl.roleGroupRepository.StartATransaction()
 	if err != nil {
 		impl.logger.Errorw("error in starting a transaction", "err", err)
@@ -952,7 +951,7 @@ func (impl RoleGroupServiceImpl) deleteMappingsFromCasbin(groupCasbinNames []str
 	return nil
 }
 
-func (impl RoleGroupServiceImpl) FetchRolesForUserRoleGroups(userRoleGroups []bean.UserRoleGroup) ([]*bean.RoleFilter, error) {
+func (impl RoleGroupServiceImpl) FetchRolesForUserRoleGroups(userRoleGroups []bean2.UserRoleGroup) ([]*bean2.RoleFilter, error) {
 	groupNames := make([]string, 0)
 	for _, userRoleGroup := range userRoleGroups {
 		groupNames = append(groupNames, userRoleGroup.RoleGroup.Name)
@@ -980,12 +979,12 @@ func (impl RoleGroupServiceImpl) FetchRolesForUserRoleGroups(userRoleGroups []be
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
 	}
-	list := make([]*bean.RoleFilter, 0)
+	list := make([]*bean2.RoleFilter, 0)
 	if roles == nil {
 		return list, nil
 	}
 	for _, role := range roles {
-		bean := &bean.RoleFilter{
+		bean := &bean2.RoleFilter{
 			EntityName:  role.EntityName,
 			Entity:      role.Entity,
 			Action:      role.Action,

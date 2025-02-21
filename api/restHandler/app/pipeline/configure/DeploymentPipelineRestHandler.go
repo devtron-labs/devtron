@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	devtronAppGitOpConfigBean "github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig/bean"
 	chartRefBean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
@@ -611,7 +612,7 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 	createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(request.AppId, envConfigProperties)
 
 	if err != nil {
-		if err.Error() == bean2.NOCHARTEXIST {
+		if err.Error() == bean3.NOCHARTEXIST {
 			ctx, cancel := context.WithCancel(r.Context())
 			if cn, ok := w.(http.CloseNotifier); ok {
 				go func(done <-chan struct{}, closed <-chan bool) {
@@ -713,7 +714,7 @@ func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Res
 
 	createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(appId, &envConfigProperties)
 	if err != nil {
-		if err.Error() == bean2.NOCHARTEXIST {
+		if err.Error() == bean3.NOCHARTEXIST {
 			ctx, cancel := context.WithCancel(r.Context())
 			if cn, ok := w.(http.CloseNotifier); ok {
 				go func(done <-chan struct{}, closed <-chan bool) {

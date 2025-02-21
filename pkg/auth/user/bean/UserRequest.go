@@ -18,7 +18,6 @@ package bean
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"time"
 )
@@ -130,14 +129,11 @@ const (
 type PolicyType int
 
 const (
-	POLICY_DIRECT        PolicyType = 1
-	POLICY_GROUP         PolicyType = 1
-	SUPERADMIN                      = "role:super-admin___"
-	APP_ACCESS_TYPE_HELM            = "helm-app"
-	USER_TYPE_API_TOKEN             = "apiToken"
-	CHART_GROUP_ENTITY              = "chart-group"
-	CLUSTER_ENTITIY                 = "cluster"
-	ACTION_SUPERADMIN               = "super-admin"
+	POLICY_DIRECT       PolicyType = 1
+	POLICY_GROUP        PolicyType = 1
+	SUPERADMIN                     = "role:super-admin___"
+	USER_TYPE_API_TOKEN            = "apiToken"
+	ACTION_SUPERADMIN              = "super-admin"
 )
 
 type UserListingResponse struct {
@@ -156,13 +152,13 @@ type RestrictedGroup struct {
 }
 
 type ListingRequest struct {
-	SearchKey  string         `json:"searchKey"`
-	SortOrder  bean.SortOrder `json:"sortOrder"`
-	SortBy     bean.SortBy    `json:"sortBy"`
-	Offset     int            `json:"offset"`
-	Size       int            `json:"size"`
-	ShowAll    bool           `json:"showAll"`
-	CountCheck bool           `json:"-"`
+	SearchKey  string    `json:"searchKey"`
+	SortOrder  SortOrder `json:"sortOrder"`
+	SortBy     SortBy    `json:"sortBy"`
+	Offset     int       `json:"offset"`
+	Size       int       `json:"size"`
+	ShowAll    bool      `json:"showAll"`
+	CountCheck bool      `json:"-"`
 }
 
 type BulkDeleteRequest struct {
@@ -210,4 +206,8 @@ func (pa *UserPermissionsAuditDto) WithUserInfo(userInfo *UserInfo) *UserPermiss
 func (pa *UserPermissionsAuditDto) WithEntityAudit(entityAudit sql.AuditLog) *UserPermissionsAuditDto {
 	pa.EntityAudit = entityAudit
 	return pa
+}
+
+type SelfRegisterDto struct {
+	UserInfo *UserInfo
 }

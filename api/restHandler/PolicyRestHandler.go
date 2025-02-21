@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
 	securityBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository/bean"
@@ -110,7 +111,7 @@ func (impl PolicyRestHandlerImpl) SavePolicy(w http.ResponseWriter, r *http.Requ
 		}
 		superAdmin := false
 		for _, item := range roles {
-			if item == bean.SUPERADMIN {
+			if item == bean2.SUPERADMIN {
 				superAdmin = true
 			}
 		}
@@ -180,7 +181,7 @@ func (impl PolicyRestHandlerImpl) UpdatePolicy(w http.ResponseWriter, r *http.Re
 		}
 		superAdmin := false
 		for _, item := range roles {
-			if item == bean.SUPERADMIN {
+			if item == bean2.SUPERADMIN {
 				superAdmin = true
 			}
 		}

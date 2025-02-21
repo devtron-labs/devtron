@@ -26,7 +26,6 @@ import (
 
 	"github.com/caarlos0/env/v6"
 	"github.com/devtron-labs/authenticator/middleware"
-	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
@@ -38,16 +37,16 @@ import (
 
 type UserCommonService interface {
 	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType, workflow string, userId int32) (bool, error, []bean3.Policy)
-	RemoveRolesAndReturnEliminatedPolicies(userInfo *bean.UserInfo, existingRoleIds map[int]repository.UserRoleModel, eliminatedRoleIds map[int]*repository.UserRoleModel, tx *pg.Tx, token string, managerAuth func(resource string, token string, object string) bool) ([]bean3.Policy, []*repository.RoleModel, error)
-	RemoveRolesAndReturnEliminatedPoliciesForGroups(request *bean.RoleGroup, existingRoles map[int]*repository.RoleGroupRoleMapping, eliminatedRoles map[int]*repository.RoleGroupRoleMapping, tx *pg.Tx, token string, managerAuth func(resource string, token string, object string) bool) ([]bean3.Policy, []*repository.RoleModel, error)
+	RemoveRolesAndReturnEliminatedPolicies(userInfo *bean2.UserInfo, existingRoleIds map[int]repository.UserRoleModel, eliminatedRoleIds map[int]*repository.UserRoleModel, tx *pg.Tx, token string, managerAuth func(resource string, token string, object string) bool) ([]bean3.Policy, []*repository.RoleModel, error)
+	RemoveRolesAndReturnEliminatedPoliciesForGroups(request *bean2.RoleGroup, existingRoles map[int]*repository.RoleGroupRoleMapping, eliminatedRoles map[int]*repository.RoleGroupRoleMapping, tx *pg.Tx, token string, managerAuth func(resource string, token string, object string) bool) ([]bean3.Policy, []*repository.RoleModel, error)
 	CheckRbacForClusterEntity(cluster, namespace, group, kind, resource, token string, managerAuth func(resource, token, object string) bool) bool
-	GetCapacityForRoleFilter(roleFilters []bean.RoleFilter) (int, map[int]int)
-	BuildRoleFilterForAllTypes(roleFilterMap map[string]*bean.RoleFilter, entityProcessor EntityKeyProcessor, key string, basetoConsider bean2.MergingBaseKey)
+	GetCapacityForRoleFilter(roleFilters []bean2.RoleFilter) (int, map[int]int)
+	BuildRoleFilterForAllTypes(roleFilterMap map[string]*bean2.RoleFilter, entityProcessor EntityKeyProcessor, key string, basetoConsider bean2.MergingBaseKey)
 	GetUniqueKeyForAllEntity(entityProcessor EntityKeyProcessor, baseToConsider bean2.MergingBaseKey) string
-	SetDefaultValuesIfNotPresent(request *bean.ListingRequest, isRoleGroup bool)
+	SetDefaultValuesIfNotPresent(request *bean2.ListingRequest, isRoleGroup bool)
 	DeleteRoleForUserFromCasbin(mappings map[string][]string) bool
 	DeleteUserForRoleFromCasbin(mappings map[string][]string) bool
-	BuildRoleFiltersAfterMerging(entityProcessors []EntityKeyProcessor, baseKey bean2.MergingBaseKey) []bean.RoleFilter
+	BuildRoleFiltersAfterMerging(entityProcessors []EntityKeyProcessor, baseKey bean2.MergingBaseKey) []bean2.RoleFilter
 }
 
 // Defining a common interface for role and rolefilter
@@ -252,7 +251,7 @@ func getResolvedPValMapValue(rawValue string) string {
 	return resolvedVal
 }
 
-func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInfo *bean.UserInfo,
+func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInfo *bean2.UserInfo,
 	existingRoleIds map[int]repository.UserRoleModel, eliminatedRoleIds map[int]*repository.UserRoleModel,
 	tx *pg.Tx, token string, managerAuth func(resource string, token string, object string) bool) ([]bean3.Policy, []*repository.RoleModel, error) {
 	var eliminatedPolicies []bean3.Policy
@@ -392,7 +391,7 @@ func (impl UserCommonServiceImpl) getMapOfRoleIdVsRoleForRoleIds(roleIds []int) 
 	return roleIdVsRoleMap, nil
 }
 
-func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroups(request *bean.RoleGroup, existingRoles map[int]*repository.RoleGroupRoleMapping, eliminatedRoles map[int]*repository.RoleGroupRoleMapping, tx *pg.Tx, token string, managerAuth func(resource string, token string, object string) bool) ([]bean3.Policy, []*repository.RoleModel, error) {
+func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroups(request *bean2.RoleGroup, existingRoles map[int]*repository.RoleGroupRoleMapping, eliminatedRoles map[int]*repository.RoleGroupRoleMapping, tx *pg.Tx, token string, managerAuth func(resource string, token string, object string) bool) ([]bean3.Policy, []*repository.RoleModel, error) {
 	// Filter out removed items in current request
 	//var policies []casbin.Policy
 	for _, roleFilter := range request.RoleFilters {
@@ -538,12 +537,12 @@ func (impl UserCommonServiceImpl) checkRbacForARole(role *repository.RoleModel, 
 			isAuthorised = false
 		}
 
-	case role.Entity == bean.CLUSTER_ENTITIY:
+	case role.Entity == bean2.CLUSTER_ENTITIY:
 		isValidAuth := impl.CheckRbacForClusterEntity(role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource, token, managerAuth)
 		if !isValidAuth {
 			isAuthorised = false
 		}
-	case role.Entity == bean.CHART_GROUP_ENTITY:
+	case role.Entity == bean2.CHART_GROUP_ENTITY:
 		isAuthorised = true
 	default:
 		isAuthorised = false
@@ -605,7 +604,7 @@ func (impl UserCommonServiceImpl) CheckRbacForClusterEntity(cluster, namespace, 
 	return true
 }
 
-func (impl UserCommonServiceImpl) GetCapacityForRoleFilter(roleFilters []bean.RoleFilter) (int, map[int]int) {
+func (impl UserCommonServiceImpl) GetCapacityForRoleFilter(roleFilters []bean2.RoleFilter) (int, map[int]int) {
 	capacity := 0
 
 	m := make(map[int]int)
@@ -624,7 +623,7 @@ func (impl UserCommonServiceImpl) GetCapacityForRoleFilter(roleFilters []bean.Ro
 	return capacity, m
 }
 
-func (impl UserCommonServiceImpl) BuildRoleFilterForAllTypes(roleFilterMap map[string]*bean.RoleFilter, entityProcessor EntityKeyProcessor, key string, basetoConsider bean2.MergingBaseKey) {
+func (impl UserCommonServiceImpl) BuildRoleFilterForAllTypes(roleFilterMap map[string]*bean2.RoleFilter, entityProcessor EntityKeyProcessor, key string, basetoConsider bean2.MergingBaseKey) {
 	switch entityProcessor.GetEntity() {
 	case bean2.CLUSTER_ENTITIY:
 		{
@@ -641,7 +640,7 @@ func (impl UserCommonServiceImpl) BuildRoleFilterForAllTypes(roleFilterMap map[s
 	}
 }
 
-func BuildRoleFilterKeyForCluster(roleFilterMap map[string]*bean.RoleFilter, entityProcessor EntityKeyProcessor, key string) {
+func BuildRoleFilterKeyForCluster(roleFilterMap map[string]*bean2.RoleFilter, entityProcessor EntityKeyProcessor, key string) {
 	namespaceArr := strings.Split(roleFilterMap[key].Namespace, ",")
 	if containsArr(namespaceArr, AllNamespace) {
 		roleFilterMap[key].Namespace = AllNamespace
@@ -668,7 +667,7 @@ func BuildRoleFilterKeyForCluster(roleFilterMap map[string]*bean.RoleFilter, ent
 	}
 }
 
-func BuildRoleFilterKeyForJobs(roleFilterMap map[string]*bean.RoleFilter, entityProcessor EntityKeyProcessor, key string, baseToConsider bean2.MergingBaseKey) {
+func BuildRoleFilterKeyForJobs(roleFilterMap map[string]*bean2.RoleFilter, entityProcessor EntityKeyProcessor, key string, baseToConsider bean2.MergingBaseKey) {
 	switch baseToConsider {
 	case bean2.ApplicationBasedKey:
 		envArr := strings.Split(roleFilterMap[key].Environment, ",")
@@ -706,7 +705,7 @@ func BuildRoleFilterKeyForJobs(roleFilterMap map[string]*bean.RoleFilter, entity
 	}
 }
 
-func BuildRoleFilterKeyForOtherEntity(roleFilterMap map[string]*bean.RoleFilter, entityProcessor EntityKeyProcessor, key string, baseToConsider bean2.MergingBaseKey) {
+func BuildRoleFilterKeyForOtherEntity(roleFilterMap map[string]*bean2.RoleFilter, entityProcessor EntityKeyProcessor, key string, baseToConsider bean2.MergingBaseKey) {
 	switch baseToConsider {
 	case bean2.ApplicationBasedKey:
 		envArr := strings.Split(roleFilterMap[key].Environment, ",")
@@ -768,7 +767,7 @@ func (impl UserCommonServiceImpl) GetUniqueKeyForAllEntity(entityProcessor Entit
 	return key
 }
 
-func (impl UserCommonServiceImpl) SetDefaultValuesIfNotPresent(request *bean.ListingRequest, isRoleGroup bool) {
+func (impl UserCommonServiceImpl) SetDefaultValuesIfNotPresent(request *bean2.ListingRequest, isRoleGroup bool) {
 	if len(request.SortBy) == 0 {
 		if isRoleGroup {
 			request.SortBy = bean2.GroupName
@@ -811,15 +810,15 @@ func (impl UserCommonServiceImpl) DeleteUserForRoleFromCasbin(mappings map[strin
 	return successful
 }
 
-func (impl UserCommonServiceImpl) BuildRoleFiltersAfterMerging(entityProcessors []EntityKeyProcessor, baseKey bean2.MergingBaseKey) []bean.RoleFilter {
-	roleFilterMap := make(map[string]*bean.RoleFilter, len(entityProcessors))
-	roleFilters := make([]bean.RoleFilter, 0, len(entityProcessors))
+func (impl UserCommonServiceImpl) BuildRoleFiltersAfterMerging(entityProcessors []EntityKeyProcessor, baseKey bean2.MergingBaseKey) []bean2.RoleFilter {
+	roleFilterMap := make(map[string]*bean2.RoleFilter, len(entityProcessors))
+	roleFilters := make([]bean2.RoleFilter, 0, len(entityProcessors))
 	for _, entityProcessor := range entityProcessors {
 		key := impl.GetUniqueKeyForAllEntity(entityProcessor, baseKey)
 		if _, ok := roleFilterMap[key]; ok {
 			impl.BuildRoleFilterForAllTypes(roleFilterMap, entityProcessor, key, baseKey)
 		} else {
-			roleFilterMap[key] = &bean.RoleFilter{
+			roleFilterMap[key] = &bean2.RoleFilter{
 				Entity:      entityProcessor.GetEntity(),
 				Team:        entityProcessor.GetTeam(),
 				Environment: entityProcessor.GetEnvironment(),
@@ -852,7 +851,7 @@ func (impl UserCommonServiceImpl) BuildRoleFiltersAfterMerging(entityProcessors 
 	return roleFilters
 }
 
-func ConvertRoleFiltersToEntityProcessors(filters []bean.RoleFilter) []EntityKeyProcessor {
+func ConvertRoleFiltersToEntityProcessors(filters []bean2.RoleFilter) []EntityKeyProcessor {
 	processors := make([]EntityKeyProcessor, len(filters))
 	for i, filter := range filters {
 		processors[i] = filter // Each RoleFilter is an EntityKeyProcessor

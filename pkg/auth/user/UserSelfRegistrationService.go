@@ -19,8 +19,8 @@ package user
 import (
 	"fmt"
 	jwt2 "github.com/devtron-labs/authenticator/jwt"
-	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/golang-jwt/jwt/v4"
 	"go.uber.org/zap"

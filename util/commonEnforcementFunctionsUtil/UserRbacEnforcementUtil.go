@@ -1,7 +1,6 @@
 package commonEnforcementFunctionsUtil
 
 import (
-	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 )
@@ -9,12 +8,12 @@ import (
 func (impl *CommonEnforcementUtilImpl) CheckRbacForMangerAndAboveAccess(token string, userId int32) (bool, error) {
 	isAuthorised := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	if !isAuthorised {
-		user, err := impl.userService.GetById(userId)
+		user, err := impl.userService.GetByIdWithoutGroupClaims(userId)
 		if err != nil {
 			impl.logger.Errorw("error in getting user by id", "err", err)
 			return false, err
 		}
-		var roleFilters []bean.RoleFilter
+		var roleFilters []bean2.RoleFilter
 		if len(user.UserRoleGroup) > 0 {
 			groupRoleFilters, err := impl.userService.GetRoleFiltersByUserRoleGroups(user.UserRoleGroup)
 			if err != nil {
