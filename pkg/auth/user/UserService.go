@@ -455,7 +455,7 @@ func (impl *UserServiceImpl) CreateAndAddPoliciesForNonSuperAdmin(tx *pg.Tx, use
 		entity := roleFilter.Entity
 		policiesToBeAdded, _, err := impl.CreateOrUpdateUserRolesForAllTypes(roleFilter, userLoggedInId, model, nil, tx, entity, mapping[index])
 		if err != nil {
-			impl.logger.Errorw("error in creating user roles for Alltypes", "err", err)
+			impl.logger.Errorw("error in CreateAndAddPoliciesForNonSuperAdmin", "err", err, "finalRoleFiltersToBeConsidered", finalRoleFiltersToBeConsidered)
 			return nil, err
 		}
 		policies = append(policies, policiesToBeAdded...)
