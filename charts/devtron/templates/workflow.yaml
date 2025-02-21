@@ -1306,15 +1306,15 @@ spec:
         {{- end }}
         command:
         - workflow-controller
+        envFrom:
+        - configMapRef:
+            name: devtron-common-cm
         env:
         - name: LEADER_ELECTION_IDENTITY
           valueFrom:
             fieldRef:
               apiVersion: v1
               fieldPath: metadata.name
-        envFrom:
-        - configMapRef:
-            name: devtron-common-cm
         {{- if $.Values.workflowController.IMDSv2Enforced }}
         - name: POD_NAMES
           value: v1
