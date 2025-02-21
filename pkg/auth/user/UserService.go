@@ -22,6 +22,7 @@ import (
 	bean4 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
 	userHelper "github.com/devtron-labs/devtron/pkg/auth/user/helper"
+	adapter2 "github.com/devtron-labs/devtron/pkg/auth/user/repository/adapter"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	util3 "github.com/devtron-labs/devtron/pkg/auth/user/util"
 	"net/http"
@@ -330,7 +331,7 @@ func (impl *UserServiceImpl) CreateUser(userInfo *userBean.UserInfo, token strin
 	return userResponse, nil
 }
 
-func (impl *UserServiceImpl) updateUserIfExists(userInfo *userBean.UserInfo, dbUser *repository.UserModel, emailId string, token string, managerAuth func(resource, token string, object string) bool) (*userBean.UserInfo, error) {
+func (impl *UserServiceImpl) updateUserIfExists(userInfo *userBean.UserInfo, dbUser *repository.UserModel, emailId string, token string, managerAuth func(resource, token, object string) bool) (*userBean.UserInfo, error) {
 	updateUserInfo, err := impl.GetByIdWithoutGroupClaims(dbUser.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
@@ -373,27 +374,28 @@ func (impl *UserServiceImpl) createUserIfNotExists(userInfo *userBean.UserInfo, 
 	}
 
 	//create new user in our db on d basis of info got from google api or hex. assign a basic role
-	model := &repository.UserModel{
-		EmailId:     emailId,
-		AccessToken: userInfo.AccessToken,
-		UserType:    userInfo.UserType,
-	}
+	model := adapter2.GetUserModelBasicAdapter(emailId, userInfo.AccessToken, userInfo.UserType)
 	model.Active = true
-	model.CreatedBy = userInfo.UserId
-	model.UpdatedBy = userInfo.UserId
-	model.CreatedOn = time.Now()
-	model.UpdatedOn = time.Now()
+	model.AuditLog = sql.NewDefaultAuditLog(userInfo.UserId)
+	err = impl.setTimeoutWindowConfigIdInUserModel(tx, userInfo, model)
+	if err != nil {
+		impl.logger.Errorw("error encountered in createUserIfNotExists", "err", err)
+		return nil, err
+	}
 	model, err = impl.userRepository.CreateUser(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error in creating new user", "error", err)
-		err = &util.ApiError{
-			Code:            constants.UserCreateDBFailed,
-			InternalMessage: "failed to create new user in db",
-			UserMessage:     fmt.Sprintf("requested by %d", userInfo.UserId),
-		}
+		err = util.GetApiErrorAdapter(http.StatusInternalServerError, constants.UserCreateDBFailed, "failed to create new user in db", fmt.Sprintf("requested by %d, error: %v", userInfo.UserId, err))
 		return nil, err
 	}
+	err = impl.assignUserGroups(tx, userInfo, model)
+	if err != nil {
+		impl.logger.Errorw("error encountered in createUserIfNotExists", "err", err)
+		return nil, err
+	}
+
 	userInfo.Id = model.Id
+	userInfo.SetEntityAudit(model.AuditLog)
 	//loading policy for safety
 	casbin2.LoadPolicy()
 
