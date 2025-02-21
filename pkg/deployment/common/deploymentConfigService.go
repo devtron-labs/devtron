@@ -552,7 +552,7 @@ func (impl *DeploymentConfigServiceImpl) parseReleaseConfigForHelmApps(appId int
 }
 
 func (impl *DeploymentConfigServiceImpl) getAllAppLevelConfigsWithCustomGitOpsURL() ([]*bean.DeploymentConfig, error) {
-	dbConfigs, err := impl.deploymentConfigRepository.GetAllAppLevelConfigs()
+	dbConfigs, err := impl.deploymentConfigRepository.GetAllConfigsForActiveApps()
 	if err != nil {
 		impl.logger.Errorw("error in getting all configs with custom gitops url", "err", err)
 		return nil, err

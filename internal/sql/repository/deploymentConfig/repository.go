@@ -63,7 +63,7 @@ type Repository interface {
 	GetAppAndEnvLevelConfigsInBulk(appIdToEnvIdsMap map[int][]int) ([]*DeploymentConfig, error)
 	GetByAppIdAndEnvIdEvenIfInactive(appId, envId int) (*DeploymentConfig, error)
 	GetConfigByAppIds(appIds []int) ([]*DeploymentConfig, error)
-	GetAllAppLevelConfigs() ([]*DeploymentConfig, error)
+	GetAllConfigsForActiveApps() ([]*DeploymentConfig, error)
 	GetAllEnvLevelConfigsWithReleaseMode(releaseMode string) ([]*DeploymentConfig, error)
 	GetDeploymentAppTypeForChartStoreAppByAppId(appId int) (string, error)
 }
@@ -239,11 +239,11 @@ func (impl *RepositoryImpl) GetConfigByAppIds(appIds []int) ([]*DeploymentConfig
 	return results, err
 }
 
-// GetAllAppLevelConfigs returns all deployment configs for active apps
+// GetAllConfigsForActiveApps returns all deployment configs for active apps
 // INNER JOIN app a is used to filter out inactive apps
 // NOTE: earlier we were not deleting the deployment configs on app delete,
 // so we need to filter out inactive deployment configs
-func (impl *RepositoryImpl) GetAllAppLevelConfigs() ([]*DeploymentConfig, error) {
+func (impl *RepositoryImpl) GetAllConfigsForActiveApps() ([]*DeploymentConfig, error) {
 	result := make([]*DeploymentConfig, 0)
 	err := impl.dbConnection.Model(&result).
 		Join("INNER JOIN app a").
