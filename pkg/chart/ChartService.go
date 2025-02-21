@@ -63,7 +63,7 @@ type ChartService interface {
 	FindPreviousChartByAppId(appId int) (chartTemplate *TemplateRequest, err error)
 	UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]interface{}, userId int32, ctx context.Context) (bool, error)
 	CheckIfChartRefUserUploadedByAppId(id int) (bool, error)
-	ChartSpecificPatchOperations(values json.RawMessage, chartChangeType *ChartChangeType) (json.RawMessage, error)
+	ChartSpecificPatchOperations(values json.RawMessage, chartChangeType *chartRefBean.ChartRefChangeType) (json.RawMessage, error)
 
 	ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*chartRefBean.ChartRefAutocompleteResponse, error)
 
@@ -129,7 +129,7 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 	}
 }
 
-func (impl *ChartServiceImpl) ChartSpecificPatchOperations(values json.RawMessage, chartChangeType *ChartChangeType) (json.RawMessage, error) {
+func (impl *ChartServiceImpl) ChartSpecificPatchOperations(values json.RawMessage, chartChangeType *chartRefBean.ChartRefChangeType) (json.RawMessage, error) {
 	return PatchWinterSoldierConfig(values, chartChangeType.NewChartType)
 }
 

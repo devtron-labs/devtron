@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	devtronAppGitOpConfigBean "github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig/bean"
+	chartRefBean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 	"io"
 	"net/http"
@@ -513,7 +514,7 @@ func (handler *PipelineConfigRestHandlerImpl) HandleTriggerDeploymentAfterTypeCh
 	return
 }
 
-func (handler *PipelineConfigRestHandlerImpl) chartSpecificPatchOperations(templateValues json.RawMessage, chartChangeType *chart.ChartChangeType) (json.RawMessage, error) {
+func (handler *PipelineConfigRestHandlerImpl) chartSpecificPatchOperations(templateValues json.RawMessage, chartChangeType *chartRefBean.ChartRefChangeType) (json.RawMessage, error) {
 	if !chartChangeType.IsFlaggerCanarySupported() {
 		enabled, err := handler.deploymentTemplateValidationService.FlaggerCanaryEnabled(templateValues)
 		if err != nil {

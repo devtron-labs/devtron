@@ -110,3 +110,12 @@ type ChartDto struct {
 	Version          string `json:"version"`
 	IsUserUploaded   bool   `json:"isUserUploaded"`
 }
+
+type ChartRefChangeType struct {
+	NewChartType string
+	OldChartType string
+}
+
+func (c *ChartRefChangeType) IsFlaggerCanarySupported() bool {
+	return c.NewChartType == DeploymentChartType
+}
