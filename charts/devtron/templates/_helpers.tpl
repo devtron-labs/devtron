@@ -10,7 +10,7 @@ it randomly.
 {{- define "getOrGeneratePass" }}
 {{- $len := (default 32 .Length) | int -}}
 {{- $obj := (lookup "v1" .Kind .Namespace .Name).data -}}
-{{- if $obj }}
+{{- if index $obj .Key }}
 {{- index $obj .Key -}}
 {{- else if (eq (lower .Kind) "secret") -}}
 {{- randAlphaNum $len | b64enc -}}
