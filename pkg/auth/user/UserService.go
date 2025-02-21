@@ -241,7 +241,7 @@ func (impl *UserServiceImpl) SelfRegisterUserIfNotExists(selfRegisterDto *userBe
 		userInfo.EmailId = emailId
 		userInfo.Exist = dbUser.Active
 		userResponseInfo := adapter.BuildUserInfoResponseAdapter(userInfo, emailId)
-		err = impl.createAuditForCreateOperation(tx, userResponseInfo)
+		err = impl.createAuditForSelfRegisterOperation(tx, userResponseInfo)
 		if err != nil {
 			impl.logger.Errorw("error in creating audit for user", "err", err, "id", userResponseInfo.Id)
 			return nil, err
@@ -441,6 +441,12 @@ func (impl *UserServiceImpl) createUserIfNotExists(userInfo *userBean.UserInfo, 
 			pRes := casbin2.AddPolicy(policies)
 			println(pRes)
 		}
+		err = impl.createAuditForCreateOperation(tx, userInfo, model)
+		if err != nil {
+			impl.logger.Errorw("error in creating audit for user", "err", err, "id", model.Id)
+			return nil, err
+		}
+
 		//Ends
 		err = tx.Commit()
 		if err != nil {
@@ -491,7 +497,12 @@ func (impl *UserServiceImpl) AddUserGroupPoliciesForCasbin(tx *pg.Tx, userRoleGr
 	}
 	for _, item := range userRoleGroup {
 		userGroup := groupIdRoleGroupMap[item.RoleGroup.Id]
-		policies = append(policies, bean4.Policy{Type: "g", Sub: bean4.Subject(emailId), Obj: bean4.Object(userGroup.CasbinName)})
+		casbinPolicy, err := impl.getCasbinPolicyForGroup(tx, emailId, userGroup.CasbinName, item, userLoggedInId)
+		if err != nil {
+			impl.logger.Errorw("error in AddUserGroupPoliciesForCasbin", "item", item, "err", err)
+			return nil, err
+		}
+		policies = append(policies, casbinPolicy)
 	}
 	return policies, nil
 }
@@ -813,15 +824,6 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *userBean.UserInfo, token strin
 			newGroupMap[userGroup.CasbinName] = userGroup.CasbinName
 			if _, ok := oldGroupMap[userGroup.CasbinName]; !ok {
 				addedPolicies = append(addedPolicies, bean4.Policy{Type: "g", Sub: bean4.Subject(userInfo.EmailId), Obj: bean4.Object(userGroup.CasbinName)})
-				// //check permission for new group which is going to add
-				//hasAccessToGroup, hasSuperAdminPermission := impl.checkGroupAuth(userGroup.CasbinName, token, managerAuth, isActionPerformingUserSuperAdmin)
-				//if hasAccessToGroup {
-				//	groupsModified = true
-				//	addedPolicies = append(addedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(userInfo.EmailId), Obj: casbin2.Object(userGroup.CasbinName)})
-				//} else {
-				//	restrictedGroup := adapter.CreateRestrictedGroup(item.RoleGroup.Name, hasSuperAdminPermission)
-				//	restrictedGroups = append(restrictedGroups, restrictedGroup)
-				//}
 			}
 		}
 		eliminatedGroupCasbinNames := make([]string, 0, len(newGroupMap))

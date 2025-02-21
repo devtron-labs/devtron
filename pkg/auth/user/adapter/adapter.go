@@ -17,6 +17,7 @@
 package adapter
 
 import (
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"strings"
@@ -29,6 +30,22 @@ func GetLastLoginTime(model repository.UserModel) time.Time {
 		lastLoginTime = model.UserAudit.UpdatedOn
 	}
 	return lastLoginTime
+}
+
+func GetCasbinGroupPolicy(emailId string, role string) bean.Policy {
+	return bean.Policy{
+		Type: "g",
+		Sub:  bean.Subject(emailId),
+		Obj:  bean.Object(role),
+	}
+}
+
+func GetCasbinGroupPolicyForEmailAndRoleOnly(emailId string, role string) bean.Policy {
+	return bean.Policy{
+		Type: "g",
+		Sub:  bean.Subject(emailId),
+		Obj:  bean.Object(role),
+	}
 }
 
 func CreateRestrictedGroup(roleGroupName string, hasSuperAdminPermission bool) bean2.RestrictedGroup {

@@ -1,6 +1,8 @@
 package user
 
 import (
+	bean4 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
+	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
 	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	userrepo "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/go-pg/pg"
@@ -34,6 +36,15 @@ func validateAccessRoleFilters(info *userBean.UserInfo) error {
 	return nil
 }
 
-func (impl *UserServiceImpl) createAuditForCreateOperation(tx *pg.Tx, userResponseInfo *userBean.UserInfo) error {
+func (impl *UserServiceImpl) createAuditForSelfRegisterOperation(tx *pg.Tx, userResponseInfo *userBean.UserInfo) error {
 	return nil
+}
+
+func (impl *UserServiceImpl) createAuditForCreateOperation(tx *pg.Tx, userResponseInfo *userBean.UserInfo, model *userrepo.UserModel) error {
+	return nil
+}
+
+func (impl *UserServiceImpl) getCasbinPolicyForGroup(tx *pg.Tx, emailId, userGroupCasbinName string, userRoleGroup userBean.UserRoleGroup, userLoggedInId int32) (bean4.Policy, error) {
+	casbinPolicy := adapter.GetCasbinGroupPolicy(emailId, userGroupCasbinName)
+	return casbinPolicy, nil
 }
