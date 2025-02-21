@@ -727,6 +727,14 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *userBean.UserInfo, token strin
 		return nil, err
 	}
 
+	userGroupsUpdated, err := impl.updateUserGroupForUser(tx, userInfo, model)
+	if err != nil {
+		impl.logger.Errorw("error encountered in UpdateUser", "err", err)
+		return nil, err
+	}
+	//TODO: remove this and oss ent sync
+	fmt.Println("userGroupsUpdated", userGroupsUpdated)
+	isUserActive := model.Active
 	var eliminatedPolicies []bean4.Policy
 	capacity, mapping := impl.userCommonService.GetCapacityForRoleFilter(userInfo.RoleFilters)
 	var addedPolicies = make([]bean4.Policy, 0, capacity)
@@ -859,6 +867,13 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *userBean.UserInfo, token strin
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
 	}
+
+	err = impl.saveAuditBasedOnActiveOrInactiveUser(tx, isUserActive, model, userInfo)
+	if err != nil {
+		impl.logger.Errorw("error in creating audit for user", "err", err, "id", model.Id)
+		return nil, err
+	}
+
 	err = tx.Commit()
 	if err != nil {
 		return nil, err
@@ -974,6 +989,10 @@ func (impl *UserServiceImpl) GetAll() ([]userBean.UserInfo, error) {
 func (impl *UserServiceImpl) GetAllWithFilters(request *userBean.ListingRequest) (*userBean.UserListingResponse, error) {
 	//  default values will be used if not provided
 	impl.userCommonService.SetDefaultValuesIfNotPresent(request, false)
+	// setting filter status type
+	setStatusFilterType(request)
+	// Recording time here for overall consistency
+	setCurrentTimeInUserInfo(request)
 	if request.ShowAll {
 		response, err := impl.getAllDetailedUsers(request)
 		if err != nil {
@@ -1681,41 +1700,6 @@ func (impl *UserServiceImpl) saveUserAudit(r *http.Request, userId int32) {
 		UpdatedOn: time.Now(),
 	}
 	impl.userAuditService.Save(userAudit)
-}
-
-func (impl *UserServiceImpl) checkGroupAuth(groupName string, token string, managerAuth func(resource, token string, object string) bool, isActionUserSuperAdmin bool) (bool, bool) {
-	//check permission for group which is going to add/eliminate
-	roles, err := impl.roleGroupRepository.GetRolesByGroupCasbinName(groupName)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error while fetching user from db", "error", err)
-		return false, false
-	}
-	hasAccessToGroup := true
-	hasSuperAdminPermission := false
-	for _, role := range roles {
-		if role.Role == userBean.SUPERADMIN && !isActionUserSuperAdmin {
-			hasAccessToGroup = false
-			hasSuperAdminPermission = true
-		}
-		if role.AccessType == userBean.APP_ACCESS_TYPE_HELM && !isActionUserSuperAdmin {
-			hasAccessToGroup = false
-		}
-		if len(role.Team) > 0 {
-			rbacObject := fmt.Sprintf("%s", role.Team)
-			isValidAuth := managerAuth(casbin2.ResourceUser, token, rbacObject)
-			if !isValidAuth {
-				hasAccessToGroup = false
-			}
-		}
-		if role.Entity == userBean.CLUSTER_ENTITIY && !isActionUserSuperAdmin {
-			isValidAuth := impl.userCommonService.CheckRbacForClusterEntity(role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource, token, managerAuth)
-			if !isValidAuth {
-				hasAccessToGroup = false
-			}
-		}
-
-	}
-	return hasAccessToGroup, hasSuperAdminPermission
 }
 
 func (impl *UserServiceImpl) GetRoleFiltersByUserRoleGroups(userRoleGroups []userBean.UserRoleGroup) ([]userBean.RoleFilter, error) {

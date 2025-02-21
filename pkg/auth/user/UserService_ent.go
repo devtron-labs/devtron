@@ -58,3 +58,19 @@ func getUniqueKeyForRoleFilter(role userBean.RoleFilter) string {
 func getUniqueKeyForUserRoleGroup(userRoleGroup userBean.UserRoleGroup) string {
 	return fmt.Sprintf("%s", userRoleGroup.RoleGroup.Name)
 }
+
+func (impl *UserServiceImpl) updateUserGroupForUser(tx *pg.Tx, userInfo *userBean.UserInfo, model *userrepo.UserModel) (bool, error) {
+	return false, nil
+}
+
+func (impl *UserServiceImpl) saveAuditBasedOnActiveOrInactiveUser(tx *pg.Tx, isUserActive bool, model *userrepo.UserModel, userInfo *userBean.UserInfo) error {
+	return nil
+}
+
+func setStatusFilterType(request *userBean.ListingRequest) {
+	return
+}
+
+func setCurrentTimeInUserInfo(request *userBean.ListingRequest) {
+	return
+}
