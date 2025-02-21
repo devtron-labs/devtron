@@ -284,9 +284,6 @@ spec:
       env:
         - name: NATS_HOST
           value: devtron-nats
-      envFrom:
-      - configMapRef:
-          name: devtron-common-cm
       command:
         - /bin/sh
         - -ec
