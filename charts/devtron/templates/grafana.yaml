@@ -686,9 +686,6 @@ spec:
       image: {{ include "common.image" (dict "component" $.Values.monitoring.grafana "global" $.Values.global "extraImage" $.Values.monitoring.grafana.batsImage ) }}
       imagePullPolicy: "IfNotPresent"
       command: ["/opt/bats/bin/bats", "-t", "/tests/run.sh"]
-      envFrom:
-      - configMapRef:
-          name: devtron-common-cm
       volumeMounts:
         - mountPath: /tests
           name: tests
