@@ -1,7 +1,7 @@
 package user
 
-import "github.com/devtron-labs/devtron/pkg/auth/user/bean"
+import userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 
-func (impl *UserServiceImpl) UpdateDataForGroupClaims(dto *bean.SelfRegisterDto) error {
+func (impl *UserServiceImpl) UpdateDataForGroupClaims(dto *userBean.SelfRegisterDto) error {
 	return nil
 }
