@@ -415,7 +415,7 @@ func (impl *UserServiceImpl) createUserIfNotExists(userInfo *userBean.UserInfo, 
 		if userInfo.SuperAdmin {
 			policiesToBeAdded, err := impl.CreateAndAddPoliciesForSuperAdmin(tx, userInfo.UserId, model.EmailId, model.Id)
 			if err != nil {
-				impl.logger.Errorw("error in createUserIfNotExists", "err", err)
+				impl.logger.Errorw("error in createUserIfNotExists", "userId", userInfo.UserId, "err", err)
 				return nil, err
 			}
 			policies = append(policies, policiesToBeAdded...)
@@ -444,16 +444,17 @@ func (impl *UserServiceImpl) createUserIfNotExists(userInfo *userBean.UserInfo, 
 	return userInfo, nil
 }
 
+// CreateAndAddPoliciesForNonSuperAdmin : iterates over every roleFilter and adds corresponding mappings in orchestrator and return polcies to be added in casbin.
 func (impl *UserServiceImpl) CreateAndAddPoliciesForNonSuperAdmin(tx *pg.Tx, userInfo *userBean.UserInfo, emailId string, model *repository.UserModel) ([]bean4.Policy, error) {
 	userLoggedInId := userInfo.UserId
 	userRoleGroup := userInfo.UserRoleGroup
 	finalRoleFiltersToBeConsidered := getFinalRoleFiltersToBeConsidered(userInfo)
 	capacity, mapping := impl.userCommonService.GetCapacityForRoleFilter(finalRoleFiltersToBeConsidered)
 	var policies = make([]bean4.Policy, 0, capacity)
+	impl.logger.Infow("Creating Or updating User Roles for RoleFilter ")
 	for index, roleFilter := range finalRoleFiltersToBeConsidered {
-		impl.logger.Infow("Creating Or updating User Roles for RoleFilter ")
 		entity := roleFilter.Entity
-		policiesToBeAdded, _, err := impl.CreateOrUpdateUserRolesForAllTypes(roleFilter, userLoggedInId, model, nil, tx, entity, mapping[index])
+		policiesToBeAdded, _, err := impl.CreateOrUpdateUserRolesForAllTypes(tx, roleFilter, model, nil, entity, mapping[index], userLoggedInId)
 		if err != nil {
 			impl.logger.Errorw("error in CreateAndAddPoliciesForNonSuperAdmin", "err", err, "finalRoleFiltersToBeConsidered", finalRoleFiltersToBeConsidered)
 			return nil, err
@@ -526,7 +527,7 @@ func (impl *UserServiceImpl) getGroupIdRoleGroupMap(userRoleGroups []userBean.Us
 	return groupIdRoleGroupMap, nil
 }
 
-func (impl *UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter userBean.RoleFilter, userId int32, model *repository.UserModel, existingRoles map[int]repository.UserRoleModel, tx *pg.Tx, entity string, capacity int) ([]bean4.Policy, bool, error) {
+func (impl *UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(tx *pg.Tx, roleFilter userBean.RoleFilter, model *repository.UserModel, existingRoles map[int]repository.UserRoleModel, entity string, capacity int, userId int32) ([]bean4.Policy, bool, error) {
 	//var policiesToBeAdded []casbin2.Policy
 	var policiesToBeAdded = make([]bean4.Policy, 0, capacity)
 	var err error
@@ -777,7 +778,7 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *userBean.UserInfo, token strin
 		//Adding New Policies
 		for index, roleFilter := range userInfo.RoleFilters {
 			entity := roleFilter.Entity
-			policiesToBeAdded, _, err := impl.CreateOrUpdateUserRolesForAllTypes(roleFilter, userInfo.UserId, model, existingRoleIds, tx, entity, mapping[index])
+			policiesToBeAdded, _, err := impl.CreateOrUpdateUserRolesForAllTypes(tx, roleFilter, model, existingRoleIds, entity, mapping[index], userInfo.UserId)
 			if err != nil {
 				impl.logger.Errorw("error in creating user roles for All Types", "err", err)
 				return nil, err
