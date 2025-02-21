@@ -2571,11 +2571,15 @@ func (handler *PipelineConfigRestHandlerImpl) ValidateArgoCDAppLinkRequest(w htt
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
+	ctx := r.Context()
 	if request.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		response := handler.pipelineBuilder.ValidateLinkExternalArgoCDRequest(&request)
 		common.WriteJsonResp(w, err, response, http.StatusOK)
 		return
-	} else {
+	} else if request.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
+		response := handler.pipelineBuilder.ValidateLinkHelmAppRequest(ctx, &request)
+		common.WriteJsonResp(w, err, response, http.StatusOK)
+		return
 		// handle helm deployment types
 	}
 	common.WriteJsonResp(w, errors.New("invalid deployment app type in request"), nil, http.StatusBadRequest)
