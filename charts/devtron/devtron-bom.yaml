@@ -80,6 +80,14 @@ components:
       ACD_NAMESPACE: "devtroncd"
       ACD_INFORMER: "true"
       NATS_STREAM_MAX_AGE: "10800"
+      PG_ADDR: postgresql-postgresql.devtroncd
+      PG_DATABASE: orchestrator
+      PG_LOG_QUERY: "true"
+      PG_PORT: "5432"
+      PG_USER: postgres
+    dbconfig:
+      secretName: postgresql-postgresql
+      keyName: postgresql-password
   postgres:
     registry: ""
     image: "postgres:11.9.0-debian-10-r26"
