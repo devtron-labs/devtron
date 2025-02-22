@@ -24,7 +24,7 @@ import (
 )
 
 func GetValuesFileForEnv(environmentId int) string {
-	return fmt.Sprintf("_%d-values.yaml", environmentId) //-{envId}-values.yaml
+	return fmt.Sprintf("_%d-values.yaml", environmentId) //_{envId}-values.yaml
 }
 
 func NewTriggerEvent(deploymentAppType string, triggeredAt time.Time, deployedBy int32) bean.TriggerEvent {

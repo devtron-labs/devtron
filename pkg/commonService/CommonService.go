@@ -36,6 +36,7 @@ import (
 type CommonService interface {
 	FetchLatestChartVersion(appId int, envId int) (string, error)
 	GlobalChecklist() (*GlobalChecklist, error)
+	EnvironmentVariableList() (*EnvironmentVariableList, error)
 }
 
 type CommonServiceImpl struct {
@@ -48,6 +49,7 @@ type CommonServiceImpl struct {
 	environmentRepository        repository3.EnvironmentRepository
 	appRepository                app.AppRepository
 	gitOpsConfigReadService      config.GitOpsConfigReadService
+	commonBaseServiceImpl        *CommonBaseServiceImpl
 	envConfigOverrideReadService read3.EnvConfigOverrideService
 	teamReadService              read2.TeamReadService
 }
@@ -62,6 +64,7 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	gitProviderReadService read.GitProviderReadService,
 	envConfigOverrideReadService read3.EnvConfigOverrideService,
+	commonBaseServiceImpl *CommonBaseServiceImpl,
 	teamReadService read2.TeamReadService) *CommonServiceImpl {
 	serviceImpl := &CommonServiceImpl{
 		logger:                       logger,
@@ -73,33 +76,11 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 		appRepository:                appRepository,
 		gitOpsConfigReadService:      gitOpsConfigReadService,
 		gitProviderReadService:       gitProviderReadService,
+		commonBaseServiceImpl:        commonBaseServiceImpl,
 		envConfigOverrideReadService: envConfigOverrideReadService,
 		teamReadService:              teamReadService,
 	}
 	return serviceImpl
-}
-
-type GlobalChecklist struct {
-	AppChecklist   *AppChecklist   `json:"appChecklist"`
-	ChartChecklist *ChartChecklist `json:"chartChecklist"`
-	IsAppCreated   bool            `json:"isAppCreated"`
-	UserId         int32           `json:"-"`
-}
-
-type ChartChecklist struct {
-	GitOps      int `json:"gitOps,omitempty"`
-	Project     int `json:"project"`
-	Environment int `json:"environment"`
-}
-
-type AppChecklist struct {
-	GitOps      int `json:"gitOps,omitempty"`
-	Project     int `json:"project"`
-	Git         int `json:"git"`
-	Environment int `json:"environment"`
-	Docker      int `json:"docker"`
-	HostUrl     int `json:"hostUrl"`
-	//ChartChecklist *ChartChecklist `json:",inline"`
 }
 
 func (impl *CommonServiceImpl) FetchLatestChartVersion(appId int, envId int) (string, error) {
@@ -210,4 +191,8 @@ func (impl *CommonServiceImpl) GlobalChecklist() (*GlobalChecklist, error) {
 		config.IsAppCreated = true
 	}
 	return config, err
+}
+
+func (impl *CommonServiceImpl) EnvironmentVariableList() (*EnvironmentVariableList, error) {
+	return impl.commonBaseServiceImpl.EnvironmentVariableList()
 }

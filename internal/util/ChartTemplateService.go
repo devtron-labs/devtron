@@ -47,6 +47,7 @@ const (
 )
 
 const (
+	PIPELINE_RELEASE_MODE_LINK   = "link"
 	PIPELINE_RELEASE_MODE_CREATE = "create"
 )
 

@@ -24,8 +24,8 @@ import (
 type GitCommandManager interface {
 	GitCommandManagerBase
 	AddRepo(ctx GitContext, rootDir string, remoteUrl string, isBare bool) error
-	CommitAndPush(ctx GitContext, repoRoot, commitMsg, name, emailId string) (string, error)
-	Pull(ctx GitContext, repoRoot string) (err error)
+	CommitAndPush(ctx GitContext, repoRoot, targetRevision, commitMsg, name, emailId string) (string, error)
+	Pull(ctx GitContext, targetRevision string, repoRoot string) (err error)
 }
 
 func NewGitCommandManager(logger *zap.SugaredLogger) GitCommandManager {
@@ -56,6 +56,3 @@ func ParseConfiguration() (*configuration, error) {
 }
 
 const GIT_ASK_PASS = "/git-ask-pass.sh"
-
-const Branch_Master = "master"
-const ORIGIN_MASTER = "origin/master"

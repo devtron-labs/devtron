@@ -18,6 +18,7 @@ type EnvConfigOverrideService interface {
 	FindChartByAppIdAndEnvIdAndChartRefId(appId, targetEnvironmentId int, chartRefId int) (*bean.EnvConfigOverride, error)
 	FindChartForAppByAppIdAndEnvId(appId, targetEnvironmentId int) (*bean.EnvConfigOverride, error)
 	GetByAppIdEnvIdAndChartRefId(appId, envId int, chartRefId int) (*bean.EnvConfigOverride, error)
+	GetAllOverridesForApp(appId int) ([]*bean.EnvConfigOverride, error)
 }
 
 type EnvConfigOverrideReadServiceImpl struct {
@@ -129,4 +130,17 @@ func (impl EnvConfigOverrideReadServiceImpl) GetByAppIdEnvIdAndChartRefId(appId,
 		return nil, err
 	}
 	return adapter.EnvOverrideDBToDTO(overrideDBObj), nil
+}
+
+func (impl EnvConfigOverrideReadServiceImpl) GetAllOverridesForApp(appId int) ([]*bean.EnvConfigOverride, error) {
+	overrideDBObjs, err := impl.envConfigOverrideRepository.GetAllOverridesForApp(appId)
+	if err != nil {
+		impl.logger.Errorw("error in getting chart env config override", "appId", appId, "envId", "err", err)
+		return nil, err
+	}
+	envConfigOverrides := make([]*bean.EnvConfigOverride, len(overrideDBObjs))
+	for _, dbObj := range overrideDBObjs {
+		envConfigOverrides = append(envConfigOverrides, adapter.EnvOverrideDBToDTO(&dbObj))
+	}
+	return envConfigOverrides, nil
 }

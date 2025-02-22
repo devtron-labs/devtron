@@ -40,10 +40,12 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/davecgh/go-spew/spew"
+	argoBean "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"hash"
 	"hash/fnv"
 	v1 "k8s.io/api/core/v1"
 	"math/rand"
+	"strings"
 	"sync"
 	"time"
 )
@@ -190,4 +192,13 @@ func ComputeHash(template *v1.PodTemplateSpec, collisionCount *int32) string {
 
 func BuildDeployedAppName(appName string, environmentName string) string {
 	return fmt.Sprintf("%s-%s", appName, environmentName)
+}
+
+func IsDefaultTargetRevision(branch string) bool {
+	branch = strings.TrimSpace(branch)
+	return branch == argoBean.TargetRevisionMaster || branch == argoBean.TargetRevisionOriginMaster
+}
+
+func GetDefaultTargetRevision() string {
+	return argoBean.TargetRevisionMaster
 }

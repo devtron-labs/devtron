@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/api/helm-app/service/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/module/bean"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	moduleDataStore "github.com/devtron-labs/devtron/pkg/module/store"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
@@ -43,7 +44,7 @@ type ModuleCronService interface {
 type ModuleCronServiceImpl struct {
 	logger                         *zap.SugaredLogger
 	cron                           *cron.Cron
-	moduleEnvConfig                *ModuleEnvConfig
+	moduleEnvConfig                *bean2.ModuleEnvConfig
 	moduleRepository               moduleRepo.ModuleRepository
 	serverEnvConfig                *serverEnvConfig.ServerEnvConfig
 	helmAppService                 client.HelmAppService
@@ -52,7 +53,7 @@ type ModuleCronServiceImpl struct {
 	moduleDataStore                *moduleDataStore.ModuleDataStore
 }
 
-func NewModuleCronServiceImpl(logger *zap.SugaredLogger, moduleEnvConfig *ModuleEnvConfig, moduleRepository moduleRepo.ModuleRepository,
+func NewModuleCronServiceImpl(logger *zap.SugaredLogger, moduleEnvConfig *bean2.ModuleEnvConfig, moduleRepository moduleRepo.ModuleRepository,
 	serverEnvConfig *serverEnvConfig.ServerEnvConfig, helmAppService client.HelmAppService, moduleServiceHelper ModuleServiceHelper, moduleResourceStatusRepository moduleRepo.ModuleResourceStatusRepository,
 	moduleDataStore *moduleDataStore.ModuleDataStore, cronLogger *cron2.CronLoggerImpl) (*ModuleCronServiceImpl, error) {
 
@@ -118,7 +119,7 @@ func (impl *ModuleCronServiceImpl) handleModuleStatus(moduleNameInput string) {
 
 	// update status timeout if module status is installing for more than 1 hour
 	for _, module := range modules {
-		if module.Status != ModuleStatusInstalling {
+		if module.Status != bean2.ModuleStatusInstalling {
 			continue
 		}
 		if len(moduleNameInput) > 0 && module.Name != moduleNameInput {
@@ -126,11 +127,11 @@ func (impl *ModuleCronServiceImpl) handleModuleStatus(moduleNameInput string) {
 		}
 		if time.Now().After(module.UpdatedOn.Add(1 * time.Hour)) {
 			// timeout case
-			impl.updateModuleStatus(module, ModuleStatusTimeout)
+			impl.updateModuleStatus(module, bean2.ModuleStatusTimeout)
 		} else if !util.IsBaseStack() {
 			// if module is cicd then insert as installed
-			if module.Name == ModuleNameCicd {
-				impl.updateModuleStatus(module, ModuleStatusInstalled)
+			if module.Name == bean2.ModuleNameCiCd {
+				impl.updateModuleStatus(module, bean2.ModuleStatusInstalled)
 			} else {
 				resourceTreeFilter, err := impl.buildResourceTreeFilter(module.Name)
 				if err != nil {
@@ -146,7 +147,7 @@ func (impl *ModuleCronServiceImpl) handleModuleStatus(moduleNameInput string) {
 					impl.logger.Errorw("Error occurred while fetching helm application detail to check if module is installed", "moduleName", module.Name, "err", err)
 					continue
 				} else if appDetail.ApplicationStatus == serverBean.AppHealthStatusHealthy {
-					impl.updateModuleStatus(module, ModuleStatusInstalled)
+					impl.updateModuleStatus(module, bean2.ModuleStatusInstalled)
 				}
 
 				// save module resources status
@@ -249,7 +250,7 @@ func (impl *ModuleCronServiceImpl) buildResourceTreeFilter(moduleName string) (*
 		return nil, nil
 	}
 
-	resourceFilterIfaceValue := ResourceFilter{}
+	resourceFilterIfaceValue := bean2.ResourceFilter{}
 	err = json.Unmarshal([]byte(resourceFilterIface), &resourceFilterIfaceValue)
 	if err != nil {
 		impl.logger.Errorw("Error while unmarshalling resourceFilterIface", "resourceFilterIface", resourceFilterIface, "err", err)
@@ -290,7 +291,7 @@ func (impl *ModuleCronServiceImpl) buildResourceTreeFilter(moduleName string) (*
 	return resourceTreeFilter, nil
 }
 
-func (impl *ModuleCronServiceImpl) updateModuleStatus(module moduleRepo.Module, status ModuleStatus) {
+func (impl *ModuleCronServiceImpl) updateModuleStatus(module moduleRepo.Module, status bean2.ModuleStatus) {
 	impl.logger.Debugw("updating module status", "name", module.Name, "status", status)
 	module.Status = status
 	module.UpdatedOn = time.Now()

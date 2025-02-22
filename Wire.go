@@ -102,7 +102,6 @@ import (
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository8 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
@@ -110,6 +109,7 @@ import (
 	resourceGroup "github.com/devtron-labs/devtron/internal/sql/repository/resourceGroup"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
+	read4 "github.com/devtron-labs/devtron/pkg/app/appDetails/read"
 	"github.com/devtron-labs/devtron/pkg/app/dbMigration"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/appClone"
@@ -128,6 +128,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bulkAction/service"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
+	read2 "github.com/devtron-labs/devtron/pkg/chart/read"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	"github.com/devtron-labs/devtron/pkg/config"
@@ -357,6 +358,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(gitOpsConfig.DevtronAppGitOpConfigService), new(*gitOpsConfig.DevtronAppGitOpConfigServiceImpl)),
 		chart.NewChartServiceImpl,
 		wire.Bind(new(chart.ChartService), new(*chart.ChartServiceImpl)),
+		read2.NewChartReadServiceImpl,
+		wire.Bind(new(read2.ChartReadService), new(*read2.ChartReadServiceImpl)),
 		service.NewBulkUpdateServiceImpl,
 		wire.Bind(new(service.BulkUpdateService), new(*service.BulkUpdateServiceImpl)),
 
@@ -375,6 +378,10 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(appList.AppListingRouter), new(*appList.AppListingRouterImpl)),
 		appList2.NewAppListingRestHandlerImpl,
 		wire.Bind(new(appList2.AppListingRestHandler), new(*appList2.AppListingRestHandlerImpl)),
+
+		read4.NewAppDetailsReadServiceImpl,
+		wire.Bind(new(read4.AppDetailsReadService), new(*read4.AppDetailsReadServiceImpl)),
+
 		app.NewAppListingServiceImpl,
 		wire.Bind(new(app.AppListingService), new(*app.AppListingServiceImpl)),
 		repository.NewAppListingRepositoryImpl,
@@ -622,6 +629,7 @@ func InitializeApp() (*App, error) {
 		repository9.NewClusterInstalledAppsRepositoryImpl,
 		wire.Bind(new(repository9.ClusterInstalledAppsRepository), new(*repository9.ClusterInstalledAppsRepositoryImpl)),
 
+		commonService.NewCommonBaseServiceImpl,
 		commonService.NewCommonServiceImpl,
 		wire.Bind(new(commonService.CommonService), new(*commonService.CommonServiceImpl)),
 
@@ -659,8 +667,8 @@ func InitializeApp() (*App, error) {
 
 		router.NewCommonRouterImpl,
 		wire.Bind(new(router.CommonRouter), new(*router.CommonRouterImpl)),
-		restHandler.NewCommonRestHanlderImpl,
-		wire.Bind(new(restHandler.CommonRestHanlder), new(*restHandler.CommonRestHanlderImpl)),
+		restHandler.NewCommonRestHandlerImpl,
+		wire.Bind(new(restHandler.CommonRestHandler), new(*restHandler.CommonRestHandlerImpl)),
 
 		router.NewScopedVariableRouterImpl,
 		wire.Bind(new(router.ScopedVariableRouter), new(*router.ScopedVariableRouterImpl)),
@@ -941,11 +949,7 @@ func InitializeApp() (*App, error) {
 		cel.NewCELServiceImpl,
 		wire.Bind(new(cel.EvaluatorService), new(*cel.EvaluatorServiceImpl)),
 
-		deploymentConfig.NewRepositoryImpl,
-		wire.Bind(new(deploymentConfig.Repository), new(*deploymentConfig.RepositoryImpl)),
-
-		common.NewDeploymentConfigServiceImpl,
-		wire.Bind(new(common.DeploymentConfigService), new(*common.DeploymentConfigServiceImpl)),
+		common.WireSet,
 
 		repoCredsK8sClient.NewRepositoryCredsK8sClientImpl,
 		wire.Bind(new(repoCredsK8sClient.RepositoryCredsK8sClient), new(*repoCredsK8sClient.RepositoryCredsK8sClientImpl)),

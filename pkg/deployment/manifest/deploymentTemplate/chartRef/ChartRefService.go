@@ -27,6 +27,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/read"
 	util2 "github.com/devtron-labs/devtron/util"
 	dirCopy "github.com/otiai10/copy"
 	"go.uber.org/zap"
@@ -80,6 +81,7 @@ type ChartRefFileOpService interface {
 type ChartRefServiceImpl struct {
 	logger               *zap.SugaredLogger
 	chartRefRepository   chartRepoRepository.ChartRefRepository
+	chartRefReadService  read.ChartRefReadService
 	chartTemplateService util.ChartTemplateService
 	mergeUtil            util.MergeUtil
 	chartRepository      chartRepoRepository.ChartRepository
@@ -87,6 +89,7 @@ type ChartRefServiceImpl struct {
 
 func NewChartRefServiceImpl(logger *zap.SugaredLogger,
 	chartRefRepository chartRepoRepository.ChartRefRepository,
+	chartRefReadService read.ChartRefReadService,
 	chartTemplateService util.ChartTemplateService,
 	chartRepository chartRepoRepository.ChartRepository,
 	mergeUtil util.MergeUtil) *ChartRefServiceImpl {
@@ -96,6 +99,7 @@ func NewChartRefServiceImpl(logger *zap.SugaredLogger,
 	return &ChartRefServiceImpl{
 		logger:               logger,
 		chartRefRepository:   chartRefRepository,
+		chartRefReadService:  chartRefReadService,
 		chartTemplateService: chartTemplateService,
 		mergeUtil:            mergeUtil,
 		chartRepository:      chartRepository,
@@ -160,21 +164,11 @@ func (impl *ChartRefServiceImpl) ChartRefIdsCompatible(oldChartRefId int, newCha
 }
 
 func (impl *ChartRefServiceImpl) FindById(chartRefId int) (*bean.ChartRefDto, error) {
-	chartRef, err := impl.chartRefRepository.FindById(chartRefId)
-	if err != nil {
-		impl.logger.Errorw("error in getting chartRef by id", "err", err, "chartRefId", chartRefId)
-		return nil, err
-	}
-	return adapter.ConvertChartRefDbObjToBean(chartRef), nil
+	return impl.chartRefReadService.FindById(chartRefId)
 }
 
 func (impl *ChartRefServiceImpl) FindByVersionAndName(version, name string) (*bean.ChartRefDto, error) {
-	chartRef, err := impl.chartRefRepository.FindByVersionAndName(name, version)
-	if err != nil {
-		impl.logger.Errorw("error in getting chartRef by version and name", "err", err, "version", version, "name", name)
-		return nil, err
-	}
-	return adapter.ConvertChartRefDbObjToBean(chartRef), nil
+	return impl.chartRefReadService.FindByVersionAndName(version, name)
 }
 
 func (impl *ChartRefServiceImpl) FetchInfoOfChartConfiguredInApp(appId int) (*bean.ChartRefDto, error) {

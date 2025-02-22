@@ -25,28 +25,29 @@ import (
 	"go.uber.org/zap"
 )
 
-type CommonRestHanlder interface {
+type CommonRestHandler interface {
 	GlobalChecklist(w http.ResponseWriter, r *http.Request)
+	EnvironmentVariableList(w http.ResponseWriter, r *http.Request)
 }
 
-type CommonRestHanlderImpl struct {
+type CommonRestHandlerImpl struct {
 	logger          *zap.SugaredLogger
 	userAuthService user.UserService
 	commonService   commonService.CommonService
 }
 
-func NewCommonRestHanlderImpl(
+func NewCommonRestHandlerImpl(
 	logger *zap.SugaredLogger,
 	userAuthService user.UserService,
-	commonService commonService.CommonService) *CommonRestHanlderImpl {
-	return &CommonRestHanlderImpl{
+	commonService commonService.CommonService) *CommonRestHandlerImpl {
+	return &CommonRestHandlerImpl{
 		logger:          logger,
 		userAuthService: userAuthService,
 		commonService:   commonService,
 	}
 }
 
-func (impl CommonRestHanlderImpl) GlobalChecklist(w http.ResponseWriter, r *http.Request) {
+func (impl CommonRestHandlerImpl) GlobalChecklist(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -59,5 +60,21 @@ func (impl CommonRestHanlderImpl) GlobalChecklist(w http.ResponseWriter, r *http
 		return
 	}
 
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (impl CommonRestHandlerImpl) EnvironmentVariableList(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	// TODO: ADD RBAC (if required)
+	res, err := impl.commonService.EnvironmentVariableList()
+	if err != nil {
+		impl.logger.Errorw("service err, EnvironmentVariableList", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }

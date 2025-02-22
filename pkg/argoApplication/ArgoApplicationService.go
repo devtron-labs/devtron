@@ -18,7 +18,6 @@ package argoApplication
 
 import (
 	"context"
-	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
@@ -31,9 +30,12 @@ import (
 	"github.com/devtron-labs/devtron/pkg/argoApplication/read/config"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	commonBean "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s/application"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s/bean"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
@@ -46,7 +48,7 @@ type ArgoApplicationService interface {
 
 	//FUll mode
 	// ResourceTree	returns the status for all Apps deployed via ArgoCd
-	ResourceTree(ctx context.Context, query *application2.ResourcesQuery) (*argoApplication.ResourceTreeResponse, error)
+	GetResourceTree(ctx context.Context, acdQueryRequest *bean.AcdClientQueryRequest) (*argoApplication.ResourceTreeResponse, error)
 }
 
 type ArgoApplicationServiceImpl struct {
@@ -57,6 +59,7 @@ type ArgoApplicationServiceImpl struct {
 	helmAppService               service.HelmAppService
 	k8sApplicationService        application.K8sApplicationService
 	argoApplicationConfigService config.ArgoApplicationConfigService
+	deploymentConfigService      common.DeploymentConfigService
 }
 
 func NewArgoApplicationServiceImpl(logger *zap.SugaredLogger,
@@ -65,7 +68,8 @@ func NewArgoApplicationServiceImpl(logger *zap.SugaredLogger,
 	helmAppClient gRPC.HelmAppClient,
 	helmAppService service.HelmAppService,
 	k8sApplicationService application.K8sApplicationService,
-	argoApplicationConfigService config.ArgoApplicationConfigService) *ArgoApplicationServiceImpl {
+	argoApplicationConfigService config.ArgoApplicationConfigService,
+	deploymentConfigService common.DeploymentConfigService) *ArgoApplicationServiceImpl {
 	return &ArgoApplicationServiceImpl{
 		logger:                       logger,
 		clusterRepository:            clusterRepository,
@@ -74,6 +78,7 @@ func NewArgoApplicationServiceImpl(logger *zap.SugaredLogger,
 		helmAppClient:                helmAppClient,
 		k8sApplicationService:        k8sApplicationService,
 		argoApplicationConfigService: argoApplicationConfigService,
+		deploymentConfigService:      deploymentConfigService,
 	}
 
 }
@@ -133,7 +138,24 @@ func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*b
 		appLists := getApplicationListDtos(resp, clusterObj.ClusterName, clusterObj.Id)
 		appListFinal = append(appListFinal, appLists...)
 	}
-	return appListFinal, nil
+	appListClusterIds := sliceUtil.NewSliceFromFuncExec(appListFinal, func(app *bean.ArgoApplicationListDto) int {
+		return app.ClusterId
+	})
+	allDevtronManagedArgoAppsInfo, err := impl.deploymentConfigService.GetAllArgoAppNamesByCluster(appListClusterIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting all argo app names by cluster", "err", err, "clusterIds", appListClusterIds)
+		return nil, err
+	}
+	filteredAppList := make([]*bean.ArgoApplicationListDto, 0)
+	filteredAppList = sliceUtil.Filter(filteredAppList, appListFinal, func(app *bean.ArgoApplicationListDto) bool {
+		_, found := sliceUtil.Find(allDevtronManagedArgoAppsInfo, func(info *commonBean.DevtronArgoCdAppInfo) bool {
+			return info.ArgoAppClusterId == app.ClusterId &&
+				info.ArgoAppNamespace == app.Namespace &&
+				info.ArgoCdAppName == app.Name
+		})
+		return !found
+	})
+	return filteredAppList, nil
 }
 
 func getApplicationListDtos(resp *k8s.ClusterResourceListMap, clusterName string, clusterId int) []*bean.ArgoApplicationListDto {
@@ -212,6 +234,6 @@ func (impl *ArgoApplicationServiceImpl) UnHibernateArgoApplication(ctx context.C
 	return response, nil
 }
 
-func (impl *ArgoApplicationServiceImpl) ResourceTree(ctx context.Context, query *application2.ResourcesQuery) (*argoApplication.ResourceTreeResponse, error) {
+func (impl *ArgoApplicationServiceImpl) GetResourceTree(ctx context.Context, acdQueryRequest *bean.AcdClientQueryRequest) (*argoApplication.ResourceTreeResponse, error) {
 	return nil, util2.DefaultApiError().WithHttpStatusCode(http.StatusNotFound).WithInternalMessage(util.NotSupportedErr).WithUserMessage(util.NotSupportedErr)
 }

@@ -11,11 +11,17 @@
  | DEVTRON_CHART_ARGO_CD_INSTALL_REQUEST_TIMEOUT | int |1 |  |  | false |
  | DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT | int |6 |  |  | false |
  | EXPOSE_CD_METRICS | bool |false |  |  | false |
+ | FEATURE_MIGRATE_ARGOCD_APPLICATION_ENABLE | bool |false | enable migration of external argocd application to devtron pipeline |  | false |
  | HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME | string |120 |  |  | false |
+ | IS_INTERNAL_USE | bool |true |  |  | false |
+ | MIGRATE_DEPLOYMENT_CONFIG_DATA | bool |false | migrate deployment config data from charts table to deployment_config table |  | false |
  | PIPELINE_DEGRADED_TIME | string |10 |  |  | false |
  | REVISION_HISTORY_LIMIT_DEVTRON_APP | int |1 |  |  | false |
  | REVISION_HISTORY_LIMIT_EXTERNAL_HELM_APP | int |0 |  |  | false |
  | REVISION_HISTORY_LIMIT_HELM_APP | int |1 |  |  | false |
+ | RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS | bool |false |  |  | false |
+ | SHOULD_CHECK_NAMESPACE_ON_CLONE | bool |false | should we check if namespace exists or not while cloning app |  | false |
+ | USE_DEPLOYMENT_CONFIG_DATA | bool |false | use deployment config data from deployment_config table |  | true |
 
 
 ## CI_RUNNER Related Environment Variables
@@ -186,7 +192,6 @@
  | INSTALLER_CRD_OBJECT_GROUP_NAME | string |installer.devtron.ai |  |  | false |
  | INSTALLER_CRD_OBJECT_RESOURCE | string |installers |  |  | false |
  | INSTALLER_CRD_OBJECT_VERSION | string |v1alpha1 |  |  | false |
- | IS_INTERNAL_USE | bool |true |  |  | false |
  | JwtExpirationTime | int |120 |  |  | false |
  | K8s_CLIENT_MAX_IDLE_CONNS_PER_HOST | int |25 |  |  | false |
  | K8s_TCP_IDLE_CONN_TIMEOUT | int |300 |  |  | false |
@@ -224,12 +229,10 @@
  | REQ_CI_MEM | string |3G |  |  | false |
  | RESTRICT_TERMINAL_ACCESS_FOR_NON_SUPER_USER | bool |false |  |  | false |
  | RUNTIME_CONFIG_LOCAL_DEV | LocalDevMode |true |  |  | false |
- | RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS | bool |false |  |  | false |
  | SCOPED_VARIABLE_ENABLED | bool |false |  |  | false |
  | SCOPED_VARIABLE_FORMAT | string |@{{%s}} |  |  | false |
  | SCOPED_VARIABLE_HANDLE_PRIMITIVES | bool |false |  |  | false |
  | SCOPED_VARIABLE_NAME_REGEX | string |^[a-zA-Z][a-zA-Z0-9_-]{0,62}[a-zA-Z0-9]$ |  |  | false |
- | SHOULD_CHECK_NAMESPACE_ON_CLONE | bool |false | should we check if namespace exists or not while cloning app |  | false |
  | SOCKET_DISCONNECT_DELAY_SECONDS | int |5 |  |  | false |
  | SOCKET_HEARTBEAT_SECONDS | int |25 |  |  | false |
  | STREAM_CONFIG_JSON | string | |  |  | false |
@@ -249,7 +252,6 @@
  | USER_SESSION_DURATION_SECONDS | int |86400 |  |  | false |
  | USE_ARTIFACT_LISTING_API_V2 | bool |true |  |  | false |
  | USE_CUSTOM_HTTP_TRANSPORT | bool |false |  |  | false |
- | USE_DEPLOYMENT_CONFIG_DATA | bool |false |  |  | false |
  | USE_GIT_CLI | bool |false |  |  | false |
  | USE_RBAC_CREATION_V2 | bool |true |  |  | false |
  | VARIABLE_CACHE_ENABLED | bool |true |  |  | false |

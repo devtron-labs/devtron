@@ -42,10 +42,15 @@ type GitOpsConfigDto struct {
 	IsTLSKeyDataPresent  bool `json:"isTLSKeyDataPresent"`
 
 	// TODO refactoring: create different struct for internal fields
-	GitRepoName string `json:"-"`
-	UserEmailId string `json:"-"`
-	Description string `json:"-"`
-	UserId      int32  `json:"-"`
+	GitRepoName    string `json:"-"`
+	TargetRevision string `json:"-"`
+	UserEmailId    string `json:"-"`
+	Description    string `json:"-"`
+	UserId         int32  `json:"-"`
+}
+
+func (dto GitOpsConfigDto) GetHostUrl() string {
+	return dto.Host
 }
 
 type GitRepoRequestDto struct {
@@ -80,5 +85,5 @@ func IsGitOpsRepoNotConfigured(gitRepoUrl string) bool {
 }
 
 func IsGitOpsRepoConfigured(gitRepoUrl string) bool {
-	return len(gitRepoUrl) != 0 || gitRepoUrl != GIT_REPO_NOT_CONFIGURED
+	return !IsGitOpsRepoNotConfigured(gitRepoUrl)
 }

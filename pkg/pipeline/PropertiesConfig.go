@@ -19,8 +19,11 @@ package pipeline
 import (
 	"context"
 	"encoding/json"
+	errors2 "errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
@@ -30,6 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	"net/http"
 	"time"
 
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -52,7 +56,7 @@ type PropertiesConfigService interface {
 
 	GetAppIdByChartEnvId(chartEnvId int) (*bean4.EnvConfigOverride, error)
 	GetLatestEnvironmentProperties(appId, environmentId int) (*bean.EnvironmentProperties, error)
-	ResetEnvironmentProperties(id int) (bool, error)
+	ResetEnvironmentProperties(id int, userId int32) (bool, error)
 	CreateEnvironmentPropertiesWithNamespace(appId int, propertiesRequest *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error)
 
 	FetchEnvProperties(appId, envId, chartRefId int) (*bean4.EnvConfigOverride, error)
@@ -66,6 +70,7 @@ type PropertiesConfigServiceImpl struct {
 	scopedVariableManager            variables.ScopedVariableManager
 	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
 	envConfigOverrideReadService     read.EnvConfigOverrideService
+	deploymentConfigService          common.DeploymentConfigService
 }
 
 func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
@@ -75,7 +80,8 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 	deploymentTemplateHistoryService deploymentTemplate.DeploymentTemplateHistoryService,
 	scopedVariableManager variables.ScopedVariableManager,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
-	envConfigOverrideReadService read.EnvConfigOverrideService) *PropertiesConfigServiceImpl {
+	envConfigOverrideReadService read.EnvConfigOverrideService,
+	deploymentConfigService common.DeploymentConfigService) *PropertiesConfigServiceImpl {
 	return &PropertiesConfigServiceImpl{
 		logger:                           logger,
 		envConfigRepo:                    envConfigRepo,
@@ -85,6 +91,7 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 		scopedVariableManager:            scopedVariableManager,
 		deployedAppMetricsService:        deployedAppMetricsService,
 		envConfigOverrideReadService:     envConfigOverrideReadService,
+		deploymentConfigService:          deploymentConfigService,
 	}
 
 }
@@ -191,6 +198,15 @@ func (impl PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environm
 		return nil, err
 	}
 	environmentPropertiesResponse.AppMetrics = &isAppMetricsEnabled
+
+	externalReleaseType, err := impl.deploymentConfigService.GetExternalReleaseType(appId, environmentId)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", appId, "envId", environmentId, "err", err)
+		return nil, err
+	}
+	if len(externalReleaseType) != 0 {
+		environmentPropertiesResponse.EnvironmentConfig.MigratedFrom = &externalReleaseType
+	}
 	return environmentPropertiesResponse, nil
 }
 
@@ -200,13 +216,24 @@ func (impl PropertiesConfigServiceImpl) FetchEnvProperties(appId, envId, chartRe
 
 func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, environmentProperties *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error) {
 	chart, err := impl.chartRepo.FindChartByAppIdAndRefId(appId, environmentProperties.ChartRefId)
-	if err != nil && pg.ErrNoRows != err {
+	if err != nil && !errors2.Is(err, pg.ErrNoRows) {
 		return nil, err
-	}
-	if pg.ErrNoRows == err {
+	} else if errors2.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("create new chart set latest=false", "a", "b")
 		return nil, fmt.Errorf("NOCHARTEXIST")
 	}
+
+	externalReleaseType, err := impl.deploymentConfigService.GetExternalReleaseType(chart.AppId, environmentProperties.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", chart.AppId, "envId", environmentProperties.EnvironmentId, "err", err)
+		return nil, err
+	}
+	if externalReleaseType.IsArgoApplication() {
+		return nil, util.NewApiError(http.StatusConflict,
+			"chart version change is not allowed for external argo application",
+			"chart version change is not allowed for external argo application")
+	}
+
 	chart.GlobalOverride = string(environmentProperties.EnvOverrideValues)
 	appMetrics := false
 	if environmentProperties.AppMetrics != nil {
@@ -323,6 +350,17 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 
 	if err != nil {
 		impl.logger.Errorw("chart version parsing", "err", err)
+		return nil, err
+	}
+
+	chart, err := impl.chartRepo.FindById(overrideDbObj.ChartId)
+	if err != nil {
+		impl.logger.Errorw("error in chartRefRepository.FindById", "chartRefId", chart.ChartRefId, "err", err)
+		return nil, err
+	}
+	err = impl.deploymentConfigService.UpdateChartLocationInDeploymentConfig(appId, overrideDbObj.TargetEnvironment, chart.ChartRefId, userId, chart.ChartVersion)
+	if err != nil {
+		impl.logger.Errorw("error in UpdateChartLocationInDeploymentConfig", "appId", appId, "envId", overrideDbObj.TargetEnvironment, "err", err)
 		return nil, err
 	}
 
@@ -460,7 +498,15 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(request *bean.Environme
 			impl.logger.Errorw("error in creating envconfig", "data", envOverride, "error", err)
 			return nil, isAppMetricsEnabled, err
 		}
+		envOverrideDBObj.Chart = chart
 		envOverride = adapter.EnvOverrideDBToDTO(envOverrideDBObj)
+
+		err = impl.deploymentConfigService.UpdateChartLocationInDeploymentConfig(chart.AppId, envOverride.TargetEnvironment, chart.ChartRefId, userId, envOverride.Chart.ChartVersion)
+		if err != nil {
+			impl.logger.Errorw("error in UpdateChartLocationInDeploymentConfig", "appId", chart.AppId, "envId", envOverride.TargetEnvironment, "err", err)
+			return nil, isAppMetricsEnabled, err
+		}
+
 		err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverride, tx, isAppMetricsEnabled, 0)
 		if err != nil {
 			impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverride)
@@ -550,7 +596,7 @@ func (impl PropertiesConfigServiceImpl) GetLatestEnvironmentProperties(appId, en
 	return environmentProperties, nil
 }
 
-func (impl PropertiesConfigServiceImpl) ResetEnvironmentProperties(id int) (bool, error) {
+func (impl PropertiesConfigServiceImpl) ResetEnvironmentProperties(id int, userId int32) (bool, error) {
 	envOverride, err := impl.envConfigOverrideReadService.GetByIdIncludingInactive(id)
 	if err != nil {
 		return false, err
@@ -570,6 +616,18 @@ func (impl PropertiesConfigServiceImpl) ResetEnvironmentProperties(id int) (bool
 		impl.logger.Errorw("error, DeleteEnvLevelMetricsIfPresent", "err", err, "appId", envOverride.Chart.AppId, "envId", envOverride.TargetEnvironment)
 		return false, err
 	}
+
+	chart, err := impl.chartRepo.FindLatestChartForAppByAppId(envOverride.Chart.AppId)
+	if err != nil {
+		impl.logger.Errorw("error in chartRefRepository.FindById", "chartRefId", envOverride.Chart.ChartRefId, "err", err)
+		return false, err
+	}
+	err = impl.deploymentConfigService.UpdateChartLocationInDeploymentConfig(envOverride.Chart.AppId, envOverride.TargetEnvironment, chart.ChartRefId, userId, chart.ChartVersion)
+	if err != nil {
+		impl.logger.Errorw("error in UpdateChartLocationInDeploymentConfig", "appId", envOverride.Chart.AppId, "envId", envOverride.TargetEnvironment, "err", err)
+		return false, err
+	}
+
 	//VARIABLES
 	err = impl.scopedVariableManager.RemoveMappedVariables(envOverride.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, envOverride.UpdatedBy, nil)
 	if err != nil {

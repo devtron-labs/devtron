@@ -14,7 +14,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
 	"go.uber.org/zap"
-	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"time"
 )
@@ -28,7 +27,6 @@ type DeploymentConfigurationRestHandler interface {
 type DeploymentConfigurationRestHandlerImpl struct {
 	logger                         *zap.SugaredLogger
 	userAuthService                user.UserService
-	validator                      *validator.Validate
 	enforcerUtil                   rbac.EnforcerUtil
 	deploymentConfigurationService configDiff.DeploymentConfigurationService
 	enforcer                       casbin.Enforcer

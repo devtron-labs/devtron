@@ -19,6 +19,7 @@ package module
 import (
 	"encoding/json"
 	"errors"
+	"github.com/devtron-labs/devtron/pkg/module/bean"
 	"net/http"
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -135,7 +136,7 @@ func (impl ModuleRestHandlerImpl) HandleModuleAction(w http.ResponseWriter, r *h
 
 	// decode request
 	decoder := json.NewDecoder(r.Body)
-	var moduleActionRequestDto *module.ModuleActionRequestDto
+	var moduleActionRequestDto *bean.ModuleActionRequestDto
 	err = decoder.Decode(&moduleActionRequestDto)
 	if err != nil {
 		impl.logger.Errorw("error in decoding request in HandleModuleAction", "err", err)
@@ -184,7 +185,7 @@ func (impl ModuleRestHandlerImpl) EnableModule(w http.ResponseWriter, r *http.Re
 	}
 	// decode request
 	decoder := json.NewDecoder(r.Body)
-	var moduleEnableRequestDto module.ModuleEnableRequestDto
+	var moduleEnableRequestDto bean.ModuleEnableRequestDto
 	err = decoder.Decode(&moduleEnableRequestDto)
 	if err != nil {
 		impl.logger.Errorw("error in decoding request in ModuleEnableRequestDto", "err", err)

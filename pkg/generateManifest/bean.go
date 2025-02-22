@@ -45,6 +45,7 @@ type DeploymentTemplateRequest struct {
 	EnvName                     string                            `json:"-"`
 	Namespace                   string                            `json:"-"`
 	PipelineName                string                            `json:"-"`
+	DeploymentAppName           string                            `json:"-"`
 	ChartRefId                  int                               `json:"chartRefId"`
 	RequestDataMode             RequestDataMode                   `json:"valuesAndManifestFlag"`
 	Values                      string                            `json:"values"`

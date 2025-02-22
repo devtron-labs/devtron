@@ -18,6 +18,8 @@ package module
 
 import (
 	"github.com/devtron-labs/devtron/pkg/module"
+	"github.com/devtron-labs/devtron/pkg/module/bean"
+	"github.com/devtron-labs/devtron/pkg/module/read"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	moduleDataStore "github.com/devtron-labs/devtron/pkg/module/store"
 	"github.com/google/wire"
@@ -28,9 +30,11 @@ var ModuleWireSet = wire.NewSet(
 	wire.Bind(new(module.ModuleActionAuditLogRepository), new(*module.ModuleActionAuditLogRepositoryImpl)),
 	moduleRepo.NewModuleRepositoryImpl,
 	wire.Bind(new(moduleRepo.ModuleRepository), new(*moduleRepo.ModuleRepositoryImpl)),
+	read.NewModuleReadServiceImpl,
+	wire.Bind(new(read.ModuleReadService), new(*read.ModuleReadServiceImpl)),
 	moduleRepo.NewModuleResourceStatusRepositoryImpl,
 	wire.Bind(new(moduleRepo.ModuleResourceStatusRepository), new(*moduleRepo.ModuleResourceStatusRepositoryImpl)),
-	module.ParseModuleEnvConfig,
+	bean.ParseModuleEnvConfig,
 	moduleDataStore.InitModuleDataStore,
 	module.NewModuleServiceHelperImpl,
 	wire.Bind(new(module.ModuleServiceHelper), new(*module.ModuleServiceHelperImpl)),

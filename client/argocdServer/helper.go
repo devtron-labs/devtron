@@ -1,6 +1,8 @@
 package argocdServer
 
 import (
+	json2 "encoding/json"
+	errors3 "errors"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -35,4 +37,20 @@ func isArgoAppSyncModeMigrationNeeded(argoApplication *v1alpha1.Application, acd
 		return true
 	}
 	return false
+}
+
+func GetAppObject(appMapObj map[string]interface{}) (*v1alpha1.Application, error) {
+	if appMapObj == nil {
+		return nil, errors3.New("found empty application object")
+	}
+	appJson, err := json2.Marshal(appMapObj)
+	if err != nil {
+		return nil, err
+	}
+	var app v1alpha1.Application
+	err = json2.Unmarshal(appJson, &app)
+	if err != nil {
+		return nil, err
+	}
+	return &app, err
 }

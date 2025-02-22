@@ -92,6 +92,16 @@ func (impl *InstalledAppDBExtendedServiceImpl) UpdateInstalledAppVersionStatus(a
 }
 
 func (impl *InstalledAppDBExtendedServiceImpl) IsGitOpsRepoAlreadyRegistered(repoUrl string) (bool, error) {
+
+	urlPresent, err := impl.InstalledAppDBServiceImpl.DeploymentConfigService.CheckIfURLAlreadyPresent(repoUrl)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.Logger.Errorw("error in checking url in deployment configs", "repoUrl", repoUrl, "err", err)
+		return false, err
+	}
+	if urlPresent {
+		return true, nil
+	}
+
 	repoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(repoUrl)
 	installedAppModel, err := impl.InstalledAppRepository.GetInstalledAppByGitRepoUrl(repoName, repoUrl)
 	if err != nil && !util.IsErrNoRows(err) {

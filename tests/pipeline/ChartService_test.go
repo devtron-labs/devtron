@@ -24,7 +24,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bulkAction/bean"
 	"github.com/devtron-labs/devtron/pkg/bulkAction/service"
-	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	jsonpatch "github.com/evanphx/json-patch"
 	"io"
@@ -43,8 +42,8 @@ func setup() {
 	logger, _ := util.NewSugardLogger()
 	dbConnection, _ := sql.NewDbConnection(config, logger)
 	bulkUpdateRepository := bulkUpdate.NewBulkUpdateRepository(dbConnection, logger)
-	bulkUpdateService = service.NewBulkUpdateServiceImpl(bulkUpdateRepository, nil, nil, nil, nil, "",
-		chart.DefaultChart(""), util.MergeUtil{}, nil, nil, nil, nil, nil,
+	bulkUpdateService = service.NewBulkUpdateServiceImpl(bulkUpdateRepository, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil,
 		nil, nil, nil, nil, nil)
 }
 
