@@ -320,6 +320,17 @@ func (impl *DeploymentConfigServiceImpl) GetConfigsByAppIds(appIds []int) ([]*be
 }
 
 func (impl *DeploymentConfigServiceImpl) UpdateChartLocationInDeploymentConfig(appId, envId, chartRefId int, userId int32, chartVersion string) error {
+
+	pipeline, err := impl.pipelineRepository.FindOneByAppIdAndEnvId(appId, envId)
+	if err != nil && errors.Is(err, pg.ErrNoRows) {
+		impl.logger.Errorw("error in finding pipeline by app id and env id", "appId", appId, "envId", envId, "err", err)
+		return err
+	}
+	// no need to update deployment config if pipeline is not present
+	if errors.Is(err, pg.ErrNoRows) || (pipeline != nil && pipeline.Id == 0) {
+		return nil
+	}
+
 	config, err := impl.GetConfigForDevtronApps(appId, envId)
 	if err != nil {
 		impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", appId, "envId", envId, "err", err)

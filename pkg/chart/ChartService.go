@@ -313,6 +313,21 @@ func (impl *ChartServiceImpl) Create(templateRequest bean3.TemplateRequest, ctx 
 		return nil, err
 	}
 
+	envOverrides, err := impl.envConfigOverrideReadService.GetAllOverridesForApp(templateRequest.AppId)
+	if err != nil {
+		impl.logger.Errorw("error in getting all overrides for app", "appId", templateRequest.AppId, "err", err)
+		return nil, err
+	}
+	for _, override := range envOverrides {
+		if !override.IsOverride {
+			err := impl.deploymentConfigService.UpdateChartLocationInDeploymentConfig(templateRequest.AppId, override.TargetEnvironment, chart.ChartRefId, templateRequest.UserId, version)
+			if err != nil {
+				impl.logger.Errorw("error in updating chart location for env level deployment configs", "appId", templateRequest.AppId, "envId", override.TargetEnvironment, "err", err)
+				return nil, err
+			}
+		}
+	}
+
 	//creating history entry for deployment template
 	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(chart, nil, templateRequest.IsAppMetricsEnabled)
 	if err != nil {
