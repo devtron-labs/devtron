@@ -194,3 +194,7 @@ func (impl *UserServiceImpl) deleteUserCasbinPolices(model *userrepo.UserModel) 
 func getApproverFromRoleFilter(roleFilter userBean.RoleFilter) bool {
 	return false
 }
+
+func (impl *UserServiceImpl) checkValidationAndPerformOperationsForUpdate(token string, tx *pg.Tx, model *userrepo.UserModel, userInfo *userBean.UserInfo, userGroupsUpdated bool, timeoutWindowConfigId int) (operationCompleted bool, err error) {
+	return false, nil
+}

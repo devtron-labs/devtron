@@ -818,9 +818,15 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *userBean.UserInfo, token strin
 		impl.logger.Errorw("error in UpdateUser ", "userInfo", userInfo, "err", err)
 		return nil, err
 	}
-	//TODO: remove this and oss ent sync
-	fmt.Println("userGroupsUpdated", userGroupsUpdated)
 	isUserActive := model.Active
+	operationCompleted, err := impl.checkValidationAndPerformOperationsForUpdate(token, tx, model, userInfo, userGroupsUpdated, timeoutWindowConfigId)
+	if err != nil {
+		impl.logger.Errorw("error in UpdateUser", "userId", userInfo.UserId, "err", err)
+		return nil, err
+	}
+	if operationCompleted {
+		return userInfo, nil
+	}
 	var eliminatedPolicies = make([]bean4.Policy, 0)
 	var addedPolicies = make([]bean4.Policy, 0)
 	//loading policy for safety
@@ -1293,10 +1299,7 @@ func (impl *UserServiceImpl) CheckIfTokenIsValid(email string, version string) e
 func (impl *UserServiceImpl) GetEmailFromToken(token string) (string, error) {
 	if token == "" {
 		impl.logger.Infow("no token provided")
-		err := &util.ApiError{
-			Code:            constants.UserNoTokenProvided,
-			InternalMessage: "no token provided",
-		}
+		err := adapter.GetNoTokenProvidedError()
 		return "", err
 	}
 

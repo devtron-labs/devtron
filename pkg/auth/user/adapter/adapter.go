@@ -17,6 +17,8 @@
 package adapter
 
 import (
+	"github.com/devtron-labs/devtron/internal/constants"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"strings"
@@ -69,6 +71,13 @@ func BuildRoleFilterFromRoleF(roleF bean2.RoleFilter) bean2.RoleFilter {
 		Kind:        roleF.Kind,
 		Resource:    roleF.Resource,
 		Workflow:    roleF.Workflow,
+	}
+}
+
+func GetNoTokenProvidedError() error {
+	return &util.ApiError{
+		Code:            constants.UserNoTokenProvided,
+		InternalMessage: bean2.NoTokenProvidedMessage,
 	}
 }
 
