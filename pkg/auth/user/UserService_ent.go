@@ -175,3 +175,18 @@ func (impl *UserServiceImpl) createOrUpdateUserRoleGroupsPolices(requestUserRole
 	}
 	return addedPolicies, eliminatedPolicies, eliminatedGroupRoles, mapOfExistingUserRoleGroup, nil
 }
+
+func (impl *UserServiceImpl) deleteUserCasbinPolices(model *userrepo.UserModel) error {
+	groups, err := casbin2.GetRolesForUser(model.EmailId)
+	if err != nil {
+		impl.logger.Warnw("No Roles Found for user", "id", model.Id)
+		return err
+	}
+	for _, item := range groups {
+		flag := casbin2.DeleteRoleForUser(model.EmailId, item)
+		if flag == false {
+			impl.logger.Warnw("unable to delete role:", "user", model.EmailId, "role", item)
+		}
+	}
+	return nil
+}

@@ -548,7 +548,7 @@ func (impl *UserServiceImpl) UpdateAndAddPoliciesForNonSuperAdmin(tx *pg.Tx, mod
 	}
 
 	//Adding New Policies
-	for index, roleFilter := range userInfo.RoleFilters {
+	for index, roleFilter := range finalRoleFiltersToBeConsidered {
 		entity := roleFilter.Entity
 
 		policiesToBeAdded, rolesChangedFromRoleUpdate, err := impl.CreateOrUpdateUserRolesForAllTypes(tx, roleFilter, model, existingRoleIds, entity, mapping[index], userInfo.UserId)
@@ -1416,20 +1416,28 @@ func (impl *UserServiceImpl) GetEmailAndVersionFromToken(token string) (string, 
 
 func (impl *UserServiceImpl) GetByIds(ids []int32) ([]userBean.UserInfo, error) {
 	var beans []userBean.UserInfo
+	if len(ids) == 0 {
+		return beans, nil
+	}
 	models, err := impl.userRepository.GetByIds(ids)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
 	}
+	userIdVsUserGroupMapDto, err := impl.getUserGroupMapFromModels(models)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user group from db", "error", err)
+		return nil, err
+	}
 	if len(models) > 0 {
 		for _, item := range models {
-			beans = append(beans, userBean.UserInfo{Id: item.Id, EmailId: item.EmailId})
+			beans = append(beans, adapter.BuildUserInfo(item.Id, item.EmailId, userIdVsUserGroupMapDto))
 		}
 	}
 	return beans, nil
 }
 
-func (impl *UserServiceImpl) DeleteUser(bean *userBean.UserInfo) (bool, error) {
+func (impl *UserServiceImpl) DeleteUser(userInfo *userBean.UserInfo) (bool, error) {
 
 	dbConnection := impl.roleGroupRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -1439,12 +1447,12 @@ func (impl *UserServiceImpl) DeleteUser(bean *userBean.UserInfo) (bool, error) {
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	model, err := impl.userRepository.GetById(bean.Id)
+	model, err := impl.userRepository.GetById(userInfo.Id)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return false, err
 	}
-	userRolesMappingIds, err := impl.userAuthRepository.GetUserRoleMappingIdsByUserId(bean.Id)
+	userRolesMappingIds, err := impl.userAuthRepository.GetUserRoleMappingIdsByUserId(userInfo.Id)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return false, err
@@ -1457,29 +1465,24 @@ func (impl *UserServiceImpl) DeleteUser(bean *userBean.UserInfo) (bool, error) {
 		}
 	}
 	model.Active = false
-	model.UpdatedBy = bean.UserId
+	model.UpdatedBy = userInfo.UserId
 	model.UpdatedOn = time.Now()
+	setTwcId(model, 0)
 	model, err = impl.userRepository.UpdateUser(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return false, err
 	}
+
+	err = impl.deleteUserCasbinPolices(model)
+	if err != nil {
+		impl.logger.Errorw("error while deleting user policies", "error", err)
+	}
+
 	err = tx.Commit()
 	if err != nil {
 		return false, err
 	}
-
-	groups, err := casbin2.GetRolesForUser(model.EmailId)
-	if err != nil {
-		impl.logger.Warnw("No Roles Found for user", "id", model.Id)
-	}
-	for _, item := range groups {
-		flag := casbin2.DeleteRoleForUser(model.EmailId, item)
-		if flag == false {
-			impl.logger.Warnw("unable to delete role:", "user", model.EmailId, "role", item)
-		}
-	}
-
 	return true, nil
 }
 
