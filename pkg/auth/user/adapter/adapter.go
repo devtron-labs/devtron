@@ -32,14 +32,6 @@ func GetLastLoginTime(model repository.UserModel) time.Time {
 	return lastLoginTime
 }
 
-func GetCasbinGroupPolicy(emailId string, role string) bean.Policy {
-	return bean.Policy{
-		Type: "g",
-		Sub:  bean.Subject(emailId),
-		Obj:  bean.Object(role),
-	}
-}
-
 func GetCasbinGroupPolicyForEmailAndRoleOnly(emailId string, role string) bean.Policy {
 	return bean.Policy{
 		Type: "g",

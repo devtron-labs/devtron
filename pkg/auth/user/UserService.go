@@ -580,6 +580,12 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForClusterEntity(tx *pg.Tx, 
 	actionType := roleFilter.Action
 	accessType := roleFilter.AccessType
 	var policiesToBeAdded = make([]bean4.Policy, 0, capacity)
+	timeoutWindowConfigDto, err := impl.getTimeoutWindowConfig(tx, roleFilter, userId)
+	if err != nil {
+		impl.logger.Errorw("error encountered in createOrUpdateUserRolesForClusterEntity", "roleFilter", roleFilter, "err", err)
+		return policiesToBeAdded, rolesChanged, err
+	}
+
 	for _, namespace := range namespaces {
 		for _, group := range groups {
 			for _, kind := range kinds {
@@ -610,7 +616,8 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForClusterEntity(tx *pg.Tx, 
 					}
 					if _, ok := existingRoles[roleModel.Id]; ok {
 						//Adding policies which are removed
-						policiesToBeAdded = append(policiesToBeAdded, bean4.Policy{Type: "g", Sub: bean4.Subject(model.EmailId), Obj: bean4.Object(roleModel.Role)})
+						casbinPolicy := adapter.GetCasbinGroupPolicy(model.EmailId, roleModel.Role, timeoutWindowConfigDto)
+						policiesToBeAdded = append(policiesToBeAdded, casbinPolicy)
 					} else {
 						if roleModel.Id > 0 {
 							rolesChanged = true
@@ -620,7 +627,7 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForClusterEntity(tx *pg.Tx, 
 								impl.logger.Errorw("error in createOrUpdateUserRolesForClusterEntity", "userId", model.Id, "roleModelId", roleModel.Id, "err", err)
 								return nil, rolesChanged, err
 							}
-							casbinPolicy := adapter.GetCasbinGroupPolicy(model.EmailId, roleModel.Role)
+							casbinPolicy := adapter.GetCasbinGroupPolicy(model.EmailId, roleModel.Role, timeoutWindowConfigDto)
 							policiesToBeAdded = append(policiesToBeAdded, casbinPolicy)
 						}
 					}

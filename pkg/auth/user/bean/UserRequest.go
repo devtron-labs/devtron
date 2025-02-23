@@ -211,3 +211,6 @@ func (pa *UserPermissionsAuditDto) WithEntityAudit(entityAudit sql.AuditLog) *Us
 type SelfRegisterDto struct {
 	UserInfo *UserInfo
 }
+
+type TimeoutWindowConfigDto struct {
+}

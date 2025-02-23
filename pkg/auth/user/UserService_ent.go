@@ -46,7 +46,7 @@ func (impl *UserServiceImpl) createAuditForCreateOperation(tx *pg.Tx, userRespon
 }
 
 func (impl *UserServiceImpl) getCasbinPolicyForGroup(tx *pg.Tx, emailId, userGroupCasbinName string, userRoleGroup userBean.UserRoleGroup, userLoggedInId int32) (bean4.Policy, error) {
-	casbinPolicy := adapter.GetCasbinGroupPolicy(emailId, userGroupCasbinName)
+	casbinPolicy := adapter.GetCasbinGroupPolicy(emailId, userGroupCasbinName, nil)
 	return casbinPolicy, nil
 }
 
@@ -73,4 +73,8 @@ func setStatusFilterType(request *userBean.ListingRequest) {
 
 func setCurrentTimeInUserInfo(request *userBean.ListingRequest) {
 	return
+}
+
+func (impl *UserServiceImpl) getTimeoutWindowConfig(tx *pg.Tx, roleFilter userBean.RoleFilter, userLoggedInId int32) (*userBean.TimeoutWindowConfigDto, error) {
+	return nil, nil
 }
