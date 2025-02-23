@@ -78,3 +78,7 @@ func setCurrentTimeInUserInfo(request *userBean.ListingRequest) {
 func (impl *UserServiceImpl) getTimeoutWindowConfig(tx *pg.Tx, roleFilter userBean.RoleFilter, userLoggedInId int32) (*userBean.TimeoutWindowConfigDto, error) {
 	return nil, nil
 }
+
+func getSubactionFromRoleFilter(roleFilter userBean.RoleFilter) string {
+	return ""
+}

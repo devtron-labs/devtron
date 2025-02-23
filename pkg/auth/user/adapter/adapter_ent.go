@@ -14,7 +14,7 @@ func GetCasbinGroupPolicy(emailId string, role string, twcDto *bean2.TimeoutWind
 	}
 }
 
-func BuildClusterRoleFieldsDto(entity, accessType, cluster, namespace, group, kind, resource, actionType string) *bean3.RoleModelFieldsDto {
+func BuildClusterRoleFieldsDto(entity, accessType, cluster, namespace, group, kind, resource, actionType, subAction string) *bean3.RoleModelFieldsDto {
 	return &bean3.RoleModelFieldsDto{
 		Entity:     entity,
 		AccessType: accessType,
@@ -33,7 +33,7 @@ func BuildSuperAdminRoleFieldsDto() *bean3.RoleModelFieldsDto {
 	}
 }
 
-func BuildOtherRoleFieldsDto(entity, team, entityName, environment, actionType, accessType string, OldValues bool) *bean3.RoleModelFieldsDto {
+func BuildOtherRoleFieldsDto(entity, team, entityName, environment, actionType, accessType string, OldValues bool, subAction string, approver bool) *bean3.RoleModelFieldsDto {
 	return &bean3.RoleModelFieldsDto{
 		Entity:     entity,
 		Team:       team,
@@ -44,7 +44,7 @@ func BuildOtherRoleFieldsDto(entity, team, entityName, environment, actionType, 
 		OldValues:  OldValues,
 	}
 }
-func BuildJobsRoleFieldsDto(entity, team, entityName, environment, actionType, accessType, workflow string) *bean3.RoleModelFieldsDto {
+func BuildJobsRoleFieldsDto(entity, team, entityName, environment, actionType, accessType, workflow, subAction string) *bean3.RoleModelFieldsDto {
 	return &bean3.RoleModelFieldsDto{
 		Entity:     entity,
 		Team:       team,
