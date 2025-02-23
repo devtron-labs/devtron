@@ -20,6 +20,7 @@ import (
 	"fmt"
 	bean3 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
+	"github.com/devtron-labs/devtron/pkg/auth/user/repository/bean"
 	"golang.org/x/exp/maps"
 	"math"
 	"strings"
@@ -37,7 +38,7 @@ import (
 )
 
 type UserCommonService interface {
-	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType, workflow string, userId int32) (bool, error, []bean3.Policy)
+	CreateDefaultPoliciesForAllTypes(roleFieldsDto *bean.RoleModelFieldsDto, userId int32) (bool, error, []bean3.Policy)
 	RemoveRolesAndReturnEliminatedPolicies(userInfo *bean2.UserInfo, existingRoleIds map[int]repository.UserRoleModel, eliminatedRoleIds map[int]*repository.UserRoleModel, tx *pg.Tx, token string, managerAuth func(resource string, token string, object string) bool) ([]bean3.Policy, []*repository.RoleModel, error)
 	RemoveRolesAndReturnEliminatedPoliciesForGroups(request *bean2.RoleGroup, existingRoles map[int]*repository.RoleGroupRoleMapping, eliminatedRoles map[int]*repository.RoleGroupRoleMapping, tx *pg.Tx, token string, managerAuth func(resource string, token string, object string) bool) ([]bean3.Policy, []*repository.RoleModel, error)
 	CheckRbacForClusterEntity(cluster, namespace, group, kind, resource, token string, managerAuth func(resource, token, object string) bool) bool
@@ -107,7 +108,11 @@ type UserRbacConfig struct {
 	UseRbacCreationV2 bool `env:"USE_RBAC_CREATION_V2" envDefault:"true"`
 }
 
-func (impl UserCommonServiceImpl) CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType, workflow string, userId int32) (bool, error, []bean3.Policy) {
+func (impl UserCommonServiceImpl) CreateDefaultPoliciesForAllTypes(roleFieldsDto *bean.RoleModelFieldsDto, userId int32) (bool, error, []bean3.Policy) {
+	team, entityName, env, entity, cluster, namespace, group, kind,
+		resource, actionType, accessType, workflow := roleFieldsDto.Team, roleFieldsDto.App, roleFieldsDto.Env,
+		roleFieldsDto.Entity, roleFieldsDto.Cluster, roleFieldsDto.Namespace, roleFieldsDto.Group,
+		roleFieldsDto.Kind, roleFieldsDto.Resource, roleFieldsDto.Action, roleFieldsDto.AccessType, roleFieldsDto.Workflow
 	if impl.userRbacConfig.UseRbacCreationV2 {
 		impl.logger.Debugw("using rbac creation v2 for creating default policies")
 		return impl.CreateDefaultPoliciesForAllTypesV2(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType, workflow)
