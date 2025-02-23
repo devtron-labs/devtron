@@ -33,7 +33,7 @@ import (
 type UserRepository interface {
 	CreateUser(userModel *UserModel, tx *pg.Tx) (*UserModel, error)
 	UpdateUser(userModel *UserModel, tx *pg.Tx) (*UserModel, error)
-	UpdateToInactiveByIds(ids []int32, tx *pg.Tx, loggedInUserId int32) error
+	UpdateToInactiveByIds(ids []int32, tx *pg.Tx, loggedInUserId int32, recordedTime time.Time) error
 	GetById(id int32) (*UserModel, error)
 	GetEmailByIds(ids []int32) ([]string, error)
 	GetByIdIncludeDeleted(id int32) (*UserModel, error)
@@ -105,7 +105,7 @@ func (impl UserRepositoryImpl) UpdateUser(userModel *UserModel, tx *pg.Tx) (*Use
 	return userModel, nil
 }
 
-func (impl UserRepositoryImpl) UpdateToInactiveByIds(ids []int32, tx *pg.Tx, loggedInUserId int32) error {
+func (impl UserRepositoryImpl) UpdateToInactiveByIds(ids []int32, tx *pg.Tx, loggedInUserId int32, recordedTime time.Time) error {
 	var model []*UserModel
 	_, err := tx.Model(&model).
 		Set("active = ?", false).

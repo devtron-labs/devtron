@@ -190,3 +190,7 @@ func (impl *UserServiceImpl) deleteUserCasbinPolices(model *userrepo.UserModel) 
 	}
 	return nil
 }
+
+func getApproverFromRoleFilter(roleFilter userBean.RoleFilter) bool {
+	return false
+}

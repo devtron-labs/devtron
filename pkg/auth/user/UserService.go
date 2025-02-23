@@ -1172,7 +1172,7 @@ func (impl *UserServiceImpl) UserExists(emailId string) bool {
 func (impl *UserServiceImpl) SaveLoginAudit(emailId, clientIp string, id int32) {
 
 	if emailId != "" && id <= 0 {
-		user, err := impl.getUserByEmail(emailId)
+		user, err := impl.GetUserBasicDataByEmailId(emailId)
 		if err != nil {
 			impl.logger.Errorw("error in getting userInfo by emailId", "err", err, "emailId", emailId)
 			return
@@ -1191,45 +1191,6 @@ func (impl *UserServiceImpl) SaveLoginAudit(emailId, clientIp string, id int32) 
 	if err != nil {
 		impl.logger.Errorw("error occurred while saving user audit", "err", err)
 	}
-}
-
-func (impl *UserServiceImpl) getUserByEmail(emailId string) (*userBean.UserInfo, error) {
-	model, err := impl.userRepository.FetchActiveUserByEmail(emailId)
-	if err != nil {
-		impl.logger.Errorw("error while fetching user from db", "error", err)
-		return nil, err
-	}
-
-	roles, err := impl.userAuthRepository.GetRolesByUserId(model.Id)
-	if err != nil {
-		impl.logger.Warnw("No Roles Found for user", "id", model.Id)
-	}
-	var roleFilters []userBean.RoleFilter
-	for _, role := range roles {
-		roleFilters = append(roleFilters, userBean.RoleFilter{
-			Entity:      role.Entity,
-			Team:        role.Team,
-			Environment: role.Environment,
-			EntityName:  role.EntityName,
-			Action:      role.Action,
-			Cluster:     role.Cluster,
-			Namespace:   role.Namespace,
-			Group:       role.Group,
-			Kind:        role.Kind,
-			Resource:    role.Resource,
-			Workflow:    role.Workflow,
-		})
-	}
-
-	response := &userBean.UserInfo{
-		Id:          model.Id,
-		EmailId:     model.EmailId,
-		UserType:    model.UserType,
-		AccessToken: model.AccessToken,
-		RoleFilters: roleFilters,
-	}
-
-	return response, nil
 }
 
 func (impl *UserServiceImpl) GetActiveEmailById(userId int32) (string, error) {
@@ -1529,6 +1490,7 @@ func (impl *UserServiceImpl) getUserIdsHonoringFilters(request *userBean.Listing
 
 // deleteUsersByIds bulk delete all the users with their user role mappings in orchestrator and user-role and user-group mappings from casbin, takes in BulkDeleteRequest request and return success and error in return
 func (impl *UserServiceImpl) deleteUsersByIds(request *userBean.BulkDeleteRequest) error {
+	recordedTime := time.Now()
 	tx, err := impl.roleGroupRepository.StartATransaction()
 	if err != nil {
 		impl.logger.Errorw("error in starting a transaction", "err", err)
@@ -1550,7 +1512,7 @@ func (impl *UserServiceImpl) deleteUsersByIds(request *userBean.BulkDeleteReques
 		return err
 	}
 	// updating models to inactive
-	err = impl.userRepository.UpdateToInactiveByIds(request.Ids, tx, request.LoggedInUserId)
+	err = impl.userRepository.UpdateToInactiveByIds(request.Ids, tx, request.LoggedInUserId, recordedTime)
 	if err != nil {
 		impl.logger.Errorw("error encountered in DeleteUsersForIds", "err", err)
 		return err
@@ -1736,6 +1698,7 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForOtherEntity(tx *pg.Tx, ro
 	actions := strings.Split(roleFilter.Action, ",")
 	subAction := getSubactionFromRoleFilter(roleFilter)
 	subActions := strings.Split(subAction, ",")
+	approver := getApproverFromRoleFilter(roleFilter)
 	timeoutWindowConfigDto, err := impl.getTimeoutWindowConfig(tx, roleFilter, userId)
 	if err != nil {
 		impl.logger.Errorw("error encountered in createOrUpdateUserRolesForOtherEntity", "roleFilter", roleFilter, "err", err)
@@ -1745,7 +1708,7 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForOtherEntity(tx *pg.Tx, ro
 		for _, entityName := range entityNames {
 			for _, actionType := range actions {
 				for _, subaction := range subActions {
-					otherEntityRoleFieldDto := adapter.BuildOtherRoleFieldsDto(entity, roleFilter.Team, entityName, environment, actionType, accessType, false, subaction, false)
+					otherEntityRoleFieldDto := adapter.BuildOtherRoleFieldsDto(entity, roleFilter.Team, entityName, environment, actionType, accessType, false, subaction, approver)
 					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(otherEntityRoleFieldDto)
 					if err != nil {
 						impl.logger.Errorw("error in getting role by all type", "err", err, "roleFilter", roleFilter)
