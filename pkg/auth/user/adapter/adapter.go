@@ -74,9 +74,10 @@ func BuildRoleFilterFromRoleF(roleF bean2.RoleFilter) bean2.RoleFilter {
 
 func BuildUserInfo(id int32, emailId string, userGroupMapDto *bean2.UserGroupMapDto) bean2.UserInfo {
 	return bean2.UserInfo{
-		Id:          id,
-		EmailId:     emailId,
-		RoleFilters: make([]bean2.RoleFilter, 0),
-		Groups:      make([]string, 0),
+		Id:            id,
+		EmailId:       emailId,
+		RoleFilters:   make([]bean2.RoleFilter, 0),
+		Groups:        make([]string, 0),
+		UserRoleGroup: make([]bean2.UserRoleGroup, 0),
 	}
 }

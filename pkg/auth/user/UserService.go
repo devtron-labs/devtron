@@ -1064,17 +1064,18 @@ func (impl *UserServiceImpl) getAllDetailedUsersAdapter(detailedUsers []userBean
 }
 
 func (impl *UserServiceImpl) getUserResponse(model []repository.UserModel, totalCount int) (*userBean.UserListingResponse, error) {
+	userIdVsUserGroupMapDto, err := impl.getUserGroupMapFromModels(model)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user group from db", "error", err)
+		return nil, err
+	}
+
 	var response []userBean.UserInfo
 	for _, m := range model {
 		lastLoginTime := adapter2.GetLastLoginTime(m)
-		response = append(response, userBean.UserInfo{
-			Id:            m.Id,
-			EmailId:       m.EmailId,
-			RoleFilters:   make([]userBean.RoleFilter, 0),
-			Groups:        make([]string, 0),
-			LastLoginTime: lastLoginTime,
-			UserRoleGroup: make([]userBean.UserRoleGroup, 0),
-		})
+		userinfoRes := adapter.BuildUserInfo(m.Id, m.EmailId, userIdVsUserGroupMapDto)
+		userinfoRes.LastLoginTime = lastLoginTime
+		response = append(response, userinfoRes)
 	}
 	if len(response) == 0 {
 		response = make([]userBean.UserInfo, 0)
