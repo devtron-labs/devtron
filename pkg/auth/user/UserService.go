@@ -1277,7 +1277,7 @@ func (impl *UserServiceImpl) GetUserByToken(context context.Context, token strin
 	if err != nil {
 		return http.StatusUnauthorized, "", err
 	}
-	userInfo, err := impl.getUserByEmail(email)
+	userInfo, err := impl.GetUserBasicDataByEmailId(email)
 	if err != nil {
 		impl.logger.Errorw("unable to fetch user from db", "error", err)
 		err := &util.ApiError{
@@ -1861,4 +1861,18 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForJobsEntity(tx *pg.Tx, rol
 		}
 	}
 	return policiesToBeAdded, rolesChanged, nil
+}
+
+func (impl *UserServiceImpl) GetUserBasicDataByEmailId(emailId string) (*userBean.UserInfo, error) {
+	model, err := impl.userRepository.FetchActiveUserByEmail(emailId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return nil, err
+	}
+	response := &userBean.UserInfo{
+		Id:       model.Id,
+		EmailId:  model.EmailId,
+		UserType: model.UserType,
+	}
+	return response, nil
 }
