@@ -821,8 +821,7 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *userBean.UserInfo, token strin
 	fmt.Println("userGroupsUpdated", userGroupsUpdated)
 	isUserActive := model.Active
 	var eliminatedPolicies = make([]bean4.Policy, 0)
-	capacity, _ := impl.userCommonService.GetCapacityForRoleFilter(userInfo.RoleFilters)
-	var addedPolicies = make([]bean4.Policy, 0, capacity)
+	var addedPolicies = make([]bean4.Policy, 0)
 	//loading policy for safety
 	casbin2.LoadPolicy()
 	var eliminatedRoles, eliminatedGroupRoles []*repository.RoleModel
@@ -905,59 +904,6 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *userBean.UserInfo, token strin
 	//loading policy for syncing orchestrator to casbin with newly added policies
 	casbin2.LoadPolicy()
 	return userInfo, nil
-}
-
-// createOrUpdateUserRoleGroupsPolices : gives policies which are to be added and which are to be eliminated from casbin, with support of timewindow Config changed fromm existing
-func (impl *UserServiceImpl) createOrUpdateUserRoleGroupsPolices(requestUserRoleGroups []userBean.UserRoleGroup, emailId string, tx *pg.Tx, loggedInUser int32, userInfoId int32) ([]bean4.Policy, []bean4.Policy, []*repository.RoleModel, map[string]bool, error) {
-	userCasbinRoles, err := impl.CheckUserRoles(userInfoId, "")
-	if err != nil {
-		impl.logger.Errorw("error encountered in createOrUpdateUserRoleGroupsPolices", "userRoleGroups", requestUserRoleGroups, "emailId", emailId, "err", err)
-		return nil, nil, nil, nil, err
-	}
-	// initialisation
-
-	newGroupMap := make(map[string]string)
-	oldGroupMap := make(map[string]string)
-	mapOfExistingUserRoleGroup := make(map[string]bool, len(userCasbinRoles))
-	addedPolicies := make([]bean4.Policy, 0)
-	eliminatedPolicies := make([]bean4.Policy, 0)
-	eliminatedGroupCasbinNames := make([]string, 0, len(newGroupMap))
-	var eliminatedGroupRoles []*repository.RoleModel
-	for _, oldItem := range userCasbinRoles {
-		oldGroupMap[oldItem] = oldItem
-		mapOfExistingUserRoleGroup[oldItem] = true
-	}
-	// START GROUP POLICY
-	for _, item := range requestUserRoleGroups {
-		userGroup, err := impl.roleGroupRepository.GetRoleGroupByName(item.RoleGroup.Name)
-		if err != nil {
-			impl.logger.Errorw("error encountered in createOrUpdateUserRoleGroupsPolices", "userRoleGroups", requestUserRoleGroups, "emailId", emailId, "err", err)
-			return nil, nil, nil, nil, err
-		}
-		newGroupMap[userGroup.CasbinName] = userGroup.CasbinName
-		if _, ok := oldGroupMap[userGroup.CasbinName]; !ok {
-			addedPolicies = append(addedPolicies, bean4.Policy{Type: "g", Sub: bean4.Subject(emailId), Obj: bean4.Object(userGroup.CasbinName)})
-		}
-	}
-	for _, item := range userCasbinRoles {
-		if _, ok := newGroupMap[item]; !ok {
-			if item != userBean.SUPERADMIN {
-				//check permission for group which is going to eliminate
-				if strings.HasPrefix(item, "group:") {
-					eliminatedPolicies = append(eliminatedPolicies, bean4.Policy{Type: "g", Sub: bean4.Subject(emailId), Obj: bean4.Object(item)})
-					eliminatedGroupCasbinNames = append(eliminatedGroupCasbinNames, item)
-				}
-			}
-		}
-	} // END GROUP POLICY
-	if len(eliminatedGroupCasbinNames) > 0 {
-		eliminatedGroupRoles, err = impl.roleGroupRepository.GetRolesByGroupCasbinNames(eliminatedGroupCasbinNames)
-		if err != nil {
-			impl.logger.Errorw("error encountered in createOrUpdateUserRoleGroupsPolices", "userRoleGroups", requestUserRoleGroups, "emailId", emailId, "err", err)
-			return nil, nil, nil, nil, err
-		}
-	}
-	return addedPolicies, eliminatedPolicies, eliminatedGroupRoles, mapOfExistingUserRoleGroup, nil
 }
 
 func (impl *UserServiceImpl) GetByIdWithoutGroupClaims(id int32) (*userBean.UserInfo, error) {
