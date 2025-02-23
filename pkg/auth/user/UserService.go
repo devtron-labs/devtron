@@ -594,7 +594,7 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForClusterEntity(tx *pg.Tx, 
 				for _, resource := range resources {
 					for _, subaction := range subActions {
 						impl.logger.Infow("Getting Role by filter for cluster")
-						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(adapter.BuildClusterRoleFieldsDto(entity, accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, subAction))
+						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(adapter.BuildClusterRoleFieldsDto(entity, accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, subaction))
 						if err != nil {
 							impl.logger.Errorw("error encountered in createOrUpdateUserRolesForClusterEntity", "err", err)
 							return policiesToBeAdded, rolesChanged, err
