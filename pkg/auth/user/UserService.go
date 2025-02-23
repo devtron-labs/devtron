@@ -1743,54 +1743,56 @@ func (impl *UserServiceImpl) GetRoleFiltersByUserRoleGroups(userRoleGroups []use
 func (impl *UserServiceImpl) createOrUpdateUserRolesForOtherEntity(tx *pg.Tx, roleFilter userBean.RoleFilter, model *repository.UserModel, existingRoles map[int]repository.UserRoleModel, entity string, capacity int, userId int32) ([]bean4.Policy, bool, error) {
 	rolesChanged := false
 	var policiesToBeAdded = make([]bean4.Policy, 0, capacity)
-	actionType := roleFilter.Action
 	accessType := roleFilter.AccessType
 	entityNames := strings.Split(roleFilter.EntityName, ",")
 	environments := strings.Split(roleFilter.Environment, ",")
+	actions := strings.Split(roleFilter.Action, ",")
 	subAction := getSubactionFromRoleFilter(roleFilter)
 	subActions := strings.Split(subAction, ",")
+	timeoutWindowConfigDto, err := impl.getTimeoutWindowConfig(tx, roleFilter, userId)
+	if err != nil {
+		impl.logger.Errorw("error encountered in createOrUpdateUserRolesForOtherEntity", "roleFilter", roleFilter, "err", err)
+		return policiesToBeAdded, rolesChanged, err
+	}
 	for _, environment := range environments {
 		for _, entityName := range entityNames {
-			for _, subaction := range subActions {
-				roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(adapter.BuildOtherRoleFieldsDto(entity, roleFilter.Team, entityName, environment, actionType, accessType, false, subaction, false))
-				if err != nil {
-					impl.logger.Errorw("error in getting role by all type", "err", err, "roleFilter", roleFilter)
-					return policiesToBeAdded, rolesChanged, err
-				}
-				if roleModel.Id == 0 {
-					impl.logger.Debugw("no role found for given filter", "filter", "roleFilter", roleFilter)
-					flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, "", userId)
-					if err != nil || flag == false {
-						return policiesToBeAdded, rolesChanged, err
-					}
-					policiesToBeAdded = append(policiesToBeAdded, policiesAdded...)
-					roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(adapter.BuildOtherRoleFieldsDto(entity, roleFilter.Team, entityName, environment, actionType, accessType, false, subaction, false))
+			for _, actionType := range actions {
+				for _, subaction := range subActions {
+					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(adapter.BuildOtherRoleFieldsDto(entity, roleFilter.Team, entityName, environment, actionType, accessType, false, subaction, false))
 					if err != nil {
+						impl.logger.Errorw("error in getting role by all type", "err", err, "roleFilter", roleFilter)
 						return policiesToBeAdded, rolesChanged, err
 					}
 					if roleModel.Id == 0 {
-						continue
+						impl.logger.Debugw("no role found for given filter", "filter", "roleFilter", roleFilter)
+						flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, "", userId)
+						if err != nil || flag == false {
+							return policiesToBeAdded, rolesChanged, err
+						}
+						policiesToBeAdded = append(policiesToBeAdded, policiesAdded...)
+						roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(adapter.BuildOtherRoleFieldsDto(entity, roleFilter.Team, entityName, environment, actionType, accessType, false, subaction, false))
+						if err != nil {
+							return policiesToBeAdded, rolesChanged, err
+						}
+						if roleModel.Id == 0 {
+							continue
+						}
 					}
-				}
-				if _, ok := existingRoles[roleModel.Id]; ok {
-					//Adding policies which is removed
-					policiesToBeAdded = append(policiesToBeAdded, bean4.Policy{Type: "g", Sub: bean4.Subject(model.EmailId), Obj: bean4.Object(roleModel.Role)})
-				} else if roleModel.Id > 0 {
-					rolesChanged = true
-					userRoleModel := &repository.UserRoleModel{
-						UserId: model.Id,
-						RoleId: roleModel.Id,
-						AuditLog: sql.AuditLog{
-							CreatedBy: userId,
-							CreatedOn: time.Now(),
-							UpdatedBy: userId,
-							UpdatedOn: time.Now(),
-						}}
-					userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
-					if err != nil {
-						return nil, rolesChanged, err
+					if _, ok := existingRoles[roleModel.Id]; ok {
+						//Adding policies which is removed
+						casbinPolicy := adapter.GetCasbinGroupPolicy(model.EmailId, roleModel.Role, timeoutWindowConfigDto)
+						policiesToBeAdded = append(policiesToBeAdded, casbinPolicy)
+					} else if roleModel.Id > 0 {
+						rolesChanged = true
+						userRoleModel := adapter2.GetUserRoleModelAdapter(model.Id, userId, roleModel.Id, timeoutWindowConfigDto)
+						userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
+						if err != nil {
+							impl.logger.Errorw("error in createOrUpdateUserRolesForOtherEntity", "userId", model.Id, "roleModelId", roleModel.Id, "err", err)
+							return nil, rolesChanged, err
+						}
+						casbinPolicy := adapter.GetCasbinGroupPolicy(model.EmailId, roleModel.Role, timeoutWindowConfigDto)
+						policiesToBeAdded = append(policiesToBeAdded, casbinPolicy)
 					}
-					policiesToBeAdded = append(policiesToBeAdded, bean4.Policy{Type: "g", Sub: bean4.Subject(model.EmailId), Obj: bean4.Object(roleModel.Role)})
 				}
 			}
 		}
@@ -1808,6 +1810,11 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForJobsEntity(tx *pg.Tx, rol
 	workflows := strings.Split(roleFilter.Workflow, ",")
 	subAction := getSubactionFromRoleFilter(roleFilter)
 	subActions := strings.Split(subAction, ",")
+	timeoutWindowConfigDto, err := impl.getTimeoutWindowConfig(tx, roleFilter, userId)
+	if err != nil {
+		impl.logger.Errorw("error encountered in createOrUpdateUserRolesForJobsEntity", "roleFilter", roleFilter, "err", err)
+		return policiesToBeAdded, rolesChanged, err
+	}
 	for _, environment := range environments {
 		for _, entityName := range entityNames {
 			for _, workflow := range workflows {
@@ -1821,11 +1828,13 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForJobsEntity(tx *pg.Tx, rol
 						impl.logger.Debugw("no role found for given filter", "filter", "roleFilter", roleFilter)
 						flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, workflow, userId)
 						if err != nil || flag == false {
+							impl.logger.Errorw("error encountered in createOrUpdateUserRolesForJobsEntity", "err", err)
 							return policiesToBeAdded, rolesChanged, err
 						}
 						policiesToBeAdded = append(policiesToBeAdded, policiesAdded...)
 						roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(adapter.BuildJobsRoleFieldsDto(entity, roleFilter.Team, entityName, environment, actionType, accessType, workflow, subaction))
 						if err != nil {
+							impl.logger.Errorw("error encountered in createOrUpdateUserRolesForJobsEntity", "err", err)
 							return policiesToBeAdded, rolesChanged, err
 						}
 						if roleModel.Id == 0 {
@@ -1834,23 +1843,18 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForJobsEntity(tx *pg.Tx, rol
 					}
 					if _, ok := existingRoles[roleModel.Id]; ok {
 						//Adding policies which is removed
-						policiesToBeAdded = append(policiesToBeAdded, bean4.Policy{Type: "g", Sub: bean4.Subject(model.EmailId), Obj: bean4.Object(roleModel.Role)})
+						casbinPolicy := adapter.GetCasbinGroupPolicy(model.EmailId, roleModel.Role, timeoutWindowConfigDto)
+						policiesToBeAdded = append(policiesToBeAdded, casbinPolicy)
 					} else if roleModel.Id > 0 {
 						rolesChanged = true
-						userRoleModel := &repository.UserRoleModel{
-							UserId: model.Id,
-							RoleId: roleModel.Id,
-							AuditLog: sql.AuditLog{
-								CreatedBy: userId,
-								CreatedOn: time.Now(),
-								UpdatedBy: userId,
-								UpdatedOn: time.Now(),
-							}}
+						userRoleModel := adapter2.GetUserRoleModelAdapter(model.Id, userId, roleModel.Id, timeoutWindowConfigDto)
 						userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
 						if err != nil {
+							impl.logger.Errorw("error encountered in createOrUpdateUserRolesForJobsEntity", "err", err)
 							return nil, rolesChanged, err
 						}
-						policiesToBeAdded = append(policiesToBeAdded, bean4.Policy{Type: "g", Sub: bean4.Subject(model.EmailId), Obj: bean4.Object(roleModel.Role)})
+						casbinPolicy := adapter.GetCasbinGroupPolicy(model.EmailId, roleModel.Role, timeoutWindowConfigDto)
+						policiesToBeAdded = append(policiesToBeAdded, casbinPolicy)
 					}
 				}
 			}
