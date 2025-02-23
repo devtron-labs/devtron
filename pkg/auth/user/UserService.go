@@ -819,7 +819,7 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *userBean.UserInfo, token strin
 		return nil, err
 	}
 	isUserActive := model.Active
-	operationCompleted, err := impl.checkValidationAndPerformOperationsForUpdate(token, tx, model, userInfo, userGroupsUpdated, timeoutWindowConfigId)
+	operationCompleted, err := impl.checkValidationAndPerformOperationsForUpdate(token, tx, model, userInfo, userGroupsUpdated, timeoutWindowConfigId, isUserSuperAdmin, false)
 	if err != nil {
 		impl.logger.Errorw("error in UpdateUser", "userId", userInfo.UserId, "err", err)
 		return nil, err
