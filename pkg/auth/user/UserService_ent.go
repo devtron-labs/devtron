@@ -112,3 +112,12 @@ func (impl *UserServiceImpl) CheckUserRoles(id int32, token string) ([]string, e
 func (impl *UserServiceImpl) getUserGroupMapFromModels(model []userrepo.UserModel) (*userBean.UserGroupMapDto, error) {
 	return nil, nil
 }
+
+func setTwcId(model *userrepo.UserModel, twcId int) {
+	return
+}
+
+func (impl *UserServiceImpl) getTimeoutWindowID(tx *pg.Tx, userInfo *userBean.UserInfo) (int, error) {
+	return 0, nil
+
+}

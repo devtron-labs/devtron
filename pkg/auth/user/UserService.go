@@ -811,24 +811,30 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *userBean.UserInfo, token strin
 		impl.logger.Errorw("error encountered in UpdateUser", "err", err)
 		return nil, err
 	}
+
+	timeoutWindowConfigId, err := impl.getTimeoutWindowID(tx, userInfo)
+	if err != nil {
+		impl.logger.Errorw("error in UpdateUser ", "userInfo", userInfo, "err", err)
+		return nil, err
+	}
 	//TODO: remove this and oss ent sync
 	fmt.Println("userGroupsUpdated", userGroupsUpdated)
 	isUserActive := model.Active
-	var eliminatedPolicies []bean4.Policy
+	var eliminatedPolicies = make([]bean4.Policy, 0)
 	capacity, _ := impl.userCommonService.GetCapacityForRoleFilter(userInfo.RoleFilters)
 	var addedPolicies = make([]bean4.Policy, 0, capacity)
 	//loading policy for safety
 	casbin2.LoadPolicy()
 	var eliminatedRoles, eliminatedGroupRoles []*repository.RoleModel
 	mapOfExistingUserRoleGroupAndTwc := make(map[string]bool)
-	if userInfo.SuperAdmin == true {
+	if userInfo.SuperAdmin {
 		policiesToBeAdded, err := impl.CreateAndAddPoliciesForSuperAdmin(tx, userInfo.UserId, model.EmailId, model.Id)
 		if err != nil {
-			impl.logger.Errorw("error in update user", "err", err)
+			impl.logger.Errorw("error in UpdateUser", "userId", userInfo.UserId, "err", err)
 			return nil, err
 		}
 		addedPolicies = append(addedPolicies, policiesToBeAdded...)
-	} else if userInfo.SuperAdmin == false {
+	} else {
 		var policiesToBeAdded, policiesToBeEliminated []bean4.Policy
 		policiesToBeAdded, policiesToBeEliminated, eliminatedRoles,
 			eliminatedGroupRoles, mapOfExistingUserRoleGroupAndTwc,
@@ -863,6 +869,7 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *userBean.UserInfo, token strin
 		println(pRes)
 	}
 	if len(addedPolicies) > 0 {
+		impl.logger.Debugw("casbin policies being added", "policies: ", addedPolicies)
 		pRes := casbin2.AddPolicy(addedPolicies)
 		println(pRes)
 	}
@@ -878,6 +885,7 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *userBean.UserInfo, token strin
 		model.CreatedBy = userInfo.UserId
 	}
 	model.Active = true
+	setTwcId(model, timeoutWindowConfigId)
 	model, err = impl.userRepository.UpdateUser(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
