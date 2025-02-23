@@ -621,7 +621,7 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForClusterEntity(tx *pg.Tx, 
 					} else {
 						if roleModel.Id > 0 {
 							rolesChanged = true
-							userRoleModel := adapter2.GetUserRoleModelAdapter(model.Id, userId, roleModel.Id)
+							userRoleModel := adapter2.GetUserRoleModelAdapter(model.Id, userId, roleModel.Id, timeoutWindowConfigDto)
 							userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
 							if err != nil {
 								impl.logger.Errorw("error in createOrUpdateUserRolesForClusterEntity", "userId", model.Id, "roleModelId", roleModel.Id, "err", err)

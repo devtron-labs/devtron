@@ -5,6 +5,7 @@
 package adapter
 
 import (
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 )
@@ -18,7 +19,7 @@ func GetUserModelBasicAdapter(emailId, accessToken, userType string) *repository
 	return model
 }
 
-func GetUserRoleModelAdapter(userId, userLoggedInId int32, roleId int) *repository.UserRoleModel {
+func GetUserRoleModelAdapter(userId, userLoggedInId int32, roleId int, twcConfigDto *bean.TimeoutWindowConfigDto) *repository.UserRoleModel {
 	return &repository.UserRoleModel{
 		UserId:   userId,
 		RoleId:   roleId,
