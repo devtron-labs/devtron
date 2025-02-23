@@ -286,7 +286,7 @@ func (impl *GitOperationServiceImpl) CreateRepository(ctx context.Context, dto *
 		dto.UserEmailId = userEmailId
 		dto.Username = userName
 	}
-	repoUrl, isNew, detailedError := impl.gitFactory.Client.CreateRepository(ctx, dto)
+	repoUrl, isNew, _, detailedError := impl.gitFactory.Client.CreateRepository(ctx, dto)
 	for _, err := range detailedError.StageErrorMap {
 		if err != nil {
 			impl.logger.Errorw("error in creating git project", "err", err, "req", dto)
@@ -308,7 +308,7 @@ func (impl *GitOperationServiceImpl) GetRepoUrlByRepoName(repoName string) (stri
 		BitBucketWorkspaceId: bitbucketMetadata.BitBucketWorkspaceId,
 		BitBucketProjectKey:  bitbucketMetadata.BitBucketProjectKey,
 	}
-	repoUrl, err = impl.gitFactory.Client.GetRepoUrl(dto)
+	repoUrl, _, err = impl.gitFactory.Client.GetRepoUrl(dto)
 	if err != nil {
 		//will allow to continue to persist status on next operation
 		impl.logger.Errorw("error in getting repo url", "err", err, "repoName", repoName)
