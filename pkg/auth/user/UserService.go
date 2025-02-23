@@ -1597,31 +1597,6 @@ func (impl *UserServiceImpl) deleteMappingsFromOrchestrator(userIds []int32, tx 
 	return nil
 }
 
-func (impl *UserServiceImpl) CheckUserRoles(id int32) ([]string, error) {
-	model, err := impl.userRepository.GetByIdIncludeDeleted(id)
-	if err != nil {
-		impl.logger.Errorw("error while fetching user from db", "error", err)
-		return nil, err
-	}
-
-	groups, err := casbin2.GetRolesForUser(model.EmailId)
-	if err != nil {
-		impl.logger.Errorw("No Roles Found for user", "id", model.Id)
-		return nil, err
-	}
-	if len(groups) > 0 {
-		// getting unique, handling for duplicate roles
-		roleFromGroups, err := impl.getUniquesRolesByGroupCasbinNames(groups)
-		if err != nil {
-			impl.logger.Errorw("error in getUniquesRolesByGroupCasbinNames", "err", err)
-			return nil, err
-		}
-		groups = append(groups, roleFromGroups...)
-	}
-
-	return groups, nil
-}
-
 func (impl *UserServiceImpl) getUniquesRolesByGroupCasbinNames(groupCasbinNames []string) ([]string, error) {
 	rolesModels, err := impl.roleGroupRepository.GetRolesByGroupCasbinNames(groupCasbinNames)
 	if err != nil && err != pg.ErrNoRows {
@@ -1764,7 +1739,7 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForOtherEntity(tx *pg.Tx, ro
 						return policiesToBeAdded, rolesChanged, err
 					}
 					if roleModel.Id == 0 {
-						impl.logger.Debugw("no role found for given filter", "filter", "roleFilter", roleFilter)
+						impl.logger.Debugw("no role found for given filter", "roleFilter", roleFilter)
 						flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, "", userId)
 						if err != nil || flag == false {
 							return policiesToBeAdded, rolesChanged, err
@@ -1850,7 +1825,7 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForJobsEntity(tx *pg.Tx, rol
 						userRoleModel := adapter2.GetUserRoleModelAdapter(model.Id, userId, roleModel.Id, timeoutWindowConfigDto)
 						userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
 						if err != nil {
-							impl.logger.Errorw("error encountered in createOrUpdateUserRolesForJobsEntity", "err", err)
+							impl.logger.Errorw("error in createOrUpdateUserRolesForJobsEntity ", "userId", model.Id, "roleModelId", roleModel.Id, "err", err)
 							return nil, rolesChanged, err
 						}
 						casbinPolicy := adapter.GetCasbinGroupPolicy(model.EmailId, roleModel.Role, timeoutWindowConfigDto)

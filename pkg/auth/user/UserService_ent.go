@@ -2,6 +2,7 @@ package user
 
 import (
 	"fmt"
+	casbin2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	bean4 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
 	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
@@ -81,4 +82,29 @@ func (impl *UserServiceImpl) getTimeoutWindowConfig(tx *pg.Tx, roleFilter userBe
 
 func getSubactionFromRoleFilter(roleFilter userBean.RoleFilter) string {
 	return ""
+}
+
+func (impl *UserServiceImpl) CheckUserRoles(id int32) ([]string, error) {
+	model, err := impl.userRepository.GetByIdIncludeDeleted(id)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return nil, err
+	}
+
+	groups, err := casbin2.GetRolesForUser(model.EmailId)
+	if err != nil {
+		impl.logger.Errorw("No Roles Found for user", "id", model.Id)
+		return nil, err
+	}
+	if len(groups) > 0 {
+		// getting unique, handling for duplicate roles
+		roleFromGroups, err := impl.getUniquesRolesByGroupCasbinNames(groups)
+		if err != nil {
+			impl.logger.Errorw("error in getUniquesRolesByGroupCasbinNames", "err", err)
+			return nil, err
+		}
+		groups = append(groups, roleFromGroups...)
+	}
+
+	return groups, nil
 }
