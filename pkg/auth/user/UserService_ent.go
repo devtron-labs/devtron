@@ -84,7 +84,7 @@ func getSubactionFromRoleFilter(roleFilter userBean.RoleFilter) string {
 	return ""
 }
 
-func (impl *UserServiceImpl) CheckUserRoles(id int32) ([]string, error) {
+func (impl *UserServiceImpl) CheckUserRoles(id int32, token string) ([]string, error) {
 	model, err := impl.userRepository.GetByIdIncludeDeleted(id)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)

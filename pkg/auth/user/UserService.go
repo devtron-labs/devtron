@@ -76,7 +76,7 @@ type UserService interface {
 	GetByIds(ids []int32) ([]userBean.UserInfo, error)
 	DeleteUser(userInfo *userBean.UserInfo) (bool, error)
 	BulkDeleteUsers(request *userBean.BulkDeleteRequest) (bool, error)
-	CheckUserRoles(id int32) ([]string, error)
+	CheckUserRoles(id int32, token string) ([]string, error)
 	SyncOrchestratorToCasbin() (bool, error)
 	GetUserByToken(context context.Context, token string) (int32, string, error)
 	//IsSuperAdmin(userId int) (bool, error)
@@ -795,7 +795,7 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *userBean.UserInfo, token strin
 		//ROLE GROUP SETUP
 		newGroupMap := make(map[string]string)
 		oldGroupMap := make(map[string]string)
-		userCasbinRoles, err := impl.CheckUserRoles(userInfo.Id)
+		userCasbinRoles, err := impl.CheckUserRoles(userInfo.Id, "")
 		if err != nil {
 			return nil, err
 		}
@@ -1647,7 +1647,7 @@ func (impl *UserServiceImpl) SyncOrchestratorToCasbin() (bool, error) {
 func (impl *UserServiceImpl) IsSuperAdmin(userId int) (bool, error) {
 	//validating if action user is not admin and trying to update user who has super admin polices, return 403
 	isSuperAdmin := false
-	userCasbinRoles, err := impl.CheckUserRoles(int32(userId))
+	userCasbinRoles, err := impl.CheckUserRoles(int32(userId), "")
 	if err != nil {
 		return isSuperAdmin, err
 	}

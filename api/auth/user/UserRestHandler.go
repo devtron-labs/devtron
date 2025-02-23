@@ -748,7 +748,7 @@ func (handler UserRestHandlerImpl) CheckUserRoles(w http.ResponseWriter, r *http
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	roles, err := handler.userService.CheckUserRoles(userId)
+	roles, err := handler.userService.CheckUserRoles(userId, "")
 	if err != nil {
 		handler.logger.Errorw("service err, CheckUserRoles", "err", err, "userId", userId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
