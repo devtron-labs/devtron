@@ -50,7 +50,7 @@ type GitOperationService interface {
 	PushChartToGitRepo(ctx context.Context, gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir, repoUrl string, userId int32) (err error)
 	PushChartToGitOpsRepoForHelmApp(ctx context.Context, PushChartToGitRequest *bean.PushChartToGitRequestDTO, requirementsConfig *ChartConfig, valuesConfig *ChartConfig) (*commonBean.ChartGitAttribute, string, error)
 
-	CreateRepository(ctx context.Context, dto *apiBean.GitOpsConfigDto, userId int32) (string, bool, error)
+	CreateRepository(ctx context.Context, dto *apiBean.GitOpsConfigDto, userId int32) (string, bool, bool, error)
 	GetRepoUrlByRepoName(repoName string) (string, error)
 
 	CloneInDir(repoUrl, chartDir string) (string, error)
@@ -98,7 +98,7 @@ func (impl *GitOperationServiceImpl) CreateGitRepositoryForDevtronApp(ctx contex
 		BitBucketWorkspaceId: bitbucketMetadata.BitBucketWorkspaceId,
 		BitBucketProjectKey:  bitbucketMetadata.BitBucketProjectKey,
 	}
-	repoUrl, isNew, err := impl.CreateRepository(ctx, gitRepoRequest, userId)
+	repoUrl, isNew, _, err := impl.CreateRepository(ctx, gitRepoRequest, userId)
 	if err != nil {
 		impl.logger.Errorw("error in creating git project", "name", gitOpsRepoName, "err", err)
 		return nil, err
@@ -279,21 +279,21 @@ func (impl *GitOperationServiceImpl) isRetryableGitCommitError(err error) bool {
 	return false
 }
 
-func (impl *GitOperationServiceImpl) CreateRepository(ctx context.Context, dto *apiBean.GitOpsConfigDto, userId int32) (string, bool, error) {
+func (impl *GitOperationServiceImpl) CreateRepository(ctx context.Context, dto *apiBean.GitOpsConfigDto, userId int32) (string, bool, bool, error) {
 	//getting username & emailId for commit author data
 	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(userId)
 	if dto != nil {
 		dto.UserEmailId = userEmailId
 		dto.Username = userName
 	}
-	repoUrl, isNew, _, detailedError := impl.gitFactory.Client.CreateRepository(ctx, dto)
+	repoUrl, isNew, isEmpty, detailedError := impl.gitFactory.Client.CreateRepository(ctx, dto)
 	for _, err := range detailedError.StageErrorMap {
 		if err != nil {
 			impl.logger.Errorw("error in creating git project", "err", err, "req", dto)
-			return "", false, err
+			return "", false, false, err
 		}
 	}
-	return repoUrl, isNew, nil
+	return repoUrl, isNew, isEmpty, nil
 }
 
 func (impl *GitOperationServiceImpl) GetRepoUrlByRepoName(repoName string) (string, error) {
