@@ -214,3 +214,6 @@ type SelfRegisterDto struct {
 
 type TimeoutWindowConfigDto struct {
 }
+
+type UserGroupMapDto struct {
+}

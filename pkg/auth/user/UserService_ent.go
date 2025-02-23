@@ -108,3 +108,7 @@ func (impl *UserServiceImpl) CheckUserRoles(id int32, token string) ([]string, e
 
 	return groups, nil
 }
+
+func (impl *UserServiceImpl) getUserGroupMapFromModels(model []userrepo.UserModel) (*userBean.UserGroupMapDto, error) {
+	return nil, nil
+}

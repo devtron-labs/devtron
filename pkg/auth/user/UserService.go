@@ -987,14 +987,15 @@ func (impl *UserServiceImpl) GetAll() ([]userBean.UserInfo, error) {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
 	}
+	userIdVsUserGroupMapDto, err := impl.getUserGroupMapFromModels(model)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user group from db", "error", err)
+		return nil, err
+	}
+
 	var response []userBean.UserInfo
 	for _, m := range model {
-		response = append(response, userBean.UserInfo{
-			Id:          m.Id,
-			EmailId:     m.EmailId,
-			RoleFilters: make([]userBean.RoleFilter, 0),
-			Groups:      make([]string, 0),
-		})
+		response = append(response, adapter.BuildUserInfo(m.Id, m.EmailId, userIdVsUserGroupMapDto))
 	}
 	if len(response) == 0 {
 		response = make([]userBean.UserInfo, 0)
