@@ -868,6 +868,12 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *userBean.UserInfo, token strin
 	model.EmailId = userInfo.EmailId // override case sensitivity
 	model.UpdatedOn = time.Now()
 	model.UpdatedBy = userInfo.UserId
+	if !isUserActive {
+		// resetting created on and updated on for this email id as this was previously deleted and again created so
+		// new identity will be present
+		model.CreatedOn = time.Now()
+		model.CreatedBy = userInfo.UserId
+	}
 	model.Active = true
 	model, err = impl.userRepository.UpdateUser(model, tx)
 	if err != nil {
