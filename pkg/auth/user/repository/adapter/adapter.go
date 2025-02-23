@@ -5,10 +5,19 @@
 package adapter
 
 import (
-	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	bean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"time"
 )
+
+func GetLastLoginTime(model repository.UserModel) time.Time {
+	lastLoginTime := time.Time{}
+	if model.UserAudit != nil {
+		lastLoginTime = model.UserAudit.UpdatedOn
+	}
+	return lastLoginTime
+}
 
 func GetUserModelBasicAdapter(emailId, accessToken, userType string) *repository.UserModel {
 	model := &repository.UserModel{

@@ -19,6 +19,7 @@ package user
 import (
 	"fmt"
 	bean3 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
+	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
 	"golang.org/x/exp/maps"
 	"math"
 	"strings"
@@ -268,7 +269,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 				for _, group := range groups {
 					for _, kind := range kinds {
 						for _, resource := range resources {
-							roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false, "")
+							roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(adapter.BuildClusterRoleFieldsDto(roleFilter.Entity, accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType))
 							if err != nil {
 								impl.logger.Errorw("Error in fetching roles by filter", "roleFilter", roleFilter)
 								return nil, nil, err
@@ -293,7 +294,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 			for _, environment := range environments {
 				for _, entityName := range entityNames {
 					for _, workflow := range workflows {
-						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType, false, workflow)
+						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(adapter.BuildJobsRoleFieldsDto(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, workflow))
 						if err != nil {
 							impl.logger.Errorw("Error in fetching roles by filter", "user", userInfo)
 							return nil, nil, err
@@ -316,12 +317,12 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 			accessType := roleFilter.AccessType
 			for _, environment := range environments {
 				for _, entityName := range entityNames {
-					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType, false, "")
+					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(adapter.BuildOtherRoleFieldsDto(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, false))
 					if err != nil {
 						impl.logger.Errorw("Error in fetching roles by filter", "user", userInfo)
 						return nil, nil, err
 					}
-					oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType, true, "")
+					oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(adapter.BuildOtherRoleFieldsDto(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, true))
 					if err != nil {
 						return nil, nil, err
 					}
@@ -407,7 +408,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 				for _, group := range groups {
 					for _, kind := range kinds {
 						for _, resource := range resources {
-							roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false, "")
+							roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(adapter.BuildClusterRoleFieldsDto(entity, accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType))
 							if err != nil {
 								impl.logger.Errorw("Error in fetching roles by filter", "user", request)
 								return nil, nil, err
@@ -432,7 +433,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 			for _, environment := range environments {
 				for _, entityName := range entityNames {
 					for _, workflow := range workflows {
-						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false, workflow)
+						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(adapter.BuildJobsRoleFieldsDto(entity, roleFilter.Team, entityName, environment, actionType, accessType, workflow))
 						if err != nil {
 							impl.logger.Errorw("Error in fetching roles by filter", "user", request)
 							return nil, nil, err
@@ -455,12 +456,12 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 			actionType := roleFilter.Action
 			for _, environment := range environments {
 				for _, entityName := range entityNames {
-					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false, "")
+					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(adapter.BuildOtherRoleFieldsDto(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, false))
 					if err != nil {
 						impl.logger.Errorw("Error in fetching roles by filter", "user", request)
 						return nil, nil, err
 					}
-					oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", true, "")
+					oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(adapter.BuildOtherRoleFieldsDto(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, true))
 					if err != nil {
 						impl.logger.Errorw("Error in fetching roles by filter by old values", "user", request)
 						return nil, nil, err

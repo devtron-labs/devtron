@@ -19,18 +19,8 @@ package adapter
 import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
-	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"strings"
-	"time"
 )
-
-func GetLastLoginTime(model repository.UserModel) time.Time {
-	lastLoginTime := time.Time{}
-	if model.UserAudit != nil {
-		lastLoginTime = model.UserAudit.UpdatedOn
-	}
-	return lastLoginTime
-}
 
 func GetCasbinGroupPolicyForEmailAndRoleOnly(emailId string, role string) bean.Policy {
 	return bean.Policy{

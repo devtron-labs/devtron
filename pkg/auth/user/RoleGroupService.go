@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	bean3 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
+	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
 	helper2 "github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -177,7 +178,7 @@ func (impl RoleGroupServiceImpl) CreateAndAddPolicesForSuperAdmin(tx *pg.Tx, use
 		impl.logger.Errorw("error in CreateRoleForSuperAdminIfNotExists ", "err", err, "groupCasbinName", groupCasbinName)
 		return nil, err
 	}
-	roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, "", "", "", "", "", "", "", false, "")
+	roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(adapter.BuildSuperAdminRoleFieldsDto())
 	if err != nil {
 		impl.logger.Errorw("error in getting role by filter for all Types for superAdmin", "err", err)
 		return nil, err
@@ -249,7 +250,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFil
 		for _, group := range groups {
 			for _, kind := range kinds {
 				for _, resource := range resources {
-					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false, "")
+					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(adapter.BuildClusterRoleFieldsDto(entity, accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType))
 					if err != nil {
 						impl.logger.Errorw("error in getting new role model by filter")
 						return policiesToBeAdded, err
@@ -260,7 +261,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFil
 							return policiesToBeAdded, err
 						}
 						policiesToBeAdded = append(policiesToBeAdded, policiesAdded...)
-						roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false, "")
+						roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(adapter.BuildClusterRoleFieldsDto(entity, accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType))
 						if err != nil {
 							return policiesToBeAdded, err
 						}
@@ -302,7 +303,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForOtherEntity(roleFilte
 	var policiesToBeAdded = make([]bean3.Policy, 0, capacity)
 	for _, environment := range environments {
 		for _, entityName := range entityNames {
-			roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false, "")
+			roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(adapter.BuildOtherRoleFieldsDto(entity, roleFilter.Team, entityName, environment, actionType, accessType, false))
 			if err != nil {
 				impl.logger.Errorw("error in getting new role model")
 				return nil, err
@@ -314,7 +315,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForOtherEntity(roleFilte
 						return nil, err
 					}
 					policiesToBeAdded = append(policiesToBeAdded, policiesAdded...)
-					roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false, "")
+					roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(adapter.BuildOtherRoleFieldsDto(entity, roleFilter.Team, entityName, environment, actionType, accessType, false))
 					if err != nil {
 						return nil, err
 					}
@@ -355,7 +356,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForJobsEntity(roleFilter
 	for _, environment := range environments {
 		for _, entityName := range entityNames {
 			for _, workflow := range workflows {
-				roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false, workflow)
+				roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(adapter.BuildJobsRoleFieldsDto(entity, roleFilter.Team, entityName, environment, actionType, accessType, workflow))
 				if err != nil {
 					impl.logger.Errorw("error in getting new role model")
 					return nil, err
@@ -366,7 +367,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForJobsEntity(roleFilter
 						return nil, err
 					}
 					policiesToBeAdded = append(policiesToBeAdded, policiesAdded...)
-					roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false, workflow)
+					roleModel, err = impl.userAuthRepository.GetRoleByFilterForAllTypes(adapter.BuildJobsRoleFieldsDto(entity, roleFilter.Team, entityName, environment, actionType, accessType, workflow))
 					if err != nil {
 						return nil, err
 					}

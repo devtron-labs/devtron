@@ -23,6 +23,8 @@ import (
 	"encoding/json"
 	"fmt"
 	bean3 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
+	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
+	bean4 "github.com/devtron-labs/devtron/pkg/auth/user/repository/bean"
 	"strings"
 	"time"
 
@@ -45,7 +47,7 @@ type UserAuthRepository interface {
 	GetRolesByGroupId(userId int32) ([]*RoleModel, error)
 	GetAllRole() ([]RoleModel, error)
 	GetRolesByActionAndAccessType(action string, accessType string) ([]RoleModel, error)
-	GetRoleByFilterForAllTypes(entity, team, app, env, act, accessType, cluster, namespace, group, kind, resource, action string, oldValues bool, workflow string) (RoleModel, error)
+	GetRoleByFilterForAllTypes(roleFieldDto *bean4.RoleModelFieldsDto) (RoleModel, error)
 	CreateUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (*UserRoleModel, error)
 	GetUserRoleMappingByUserId(userId int32) ([]*UserRoleModel, error)
 	GetUserRoleMappingIdsByUserId(userId int32) ([]int, error)
@@ -270,22 +272,27 @@ func (impl UserAuthRepositoryImpl) GetRolesByActionAndAccessType(action string, 
 	return models, nil
 }
 
-func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity, team, app, env, act, accessType, cluster, namespace, group, kind, resource, action string, oldValues bool, workflow string) (RoleModel, error) {
+func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(roleFieldDto *bean4.RoleModelFieldsDto) (RoleModel, error) {
+	entity := roleFieldDto.Entity
 	switch entity {
 	case bean2.CLUSTER_ENTITIY:
 		{
+			cluster, namespace, group, kind, resource, action := roleFieldDto.Cluster, roleFieldDto.Namespace, roleFieldDto.Group, roleFieldDto.Kind, roleFieldDto.Resource, roleFieldDto.Action
 			return impl.GetRoleForClusterEntity(cluster, namespace, group, kind, resource, action)
 		}
 	case bean2.CHART_GROUP_ENTITY:
 		{
+			app, act, accessType := roleFieldDto.App, roleFieldDto.Action, roleFieldDto.AccessType
 			return impl.GetRoleForChartGroupEntity(entity, app, act, accessType)
 		}
 	case bean2.EntityJobs:
 		{
+			team, app, env, act, workflow := roleFieldDto.Team, roleFieldDto.App, roleFieldDto.Env, roleFieldDto.Action, roleFieldDto.Workflow
 			return impl.GetRoleForJobsEntity(entity, team, app, env, act, workflow)
 		}
 	default:
 		{
+			team, app, env, act, accessType, oldValues := roleFieldDto.Team, roleFieldDto.App, roleFieldDto.Env, roleFieldDto.Action, roleFieldDto.AccessType, roleFieldDto.OldValues
 			return impl.GetRoleForOtherEntity(team, app, env, act, accessType, oldValues)
 		}
 	}
@@ -521,7 +528,7 @@ func (impl UserAuthRepositoryImpl) CreateRoleForSuperAdminIfNotExists(tx *pg.Tx,
 	}
 
 	//Creating ROLES
-	roleModel, err := impl.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, "", "", "", "", "", "", "", false, "")
+	roleModel, err := impl.GetRoleByFilterForAllTypes(adapter.BuildSuperAdminRoleFieldsDto())
 	if err != nil && err != pg.ErrNoRows {
 		return false, err
 	}
