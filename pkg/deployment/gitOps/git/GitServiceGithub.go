@@ -142,6 +142,7 @@ func (impl GitHubClient) CreateRepository(ctx context.Context, config *bean2.Git
 			detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err1
 			if httpResponse.Header != nil {
 				detailedErrorGitOpsConfigActions.StageErrorHttpHeaderMap[CreateRepoStage] = httpResponse.Header
+				detailedErrorGitOpsConfigActions.StageErrorHttpStatusMap[CreateRepoStage] = httpResponse.Status
 			}
 			return "", true, isEmpty, detailedErrorGitOpsConfigActions
 		}
