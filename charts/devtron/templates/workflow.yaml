@@ -1306,6 +1306,9 @@ spec:
         {{- end }}
         command:
         - workflow-controller
+        envFrom:
+        - configMapRef:
+            name: devtron-common-cm
         env:
         - name: LEADER_ELECTION_IDENTITY
           valueFrom:
