@@ -136,7 +136,7 @@ func (impl GitHubClient) CreateRepository(ctx context.Context, config *bean2.Git
 	if err1 != nil {
 		impl.logger.Errorw("error in creating github repo, ", "repo", config.GitRepoName, "err", err)
 
-		url, _, err = impl.GetRepoUrl(config)
+		url, isEmpty, err = impl.GetRepoUrl(config)
 		if err != nil {
 			impl.logger.Errorw("error in getting github repo", "repo", config.GitRepoName, "err", err)
 			detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err1

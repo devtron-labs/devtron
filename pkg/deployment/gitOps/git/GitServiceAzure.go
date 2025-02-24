@@ -46,13 +46,17 @@ func (impl GitAzureClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl st
 		globalUtil.TriggerGitOpsMetrics("GetRepoUrl", "GitAzureClient", start, err)
 	}()
 
-	url, exists, emptyRepo, err := impl.repoExists(config.GitRepoName, impl.project)
+	var (
+		url    string
+		exists bool
+	)
+	url, exists, isRepoEmpty, err = impl.repoExists(config.GitRepoName, impl.project)
 	if err != nil {
 		return "", isRepoEmpty, err
 	} else if !exists {
 		return "", isRepoEmpty, fmt.Errorf("%s :repo not found", config.GitRepoName)
 	} else {
-		return url, emptyRepo, nil
+		return url, isRepoEmpty, nil
 	}
 }
 

@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/retryFunc"
+	_ "github.com/hashicorp/go-retryablehttp"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
 	"net/http"
@@ -153,7 +154,7 @@ func (impl GitLabClient) CreateRepository(ctx context.Context, config *bean2.Git
 		url, err = impl.createProject(config.GitRepoName, config.Description)
 		if err != nil {
 			detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err
-			repoUrl, _, err = impl.GetRepoUrl(config)
+			repoUrl, isEmpty, err = impl.GetRepoUrl(config)
 			if err != nil {
 				impl.logger.Errorw("error in getting repo url ", "gitlab project", config.GitRepoName, "err", err)
 			}
