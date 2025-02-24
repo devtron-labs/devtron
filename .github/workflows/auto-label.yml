@@ -53,7 +53,7 @@ jobs:
             fi
           fi
 
-          # Remove Label Logic
+          # Removes Label Logic
           if [[ "$COMMENT_BODY" =~ ^/remove[[:space:]](.+)$ ]]; then
             LABEL_NAME_TO_REMOVE=$(echo "$COMMENT_BODY" | sed -n 's|/remove ||p')
 
