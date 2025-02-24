@@ -232,7 +232,7 @@ func (impl *FullModeDeploymentServiceImpl) createGitOpsRepo(gitOpsRepoName strin
 		BitBucketWorkspaceId: bitbucketMetadata.BitBucketWorkspaceId,
 		BitBucketProjectKey:  bitbucketMetadata.BitBucketProjectKey,
 	}
-	repoUrl, isNew, _, err := impl.gitOperationService.CreateRepository(context.Background(), gitRepoRequest, userId)
+	repoUrl, isNew, _, _, err := impl.gitOperationService.CreateRepository(context.Background(), gitRepoRequest, userId)
 	if err != nil {
 		impl.Logger.Errorw("error in creating git project", "name", gitOpsRepoName, "err", err)
 		return "", false, err
