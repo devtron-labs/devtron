@@ -195,7 +195,8 @@ func InitializeApp() (*App, error) {
 	}
 	userAuditRepositoryImpl := repository.NewUserAuditRepositoryImpl(db)
 	userAuditServiceImpl := user.NewUserAuditServiceImpl(sugaredLogger, userAuditRepositoryImpl)
-	userServiceImpl := user.NewUserServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager, userCommonServiceImpl, userAuditServiceImpl)
+	roleGroupServiceImpl := user.NewRoleGroupServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, userCommonServiceImpl)
+	userServiceImpl := user.NewUserServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager, userCommonServiceImpl, userAuditServiceImpl, roleGroupServiceImpl)
 	ssoLoginRepositoryImpl := sso.NewSSOLoginRepositoryImpl(db, sugaredLogger)
 	k8sRuntimeConfig, err := k8s.GetRuntimeConfig()
 	if err != nil {
@@ -284,7 +285,6 @@ func InitializeApp() (*App, error) {
 	teamRouterImpl := team2.NewTeamRouterImpl(teamRestHandlerImpl)
 	userAuthHandlerImpl := user2.NewUserAuthHandlerImpl(userAuthServiceImpl, validate, sugaredLogger, enforcerImpl)
 	userAuthRouterImpl := user2.NewUserAuthRouterImpl(sugaredLogger, userAuthHandlerImpl, userAuthOidcHelperImpl)
-	roleGroupServiceImpl := user.NewRoleGroupServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, userCommonServiceImpl)
 	transactionUtilImpl := sql.NewTransactionUtilImpl(db)
 	ciPipelineRepositoryImpl := pipelineConfig.NewCiPipelineRepositoryImpl(db, sugaredLogger, transactionUtilImpl)
 	enforcerUtilImpl := rbac.NewEnforcerUtilImpl(sugaredLogger, teamRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, clusterRepositoryImpl, enforcerImpl, dbMigrationServiceImpl, teamReadServiceImpl)

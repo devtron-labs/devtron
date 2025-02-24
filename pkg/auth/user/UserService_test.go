@@ -17,10 +17,10 @@
 package user
 
 import (
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"testing"
 	"time"
 
-	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	repomock2 "github.com/devtron-labs/devtron/pkg/auth/user/repository/RepositoryMocks"

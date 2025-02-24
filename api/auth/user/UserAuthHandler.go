@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"net/http"
 	"strings"
 
@@ -194,7 +195,7 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 	roleView = strings.ReplaceAll(roleView, "<ENV>", env)
 	roleView = strings.ReplaceAll(roleView, "<APP>", app)
 
-	var roleAdminData bean.RoleData
+	var roleAdminData bean3.RoleData
 	err = json.Unmarshal([]byte(roleAdmin), &roleAdminData)
 	if err != nil {
 		handler.logger.Errorw("request err, AddDefaultPolicyAndRoles", "err", err, "payload", roleAdminData)
@@ -208,7 +209,7 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 		return
 	}
 
-	var roleTriggerData bean.RoleData
+	var roleTriggerData bean3.RoleData
 	err = json.Unmarshal([]byte(roleTrigger), &roleTriggerData)
 	if err != nil {
 		handler.logger.Errorw("request err, AddDefaultPolicyAndRoles", "err", err, "payload", roleTriggerData)
@@ -222,7 +223,7 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 		return
 	}
 
-	var roleViewData bean.RoleData
+	var roleViewData bean3.RoleData
 	err = json.Unmarshal([]byte(roleView), &roleViewData)
 	if err != nil {
 		handler.logger.Errorw("request err, AddDefaultPolicyAndRoles", "err", err, "payload", roleViewData)

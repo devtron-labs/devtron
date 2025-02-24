@@ -19,7 +19,6 @@ package appClone
 import (
 	"context"
 	"fmt"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/bean/AppView"
 	"github.com/devtron-labs/devtron/internal/constants"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -31,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	bean4 "github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	pipeline2 "github.com/devtron-labs/devtron/pkg/build/pipeline"
 	"github.com/devtron-labs/devtron/pkg/chart"

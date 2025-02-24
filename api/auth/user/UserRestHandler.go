@@ -27,7 +27,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -102,7 +101,7 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var userInfo bean.UserInfo
+	var userInfo bean2.UserInfo
 	err = decoder.Decode(&userInfo)
 	if err != nil {
 		handler.logger.Errorw("request err, CreateUser", "err", err, "payload", userInfo)
@@ -166,7 +165,7 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var userInfo bean.UserInfo
+	var userInfo bean2.UserInfo
 	err = decoder.Decode(&userInfo)
 	if err != nil {
 		handler.logger.Errorw("request err, UpdateUser", "err", err, "payload", userInfo)
@@ -201,22 +200,6 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
-	//if len(restrictedGroups) == 0 {
-	//	common.WriteJsonResp(w, err, res, http.StatusOK)
-	//} else {
-	//	errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin := helper.CreateErrorMessageForUserRoleGroups(restrictedGroups)
-	//
-	//	if rolesChanged || groupsModified {
-	//		// warning
-	//		message := fmt.Errorf("User permissions updated partially. %s%s", errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin)
-	//		common.WriteJsonResp(w, message, nil, http.StatusExpectationFailed)
-	//
-	//	} else {
-	//		//error
-	//		message := fmt.Errorf("Permission could not be added/removed. %s%s", errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin)
-	//		common.WriteJsonResp(w, message, nil, http.StatusBadRequest)
-	//	}
-	//}
 }
 
 func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Request) {
@@ -233,7 +216,7 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	res, err := handler.userService.GetById(int32(id))
+	res, err := handler.userService.GetByIdWithoutGroupClaims(int32(id))
 	if err != nil {
 		handler.logger.Errorw("service err, GetById", "err", err, "id", id)
 		common.WriteJsonResp(w, err, "Failed to get by id", http.StatusInternalServerError)
@@ -271,7 +254,7 @@ func (handler UserRestHandlerImpl) GetAllV2(w http.ResponseWriter, r *http.Reque
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	req := &bean.ListingRequest{}
+	req := &bean2.ListingRequest{}
 	err = decoder.Decode(req, r.URL.Query())
 	if err != nil {
 		handler.logger.Errorw("request err, GetAll", "err", err, "payload", req)
@@ -357,7 +340,7 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 		return
 	}
 	handler.logger.Infow("request payload, DeleteUser", "err", err, "id", id)
-	user, err := handler.userService.GetById(int32(id))
+	user, err := handler.userService.GetByIdWithoutGroupClaims(int32(id))
 	if err != nil {
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		return
@@ -398,7 +381,7 @@ func (handler UserRestHandlerImpl) BulkDeleteUsers(w http.ResponseWriter, r *htt
 	}
 	decoder := json.NewDecoder(r.Body)
 	// request decoding
-	var request *bean.BulkDeleteRequest
+	var request *bean2.BulkDeleteRequest
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("request err, BulkDeleteUsers", "payload", request, "err", err)
@@ -474,7 +457,7 @@ func (handler UserRestHandlerImpl) CreateRoleGroup(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var request bean.RoleGroup
+	var request bean2.RoleGroup
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("request err, CreateRoleGroup", "err", err, "payload", request)
@@ -527,7 +510,7 @@ func (handler UserRestHandlerImpl) UpdateRoleGroup(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var request bean.RoleGroup
+	var request bean2.RoleGroup
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("request err, UpdateRoleGroup", "err", err, "payload", request)
@@ -586,7 +569,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroupsV2(w http.ResponseWriter, r *h
 		return
 	}
 
-	req := &bean.ListingRequest{}
+	req := &bean2.ListingRequest{}
 	err = decoder.Decode(req, r.URL.Query())
 	if err != nil {
 		handler.logger.Errorw("request err, FetchRoleGroups", "err", err, "payload", req)
@@ -644,7 +627,7 @@ func (handler UserRestHandlerImpl) FetchDetailedRoleGroups(w http.ResponseWriter
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	req := &bean.ListingRequest{ShowAll: true}
+	req := &bean2.ListingRequest{ShowAll: true}
 	res, err := handler.roleGroupService.FetchDetailedRoleGroups(req)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchRoleGroups", "err", err)
@@ -723,7 +706,7 @@ func (handler UserRestHandlerImpl) BulkDeleteRoleGroups(w http.ResponseWriter, r
 	}
 	decoder := json.NewDecoder(r.Body)
 	// request decoding
-	var request *bean.BulkDeleteRequest
+	var request *bean2.BulkDeleteRequest
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("request err, BulkDeleteRoleGroups", "payload", request, "err", err)
@@ -765,7 +748,7 @@ func (handler UserRestHandlerImpl) CheckUserRoles(w http.ResponseWriter, r *http
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	roles, err := handler.userService.CheckUserRoles(userId)
+	roles, err := handler.userService.CheckUserRoles(userId, "")
 	if err != nil {
 		handler.logger.Errorw("service err, CheckUserRoles", "err", err, "userId", userId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -779,7 +762,7 @@ func (handler UserRestHandlerImpl) CheckUserRoles(w http.ResponseWriter, r *http
 		result := make(map[string]interface{})
 		var isSuperAdmin, isAdmin, isManager, isTrigger bool
 		for _, role := range roles {
-			if role == bean.SUPERADMIN {
+			if role == bean2.SUPERADMIN {
 				isSuperAdmin = true
 				break
 			}
@@ -811,7 +794,7 @@ func (handler UserRestHandlerImpl) CheckUserRoles(w http.ResponseWriter, r *http
 	result["roles"] = roles
 	result["superAdmin"] = false
 	for _, item := range roles {
-		if item == bean.SUPERADMIN {
+		if item == bean2.SUPERADMIN {
 			result["superAdmin"] = true
 		}
 	}
