@@ -41,7 +41,7 @@ func (router UserRouterImpl) InitUserRouter(userAuthRouter *mux.Router) {
 		HandlerFunc(router.userRestHandler.GetAllV2).Methods("GET")
 	userAuthRouter.Path("/{id}").
 		HandlerFunc(router.userRestHandler.GetById).Methods("GET")
-	userAuthRouter.Path("v2/{id}").
+	userAuthRouter.Path("/v2/{id}").
 		HandlerFunc(router.userRestHandler.GetById).Methods("GET") // v2 apis are opened for consistent dashboard handling, internally V1 methods are used
 	userAuthRouter.Path("").
 		HandlerFunc(router.userRestHandler.CreateUser).Methods("POST")
