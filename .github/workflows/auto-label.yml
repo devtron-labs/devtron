@@ -28,8 +28,8 @@ jobs:
           ORG_NAME="devtron-labs"
 
           # Check if the person is authorized to add labels
-          curl -s -H "Authorization: token $GH_TOKEN" "https://api.github.com/orgs/$ORG_NAME/members/$COMMENT_AUTHOR" > /dev/null
-          if [[ $? -ne 0 ]]; then
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token $GH_TOKEN" "https://api.github.com/orgs/$ORG_NAME/members/$COMMENT_AUTHOR")
+          if [[ "$RESPONSE" -ne 204 ]]; then
             gh issue comment "$ISSUE_NUMBER" --body "Hi @$COMMENT_AUTHOR, you must be a member of the organization '$ORG_NAME' to add or remove labels."
             echo "User '$COMMENT_AUTHOR' is not a member of the organization '$ORG_NAME'. Exiting."
             exit 1
