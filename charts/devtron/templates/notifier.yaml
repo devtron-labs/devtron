@@ -110,6 +110,8 @@ spec:
               name: notifier-cm
           - secretRef:
               name: notifier-secret
+          - configMapRef:
+              name: devtron-common-cm
           volumeMounts: []
 {{- if .resources }}
           resources:
