@@ -313,7 +313,6 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 							}
 							if roleModel.Id == 0 {
 								impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
-								userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + roleFilter.Action
 								continue
 							}
 							if _, ok := existingRoleIds[roleModel.Id]; ok {
@@ -344,7 +343,6 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 						}
 						if roleModel.Id == 0 {
 							impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
-							userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + roleFilter.Action
 							continue
 						}
 						if _, ok := existingRoleIds[roleModel.Id]; ok {
@@ -463,7 +461,6 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 							}
 							if roleModel.Id == 0 {
 								impl.logger.Warnw("no role found for given filter", "filter", roleFilter)
-								request.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
 								continue
 							}
 							if _, ok := existingRoles[roleModel.Id]; ok {
@@ -495,7 +492,6 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 						}
 						if roleModel.Id == 0 && oldRoleModel.Id == 0 {
 							impl.logger.Warnw("no role found for given filter", "filter", roleFilter)
-							request.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
 							continue
 						}
 						if _, ok := existingRoles[roleModel.Id]; ok {

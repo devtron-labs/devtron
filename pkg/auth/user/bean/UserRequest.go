@@ -34,7 +34,6 @@ type UserInfo struct {
 	Roles         []string        `json:"roles,omitempty"`
 	AccessToken   string          `json:"access_token,omitempty"`
 	RoleFilters   []RoleFilter    `json:"roleFilters"`
-	Status        string          `json:"status,omitempty"`
 	Groups        []string        `json:"groups"`         // this will be deprecated in future do not use
 	UserRoleGroup []UserRoleGroup `json:"userRoleGroups"` // role group with metadata
 	SuperAdmin    bool            `json:"superAdmin,notnull"`
@@ -56,7 +55,6 @@ type RoleGroup struct {
 	Name        string       `json:"name,omitempty"`
 	Description string       `json:"description,omitempty"`
 	RoleFilters []RoleFilter `json:"roleFilters"`
-	Status      string       `json:"status,omitempty"`
 	SuperAdmin  bool         `json:"superAdmin"`
 	UserId      int32        `json:"-"` // created or modified user id
 }
