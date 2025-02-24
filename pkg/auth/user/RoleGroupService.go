@@ -256,7 +256,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFil
 						clusterRoleFieldDto := adapter.BuildClusterRoleFieldsDto(entity, accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, subaction)
 						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(clusterRoleFieldDto)
 						if err != nil {
-							impl.logger.Errorw("error in getting new role model by filter")
+							impl.logger.Errorw("error in getting new role model by filter", "roleFilter", roleFilter, "err", err)
 							return policiesToBeAdded, err
 						}
 						if roleModel.Id == 0 {

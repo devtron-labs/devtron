@@ -669,7 +669,7 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForClusterEntity(tx *pg.Tx, 
 							return policiesToBeAdded, rolesChanged, err
 						}
 						if roleModel.Id == 0 {
-							impl.logger.Infow("Creating Polices for cluster", resource, kind, namespace, group)
+							impl.logger.Infow("Creating Polices for cluster", "resource", resource, "kind", kind, "namespace", namespace, "group", group)
 							flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes(clusterRoleFieldDto, userId)
 							if err != nil || flag == false {
 								impl.logger.Errorw("error encountered in createOrUpdateUserRolesForClusterEntity", "err", err)

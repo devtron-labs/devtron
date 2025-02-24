@@ -274,26 +274,27 @@ func (impl UserAuthRepositoryImpl) GetRolesByActionAndAccessType(action string, 
 
 func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(roleFieldDto *bean4.RoleModelFieldsDto) (RoleModel, error) {
 	entity := roleFieldDto.Entity
+	action := roleFieldDto.Action
 	switch entity {
 	case bean2.CLUSTER_ENTITIY:
 		{
-			cluster, namespace, group, kind, resource, action := roleFieldDto.Cluster, roleFieldDto.Namespace, roleFieldDto.Group, roleFieldDto.Kind, roleFieldDto.Resource, roleFieldDto.Action
+			cluster, namespace, group, kind, resource := roleFieldDto.Cluster, roleFieldDto.Namespace, roleFieldDto.Group, roleFieldDto.Kind, roleFieldDto.Resource
 			return impl.GetRoleForClusterEntity(cluster, namespace, group, kind, resource, action)
 		}
 	case bean2.CHART_GROUP_ENTITY:
 		{
-			app, act, accessType := roleFieldDto.App, roleFieldDto.Action, roleFieldDto.AccessType
-			return impl.GetRoleForChartGroupEntity(entity, app, act, accessType)
+			app, accessType := roleFieldDto.App, roleFieldDto.AccessType
+			return impl.GetRoleForChartGroupEntity(entity, app, action, accessType)
 		}
 	case bean2.EntityJobs:
 		{
-			team, app, env, act, workflow := roleFieldDto.Team, roleFieldDto.App, roleFieldDto.Env, roleFieldDto.Action, roleFieldDto.Workflow
-			return impl.GetRoleForJobsEntity(entity, team, app, env, act, workflow)
+			team, app, env, workflow := roleFieldDto.Team, roleFieldDto.App, roleFieldDto.Env, roleFieldDto.Workflow
+			return impl.GetRoleForJobsEntity(entity, team, app, env, action, workflow)
 		}
 	default:
 		{
-			team, app, env, act, accessType, oldValues := roleFieldDto.Team, roleFieldDto.App, roleFieldDto.Env, roleFieldDto.Action, roleFieldDto.AccessType, roleFieldDto.OldValues
-			return impl.GetRoleForOtherEntity(team, app, env, act, accessType, oldValues)
+			team, app, env, accessType, oldValues := roleFieldDto.Team, roleFieldDto.App, roleFieldDto.Env, roleFieldDto.AccessType, roleFieldDto.OldValues
+			return impl.GetRoleForOtherEntity(team, app, env, action, accessType, oldValues)
 		}
 	}
 	return RoleModel{}, nil
