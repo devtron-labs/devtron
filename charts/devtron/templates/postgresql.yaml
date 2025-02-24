@@ -137,6 +137,9 @@ spec:
           {{- toYaml .initContainer.resources | nindent 12 }}
           {{- end }}
           {{- end }}
+          envFrom:
+            - configMapRef:
+                name: devtron-common-cm
           securityContext:
             runAsUser: 0
           volumeMounts:
@@ -173,6 +176,9 @@ spec:
               value: "no"
             - name: POSTGRESQL_SHARED_PRELOAD_LIBRARIES
               value: pgaudit, uuid-ossp
+          envFrom:
+            - configMapRef:
+                name: devtron-common-cm
           {{- if .resources }}
           resources:
           {{- toYaml .resources | nindent 12 }}
@@ -226,6 +232,9 @@ spec:
                   key: postgresql-password
             - name: DATA_SOURCE_USER
               value: postgres
+          envFrom:
+          - configMapRef:
+              name: devtron-common-cm
           {{- if .postgresExporter }}
           {{- if .postgresExporter.resources }}
           resources:
@@ -268,6 +277,7 @@ spec:
       spec:
         accessModes:
           - "ReadWriteOnce"
+        {{- include "common.storageclass" $ | indent 8 }}
         resources:
           requests:
             storage: {{ .persistence.volumeSize }}
@@ -465,6 +475,9 @@ spec:
           {{- toYaml .initContainer.resources | nindent 12 }}
           {{- end }}
           {{- end }}
+          envFrom:
+            - configMapRef:
+                name: devtron-common-cm
           volumeMounts:
             - mountPath: /customscripts
               name: customscripts-volume
@@ -505,6 +518,8 @@ spec:
           envFrom:
             - secretRef:
                 name: postgresql-postgresql
+            - configMapRef:
+                name: devtron-common-cm
           startupProbe:
             exec:
               command:
@@ -560,6 +575,9 @@ spec:
                 secretKeyRef:
                   name: postgresql-postgresql
                   key: postgresql-password
+          envFrom:
+            - configMapRef:
+                name: devtron-common-cm
             - name: DATA_SOURCE_USER
               value: postgres
           {{- if .postgresExporter }}
@@ -613,6 +631,7 @@ spec:
       spec:
         accessModes:
           - ReadWriteOnce
+        {{- include "common.storageclass" $ | indent 8 }}
         resources:
           requests:
             storage: {{ .persistence.volumeSize }}
