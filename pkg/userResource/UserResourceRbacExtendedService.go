@@ -2,13 +2,11 @@ package userResource
 
 import (
 	apiBean "github.com/devtron-labs/devtron/api/userResource/bean"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	bean3 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/team/bean"
 	"github.com/devtron-labs/devtron/pkg/userResource/adapter"
 	"github.com/devtron-labs/devtron/pkg/userResource/bean"
-	http2 "net/http"
 )
 
 func (impl *UserResourceServiceImpl) enforceRbacForTeamForDevtronApp(token string, params *apiBean.PathParams, resourceOptions *bean.ResourceOptionsDto) (*bean.UserResourceResponseDto, error) {
@@ -29,7 +27,8 @@ func (impl *UserResourceServiceImpl) enforceRbacForTeamForDevtronApp(token strin
 func (impl *UserResourceServiceImpl) enforceRbacForTeamForJobs(token string, params *apiBean.PathParams, resourceOptions *bean.ResourceOptionsDto) (*bean.UserResourceResponseDto, error) {
 	isAuthorised := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*")
 	if !isAuthorised {
-		return nil, util.GetApiErrorAdapter(http2.StatusForbidden, "403", bean.UnAuthorizedAccess, bean.UnAuthorizedAccess)
+		impl.logger.Errorw("user is unauthorized to access team for jobs")
+		return adapter.BuildNullDataUserResourceResponseDto(), nil
 	}
 	return adapter.BuildUserResourceResponseDto(resourceOptions.TeamsResp), nil
 }
@@ -48,7 +47,8 @@ func (impl *UserResourceServiceImpl) enforceRbacForEnvForDevtronApp(token string
 func (impl *UserResourceServiceImpl) enforceRbacForEnvForJobs(token string, params *apiBean.PathParams, resourceOptions *bean.ResourceOptionsDto) (*bean.UserResourceResponseDto, error) {
 	isAuthorised := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*")
 	if !isAuthorised {
-		return nil, util.GetApiErrorAdapter(http2.StatusForbidden, "403", bean.UnAuthorizedAccess, bean.UnAuthorizedAccess)
+		impl.logger.Errorw("user is unauthorized to access env for jobs")
+		return adapter.BuildNullDataUserResourceResponseDto(), nil
 	}
 	return adapter.BuildUserResourceResponseDto(resourceOptions.EnvResp), nil
 }
@@ -59,7 +59,8 @@ func (impl *UserResourceServiceImpl) enforceRbacForDevtronApps(token string, par
 func (impl *UserResourceServiceImpl) enforceRbacForHelmAppsListing(token string, params *apiBean.PathParams, resourceOptions *bean.ResourceOptionsDto) (*bean.UserResourceResponseDto, error) {
 	isAuthorised := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*")
 	if !isAuthorised {
-		return nil, util.GetApiErrorAdapter(http2.StatusForbidden, "403", bean.UnAuthorizedAccess, bean.UnAuthorizedAccess)
+		impl.logger.Errorw("user is unauthorized enforceRbacForHelmAppsListing")
+		return adapter.BuildNullDataUserResourceResponseDto(), nil
 	}
 	return adapter.BuildUserResourceResponseDto(resourceOptions.TeamAppResp), nil
 }
@@ -67,7 +68,8 @@ func (impl *UserResourceServiceImpl) enforceRbacForHelmAppsListing(token string,
 func (impl *UserResourceServiceImpl) enforceRbacForJobs(token string, params *apiBean.PathParams, resourceOptions *bean.ResourceOptionsDto) (*bean.UserResourceResponseDto, error) {
 	isAuthorised := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*")
 	if !isAuthorised {
-		return nil, util.GetApiErrorAdapter(http2.StatusForbidden, "403", bean.UnAuthorizedAccess, bean.UnAuthorizedAccess)
+		impl.logger.Errorw("user is unauthorized enforceRbacForJobs")
+		return adapter.BuildNullDataUserResourceResponseDto(), nil
 	}
 	return adapter.BuildUserResourceResponseDto(resourceOptions.JobsResp), nil
 }
@@ -76,14 +78,17 @@ func (impl *UserResourceServiceImpl) enforceRbacForChartGroup(token string, para
 	isAuthorised := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*") ||
 		impl.enforcer.Enforce(token, casbin.ResourceChartGroup, casbin.ActionGet, "") // doing this for manager check as chart group is by default shown to every user
 	if !isAuthorised {
-		return nil, util.GetApiErrorAdapter(http2.StatusForbidden, "403", bean.UnAuthorizedAccess, bean.UnAuthorizedAccess)
+		impl.logger.Errorw("user is unauthorized enforceRbacForChartGroup")
+		return adapter.BuildNullDataUserResourceResponseDto(), nil
 	}
 	return adapter.BuildUserResourceResponseDto(resourceOptions.ChartGroupResp), nil
 }
+
 func (impl *UserResourceServiceImpl) enforceRbacForJobsWfs(token string, params *apiBean.PathParams, resourceOptions *bean.ResourceOptionsDto) (*bean.UserResourceResponseDto, error) {
 	isAuthorised := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*")
 	if !isAuthorised {
-		return nil, util.GetApiErrorAdapter(http2.StatusForbidden, "403", bean.UnAuthorizedAccess, bean.UnAuthorizedAccess)
+		impl.logger.Errorw("user is unauthorized enforceRbacForJobsWfs")
+		return adapter.BuildNullDataUserResourceResponseDto(), nil
 	}
-	return adapter.BuildUserResourceResponseDto(resourceOptions.JobsResp), nil
+	return adapter.BuildUserResourceResponseDto(resourceOptions.AppWfsResp), nil
 }

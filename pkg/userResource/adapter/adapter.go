@@ -13,6 +13,12 @@ func BuildUserResourceResponseDto(data interface{}) *bean.UserResourceResponseDt
 	}
 }
 
+func BuildNullDataUserResourceResponseDto() *bean.UserResourceResponseDto {
+	return &bean.UserResourceResponseDto{
+		Data: nil,
+	}
+}
+
 func BuildFetchAppListingReqForJobFromDto(reqBean *bean2.ResourceOptionsReqDto) app.FetchAppListingRequest {
 	return app.FetchAppListingRequest{
 		Teams:     reqBean.TeamIds,
