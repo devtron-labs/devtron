@@ -313,6 +313,8 @@ func (e *Enforcer) Enforce(rvals ...interface{}) bool {
 		functions[key] = function
 	}
 	if _, ok := e.model["g"]; ok {
+		fmt.Println("model g", e.model["g"])
+		fmt.Println("model p", e.model["p"])
 		for key, ast := range e.model["g"] {
 			rm := ast.RM
 			functions[key] = util.GenerateGFunction(rm)
@@ -369,7 +371,7 @@ func (e *Enforcer) Enforce(rvals ...interface{}) bool {
 
 			result, err := expression.Eval(parameters)
 			// log.LogPrint("Result: ", result)
-
+			fmt.Println("result for Eval", result)
 			if err != nil {
 				policyEffects[i] = effect.Indeterminate
 				panic(err)
