@@ -10,7 +10,7 @@ global:
   containerRegistry: "quay.io/devtron"
 extraManifests: []
 installer:
-  release: "v1.3.0"
+  release: "v1.3.1"
   registry: ""
   image: "inception"
   tag: "473deaa4-185-21582"
