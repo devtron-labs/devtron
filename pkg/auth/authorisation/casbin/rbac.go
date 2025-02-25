@@ -284,6 +284,7 @@ func (e *EnforcerImpl) getCacheData(emailId string, resource string, action stri
 	if e.Cache == nil {
 		return result
 	}
+	return result
 	emailResult, found := e.Cache.Get(emailId)
 	fmt.Println("emailResult 1", emailResult)
 	if found {
