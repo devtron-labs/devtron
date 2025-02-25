@@ -44,12 +44,10 @@ func (model Model) PrintPolicy() {
 func (model Model) ClearPolicy() {
 	fmt.Println("policy LoadPolicy model", model)
 	for _, ast := range model["p"] {
-		fmt.Println("policy LoadPolicy ast.Policy p", ast.Policy)
 		ast.Policy = nil
 	}
 
 	for _, ast := range model["g"] {
-		fmt.Println("policy LoadPolicy ast.Policy g", ast.Policy)
 		ast.Policy = nil
 	}
 }
