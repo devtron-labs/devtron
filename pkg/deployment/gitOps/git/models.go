@@ -18,17 +18,14 @@ package git
 
 import (
 	"fmt"
-	"net/http"
 	"time"
 )
 
 type DetailedErrorGitOpsConfigActions struct {
-	SuccessfulStages        []string               `json:"successfulStages"`
-	StageErrorMap           map[string]error       `json:"stageErrorMap"`
-	StageErrorHttpHeaderMap map[string]http.Header `json:"-"`
-	StageErrorHttpStatusMap map[string]string      `json:"-"`
-	ValidatedOn             time.Time              `json:"validatedOn"`
-	DeleteRepoFailed        bool                   `json:"deleteRepoFailed"`
+	SuccessfulStages []string         `json:"successfulStages"`
+	StageErrorMap    map[string]error `json:"stageErrorMap"`
+	ValidatedOn      time.Time        `json:"validatedOn"`
+	DeleteRepoFailed bool             `json:"deleteRepoFailed"`
 }
 
 type ChartConfig struct {
