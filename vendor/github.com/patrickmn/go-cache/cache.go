@@ -120,6 +120,7 @@ func (c *cache) Replace(k string, x interface{}, d time.Duration) error {
 func (c *cache) Get(k string) (interface{}, bool) {
 	c.mu.RLock()
 	// "Inlining" of get and Expired
+	fmt.Println("c.items", c.items)
 	item, found := c.items[k]
 	if !found {
 		c.mu.RUnlock()
@@ -132,6 +133,7 @@ func (c *cache) Get(k string) (interface{}, bool) {
 		}
 	}
 	c.mu.RUnlock()
+	fmt.Println("itemObject", item.Object)
 	return item.Object, true
 }
 
