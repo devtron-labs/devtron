@@ -137,6 +137,7 @@ func (e *EnforcerImpl) ReloadPolicy() error {
 	//defer e.enforcerRWLock.Unlock()
 	var err error
 	if e.enforcerConfig.UseCasbinV2 {
+		fmt.Println("policy reloading started v2")
 		err = e.EnforcerV2.LoadPolicy()
 		if err != nil {
 			return err
@@ -144,6 +145,7 @@ func (e *EnforcerImpl) ReloadPolicy() error {
 		fmt.Println("V2 policy reloaded successfully")
 		return nil
 	}
+	fmt.Println("policy reloading started")
 	err = e.Enforcer.LoadPolicy()
 	if err != nil {
 		return err
