@@ -342,7 +342,6 @@ func (impl *DeploymentConfigServiceImpl) UpdateChartLocationInDeploymentConfig(a
 			impl.logger.Errorw("error in chartRefRepository.FindById", "chartRefId", chartRefId, "err", err)
 			return err
 		}
-		//TODO: ayush common function for chart location
 		chartLocation := filepath.Join(chartRef.Location, chartVersion)
 		config.SetChartLocation(chartLocation)
 		config, err = impl.CreateOrUpdateConfig(nil, config, userId)

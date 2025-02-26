@@ -313,19 +313,10 @@ func (impl *ChartServiceImpl) Create(templateRequest bean3.TemplateRequest, ctx 
 		return nil, err
 	}
 
-	envOverrides, err := impl.envConfigOverrideReadService.GetAllOverridesForApp(templateRequest.AppId)
+	err = impl.UpdateChartLocationForEnvironmentConfigs(templateRequest.AppId, chart.ChartRefId, templateRequest.UserId, version)
 	if err != nil {
-		impl.logger.Errorw("error in getting all overrides for app", "appId", templateRequest.AppId, "err", err)
+		impl.logger.Errorw("error in updating chart location in env overrides", "appId", templateRequest.AppId, "err", err)
 		return nil, err
-	}
-	for _, override := range envOverrides {
-		if !override.IsOverride {
-			err := impl.deploymentConfigService.UpdateChartLocationInDeploymentConfig(templateRequest.AppId, override.TargetEnvironment, chart.ChartRefId, templateRequest.UserId, version)
-			if err != nil {
-				impl.logger.Errorw("error in updating chart location for env level deployment configs", "appId", templateRequest.AppId, "envId", override.TargetEnvironment, "err", err)
-				return nil, err
-			}
-		}
 	}
 
 	//creating history entry for deployment template
@@ -355,6 +346,24 @@ func (impl *ChartServiceImpl) Create(templateRequest bean3.TemplateRequest, ctx 
 
 	chartVal, err := impl.chartAdaptor(chart, appLevelMetricsUpdateReq.EnableMetrics, deploymentConfig)
 	return chartVal, err
+}
+
+func (impl *ChartServiceImpl) UpdateChartLocationForEnvironmentConfigs(appId, chartRefId int, userId int32, version string) error {
+	envOverrides, err := impl.envConfigOverrideReadService.GetAllOverridesForApp(appId)
+	if err != nil {
+		impl.logger.Errorw("error in getting all overrides for app", "appId", appId, "err", err)
+		return err
+	}
+	for _, override := range envOverrides {
+		if !override.IsOverride {
+			err := impl.deploymentConfigService.UpdateChartLocationInDeploymentConfig(appId, override.TargetEnvironment, chartRefId, userId, version)
+			if err != nil {
+				impl.logger.Errorw("error in updating chart location for env level deployment configs", "appId", appId, "envId", override.TargetEnvironment, "err", err)
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (impl *ChartServiceImpl) CreateChartFromEnvOverride(templateRequest bean3.TemplateRequest, ctx context.Context) (*bean3.TemplateRequest, error) {
@@ -646,6 +655,13 @@ func (impl *ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateReq
 	if err != nil {
 		return nil, err
 	}
+
+	chartRef, err := impl.chartRefService.FindById(template.ChartRefId)
+	if err != nil {
+		impl.logger.Errorw("error in finding chart ref by id", "chartRefId", template.ChartRefId, "err", err)
+		return nil, err
+	}
+
 	if currentLatestChart.Id > 0 && currentLatestChart.Id == templateRequest.Id {
 
 	} else if currentLatestChart.Id != templateRequest.Id {
@@ -701,6 +717,12 @@ func (impl *ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateReq
 			return nil, err
 		}
 
+		err = impl.UpdateChartLocationForEnvironmentConfigs(templateRequest.AppId, templateRequest.ChartRefId, templateRequest.UserId, template.ChartVersion)
+		if err != nil {
+			impl.logger.Errorw("error in updating chart location in env overrides", "appId", templateRequest.AppId, "err", err)
+			return nil, err
+		}
+
 	} else {
 		return nil, nil
 	}
@@ -726,13 +748,13 @@ func (impl *ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateReq
 		return nil, err
 	}
 
-	//TODO: ayush test and revisit
 	config, err := impl.deploymentConfigService.GetConfigForDevtronApps(template.AppId, 0)
 	if err != nil {
 		impl.logger.Errorw("error in fetching config", "appId", template.AppId, "err", err)
 		return nil, err
 	}
 
+	chartGitLocation := filepath.Join(chartRef.Location, template.ChartVersion)
 	deploymentConfig := &bean2.DeploymentConfig{
 		AppId:      template.AppId,
 		ConfigType: adapter2.GetDeploymentConfigType(template.IsCustomGitRepository),
@@ -743,7 +765,7 @@ func (impl *ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateReq
 				Spec: bean2.ApplicationSpec{
 					Source: &bean2.ApplicationSource{
 						RepoURL: config.GetRepoURL(),
-						Path:    config.GetChartLocation(),
+						Path:    chartGitLocation,
 					},
 				},
 			},
