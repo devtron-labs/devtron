@@ -354,8 +354,10 @@ func (impl *ChartServiceImpl) UpdateChartLocationForEnvironmentConfigs(appId, ch
 		impl.logger.Errorw("error in getting all overrides for app", "appId", appId, "err", err)
 		return err
 	}
+	uniqueEnvMap := make(map[int]bool)
 	for _, override := range envOverrides {
-		if !override.IsOverride {
+		if _, ok := uniqueEnvMap[override.TargetEnvironment]; !ok && !override.IsOverride {
+			uniqueEnvMap[override.TargetEnvironment] = true
 			err := impl.deploymentConfigService.UpdateChartLocationInDeploymentConfig(appId, override.TargetEnvironment, chartRefId, userId, version)
 			if err != nil {
 				impl.logger.Errorw("error in updating chart location for env level deployment configs", "appId", appId, "envId", override.TargetEnvironment, "err", err)

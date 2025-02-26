@@ -138,7 +138,7 @@ func (impl EnvConfigOverrideReadServiceImpl) GetAllOverridesForApp(appId int) ([
 		impl.logger.Errorw("error in getting chart env config override", "appId", appId, "envId", "err", err)
 		return nil, err
 	}
-	envConfigOverrides := make([]*bean.EnvConfigOverride, len(overrideDBObjs))
+	envConfigOverrides := make([]*bean.EnvConfigOverride, 0, len(overrideDBObjs))
 	for _, dbObj := range overrideDBObjs {
 		envConfigOverrides = append(envConfigOverrides, adapter.EnvOverrideDBToDTO(&dbObj))
 	}
