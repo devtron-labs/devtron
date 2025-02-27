@@ -20,4 +20,5 @@ package bean
 type ChartGitAttribute struct {
 	RepoUrl, ChartLocation string
 	IsNewRepo              bool
+	IsRepoEmpty            bool
 }

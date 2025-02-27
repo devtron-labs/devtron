@@ -39,20 +39,24 @@ type GitAzureClient struct {
 	gitOpsHelper *GitOpsHelper
 }
 
-func (impl GitAzureClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl string, err error) {
+func (impl GitAzureClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl string, isRepoEmpty bool, err error) {
 
 	start := time.Now()
 	defer func() {
 		globalUtil.TriggerGitOpsMetrics("GetRepoUrl", "GitAzureClient", start, err)
 	}()
 
-	url, exists, err := impl.repoExists(config.GitRepoName, impl.project)
+	var (
+		url    string
+		exists bool
+	)
+	url, exists, isRepoEmpty, err = impl.repoExists(config.GitRepoName, impl.project)
 	if err != nil {
-		return "", err
+		return "", isRepoEmpty, err
 	} else if !exists {
-		return "", fmt.Errorf("%s :repo not found", config.GitRepoName)
+		return "", isRepoEmpty, fmt.Errorf("%s :repo not found", config.GitRepoName)
 	} else {
-		return url, nil
+		return url, isRepoEmpty, nil
 	}
 }
 
@@ -96,23 +100,26 @@ func (impl GitAzureClient) DeleteRepository(config *bean2.GitOpsConfigDto) (err 
 	return err
 }
 
-func (impl GitAzureClient) CreateRepository(ctx context.Context, config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
-	var err error
+func (impl GitAzureClient) CreateRepository(ctx context.Context, config *bean2.GitOpsConfigDto) (url string, isNew bool, isEmpty bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+	var (
+		err        error
+		repoExists bool
+	)
 	start := time.Now()
 	defer func() {
 		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitAzureClient", start, err)
 	}()
 
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
-	url, repoExists, err := impl.repoExists(config.GitRepoName, impl.project)
+	url, repoExists, isEmpty, err = impl.repoExists(config.GitRepoName, impl.project)
 	if err != nil {
 		impl.logger.Errorw("error in communication with azure", "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[GetRepoUrlStage] = err
-		return "", false, detailedErrorGitOpsConfigActions
+		return "", false, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	if repoExists {
 		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, GetRepoUrlStage)
-		return url, false, detailedErrorGitOpsConfigActions
+		return url, false, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	gitRepositoryCreateOptions := git.GitRepositoryCreateOptions{
 		Name: &config.GitRepoName,
@@ -125,12 +132,12 @@ func (impl GitAzureClient) CreateRepository(ctx context.Context, config *bean2.G
 	if err != nil {
 		impl.logger.Errorw("error in creating repo azure", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err
-		url, repoExists, err = impl.repoExists(config.GitRepoName, impl.project)
+		url, repoExists, isEmpty, err = impl.repoExists(config.GitRepoName, impl.project)
 		if err != nil {
 			impl.logger.Errorw("error in communication with azure", "err", err)
 		}
 		if err != nil || !repoExists {
-			return "", true, detailedErrorGitOpsConfigActions
+			return "", true, isEmpty, detailedErrorGitOpsConfigActions
 		}
 	}
 	impl.logger.Infow("repo created ", "r", operationReference.WebUrl)
@@ -139,11 +146,11 @@ func (impl GitAzureClient) CreateRepository(ctx context.Context, config *bean2.G
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability azure", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = err
-		return *operationReference.WebUrl, true, detailedErrorGitOpsConfigActions
+		return *operationReference.WebUrl, true, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	if !validated {
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = fmt.Errorf("unable to validate project:%s in given time", config.GitRepoName)
-		return "", true, detailedErrorGitOpsConfigActions
+		return "", true, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
 
@@ -151,22 +158,23 @@ func (impl GitAzureClient) CreateRepository(ctx context.Context, config *bean2.G
 	if err != nil {
 		impl.logger.Errorw("error in creating readme azure", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
-		return *operationReference.WebUrl, true, detailedErrorGitOpsConfigActions
+		return *operationReference.WebUrl, true, isEmpty, detailedErrorGitOpsConfigActions
 	}
+	isEmpty = false //As we have created readme, repo is no longer empty
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateReadmeStage)
 
 	validated, err = impl.ensureProjectAvailabilityOnSsh(impl.project, *operationReference.WebUrl)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability azure", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
-		return *operationReference.WebUrl, true, detailedErrorGitOpsConfigActions
+		return *operationReference.WebUrl, true, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	if !validated {
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = fmt.Errorf("unable to validate project:%s in given time", config.GitRepoName)
-		return "", true, detailedErrorGitOpsConfigActions
+		return "", true, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneSshStage)
-	return *operationReference.WebUrl, true, detailedErrorGitOpsConfigActions
+	return *operationReference.WebUrl, true, isEmpty, detailedErrorGitOpsConfigActions
 }
 
 func (impl GitAzureClient) CreateReadme(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
@@ -296,7 +304,7 @@ func (impl GitAzureClient) CommitValues(ctx context.Context, config *ChartConfig
 	return commitId, commitAuthorTime, nil
 }
 
-func (impl GitAzureClient) repoExists(repoName, projectName string) (repoUrl string, exists bool, err error) {
+func (impl GitAzureClient) repoExists(repoName, projectName string) (repoUrl string, exists, isRepoEmpty bool, err error) {
 
 	start := time.Now()
 	defer func() {
@@ -313,16 +321,17 @@ func (impl GitAzureClient) repoExists(repoName, projectName string) (repoUrl str
 	notFoundStatus := 404
 	if err != nil {
 		if e, ok := err.(azuredevops.WrappedError); ok && *e.StatusCode == notFoundStatus {
-			return "", false, nil
+			return "", false, isRepoEmpty, nil
 		} else {
-			return "", false, err
+			return "", false, isRepoEmpty, err
 		}
 
 	}
 	for gitRepository == nil {
-		return "", false, nil
+		return "", false, isRepoEmpty, nil
 	}
-	return *gitRepository.WebUrl, true, nil
+
+	return *gitRepository.WebUrl, true, *gitRepository.Size == 0, nil
 }
 
 func (impl GitAzureClient) ensureProjectAvailabilityOnHttp(repoName string) (bool, error) {
@@ -333,7 +342,7 @@ func (impl GitAzureClient) ensureProjectAvailabilityOnHttp(repoName string) (boo
 	}()
 
 	for count := 0; count < 5; count++ {
-		_, exists, err := impl.repoExists(repoName, impl.project)
+		_, exists, _, err := impl.repoExists(repoName, impl.project)
 		if err == nil && exists {
 			impl.logger.Infow("repo validated successfully on https")
 			return true, nil

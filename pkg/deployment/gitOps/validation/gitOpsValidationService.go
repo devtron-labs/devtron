@@ -102,7 +102,7 @@ func (impl *GitOpsValidationServiceImpl) GitOpsValidateDryRun(config *apiBean.Gi
 	config.UserEmailId = userEmailId
 	config.GitRepoName = appName
 	ctx := context.Background()
-	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(ctx, config)
+	repoUrl, _, _, detailedErrorCreateRepo := client.CreateRepository(ctx, config)
 
 	detailedErrorGitOpsConfigActions.StageErrorMap = detailedErrorCreateRepo.StageErrorMap
 	detailedErrorGitOpsConfigActions.SuccessfulStages = detailedErrorCreateRepo.SuccessfulStages
