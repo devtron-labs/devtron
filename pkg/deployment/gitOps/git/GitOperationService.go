@@ -98,12 +98,12 @@ func (impl *GitOperationServiceImpl) CreateGitRepositoryForDevtronApp(ctx contex
 		BitBucketWorkspaceId: bitbucketMetadata.BitBucketWorkspaceId,
 		BitBucketProjectKey:  bitbucketMetadata.BitBucketProjectKey,
 	}
-	repoUrl, isNew, _, err := impl.CreateRepository(ctx, gitRepoRequest, userId)
+	repoUrl, isNew, isEmpty, err := impl.CreateRepository(ctx, gitRepoRequest, userId)
 	if err != nil {
 		impl.logger.Errorw("error in creating git project", "name", gitOpsRepoName, "err", err)
 		return nil, err
 	}
-	return &commonBean.ChartGitAttribute{RepoUrl: repoUrl, IsNewRepo: isNew}, nil
+	return &commonBean.ChartGitAttribute{RepoUrl: repoUrl, IsNewRepo: isNew, IsRepoEmpty: isEmpty}, nil
 }
 
 func getChartDirPathFromCloneDir(cloneDirPath string) (string, error) {

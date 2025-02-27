@@ -182,7 +182,7 @@ func (impl GitLabClient) CreateRepository(ctx context.Context, config *bean2.Git
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
 		return "", true, isEmpty, detailedErrorGitOpsConfigActions
 	}
-	isEmpty = false
+	isEmpty = false //As we have created readme, repo is no longer empty
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateReadmeStage)
 	validated, err = impl.ensureProjectAvailabilityOnSsh(config.GitRepoName, repoUrl)
 	if err != nil {

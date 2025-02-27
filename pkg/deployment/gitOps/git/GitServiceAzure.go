@@ -160,7 +160,7 @@ func (impl GitAzureClient) CreateRepository(ctx context.Context, config *bean2.G
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
 		return *operationReference.WebUrl, true, isEmpty, detailedErrorGitOpsConfigActions
 	}
-	isEmpty = false
+	isEmpty = false //As we have created readme, repo is no longer empty
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateReadmeStage)
 
 	validated, err = impl.ensureProjectAvailabilityOnSsh(impl.project, *operationReference.WebUrl)
