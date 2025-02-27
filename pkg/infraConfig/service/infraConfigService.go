@@ -730,6 +730,9 @@ func (impl *InfraConfigServiceImpl) sanitizeUpdatableConfigurations(updatableInf
 func (impl *InfraConfigServiceImpl) getAppliedInfraConfigForProfile(appliedProfileConfig, defaultProfileConfig *v1.ProfileBeanDto, variableSnapshots map[string]map[string]string, targetPlatformsList []string) (map[string]*v1.InfraConfig, error) {
 	resp := make(map[string]*v1.InfraConfig)
 	for _, targetPlatform := range targetPlatformsList {
+		if !appliedProfileConfig.GetBuildxDriverType().IsPlatformSupported(targetPlatform) {
+			continue
+		}
 		appliedConfiguration := impl.getAppliedConfigurationForTargetPlatform(appliedProfileConfig, defaultProfileConfig, targetPlatform)
 		infraConfigForTrigger, err := impl.getInfraConfigurationForTrigger(appliedConfiguration)
 		if err != nil {

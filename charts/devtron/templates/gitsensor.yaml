@@ -84,6 +84,9 @@ spec:
           imagePullPolicy: IfNotPresent
           name: chown-git-base
           resources: {}
+          envFrom:
+          - configMapRef:
+              name: devtron-common-cm
           securityContext:
             runAsUser: 0
           terminationMessagePath: /dev/termination-log
@@ -128,6 +131,8 @@ spec:
               name: git-sensor-secret
           - configMapRef: 
               name: git-sensor-cm
+          - configMapRef: 
+              name: devtron-common-cm
           {{- if .resources }}        
           resources:
           {{- toYaml .resources | nindent 12 }}
@@ -137,6 +142,7 @@ spec:
         name: git-volume
       spec:
         accessModes: [ "ReadWriteOnce" ]
+        {{- include "common.storageclass" $ | indent 8 }}
         resources:
           requests:
             storage: {{ .persistence.volumeSize }}

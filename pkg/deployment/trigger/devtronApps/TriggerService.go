@@ -173,6 +173,7 @@ type TriggerServiceImpl struct {
 	attributeService                 attributes.AttributesService
 	clusterRepository                repository5.ClusterRepository
 	deploymentTemplateHistoryService deploymentTemplate.DeploymentTemplateHistoryService
+	cdWorkflowRunnerService          cd.CdWorkflowRunnerService
 }
 
 func NewTriggerServiceImpl(logger *zap.SugaredLogger,
@@ -231,6 +232,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 	attributeService attributes.AttributesService,
 	clusterRepository repository5.ClusterRepository,
 	deploymentTemplateHistoryService deploymentTemplate.DeploymentTemplateHistoryService,
+	cdWorkflowRunnerService cd.CdWorkflowRunnerService,
 ) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                        logger,
@@ -293,6 +295,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 		gitOperationService:              gitOperationService,
 		attributeService:                 attributeService,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
+		cdWorkflowRunnerService:          cdWorkflowRunnerService,
 
 		clusterRepository: clusterRepository,
 	}
@@ -519,7 +522,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
 			ReferenceId:  triggerContext.ReferenceId,
 		}
-		savedWfr, err := impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+		savedWfr, err := impl.cdWorkflowRunnerService.SaveCDWorkflowRunnerWithStage(runner)
 		if err != nil {
 			impl.logger.Errorw("err in creating cdWorkflowRunner, ManualCdTrigger", "cdWorkflowId", cdWorkflowId, "err", err)
 			return 0, "", nil, err
@@ -650,7 +653,7 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 		AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggeredAt, UpdatedBy: triggeredBy},
 		ReferenceId:  request.TriggerContext.ReferenceId,
 	}
-	savedWfr, err := impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+	savedWfr, err := impl.cdWorkflowRunnerService.SaveCDWorkflowRunnerWithStage(runner)
 	if err != nil {
 		return err
 	}

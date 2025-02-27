@@ -18,6 +18,8 @@ package pipelineConfig
 
 import (
 	"context"
+	"time"
+
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -33,7 +35,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
-	"time"
 )
 
 type PipelineType string
@@ -41,6 +42,14 @@ type TriggerType string // HOW pipeline should be triggered
 
 func (t TriggerType) ToString() string {
 	return string(t)
+}
+
+func (t TriggerType) IsManual() bool {
+	return t == TRIGGER_TYPE_MANUAL
+}
+
+func (t TriggerType) IsAuto() bool {
+	return t == TRIGGER_TYPE_AUTOMATIC
 }
 
 const TRIGGER_TYPE_AUTOMATIC TriggerType = "AUTOMATIC"
@@ -58,8 +67,8 @@ type Pipeline struct {
 	Deleted                       bool        `sql:"deleted,notnull"`
 	PreStageConfig                string      `sql:"pre_stage_config_yaml"`
 	PostStageConfig               string      `sql:"post_stage_config_yaml"`
-	PreTriggerType                TriggerType `sql:"pre_trigger_type"`                   // automatic, manual
-	PostTriggerType               TriggerType `sql:"post_trigger_type"`                  // automatic, manual
+	PreTriggerType                TriggerType `sql:"pre_trigger_type"`                   // automatic, manual; when a pre-cd task doesn't exist/removed in a cd then this field is updated as null
+	PostTriggerType               TriggerType `sql:"post_trigger_type"`                  // automatic, manual; when a post-cd task doesn't exist/removed in a cd then this field is updated as null
 	PreStageConfigMapSecretNames  string      `sql:"pre_stage_config_map_secret_names"`  // configmap names
 	PostStageConfigMapSecretNames string      `sql:"post_stage_config_map_secret_names"` // secret names
 	RunPreStageInEnv              bool        `sql:"run_pre_stage_in_env"`               // secret names
@@ -622,7 +631,7 @@ func (impl PipelineRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypePipeli
 	var pipelines []*Pipeline
 	err := impl.dbConnection.
 		Model(&pipelines).
-		Column("pipeline.id", "App.app_name", "Environment.cluster_id", "Environment.namespace", "Environment.environment_name").
+		Column("pipeline.id", "App.app_name", "pipeline.deployment_app_name", "Environment.cluster_id", "Environment.namespace", "Environment.environment_name").
 		Join("inner join app a on pipeline.app_id = a.id").
 		Join("inner join environment e on pipeline.environment_id = e.id").
 		Join("LEFT JOIN deployment_config dc on dc.active=true and dc.app_id = pipeline.app_id and dc.environment_id=pipeline.environment_id").

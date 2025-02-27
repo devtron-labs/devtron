@@ -224,9 +224,10 @@ type NSDeleteRequest struct {
 
 type NotificationRequest struct {
 	UpdateType                util.UpdateType              `json:"updateType,omitempty"`
-	SesConfigId               int                          `json:"sesConfigId,omitempty"`
 	Providers                 []*bean.Provider             `json:"providers"`
 	NotificationConfigRequest []*NotificationConfigRequest `json:"notificationConfigRequest" validate:"required"`
+	// will be deprecated in future
+	SesConfigId int `json:"sesConfigId"`
 }
 
 type NotificationUpdateRequest struct {

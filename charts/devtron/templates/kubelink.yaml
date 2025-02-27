@@ -96,6 +96,8 @@ spec:
               name: kubelink-cm
           - secretRef:
               name: kubelink-secret
+          - configMapRef:
+              name: devtron-common-cm
           {{- if .resources }}        
           resources:
           {{- toYaml .resources | nindent 12 }}
