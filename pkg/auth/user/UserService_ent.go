@@ -195,6 +195,12 @@ func getApproverFromRoleFilter(roleFilter userBean.RoleFilter) bool {
 	return false
 }
 
-func (impl *UserServiceImpl) checkValidationAndPerformOperationsForUpdate(token string, tx *pg.Tx, model *userrepo.UserModel, userInfo *userBean.UserInfo, userGroupsUpdated bool, timeoutWindowConfigId int, isUserSuperAdmin bool, isUserManageAllAccessType bool) (operationCompleted bool, err error) {
-	return false, nil
+func (impl *UserServiceImpl) checkValidationAndPerformOperationsForUpdate(token string, tx *pg.Tx, model *userrepo.UserModel, userInfo *userBean.UserInfo, userGroupsUpdated bool, timeoutWindowConfigId int) (operationCompleted bool, isUserSuperAdmin bool, err error) {
+	//validating if action user is not admin and trying to update user who has super admin polices, return 403
+	// isUserSuperAdminOrManageAllAccess only super-admin is checked as manage all access is not applicable for user
+	isUserSuperAdmin, err = impl.IsSuperAdmin(int(userInfo.Id))
+	if err != nil {
+		return false, isUserSuperAdmin, err
+	}
+	return false, isUserSuperAdmin, nil
 }

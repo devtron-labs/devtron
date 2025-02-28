@@ -788,11 +788,6 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *userBean.UserInfo, token strin
 			}
 		}()
 	}
-	//validating if action user is not admin and trying to update user who has super admin polices, return 403
-	isUserSuperAdmin, err := impl.IsSuperAdmin(int(userInfo.Id))
-	if err != nil {
-		return nil, err
-	}
 	dbConnection := impl.userRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -819,7 +814,7 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *userBean.UserInfo, token strin
 		return nil, err
 	}
 	isUserActive := model.Active
-	operationCompleted, err := impl.checkValidationAndPerformOperationsForUpdate(token, tx, model, userInfo, userGroupsUpdated, timeoutWindowConfigId, isUserSuperAdmin, false)
+	operationCompleted, isUserSuperAdminOrManageAllAccess, err := impl.checkValidationAndPerformOperationsForUpdate(token, tx, model, userInfo, userGroupsUpdated, timeoutWindowConfigId)
 	if err != nil {
 		impl.logger.Errorw("error in UpdateUser", "userId", userInfo.UserId, "err", err)
 		return nil, err
@@ -854,7 +849,7 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *userBean.UserInfo, token strin
 	}
 
 	if checkRBACForUserUpdate != nil {
-		isAuthorised, err := checkRBACForUserUpdate(token, userInfo, isUserSuperAdmin, eliminatedRoles, eliminatedGroupRoles, mapOfExistingUserRoleGroupAndTwc)
+		isAuthorised, err := checkRBACForUserUpdate(token, userInfo, isUserSuperAdminOrManageAllAccess, eliminatedRoles, eliminatedGroupRoles, mapOfExistingUserRoleGroupAndTwc)
 		if err != nil {
 			impl.logger.Errorw("error in checking RBAC for user update", "err", err, "userInfo", userInfo)
 			return nil, err
