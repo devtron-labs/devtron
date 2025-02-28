@@ -575,11 +575,11 @@ spec:
                 secretKeyRef:
                   name: postgresql-postgresql
                   key: postgresql-password
+            - name: DATA_SOURCE_USER
+              value: postgres
           envFrom:
             - configMapRef:
                 name: devtron-common-cm
-            - name: DATA_SOURCE_USER
-              value: postgres
           {{- if .postgresExporter }}
           {{- if .postgresExporter.resources }}
           resources:
