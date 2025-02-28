@@ -30,6 +30,7 @@ rules:
     - persistentvolumes
     - events
     - workflows
+    - secrets
     verbs:
     - list
     - watch
