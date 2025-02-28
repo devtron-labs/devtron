@@ -247,7 +247,7 @@ func (impl *DeploymentConfigReadServiceImpl) configureEnvURLByAppURLIfNotConfigu
 	if apiGitOpsBean.IsGitOpsRepoNotConfigured(appAndEnvLevelConfig.GetRepoURL()) &&
 		apiGitOpsBean.IsGitOpsRepoConfigured(appLevelURL) {
 		// if url is present at app level and not at env level then copy app level url to env level config
-		appAndEnvLevelConfig.SetRepoURL(appAndEnvLevelConfig.GetRepoURL())
+		appAndEnvLevelConfig.SetRepoURL(appLevelURL)
 		// if url is updated then set isRepoUrlUpdated = true
 		isRepoUrlUpdated = true
 		return appAndEnvLevelConfig, isRepoUrlUpdated, nil

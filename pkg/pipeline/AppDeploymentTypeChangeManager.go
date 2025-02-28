@@ -179,6 +179,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangeDeploymentType(ctx context
 			return nil, err
 		}
 		deploymentConfig.DeploymentAppType = request.DesiredDeploymentType
+		deploymentConfig.ReleaseMode = util.PIPELINE_RELEASE_MODE_CREATE //now pipeline release mode will be create
 		deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, request.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in updating configs", "err", err)
@@ -320,6 +321,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 			return response, err
 		}
 		envDeploymentConfig.DeploymentAppType = request.DesiredDeploymentType
+		envDeploymentConfig.ReleaseMode = util.PIPELINE_RELEASE_MODE_CREATE // now pipeline release mode will be create
 		envDeploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, request.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in updating deployment config", "err", err)
