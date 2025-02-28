@@ -322,7 +322,7 @@ func (impl *DeploymentConfigServiceImpl) GetConfigsByAppIds(appIds []int) ([]*be
 func (impl *DeploymentConfigServiceImpl) UpdateChartLocationInDeploymentConfig(appId, envId, chartRefId int, userId int32, chartVersion string) error {
 
 	pipeline, err := impl.pipelineRepository.FindOneByAppIdAndEnvId(appId, envId)
-	if err != nil && errors.Is(err, pg.ErrNoRows) {
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in finding pipeline by app id and env id", "appId", appId, "envId", envId, "err", err)
 		return err
 	}
