@@ -14,7 +14,7 @@ Currently, Devtron is being used by the following organizations:
 8. [Chitale Bandhu](https://www.chitalebandhu.in/) 
 9.  [Comcast](https://corporate.comcast.com/)
 10. [Delhivery](https://www.delhivery.com/)
-11. [Emplus](https://www.empuls.io/)
+11. [Empuls](https://www.empuls.io/)
 12. [EMT Madrid](https://www.emtmadrid.es/Home)
 13. [Encircle Marketing](https://encircle-marketing.com/)
 14. [FTL Express](https://www.ftl-express.com/)
