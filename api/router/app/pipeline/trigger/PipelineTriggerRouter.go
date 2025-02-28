@@ -60,6 +60,7 @@ func (router PipelineTriggerRouterImpl) InitPipelineTriggerRouter(pipelineTrigge
 	pipelineTriggerRouter.Path("/update-release-status").HandlerFunc(router.restHandler.ReleaseStatusUpdate).Methods("POST")
 	pipelineTriggerRouter.Path("/rotate-pods").HandlerFunc(router.restHandler.RotatePods).Methods("POST")
 	pipelineTriggerRouter.Path("/stop-start-app").HandlerFunc(router.restHandler.StartStopApp).Methods("POST")
+	pipelineTriggerRouter.Path("/alpha1/stop-start-app").HandlerFunc(router.restHandler.StartStopApp).Methods("POST")
 	pipelineTriggerRouter.Path("/stop-start-dg").HandlerFunc(router.restHandler.StartStopDeploymentGroup).Methods("POST")
 	pipelineTriggerRouter.Path("/release/").
 		Handler(sse2.SubscribeHandler(sse.Broker, PollTopic, fetchReleaseData)).

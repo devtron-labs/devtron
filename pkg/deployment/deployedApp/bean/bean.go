@@ -39,5 +39,11 @@ type StopAppRequest struct {
 	RequestType   RequestType `json:"requestType" validate:"oneof=START STOP"`
 	// ReferenceId is a unique identifier for the workflow runner
 	// refer pipelineConfig.CdWorkflowRunner
-	ReferenceId *string
+	ReferenceId                  *string
+	StopPatch                    string // for internal use only
+	IsHibernationPatchConfigured bool   //for internal use only
+}
+
+type HibernationPatchResponse struct {
+	IsHibernationPatchConfigured bool `json:"isHibernationPatchConfigured"`
 }
