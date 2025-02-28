@@ -10,7 +10,7 @@ global:
   containerRegistry: "quay.io/devtron"
 extraManifests: []
 installer:
-  release: "v1.3.0"
+  release: "v1.3.1"
   registry: ""
   image: "inception"
   tag: "473deaa4-185-21582"
@@ -71,7 +71,7 @@ components:
       keyName: postgresql-password
   kubewatch:
     registry: ""
-    image: "kubewatch:0dde3b1a-419-30080"
+    image: "kubewatch:0dde3b1a-419-30285"
     imagePullPolicy: IfNotPresent
     configs:
       devtroncd_NAMESPACE: "devtron-ci"
