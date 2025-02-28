@@ -148,19 +148,20 @@ type K8sService interface {
 	CreateNs(namespace string, client *v12.CoreV1Client) (ns *v1.Namespace, err error)
 }
 
-func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *RuntimeConfig) *K8sServiceImpl {
-	usr, err := user.Current()
-	if err != nil {
-		return nil
-	}
+func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *RuntimeConfig) (*K8sServiceImpl, error) {
 	var kubeconfig *string
 	if runTimeConfig.LocalDevMode {
+		usr, err := user.Current()
+		if err != nil {
+			logger.Errorw("error in NewK8sUtil, failed to get current user", "err", err)
+			return nil, err
+		}
 		kubeconfig = flag.String("kubeconfig-authenticator-xyz", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
 	}
 
 	httpClientConfig := NewCustomK8sHttpTransportConfig()
 	flag.Parse()
-	return &K8sServiceImpl{logger: logger, runTimeConfig: runTimeConfig, kubeconfig: kubeconfig, httpClientConfig: httpClientConfig}
+	return &K8sServiceImpl{logger: logger, runTimeConfig: runTimeConfig, kubeconfig: kubeconfig, httpClientConfig: httpClientConfig}, nil
 }
 
 func (impl *K8sServiceImpl) GetRestConfigByCluster(clusterConfig *ClusterConfig) (*rest.Config, error) {

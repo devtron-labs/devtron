@@ -198,7 +198,10 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	k8sServiceImpl := k8s.NewK8sUtil(sugaredLogger, k8sRuntimeConfig)
+	k8sServiceImpl, err := k8s.NewK8sUtil(sugaredLogger, k8sRuntimeConfig)
+	if err != nil {
+		return nil, err
+	}
 	environmentVariables, err := util2.GetEnvironmentVariables()
 	if err != nil {
 		return nil, err
