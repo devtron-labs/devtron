@@ -595,17 +595,27 @@ func (handler *HelmAppRestHandlerImpl) ListHelmApplicationsForEnvironment(w http
 	query := r.URL.Query()
 
 	clusterIdString := query.Get("clusterId")
-	clusterId, err := strconv.Atoi(clusterIdString)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+	var (
+		clusterId int
+		envId     int
+		err       error
+	)
+
+	if len(clusterIdString) != 0 {
+		clusterId, err = strconv.Atoi(clusterIdString)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 	}
 
 	envIdString := query.Get("envId")
-	envId, err := strconv.Atoi(envIdString)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+	if len(envIdString) != 0 {
+		envId, err = strconv.Atoi(envIdString)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 	}
 
 	token := r.Header.Get("token")
