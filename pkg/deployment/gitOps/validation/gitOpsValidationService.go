@@ -109,7 +109,7 @@ func (impl *GitOpsValidationServiceImpl) GitOpsValidateDryRun(isArgoModuleInstal
 	config.GitRepoName = appName
 	config.TargetRevision = globalUtil.GetDefaultTargetRevision()
 	ctx := context.Background()
-	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(ctx, config)
+	repoUrl, _, _, detailedErrorCreateRepo := client.CreateRepository(ctx, config)
 
 	detailedErrorGitOpsConfigActions.StageErrorMap = detailedErrorCreateRepo.StageErrorMap
 	detailedErrorGitOpsConfigActions.SuccessfulStages = detailedErrorCreateRepo.SuccessfulStages
@@ -234,7 +234,7 @@ func (impl *GitOpsValidationServiceImpl) getDesiredGitRepoUrl(request *gitOpsBea
 		return "", clientErr
 	}
 	gitOpsConfig.GitRepoName = impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(request.RequestedGitUrl)
-	desiredRepoUrl, err := client.GetRepoUrl(gitOpsConfig)
+	desiredRepoUrl, _, err := client.GetRepoUrl(gitOpsConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting repo url", "err", err, "request", request)
 		return "", err

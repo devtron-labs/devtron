@@ -1604,21 +1604,23 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 		appObjectArr = append(appObjectArr, object[0])
 		envObjectArr = append(envObjectArr, object[1])
 	}
-	appResults, envResults := request.CheckAuthBatch(token, appObjectArr, envObjectArr)
-	//authorization block ends here
+
+	// filter out pipelines for unauthorized apps but not envs
+	appResults, _ := request.CheckAuthBatch(token, appObjectArr, envObjectArr)
+
 	span.End()
 	var pipelines []*bean.CDPipelineConfigObject
 	authorizedPipelines := make(map[int]*bean.CDPipelineConfigObject)
 	for _, dbPipeline := range cdPipelines.Pipelines {
 		appObject := objects[dbPipeline.Id][0]
-		envObject := objects[dbPipeline.Id][1]
-		if !(appResults[appObject] && envResults[envObject]) {
+		if !(appResults[appObject]) {
 			//if user unauthorized, skip items
 			continue
 		}
 		pipelineIds = append(pipelineIds, dbPipeline.Id)
 		authorizedPipelines[dbPipeline.Id] = dbPipeline
 	}
+	//authorization block ends here
 
 	pipelineDeploymentTemplate := make(map[int]chartRepoRepository.DeploymentStrategy)
 	pipelineWorkflowMapping := make(map[int]*appWorkflow.AppWorkflowMapping)

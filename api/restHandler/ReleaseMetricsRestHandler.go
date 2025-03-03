@@ -148,12 +148,10 @@ func (impl *ReleaseMetricsRestHandlerImpl) ResetDataForAllAppEnvironment(w http.
 	}
 }
 
-// err := decoder.Decode(&employeeStruct, r.URL.Query())
-var decoder = schema.NewDecoder()
-
 func (impl *ReleaseMetricsRestHandlerImpl) GetDeploymentMetrics(w http.ResponseWriter, r *http.Request) {
 	//decoder := json.NewDecoder(r.Body)
 	metricRequest := &lens.MetricRequest{}
+	decoder := schema.NewDecoder()
 	err := decoder.Decode(metricRequest, r.URL.Query())
 	if err != nil {
 		impl.logger.Errorw("request err, GetDeploymentMetrics", "err", err, "payload", metricRequest)

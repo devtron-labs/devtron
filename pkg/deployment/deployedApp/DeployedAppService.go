@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	bean5 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
@@ -38,6 +39,8 @@ import (
 type DeployedAppService interface {
 	StopStartApp(ctx context.Context, stopRequest *bean.StopAppRequest) (int, error)
 	RotatePods(ctx context.Context, podRotateRequest *bean.PodRotateRequest) (*bean4.RotatePodResponse, error)
+	StopStartAppV1(ctx context.Context, stopRequest *bean.StopAppRequest) (int, error)
+	HibernationPatch(ctx context.Context, appId, envId int) (*bean.HibernationPatchResponse, error)
 }
 
 type DeployedAppServiceImpl struct {
@@ -66,6 +69,10 @@ func NewDeployedAppServiceImpl(logger *zap.SugaredLogger,
 }
 
 func (impl *DeployedAppServiceImpl) StopStartApp(ctx context.Context, stopRequest *bean.StopAppRequest) (int, error) {
+	return impl.stopStartApp(ctx, stopRequest)
+}
+
+func (impl *DeployedAppServiceImpl) stopStartApp(ctx context.Context, stopRequest *bean.StopAppRequest) (int, error) {
 	pipelines, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(stopRequest.AppId, stopRequest.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipeline", "app", stopRequest.AppId, "env", stopRequest.EnvironmentId, "err", err)
@@ -91,7 +98,11 @@ func (impl *DeployedAppServiceImpl) StopStartApp(ctx context.Context, stopReques
 		impl.logger.Errorw("error in fetching latest release", "err", err)
 		return 0, err
 	}
-	stopTemplate := `{"replicaCount":0,"autoscaling":{"MinReplicas":0,"MaxReplicas":0 ,"enabled": false},"kedaAutoscaling":{"minReplicaCount":0,"maxReplicaCount":0 ,"enabled": false}}`
+	err = impl.checkForFeasibilityBeforeStartStop(stopRequest.AppId, stopRequest.EnvironmentId, stopRequest.UserId)
+	if err != nil {
+		impl.logger.Errorw("error in checking for feasibility before hibernating and un hibernating", "stopRequest", stopRequest, "err", err)
+		return 0, err
+	}
 	overrideRequest := &bean2.ValuesOverrideRequest{
 		PipelineId:     pipeline.Id,
 		AppId:          stopRequest.AppId,
@@ -100,7 +111,12 @@ func (impl *DeployedAppServiceImpl) StopStartApp(ctx context.Context, stopReques
 		CdWorkflowType: bean2.CD_WORKFLOW_TYPE_DEPLOY,
 	}
 	if stopRequest.RequestType == bean.STOP {
-		overrideRequest.AdditionalOverride = json.RawMessage([]byte(stopTemplate))
+		err = impl.setStopTemplate(stopRequest)
+		if err != nil {
+			impl.logger.Errorw("error in configuring stopTemplate stopStartApp", "stopRequest", stopRequest, "err", err)
+			return 0, err
+		}
+		overrideRequest.AdditionalOverride = json.RawMessage([]byte(stopRequest.StopPatch))
 		overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_STOP
 	} else if stopRequest.RequestType == bean.START {
 		overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_START
@@ -128,6 +144,11 @@ func (impl *DeployedAppServiceImpl) RotatePods(ctx context.Context, podRotateReq
 		impl.logger.Errorw("error occurred while fetching env details", "envId", environmentId, "err", err)
 		return nil, err
 	}
+	err = impl.checkForFeasibilityBeforeStartStop(podRotateRequest.AppId, podRotateRequest.EnvironmentId, podRotateRequest.UserId)
+	if err != nil {
+		impl.logger.Errorw("error in checking for feasibility in Rotating pods", "podRotateRequest", podRotateRequest, "err", err)
+		return nil, err
+	}
 	var resourceIdentifiers []util5.ResourceIdentifier
 	for _, resourceIdentifier := range podRotateRequest.ResourceIdentifiers {
 		resourceIdentifier.Namespace = environment.Namespace
@@ -143,4 +164,29 @@ func (impl *DeployedAppServiceImpl) RotatePods(ctx context.Context, podRotateReq
 	}
 	//TODO KB: make entry in cd workflow runner
 	return response, nil
+}
+func (impl *DeployedAppServiceImpl) setStopTemplate(stopRequest *bean.StopAppRequest) error {
+	var stopTemplate string
+	var err error
+	if stopRequest.IsHibernationPatchConfigured {
+		stopTemplate, err = impl.getTemplate(stopRequest)
+		if err != nil {
+			impl.logger.Errorw("error in getting hibernation patch configuration", "stopRequest", stopRequest, "err", err)
+			return err
+		}
+		impl.logger.Debugw("stop template fetched from scope", "stopTemplate", stopTemplate)
+	} else {
+		stopTemplate, err = impl.getTemplateDefault()
+		if err != nil {
+			impl.logger.Errorw("error in getting hibernation patch configuration", "stopRequest", stopRequest, "err", err)
+			return err
+		}
+	}
+	stopRequest.StopPatch = stopTemplate
+	return nil
+}
+
+func (impl *DeployedAppServiceImpl) getTemplateDefault() (string, error) {
+	stopTemplate := bean5.DefaultStopTemplate
+	return stopTemplate, nil
 }

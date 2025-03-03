@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	application3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	k8sUtil "github.com/devtron-labs/common-lib/utils/k8s"
@@ -317,9 +318,12 @@ func (impl *ManifestCreationServiceImpl) getDeploymentStrategyByTriggerType(over
 	var err error
 	if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
 		strategyHistory, err := impl.strategyHistoryRepository.GetHistoryByPipelineIdAndWfrId(newCtx, overrideRequest.PipelineId, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
-		if err != nil {
+		if err != nil && !errors.Is(err, pg.ErrNoRows) {
 			impl.logger.Errorw("error in getting deployed strategy history by pipelineId and wfrId", "err", err, "pipelineId", overrideRequest.PipelineId, "wfrId", overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
 			return nil, err
+		}
+		if errors.Is(err, pg.ErrNoRows) {
+			return nil, nil //making this to prevent the strategy value in audit in history marking for the sake of chart with no strategy
 		}
 		strategy.Strategy = strategyHistory.Strategy
 		strategy.Config = strategyHistory.Config

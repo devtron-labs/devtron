@@ -127,4 +127,5 @@ type ChartDto struct {
 	ChartDescription string `json:"chartDescription"`
 	Version          string `json:"version"`
 	IsUserUploaded   bool   `json:"isUserUploaded"`
+	UploadedBy       string `json:"uploadedBy"`
 }

@@ -35,6 +35,8 @@ spec:
           envFrom:
             - secretRef:
                 name: devtron-secret
+            - configMapRef:
+                name: devtron-common-cm
           image: {{ include "common.image" (dict "component" $.Values.components.migrator "global" $.Values.global "extraImage" $.Values.components.migrator.duplicateChartImage ) }}
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:
@@ -59,6 +61,9 @@ spec:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
           {{- end }}
           name: init-devtron
+          envFrom:
+            - configMapRef:
+                name: devtron-common-cm
           volumeMounts:
             - mountPath: /shared
               name: shared-volume
@@ -85,6 +90,8 @@ spec:
           envFrom:
             - secretRef:
                 name: postgresql-migrator
+            - configMapRef:
+                name: devtron-common-cm
           {{- if .image }}        
           image: {{ include "common.image" (dict "component" $.Values.components.migrator "global" $.Values.global) }}
           {{- else }}
@@ -133,6 +140,9 @@ spec:
       - name: devtron-rollout
         image: {{ include "common.image" (dict "component" $.Values.components.migrator "global" $.Values.global "extraImage" $.Values.components.migrator.kubectlImage ) }}
         command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd && kubectl rollout restart deployment/kubelink -n devtroncd']
+        envFrom:
+          - configMapRef:
+              name: devtron-common-cm
         {{- if .casbin }}
         {{- if .casbin.resources }}        
         resources:
@@ -158,6 +168,9 @@ spec:
           securityContext:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
           {{- end }}
+          envFrom:
+            - configMapRef:
+                name: devtron-common-cm
           volumeMounts:
             - mountPath: /shared
               name: shared-volume
@@ -183,6 +196,8 @@ spec:
           envFrom:
             - secretRef:
                 name: postgresql-migrator
+            - configMapRef:
+                name: devtron-common-cm
           {{- if .image }}        
           image: {{ include "common.image" (dict "component" $.Values.components.migrator "global" $.Values.global) }}
           {{- else }}
@@ -239,6 +254,9 @@ spec:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
           {{- end }}
           name: init-git-sensor
+          envFrom:
+            - configMapRef:
+                name: devtron-common-cm
           volumeMounts:
             - mountPath: /shared
               name: shared-volume
@@ -265,6 +283,8 @@ spec:
           envFrom:
             - secretRef:
                 name: postgresql-migrator
+            - configMapRef:
+                name: devtron-common-cm
           {{- if .image }}        
           image: {{ include "common.image" (dict "component" $.Values.components.migrator "global" $.Values.global) }}
           {{- else }}
@@ -319,6 +339,9 @@ spec:
           securityContext:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
           {{- end }}
+          envFrom:
+          - configMapRef:
+              name: devtron-common-cm
           volumeMounts:
             - mountPath: /shared
               name: shared-volume
@@ -350,6 +373,8 @@ spec:
         envFrom:
         - secretRef:
             name: postgresql-migrator
+        - configMapRef:
+            name: devtron-common-cm
         {{- if .image }}        
         image: {{ include "common.image" (dict "component" $.Values.components.migrator "global" $.Values.global) }}
         {{- else }}
@@ -408,6 +433,9 @@ spec:
               key: postgresql-password
         - name: PGHOST
           value: postgresql-postgresql
+        envFrom:
+        - configMapRef:
+            name: devtron-common-cm
         command:
           - /bin/sh
           - -c
