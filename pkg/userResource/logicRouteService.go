@@ -15,7 +15,7 @@ func getUserResourceKindWithVersionKey(kind bean.UserResourceKind, version bean.
 	return fmt.Sprintf("%s_%s", kind, version)
 }
 
-var mapOfUserResourceKindToResourceOptionFunc = map[string]func(impl *UserResourceServiceImpl, context context.Context, token string, reqBean *apiBean.ResourceOptionsReqDto, params *apiBean.PathParams) (*bean.ResourceOptionsDto, error){
+var mapOfUserResourceKindToAllResourceOptionsFunc = map[string]func(impl *UserResourceServiceImpl, context context.Context, token string, reqBean *apiBean.ResourceOptionsReqDto, params *apiBean.PathParams) (*bean.ResourceOptionsDto, error){
 	getUserResourceKindWithVersionKey(bean.KindTeam, bean.Alpha1Version):            (*UserResourceServiceImpl).getTeamResourceOptions,
 	getUserResourceKindWithVersionKey(bean.KindHelmEnvironment, bean.Alpha1Version): (*UserResourceServiceImpl).getHelmEnvResourceOptions,
 	getUserResourceKindWithVersionKey(bean.KindHelmApplication, bean.Alpha1Version): (*UserResourceServiceImpl).getHelmAppResourceOptions,
@@ -25,14 +25,14 @@ var mapOfUserResourceKindToResourceOptionFunc = map[string]func(impl *UserResour
 	getUserResourceKindWithVersionKey(bean.ClusterResources, bean.Alpha1Version):    (*UserResourceServiceImpl).getClusterResourceListOptions,
 }
 
-func getResourceOptionFunc(kind bean.UserResourceKind, version bean.Version) func(impl *UserResourceServiceImpl, context context.Context, token string, reqBean *apiBean.ResourceOptionsReqDto, params *apiBean.PathParams) (*bean.ResourceOptionsDto, error) {
-	if f, ok := mapOfUserResourceKindToResourceOptionFunc[getUserResourceKindWithVersionKey(kind, version)]; ok {
+func getAllResourceOptionsFunc(kind bean.UserResourceKind, version bean.Version) func(impl *UserResourceServiceImpl, context context.Context, token string, reqBean *apiBean.ResourceOptionsReqDto, params *apiBean.PathParams) (*bean.ResourceOptionsDto, error) {
+	if f, ok := mapOfUserResourceKindToAllResourceOptionsFunc[getUserResourceKindWithVersionKey(kind, version)]; ok {
 		return f
 	}
 	return nil
 }
 
-var mapOfUserResourceKindToResourceOptionExtendedFunc = map[string]func(impl *UserResourceExtendedServiceImpl, context context.Context, token string, reqBean *apiBean.ResourceOptionsReqDto, params *apiBean.PathParams) (*bean.ResourceOptionsDto, error){
+var mapOfUserResourceKindToAllResourceOptionsExtendedFunc = map[string]func(impl *UserResourceExtendedServiceImpl, context context.Context, token string, reqBean *apiBean.ResourceOptionsReqDto, params *apiBean.PathParams) (*bean.ResourceOptionsDto, error){
 	getUserResourceKindWithVersionKey(bean.KindTeam, bean.Alpha1Version):               (*UserResourceExtendedServiceImpl).getTeamResourceOptions,
 	getUserResourceKindWithVersionKey(bean.KindHelmEnvironment, bean.Alpha1Version):    (*UserResourceExtendedServiceImpl).getHelmEnvResourceOptions,
 	getUserResourceKindWithVersionKey(bean.KindHelmApplication, bean.Alpha1Version):    (*UserResourceExtendedServiceImpl).getHelmAppResourceOptions,
@@ -47,8 +47,8 @@ var mapOfUserResourceKindToResourceOptionExtendedFunc = map[string]func(impl *Us
 	getUserResourceKindWithVersionKey(bean.KindWorkflow, bean.Alpha1Version):           (*UserResourceExtendedServiceImpl).getAppWfsResourceOptions,
 }
 
-func getResourceOptionExtendedFunc(kind bean.UserResourceKind, version bean.Version) func(impl *UserResourceExtendedServiceImpl, context context.Context, token string, reqBean *apiBean.ResourceOptionsReqDto, params *apiBean.PathParams) (*bean.ResourceOptionsDto, error) {
-	if f, ok := mapOfUserResourceKindToResourceOptionExtendedFunc[getUserResourceKindWithVersionKey(kind, version)]; ok {
+func getAllResourceOptionsExtendedFunc(kind bean.UserResourceKind, version bean.Version) func(impl *UserResourceExtendedServiceImpl, context context.Context, token string, reqBean *apiBean.ResourceOptionsReqDto, params *apiBean.PathParams) (*bean.ResourceOptionsDto, error) {
+	if f, ok := mapOfUserResourceKindToAllResourceOptionsExtendedFunc[getUserResourceKindWithVersionKey(kind, version)]; ok {
 		return f
 	}
 	return nil
