@@ -191,7 +191,7 @@ func (impl RoleGroupServiceImpl) CreateAndAddPolicesForSuperAdmin(tx *pg.Tx, use
 			impl.logger.Errorw("error in creating role group role mapping", "err", err, "RoleGroupId", roleGroupId)
 			return nil, err
 		}
-		policies = append(policies, bean3.Policy{Type: "g", Sub: bean3.Subject(groupCasbinName), Obj: bean3.Object(roleModel.Role)})
+		policies = append(policies, adapter.GetCasbinGroupPolicy(groupCasbinName, roleModel.Role, nil))
 	}
 	return policies, nil
 }
@@ -275,7 +275,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFil
 						}
 						if _, ok := existingRoles[roleModel.Id]; ok {
 							//Adding policies which are removed
-							policiesToBeAdded = append(policiesToBeAdded, bean3.Policy{Type: "g", Sub: bean3.Subject(model.CasbinName), Obj: bean3.Object(roleModel.Role)})
+							policiesToBeAdded = append(policiesToBeAdded, adapter.GetCasbinGroupPolicy(model.CasbinName, roleModel.Role, nil))
 						} else {
 							if roleModel.Id > 0 {
 								//new role ids in new array, add it
@@ -288,7 +288,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFil
 								if err != nil {
 									return nil, err
 								}
-								policiesToBeAdded = append(policiesToBeAdded, bean3.Policy{Type: "g", Sub: bean3.Subject(model.CasbinName), Obj: bean3.Object(roleModel.Role)})
+								policiesToBeAdded = append(policiesToBeAdded, adapter.GetCasbinGroupPolicy(model.CasbinName, roleModel.Role, nil))
 							}
 						}
 					}
@@ -337,7 +337,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForOtherEntity(roleFilte
 				}
 				if _, ok := existingRoles[roleModel.Id]; ok {
 					//Adding policies which are removed
-					policiesToBeAdded = append(policiesToBeAdded, bean3.Policy{Type: "g", Sub: bean3.Subject(model.CasbinName), Obj: bean3.Object(roleModel.Role)})
+					policiesToBeAdded = append(policiesToBeAdded, adapter.GetCasbinGroupPolicy(model.CasbinName, roleModel.Role, nil))
 				} else {
 					if roleModel.Id > 0 {
 						roleGroupMappingModel := &repository.RoleGroupRoleMapping{RoleGroupId: model.Id, RoleId: roleModel.Id}
@@ -346,7 +346,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForOtherEntity(roleFilte
 						if err != nil {
 							return nil, err
 						}
-						policiesToBeAdded = append(policiesToBeAdded, bean3.Policy{Type: "g", Sub: bean3.Subject(model.CasbinName), Obj: bean3.Object(roleModel.Role)})
+						policiesToBeAdded = append(policiesToBeAdded, adapter.GetCasbinGroupPolicy(model.CasbinName, roleModel.Role, nil))
 					}
 				}
 			}
@@ -391,7 +391,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForJobsEntity(roleFilter
 					}
 					if _, ok := existingRoles[roleModel.Id]; ok {
 						//Adding policies which are removed
-						policiesToBeAdded = append(policiesToBeAdded, bean3.Policy{Type: "g", Sub: bean3.Subject(model.CasbinName), Obj: bean3.Object(roleModel.Role)})
+						policiesToBeAdded = append(policiesToBeAdded, adapter.GetCasbinGroupPolicy(model.CasbinName, roleModel.Role, nil))
 					} else {
 						if roleModel.Id > 0 {
 							roleGroupMappingModel := &repository.RoleGroupRoleMapping{RoleGroupId: model.Id, RoleId: roleModel.Id}
@@ -403,7 +403,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForJobsEntity(roleFilter
 							if err != nil {
 								return nil, err
 							}
-							policiesToBeAdded = append(policiesToBeAdded, bean3.Policy{Type: "g", Sub: bean3.Subject(model.CasbinName), Obj: bean3.Object(roleModel.Role)})
+							policiesToBeAdded = append(policiesToBeAdded, adapter.GetCasbinGroupPolicy(model.CasbinName, roleModel.Role, nil))
 						}
 					}
 				}
