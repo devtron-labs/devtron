@@ -59,7 +59,7 @@ type Destination struct {
 type HelmReleaseMetadata struct {
 	Name        string           `json:"name"`
 	Info        HelmReleaseInfo  `json:"info"`
-	Chart       HelmReleaseChart `json:"helmReleaseChart"`
+	Chart       HelmReleaseChart `json:"chart"`
 	Destination Destination      `json:"destination"`
 }
 
