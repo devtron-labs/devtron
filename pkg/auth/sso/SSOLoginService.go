@@ -19,12 +19,12 @@ package sso
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"time"
 
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/pkg/auth/authentication"
 
-	"github.com/devtron-labs/devtron/api/bean"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"

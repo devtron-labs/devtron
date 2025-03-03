@@ -6,10 +6,10 @@ package mock_user
 
 import (
 	context "context"
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	http "net/http"
 	reflect "reflect"
 
-	bean "github.com/devtron-labs/devtron/api/bean"
 	gomock "github.com/golang/mock/gomock"
 )
 

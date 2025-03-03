@@ -137,7 +137,7 @@ type ChartGroupService interface {
 	UpdateChartGroup(req *ChartGroupBean) (*ChartGroupBean, error)
 	SaveChartGroupEntries(req *ChartGroupBean) (*ChartGroupBean, error)
 	GetChartGroupWithChartMetaData(chartGroupId int) (*ChartGroupBean, error)
-	ChartGroupList(max int) (*ChartGroupList, error)
+	GetChartGroupList(max int) (*ChartGroupList, error)
 	GetChartGroupWithInstallationDetail(chartGroupId int) (*ChartGroupBean, error)
 	ChartGroupListMin(max int) ([]*ChartGroupBean, error)
 	DeleteChartGroup(req *ChartGroupBean) error
@@ -375,7 +375,7 @@ func (impl *ChartGroupServiceImpl) charterEntryAdopter(chartGroupEntry *reposito
 	return entry
 }
 
-func (impl *ChartGroupServiceImpl) ChartGroupList(max int) (*ChartGroupList, error) {
+func (impl *ChartGroupServiceImpl) GetChartGroupList(max int) (*ChartGroupList, error) {
 	groups, err := impl.chartGroupRepository.GetAll(max)
 	if err != nil {
 		return nil, err

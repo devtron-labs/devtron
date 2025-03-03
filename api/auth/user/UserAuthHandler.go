@@ -19,6 +19,8 @@ package user
 import (
 	"encoding/json"
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"net/http"
 	"strings"
 
@@ -146,7 +148,7 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 	//for START in Casbin Object Ends Here
 	//loading policy for safety
 	casbin.LoadPolicy()
-	var policies []casbin.Policy
+	var policies []bean2.Policy
 	var policiesAdmin bean.PolicyRequest
 	err := json.Unmarshal([]byte(adminPolicies), &policiesAdmin)
 	if err != nil {
@@ -193,7 +195,7 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 	roleView = strings.ReplaceAll(roleView, "<ENV>", env)
 	roleView = strings.ReplaceAll(roleView, "<APP>", app)
 
-	var roleAdminData bean.RoleData
+	var roleAdminData bean3.RoleData
 	err = json.Unmarshal([]byte(roleAdmin), &roleAdminData)
 	if err != nil {
 		handler.logger.Errorw("request err, AddDefaultPolicyAndRoles", "err", err, "payload", roleAdminData)
@@ -207,7 +209,7 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 		return
 	}
 
-	var roleTriggerData bean.RoleData
+	var roleTriggerData bean3.RoleData
 	err = json.Unmarshal([]byte(roleTrigger), &roleTriggerData)
 	if err != nil {
 		handler.logger.Errorw("request err, AddDefaultPolicyAndRoles", "err", err, "payload", roleTriggerData)
@@ -221,7 +223,7 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 		return
 	}
 
-	var roleViewData bean.RoleData
+	var roleViewData bean3.RoleData
 	err = json.Unmarshal([]byte(roleView), &roleViewData)
 	if err != nil {
 		handler.logger.Errorw("request err, AddDefaultPolicyAndRoles", "err", err, "payload", roleViewData)

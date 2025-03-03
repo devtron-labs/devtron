@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/devtron-labs/authenticator/middleware"
-	"github.com/devtron-labs/devtron/api/bean"
 	openapi "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -200,10 +199,10 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 	}
 
 	// step-4 - Create user using email
-	createUserRequest := bean.UserInfo{
+	createUserRequest := userBean.UserInfo{
 		UserId:   createdBy,
 		EmailId:  email,
-		UserType: bean.USER_TYPE_API_TOKEN,
+		UserType: userBean.USER_TYPE_API_TOKEN,
 	}
 	createUserResponse, err := impl.userService.CreateUser(&createUserRequest, token, managerAuth)
 	if err != nil {
@@ -334,7 +333,7 @@ func (impl ApiTokenServiceImpl) DeleteApiToken(apiTokenId int, deletedBy int32) 
 	}
 
 	// step-2 inactivate user corresponds to this api-token
-	deleteUserRequest := bean.UserInfo{
+	deleteUserRequest := userBean.UserInfo{
 		Id:     apiToken.UserId,
 		UserId: deletedBy,
 	}

@@ -19,11 +19,11 @@ package helper
 import (
 	"errors"
 	"fmt"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"golang.org/x/exp/slices"
+	"net/http"
 	"strings"
 )
 
@@ -74,7 +74,7 @@ func ExtractTokenNameFromEmail(email string) (string, error) {
 	return splitData[1], nil
 }
 
-func CreateErrorMessageForUserRoleGroups(restrictedGroups []bean2.RestrictedGroup) (string, string) {
+func CreateErrorMessageForUserRoleGroups(restrictedGroups []bean.RestrictedGroup) (string, string) {
 	var restrictedGroupsWithSuperAdminPermission string
 	var restrictedGroupsWithoutSuperAdminPermission string
 	var errorMessageForGroupsWithoutSuperAdmin string
@@ -106,9 +106,32 @@ func GetCasbinNameFromRoleGroupName(name string) string {
 
 func CheckIfSuperAdminFromRoles(roles []*repository.RoleModel) bool {
 	for _, role := range roles {
-		if role.Role == bean2.SUPERADMIN {
+		if role.Role == bean.SUPERADMIN {
 			return true
 		}
 	}
 	return false
+}
+
+func ValidateRoleFilters(rolefilters []bean.RoleFilter) error {
+	invalid := false
+	for _, roleFilter := range rolefilters {
+		if len(roleFilter.Team) > 0 && len(roleFilter.Action) > 0 {
+			//
+		} else if len(roleFilter.Entity) > 0 { //this will pass roleFilter for clusterEntity as well as chart-group
+			//
+		} else {
+			invalid = true
+		}
+	}
+	if invalid {
+		err := &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "Invalid request, please provide role filters"}
+		return err
+	}
+	return nil
+}
+
+// ValidateUserRoleGroupRequest returns nil for oss implementation
+func ValidateUserRoleGroupRequest(userRoleGroups []bean.UserRoleGroup) error {
+	return nil
 }

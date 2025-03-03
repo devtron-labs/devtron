@@ -37,7 +37,6 @@ import (
 
 	"github.com/caarlos0/env"
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/devtron-labs/devtron/api/bean"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -53,7 +52,7 @@ type UserAuthService interface {
 	HandleDexCallback(w http.ResponseWriter, r *http.Request)
 	HandleRefresh(w http.ResponseWriter, r *http.Request)
 
-	CreateRole(roleData *bean.RoleData) (bool, error)
+	CreateRole(roleData *userBean.RoleData) (bool, error)
 	AuthVerification(r *http.Request) (bool, string, error)
 	DeleteRoles(entityType string, entityName string, tx *pg.Tx, envIdentifier string, workflowName string) error
 }
@@ -433,7 +432,7 @@ func writeResponse(status int, message string, w http.ResponseWriter, err error)
 	}
 }
 
-func (impl UserAuthServiceImpl) CreateRole(roleData *bean.RoleData) (bool, error) {
+func (impl UserAuthServiceImpl) CreateRole(roleData *userBean.RoleData) (bool, error) {
 	roleModel := &repository.RoleModel{
 		Role:        roleData.Role,
 		Team:        roleData.Team,

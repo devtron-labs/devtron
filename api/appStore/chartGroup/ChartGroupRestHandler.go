@@ -274,7 +274,7 @@ func (impl *ChartGroupRestHandlerImpl) GetChartGroupList(w http.ResponseWriter, 
 			return
 		}
 	}
-	res, err := impl.ChartGroupService.ChartGroupList(maxCount)
+	res, err := impl.ChartGroupService.GetChartGroupList(maxCount)
 	if err != nil {
 		impl.Logger.Errorw("service err, GetChartGroupList", "err", err, "max", max)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

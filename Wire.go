@@ -73,6 +73,7 @@ import (
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/terminal"
+	"github.com/devtron-labs/devtron/api/userResource"
 	util5 "github.com/devtron-labs/devtron/api/util"
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/cel"
@@ -169,6 +170,7 @@ import (
 	workflow3 "github.com/devtron-labs/devtron/pkg/workflow"
 	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/commonEnforcementFunctionsUtil"
 	cron2 "github.com/devtron-labs/devtron/util/cron"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/google/wire"
@@ -212,6 +214,7 @@ func InitializeApp() (*App, error) {
 		workflow3.WorkflowWireSet,
 		imageTagging.WireSet,
 		devtronResource.DevtronResourceWireSet,
+		userResource.UserResourceWireSet,
 		policyGovernance.PolicyGovernanceWireSet,
 		resourceScan.ScanningResultWireSet,
 
@@ -494,6 +497,9 @@ func InitializeApp() (*App, error) {
 
 		rbac.NewEnforcerUtilImpl,
 		wire.Bind(new(rbac.EnforcerUtil), new(*rbac.EnforcerUtilImpl)),
+
+		commonEnforcementFunctionsUtil.NewCommonEnforcementUtilImpl,
+		wire.Bind(new(commonEnforcementFunctionsUtil.CommonEnforcementUtil), new(*commonEnforcementFunctionsUtil.CommonEnforcementUtilImpl)),
 
 		chartConfig.NewPipelineConfigRepository,
 		wire.Bind(new(chartConfig.PipelineConfigRepository), new(*chartConfig.PipelineConfigRepositoryImpl)),

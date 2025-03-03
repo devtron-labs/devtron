@@ -22,6 +22,9 @@ package repository
 import (
 	"encoding/json"
 	"fmt"
+	bean3 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
+	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
+	bean4 "github.com/devtron-labs/devtron/pkg/auth/user/repository/bean"
 	"strings"
 	"time"
 
@@ -44,7 +47,7 @@ type UserAuthRepository interface {
 	GetRolesByGroupId(userId int32) ([]*RoleModel, error)
 	GetAllRole() ([]RoleModel, error)
 	GetRolesByActionAndAccessType(action string, accessType string) ([]RoleModel, error)
-	GetRoleByFilterForAllTypes(entity, team, app, env, act, accessType, cluster, namespace, group, kind, resource, action string, oldValues bool, workflow string) (RoleModel, error)
+	GetRoleByFilterForAllTypes(roleFieldDto *bean4.RoleModelFieldsDto) (RoleModel, error)
 	CreateUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (*UserRoleModel, error)
 	GetUserRoleMappingByUserId(userId int32) ([]*UserRoleModel, error)
 	GetUserRoleMappingIdsByUserId(userId int32) ([]int, error)
@@ -53,7 +56,7 @@ type UserAuthRepository interface {
 	DeleteUserRoleMappingByIds(urmIds []int, tx *pg.Tx) error
 	DeleteUserRoleByRoleId(roleId int, tx *pg.Tx) error
 	DeleteUserRoleByRoleIds(roleIds []int, tx *pg.Tx) error
-	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32) (bool, error, []casbin2.Policy)
+	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32) (bool, error, []bean3.Policy)
 	CreateRoleForSuperAdminIfNotExists(tx *pg.Tx, UserId int32) (bool, error)
 	SyncOrchestratorToCasbin(team string, entityName string, env string, tx *pg.Tx) (bool, error)
 	UpdateTriggerPolicyForTerminalAccess() error
@@ -269,23 +272,29 @@ func (impl UserAuthRepositoryImpl) GetRolesByActionAndAccessType(action string, 
 	return models, nil
 }
 
-func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity, team, app, env, act, accessType, cluster, namespace, group, kind, resource, action string, oldValues bool, workflow string) (RoleModel, error) {
+func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(roleFieldDto *bean4.RoleModelFieldsDto) (RoleModel, error) {
+	entity := roleFieldDto.Entity
+	action := roleFieldDto.Action
 	switch entity {
 	case bean2.CLUSTER_ENTITIY:
 		{
+			cluster, namespace, group, kind, resource := roleFieldDto.Cluster, roleFieldDto.Namespace, roleFieldDto.Group, roleFieldDto.Kind, roleFieldDto.Resource
 			return impl.GetRoleForClusterEntity(cluster, namespace, group, kind, resource, action)
 		}
 	case bean2.CHART_GROUP_ENTITY:
 		{
-			return impl.GetRoleForChartGroupEntity(entity, app, act, accessType)
+			app, accessType := roleFieldDto.App, roleFieldDto.AccessType
+			return impl.GetRoleForChartGroupEntity(entity, app, action, accessType)
 		}
 	case bean2.EntityJobs:
 		{
-			return impl.GetRoleForJobsEntity(entity, team, app, env, act, workflow)
+			team, app, env, workflow := roleFieldDto.Team, roleFieldDto.App, roleFieldDto.Env, roleFieldDto.Workflow
+			return impl.GetRoleForJobsEntity(entity, team, app, env, action, workflow)
 		}
 	default:
 		{
-			return impl.GetRoleForOtherEntity(team, app, env, act, accessType, oldValues)
+			team, app, env, accessType, oldValues := roleFieldDto.Team, roleFieldDto.App, roleFieldDto.Env, roleFieldDto.AccessType, roleFieldDto.OldValues
+			return impl.GetRoleForOtherEntity(team, app, env, action, accessType, oldValues)
 		}
 	}
 	return RoleModel{}, nil
@@ -376,11 +385,11 @@ func (impl UserAuthRepositoryImpl) DeleteUserRoleByRoleIds(roleIds []int, tx *pg
 	return nil
 }
 
-func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32) (bool, error, []casbin2.Policy) {
+func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32) (bool, error, []bean3.Policy) {
 	//not using txn from parent caller because of conflicts in fetching of transactional save
 	dbConnection := impl.dbConnection
 	tx, err := dbConnection.Begin()
-	var policiesToBeAdded []casbin2.Policy
+	var policiesToBeAdded []bean3.Policy
 	if err != nil {
 		return false, err, policiesToBeAdded
 	}
@@ -475,7 +484,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entity
 		return false, err, nil
 	}
 	//getting updated role
-	var roleData bean.RoleData
+	var roleData bean2.RoleData
 	err = json.Unmarshal([]byte(role), &roleData)
 	if err != nil {
 		impl.Logger.Errorw("decode err", "err", err)
@@ -492,7 +501,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entity
 	return true, nil, policiesToBeAdded
 }
 func (impl UserAuthRepositoryImpl) CreateRolesWithAccessTypeAndEntity(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32, role string) (bool, error) {
-	roleData := bean.RoleData{
+	roleData := bean2.RoleData{
 		Role:        role,
 		Entity:      entity,
 		Team:        team,
@@ -520,14 +529,14 @@ func (impl UserAuthRepositoryImpl) CreateRoleForSuperAdminIfNotExists(tx *pg.Tx,
 	}
 
 	//Creating ROLES
-	roleModel, err := impl.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, "", "", "", "", "", "", "", false, "")
+	roleModel, err := impl.GetRoleByFilterForAllTypes(adapter.BuildSuperAdminRoleFieldsDto())
 	if err != nil && err != pg.ErrNoRows {
 		return false, err
 	}
 	if roleModel.Id == 0 || err == pg.ErrNoRows {
 		roleManager := "{\r\n    \"role\": \"role:super-admin___\",\r\n    \"casbinSubjects\": [\r\n        \"role:super-admin___\"\r\n    ],\r\n    \"team\": \"\",\r\n    \"entityName\": \"\",\r\n    \"environment\": \"\",\r\n    \"action\": \"super-admin\"\r\n}"
 
-		var roleManagerData bean.RoleData
+		var roleManagerData bean2.RoleData
 		err = json.Unmarshal([]byte(roleManager), &roleManagerData)
 		if err != nil {
 			impl.Logger.Errorw("decode err", "err", err)
@@ -545,7 +554,7 @@ func (impl UserAuthRepositoryImpl) CreateRoleForSuperAdminIfNotExists(tx *pg.Tx,
 	return true, nil
 }
 
-func (impl UserAuthRepositoryImpl) createRole(roleData *bean.RoleData, UserId int32) (bool, error) {
+func (impl UserAuthRepositoryImpl) createRole(roleData *bean2.RoleData, UserId int32) (bool, error) {
 	roleModel := &RoleModel{
 		Role:        roleData.Role,
 		Entity:      roleData.Entity,
@@ -623,7 +632,7 @@ func (impl UserAuthRepositoryImpl) SyncOrchestratorToCasbin(team string, entityN
 	}
 
 	//for START in Casbin Object Ends Here
-	var policies []casbin2.Policy
+	var policies []bean3.Policy
 	var policiesTrigger bean.PolicyRequest
 	err = json.Unmarshal([]byte(triggerPolicies), &policiesTrigger)
 	if err != nil {
@@ -793,7 +802,7 @@ func (impl UserAuthRepositoryImpl) UpdateDefaultPolicyByRoleType(newPolicy strin
 	return nil
 }
 
-func (impl UserAuthRepositoryImpl) GetDiffBetweenPolicies(oldPolicy string, newPolicy string) (addedPolicies []casbin2.Policy, deletedPolicies []casbin2.Policy, err error) {
+func (impl UserAuthRepositoryImpl) GetDiffBetweenPolicies(oldPolicy string, newPolicy string) (addedPolicies []bean3.Policy, deletedPolicies []bean3.Policy, err error) {
 	var oldPolicyObj bean.PolicyRequest
 	err = json.Unmarshal([]byte(oldPolicy), &oldPolicyObj)
 	if err != nil {
@@ -842,7 +851,7 @@ func (impl UserAuthRepositoryImpl) GetDiffBetweenPolicies(oldPolicy string, newP
 	return addedPolicies, deletedPolicies, nil
 }
 
-func (impl UserAuthRepositoryImpl) GetUpdatedAddedOrDeletedPolicies(policies []casbin2.Policy, rolePolicyDetails RolePolicyDetails) (bean.PolicyRequest, error) {
+func (impl UserAuthRepositoryImpl) GetUpdatedAddedOrDeletedPolicies(policies []bean3.Policy, rolePolicyDetails RolePolicyDetails) (bean.PolicyRequest, error) {
 	var policyResp bean.PolicyRequest
 	var policyReq bean.PolicyRequest
 	policyReq.Data = policies

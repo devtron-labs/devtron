@@ -19,10 +19,10 @@ package sso
 import (
 	"encoding/json"
 	"errors"
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"net/http"
 	"strconv"
 
-	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/sso"
