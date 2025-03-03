@@ -913,6 +913,8 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkHelmAppRequest(ctx context.
 		return response.SetErrorDetail(pipelineConfigBean.ChartVersionNotFound, fmt.Sprintf(pipelineConfigBean.ChartVersionNotFoundErrorMsg, releaseChartVersion, chartRef.Name))
 	}
 
+	response.IsLinkable = true
+
 	overrideDeploymentType, err := impl.deploymentTypeOverrideService.ValidateAndOverrideDeploymentAppType(util.PIPELINE_DEPLOYMENT_TYPE_HELM, false, env.Id)
 	if err != nil {
 		impl.logger.Errorw("validation error for the used deployment type", "targetEnvId", env.Id, "deploymentAppType", request.DeploymentAppType, "err", err)
