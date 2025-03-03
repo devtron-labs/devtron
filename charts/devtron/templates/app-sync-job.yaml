@@ -47,6 +47,8 @@ spec:
         envFrom:
         - secretRef:
             name: devtron-secret
+        - configMapRef:
+            name: devtron-common-cm
         {{- if .Values.components.migrator }}
         {{- if .Values.components.migrator.appSync }}
         {{- if .Values.components.migrator.appSync.resources }}
@@ -101,6 +103,8 @@ spec:
                 name: devtron-secret
             - configMapRef: 
                 name: app-sync-cm
+            - configMapRef:
+                name: devtron-common-cm
             {{- if .Values.components.migrator }}
             {{- if .Values.components.migrator.appSync }}
             {{- if .Values.components.migrator.appSync.resources }}

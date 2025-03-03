@@ -1,0 +1,235 @@
+{{- if $.Values.global.networkpolices }}
+{{- if $.Values.devtronEnterprise.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    app: casbin
+  name: netpol-devtron-casbin
+  namespace: devtroncd
+spec:
+  policyTypes:
+  - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: devtroncd
+      ports:
+        - port: 8000
+        - port: 9000
+  podSelector:
+    matchLabels:
+      app: casbin
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    app: postgresql
+  name: netpol-devtron-postgress
+  namespace: devtroncd
+spec:
+  policyTypes:
+  - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: devtroncd
+      ports:
+        - port: 5432
+  podSelector:
+    matchLabels:
+      app: postgresql
+      release: devtron
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    app: dashboard
+  name: netpol-devtron-dashboard
+  namespace: devtroncd
+spec:
+  policyTypes:
+  - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: devtroncd
+      ports:
+        - port: 8080
+  podSelector:
+    matchLabels:
+      app: dashboard
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    app: argocd-dex-server
+  name: netpol-devtron-argocddex
+  namespace: devtroncd
+spec:
+  policyTypes:
+  - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: devtroncd
+      ports:
+        - port: 5556
+        - port: 5557
+        - port: 5558
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-dex-server
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    app: kubelink
+  name: netpol-devtron-kubelink
+  namespace: devtroncd
+spec:
+  policyTypes:
+  - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: devtroncd
+      ports:
+        - port: 50051
+        - port: 50052
+  podSelector:
+    matchLabels:
+      app: kubelink
+
+{{- if has "cicd" $.Values.installer.modules }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    app: lens
+  name: netpol-devtron-lens
+  namespace: devtroncd
+spec:
+  policyTypes:
+  - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: devtroncd
+      ports:
+        - port: 8080
+  podSelector:
+    matchLabels:
+      app: lens
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    app: git-sensor
+  name: netpol-devtron-gitsensor
+  namespace: devtroncd
+spec:
+  policyTypes:
+  - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: devtroncd
+      ports:
+        - port: 8080
+        - port: 8081
+  podSelector:
+    matchLabels:
+      app: git-sensor
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    app: kubewatch
+  name: netpol-devtron-kubewatch
+  namespace: devtroncd
+spec:
+  policyTypes:
+  - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: devtroncd
+      ports:
+        - port: 3000
+  podSelector:
+    matchLabels:
+      app: kubewatch
+---
+{{- if $.Values.monitoring.grafana.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    app: grafana
+  name: netpol-devtron-grafana
+  namespace: devtroncd
+spec:
+  policyTypes:
+  - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: devtroncd
+      ports:
+        - port: 3000
+        - port: 80
+  podSelector:
+    matchLabels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/instance: devtron
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    app: nats
+  name: netpol-devtron-nats
+  namespace: devtroncd
+spec:
+  policyTypes:
+  - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchExpressions:
+              - key: name
+                operator: In
+                values:
+                  - devtroncd
+                  - devtron
+      ports:
+        - port: 4222
+        - port: 7422
+        - port: 7522
+        - port: 6222
+        - port: 8222
+  podSelector:
+    matchLabels:
+        app.kubernetes.io/name: nats
+        app.kubernetes.io/instance: devtron-nats
+{{- end }}
+{{- end }}
