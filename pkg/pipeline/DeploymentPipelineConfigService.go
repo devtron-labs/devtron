@@ -849,8 +849,8 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkHelmAppRequest(ctx context.
 	releaseNamespace := request.HelmReleaseMetadataRequest.ReleaseNamespace
 
 	appIdentifier := &helmBean.AppIdentifier{
-		ClusterId:   request.HelmReleaseMetadataRequest.ReleaseClusterId,
-		Namespace:   request.HelmReleaseMetadataRequest.ReleaseNamespace,
+		ClusterId:   releaseClusterId,
+		Namespace:   releaseNamespace,
 		ReleaseName: request.DeploymentAppName,
 	}
 
@@ -860,11 +860,29 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkHelmAppRequest(ctx context.
 		return response.SetUnknownErrorDetail(err)
 	}
 
+	response.HelmReleaseMetadata.Info = pipelineConfigBean.HelmReleaseInfo{
+		Status: release.ReleaseStatus.Status,
+	}
+
+	response.HelmReleaseMetadata.Destination = pipelineConfigBean.Destination{
+		Namespace: release.EnvironmentDetails.Namespace,
+	}
+
+	releaseChartName, releaseChartVersion := release.ChartMetadata.ChartName, release.ChartMetadata.ChartVersion
+	response.HelmReleaseMetadata.Chart.HelmReleaseChartMetadata = pipelineConfigBean.HelmReleaseChartMetadata{
+		RequiredChartName: releaseChartName,
+		Home:              release.ChartMetadata.Home,
+		Version:           release.ChartMetadata.ChartVersion,
+	}
+
 	cluster, err := impl.clusterReadService.FindById(releaseClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster by id", "clusterId", releaseClusterId, "err", err)
 		return response.SetUnknownErrorDetail(err)
 	}
+
+	response.HelmReleaseMetadata.Destination.ClusterName = cluster.ClusterName
+	response.HelmReleaseMetadata.Destination.ClusterServerUrl = cluster.ServerUrl
 
 	env, err := impl.environmentRepository.FindOneByNamespaceAndClusterId(releaseNamespace, releaseClusterId)
 	if err != nil {
@@ -874,25 +892,15 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkHelmAppRequest(ctx context.
 		return response.SetUnknownErrorDetail(err)
 	}
 
-	response.HelmReleaseMetadata.Info = pipelineConfigBean.HelmReleaseInfo{
-		Status: release.ReleaseStatus.Status,
-	}
-
-	response.HelmReleaseMetadata.Destination = pipelineConfigBean.Destination{
-		ClusterName:      cluster.ClusterName,
-		ClusterServerUrl: cluster.ServerUrl,
-		Namespace:        release.EnvironmentDetails.Namespace,
-		EnvironmentName:  env.Name,
-		EnvironmentId:    env.Id,
-	}
+	response.HelmReleaseMetadata.Destination.EnvironmentName = env.Name
+	response.HelmReleaseMetadata.Destination.EnvironmentId = env.Id
 
 	chartRef, err := impl.chartReadService.GetChartRefConfiguredForApp(appId)
 	if err != nil {
 		impl.logger.Errorw("error in finding chart configured for app ", "appId", appId, "err", err)
 		return response.SetUnknownErrorDetail(err)
 	}
-
-	releaseChartName, releaseChartVersion := release.ChartMetadata.ChartName, release.ChartMetadata.ChartVersion
+	response.HelmReleaseMetadata.Chart.HelmReleaseChartMetadata.SavedChartName = chartRef.Name
 	if chartRef.Name != releaseChartName {
 		return response.SetErrorDetail(pipelineConfigBean.ChartTypeMismatch, fmt.Sprintf(pipelineConfigBean.ChartTypeMismatchErrorMsg, releaseChartName, chartRef.Name))
 	}

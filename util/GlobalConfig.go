@@ -40,7 +40,7 @@ type DeploymentServiceTypeConfig struct {
 }
 
 func (d *DeploymentServiceTypeConfig) IsFeatureMigrateArgoCdApplicationEnable() bool {
-	return false
+	return true
 }
 
 type GlobalEnvVariables struct {
