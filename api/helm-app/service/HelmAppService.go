@@ -161,6 +161,7 @@ type HelmReleaseConfig struct {
 	RevisionHistoryLimitDevtronApp      int `env:"REVISION_HISTORY_LIMIT_DEVTRON_APP" envDefault:"1"`
 	RevisionHistoryLimitHelmApp         int `env:"REVISION_HISTORY_LIMIT_HELM_APP" envDefault:"1"`
 	RevisionHistoryLimitExternalHelmApp int `env:"REVISION_HISTORY_LIMIT_EXTERNAL_HELM_APP" envDefault:"0"`
+	RevisionHistoryLimitLinkedHelmApp   int `env:"REVISION_HISTORY_LIMIT_LINKED_HELM_APP" envDefault:"15"`
 }
 
 func GetHelmReleaseConfig() (*HelmReleaseConfig, error) {
@@ -1067,6 +1068,8 @@ func (impl *HelmAppServiceImpl) GetRevisionHistoryMaxValue(appType bean.SourceAp
 		return int32(impl.helmReleaseConfig.RevisionHistoryLimitHelmApp)
 	case bean.SOURCE_EXTERNAL_HELM_APP:
 		return int32(impl.helmReleaseConfig.RevisionHistoryLimitExternalHelmApp)
+	case bean.SOURCE_LINKED_HELM_APP:
+		return int32(impl.helmReleaseConfig.RevisionHistoryLimitLinkedHelmApp)
 	default:
 		return 0
 	}

@@ -2,14 +2,15 @@ package devtronApps
 
 import (
 	"context"
-	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/helper"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/publish"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
@@ -34,6 +35,7 @@ func (impl *TriggerServiceImpl) getHelmHistoryLimitAndChartMetadataForHelmAppCre
 	pipelineModel := valuesOverrideResponse.Pipeline
 	envOverride := valuesOverrideResponse.EnvOverride
 
+	var chartMetaData *chart.Metadata
 	releaseName := pipelineModel.DeploymentAppName
 	//getting cluster by id
 	cluster, err := impl.clusterRepository.FindById(envOverride.Environment.ClusterId)
@@ -44,30 +46,37 @@ func (impl *TriggerServiceImpl) getHelmHistoryLimitAndChartMetadataForHelmAppCre
 		impl.logger.Errorw("error in getting cluster by id, found nil object", "clusterId", envOverride.Environment.ClusterId)
 		return nil, 0, nil, err
 	}
-	bearerToken := cluster.Config[commonBean.BearerToken]
-	clusterConfig := &gRPC.ClusterConfig{
-		ClusterName:           cluster.ClusterName,
-		Token:                 bearerToken,
-		ApiServerUrl:          cluster.ServerUrl,
-		InsecureSkipTLSVerify: cluster.InsecureSkipTlsVerify,
-	}
-	if cluster.InsecureSkipTlsVerify == false {
-		clusterConfig.KeyData = cluster.Config[commonBean.TlsKey]
-		clusterConfig.CertData = cluster.Config[commonBean.CertData]
-		clusterConfig.CaData = cluster.Config[commonBean.CertificateAuthorityData]
-	}
+
+	clusterConfig := helper.ConvertClusterBeanToGrpcConfig(*cluster)
+
 	releaseIdentifier := &gRPC.ReleaseIdentifier{
 		ReleaseName:      releaseName,
 		ReleaseNamespace: envOverride.Namespace,
 		ClusterConfig:    clusterConfig,
 	}
 
-	chartMetadata := &chart.Metadata{
-		Name:    pipelineModel.App.AppName,
-		Version: envOverride.Chart.ChartVersion,
+	var helmRevisionHistory int32
+	if valuesOverrideResponse.DeploymentConfig.ReleaseMode == util.PIPELINE_RELEASE_MODE_LINK {
+		detail, err := impl.helmAppClient.GetReleaseDetails(ctx, releaseIdentifier)
+		if err != nil {
+			impl.logger.Errorw("error in fetching release details", "clusterId", clusterConfig.ClusterId, "namespace", envOverride.Namespace, "releaseName", releaseName, "err", err)
+			return nil, 0, nil, err
+		}
+		chartMetaData = &chart.Metadata{
+			Name:    detail.ChartName,
+			Version: detail.ChartVersion,
+		}
+		//not modifying revision history in case of linked release
+		helmRevisionHistory = impl.helmAppService.GetRevisionHistoryMaxValue(bean6.SOURCE_LINKED_HELM_APP)
+	} else {
+		chartMetaData = &chart.Metadata{
+			Name:    pipelineModel.App.AppName,
+			Version: envOverride.Chart.ChartVersion,
+		}
+		helmRevisionHistory = impl.helmAppService.GetRevisionHistoryMaxValue(bean6.SOURCE_DEVTRON_APP)
 	}
 
-	return chartMetadata, impl.helmAppService.GetRevisionHistoryMaxValue(bean6.SOURCE_DEVTRON_APP), releaseIdentifier, nil
+	return chartMetaData, helmRevisionHistory, releaseIdentifier, nil
 }
 
 func (impl *TriggerServiceImpl) overrideReferenceChartByteForHelmTypeApp(valuesOverrideResponse *app.ValuesOverrideResponse,
