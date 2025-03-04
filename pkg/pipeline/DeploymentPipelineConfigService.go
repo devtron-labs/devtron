@@ -707,7 +707,11 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 	var targetCluster *bean3.ClusterBean
 	if targetClusterURL == commonBean2.DefaultClusterUrl {
 		targetCluster, err = impl.clusterReadService.FindById(request.ApplicationMetadataRequest.ApplicationObjectClusterId)
+		if targetCluster != nil {
+			response.ApplicationMetadata.Destination.ClusterServerUrl = targetCluster.ServerUrl
+		}
 	} else {
+		response.ApplicationMetadata.Destination.ClusterServerUrl = targetClusterURL
 		targetCluster, err = impl.clusterReadService.FindByClusterURL(targetClusterURL)
 	}
 	if err != nil && !errors3.Is(err, pg.ErrNoRows) {
