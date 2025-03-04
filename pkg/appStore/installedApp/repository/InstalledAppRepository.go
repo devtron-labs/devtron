@@ -1021,7 +1021,7 @@ func (impl *InstalledAppRepositoryImpl) GetAllArgoAppsByDeploymentAppNames(deplo
 		JoinOn("installed_apps.environment_id = deployment_config.environment_id").
 		JoinOn("deployment_config.active = ?", true).
 		// where conditions
-		Where("deployment_app_name in (?)", pg.In(deploymentAppNames)).
+		Where("CONCAT(app.app_name, '-', environment.environment_name) in (?)", pg.In(deploymentAppNames)).
 		Where("installed_apps.active = ?", true).
 		Where("app.active = ?", true).
 		Where("environment.active = ?", true).
