@@ -166,7 +166,7 @@ type InstalledAppRepository interface {
 	// GetInstalledAppsMinByAppId will return the installed app by app id.
 	// Extra Environment, App, Team, Cluster details are not fetched
 	GetInstalledAppsMinByAppId(appId int) (*InstalledApps, error)
-	GetAllArgoAppsByCluster(clusterIds []int) ([]string, error)
+	GetAllArgoAppsByDeploymentAppNames(deploymentAppNames []string) ([]string, error)
 }
 
 type InstalledAppRepositoryImpl struct {
@@ -1001,9 +1001,9 @@ func (impl *InstalledAppRepositoryImpl) FindInstalledAppsByAppId(appId int) ([]*
 	return installedApps, err
 }
 
-func (impl *InstalledAppRepositoryImpl) GetAllArgoAppsByCluster(clusterIds []int) ([]string, error) {
+func (impl *InstalledAppRepositoryImpl) GetAllArgoAppsByDeploymentAppNames(deploymentAppNames []string) ([]string, error) {
 	result := make([]string, 0)
-	if len(clusterIds) == 0 {
+	if len(deploymentAppNames) == 0 {
 		return result, nil
 	}
 	err := impl.dbConnection.Model().
@@ -1021,7 +1021,7 @@ func (impl *InstalledAppRepositoryImpl) GetAllArgoAppsByCluster(clusterIds []int
 		JoinOn("installed_apps.environment_id = deployment_config.environment_id").
 		JoinOn("deployment_config.active = ?", true).
 		// where conditions
-		Where("environment.cluster_id in (?)", pg.In(clusterIds)).
+		Where("deployment_app_name in (?)", pg.In(deploymentAppNames)).
 		Where("installed_apps.active = ?", true).
 		Where("app.active = ?", true).
 		Where("environment.active = ?", true).

@@ -55,7 +55,7 @@ type DeploymentConfigService interface {
 	UpdateRepoUrlForAppAndEnvId(repoURL string, appId, envId int) error
 	GetConfigsByAppIds(appIds []int) ([]*bean.DeploymentConfig, error)
 	UpdateChartLocationInDeploymentConfig(appId, envId, chartRefId int, userId int32, chartVersion string) error
-	GetAllArgoAppNamesByCluster(clusterIds []int) ([]*bean.DevtronArgoCdAppInfo, error)
+	GetAllArgoAppInfosByDeploymentAppNames(deploymentAppNames []string) ([]*bean.DevtronArgoCdAppInfo, error)
 	GetExternalReleaseType(appId, environmentId int) (bean.ExternalReleaseType, error)
 	CheckIfURLAlreadyPresent(repoURL string) (bool, error)
 	FilterPipelinesByApplicationClusterIdAndNamespace(pipelines []pipelineConfig.Pipeline, applicationObjectClusterId int, applicationObjectNamespace string) (pipelineConfig.Pipeline, error)
@@ -353,11 +353,11 @@ func (impl *DeploymentConfigServiceImpl) UpdateChartLocationInDeploymentConfig(a
 	return nil
 }
 
-func (impl *DeploymentConfigServiceImpl) GetAllArgoAppNamesByCluster(clusterIds []int) ([]*bean.DevtronArgoCdAppInfo, error) {
+func (impl *DeploymentConfigServiceImpl) GetAllArgoAppInfosByDeploymentAppNames(deploymentAppNames []string) ([]*bean.DevtronArgoCdAppInfo, error) {
 	allDevtronManagedArgoAppsInfo := make([]*bean.DevtronArgoCdAppInfo, 0)
 	linkedReleaseConfig, err := impl.getAllEnvLevelConfigsForLinkedReleases()
 	if err != nil {
-		impl.logger.Errorw("error while fetching linked release configs", "clusterIds", clusterIds, "error", err)
+		impl.logger.Errorw("error while fetching linked release configs", "deploymentAppNames", deploymentAppNames, "error", err)
 		return allDevtronManagedArgoAppsInfo, err
 	}
 	linkedReleaseConfigMap := make(map[string]*bean.DeploymentConfig)
@@ -365,9 +365,9 @@ func (impl *DeploymentConfigServiceImpl) GetAllArgoAppNamesByCluster(clusterIds 
 		uniqueKey := fmt.Sprintf("%d-%d", config.AppId, config.EnvironmentId)
 		linkedReleaseConfigMap[uniqueKey] = config
 	}
-	devtronArgoAppsInfo, err := impl.pipelineRepository.GetAllArgoAppNamesByCluster(clusterIds)
+	devtronArgoAppsInfo, err := impl.pipelineRepository.GetAllArgoAppInfoByDeploymentAppNames(deploymentAppNames)
 	if err != nil {
-		impl.logger.Errorw("error while fetching argo app names", "clusterIds", clusterIds, "error", err)
+		impl.logger.Errorw("error while fetching argo app names", "deploymentAppNames", deploymentAppNames, "error", err)
 		return allDevtronManagedArgoAppsInfo, err
 	}
 	for _, acdAppInfo := range devtronArgoAppsInfo {
@@ -383,9 +383,9 @@ func (impl *DeploymentConfigServiceImpl) GetAllArgoAppNamesByCluster(clusterIds 
 		}
 		allDevtronManagedArgoAppsInfo = append(allDevtronManagedArgoAppsInfo, devtronArgoCdAppInfo)
 	}
-	chartStoreArgoAppNames, err := impl.installedAppReadService.GetAllArgoAppNamesByCluster(clusterIds)
+	chartStoreArgoAppNames, err := impl.installedAppReadService.GetAllArgoAppNamesByDeploymentAppNames(deploymentAppNames)
 	if err != nil {
-		impl.logger.Errorw("error while fetching argo app names from chart store", "clusterIds", clusterIds, "error", err)
+		impl.logger.Errorw("error while fetching argo app names from chart store", "deploymentAppNames", deploymentAppNames, "error", err)
 		return allDevtronManagedArgoAppsInfo, err
 	}
 	for _, chartStoreArgoAppName := range chartStoreArgoAppNames {

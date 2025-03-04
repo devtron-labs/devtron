@@ -143,7 +143,7 @@ type PipelineRepository interface {
 	FindDeploymentAppTypeByAppIdAndEnvId(appId, envId int) (string, error)
 	FindByAppIdToEnvIdsMapping(appIdToEnvIds map[int][]int) ([]*Pipeline, error)
 	FindDeploymentAppTypeByIds(ids []int) (pipelines []*Pipeline, err error)
-	GetAllArgoAppNamesByCluster(clusterIds []int) ([]*PipelineDeploymentConfigObj, error)
+	GetAllArgoAppInfoByDeploymentAppNames(deploymentAppNames []string) ([]*PipelineDeploymentConfigObj, error)
 }
 
 type CiArtifactDTO struct {
@@ -877,9 +877,9 @@ func (impl *PipelineRepositoryImpl) FindDeploymentAppTypeByIds(ids []int) (pipel
 	return pipelines, err
 }
 
-func (impl *PipelineRepositoryImpl) GetAllArgoAppNamesByCluster(clusterIds []int) ([]*PipelineDeploymentConfigObj, error) {
+func (impl *PipelineRepositoryImpl) GetAllArgoAppInfoByDeploymentAppNames(deploymentAppNames []string) ([]*PipelineDeploymentConfigObj, error) {
 	result := make([]*PipelineDeploymentConfigObj, 0)
-	if len(clusterIds) == 0 {
+	if len(deploymentAppNames) == 0 {
 		return result, nil
 	}
 	err := impl.dbConnection.Model().
@@ -899,7 +899,7 @@ func (impl *PipelineRepositoryImpl) GetAllArgoAppNamesByCluster(clusterIds []int
 		JoinOn("pipeline.environment_id = deployment_config.environment_id").
 		JoinOn("deployment_config.active = ?", true).
 		// where conditions
-		Where("environment.cluster_id in (?)", pg.In(clusterIds)).
+		Where("pipeline.deployment_app_name in (?)", pg.In(deploymentAppNames)).
 		Where("pipeline.deleted = ?", false).
 		Where("app.active = ?", true).
 		Where("environment.active = ?", true).

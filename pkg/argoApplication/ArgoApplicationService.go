@@ -138,12 +138,12 @@ func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*b
 		appLists := getApplicationListDtos(resp, clusterObj.ClusterName, clusterObj.Id)
 		appListFinal = append(appListFinal, appLists...)
 	}
-	appListClusterIds := sliceUtil.NewSliceFromFuncExec(appListFinal, func(app *bean.ArgoApplicationListDto) int {
-		return app.ClusterId
+	applicationClusterNames := sliceUtil.NewSliceFromFuncExec(appListFinal, func(app *bean.ArgoApplicationListDto) string {
+		return app.Name
 	})
-	allDevtronManagedArgoAppsInfo, err := impl.deploymentConfigService.GetAllArgoAppNamesByCluster(appListClusterIds)
+	allDevtronManagedArgoAppsInfo, err := impl.deploymentConfigService.GetAllArgoAppInfosByDeploymentAppNames(applicationClusterNames)
 	if err != nil {
-		impl.logger.Errorw("error in getting all argo app names by cluster", "err", err, "clusterIds", appListClusterIds)
+		impl.logger.Errorw("error in getting all argo app names by cluster", "err", err, "applicationClusterNames", applicationClusterNames)
 		return nil, err
 	}
 	filteredAppList := make([]*bean.ArgoApplicationListDto, 0)
