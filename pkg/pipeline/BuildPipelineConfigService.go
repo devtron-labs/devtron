@@ -1310,6 +1310,14 @@ func (impl *CiPipelineConfigServiceImpl) PatchCiPipeline(request *bean.CiPatchRe
 			},
 		}
 	}
+
+	if !request.CiPipeline.IsExternal && request.CiPipeline.DockerConfigOverride.DockerRegistry != "" { // pipeline is not [linked, webhook] and overridden, then create template override
+		err = impl.ciCdPipelineOrchestrator.CreateDockerRepoIfNeeded(request.CiPipeline.DockerConfigOverride.DockerRegistry, request.CiPipeline.DockerConfigOverride.DockerRepository)
+		if err != nil {
+			return nil, fmt.Errorf("ecr repo creation failed, it might be due to authorization or any other reason")
+		}
+	}
+
 	ciConfig.AppWorkflowId = request.AppWorkflowId
 	ciConfig.UserId = request.UserId
 	if request.CiPipeline != nil {

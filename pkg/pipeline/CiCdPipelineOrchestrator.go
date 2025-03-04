@@ -114,6 +114,7 @@ type CiCdPipelineOrchestrator interface {
 	GetSourceCiPipelineForArtifact(ciPipeline pipelineConfig.CiPipeline) (*pipelineConfig.CiPipeline, error)
 	GetGitCommitEnvVarDataForCICDStage(gitTriggers map[int]pipelineConfig.GitCommit) (map[string]string, *gitSensor.WebhookAndCiData, error)
 	GetWorkflowCacheConfig(appType helper.AppType, pipelineType string, pipelineWorkflowCacheConfig common2.WorkflowCacheConfigType) bean.WorkflowCacheConfig
+	CreateDockerRepoIfNeeded(dockerRegistryId, dockerRepository string) error
 }
 
 type CiCdPipelineOrchestratorImpl struct {
@@ -604,9 +605,9 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 		}
 
 		savedTemplateOverride := savedTemplateOverrideBean.CiTemplateOverride
-		err = impl.createDockerRepoIfNeeded(createRequest.DockerConfigOverride.DockerRegistry, createRequest.DockerConfigOverride.DockerRepository)
+		err = impl.CreateDockerRepoIfNeeded(createRequest.DockerConfigOverride.DockerRegistry, createRequest.DockerConfigOverride.DockerRepository)
 		if err != nil {
-			impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", createRequest.DockerConfigOverride.DockerRegistry, "dockerRegistry", createRequest.DockerConfigOverride.DockerRepository)
+			impl.logger.Errorw("error, CreateDockerRepoIfNeeded", "err", err, "dockerRegistryId", createRequest.DockerConfigOverride.DockerRegistry, "dockerRegistry", createRequest.DockerConfigOverride.DockerRepository)
 			return nil, err
 		}
 		if savedTemplateOverride != nil && savedTemplateOverride.Id > 0 {
@@ -1110,9 +1111,9 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 				UserId:             createRequest.UserId,
 			}
 			if !ciPipeline.IsExternal { //pipeline is not [linked, webhook] and overridden, then create template override
-				err = impl.createDockerRepoIfNeeded(ciPipeline.DockerConfigOverride.DockerRegistry, ciPipeline.DockerConfigOverride.DockerRepository)
+				err = impl.CreateDockerRepoIfNeeded(ciPipeline.DockerConfigOverride.DockerRegistry, ciPipeline.DockerConfigOverride.DockerRepository)
 				if err != nil {
-					impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", ciPipeline.DockerConfigOverride.DockerRegistry, "dockerRegistry", ciPipeline.DockerConfigOverride.DockerRepository)
+					impl.logger.Errorw("error, CreateDockerRepoIfNeeded", "err", err, "dockerRegistryId", ciPipeline.DockerConfigOverride.DockerRegistry, "dockerRegistry", ciPipeline.DockerConfigOverride.DockerRepository)
 					return nil, err
 				}
 				err := impl.ciTemplateService.Save(ciTemplateBean)
@@ -2175,7 +2176,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetByEnvOverrideId(envOverrideId int) (
 	return cdPipelines, nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) createDockerRepoIfNeeded(dockerRegistryId, dockerRepository string) error {
+func (impl CiCdPipelineOrchestratorImpl) CreateDockerRepoIfNeeded(dockerRegistryId, dockerRepository string) error {
 	dockerArtifactStore, err := impl.dockerArtifactStoreRepository.FindOne(dockerRegistryId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching DockerRegistry  for update", "err", err, "registry", dockerRegistryId)
