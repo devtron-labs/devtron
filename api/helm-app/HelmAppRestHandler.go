@@ -62,6 +62,7 @@ type HelmAppRestHandler interface {
 	UpdateApplication(w http.ResponseWriter, r *http.Request)
 	TemplateChart(w http.ResponseWriter, r *http.Request)
 	SaveHelmAppDetailsViewedTelemetryData(w http.ResponseWriter, r *http.Request)
+	ListHelmApplicationsForEnvironment(w http.ResponseWriter, r *http.Request)
 }
 
 const HELM_APP_ACCESS_COUNTER = "HelmAppAccessCounter"
@@ -587,4 +588,47 @@ func (handler *HelmAppRestHandlerImpl) SaveHelmAppDetailsViewedTelemetryData(w h
 
 	common.WriteJsonResp(w, err, nil, http.StatusOK)
 
+}
+
+func (handler *HelmAppRestHandlerImpl) ListHelmApplicationsForEnvironment(w http.ResponseWriter, r *http.Request) {
+
+	query := r.URL.Query()
+
+	clusterIdString := query.Get("clusterId")
+	var (
+		clusterId int
+		envId     int
+		err       error
+	)
+
+	if len(clusterIdString) != 0 {
+		clusterId, err = strconv.Atoi(clusterIdString)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+
+	envIdString := query.Get("envId")
+	if len(envIdString) != 0 {
+		envId, err = strconv.Atoi(envIdString)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	releaseList, err := handler.helmAppService.ListHelmApplicationsForClusterOrEnv(r.Context(), clusterId, envId)
+	if err != nil {
+		handler.logger.Errorw("error in fetching helm release for given env", "err", err)
+		common.WriteJsonResp(w, err, "error in fetching helm release", http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, releaseList, http.StatusOK)
+	return
 }

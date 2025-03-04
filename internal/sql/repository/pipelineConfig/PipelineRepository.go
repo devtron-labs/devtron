@@ -143,7 +143,7 @@ type PipelineRepository interface {
 	FindDeploymentAppTypeByAppIdAndEnvId(appId, envId int) (string, error)
 	FindByAppIdToEnvIdsMapping(appIdToEnvIds map[int][]int) ([]*Pipeline, error)
 	FindDeploymentAppTypeByIds(ids []int) (pipelines []*Pipeline, err error)
-	GetAllArgoAppNamesByCluster(clusterIds []int) ([]*PipelineDeploymentConfigObj, error)
+	GetAllAppsByClusterAndDeploymentAppType(clusterIds []int, deploymentAppName string) ([]*PipelineDeploymentConfigObj, error)
 }
 
 type CiArtifactDTO struct {
@@ -165,7 +165,9 @@ type DeploymentObject struct {
 type PipelineDeploymentConfigObj struct {
 	DeploymentAppName string `json:"deployment_app_name"`
 	AppId             int    `json:"app_id"`
+	ClusterId         int    `json:"cluster_id"`
 	EnvironmentId     int    `json:"environment_id"`
+	Namespace         string `json:"namespace"`
 }
 
 type PipelineRepositoryImpl struct {
@@ -877,7 +879,7 @@ func (impl *PipelineRepositoryImpl) FindDeploymentAppTypeByIds(ids []int) (pipel
 	return pipelines, err
 }
 
-func (impl *PipelineRepositoryImpl) GetAllArgoAppNamesByCluster(clusterIds []int) ([]*PipelineDeploymentConfigObj, error) {
+func (impl *PipelineRepositoryImpl) GetAllAppsByClusterAndDeploymentAppType(clusterIds []int, deploymentAppName string) ([]*PipelineDeploymentConfigObj, error) {
 	result := make([]*PipelineDeploymentConfigObj, 0)
 	if len(clusterIds) == 0 {
 		return result, nil
@@ -887,6 +889,8 @@ func (impl *PipelineRepositoryImpl) GetAllArgoAppNamesByCluster(clusterIds []int
 		ColumnExpr("pipeline.deployment_app_name AS deployment_app_name").
 		ColumnExpr("pipeline.app_id AS app_id").
 		ColumnExpr("pipeline.environment_id AS environment_id").
+		ColumnExpr("environment.cluster_id AS cluster_id").
+		ColumnExpr("environment.namespace AS namespace").
 		// inner join with app
 		Join("INNER JOIN app").
 		JoinOn("pipeline.app_id = app.id").
@@ -904,8 +908,8 @@ func (impl *PipelineRepositoryImpl) GetAllArgoAppNamesByCluster(clusterIds []int
 		Where("app.active = ?", true).
 		Where("environment.active = ?", true).
 		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
-			return query.WhereOr("pipeline.deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_ACD).
-				WhereOr("deployment_config.deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_ACD), nil
+			return query.WhereOr("pipeline.deployment_app_type = ?", deploymentAppName).
+				WhereOr("deployment_config.deployment_app_type = ?", deploymentAppName), nil
 		}).
 		Select(&result)
 	return result, err
