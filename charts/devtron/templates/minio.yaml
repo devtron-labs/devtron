@@ -294,6 +294,9 @@ spec:
                 secretKeyRef:
                   name: devtron-minio
                   key: secretkey
+          envFrom:
+          - configMapRef:
+              name: devtron-common-cm
           resources: {}
       volumes:
         - name: minio-user
@@ -304,6 +307,7 @@ spec:
         name: export
       spec:
         accessModes: [ "ReadWriteOnce" ]
+        {{- include "common.storageclass" $ | indent 8 }}
         resources:
           requests:
             storage: {{ $.Values.minio.persistence.storage }}
@@ -350,6 +354,9 @@ spec:
               value: devtron-minio
             - name: MINIO_PORT
               value: "9000"
+          envFrom:
+          - configMapRef:
+              name: devtron-common-cm
           volumeMounts:
             - name: minio-configuration
               mountPath: /config
@@ -410,6 +417,9 @@ spec:
                 secretKeyRef:
                   name: devtron-minio
                   key: secretkey
+          envFrom:
+          - configMapRef:
+              name: devtron-common-cm
       volumes:
         - name: minio-user
           secret:

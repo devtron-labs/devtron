@@ -287,13 +287,15 @@ spec:
                   fieldPath: metadata.name
           envFrom:
           - configMapRef:
-              name: "devtron-cm"
+              name: devtron-cm
           - secretRef:
-              name: "devtron-secret"
+              name: devtron-secret
           - configMapRef:
-              name: "devtron-custom-cm"
+              name: devtron-custom-cm
           - secretRef:
-              name: "devtron-custom-secret"
+              name: devtron-custom-secret
+          - configMapRef:
+              name: devtron-common-cm
           volumeMounts:
             - mountPath: /cluster/component
               name: devtron-cluster-components-vol

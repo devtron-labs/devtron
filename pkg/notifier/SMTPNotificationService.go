@@ -60,6 +60,12 @@ func (impl *SMTPNotificationServiceImpl) SaveOrEditNotificationConfig(channelReq
 	for _, config := range smtpConfigs {
 		if config.Id != 0 {
 
+			model, err := impl.smtpRepository.FindOne(config.Id)
+			if err != nil && !util.IsErrNoRows(err) {
+				impl.logger.Errorw("err while fetching smtp config", "err", err)
+				return []int{}, err
+			}
+
 			if config.Default {
 				_, err := impl.smtpRepository.UpdateSMTPConfigDefault()
 				if err != nil && !util.IsErrNoRows(err) {
@@ -67,6 +73,10 @@ func (impl *SMTPNotificationServiceImpl) SaveOrEditNotificationConfig(channelReq
 					return []int{}, err
 				}
 			} else {
+				// check if this config is already default, we don't want to reverse it
+				if model.Default {
+					return []int{}, fmt.Errorf("cannot update default config to non default")
+				}
 				_, err := impl.smtpRepository.FindDefault()
 				if err != nil && !util.IsErrNoRows(err) {
 					impl.logger.Errorw("err while updating smtp config", "err", err)
@@ -76,11 +86,6 @@ func (impl *SMTPNotificationServiceImpl) SaveOrEditNotificationConfig(channelReq
 				}
 			}
 
-			model, err := impl.smtpRepository.FindOne(config.Id)
-			if err != nil && !util.IsErrNoRows(err) {
-				impl.logger.Errorw("err while fetching smtp config", "err", err)
-				return []int{}, err
-			}
 			adapter.BuildConfigUpdateModelForSMTP(config, model, userId)
 			model, uErr := impl.smtpRepository.UpdateSMTPConfig(model)
 			if uErr != nil {
@@ -174,6 +179,10 @@ func (impl *SMTPNotificationServiceImpl) DeleteNotificationConfig(deleteReq *bea
 	if len(notifications) > 0 {
 		impl.logger.Errorw("found notifications using this config, cannot delete", "config", deleteReq)
 		return fmt.Errorf(" Please delete all notifications using this config before deleting")
+	}
+	// check if default then dont delete
+	if existingConfig.Default {
+		return fmt.Errorf("default configuration cannot be deleted")
 	}
 	existingConfig.UpdatedOn = time.Now()
 	existingConfig.UpdatedBy = userId

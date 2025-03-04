@@ -48,6 +48,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: casbin-cm
+            - configMapRef:
+                name: devtron-common-cm
           livenessProbe:
             failureThreshold: 3
             httpGet:
