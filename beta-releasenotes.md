@@ -2,6 +2,7 @@
 ## Enhancements
 ## Documentation
 ## Others
+- chore: Pg query fail 1 (#6337)
 - chore: common lib version bump (#6431)
 - sync: main sync develop (#6430)
 - sync: vendor update in main (#6429)
