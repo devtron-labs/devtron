@@ -104,10 +104,11 @@ func (impl *GitOperationServiceImpl) CreateGitRepositoryForDevtronApp(ctx contex
 		return nil, err
 	}
 	return &commonBean.ChartGitAttribute{
-		RepoUrl: repoUrl,
+		RepoUrl:        repoUrl,
 		TargetRevision: targetRevision,
-		IsNewRepo: isNew,
-		IsRepoEmpty: isEmpty}, nil
+		IsNewRepo:      isNew,
+		IsRepoEmpty: isEmpty,
+	}, nil
 }
 
 func getChartDirPathFromCloneDir(cloneDirPath string) (string, error) {

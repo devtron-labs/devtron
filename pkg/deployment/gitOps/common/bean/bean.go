@@ -18,7 +18,7 @@ package bean
 
 // TODO : rename
 type ChartGitAttribute struct {
-	RepoUrl, ChartLocation, TargetRevision string
+	RepoUrl, ChartLocation , TargetRevision string
 	IsNewRepo              bool
 	IsRepoEmpty            bool
 }

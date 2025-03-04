@@ -358,6 +358,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(gitOpsConfig.DevtronAppGitOpConfigService), new(*gitOpsConfig.DevtronAppGitOpConfigServiceImpl)),
 		chart.NewChartServiceImpl,
 		wire.Bind(new(chart.ChartService), new(*chart.ChartServiceImpl)),
+		read2.NewChartReadServiceImpl,
+		wire.Bind(new(read2.ChartReadService), new(*read2.ChartReadServiceImpl)),
 		service.NewBulkUpdateServiceImpl,
 		wire.Bind(new(service.BulkUpdateService), new(*service.BulkUpdateServiceImpl)),
 		read2.NewChartReadServiceImpl,

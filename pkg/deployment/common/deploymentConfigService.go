@@ -320,6 +320,17 @@ func (impl *DeploymentConfigServiceImpl) GetConfigsByAppIds(appIds []int) ([]*be
 }
 
 func (impl *DeploymentConfigServiceImpl) UpdateChartLocationInDeploymentConfig(appId, envId, chartRefId int, userId int32, chartVersion string) error {
+
+	pipeline, err := impl.pipelineRepository.FindOneByAppIdAndEnvId(appId, envId)
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
+		impl.logger.Errorw("error in finding pipeline by app id and env id", "appId", appId, "envId", envId, "err", err)
+		return err
+	}
+	// no need to update deployment config if pipeline is not present
+	if errors.Is(err, pg.ErrNoRows) || (pipeline != nil && pipeline.Id == 0) {
+		return nil
+	}
+
 	config, err := impl.GetConfigForDevtronApps(appId, envId)
 	if err != nil {
 		impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", appId, "envId", envId, "err", err)
@@ -331,7 +342,6 @@ func (impl *DeploymentConfigServiceImpl) UpdateChartLocationInDeploymentConfig(a
 			impl.logger.Errorw("error in chartRefRepository.FindById", "chartRefId", chartRefId, "err", err)
 			return err
 		}
-		//TODO: ayush common function for chart location
 		chartLocation := filepath.Join(chartRef.Location, chartVersion)
 		config.SetChartLocation(chartLocation)
 		config, err = impl.CreateOrUpdateConfig(nil, config, userId)
@@ -552,7 +562,7 @@ func (impl *DeploymentConfigServiceImpl) parseReleaseConfigForHelmApps(appId int
 }
 
 func (impl *DeploymentConfigServiceImpl) getAllAppLevelConfigsWithCustomGitOpsURL() ([]*bean.DeploymentConfig, error) {
-	dbConfigs, err := impl.deploymentConfigRepository.GetAllAppLevelConfigs()
+	dbConfigs, err := impl.deploymentConfigRepository.GetAllConfigsForActiveApps()
 	if err != nil {
 		impl.logger.Errorw("error in getting all configs with custom gitops url", "err", err)
 		return nil, err
