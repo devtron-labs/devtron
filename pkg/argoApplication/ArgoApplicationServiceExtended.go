@@ -34,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	util5 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/util"
+	"google.golang.org/grpc"
 	v12 "k8s.io/api/apps/v1"
 	"net/http"
 	"strings"
@@ -158,13 +159,20 @@ func (c *ArgoApplicationServiceExtendedImpl) GetResourceTree(ctx context.Context
 	if acdQueryRequest == nil || acdQueryRequest.Query == nil {
 		return nil, util2.NewApiError(http.StatusInternalServerError, "something went wrong!", "invalid argo application query request")
 	}
-	asc, conn, err := c.acdClientWrapper.GetArgoClient(ctx)
-	if err != nil {
-		c.logger.Errorw("Error in GetArgoClient", "err", err)
-		return nil, err
+	var (
+		asc  application2.ApplicationServiceClient
+		conn *grpc.ClientConn
+		err  error
+	)
+	if !acdQueryRequest.Mode.IsDeclarative() {
+		asc, conn, err = c.acdClientWrapper.GetArgoClient(ctx)
+		if err != nil {
+			c.logger.Errorw("Error in GetArgoClient", "err", err)
+			return nil, err
+		}
+		defer util.Close(conn, c.logger)
 	}
-	defer util.Close(conn, c.logger)
-	c.logger.Debugw("GRPC_GET_RESOURCETREE", "req", acdQueryRequest)
+
 	appTree, podMetadata, err := c.getArgoResourceTreeAndPodMetadata(ctx, asc, acdQueryRequest)
 	if err != nil {
 		c.logger.Errorw("error in getting resource tree using cache", "acdQueryRequest", acdQueryRequest, "err", err)
@@ -188,7 +196,7 @@ func (c *ArgoApplicationServiceExtendedImpl) getArgoResourceTreeAndPodMetadata(c
 			return argoResourceTree, podMetadataList, err
 		}
 	}
-
+	c.logger.Debugw("GRPC_GET_RESOURCETREE", "req", acdQueryRequest)
 	//fallback
 	return c.getResourceTreeUsingArgoClient(ctx, asc, acdQueryRequest)
 }
