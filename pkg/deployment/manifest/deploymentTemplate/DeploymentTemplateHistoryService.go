@@ -17,9 +17,18 @@
 package deploymentTemplate
 
 import (
+	"context"
+	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret"
+	read2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
+	"github.com/devtron-labs/devtron/pkg/pipeline/history"
+	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
+	"go.opentelemetry.io/otel"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -36,6 +45,7 @@ type DeploymentTemplateHistoryService interface {
 	CreateDeploymentTemplateHistoryFromGlobalTemplate(chart *chartRepoRepository.Chart, tx *pg.Tx, IsAppMetricsEnabled bool) error
 	CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverride *bean.EnvConfigOverride, tx *pg.Tx, IsAppMetricsEnabled bool, pipelineId int) error
 	CreateDeploymentTemplateHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, envOverride *bean.EnvConfigOverride, renderedImageTemplate string, deployedOn time.Time, deployedBy int32) (*repository.DeploymentTemplateHistory, error)
+	CreateHistoriesForDeploymentTrigger(ctx context.Context, pipeline *pipelineConfig.Pipeline, strategy *chartConfig.PipelineStrategy, envOverride *bean.EnvConfigOverride, deployedOn time.Time, deployedBy int32) error
 }
 
 type DeploymentTemplateHistoryServiceImpl struct {
@@ -48,23 +58,37 @@ type DeploymentTemplateHistoryServiceImpl struct {
 	scopedVariableManager               variables.ScopedVariableManager
 	deployedAppMetricsService           deployedAppMetrics.DeployedAppMetricsService
 	chartRefService                     chartRef.ChartRefService
+
+	strategyHistoryService               history.PipelineStrategyHistoryService
+	configMapHistoryService              configMapAndSecret.ConfigMapHistoryService
+	deploymentTemplateHistoryReadService read.DeploymentTemplateHistoryReadService
+	configMapHistoryReadService          read2.ConfigMapHistoryReadService
 }
 
 func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deploymentTemplateHistoryRepository repository.DeploymentTemplateHistoryRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, chartRepository chartRepoRepository.ChartRepository,
 	userService user.UserService, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	scopedVariableManager variables.ScopedVariableManager, deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
-	chartRefService chartRef.ChartRefService) *DeploymentTemplateHistoryServiceImpl {
+	chartRefService chartRef.ChartRefService,
+	strategyHistoryService history.PipelineStrategyHistoryService,
+	configMapHistoryService configMapAndSecret.ConfigMapHistoryService,
+	deploymentTemplateHistoryReadService read.DeploymentTemplateHistoryReadService,
+	configMapHistoryReadService read2.ConfigMapHistoryReadService,
+) *DeploymentTemplateHistoryServiceImpl {
 	return &DeploymentTemplateHistoryServiceImpl{
-		logger:                              logger,
-		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
-		pipelineRepository:                  pipelineRepository,
-		chartRepository:                     chartRepository,
-		userService:                         userService,
-		cdWorkflowRepository:                cdWorkflowRepository,
-		scopedVariableManager:               scopedVariableManager,
-		deployedAppMetricsService:           deployedAppMetricsService,
-		chartRefService:                     chartRefService,
+		logger:                               logger,
+		deploymentTemplateHistoryRepository:  deploymentTemplateHistoryRepository,
+		pipelineRepository:                   pipelineRepository,
+		chartRepository:                      chartRepository,
+		userService:                          userService,
+		cdWorkflowRepository:                 cdWorkflowRepository,
+		scopedVariableManager:                scopedVariableManager,
+		deployedAppMetricsService:            deployedAppMetricsService,
+		chartRefService:                      chartRefService,
+		strategyHistoryService:               strategyHistoryService,
+		configMapHistoryService:              configMapHistoryService,
+		deploymentTemplateHistoryReadService: deploymentTemplateHistoryReadService,
+		configMapHistoryReadService:          configMapHistoryReadService,
 	}
 }
 
@@ -233,4 +257,63 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 		return nil, err
 	}
 	return history, nil
+}
+
+func (impl DeploymentTemplateHistoryServiceImpl) CreateHistoriesForDeploymentTrigger(ctx context.Context, pipeline *pipelineConfig.Pipeline, strategy *chartConfig.PipelineStrategy, envOverride *bean.EnvConfigOverride, deployedOn time.Time, deployedBy int32) error {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "DeployedConfigurationHistoryServiceImpl.CreateHistoriesForDeploymentTrigger")
+	defer span.End()
+	deploymentTemplateHistoryId, templateHistoryExists, err := impl.deploymentTemplateHistoryReadService.CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipeline.Id, deployedOn)
+	if err != nil {
+		impl.logger.Errorw("error in checking if deployment template history exists for deployment trigger", "err", err)
+		return err
+	}
+	if !templateHistoryExists {
+		// creating history for deployment template
+		deploymentTemplateHistory, err := impl.CreateDeploymentTemplateHistoryForDeploymentTrigger(pipeline, envOverride, envOverride.Chart.ImageDescriptorTemplate, deployedOn, deployedBy)
+		if err != nil {
+			impl.logger.Errorw("error in creating deployment template history for deployment trigger", "err", err)
+			return err
+		}
+		deploymentTemplateHistoryId = deploymentTemplateHistory.Id
+	}
+	cmId, csId, cmCsHistoryExists, err := impl.configMapHistoryReadService.CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipeline.Id, deployedOn)
+	if err != nil {
+		impl.logger.Errorw("error in checking if config map/ secrete history exists for deployment trigger", "err", err)
+		return err
+	}
+	if !cmCsHistoryExists {
+		cmId, csId, err = impl.configMapHistoryService.CreateCMCSHistoryForDeploymentTrigger(pipeline, deployedOn, deployedBy)
+		if err != nil {
+			impl.logger.Errorw("error in creating CM/CS history for deployment trigger", "err", err)
+			return err
+		}
+	}
+	if strategy != nil {
+		// checking if pipeline strategy configuration for this pipelineId and with deployedOn time exists or not
+		strategyHistoryExists, err := impl.strategyHistoryService.CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipeline.Id, deployedOn)
+		if err != nil {
+			impl.logger.Errorw("error in checking if deployment template history exists for deployment trigger", "err", err)
+			return err
+		}
+		if !strategyHistoryExists {
+			err = impl.strategyHistoryService.CreateStrategyHistoryForDeploymentTrigger(strategy, deployedOn, deployedBy, pipeline.TriggerType)
+			if err != nil {
+				impl.logger.Errorw("error in creating strategy history for deployment trigger", "err", err)
+				return err
+			}
+		}
+	}
+
+	var variableSnapshotHistories = sliceUtil.GetBeansPtr(
+		repository5.GetSnapshotBean(deploymentTemplateHistoryId, repository5.HistoryReferenceTypeDeploymentTemplate, envOverride.VariableSnapshot),
+		repository5.GetSnapshotBean(cmId, repository5.HistoryReferenceTypeConfigMap, envOverride.VariableSnapshotForCM),
+		repository5.GetSnapshotBean(csId, repository5.HistoryReferenceTypeSecret, envOverride.VariableSnapshotForCS),
+	)
+	if len(variableSnapshotHistories) > 0 {
+		err = impl.scopedVariableManager.SaveVariableHistoriesForTrigger(variableSnapshotHistories, deployedBy)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

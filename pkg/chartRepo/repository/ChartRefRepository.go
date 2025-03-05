@@ -183,9 +183,9 @@ func (impl ChartRefRepositoryImpl) GetAllChartsWithUserUploadedEmail() ([]*Chart
 		Table("chart_ref").
 		Column("chart_ref.id", "chart_ref.name", "chart_ref.chart_description", "chart_ref.version", "chart_ref.user_uploaded"). // Include user email in the query
 		ColumnExpr("users.email_id AS email_id").
-		Join("INNER JOIN users"). // Join with users table
+		Join("INNER JOIN users").                  // Join with users table
 		JoinOn("users.id = chart_ref.created_by"). // Join with users table
-		Where("chart_ref.active = ?", true). // Filter by active charts
+		Where("chart_ref.active = ?", true).       // Filter by active charts
 		Select(&chartRefs)
 	return chartRefs, err
 }
