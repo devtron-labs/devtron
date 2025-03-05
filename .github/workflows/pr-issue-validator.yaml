@@ -12,6 +12,7 @@ on:
       - 'release-**'
       - 'develop'
       - 'hotfix-**'
+      - 'fix/pr-validator'
     # paths-ignore:
     #   - 'docs/**'
     #   - '.github/'
