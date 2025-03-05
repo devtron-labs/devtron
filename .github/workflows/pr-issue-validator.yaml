@@ -1,13 +1,29 @@
-name: PR Validation (Test)
+name: Validate Pull Request
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, edited]
-    branches:
-      - fix/pr-validator  # This ensures the workflow runs only for PRs targeting your branch
-
+    types:
+      - opened
+      - synchronize
+      - edited
+      - reopened
+    branches:    
+      - 'main'
+      - 'release-**'
+      - 'develop'
+      - 'hotfix-**'
+      - 'fix/pr-validator'
+    # paths-ignore:
+    #   - 'docs/**'
+    #   - '.github/'
+    #   - 'CHANGELOG/'
+    #   - 'charts/'
+    #   - 'manifests/'
+    #   - 'sample-docker-templates/'
+  
 jobs:
   pr-validation:
     uses: devtron-labs/utilities/.github/workflows/pr-validator.yaml@feat/central-pr-validator
+    secrets: inherit
     with:
       validate_sql: true  # Enable/disable SQL validation
