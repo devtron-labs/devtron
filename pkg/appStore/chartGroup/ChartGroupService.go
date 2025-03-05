@@ -1038,6 +1038,7 @@ func (impl *ChartGroupServiceImpl) performDeployStageOnAcd(installedAppVersion *
 		}
 		installedAppVersion.GitHash = appStoreGitOpsResponse.GitHash
 		chartGitAttr.RepoUrl = appStoreGitOpsResponse.ChartGitAttribute.RepoUrl
+		chartGitAttr.TargetRevision = appStoreGitOpsResponse.ChartGitAttribute.TargetRevision
 		chartGitAttr.ChartLocation = appStoreGitOpsResponse.ChartGitAttribute.ChartLocation
 	} else {
 		impl.logger.Infow("DB and GIT operation already done for this app and env, proceed for further step", "installedAppId", installedAppVersion.InstalledAppId, "existing status", installedAppVersion.Status)
@@ -1052,6 +1053,7 @@ func (impl *ChartGroupServiceImpl) performDeployStageOnAcd(installedAppVersion *
 		adapter.UpdateAdditionalEnvDetails(installedAppVersion, installedAppVersion.Environment)
 
 		chartGitAttr.RepoUrl = installedAppVersion.GitOpsRepoURL
+		chartGitAttr.TargetRevision = installedAppVersion.GitOpsRepoURL
 		chartGitAttr.ChartLocation = fmt.Sprintf("%s-%s", installedAppVersion.AppName, installedAppVersion.EnvironmentName)
 	}
 

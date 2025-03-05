@@ -16,9 +16,16 @@
 
 package gitUtil
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 func GetGitRepoNameFromGitRepoUrl(gitRepoUrl string) string {
 	gitRepoUrl = gitRepoUrl[strings.LastIndex(gitRepoUrl, "/")+1:]
 	return strings.TrimSuffix(gitRepoUrl, ".git")
+}
+
+func GetRefBranchHead(branch string) string {
+	return fmt.Sprintf("refs/heads/%s", branch)
 }

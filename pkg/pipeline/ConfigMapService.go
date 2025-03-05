@@ -106,7 +106,7 @@ func NewConfigMapServiceImpl(chartRepository chartRepoRepository.ChartRepository
 	repoRepository chartRepoRepository.ChartRepoRepository,
 	mergeUtil util.MergeUtil,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
-	configMapRepository chartConfig.ConfigMapRepository, environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
+	configMapRepository chartConfig.ConfigMapRepository,
 	commonService commonService.CommonService, appRepository app.AppRepository,
 	configMapHistoryService history2.ConfigMapHistoryService, environmentRepository repository3.EnvironmentRepository,
 	scopedVariableManager variables.ScopedVariableCMCSManager,

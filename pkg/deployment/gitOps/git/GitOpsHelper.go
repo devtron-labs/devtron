@@ -65,7 +65,7 @@ func (impl *GitOpsHelper) GetCloneDirectory(targetDir string) (clonedDir string)
 	return clonedDir
 }
 
-func (impl *GitOpsHelper) Clone(url, targetDir string) (clonedDir string, err error) {
+func (impl *GitOpsHelper) Clone(url, targetDir, targetRevision string) (clonedDir string, err error) {
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("Clone", "GitService", start, err)
@@ -82,7 +82,7 @@ func (impl *GitOpsHelper) Clone(url, targetDir string) (clonedDir string, err er
 	_, errMsg, err := impl.gitCommandManager.Fetch(ctx, clonedDir)
 	if err == nil && errMsg == "" {
 		impl.logger.Debugw("git fetch completed, pulling master branch data from remote origin")
-		_, errMsg, err := impl.pullFromBranch(ctx, clonedDir)
+		_, errMsg, err := impl.pullFromBranch(ctx, clonedDir, targetRevision)
 		if err != nil {
 			impl.logger.Errorw("error on git pull", "err", err)
 			return errMsg, err
@@ -95,19 +95,19 @@ func (impl *GitOpsHelper) Clone(url, targetDir string) (clonedDir string, err er
 	return clonedDir, nil
 }
 
-func (impl *GitOpsHelper) Pull(repoRoot string) (err error) {
+func (impl *GitOpsHelper) Pull(repoRoot, targetRevision string) (err error) {
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("Pull", "GitService", start, err)
 	}()
 	ctx := git.BuildGitContext(context.Background()).WithCredentials(impl.Auth).
 		WithTLSData(impl.tlsConfig.CaData, impl.tlsConfig.TLSKeyData, impl.tlsConfig.TLSCertData, impl.isTlsEnabled)
-	return impl.gitCommandManager.Pull(ctx, repoRoot)
+	return impl.gitCommandManager.Pull(ctx, targetRevision, repoRoot)
 }
 
 const PushErrorMessage = "failed to push some refs"
 
-func (impl *GitOpsHelper) CommitAndPushAllChanges(ctx context.Context, repoRoot, commitMsg, name, emailId string) (commitHash string, err error) {
+func (impl *GitOpsHelper) CommitAndPushAllChanges(ctx context.Context, repoRoot, targetRevision, commitMsg, name, emailId string) (commitHash string, err error) {
 	start := time.Now()
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "GitOpsHelper.CommitAndPushAllChanges")
 	defer func() {
@@ -116,15 +116,15 @@ func (impl *GitOpsHelper) CommitAndPushAllChanges(ctx context.Context, repoRoot,
 	}()
 	gitCtx := git.BuildGitContext(newCtx).WithCredentials(impl.Auth).
 		WithTLSData(impl.tlsConfig.CaData, impl.tlsConfig.TLSKeyData, impl.tlsConfig.TLSCertData, impl.isTlsEnabled)
-	commitHash, err = impl.gitCommandManager.CommitAndPush(gitCtx, repoRoot, commitMsg, name, emailId)
+	commitHash, err = impl.gitCommandManager.CommitAndPush(gitCtx, repoRoot, targetRevision, commitMsg, name, emailId)
 	if err != nil && strings.Contains(err.Error(), PushErrorMessage) {
 		return commitHash, fmt.Errorf("%s %v", "push failed due to conflicts", err)
 	}
 	return commitHash, nil
 }
 
-func (impl *GitOpsHelper) pullFromBranch(ctx git.GitContext, rootDir string) (string, string, error) {
-	branch, err := impl.getBranch(ctx, rootDir)
+func (impl *GitOpsHelper) pullFromBranch(ctx git.GitContext, rootDir, targetRevision string) (string, string, error) {
+	branch, err := impl.getBranch(ctx, rootDir, targetRevision)
 	if err != nil || branch == "" {
 		impl.logger.Warnw("no branch found in git repo", "rootDir", rootDir)
 		return "", "", err
@@ -157,7 +157,7 @@ func (impl *GitOpsHelper) init(ctx git.GitContext, rootDir string, remoteUrl str
 	return impl.gitCommandManager.AddRepo(ctx, rootDir, remoteUrl, isBare)
 }
 
-func (impl *GitOpsHelper) getBranch(ctx git.GitContext, rootDir string) (string, error) {
+func (impl *GitOpsHelper) getBranch(ctx git.GitContext, rootDir, targetRevision string) (string, error) {
 	response, errMsg, err := impl.gitCommandManager.ListBranch(ctx, rootDir)
 	if err != nil {
 		impl.logger.Errorw("error on git pull", "response", response, "errMsg", errMsg, "err", err)
@@ -165,17 +165,27 @@ func (impl *GitOpsHelper) getBranch(ctx git.GitContext, rootDir string) (string,
 	}
 	branches := strings.Split(response, "\n")
 	impl.logger.Infow("total branch available in git repo", "branch length", len(branches))
-	branch := ""
-	for _, item := range branches {
-		if strings.TrimSpace(item) == git.ORIGIN_MASTER {
-			branch = git.Branch_Master
-		}
-	}
-	//if git repo has some branch take pull of the first branch, but eventually proxy chart will push into master branch
-	if len(branch) == 0 && branches != nil {
-		branch = strings.ReplaceAll(branches[0], "origin/", "")
+	branch := impl.getDefaultBranch(branches, targetRevision)
+	if strings.HasPrefix(branch, "origin/") {
+		branch = strings.TrimPrefix(branch, "origin/")
 	}
 	return branch, nil
+}
+
+func (impl *GitOpsHelper) getDefaultBranch(branches []string, targetRevision string) (branch string) {
+	// the preferred branch is bean.TargetRevisionMaster
+	for _, item := range branches {
+		if len(targetRevision) != 0 && item == targetRevision {
+			return targetRevision
+		} else if util.IsDefaultTargetRevision(item) {
+			return util.GetDefaultTargetRevision()
+		}
+	}
+	// if git repo has some branch take pull of the first branch, but eventually proxy chart will push into master branch
+	if len(branches) != 0 {
+		return strings.TrimSpace(branches[0])
+	}
+	return util.GetDefaultTargetRevision()
 }
 
 /*
@@ -190,7 +200,7 @@ Case AZURE_DEVOPS_PROVIDER:
   - The clone URL format https://<organisation-name>@dev.azure.com/<organisation-name>/<project-name>/_git/<repo-name>
   - Here the <user-name> can differ from user to user. SanitiseCustomGitRepoURL will return the repo url in format : https://dev.azure.com/<organisation-name>/<project-name>/_git/<repo-name>
 */
-func SanitiseCustomGitRepoURL(activeGitOpsConfig apiGitOpsBean.GitOpsConfigDto, gitRepoURL string) (sanitisedGitRepoURL string) {
+func SanitiseCustomGitRepoURL(activeGitOpsConfig *apiGitOpsBean.GitOpsConfigDto, gitRepoURL string) (sanitisedGitRepoURL string) {
 	sanitisedGitRepoURL = gitRepoURL
 	if activeGitOpsConfig.Provider == BITBUCKET_PROVIDER && strings.Contains(gitRepoURL, fmt.Sprintf("://%s@%s", activeGitOpsConfig.Username, "bitbucket.org/")) {
 		sanitisedGitRepoURL = strings.ReplaceAll(gitRepoURL, fmt.Sprintf("://%s@%s", activeGitOpsConfig.Username, "bitbucket.org/"), "://bitbucket.org/")

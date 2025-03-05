@@ -19,14 +19,17 @@ package appStoreBean
 import (
 	"encoding/json"
 	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	bean3 "github.com/devtron-labs/devtron/api/helm-app/service/bean"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
+	util2 "github.com/devtron-labs/devtron/internal/util"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/gitUtil"
 	"slices"
 	"time"
 )
@@ -108,6 +111,7 @@ type InstallAppVersionDTO struct {
 	IsVirtualEnvironment         bool                           `json:"isVirtualEnvironment"`
 	HelmPackageName              string                         `json:"helmPackageName"`
 	GitOpsRepoURL                string                         `json:"gitRepoURL"`
+	TargetRevision               string                         `json:"-"`
 	IsCustomRepository           bool                           `json:"-"`
 	IsNewGitOpsRepo              bool                           `json:"-"`
 	ACDAppName                   string                         `json:"-"`
@@ -123,6 +127,13 @@ type InstallAppVersionDTO struct {
 	AppStoreApplicationVersionId int
 	DisplayName                  string `json:"-"` // used only for external apps
 	IsChartLinkRequest           bool
+}
+
+func (chart *InstallAppVersionDTO) GetTargetRevision() string {
+	if len(chart.TargetRevision) == 0 {
+		return util.GetDefaultTargetRevision()
+	}
+	return chart.TargetRevision
 }
 
 func (chart *InstallAppVersionDTO) GetAppIdentifierString() string {
@@ -218,9 +229,32 @@ func (chart *InstallAppVersionDTO) GetDeploymentConfig() *bean2.DeploymentConfig
 		EnvironmentId:     chart.EnvironmentId,
 		ConfigType:        configType,
 		DeploymentAppType: chart.DeploymentAppType,
-		RepoURL:           chart.GitOpsRepoURL,
-		RepoName:          gitUtil.GetGitRepoNameFromGitRepoUrl(chart.GitOpsRepoURL),
-		Active:            true,
+		ReleaseMode:       util2.PIPELINE_RELEASE_MODE_CREATE,
+		ReleaseConfiguration: &bean2.ReleaseConfiguration{
+			Version: bean2.Version,
+			ArgoCDSpec: bean2.ArgoCDSpec{
+				Metadata: bean2.ApplicationMetadata{
+					ClusterId: clusterBean.DefaultClusterId,
+					Namespace: argocdServer.DevtronInstalationNs,
+				},
+				Spec: bean2.ApplicationSpec{
+					Destination: &bean2.Destination{
+						Namespace: chart.Namespace,
+						Server:    commonBean.DefaultClusterUrl,
+					},
+					Source: &bean2.ApplicationSource{
+						RepoURL: chart.GitOpsRepoURL,
+						Path:    util.BuildDeployedAppName(chart.AppName, chart.EnvironmentName),
+						Helm: &bean2.ApplicationSourceHelm{
+							ValueFiles: []string{"values.yaml"},
+						},
+						TargetRevision: util.GetDefaultTargetRevision(),
+					},
+					SyncPolicy: nil,
+				},
+			},
+		},
+		Active: true,
 	}
 }
 
@@ -453,7 +487,6 @@ type ChartComponent struct {
 }
 
 const (
-	DEFAULT_CLUSTER_ID                          = 1
 	DEFAULT_NAMESPACE                           = "default"
 	DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT = "devtron"
 	CLUSTER_COMPONENT_DIR_PATH                  = "/cluster/component"

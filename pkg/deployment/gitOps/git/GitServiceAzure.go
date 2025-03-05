@@ -23,6 +23,7 @@ import (
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
 	globalUtil "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/gitUtil"
 	"github.com/devtron-labs/devtron/util/retryFunc"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
@@ -162,8 +163,7 @@ func (impl GitAzureClient) CreateRepository(ctx context.Context, config *bean2.G
 	}
 	isEmpty = false //As we have created readme, repo is no longer empty
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateReadmeStage)
-
-	validated, err = impl.ensureProjectAvailabilityOnSsh(impl.project, *operationReference.WebUrl)
+	validated, err = impl.ensureProjectAvailabilityOnSsh(impl.project, *operationReference.WebUrl, config.TargetRevision)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability azure", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
@@ -192,6 +192,7 @@ func (impl GitAzureClient) CreateReadme(ctx context.Context, config *bean2.GitOp
 		FileContent:    "@devtron",
 		ReleaseMessage: "readme",
 		ChartRepoName:  config.GitRepoName,
+		TargetRevision: config.TargetRevision,
 		UserName:       config.Username,
 		UserEmailId:    config.UserEmailId,
 	}
@@ -203,8 +204,11 @@ func (impl GitAzureClient) CreateReadme(ctx context.Context, config *bean2.GitOp
 }
 
 func (impl GitAzureClient) CommitValues(ctx context.Context, config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error) {
-	branch := "master"
-	branchfull := "refs/heads/master"
+	branch := config.TargetRevision
+	if len(branch) == 0 {
+		branch = globalUtil.GetDefaultTargetRevision()
+	}
+	branchRefHead := gitUtil.GetRefBranchHead(branch)
 	path := filepath.Join(config.ChartLocation, config.FileName)
 	newFile := true
 	oldObjId := "0000000000000000000000000000000000000000" //default commit hash
@@ -241,7 +245,7 @@ func (impl GitAzureClient) CommitValues(ctx context.Context, config *ChartConfig
 
 	var refUpdates []git.GitRefUpdate
 	refUpdates = append(refUpdates, git.GitRefUpdate{
-		Name:        &branchfull,
+		Name:        &branchRefHead,
 		OldObjectId: &oldObjId,
 	})
 	var changeType git.VersionControlChangeType
@@ -357,9 +361,9 @@ func (impl GitAzureClient) ensureProjectAvailabilityOnHttp(repoName string) (boo
 	return false, nil
 }
 
-func (impl GitAzureClient) ensureProjectAvailabilityOnSsh(projectName string, repoUrl string) (bool, error) {
+func (impl GitAzureClient) ensureProjectAvailabilityOnSsh(projectName string, repoUrl string, targetRevision string) (bool, error) {
 	for count := 0; count < 8; count++ {
-		_, err := impl.gitOpsHelper.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName))
+		_, err := impl.gitOpsHelper.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName), targetRevision)
 		if err == nil {
 			impl.logger.Infow("ensureProjectAvailability clone passed azure", "try count", count, "repoUrl", repoUrl)
 			return true, nil

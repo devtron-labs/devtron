@@ -294,3 +294,16 @@ type LinkOuts struct {
 	Link          string `json:"link,omitempty"`
 	Description   string `json:"description,omitempty"`
 }
+
+type AppStages struct {
+	AppId                   int    `json:"app_id,omitempty" sql:"app_id"`
+	CiTemplateId            int    `json:"ci_template_id,omitempty" sql:"ci_template_id"`
+	CiPipelineId            int    `json:"ci_pipeline_id,omitempty" sql:"ci_pipeline_id"`
+	ChartId                 int    `json:"chart_id,omitempty" sql:"chart_id"`
+	ChartGitRepoUrl         string `json:"chart_git_repo_url,omitempty" sql:"chart_git_repo_url"`
+	PipelineId              int    `json:"pipeline_id,omitempty" sql:"pipeline_id"`
+	YamlStatus              int    `json:"yaml_status,omitempty" sql:"yaml_status"`
+	YamlReviewed            bool   `json:"yaml_reviewed,omitempty" sql:"yaml_reviewed"`
+	DeploymentConfigRepoURL string `json:"deployment_config_repo_url" sql:"-"`
+	GitMaterialExists       int    `json:"-" sql:"-"`
+}

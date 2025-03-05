@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils"
+	"github.com/devtron-labs/devtron/pkg/module/bean"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -44,7 +45,7 @@ func TestModuleServiceImpl_GetAllModuleInfo(t *testing.T) {
 	tests := []struct {
 		name    string
 		fields  fields
-		want    []ModuleInfoDto
+		want    []bean.ModuleInfoDto
 		wantErr bool
 	}{
 		{
@@ -95,8 +96,8 @@ func TestModuleServiceImpl_GetAllModuleInfo(t *testing.T) {
 	}
 }
 
-func getModuleDtoResponse1() []ModuleInfoDto {
-	return []ModuleInfoDto{
+func getModuleDtoResponse1() []bean.ModuleInfoDto {
+	return []bean.ModuleInfoDto{
 		{
 			Name:                  "cicd",
 			Status:                "installed",
@@ -120,7 +121,7 @@ func getModuleDtoResponse1() []ModuleInfoDto {
 		{
 			Name:   "notifier",
 			Status: "installed",
-			ModuleResourcesStatus: []*ModuleResourceStatusDto{
+			ModuleResourcesStatus: []*bean.ModuleResourceStatusDto{
 				{
 					Group:         "",
 					Version:       "v1",

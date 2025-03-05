@@ -35,6 +35,7 @@ type ChartConfig struct {
 	FileContent      string
 	ReleaseMessage   string
 	ChartRepoName    string
+	TargetRevision   string
 	UserName         string
 	UserEmailId      string
 	bitBucketBaseDir string // base directory is required for bitbucket to load the

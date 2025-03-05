@@ -23,6 +23,7 @@ import (
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/module"
+	bean3 "github.com/devtron-labs/devtron/pkg/module/bean"
 	"net/http"
 	"time"
 
@@ -165,12 +166,12 @@ func (impl *EventRESTClientImpl) buildFinalPayload(event Event, cdPipeline *pipe
 
 func (impl *EventRESTClientImpl) WriteNotificationEvent(event Event) (bool, error) {
 	// if notification integration is not installed then do not send the notification
-	moduleInfo, err := impl.moduleService.GetModuleInfo(module.ModuleNameNotification)
+	moduleInfo, err := impl.moduleService.GetModuleInfo(bean3.ModuleNameNotification)
 	if err != nil {
 		impl.logger.Errorw("error while getting notification module status", "err", err)
 		return false, err
 	}
-	if moduleInfo.Status != module.ModuleStatusInstalled {
+	if moduleInfo.Status != bean3.ModuleStatusInstalled {
 		impl.logger.Warnw("Notification module is not installed, hence skipping sending notification", "currentModuleStatus", moduleInfo.Status)
 		return false, nil
 	}

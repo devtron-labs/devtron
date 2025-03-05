@@ -30,6 +30,7 @@ var ArgoApplicationWireSetFull = wire.NewSet(
 	config.NewArgoApplicationConfigServiceImpl,
 	wire.Bind(new(config.ArgoApplicationConfigService), new(*config.ArgoApplicationConfigServiceImpl)),
 
+	argoApplication.NewArgoApplicationServiceImpl,
 	argoApplication.NewArgoApplicationServiceExtendedServiceImpl,
 	wire.Bind(new(argoApplication.ArgoApplicationService), new(*argoApplication.ArgoApplicationServiceExtendedImpl)),
 

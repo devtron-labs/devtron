@@ -17,6 +17,7 @@
 package argoApplication
 
 import (
+	"context"
 	"errors"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
@@ -89,6 +90,9 @@ func (handler *ArgoApplicationRestHandlerImpl) GetApplicationDetail(w http.Respo
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
+	ctx := r.Context()
+	ctx = context.WithValue(ctx, "token", token)
+
 	var err error
 	v := r.URL.Query()
 	resourceName := v.Get("name")
@@ -104,7 +108,7 @@ func (handler *ArgoApplicationRestHandlerImpl) GetApplicationDetail(w http.Respo
 			return
 		}
 	}
-	resp, err := handler.readService.GetAppDetail(resourceName, namespace, clusterId)
+	resp, err := handler.readService.GetAppDetailEA(ctx, resourceName, namespace, clusterId)
 	if err != nil {
 		handler.logger.Errorw("error in getting argo application app detail", "err", err, "resourceName", resourceName, "clusterId", clusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

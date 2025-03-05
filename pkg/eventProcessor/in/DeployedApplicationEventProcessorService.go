@@ -21,7 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	v1alpha12 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
@@ -55,6 +56,7 @@ type DeployedApplicationEventProcessorImpl struct {
 	appStoreDeploymentService service.AppStoreDeploymentService
 	pipelineRepository        pipelineConfig.PipelineRepository // TODO: should use cdPipelineReadService instead
 	installedAppReadService   installedAppReader.InstalledAppReadService
+	DeploymentConfigService   common.DeploymentConfigService
 }
 
 func NewDeployedApplicationEventProcessorImpl(logger *zap.SugaredLogger,
@@ -67,7 +69,8 @@ func NewDeployedApplicationEventProcessorImpl(logger *zap.SugaredLogger,
 	pipelineBuilder pipeline.PipelineBuilder,
 	appStoreDeploymentService service.AppStoreDeploymentService,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	installedAppReadService installedAppReader.InstalledAppReadService) *DeployedApplicationEventProcessorImpl {
+	installedAppReadService installedAppReader.InstalledAppReadService,
+	DeploymentConfigService common.DeploymentConfigService) *DeployedApplicationEventProcessorImpl {
 	deployedApplicationEventProcessorImpl := &DeployedApplicationEventProcessorImpl{
 		logger:                    logger,
 		pubSubClient:              pubSubClient,
@@ -80,6 +83,7 @@ func NewDeployedApplicationEventProcessorImpl(logger *zap.SugaredLogger,
 		appStoreDeploymentService: appStoreDeploymentService,
 		pipelineRepository:        pipelineRepository,
 		installedAppReadService:   installedAppReadService,
+		DeploymentConfigService:   DeploymentConfigService,
 	}
 	return deployedApplicationEventProcessorImpl
 }
@@ -100,8 +104,12 @@ func (impl *DeployedApplicationEventProcessorImpl) SubscribeArgoAppUpdate() erro
 			applicationDetail.StatusTime = time.Now()
 		}
 		isAppStoreApplication := false
-		_, err = impl.pipelineRepository.GetArgoPipelineByArgoAppName(app.ObjectMeta.Name)
-		if err != nil && err == pg.ErrNoRows {
+		pipelines, err := impl.pipelineRepository.GetArgoPipelineByArgoAppName(app.ObjectMeta.Name)
+		if err != nil {
+			impl.logger.Errorw("error in fetching pipeline from Pipeline Repository", "err", err, "appName", app.ObjectMeta.Name)
+			return
+		}
+		if len(pipelines) == 0 {
 			impl.logger.Infow("this app not found in pipeline table looking in installed_apps table", "appName", app.ObjectMeta.Name)
 			// if not found in pipeline table then search in installed_apps table
 			installedAppModel, err := impl.installedAppReadService.GetInstalledAppByGitOpsAppName(app.ObjectMeta.Name)
@@ -122,7 +130,7 @@ func (impl *DeployedApplicationEventProcessorImpl) SubscribeArgoAppUpdate() erro
 				return
 			}
 		}
-		isSucceeded, _, pipelineOverride, err := impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, applicationDetail.StatusTime, isAppStoreApplication)
+		isSucceeded, _, pipelineOverride, err := impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, applicationDetail.ClusterId, applicationDetail.StatusTime, isAppStoreApplication)
 		if err != nil {
 			impl.logger.Errorw("error on application status update", "err", err, "msg", string(msg.Data))
 			// TODO - check update for charts - fix this call
@@ -182,7 +190,7 @@ func (impl *DeployedApplicationEventProcessorImpl) SubscribeArgoAppDeleteStatus(
 		}
 		impl.logger.Infow("argo delete event received", "appName", app.Name, "namespace", app.Namespace, "deleteTimestamp", app.DeletionTimestamp)
 
-		err = impl.updateArgoAppDeleteStatus(app)
+		err = impl.updateArgoAppDeleteStatus(applicationDetail)
 		if err != nil {
 			impl.logger.Errorw("error in updating pipeline delete status", "err", err, "appName", app.Name)
 		}
@@ -206,69 +214,90 @@ func (impl *DeployedApplicationEventProcessorImpl) SubscribeArgoAppDeleteStatus(
 	return nil
 }
 
-func (impl *DeployedApplicationEventProcessorImpl) updateArgoAppDeleteStatus(app *v1alpha12.Application) error {
-	pipeline, err := impl.pipelineRepository.GetArgoPipelineByArgoAppName(app.ObjectMeta.Name)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in fetching pipeline from Pipeline Repository", "err", err)
+func (impl *DeployedApplicationEventProcessorImpl) updateHelmAppArgoAppDeleteStatus(application *v1alpha1.Application) error {
+	// Helm app deployed using argocd
+	var gitHash string
+	if application.Operation != nil && application.Operation.Sync != nil {
+		gitHash = application.Operation.Sync.Revision
+	} else if application.Status.OperationState != nil && application.Status.OperationState.Operation.Sync != nil {
+		gitHash = application.Status.OperationState.Operation.Sync.Revision
+	}
+	installedAppDeleteReq, err := impl.installedAppReadService.GetInstalledAppByGitHash(gitHash)
+	if err != nil {
+		impl.logger.Errorw("error in fetching installed app by git hash from installed app repository", "err", err)
 		return err
 	}
-	if pipeline.Deleted == true {
+
+	// Check to ensure that delete request for app was received
+	installedApp, err := impl.installedAppService.GetInstalledAppById(installedAppDeleteReq.InstalledAppId)
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
+		impl.logger.Errorw("error in fetching app from installed app repository", "err", err, "installedAppId", installedAppDeleteReq.InstalledAppId)
+		return err
+	} else if errors.Is(err, pg.ErrNoRows) {
+		impl.logger.Errorw("App not found in database", "installedAppId", installedAppDeleteReq.InstalledAppId, "err", err)
+		return fmt.Errorf("app not found in database %s", err)
+	}
+
+	if installedApp.DeploymentAppDeleteRequest == false {
+		// TODO 4465 remove app from log after final RCA
+		impl.logger.Infow("Deployment delete not requested for app, not deleting app from DB", "appName", application.Name, "installedApp", installedApp)
+		return nil
+	}
+
+	deleteRequest := &appStoreBean.InstallAppVersionDTO{}
+	deleteRequest.ForceDelete = false
+	deleteRequest.NonCascadeDelete = false
+	deleteRequest.AcdPartialDelete = false
+	deleteRequest.InstalledAppId = installedAppDeleteReq.InstalledAppId
+	deleteRequest.AppId = installedAppDeleteReq.AppId
+	deleteRequest.AppName = installedAppDeleteReq.AppName
+	deleteRequest.Namespace = installedAppDeleteReq.Namespace
+	deleteRequest.ClusterId = installedAppDeleteReq.ClusterId
+	deleteRequest.EnvironmentId = installedAppDeleteReq.EnvironmentId
+	deleteRequest.AppOfferingMode = installedAppDeleteReq.AppOfferingMode
+	deleteRequest.UserId = 1
+	_, err = impl.appStoreDeploymentService.DeleteInstalledApp(context.Background(), deleteRequest)
+	if err != nil {
+		impl.logger.Errorw("error in deleting installed app", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl *DeployedApplicationEventProcessorImpl) updateDevtronAppArgoAppDeleteStatus(applicationDetail bean3.ApplicationDetail,
+	pipelines []pipelineConfig.Pipeline) error {
+	application := applicationDetail.Application
+	pipelineModel, err := impl.DeploymentConfigService.FilterPipelinesByApplicationClusterIdAndNamespace(pipelines, applicationDetail.ClusterId, application.Namespace)
+	if err != nil {
+		impl.logger.Errorw("error in filtering pipeline by application cluster id and namespace", "err", err)
+		return err
+	}
+	if pipelineModel.Deleted == true {
 		impl.logger.Errorw("invalid nats message, pipeline already deleted")
 		return errors.New("invalid nats message, pipeline already deleted")
 	}
-	if err == pg.ErrNoRows {
-		// Helm app deployed using argocd
-		var gitHash string
-		if app.Operation != nil && app.Operation.Sync != nil {
-			gitHash = app.Operation.Sync.Revision
-		} else if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
-			gitHash = app.Status.OperationState.Operation.Sync.Revision
-		}
-		installedAppDeleteReq, err := impl.installedAppReadService.GetInstalledAppByGitHash(gitHash)
-		if err != nil {
-			impl.logger.Errorw("error in fetching installed app by git hash from installed app repository", "err", err)
-			return err
-		}
-
-		// Check to ensure that delete request for app was received
-		installedApp, err := impl.installedAppService.GetInstalledAppById(installedAppDeleteReq.InstalledAppId)
-		if err == pg.ErrNoRows {
-			impl.logger.Errorw("App not found in database", "installedAppId", installedAppDeleteReq.InstalledAppId, "err", err)
-			return fmt.Errorf("app not found in database %s", err)
-		} else if installedApp.DeploymentAppDeleteRequest == false {
-			// TODO 4465 remove app from log after final RCA
-			impl.logger.Infow("Deployment delete not requested for app, not deleting app from DB", "appName", app.Name, "app", app)
-			return nil
-		}
-
-		deleteRequest := &appStoreBean.InstallAppVersionDTO{}
-		deleteRequest.ForceDelete = false
-		deleteRequest.NonCascadeDelete = false
-		deleteRequest.AcdPartialDelete = false
-		deleteRequest.InstalledAppId = installedAppDeleteReq.InstalledAppId
-		deleteRequest.AppId = installedAppDeleteReq.AppId
-		deleteRequest.AppName = installedAppDeleteReq.AppName
-		deleteRequest.Namespace = installedAppDeleteReq.Namespace
-		deleteRequest.ClusterId = installedAppDeleteReq.ClusterId
-		deleteRequest.EnvironmentId = installedAppDeleteReq.EnvironmentId
-		deleteRequest.AppOfferingMode = installedAppDeleteReq.AppOfferingMode
-		deleteRequest.UserId = 1
-		_, err = impl.appStoreDeploymentService.DeleteInstalledApp(context.Background(), deleteRequest)
-		if err != nil {
-			impl.logger.Errorw("error in deleting installed app", "err", err)
-			return err
-		}
-	} else {
-		// devtron app
-		if pipeline.DeploymentAppDeleteRequest == false {
-			impl.logger.Infow("Deployment delete not requested for app, not deleting app from DB", "appName", app.Name, "app", app)
-			return nil
-		}
-		_, err = impl.pipelineBuilder.DeleteCdPipeline(&pipeline, context.Background(), bean.FORCE_DELETE, false, 1)
-		if err != nil {
-			impl.logger.Errorw("error in deleting cd pipeline", "err", err)
-			return err
-		}
+	// devtron app
+	if pipelineModel.DeploymentAppDeleteRequest == false {
+		impl.logger.Infow("Deployment delete not requested for app, not deleting app from DB", "appName", application.Name, "app", application)
+		return nil
+	}
+	_, err = impl.pipelineBuilder.DeleteCdPipeline(&pipelineModel, context.Background(), bean.FORCE_DELETE, false, 1)
+	if err != nil {
+		impl.logger.Errorw("error in deleting cd pipeline", "err", err)
+		return err
 	}
 	return nil
+}
+
+func (impl *DeployedApplicationEventProcessorImpl) updateArgoAppDeleteStatus(applicationDetail bean3.ApplicationDetail) error {
+	application := applicationDetail.Application
+	pipelines, err := impl.pipelineRepository.GetArgoPipelineByArgoAppName(application.ObjectMeta.Name)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipeline from Pipeline Repository", "err", err)
+		return err
+	}
+	if len(pipelines) == 0 {
+		return impl.updateHelmAppArgoAppDeleteStatus(application)
+	}
+	return impl.updateDevtronAppArgoAppDeleteStatus(applicationDetail, pipelines)
 }
