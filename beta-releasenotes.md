@@ -1,4 +1,5 @@
 ## Bugs
+- fix: createDockerRepoIfNeeded error handling (#6433)
 ## Enhancements
 ## Documentation
 ## Others
