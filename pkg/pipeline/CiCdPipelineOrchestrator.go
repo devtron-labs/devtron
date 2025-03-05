@@ -1111,7 +1111,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			}
 			if !ciPipeline.IsExternal { //pipeline is not [linked, webhook] and overridden, then create template override
 				err = impl.createDockerRepoIfNeeded(ciPipeline.DockerConfigOverride.DockerRegistry, ciPipeline.DockerConfigOverride.DockerRepository)
-				// silently ignore the error, since we don't want to fail the pipeline creation
+				// silently ignoring the error, since we don't want to fail the pipeline creation
 				if err != nil {
 					impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", ciPipeline.DockerConfigOverride.DockerRegistry, "dockerRegistry", ciPipeline.DockerConfigOverride.DockerRepository)
 				}
