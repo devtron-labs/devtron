@@ -705,6 +705,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		}
 	}
 
+	response.ApplicationMetadata.Destination.Namespace = targetClusterNamespace
 	var targetCluster *bean3.ClusterBean
 	if targetClusterURL == commonBean2.DefaultClusterUrl {
 		targetCluster, err = impl.clusterReadService.FindById(request.ApplicationMetadataRequest.ApplicationObjectClusterId)
@@ -723,9 +724,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		return response.SetErrorDetail(pipelineConfigBean.ClusterNotFound, "targetCluster not added in global configuration")
 	}
 
-	response.ApplicationMetadata.Destination.ClusterServerUrl = targetCluster.ServerUrl
 	response.ApplicationMetadata.Destination.ClusterName = targetCluster.ClusterName
-	response.ApplicationMetadata.Destination.Namespace = targetClusterNamespace
 
 	targetEnv, err := impl.environmentRepository.FindOneByNamespaceAndClusterId(targetClusterNamespace, targetCluster.Id)
 	if err != nil {

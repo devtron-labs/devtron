@@ -5,7 +5,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/read/adapter"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/read/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
-	bean2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
 	"go.uber.org/zap"
 )
 
@@ -34,7 +33,7 @@ type InstalledAppReadServiceEA interface {
 	// Additional details like app store details are also fetched.
 	// Refer bean.InstalledAppVersionWithAppStoreDetails for more details.
 	GetInstalledAppVersionIncludingDeleted(installedAppVersionId int) (*bean.InstalledAppVersionWithAppStoreDetails, error)
-	GetAllArgoAppNamesByCluster(clusterId []int) ([]bean2.DeployedInstalledAppInfo, error)
+	GetAllArgoAppNamesByDeploymentAppNames(deploymentAppName []string) ([]string, error)
 	// IsChartStoreAppManagedByArgoCd returns if a chart store app is deployed via argo-cd or not
 	IsChartStoreAppManagedByArgoCd(appId int) (bool, error)
 }
@@ -103,8 +102,8 @@ func (impl *InstalledAppReadServiceEAImpl) GetInstalledAppVersionIncludingDelete
 	return adapter.GetInstalledAppVersionWithAppStoreDetails(installedAppVersionModel), nil
 }
 
-func (impl *InstalledAppReadServiceEAImpl) GetAllArgoAppNamesByCluster(clusterId []int) ([]bean2.DeployedInstalledAppInfo, error) {
-	return impl.installedAppRepository.GetAllAppsByClusterAndDeploymentAppType(clusterId, util.PIPELINE_DEPLOYMENT_TYPE_ACD)
+func (impl *InstalledAppReadServiceEAImpl) GetAllArgoAppNamesByDeploymentAppNames(deploymentAppNames []string) ([]string, error) {
+	return impl.installedAppRepository.GetAllArgoAppsByDeploymentAppNames(deploymentAppNames)
 }
 
 func (impl *InstalledAppReadServiceEAImpl) IsChartStoreAppManagedByArgoCd(appId int) (bool, error) {

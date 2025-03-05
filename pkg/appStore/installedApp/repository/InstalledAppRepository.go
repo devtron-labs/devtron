@@ -168,6 +168,7 @@ type InstalledAppRepository interface {
 	// Extra Environment, App, Team, Cluster details are not fetched
 	FindAllByEnvironmentId(envId int) ([]*InstalledApps, error)
 	GetInstalledAppsMinByAppId(appId int) (*InstalledApps, error)
+	GetAllArgoAppsByDeploymentAppNames(deploymentAppNames []string) ([]string, error)
 	GetAllAppsByClusterAndDeploymentAppType(clusterIds []int, deploymentAppType string) ([]bean.DeployedInstalledAppInfo, error)
 }
 
@@ -1048,6 +1049,38 @@ func (impl *InstalledAppRepositoryImpl) GetAllAppsByClusterAndDeploymentAppType(
 		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
 			return query.WhereOr("installed_apps.deployment_app_type = ?", deploymentAppType).
 				WhereOr("deployment_config.deployment_app_type = ?", deploymentAppType), nil
+		}).
+		Select(&result)
+	return result, err
+}
+
+func (impl *InstalledAppRepositoryImpl) GetAllArgoAppsByDeploymentAppNames(deploymentAppNames []string) ([]string, error) {
+	result := make([]string, 0)
+	if len(deploymentAppNames) == 0 {
+		return result, nil
+	}
+	err := impl.dbConnection.Model().
+		Table("installed_apps").
+		ColumnExpr("CONCAT(app.app_name, '-', environment.environment_name) AS deployment_app_name").
+		// inner join with app
+		Join("INNER JOIN app").
+		JoinOn("installed_apps.app_id = app.id").
+		// inner join with environment
+		Join("INNER JOIN environment").
+		JoinOn("installed_apps.environment_id = environment.id").
+		// left join with deployment_config
+		Join("LEFT JOIN deployment_config").
+		JoinOn("installed_apps.app_id = deployment_config.app_id").
+		JoinOn("installed_apps.environment_id = deployment_config.environment_id").
+		JoinOn("deployment_config.active = ?", true).
+		// where conditions
+		Where("CONCAT(app.app_name, '-', environment.environment_name) in (?)", pg.In(deploymentAppNames)).
+		Where("installed_apps.active = ?", true).
+		Where("app.active = ?", true).
+		Where("environment.active = ?", true).
+		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
+			return query.WhereOr("installed_apps.deployment_app_type = ?", util2.PIPELINE_DEPLOYMENT_TYPE_ACD).
+				WhereOr("deployment_config.deployment_app_type = ?", util2.PIPELINE_DEPLOYMENT_TYPE_ACD), nil
 		}).
 		Select(&result)
 	return result, err
