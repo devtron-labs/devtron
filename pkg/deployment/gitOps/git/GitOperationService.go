@@ -47,7 +47,7 @@ type GitOperationService interface {
 	GitPull(clonedDir string, repoUrl string, targetRevision string) error
 
 	CommitValues(ctx context.Context, chartGitAttr *ChartConfig) (commitHash string, commitTime time.Time, err error)
-	PushChartToGitRepo(ctx context.Context, gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir, repoUrl, targetRevision string, userId int32) (err error)
+	PushChartToGitRepo(ctx context.Context, gitOpsRepoName, chartLocation, tempReferenceTemplateDir, repoUrl, targetRevision string, userId int32) (err error)
 	PushChartToGitOpsRepoForHelmApp(ctx context.Context, pushChartToGitRequest *bean.PushChartToGitRequestDTO, requirementsConfig, valuesConfig *ChartConfig) (*commonBean.ChartGitAttribute, string, error)
 
 	CreateRepository(ctx context.Context, dto *apiBean.GitOpsConfigDto, userId int32) (string, bool, bool, error)
@@ -108,7 +108,7 @@ func (impl *GitOperationServiceImpl) CreateGitRepositoryForDevtronApp(ctx contex
 		RepoUrl:        repoUrl,
 		TargetRevision: targetRevision,
 		IsNewRepo:      isNew,
-		IsRepoEmpty: isEmpty,
+		IsRepoEmpty:    isEmpty,
 	}, nil
 }
 
@@ -116,7 +116,7 @@ func getChartDirPathFromCloneDir(cloneDirPath string) (string, error) {
 	return filepath.Rel(GIT_WORKING_DIR, cloneDirPath)
 }
 
-func (impl *GitOperationServiceImpl) PushChartToGitRepo(ctx context.Context, gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir, repoUrl, targetRevision string, userId int32) (err error) {
+func (impl *GitOperationServiceImpl) PushChartToGitRepo(ctx context.Context, gitOpsRepoName, chartLocation, tempReferenceTemplateDir, repoUrl, targetRevision string, userId int32) (err error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "GitOperationServiceImpl.PushChartToGitRepo")
 	defer span.End()
 	chartDir := fmt.Sprintf("%s-%s", gitOpsRepoName, impl.chartTemplateService.GetDir())
@@ -132,7 +132,7 @@ func (impl *GitOperationServiceImpl) PushChartToGitRepo(ctx context.Context, git
 		impl.logger.Errorw("error in pulling git repo", "url", repoUrl, "err", err)
 		return err
 	}
-	dir := filepath.Join(clonedDir, referenceTemplate, version)
+	dir := filepath.Join(clonedDir, chartLocation)
 	performFirstCommitPush := true
 
 	//if chart already exists don't overrides it by reference template
