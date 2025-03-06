@@ -246,7 +246,7 @@ func (impl *GitOpsManifestPushServiceImpl) pushChartToGitRepo(ctx context.Contex
 		impl.logger.Errorw("err in getting chart info", "err", err)
 		return err
 	}
-	err = impl.gitOperationService.PushChartToGitRepo(newCtx, gitOpsRepoName, manifestPushTemplate.ChartReferenceTemplate, manifestPushTemplate.ChartVersion, manifestPushTemplate.BuiltChartPath, manifestPushTemplate.RepoUrl, manifestPushTemplate.TargetRevision, manifestPushTemplate.UserId)
+	err = impl.gitOperationService.PushChartToGitRepo(newCtx, gitOpsRepoName, manifestPushTemplate.ChartLocation, manifestPushTemplate.BuiltChartPath, manifestPushTemplate.RepoUrl, manifestPushTemplate.TargetRevision, manifestPushTemplate.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git", "err", err)
 		return err

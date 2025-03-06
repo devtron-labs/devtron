@@ -362,8 +362,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(read2.ChartReadService), new(*read2.ChartReadServiceImpl)),
 		service.NewBulkUpdateServiceImpl,
 		wire.Bind(new(service.BulkUpdateService), new(*service.BulkUpdateServiceImpl)),
-		read2.NewChartReadServiceImpl,
-		wire.Bind(new(read2.ChartReadService), new(*read2.ChartReadServiceImpl)),
 
 		repository.NewImageTagRepository,
 		wire.Bind(new(repository.ImageTagRepository), new(*repository.ImageTagRepositoryImpl)),

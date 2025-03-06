@@ -1,10 +1,14 @@
 package bean
 
 import (
+	"errors"
+	"fmt"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
+	chart2 "helm.sh/helm/v3/pkg/chart"
 )
 
 type MigrateReleaseValidationRequest struct {
@@ -35,9 +39,76 @@ func (h MigrateReleaseValidationRequest) GetReleaseNamespace() string {
 
 type ExternalAppLinkValidationResponse struct {
 	IsLinkable          bool                `json:"isLinkable"`
-	ErrorDetail         ErrorDetail         `json:"errorDetail"`
+	ErrorDetail         *ErrorDetail        `json:"errorDetail"`
 	ApplicationMetadata ApplicationMetadata `json:"applicationMetadata"`
 	HelmReleaseMetadata HelmReleaseMetadata `json:"helmReleaseMetadata"`
+}
+
+func (a *ApplicationMetadata) UpdateApplicationSpecData(argoApplicationSpec *v1alpha1.Application) {
+	if argoApplicationSpec.Spec.Source != nil {
+
+		a.Source = Source{
+			RepoURL:   argoApplicationSpec.Spec.Source.RepoURL,
+			ChartPath: argoApplicationSpec.Spec.Source.Chart,
+			ChartMetadata: ChartMetadata{
+				ValuesFilename: argoApplicationSpec.Spec.Source.Helm.ValueFiles[0],
+			},
+		}
+	}
+	a.Destination = Destination{
+		ClusterServerUrl: argoApplicationSpec.Spec.Destination.Server,
+		Namespace:        argoApplicationSpec.Spec.Destination.Namespace,
+	}
+	a.Status = string(argoApplicationSpec.Status.Health.Status)
+}
+
+func (a *ApplicationMetadata) GetTargetClusterURL() string {
+	return a.Destination.ClusterServerUrl
+}
+
+func (a *ApplicationMetadata) GetTargetClusterNamespace() string {
+	return a.Destination.Namespace
+}
+
+func (a *ApplicationMetadata) UpdateTargetClusterURL(clusterURL string) {
+	a.Destination.ClusterServerUrl = clusterURL
+}
+
+func (a *ApplicationMetadata) UpdateTargetClusterName(clusterName string) {
+	a.Destination.ClusterName = clusterName
+}
+
+func (a *ApplicationMetadata) UpdateClusterData(cluster *bean.ClusterBean) {
+	if cluster != nil {
+		a.UpdateTargetClusterURL(cluster.ServerUrl)
+		a.UpdateTargetClusterName(cluster.ClusterName)
+	}
+}
+
+func (a *ApplicationMetadata) UpdateHelmChartData(chart *chart2.Chart) {
+	a.Source.ChartMetadata.RequiredChartName = chart.Metadata.Name
+	a.Source.ChartMetadata.RequiredChartVersion = chart.Metadata.Version
+}
+
+func (a *ApplicationMetadata) UpdateChartRefData(chartRef *bean2.ChartRefDto) {
+	a.Source.ChartMetadata.SavedChartName = chartRef.Name
+}
+
+func (a *ApplicationMetadata) UpdateEnvironmentData(env *repository.Environment) {
+	a.Destination.EnvironmentName = env.Name
+	a.Destination.EnvironmentId = env.Id
+}
+
+func (a *ApplicationMetadata) GetRequiredChartName() string {
+	return a.Source.ChartMetadata.RequiredChartName
+}
+
+func (a *ApplicationMetadata) GetRequiredChartVersion() string {
+	return a.Source.ChartMetadata.RequiredChartVersion
+}
+
+func (a *ApplicationMetadata) GetSavedChartName() string {
+	return a.Source.ChartMetadata.SavedChartName
 }
 
 func (r *HelmReleaseMetadata) WithReleaseData(release *gRPC.DeployedAppDetail) {
@@ -125,20 +196,28 @@ type HelmReleaseInfo struct {
 	Status string `json:"status"`
 }
 
-func (a *ExternalAppLinkValidationResponse) SetErrorDetail(ValidationFailedReason LinkFailedReason, ValidationFailedMessage string) ExternalAppLinkValidationResponse {
-	a.ErrorDetail = ErrorDetail{
-		ValidationFailedReason:  ValidationFailedReason,
-		ValidationFailedMessage: ValidationFailedMessage,
+func (a *ExternalAppLinkValidationResponse) SetErrorDetail(err error) ExternalAppLinkValidationResponse {
+	var linkFailedError LinkFailedError
+	if errors.As(err, &linkFailedError) {
+		a.ErrorDetail = &ErrorDetail{
+			ValidationFailedReason:  linkFailedError.Reason,
+			ValidationFailedMessage: linkFailedError.UserMessage,
+		}
 	}
 	return *a
 }
 
 func (a *ExternalAppLinkValidationResponse) SetUnknownErrorDetail(err error) ExternalAppLinkValidationResponse {
-	a.ErrorDetail = ErrorDetail{
+	a.ErrorDetail = &ErrorDetail{
 		ValidationFailedReason:  InternalServerError,
 		ValidationFailedMessage: err.Error(),
 	}
 	return *a
+}
+
+type LinkFailedError struct {
+	Reason      LinkFailedReason
+	UserMessage string
 }
 
 type LinkFailedReason string
@@ -146,6 +225,10 @@ type LinkFailedReason string
 type ErrorDetail struct {
 	ValidationFailedReason  LinkFailedReason `json:"validationFailedReason"`
 	ValidationFailedMessage string           `json:"validationFailedMessage"`
+}
+
+func (l LinkFailedError) Error() string {
+	return fmt.Sprintf("%s: %s", l.Reason, l.UserMessage)
 }
 
 const (

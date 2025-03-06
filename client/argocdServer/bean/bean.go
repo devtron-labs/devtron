@@ -28,6 +28,7 @@ const (
 	TargetRevisionMaster       = "master"
 	TargetRevisionOriginMaster = "origin/master"
 	PatchTypeMerge             = "merge"
+	TargetRevisionHead         = "head"
 )
 
 type ArgoCdAppPatchReqDto struct {
