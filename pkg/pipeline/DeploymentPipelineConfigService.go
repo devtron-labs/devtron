@@ -27,6 +27,7 @@ import (
 	models2 "github.com/devtron-labs/devtron/api/helm-app/models"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
+	read4 "github.com/devtron-labs/devtron/api/helm-app/service/read"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -187,6 +188,7 @@ type CdPipelineConfigServiceImpl struct {
 	clusterReadService                read2.ClusterReadService
 	installedAppReadService           installedAppReader.InstalledAppReadService
 	chartReadService                  read3.ChartReadService
+	helmAppReadService                read4.HelmAppReadService
 }
 
 func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -219,7 +221,8 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 	gitFactory *git.GitFactory,
 	clusterReadService read2.ClusterReadService,
 	installedAppReadService installedAppReader.InstalledAppReadService,
-	chartReadService read3.ChartReadService) *CdPipelineConfigServiceImpl {
+	chartReadService read3.ChartReadService,
+	helmAppReadService read4.HelmAppReadService) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
 		logger:                            logger,
 		pipelineRepository:                pipelineRepository,
@@ -264,6 +267,7 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 		clusterReadService:                clusterReadService,
 		installedAppReadService:           installedAppReadService,
 		chartReadService:                  chartReadService,
+		helmAppReadService:                helmAppReadService,
 	}
 }
 
@@ -837,55 +841,26 @@ func (impl *CdPipelineConfigServiceImpl) parseReleaseConfigForExternalAcdApp(clu
 
 func (impl *CdPipelineConfigServiceImpl) ValidateLinkHelmAppRequest(ctx context.Context, request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ExternalAppLinkValidationResponse {
 
-	response := pipelineConfigBean.ExternalAppLinkValidationResponse{
-		IsLinkable: false,
-		HelmReleaseMetadata: pipelineConfigBean.HelmReleaseMetadata{
-			Name:        request.DeploymentAppName,
-			Info:        pipelineConfigBean.HelmReleaseInfo{},
-			Chart:       pipelineConfigBean.HelmReleaseChart{},
-			Destination: pipelineConfigBean.Destination{},
-		},
-	}
+	response := pipelineConfigBean.ExternalAppLinkValidationResponse{}
 
 	appId := request.AppId
-	releaseClusterId := request.HelmReleaseMetadataRequest.ReleaseClusterId
-	releaseNamespace := request.HelmReleaseMetadataRequest.ReleaseNamespace
 
-	appIdentifier := &helmBean.AppIdentifier{
-		ClusterId:   releaseClusterId,
-		Namespace:   releaseNamespace,
-		ReleaseName: request.DeploymentAppName,
-	}
+	releaseClusterId := request.GetReleaseClusterId()
+	releaseNamespace := request.GetReleaseNamespace()
 
-	release, err := impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
+	release, err := impl.helmAppService.GetReleaseDetails(ctx, releaseClusterId, request.DeploymentAppName, releaseNamespace)
 	if err != nil {
-		impl.logger.Errorw("error in getting application detail", "appIdentifier", appIdentifier, "err", err)
+		impl.logger.Errorw("error in getting application detail", "releaseClusterId", releaseClusterId, "releaseName", request.DeploymentAppName, "releaseNamespace", releaseNamespace, "err", err)
 		return response.SetUnknownErrorDetail(err)
 	}
-
-	response.HelmReleaseMetadata.Info = pipelineConfigBean.HelmReleaseInfo{
-		Status: release.ReleaseStatus.Status,
-	}
-
-	response.HelmReleaseMetadata.Destination = pipelineConfigBean.Destination{
-		Namespace: release.EnvironmentDetails.Namespace,
-	}
-
-	releaseChartName, releaseChartVersion := release.ChartMetadata.ChartName, release.ChartMetadata.ChartVersion
-	response.HelmReleaseMetadata.Chart.HelmReleaseChartMetadata = pipelineConfigBean.HelmReleaseChartMetadata{
-		RequiredChartName: releaseChartName,
-		Home:              release.ChartMetadata.Home,
-		Version:           release.ChartMetadata.ChartVersion,
-	}
+	response.HelmReleaseMetadata.WithReleaseData(release)
 
 	cluster, err := impl.clusterReadService.FindById(releaseClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster by id", "clusterId", releaseClusterId, "err", err)
 		return response.SetUnknownErrorDetail(err)
 	}
-
-	response.HelmReleaseMetadata.Destination.ClusterName = cluster.ClusterName
-	response.HelmReleaseMetadata.Destination.ClusterServerUrl = cluster.ServerUrl
+	response.HelmReleaseMetadata.WithClusterData(cluster)
 
 	env, err := impl.environmentRepository.FindOneByNamespaceAndClusterId(releaseNamespace, releaseClusterId)
 	if err != nil {
@@ -894,26 +869,25 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkHelmAppRequest(ctx context.
 		}
 		return response.SetUnknownErrorDetail(err)
 	}
-
-	response.HelmReleaseMetadata.Destination.EnvironmentName = env.Name
-	response.HelmReleaseMetadata.Destination.EnvironmentId = env.Id
+	response.HelmReleaseMetadata.WithEnvironmentMetadata(env)
 
 	chartRef, err := impl.chartReadService.GetChartRefConfiguredForApp(appId)
 	if err != nil {
 		impl.logger.Errorw("error in finding chart configured for app ", "appId", appId, "err", err)
 		return response.SetUnknownErrorDetail(err)
 	}
-	response.HelmReleaseMetadata.Chart.HelmReleaseChartMetadata.SavedChartName = chartRef.Name
-	if chartRef.Name != releaseChartName {
-		return response.SetErrorDetail(pipelineConfigBean.ChartTypeMismatch, fmt.Sprintf(pipelineConfigBean.ChartTypeMismatchErrorMsg, releaseChartName, chartRef.Name))
+
+	response.HelmReleaseMetadata.WithChartRefData(chartRef)
+	if chartRef.Name != release.ChartName {
+		return response.SetErrorDetail(pipelineConfigBean.ChartTypeMismatch, fmt.Sprintf(pipelineConfigBean.ChartTypeMismatchErrorMsg, release.ChartName, chartRef.Name))
 	}
 
-	_, err = impl.chartRefReadService.FindByVersionAndName(releaseChartVersion, releaseChartName)
+	_, err = impl.chartRefReadService.FindByVersionAndName(release.ChartVersion, release.ChartName)
 	if err != nil && !errors3.Is(err, pg.ErrNoRows) {
-		impl.logger.Errorw("error in finding chart ref by chart name and version", "chartName", releaseChartName, "chartVersion", releaseChartVersion, "err", err)
+		impl.logger.Errorw("error in finding chart ref by chart name and version", "chartName", release.ChartName, "chartVersion", release.ChartVersion, "err", err)
 		return response.SetUnknownErrorDetail(err)
 	} else if errors3.Is(err, pg.ErrNoRows) {
-		return response.SetErrorDetail(pipelineConfigBean.ChartVersionNotFound, fmt.Sprintf(pipelineConfigBean.ChartVersionNotFoundErrorMsg, releaseChartVersion, chartRef.Name))
+		return response.SetErrorDetail(pipelineConfigBean.ChartVersionNotFound, fmt.Sprintf(pipelineConfigBean.ChartVersionNotFoundErrorMsg, release.ChartVersion, chartRef.Name))
 	}
 
 	response.IsLinkable = true
@@ -926,7 +900,6 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkHelmAppRequest(ctx context.
 		}
 		return response.SetUnknownErrorDetail(err)
 	}
-
 	if overrideDeploymentType != util.PIPELINE_DEPLOYMENT_TYPE_HELM {
 		errMsg := fmt.Sprintf("Cannot migrate Helm Release. Deployment via %q is enforced on the target environment.", overrideDeploymentType)
 		return response.SetErrorDetail(pipelineConfigBean.EnforcedPolicyViolation, errMsg)

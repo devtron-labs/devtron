@@ -1,5 +1,12 @@
 package bean
 
+import (
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	"github.com/devtron-labs/devtron/pkg/cluster/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
+)
+
 type MigrateReleaseValidationRequest struct {
 	AppId                      int                        `json:"appId"`
 	DeploymentAppName          string                     `json:"deploymentAppName"`
@@ -18,11 +25,48 @@ type HelmReleaseMetadataRequest struct {
 	ReleaseNamespace string `json:"releaseNamespace"`
 }
 
+func (h MigrateReleaseValidationRequest) GetReleaseClusterId() int {
+	return h.HelmReleaseMetadataRequest.ReleaseClusterId
+}
+
+func (h MigrateReleaseValidationRequest) GetReleaseNamespace() string {
+	return h.HelmReleaseMetadataRequest.ReleaseNamespace
+}
+
 type ExternalAppLinkValidationResponse struct {
 	IsLinkable          bool                `json:"isLinkable"`
 	ErrorDetail         ErrorDetail         `json:"errorDetail"`
 	ApplicationMetadata ApplicationMetadata `json:"applicationMetadata"`
 	HelmReleaseMetadata HelmReleaseMetadata `json:"helmReleaseMetadata"`
+}
+
+func (r *HelmReleaseMetadata) WithReleaseData(release *gRPC.DeployedAppDetail) {
+	r.Info = HelmReleaseInfo{
+		Status: release.ReleaseStatus,
+	}
+	r.Destination = Destination{
+		Namespace: release.EnvironmentDetail.Namespace,
+	}
+	r.Chart.HelmReleaseChartMetadata = HelmReleaseChartMetadata{
+		RequiredChartName:    release.ChartName,
+		Home:                 release.Home,
+		RequiredChartVersion: release.ChartVersion,
+		Icon:                 release.ChartAvatar,
+	}
+}
+
+func (r *HelmReleaseMetadata) WithClusterData(cluster *bean.ClusterBean) {
+	r.Destination.ClusterName = cluster.ClusterName
+	r.Destination.ClusterServerUrl = cluster.ServerUrl
+}
+
+func (r *HelmReleaseMetadata) WithEnvironmentMetadata(environment *repository.Environment) {
+	r.Destination.EnvironmentName = environment.Name
+	r.Destination.EnvironmentId = environment.Id
+}
+
+func (r *HelmReleaseMetadata) WithChartRefData(chartRef *bean2.ChartRefDto) {
+	r.Chart.HelmReleaseChartMetadata.SavedChartName = chartRef.Name
 }
 
 type ApplicationMetadata struct {
@@ -68,13 +112,13 @@ type HelmReleaseChart struct {
 }
 
 type HelmReleaseChartMetadata struct {
-	RequiredChartName string `json:"requiredChartName"`
-	SavedChartName    string `json:"savedChartName"`
-	Home              string `json:"home"`
-	Version           string `json:"version"`
-	Icon              string `json:"icon"`
-	ApiVersion        string `json:"apiVersion"`
-	Deprecated        bool   `json:"deprecated"`
+	RequiredChartName    string `json:"requiredChartName"`
+	SavedChartName       string `json:"savedChartName"`
+	Home                 string `json:"home"`
+	RequiredChartVersion string `json:"requiredChartVersion"`
+	Icon                 string `json:"icon"`
+	ApiVersion           string `json:"apiVersion"`
+	Deprecated           bool   `json:"deprecated"`
 }
 
 type HelmReleaseInfo struct {

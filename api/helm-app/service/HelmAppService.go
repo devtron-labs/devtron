@@ -100,6 +100,7 @@ type HelmAppService interface {
 	CheckIfNsExistsForClusterIds(clusterIdToNsMap map[int]string) error
 	ListHelmApplicationsForClusterOrEnv(ctx context.Context, clusterId, envId int) ([]helmBean.ExternalHelmAppListingResult, error)
 	GetAppStatusV2(ctx context.Context, req *gRPC.AppDetailRequest, clusterId int) (*gRPC.AppStatus, error)
+	GetReleaseDetails(ctx context.Context, releaseClusterId int, releaseName, releaseNamespace string) (*gRPC.DeployedAppDetail, error)
 }
 
 type HelmAppServiceImpl struct {
@@ -1388,4 +1389,26 @@ func (impl *HelmAppServiceImpl) IsAppExcludedCheck(deployedApp helmBean.External
 		return true
 	}
 	return false
+}
+
+func (impl *HelmAppServiceImpl) GetReleaseDetails(ctx context.Context, releaseClusterId int, releaseName, releaseNamespace string) (*gRPC.DeployedAppDetail, error) {
+
+	config, err := impl.helmAppReadService.GetClusterConf(releaseClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cluster detail", "clusterId", releaseClusterId, "err", err)
+		return nil, err
+	}
+	appIdentifier := &gRPC.ReleaseIdentifier{
+		ClusterConfig:    config,
+		ReleaseName:      releaseName,
+		ReleaseNamespace: releaseNamespace,
+	}
+
+	release, err := impl.helmAppClient.GetReleaseDetails(ctx, appIdentifier)
+	if err != nil {
+		impl.logger.Errorw("error in getting application detail", "appIdentifier", appIdentifier, "err", err)
+		return nil, err
+	}
+
+	return release, nil
 }
