@@ -65,6 +65,7 @@ type ChartService interface {
 	CheckIfChartRefUserUploadedByAppId(id int) (bool, error)
 	PatchEnvOverrides(values json.RawMessage, oldChartType string, newChartType string) (json.RawMessage, error)
 
+	ChartRefAutocompleteGlobalData() (*chartRefBean.ChartRefAutocompleteResponse, error)
 	ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*chartRefBean.ChartRefAutocompleteResponse, error)
 
 	ConfigureGitOpsRepoUrlForApp(appId int, repoUrl, chartLocation string, isCustomRepo bool, userId int32) (*bean2.DeploymentConfig, error)
@@ -814,42 +815,17 @@ func (impl *ChartServiceImpl) IsReadyToTrigger(appId int, envId int, pipelineId 
 }
 
 func (impl *ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*chartRefBean.ChartRefAutocompleteResponse, error) {
-	chartRefResponse := &chartRefBean.ChartRefAutocompleteResponse{}
-	var chartRefs []chartRefBean.ChartRefAutocompleteDto
-
-	results, err := impl.chartRefService.GetAll()
+	chartRefResponse, err := impl.ChartRefAutocompleteGlobalData()
 	if err != nil {
-		impl.logger.Errorw("error in fetching chart ref", "err", err)
-		return chartRefResponse, err
+		impl.logger.Errorw("error, ChartRefAutocompleteGlobalData", "err", err)
+		return nil, err
 	}
-
-	resultsMetadataMap, err := impl.chartRefService.GetAllChartMetadata()
-	if err != nil {
-		impl.logger.Errorw("error in fetching chart metadata", "err", err)
-		return chartRefResponse, err
-	}
-	chartRefResponse.ChartsMetadata = resultsMetadataMap
-	var LatestAppChartRef int
-	for _, result := range results {
-		chartRefs = append(chartRefs, chartRefBean.ChartRefAutocompleteDto{
-			Id:                    result.Id,
-			Version:               result.Version,
-			Name:                  result.Name,
-			Description:           result.ChartDescription,
-			UserUploaded:          result.UserUploaded,
-			IsAppMetricsSupported: result.IsAppMetricsSupported,
-		})
-		if result.Default == true {
-			LatestAppChartRef = result.Id
-		}
-	}
-
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching latest chart", "err", err)
 		return chartRefResponse, err
 	}
-
+	chartRefResponse.LatestAppChartRef = chart.ChartRefId
 	if envId > 0 {
 		envOverride, err := impl.envConfigOverrideReadService.FindLatestChartForAppByAppIdAndEnvId(appId, envId)
 		if err != nil && !errors.IsNotFound(err) {
@@ -862,10 +838,40 @@ func (impl *ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId i
 			chartRefResponse.LatestEnvChartRef = chart.ChartRefId
 		}
 	}
-	chartRefResponse.LatestAppChartRef = chart.ChartRefId
-	chartRefResponse.ChartRefs = chartRefs
-	chartRefResponse.LatestChartRef = LatestAppChartRef
 	return chartRefResponse, nil
+}
+
+func (impl *ChartServiceImpl) ChartRefAutocompleteGlobalData() (*chartRefBean.ChartRefAutocompleteResponse, error) {
+	results, err := impl.chartRefService.GetAll()
+	if err != nil {
+		impl.logger.Errorw("error in fetching chart ref", "err", err)
+		return nil, err
+	}
+	resultsMetadataMap, err := impl.chartRefService.GetAllChartMetadata()
+	if err != nil {
+		impl.logger.Errorw("error in fetching chart metadata", "err", err)
+		return nil, err
+	}
+	var latestChartRef int
+	chartRefs := make([]chartRefBean.ChartRefAutocompleteDto, 0, len(results))
+	for _, result := range results {
+		chartRefs = append(chartRefs, chartRefBean.ChartRefAutocompleteDto{
+			Id:                    result.Id,
+			Version:               result.Version,
+			Name:                  result.Name,
+			Description:           result.ChartDescription,
+			UserUploaded:          result.UserUploaded,
+			IsAppMetricsSupported: result.IsAppMetricsSupported,
+		})
+		if result.Default == true {
+			latestChartRef = result.Id
+		}
+	}
+	return &chartRefBean.ChartRefAutocompleteResponse{
+		ChartsMetadata: resultsMetadataMap,
+		ChartRefs:      chartRefs,
+		LatestChartRef: latestChartRef,
+	}, nil
 }
 
 func (impl *ChartServiceImpl) FindPreviousChartByAppId(appId int) (chartTemplate *TemplateRequest, err error) {
