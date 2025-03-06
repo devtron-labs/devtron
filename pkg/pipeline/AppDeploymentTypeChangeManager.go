@@ -36,6 +36,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/common/adapter"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
+	read2 "github.com/devtron-labs/devtron/pkg/deployment/common/read"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
@@ -81,6 +82,7 @@ type AppDeploymentTypeChangeManagerImpl struct {
 	deploymentConfigService     common.DeploymentConfigService
 	ArgoClientWrapperService    argocdServer.ArgoClientWrapperService
 	chartReadService            read.ChartReadService
+	DeploymentConfigReadService read2.DeploymentConfigReadService
 }
 
 func NewAppDeploymentTypeChangeManagerImpl(
@@ -95,7 +97,8 @@ func NewAppDeploymentTypeChangeManagerImpl(
 	chartService chartService.ChartService,
 	workflowEventPublishService out.WorkflowEventPublishService,
 	deploymentConfigService common.DeploymentConfigService,
-	chartReadService read.ChartReadService) *AppDeploymentTypeChangeManagerImpl {
+	chartReadService read.ChartReadService,
+	DeploymentConfigReadService read2.DeploymentConfigReadService) *AppDeploymentTypeChangeManagerImpl {
 	return &AppDeploymentTypeChangeManagerImpl{
 		logger:                      logger,
 		pipelineRepository:          pipelineRepository,
@@ -109,6 +112,7 @@ func NewAppDeploymentTypeChangeManagerImpl(
 		workflowEventPublishService: workflowEventPublishService,
 		deploymentConfigService:     deploymentConfigService,
 		chartReadService:            chartReadService,
+		DeploymentConfigReadService: DeploymentConfigReadService,
 	}
 }
 
@@ -545,6 +549,19 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 						}
 					}
 				}
+
+				envDeploymentConfig.SetRepoURL(chartGitAttr.RepoUrl)
+				releaseConfig, err := impl.DeploymentConfigReadService.ParseEnvLevelReleaseConfigForDevtronApp(envDeploymentConfig, pipeline.AppId, pipeline.EnvironmentId)
+				if err != nil {
+					impl.logger.Errorw("error in parsing release config", "err", err)
+				}
+				envDeploymentConfig, RepoURLUpdateErr = impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, userId)
+				if RepoURLUpdateErr != nil {
+					impl.logger.Errorw("error in saving deployment config for app", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
+				}
+
+				envDeploymentConfig.ReleaseConfiguration = releaseConfig
+
 				if gitOpsRepoNotFound != nil {
 					impl.logger.Errorw("error no GitOps repository configured for the app", "err", gitOpsRepoNotFound)
 				}

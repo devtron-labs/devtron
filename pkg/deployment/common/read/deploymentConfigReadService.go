@@ -29,6 +29,7 @@ type DeploymentConfigReadService interface {
 
 	GetDeploymentConfigForApp(appId int) (*bean.DeploymentConfig, bool, error)
 	GetDeploymentConfigForAppAndEnv(appLevelConfig *bean.DeploymentConfig, appId, envId int) (*bean.DeploymentConfig, bool, error)
+	ParseEnvLevelReleaseConfigForDevtronApp(config *bean.DeploymentConfig, appId int, envId int) (*bean.ReleaseConfiguration, error)
 }
 
 type DeploymentConfigReadServiceImpl struct {
@@ -178,7 +179,7 @@ func (impl *DeploymentConfigReadServiceImpl) GetDeploymentConfigForAppAndEnv(app
 		// case: deployment config is migrated; but release config is absent.
 		if envLevelConfig.ReleaseConfiguration == nil || len(envLevelConfig.ReleaseConfiguration.Version) == 0 {
 			isMigrationNeeded = true
-			releaseConfig, err := impl.parseEnvLevelReleaseConfigForDevtronApp(envLevelConfig, appId, envId)
+			releaseConfig, err := impl.ParseEnvLevelReleaseConfigForDevtronApp(envLevelConfig, appId, envId)
 			if err != nil {
 				impl.logger.Errorw("error in parsing env level release config", "appId", appId, "envId", envId, "err", err)
 				return envLevelConfig, isMigrationNeeded, err
@@ -282,7 +283,7 @@ func (impl *DeploymentConfigReadServiceImpl) parseEnvLevelMigrationDataForDevtro
 	}
 	config.DeploymentAppType = deploymentAppType
 
-	releaseConfig, err := impl.parseEnvLevelReleaseConfigForDevtronApp(config, appId, envId)
+	releaseConfig, err := impl.ParseEnvLevelReleaseConfigForDevtronApp(config, appId, envId)
 	if err != nil {
 		impl.logger.Errorw("error in parsing env level release config", "appId", appId, "envId", envId, "err", err)
 		return nil, err
@@ -325,7 +326,7 @@ func (impl *DeploymentConfigReadServiceImpl) getConfigMetaDataForAppAndEnv(appId
 	return environmentId, deploymentAppName, namespace, nil
 }
 
-func (impl *DeploymentConfigReadServiceImpl) parseEnvLevelReleaseConfigForDevtronApp(config *bean.DeploymentConfig, appId int, envId int) (*bean.ReleaseConfiguration, error) {
+func (impl *DeploymentConfigReadServiceImpl) ParseEnvLevelReleaseConfigForDevtronApp(config *bean.DeploymentConfig, appId int, envId int) (*bean.ReleaseConfiguration, error) {
 	releaseConfig := &bean.ReleaseConfiguration{}
 	if config.DeploymentAppType == interalUtil.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		releaseConfig.Version = bean.Version

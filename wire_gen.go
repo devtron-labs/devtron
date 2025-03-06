@@ -479,7 +479,7 @@ func InitializeApp() (*App, error) {
 	envConfigOverrideRepositoryImpl := chartConfig.NewEnvConfigOverrideRepository(db)
 	gitProviderRepositoryImpl := repository11.NewGitProviderRepositoryImpl(db)
 	gitProviderReadServiceImpl := read7.NewGitProviderReadService(sugaredLogger, gitProviderRepositoryImpl)
-	envConfigOverrideReadServiceImpl := read8.NewEnvConfigOverrideReadServiceImpl(envConfigOverrideRepositoryImpl, sugaredLogger)
+	envConfigOverrideReadServiceImpl := read8.NewEnvConfigOverrideReadServiceImpl(envConfigOverrideRepositoryImpl, chartRepositoryImpl, sugaredLogger)
 	commonBaseServiceImpl := commonService.NewCommonBaseServiceImpl(sugaredLogger, environmentVariables, moduleReadServiceImpl)
 	commonServiceImpl := commonService.NewCommonServiceImpl(sugaredLogger, chartRepositoryImpl, envConfigOverrideRepositoryImpl, dockerArtifactStoreRepositoryImpl, attributesRepositoryImpl, environmentRepositoryImpl, appRepositoryImpl, gitOpsConfigReadServiceImpl, gitProviderReadServiceImpl, envConfigOverrideReadServiceImpl, commonBaseServiceImpl, teamReadServiceImpl)
 	configMapRepositoryImpl := chartConfig.NewConfigMapRepositoryImpl(sugaredLogger, db)
