@@ -252,6 +252,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 		EnvId:                 request.EnvId,
 		DesiredDeploymentType: request.DesiredDeploymentType,
 		TriggeredPipelines:    make([]*bean.CdPipelineTrigger, 0),
+		FailedPipelines:       make([]*bean.DeploymentChangeStatus, 0),
 	}
 
 	var deleteDeploymentType string
@@ -273,12 +274,17 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 		return response, err
 	}
 
-	var pipelineIds []int
+	var allPipelines []int
 	for _, item := range pipelines {
-		pipelineIds = append(pipelineIds, item.Id)
+		allPipelines = append(allPipelines, item.Id)
 	}
 
-	if len(pipelineIds) == 0 {
+	if len(allPipelines) == 0 {
+		return response, nil
+	}
+
+	pipelineIds := make([]int, 0)
+	if len(allPipelines) == 0 {
 		return response, nil
 	}
 
@@ -289,7 +295,21 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", p.AppId, "envId", p.EnvironmentId, "err", err)
 			return response, err
 		}
-		deploymentConfigs = append(deploymentConfigs, envDeploymentConfig)
+		if !envDeploymentConfig.IsLinkedRelease() {
+			pipelineIds = append(pipelineIds, p.Id)
+			deploymentConfigs = append(deploymentConfigs, envDeploymentConfig)
+		} else {
+			response.FailedPipelines = append(response.FailedPipelines,
+				&bean.DeploymentChangeStatus{
+					PipelineId: p.Id,
+					AppId:      p.AppId,
+					AppName:    p.App.AppName,
+					EnvId:      p.EnvironmentId,
+					EnvName:    p.Environment.Name,
+					Error:      "Deployment app type cannot be changed because this app is linked with external application",
+					Status:     bean.Failed,
+				})
+		}
 	}
 
 	deleteResponse := impl.DeleteDeploymentApps(ctx, pipelines, deploymentConfigs, request.UserId)
@@ -627,21 +647,21 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentAppsForEnvironme
 	currentDeploymentAppType bean3.DeploymentType, exclusionList []int, includeApps []int, userId int32) (*bean.DeploymentAppTypeChangeResponse, error) {
 
 	// fetch active pipelines from database for the given environment id and current deployment app type
-	pipelines, err := impl.pipelineRepository.FindActiveByEnvIdAndDeploymentType(environmentId,
+	allPipelines, err := impl.pipelineRepository.FindActiveByEnvIdAndDeploymentType(environmentId,
 		currentDeploymentAppType, exclusionList, includeApps)
 
+	pipelines := make([]*pipelineConfig.Pipeline, 0)
 	deploymentConfigs := make([]*bean4.DeploymentConfig, 0)
-	for _, p := range pipelines {
+	for _, p := range allPipelines {
 		envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(p.AppId, p.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", p.AppId, "envId", p.EnvironmentId, "err", err)
-			return &bean.DeploymentAppTypeChangeResponse{
-				EnvId:               environmentId,
-				SuccessfulPipelines: []*bean.DeploymentChangeStatus{},
-				FailedPipelines:     []*bean.DeploymentChangeStatus{},
-			}, err
+			return nil, err
 		}
-		deploymentConfigs = append(deploymentConfigs, envDeploymentConfig)
+		if !envDeploymentConfig.IsLinkedRelease() {
+			pipelines = append(pipelines, p)
+			deploymentConfigs = append(deploymentConfigs, envDeploymentConfig)
+		}
 	}
 
 	if err != nil {
