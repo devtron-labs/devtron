@@ -28,6 +28,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
+	bean7 "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -664,6 +665,9 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 	}
 	if argoApplicationSpec.Spec.Source != nil && argoApplicationSpec.Spec.Source.Helm != nil && len(argoApplicationSpec.Spec.Source.Helm.ValueFiles) != 1 {
 		return response.SetErrorDetail(pipelineConfigBean.UnsupportedApplicationSpec, "application with multiple/ empty helm value files are not supported")
+	}
+	if strings.ToLower(argoApplicationSpec.Spec.Source.TargetRevision) == bean7.TargetRevisionHead {
+		return response.SetErrorDetail(pipelineConfigBean.UnsupportedApplicationSpec, "Target revision head not supported")
 	}
 
 	targetClusterURL := argoApplicationSpec.Spec.Destination.Server
