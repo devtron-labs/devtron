@@ -184,6 +184,12 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangeDeploymentType(ctx context
 		}
 		deploymentConfig.DeploymentAppType = request.DesiredDeploymentType
 		deploymentConfig.ReleaseMode = util.PIPELINE_RELEASE_MODE_CREATE //now pipeline release mode will be create
+		releaseConfig, err := impl.DeploymentConfigReadService.ParseEnvLevelReleaseConfigForDevtronApp(deploymentConfig, pipeline.AppId, pipeline.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in parsing release config", "err", err)
+			return response, err
+		}
+		deploymentConfig.ReleaseConfiguration = releaseConfig
 		deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, request.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in updating configs", "err", err)
@@ -344,8 +350,14 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", item.AppId, "envId", item.EnvId, "err", err)
 			return response, err
 		}
-		envDeploymentConfig.DeploymentAppType = request.DesiredDeploymentType
 		envDeploymentConfig.ReleaseMode = util.PIPELINE_RELEASE_MODE_CREATE // now pipeline release mode will be create
+		envDeploymentConfig.DeploymentAppType = request.DesiredDeploymentType
+		releaseConfig, err := impl.DeploymentConfigReadService.ParseEnvLevelReleaseConfigForDevtronApp(envDeploymentConfig, item.AppId, item.EnvId)
+		if err != nil {
+			impl.logger.Errorw("error in parsing release config", "err", err)
+			return response, err
+		}
+		envDeploymentConfig.ReleaseConfiguration = releaseConfig
 		envDeploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, request.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in updating deployment config", "err", err)
@@ -569,18 +581,6 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 						}
 					}
 				}
-
-				envDeploymentConfig.SetRepoURL(chartGitAttr.RepoUrl)
-				releaseConfig, err := impl.DeploymentConfigReadService.ParseEnvLevelReleaseConfigForDevtronApp(envDeploymentConfig, pipeline.AppId, pipeline.EnvironmentId)
-				if err != nil {
-					impl.logger.Errorw("error in parsing release config", "err", err)
-				}
-				envDeploymentConfig, RepoURLUpdateErr = impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, userId)
-				if RepoURLUpdateErr != nil {
-					impl.logger.Errorw("error in saving deployment config for app", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
-				}
-
-				envDeploymentConfig.ReleaseConfiguration = releaseConfig
 
 				if gitOpsRepoNotFound != nil {
 					impl.logger.Errorw("error no GitOps repository configured for the app", "err", gitOpsRepoNotFound)
