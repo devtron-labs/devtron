@@ -169,7 +169,7 @@ func (impl GitHubClient) CreateRepository(ctx context.Context, config *bean2.Git
 	isEmpty = false //As we have created readme, repo is no longer empty
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateReadmeStage)
 
-	validated, err = impl.ensureProjectAvailabilityOnSsh(config.GitRepoName, *r.CloneURL)
+	validated, err = impl.ensureProjectAvailabilityOnSsh(config.GitRepoName, *r.CloneURL, config.TargetRevision)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability github", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
@@ -198,6 +198,7 @@ func (impl GitHubClient) CreateReadme(ctx context.Context, config *bean2.GitOpsC
 		FileContent:    "@devtron",
 		ReleaseMessage: "readme",
 		ChartRepoName:  config.GitRepoName,
+		TargetRevision: config.TargetRevision,
 		UserName:       config.Username,
 		UserEmailId:    config.UserEmailId,
 	}
@@ -215,7 +216,10 @@ func (impl GitHubClient) CommitValues(ctx context.Context, config *ChartConfig, 
 		globalUtil.TriggerGitOpsMetrics("CommitValues", "GitHubClient", start, err)
 	}()
 
-	branch := "master"
+	branch := config.TargetRevision
+	if len(branch) == 0 {
+		branch = globalUtil.GetDefaultTargetRevision()
+	}
 	path := filepath.Join(config.ChartLocation, config.FileName)
 	newFile := false
 	fc, _, _, err := impl.client.Repositories.GetContents(ctx, impl.org, config.ChartRepoName, path, &github.RepositoryContentGetOptions{Ref: branch})
@@ -313,7 +317,7 @@ func (impl GitHubClient) ensureProjectAvailabilityOnHttp(config *bean2.GitOpsCon
 	return false, nil
 }
 
-func (impl GitHubClient) ensureProjectAvailabilityOnSsh(projectName string, repoUrl string) (bool, error) {
+func (impl GitHubClient) ensureProjectAvailabilityOnSsh(projectName string, repoUrl, targetRevision string) (bool, error) {
 	var err error
 	start := time.Now()
 	defer func() {
@@ -323,12 +327,11 @@ func (impl GitHubClient) ensureProjectAvailabilityOnSsh(projectName string, repo
 	count := 0
 	for count < 3 {
 		count = count + 1
-		_, err := impl.gitOpsHelper.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName))
+		_, err := impl.gitOpsHelper.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName), targetRevision)
 		if err == nil {
 			impl.logger.Infow("github ensureProjectAvailability clone passed", "try count", count, "repoUrl", repoUrl)
 			return true, nil
-		}
-		if err != nil {
+		} else {
 			impl.logger.Errorw("github ensureProjectAvailability clone failed", "try count", count, "err", err)
 		}
 		time.Sleep(10 * time.Second)

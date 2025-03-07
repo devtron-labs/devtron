@@ -21,6 +21,9 @@ import (
 	"errors"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/api/util"
+	moduleBean "github.com/devtron-labs/devtron/pkg/module/bean"
+	moduleRead "github.com/devtron-labs/devtron/pkg/module/read"
+	moduleErr "github.com/devtron-labs/devtron/pkg/module/read/error"
 	"net/http"
 	"strconv"
 
@@ -46,6 +49,7 @@ type GitOpsConfigRestHandler interface {
 
 type GitOpsConfigRestHandlerImpl struct {
 	logger              *zap.SugaredLogger
+	moduleReadService   moduleRead.ModuleReadService
 	gitOpsConfigService gitops.GitOpsConfigService
 	userAuthService     user.UserService
 	validator           *validator.Validate
@@ -55,10 +59,12 @@ type GitOpsConfigRestHandlerImpl struct {
 
 func NewGitOpsConfigRestHandlerImpl(
 	logger *zap.SugaredLogger,
+	moduleReadService moduleRead.ModuleReadService,
 	gitOpsConfigService gitops.GitOpsConfigService, userAuthService user.UserService,
 	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService) *GitOpsConfigRestHandlerImpl {
 	return &GitOpsConfigRestHandlerImpl{
 		logger:              logger,
+		moduleReadService:   moduleReadService,
 		gitOpsConfigService: gitOpsConfigService,
 		userAuthService:     userAuthService,
 		validator:           validator,
@@ -302,6 +308,11 @@ func (impl GitOpsConfigRestHandlerImpl) GitOpsValidator(w http.ResponseWriter, r
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	detailedErrorGitOpsConfigResponse := impl.gitOpsConfigService.GitOpsValidateDryRun(&bean)
+	argoModule, err := impl.moduleReadService.GetModuleInfoByName(moduleBean.ModuleNameArgoCd)
+	if err != nil && !errors.Is(err, moduleErr.ModuleNotFoundError) {
+		impl.logger.Errorw("error in getting argo module", "error", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+	}
+	detailedErrorGitOpsConfigResponse := impl.gitOpsConfigService.GitOpsValidateDryRun(argoModule.IsInstalled(), &bean)
 	common.WriteJsonResp(w, nil, detailedErrorGitOpsConfigResponse, http.StatusOK)
 }

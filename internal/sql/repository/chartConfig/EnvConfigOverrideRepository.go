@@ -73,6 +73,7 @@ type EnvConfigOverrideRepository interface {
 	UpdateWithTxn(envConfigOverride *EnvConfigOverride, tx *pg.Tx) (*EnvConfigOverride, error)
 
 	GetByAppIdEnvIdAndChartRefId(appId, envId int, chartRefId int) (*EnvConfigOverride, error)
+	GetAllOverridesForApp(appId int) ([]EnvConfigOverride, error)
 }
 
 type EnvConfigOverrideRepositoryImpl struct {
@@ -355,6 +356,17 @@ func (r EnvConfigOverrideRepositoryImpl) GetByAppIdEnvIdAndChartRefId(appId, env
 		Where("Chart.app_id =? ", appId).
 		Where("Chart.chart_ref_id =? ", chartRefId).
 		Column("env_config_override.*", "Chart").
+		Select()
+	return eco, err
+}
+
+func (r EnvConfigOverrideRepositoryImpl) GetAllOverridesForApp(appId int) ([]EnvConfigOverride, error) {
+	var eco []EnvConfigOverride
+	err := r.dbConnection.
+		Model(&eco).
+		Column("env_config_override.*", "Chart").
+		Where("env_config_override.active = ?", true).
+		Where("Chart.app_id =? ", appId).
 		Select()
 	return eco, err
 }

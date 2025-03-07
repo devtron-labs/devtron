@@ -57,6 +57,7 @@ type MuxRouter struct {
 	teamRouter               team.TeamRouter
 	UserAuthRouter           user.UserAuthRouter
 	userRouter               user.UserRouter
+	commonRouter             router.CommonRouter
 	clusterRouter            cluster.ClusterRouter
 	dashboardRouter          dashboard.DashboardRouter
 	helmAppRouter            client.HelmAppRouter
@@ -94,6 +95,7 @@ func NewMuxRouter(
 	teamRouter team.TeamRouter,
 	UserAuthRouter user.UserAuthRouter,
 	userRouter user.UserRouter,
+	commonRouter router.CommonRouter,
 	clusterRouter cluster.ClusterRouter,
 	dashboardRouter dashboard.DashboardRouter,
 	helmAppRouter client.HelmAppRouter,
@@ -127,6 +129,7 @@ func NewMuxRouter(
 		teamRouter:               teamRouter,
 		UserAuthRouter:           UserAuthRouter,
 		userRouter:               userRouter,
+		commonRouter:             commonRouter,
 		clusterRouter:            clusterRouter,
 		dashboardRouter:          dashboardRouter,
 		helmAppRouter:            helmAppRouter,
@@ -292,6 +295,9 @@ func (r *MuxRouter) Init() {
 	r.argoApplicationRouter.InitArgoApplicationRouter(argoApplicationRouter)
 	fluxApplicationRouter := r.Router.PathPrefix("/orchestrator/flux-application").Subrouter()
 	r.fluxApplicationRouter.InitFluxApplicationRouter(fluxApplicationRouter)
+
+	commonRouter := r.Router.PathPrefix("/orchestrator/global").Subrouter()
+	r.commonRouter.InitCommonRouter(commonRouter)
 
 	userResourcesRouter := r.Router.PathPrefix("/orchestrator/user/resource").Subrouter()
 	r.userResourceRouter.InitUserResourceRouter(userResourcesRouter)

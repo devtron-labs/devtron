@@ -63,7 +63,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
-	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -74,9 +74,11 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial"
+	"github.com/devtron-labs/devtron/pkg/commonService"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
@@ -251,14 +253,19 @@ func InitializeApp() (*App, error) {
 		// chart group repository layer wire injection ended
 
 		// end: docker registry wire set injection
+
+		router.NewCommonRouterImpl,
+		wire.Bind(new(router.CommonRouter), new(*router.CommonRouterImpl)),
+		restHandler.NewCommonRestHandlerImpl,
+		wire.Bind(new(restHandler.CommonRestHandler), new(*restHandler.CommonRestHandlerImpl)),
+
+		commonService.NewCommonBaseServiceImpl,
+		wire.Bind(new(commonService.CommonService), new(*commonService.CommonBaseServiceImpl)),
+
 		cron.NewCronLoggerImpl,
 		appStore.EAModeWireSet,
 
-		deploymentConfig.NewRepositoryImpl,
-		wire.Bind(new(deploymentConfig.Repository), new(*deploymentConfig.RepositoryImpl)),
-
-		common.NewDeploymentConfigServiceImpl,
-		wire.Bind(new(common.DeploymentConfigService), new(*common.DeploymentConfigServiceImpl)),
+		common.WireSet,
 
 		wire.Bind(new(util4.K8sService), new(*util4.K8sServiceImpl)),
 
@@ -275,6 +282,12 @@ func InitializeApp() (*App, error) {
 
 		dbMigration.NewDbMigrationServiceImpl,
 		wire.Bind(new(dbMigration.DbMigration), new(*dbMigration.DbMigrationServiceImpl)),
+
+		read.NewEnvConfigOverrideReadServiceImpl,
+		wire.Bind(new(read.EnvConfigOverrideService), new(*read.EnvConfigOverrideReadServiceImpl)),
+
+		chartConfig.NewEnvConfigOverrideRepository,
+		wire.Bind(new(chartConfig.EnvConfigOverrideRepository), new(*chartConfig.EnvConfigOverrideRepositoryImpl)),
 	)
 	return &App{}, nil
 }

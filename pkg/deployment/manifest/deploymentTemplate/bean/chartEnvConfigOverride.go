@@ -36,3 +36,7 @@ type EnvConfigOverride struct {
 	//ResolvedEnvOverrideValuesForCS string
 	VariableSnapshotForCS map[string]string
 }
+
+func (e *EnvConfigOverride) IsOverridden() bool {
+	return e != nil && e.Id != 0 && e.IsOverride
+}

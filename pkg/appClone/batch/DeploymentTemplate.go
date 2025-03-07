@@ -23,6 +23,7 @@ import (
 	pc "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	v1 "github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/chart/bean"
 	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 )
@@ -81,7 +82,7 @@ func executeDeploymentTemplateCreate(impl DeploymentTemplateActionImpl, template
 		impl.logger.Errorw("marshal err", "err", err)
 		return fmt.Errorf("invalid values for deployment template")
 	}
-	dTemplate := chart.TemplateRequest{
+	dTemplate := bean.TemplateRequest{
 		Id:                  0,
 		AppId:               app.Id,
 		ValuesOverride:      valueOverride,
