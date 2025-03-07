@@ -476,10 +476,23 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 	}
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
+		env, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching env by id", "envId", pipeline.EnvironmentId, "err", err)
+			return nil, err
+		}
+		migrationReq := adapter.NewMigrateArgoCDAppValidationRequest(pipeline, env)
+		migrationReq.AppId = app.Id
 		if pipeline.IsExternalArgoAppLinkRequest() {
-			migrationReq := adapter.NewMigrateReleaseValidationRequest(pipeline)
-			migrationReq.AppId = app.Id
 			linkCDValidationResponse := impl.ValidateLinkExternalArgoCDRequest(migrationReq)
+			if !linkCDValidationResponse.IsLinkable {
+				return nil,
+					util.NewApiError(http.StatusPreconditionFailed,
+						linkCDValidationResponse.ErrorDetail.ValidationFailedMessage,
+						string(linkCDValidationResponse.ErrorDetail.ValidationFailedReason))
+			}
+		} else if pipeline.IsExternalHelmAppLinkRequest() {
+			linkCDValidationResponse := impl.ValidateLinkHelmAppRequest(context.Background(), migrationReq)
 			if !linkCDValidationResponse.IsLinkable {
 				return nil,
 					util.NewApiError(http.StatusPreconditionFailed,

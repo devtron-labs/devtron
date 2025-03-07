@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -380,7 +381,7 @@ func GetStepVariableDto(variable *repository.PipelineStageStepVariable) (*pipeli
 	return variableDto, nil
 }
 
-func NewMigrateReleaseValidationRequest(pipeline *bean.CDPipelineConfigObject) *pipelineConfigBean.MigrateReleaseValidationRequest {
+func NewMigrateArgoCDAppValidationRequest(pipeline *bean.CDPipelineConfigObject, env *repository2.Environment) *pipelineConfigBean.MigrateReleaseValidationRequest {
 	request := &pipelineConfigBean.MigrateReleaseValidationRequest{
 		AppId:             pipeline.AppId,
 		DeploymentAppName: pipeline.DeploymentAppName,
@@ -390,6 +391,11 @@ func NewMigrateReleaseValidationRequest(pipeline *bean.CDPipelineConfigObject) *
 		request.ApplicationMetadataRequest = pipelineConfigBean.ApplicationMetadataRequest{
 			ApplicationObjectClusterId: pipeline.ApplicationObjectClusterId,
 			ApplicationObjectNamespace: pipeline.ApplicationObjectNamespace,
+		}
+	} else if pipeline.DeploymentAppType == bean3.PIPELINE_DEPLOYMENT_TYPE_HELM {
+		request.HelmReleaseMetadataRequest = pipelineConfigBean.HelmReleaseMetadataRequest{
+			ReleaseClusterId: env.ClusterId,
+			ReleaseNamespace: env.Namespace,
 		}
 	}
 	return request
