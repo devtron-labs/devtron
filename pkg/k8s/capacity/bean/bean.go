@@ -43,21 +43,22 @@ const NamespaceAll string = ""
 
 // below const set is used for pod filters
 const (
-	daemonSetFatal       = "DaemonSet-managed Pods (use --ignore-daemonsets to ignore)"
-	daemonSetWarning     = "ignoring DaemonSet-managed Pods"
-	localStorageFatal    = "Pods with local storage (use --delete-emptydir-data to override)"
-	localStorageWarning  = "deleting Pods with local storage"
-	unmanagedFatal       = "Pods declare no controller (use --force to override)"
-	unmanagedWarning     = "deleting Pods that declare no controller"
-	AWSNodeGroupLabel    = "alpha.eksctl.io/nodegroup-name"
-	AzureNodeGroupLabel  = "kubernetes.azure.com/agentpool"
-	GcpNodeGroupLabel    = "cloud.google.com/gke-nodepool"
-	KopsNodeGroupLabel   = "kops.k8s.io/instancegroup"
-	AWSEKSNodeGroupLabel = "eks.amazonaws.com/nodegroup"
+	daemonSetFatal          = "DaemonSet-managed Pods (use --ignore-daemonsets to ignore)"
+	daemonSetWarning        = "ignoring DaemonSet-managed Pods"
+	localStorageFatal       = "Pods with local storage (use --delete-emptydir-data to override)"
+	localStorageWarning     = "deleting Pods with local storage"
+	unmanagedFatal          = "Pods declare no controller (use --force to override)"
+	unmanagedWarning        = "deleting Pods that declare no controller"
+	AWSNodeGroupLabel       = "alpha.eksctl.io/nodegroup-name"
+	AzureNodeGroupLabel     = "kubernetes.azure.com/agentpool"
+	GcpNodeGroupLabel       = "cloud.google.com/gke-nodepool"
+	KopsNodeGroupLabel      = "kops.k8s.io/instancegroup"
+	AWSEKSNodeGroupLabel    = "eks.amazonaws.com/nodegroup"
+	KarpenterNodeGroupLabel = "karpenter.sh/nodepool"
 )
 
 // TODO: add any new nodeGrouplabel in this array
-var NodeGroupLabels = [5]string{AWSNodeGroupLabel, AzureNodeGroupLabel, GcpNodeGroupLabel, KopsNodeGroupLabel, AWSEKSNodeGroupLabel}
+var NodeGroupLabels = [6]string{AWSNodeGroupLabel, AzureNodeGroupLabel, GcpNodeGroupLabel, KopsNodeGroupLabel, AWSEKSNodeGroupLabel, KarpenterNodeGroupLabel}
 
 // below const set is used for pod delete status
 const (
