@@ -1117,7 +1117,8 @@ func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds
 	}
 	req := &gRPC.AppListRequest{}
 	for _, clusterDetail := range clusters {
-		config := adapter.ConvertClusterBeanToClusterConfig(&clusterDetail)
+		detail := clusterDetail
+		config := adapter.ConvertClusterBeanToClusterConfig(&detail)
 		req.Clusters = append(req.Clusters, config)
 	}
 	applicatonStream, err := impl.helmAppClient.ListApplication(ctx, req)
@@ -1145,9 +1146,10 @@ func GetDeployedAppName(appDto bean3.DeployedInstalledAppInfo) string {
 func (impl *HelmAppServiceImpl) ListHelmApplicationsForClusterOrEnv(ctx context.Context, clusterId, envId int) ([]helmBean.ExternalHelmAppListingResult, error) {
 	if clusterId > 0 {
 		return impl.ListHelmApplicationForCluster(ctx, clusterId)
-	} else {
+	} else if envId > 0 {
 		return impl.ListHelmApplicationForEnvironment(ctx, envId)
 	}
+	return nil, nil
 }
 
 func (impl *HelmAppServiceImpl) ListHelmApplicationForCluster(ctx context.Context, clusterId int) ([]helmBean.ExternalHelmAppListingResult, error) {
@@ -1252,7 +1254,7 @@ func (impl *HelmAppServiceImpl) ListHelmApplicationForEnvironment(ctx context.Co
 	filteredResponseForEnvironment := make([]helmBean.ExternalHelmAppListingResult, 0)
 
 	for _, r := range response {
-		if r.ClusterId == envDetail.ClusterId && r.Namespace == envDetail.Namespace {
+		if r.Namespace == envDetail.Namespace {
 			filteredResponseForEnvironment = append(filteredResponseForEnvironment, r)
 		}
 	}
