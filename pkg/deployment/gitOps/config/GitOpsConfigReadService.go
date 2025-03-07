@@ -21,13 +21,20 @@ import (
 	"fmt"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
+	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	internalUtil "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config/bean"
+	moduleBean "github.com/devtron-labs/devtron/pkg/module/bean"
+	moduleRead "github.com/devtron-labs/devtron/pkg/module/read"
+	moduleErr "github.com/devtron-labs/devtron/pkg/module/read/error"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/gitUtil"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"net/http"
 	"regexp"
 	"strings"
 )
@@ -41,7 +48,6 @@ type GitOpsConfigReadService interface {
 	GetGitOpsConfigActive() (*bean2.GitOpsConfigDto, error)
 	GetConfiguredGitOpsCount() (int, error)
 	GetGitOpsProviderByRepoURL(gitRepoUrl string) (*bean2.GitOpsConfigDto, error)
-	GetGitOpsProviderMapByRepoURL(allGitRepoUrls []string) (map[string]*bean2.GitOpsConfigDto, error)
 	GetGitOpsById(id int) (*bean2.GitOpsConfigDto, error)
 }
 
@@ -50,22 +56,31 @@ type GitOpsConfigReadServiceImpl struct {
 	gitOpsRepository   repository.GitOpsConfigRepository
 	userService        user.UserService
 	globalEnvVariables *util.GlobalEnvVariables
+	moduleReadService  moduleRead.ModuleReadService
 }
 
 func NewGitOpsConfigReadServiceImpl(logger *zap.SugaredLogger,
 	gitOpsRepository repository.GitOpsConfigRepository,
 	userService user.UserService,
-	envVariables *util.EnvironmentVariables) *GitOpsConfigReadServiceImpl {
+	envVariables *util.EnvironmentVariables,
+	moduleReadService moduleRead.ModuleReadService) *GitOpsConfigReadServiceImpl {
 	return &GitOpsConfigReadServiceImpl{
 		logger:             logger,
 		gitOpsRepository:   gitOpsRepository,
 		userService:        userService,
 		globalEnvVariables: envVariables.GlobalEnvVariables,
+		moduleReadService:  moduleReadService,
 	}
 }
 
 func (impl *GitOpsConfigReadServiceImpl) IsGitOpsConfigured() (*bean.GitOpsConfigurationStatus, error) {
 	gitOpsConfigurationStatus := &bean.GitOpsConfigurationStatus{}
+	argoModule, err := impl.moduleReadService.GetModuleInfoByName(moduleBean.ModuleNameArgoCd)
+	if err != nil && !errors.Is(err, moduleErr.ModuleNotFoundError) {
+		impl.logger.Errorw("error in getting argo module", "error", err)
+		return gitOpsConfigurationStatus, err
+	}
+	gitOpsConfigurationStatus.IsArgoCdInstalled = argoModule.IsInstalled()
 	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("GetGitOpsConfigActive, error while getting", "err", err)
@@ -141,28 +156,7 @@ func (impl *GitOpsConfigReadServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsC
 		impl.logger.Errorw("error, GetGitOpsConfigActive", "err", err)
 		return nil, err
 	}
-	config := &bean2.GitOpsConfigDto{
-		Id:                    model.Id,
-		Provider:              model.Provider,
-		GitHubOrgId:           model.GitHubOrgId,
-		GitLabGroupId:         model.GitLabGroupId,
-		Active:                model.Active,
-		Token:                 model.Token,
-		Host:                  model.Host,
-		Username:              model.Username,
-		UserId:                model.CreatedBy,
-		AzureProjectName:      model.AzureProject,
-		BitBucketWorkspaceId:  model.BitBucketWorkspaceId,
-		BitBucketProjectKey:   model.BitBucketProjectKey,
-		AllowCustomRepository: model.AllowCustomRepository,
-		EnableTLSVerification: true,
-		TLSConfig: &bean3.TLSConfig{
-			CaData:      model.CaCert,
-			TLSCertData: model.TlsCert,
-			TLSKeyData:  model.TlsKey,
-		},
-	}
-	return config, err
+	return adapter.GetGitOpsConfigBean(model), err
 }
 
 func (impl *GitOpsConfigReadServiceImpl) GetConfiguredGitOpsCount() (int, error) {
@@ -187,104 +181,28 @@ func (impl *GitOpsConfigReadServiceImpl) GetGitOpsProviderByRepoURL(gitRepoUrl s
 		return nil, err
 	}
 
-	var gitOpsConfig *bean2.GitOpsConfigDto
-
-	requestHost, err := util.GetHost(gitRepoUrl)
+	inputHostURL, inputScheme, err := util.GetHost(gitRepoUrl)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse host from repo URL: %s", gitRepoUrl)
 	}
 
 	for _, model := range models {
-		host, err := util.GetHost(model.Host)
+		configBean := adapter.GetGitOpsConfigBean(model)
+		hostURL, scheme, err := util.GetHost(configBean.GetHostUrl())
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse host from repo URL: %s", gitRepoUrl)
 		}
-		if host == requestHost {
-			gitOpsConfig = &bean2.GitOpsConfigDto{
-				Id:                    model.Id,
-				Provider:              model.Provider,
-				GitHubOrgId:           model.GitHubOrgId,
-				GitLabGroupId:         model.GitLabGroupId,
-				Active:                model.Active,
-				Token:                 model.Token,
-				Host:                  model.Host,
-				Username:              model.Username,
-				UserId:                model.CreatedBy,
-				AzureProjectName:      model.AzureProject,
-				BitBucketWorkspaceId:  model.BitBucketWorkspaceId,
-				BitBucketProjectKey:   model.BitBucketProjectKey,
-				AllowCustomRepository: model.AllowCustomRepository,
-			}
+		if len(hostURL) > 0 && len(inputHostURL) > 0 &&
+			strings.HasPrefix(inputHostURL, hostURL) &&
+			scheme == inputScheme {
 			// written with assumption that only one GitOpsConfig is present in DB for each provider(github, gitlab, etc)
-			break
-		}
-	}
-	if gitOpsConfig == nil {
-		return nil, fmt.Errorf("no gitops config found in DB for given repoURL: %s", gitRepoUrl)
-	}
-
-	return gitOpsConfig, nil
-}
-
-func (impl *GitOpsConfigReadServiceImpl) GetGitOpsProviderMapByRepoURL(allGitRepoUrls []string) (map[string]*bean2.GitOpsConfigDto, error) {
-
-	models, err := impl.gitOpsRepository.GetAllGitOpsConfig()
-	if err != nil {
-		impl.logger.Errorw("error, GetGitOpsConfigActive", "err", err)
-		return nil, err
-	}
-
-	modelHostToConfigMapping := make(map[string]*bean2.GitOpsConfigDto)
-	for _, model := range models {
-		host, err := util.GetHost(model.Host)
-		if err != nil {
-			return nil, fmt.Errorf("unable to parse host from repo URL: %s", model.Host)
-		}
-		gitOpsConfig := &bean2.GitOpsConfigDto{
-			Id:                    model.Id,
-			Provider:              model.Provider,
-			GitHubOrgId:           model.GitHubOrgId,
-			GitLabGroupId:         model.GitLabGroupId,
-			Active:                model.Active,
-			Token:                 model.Token,
-			Host:                  model.Host,
-			Username:              model.Username,
-			UserId:                model.CreatedBy,
-			AzureProjectName:      model.AzureProject,
-			BitBucketWorkspaceId:  model.BitBucketWorkspaceId,
-			BitBucketProjectKey:   model.BitBucketProjectKey,
-			AllowCustomRepository: model.AllowCustomRepository,
-		}
-		modelHostToConfigMapping[host] = gitOpsConfig
-	}
-
-	activeConfig, err := impl.GetGitOpsConfigActive()
-	if err != nil {
-		impl.logger.Errorw("error in getting active gitOps config", "err", err)
-		return nil, err
-	}
-
-	repoUrlTOConfigMap := make(map[string]*bean2.GitOpsConfigDto)
-
-	for _, gitRepoUrl := range allGitRepoUrls {
-		if gitRepoUrl == bean2.GIT_REPO_NOT_CONFIGURED {
-			repoUrlTOConfigMap[gitRepoUrl] = activeConfig
-			continue
-		}
-		requestHost, err := util.GetHost(gitRepoUrl)
-		if err != nil {
-			return nil, fmt.Errorf("unable to parse host from repo URL: %s", gitRepoUrl)
-		}
-
-		if config, ok := modelHostToConfigMapping[requestHost]; ok {
-			repoUrlTOConfigMap[gitRepoUrl] = config
-		} else if !ok {
-			impl.logger.Infow("no gitops config found in DB for given url", "repoURL", gitRepoUrl)
-			repoUrlTOConfigMap[gitRepoUrl] = activeConfig // default behaviour
+			return configBean, nil
 		}
 	}
 
-	return repoUrlTOConfigMap, nil
+	errMsg := fmt.Sprintf("no gitops config found in DB for given repository: %q", gitRepoUrl)
+	return nil, internalUtil.NewApiError(http.StatusBadRequest, errMsg, errMsg).
+		WithCode(constants.InvalidGitOpsRepoUrlForPipeline)
 }
 
 func (impl *GitOpsConfigReadServiceImpl) GetGitOpsById(id int) (*bean2.GitOpsConfigDto, error) {
