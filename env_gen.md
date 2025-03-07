@@ -119,6 +119,7 @@
 | Key   | Type     | Default Value     | Description       | Example       | Deprecated       |
 |-------|----------|-------------------|-------------------|-----------------------|------------------|
  | - |  | |  |  | false |
+ | ADDITIONAL_NODE_GROUP_LABELS |  | | Add comma separated list of additional node group labels to default labels | karpenter.sh/nodepool,cloud.google.com/gke-nodepool | false |
  | APP_SYNC_IMAGE | string |quay.io/devtron/chart-sync:1227622d-132-3775 |  |  | false |
  | APP_SYNC_JOB_RESOURCES_OBJ | string | |  |  | false |
  | APP_SYNC_SERVICE_ACCOUNT | string |chart-sync |  |  | false |

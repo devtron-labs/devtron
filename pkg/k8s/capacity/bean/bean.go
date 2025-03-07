@@ -19,10 +19,10 @@ package bean
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
+	"github.com/caarlos0/env"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -57,23 +57,19 @@ const (
 	KopsNodeGroupLabel      = "kops.k8s.io/instancegroup"
 	AWSEKSNodeGroupLabel    = "eks.amazonaws.com/nodegroup"
 	KarpenterNodeGroupLabel = "karpenter.sh/nodepool"
-	// env var to override default node group labels
-	NodeGroupLabelsEnvVar = "NODE_GROUP_LABELS"
 )
+
+type NodeGroupConfig struct {
+	AdditionalLabels []string `env:"ADDITIONAL_NODE_GROUP_LABELS" envSeparator:"," description:"Add comma separated list of additional node group labels to default labels" example:"karpenter.sh/nodepool,cloud.google.com/gke-nodepool"`
+}
 
 var NodeGroupLabels = []string{AWSNodeGroupLabel, AzureNodeGroupLabel, GcpNodeGroupLabel, KopsNodeGroupLabel, AWSEKSNodeGroupLabel, KarpenterNodeGroupLabel}
 
 func init() {
-	if envLabels := os.Getenv(NodeGroupLabelsEnvVar); envLabels != "" {
-		customLabels := strings.Split(envLabels, ",")
-		// Trim spaces from labels
-		for i := range customLabels {
-			customLabels[i] = strings.TrimSpace(customLabels[i])
-		}
-		// Only update if we got valid labels
-		if len(customLabels) > 0 {
-			NodeGroupLabels = customLabels
-		}
+	cfg := &NodeGroupConfig{}
+	if err := env.Parse(cfg); err == nil && len(cfg.AdditionalLabels) > 0 {
+		// Append additional labels from environment to default labels
+		NodeGroupLabels = append(NodeGroupLabels, cfg.AdditionalLabels...)
 	}
 }
 
