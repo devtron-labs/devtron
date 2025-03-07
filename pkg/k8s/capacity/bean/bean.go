@@ -19,13 +19,15 @@ package bean
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
+	"time"
+
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
-	"strings"
-	"time"
 )
 
 const (
@@ -55,10 +57,25 @@ const (
 	KopsNodeGroupLabel      = "kops.k8s.io/instancegroup"
 	AWSEKSNodeGroupLabel    = "eks.amazonaws.com/nodegroup"
 	KarpenterNodeGroupLabel = "karpenter.sh/nodepool"
+	// env var to override default node group labels
+	NodeGroupLabelsEnvVar = "NODE_GROUP_LABELS"
 )
 
-// TODO: add any new nodeGrouplabel in this array
-var NodeGroupLabels = [6]string{AWSNodeGroupLabel, AzureNodeGroupLabel, GcpNodeGroupLabel, KopsNodeGroupLabel, AWSEKSNodeGroupLabel, KarpenterNodeGroupLabel}
+var NodeGroupLabels = []string{AWSNodeGroupLabel, AzureNodeGroupLabel, GcpNodeGroupLabel, KopsNodeGroupLabel, AWSEKSNodeGroupLabel, KarpenterNodeGroupLabel}
+
+func init() {
+	if envLabels := os.Getenv(NodeGroupLabelsEnvVar); envLabels != "" {
+		customLabels := strings.Split(envLabels, ",")
+		// Trim spaces from labels
+		for i := range customLabels {
+			customLabels[i] = strings.TrimSpace(customLabels[i])
+		}
+		// Only update if we got valid labels
+		if len(customLabels) > 0 {
+			NodeGroupLabels = customLabels
+		}
+	}
+}
 
 // below const set is used for pod delete status
 const (
