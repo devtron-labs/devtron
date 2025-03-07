@@ -1,6 +1,7 @@
 ## Bugs
 - fix: createDockerRepoIfNeeded error handling (#6433)
 ## Enhancements
+- feat: migrate external argo cd application (#6303)
 ## Documentation
 ## Others
 - chore: Pg query fail 1 (#6337)
