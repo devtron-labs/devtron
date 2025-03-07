@@ -188,13 +188,6 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 		return
 	}
 	token := r.Header.Get("token")
-	app, err := impl.pipelineBuilder.GetApp(appId)
-	if err != nil {
-		impl.Logger.Errorw("bad request", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
 	v := r.URL.Query()
 	envIdsString := v.Get("envIds")
 	envIds := make([]int, 0)
@@ -207,7 +200,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 	}
 
 	// RBAC enforcer applying
-	object := impl.enforcerUtil.GetAppRBACName(app.AppName)
+	object := impl.enforcerUtil.GetAppRBACNameByAppId(appId)
 	impl.Logger.Debugw("rbac object for other environment list", "object", object)
 	ok := impl.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
 	if !ok {
@@ -215,8 +208,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 		return
 	}
 	//RBAC enforcer Ends
-	workflows := make(map[string]interface{})
-	workflowsList, err := impl.appWorkflowService.FindAppWorkflows(appId)
+	workflowsListResp, appType, err := impl.appWorkflowService.FindAppWorkflowsListResolvedResp(appId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching workflows for app", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -231,7 +223,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 			return
 		}
 		triggerViewPayload := &bean2.TriggerViewWorkflowConfig{
-			Workflows:   workflowsList,
+			Workflows:   workflowsListResp.Workflows,
 			CdPipelines: cdPipelineWfData,
 		}
 		queryParam := bean2.NewWorkflowsFilterQuery().WithEnvIds(envIds)
@@ -242,12 +234,10 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
-		workflowsList = response.Workflows
+		workflowsListResp.Workflows = response.Workflows
 	}
 
-	workflows["appId"] = app.Id
-	workflows["appName"] = app.AppName
-	if len(workflowsList) > 0 && app.AppType == helper.Job {
+	if len(workflowsListResp.Workflows) > 0 && appType == helper.Job {
 		// RBAC
 
 		var workflowNames []string
@@ -256,7 +246,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 		var rbacObjects []string
 		workNameObjectMap := make(map[string]bean2.AppWorkflowDto)
 
-		for _, workflow := range workflowsList {
+		for _, workflow := range workflowsListResp.Workflows {
 			workflowNames = append(workflowNames, workflow.Name)
 			workflowIds = append(workflowIds, workflow.Id)
 		}
@@ -264,7 +254,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 		itr := 0
 		for _, val := range workflowIdToObjectMap {
 			rbacObjects = append(rbacObjects, val)
-			workNameObjectMap[val] = workflowsList[itr]
+			workNameObjectMap[val] = workflowsListResp.Workflows[itr]
 			itr++
 		}
 
@@ -277,20 +267,8 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 		if len(updatedWorkflowList) == 0 {
 			updatedWorkflowList = []bean2.AppWorkflowDto{}
 		}
-		workflows[bean3.Workflows] = updatedWorkflowList
-	} else if len(workflowsList) > 0 {
-		workflows[bean3.Workflows] = workflowsList
-	} else {
-		workflows[bean3.Workflows] = []bean2.AppWorkflowDto{}
 	}
-	isAppLevelGitOpsConfigured, err := impl.chartService.IsGitOpsRepoConfiguredForDevtronApp(appId)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("service err, IsGitOpsRepoConfiguredForDevtronApp", "appId", appId, "envIds", envIds, "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	workflows["isGitOpsRepoNotConfigured"] = !isAppLevelGitOpsConfigured
-	common.WriteJsonResp(w, nil, workflows, http.StatusOK)
+	common.WriteJsonResp(w, nil, workflowsListResp, http.StatusOK)
 }
 
 func (impl AppWorkflowRestHandlerImpl) FindAllWorkflows(w http.ResponseWriter, r *http.Request) {
