@@ -720,7 +720,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	appDeploymentTypeChangeManagerImpl := pipeline.NewAppDeploymentTypeChangeManagerImpl(sugaredLogger, pipelineRepositoryImpl, appServiceImpl, appStatusRepositoryImpl, helmAppServiceImpl, appArtifactManagerImpl, cdPipelineConfigServiceImpl, gitOpsConfigReadServiceImpl, chartServiceImpl, workflowEventPublishServiceImpl, deploymentConfigServiceImpl, chartReadServiceImpl)
+	appDeploymentTypeChangeManagerImpl := pipeline.NewAppDeploymentTypeChangeManagerImpl(sugaredLogger, pipelineRepositoryImpl, appServiceImpl, appStatusRepositoryImpl, helmAppServiceImpl, appArtifactManagerImpl, cdPipelineConfigServiceImpl, gitOpsConfigReadServiceImpl, chartServiceImpl, workflowEventPublishServiceImpl, deploymentConfigServiceImpl, chartReadServiceImpl, deploymentConfigReadServiceImpl)
 	devtronAppConfigServiceImpl := pipeline.NewDevtronAppConfigServiceImpl(sugaredLogger, ciCdPipelineOrchestratorImpl, appRepositoryImpl, pipelineRepositoryImpl, resourceGroupServiceImpl, enforcerUtilImpl, ciMaterialConfigServiceImpl)
 	pipelineBuilderImpl := pipeline.NewPipelineBuilderImpl(sugaredLogger, gitMaterialReadServiceImpl, chartRepositoryImpl, ciPipelineConfigServiceImpl, ciMaterialConfigServiceImpl, appArtifactManagerImpl, devtronAppCMCSServiceImpl, devtronAppStrategyServiceImpl, appDeploymentTypeChangeManagerImpl, cdPipelineConfigServiceImpl, devtronAppConfigServiceImpl)
 	deploymentTemplateValidationServiceImpl := deploymentTemplate.NewDeploymentTemplateValidationServiceImpl(sugaredLogger, chartRefServiceImpl, scopedVariableManagerImpl)

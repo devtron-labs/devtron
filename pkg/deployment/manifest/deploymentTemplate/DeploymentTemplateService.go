@@ -64,7 +64,9 @@ func NewDeploymentTemplateServiceImpl(logger *zap.SugaredLogger,
 }
 
 func (impl *DeploymentTemplateServiceImpl) BuildChartAndGetPath(appName string, envOverride *bean.EnvConfigOverride, envDeploymentConfig *bean9.DeploymentConfig, ctx context.Context) (string, error) {
-	if !strings.HasSuffix(envOverride.Chart.ChartLocation, fmt.Sprintf("%s%s", "/", envOverride.Chart.ChartVersion)) {
+	if !envDeploymentConfig.IsLinkedRelease() &&
+		(!strings.HasSuffix(envOverride.Chart.ChartLocation, fmt.Sprintf("%s%s", "/", envOverride.Chart.ChartVersion)) ||
+			!strings.HasSuffix(envDeploymentConfig.GetChartLocation(), fmt.Sprintf("%s%s", "/", envOverride.Chart.ChartVersion))) {
 		_, span := otel.Tracer("orchestrator").Start(ctx, "autoHealChartLocationInChart")
 		err := impl.autoHealChartLocationInChart(ctx, envOverride, envDeploymentConfig)
 		span.End()

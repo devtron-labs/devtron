@@ -1294,10 +1294,10 @@ func (impl *TriggerServiceImpl) updateArgoPipeline(ctx context.Context, pipeline
 	appStatus, _ := status2.FromError(err)
 	if appStatus.Code() == codes.OK {
 		impl.logger.Debugw("argo app exists", "app", argoAppName, "pipeline", pipeline.Name)
-		if impl.argoClientWrapperService.IsArgoAppPatchRequired(argoApplication.Spec.Source, deploymentConfig.GetRepoURL(), "", envOverride.Chart.ChartLocation) {
+		if impl.argoClientWrapperService.IsArgoAppPatchRequired(argoApplication.Spec.Source, deploymentConfig.GetRepoURL(), deploymentConfig.GetTargetRevision(), deploymentConfig.GetChartLocation()) {
 			patchRequestDto := &bean7.ArgoCdAppPatchReqDto{
 				ArgoAppName:    argoAppName,
-				ChartLocation:  envOverride.Chart.ChartLocation,
+				ChartLocation:  deploymentConfig.GetChartLocation(),
 				GitRepoUrl:     deploymentConfig.GetRepoURL(),
 				TargetRevision: deploymentConfig.GetTargetRevision(),
 				PatchType:      bean7.PatchTypeMerge,

@@ -36,6 +36,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/common/adapter"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
+	read2 "github.com/devtron-labs/devtron/pkg/deployment/common/read"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
@@ -81,6 +82,7 @@ type AppDeploymentTypeChangeManagerImpl struct {
 	deploymentConfigService     common.DeploymentConfigService
 	ArgoClientWrapperService    argocdServer.ArgoClientWrapperService
 	chartReadService            read.ChartReadService
+	DeploymentConfigReadService read2.DeploymentConfigReadService
 }
 
 func NewAppDeploymentTypeChangeManagerImpl(
@@ -95,7 +97,8 @@ func NewAppDeploymentTypeChangeManagerImpl(
 	chartService chartService.ChartService,
 	workflowEventPublishService out.WorkflowEventPublishService,
 	deploymentConfigService common.DeploymentConfigService,
-	chartReadService read.ChartReadService) *AppDeploymentTypeChangeManagerImpl {
+	chartReadService read.ChartReadService,
+	DeploymentConfigReadService read2.DeploymentConfigReadService) *AppDeploymentTypeChangeManagerImpl {
 	return &AppDeploymentTypeChangeManagerImpl{
 		logger:                      logger,
 		pipelineRepository:          pipelineRepository,
@@ -109,6 +112,7 @@ func NewAppDeploymentTypeChangeManagerImpl(
 		workflowEventPublishService: workflowEventPublishService,
 		deploymentConfigService:     deploymentConfigService,
 		chartReadService:            chartReadService,
+		DeploymentConfigReadService: DeploymentConfigReadService,
 	}
 }
 
@@ -180,6 +184,12 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangeDeploymentType(ctx context
 		}
 		deploymentConfig.DeploymentAppType = request.DesiredDeploymentType
 		deploymentConfig.ReleaseMode = util.PIPELINE_RELEASE_MODE_CREATE //now pipeline release mode will be create
+		releaseConfig, err := impl.DeploymentConfigReadService.ParseEnvLevelReleaseConfigForDevtronApp(deploymentConfig, pipeline.AppId, pipeline.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in parsing release config", "err", err)
+			return response, err
+		}
+		deploymentConfig.ReleaseConfiguration = releaseConfig
 		deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, request.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in updating configs", "err", err)
@@ -248,6 +258,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 		EnvId:                 request.EnvId,
 		DesiredDeploymentType: request.DesiredDeploymentType,
 		TriggeredPipelines:    make([]*bean.CdPipelineTrigger, 0),
+		FailedPipelines:       make([]*bean.DeploymentChangeStatus, 0),
 	}
 
 	var deleteDeploymentType string
@@ -269,12 +280,17 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 		return response, err
 	}
 
-	var pipelineIds []int
+	var allPipelines []int
 	for _, item := range pipelines {
-		pipelineIds = append(pipelineIds, item.Id)
+		allPipelines = append(allPipelines, item.Id)
 	}
 
-	if len(pipelineIds) == 0 {
+	if len(allPipelines) == 0 {
+		return response, nil
+	}
+
+	pipelineIds := make([]int, 0)
+	if len(allPipelines) == 0 {
 		return response, nil
 	}
 
@@ -285,7 +301,21 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", p.AppId, "envId", p.EnvironmentId, "err", err)
 			return response, err
 		}
-		deploymentConfigs = append(deploymentConfigs, envDeploymentConfig)
+		if !envDeploymentConfig.IsLinkedRelease() {
+			pipelineIds = append(pipelineIds, p.Id)
+			deploymentConfigs = append(deploymentConfigs, envDeploymentConfig)
+		} else {
+			response.FailedPipelines = append(response.FailedPipelines,
+				&bean.DeploymentChangeStatus{
+					PipelineId: p.Id,
+					AppId:      p.AppId,
+					AppName:    p.App.AppName,
+					EnvId:      p.EnvironmentId,
+					EnvName:    p.Environment.Name,
+					Error:      "Deployment app type cannot be changed because this app is linked with external application",
+					Status:     bean.Failed,
+				})
+		}
 	}
 
 	deleteResponse := impl.DeleteDeploymentApps(ctx, pipelines, deploymentConfigs, request.UserId)
@@ -320,8 +350,14 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", item.AppId, "envId", item.EnvId, "err", err)
 			return response, err
 		}
-		envDeploymentConfig.DeploymentAppType = request.DesiredDeploymentType
 		envDeploymentConfig.ReleaseMode = util.PIPELINE_RELEASE_MODE_CREATE // now pipeline release mode will be create
+		envDeploymentConfig.DeploymentAppType = request.DesiredDeploymentType
+		releaseConfig, err := impl.DeploymentConfigReadService.ParseEnvLevelReleaseConfigForDevtronApp(envDeploymentConfig, item.AppId, item.EnvId)
+		if err != nil {
+			impl.logger.Errorw("error in parsing release config", "err", err)
+			return response, err
+		}
+		envDeploymentConfig.ReleaseConfiguration = releaseConfig
 		envDeploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, request.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in updating deployment config", "err", err)
@@ -545,6 +581,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 						}
 					}
 				}
+
 				if gitOpsRepoNotFound != nil {
 					impl.logger.Errorw("error no GitOps repository configured for the app", "err", gitOpsRepoNotFound)
 				}
@@ -610,21 +647,21 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentAppsForEnvironme
 	currentDeploymentAppType bean3.DeploymentType, exclusionList []int, includeApps []int, userId int32) (*bean.DeploymentAppTypeChangeResponse, error) {
 
 	// fetch active pipelines from database for the given environment id and current deployment app type
-	pipelines, err := impl.pipelineRepository.FindActiveByEnvIdAndDeploymentType(environmentId,
+	allPipelines, err := impl.pipelineRepository.FindActiveByEnvIdAndDeploymentType(environmentId,
 		currentDeploymentAppType, exclusionList, includeApps)
 
+	pipelines := make([]*pipelineConfig.Pipeline, 0)
 	deploymentConfigs := make([]*bean4.DeploymentConfig, 0)
-	for _, p := range pipelines {
+	for _, p := range allPipelines {
 		envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(p.AppId, p.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", p.AppId, "envId", p.EnvironmentId, "err", err)
-			return &bean.DeploymentAppTypeChangeResponse{
-				EnvId:               environmentId,
-				SuccessfulPipelines: []*bean.DeploymentChangeStatus{},
-				FailedPipelines:     []*bean.DeploymentChangeStatus{},
-			}, err
+			return nil, err
 		}
-		deploymentConfigs = append(deploymentConfigs, envDeploymentConfig)
+		if !envDeploymentConfig.IsLinkedRelease() {
+			pipelines = append(pipelines, p)
+			deploymentConfigs = append(deploymentConfigs, envDeploymentConfig)
+		}
 	}
 
 	if err != nil {
