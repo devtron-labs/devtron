@@ -94,10 +94,15 @@ func GetArgoApplicationTreeForNodes(nodes []*gRPC.ResourceNode) (*v1alpha1.Appli
 			Images:          nil, //TODO: do we use this?? and set this to null ??
 			Health:          GetArgoHealthStatus(node.Health),
 		}
-
-		createdAtTime, err := time.Parse(time.RFC3339, node.CreatedAt)
-		if err != nil {
-			return nil, err
+		var (
+			createdAtTime time.Time
+			err           error
+		)
+		if len(node.CreatedAt) != 0 {
+			createdAtTime, err = time.Parse(time.RFC3339, node.CreatedAt)
+			if err != nil {
+				return nil, err
+			}
 		}
 		argoResourceNode.CreatedAt = &metav1.Time{createdAtTime}
 		argoNodes = append(argoNodes, argoResourceNode)
