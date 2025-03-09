@@ -916,25 +916,25 @@ func (impl *CdPipelineConfigServiceImpl) GetAndValidateArgoApplicationSpec(appli
 	argoApplicationSpec, err := impl.argoClientWrapperService.GetArgoAppByNameWithK8sClient(context.Background(), applicationObjectClusterId, applicationObjectNamespace, acdAppName)
 	if err != nil {
 		impl.logger.Errorw("error in fetching application", "deploymentAppName", acdAppName, "err", err)
-		return nil, &pipelineConfigBean.LinkFailedError{
+		return nil, pipelineConfigBean.LinkFailedError{
 			Reason:      pipelineConfigBean.InternalServerError,
 			UserMessage: err.Error(),
 		}
 	}
 	if argoApplicationSpec.Spec.HasMultipleSources() {
-		return argoApplicationSpec, &pipelineConfigBean.LinkFailedError{
+		return argoApplicationSpec, pipelineConfigBean.LinkFailedError{
 			Reason:      pipelineConfigBean.UnsupportedApplicationSpec,
 			UserMessage: "application with multiple sources not supported",
 		}
 	}
 	if argoApplicationSpec.Spec.Source != nil && argoApplicationSpec.Spec.Source.Helm != nil && len(argoApplicationSpec.Spec.Source.Helm.ValueFiles) != 1 {
-		return argoApplicationSpec, &pipelineConfigBean.LinkFailedError{
+		return argoApplicationSpec, pipelineConfigBean.LinkFailedError{
 			Reason:      pipelineConfigBean.UnsupportedApplicationSpec,
 			UserMessage: "application with multiple/ empty helm value files are not supported",
 		}
 	}
 	if strings.ToLower(argoApplicationSpec.Spec.Source.TargetRevision) == bean7.TargetRevisionHead {
-		return argoApplicationSpec, &pipelineConfigBean.LinkFailedError{
+		return argoApplicationSpec, pipelineConfigBean.LinkFailedError{
 			Reason:      pipelineConfigBean.UnsupportedApplicationSpec,
 			UserMessage: "Target revision head not supported",
 		}
@@ -942,7 +942,7 @@ func (impl *CdPipelineConfigServiceImpl) GetAndValidateArgoApplicationSpec(appli
 
 	targetClusterURL := argoApplicationSpec.Spec.Destination.Server
 	if len(targetClusterURL) == 0 {
-		return argoApplicationSpec, &pipelineConfigBean.LinkFailedError{
+		return argoApplicationSpec, pipelineConfigBean.LinkFailedError{
 			Reason:      pipelineConfigBean.UnsupportedApplicationSpec,
 			UserMessage: "application with empty destination server is not supported",
 		}
@@ -950,7 +950,7 @@ func (impl *CdPipelineConfigServiceImpl) GetAndValidateArgoApplicationSpec(appli
 
 	targetClusterNamespace := argoApplicationSpec.Spec.Destination.Namespace
 	if len(targetClusterNamespace) == 0 {
-		return argoApplicationSpec, &pipelineConfigBean.LinkFailedError{
+		return argoApplicationSpec, pipelineConfigBean.LinkFailedError{
 			Reason:      pipelineConfigBean.UnsupportedApplicationSpec,
 			UserMessage: "application with empty destination namespace is not supported",
 		}
