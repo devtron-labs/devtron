@@ -111,7 +111,8 @@ func (a *ApplicationMetadata) GetSavedChartName() string {
 	return a.Source.ChartMetadata.SavedChartName
 }
 
-func (r *HelmReleaseMetadata) WithReleaseData(release *gRPC.DeployedAppDetail) {
+func (r *HelmReleaseMetadata) UpdateReleaseData(release *gRPC.DeployedAppDetail) {
+	r.Name = release.AppName
 	r.Info = HelmReleaseInfo{
 		Status: release.ReleaseStatus,
 	}
@@ -126,17 +127,17 @@ func (r *HelmReleaseMetadata) WithReleaseData(release *gRPC.DeployedAppDetail) {
 	}
 }
 
-func (r *HelmReleaseMetadata) WithClusterData(cluster *bean.ClusterBean) {
+func (r *HelmReleaseMetadata) UpdateClusterData(cluster *bean.ClusterBean) {
 	r.Destination.ClusterName = cluster.ClusterName
 	r.Destination.ClusterServerUrl = cluster.ServerUrl
 }
 
-func (r *HelmReleaseMetadata) WithEnvironmentMetadata(environment *repository.Environment) {
+func (r *HelmReleaseMetadata) UpdateEnvironmentMetadata(environment *repository.Environment) {
 	r.Destination.EnvironmentName = environment.Name
 	r.Destination.EnvironmentId = environment.Id
 }
 
-func (r *HelmReleaseMetadata) WithChartRefData(chartRef *bean2.ChartRefDto) {
+func (r *HelmReleaseMetadata) UpdateChartRefData(chartRef *bean2.ChartRefDto) {
 	r.Chart.HelmReleaseChartMetadata.SavedChartName = chartRef.Name
 }
 

@@ -998,30 +998,30 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkHelmAppRequest(ctx context.
 		impl.logger.Errorw("error in getting application detail", "releaseClusterId", releaseClusterId, "releaseName", request.DeploymentAppName, "releaseNamespace", releaseNamespace, "err", err)
 		return response.SetUnknownErrorDetail(err)
 	}
-	response.HelmReleaseMetadata.WithReleaseData(release)
+	response.HelmReleaseMetadata.UpdateReleaseData(release)
 
 	cluster, err := impl.clusterReadService.FindById(releaseClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster by id", "clusterId", releaseClusterId, "err", err)
 		return response.SetUnknownErrorDetail(err)
 	}
-	response.HelmReleaseMetadata.WithClusterData(cluster)
+	response.HelmReleaseMetadata.UpdateClusterData(cluster)
 
 	targetEnv, err := impl.validateIfTargetEnvironmentAdded(releaseClusterId, releaseNamespace)
 	if err != nil {
 		return response.SetErrorDetail(err)
 	}
-	response.HelmReleaseMetadata.WithEnvironmentMetadata(targetEnv)
+	response.HelmReleaseMetadata.UpdateEnvironmentMetadata(targetEnv)
 
 	chartRef, err := impl.ValidateAppChartTypeForLinkedApp(appId, release.ChartName)
 	if err != nil {
 		if chartRef != nil {
-			response.ApplicationMetadata.UpdateChartRefData(chartRef)
+			response.HelmReleaseMetadata.UpdateChartRefData(chartRef)
 		}
 		impl.logger.Errorw("error in finding chart configured for app ", "appId", appId, "err", err)
 		return response.SetErrorDetail(err)
 	}
-	response.ApplicationMetadata.UpdateChartRefData(chartRef)
+	response.HelmReleaseMetadata.UpdateChartRefData(chartRef)
 
 	err = impl.validateIfChartVersionAvailableForChart(chartRef, release.ChartVersion)
 	if err != nil {
