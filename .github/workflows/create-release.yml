@@ -1,18 +1,100 @@
-# This workflow is used to create a github release from last tag pushed
+# This workflow is used to create tag and Release for OSS
 
 name: Create Release
 
 # Controls when the action will run. Workflow runs when manually triggered using the UI
 # or on push in charts directory of main branch.
 on:
-
   workflow_dispatch:
+    inputs:
+      RELEASE_TYPE:
+        description: 'Release type (major/minor/patch/beta)'
+        required: true
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+          - beta
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "create-release"
+
+  create-release-tag:
+    runs-on: ubuntu-latest
+    container:
+      image: alpine:latest
+
+    env:
+      GITHUB_TOKENS: ${{ secrets.GH_SYSTEMSDT_TOKEN }}
+      GIT_CONFIG_EMAIL: ${{ secrets.GH_SYSTEMSDT_EMAIL }}
+      GIT_CONFIG_NAME: ${{ secrets.GH_SYSTEMSDT_USERNAME }}
+      GIT_USERNAME: ${{ secrets.GH_SYSTEMSDT_USERNAME }}
+      GIT_REPO: ${{ github.repository }}
+      RELEASE_TYPE: ${{ inputs.RELEASE_TYPE }}
+      REPO: https://github.com/akshatsinha007/devtron
+      RELEASE_BRANCH: "main"
+
+    steps:
+      - name: Install dependencies
+        run: |
+          apk update && apk add --no-cache git github-cli
+
+      - name: Configure Git
+        run: |
+          echo $GITHUB_TOKENS > tokens.txt
+          gh auth login --with-token < tokens.txt
+          git config --global user.email "$GIT_CONFIG_EMAIL"
+          git config --global user.name "$GIT_CONFIG_NAME"
+
+      - name: Clone repository and create tag
+        run: |
+          mkdir preci && cd preci
+          gh repo clone "$REPO"
+          cd $(basename "$REPO")
+          git checkout $RELEASE_BRANCH
+          git pull origin $RELEASE_BRANCH
+          NEXT_RELEASE_VERSION=v$(curl -s https://raw.githubusercontent.com/devtron-labs/charts/refs/heads/main/charts/devtron/Chart.yaml | grep 'appVersion' | awk '{print $2}')
+          # Create and push tag
+          git tag $NEXT_RELEASE_VERSION
+          git push -f https://$GIT_USERNAME:$GITHUB_TOKENS@github.com/$GIT_REPO $NEXT_RELEASE_VERSION
+
+      - name: Update release notes
+        run: |
+          cd preci/$(basename "$REPO")
+          
+          if [[ "$RELEASE_TYPE" == "beta" ]]; then
+            # For beta releases, just commit and push all changes
+            git add .
+            git commit -m "Updated release-notes files"
+            git push -f https://$GIT_USERNAME:$GITHUB_TOKENS@github.com/$GIT_REPO --all
+          else
+            # For major/minor/patch releases, perform full release notes update
+            echo -e "## $NEXT_RELEASE_VERSION\n" > tmp
+            if [ -f beta-releasenotes.md ]; then
+              cat beta-releasenotes.md >> tmp
+              echo -e "\n" >> tmp
+            fi
+            if [ -f releasenotes.md ]; then
+              cat releasenotes.md >> tmp
+            fi
+            mv tmp releasenotes.md
+            
+            # Remove beta release notes
+            rm -f beta-releasenotes.md
+            
+            # Create changelog file
+            mkdir -p CHANGELOG
+            cat releasenotes.md > CHANGELOG/release-notes-${NEXT_RELEASE_VERSION}.md
+            
+            # Commit and push changes
+            git add .
+            git commit -m "Updated release-notes files"
+            git push -f https://$GIT_USERNAME:$GITHUB_TOKENS@github.com/$GIT_REPO $RELEASE_BRANCH
+          fi
+  
   create-release:
-    # The type of runner that the job will run on
+    needs: create-release-tag
     runs-on: ubuntu-latest
 
     # Steps represent a sequence of tasks that will be executed as part of the job
@@ -20,14 +102,14 @@ jobs:
     # Runs series of commands to create a release
     - name: create-release
       run: |
-        RELEASE_FILE_CONTENTS=$(curl -L -s  "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${RELEASE_BRANCH}/manifests/release.txt" )
-        RELEASE_TYPE=$(echo $RELEASE_FILE_CONTENTS | awk '{print $1}')
         FILE_NAME=${FILE_NAME:=releasenotes.md}
         echo $RELEASE_TYPE
         echo $GITHUB_REPOSITORY
+        echo $RELEASE_BRANCH
+
         gh repo clone $GITHUB_REPOSITORY
         cd devtron
-        if [[ "$RELEASE_TYPE" == "stable" ]]
+        if [[ "$RELEASE_TYPE" == "major" || "$RELEASE_TYPE" == "minor" || "$RELEASE_TYPE" == "patch" ]]
           then
             tag=$(git tag --sort=committerdate | tail -1)
             echo $tag
@@ -39,11 +121,9 @@ jobs:
             git config --global user.name "$GIT_CONFIG_NAME"
             rm -f $FILE_NAME
             touch $FILE_NAME
-            echo "## Bugs" > beta-releasenotes.md
             echo "## Enhancements" >> beta-releasenotes.md
-            echo "## Documentation" >> beta-releasenotes.md
+            echo "## Bugs" > beta-releasenotes.md
             echo "## Others" >> beta-releasenotes.md
-            echo "beta -1 $tag" > manifests/release.txt
             git add .
             git commit -am "Updated release-notes files"
             git push -f https://${GIT_CONFIG_NAME}:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY} release-bot
@@ -52,9 +132,8 @@ jobs:
             git checkout -b release-bot
             git config --global user.email "$GIT_CONFIG_EMAIL"
             git config --global user.name "$GIT_CONFIG_NAME"
-            echo "## Bugs" > beta-releasenotes.md
             echo "## Enhancements" >> beta-releasenotes.md
-            echo "## Documentation" >> beta-releasenotes.md
+            echo "## Bugs" > beta-releasenotes.md
             echo "## Others" >> beta-releasenotes.md
             git add .
             git commit -am "Created release-notes files"
@@ -62,16 +141,15 @@ jobs:
             echo "Not creating release due to beta"
         fi
       env:
+        RELEASE_BRANCH: "main"
         GH_TOKEN: ${{ secrets.GH_SYSTEMSDT_TOKEN }}
-        RELEASE_BRANCH: ${{ secrets.RELEASE_BRANCH }}
         GIT_CONFIG_NAME: ${{ vars.GH_SYSTEMSDT_USERNAME }}
         GIT_CONFIG_EMAIL: ${{ secrets.GH_SYSTEMSDT_EMAIL }}
+        RELEASE_TYPE: ${{ github.event.inputs.RELEASE_TYPE }}
     # Send notification on discord
     - name: discord-notify
       run: |
-        RELEASE_FILE_CONTENTS=$(curl -L -s  "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${RELEASE_BRANCH}/manifests/release.txt" )
-        RELEASE_TYPE=$(echo $RELEASE_FILE_CONTENTS | awk '{print $1}')
-        if [[ "$RELEASE_TYPE" == "stable" ]]
+        if [[ "$RELEASE_TYPE" == "major" || "$RELEASE_TYPE" == "minor" || "$RELEASE_TYPE" == "patch" ]]
         then
         sudo apt install python3 python3-pip -y
         pip install discord-webhook
@@ -85,4 +163,4 @@ jobs:
         echo "Not sending notification due to beta"
         fi
       env:
-        RELEASE_BRANCH: ${{ secrets.RELEASE_BRANCH }}
+        RELEASE_TYPE: ${{ github.event.inputs.RELEASE_TYPE }}
