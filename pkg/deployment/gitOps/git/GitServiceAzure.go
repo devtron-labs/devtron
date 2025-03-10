@@ -325,6 +325,7 @@ func (impl GitAzureClient) repoExists(repoName, projectName string) (repoUrl str
 	notFoundStatus := 404
 	if err != nil {
 		if e, ok := err.(azuredevops.WrappedError); ok && *e.StatusCode == notFoundStatus {
+			err = nil // so that TriggerGitOpsMetrics does not get incremented with Failed status
 			return "", false, isRepoEmpty, nil
 		} else {
 			return "", false, isRepoEmpty, err
