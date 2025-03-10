@@ -82,7 +82,7 @@ func (impl *EventSimpleFactoryImpl) Build(eventType util.EventType, sourceId *in
 		event.PipelineId = *sourceId
 	}
 	event.AppId = appId
-	if envId != nil {
+	if envId != nil && *envId > 0 {
 		env, err := impl.envRepository.FindById(*envId)
 		if err != nil {
 			impl.logger.Errorw("error in getting env", "envId", *envId, "err", err)
