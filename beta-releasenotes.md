@@ -1,4 +1,5 @@
 ## Bugs
+- fix: envId check in EventBuilder.go (#6436)
 - fix: createDockerRepoIfNeeded error handling (#6433)
 ## Enhancements
 - feat: migrate external argo cd application (#6303)
