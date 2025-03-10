@@ -41,7 +41,7 @@ func (impl *GoGitSDKManagerImpl) AddRepo(ctx GitContext, rootDir string, remoteU
 	return err
 }
 
-func (impl GoGitSDKManagerImpl) Pull(ctx GitContext, repoRoot string) (err error) {
+func (impl *GoGitSDKManagerImpl) Pull(ctx GitContext, targetRevision string, repoRoot string) (err error) {
 
 	_, workTree, err := impl.getRepoAndWorktree(repoRoot)
 	if err != nil {
@@ -66,7 +66,7 @@ func (impl GoGitSDKManagerImpl) Pull(ctx GitContext, repoRoot string) (err error
 	return err
 }
 
-func (impl GoGitSDKManagerImpl) getRepoAndWorktree(repoRoot string) (*git.Repository, *git.Worktree, error) {
+func (impl *GoGitSDKManagerImpl) getRepoAndWorktree(repoRoot string) (*git.Repository, *git.Worktree, error) {
 	var err error
 	start := time.Now()
 	defer func() {
@@ -80,7 +80,7 @@ func (impl GoGitSDKManagerImpl) getRepoAndWorktree(repoRoot string) (*git.Reposi
 	return r, w, err
 }
 
-func (impl GoGitSDKManagerImpl) CommitAndPush(ctx GitContext, repoRoot, commitMsg, name, emailId string) (string, error) {
+func (impl *GoGitSDKManagerImpl) CommitAndPush(ctx GitContext, repoRoot, targetRevision, commitMsg, name, emailId string) (string, error) {
 	repo, workTree, err := impl.getRepoAndWorktree(repoRoot)
 	if err != nil {
 		return "", err
@@ -118,6 +118,7 @@ func (impl GoGitSDKManagerImpl) CommitAndPush(ctx GitContext, repoRoot, commitMs
 	err = repo.PushContext(ctx, pushOptions)
 	return commit.String(), err
 }
+
 func (auth *BasicAuth) ToBasicAuth() *http.BasicAuth {
 	return &http.BasicAuth{
 		Username: auth.Username,

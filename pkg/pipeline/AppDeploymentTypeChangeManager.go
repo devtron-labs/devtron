@@ -32,8 +32,11 @@ import (
 	app2 "github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/chart/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	"github.com/devtron-labs/devtron/pkg/deployment/common/adapter"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
+	read2 "github.com/devtron-labs/devtron/pkg/deployment/common/read"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
@@ -42,8 +45,8 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	"strconv"
-	"strings"
 )
 
 type AppDeploymentTypeChangeManager interface {
@@ -78,6 +81,8 @@ type AppDeploymentTypeChangeManagerImpl struct {
 	workflowEventPublishService out.WorkflowEventPublishService
 	deploymentConfigService     common.DeploymentConfigService
 	ArgoClientWrapperService    argocdServer.ArgoClientWrapperService
+	chartReadService            read.ChartReadService
+	DeploymentConfigReadService read2.DeploymentConfigReadService
 }
 
 func NewAppDeploymentTypeChangeManagerImpl(
@@ -91,7 +96,9 @@ func NewAppDeploymentTypeChangeManagerImpl(
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	chartService chartService.ChartService,
 	workflowEventPublishService out.WorkflowEventPublishService,
-	deploymentConfigService common.DeploymentConfigService) *AppDeploymentTypeChangeManagerImpl {
+	deploymentConfigService common.DeploymentConfigService,
+	chartReadService read.ChartReadService,
+	DeploymentConfigReadService read2.DeploymentConfigReadService) *AppDeploymentTypeChangeManagerImpl {
 	return &AppDeploymentTypeChangeManagerImpl{
 		logger:                      logger,
 		pipelineRepository:          pipelineRepository,
@@ -104,6 +111,8 @@ func NewAppDeploymentTypeChangeManagerImpl(
 		chartService:                chartService,
 		workflowEventPublishService: workflowEventPublishService,
 		deploymentConfigService:     deploymentConfigService,
+		chartReadService:            chartReadService,
+		DeploymentConfigReadService: DeploymentConfigReadService,
 	}
 }
 
@@ -174,6 +183,13 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangeDeploymentType(ctx context
 			return nil, err
 		}
 		deploymentConfig.DeploymentAppType = request.DesiredDeploymentType
+		deploymentConfig.ReleaseMode = util.PIPELINE_RELEASE_MODE_CREATE //now pipeline release mode will be create
+		releaseConfig, err := impl.DeploymentConfigReadService.ParseEnvLevelReleaseConfigForDevtronApp(deploymentConfig, pipeline.AppId, pipeline.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in parsing release config", "err", err)
+			return response, err
+		}
+		deploymentConfig.ReleaseConfiguration = releaseConfig
 		deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, request.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in updating configs", "err", err)
@@ -242,6 +258,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 		EnvId:                 request.EnvId,
 		DesiredDeploymentType: request.DesiredDeploymentType,
 		TriggeredPipelines:    make([]*bean.CdPipelineTrigger, 0),
+		FailedPipelines:       make([]*bean.DeploymentChangeStatus, 0),
 	}
 
 	var deleteDeploymentType string
@@ -263,12 +280,17 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 		return response, err
 	}
 
-	var pipelineIds []int
+	var allPipelines []int
 	for _, item := range pipelines {
-		pipelineIds = append(pipelineIds, item.Id)
+		allPipelines = append(allPipelines, item.Id)
 	}
 
-	if len(pipelineIds) == 0 {
+	if len(allPipelines) == 0 {
+		return response, nil
+	}
+
+	pipelineIds := make([]int, 0)
+	if len(allPipelines) == 0 {
 		return response, nil
 	}
 
@@ -279,7 +301,21 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", p.AppId, "envId", p.EnvironmentId, "err", err)
 			return response, err
 		}
-		deploymentConfigs = append(deploymentConfigs, envDeploymentConfig)
+		if !envDeploymentConfig.IsLinkedRelease() {
+			pipelineIds = append(pipelineIds, p.Id)
+			deploymentConfigs = append(deploymentConfigs, envDeploymentConfig)
+		} else {
+			response.FailedPipelines = append(response.FailedPipelines,
+				&bean.DeploymentChangeStatus{
+					PipelineId: p.Id,
+					AppId:      p.AppId,
+					AppName:    p.App.AppName,
+					EnvId:      p.EnvironmentId,
+					EnvName:    p.Environment.Name,
+					Error:      "Deployment app type cannot be changed because this app is linked with external application",
+					Status:     bean.Failed,
+				})
+		}
 	}
 
 	deleteResponse := impl.DeleteDeploymentApps(ctx, pipelines, deploymentConfigs, request.UserId)
@@ -314,7 +350,14 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", item.AppId, "envId", item.EnvId, "err", err)
 			return response, err
 		}
+		envDeploymentConfig.ReleaseMode = util.PIPELINE_RELEASE_MODE_CREATE // now pipeline release mode will be create
 		envDeploymentConfig.DeploymentAppType = request.DesiredDeploymentType
+		releaseConfig, err := impl.DeploymentConfigReadService.ParseEnvLevelReleaseConfigForDevtronApp(envDeploymentConfig, item.AppId, item.EnvId)
+		if err != nil {
+			impl.logger.Errorw("error in parsing release config", "err", err)
+			return response, err
+		}
+		envDeploymentConfig.ReleaseConfiguration = releaseConfig
 		envDeploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, request.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in updating deployment config", "err", err)
@@ -484,13 +527,13 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 		// delete request
 		var err error
 		if envDeploymentConfig.DeploymentAppType == bean3.ArgoCd {
-			err = impl.deleteArgoCdApp(ctx, pipeline, pipeline.DeploymentAppName, true)
+			err = impl.deleteArgoCdApp(ctx, pipeline, envDeploymentConfig, true)
 
 		} else {
 
 			// For converting from Helm to ArgoCD, GitOps should be configured
-			if gitOpsConfigErr != nil || !gitOpsConfigurationStatus.IsGitOpsConfigured {
-				err = errors.New("GitOps not configured or unable to fetch GitOps configuration")
+			if gitOpsConfigErr != nil || !gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled() {
+				err = errors.New("GitOps integration is not installed/configured. Please install/configure GitOps.")
 
 			} else {
 				// Register app in ACD
@@ -499,7 +542,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 					AcdRegisterErr, RepoURLUpdateErr,
 					createGitRepoErr, gitOpsRepoNotFound error
 				)
-				chart, chartServiceErr := impl.chartService.FindLatestChartForAppByAppId(pipeline.AppId)
+				chart, chartServiceErr := impl.chartReadService.FindLatestChartForAppByAppId(pipeline.AppId)
 				if chartServiceErr != nil {
 					impl.logger.Errorw("Error in fetching latest chart for pipeline", "err", err, "appId", pipeline.AppId)
 				}
@@ -508,7 +551,8 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 						if gitOpsConfigurationStatus.AllowCustomRepository || chart.IsCustomGitRepository {
 							gitOpsRepoNotFound = fmt.Errorf(cdWorkflow.GITOPS_REPO_NOT_CONFIGURED)
 						} else {
-							_, chartGitAttr, createGitRepoErr = impl.appService.CreateGitOpsRepo(&app.App{Id: pipeline.AppId, AppName: pipeline.App.AppName}, userId)
+							targetRevision := chart.TargetRevision
+							_, chartGitAttr, createGitRepoErr = impl.appService.CreateGitOpsRepo(&app.App{Id: pipeline.AppId, AppName: pipeline.App.AppName}, targetRevision, userId)
 							if createGitRepoErr == nil {
 								AcdRegisterErr = impl.cdPipelineConfigService.RegisterInACD(ctx, chartGitAttr, userId)
 								if AcdRegisterErr != nil {
@@ -519,8 +563,8 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 									if RepoURLUpdateErr != nil {
 										impl.logger.Errorw("error in updating git repo url in charts", "err", RepoURLUpdateErr)
 									}
-									envDeploymentConfig.ConfigType = common.GetDeploymentConfigType(chart.IsCustomGitRepository)
-									envDeploymentConfig.RepoURL = chartGitAttr.RepoUrl
+									envDeploymentConfig.ConfigType = adapter.GetDeploymentConfigType(chart.IsCustomGitRepository)
+									envDeploymentConfig.SetRepoURL(chartGitAttr.RepoUrl)
 
 									envDeploymentConfig, RepoURLUpdateErr = impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, userId)
 									if RepoURLUpdateErr != nil {
@@ -532,10 +576,12 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 					} else {
 						// in this case user has already created an empty git repository and provided us gitRepoUrl
 						chartGitAttr = &commonBean.ChartGitAttribute{
-							RepoUrl: chart.GitRepoUrl,
+							RepoUrl:        chart.GitRepoUrl,
+							TargetRevision: chart.TargetRevision,
 						}
 					}
 				}
+
 				if gitOpsRepoNotFound != nil {
 					impl.logger.Errorw("error no GitOps repository configured for the app", "err", gitOpsRepoNotFound)
 				}
@@ -601,21 +647,21 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentAppsForEnvironme
 	currentDeploymentAppType bean3.DeploymentType, exclusionList []int, includeApps []int, userId int32) (*bean.DeploymentAppTypeChangeResponse, error) {
 
 	// fetch active pipelines from database for the given environment id and current deployment app type
-	pipelines, err := impl.pipelineRepository.FindActiveByEnvIdAndDeploymentType(environmentId,
+	allPipelines, err := impl.pipelineRepository.FindActiveByEnvIdAndDeploymentType(environmentId,
 		currentDeploymentAppType, exclusionList, includeApps)
 
+	pipelines := make([]*pipelineConfig.Pipeline, 0)
 	deploymentConfigs := make([]*bean4.DeploymentConfig, 0)
-	for _, p := range pipelines {
+	for _, p := range allPipelines {
 		envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(p.AppId, p.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", p.AppId, "envId", p.EnvironmentId, "err", err)
-			return &bean.DeploymentAppTypeChangeResponse{
-				EnvId:               environmentId,
-				SuccessfulPipelines: []*bean.DeploymentChangeStatus{},
-				FailedPipelines:     []*bean.DeploymentChangeStatus{},
-			}, err
+			return nil, err
 		}
-		deploymentConfigs = append(deploymentConfigs, envDeploymentConfig)
+		if !envDeploymentConfig.IsLinkedRelease() {
+			pipelines = append(pipelines, p)
+			deploymentConfigs = append(deploymentConfigs, envDeploymentConfig)
+		}
 	}
 
 	if err != nil {
@@ -770,16 +816,19 @@ func (impl *AppDeploymentTypeChangeManagerImpl) fetchDeletedApp(ctx context.Cont
 
 // deleteArgoCdApp takes context and deployment app name used in argo cd and deletes
 // the application in argo cd.
-func (impl *AppDeploymentTypeChangeManagerImpl) deleteArgoCdApp(ctx context.Context, pipeline *pipelineConfig.Pipeline, deploymentAppName string,
+func (impl *AppDeploymentTypeChangeManagerImpl) deleteArgoCdApp(ctx context.Context, pipeline *pipelineConfig.Pipeline, envDeploymentConfig *bean4.DeploymentConfig,
 	cascadeDelete bool) error {
 	if !pipeline.DeploymentAppCreated {
 		return nil
 	}
-	_, err := impl.ArgoClientWrapperService.DeleteArgoApp(ctx, deploymentAppName, cascadeDelete)
+	var err error
+	applicationObjectClusterId := envDeploymentConfig.GetApplicationObjectClusterId()
+	applicationNamespace := envDeploymentConfig.GetApplicationObjectNamespace()
+	err = impl.ArgoClientWrapperService.DeleteArgoAppWithK8sClient(ctx, applicationObjectClusterId, applicationNamespace, pipeline.DeploymentAppName, cascadeDelete)
 	if err != nil {
 		impl.logger.Errorw("error in deleting argocd application", "err", err)
 		// Possible that argocd app got deleted but db updation failed
-		if strings.Contains(err.Error(), "code = NotFound") {
+		if errors2.IsNotFound(err) {
 			return nil
 		}
 		return err

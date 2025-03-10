@@ -44,7 +44,7 @@ type InstalledAppArgoCdService interface {
 	// CheckIfArgoAppExists will return- isFound: if Argo app object exists; err: if any err found
 	CheckIfArgoAppExists(acdAppName string) (isFound bool, err error)
 	// UpdateAndSyncACDApps this will update chart info in acd app if required in case of mono repo migration and will refresh argo app
-	UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *commonBean.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context, tx *pg.Tx) error
+	UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttribute *commonBean.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context, tx *pg.Tx) error
 	DeleteACD(acdAppName string, ctx context.Context, isNonCascade bool) error
 	GetAcdAppGitOpsRepoURL(appName string, environmentName string) (string, error)
 }
@@ -95,7 +95,7 @@ func isArgoCdGitOpsRepoUrlOutOfSync(argoApplication *v1alpha1.Application, gitOp
 	return false
 }
 
-func (impl *FullModeDeploymentServiceImpl) UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *commonBean.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context, tx *pg.Tx) error {
+func (impl *FullModeDeploymentServiceImpl) UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttribute *commonBean.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context, tx *pg.Tx) error {
 	acdAppName := installAppVersionRequest.ACDAppName
 	argoApplication, err := impl.argoClientWrapperService.GetArgoAppByName(ctx, acdAppName)
 	if err != nil {
@@ -107,7 +107,7 @@ func (impl *FullModeDeploymentServiceImpl) UpdateAndSyncACDApps(installAppVersio
 	isArgoRepoUrlOutOfSync := isArgoCdGitOpsRepoUrlOutOfSync(argoApplication, installAppVersionRequest.GitOpsRepoURL)
 	if isMonoRepoMigrationRequired || isArgoRepoUrlOutOfSync {
 		// update repo details on ArgoCD as repo is changed
-		err := impl.UpgradeDeployment(installAppVersionRequest, ChartGitAttribute, 0, ctx)
+		err := impl.UpgradeDeployment(installAppVersionRequest, chartGitAttribute, 0, ctx)
 		if err != nil {
 			return err
 		}
@@ -119,7 +119,8 @@ func (impl *FullModeDeploymentServiceImpl) UpdateAndSyncACDApps(installAppVersio
 		return err
 	}
 	syncTime := time.Now()
-	err = impl.argoClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(ctx, acdAppName)
+	targetRevision := chartGitAttribute.TargetRevision
+	err = impl.argoClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(ctx, acdAppName, targetRevision)
 	if err != nil {
 		impl.Logger.Errorw("error in getting argocd application with normal refresh", "err", err, "argoAppName", installAppVersionRequest.ACDAppName)
 		clientErrCode, errMsg := util.GetClientDetailedError(err)
@@ -192,7 +193,7 @@ func (impl *FullModeDeploymentServiceImpl) patchAcdApp(ctx context.Context, inst
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
 	defer cancel()
 	//registerInArgo
-	err := impl.argoClientWrapperService.RegisterGitOpsRepoInArgoWithRetry(ctx, chartGitAttr.RepoUrl, installAppVersionRequest.UserId)
+	err := impl.argoClientWrapperService.RegisterGitOpsRepoInArgoWithRetry(ctx, chartGitAttr.RepoUrl, chartGitAttr.TargetRevision, installAppVersionRequest.UserId)
 	if err != nil {
 		impl.Logger.Errorw("error in argo registry", "err", err)
 		return err
@@ -203,7 +204,7 @@ func (impl *FullModeDeploymentServiceImpl) patchAcdApp(ctx context.Context, inst
 		ArgoAppName:    installAppVersionRequest.ACDAppName,
 		ChartLocation:  chartGitAttr.ChartLocation,
 		GitRepoUrl:     chartGitAttr.RepoUrl,
-		TargetRevision: "master",
+		TargetRevision: chartGitAttr.TargetRevision,
 		PatchType:      "merge",
 	}
 	err = impl.argoClientWrapperService.PatchArgoCdApp(ctx, patchReq)

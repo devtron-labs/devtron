@@ -22,15 +22,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.uber.org/zap"
 	"io/ioutil"
 	k8sError "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	"path/filepath"
 	"text/template"
@@ -56,7 +58,8 @@ const (
 
 type ArgoK8sClient interface {
 	CreateAcdApp(ctx context.Context, appRequest *AppTemplate, applicationTemplatePath string) (string, error)
-	GetArgoApplication(namespace string, appName string, cluster *repository.Cluster) (map[string]interface{}, error)
+	GetArgoApplication(k8sConfig *bean.ArgoK8sConfig, appName string) (map[string]interface{}, error)
+	DeleteArgoApplication(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string, cascadeDelete bool) error
 }
 type ArgoK8sClientImpl struct {
 	logger  *zap.SugaredLogger
@@ -137,12 +140,25 @@ func (impl ArgoK8sClientImpl) CreateArgoApplication(ctx context.Context, namespa
 	return err
 }
 
+func (impl ArgoK8sClientImpl) handleArgoAppGetError(res []byte, err error) error {
+	// default error set
+	apiError := &util.ApiError{
+		InternalMessage: "error getting argo cd application",
+		UserMessage:     "error getting argo cd application",
+	}
+	return impl.convertArgoK8sClientError(apiError, res, err)
+}
+
 func (impl ArgoK8sClientImpl) handleArgoAppCreationError(res []byte, err error) error {
 	// default error set
 	apiError := &util.ApiError{
 		InternalMessage: "error creating argo cd app",
 		UserMessage:     "error creating argo cd app",
 	}
+	return impl.convertArgoK8sClientError(apiError, res, err)
+}
+
+func (impl ArgoK8sClientImpl) convertArgoK8sClientError(apiError *util.ApiError, res []byte, err error) error {
 	// error override for errors.StatusError
 	if statusError := (&k8sError.StatusError{}); errors.As(err, &statusError) {
 		apiError.HttpStatusCode = int(statusError.Status().Code)
@@ -171,13 +187,9 @@ func (impl ArgoK8sClientImpl) handleArgoAppCreationError(res []byte, err error) 
 	return apiError
 }
 
-func (impl ArgoK8sClientImpl) GetArgoApplication(namespace string, appName string, cluster *repository.Cluster) (map[string]interface{}, error) {
+func (impl ArgoK8sClientImpl) GetArgoApplication(k8sConfig *bean.ArgoK8sConfig, appName string) (map[string]interface{}, error) {
 
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("error in cluster config", "err", err)
-		return nil, err
-	}
+	config := k8sConfig.RestConfig
 	config.GroupVersion = &schema.GroupVersion{Group: "argoproj.io", Version: "v1alpha1"}
 	config.NegotiatedSerializer = serializer.NewCodecFactory(runtime.NewScheme())
 	config.APIPath = "/apis"
@@ -191,19 +203,50 @@ func (impl ArgoK8sClientImpl) GetArgoApplication(namespace string, appName strin
 	//opts := metav1.GetOptions{}
 	res, err := client.
 		Get().
-		Namespace(namespace).
+		Namespace(k8sConfig.AcdNamespace).
 		Resource("applications").
 		Name(appName).
 		//VersionedParams(&opts, metav1.ParameterCodec).
 		Do(context.Background()).Raw()
 	response := make(map[string]interface{})
 	if err != nil {
-		err := json.Unmarshal(res, &response)
-		if err != nil {
-			impl.logger.Errorw("unmarshal error on app update status", "err", err)
-			return nil, fmt.Errorf("error get argo cd app")
-		}
+		impl.logger.Errorw("error in get argo application", "err", err)
+		return nil, impl.handleArgoAppGetError(res, err)
+	}
+	err = json.Unmarshal(res, &response)
+	if err != nil {
+		impl.logger.Errorw("unmarshal error on app update status", "err", err)
+		return nil, fmt.Errorf("error get argo cd app")
 	}
 	impl.logger.Infow("get argo cd application", "res", response, "err", err)
 	return response, err
+}
+
+func (impl ArgoK8sClientImpl) DeleteArgoApplication(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string, cascadeDelete bool) error {
+
+	patchType := types.MergePatchType
+	patchJSON := ""
+
+	//TODO: ayush test cascade delete
+	if cascadeDelete {
+		patchJSON = `{"metadata": {"finalizers": ["resources-finalizer.argocd.argoproj.io"]}}`
+	} else {
+		patchJSON = `{"metadata": {"finalizers": null}}`
+	}
+
+	applicationGVK := v1alpha1.ApplicationSchemaGroupVersionKind
+
+	_, err := impl.k8sUtil.PatchResourceRequest(ctx, k8sConfig.RestConfig, patchType, patchJSON, appName, k8sConfig.AcdNamespace, applicationGVK)
+	if err != nil {
+		impl.logger.Errorw("error in patching argo application", "err", err)
+		return err
+	}
+
+	_, err = impl.k8sUtil.DeleteResource(ctx, k8sConfig.RestConfig, applicationGVK, k8sConfig.AcdNamespace, appName, true)
+	if err != nil {
+		impl.logger.Errorw("error in patching argo application", "acdAppName", appName, "err", err)
+		return err
+	}
+
+	return nil
 }
