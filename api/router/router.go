@@ -44,6 +44,7 @@ import (
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/team"
 	terminal2 "github.com/devtron-labs/devtron/api/terminal"
+	"github.com/devtron-labs/devtron/api/userResource"
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/client/dashboard"
@@ -122,6 +123,7 @@ type MuxRouter struct {
 	fluxApplicationRouter              fluxApplication2.FluxApplicationRouter
 	devtronResourceRouter              devtronResource.DevtronResourceRouter
 	scanningResultRouter               resourceScan.ScanningResultRouter
+	userResourceRouter                 userResource.Router
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger,
@@ -156,6 +158,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 	devtronResourceRouter devtronResource.DevtronResourceRouter,
 	fluxApplicationRouter fluxApplication2.FluxApplicationRouter,
 	scanningResultRouter resourceScan.ScanningResultRouter,
+	userResourceRouter userResource.Router,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
@@ -222,6 +225,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 		devtronResourceRouter:              devtronResourceRouter,
 		fluxApplicationRouter:              fluxApplicationRouter,
 		scanningResultRouter:               scanningResultRouter,
+		userResourceRouter:                 userResourceRouter,
 	}
 	return r
 }
@@ -427,6 +431,9 @@ func (r MuxRouter) Init() {
 
 	devtronResourceRouter := r.Router.PathPrefix("/orchestrator/resource").Subrouter()
 	r.devtronResourceRouter.InitDevtronResourceRouter(devtronResourceRouter)
+
+	userResourcesRouter := r.Router.PathPrefix("/orchestrator/user/resource").Subrouter()
+	r.userResourceRouter.InitUserResourceRouter(userResourcesRouter)
 
 	infraConfigRouter := r.Router.PathPrefix("/orchestrator/infra-config").Subrouter()
 	r.infraConfigRouter.InitInfraConfigRouter(infraConfigRouter)
