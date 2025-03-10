@@ -6,6 +6,7 @@
 - feat: migrate external argo cd application (#6303)
 ## Documentation
 ## Others
+- sync: Main sync develop 10mar (#6440)
 - chore: Pg query fail 1 (#6337)
 - chore: common lib version bump (#6431)
 - sync: main sync develop (#6430)
