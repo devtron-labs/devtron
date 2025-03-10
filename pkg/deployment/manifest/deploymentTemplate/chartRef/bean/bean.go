@@ -16,13 +16,31 @@
 
 package bean
 
-import "github.com/devtron-labs/devtron/pkg/sql"
+import (
+	"github.com/devtron-labs/devtron/pkg/sql"
+)
 
 const (
-	DeploymentChartType             = "Deployment"
-	RolloutChartType                = "Rollout Deployment"
-	ReferenceChart                  = "reference-chart"
-	RefChartDirPath                 = "scripts/devtron-reference-helm-charts"
+	DeploymentChartType       = "Deployment"
+	DeploymentChartNamePrefix = "deployment-chart_"
+
+	WorkflowChartType       = "workflow-chart"
+	WorkflowChartNamePrefix = "workflow-chart_"
+
+	KnativeChartType       = "Knative"
+	KnativeChartNamePrefix = "knative-chart_"
+
+	StatefulSetChartType       = "StatefulSet"
+	StatefulSetChartNamePrefix = "statefulset-chart_"
+
+	JobAndCronJobType       = "Job & CronJob"
+	JobAndCronJobNamePrefix = "cronjob-chart_"
+
+	RolloutChartType       = "Rollout Deployment"
+	RolloutChartNamePrefix = "reference-chart_"
+	ReferenceChart         = "reference-chart"
+	RefChartDirPath        = "scripts/devtron-reference-helm-charts"
+
 	ChartAlreadyExistsInternalError = "Chart exists already, try uploading another chart"
 	ChartNameReservedInternalError  = "Change the name of the chart and try uploading again"
 )

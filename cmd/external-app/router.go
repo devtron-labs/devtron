@@ -41,6 +41,7 @@ import (
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/terminal"
+	"github.com/devtron-labs/devtron/api/userResource"
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/util"
@@ -56,6 +57,7 @@ type MuxRouter struct {
 	teamRouter               team.TeamRouter
 	UserAuthRouter           user.UserAuthRouter
 	userRouter               user.UserRouter
+	commonRouter             router.CommonRouter
 	clusterRouter            cluster.ClusterRouter
 	dashboardRouter          dashboard.DashboardRouter
 	helmAppRouter            client.HelmAppRouter
@@ -84,6 +86,7 @@ type MuxRouter struct {
 	rbacRoleRouter           user.RbacRoleRouter
 	argoApplicationRouter    argoApplication.ArgoApplicationRouter
 	fluxApplicationRouter    fluxApplication.FluxApplicationRouter
+	userResourceRouter       userResource.Router
 }
 
 func NewMuxRouter(
@@ -92,6 +95,7 @@ func NewMuxRouter(
 	teamRouter team.TeamRouter,
 	UserAuthRouter user.UserAuthRouter,
 	userRouter user.UserRouter,
+	commonRouter router.CommonRouter,
 	clusterRouter cluster.ClusterRouter,
 	dashboardRouter dashboard.DashboardRouter,
 	helmAppRouter client.HelmAppRouter,
@@ -116,6 +120,7 @@ func NewMuxRouter(
 	attributesRouter router.AttributesRouter,
 	appRouter app.AppRouterEAMode,
 	rbacRoleRouter user.RbacRoleRouter, argoApplicationRouter argoApplication.ArgoApplicationRouter, fluxApplicationRouter fluxApplication.FluxApplicationRouter,
+	userResourceRouter userResource.Router,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                   mux.NewRouter(),
@@ -124,6 +129,7 @@ func NewMuxRouter(
 		teamRouter:               teamRouter,
 		UserAuthRouter:           UserAuthRouter,
 		userRouter:               userRouter,
+		commonRouter:             commonRouter,
 		clusterRouter:            clusterRouter,
 		dashboardRouter:          dashboardRouter,
 		helmAppRouter:            helmAppRouter,
@@ -151,6 +157,7 @@ func NewMuxRouter(
 		rbacRoleRouter:           rbacRoleRouter,
 		argoApplicationRouter:    argoApplicationRouter,
 		fluxApplicationRouter:    fluxApplicationRouter,
+		userResourceRouter:       userResourceRouter,
 	}
 	return r
 }
@@ -288,4 +295,10 @@ func (r *MuxRouter) Init() {
 	r.argoApplicationRouter.InitArgoApplicationRouter(argoApplicationRouter)
 	fluxApplicationRouter := r.Router.PathPrefix("/orchestrator/flux-application").Subrouter()
 	r.fluxApplicationRouter.InitFluxApplicationRouter(fluxApplicationRouter)
+
+	commonRouter := r.Router.PathPrefix("/orchestrator/global").Subrouter()
+	r.commonRouter.InitCommonRouter(commonRouter)
+
+	userResourcesRouter := r.Router.PathPrefix("/orchestrator/user/resource").Subrouter()
+	r.userResourceRouter.InitUserResourceRouter(userResourcesRouter)
 }

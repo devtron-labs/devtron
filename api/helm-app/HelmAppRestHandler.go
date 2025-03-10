@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/helper"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/fluxApplication"
 	bean2 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
@@ -467,7 +468,7 @@ func (handler *HelmAppRestHandlerImpl) DeleteApplication(w http.ResponseWriter, 
 	// validate if the devtron-operator helm release, block that for deletion
 	if appIdentifier.ReleaseName == handler.serverEnvConfig.DevtronHelmReleaseName &&
 		appIdentifier.Namespace == handler.serverEnvConfig.DevtronHelmReleaseNamespace &&
-		appIdentifier.ClusterId == bean.DEFAULT_CLUSTER_ID {
+		appIdentifier.ClusterId == clusterBean.DefaultClusterId {
 		common.WriteJsonResp(w, errors.New("cannot delete this default helm app"), nil, http.StatusForbidden)
 		return
 	}
