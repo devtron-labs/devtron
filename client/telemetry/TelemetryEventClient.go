@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
 	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	module2 "github.com/devtron-labs/devtron/pkg/module/bean"
 	cron3 "github.com/devtron-labs/devtron/util/cron"
@@ -33,7 +34,6 @@ import (
 	"time"
 
 	"github.com/devtron-labs/common-lib/utils/k8s"
-	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/sso"
 	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
