@@ -794,7 +794,23 @@ func (impl *CdPipelineConfigServiceImpl) validateGitOpsForExternalAcd(argoApplic
 	}
 	sanitisedRepoUrl, err := impl.gitOpsValidationService.ValidateGitOpsRepoUrl(validateRequest)
 	if err != nil {
-		if apiError, ok := err.(*util.ApiError); ok && apiError.Code == constants.InvalidGitOpsRepoUrlForPipeline {
+		if apiError, ok := err.(*util.ApiError); ok {
+			if apiError.Code == constants.GitOpsNotConfigured {
+				return "", pipelineConfigBean.LinkFailedError{
+					Reason:      pipelineConfigBean.GitOpsNotFound,
+					UserMessage: apiError.InternalMessage,
+				}
+			} else if apiError.Code == constants.GitOpsOrganisationMismatch {
+				return "", pipelineConfigBean.LinkFailedError{
+					Reason:      pipelineConfigBean.GitOpsOrganisationMismatch,
+					UserMessage: apiError.InternalMessage,
+				}
+			} else if apiError.Code == constants.GitOpsURLAlreadyInUse {
+				return "", pipelineConfigBean.LinkFailedError{
+					Reason:      pipelineConfigBean.GitOpsRepoUrlAlreadyUsedInAnotherApp,
+					UserMessage: apiError.InternalMessage,
+				}
+			}
 			return "", pipelineConfigBean.LinkFailedError{Reason: pipelineConfigBean.GitOpsNotFound, UserMessage: apiError.InternalMessage}
 		}
 		return "", pipelineConfigBean.LinkFailedError{

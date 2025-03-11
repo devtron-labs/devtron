@@ -233,16 +233,18 @@ func (l LinkFailedError) Error() string {
 }
 
 const (
-	ClusterNotFound            LinkFailedReason = "ClusterNotFound"
-	EnvironmentNotFound        LinkFailedReason = "EnvironmentNotFound"
-	ApplicationAlreadyPresent  LinkFailedReason = "ApplicationAlreadyPresent"
-	UnsupportedApplicationSpec LinkFailedReason = "UnsupportedApplicationSpec"
-	ChartTypeMismatch          LinkFailedReason = "ChartTypeMismatch"
-	ChartVersionNotFound       LinkFailedReason = "ChartVersionNotFound"
-	GitOpsNotFound             LinkFailedReason = "GitOpsNotFound"
-	InternalServerError        LinkFailedReason = "InternalServerError"
-	EnvironmentAlreadyPresent  LinkFailedReason = "EnvironmentAlreadyPresent"
-	EnforcedPolicyViolation    LinkFailedReason = "EnforcedPolicyViolation"
+	ClusterNotFound                      LinkFailedReason = "ClusterNotFound"
+	EnvironmentNotFound                  LinkFailedReason = "EnvironmentNotFound"
+	ApplicationAlreadyPresent            LinkFailedReason = "ApplicationAlreadyPresent"
+	UnsupportedApplicationSpec           LinkFailedReason = "UnsupportedApplicationSpec"
+	ChartTypeMismatch                    LinkFailedReason = "ChartTypeMismatch"
+	ChartVersionNotFound                 LinkFailedReason = "ChartVersionNotFound"
+	GitOpsNotFound                       LinkFailedReason = "GitOpsNotFound"
+	GitOpsOrganisationMismatch           LinkFailedReason = "GitOpsOrganisationMismatch"
+	GitOpsRepoUrlAlreadyUsedInAnotherApp LinkFailedReason = "GitOpsRepoUrlAlreadyUsedInAnotherApp"
+	InternalServerError                  LinkFailedReason = "InternalServerError"
+	EnvironmentAlreadyPresent            LinkFailedReason = "EnvironmentAlreadyPresent"
+	EnforcedPolicyViolation              LinkFailedReason = "EnforcedPolicyViolation"
 )
 
 const (
