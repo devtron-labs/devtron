@@ -106,6 +106,9 @@ func (impl GitHubClient) CreateRepository(ctx context.Context, config *bean2.Git
 	var err error
 	start := time.Now()
 	defer func() {
+		if IsRepoNotFound(err) {
+			return
+		}
 		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitHubClient", start, err)
 	}()
 
@@ -115,7 +118,7 @@ func (impl GitHubClient) CreateRepository(ctx context.Context, config *bean2.Git
 	if err != nil {
 		if IsRepoNotFound(err) {
 			repoExists = false
-			err = nil // so that TriggerGitOpsMetrics does not get incremented with Failed status
+			err = nil
 		} else {
 			impl.logger.Errorw("error in creating github repo", "err", err)
 			detailedErrorGitOpsConfigActions.StageErrorMap[GetRepoUrlStage] = err
