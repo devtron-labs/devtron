@@ -192,7 +192,6 @@ func (impl GitBitbucketClient) repoExists(repoOptions *bitbucket.RepositoryOptio
 
 	repo, err := impl.client.Repositories.Repository.Get(repoOptions)
 	if repo == nil && err.Error() == BITBUCKET_REPO_NOT_FOUND_ERROR {
-		err = nil // so that TriggerGitOpsMetrics does not get incremented with Failed status
 		return "", false, nil
 	}
 	if err != nil {

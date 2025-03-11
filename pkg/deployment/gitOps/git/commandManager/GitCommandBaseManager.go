@@ -80,6 +80,9 @@ func (impl *GitManagerBaseImpl) ListBranch(ctx GitContext, rootDir string) (resp
 func (impl *GitManagerBaseImpl) PullCli(ctx GitContext, rootDir string, branch string) (response, errMsg string, err error) {
 	start := time.Now()
 	defer func() {
+		if IsAlreadyUpToDateError(response, errMsg) {
+			return
+		}
 		util.TriggerGitOpsMetrics("Pull", "GitCli", start, err)
 	}()
 	impl.logger.Debugw("git pull ", "location", rootDir)

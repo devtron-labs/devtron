@@ -21,7 +21,6 @@ import (
 	git_manager "github.com/devtron-labs/common-lib/git-manager"
 	"github.com/devtron-labs/devtron/util"
 	"os/exec"
-	"strings"
 	"time"
 )
 
@@ -76,12 +75,12 @@ func (impl *GitCliManagerImpl) Pull(ctx GitContext, targetRevision string, repoR
 	if err != nil {
 		return err
 	}
+
 	response, errMsg, err := impl.PullCli(ctx, repoRoot, targetRevision)
 	if err != nil {
 		impl.logger.Errorw("error in git pull from cli", "errMsg", errMsg, "err", err)
 	}
-
-	if strings.Contains(response, "already up-to-date") || strings.Contains(errMsg, "already up-to-date") {
+	if IsAlreadyUpToDateError(response, errMsg) {
 		err = nil
 		return nil
 	}

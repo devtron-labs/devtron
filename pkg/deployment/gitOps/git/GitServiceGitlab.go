@@ -299,7 +299,6 @@ func (impl GitLabClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl stri
 	if err != nil {
 		impl.logger.Debugw("gitlab get project err", "pid", pid, "err", err)
 		if res != nil && res.StatusCode == 404 {
-			err = nil // so that TriggerGitOpsMetrics does not get incremented with Failed status
 			return "", isRepoEmpty, nil
 		}
 		return "", isRepoEmpty, err
