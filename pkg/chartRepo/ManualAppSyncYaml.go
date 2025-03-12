@@ -75,10 +75,13 @@ func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, 
           {
             "name": "chart-sync",
             "image": "{{.DockerImage}}",
- 			"ports":
-                - "containerPort": 8080
-                  "name": "metrics"
-                  "protocol": "TCP"
+ 			"ports": [
+              {
+                "containerPort": 8080,
+                "name": "metrics",
+                "protocol": "TCP"
+              }
+            ],
 			{{if .AppSyncJobResourcesObj}}
 			"resources": {{.AppSyncJobResourcesObj}},
             {{end}}
