@@ -212,7 +212,7 @@ func (impl GitHubClient) CreateReadme(ctx context.Context, config *bean2.GitOpsC
 		UserName:       config.Username,
 		UserEmailId:    config.UserEmailId,
 	}
-	hash, _, err := impl.CommitValues(ctx, cfg, config, false)
+	hash, _, err := impl.CommitValues(ctx, cfg, config, true)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme github", "repo", config.GitRepoName, "err", err)
 	}

@@ -250,7 +250,7 @@ func (impl GitBitbucketClient) CreateReadme(ctx context.Context, config *bean2.G
 		UserEmailId:    config.UserEmailId,
 	}
 	cfg.SetBitBucketBaseDir(getDir())
-	hash, _, err := impl.CommitValues(ctx, cfg, config, false)
+	hash, _, err := impl.CommitValues(ctx, cfg, config, true)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme bitbucket", "repo", config.GitRepoName, "err", err)
 	}
