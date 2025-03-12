@@ -97,12 +97,14 @@ func (impl *GitOpsHelper) Clone(url, targetDir, targetRevision string) (clonedDi
 
 func (impl *GitOpsHelper) Pull(repoRoot, targetRevision string) (err error) {
 	start := time.Now()
-	defer func() {
-		util.TriggerGitOpsMetrics("Pull", "GitService", start, err)
-	}()
 	ctx := git.BuildGitContext(context.Background()).WithCredentials(impl.Auth).
 		WithTLSData(impl.tlsConfig.CaData, impl.tlsConfig.TLSKeyData, impl.tlsConfig.TLSCertData, impl.isTlsEnabled)
-	return impl.gitCommandManager.Pull(ctx, targetRevision, repoRoot)
+	err = impl.gitCommandManager.Pull(ctx, targetRevision, repoRoot)
+	if err != nil {
+		util.TriggerGitOpsMetrics("Pull", "GitService", start, err)
+		return err
+	}
+	return nil
 }
 
 const PushErrorMessage = "failed to push some refs"
@@ -129,8 +131,10 @@ func (impl *GitOpsHelper) pullFromBranch(ctx git.GitContext, rootDir, targetRevi
 		impl.logger.Warnw("no branch found in git repo", "rootDir", rootDir)
 		return "", "", err
 	}
+	start := time.Now()
 	response, errMsg, err := impl.gitCommandManager.PullCli(ctx, rootDir, branch)
 	if err != nil {
+		util.TriggerGitOpsMetrics("Pull", "GitCli", start, err)
 		impl.logger.Errorw("error on git pull", "branch", branch, "err", err)
 		return response, errMsg, err
 	}

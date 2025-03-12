@@ -79,12 +79,6 @@ func (impl *GitManagerBaseImpl) ListBranch(ctx GitContext, rootDir string) (resp
 
 func (impl *GitManagerBaseImpl) PullCli(ctx GitContext, rootDir string, branch string) (response, errMsg string, err error) {
 	start := time.Now()
-	defer func() {
-		if IsAlreadyUpToDateError(response, errMsg) {
-			return
-		}
-		util.TriggerGitOpsMetrics("Pull", "GitCli", start, err)
-	}()
 	impl.logger.Debugw("git pull ", "location", rootDir)
 	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "pull", "origin", branch, "--force")
 	defer cancel()
@@ -95,6 +89,11 @@ func (impl *GitManagerBaseImpl) PullCli(ctx GitContext, rootDir string, branch s
 	}
 	defer git_manager.DeleteTlsFiles(tlsPathInfo)
 	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth, tlsPathInfo)
+	if err != nil {
+		if !IsAlreadyUpToDateError(response, errMsg) {
+			util.TriggerGitOpsMetrics("Pull", "GitCli", start, err)
+		}
+	}
 	impl.logger.Debugw("pull output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
 	return output, errMsg, err
 }

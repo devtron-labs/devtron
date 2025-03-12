@@ -66,23 +66,24 @@ func (impl *GitCliManagerImpl) CommitAndPush(ctx GitContext, repoRoot, targetRev
 }
 
 func (impl *GitCliManagerImpl) Pull(ctx GitContext, targetRevision string, repoRoot string) (err error) {
+
 	start := time.Now()
-	defer func() {
-		util.TriggerGitOpsMetrics("Pull", "GitService", start, err)
-	}()
 
 	err = LocateGitRepo(repoRoot)
 	if err != nil {
+		util.TriggerGitOpsMetrics("Pull", "GitService", start, err)
 		return err
 	}
 
 	response, errMsg, err := impl.PullCli(ctx, repoRoot, targetRevision)
 	if err != nil {
+		if IsAlreadyUpToDateError(response, errMsg) {
+			err = nil
+			return nil
+		} else {
+			util.TriggerGitOpsMetrics("Pull", "GitService", start, err)
+		}
 		impl.logger.Errorw("error in git pull from cli", "errMsg", errMsg, "err", err)
-	}
-	if IsAlreadyUpToDateError(response, errMsg) {
-		err = nil
-		return nil
 	}
 	return err
 }

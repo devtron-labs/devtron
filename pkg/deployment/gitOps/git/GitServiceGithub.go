@@ -103,14 +103,10 @@ func IsRepoNotFound(err error) bool {
 }
 
 func (impl GitHubClient) CreateRepository(ctx context.Context, config *bean2.GitOpsConfigDto) (url string, isNew bool, isEmpty bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+
 	var err error
+
 	start := time.Now()
-	defer func() {
-		if IsRepoNotFound(err) {
-			return
-		}
-		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitHubClient", start, err)
-	}()
 
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	repoExists := true
@@ -118,15 +114,16 @@ func (impl GitHubClient) CreateRepository(ctx context.Context, config *bean2.Git
 	if err != nil {
 		if IsRepoNotFound(err) {
 			repoExists = false
-			err = nil
 		} else {
 			impl.logger.Errorw("error in creating github repo", "err", err)
 			detailedErrorGitOpsConfigActions.StageErrorMap[GetRepoUrlStage] = err
+			globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitHubClient", start, err)
 			return "", false, isEmpty, detailedErrorGitOpsConfigActions
 		}
 	}
 	if repoExists {
 		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, GetRepoUrlStage)
+		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitHubClient", start, nil)
 		return url, false, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	private := true
@@ -138,15 +135,16 @@ func (impl GitHubClient) CreateRepository(ctx context.Context, config *bean2.Git
 			//			Visibility:  &visibility,
 		})
 	if err1 != nil {
-		impl.logger.Errorw("error in creating github repo, ", "repo", config.GitRepoName, "err", err)
-
+		impl.logger.Errorw("error in creating github repo, ", "repo", config.GitRepoName, "err", err1)
 		url, isEmpty, err = impl.GetRepoUrl(config)
 		if err != nil {
 			impl.logger.Errorw("error in getting github repo", "repo", config.GitRepoName, "err", err)
 			detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err1
+			globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitHubClient", start, err1)
 			return "", true, isEmpty, detailedErrorGitOpsConfigActions
 		}
 		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, GetRepoUrlStage)
+		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitHubClient", start, nil)
 		return url, false, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	impl.logger.Infow("github repo created ", "r", r.CloneURL)
@@ -156,10 +154,13 @@ func (impl GitHubClient) CreateRepository(ctx context.Context, config *bean2.Git
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability github", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = err
+		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitHubClient", start, err)
 		return *r.CloneURL, true, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	if !validated {
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = fmt.Errorf("unable to validate project:%s in given time", config.GitRepoName)
+		err = fmt.Errorf("unable to validate project:%s in given time", config.GitRepoName)
+		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = err
+		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitHubClient", start, err)
 		return "", true, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
@@ -168,6 +169,7 @@ func (impl GitHubClient) CreateRepository(ctx context.Context, config *bean2.Git
 	if err != nil {
 		impl.logger.Errorw("error in creating readme github", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
+		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitHubClient", start, err)
 		return *r.CloneURL, true, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	isEmpty = false //As we have created readme, repo is no longer empty
@@ -177,14 +179,18 @@ func (impl GitHubClient) CreateRepository(ctx context.Context, config *bean2.Git
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability github", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
+		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitHubClient", start, err)
 		return *r.CloneURL, true, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	if !validated {
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = fmt.Errorf("unable to validate project:%s in given time", config.GitRepoName)
+		err = fmt.Errorf("unable to validate project:%s in given time", config.GitRepoName)
+		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
+		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitHubClient", start, err)
 		return "", true, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneSshStage)
 	//_, err = impl.createReadme(name)
+	globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitHubClient", start, nil)
 	return *r.CloneURL, true, isEmpty, detailedErrorGitOpsConfigActions
 }
 
@@ -206,19 +212,16 @@ func (impl GitHubClient) CreateReadme(ctx context.Context, config *bean2.GitOpsC
 		UserName:       config.Username,
 		UserEmailId:    config.UserEmailId,
 	}
-	hash, _, err := impl.CommitValues(ctx, cfg, config)
+	hash, _, err := impl.CommitValues(ctx, cfg, config, false)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme github", "repo", config.GitRepoName, "err", err)
 	}
 	return hash, err
 }
 
-func (impl GitHubClient) CommitValues(ctx context.Context, config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error) {
+func (impl GitHubClient) CommitValues(ctx context.Context, config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto, publishStatusConflictErrorMetrics bool) (commitHash string, commitTime time.Time, err error) {
 
 	start := time.Now()
-	defer func() {
-		globalUtil.TriggerGitOpsMetrics("CommitValues", "GitHubClient", start, err)
-	}()
 
 	branch := config.TargetRevision
 	if len(branch) == 0 {
@@ -231,6 +234,7 @@ func (impl GitHubClient) CommitValues(ctx context.Context, config *ChartConfig, 
 		responseErr, ok := err.(*github.ErrorResponse)
 		if !ok || responseErr.Response.StatusCode != 404 {
 			impl.logger.Errorw("error in creating repo github", "err", err, "config", config)
+			globalUtil.TriggerGitOpsMetrics("CommitValues", "GitHubClient", start, err)
 			return "", time.Time{}, err
 		} else {
 			newFile = true
@@ -260,15 +264,20 @@ func (impl GitHubClient) CommitValues(ctx context.Context, config *ChartConfig, 
 	c, httpRes, err := impl.client.Repositories.CreateFile(ctx, impl.org, config.ChartRepoName, path, options)
 	if err != nil && httpRes != nil && httpRes.StatusCode == http2.StatusConflict {
 		impl.logger.Warn("conflict found in commit github", "err", err, "config", config)
+		if publishStatusConflictErrorMetrics {
+			globalUtil.TriggerGitOpsMetrics("CommitValues", "GitHubClient", start, err)
+		}
 		return "", time.Time{}, retryFunc.NewRetryableError(err)
 	} else if err != nil {
 		impl.logger.Errorw("error in commit github", "err", err, "config", config)
+		globalUtil.TriggerGitOpsMetrics("CommitValues", "GitHubClient", start, err)
 		return "", time.Time{}, err
 	}
 	commitTime = time.Now() // default is current time, if found then will get updated accordingly
 	if c != nil && c.Commit.Author != nil {
 		commitTime = *c.Commit.Author.Date
 	}
+	globalUtil.TriggerGitOpsMetrics("CommitValues", "GitHubClient", start, nil)
 	return *c.SHA, commitTime, nil
 }
 
