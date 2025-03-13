@@ -6,6 +6,7 @@
 - feat: migrate external argo cd application (#6303)
 ## Documentation
 ## Others
+- sync: vendor update in main (#6448)
 - sync: Release candidate v0.31.0 (#6447)
 - sync: Main sync develop 10mar (#6440)
 - chore: Pg query fail 1 (#6337)
