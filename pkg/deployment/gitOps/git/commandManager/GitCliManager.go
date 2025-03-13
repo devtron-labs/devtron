@@ -85,6 +85,7 @@ func (impl *GitCliManagerImpl) Pull(ctx GitContext, targetRevision string, repoR
 		}
 		impl.logger.Errorw("error in git pull from cli", "errMsg", errMsg, "err", err)
 	}
+	util.TriggerGitOpsMetrics("Pull", "GitService", start, nil)
 	return err
 }
 

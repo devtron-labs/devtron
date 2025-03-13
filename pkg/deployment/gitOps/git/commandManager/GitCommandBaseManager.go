@@ -94,6 +94,7 @@ func (impl *GitManagerBaseImpl) PullCli(ctx GitContext, rootDir string, branch s
 			util.TriggerGitOpsMetrics("Pull", "GitCli", start, err)
 		}
 	}
+	util.TriggerGitOpsMetrics("Pull", "GitCli", start, nil)
 	impl.logger.Debugw("pull output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
 	return output, errMsg, err
 }

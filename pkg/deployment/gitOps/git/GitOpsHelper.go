@@ -104,6 +104,7 @@ func (impl *GitOpsHelper) Pull(repoRoot, targetRevision string) (err error) {
 		util.TriggerGitOpsMetrics("Pull", "GitService", start, err)
 		return err
 	}
+	util.TriggerGitOpsMetrics("Pull", "GitService", start, nil)
 	return nil
 }
 
@@ -138,6 +139,7 @@ func (impl *GitOpsHelper) pullFromBranch(ctx git.GitContext, rootDir, targetRevi
 		impl.logger.Errorw("error on git pull", "branch", branch, "err", err)
 		return response, errMsg, err
 	}
+	util.TriggerGitOpsMetrics("Pull", "GitCli", start, nil)
 	return response, errMsg, err
 }
 
