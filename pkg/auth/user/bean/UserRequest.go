@@ -18,7 +18,6 @@ package bean
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"time"
 )
@@ -35,7 +34,6 @@ type UserInfo struct {
 	Roles         []string        `json:"roles,omitempty"`
 	AccessToken   string          `json:"access_token,omitempty"`
 	RoleFilters   []RoleFilter    `json:"roleFilters"`
-	Status        string          `json:"status,omitempty"`
 	Groups        []string        `json:"groups"`         // this will be deprecated in future do not use
 	UserRoleGroup []UserRoleGroup `json:"userRoleGroups"` // role group with metadata
 	SuperAdmin    bool            `json:"superAdmin,notnull"`
@@ -47,12 +45,16 @@ type UserInfo struct {
 	UserId        int32           `json:"-"` // created or modified user id
 }
 
+func (ui *UserInfo) SetEntityAudit(auditLog sql.AuditLog) *UserInfo {
+	// doing nothing, ent implementation differs
+	return ui
+}
+
 type RoleGroup struct {
 	Id          int32        `json:"id" validate:"number"`
 	Name        string       `json:"name,omitempty"`
 	Description string       `json:"description,omitempty"`
 	RoleFilters []RoleFilter `json:"roleFilters"`
-	Status      string       `json:"status,omitempty"`
 	SuperAdmin  bool         `json:"superAdmin"`
 	UserId      int32        `json:"-"` // created or modified user id
 }
@@ -125,14 +127,11 @@ const (
 type PolicyType int
 
 const (
-	POLICY_DIRECT        PolicyType = 1
-	POLICY_GROUP         PolicyType = 1
-	SUPERADMIN                      = "role:super-admin___"
-	APP_ACCESS_TYPE_HELM            = "helm-app"
-	USER_TYPE_API_TOKEN             = "apiToken"
-	CHART_GROUP_ENTITY              = "chart-group"
-	CLUSTER_ENTITIY                 = "cluster"
-	ACTION_SUPERADMIN               = "super-admin"
+	POLICY_DIRECT       PolicyType = 1
+	POLICY_GROUP        PolicyType = 1
+	SUPERADMIN                     = "role:super-admin___"
+	USER_TYPE_API_TOKEN            = "apiToken"
+	ACTION_SUPERADMIN              = "super-admin"
 )
 
 type UserListingResponse struct {
@@ -151,13 +150,13 @@ type RestrictedGroup struct {
 }
 
 type ListingRequest struct {
-	SearchKey  string         `json:"searchKey"`
-	SortOrder  bean.SortOrder `json:"sortOrder"`
-	SortBy     bean.SortBy    `json:"sortBy"`
-	Offset     int            `json:"offset"`
-	Size       int            `json:"size"`
-	ShowAll    bool           `json:"showAll"`
-	CountCheck bool           `json:"-"`
+	SearchKey  string    `json:"searchKey"`
+	SortOrder  SortOrder `json:"sortOrder"`
+	SortBy     SortBy    `json:"sortBy"`
+	Offset     int       `json:"offset"`
+	Size       int       `json:"size"`
+	ShowAll    bool      `json:"showAll"`
+	CountCheck bool      `json:"-"`
 }
 
 type BulkDeleteRequest struct {
@@ -205,4 +204,14 @@ func (pa *UserPermissionsAuditDto) WithUserInfo(userInfo *UserInfo) *UserPermiss
 func (pa *UserPermissionsAuditDto) WithEntityAudit(entityAudit sql.AuditLog) *UserPermissionsAuditDto {
 	pa.EntityAudit = entityAudit
 	return pa
+}
+
+type SelfRegisterDto struct {
+	UserInfo *UserInfo
+}
+
+type TimeoutWindowConfigDto struct {
+}
+
+type UserGroupMapDto struct {
 }

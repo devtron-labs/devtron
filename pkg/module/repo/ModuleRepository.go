@@ -52,7 +52,7 @@ type ModuleRepositoryImpl struct {
 	dbConnection *pg.DB
 }
 
-func (impl ModuleRepositoryImpl) GetConnection() (dbConnection *pg.DB) {
+func (impl *ModuleRepositoryImpl) GetConnection() (dbConnection *pg.DB) {
 	return impl.dbConnection
 }
 
@@ -60,29 +60,30 @@ func NewModuleRepositoryImpl(dbConnection *pg.DB) *ModuleRepositoryImpl {
 	return &ModuleRepositoryImpl{dbConnection: dbConnection}
 }
 
-func (impl ModuleRepositoryImpl) Save(module *Module) error {
+func (impl *ModuleRepositoryImpl) Save(module *Module) error {
 	return impl.dbConnection.Insert(module)
 }
 
-func (impl ModuleRepositoryImpl) SaveWithTransaction(module *Module, tx *pg.Tx) error {
+func (impl *ModuleRepositoryImpl) SaveWithTransaction(module *Module, tx *pg.Tx) error {
 	return tx.Insert(module)
 }
 
-func (impl ModuleRepositoryImpl) FindOne(name string) (*Module, error) {
+func (impl *ModuleRepositoryImpl) FindOne(name string) (*Module, error) {
 	module := &Module{}
 	err := impl.dbConnection.Model(module).
 		Where("name = ?", name).Select()
 	return module, err
 }
 
-func (impl ModuleRepositoryImpl) Update(module *Module) error {
+func (impl *ModuleRepositoryImpl) Update(module *Module) error {
 	return impl.dbConnection.Update(module)
 }
 
-func (impl ModuleRepositoryImpl) UpdateWithTransaction(module *Module, tx *pg.Tx) error {
+func (impl *ModuleRepositoryImpl) UpdateWithTransaction(module *Module, tx *pg.Tx) error {
 	return tx.Update(module)
 }
-func (impl ModuleRepositoryImpl) FindAllByStatus(status string) ([]Module, error) {
+
+func (impl *ModuleRepositoryImpl) FindAllByStatus(status string) ([]Module, error) {
 	var modules []Module
 	err := impl.dbConnection.Model(&modules).
 		Where("status = ?", status).
@@ -90,21 +91,21 @@ func (impl ModuleRepositoryImpl) FindAllByStatus(status string) ([]Module, error
 	return modules, err
 }
 
-func (impl ModuleRepositoryImpl) FindAll() ([]Module, error) {
+func (impl *ModuleRepositoryImpl) FindAll() ([]Module, error) {
 	var modules []Module
 	err := impl.dbConnection.Model(&modules).
 		Select()
 	return modules, err
 }
 
-func (impl ModuleRepositoryImpl) ModuleExists() (bool, error) {
+func (impl *ModuleRepositoryImpl) ModuleExists() (bool, error) {
 	module := &Module{}
 	exists, err := impl.dbConnection.Model(module).
 		Exists()
 	return exists, err
 }
 
-func (impl ModuleRepositoryImpl) GetInstalledModuleNames() ([]string, error) {
+func (impl *ModuleRepositoryImpl) GetInstalledModuleNames() ([]string, error) {
 	modules, err := impl.FindAllByStatus("installed")
 	var moduleNames []string
 	if err != nil && err != pg.ErrNoRows {
@@ -117,7 +118,7 @@ func (impl ModuleRepositoryImpl) GetInstalledModuleNames() ([]string, error) {
 	return moduleNames, nil
 }
 
-func (impl ModuleRepositoryImpl) FindByModuleTypeAndStatus(moduleType string, status string) error {
+func (impl *ModuleRepositoryImpl) FindByModuleTypeAndStatus(moduleType string, status string) error {
 	module := &Module{}
 	err := impl.dbConnection.Model(module).
 		Where("module_type = ?", moduleType).
@@ -126,18 +127,19 @@ func (impl ModuleRepositoryImpl) FindByModuleTypeAndStatus(moduleType string, st
 	return err
 }
 
-func (impl ModuleRepositoryImpl) MarkModuleAsEnabledWithTransaction(moduleName string, tx *pg.Tx) error {
+func (impl *ModuleRepositoryImpl) MarkModuleAsEnabledWithTransaction(moduleName string, tx *pg.Tx) error {
 	module := &Module{}
 	_, err := tx.Model(module).Set("enabled = ?", true).Where("name = ?", moduleName).Update()
 	return err
 }
-func (impl ModuleRepositoryImpl) MarkModuleAsEnabled(moduleName string) error {
+
+func (impl *ModuleRepositoryImpl) MarkModuleAsEnabled(moduleName string) error {
 	module := &Module{}
 	_, err := impl.dbConnection.Model(module).Set("enabled = ?", true).Where("name = ?", moduleName).Update()
 	return err
 }
 
-func (impl ModuleRepositoryImpl) MarkOtherModulesDisabledOfSameType(moduleName, moduleType string, tx *pg.Tx) error {
+func (impl *ModuleRepositoryImpl) MarkOtherModulesDisabledOfSameType(moduleName, moduleType string, tx *pg.Tx) error {
 	module := &Module{}
 	_, err := tx.Model(module).Set("enabled = ?", false).Where("name != ?", moduleName).Where("module_type = ?", moduleType).Update()
 	return err

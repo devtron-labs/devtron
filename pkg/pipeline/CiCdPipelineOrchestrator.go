@@ -27,16 +27,20 @@ import (
 	"fmt"
 	constants2 "github.com/devtron-labs/devtron/internal/sql/constants"
 	attributesBean "github.com/devtron-labs/devtron/pkg/attributes/bean"
+	adapter2 "github.com/devtron-labs/devtron/pkg/bean/adapter"
 	common2 "github.com/devtron-labs/devtron/pkg/bean/common"
 	repository6 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	read2 "github.com/devtron-labs/devtron/pkg/chart/read"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	"github.com/devtron-labs/devtron/pkg/deployment/common/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	constants3 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	util4 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"github.com/devtron-labs/devtron/pkg/plugin"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"golang.org/x/exp/slices"
 	"net/http"
 	"path"
@@ -146,7 +150,9 @@ type CiCdPipelineOrchestratorImpl struct {
 	transactionManager            sql.TransactionWrapper
 	gitOpsConfigReadService       config.GitOpsConfigReadService
 	deploymentConfigService       common.DeploymentConfigService
+	deploymentConfigReadService   read.DeploymentConfigReadService
 	workflowCacheConfig           types.WorkflowCacheConfig
+	chartReadService              read2.ChartReadService
 }
 
 func NewCiCdPipelineOrchestrator(
@@ -176,7 +182,9 @@ func NewCiCdPipelineOrchestrator(
 	genericNoteService genericNotes.GenericNoteService,
 	chartService chart.ChartService, transactionManager sql.TransactionWrapper,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	deploymentConfigService common.DeploymentConfigService) *CiCdPipelineOrchestratorImpl {
+	deploymentConfigService common.DeploymentConfigService,
+	deploymentConfigReadService read.DeploymentConfigReadService,
+	chartReadService read2.ChartReadService) *CiCdPipelineOrchestratorImpl {
 	_, workflowCacheConfig, err := types.GetCiConfigWithWorkflowCacheConfig()
 	if err != nil {
 		logger.Errorw("Error in getting workflow cache config, continuing with default values", "err", err)
@@ -211,7 +219,9 @@ func NewCiCdPipelineOrchestrator(
 		transactionManager:            transactionManager,
 		gitOpsConfigReadService:       gitOpsConfigReadService,
 		deploymentConfigService:       deploymentConfigService,
+		deploymentConfigReadService:   deploymentConfigReadService,
 		workflowCacheConfig:           workflowCacheConfig,
+		chartReadService:              chartReadService,
 	}
 }
 
@@ -1111,9 +1121,9 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			}
 			if !ciPipeline.IsExternal { //pipeline is not [linked, webhook] and overridden, then create template override
 				err = impl.createDockerRepoIfNeeded(ciPipeline.DockerConfigOverride.DockerRegistry, ciPipeline.DockerConfigOverride.DockerRepository)
+				// silently ignoring the error, since we don't want to fail the pipeline creation
 				if err != nil {
-					impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", ciPipeline.DockerConfigOverride.DockerRegistry, "dockerRegistry", ciPipeline.DockerConfigOverride.DockerRepository)
-					return nil, err
+					impl.logger.Warnw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", ciPipeline.DockerConfigOverride.DockerRegistry, "dockerRegistry", ciPipeline.DockerConfigOverride.DockerRepository)
 				}
 				err := impl.ciTemplateService.Save(ciTemplateBean)
 				if err != nil {
@@ -1374,6 +1384,18 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) erro
 	if err != nil {
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
 		return err
+	}
+	appDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(appId, 0)
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
+		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "err", err)
+		return err
+	} else if err == nil && appDeploymentConfig != nil {
+		appDeploymentConfig.Active = false
+		appDeploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(tx, appDeploymentConfig, userId)
+		if err != nil {
+			impl.logger.Errorw("error in deleting deployment config for pipeline", "appId", appId, "err", err)
+			return err
+		}
 	}
 	err = tx.Commit()
 	if err != nil {
@@ -1726,6 +1748,23 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCDPipelines(pipelineRequest *bean
 		DeploymentAppName:             fmt.Sprintf("%s-%s", appName, env.Name),
 		AuditLog:                      sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
+
+	if pipelineRequest.IsLinkedRelease() {
+		if len(pipelineRequest.DeploymentAppName) == 0 {
+			return 0, util.DefaultApiError().
+				WithHttpStatusCode(http.StatusUnprocessableEntity).
+				WithInternalMessage("deploymentAppName is required for releaseMode: link").
+				WithUserMessage("deploymentAppName is required for releaseMode: link")
+		}
+		//Here we are linking an external helm release so deployment_app_name = <external-release-name> and deployment_app_created = true as release already exist
+		// external release name is sent from FE in pipelineRequest.DeploymentAppName field
+		pipeline.DeploymentAppName = pipelineRequest.DeploymentAppName
+		pipeline.DeploymentAppCreated = true
+	}
+	if len(pipeline.DeploymentAppName) == 0 {
+		pipeline.DeploymentAppName = util2.BuildDeployedAppName(appName, env.Name)
+	}
+
 	err = impl.pipelineRepository.Save([]*pipelineConfig.Pipeline{pipeline}, tx)
 	if err != nil {
 		impl.logger.Errorw("error in saving cd pipeline", "err", err, "pipeline", pipeline)
@@ -1940,10 +1979,11 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			PreStageConfigMapSecretNames:  preStageConfigmapSecrets,
 			PostStageConfigMapSecretNames: postStageConfigmapSecrets,
 			DeploymentAppType:             envDeploymentConfig.DeploymentAppType,
+			ReleaseMode:                   envDeploymentConfig.ReleaseMode,
 			DeploymentAppCreated:          dbPipeline.DeploymentAppCreated,
 			DeploymentAppDeleteRequest:    dbPipeline.DeploymentAppDeleteRequest,
 			IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
-			IsGitOpsRepoNotConfigured:     !isAppLevelGitOpsConfigured,
+			IsGitOpsRepoNotConfigured:     !envDeploymentConfig.IsPipelineGitOpsRepoConfigured(isAppLevelGitOpsConfigured),
 		}
 		if pipelineStages, ok := pipelineIdAndPrePostStageMapping[dbPipeline.Id]; ok {
 			pipeline.PreDeployStage = pipelineStages[0]
@@ -1992,18 +2032,32 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 		impl.logger.Errorw("error in fetching pipelineIdAndPrePostStageMapping", "err", err)
 		return nil, err
 	}
-	appIdAppLevelGitOpsConfiguredMap, err := impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(appIds)
+	appIdToGitOpsConfiguredMap, err := impl.chartReadService.IsGitOpsRepoConfiguredForDevtronApps(appIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching latest chart details for app by appId")
 		return nil, err
 	}
 	pipelines := make([]*bean.CDPipelineConfigObject, 0, len(dbPipelines))
-	pipelineIdDeploymentTypeMap, err := impl.deploymentConfigService.GetDeploymentAppTypeForCDInBulk(dbPipelines)
+	cdPipelineMinObjs := sliceUtil.NewSliceFromFuncExec(dbPipelines, func(dbPipeline *pipelineConfig.Pipeline) *bean.CDPipelineMinConfig {
+		return adapter2.NewCDPipelineMinConfigFromModel(dbPipeline)
+	})
+	pipelineIdDeploymentTypeMap, err := impl.deploymentConfigReadService.GetDeploymentAppTypeForCDInBulk(cdPipelineMinObjs, appIdToGitOpsConfiguredMap)
 	if err != nil {
 		impl.logger.Errorw("error, GetDeploymentAppTypeForCDInBulk", "pipelines", dbPipelines, "err", err)
 		return nil, err
 	}
 	for _, dbPipeline := range dbPipelines {
+		var deploymentAppType, releaseMode string
+		var isGitOpsRepoNotConfigured bool
+		if envDeploymentConfigMin, ok := pipelineIdDeploymentTypeMap[dbPipeline.Id]; ok {
+			deploymentAppType = envDeploymentConfigMin.DeploymentAppType
+			releaseMode = envDeploymentConfigMin.ReleaseMode
+			isGitOpsRepoNotConfigured = !envDeploymentConfigMin.IsGitOpsRepoConfigured
+		} else {
+			// error handling if data is not found; as it is a required field
+			impl.logger.Errorw("error in fetching deploymentAppType and release mode for pipeline", "pipelineId", dbPipeline.Id, "pipelineIdDeploymentTypeMap", pipelineIdDeploymentTypeMap)
+			return nil, fmt.Errorf("error in fetching deploymentAppType and release mode for pipeline")
+		}
 		pipeline := &bean.CDPipelineConfigObject{
 			Id:                        dbPipeline.Id,
 			Name:                      dbPipeline.Name,
@@ -2013,13 +2067,14 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 			TriggerType:               dbPipeline.TriggerType,
 			RunPreStageInEnv:          dbPipeline.RunPreStageInEnv,
 			RunPostStageInEnv:         dbPipeline.RunPostStageInEnv,
-			DeploymentAppType:         pipelineIdDeploymentTypeMap[dbPipeline.Id],
+			DeploymentAppType:         deploymentAppType,
+			ReleaseMode:               releaseMode,
 			AppName:                   dbPipeline.App.AppName,
 			AppId:                     dbPipeline.AppId,
 			TeamId:                    dbPipeline.App.TeamId,
 			EnvironmentIdentifier:     dbPipeline.Environment.EnvironmentIdentifier,
 			IsVirtualEnvironment:      dbPipeline.Environment.IsVirtualEnvironment,
-			IsGitOpsRepoNotConfigured: !appIdAppLevelGitOpsConfiguredMap[dbPipeline.AppId],
+			IsGitOpsRepoNotConfigured: isGitOpsRepoNotConfigured,
 		}
 		if len(dbPipeline.PreStageConfig) > 0 {
 			preStage := bean.CdStage{}
@@ -2124,6 +2179,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 			impl.logger.Errorw("error in fetching latest chart details for app by appId")
 			return nil, err
 		}
+		// TODO Asutosh: why not getting deployment config ??
 		pipeline := &bean.CDPipelineConfigObject{
 			Id:                            dbPipeline.Id,
 			Name:                          dbPipeline.Name,

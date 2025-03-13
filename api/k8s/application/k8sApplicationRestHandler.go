@@ -253,6 +253,8 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 	}
 
 	token := r.Header.Get("token")
+	ctx := r.Context()
+	ctx = context.WithValue(ctx, "token", token)
 	var k8sAppDetail AppView.AppDetailContainer
 	var resourceTreeResponse *gRPC.ResourceTreeResponse
 	var clusterId int
@@ -276,7 +278,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 			return
 		}
 		//RBAC enforcer Ends
-		appDetail, err := handler.helmAppService.GetApplicationDetail(r.Context(), appIdentifier)
+		appDetail, err := handler.helmAppService.GetApplicationDetail(ctx, appIdentifier)
 		if err != nil {
 			apiError := clientErrors.ConvertToApiError(err)
 			if apiError != nil {
@@ -303,7 +305,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 		}
 		//RBAC enforcer Ends
 
-		appDetail, err := handler.argoApplicationReadService.GetAppDetail(appIdentifier.AppName, appIdentifier.Namespace, appIdentifier.ClusterId)
+		appDetail, err := handler.argoApplicationReadService.GetAppDetailEA(r.Context(), appIdentifier.AppName, appIdentifier.Namespace, appIdentifier.ClusterId)
 		if err != nil {
 			apiError := clientErrors.ConvertToApiError(err)
 			if apiError != nil {

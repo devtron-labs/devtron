@@ -29,6 +29,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
+	moduleBean "github.com/devtron-labs/devtron/pkg/module/bean"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
@@ -67,6 +68,7 @@ type ArgoCDConnectionManager interface {
 	GetGrpcClientConnection(grpcConfig *bean.ArgoGRPCConfig) *grpc.ClientConn
 	GetOrUpdateArgoCdUserDetail(grpcConfig *bean.ArgoGRPCConfig) string
 }
+
 type ArgoCDConnectionManagerImpl struct {
 	logger                  *zap.SugaredLogger
 	settingsManager         *settings.SettingsManager
@@ -114,14 +116,9 @@ func NewArgoCDConnectionManagerImpl(Logger *zap.SugaredLogger,
 	return argoUserServiceImpl, nil
 }
 
-const (
-	ModuleNameArgoCd      string = "argo-cd"
-	ModuleStatusInstalled string = "installed"
-)
-
 func (impl *ArgoCDConnectionManagerImpl) ValidateGitOpsAndGetOrUpdateArgoCdUserDetail(grpcConfig *bean.ArgoGRPCConfig) string {
 	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
-	if err != nil || !gitOpsConfigurationStatus.IsGitOpsConfigured {
+	if err != nil || !gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled() {
 		return ""
 	}
 	_ = impl.GetOrUpdateArgoCdUserDetail(grpcConfig)
@@ -494,12 +491,12 @@ func getK8sClient() (k8sClient *kubernetes.Clientset, k8sConfig clientcmd.Client
 func (impl *ArgoCDConnectionManagerImpl) getArgoCdSettings() *settings.ArgoCDSettings {
 	settings := impl.argoCDSettings
 	if settings == nil {
-		module, err := impl.moduleRepository.FindOne(ModuleNameArgoCd)
+		module, err := impl.moduleRepository.FindOne(moduleBean.ModuleNameArgoCd)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error on get acd connection", "err", err)
 			return nil
 		}
-		if module == nil || module.Status != ModuleStatusInstalled {
+		if module == nil || module.Status != moduleBean.ModuleStatusInstalled {
 			impl.logger.Errorw("error on get acd connection", "err", err)
 			return nil
 		}
