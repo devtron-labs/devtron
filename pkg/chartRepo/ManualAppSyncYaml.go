@@ -37,7 +37,7 @@ type ChartProviderConfig struct {
 	IsOCIRegistry   bool
 }
 
-func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, appSyncServiceAccount string, chartProviderConfig *ChartProviderConfig, ParallelismLimitForTagProcessing int) []byte {
+func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, appSyncServiceAccount string, chartProviderConfig *ChartProviderConfig, ParallelismLimitForTagProcessing, AppSyncJobShutDownWaitDuration int) []byte {
 	cfg, _ := sql.GetConfig()
 	configValues := AppSyncConfig{
 		DbConfig:                         sql.Config{Addr: cfg.Addr, Database: cfg.Database, User: cfg.User, Password: cfg.Password},
@@ -46,6 +46,7 @@ func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, 
 		ChartProviderConfig:              chartProviderConfig,
 		AppSyncServiceAccount:            appSyncServiceAccount,
 		ParallelismLimitForTagProcessing: ParallelismLimitForTagProcessing,
+		AppSyncJobShutDownWaitDuration:   AppSyncJobShutDownWaitDuration,
 	}
 	temp := template.New("manualAppSyncJobByteArr")
 	temp, _ = temp.Parse(`{"apiVersion": "batch/v1",
