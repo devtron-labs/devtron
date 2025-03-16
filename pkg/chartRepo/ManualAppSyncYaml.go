@@ -29,15 +29,13 @@ type AppSyncConfig struct {
 	ChartProviderConfig              *ChartProviderConfig
 	AppSyncServiceAccount            string
 	ParallelismLimitForTagProcessing int
-	AppSyncJobShutDownInterval       int
+	AppSyncJobShutDownWaitDuration   int `env:"APP_SYNC_SHUTDOWN_WAIT_DURATION" envDefault:"120"`
 }
 
 type ChartProviderConfig struct {
 	ChartProviderId string
 	IsOCIRegistry   bool
 }
-
-const AppSyncJobShutDownInterval = 60
 
 func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, appSyncServiceAccount string, chartProviderConfig *ChartProviderConfig, ParallelismLimitForTagProcessing int) []byte {
 	cfg, _ := sql.GetConfig()
@@ -48,7 +46,6 @@ func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, 
 		ChartProviderConfig:              chartProviderConfig,
 		AppSyncServiceAccount:            appSyncServiceAccount,
 		ParallelismLimitForTagProcessing: ParallelismLimitForTagProcessing,
-		AppSyncJobShutDownInterval:       AppSyncJobShutDownInterval,
 	}
 	temp := template.New("manualAppSyncJobByteArr")
 	temp, _ = temp.Parse(`{"apiVersion": "batch/v1",
@@ -115,8 +112,8 @@ func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, 
      			"value": "{{.ParallelismLimitForTagProcessing}}"
               },
 			  {
-				"name": "APP_SYNC_SHUTDOWN_INTERVAL",
-     			"value": "{{.AppSyncJobShutDownInterval}}"
+				"name": "APP_SYNC_SHUTDOWN_WAIT_DURATION",
+     			"value": "{{.AppSyncJobShutDownWaitDuration}}"
               }
             ]
           }
