@@ -717,48 +717,22 @@ func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Res
 		return
 	}
 
-	createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(appId, &envConfigProperties)
-	if err != nil {
-		if err.Error() == bean4.NOCHARTEXIST {
-			ctx, cancel := context.WithCancel(r.Context())
-			if cn, ok := w.(http.CloseNotifier); ok {
-				go func(done <-chan struct{}, closed <-chan bool) {
-					select {
-					case <-done:
-					case <-closed:
-						cancel()
-					}
-				}(ctx.Done(), cn.CloseNotify())
+	ctx, cancel := context.WithCancel(r.Context())
+	if cn, ok := w.(http.CloseNotifier); ok {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
 			}
-			appMetrics := false
-			if envConfigProperties.AppMetrics != nil {
-				appMetrics = *envConfigProperties.AppMetrics
-			}
-			templateRequest := bean3.TemplateRequest{
-				AppId:               appId,
-				ChartRefId:          envConfigProperties.ChartRefId,
-				ValuesOverride:      []byte("{}"),
-				UserId:              userId,
-				IsAppMetricsEnabled: appMetrics,
-			}
+		}(ctx.Done(), cn.CloseNotify())
+	}
 
-			_, err = handler.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
-			if err != nil {
-				handler.Logger.Errorw("service err, EnvConfigOverrideCreate", "err", err, "payload", envConfigProperties)
-				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-				return
-			}
-			createResp, err = handler.propertiesConfigService.CreateEnvironmentProperties(appId, &envConfigProperties)
-			if err != nil {
-				handler.Logger.Errorw("service err, EnvConfigOverrideCreate", "err", err, "payload", envConfigProperties)
-				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-				return
-			}
-		} else {
-			handler.Logger.Errorw("service err, EnvConfigOverrideCreate", "err", err, "payload", envConfigProperties)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
+	createResp, err := handler.propertiesConfigService.CreateEnvironmentPropertiesAndBaseIfNeeded(ctx, appId, &envConfigProperties)
+	if err != nil {
+		handler.Logger.Errorw("service err, CreateEnvironmentPropertiesAndBaseIfNeeded", "payload", envConfigProperties, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
 	}
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
