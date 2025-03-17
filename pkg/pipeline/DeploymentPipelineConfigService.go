@@ -393,6 +393,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 		EnvironmentName:               environment.Name,
 		CiPipelineId:                  dbPipeline.CiPipelineId,
 		DeploymentTemplate:            deploymentTemplate,
+		DeploymentAppName:             dbPipeline.DeploymentAppName,
 		TriggerType:                   dbPipeline.TriggerType,
 		Strategies:                    strategiesBean,
 		PreStage:                      preStage,
