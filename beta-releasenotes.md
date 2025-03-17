@@ -6,6 +6,7 @@
 - feat: migrate external argo cd application (#6303)
 ## Documentation
 ## Others
+- sync: main sync and vendor update in develop (#6450)
 - sync: vendor update in main (#6448)
 - sync: Release candidate v0.31.0 (#6447)
 - sync: Main sync develop 10mar (#6440)
