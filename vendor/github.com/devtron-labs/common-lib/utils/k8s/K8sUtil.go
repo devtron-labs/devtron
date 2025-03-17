@@ -144,22 +144,24 @@ type K8sService interface {
 	//below functions are exposed for K8sUtilExtended
 	GetRestConfigByClusterWithoutCustomTransport(clusterConfig *ClusterConfig) (*rest.Config, error)
 	OverrideRestConfigWithCustomTransport(restConfig *rest.Config) (*rest.Config, error)
+	CreateNsWithLabels(namespace string, labels map[string]string, client *v12.CoreV1Client) (ns *v1.Namespace, err error)
 	CreateNs(namespace string, client *v12.CoreV1Client) (ns *v1.Namespace, err error)
 }
 
-func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *RuntimeConfig) *K8sServiceImpl {
-	usr, err := user.Current()
-	if err != nil {
-		return nil
-	}
+func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *RuntimeConfig) (*K8sServiceImpl, error) {
 	var kubeconfig *string
 	if runTimeConfig.LocalDevMode {
+		usr, err := user.Current()
+		if err != nil {
+			logger.Errorw("error in NewK8sUtil, failed to get current user", "err", err)
+			return nil, err
+		}
 		kubeconfig = flag.String("kubeconfig-authenticator-xyz", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
 	}
 
 	httpClientConfig := NewCustomK8sHttpTransportConfig()
 	flag.Parse()
-	return &K8sServiceImpl{logger: logger, runTimeConfig: runTimeConfig, kubeconfig: kubeconfig, httpClientConfig: httpClientConfig}
+	return &K8sServiceImpl{logger: logger, runTimeConfig: runTimeConfig, kubeconfig: kubeconfig, httpClientConfig: httpClientConfig}, nil
 }
 
 func (impl *K8sServiceImpl) GetRestConfigByCluster(clusterConfig *ClusterConfig) (*rest.Config, error) {
@@ -299,12 +301,12 @@ func (impl *K8sServiceImpl) CreateNsIfNotExists(namespace string, clusterConfig 
 	}
 	ns, exists, err := impl.GetNsIfExists(namespace, v12Client)
 	if err != nil {
-		impl.logger.Errorw("error", "error", err, "clusterConfig", clusterConfig)
+		impl.logger.Errorw("error", "error", err)
 		return ns, false, err
 	}
 	if exists {
 		nsCreated = false
-		impl.logger.Infow("namesapce already exist")
+		impl.logger.Infow("namespace already exist", "namespace", namespace)
 		return ns, nsCreated, nil
 	}
 	impl.logger.Infow("ns not exists creating", "ns", namespace)
@@ -350,6 +352,17 @@ func (impl *K8sServiceImpl) GetNsIfExists(namespace string, client *v12.CoreV1Cl
 
 func (impl *K8sServiceImpl) CreateNs(namespace string, client *v12.CoreV1Client) (ns *v1.Namespace, err error) {
 	nsSpec := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
+	ns, err = client.Namespaces().Create(context.Background(), nsSpec, metav1.CreateOptions{})
+	if err != nil {
+		impl.logger.Errorw("error in creating ns", "err", err)
+		return nil, err
+	} else {
+		return ns, nil
+	}
+}
+
+func (impl *K8sServiceImpl) CreateNsWithLabels(namespace string, labels map[string]string, client *v12.CoreV1Client) (ns *v1.Namespace, err error) {
+	nsSpec := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace, Labels: labels}}
 	ns, err = client.Namespaces().Create(context.Background(), nsSpec, metav1.CreateOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in creating ns", "err", err)

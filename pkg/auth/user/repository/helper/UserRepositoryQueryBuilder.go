@@ -18,13 +18,12 @@ package helper
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/api/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/util"
 )
 
-func GetQueryForUserListingWithFilters(req *bean.ListingRequest) (string, []interface{}) {
-	whereCondition := fmt.Sprintf("where active = %t AND (user_type is NULL or user_type != '%s') ", true, bean.USER_TYPE_API_TOKEN)
+func GetQueryForUserListingWithFilters(req *bean2.ListingRequest) (string, []interface{}) {
+	whereCondition := fmt.Sprintf("where active = %t AND (user_type is NULL or user_type != '%s') ", true, bean2.USER_TYPE_API_TOKEN)
 	orderCondition := ""
 	var queryParams []interface{}
 	if len(req.SearchKey) > 0 {
@@ -67,13 +66,13 @@ func GetQueryForUserListingWithFilters(req *bean.ListingRequest) (string, []inte
 }
 
 func GetQueryForAllUserWithAudit() string {
-	whereCondition := fmt.Sprintf("where active = %t AND (user_type is NULL or user_type != '%s') ", true, bean.USER_TYPE_API_TOKEN)
+	whereCondition := fmt.Sprintf("where active = %t AND (user_type is NULL or user_type != '%s') ", true, bean2.USER_TYPE_API_TOKEN)
 	orderCondition := fmt.Sprintf("order by user_model.updated_on %s", bean2.Desc)
 	query := fmt.Sprintf(`SELECT "user_model".*, "user_audit"."id" AS "user_audit__id", "user_audit"."updated_on" AS "user_audit__updated_on","user_audit"."user_id" AS "user_audit__user_id" ,"user_audit"."created_on" AS "user_audit__created_on" from users As "user_model" LEFT JOIN user_audit As "user_audit" on "user_audit"."user_id" = "user_model"."id" %s %s;`, whereCondition, orderCondition)
 	return query
 }
 
-func GetQueryForGroupListingWithFilters(req *bean.ListingRequest) (string, []interface{}) {
+func GetQueryForGroupListingWithFilters(req *bean2.ListingRequest) (string, []interface{}) {
 	var queryParams []interface{}
 	whereCondition := " where active = ? "
 	queryParams = append(queryParams, true)
@@ -84,9 +83,11 @@ func GetQueryForGroupListingWithFilters(req *bean.ListingRequest) (string, []int
 
 	orderCondition := ""
 	if len(req.SortBy) > 0 && !req.CountCheck {
-		orderCondition += fmt.Sprintf(" order by %s ", req.SortBy)
+		orderCondition += " order by  "
 		if req.SortOrder == bean2.Desc {
-			orderCondition += fmt.Sprintf(" %s ", bean2.Desc)
+			orderCondition += fmt.Sprintf(" %s %s ", req.SortBy, bean2.Desc)
+		} else {
+			orderCondition += fmt.Sprintf(" %s ", req.SortBy)
 		}
 	}
 	if req.Size > 0 && !req.CountCheck && !req.ShowAll {
@@ -103,9 +104,10 @@ func GetQueryForGroupListingWithFilters(req *bean.ListingRequest) (string, []int
 
 }
 
-func GetEmailSearchQuery(usersTableAlias string, emailId string) string {
+func GetEmailSearchQuery(usersTableAlias string, emailId string) (string, []interface{}) {
+	queryParams := []interface{}{emailId, emailId}
 	expression := fmt.Sprintf(
-		"( (%s.user_type is NULL and %s.email_id ILIKE '%s' ) or (%s.user_type='apiToken' and %s.email_id='%s') )",
-		usersTableAlias, usersTableAlias, emailId, usersTableAlias, usersTableAlias, emailId)
-	return expression
+		"( (%s.user_type is NULL and %s.email_id ILIKE ? ) or (%s.user_type='apiToken' and %s.email_id=?) )",
+		usersTableAlias, usersTableAlias, usersTableAlias, usersTableAlias)
+	return expression, queryParams
 }

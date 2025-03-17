@@ -820,13 +820,11 @@ func (impl AppWorkflowServiceImpl) FindCdPipelinesByAppId(appId int) (*bean.CdPi
 	}
 
 	for _, pipeline := range dbPipelines {
-
 		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, pipeline.EnvironmentId)
 		if err != nil {
 			impl.Logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", pipeline.EnvironmentId, "err", err)
 			return nil, err
 		}
-
 		cdPipelineConfigObj := &bean.CDPipelineConfigObject{
 			Id:                        pipeline.Id,
 			EnvironmentId:             pipeline.EnvironmentId,
@@ -835,9 +833,10 @@ func (impl AppWorkflowServiceImpl) FindCdPipelinesByAppId(appId int) (*bean.CdPi
 			TriggerType:               pipeline.TriggerType,
 			Name:                      pipeline.Name,
 			DeploymentAppType:         envDeploymentConfig.DeploymentAppType,
+			ReleaseMode:               envDeploymentConfig.ReleaseMode,
 			AppName:                   pipeline.DeploymentAppName,
 			AppId:                     pipeline.AppId,
-			IsGitOpsRepoNotConfigured: !isAppLevelGitOpsConfigured,
+			IsGitOpsRepoNotConfigured: !envDeploymentConfig.IsPipelineGitOpsRepoConfigured(isAppLevelGitOpsConfigured),
 		}
 		cdPipelines.Pipelines = append(cdPipelines.Pipelines, cdPipelineConfigObj)
 	}

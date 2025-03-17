@@ -705,6 +705,8 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineById(pipelineId int) (ciPi
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("error in fetching ci pipeline", "pipelineId", pipelineId, "err", err)
 		return nil, err
+	} else if util.IsErrNoRows(err) {
+		return nil, util.NewApiError(http.StatusNotFound, "ci pipeline not found", "ci pipeline not found ")
 	}
 	dockerArgs := make(map[string]string)
 	if len(pipeline.DockerArgs) > 0 {

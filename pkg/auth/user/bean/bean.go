@@ -66,10 +66,18 @@ const (
 const (
 	DEVTRON_APP          = "devtron-app"
 	APP_ACCESS_TYPE_HELM = "helm-app"
+	EmptyAccessType      = ""
 )
 
 const (
 	VALIDATION_FAILED_ERROR_MSG string = "validation failed: group name with , is not allowed"
+)
+
+// messages constants
+const (
+	NoTokenProvidedMessage    = "no token provided"
+	RoleAlreadyExistMessage   = "role already exist"
+	PolicyAlreadyExistMessage = "policy already exist"
 )
 
 type RbacRoleDto struct {

@@ -67,7 +67,7 @@ func TestGitHubClient_CreateRepository(t *testing.T) {
 				BitBucketWorkspaceId: tt.args.bitbucketWorkspaceId,
 				BitBucketProjectKey:  tt.args.bitbucketProjectKey,
 			}
-			_, gotIsNew, _ := impl.CreateRepository(context.Background(), gitOpsConfigDTO)
+			_, gotIsNew, _, _ := impl.CreateRepository(context.Background(), gitOpsConfigDTO)
 
 			if gotIsNew != tt.wantIsNew {
 				t.Errorf("CreateRepository() gotIsNew = %v, want %v", gotIsNew, tt.wantIsNew)
