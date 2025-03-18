@@ -7,6 +7,7 @@
 - feat: migrate external argo cd application (#6303)
 ## Documentation
 ## Others
+- chore: Updated devtron-images.txt.source (#6452)
 - sync: main sync and vendor update in develop (#6450)
 - sync: vendor update in main (#6448)
 - sync: Release candidate v0.31.0 (#6447)
