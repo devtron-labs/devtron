@@ -1,7 +1,7 @@
 ################################# Build Container ###############################
 
 # Base Image for Build Container
-FROM maven:3.5.3-jdk-8-alpine as base
+FROM maven:3.9.9-amazoncorretto-21-debian as base
 
 # Moving into working directory
 WORKDIR /build
@@ -16,18 +16,18 @@ RUN mvn dependency:go-offline
 COPY src/ /build/src/
 
 # Building package 
-RUN mvn package
+RUN mvn clean package
 
 ################################# Prod Container #################################
 
 # Base Image for Prod Container
-FROM openjdk:8-jre-alpine
+FROM openjdk:21-jdk-slim
 
 # Exposing Port of this new container
-EXPOSE 4567
+EXPOSE 8080
 
 # Copying the executable jar file build on previous container
-COPY --from=base /build/target/*.jar /app/my-app.jar
+COPY --from=base /build/target/*.jar /app/demo.jar
 
 # Uncomment if you want to run default commands during the initialization of this container
-# CMD exec java -jar /app/my-app.jar
+# CMD ["java","-jar","/app/demo.jar"]  
