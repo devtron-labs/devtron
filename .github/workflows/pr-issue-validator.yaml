@@ -25,4 +25,4 @@ jobs:
       validate_sql: true  # Enable/disable SQL validation
     permissions:
       issues: write  # Ensure you have the right permissions for labels and PR management
-      pull-requests: write
+      pull-requests: write  # This ensures you can modify pull request labels
