@@ -482,7 +482,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 			impl.logger.Errorw("error in fetching env by id", "envId", pipeline.EnvironmentId, "err", err)
 			return nil, err
 		}
-		migrationReq := adapter.NewMigrateArgoCDAppValidationRequest(pipeline, env)
+		migrationReq := adapter.NewMigrateExternalAppValidationRequest(pipeline, env)
 		migrationReq.AppId = app.Id
 		if pipeline.IsExternalArgoAppLinkRequest() {
 			linkCDValidationResponse := impl.ValidateLinkExternalArgoCDRequest(migrationReq)

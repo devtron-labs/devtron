@@ -381,7 +381,7 @@ func GetStepVariableDto(variable *repository.PipelineStageStepVariable) (*pipeli
 	return variableDto, nil
 }
 
-func NewMigrateArgoCDAppValidationRequest(pipeline *bean.CDPipelineConfigObject, env *repository2.Environment) *pipelineConfigBean.MigrateReleaseValidationRequest {
+func NewMigrateExternalAppValidationRequest(pipeline *bean.CDPipelineConfigObject, env *repository2.Environment) *pipelineConfigBean.MigrateReleaseValidationRequest {
 	request := &pipelineConfigBean.MigrateReleaseValidationRequest{
 		AppId:             pipeline.AppId,
 		DeploymentAppName: pipeline.DeploymentAppName,
