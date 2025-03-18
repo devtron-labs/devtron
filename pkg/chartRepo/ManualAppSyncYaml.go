@@ -29,7 +29,7 @@ type AppSyncConfig struct {
 	ChartProviderConfig              *ChartProviderConfig
 	AppSyncServiceAccount            string
 	ParallelismLimitForTagProcessing int
-	AppSyncJobShutDownWaitDuration   int `env:"APP_SYNC_SHUTDOWN_WAIT_DURATION" envDefault:"120"`
+	AppSyncJobShutDownWaitDuration   int
 }
 
 type ChartProviderConfig struct {
