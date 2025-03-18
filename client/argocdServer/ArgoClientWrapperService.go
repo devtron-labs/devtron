@@ -348,7 +348,7 @@ func (impl *ArgoClientWrapperServiceImpl) RegisterGitOpsRepoInArgoWithRetry(ctx 
 		return nil
 	}
 
-	callback := func() error {
+	callback := func(int) error {
 		return impl.createRepoInArgoCd(ctx, grpcConfig, gitOpsRepoUrl)
 	}
 	argoCdErr := retryFunc.Retry(callback,

@@ -106,9 +106,6 @@ func (impl GitBitbucketClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUr
 func (impl GitBitbucketClient) CreateRepository(ctx context.Context, config *bean2.GitOpsConfigDto) (url string, isNew bool, isEmpty bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	var err error
 	start := time.Now()
-	defer func() {
-		util.TriggerGitOpsMetrics("CreateRepository", "GitBitbucketClient", start, err)
-	}()
 
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 
@@ -127,10 +124,12 @@ func (impl GitBitbucketClient) CreateRepository(ctx context.Context, config *bea
 	if err != nil {
 		impl.logger.Errorw("error in communication with bitbucket", "repoOptions", repoOptions, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[GetRepoUrlStage] = err
+		util.TriggerGitOpsMetrics("CreateRepository", "GitBitbucketClient", start, err)
 		return "", false, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	if repoExists {
 		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, GetRepoUrlStage)
+		util.TriggerGitOpsMetrics("CreateRepository", "GitBitbucketClient", start, nil)
 		return repoUrl, false, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	_, err = impl.client.Repositories.Repository.Create(repoOptions)
@@ -142,6 +141,7 @@ func (impl GitBitbucketClient) CreateRepository(ctx context.Context, config *bea
 			impl.logger.Errorw("error in creating repo bitbucket", "repoOptions", repoOptions, "err", err)
 		}
 		if err != nil || !repoExists {
+			util.TriggerGitOpsMetrics("CreateRepository", "GitBitbucketClient", start, err)
 			return "", true, isEmpty, detailedErrorGitOpsConfigActions
 		}
 	}
@@ -153,10 +153,13 @@ func (impl GitBitbucketClient) CreateRepository(ctx context.Context, config *bea
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability bitbucket", "repoName", repoOptions.RepoSlug, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = err
+		util.TriggerGitOpsMetrics("CreateRepository", "GitBitbucketClient", start, err)
 		return "", true, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	if !validated {
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = fmt.Errorf("unable to validate project:%s in given time", config.GitRepoName)
+		err = fmt.Errorf("unable to validate project:%s in given time", config.GitRepoName)
+		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = err
+		util.TriggerGitOpsMetrics("CreateRepository", "GitBitbucketClient", start, err)
 		return "", true, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
@@ -165,6 +168,7 @@ func (impl GitBitbucketClient) CreateRepository(ctx context.Context, config *bea
 	if err != nil {
 		impl.logger.Errorw("error in creating readme bitbucket", "repoName", repoOptions.RepoSlug, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
+		util.TriggerGitOpsMetrics("CreateRepository", "GitBitbucketClient", start, err)
 		return "", true, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateReadmeStage)
@@ -173,13 +177,17 @@ func (impl GitBitbucketClient) CreateRepository(ctx context.Context, config *bea
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability bitbucket", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
+		util.TriggerGitOpsMetrics("CreateRepository", "GitBitbucketClient", start, err)
 		return "", true, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	if !validated {
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = fmt.Errorf("unable to validate project:%s in given time", config.GitRepoName)
+		err = fmt.Errorf("unable to validate project:%s in given time", config.GitRepoName)
+		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
+		util.TriggerGitOpsMetrics("CreateRepository", "GitBitbucketClient", start, err)
 		return "", true, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneSshStage)
+	util.TriggerGitOpsMetrics("CreateRepository", "GitBitbucketClient", start, nil)
 	return repoUrl, true, isEmpty, detailedErrorGitOpsConfigActions
 }
 
@@ -242,7 +250,7 @@ func (impl GitBitbucketClient) CreateReadme(ctx context.Context, config *bean2.G
 		UserEmailId:    config.UserEmailId,
 	}
 	cfg.SetBitBucketBaseDir(getDir())
-	hash, _, err := impl.CommitValues(ctx, cfg, config)
+	hash, _, err := impl.CommitValues(ctx, cfg, config, true)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme bitbucket", "repo", config.GitRepoName, "err", err)
 	}
@@ -270,16 +278,14 @@ func (impl GitBitbucketClient) cleanUp(cloneDir string) {
 	}
 }
 
-func (impl GitBitbucketClient) CommitValues(ctx context.Context, config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error) {
+func (impl GitBitbucketClient) CommitValues(ctx context.Context, config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto, publishStatusConflictError bool) (commitHash string, commitTime time.Time, err error) {
 
 	start := time.Now()
-	defer func() {
-		util.TriggerGitOpsMetrics("CommitValues", "GitBitbucketClient", start, err)
-	}()
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		impl.logger.Errorw("error in getting home dir", "err", err)
+		util.TriggerGitOpsMetrics("CommitValues", "GitBitbucketClient", start, err)
 		return "", time.Time{}, err
 	}
 	bitbucketGitOpsDirPath := path.Join(homeDir, BITBUCKET_GITOPS_DIR, config.GetBitBucketBaseDir())
@@ -294,6 +300,7 @@ func (impl GitBitbucketClient) CommitValues(ctx context.Context, config *ChartCo
 
 	err = ioutil.WriteFile(bitbucketCommitFilePath, []byte(config.FileContent), 0666)
 	if err != nil {
+		util.TriggerGitOpsMetrics("CommitValues", "GitBitbucketClient", start, err)
 		impl.logger.Errorw("error in writing bitbucket commit file", "bitbucketCommitFilePath", bitbucketCommitFilePath, "err", err)
 		return "", time.Time{}, err
 	}
@@ -319,8 +326,12 @@ func (impl GitBitbucketClient) CommitValues(ctx context.Context, config *ChartCo
 	if err != nil {
 		impl.logger.Errorw("error in committing file to bitbucket", "repoWriteOptions", repoWriteOptions, "err", err)
 		if e := (&bitbucket.UnexpectedResponseStatusError{}); errors.As(err, &e) && strings.Contains(e.Error(), "500 Internal Server Error") {
+			if publishStatusConflictError {
+				util.TriggerGitOpsMetrics("CommitValues", "GitBitbucketClient", start, err)
+			}
 			return "", time.Time{}, retryFunc.NewRetryableError(err)
 		}
+		util.TriggerGitOpsMetrics("CommitValues", "GitBitbucketClient", start, err)
 		return "", time.Time{}, err
 	}
 	commitOptions := &bitbucket.CommitsOptions{
@@ -330,6 +341,7 @@ func (impl GitBitbucketClient) CommitValues(ctx context.Context, config *ChartCo
 	}
 	commits, err := impl.client.Repositories.Commits.GetCommits(commitOptions)
 	if err != nil {
+		util.TriggerGitOpsMetrics("CommitValues", "GitBitbucketClient", start, err)
 		impl.logger.Errorw("error in getting commits from bitbucket", "commitOptions", commitOptions, "err", err)
 		return "", time.Time{}, err
 	}
@@ -339,8 +351,10 @@ func (impl GitBitbucketClient) CommitValues(ctx context.Context, config *ChartCo
 	commitTimeString := commits.(map[string]interface{})["values"].([]interface{})[0].(map[string]interface{})["date"].(string)
 	commitTime, err = time.Parse(time.RFC3339, commitTimeString)
 	if err != nil {
+		util.TriggerGitOpsMetrics("CommitValues", "GitBitbucketClient", start, err)
 		impl.logger.Errorw("error in getting commitTime", "err", err)
 		return "", time.Time{}, err
 	}
+	util.TriggerGitOpsMetrics("CommitValues", "GitBitbucketClient", start, nil)
 	return commitHash, commitTime, nil
 }
