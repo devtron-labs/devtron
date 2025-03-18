@@ -1,5 +1,5 @@
 # Base Image
-From node:12.18.1
+FROM node:22.14.0
 
 # Seeting up env as production
 ENV NODE_ENV=production
@@ -33,4 +33,3 @@ RUN npm i -g pm2
 
 # Starting Server
 CMD ["sh", "-c", "service nginx start ; pm2-runtime src/index.js -i 0"]
-
