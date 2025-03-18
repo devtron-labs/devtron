@@ -202,7 +202,7 @@ func (impl *GitOpsConfigReadServiceImpl) GetGitOpsProviderByRepoURL(gitRepoUrl s
 
 	errMsg := fmt.Sprintf("no gitops config found in DB for given repository: %q", gitRepoUrl)
 	return nil, internalUtil.NewApiError(http.StatusBadRequest, errMsg, errMsg).
-		WithCode(constants.InvalidGitOpsRepoUrlForPipeline)
+		WithCode(constants.GitOpsNotConfigured)
 }
 
 func (impl *GitOpsConfigReadServiceImpl) GetGitOpsById(id int) (*bean2.GitOpsConfigDto, error) {

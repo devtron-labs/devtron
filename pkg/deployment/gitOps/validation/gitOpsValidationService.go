@@ -18,6 +18,7 @@ package validation
 
 import (
 	"context"
+	errors3 "errors"
 	"fmt"
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -184,7 +185,7 @@ func (impl *GitOpsValidationServiceImpl) ValidateGitOpsRepoUrl(request *gitOpsBe
 		impl.logger.Errorw("git repo url already exists", "repo url", request.RequestedGitUrl)
 		errMsg := fmt.Sprintf("invalid git repository! '%s' is already in use by another application! Use a different repository", request.RequestedGitUrl)
 		return sanitiseGitRepoUrl, util.NewApiError(http.StatusBadRequest, errMsg, errMsg).
-			WithCode(constants.InvalidGitOpsRepoUrlForPipeline)
+			WithCode(constants.GitOpsURLAlreadyInUse)
 	}
 	// Validate: Unique GitOps repository URL ends
 	return sanitiseGitRepoUrl, nil
@@ -239,6 +240,9 @@ func (impl *GitOpsValidationServiceImpl) getDesiredGitRepoUrl(request *gitOpsBea
 		impl.logger.Errorw("error in getting repo url", "err", err, "request", request)
 		return "", err
 	}
+	if len(desiredRepoUrl) == 0 {
+		return "", errors3.New(fmt.Sprintf("repo not found in saved provider"))
+	}
 	return desiredRepoUrl, nil
 }
 
@@ -265,14 +269,14 @@ func (impl *GitOpsValidationServiceImpl) validateForGitOpsOrg(request *gitOpsBea
 		impl.logger.Errorw("error in getting matched gitops config", "err", err, "request", request)
 		errMsg := fmt.Sprintf("error in getting matched gitops config: %s", err.Error())
 		return "", util.NewApiError(http.StatusBadRequest, errMsg, errMsg).
-			WithCode(constants.InvalidGitOpsRepoUrlForPipeline)
+			WithCode(constants.GitOpsNotConfigured)
 	}
 	desiredRepoUrl, gitErr := impl.getDesiredGitRepoUrl(request, matchedGitopsConfig)
 	if gitErr != nil {
 		impl.logger.Errorw("error in getting desired git repo url", "err", gitErr, "request", request)
 		errMsg := fmt.Sprintf("error in getting desired git repo url: %s", gitErr.Error())
 		return "", util.NewApiError(http.StatusBadRequest, errMsg, errMsg).
-			WithCode(constants.InvalidGitOpsRepoUrlForPipeline)
+			WithCode(constants.GitOpsNotConfigured)
 	}
 	sanitiseGitRepoUrl := git.SanitiseCustomGitRepoURL(matchedGitopsConfig, request.RequestedGitUrl)
 	orgRepoUrl := strings.TrimSuffix(desiredRepoUrl, ".git")
@@ -342,7 +346,7 @@ func (impl *GitOpsValidationServiceImpl) getValidationErrorForNonOrganisationalU
 	}
 	apiErrorMsg := fmt.Sprintf("%s: %s", errorMessageKey, errorMessage)
 	return util.NewApiError(http.StatusBadRequest, apiErrorMsg, apiErrorMsg).
-		WithCode(constants.InvalidGitOpsRepoUrlForPipeline)
+		WithCode(constants.GitOpsOrganisationMismatch)
 }
 
 func (impl *GitOpsValidationServiceImpl) validateUniqueGitOpsRepo(repoUrl string) (isValid bool) {

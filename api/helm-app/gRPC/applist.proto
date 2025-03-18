@@ -109,6 +109,8 @@ message DeployedAppDetail {
   EnvironmentDetails environmentDetail = 5;
   google.protobuf.Timestamp LastDeployed = 6;
   string chartVersion = 7;
+  string releaseStatus = 8;
+  string home = 9;
 }
 message EnvironmentDetails{
   string clusterName = 1;
