@@ -1,4 +1,5 @@
 ## Bugs
+- fix: prom client in chart-sync (#6442)
 - fix: incorrect gitops metrics (#6444)
 - fix: envId check in EventBuilder.go (#6436)
 - fix: createDockerRepoIfNeeded error handling (#6433)
