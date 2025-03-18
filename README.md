@@ -180,7 +180,7 @@ Get updates on Devtron's development and chat with project maintainers, contribu
 - Articles, Howtos, Tutorials - [Devtron Blogs](https://devtron.ai/blog/)
 - Devtron is trusted by communities all across the globe. The list of organizations using Devtron can be found [here](./USERS.md).
  
-### Join us at Discord channel
+### Join us at Discord Channel
 <p>
 <a href="https://discord.gg/jsRG5qx2gp">
    <img
