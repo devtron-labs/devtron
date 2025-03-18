@@ -944,6 +944,12 @@ func (impl *CdPipelineConfigServiceImpl) GetAndValidateArgoApplicationSpec(appli
 			UserMessage: "application with multiple sources not supported",
 		}
 	}
+	if argoApplicationSpec.Spec.Source != nil && argoApplicationSpec.Spec.Source.Helm == nil {
+		return argoApplicationSpec, pipelineConfigBean.LinkFailedError{
+			Reason:      pipelineConfigBean.UnsupportedApplicationSpec,
+			UserMessage: "application values file path not found in spec. path -> argoApplicationSpec.Spec.Source.Helm missing",
+		}
+	}
 	if argoApplicationSpec.Spec.Source != nil && argoApplicationSpec.Spec.Source.Helm != nil && len(argoApplicationSpec.Spec.Source.Helm.ValueFiles) != 1 {
 		return argoApplicationSpec, pipelineConfigBean.LinkFailedError{
 			Reason:      pipelineConfigBean.UnsupportedApplicationSpec,
