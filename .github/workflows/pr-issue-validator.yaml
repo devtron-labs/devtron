@@ -27,3 +27,6 @@ jobs:
     secrets: inherit
     with:
       validate_sql: true  # Enable/disable SQL validation
+    permissions:
+      issues: write  # Ensure you have the right permissions for labels and PR management
+      pull-requests: write
