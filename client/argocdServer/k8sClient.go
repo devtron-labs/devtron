@@ -60,6 +60,8 @@ type ArgoK8sClient interface {
 	CreateAcdApp(ctx context.Context, appRequest *AppTemplate, applicationTemplatePath string) (string, error)
 	GetArgoApplication(k8sConfig *bean.ArgoK8sConfig, appName string) (map[string]interface{}, error)
 	DeleteArgoApplication(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string, cascadeDelete bool) error
+	SyncArgoApplication(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string) error
+	RefreshApp(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName, refreshType string) error
 }
 type ArgoK8sClientImpl struct {
 	logger  *zap.SugaredLogger
@@ -248,5 +250,66 @@ func (impl ArgoK8sClientImpl) DeleteArgoApplication(ctx context.Context, k8sConf
 		return err
 	}
 
+	return nil
+}
+
+func (impl ArgoK8sClientImpl) SyncArgoApplication(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string) error {
+	operation := map[string]interface{}{
+		"operation": map[string]interface{}{
+			"initiatedBy": map[string]interface{}{
+				"username": "admin",
+			},
+			"sync": map[string]interface{}{
+				"prune": true,
+			},
+		},
+	}
+	patch, err := json.Marshal(operation)
+	if err != nil {
+		return fmt.Errorf("error marshaling metadata: %w", err)
+	}
+	patchType := types.MergePatchType
+	applicationGVK := v1alpha1.ApplicationSchemaGroupVersionKind
+	for attempt := 0; attempt < 5; attempt++ {
+		_, err := impl.k8sUtil.PatchResourceRequest(ctx, k8sConfig.RestConfig, patchType, string(patch), appName, k8sConfig.AcdNamespace, applicationGVK)
+		if err != nil {
+			if !k8sError.IsConflict(err) {
+				return fmt.Errorf("error patching sync json in application %s: %w", appName, err)
+			}
+		} else {
+			impl.logger.Infof("patch for application", "appName", appName, "err", err)
+			return nil
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return nil
+}
+
+func (impl ArgoK8sClientImpl) RefreshApp(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName, refreshType string) error {
+	metadata := map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"annotations": map[string]string{
+				bean.AnnotationKeyRefresh: refreshType,
+			},
+		},
+	}
+	patch, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("error marshaling metadata: %w", err)
+	}
+	patchType := types.MergePatchType
+	applicationGVK := v1alpha1.ApplicationSchemaGroupVersionKind
+	for attempt := 0; attempt < 5; attempt++ {
+		_, err := impl.k8sUtil.PatchResourceRequest(ctx, k8sConfig.RestConfig, patchType, string(patch), appName, k8sConfig.AcdNamespace, applicationGVK)
+		if err != nil {
+			if !k8sError.IsConflict(err) {
+				return fmt.Errorf("error patching annotations in application %q: %w", appName, err)
+			}
+		} else {
+			impl.logger.Infof("Requested app '%s' refresh", appName)
+			return nil
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 	return nil
 }

@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -119,8 +120,8 @@ func (impl *FullModeDeploymentServiceImpl) UpdateAndSyncACDApps(installAppVersio
 		return err
 	}
 	syncTime := time.Now()
-	targetRevision := chartGitAttribute.TargetRevision
-	err = impl.argoClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(ctx, acdAppName, targetRevision)
+	//targetRevision := chartGitAttribute.TargetRevision
+	err = impl.argoClientWrapperService.SyncArgoCDApplicationAndRefreshWithK8sClient(ctx, bean2.DefaultClusterId, argocdServer.DevtronInstalationNs, acdAppName)
 	if err != nil {
 		impl.Logger.Errorw("error in getting argocd application with normal refresh", "err", err, "argoAppName", installAppVersionRequest.ACDAppName)
 		clientErrCode, errMsg := util.GetClientDetailedError(err)

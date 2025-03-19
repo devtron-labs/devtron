@@ -24,11 +24,12 @@ import (
 )
 
 const (
-	RefreshTypeNormal          = "normal"
-	TargetRevisionMaster       = "master"
-	TargetRevisionOriginMaster = "origin/master"
-	PatchTypeMerge             = "merge"
-	TargetRevisionHead         = "head"
+	RefreshTypeNormal                 = "normal"
+	TargetRevisionMaster              = "master"
+	TargetRevisionOriginMaster        = "origin/master"
+	PatchTypeMerge                    = "merge"
+	TargetRevisionHead                = "head"
+	AnnotationKeyRefresh       string = "argocd.argoproj.io/refresh"
 )
 
 type ArgoCdAppPatchReqDto struct {

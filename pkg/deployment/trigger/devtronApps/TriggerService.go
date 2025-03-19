@@ -1193,8 +1193,8 @@ func (impl *TriggerServiceImpl) deployArgoCdApp(ctx context.Context, overrideReq
 	}
 	if valuesOverrideResponse.DeploymentConfig.IsArgoAppSyncAndRefreshSupported() {
 		syncTime := time.Now()
-		targetRevision := valuesOverrideResponse.DeploymentConfig.GetTargetRevision()
-		err = impl.argoClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(newCtx, valuesOverrideResponse.Pipeline.DeploymentAppName, targetRevision)
+		//targetRevision := valuesOverrideResponse.DeploymentConfig.GetTargetRevision()
+		err = impl.argoClientWrapperService.SyncArgoCDApplicationAndRefreshWithK8sClient(newCtx, valuesOverrideResponse.DeploymentConfig.GetApplicationObjectClusterId(), valuesOverrideResponse.DeploymentConfig.GetApplicationObjectNamespace(), valuesOverrideResponse.Pipeline.DeploymentAppName)
 		if err != nil {
 			impl.logger.Errorw("error in getting argo application with normal refresh", "argoAppName", valuesOverrideResponse.Pipeline.DeploymentAppName)
 			return fmt.Errorf("%s. err: %s", bean.ARGOCD_SYNC_ERROR, util.GetClientErrorDetailedMessage(err))

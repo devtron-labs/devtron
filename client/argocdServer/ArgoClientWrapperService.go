@@ -93,6 +93,7 @@ type ApplicationClientWrapper interface {
 	// SyncArgoCDApplicationIfNeededAndRefresh - if ARGO_AUTO_SYNC_ENABLED=true, app will be refreshed to initiate refresh at argoCD side or else it will be synced and refreshed
 	SyncArgoCDApplicationIfNeededAndRefresh(ctx context.Context, argoAppName, targetRevision string) error
 
+	SyncArgoCDApplicationAndRefreshWithK8sClient(ctx context.Context, clusterId int, namespace, appName string) error
 	// UpdateArgoCDSyncModeIfNeeded - if ARGO_AUTO_SYNC_ENABLED=true and app is in manual sync mode or vice versa update app
 	UpdateArgoCDSyncModeIfNeeded(ctx context.Context, argoApplication *v1alpha1.Application) (err error)
 
@@ -437,6 +438,32 @@ func (impl *ArgoClientWrapperServiceImpl) DeleteArgoAppWithK8sClient(ctx context
 		impl.logger.Errorw("err in getting argo app by name", "app", appName)
 		return err
 	}
+	return nil
+}
+
+func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationAndRefreshWithK8sClient(ctx context.Context, clusterId int, namespace, appName string) error {
+	k8sConfig, err := impl.acdConfigGetter.GetK8sConfigWithClusterIdAndNamespace(clusterId, namespace)
+	if err != nil {
+		impl.logger.Errorw("error in getting k8s config", "err", err)
+		return err
+	}
+	if impl.ACDConfig.IsManualSyncEnabled() {
+		impl.logger.Debugw("syncing ArgoCd app using k8s as manual sync is enabled", "argoAppName", appName)
+		err = impl.argoK8sClient.SyncArgoApplication(ctx, k8sConfig, appName)
+		if err != nil {
+			impl.logger.Errorw("err in syncing argo application", "app", appName, "err", err)
+			return err
+		}
+	}
+	runnableFunc := func() {
+		impl.logger.Debugw("syncing ArgoCd app using k8s as manual sync is enabled", "argoAppName", appName)
+		// running ArgoCd app refresh in asynchronous mode
+		refreshErr := impl.argoK8sClient.RefreshApp(context.Background(), k8sConfig, appName, bean.RefreshTypeNormal)
+		if refreshErr != nil {
+			impl.logger.Errorw("error in refreshing argo app", "argoAppName", appName, "err", refreshErr)
+		}
+	}
+	impl.asyncRunnable.Execute(runnableFunc)
 	return nil
 }
 
