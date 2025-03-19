@@ -2277,6 +2277,10 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 		)
 		if pipeline.IsExternalArgoAppLinkRequest() {
 			overrideCreateRequest, err := impl.parseEnvOverrideCreateRequestForExternalAcdApp(deploymentConfig, latestChart, app, userId, pipeline, appLevelAppMetricsEnabled)
+			if err != nil {
+				impl.logger.Errorw("error in parsing override request for external acd app", "appId", app.Id, "err", err)
+				return 0, err
+			}
 			envOverride, updatedAppMetrics, err = impl.propertiesConfigService.CreateIfRequired(overrideCreateRequest, tx)
 			if err != nil {
 				impl.logger.Errorw("error in creating env override", "appId", app.Id, "envId", envOverride.TargetEnvironment, "err", err)
@@ -2500,6 +2504,14 @@ func (impl *CdPipelineConfigServiceImpl) GetValuesAndChartMetadataForExternalArg
 		if file.Name == valuesFileName {
 			return file.Data, helmChart.Metadata, nil
 		}
+	}
+	if valuesFileName == "values.yaml" && helmChart.Values != nil {
+		byteValues, err := json.Marshal(helmChart.Values)
+		if err != nil {
+			impl.logger.Errorw("error in json Marshal values", "values", helmChart.Values, "err", err)
+			return nil, nil, err
+		}
+		return byteValues, helmChart.Metadata, nil
 	}
 	return nil, nil, errors2.New(fmt.Sprintf("values file with name %s not found in chart", valuesFileName))
 }
