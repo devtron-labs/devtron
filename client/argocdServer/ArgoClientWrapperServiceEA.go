@@ -62,7 +62,7 @@ func (impl *ArgoClientWrapperServiceEAImpl) DeleteArgoAppWithK8sClient(ctx conte
 	return nil
 }
 
-func (impl *ArgoClientWrapperServiceEAImpl) SyncArgoCDApplicationIfNeededAndRefresh(ctx context.Context, argoAppName, targetRevision string) error {
+func (impl *ArgoClientWrapperServiceEAImpl) SyncArgoCDApplicationAndRefreshWithK8sClient(ctx context.Context, clusterId int, namespace, appName string) error {
 	impl.logger.Info("not implemented")
 	return nil
 }

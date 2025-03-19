@@ -226,25 +226,29 @@ func (impl ArgoK8sClientImpl) GetArgoApplication(k8sConfig *bean.ArgoK8sConfig, 
 
 func (impl ArgoK8sClientImpl) DeleteArgoApplication(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string, cascadeDelete bool) error {
 
-	patchType := types.MergePatchType
-	patchJSON := ""
-
-	//TODO: ayush test cascade delete
+	metadata := make(map[string]interface{})
 	if cascadeDelete {
-		patchJSON = `{"metadata": {"finalizers": ["resources-finalizer.argocd.argoproj.io"]}}`
+		//patchJSON = `{"metadata": {"finalizers": ["resources-finalizer.argocd.argoproj.io"]}}`
+		metadata = map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"finalizers": []string{"resources-finalizer.argocd.argoproj.io"},
+			},
+		}
 	} else {
-		patchJSON = `{"metadata": {"finalizers": null}}`
+		//patchJSON = `{"metadata": {"finalizers": null}}`
+		metadata = map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"finalizers": nil,
+			},
+		}
 	}
-
-	applicationGVK := v1alpha1.ApplicationSchemaGroupVersionKind
-
-	_, err := impl.k8sUtil.PatchResourceRequest(ctx, k8sConfig.RestConfig, patchType, patchJSON, appName, k8sConfig.AcdNamespace, applicationGVK)
+	err := impl.patchApplicationObject(ctx, k8sConfig, appName, metadata)
 	if err != nil {
-		impl.logger.Errorw("error in patching argo application", "err", err)
+		impl.logger.Errorw("error in patching argo application", "appName", appName, "err", err)
 		return err
 	}
 
-	_, err = impl.k8sUtil.DeleteResource(ctx, k8sConfig.RestConfig, applicationGVK, k8sConfig.AcdNamespace, appName, true)
+	_, err = impl.k8sUtil.DeleteResource(ctx, k8sConfig.RestConfig, v1alpha1.ApplicationSchemaGroupVersionKind, k8sConfig.AcdNamespace, appName, true)
 	if err != nil {
 		impl.logger.Errorw("error in patching argo application", "acdAppName", appName, "err", err)
 		return err
@@ -256,25 +260,35 @@ func (impl ArgoK8sClientImpl) DeleteArgoApplication(ctx context.Context, k8sConf
 func (impl ArgoK8sClientImpl) SyncArgoApplication(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string) error {
 	operation := map[string]interface{}{
 		"operation": map[string]interface{}{
-			"initiatedBy": map[string]interface{}{
-				"username": "admin",
-			},
 			"sync": map[string]interface{}{
 				"prune": true,
 			},
+			"retry": map[string]interface{}{
+				"limit": 1,
+			},
 		},
 	}
-	patch, err := json.Marshal(operation)
+	err := impl.patchApplicationObject(ctx, k8sConfig, appName, operation)
+	if err != nil {
+		impl.logger.Errorw("error in patching argo application", "appName", appName, "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl ArgoK8sClientImpl) patchApplicationObject(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string, patch map[string]interface{}) error {
+	impl.logger.Debugw("patching argo application", "appName", appName, "patch", patch)
+	patchJSON, err := json.Marshal(patch)
 	if err != nil {
 		return fmt.Errorf("error marshaling metadata: %w", err)
 	}
 	patchType := types.MergePatchType
 	applicationGVK := v1alpha1.ApplicationSchemaGroupVersionKind
 	for attempt := 0; attempt < 5; attempt++ {
-		_, err := impl.k8sUtil.PatchResourceRequest(ctx, k8sConfig.RestConfig, patchType, string(patch), appName, k8sConfig.AcdNamespace, applicationGVK)
+		_, err := impl.k8sUtil.PatchResourceRequest(ctx, k8sConfig.RestConfig, patchType, string(patchJSON), appName, k8sConfig.AcdNamespace, applicationGVK)
 		if err != nil {
 			if !k8sError.IsConflict(err) {
-				return fmt.Errorf("error patching sync json in application %s: %w", appName, err)
+				return fmt.Errorf("error patching json in application %s: %w", appName, err)
 			}
 		} else {
 			impl.logger.Infof("patch for application", "appName", appName, "err", err)
@@ -293,23 +307,10 @@ func (impl ArgoK8sClientImpl) RefreshApp(ctx context.Context, k8sConfig *bean.Ar
 			},
 		},
 	}
-	patch, err := json.Marshal(metadata)
+	err := impl.patchApplicationObject(ctx, k8sConfig, appName, metadata)
 	if err != nil {
-		return fmt.Errorf("error marshaling metadata: %w", err)
-	}
-	patchType := types.MergePatchType
-	applicationGVK := v1alpha1.ApplicationSchemaGroupVersionKind
-	for attempt := 0; attempt < 5; attempt++ {
-		_, err := impl.k8sUtil.PatchResourceRequest(ctx, k8sConfig.RestConfig, patchType, string(patch), appName, k8sConfig.AcdNamespace, applicationGVK)
-		if err != nil {
-			if !k8sError.IsConflict(err) {
-				return fmt.Errorf("error patching annotations in application %q: %w", appName, err)
-			}
-		} else {
-			impl.logger.Infof("Requested app '%s' refresh", appName)
-			return nil
-		}
-		time.Sleep(100 * time.Millisecond)
+		impl.logger.Errorw("error in patching argo application", "appName", appName, "err", err)
+		return err
 	}
 	return nil
 }
