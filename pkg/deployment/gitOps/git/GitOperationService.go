@@ -169,7 +169,7 @@ func (impl *GitOperationServiceImpl) PushChartToGitRepo(ctx context.Context, git
 		commit, err := impl.gitFactory.GitOpsHelper.CommitAndPushAllChanges(newCtx, clonedDir, targetRevision, "first commit", userName, userEmailId)
 		if err != nil {
 			impl.logger.Errorw("error in pushing git", "err", err)
-			callback := func() error {
+			callback := func(int) error {
 				commit, err = impl.updateRepoAndPushAllChanges(newCtx, clonedDir, repoUrl, targetRevision,
 					tempReferenceTemplateDir, dir, userName, userEmailId, impl.gitFactory.GitOpsHelper)
 				return err
@@ -263,8 +263,12 @@ func (impl *GitOperationServiceImpl) CommitValues(ctx context.Context, chartGitA
 		return commitHash, commitTime, err
 	}
 	gitOpsConfig := &apiBean.GitOpsConfigDto{BitBucketWorkspaceId: bitbucketMetadata.BitBucketWorkspaceId}
-	callback := func() error {
-		commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(newCtx, chartGitAttr, gitOpsConfig)
+	callback := func(retriesLeft int) error {
+		publishStatusConflictError := false
+		if retriesLeft <= 0 {
+			publishStatusConflictError = true
+		}
+		commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(newCtx, chartGitAttr, gitOpsConfig, publishStatusConflictError)
 		return err
 	}
 	err = retryFunc.Retry(callback, impl.isRetryableGitCommitError,

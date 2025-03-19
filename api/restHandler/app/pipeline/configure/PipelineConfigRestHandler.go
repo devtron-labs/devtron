@@ -35,6 +35,7 @@ import (
 	security2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/read"
 	read3 "github.com/devtron-labs/devtron/pkg/team/read"
+	"github.com/devtron-labs/devtron/util/beHelper"
 	"io"
 	"net/http"
 	"strconv"
@@ -60,7 +61,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
-	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -663,7 +663,7 @@ func (handler *PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.Resp
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	suggestedName := fmt.Sprintf("%s-%d-%s", pType, appId, util2.Generate(4))
+	suggestedName := beHelper.GetPipelineNameByPipelineType(pType, appId)
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceName, casbin.ActionGet)
 	if !ok {

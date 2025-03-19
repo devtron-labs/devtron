@@ -565,14 +565,11 @@ func (handler *PipelineConfigRestHandlerImpl) GetCiPipeline(w http.ResponseWrite
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	ciConf, err := handler.pipelineBuilder.GetCiPipeline(appId)
+	ciConf, err := handler.pipelineBuilder.GetCiPipelineRespResolved(appId)
 	if err != nil {
-		handler.Logger.Errorw("service err, GetCiPipeline", "err", err, "appId", appId)
+		handler.Logger.Errorw("service err, GetCiPipelineRespResolved", "appId", appId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
-	}
-	if ciConf == nil || ciConf.Id == 0 {
-		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no data found"}
 	}
 	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
 }
@@ -1286,13 +1283,12 @@ func (handler *PipelineConfigRestHandlerImpl) GetCIPipelineById(w http.ResponseW
 		}
 	}
 
-	ciPipeline, err := handler.pipelineBuilder.GetCiPipelineById(pipelineId)
+	ciPipeline, err := handler.pipelineBuilder.GetCiPipelineByIdWithDefaultTag(pipelineId)
 	if err != nil {
-		handler.Logger.Infow("service error, GetCIPipelineById", "err", err, "appId", appId, "pipelineId", pipelineId)
+		handler.Logger.Infow("service error, GetCiPipelineByIdWithDefaultTag", "err", err, "appId", appId, "pipelineId", pipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	ciPipeline.DefaultTag = []string{"{git_hash}", "{ci_pipeline_id}", "{global_counter}"}
 	common.WriteJsonResp(w, err, ciPipeline, http.StatusOK)
 }
 

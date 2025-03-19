@@ -19,7 +19,9 @@ package util
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"encoding/json"
+	errors2 "errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/juju/errors"
@@ -270,7 +272,10 @@ func TriggerCIMetrics(Metrics CIMetrics, exposeCIMetrics bool, PipelineName stri
 
 func TriggerGitOpsMetrics(operation string, method string, startTime time.Time, err error) {
 	status := "Success"
-	if err != nil {
+
+	if err != nil && errors2.Is(err, context.Canceled) {
+		status = "Failed: context canceled"
+	} else if err != nil {
 		status = "Failed"
 	}
 	middleware.GitOpsDuration.WithLabelValues(operation, method, status).Observe(time.Since(startTime).Seconds())

@@ -25,7 +25,7 @@ import (
 )
 
 // Retry performs a function with retries, delay, and a max number of attempts.
-func Retry(fn func() error, shouldRetry func(err error) bool, maxRetries int, delay time.Duration, logger *zap.SugaredLogger) error {
+func Retry(fn func(retriesLeft int) error, shouldRetry func(err error) bool, maxRetries int, delay time.Duration, logger *zap.SugaredLogger) error {
 	var err error
 	logger.Debugw("retrying function",
 		"maxRetries", maxRetries, "delay", delay,
@@ -33,7 +33,7 @@ func Retry(fn func() error, shouldRetry func(err error) bool, maxRetries int, de
 		"path", fmt.Sprintf("%s:%d", runTime.GetCallerFileName(), runTime.GetCallerLineNumber()))
 	for i := 0; i < maxRetries; i++ {
 		logger.Debugw("function called with retry", "attempt", i+1, "maxRetries", maxRetries, "delay", delay)
-		err = fn()
+		err = fn(maxRetries - (i + 1))
 		if err == nil {
 			return nil
 		}

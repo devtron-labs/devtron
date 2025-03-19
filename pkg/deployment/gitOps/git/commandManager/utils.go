@@ -20,6 +20,7 @@ import (
 	"github.com/go-git/go-billy/v5/osfs"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func LocateGitRepo(path string) error {
@@ -33,4 +34,11 @@ func LocateGitRepo(path string) error {
 		return err
 	}
 	return nil
+}
+
+func IsAlreadyUpToDateError(response, errMsg string) bool {
+	if strings.Contains(response, "already up-to-date") || strings.Contains(errMsg, "already up-to-date") {
+		return true
+	}
+	return false
 }

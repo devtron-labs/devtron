@@ -21,7 +21,6 @@ import (
 	git_manager "github.com/devtron-labs/common-lib/git-manager"
 	"github.com/devtron-labs/devtron/util"
 	"os/exec"
-	"strings"
 	"time"
 )
 
@@ -67,24 +66,26 @@ func (impl *GitCliManagerImpl) CommitAndPush(ctx GitContext, repoRoot, targetRev
 }
 
 func (impl *GitCliManagerImpl) Pull(ctx GitContext, targetRevision string, repoRoot string) (err error) {
+
 	start := time.Now()
-	defer func() {
-		util.TriggerGitOpsMetrics("Pull", "GitService", start, err)
-	}()
 
 	err = LocateGitRepo(repoRoot)
 	if err != nil {
+		util.TriggerGitOpsMetrics("Pull", "GitService", start, err)
 		return err
 	}
+
 	response, errMsg, err := impl.PullCli(ctx, repoRoot, targetRevision)
 	if err != nil {
+		if IsAlreadyUpToDateError(response, errMsg) {
+			err = nil
+			return nil
+		} else {
+			util.TriggerGitOpsMetrics("Pull", "GitService", start, err)
+		}
 		impl.logger.Errorw("error in git pull from cli", "errMsg", errMsg, "err", err)
 	}
-
-	if strings.Contains(response, "already up-to-date") || strings.Contains(errMsg, "already up-to-date") {
-		err = nil
-		return nil
-	}
+	util.TriggerGitOpsMetrics("Pull", "GitService", start, nil)
 	return err
 }
 

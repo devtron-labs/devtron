@@ -67,12 +67,15 @@ type ChartService interface {
 	CheckIfChartRefUserUploadedByAppId(id int) (bool, error)
 	PatchEnvOverrides(values json.RawMessage, oldChartType string, newChartType string) (json.RawMessage, error)
 
+	ChartRefAutocompleteGlobalData() (*chartRefBean.ChartRefAutocompleteResponse, error)
 	ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*chartRefBean.ChartRefAutocompleteResponse, error)
 
 	ConfigureGitOpsRepoUrlForApp(appId int, repoUrl, chartLocation string, isCustomRepo bool, userId int32) (*bean2.DeploymentConfig, error)
 
 	IsGitOpsRepoConfiguredForDevtronApp(appId int) (bool, error)
 	IsGitOpsRepoAlreadyRegistered(gitOpsRepoUrl string) (bool, error)
+
+	GetDeploymentTemplateDataByAppIdAndCharRefId(appId, chartRefId int) (map[string]interface{}, error)
 }
 
 type ChartServiceImpl struct {
@@ -846,42 +849,17 @@ func (impl *ChartServiceImpl) IsReadyToTrigger(appId int, envId int, pipelineId 
 }
 
 func (impl *ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*chartRefBean.ChartRefAutocompleteResponse, error) {
-	chartRefResponse := &chartRefBean.ChartRefAutocompleteResponse{}
-	var chartRefs []chartRefBean.ChartRefAutocompleteDto
-
-	results, err := impl.chartRefService.GetAll()
+	chartRefResponse, err := impl.ChartRefAutocompleteGlobalData()
 	if err != nil {
-		impl.logger.Errorw("error in fetching chart ref", "err", err)
-		return chartRefResponse, err
+		impl.logger.Errorw("error, ChartRefAutocompleteGlobalData", "err", err)
+		return nil, err
 	}
-
-	resultsMetadataMap, err := impl.chartRefService.GetAllChartMetadata()
-	if err != nil {
-		impl.logger.Errorw("error in fetching chart metadata", "err", err)
-		return chartRefResponse, err
-	}
-	chartRefResponse.ChartsMetadata = resultsMetadataMap
-	var LatestAppChartRef int
-	for _, result := range results {
-		chartRefs = append(chartRefs, chartRefBean.ChartRefAutocompleteDto{
-			Id:                    result.Id,
-			Version:               result.Version,
-			Name:                  result.Name,
-			Description:           result.ChartDescription,
-			UserUploaded:          result.UserUploaded,
-			IsAppMetricsSupported: result.IsAppMetricsSupported,
-		})
-		if result.Default == true {
-			LatestAppChartRef = result.Id
-		}
-	}
-
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching latest chart", "err", err)
 		return chartRefResponse, err
 	}
-
+	chartRefResponse.LatestAppChartRef = chart.ChartRefId
 	if envId > 0 {
 		envOverride, err := impl.envConfigOverrideReadService.FindLatestChartForAppByAppIdAndEnvId(appId, envId)
 		if err != nil && !errors.IsNotFound(err) {
@@ -894,10 +872,40 @@ func (impl *ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId i
 			chartRefResponse.LatestEnvChartRef = chart.ChartRefId
 		}
 	}
-	chartRefResponse.LatestAppChartRef = chart.ChartRefId
-	chartRefResponse.ChartRefs = chartRefs
-	chartRefResponse.LatestChartRef = LatestAppChartRef
 	return chartRefResponse, nil
+}
+
+func (impl *ChartServiceImpl) ChartRefAutocompleteGlobalData() (*chartRefBean.ChartRefAutocompleteResponse, error) {
+	results, err := impl.chartRefService.GetAll()
+	if err != nil {
+		impl.logger.Errorw("error in fetching chart ref", "err", err)
+		return nil, err
+	}
+	resultsMetadataMap, err := impl.chartRefService.GetAllChartMetadata()
+	if err != nil {
+		impl.logger.Errorw("error in fetching chart metadata", "err", err)
+		return nil, err
+	}
+	var latestChartRef int
+	chartRefs := make([]chartRefBean.ChartRefAutocompleteDto, 0, len(results))
+	for _, result := range results {
+		chartRefs = append(chartRefs, chartRefBean.ChartRefAutocompleteDto{
+			Id:                    result.Id,
+			Version:               result.Version,
+			Name:                  result.Name,
+			Description:           result.ChartDescription,
+			UserUploaded:          result.UserUploaded,
+			IsAppMetricsSupported: result.IsAppMetricsSupported,
+		})
+		if result.Default == true {
+			latestChartRef = result.Id
+		}
+	}
+	return &chartRefBean.ChartRefAutocompleteResponse{
+		ChartsMetadata: resultsMetadataMap,
+		ChartRefs:      chartRefs,
+		LatestChartRef: latestChartRef,
+	}, nil
 }
 
 func (impl *ChartServiceImpl) FindPreviousChartByAppId(appId int) (chartTemplate *bean3.TemplateRequest, err error) {
@@ -1116,4 +1124,73 @@ func (impl *ChartServiceImpl) IsGitOpsRepoAlreadyRegistered(gitOpsRepoUrl string
 	}
 	impl.logger.Errorw("repository is already in use for devtron app", "repoUrl", gitOpsRepoUrl, "appId", chartModel.AppId)
 	return true, nil
+}
+
+func (impl *ChartServiceImpl) GetDeploymentTemplateDataByAppIdAndCharRefId(appId, chartRefId int) (map[string]interface{}, error) {
+	appConfigResponse := make(map[string]interface{})
+	appConfigResponse["globalConfig"] = nil
+
+	err := impl.chartRefService.CheckChartExists(chartRefId)
+	if err != nil {
+		impl.logger.Errorw("refChartDir Not Found err, JsonSchemaExtractFromFile", err)
+		return nil, err
+	}
+
+	schema, readme, err := impl.chartRefService.GetSchemaAndReadmeForTemplateByChartRefId(chartRefId)
+	if err != nil {
+		impl.logger.Errorw("err in getting schema and readme, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+	}
+
+	template, err := impl.chartReadService.FindLatestChartForAppByAppId(appId)
+	if err != nil && pg.ErrNoRows != err {
+		impl.logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+		return nil, err
+	}
+
+	if pg.ErrNoRows == err {
+		appOverride, _, err := impl.chartRefService.GetAppOverrideForDefaultTemplate(chartRefId)
+		if err != nil {
+			impl.logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+			return nil, err
+		}
+		appOverride["schema"] = json.RawMessage(schema)
+		appOverride["readme"] = string(readme)
+		mapB, err := json.Marshal(appOverride)
+		if err != nil {
+			impl.logger.Errorw("marshal err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+			return nil, err
+		}
+		appConfigResponse["globalConfig"] = json.RawMessage(mapB)
+	} else {
+		if template.ChartRefId != chartRefId {
+			templateRequested, err := impl.GetByAppIdAndChartRefId(appId, chartRefId)
+			if err != nil && err != pg.ErrNoRows {
+				impl.logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+				return nil, err
+			}
+
+			if pg.ErrNoRows == err {
+				template.ChartRefId = chartRefId
+				template.Id = 0
+				template.Latest = false
+			} else {
+				template.ChartRefId = templateRequested.ChartRefId
+				template.Id = templateRequested.Id
+				template.ChartRepositoryId = templateRequested.ChartRepositoryId
+				template.RefChartTemplate = templateRequested.RefChartTemplate
+				template.RefChartTemplateVersion = templateRequested.RefChartTemplateVersion
+				template.Latest = templateRequested.Latest
+			}
+		}
+		template.Schema = schema
+		template.Readme = string(readme)
+		bytes, err := json.Marshal(template)
+		if err != nil {
+			impl.logger.Errorw("marshal err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+			return nil, err
+		}
+		appOverride := json.RawMessage(bytes)
+		appConfigResponse["globalConfig"] = appOverride
+	}
+	return appConfigResponse, nil
 }
