@@ -78,6 +78,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository3 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	globalUtil "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/beHelper"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	errors2 "github.com/juju/errors"
@@ -2024,7 +2025,7 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 	if (pipeline.AppWorkflowId == 0 || pipeline.IsSwitchCiPipelineRequest()) && pipeline.ParentPipelineType == "WEBHOOK" {
 		if pipeline.AppWorkflowId == 0 {
 			wf := &appWorkflow.AppWorkflow{
-				Name:     fmt.Sprintf("wf-%d-%s", app.Id, globalUtil.Generate(4)),
+				Name:     beHelper.GetAppWorkflowName(app.Id),
 				AppId:    app.Id,
 				Active:   true,
 				AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
