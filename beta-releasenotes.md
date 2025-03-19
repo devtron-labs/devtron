@@ -1,4 +1,5 @@
 ## Bugs
+- fix: onboard acd app (#6457)
 - fix: prom client in chart-sync (#6442)
 - fix: incorrect gitops metrics (#6444)
 - fix: envId check in EventBuilder.go (#6436)
