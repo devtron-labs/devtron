@@ -371,7 +371,7 @@ func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationAndRefreshWithK8s
 		impl.logger.Errorw("error in unmarshalling app object", "deploymentAppName", appName, "err", err)
 		return err
 	}
-	if application.Status.OperationState != nil {
+	if application.Status.OperationState != nil && application.Status.OperationState.Phase.Running() {
 		err = impl.argoK8sClient.TerminateApp(ctx, k8sConfig, appName)
 		if err != nil {
 			impl.logger.Errorw("err in syncing argo application", "app", appName, "err", err)
