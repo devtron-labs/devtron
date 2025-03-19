@@ -30,6 +30,7 @@ const (
 	PatchTypeMerge                    = "merge"
 	TargetRevisionHead                = "head"
 	AnnotationKeyRefresh       string = "argocd.argoproj.io/refresh"
+	OperationTerminating       string = "Terminating"
 )
 
 type ArgoCdAppPatchReqDto struct {

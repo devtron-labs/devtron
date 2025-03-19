@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -62,6 +63,7 @@ type ArgoK8sClient interface {
 	DeleteArgoApplication(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string, cascadeDelete bool) error
 	SyncArgoApplication(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string) error
 	RefreshApp(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName, refreshType string) error
+	TerminateApp(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string) error
 }
 type ArgoK8sClientImpl struct {
 	logger  *zap.SugaredLogger
@@ -258,6 +260,7 @@ func (impl ArgoK8sClientImpl) DeleteArgoApplication(ctx context.Context, k8sConf
 }
 
 func (impl ArgoK8sClientImpl) SyncArgoApplication(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string) error {
+	impl.logger.Infow("syncing argo application", "appName", appName)
 	operation := map[string]interface{}{
 		"operation": map[string]interface{}{
 			"sync": map[string]interface{}{
@@ -277,7 +280,7 @@ func (impl ArgoK8sClientImpl) SyncArgoApplication(ctx context.Context, k8sConfig
 }
 
 func (impl ArgoK8sClientImpl) patchApplicationObject(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string, patch map[string]interface{}) error {
-	impl.logger.Debugw("patching argo application", "appName", appName, "patch", patch)
+	impl.logger.Infow("patching argo application", "appName", appName, "patch", patch)
 	patchJSON, err := json.Marshal(patch)
 	if err != nil {
 		return fmt.Errorf("error marshaling metadata: %w", err)
@@ -300,6 +303,7 @@ func (impl ArgoK8sClientImpl) patchApplicationObject(ctx context.Context, k8sCon
 }
 
 func (impl ArgoK8sClientImpl) RefreshApp(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName, refreshType string) error {
+	impl.logger.Infow("refreshing argo application", "appName", appName)
 	metadata := map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
@@ -308,6 +312,23 @@ func (impl ArgoK8sClientImpl) RefreshApp(ctx context.Context, k8sConfig *bean.Ar
 		},
 	}
 	err := impl.patchApplicationObject(ctx, k8sConfig, appName, metadata)
+	if err != nil {
+		impl.logger.Errorw("error in patching argo application", "appName", appName, "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl ArgoK8sClientImpl) TerminateApp(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string) error {
+	impl.logger.Infow("terminating argo application", "appName", appName)
+	terminatePatch := map[string]interface{}{
+		"status": map[string]interface{}{
+			"operationState": map[string]interface{}{
+				"phase": common.OperationTerminating,
+			},
+		},
+	}
+	err := impl.patchApplicationObject(ctx, k8sConfig, appName, terminatePatch)
 	if err != nil {
 		impl.logger.Errorw("error in patching argo application", "appName", appName, "err", err)
 		return err

@@ -361,6 +361,23 @@ func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationAndRefreshWithK8s
 		impl.logger.Errorw("error in getting k8s config", "err", err)
 		return err
 	}
+	app, err := impl.argoK8sClient.GetArgoApplication(k8sConfig, appName)
+	if err != nil {
+		impl.logger.Errorw("err in getting argo app by name", "app", appName, "err", err)
+		return nil
+	}
+	application, err := GetAppObject(app)
+	if err != nil {
+		impl.logger.Errorw("error in unmarshalling app object", "deploymentAppName", appName, "err", err)
+		return err
+	}
+	if application.Status.OperationState != nil {
+		err = impl.argoK8sClient.TerminateApp(ctx, k8sConfig, appName)
+		if err != nil {
+			impl.logger.Errorw("err in syncing argo application", "app", appName, "err", err)
+			return err
+		}
+	}
 	if impl.ACDConfig.IsManualSyncEnabled() {
 		impl.logger.Debugw("syncing ArgoCd app using k8s as manual sync is enabled", "argoAppName", appName)
 		err = impl.argoK8sClient.SyncArgoApplication(ctx, k8sConfig, appName)
