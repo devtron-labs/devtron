@@ -333,12 +333,7 @@ func (impl *ArgoClientWrapperServiceImpl) GetArgoAppByNameWithK8sClient(ctx cont
 		impl.logger.Errorw("err in getting argo app by name", "app", appName)
 		return nil, err
 	}
-	application, err := GetAppObject(argoApplication)
-	if err != nil {
-		impl.logger.Errorw("error in getting app object", "deploymentAppName", appName, "err", err)
-		return nil, err
-	}
-	return application, nil
+	return argoApplication, nil
 }
 
 func (impl *ArgoClientWrapperServiceImpl) DeleteArgoAppWithK8sClient(ctx context.Context, clusterId int, namespace, appName string, cascadeDelete bool) error {
@@ -361,17 +356,13 @@ func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationAndRefreshWithK8s
 		impl.logger.Errorw("error in getting k8s config", "err", err)
 		return err
 	}
-	app, err := impl.argoK8sClient.GetArgoApplication(k8sConfig, appName)
+	application, err := impl.argoK8sClient.GetArgoApplication(k8sConfig, appName)
 	if err != nil {
 		impl.logger.Errorw("err in getting argo app by name", "app", appName, "err", err)
 		return nil
 	}
-	application, err := GetAppObject(app)
-	if err != nil {
-		impl.logger.Errorw("error in unmarshalling app object", "deploymentAppName", appName, "err", err)
-		return err
-	}
-	if application.Status.OperationState != nil && application.Status.OperationState.Phase.Running() {
+
+	if application.Operation != nil {
 		err = impl.argoK8sClient.TerminateApp(ctx, k8sConfig, appName)
 		if err != nil {
 			impl.logger.Errorw("err in syncing argo application", "app", appName, "err", err)

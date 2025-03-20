@@ -59,7 +59,7 @@ const (
 
 type ArgoK8sClient interface {
 	CreateAcdApp(ctx context.Context, appRequest *AppTemplate, applicationTemplatePath string) (string, error)
-	GetArgoApplication(k8sConfig *bean.ArgoK8sConfig, appName string) (map[string]interface{}, error)
+	GetArgoApplication(k8sConfig *bean.ArgoK8sConfig, appName string) (*v1alpha1.Application, error)
 	DeleteArgoApplication(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string, cascadeDelete bool) error
 	SyncArgoApplication(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string) error
 	RefreshApp(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName, refreshType string) error
@@ -191,7 +191,7 @@ func (impl ArgoK8sClientImpl) convertArgoK8sClientError(apiError *util.ApiError,
 	return apiError
 }
 
-func (impl ArgoK8sClientImpl) GetArgoApplication(k8sConfig *bean.ArgoK8sConfig, appName string) (map[string]interface{}, error) {
+func (impl ArgoK8sClientImpl) GetArgoApplication(k8sConfig *bean.ArgoK8sConfig, appName string) (*v1alpha1.Application, error) {
 
 	config := k8sConfig.RestConfig
 	config.GroupVersion = &schema.GroupVersion{Group: "argoproj.io", Version: "v1alpha1"}
@@ -222,8 +222,13 @@ func (impl ArgoK8sClientImpl) GetArgoApplication(k8sConfig *bean.ArgoK8sConfig, 
 		impl.logger.Errorw("unmarshal error on app update status", "err", err)
 		return nil, fmt.Errorf("error get argo cd app")
 	}
+	application, err := GetAppObject(response)
+	if err != nil {
+		impl.logger.Errorw("error in getting app object", "deploymentAppName", appName, "err", err)
+		return nil, err
+	}
 	impl.logger.Infow("get argo cd application", "res", response, "err", err)
-	return response, err
+	return application, err
 }
 
 func (impl ArgoK8sClientImpl) DeleteArgoApplication(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string, cascadeDelete bool) error {
@@ -332,6 +337,20 @@ func (impl ArgoK8sClientImpl) TerminateApp(ctx context.Context, k8sConfig *bean.
 	if err != nil {
 		impl.logger.Errorw("error in patching argo application", "appName", appName, "err", err)
 		return err
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		app, err := impl.GetArgoApplication(k8sConfig, appName)
+		if err != nil {
+			impl.logger.Errorw("error in getting argo application", "appName", appName, "err", err)
+			return err
+		}
+		if app.Operation == nil || app.Status.OperationState.Phase == common.OperationFailed {
+			break
+		}
+		if time.Now().After(deadline) {
+			return errors.New("timed out waiting for argo application to terminate")
+		}
 	}
 	return nil
 }
