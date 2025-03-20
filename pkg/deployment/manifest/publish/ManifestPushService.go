@@ -34,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"time"
@@ -96,13 +97,17 @@ func (impl *GitOpsManifestPushServiceImpl) createRepoForGitOperation(manifestPus
 		return manifestPushTemplate.RepoUrl, nil
 	}
 	gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(manifestPushTemplate.AppName)
-	chartGitAttr, err := impl.gitOperationService.CreateGitRepositoryForDevtronApp(ctx, gitOpsRepoName, manifestPushTemplate.UserId)
+	targetRevision := globalUtil.GetDefaultTargetRevision()
+	if len(manifestPushTemplate.TargetRevision) != 0 {
+		targetRevision = manifestPushTemplate.TargetRevision
+	}
+	chartGitAttr, err := impl.gitOperationService.CreateGitRepositoryForDevtronApp(ctx, gitOpsRepoName, targetRevision, manifestPushTemplate.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git ", "gitOpsRepoName", gitOpsRepoName, "err", err)
 		return "", fmt.Errorf("No repository configured for Gitops! Error while creating git repository: '%s'", gitOpsRepoName)
 	}
 	chartGitAttr.ChartLocation = manifestPushTemplate.ChartLocation
-	err = impl.argoClientWrapperService.RegisterGitOpsRepoInArgoWithRetry(ctx, chartGitAttr.RepoUrl, manifestPushTemplate.UserId)
+	err = impl.argoClientWrapperService.RegisterGitOpsRepoInArgoWithRetry(ctx, chartGitAttr.RepoUrl, chartGitAttr.TargetRevision, manifestPushTemplate.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in registering app in acd", "err", err)
 		return "", fmt.Errorf("Error in registering repository '%s' in ArgoCd", gitOpsRepoName)
@@ -110,13 +115,19 @@ func (impl *GitOpsManifestPushServiceImpl) createRepoForGitOperation(manifestPus
 	return chartGitAttr.RepoUrl, nil
 }
 
-func (impl *GitOpsManifestPushServiceImpl) validateManifestPushRequest(globalGitOpsConfigStatus gitOpsBean.GitOpsConfigurationStatus, manifestPushTemplate bean.ManifestPushTemplate) error {
-	if !globalGitOpsConfigStatus.IsGitOpsConfigured {
-		return fmt.Errorf("Gitops integration is not installed/configured. Please install/configure gitops.")
-	}
-	if gitOps.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) {
-		if globalGitOpsConfigStatus.AllowCustomRepository {
-			return fmt.Errorf("GitOps repository is not configured! Please configure gitops repository for application first.")
+func (impl *GitOpsManifestPushServiceImpl) validateManifestPushRequest(globalGitOpsConfigStatus *gitOpsBean.GitOpsConfigurationStatus, manifestPushTemplate *bean.ManifestPushTemplate) error {
+	if manifestPushTemplate.ReleaseMode == util.PIPELINE_RELEASE_MODE_LINK {
+		if gitOps.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) {
+			return fmt.Errorf("Could not push chart to git. GitOps repository is not found for the pipeline.")
+		}
+	} else {
+		if !globalGitOpsConfigStatus.IsGitOpsConfiguredAndArgoCdInstalled() {
+			return fmt.Errorf("Gitops integration is not installed/configured. Please install/configure gitops.")
+		}
+		if gitOps.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) {
+			if globalGitOpsConfigStatus.AllowCustomRepository {
+				return fmt.Errorf("GitOps repository is not configured! Please configure gitops repository for application first.")
+			}
 		}
 	}
 	return nil
@@ -135,7 +146,7 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(ctx context.Context, manife
 		return manifestPushResponse
 	}
 	// 2. Validate Repository for Git Operation
-	errMsg := impl.validateManifestPushRequest(*globalGitOpsConfigStatus, *manifestPushTemplate)
+	errMsg := impl.validateManifestPushRequest(globalGitOpsConfigStatus, manifestPushTemplate)
 	if errMsg != nil {
 		manifestPushResponse.Error = errMsg
 		impl.SaveTimelineForError(manifestPushTemplate, errMsg)
@@ -205,7 +216,7 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(ctx context.Context, manife
 	}
 	gitCommitTimeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(manifestPushTemplate.WorkflowRunnerId, timelineStatus.TIMELINE_STATUS_GIT_COMMIT, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_GIT_COMMIT, manifestPushTemplate.UserId)
 	timelines := []*pipelineConfig.PipelineStatusTimeline{gitCommitTimeline}
-	if impl.acdConfig.IsManualSyncEnabled() {
+	if impl.acdConfig.IsManualSyncEnabled() && manifestPushTemplate.IsArgoSyncSupported {
 		// if manual sync is enabled, add ARGOCD_SYNC_INITIATED_TIMELINE
 		argoCDSyncInitiatedTimeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(manifestPushTemplate.WorkflowRunnerId, timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_INITIATED, manifestPushTemplate.UserId)
 		timelines = append(timelines, argoCDSyncInitiatedTimeline)
@@ -235,7 +246,7 @@ func (impl *GitOpsManifestPushServiceImpl) pushChartToGitRepo(ctx context.Contex
 		impl.logger.Errorw("err in getting chart info", "err", err)
 		return err
 	}
-	err = impl.gitOperationService.PushChartToGitRepo(newCtx, gitOpsRepoName, manifestPushTemplate.ChartReferenceTemplate, manifestPushTemplate.ChartVersion, manifestPushTemplate.BuiltChartPath, manifestPushTemplate.RepoUrl, manifestPushTemplate.UserId)
+	err = impl.gitOperationService.PushChartToGitRepo(newCtx, gitOpsRepoName, manifestPushTemplate.ChartLocation, manifestPushTemplate.BuiltChartPath, manifestPushTemplate.RepoUrl, manifestPushTemplate.TargetRevision, manifestPushTemplate.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git", "err", err)
 		return err
@@ -254,12 +265,13 @@ func (impl *GitOpsManifestPushServiceImpl) commitValuesToGit(ctx context.Context
 	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(manifestPushTemplate.UserId)
 	span.End()
 	chartGitAttr := &git.ChartConfig{
-		FileName:       fmt.Sprintf("_%d-values.yaml", manifestPushTemplate.TargetEnvironmentName),
+		FileName:       manifestPushTemplate.ValuesFilePath,
 		FileContent:    manifestPushTemplate.MergedValues,
 		ChartName:      manifestPushTemplate.ChartName,
 		ChartLocation:  manifestPushTemplate.ChartLocation,
 		ChartRepoName:  chartRepoName,
-		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", manifestPushTemplate.PipelineOverrideId, manifestPushTemplate.TargetEnvironmentName),
+		TargetRevision: manifestPushTemplate.TargetRevision,
+		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", manifestPushTemplate.PipelineOverrideId, manifestPushTemplate.TargetEnvironmentId),
 		UserName:       userName,
 		UserEmailId:    userEmailId,
 	}

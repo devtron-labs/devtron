@@ -11,7 +11,7 @@ keywords:
   - argocd
   - Hyperion
 engine: gotpl
-version: 0.22.85
+version: 0.22.86
 sources:
   - https://github.com/devtron-labs/charts
 dependencies:

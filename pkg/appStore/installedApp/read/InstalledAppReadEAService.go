@@ -33,6 +33,7 @@ type InstalledAppReadServiceEA interface {
 	// Additional details like app store details are also fetched.
 	// Refer bean.InstalledAppVersionWithAppStoreDetails for more details.
 	GetInstalledAppVersionIncludingDeleted(installedAppVersionId int) (*bean.InstalledAppVersionWithAppStoreDetails, error)
+	GetAllArgoAppNamesByDeploymentAppNames(deploymentAppNames []string) ([]string, error)
 	// IsChartStoreAppManagedByArgoCd returns if a chart store app is deployed via argo-cd or not
 	IsChartStoreAppManagedByArgoCd(appId int) (bool, error)
 }
@@ -99,6 +100,10 @@ func (impl *InstalledAppReadServiceEAImpl) GetInstalledAppVersionIncludingDelete
 		return nil, err
 	}
 	return adapter.GetInstalledAppVersionWithAppStoreDetails(installedAppVersionModel), nil
+}
+
+func (impl *InstalledAppReadServiceEAImpl) GetAllArgoAppNamesByDeploymentAppNames(deploymentAppNames []string) ([]string, error) {
+	return impl.installedAppRepository.GetAllArgoAppsByDeploymentAppNames(deploymentAppNames)
 }
 
 func (impl *InstalledAppReadServiceEAImpl) IsChartStoreAppManagedByArgoCd(appId int) (bool, error) {

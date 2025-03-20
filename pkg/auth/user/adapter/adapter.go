@@ -17,24 +17,76 @@
 package adapter
 
 import (
-	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
+	"github.com/devtron-labs/devtron/internal/constants"
+	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"strings"
-	"time"
 )
 
-func GetLastLoginTime(model repository.UserModel) time.Time {
-	lastLoginTime := time.Time{}
-	if model.UserAudit != nil {
-		lastLoginTime = model.UserAudit.UpdatedOn
+func GetCasbinGroupPolicyForEmailAndRoleOnly(emailId string, role string) bean.Policy {
+	return bean.Policy{
+		Type: "g",
+		Sub:  bean.Subject(emailId),
+		Obj:  bean.Object(role),
 	}
-	return lastLoginTime
 }
 
-func CreateRestrictedGroup(roleGroupName string, hasSuperAdminPermission bool) bean.RestrictedGroup {
+func CreateRestrictedGroup(roleGroupName string, hasSuperAdminPermission bool) bean2.RestrictedGroup {
 	trimmedGroup := strings.TrimPrefix(roleGroupName, "group:")
-	return bean.RestrictedGroup{
+	return bean2.RestrictedGroup{
 		Group:                   trimmedGroup,
 		HasSuperAdminPermission: hasSuperAdminPermission,
+	}
+}
+
+func BuildUserInfoResponseAdapter(requestUserInfo *bean2.UserInfo, emailId string) *bean2.UserInfo {
+	return &bean2.UserInfo{
+		Id:            requestUserInfo.Id,
+		EmailId:       emailId,
+		Groups:        requestUserInfo.Groups,
+		RoleFilters:   requestUserInfo.RoleFilters,
+		SuperAdmin:    requestUserInfo.SuperAdmin,
+		UserRoleGroup: requestUserInfo.UserRoleGroup,
+	}
+}
+
+func BuildSelfRegisterDto(userInfo *bean2.UserInfo) *bean2.SelfRegisterDto {
+	return &bean2.SelfRegisterDto{
+		UserInfo: userInfo,
+	}
+}
+
+func BuildRoleFilterFromRoleF(roleF bean2.RoleFilter) bean2.RoleFilter {
+	return bean2.RoleFilter{
+		Entity:      roleF.Entity,
+		Team:        roleF.Team,
+		Environment: roleF.Environment,
+		EntityName:  roleF.EntityName,
+		Action:      roleF.Action,
+		AccessType:  roleF.AccessType,
+		Cluster:     roleF.Cluster,
+		Namespace:   roleF.Namespace,
+		Group:       roleF.Group,
+		Kind:        roleF.Kind,
+		Resource:    roleF.Resource,
+		Workflow:    roleF.Workflow,
+	}
+}
+
+func GetNoTokenProvidedError() error {
+	return &util.ApiError{
+		Code:            constants.UserNoTokenProvided,
+		InternalMessage: bean2.NoTokenProvidedMessage,
+	}
+}
+
+func BuildUserInfo(id int32, emailId string, userGroupMapDto *bean2.UserGroupMapDto) bean2.UserInfo {
+	return bean2.UserInfo{
+		Id:            id,
+		EmailId:       emailId,
+		RoleFilters:   make([]bean2.RoleFilter, 0),
+		Groups:        make([]string, 0),
+		UserRoleGroup: make([]bean2.UserRoleGroup, 0),
 	}
 }

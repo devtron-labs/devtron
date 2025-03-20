@@ -23,10 +23,10 @@ import (
 )
 
 const (
-	DEFAULT_CLUSTER_ID                     = 1
 	SOURCE_DEVTRON_APP       SourceAppType = "devtron-app"
 	SOURCE_HELM_APP          SourceAppType = "helm-app"
 	SOURCE_EXTERNAL_HELM_APP SourceAppType = "external-helm-app"
+	SOURCE_LINKED_HELM_APP   SourceAppType = "linked-helm-app"
 	SOURCE_UNKNOWN           SourceAppType = "unknown"
 	ErrReleaseNotFound       string        = "release: not found"
 )

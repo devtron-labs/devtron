@@ -1056,11 +1056,12 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(re
 		appObjectArr = append(appObjectArr, object[0])
 		envObjectArr = append(envObjectArr, object[1])
 	}
-	appResults, envResults := request.CheckAuthBatch(token, appObjectArr, envObjectArr)
+
+	// filter out pipelines for unauthorized apps but not envs
+	appResults, _ := request.CheckAuthBatch(token, appObjectArr, envObjectArr)
 	for _, pipeline := range pipelines {
 		appObject := objects[pipeline.Id][0]
-		envObject := objects[pipeline.Id][1]
-		if !(appResults[appObject] && envResults[envObject]) {
+		if !(appResults[appObject]) {
 			// if user unauthorized, skip items
 			continue
 		}

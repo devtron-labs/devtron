@@ -23,6 +23,7 @@ import (
 
 type ApplicationDetail struct {
 	Application *v1alpha12.Application `json:"application"`
+	ClusterId   int                    `json:"clusterId"`
 	StatusTime  time.Time              `json:"statusTime"`
 }
 

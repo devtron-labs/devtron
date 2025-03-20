@@ -29,11 +29,21 @@ type EnvironmentVariables struct {
 	InternalEnvVariables        *InternalEnvVariables
 }
 
+// CATEGORY=CD
 type DeploymentServiceTypeConfig struct {
-	ExternallyManagedDeploymentType bool `env:"IS_INTERNAL_USE" envDefault:"false"`
-	HelmInstallASyncMode            bool `env:"RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS" envDefault:"false"`
-	UseDeploymentConfigData         bool `env:"USE_DEPLOYMENT_CONFIG_DATA" envDefault:"false"`
-	ShouldCheckNamespaceOnClone     bool `env:"SHOULD_CHECK_NAMESPACE_ON_CLONE" envDefault:"false"  description:"should we check if namespace exists or not while cloning app" deprecated:"false"`
+	ExternallyManagedDeploymentType       bool `env:"IS_INTERNAL_USE" envDefault:"false"`
+	HelmInstallASyncMode                  bool `env:"RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS" envDefault:"false"`
+	UseDeploymentConfigData               bool `env:"USE_DEPLOYMENT_CONFIG_DATA" envDefault:"false" description:"use deployment config data from deployment_config table" deprecated:"true"`
+	MigrateDeploymentConfigData           bool `env:"MIGRATE_DEPLOYMENT_CONFIG_DATA" envDefault:"false" description:"migrate deployment config data from charts table to deployment_config table" deprecated:"false"`
+	FeatureMigrateArgoCdApplicationEnable bool `env:"FEATURE_MIGRATE_ARGOCD_APPLICATION_ENABLE" envDefault:"false" description:"enable migration of external argocd application to devtron pipeline" deprecated:"false"`
+	ShouldCheckNamespaceOnClone           bool `env:"SHOULD_CHECK_NAMESPACE_ON_CLONE" envDefault:"false"  description:"should we check if namespace exists or not while cloning app" deprecated:"false"`
+}
+
+func (d *DeploymentServiceTypeConfig) IsFeatureMigrateArgoCdApplicationEnable() bool {
+	if d == nil {
+		return false
+	}
+	return d.FeatureMigrateArgoCdApplicationEnable
 }
 
 type GlobalEnvVariables struct {

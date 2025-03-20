@@ -23,6 +23,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/ciPipeline"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -377,4 +379,24 @@ func GetStepVariableDto(variable *repository.PipelineStageStepVariable) (*pipeli
 		VariableStepIndexInPlugin: variable.VariableStepIndexInPlugin,
 	}
 	return variableDto, nil
+}
+
+func NewMigrateExternalAppValidationRequest(pipeline *bean.CDPipelineConfigObject, env *repository2.Environment) *pipelineConfigBean.MigrateReleaseValidationRequest {
+	request := &pipelineConfigBean.MigrateReleaseValidationRequest{
+		AppId:             pipeline.AppId,
+		DeploymentAppName: pipeline.DeploymentAppName,
+		DeploymentAppType: pipeline.DeploymentAppType,
+	}
+	if pipeline.DeploymentAppType == bean3.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		request.ApplicationMetadataRequest = pipelineConfigBean.ApplicationMetadataRequest{
+			ApplicationObjectClusterId: pipeline.ApplicationObjectClusterId,
+			ApplicationObjectNamespace: pipeline.ApplicationObjectNamespace,
+		}
+	} else if pipeline.DeploymentAppType == bean3.PIPELINE_DEPLOYMENT_TYPE_HELM {
+		request.HelmReleaseMetadataRequest = pipelineConfigBean.HelmReleaseMetadataRequest{
+			ReleaseClusterId: env.ClusterId,
+			ReleaseNamespace: env.Namespace,
+		}
+	}
+	return request
 }

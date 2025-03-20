@@ -18,15 +18,15 @@ package constants
 
 import "fmt"
 
-/**
- 	Cluster - 			1000-1999
-	Environment - 		2000-2999
-	Global Config - 	3000-3999
-	Pipeline Config -	4000-4999
-	Pipeline - 			5000-5999
-	User - 				6000-6999
-	Other -				7000-7999
-*/
+// Error Codes Sequence
+
+//	Cluster -		1000-1999
+//	Environment -	2000-2999
+//	Global Config -	3000-3999
+//	Application -	4000-4999
+//	Pipeline -		5000-5999
+//	User -			6000-6999
+//	Other -			7000-7999
 
 type ErrorCode struct {
 	Code           string
@@ -38,7 +38,9 @@ func (code ErrorCode) UserMessage(params ...interface{}) string {
 }
 
 const (
-	//Cluster Errors
+	// Cluster Errors Start ------------------
+	// Sequence 1000-1999
+
 	ClusterCreateDBFailed      string = "1001"
 	ClusterCreateACDFailed     string = "1002"
 	ClusterDBRollbackFailed    string = "1003"
@@ -47,16 +49,32 @@ const (
 	ClusterCreateBadRequestACD string = "1006"
 	ClusterUpdateBadRequestACD string = "1007"
 
-	//Environment Errors
+	// Cluster Errors End --------------------
+)
+
+const (
+	// Environment Errors Start --------------
+	// Sequence 2000-2999
+
 	EnvironmentCreateDBFailed          string = "2001"
 	EnvironmentUpdateDBFailed          string = "2002"
 	EnvironmentUpdateEnvOverrideFailed string = "2003"
 
-	//Global Config Errors Constants; use 3000
+	// Environment Errors End ----------------
+)
+
+const (
+	// Global Config Errors Start ------------
+	// Sequence 3000-3999
+
+	// Docker Registry Errors
+
 	DockerRegCreateFailedInDb   string = "3001"
 	DockerRegCreateFailedInGocd string = "3002"
 	DockerRegUpdateFailedInDb   string = "3003"
 	DockerRegUpdateFailedInGocd string = "3004"
+
+	// Git Provider Errors
 
 	GitProviderCreateFailedAlreadyExists string = "3005"
 	GitProviderCreateFailedInDb          string = "3006"
@@ -66,11 +84,43 @@ const (
 	DockerRegDeleteFailedInGocd          string = "3010"
 	GitProviderUpdateFailedInSync        string = "3011"
 	GitProviderUpdateRequestIsInvalid    string = "3012"
-	// For conflicts use 900 series
+
+	// ---------------------------------------
+
+	// For Global Config conflicts use 3900 series
+
 	GitOpsConfigValidationConflict string = "3900"
+
+	// Global Config Errors End --------------
+)
+
+const (
+// Application Errors Start --------------
+// Sequence 4000-4999
+
+// Application Errors End ----------------
+)
+
+const (
+	// Pipeline Errors Start -----------------
+	// Sequence 5000-5999
 
 	ChartCreatedAlreadyExists string = "5001"
 	ChartNameAlreadyReserved  string = "5002"
+
+	// Pipeline Config GitOps Config Errors
+	// Sequence 5100-5199
+	GitOpsNotConfigured                 string = "5100"
+	GitOpsOrganisationMismatch          string = "5101"
+	GitOpsURLAlreadyInUse               string = "5102"
+	InvalidDeploymentAppTypeForPipeline string = "5103"
+
+	// Pipeline Errors End -------------------
+)
+
+const (
+	// User Errors Start ---------------------
+	// Sequence 6000-6999
 
 	UserCreateDBFailed        string = "6001"
 	UserCreatePolicyFailed    string = "6002"
@@ -81,6 +131,13 @@ const (
 	UserCreateFetchRoleFailed string = "6007"
 	UserUpdateFetchRoleFailed string = "6008"
 
+	// User Errors End -----------------------
+)
+
+const (
+	// Other Errors Start --------------------
+	// Sequence 7000-7999
+
 	AppDetailResourceTreeNotFound string = "7000"
 	HelmReleaseNotFound           string = "7001"
 
@@ -89,9 +146,41 @@ const (
 	GitHostCreateFailedAlreadyExists string = "9001"
 	GitHostCreateFailedInDb          string = "9002"
 
-	// feasibility errors
-	OperationPerformError string = "10001"
-	VulnerabilityFound    string = "10002"
+	// Other Errors End ----------------------
+)
+
+const (
+	// Feasibility Errors Start --------------
+	// Sequence 10000-10999
+
+	VulnerabilityFound                   string = "10001"
+	ApprovalNodeFail                     string = "10002"
+	FilteringConditionFail               string = "10003"
+	DeploymentWindowFail                 string = "10004"
+	PreCDDoesNotExists                   string = "10005"
+	PostCDDoesNotExists                  string = "10006"
+	ArtifactNotAvailable                 string = "10007"
+	DeploymentWindowByPassed             string = "10008"
+	MandatoryPluginNotAdded              string = "10009"
+	MandatoryTagNotAdded                 string = "10010"
+	SecurityScanFail                     string = "10011"
+	ApprovalConfigDependentActionFailure string = "10012"
+
+	// Feasibility Errors End ----------------
+)
+
+const (
+	// Not Processed Internal Errors Start ---
+	// Sequence 11000-11999
+
+	NotProcessed string = "11001"
+	NotExecuted  string = "11002"
+
+	// Not Processed Internal Errors End -----
+)
+
+const (
+	HttpStatusUnprocessableEntity = "422"
 )
 
 const (
@@ -107,4 +196,5 @@ const (
 	UnableToFetchResourceTreeErrMsg           = "unable to fetch resource tree"
 	UnableToFetchResourceTreeForAcdErrMsg     = "app detail fetched, failed to get resource tree from acd"
 	CannotGetAppWithRefreshErrMsg             = "cannot get application with refresh"
+	NoDataFoundErrMsg                         = "no data found"
 )

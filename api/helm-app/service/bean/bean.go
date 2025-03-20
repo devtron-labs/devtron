@@ -21,3 +21,12 @@ func (r *AppIdentifier) GetUniqueAppNameIdentifier() string {
 func (r *AppIdentifier) GetUniqueAppIdentifierForGivenNamespaceAndCluster(namespace, clusterId string) string {
 	return fmt.Sprintf("%s-%s-%s", r.ReleaseName, namespace, clusterId)
 }
+
+type ExternalHelmAppListingResult struct {
+	ReleaseName   string `json:"releaseName"`
+	ClusterId     int    `json:"clusterId"`
+	Namespace     string `json:"namespace"`
+	EnvironmentId string `json:"environmentId"`
+	Status        string `json:"status"`
+	ChartAvatar   string `json:"chartAvatar"`
+}
