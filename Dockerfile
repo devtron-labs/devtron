@@ -21,7 +21,7 @@ RUN apt update && \
     apt clean autoclean && \
     apt autoremove -y && \
     rm -rf /var/lib/apt/lists/* && \
-    useradd -u 4002 -g 4002 -o -ms /bin/bash devtron
+    useradd -ms /bin/bash devtron
 
 COPY  --chown=devtron:devtron --from=build-env  /go/src/github.com/devtron-labs/devtron/devtron .
 
