@@ -40,6 +40,7 @@ type ServerEnvConfig struct {
 	AppSyncJobResourcesObj                      string `env:"APP_SYNC_JOB_RESOURCES_OBJ"`
 	ModuleMetaDataApiUrl                        string `env:"MODULE_METADATA_API_URL" envDefault:"https://api.devtron.ai/module?name=%s"`
 	ParallelismLimitForTagProcessing            int    `env:"PARALLELISM_LIMIT_FOR_TAG_PROCESSING"`
+	AppSyncJobShutDownWaitDuration              int    `env:"APP_SYNC_SHUTDOWN_WAIT_DURATION" envDefault:"120"`
 	ErrorEncounteredOnGettingDevtronHelmRelease error
 }
 
