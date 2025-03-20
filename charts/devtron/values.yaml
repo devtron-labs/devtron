@@ -21,17 +21,15 @@ global:
 
   # Set the storage class to be used for PVCs (would use default sc if not specified)
   storageClass: ""
-  
   # Add Proxy Configs to be propagated to all the Devtron Microservices.
   configs: {}
-
   nodeSelector: {}
   tolerations: []
   imagePullSecrets: []
 extraManifests: []
 installer:
   repo: "devtron-labs/devtron"
-  release: "v1.3.1"
+  release: "v1.3.2-rc.0"
   registry: ""
   image: inception
   tag: 473deaa4-185-21582
@@ -89,7 +87,7 @@ components:
   devtron:
     registry: ""
     image: "hyperion:e67c3b76-280-30100"
-    cicdImage: "devtron:e67c3b76-434-30101"
+    cicdImage: "devtron:1f12a32c-434-30980"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     serviceMonitor:
