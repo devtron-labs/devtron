@@ -34,6 +34,7 @@ import (
 	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
 	installedAppReadBean "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	bean4 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
@@ -560,8 +561,8 @@ func (impl *WorkflowStatusServiceImpl) syncACDHelmApps(deployedBeforeMinutes int
 		if deploymentConfig.IsArgoAppSyncAndRefreshSupported() {
 			return nil
 		}
-		targetRevision := deploymentConfig.GetTargetRevision()
-		syncErr := impl.argocdClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(ctx, argoAppName, targetRevision)
+		//targetRevision := deploymentConfig.GetTargetRevision()
+		syncErr := impl.argocdClientWrapperService.SyncArgoCDApplicationAndRefreshWithK8sClient(ctx, bean4.DefaultClusterId, argocdServer.DevtronInstalationNs, argoAppName)
 		if syncErr != nil {
 			impl.logger.Errorw("error in syncing argoCD app", "err", syncErr)
 			timelineObject := impl.pipelineStatusTimelineService.NewHelmAppDeploymentStatusTimelineDbObject(installedAppVersionHistoryId, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_FAILED, fmt.Sprintf("error occured in syncing argocd application. err: %s", syncErr.Error()), 1)
