@@ -1351,7 +1351,7 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) erro
 
 	impl.logger.Debug("deleting materials in git_sensor")
 	for _, m := range materials {
-		err = impl.updateRepositoryToGitSensor(m, "")
+		err = impl.updateRepositoryToGitSensor(m, "", false)
 		if err != nil {
 			impl.logger.Errorw("error in updating to git-sensor", "err", err)
 			return err
@@ -1467,7 +1467,8 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateMaterial(updateMaterialDTO *bean.
 		return nil, err
 	}
 
-	err = impl.updateRepositoryToGitSensor(updatedMaterial, "")
+	err = impl.updateRepositoryToGitSensor(updatedMaterial, "",
+		updateMaterialDTO.Material.PreserveMode)
 	if err != nil {
 		impl.logger.Errorw("error in updating to git-sensor", "err", err)
 		return nil, err
@@ -1480,7 +1481,8 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateMaterial(updateMaterialDTO *bean.
 	return updateMaterialDTO, nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *repository6.GitMaterial, cloningMode string) error {
+func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *repository6.GitMaterial,
+	cloningMode string, preserveMode bool) error {
 	sensorMaterial := &gitSensor.GitMaterial{
 		Name:             material.Name,
 		Url:              material.Url,
@@ -1491,6 +1493,7 @@ func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *r
 		FetchSubmodules:  material.FetchSubmodules,
 		FilterPattern:    material.FilterPattern,
 		CloningMode:      cloningMode,
+		PreserveMode:     preserveMode,
 	}
 	return impl.GitSensorClient.UpdateRepo(context.Background(), sensorMaterial)
 }
