@@ -407,7 +407,7 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 			return nil, err
 		}
 	}
-	return propertiesRequest, err
+	return propertiesRequest, nil
 }
 
 func (impl PropertiesConfigServiceImpl) CreateIfRequired(request *bean.EnvironmentOverrideCreateInternalDTO, tx *pg.Tx) (*bean4.EnvConfigOverride, bool, error) {

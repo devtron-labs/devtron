@@ -360,7 +360,7 @@ func (impl *ChartServiceImpl) Create(templateRequest bean3.TemplateRequest, ctx 
 			return nil, err
 		}
 	}
-	return chartVal, err
+	return chartVal, nil
 }
 
 func (impl *ChartServiceImpl) UpdateChartLocationForEnvironmentConfigs(appId, chartRefId int, userId int32, version string) error {
