@@ -10,7 +10,7 @@ global:
   containerRegistry: "quay.io/devtron"
 extraManifests: []
 installer:
-  release: "v1.4.0"
+  release: ""
   registry: ""
   image: "inception"
   tag: "473deaa4-185-21582"
@@ -35,7 +35,7 @@ components:
         ENABLE_RESOURCE_SCAN: "true"
         FEATURE_CODE_MIRROR_ENABLE: "false"
     registry: ""
-    image: "dashboard:f9de3f1e-690-31010"
+    image: "dashboard:a400ce3c-690-31030"
     imagePullPolicy: IfNotPresent
   devtron:
     registry: ""
@@ -102,7 +102,7 @@ components:
       PG_LOG_QUERY: "true"
       PG_PORT: "5432"
       PG_USER: postgres
-      CLUSTER_ARGO_CD_TYPE: "ALL_CLUSTER" 
+      CLUSTER_ARGO_CD_TYPE: "ALL_CLUSTER"
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
