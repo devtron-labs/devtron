@@ -33,6 +33,7 @@ components:
         FEATURE_STEP_WISE_LOGS_ENABLE: "true"
         FEATURE_USER_DEFINED_GITOPS_REPO_ENABLE: "true"
         ENABLE_RESOURCE_SCAN: "true"
+        FEATURE_CODE_MIRROR_ENABLE: "false"
     registry: ""
     image: "dashboard:f9de3f1e-690-31010"
     imagePullPolicy: IfNotPresent
@@ -101,6 +102,7 @@ components:
       PG_LOG_QUERY: "true"
       PG_PORT: "5432"
       PG_USER: postgres
+      CLUSTER_ARGO_CD_TYPE: "ALL_CLUSTER" 
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
