@@ -10,7 +10,7 @@ global:
   containerRegistry: "quay.io/devtron"
 extraManifests: []
 installer:
-  release: "v1.3.2-rc.0"
+  release: "v1.4.0"
   registry: ""
   image: "inception"
   tag: "473deaa4-185-21582"
@@ -38,7 +38,7 @@ components:
     imagePullPolicy: IfNotPresent
   devtron:
     registry: ""
-    image: "hyperion:e67c3b76-280-30100"
+    image: "hyperion:b90e419d-280-31019"
     cicdImage: "devtron:b90e419d-434-31004"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
