@@ -129,6 +129,7 @@
  | APP_SYNC_IMAGE | string |quay.io/devtron/chart-sync:1227622d-132-3775 |  |  | false |
  | APP_SYNC_JOB_RESOURCES_OBJ | string | |  |  | false |
  | APP_SYNC_SERVICE_ACCOUNT | string |chart-sync |  |  | false |
+ | APP_SYNC_SHUTDOWN_WAIT_DURATION | int |120 |  |  | false |
  | ARGO_AUTO_SYNC_ENABLED | bool |true |  |  | false |
  | ARGO_GIT_COMMIT_RETRY_COUNT_ON_CONFLICT | int |3 |  |  | false |
  | ARGO_GIT_COMMIT_RETRY_DELAY_ON_CONFLICT | int |1 |  |  | false |
