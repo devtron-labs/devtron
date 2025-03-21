@@ -345,6 +345,21 @@ func (impl *ChartServiceImpl) Create(templateRequest bean3.TemplateRequest, ctx 
 	}
 
 	chartVal, err := impl.chartAdaptor(chart, appLevelMetricsUpdateReq.EnableMetrics, deploymentConfig)
+	if err != nil {
+		impl.logger.Errorw("error in chartAdaptor", "req", appLevelMetricsUpdateReq, "err", err)
+		return nil, err
+	}
+	if templateRequest.IsExpressEdit {
+		deplConfig := &bean2.DeploymentConfig{
+			AppId:        templateRequest.AppId,
+			ResourceName: templateRequest.ResourceName,
+		}
+		err := impl.deploymentConfigService.PerformExpressEditOperationsForDeploymentTemplate(deplConfig)
+		if err != nil {
+			impl.logger.Errorw("error in performing express edit operations for depl template ", "chartId", templateRequest.Id, "err", err)
+			return nil, err
+		}
+	}
 	return chartVal, err
 }
 
@@ -636,12 +651,11 @@ func (impl *ChartServiceImpl) GetByAppIdAndChartRefId(appId int, chartRefId int)
 }
 
 func (impl *ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequest *bean3.TemplateRequest) (*bean3.TemplateRequest, error) {
-
 	_, span := otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindById")
 	template, err := impl.chartRepository.FindById(templateRequest.Id)
 	span.End()
 	if err != nil {
-		impl.logger.Errorw("error in fetching chart config", "id", templateRequest.Id, "err", err)
+		impl.logger.Errorw("error in fetching chart config", "chartId", templateRequest.Id, "err", err)
 		return nil, err
 	}
 
@@ -805,6 +819,20 @@ func (impl *ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateReq
 	err = impl.scopedVariableManager.ExtractAndMapVariables(template.GlobalOverride, template.Id, variablesRepository.EntityTypeDeploymentTemplateAppLevel, template.CreatedBy, nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if templateRequest.IsExpressEdit {
+		deplConfig := &bean2.DeploymentConfig{
+			AppId:        templateRequest.AppId,
+			ResourceName: templateRequest.ResourceName,
+		}
+		_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindById")
+		err := impl.deploymentConfigService.PerformExpressEditOperationsForDeploymentTemplate(deplConfig)
+		span.End()
+		if err != nil {
+			impl.logger.Errorw("error in performing express edit operations for depl template ", "chartId", templateRequest.Id, "err", err)
+			return nil, err
+		}
 	}
 	return templateRequest, nil
 }

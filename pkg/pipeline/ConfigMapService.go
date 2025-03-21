@@ -238,6 +238,13 @@ func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.Config
 		impl.logger.Errorw("error in creating entry for configmap history", "err", err)
 		return nil, err
 	}
+	if configMapRequest.IsExpressEdit {
+		err := impl.performExpressEditOperationsForCmCs(configMapRequest)
+		if err != nil {
+			impl.logger.Errorw("error in performing express edit operations ", "configMapRequest", configMapRequest, "error", err)
+			return configMapRequest, err
+		}
+	}
 	return configMapRequest, nil
 }
 
@@ -387,6 +394,13 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *bean.C
 	if err != nil {
 		impl.logger.Errorw("error in creating entry for CM/CS history in bulk update", "err", err)
 		return nil, err
+	}
+	if configMapRequest.IsExpressEdit {
+		err := impl.performExpressEditOperationsForCmCs(configMapRequest)
+		if err != nil {
+			impl.logger.Errorw("error in performing express edit operations ", "configMapRequest", configMapRequest, "error", err)
+			return configMapRequest, err
+		}
 	}
 	return configMapRequest, nil
 }
@@ -659,6 +673,13 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *bean.Config
 		impl.logger.Errorw("error in creating entry for secret history", "err", err)
 		return nil, err
 	}
+	if configMapRequest.IsExpressEdit {
+		err := impl.performExpressEditOperationsForCmCs(configMapRequest)
+		if err != nil {
+			impl.logger.Errorw("error in performing express edit operations ", "appId", configMapRequest.AppId, "envId", configMapRequest.EnvironmentId, "error", err)
+			return configMapRequest, err
+		}
+	}
 	return configMapRequest, nil
 }
 
@@ -821,6 +842,13 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *bean.C
 	if err != nil {
 		impl.logger.Errorw("error in creating entry for CM/CS history in bulk update", "err", err)
 		return nil, err
+	}
+	if configMapRequest.IsExpressEdit {
+		err := impl.performExpressEditOperationsForCmCs(configMapRequest)
+		if err != nil {
+			impl.logger.Errorw("error in performing express edit operations ", "appId", configMapRequest.AppId, "envId", configMapRequest.EnvironmentId, "error", err)
+			return configMapRequest, err
+		}
 	}
 	return configMapRequest, nil
 }

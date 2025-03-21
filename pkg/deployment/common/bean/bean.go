@@ -166,6 +166,10 @@ type DeploymentConfig struct {
 	RepoName             string
 	Active               bool
 	ReleaseConfiguration *ReleaseConfiguration
+
+	// enterprise fields below
+	EnvironmentName string
+	ResourceName    string // if base then BaseDeploymentTemplate or if at env level{envName-DeploymentTemplateOverride}
 }
 
 func (d *DeploymentConfig) IsAcdRelease() bool {

@@ -59,6 +59,9 @@ type DeploymentConfigService interface {
 	GetExternalReleaseType(appId, environmentId int) (bean.ExternalReleaseType, error)
 	CheckIfURLAlreadyPresent(repoURL string) (bool, error)
 	FilterPipelinesByApplicationClusterIdAndNamespace(pipelines []pipelineConfig.Pipeline, applicationObjectClusterId int, applicationObjectNamespace string) (pipelineConfig.Pipeline, error)
+
+	// enterprise methods
+	PerformExpressEditOperationsForDeploymentTemplate(deplConfig *bean.DeploymentConfig) error
 }
 
 type DeploymentConfigServiceImpl struct {

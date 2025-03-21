@@ -30,6 +30,9 @@ type ConfigDataRequest struct {
 	ConfigData    []*ConfigData `json:"configData"`
 	Deletable     bool          `json:"isDeletable"`
 	UserId        int32         `json:"-"`
+
+	// enterprise fields below
+	IsExpressEdit bool `json:"isExpressEdit"`
 }
 
 type ESOSecretData struct {

@@ -49,6 +49,10 @@ type TemplateRequest struct {
 	UserId                  int32                       `json:"-"`
 	LatestChartVersion      string                      `json:"-"`
 	ImageDescriptorTemplate string                      `json:"-"`
+
+	// enterprise fields below
+	IsExpressEdit bool   `json:"isExpressEdit"`
+	ResourceName  string `json:"resourceName"` // if base then resourceName=BaseDeploymentTemplate, name used for discarding previous drafts in case of express edit
 }
 
 type ChartUpgradeRequest struct {

@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	bean3 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
@@ -393,7 +394,19 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 	if err != nil {
 		return nil, err
 	}
-
+	if propertiesRequest.IsExpressEdit {
+		deplConfig := &bean3.DeploymentConfig{
+			AppId:           appId,
+			EnvironmentId:   propertiesRequest.EnvironmentId,
+			EnvironmentName: propertiesRequest.EnvironmentName,
+			ResourceName:    propertiesRequest.ResourceName,
+		}
+		err := impl.deploymentConfigService.PerformExpressEditOperationsForDeploymentTemplate(deplConfig)
+		if err != nil {
+			impl.logger.Errorw("error in performing express edit operations for depl template ", "appId", appId, "envId", propertiesRequest.EnvironmentId, "err", err)
+			return nil, err
+		}
+	}
 	return propertiesRequest, err
 }
 

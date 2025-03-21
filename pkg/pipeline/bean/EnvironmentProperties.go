@@ -43,6 +43,10 @@ type EnvironmentProperties struct {
 	ClusterId         int                         `json:"clusterId"`
 	MergeStrategy     models.MergeStrategy        `json:"mergeStrategy"`
 	MigratedFrom      *bean.ExternalReleaseType   `json:"migratedFrom,omitempty"`
+
+	//enterprise fields below
+	IsExpressEdit bool   `json:"isExpressEdit"`
+	ResourceName  string `json:"resourceName"` // {envName-DeploymentTemplateOverride}
 }
 
 type EnvironmentOverrideCreateInternalDTO struct {
