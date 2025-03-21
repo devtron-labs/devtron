@@ -1,11 +1,11 @@
 global:
   podSecurityContext:
-    fsGroup: 4002
-    runAsGroup: 4002
-    runAsUser: 4002
+    fsGroup: 1000
+    runAsGroup: 1000
+    runAsUser: 1000
   containerSecurityContext:
     allowPrivilegeEscalation: false
-    runAsUser: 4002
+    runAsUser: 1000
     runAsNonRoot: true
   containerRegistry: "quay.io/devtron"
   # The below values can be specified both at global as well as component level
