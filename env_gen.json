@@ -909,14 +909,6 @@
         "Deprecated": "false"
       },
       {
-        "Env": "ADDITIONAL_NODE_GROUP_LABELS",
-        "EnvType": "",
-        "EnvValue": "",
-        "EnvDescription": "Add comma separated list of additional node group labels to default labels",
-        "Example": "karpenter.sh/nodepool,cloud.google.com/gke-nodepool",
-        "Deprecated": "false"
-      },
-      {
         "Env": "APP_SYNC_IMAGE",
         "EnvType": "string",
         "EnvValue": "quay.io/devtron/chart-sync:1227622d-132-3775",
@@ -936,6 +928,14 @@
         "Env": "APP_SYNC_SERVICE_ACCOUNT",
         "EnvType": "string",
         "EnvValue": "chart-sync",
+        "EnvDescription": "",
+        "Example": "",
+        "Deprecated": "false"
+      },
+      {
+        "Env": "APP_SYNC_SHUTDOWN_WAIT_DURATION",
+        "EnvType": "int",
+        "EnvValue": "120",
         "EnvDescription": "",
         "Example": "",
         "Deprecated": "false"
