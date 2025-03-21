@@ -12,6 +12,7 @@ metadata:
 data:
   DEVTRON_HELM_RELEASE_NAME: {{ $.Release.Name }}
   DEVTRON_HELM_RELEASE_NAMESPACE: {{ $.Release.Namespace }}
+  FEATURE_MIGRATE_ARGOCD_APPLICATION_ENABLE: "true"
   PG_USER: postgres
   PG_ADDR: postgresql-postgresql.devtroncd
   PG_PORT: "5432"
