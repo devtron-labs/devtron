@@ -42,6 +42,14 @@ components:
     cicdImage: "devtron:1f12a32c-434-30980"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
+    podSecurityContext:
+      fsGroup: 1001
+      runAsGroup: 1001
+      runAsUser: 1001
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      runAsUser: 1001
   ciRunner:
     registry: ""
     image: "ci-runner:0dde3b1a-138-30091"
@@ -69,6 +77,14 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
+    podSecurityContext:
+      fsGroup: 1001
+      runAsGroup: 1001
+      runAsUser: 1001
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      runAsUser: 1001
   kubewatch:
     registry: ""
     image: "kubewatch:0dde3b1a-419-30285"
@@ -151,6 +167,7 @@ components:
     image: "migrator:v4.16.2"
     kubectlImage: "kubectl:latest"
     duplicateChartImage: devtron-utils:dup-chart-repo-v1.1.0
+    entMigrator: "devtron-utils:geni-v1.1.4"
     envVars:
       devtron:
         DB_NAME: "orchestrator"
@@ -164,6 +181,14 @@ components:
     registry: ""
     image: chart-sync:0dde3b1a-836-30095
     schedule: "0 19 * * *"
+    podSecurityContext:
+      fsGroup: 1001
+      runAsGroup: 1001
+      runAsUser: 1001
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      runAsUser: 1001
     extraConfigs: {}
 # values for argocd integration
 argo-cd:
@@ -228,6 +253,14 @@ devtronEnterprise:
       secretName: postgresql-postgresql
       keyName: postgresql-password
     resources: {}
+    podSecurityContext:
+      fsGroup: 1001
+      runAsGroup: 1001
+      runAsUser: 1001
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      runAsUser: 1001
   scoop:
     enabled: false
     registry: ""

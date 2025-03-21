@@ -71,8 +71,8 @@ spec:
     spec:
       terminationGracePeriodSeconds: 10
       securityContext:
-        runAsGroup: 4002
-        runAsUser: 4002
+        runAsGroup: 1000
+        runAsUser: 1000
       serviceAccountName: devtron-default-sa
       {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.gitsensor.nodeSelector "tolerations" $.Values.components.gitsensor.tolerations "imagePullSecrets" $.Values.components.gitsensor.imagePullSecrets "global" $.Values.global) | indent 6 }}
       initContainers:
@@ -102,7 +102,7 @@ spec:
           {{- end }}
           securityContext:
             allowPrivilegeEscalation: false
-            runAsUser: 4002
+            runAsUser: 1000
             runAsNonRoot: true
           ports:
             - containerPort: 8080
