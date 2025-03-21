@@ -5,6 +5,7 @@
 - fix: envId check in EventBuilder.go (#6436)
 - fix: createDockerRepoIfNeeded error handling (#6433)
 ## Enhancements
+- feat: Made ng labels env driven (#6438)
 - feat: Link helm release (#6454)
 - feat: access manager (#6377)
 - feat: migrate external argo cd application (#6303)
