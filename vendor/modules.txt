@@ -383,7 +383,7 @@ github.com/devtron-labs/common-lib/workflow
 # github.com/devtron-labs/go-bitbucket v0.9.60-beta
 ## explicit; go 1.14
 github.com/devtron-labs/go-bitbucket
-# github.com/devtron-labs/protos v0.0.3-0.20240802105333-92ee9bb85d80
+# github.com/devtron-labs/protos v0.0.3-0.20250320112837-a8190ec7cd67
 ## explicit; go 1.17
 github.com/devtron-labs/protos/gitSensor
 # github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f

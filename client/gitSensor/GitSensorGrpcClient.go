@@ -160,6 +160,7 @@ func (client *GrpcApiClientImpl) AddRepo(ctx context.Context, materials []*GitMa
 				Deleted:          item.Deleted,
 				FilterPattern:    item.FilterPattern,
 				CloningMode:      item.CloningMode,
+				PreserveMode:     item.PreserveMode,
 			})
 		}
 	}
@@ -191,6 +192,7 @@ func (client *GrpcApiClientImpl) UpdateRepo(ctx context.Context, material *GitMa
 		Deleted:          material.Deleted,
 		FilterPattern:    material.FilterPattern,
 		CloningMode:      material.CloningMode,
+		PreserveMode:     material.PreserveMode,
 	}
 
 	_, err = serviceClient.UpdateRepo(ctx, mappedMaterial)
