@@ -96,3 +96,23 @@ If storageClass is defined in values.yaml under global.storageClass, use that.
 storageClassName: {{ $.Values.global.storageClass }}
 {{- end }}
 {{- end -}}
+
+{{- define "common.podSecurityContext" -}}
+  {{- if .podSecurityContext }}
+securityContext:
+{{ toYaml .podSecurityContext | indent 2 }}
+  {{- else if .global.podSecurityContext }}
+securityContext:
+{{ toYaml .global.podSecurityContext | indent 2 }}
+  {{- end }}
+{{- end }}
+
+{{- define "common.containerSecurityContext" -}}
+  {{- if .containerSecurityContext }}
+securityContext:
+{{ toYaml .containerSecurityContext | indent 2 }}
+  {{- else if .global.containerSecurityContext }}
+securityContext:
+{{ toYaml .global.containerSecurityContext | indent 2 }}
+  {{- end }}
+{{- end }}

@@ -61,18 +61,12 @@ spec:
       terminationGracePeriodSeconds: 30
       restartPolicy: Always
       serviceAccount: devtron
-      {{- if and $.Values.global $.Values.global.podSecurityContext }}
-      securityContext:
-{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
-      {{- end }}
+      {{- include "common.podSecurityContext" (dict "podSecurityContext" $.Values.components.kubelink.podSecurityContext "global" $.Values.global) | indent 6 }}
       containers:
         - name: kubelink
           image: {{ include "common.image" (dict "component" $.Values.components.kubelink "global" $.Values.global ) }}
           imagePullPolicy: {{ .imagePullPolicy }}
-          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
-          securityContext:
-{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
-          {{- end }}
+          {{- include "common.containerSecurityContext" (dict "containerSecurityContext" $.Values.components.kubelink.containerSecurityContext "global" $.Values.global) | indent 10 }}
           ports:
             - name: app
               containerPort: 50051

@@ -26,17 +26,11 @@ spec:
         {{- end }}
         {{- end }}
         {{- end }}
-      {{- if and $.Values.global $.Values.global.podSecurityContext }}
-      securityContext:
-{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
-      {{- end }}
+      {{- include "common.podSecurityContext" (dict "podSecurityContext" $.Values.components.chartSync.podSecurityContext "global" $.Values.global) | indent 6 }}
       containers:
       - name: chart-sync
         image: {{ include "common.image" (dict "component" $.Values.components.chartSync "global" $.Values.global ) }}
-        {{- if and $.Values.global $.Values.global.containerSecurityContext }}
-        securityContext:
-{{- toYaml $.Values.global.containerSecurityContext | nindent 10 }}
-        {{- end }}
+        {{- include "common.containerSecurityContext" (dict "containerSecurityContext" $.Values.components.chartSync.containerSecurityContext "global" $.Values.global) | indent 8 }}
         env:
         - name: PG_ADDR
           value: postgresql-postgresql.devtroncd
@@ -80,17 +74,11 @@ spec:
           activeDeadlineSeconds: 15000
           serviceAccountName: chart-sync
           {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.chartSync.nodeSelector "tolerations" $.Values.components.chartSync.tolerations "imagePullSecrets" $.Values.components.chartSync.imagePullSecrets "global" $.Values.global) | indent 10 }}
-          {{- if and $.Values.global $.Values.global.podSecurityContext }}
-          securityContext:
-{{- toYaml $.Values.global.podSecurityContext | nindent 12 }}
-          {{- end }}
+          {{- include "common.podSecurityContext" (dict "podSecurityContext" $.Values.components.chartSync.podSecurityContext "global" $.Values.global) | indent 10 }}
           containers:
           - name: chart-sync
             image: {{ include "common.image" (dict "component" $.Values.components.chartSync "global" $.Values.global ) }}
-            {{- if and $.Values.global $.Values.global.containerSecurityContext }}
-            securityContext:
-{{- toYaml $.Values.global.containerSecurityContext | nindent 14 }}
-           {{- end }}
+            {{- include "common.containerSecurityContext" (dict "containerSecurityContext" $.Values.components.chartSync.containerSecurityContext "global" $.Values.global) | indent 12 }}
             env:
             - name: PG_ADDR
               value: postgresql-postgresql.devtroncd

@@ -1,0 +1,26 @@
+## Bugs
+- fix: in CreateGrafanaDataSource (#6463)
+- fix: onboard acd app (#6457)
+- fix: prom client in chart-sync (#6442)
+- fix: incorrect gitops metrics (#6444)
+- fix: envId check in EventBuilder.go (#6436)
+- fix: createDockerRepoIfNeeded error handling (#6433)
+## Enhancements
+- feat: Made ng labels env driven (#6438)
+- feat: Link helm release (#6454)
+- feat: access manager (#6377)
+- feat: migrate external argo cd application (#6303)
+## Documentation
+## Others
+- chore: Updated devtron-images.txt.source (#6452)
+- sync: main sync and vendor update in develop (#6450)
+- sync: vendor update in main (#6448)
+- sync: Release candidate v0.31.0 (#6447)
+- sync: Main sync develop 10mar (#6440)
+- chore: Pg query fail 1 (#6337)
+- chore: common lib version bump (#6431)
+- sync: main sync develop (#6430)
+- sync: vendor update in main (#6429)
+- sync: Release candidate v0.30.0 (#6427)
+- chore: Gitops migration api modifications (#6423)
+- misc: fixed misplaced envfrom key in multi-arch postgresql.yaml (#6424)
