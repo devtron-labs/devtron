@@ -482,7 +482,7 @@ devtronEnterprise:
   enabled: false
   casbin:
     registry: ""
-    image: "casbin:efc28fb2-6de0e914-462-25420"
+    image: "casbin:f6ff5f74-064b67e5-462-30822"
     imagePullPolicy: IfNotPresent
     configs:
       PG_ADDR: postgresql-postgresql.devtroncd
@@ -504,7 +504,7 @@ devtronEnterprise:
   scoop:
     enabled: false
     registry: ""
-    image: "scoop:296d351d-629-24001"
+    image: "scoop:289d080a-629-30405"
     imagePullPolicy: IfNotPresent
     resources: {}
     configs:
