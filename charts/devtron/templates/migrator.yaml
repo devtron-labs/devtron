@@ -462,7 +462,7 @@ apiVersion: batch/v1beta1
 kind: Job
 metadata:
   namespace: devtroncd
-  name: enterprise-migration
+  name: postgresql-migrate-enterprise
 spec:
   activeDeadlineSeconds: 1500
   ttlSecondsAfterFinished: 600
