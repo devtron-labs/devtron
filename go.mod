@@ -23,7 +23,7 @@ require (
 	github.com/devtron-labs/authenticator v0.4.35-0.20240809073103-6e11da8083f8
 	github.com/devtron-labs/common-lib v0.18.1-0.20241001061923-eda545dc839e
 	github.com/devtron-labs/go-bitbucket v0.9.60-beta
-	github.com/devtron-labs/protos v0.0.3-0.20250320112837-a8190ec7cd67
+	github.com/devtron-labs/protos v0.0.3-0.20250323161859-1e84b4db2917
 	github.com/evanphx/json-patch v5.9.0+incompatible
 	github.com/gammazero/workerpool v1.1.3
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32

@@ -798,8 +798,8 @@ github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250313102545-75df8a
 github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250313102545-75df8a5bec13/go.mod h1:1QJJLpgJSkb5Jm9xPeKAk+kXb0QgBOOOgJj0cgYhAVA=
 github.com/devtron-labs/go-bitbucket v0.9.60-beta h1:VEx1jvDgdtDPS6A1uUFoaEi0l1/oLhbr+90xOwr6sDU=
 github.com/devtron-labs/go-bitbucket v0.9.60-beta/go.mod h1:GnuiCesvh8xyHeMCb+twm8lBR/kQzJYSKL28ZfObp1Y=
-github.com/devtron-labs/protos v0.0.3-0.20250320112837-a8190ec7cd67 h1:gH82ad3wOUH7oEac9NA5jIx/ZIzd77siI/pHI2WONmM=
-github.com/devtron-labs/protos v0.0.3-0.20250320112837-a8190ec7cd67/go.mod h1:1TqULGlTey+VNhAu/ag7NJuUvByJemkqodsc9L5PHJk=
+github.com/devtron-labs/protos v0.0.3-0.20250323161859-1e84b4db2917 h1:g4R93NXNrHRv2FiGTrqKR7qb5bx6sGXD0Qy7UoOP6pw=
+github.com/devtron-labs/protos v0.0.3-0.20250323161859-1e84b4db2917/go.mod h1:1TqULGlTey+VNhAu/ag7NJuUvByJemkqodsc9L5PHJk=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
 github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f h1:lO4WD4F/rVNCu3HqELle0jiPLLBs70cWOduZpkS1E78=
 github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f/go.mod h1:cuUVRXasLTGF7a8hSLbxyZXjz+1KgoB3wDUb6vlszIc=

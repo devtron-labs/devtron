@@ -1495,7 +1495,14 @@ func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *r
 		CloningMode:      cloningMode,
 		PreserveMode:     preserveMode,
 	}
-	return impl.GitSensorClient.UpdateRepo(context.Background(), sensorMaterial)
+	timeout := 10 * time.Minute
+	if preserveMode {
+		// additional time may be required for dir snapshot
+		timeout = 15 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return impl.GitSensorClient.UpdateRepo(ctx, sensorMaterial)
 }
 
 func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*bean.GitMaterial, cloningMode string) error {
@@ -1513,7 +1520,9 @@ func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*b
 		}
 		sensorMaterials = append(sensorMaterials, sensorMaterial)
 	}
-	return impl.GitSensorClient.AddRepo(context.Background(), sensorMaterials)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	return impl.GitSensorClient.AddRepo(ctx, sensorMaterials)
 }
 
 // FIXME: not thread safe
