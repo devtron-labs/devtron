@@ -450,8 +450,10 @@ spec:
       restartPolicy: OnFailure
   backoffLimit: 20
   activeDeadlineSeconds: 1800
----
+{{- end }}
+{{- end }}
 {{- if $.Values.devtronEnterprise.enabled }}
+---
 {{- if $.Capabilities.APIVersions.Has "batch/v1/Job" }}
 apiVersion: batch/v1
 {{- else }}
@@ -462,8 +464,6 @@ metadata:
   namespace: devtroncd
   name: enterprise-migration
 spec:
-  {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.migrator.nodeSelector "tolerations" $.Values.components.migrator.tolerations "imagePullSecrets" $.Values.components.migrator.imagePullSecrets "global" $.Values.global) | indent 6 }}
-  serviceAccountName: devtron-default-sa
   activeDeadlineSeconds: 1500
   ttlSecondsAfterFinished: 600
   backoffLimit: 20
@@ -474,6 +474,8 @@ spec:
       labels:
         app: migrator
     spec:
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.migrator.nodeSelector "tolerations" $.Values.components.migrator.tolerations "imagePullSecrets" $.Values.components.migrator.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      serviceAccountName: devtron-default-sa
       initContainers:
         - command:
             - /bin/sh
@@ -516,6 +518,4 @@ spec:
       volumes:
         - emptyDir: {}
           name: shared-volume
-{{- end }}
-{{- end }}
 {{- end }}
