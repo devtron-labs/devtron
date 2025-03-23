@@ -1468,7 +1468,7 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateMaterial(updateMaterialDTO *bean.
 	}
 
 	err = impl.updateRepositoryToGitSensor(updatedMaterial, "",
-		updateMaterialDTO.Material.PreserveMode)
+		updateMaterialDTO.Material.CreateBackup)
 	if err != nil {
 		impl.logger.Errorw("error in updating to git-sensor", "err", err)
 		return nil, err
@@ -1482,7 +1482,7 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateMaterial(updateMaterialDTO *bean.
 }
 
 func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *repository6.GitMaterial,
-	cloningMode string, preserveMode bool) error {
+	cloningMode string, createBackup bool) error {
 	sensorMaterial := &gitSensor.GitMaterial{
 		Name:             material.Name,
 		Url:              material.Url,
@@ -1493,10 +1493,10 @@ func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *r
 		FetchSubmodules:  material.FetchSubmodules,
 		FilterPattern:    material.FilterPattern,
 		CloningMode:      cloningMode,
-		PreserveMode:     preserveMode,
+		CreateBackup:     createBackup,
 	}
 	timeout := 10 * time.Minute
-	if preserveMode {
+	if createBackup {
 		// additional time may be required for dir snapshot
 		timeout = 15 * time.Minute
 	}
