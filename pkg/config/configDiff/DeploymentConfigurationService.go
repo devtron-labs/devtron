@@ -149,6 +149,12 @@ func (impl *DeploymentConfigurationServiceImpl) ConfigAutoComplete(appId int, en
 		impl.logger.Errorw("error in fetching CM and CS names at app or env level", "appId", appId, "envId", envId, "err", err)
 		return nil, err
 	}
+	combinedProperties := GetConfigAutoCompleteCombinedPropertiesDataWithoutDraft(cMCSNamesAppLevel, cMCSNamesEnvLevel, envId)
+	configDataResp := bean2.NewConfigDataResponse().WithResourceConfig(combinedProperties)
+	return configDataResp, nil
+}
+
+func GetConfigAutoCompleteCombinedPropertiesDataWithoutDraft(cMCSNamesAppLevel, cMCSNamesEnvLevel []bean.ConfigNameAndType, envId int) (combinedProperties []*bean2.ConfigProperty) {
 	cmcsKeyPropertyAppLevelMap, cmcsKeyPropertyEnvLevelMap := adaptor.GetCmCsAppAndEnvLevelMap(cMCSNamesAppLevel, cMCSNamesEnvLevel)
 	for key, configProperty := range cmcsKeyPropertyAppLevelMap {
 		if _, ok := cmcsKeyPropertyEnvLevelMap[key]; !ok {
@@ -166,11 +172,9 @@ func (impl *DeploymentConfigurationServiceImpl) ConfigAutoComplete(appId int, en
 			configProperty.ConfigStage = bean2.Env
 		}
 	}
-	combinedProperties := helper.GetCombinedPropertiesMap(cmcsKeyPropertyAppLevelMap, cmcsKeyPropertyEnvLevelMap)
+	combinedProperties = helper.GetCombinedPropertiesMap(cmcsKeyPropertyAppLevelMap, cmcsKeyPropertyEnvLevelMap)
 	combinedProperties = append(combinedProperties, adaptor.GetConfigProperty(0, "", bean.DeploymentTemplate, bean2.PublishedConfigState))
-
-	configDataResp := bean2.NewConfigDataResponse().WithResourceConfig(combinedProperties)
-	return configDataResp, nil
+	return combinedProperties
 }
 
 func (impl *DeploymentConfigurationServiceImpl) GetAllConfigData(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams, userHasAdminAccess bool) (*bean2.DeploymentAndCmCsConfigDto, error) {
