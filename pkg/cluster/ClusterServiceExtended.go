@@ -293,8 +293,10 @@ func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *bea
 	grafanaDatasourceId := env.GrafanaDatasourceId
 	if grafanaDatasourceId == 0 {
 		//starts grafana creation
+		// appending envId to ensure unique datasource name for each environment (ex- env got deleted and created with same name)
+		DataSourceName := "Prometheus-" + env.Name + "-EnvId-" + fmt.Sprint(env.Id)
 		createDatasourceReq := grafana.CreateDatasourceRequest{
-			Name:      "Prometheus-" + env.Name,
+			Name:      DataSourceName,
 			Type:      "prometheus",
 			Url:       clusterBean.PrometheusUrl,
 			Access:    "proxy",

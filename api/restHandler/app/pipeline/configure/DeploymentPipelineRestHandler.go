@@ -81,7 +81,7 @@ type DevtronAppDeploymentRestHandler interface {
 	GetCdPipelinesByEnvironmentMin(w http.ResponseWriter, r *http.Request)
 
 	ChangeChartRef(w http.ResponseWriter, r *http.Request)
-	ValidateArgoCDAppLinkRequest(w http.ResponseWriter, r *http.Request)
+	ValidateExternalAppLinkRequest(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppDeploymentConfigRestHandler interface {
@@ -2455,7 +2455,7 @@ func (handler *PipelineConfigRestHandlerImpl) getCdPipelinesForCdPatchRbac(deplo
 	return handler.pipelineRepository.FindByIdsIn(cdPipelineIds)
 }
 
-func (handler *PipelineConfigRestHandlerImpl) ValidateArgoCDAppLinkRequest(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) ValidateExternalAppLinkRequest(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -2469,17 +2469,21 @@ func (handler *PipelineConfigRestHandlerImpl) ValidateArgoCDAppLinkRequest(w htt
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	handler.Logger.Debugw("request payload, ValidateArgoCDAppLinkRequest", "payload", request)
+	handler.Logger.Debugw("request payload, ValidateExternalAppLinkRequest", "payload", request)
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
+	ctx := r.Context()
 	if request.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		response := handler.pipelineBuilder.ValidateLinkExternalArgoCDRequest(&request)
 		common.WriteJsonResp(w, err, response, http.StatusOK)
 		return
-	} else {
+	} else if request.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
+		response := handler.pipelineBuilder.ValidateLinkHelmAppRequest(ctx, &request)
+		common.WriteJsonResp(w, err, response, http.StatusOK)
+		return
 		// handle helm deployment types
 	}
 	common.WriteJsonResp(w, errors.New("invalid deployment app type in request"), nil, http.StatusBadRequest)

@@ -21,12 +21,14 @@ import (
 	"encoding/json"
 	errors3 "errors"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	commonBean2 "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	models2 "github.com/devtron-labs/devtron/api/helm-app/models"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
+	read4 "github.com/devtron-labs/devtron/api/helm-app/service/read"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	bean7 "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -62,6 +64,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/bean"
+	chartRefBean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	chartRefRead "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	config2 "github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
@@ -103,7 +106,8 @@ type CdPipelineConfigService interface {
 	// if any error occur , will get empty object or nil
 	GetCdPipelineById(pipelineId int) (cdPipeline *bean.CDPipelineConfigObject, err error)
 	CreateCdPipelines(cdPipelines *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error)
-	ValidateLinkExternalArgoCDRequest(request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ArgoCdAppLinkValidationResponse
+	ValidateLinkExternalArgoCDRequest(request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ExternalAppLinkValidationResponse
+	ValidateLinkHelmAppRequest(ctx context.Context, request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ExternalAppLinkValidationResponse
 	// PatchCdPipelines : Handle CD pipeline patch requests, making necessary changes to the configuration and returning the updated version.
 	// Performs Create ,Update and Delete operation.
 	PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error)
@@ -190,6 +194,7 @@ type CdPipelineConfigServiceImpl struct {
 	clusterReadService                read2.ClusterReadService
 	installedAppReadService           installedAppReader.InstalledAppReadService
 	chartReadService                  read3.ChartReadService
+	helmAppReadService                read4.HelmAppReadService
 }
 
 func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -222,7 +227,8 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 	gitFactory *git.GitFactory,
 	clusterReadService read2.ClusterReadService,
 	installedAppReadService installedAppReader.InstalledAppReadService,
-	chartReadService read3.ChartReadService) *CdPipelineConfigServiceImpl {
+	chartReadService read3.ChartReadService,
+	helmAppReadService read4.HelmAppReadService) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
 		logger:                            logger,
 		pipelineRepository:                pipelineRepository,
@@ -267,6 +273,7 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 		clusterReadService:                clusterReadService,
 		installedAppReadService:           installedAppReadService,
 		chartReadService:                  chartReadService,
+		helmAppReadService:                helmAppReadService,
 	}
 }
 
@@ -403,6 +410,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 		EnvironmentName:               environment.Name,
 		CiPipelineId:                  dbPipeline.CiPipelineId,
 		DeploymentTemplate:            deploymentTemplate,
+		DeploymentAppName:             dbPipeline.DeploymentAppName,
 		TriggerType:                   dbPipeline.TriggerType,
 		Strategies:                    strategiesBean,
 		PreStage:                      preStage,
@@ -486,10 +494,23 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 	}
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
+		env, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching env by id", "envId", pipeline.EnvironmentId, "err", err)
+			return nil, err
+		}
+		migrationReq := adapter.NewMigrateExternalAppValidationRequest(pipeline, env)
+		migrationReq.AppId = app.Id
 		if pipeline.IsExternalArgoAppLinkRequest() {
-			migrationReq := adapter.NewMigrateReleaseValidationRequest(pipeline)
-			migrationReq.AppId = app.Id
 			linkCDValidationResponse := impl.ValidateLinkExternalArgoCDRequest(migrationReq)
+			if !linkCDValidationResponse.IsLinkable {
+				return nil,
+					util.NewApiError(http.StatusPreconditionFailed,
+						linkCDValidationResponse.ErrorDetail.ValidationFailedMessage,
+						string(linkCDValidationResponse.ErrorDetail.ValidationFailedReason))
+			}
+		} else if pipeline.IsExternalHelmAppLinkRequest() {
+			linkCDValidationResponse := impl.ValidateLinkHelmAppRequest(context.Background(), migrationReq)
 			if !linkCDValidationResponse.IsLinkable {
 				return nil,
 					util.NewApiError(http.StatusPreconditionFailed,
@@ -661,116 +682,46 @@ func (impl *CdPipelineConfigServiceImpl) parseReleaseConfigForACDApp(app *app2.A
 	}, nil
 }
 
-func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ArgoCdAppLinkValidationResponse {
+func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ExternalAppLinkValidationResponse {
+
 	appId := request.AppId
 	applicationObjectClusterId := request.ApplicationMetadataRequest.ApplicationObjectClusterId
 	applicationObjectNamespace := request.ApplicationMetadataRequest.ApplicationObjectNamespace
 	acdAppName := request.DeploymentAppName
 
-	response := pipelineConfigBean.ArgoCdAppLinkValidationResponse{
+	response := pipelineConfigBean.ExternalAppLinkValidationResponse{
 		IsLinkable:          false,
 		ApplicationMetadata: pipelineConfigBean.NewEmptyApplicationMetadata(),
 	}
 
-	argoApplicationSpec, err := impl.argoClientWrapperService.GetArgoAppByNameWithK8sClient(context.Background(), applicationObjectClusterId, applicationObjectNamespace, acdAppName)
+	argoApplicationSpec, err := impl.GetAndValidateArgoApplicationSpec(applicationObjectClusterId, applicationObjectNamespace, acdAppName)
 	if err != nil {
-		impl.logger.Errorw("error in fetching application", "deploymentAppName", acdAppName, "err", err)
-		return response.SetUnknownErrorDetail(err)
+		return response.SetErrorDetail(err)
 	}
-	if argoApplicationSpec.Spec.HasMultipleSources() {
-		return response.SetErrorDetail(pipelineConfigBean.UnsupportedApplicationSpec, "application with multiple sources not supported")
-	}
-	if argoApplicationSpec.Spec.Source != nil && argoApplicationSpec.Spec.Source.Helm != nil && len(argoApplicationSpec.Spec.Source.Helm.ValueFiles) != 1 {
-		return response.SetErrorDetail(pipelineConfigBean.UnsupportedApplicationSpec, "application with multiple/ empty helm value files are not supported")
-	}
-	if strings.ToLower(argoApplicationSpec.Spec.Source.TargetRevision) == bean7.TargetRevisionHead {
-		return response.SetErrorDetail(pipelineConfigBean.UnsupportedApplicationSpec, "Target revision head not supported")
-	}
+	response.ApplicationMetadata.UpdateApplicationSpecData(argoApplicationSpec)
 
-	targetClusterURL := argoApplicationSpec.Spec.Destination.Server
-	if len(targetClusterURL) == 0 {
-		return response.SetErrorDetail(pipelineConfigBean.UnsupportedApplicationSpec, "application with empty destination server is not supported")
-	}
-	targetClusterNamespace := argoApplicationSpec.Spec.Destination.Namespace
-	if len(targetClusterNamespace) == 0 {
-		return response.SetErrorDetail(pipelineConfigBean.UnsupportedApplicationSpec, "application with empty destination namespace is not supported")
-	}
-	if argoApplicationSpec.Spec.Source != nil {
-		response.ApplicationMetadata.Source.RepoURL = argoApplicationSpec.Spec.Source.RepoURL
-		response.ApplicationMetadata.Source.ChartPath = argoApplicationSpec.Spec.Source.Chart
-	}
-	response.ApplicationMetadata.Status = string(argoApplicationSpec.Status.Health.Status)
-
-	pipelines, err := impl.pipelineRepository.GetArgoPipelineByArgoAppName(acdAppName)
-	if err != nil && !errors3.Is(err, pg.ErrNoRows) {
-		return response.SetUnknownErrorDetail(err)
-	}
-
-	pipeline, err := impl.deploymentConfigService.FilterPipelinesByApplicationClusterIdAndNamespace(pipelines, applicationObjectClusterId, applicationObjectNamespace)
-	if err != nil && !errors3.Is(err, errors4.PipelineNotFoundError) {
-		impl.logger.Errorw("error in filtering pipelines by application clusterId and namespace", "applicationObjectClusterId", applicationObjectClusterId, "applicationObjectNamespace", applicationObjectNamespace, "err", err)
-		return response.SetUnknownErrorDetail(err)
-	} else if pipeline.Id != 0 {
-		return response.SetErrorDetail(pipelineConfigBean.ApplicationAlreadyPresent, pipelineConfigBean.PipelineAlreadyPresentMsg)
-	}
-
-	installedApp, err := impl.installedAppReadService.GetInstalledAppByGitOpsAppName(acdAppName)
-	if err != nil && !errors3.Is(err, pg.ErrNoRows) {
-		return response.SetUnknownErrorDetail(err)
-	}
-	if installedApp != nil {
-		// installed app found
-		if bean3.DefaultClusterId == applicationObjectClusterId && argocdServer.DevtronInstalationNs == applicationObjectNamespace {
-			return response.SetErrorDetail(pipelineConfigBean.ApplicationAlreadyPresent, pipelineConfigBean.HelmAppAlreadyPresentMsg)
-		}
-	}
-
-	response.ApplicationMetadata.Destination.Namespace = targetClusterNamespace
-	var targetCluster *bean3.ClusterBean
-	if targetClusterURL == commonBean2.DefaultClusterUrl {
-		targetCluster, err = impl.clusterReadService.FindById(request.ApplicationMetadataRequest.ApplicationObjectClusterId)
-		if targetCluster != nil {
-			response.ApplicationMetadata.Destination.ClusterServerUrl = targetCluster.ServerUrl
-		}
-	} else {
-		response.ApplicationMetadata.Destination.ClusterServerUrl = targetClusterURL
-		targetCluster, err = impl.clusterReadService.FindByClusterURL(targetClusterURL)
-	}
-	if err != nil && !errors3.Is(err, pg.ErrNoRows) {
-		impl.logger.Errorw("error in getting targetCluster by url", "clusterURL", targetClusterURL, "err", err)
-		return response.SetUnknownErrorDetail(err)
-	} else if errors3.Is(err, pg.ErrNoRows) {
-		impl.logger.Debugw("targetCluster not found by url", "clusterURL", targetClusterURL)
-		return response.SetErrorDetail(pipelineConfigBean.ClusterNotFound, "targetCluster not added in global configuration")
-	}
-
-	response.ApplicationMetadata.Destination.ClusterName = targetCluster.ClusterName
-
-	targetEnv, err := impl.environmentRepository.FindOneByNamespaceAndClusterId(targetClusterNamespace, targetCluster.Id)
+	err = impl.ValidateIfAcdAppAlreadyLinked(acdAppName, applicationObjectClusterId, applicationObjectNamespace)
 	if err != nil {
-		if errors3.Is(err, pg.ErrNoRows) {
-			return response.SetErrorDetail(pipelineConfigBean.EnvironmentNotFound, "environment not added in global configuration")
-		}
-		return response.SetUnknownErrorDetail(err)
+		return response.SetErrorDetail(err)
 	}
-	response.ApplicationMetadata.Destination.EnvironmentName = targetEnv.Name
-	response.ApplicationMetadata.Destination.EnvironmentId = targetEnv.Id
 
-	var requestedGitUrl string
-	if argoApplicationSpec.Spec.Source != nil {
-		requestedGitUrl = argoApplicationSpec.Spec.Source.RepoURL
-	}
-	validateRequest := &validationBean.ValidateGitOpsRepoUrlRequest{
-		RequestedGitUrl: requestedGitUrl,
-		UseActiveGitOps: true, // oss only supports active gitops
-	}
-	sanitisedRepoUrl, err := impl.gitOpsValidationService.ValidateGitOpsRepoUrl(validateRequest)
+	targetCluster, err := impl.validateIfTargetClusterAdded(request, response)
 	if err != nil {
-		if apiError, ok := err.(*util.ApiError); ok && apiError.Code == constants.InvalidGitOpsRepoUrlForPipeline {
-			return response.SetErrorDetail(pipelineConfigBean.GitOpsNotFound, apiError.InternalMessage)
-		}
-		return response.SetUnknownErrorDetail(err)
+		return response.SetErrorDetail(err)
 	}
+	response.ApplicationMetadata.UpdateClusterData(targetCluster)
+
+	targetEnv, err := impl.validateIfTargetEnvironmentAdded(targetCluster.Id, response.ApplicationMetadata.GetTargetClusterNamespace())
+	if err != nil {
+		return response.SetErrorDetail(err)
+	}
+	response.ApplicationMetadata.UpdateEnvironmentData(targetEnv)
+
+	sanitisedRepoUrl, err := impl.validateGitOpsForExternalAcd(argoApplicationSpec)
+	if err != nil {
+		return response.SetErrorDetail(err)
+	}
+
 	var chartPath, targetRevision string
 	if argoApplicationSpec.Spec.Source != nil {
 		chartPath = argoApplicationSpec.Spec.Source.Path
@@ -781,56 +732,271 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		impl.logger.Errorw("error in extracting helm chart from application spec", "acdAppName", acdAppName, "err", err)
 		return response.SetUnknownErrorDetail(err)
 	}
+	response.ApplicationMetadata.UpdateHelmChartData(helmChart)
 
-	applicationChartName, applicationChartVersion := helmChart.Metadata.Name, helmChart.Metadata.Version
-	latestChart, err := impl.chartReadService.FindLatestChartForAppByAppId(appId)
+	chartRef, err := impl.ValidateAppChartTypeForLinkedApp(appId, response.ApplicationMetadata.GetRequiredChartName())
 	if err != nil {
-		impl.logger.Errorw("error in finding latest chart by appId", "appId", appId, "err", err)
-		return response.SetUnknownErrorDetail(err)
-	}
-	chartRef, err := impl.chartRefReadService.FindById(latestChart.ChartRefId)
-	if err != nil {
-		impl.logger.Errorw("error in finding chart ref by chartRefId", "chartRefId", latestChart.ChartRefId, "err", err)
-		return response.SetUnknownErrorDetail(err)
-	}
-	var valuesFilename string
-	if argoApplicationSpec.Spec.Source != nil && argoApplicationSpec.Spec.Source.Helm != nil {
-		valuesFilename = argoApplicationSpec.Spec.Source.Helm.ValueFiles[0]
-	}
-	response.ApplicationMetadata.Source.ChartMetadata = pipelineConfigBean.ChartMetadata{
-		RequiredChartVersion: applicationChartVersion,
-		SavedChartName:       chartRef.Name,
-		ValuesFilename:       valuesFilename,
-		RequiredChartName:    applicationChartName,
-	}
-
-	if chartRef.Name != applicationChartName {
-		return response.SetErrorDetail(pipelineConfigBean.ChartTypeMismatch, fmt.Sprintf(pipelineConfigBean.ChartTypeMismatchErrorMsg, applicationChartName, chartRef.Name))
-	}
-
-	_, err = impl.chartRefReadService.FindByVersionAndName(applicationChartVersion, chartRef.Name)
-	if err != nil && !errors3.Is(err, pg.ErrNoRows) {
-		impl.logger.Errorw("error in finding chart ref by chart name and version", "chartName", applicationChartName, "chartVersion", applicationChartVersion, "err", err)
-		return response.SetUnknownErrorDetail(err)
-	} else if errors3.Is(err, pg.ErrNoRows) {
-		return response.SetErrorDetail(pipelineConfigBean.ChartVersionNotFound, fmt.Sprintf(pipelineConfigBean.ChartVersionNotFoundErrorMsg, applicationChartVersion, chartRef.Name))
-	}
-	response.IsLinkable = true
-	response.ApplicationMetadata.Status = string(argoApplicationSpec.Status.Health.Status)
-
-	overrideDeploymentType, err := impl.deploymentTypeOverrideService.ValidateAndOverrideDeploymentAppType(util.PIPELINE_DEPLOYMENT_TYPE_ACD, true, targetEnv.Id)
-	if err != nil {
-		impl.logger.Errorw("validation error for the used deployment type", "targetEnvId", targetEnv.Id, "deploymentAppType", request.DeploymentAppType, "err", err)
-		if apiError, ok := err.(*util.ApiError); ok && apiError.Code == constants.InvalidDeploymentAppTypeForPipeline {
-			return response.SetErrorDetail(pipelineConfigBean.EnforcedPolicyViolation, apiError.InternalMessage)
+		if chartRef != nil {
+			response.ApplicationMetadata.UpdateChartRefData(chartRef)
 		}
-		return response.SetUnknownErrorDetail(err)
+		impl.logger.Errorw("error in finding chart configured for app ", "appId", appId, "err", err)
+		return response.SetErrorDetail(err)
+	}
+	response.ApplicationMetadata.UpdateChartRefData(chartRef)
+
+	err = impl.validateIfChartVersionAvailableForChart(chartRef, response.ApplicationMetadata.GetRequiredChartVersion())
+	if err != nil {
+		return response.SetErrorDetail(err)
+	}
+
+	err = impl.ValidateDeploymentAppTypeForLinkRequest(targetEnv.Id, util.PIPELINE_DEPLOYMENT_TYPE_ACD, true)
+	if err != nil {
+		return response.SetErrorDetail(err)
+	}
+
+	response.IsLinkable = true
+
+	return response
+}
+
+func (impl *CdPipelineConfigServiceImpl) ValidateDeploymentAppTypeForLinkRequest(targetEnvId int, expectedDeploymentAppType string, isGitOpsConfigured bool) error {
+	overrideDeploymentType, err := impl.deploymentTypeOverrideService.ValidateAndOverrideDeploymentAppType(util.PIPELINE_DEPLOYMENT_TYPE_ACD, isGitOpsConfigured, targetEnvId)
+	if err != nil {
+		impl.logger.Errorw("validation error for the used deployment type", "targetEnvId", targetEnvId, "deploymentAppType", expectedDeploymentAppType, "err", err)
+		if apiError, ok := err.(*util.ApiError); ok && apiError.Code == constants.InvalidDeploymentAppTypeForPipeline {
+			return pipelineConfigBean.LinkFailedError{
+				Reason:      pipelineConfigBean.EnforcedPolicyViolation,
+				UserMessage: apiError.InternalMessage,
+			}
+		}
+		return pipelineConfigBean.LinkFailedError{
+			Reason:      pipelineConfigBean.InternalServerError,
+			UserMessage: err.Error(),
+		}
 	}
 	if overrideDeploymentType != util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		errMsg := fmt.Sprintf("Cannot migrate Argo CD Application. Deployment via %q is enforced on the target environment.", overrideDeploymentType)
-		return response.SetErrorDetail(pipelineConfigBean.EnforcedPolicyViolation, errMsg)
+		return pipelineConfigBean.LinkFailedError{
+			Reason:      pipelineConfigBean.EnforcedPolicyViolation,
+			UserMessage: errMsg,
+		}
 	}
-	return response
+	return nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) validateIfChartVersionAvailableForChart(savedChartInApp *chartRefBean.ChartRefDto, chartVersion string) error {
+	_, err := impl.chartRefReadService.FindByVersionAndName(chartVersion, savedChartInApp.Name)
+	if err != nil && !errors3.Is(err, pg.ErrNoRows) {
+		impl.logger.Errorw("error in finding chart ref by chart name and version", "chartName", savedChartInApp.Name, "chartVersion", chartVersion, "err", err)
+		return pipelineConfigBean.LinkFailedError{
+			Reason:      pipelineConfigBean.InternalServerError,
+			UserMessage: err.Error(),
+		}
+	} else if errors3.Is(err, pg.ErrNoRows) {
+		return pipelineConfigBean.LinkFailedError{
+			Reason:      pipelineConfigBean.ChartVersionNotFound,
+			UserMessage: fmt.Sprintf(pipelineConfigBean.ChartVersionNotFoundErrorMsg, chartVersion, savedChartInApp.Name),
+		}
+	}
+	return nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) validateGitOpsForExternalAcd(argoApplicationSpec *v1alpha1.Application) (string, error) {
+	var requestedGitUrl string
+	if argoApplicationSpec.Spec.Source != nil {
+		requestedGitUrl = argoApplicationSpec.Spec.Source.RepoURL
+	}
+	validateRequest := &validationBean.ValidateGitOpsRepoUrlRequest{
+		RequestedGitUrl: requestedGitUrl,
+		UseActiveGitOps: true, // oss only supports active gitops
+	}
+	sanitisedRepoUrl, err := impl.gitOpsValidationService.ValidateGitOpsRepoUrl(validateRequest)
+	if err != nil {
+		if apiError, ok := err.(*util.ApiError); ok {
+			if apiError.Code == constants.GitOpsNotConfigured {
+				return "", pipelineConfigBean.LinkFailedError{
+					Reason:      pipelineConfigBean.GitOpsNotFound,
+					UserMessage: apiError.InternalMessage,
+				}
+			} else if apiError.Code == constants.GitOpsOrganisationMismatch {
+				return "", pipelineConfigBean.LinkFailedError{
+					Reason:      pipelineConfigBean.GitOpsOrganisationMismatch,
+					UserMessage: apiError.InternalMessage,
+				}
+			} else if apiError.Code == constants.GitOpsURLAlreadyInUse {
+				return "", pipelineConfigBean.LinkFailedError{
+					Reason:      pipelineConfigBean.GitOpsRepoUrlAlreadyUsedInAnotherApp,
+					UserMessage: apiError.InternalMessage,
+				}
+			}
+			return "", pipelineConfigBean.LinkFailedError{Reason: pipelineConfigBean.GitOpsNotFound, UserMessage: apiError.InternalMessage}
+		}
+		return "", pipelineConfigBean.LinkFailedError{
+			Reason:      pipelineConfigBean.InternalServerError,
+			UserMessage: err.Error(),
+		}
+	}
+	return sanitisedRepoUrl, nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) validateIfTargetEnvironmentAdded(clusterId int, namespace string) (*repository6.Environment, error) {
+	targetEnv, err := impl.environmentRepository.FindOneByNamespaceAndClusterId(namespace, clusterId)
+	if err != nil {
+		if errors3.Is(err, pg.ErrNoRows) {
+			return nil, pipelineConfigBean.LinkFailedError{
+				Reason:      pipelineConfigBean.EnvironmentNotFound,
+				UserMessage: "environment not added in global configuration",
+			}
+		}
+		return nil, pipelineConfigBean.LinkFailedError{
+			Reason:      pipelineConfigBean.InternalServerError,
+			UserMessage: err.Error(),
+		}
+	}
+	return targetEnv, nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) ValidateAppChartTypeForLinkedApp(appId int, requiredChartName string) (*chartRefBean.ChartRefDto, error) {
+	chartRef, err := impl.chartReadService.GetChartRefConfiguredForApp(appId)
+	if err != nil {
+		impl.logger.Errorw("error in finding chart configured for app ", "appId", appId, "err", err)
+		return chartRef, pipelineConfigBean.LinkFailedError{
+			Reason:      pipelineConfigBean.InternalServerError,
+			UserMessage: err.Error(),
+		}
+	}
+	if chartRef.Name != requiredChartName {
+		return chartRef, pipelineConfigBean.LinkFailedError{
+			Reason:      pipelineConfigBean.ChartTypeMismatch,
+			UserMessage: fmt.Sprintf(pipelineConfigBean.ChartTypeMismatchErrorMsg, requiredChartName, chartRef.Name),
+		}
+	}
+	return chartRef, nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) validateIfTargetClusterAdded(request *pipelineConfigBean.MigrateReleaseValidationRequest, response pipelineConfigBean.ExternalAppLinkValidationResponse) (*bean3.ClusterBean, error) {
+	targetCluster, err := impl.getTargetCluster(request, response)
+	if err != nil && !errors3.Is(err, pg.ErrNoRows) {
+		impl.logger.Errorw("error in getting targetCluster by url", "clusterURL", response.ApplicationMetadata.GetTargetClusterURL(), "err", err)
+		return nil, pipelineConfigBean.LinkFailedError{
+			Reason:      pipelineConfigBean.InternalServerError,
+			UserMessage: err.Error(),
+		}
+	} else if errors3.Is(err, pg.ErrNoRows) {
+		impl.logger.Debugw("targetCluster not found by url", "clusterURL", response.ApplicationMetadata.GetTargetClusterURL())
+		return nil, pipelineConfigBean.LinkFailedError{
+			Reason:      pipelineConfigBean.ClusterNotFound,
+			UserMessage: "targetCluster not added in global configuration",
+		}
+	}
+	return targetCluster, nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) getTargetCluster(request *pipelineConfigBean.MigrateReleaseValidationRequest, response pipelineConfigBean.ExternalAppLinkValidationResponse) (*bean3.ClusterBean, error) {
+	var (
+		targetCluster *bean3.ClusterBean
+		err           error
+	)
+	if response.ApplicationMetadata.GetTargetClusterURL() == commonBean2.DefaultClusterUrl {
+		targetCluster, err = impl.clusterReadService.FindById(request.ApplicationMetadataRequest.ApplicationObjectClusterId)
+	} else {
+		targetCluster, err = impl.clusterReadService.FindByClusterURL(response.ApplicationMetadata.GetTargetClusterURL())
+	}
+	return targetCluster, err
+}
+
+func (impl *CdPipelineConfigServiceImpl) ValidateIfAcdAppAlreadyLinked(acdAppName string, applicationObjectClusterId int, applicationObjectNamespace string) error {
+	pipelines, err := impl.pipelineRepository.GetArgoPipelineByArgoAppName(acdAppName)
+	if err != nil && !errors3.Is(err, pg.ErrNoRows) {
+		return pipelineConfigBean.LinkFailedError{
+			Reason:      pipelineConfigBean.InternalServerError,
+			UserMessage: err.Error(),
+		}
+	}
+	pipeline, err := impl.deploymentConfigService.FilterPipelinesByApplicationClusterIdAndNamespace(pipelines, applicationObjectClusterId, applicationObjectNamespace)
+	if err != nil && !errors3.Is(err, errors4.PipelineNotFoundError) {
+		impl.logger.Errorw("error in filtering pipelines by application clusterId and namespace", "applicationObjectClusterId", applicationObjectClusterId, "applicationObjectNamespace", applicationObjectNamespace, "err", err)
+		return pipelineConfigBean.LinkFailedError{
+			Reason:      pipelineConfigBean.InternalServerError,
+			UserMessage: err.Error(),
+		}
+	} else if pipeline.Id != 0 {
+		return pipelineConfigBean.LinkFailedError{
+			Reason:      pipelineConfigBean.ApplicationAlreadyPresent,
+			UserMessage: pipelineConfigBean.PipelineAlreadyPresentMsg,
+		}
+	}
+
+	installedApp, err := impl.installedAppReadService.GetInstalledAppByGitOpsAppName(acdAppName)
+	if err != nil && !errors3.Is(err, pg.ErrNoRows) {
+		return pipelineConfigBean.LinkFailedError{
+			Reason:      pipelineConfigBean.InternalServerError,
+			UserMessage: err.Error(),
+		}
+	}
+	if installedApp != nil {
+		// installed app found
+		if bean3.DefaultClusterId == applicationObjectClusterId && argocdServer.DevtronInstalationNs == applicationObjectNamespace {
+			return pipelineConfigBean.LinkFailedError{
+				Reason:      pipelineConfigBean.ApplicationAlreadyPresent,
+				UserMessage: pipelineConfigBean.HelmAppAlreadyPresentMsg,
+			}
+		}
+	}
+	return nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) GetAndValidateArgoApplicationSpec(applicationObjectClusterId int, applicationObjectNamespace string, acdAppName string) (*v1alpha1.Application, error) {
+	argoApplicationSpec, err := impl.argoClientWrapperService.GetArgoAppByNameWithK8sClient(context.Background(), applicationObjectClusterId, applicationObjectNamespace, acdAppName)
+	if err != nil {
+		impl.logger.Errorw("error in fetching application", "deploymentAppName", acdAppName, "err", err)
+		return nil, pipelineConfigBean.LinkFailedError{
+			Reason:      pipelineConfigBean.InternalServerError,
+			UserMessage: err.Error(),
+		}
+	}
+	if argoApplicationSpec.Spec.HasMultipleSources() {
+		return argoApplicationSpec, pipelineConfigBean.LinkFailedError{
+			Reason:      pipelineConfigBean.UnsupportedApplicationSpec,
+			UserMessage: "application with multiple sources not supported",
+		}
+	}
+	if argoApplicationSpec.Spec.Source != nil && argoApplicationSpec.Spec.Source.Helm == nil {
+		return argoApplicationSpec, pipelineConfigBean.LinkFailedError{
+			Reason:      pipelineConfigBean.UnsupportedApplicationSpec,
+			UserMessage: "application values file path not found in spec. path -> argoApplicationSpec.Spec.Source.Helm missing",
+		}
+	}
+	if argoApplicationSpec.Spec.Source != nil && argoApplicationSpec.Spec.Source.Helm != nil && len(argoApplicationSpec.Spec.Source.Helm.ValueFiles) != 1 {
+		return argoApplicationSpec, pipelineConfigBean.LinkFailedError{
+			Reason:      pipelineConfigBean.UnsupportedApplicationSpec,
+			UserMessage: "application with multiple/ empty helm value files are not supported",
+		}
+	}
+	if strings.ToLower(argoApplicationSpec.Spec.Source.TargetRevision) == bean7.TargetRevisionHead {
+		return argoApplicationSpec, pipelineConfigBean.LinkFailedError{
+			Reason:      pipelineConfigBean.UnsupportedApplicationSpec,
+			UserMessage: "Target revision head not supported",
+		}
+	}
+
+	targetClusterURL := argoApplicationSpec.Spec.Destination.Server
+	if len(targetClusterURL) == 0 {
+		return argoApplicationSpec, pipelineConfigBean.LinkFailedError{
+			Reason:      pipelineConfigBean.UnsupportedApplicationSpec,
+			UserMessage: "application with empty destination server is not supported",
+		}
+	}
+
+	targetClusterNamespace := argoApplicationSpec.Spec.Destination.Namespace
+	if len(targetClusterNamespace) == 0 {
+		return argoApplicationSpec, pipelineConfigBean.LinkFailedError{
+			Reason:      pipelineConfigBean.UnsupportedApplicationSpec,
+			UserMessage: "application with empty destination namespace is not supported",
+		}
+	}
+
+	return argoApplicationSpec, nil
 }
 
 func (impl *CdPipelineConfigServiceImpl) parseReleaseConfigForExternalAcdApp(clusterId int, namespace, acdAppName string) (*bean4.ReleaseConfiguration, error) {
@@ -856,6 +1022,60 @@ func (impl *CdPipelineConfigServiceImpl) parseReleaseConfigForExternalAcdApp(clu
 		Version:    bean4.Version,
 		ArgoCDSpec: argoApplicationSpec,
 	}, nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) ValidateLinkHelmAppRequest(ctx context.Context, request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ExternalAppLinkValidationResponse {
+
+	response := pipelineConfigBean.ExternalAppLinkValidationResponse{}
+
+	appId := request.AppId
+
+	releaseClusterId := request.GetReleaseClusterId()
+	releaseNamespace := request.GetReleaseNamespace()
+
+	release, err := impl.helmAppService.GetReleaseDetails(ctx, releaseClusterId, request.DeploymentAppName, releaseNamespace)
+	if err != nil {
+		impl.logger.Errorw("error in getting application detail", "releaseClusterId", releaseClusterId, "releaseName", request.DeploymentAppName, "releaseNamespace", releaseNamespace, "err", err)
+		return response.SetUnknownErrorDetail(err)
+	}
+	response.HelmReleaseMetadata.UpdateReleaseData(release)
+
+	cluster, err := impl.clusterReadService.FindById(releaseClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster by id", "clusterId", releaseClusterId, "err", err)
+		return response.SetUnknownErrorDetail(err)
+	}
+	response.HelmReleaseMetadata.UpdateClusterData(cluster)
+
+	targetEnv, err := impl.validateIfTargetEnvironmentAdded(releaseClusterId, releaseNamespace)
+	if err != nil {
+		return response.SetErrorDetail(err)
+	}
+	response.HelmReleaseMetadata.UpdateEnvironmentMetadata(targetEnv)
+
+	chartRef, err := impl.ValidateAppChartTypeForLinkedApp(appId, release.ChartName)
+	if err != nil {
+		if chartRef != nil {
+			response.HelmReleaseMetadata.UpdateChartRefData(chartRef)
+		}
+		impl.logger.Errorw("error in finding chart configured for app ", "appId", appId, "err", err)
+		return response.SetErrorDetail(err)
+	}
+	response.HelmReleaseMetadata.UpdateChartRefData(chartRef)
+
+	err = impl.validateIfChartVersionAvailableForChart(chartRef, release.ChartVersion)
+	if err != nil {
+		return response.SetErrorDetail(err)
+	}
+
+	response.IsLinkable = true
+
+	err = impl.ValidateDeploymentAppTypeForLinkRequest(targetEnv.Id, util.PIPELINE_DEPLOYMENT_TYPE_HELM, false)
+	if err != nil {
+		return response.SetErrorDetail(err)
+	}
+
+	return response
 }
 
 func (impl *CdPipelineConfigServiceImpl) CDPipelineCustomTagDBOperations(pipeline *bean.CDPipelineConfigObject) error {
@@ -2074,6 +2294,10 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 		)
 		if pipeline.IsExternalArgoAppLinkRequest() {
 			overrideCreateRequest, err := impl.parseEnvOverrideCreateRequestForExternalAcdApp(deploymentConfig, latestChart, app, userId, pipeline, appLevelAppMetricsEnabled)
+			if err != nil {
+				impl.logger.Errorw("error in parsing override request for external acd app", "appId", app.Id, "err", err)
+				return 0, err
+			}
 			envOverride, updatedAppMetrics, err = impl.propertiesConfigService.CreateIfRequired(overrideCreateRequest, tx)
 			if err != nil {
 				impl.logger.Errorw("error in creating env override", "appId", app.Id, "envId", envOverride.TargetEnvironment, "err", err)
@@ -2297,6 +2521,14 @@ func (impl *CdPipelineConfigServiceImpl) GetValuesAndChartMetadataForExternalArg
 		if file.Name == valuesFileName {
 			return file.Data, helmChart.Metadata, nil
 		}
+	}
+	if valuesFileName == "values.yaml" && helmChart.Values != nil {
+		byteValues, err := json.Marshal(helmChart.Values)
+		if err != nil {
+			impl.logger.Errorw("error in json Marshal values", "values", helmChart.Values, "err", err)
+			return nil, nil, err
+		}
+		return byteValues, helmChart.Metadata, nil
 	}
 	return nil, nil, errors2.New(fmt.Sprintf("values file with name %s not found in chart", valuesFileName))
 }

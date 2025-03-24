@@ -1352,7 +1352,7 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) erro
 
 	impl.logger.Debug("deleting materials in git_sensor")
 	for _, m := range materials {
-		err = impl.updateRepositoryToGitSensor(m, "")
+		err = impl.updateRepositoryToGitSensor(m, "", false)
 		if err != nil {
 			impl.logger.Errorw("error in updating to git-sensor", "err", err)
 			return err
@@ -1468,7 +1468,8 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateMaterial(updateMaterialDTO *bean.
 		return nil, err
 	}
 
-	err = impl.updateRepositoryToGitSensor(updatedMaterial, "")
+	err = impl.updateRepositoryToGitSensor(updatedMaterial, "",
+		updateMaterialDTO.Material.CreateBackup)
 	if err != nil {
 		impl.logger.Errorw("error in updating to git-sensor", "err", err)
 		return nil, err
@@ -1481,7 +1482,8 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateMaterial(updateMaterialDTO *bean.
 	return updateMaterialDTO, nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *repository6.GitMaterial, cloningMode string) error {
+func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *repository6.GitMaterial,
+	cloningMode string, createBackup bool) error {
 	sensorMaterial := &gitSensor.GitMaterial{
 		Name:             material.Name,
 		Url:              material.Url,
@@ -1492,8 +1494,16 @@ func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *r
 		FetchSubmodules:  material.FetchSubmodules,
 		FilterPattern:    material.FilterPattern,
 		CloningMode:      cloningMode,
+		CreateBackup:     createBackup,
 	}
-	return impl.GitSensorClient.UpdateRepo(context.Background(), sensorMaterial)
+	timeout := 10 * time.Minute
+	if createBackup {
+		// additional time may be required for dir snapshot
+		timeout = 15 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return impl.GitSensorClient.UpdateRepo(ctx, sensorMaterial)
 }
 
 func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*bean.GitMaterial, cloningMode string) error {
@@ -1511,7 +1521,9 @@ func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*b
 		}
 		sensorMaterials = append(sensorMaterials, sensorMaterial)
 	}
-	return impl.GitSensorClient.AddRepo(context.Background(), sensorMaterials)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	return impl.GitSensorClient.AddRepo(ctx, sensorMaterials)
 }
 
 // FIXME: not thread safe
