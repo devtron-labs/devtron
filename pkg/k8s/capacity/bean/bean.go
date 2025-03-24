@@ -19,13 +19,15 @@ package bean
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
+
+	"github.com/caarlos0/env"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
-	"strings"
-	"time"
 )
 
 const (
@@ -43,21 +45,33 @@ const NamespaceAll string = ""
 
 // below const set is used for pod filters
 const (
-	daemonSetFatal       = "DaemonSet-managed Pods (use --ignore-daemonsets to ignore)"
-	daemonSetWarning     = "ignoring DaemonSet-managed Pods"
-	localStorageFatal    = "Pods with local storage (use --delete-emptydir-data to override)"
-	localStorageWarning  = "deleting Pods with local storage"
-	unmanagedFatal       = "Pods declare no controller (use --force to override)"
-	unmanagedWarning     = "deleting Pods that declare no controller"
-	AWSNodeGroupLabel    = "alpha.eksctl.io/nodegroup-name"
-	AzureNodeGroupLabel  = "kubernetes.azure.com/agentpool"
-	GcpNodeGroupLabel    = "cloud.google.com/gke-nodepool"
-	KopsNodeGroupLabel   = "kops.k8s.io/instancegroup"
-	AWSEKSNodeGroupLabel = "eks.amazonaws.com/nodegroup"
+	daemonSetFatal          = "DaemonSet-managed Pods (use --ignore-daemonsets to ignore)"
+	daemonSetWarning        = "ignoring DaemonSet-managed Pods"
+	localStorageFatal       = "Pods with local storage (use --delete-emptydir-data to override)"
+	localStorageWarning     = "deleting Pods with local storage"
+	unmanagedFatal          = "Pods declare no controller (use --force to override)"
+	unmanagedWarning        = "deleting Pods that declare no controller"
+	AWSNodeGroupLabel       = "alpha.eksctl.io/nodegroup-name"
+	AzureNodeGroupLabel     = "kubernetes.azure.com/agentpool"
+	GcpNodeGroupLabel       = "cloud.google.com/gke-nodepool"
+	KopsNodeGroupLabel      = "kops.k8s.io/instancegroup"
+	AWSEKSNodeGroupLabel    = "eks.amazonaws.com/nodegroup"
+	KarpenterNodeGroupLabel = "karpenter.sh/nodepool"
 )
 
-// TODO: add any new nodeGrouplabel in this array
-var NodeGroupLabels = [5]string{AWSNodeGroupLabel, AzureNodeGroupLabel, GcpNodeGroupLabel, KopsNodeGroupLabel, AWSEKSNodeGroupLabel}
+type NodeGroupConfig struct {
+	AdditionalLabels []string `env:"ADDITIONAL_NODE_GROUP_LABELS" envSeparator:"," description:"Add comma separated list of additional node group labels to default labels" example:"karpenter.sh/nodepool,cloud.google.com/gke-nodepool"`
+}
+
+var NodeGroupLabels = []string{AWSNodeGroupLabel, AzureNodeGroupLabel, GcpNodeGroupLabel, KopsNodeGroupLabel, AWSEKSNodeGroupLabel, KarpenterNodeGroupLabel}
+
+func init() {
+	cfg := &NodeGroupConfig{}
+	if err := env.Parse(cfg); err == nil && len(cfg.AdditionalLabels) > 0 {
+		// Append additional labels from environment to default labels
+		NodeGroupLabels = append(NodeGroupLabels, cfg.AdditionalLabels...)
+	}
+}
 
 // below const set is used for pod delete status
 const (
