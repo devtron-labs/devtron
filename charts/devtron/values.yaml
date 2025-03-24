@@ -242,7 +242,7 @@ components:
     image: "migrator:v4.16.2"
     kubectlImage: "kubectl:latest"
     duplicateChartImage: devtron-utils:dup-chart-repo-v1.1.0
-    entMigrator: "devtron-utils:geni-v1.1.4"
+    entMigratorImage: "devtron-utils:geni-v1.1.4"
     envVars:
       devtron:
         DB_NAME: "orchestrator"

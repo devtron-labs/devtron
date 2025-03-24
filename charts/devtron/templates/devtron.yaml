@@ -24,7 +24,7 @@ data:
   DEX_PORT: "5556"
   APP_SYNC_IMAGE: {{ include "common.image" (dict "component" $.Values.components.chartSync "global" $.Values.global ) }}
   # {{- if $.Values.devtronEnterprise.enabled }}
-  # DEVTRON_BOM_URL: : https://raw.githubusercontent.com/devtron-labs/devtron/%s/charts/devtron/devtron-bom.yaml
+  # DEVTRON_BOM_URL: https://raw.githubusercontent.com/devtron-labs/devtron/%s/charts/devtron/devtron-bom.yaml
   # {{- end }}
   {{- if and $.Values.devtronEnterprise.enabled $.Values.devtronEnterprise.scoop.enabled }}
   SCOOP_CLUSTER_CONFIG: '{"1":{"serviceName":"scoop-service","passKey":"qhihdidhwid","namespace":"devtroncd","port":"80"}}'
