@@ -38,6 +38,7 @@ message GitMaterial {
   bool deleted = 9;
   repeated string filterPattern = 10;
   string cloningMode = 11;
+  bool createBackup = 12;
 }
 
 message SavePipelineMaterialRequest {

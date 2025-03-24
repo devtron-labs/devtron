@@ -92,6 +92,7 @@ type GitMaterial struct {
 	FetchSubmodules  bool     `json:"fetchSubmodules"`
 	IsUsedInCiConfig bool     `json:"isUsedInCiConfig"`
 	FilterPattern    []string `json:"filterPattern"`
+	CreateBackup     bool     `json:"createBackup"`
 }
 
 // UpdateSanitisedGitRepoUrl will remove all trailing slashes , leading and trailing spaces from git repository url
