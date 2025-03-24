@@ -1,3 +1,5 @@
+## v1.4.0
+
 ## Enhancements
 - feat: Made ng labels env driven (#6438)
 - feat: Link helm release (#6454)
@@ -14,3 +16,5 @@
 - fix: incorrect gitops metrics (#6444)
 - fix: envId check in EventBuilder.go (#6436)
 - fix: createDockerRepoIfNeeded error handling (#6433)
+
+
