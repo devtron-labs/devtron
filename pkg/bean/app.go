@@ -704,6 +704,11 @@ func (cdPipelineConfig *CDPipelineConfigObject) IsExternalArgoAppLinkRequest() b
 		cdPipelineConfig.GetReleaseMode() == util.PIPELINE_RELEASE_MODE_LINK
 }
 
+func (cdPipelineConfig *CDPipelineConfigObject) IsExternalHelmAppLinkRequest() bool {
+	return cdPipelineConfig.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM &&
+		cdPipelineConfig.GetReleaseMode() == util.PIPELINE_RELEASE_MODE_LINK
+}
+
 type PreStageConfigMapSecretNames struct {
 	ConfigMaps []string `json:"configMaps"`
 	Secrets    []string `json:"secrets"`
