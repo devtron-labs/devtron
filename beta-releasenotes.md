@@ -7,6 +7,7 @@
 - feat: Dark Mode v2 (#2367)
 - feat: Dark Mode v3 (#2484)
 ## Bugs
+- fix: cluster update issue (#6465)
 - fix: in CreateGrafanaDataSource (#6463)
 - fix: onboard acd app (#6457)
 - fix: prom client in chart-sync (#6442)
