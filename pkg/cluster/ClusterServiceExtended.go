@@ -29,7 +29,6 @@ import (
 	"time"
 
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -238,35 +237,9 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *bean.C
 
 	// if git-ops configured, then only update cluster in ACD, otherwise ignore
 	if gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled() {
-		configMap := bean.Config
-		serverUrl := bean.ServerUrl
-		bearerToken := ""
-		if configMap[commonBean.BearerToken] != "" {
-			bearerToken = configMap[commonBean.BearerToken]
-		}
 
-		tlsConfig := v1alpha1.TLSClientConfig{
-			Insecure: bean.InsecureSkipTLSVerify,
-		}
-		if !bean.InsecureSkipTLSVerify {
-			tlsConfig.KeyData = []byte(configMap[commonBean.TlsKey])
-			tlsConfig.CertData = []byte(configMap[commonBean.CertData])
-			tlsConfig.CAData = []byte(configMap[commonBean.CertificateAuthorityData])
-		}
-
-		cdClusterConfig := v1alpha1.ClusterConfig{
-			BearerToken:     bearerToken,
-			TLSClientConfig: tlsConfig,
-		}
-
-		cl := &v1alpha1.Cluster{
-			Name:   bean.ClusterName,
-			Server: serverUrl,
-			Config: cdClusterConfig,
-		}
-
-		_, err = impl.argoCDClientWrapper.UpdateCluster(ctx, &cluster3.ClusterUpdateRequest{Cluster: cl})
-
+		cl := impl.ConvertClusterBeanObjectToCluster(bean)
+		_, err = impl.argoCDClientWrapper.CreateCluster(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
 		if err != nil {
 			impl.logger.Errorw("service err, Update", "error", err, "payload", cl)
 			userMsg := "failed to update on cluster via ACD"
