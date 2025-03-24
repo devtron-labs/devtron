@@ -235,7 +235,7 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *bean.C
 
 	}
 
-	// if git-ops configured, then only update cluster in ACD, otherwise ignore
+	// if git-ops configured and ArgoCD module is installed, then only update cluster in ACD, otherwise ignore
 	if gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled() {
 
 		cl := impl.ConvertClusterBeanObjectToCluster(bean)
@@ -322,7 +322,7 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *bean.Clu
 		return nil, err
 	}
 
-	// if git-ops configured, then only add cluster in ACD, otherwise ignore
+	// if git-ops configured and ArgoCD module is installed, then only add cluster in ACD, otherwise ignore
 	if gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled() {
 		//create it into argo cd as well
 		cl := impl.ConvertClusterBeanObjectToCluster(bean)
