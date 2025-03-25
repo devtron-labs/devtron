@@ -190,7 +190,7 @@
  | GRAFANA_USERNAME | string |admin |  |  | false |
  | HIDE_IMAGE_TAGGING_HARD_DELETE | bool |false |  |  | false |
  | IGNORE_AUTOCOMPLETE_AUTH_CHECK | bool |false |  |  | false |
- | INSTALLED_MODULES |  | | List of installed modules given in helm values/yaml are written in cm and used by devtron to know which modules are given |  | false |
+ | INSTALLED_MODULES |  | | List of installed modules given in helm values/yaml are written in cm and used by devtron to know which modules are given | security.trivy,security.clair | false |
  | INSTALLER_CRD_NAMESPACE | string |devtroncd |  |  | false |
  | INSTALLER_CRD_OBJECT_GROUP_NAME | string |installer.devtron.ai |  |  | false |
  | INSTALLER_CRD_OBJECT_RESOURCE | string |installers |  |  | false |
