@@ -25,6 +25,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
 	util3 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -165,8 +166,10 @@ type InstalledAppRepository interface {
 	FindInstalledAppsByAppId(appId int) ([]*InstalledApps, error)
 	// GetInstalledAppsMinByAppId will return the installed app by app id.
 	// Extra Environment, App, Team, Cluster details are not fetched
+	FindAllByEnvironmentId(envId int) ([]*InstalledApps, error)
 	GetInstalledAppsMinByAppId(appId int) (*InstalledApps, error)
 	GetAllArgoAppsByDeploymentAppNames(deploymentAppNames []string) ([]string, error)
+	GetAllAppsByClusterAndDeploymentAppType(clusterIds []int, deploymentAppType string) ([]bean.DeployedInstalledAppInfo, error)
 }
 
 type InstalledAppRepositoryImpl struct {
@@ -999,6 +1002,56 @@ func (impl *InstalledAppRepositoryImpl) FindInstalledAppsByAppId(appId int) ([]*
 		impl.Logger.Errorw("error on fetching installed apps by appId", "appId", appId)
 	}
 	return installedApps, err
+}
+
+func (impl InstalledAppRepositoryImpl) FindAllByEnvironmentId(envId int) ([]*InstalledApps, error) {
+	var installedApps []*InstalledApps
+	err := impl.dbConnection.Model(&installedApps).
+		Column("installed_apps.*", "App", "Environment").
+		Join("inner join app a on installed_apps.app_id = a.id").
+		Join("inner join environment e on installed_apps.environment_id = e.id").
+		Where("installed_apps.environment_id = ?", envId).
+		Where("installed_apps.active = true").
+		Select()
+	if err != nil {
+		impl.Logger.Errorw("error on fetching installed apps by appId", "environment_id", envId, "err", err)
+		return nil, err
+	}
+	return installedApps, err
+}
+
+func (impl *InstalledAppRepositoryImpl) GetAllAppsByClusterAndDeploymentAppType(clusterIds []int, deploymentAppType string) ([]bean.DeployedInstalledAppInfo, error) {
+	result := make([]bean.DeployedInstalledAppInfo, 0)
+	if len(clusterIds) == 0 {
+		return result, nil
+	}
+	err := impl.dbConnection.Model().
+		Table("installed_apps").
+		ColumnExpr("environment.cluster_id as cluster_id").
+		ColumnExpr("environment.namespace as namespace").
+		ColumnExpr("CONCAT(app.app_name, '-', environment.environment_name) AS deployment_app_name").
+		// inner join with app
+		Join("INNER JOIN app").
+		JoinOn("installed_apps.app_id = app.id").
+		// inner join with environment
+		Join("INNER JOIN environment").
+		JoinOn("installed_apps.environment_id = environment.id").
+		// left join with deployment_config
+		Join("LEFT JOIN deployment_config").
+		JoinOn("installed_apps.app_id = deployment_config.app_id").
+		JoinOn("installed_apps.environment_id = deployment_config.environment_id").
+		JoinOn("deployment_config.active = ?", true).
+		// where conditions
+		Where("environment.cluster_id in (?)", pg.In(clusterIds)).
+		Where("installed_apps.active = ?", true).
+		Where("app.active = ?", true).
+		Where("environment.active = ?", true).
+		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
+			return query.WhereOr("installed_apps.deployment_app_type = ?", deploymentAppType).
+				WhereOr("deployment_config.deployment_app_type = ?", deploymentAppType), nil
+		}).
+		Select(&result)
+	return result, err
 }
 
 func (impl *InstalledAppRepositoryImpl) GetAllArgoAppsByDeploymentAppNames(deploymentAppNames []string) ([]string, error) {
