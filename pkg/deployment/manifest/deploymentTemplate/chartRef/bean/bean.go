@@ -117,12 +117,12 @@ type ChartDto struct {
 	UploadedBy       string `json:"uploadedBy"`
 }
 
-type ChartRefChangeType struct {
+type ChartRefSwitchRequest struct {
 	NewChartType string
 	OldChartType string
 }
 
-func (c *ChartRefChangeType) IsFlaggerCanarySupported() bool {
+func (c *ChartRefSwitchRequest) IsFlaggerCanarySupported() bool {
 	return c.NewChartType == DeploymentChartType
 }
 

@@ -14,19 +14,19 @@
  * limitations under the License.
  */
 
-package chart
+package chartRef
 
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 )
 
-func PatchWinterSoldierConfig(override json.RawMessage, newChartType string) (json.RawMessage, error) {
+func patchWinterSoldierConfig(override json.RawMessage, newChartType string) (json.RawMessage, error) {
 	var jsonMap map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(override), &jsonMap); err != nil {
+	if err := json.Unmarshal(override, &jsonMap); err != nil {
 		return override, err
 	}
-	updatedJson, err := PatchWinterSoldierIfExists(newChartType, jsonMap)
+	updatedJson, err := patchWinterSoldierIfExists(newChartType, jsonMap)
 	if err != nil {
 		return override, err
 	}
@@ -38,13 +38,13 @@ func PatchWinterSoldierConfig(override json.RawMessage, newChartType string) (js
 	return updatedOverride, nil
 }
 
-func PatchWinterSoldierIfExists(newChartType string, jsonMap map[string]json.RawMessage) (map[string]json.RawMessage, error) {
+func patchWinterSoldierIfExists(newChartType string, jsonMap map[string]json.RawMessage) (map[string]json.RawMessage, error) {
 	winterSoldierConfig, found := jsonMap["winterSoldier"]
 	if !found {
 		return jsonMap, nil
 	}
 	var winterSoldierUnmarshalled map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(winterSoldierConfig), &winterSoldierUnmarshalled); err != nil {
+	if err := json.Unmarshal(winterSoldierConfig, &winterSoldierUnmarshalled); err != nil {
 		return jsonMap, err
 	}
 
@@ -66,7 +66,3 @@ func PatchWinterSoldierIfExists(newChartType string, jsonMap map[string]json.Raw
 	jsonMap["winterSoldier"] = winterSoldierMarshalled
 	return jsonMap, nil
 }
-
-//func IsFlaggerCanaryEnabled(override json.RawMessage) (bool, error) {
-//
-//}

@@ -24,9 +24,7 @@ import (
 	models2 "github.com/devtron-labs/devtron/internal/sql/models"
 	bean3 "github.com/devtron-labs/devtron/pkg/chart/bean"
 
-	bean4 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	devtronAppGitOpConfigBean "github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig/bean"
-	chartRefBean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 	"io"
 	"net/http"
@@ -521,64 +519,6 @@ func (handler *PipelineConfigRestHandlerImpl) HandleTriggerDeploymentAfterTypeCh
 	return
 }
 
-func (handler *PipelineConfigRestHandlerImpl) chartSpecificPatchOperations(templateValues json.RawMessage, chartChangeType *chartRefBean.ChartRefChangeType) (json.RawMessage, error) {
-	if !chartChangeType.IsFlaggerCanarySupported() {
-		enabled, err := handler.deploymentTemplateValidationService.FlaggerCanaryEnabled(templateValues)
-		if err != nil {
-			handler.Logger.Errorw("error in checking flaggerCanary, ChangeChartRef", "err", err, "payload", templateValues)
-			return templateValues, err
-		} else if enabled {
-			handler.Logger.Errorw("rollout charts do not support flaggerCanary, ChangeChartRef", "templateValues", templateValues)
-			errMsg := fmt.Sprintf("%q charts do not support flaggerCanary", chartChangeType.NewChartType)
-			return templateValues, util.NewApiError(http.StatusUnprocessableEntity, errMsg, errMsg)
-		}
-	}
-	var err error
-	templateValues, err = handler.chartService.ChartSpecificPatchOperations(templateValues, chartChangeType)
-	if err != nil {
-		return templateValues, err
-	}
-	return templateValues, nil
-}
-
-func (handler *PipelineConfigRestHandlerImpl) validateChangeChartRefRequest(ctx context.Context, userId int32,
-	envConfigProperties *pipelineBean.EnvironmentProperties, request *bean3.ChartRefChangeRequest) (*pipelineBean.EnvironmentProperties, bool, error) {
-	compatible, chartChangeType := handler.chartRefService.ChartRefIdsCompatible(envConfigProperties.ChartRefId, request.TargetChartRefId)
-	if !compatible {
-		errMsg := fmt.Sprintf("chart not compatible for appId: %d, envId: %d", request.AppId, request.EnvId)
-		return envConfigProperties, false, util.NewApiError(http.StatusUnprocessableEntity, errMsg, errMsg)
-	}
-	var err error
-	envConfigProperties.EnvOverrideValues, err = handler.chartSpecificPatchOperations(envConfigProperties.EnvOverrideValues, chartChangeType)
-	if err != nil {
-		handler.Logger.Errorw("error in chart specific patch operations, ChangeChartRef", "err", err, "payload", request)
-		return envConfigProperties, false, err
-	}
-	envMetrics, err := handler.deployedAppMetricsService.GetMetricsFlagByAppIdAndEnvId(request.AppId, request.EnvId)
-	if err != nil {
-		handler.Logger.Errorw("could not find envMetrics for, ChangeChartRef", "err", err, "payload", request)
-		errMsg := fmt.Sprintf("could not find envMetrics for appId: %d, envId: %d", request.AppId, request.EnvId)
-		return envConfigProperties, false, util.NewApiError(http.StatusBadRequest, errMsg, err.Error())
-	}
-	envConfigProperties.ChartRefId = request.TargetChartRefId
-	envConfigProperties.UserId = userId
-	envConfigProperties.EnvironmentId = request.EnvId
-	envConfigProperties.AppMetrics = &envMetrics
-	// VARIABLE_RESOLVE
-	scope := resourceQualifiers.Scope{
-		AppId:     request.AppId,
-		EnvId:     request.EnvId,
-		ClusterId: envConfigProperties.ClusterId,
-	}
-	validate, err2 := handler.deploymentTemplateValidationService.DeploymentTemplateValidate(ctx, envConfigProperties.EnvOverrideValues, envConfigProperties.ChartRefId, scope)
-	if !validate {
-		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", request)
-		errMsg := fmt.Sprintf("template schema validation error for appId: %d, envId: %d", request.AppId, request.EnvId)
-		return envConfigProperties, envMetrics, util.NewApiError(http.StatusBadRequest, errMsg, err2.Error())
-	}
-	return envConfigProperties, envMetrics, nil
-}
-
 func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -608,7 +548,7 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 	token := r.Header.Get("token")
 	ctx := context.WithValue(r.Context(), "token", token)
 	var envMetrics bool
-	envConfigProperties, envMetrics, err = handler.validateChangeChartRefRequest(ctx, userId, envConfigProperties, &request)
+	envConfigProperties, envMetrics, err = handler.deploymentTemplateValidationService.ValidateChangeChartRefRequest(ctx, userId, envConfigProperties, &request)
 	if err != nil {
 		handler.Logger.Errorw("validation err, ChangeChartRef", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -640,7 +580,7 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 			}
 		}(newCtx.Done(), cn.CloseNotify())
 	}
-	createResp, err := handler.changeChartRefForEnvConfigOverride(newCtx, &request)
+	createResp, err := handler.propertiesConfigService.ChangeChartRefForEnvConfigOverride(newCtx, &request)
 	if err != nil {
 		handler.Logger.Errorw("service err, ChangeChartRef", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -648,58 +588,6 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 	}
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 	return
-}
-
-func (handler *PipelineConfigRestHandlerImpl) changeChartRefForEnvConfigOverride(ctx context.Context, request *bean3.ChartRefChangeRequest) (*pipelineBean.EnvironmentProperties, error) {
-	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "PipelineConfigRestHandlerImpl.changeChartRefForEnvConfigOverride")
-	defer span.End()
-	envConfigPropertiesOld, err := handler.propertiesConfigService.FetchEnvProperties(request.AppId, request.EnvId, request.TargetChartRefId)
-	if err != nil && !errors.Is(err, pg.ErrNoRows) {
-		handler.Logger.Errorw("service err, ChangeChartRef", "err", err, "payload", request)
-		return nil, fmt.Errorf("could not fetch env properties. error: %v", err)
-	} else if errors.Is(err, pg.ErrNoRows) {
-		createResp, err := handler.createEnvConfigOverrideWithChart(newCtx, request)
-		if err != nil {
-			handler.Logger.Errorw("service err, ChangeChartRef", "err", err, "payload", request)
-			return nil, err
-		}
-		return createResp, nil
-	}
-	envConfigProperties := request.EnvConfigProperties
-	envConfigProperties.Id = envConfigPropertiesOld.Id
-	createResp, err := handler.propertiesConfigService.UpdateEnvironmentProperties(request.AppId, envConfigProperties, request.UserId)
-	if err != nil {
-		handler.Logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
-		return nil, fmt.Errorf("could not update env override, error: %v", err)
-	}
-	return createResp, nil
-}
-
-func (handler *PipelineConfigRestHandlerImpl) createEnvConfigOverrideWithChart(newCtx context.Context, request *bean3.ChartRefChangeRequest) (*pipelineBean.EnvironmentProperties, error) {
-	createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(request.AppId, request.EnvConfigProperties)
-	if err != nil && err.Error() != bean4.NOCHARTEXIST {
-		handler.Logger.Errorw("service err, EnvConfigOverrideCreate", "err", err, "payload", request)
-		return nil, fmt.Errorf("could not create env override, error: %v", err)
-	} else if err != nil && err.Error() == bean4.NOCHARTEXIST {
-		appMetrics := false
-		if request.EnvConfigProperties.AppMetrics != nil {
-			appMetrics = request.EnvMetrics
-		}
-		templateRequest := bean3.TemplateRequest{
-			AppId:               request.AppId,
-			ChartRefId:          request.TargetChartRefId,
-			ValuesOverride:      []byte("{}"),
-			UserId:              request.UserId,
-			IsAppMetricsEnabled: appMetrics,
-		}
-		_, err := handler.chartService.CreateChartFromEnvOverride(newCtx, templateRequest)
-		if err != nil {
-			handler.Logger.Errorw("service err, CreateChartFromEnvOverride", "err", err, "payload", request)
-			return nil, fmt.Errorf("could not create chart from env override, error: %v", err)
-		}
-		return handler.propertiesConfigService.CreateEnvironmentProperties(request.AppId, request.EnvConfigProperties)
-	}
-	return createResp, nil
 }
 
 func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.ResponseWriter, r *http.Request) {

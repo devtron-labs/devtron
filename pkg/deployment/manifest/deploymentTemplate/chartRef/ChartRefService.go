@@ -59,8 +59,9 @@ type ChartRefDbReadService interface {
 	FetchInfoOfChartConfiguredInApp(appId int) (*bean.ChartRefDto, error)
 	ChartRefAutocomplete() ([]*bean.ChartRefAutocompleteDto, error)
 	CheckChartExists(chartRefId int) error
-	ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, *bean.ChartRefChangeType)
+	ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, *bean.ChartRefSwitchRequest)
 	GetDeploymentStrategiesForChartRef(chartRefId int, pipelineOverride string) ([]bean.PipelineStrategy, error)
+	PerformChartSpecificPatchForSwitch(values json.RawMessage, chartChangeType *bean.ChartRefSwitchRequest) (json.RawMessage, error)
 }
 
 type CustomChartService interface {
@@ -81,12 +82,12 @@ type ChartRefFileOpService interface {
 }
 
 type ChartRefServiceImpl struct {
-	logger               *zap.SugaredLogger
-	chartRefRepository   chartRepoRepository.ChartRefRepository
-	chartRefReadService  read.ChartRefReadService
-	chartTemplateService util.ChartTemplateService
-	mergeUtil            util.MergeUtil
-	chartRepository      chartRepoRepository.ChartRepository
+	logger                           *zap.SugaredLogger
+	chartRefRepository               chartRepoRepository.ChartRefRepository
+	chartRefReadService              read.ChartRefReadService
+	chartTemplateService             util.ChartTemplateService
+	mergeUtil                        util.MergeUtil
+	chartRepository                  chartRepoRepository.ChartRepository
 	globalStrategyMetadataRepository chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository
 }
 
@@ -102,12 +103,12 @@ func NewChartRefServiceImpl(logger *zap.SugaredLogger,
 	devtronChartList, _ := chartRefRepository.FetchAllNonUserUploadedChartInfo()
 	setReservedChartList(devtronChartList)
 	return &ChartRefServiceImpl{
-		logger:               logger,
-		chartRefRepository:   chartRefRepository,
-		chartRefReadService:  chartRefReadService,
-		chartTemplateService: chartTemplateService,
-		mergeUtil:            mergeUtil,
-		chartRepository:      chartRepository,
+		logger:                           logger,
+		chartRefRepository:               chartRefRepository,
+		chartRefReadService:              chartRefReadService,
+		chartTemplateService:             chartTemplateService,
+		mergeUtil:                        mergeUtil,
+		chartRepository:                  chartRepository,
 		globalStrategyMetadataRepository: globalStrategyMetadataRepository,
 	}
 }
@@ -157,8 +158,8 @@ func (impl *ChartRefServiceImpl) GetAllChartMetadata() (map[string]bean.ChartRef
 	return chartsMetadataMap, nil
 }
 
-func (impl *ChartRefServiceImpl) ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, *bean.ChartRefChangeType) {
-	chartChangeType := &bean.ChartRefChangeType{}
+func (impl *ChartRefServiceImpl) ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, *bean.ChartRefSwitchRequest) {
+	chartChangeType := &bean.ChartRefSwitchRequest{}
 	oldChart, err := impl.FindById(oldChartRefId)
 	if err != nil {
 		return false, chartChangeType
@@ -785,4 +786,8 @@ func (impl *ChartRefServiceImpl) filterDeploymentTemplate(strategyKey string, pi
 	}
 	pipelineStrategyJson := string(pipelineOverrideBytes)
 	return pipelineStrategyJson, nil
+}
+
+func (impl *ChartRefServiceImpl) PerformChartSpecificPatchForSwitch(values json.RawMessage, chartChangeType *bean.ChartRefSwitchRequest) (json.RawMessage, error) {
+	return patchWinterSoldierConfig(values, chartChangeType.NewChartType)
 }
