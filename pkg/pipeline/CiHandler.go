@@ -1818,20 +1818,14 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(request res
 	if len(ciPipelineIds) == 0 {
 		return ciWorkflowStatuses, nil
 	}
-	ciWorkflows, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByCiIds(ciPipelineIds)
+	latestCiWorkflows, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByCiIds(ciPipelineIds)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("err", "ciPipelineIds", ciPipelineIds, "err", err)
 		return ciWorkflowStatuses, err
 	}
 
 	notTriggeredWorkflows := make(map[int]bool)
-	latestCiWorkflows := make(map[int]*pipelineConfig.CiWorkflow)
-	for _, ciWorkflow := range ciWorkflows {
-		//adding only latest status in the list
-		if _, ok := latestCiWorkflows[ciWorkflow.CiPipelineId]; !ok {
-			latestCiWorkflows[ciWorkflow.CiPipelineId] = ciWorkflow
-		}
-	}
+
 	for _, ciWorkflow := range latestCiWorkflows {
 		ciWorkflowStatus := &pipelineConfig.CiWorkflowStatus{}
 		ciWorkflowStatus.CiPipelineId = ciWorkflow.CiPipelineId
