@@ -59,7 +59,7 @@ func (impl PipelineConfigRepositoryImpl) Save(pipelineStrategy *PipelineStrategy
 }
 
 func (impl PipelineConfigRepositoryImpl) Update(pipelineStrategy *PipelineStrategy, tx *pg.Tx) error {
-	_, err := impl.dbConnection.Model(pipelineStrategy).WherePK().UpdateNotNull()
+	_, err := tx.Model(pipelineStrategy).WherePK().UpdateNotNull()
 	return err
 }
 

@@ -2475,7 +2475,7 @@ func (impl *CdPipelineConfigServiceImpl) parseEnvOverrideCreateRequestForExterna
 			UserId:              userId,
 			IsAppMetricsEnabled: false,
 		}
-		_, err = impl.chartService.CreateChartFromEnvOverride(chartCreateRequest, context.Background())
+		_, err = impl.chartService.CreateChartFromEnvOverride(context.Background(), chartCreateRequest)
 		if err != nil {
 			impl.logger.Errorw("error in creating chart from env override", "appId", app.Id, "chartRefId", chartRef.Id, "err", err)
 			return nil, err

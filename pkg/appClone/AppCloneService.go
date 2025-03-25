@@ -533,7 +533,7 @@ func (impl *AppCloneServiceImpl) createEnvOverride(oldAppId, newAppId int, userI
 					IsBasicViewLocked: envPropertiesReq.IsBasicViewLocked,
 					CurrentViewEditor: envPropertiesReq.CurrentViewEditor,
 				}
-				_, err = impl.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
+				_, err = impl.chartService.CreateChartFromEnvOverride(ctx, templateRequest)
 				if err != nil {
 					impl.logger.Error(err)
 					return nil, nil

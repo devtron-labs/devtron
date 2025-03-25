@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/read"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/go-pg/pg"
 	dirCopy "github.com/otiai10/copy"
 	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
@@ -58,7 +59,8 @@ type ChartRefDbReadService interface {
 	FetchInfoOfChartConfiguredInApp(appId int) (*bean.ChartRefDto, error)
 	ChartRefAutocomplete() ([]*bean.ChartRefAutocompleteDto, error)
 	CheckChartExists(chartRefId int) error
-	ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, string, string)
+	ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, *bean.ChartRefChangeType)
+	GetDeploymentStrategiesForChartRef(chartRefId int, pipelineOverride string) ([]bean.PipelineStrategy, error)
 }
 
 type CustomChartService interface {
@@ -85,6 +87,7 @@ type ChartRefServiceImpl struct {
 	chartTemplateService util.ChartTemplateService
 	mergeUtil            util.MergeUtil
 	chartRepository      chartRepoRepository.ChartRepository
+	globalStrategyMetadataRepository chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository
 }
 
 func NewChartRefServiceImpl(logger *zap.SugaredLogger,
@@ -92,7 +95,9 @@ func NewChartRefServiceImpl(logger *zap.SugaredLogger,
 	chartRefReadService read.ChartRefReadService,
 	chartTemplateService util.ChartTemplateService,
 	chartRepository chartRepoRepository.ChartRepository,
-	mergeUtil util.MergeUtil) *ChartRefServiceImpl {
+	mergeUtil util.MergeUtil,
+	globalStrategyMetadataRepository chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository,
+) *ChartRefServiceImpl {
 	// cache devtron reference charts list
 	devtronChartList, _ := chartRefRepository.FetchAllNonUserUploadedChartInfo()
 	setReservedChartList(devtronChartList)
@@ -103,6 +108,7 @@ func NewChartRefServiceImpl(logger *zap.SugaredLogger,
 		chartTemplateService: chartTemplateService,
 		mergeUtil:            mergeUtil,
 		chartRepository:      chartRepository,
+		globalStrategyMetadataRepository: globalStrategyMetadataRepository,
 	}
 }
 
@@ -151,16 +157,19 @@ func (impl *ChartRefServiceImpl) GetAllChartMetadata() (map[string]bean.ChartRef
 	return chartsMetadataMap, nil
 }
 
-func (impl *ChartRefServiceImpl) ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, string, string) {
+func (impl *ChartRefServiceImpl) ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, *bean.ChartRefChangeType) {
+	chartChangeType := &bean.ChartRefChangeType{}
 	oldChart, err := impl.FindById(oldChartRefId)
 	if err != nil {
-		return false, "", ""
+		return false, chartChangeType
 	}
 	newChart, err := impl.FindById(newChartRefId)
 	if err != nil {
-		return false, "", ""
+		return false, chartChangeType
 	}
-	return CheckCompatibility(oldChart.Name, newChart.Name), oldChart.Name, newChart.Name
+	chartChangeType.NewChartType = newChart.Name
+	chartChangeType.OldChartType = oldChart.Name
+	return CheckCompatibility(oldChart.Name, newChart.Name), chartChangeType
 }
 
 func (impl *ChartRefServiceImpl) FindById(chartRefId int) (*bean.ChartRefDto, error) {
@@ -441,6 +450,7 @@ func (impl *ChartRefServiceImpl) CheckChartExists(chartRefId int) error {
 	}
 	return nil
 }
+
 func (impl *ChartRefServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]interface{}, string, error) {
 	err := impl.CheckChartExists(chartRefId)
 	if err != nil {
@@ -723,4 +733,56 @@ func setReservedChartList(devtronChartList []*chartRepoRepository.ChartRef) {
 		})
 	}
 	bean.ReservedChartRefNamesList = &reservedChartRefNamesList
+}
+
+func (impl *ChartRefServiceImpl) GetDeploymentStrategiesForChartRef(chartRefId int, pipelineOverride string) ([]bean.PipelineStrategy, error) {
+	// get global strategy for this chart
+	pipelineStrategies := make([]bean.PipelineStrategy, 0)
+	globalStrategies, err := impl.globalStrategyMetadataRepository.GetByChartRefId(chartRefId)
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
+		impl.logger.Errorw("error in getting global strategies", "err", err)
+		return pipelineStrategies, err
+	} else if errors.Is(err, pg.ErrNoRows) {
+		impl.logger.Infow("no strategies configured for chart", "chartRefId", chartRefId)
+		return pipelineStrategies, nil
+	}
+	for _, globalStrategy := range globalStrategies {
+		pipelineStrategyJson, err := impl.filterDeploymentTemplate(globalStrategy.GlobalStrategyMetadata.Key, pipelineOverride)
+		if err != nil {
+			return pipelineStrategies, err
+		}
+		pipelineStrategy := bean.PipelineStrategy{
+			DeploymentTemplate: globalStrategy.GlobalStrategyMetadata.Name,
+			Config:             []byte(pipelineStrategyJson),
+			Default:            globalStrategy.Default,
+		}
+		pipelineStrategies = append(pipelineStrategies, pipelineStrategy)
+	}
+	return pipelineStrategies, nil
+}
+
+func (impl *ChartRefServiceImpl) filterDeploymentTemplate(strategyKey string, pipelineStrategiesJson string) (string, error) {
+	var pipelineStrategies bean.DeploymentType
+	err := json.Unmarshal([]byte(pipelineStrategiesJson), &pipelineStrategies)
+	if err != nil {
+		impl.logger.Errorw("error while unmarshal strategies", "err", err)
+		return "", err
+	}
+	if pipelineStrategies.Deployment.Strategy[strategyKey] == nil {
+		return "", fmt.Errorf("no deployment strategy found for %s", strategyKey)
+	}
+	strategy := make(map[string]interface{})
+	strategy[strategyKey] = pipelineStrategies.Deployment.Strategy[strategyKey].(map[string]interface{})
+	pipelineStrategy := bean.DeploymentType{
+		Deployment: bean.Deployment{
+			Strategy: strategy,
+		},
+	}
+	pipelineOverrideBytes, err := json.Marshal(pipelineStrategy)
+	if err != nil {
+		impl.logger.Errorw("error while marshal strategies", "err", err)
+		return "", err
+	}
+	pipelineStrategyJson := string(pipelineOverrideBytes)
+	return pipelineStrategyJson, nil
 }

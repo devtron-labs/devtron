@@ -1851,7 +1851,7 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 				UserId:              userId,
 				IsAppMetricsEnabled: deploymentTemplateOverride.ShowAppMetrics,
 			}
-			newChartEntry, err := handler.chartService.CreateChartFromEnvOverride(templateRequest, context.Background())
+			newChartEntry, err := handler.chartService.CreateChartFromEnvOverride(context.Background(), templateRequest)
 			if err != nil {
 				handler.logger.Errorw("service err, CreateChartFromEnvOverride", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
 				return err

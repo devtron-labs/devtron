@@ -17,29 +17,16 @@
 package bean
 
 import (
+	"encoding/json"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 )
 
 const (
-	DeploymentChartType       = "Deployment"
-	DeploymentChartNamePrefix = "deployment-chart_"
-
-	WorkflowChartType       = "workflow-chart"
-	WorkflowChartNamePrefix = "workflow-chart_"
-
-	KnativeChartType       = "Knative"
-	KnativeChartNamePrefix = "knative-chart_"
-
-	StatefulSetChartType       = "StatefulSet"
-	StatefulSetChartNamePrefix = "statefulset-chart_"
-
-	JobAndCronJobType       = "Job & CronJob"
-	JobAndCronJobNamePrefix = "cronjob-chart_"
-
-	RolloutChartType       = "Rollout Deployment"
-	RolloutChartNamePrefix = "reference-chart_"
-	ReferenceChart         = "reference-chart"
-	RefChartDirPath        = "scripts/devtron-reference-helm-charts"
+	DeploymentChartType = "Deployment"
+	RolloutChartType    = "Rollout Deployment"
+	ReferenceChart      = "reference-chart"
+	RefChartDirPath     = "scripts/devtron-reference-helm-charts"
 
 	ChartAlreadyExistsInternalError = "Chart exists already, try uploading another chart"
 	ChartNameReservedInternalError  = "Change the name of the chart and try uploading again"
@@ -128,4 +115,27 @@ type ChartDto struct {
 	Version          string `json:"version"`
 	IsUserUploaded   bool   `json:"isUserUploaded"`
 	UploadedBy       string `json:"uploadedBy"`
+}
+
+type ChartRefChangeType struct {
+	NewChartType string
+	OldChartType string
+}
+
+func (c *ChartRefChangeType) IsFlaggerCanarySupported() bool {
+	return c.NewChartType == DeploymentChartType
+}
+
+type DeploymentType struct {
+	Deployment Deployment `json:"deployment"`
+}
+
+type Deployment struct {
+	Strategy map[string]interface{} `json:"strategy"`
+}
+
+type PipelineStrategy struct {
+	DeploymentTemplate chartRepoRepository.DeploymentStrategy `json:"deploymentTemplate,omitempty"` //
+	Config             json.RawMessage                        `json:"config"`
+	Default            bool                                   `json:"default"`
 }
