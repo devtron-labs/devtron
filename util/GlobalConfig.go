@@ -51,6 +51,7 @@ type GlobalEnvVariables struct {
 	ArgoGitCommitRetryDelayOnConflict    int    `env:"ARGO_GIT_COMMIT_RETRY_DELAY_ON_CONFLICT" envDefault:"1"`
 	ExposeCiMetrics                      bool   `env:"EXPOSE_CI_METRICS" envDefault:"false"`
 	ExecuteWireNilChecker                bool   `env:"EXECUTE_WIRE_NIL_CHECKER" envDefault:"false"`
+	IsAirGapEnvironment                  bool   `json:"isAirGapEnvironment" env:"IS_AIR_GAP_ENVIRONMENT" envDefault:"false"`
 }
 
 type GlobalClusterConfig struct {
