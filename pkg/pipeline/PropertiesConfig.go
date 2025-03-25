@@ -757,7 +757,7 @@ func (impl *PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespac
 }
 
 func (impl *PropertiesConfigServiceImpl) ChangeChartRefForEnvConfigOverride(ctx context.Context, request *bean3.ChartRefChangeRequest) (*bean.EnvironmentProperties, error) {
-	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "PropertiesConfigServiceImpl.changeChartRefForEnvConfigOverride")
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "PropertiesConfigServiceImpl.ChangeChartRefForEnvConfigOverride")
 	defer span.End()
 	envConfigPropertiesOld, err := impl.FetchEnvProperties(request.AppId, request.EnvId, request.TargetChartRefId)
 	if err != nil && !errors2.Is(err, pg.ErrNoRows) {

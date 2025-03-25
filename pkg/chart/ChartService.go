@@ -344,7 +344,7 @@ func (impl *ChartServiceImpl) Create(templateRequest bean3.TemplateRequest, ctx 
 		return nil, err
 	}
 
-	chartVal, err := impl.chartAdaptor(chart, appLevelMetricsUpdateReq.EnableMetrics, deploymentConfig)
+	chartVal, err := impl.chartReadService.ChartAdaptor(chart, appLevelMetricsUpdateReq.EnableMetrics, deploymentConfig)
 	return chartVal, err
 }
 
@@ -503,41 +503,8 @@ func (impl *ChartServiceImpl) CreateChartFromEnvOverride(ctx context.Context, te
 		return nil, err
 	}
 
-	chartVal, err := impl.chartAdaptor(chart, false, deploymentConfig)
+	chartVal, err := impl.chartReadService.ChartAdaptor(chart, false, deploymentConfig)
 	return chartVal, err
-}
-
-// converts db object to bean
-func (impl *ChartServiceImpl) chartAdaptor(chart *chartRepoRepository.Chart, isAppMetricsEnabled bool, deploymentConfig *bean2.DeploymentConfig) (*bean3.TemplateRequest, error) {
-	if chart == nil || chart.Id == 0 {
-		return &bean3.TemplateRequest{}, &util.ApiError{UserMessage: "no chart found"}
-	}
-	var gitRepoUrl, targetRevision string
-	if !apiGitOpsBean.IsGitOpsRepoNotConfigured(deploymentConfig.GetRepoURL()) {
-		gitRepoUrl = deploymentConfig.GetRepoURL()
-		targetRevision = deploymentConfig.GetTargetRevision()
-	}
-	templateRequest := &bean3.TemplateRequest{
-		RefChartTemplate:        chart.ReferenceTemplate,
-		Id:                      chart.Id,
-		AppId:                   chart.AppId,
-		ChartRepositoryId:       chart.ChartRepoId,
-		DefaultAppOverride:      json.RawMessage(chart.GlobalOverride),
-		RefChartTemplateVersion: impl.getParentChartVersion(chart.ChartVersion),
-		Latest:                  chart.Latest,
-		ChartRefId:              chart.ChartRefId,
-		IsAppMetricsEnabled:     isAppMetricsEnabled,
-		IsBasicViewLocked:       chart.IsBasicViewLocked,
-		CurrentViewEditor:       chart.CurrentViewEditor,
-		GitRepoUrl:              gitRepoUrl,
-		TargetRevision:          targetRevision,
-		IsCustomGitRepository:   deploymentConfig.ConfigType == bean2.CUSTOM.String(),
-		ImageDescriptorTemplate: chart.ImageDescriptorTemplate,
-	}
-	if chart.Latest {
-		templateRequest.LatestChartVersion = chart.ChartVersion
-	}
-	return templateRequest, nil
 }
 
 func (impl *ChartServiceImpl) getChartMetaData(templateRequest bean3.TemplateRequest) (*chart.Metadata, error) {
@@ -567,11 +534,6 @@ func (impl *ChartServiceImpl) getChartRepo(templateRequest bean3.TemplateRequest
 		}
 		return chartRepo, err
 	}
-}
-
-func (impl *ChartServiceImpl) getParentChartVersion(childVersion string) string {
-	placeholders := strings.Split(childVersion, ".")
-	return fmt.Sprintf("%s.%s.0", placeholders[0], placeholders[1])
 }
 
 // this method is not thread safe
@@ -633,7 +595,7 @@ func (impl *ChartServiceImpl) GetByAppIdAndChartRefId(appId int, chartRefId int)
 		impl.logger.Errorw("error in fetching deployment config by appId", "appId", appId, "err", err)
 		return nil, err
 	}
-	chartTemplate, err = impl.chartAdaptor(chart, isAppMetricsEnabled, deploymentConfig)
+	chartTemplate, err = impl.chartReadService.ChartAdaptor(chart, isAppMetricsEnabled, deploymentConfig)
 	return chartTemplate, err
 }
 
@@ -914,7 +876,7 @@ func (impl *ChartServiceImpl) FindPreviousChartByAppId(appId int) (chartTemplate
 		impl.logger.Errorw("error in fetching deployment config by appId", "appId", appId, "err", err)
 		return nil, err
 	}
-	chartTemplate, err = impl.chartAdaptor(chart, false, deploymentConfig)
+	chartTemplate, err = impl.chartReadService.ChartAdaptor(chart, false, deploymentConfig)
 	return chartTemplate, err
 }
 

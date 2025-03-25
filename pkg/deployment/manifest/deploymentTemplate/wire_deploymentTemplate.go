@@ -20,6 +20,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	chartRefRead "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/validator"
 	"github.com/google/wire"
 )
 
@@ -30,8 +31,8 @@ var DeploymentTemplateWireSet = wire.NewSet(
 	read.NewEnvConfigOverrideReadServiceImpl,
 	wire.Bind(new(read.EnvConfigOverrideService), new(*read.EnvConfigOverrideReadServiceImpl)),
 
-	NewDeploymentTemplateValidationServiceImpl,
-	wire.Bind(new(DeploymentTemplateValidationService), new(*DeploymentTemplateValidationServiceImpl)),
+	validator.NewDeploymentTemplateValidationServiceImpl,
+	wire.Bind(new(validator.DeploymentTemplateValidationService), new(*validator.DeploymentTemplateValidationServiceImpl)),
 
 	chartRefRead.NewChartRefReadServiceImpl,
 	wire.Bind(new(chartRefRead.ChartRefReadService), new(*chartRefRead.ChartRefReadServiceImpl)),

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package deploymentTemplate
+package validator
 
 import (
 	"context"
