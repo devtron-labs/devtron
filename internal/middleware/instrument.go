@@ -17,19 +17,92 @@
 package middleware
 
 import (
+	"encoding/json"
+	"fmt"
+	"github.com/caarlos0/env"
+
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
+
+type HttpLabels struct {
+	UrlPaths string `env:"URL_PATHS" envDefault:"[]"`
+}
+
+var UrlLabelsMapping map[string]map[string]string
+var UniqueKeys []string
+
+const (
+	path   string = "path"
+	method string = "method"
+	status string = "status"
+)
+
+func GetHttpLabels() (*HttpLabels, error) {
+	cfg := &HttpLabels{}
+	err := env.Parse(cfg)
+	return cfg, err
+}
+
+type UrlPaths struct {
+	Url   []string          `json:"url"`
+	Label map[string]string `json:"label"`
+}
+
+func getLabels() []string {
+	uniqueKeys := []string{path, method, status}
+	httpLabels, err := GetHttpLabels()
+	if err != nil {
+		fmt.Println(err)
+		return uniqueKeys
+	}
+	var data []UrlPaths
+	if err := json.Unmarshal([]byte(httpLabels.UrlPaths), &data); err != nil {
+		fmt.Println("Error:", err)
+		return uniqueKeys
+	}
+	urlMappings := make(map[string]map[string]string)
+	keys := make(map[string]bool)
+
+	for _, obj := range data {
+		for _, urlStr := range obj.Url {
+			urlStr = strings.TrimSpace(urlStr)
+			if existingLabels, exists := urlMappings[urlStr]; exists {
+				for key, value := range obj.Label {
+					strValue := strings.TrimSpace(value)
+					existingLabels[key] = strValue
+					keys[key] = true
+				}
+			} else {
+				labels := make(map[string]string)
+				for key, value := range obj.Label {
+					strValue := strings.TrimSpace(value)
+					labels[key] = strValue
+					keys[key] = true
+				}
+				urlMappings[urlStr] = labels
+			}
+		}
+	}
+
+	UrlLabelsMapping = urlMappings
+	for key := range keys {
+		uniqueKeys = append(uniqueKeys, key)
+	}
+	UniqueKeys = uniqueKeys
+	return uniqueKeys
+}
 
 var (
 	httpDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name: "orchestrator_http_duration_seconds",
 		Help: "Duration of HTTP requests.",
-	}, []string{"path", "method", "status"})
+	}, getLabels())
 )
 
 var CdDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
@@ -88,12 +161,12 @@ var requestCounter = promauto.NewCounterVec(
 		Name: "orchestrator_http_requests_total",
 		Help: "How many HTTP requests processed, partitioned by status code, method and HTTP path.",
 	},
-	[]string{"path", "method", "status"})
+	[]string{path, method, status})
 
 var currentRequestGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
 	Name: "orchestrator_http_requests_current",
 	Help: "no of request being served currently",
-}, []string{"path", "method"})
+}, []string{path, method})
 
 var CdTriggerCounter = promauto.NewCounterVec(prometheus.CounterOpts{
 	Name: "cd_trigger_counter",
@@ -117,22 +190,45 @@ var TerminalSessionDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Help: "duration of each terminal session",
 }, []string{"podName", "namespace", "clusterId"})
 
-// prometheusMiddleware implements mux.MiddlewareFunc.
 func PrometheusMiddleware(next http.Handler) http.Handler {
-	//	prometheus.MustRegister(requestCounter)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		route := mux.CurrentRoute(r)
-		path, _ := route.GetPathTemplate()
-		method := r.Method
-		g := currentRequestGauge.WithLabelValues(path, method)
+		urlPath, _ := route.GetPathTemplate()
+		urlMethod := r.Method
+		g := currentRequestGauge.WithLabelValues(urlPath, urlMethod)
 		g.Inc()
 		defer g.Dec()
 		d := NewDelegator(w, nil)
 		next.ServeHTTP(d, r)
-		httpDuration.WithLabelValues(path, method, strconv.Itoa(d.Status())).Observe(time.Since(start).Seconds())
-		requestCounter.WithLabelValues(path, method, strconv.Itoa(d.Status())).Inc()
+
+		valuesArray := []string{urlPath, urlMethod, strconv.Itoa(d.Status())}
+		if key, ok := UrlLabelsMapping[urlPath]; !ok {
+			for _, labelKey := range UniqueKeys {
+				if areDefaultKeys(labelKey) {
+					continue
+				}
+				valuesArray = append(valuesArray, "")
+			}
+		} else {
+			for _, labelKey := range UniqueKeys {
+				if labelValue, ok1 := key[labelKey]; !ok1 {
+					if areDefaultKeys(labelKey) {
+						continue
+					}
+					valuesArray = append(valuesArray, "")
+				} else {
+					valuesArray = append(valuesArray, labelValue)
+				}
+			}
+		}
+		httpDuration.WithLabelValues(valuesArray...).Observe(time.Since(start).Seconds())
+		requestCounter.WithLabelValues(urlPath, urlMethod, strconv.Itoa(d.Status())).Inc()
 	})
+}
+
+func areDefaultKeys(labelKey string) bool {
+	return labelKey == path || labelKey == status || labelKey == method
 }
 
 func IncTerminalSessionRequestCounter(sessionAction string, isError string) {
