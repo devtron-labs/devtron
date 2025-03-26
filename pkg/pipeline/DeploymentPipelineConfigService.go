@@ -2552,7 +2552,8 @@ func (impl *CdPipelineConfigServiceImpl) extractHelmChartForExternalArgoApp(repo
 }
 
 func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, pipeline *bean.CDPipelineConfigObject, userID int32) (err error) {
-
+	_, span := otel.Tracer("orchestrator").Start(ctx, "CdPipelineConfigServiceImpl.updateCdPipeline")
+	defer span.End()
 	if len(pipeline.PreStage.Config) > 0 && !strings.Contains(pipeline.PreStage.Config, "beforeStages") {
 		err = &util.ApiError{
 			HttpStatusCode:  http.StatusBadRequest,
@@ -2598,7 +2599,7 @@ func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, p
 
 		if notFound {
 			//delete from db
-			err := impl.pipelineConfigRepository.Delete(oldItem, tx)
+			err := impl.pipelineConfigRepository.Delete(oldItem, userID, tx)
 			if err != nil {
 				impl.logger.Errorw("error in delete pipeline strategies", "err", err)
 				return fmt.Errorf("error in delete pipeline strategies")
