@@ -39,6 +39,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
@@ -528,7 +529,7 @@ func (impl *AppCloneServiceImpl) createEnvOverride(oldAppId, newAppId int, userI
 				templateRequest := bean5.TemplateRequest{
 					AppId:             newAppId,
 					ChartRefId:        envPropertiesReq.ChartRefId,
-					ValuesOverride:    []byte("{}"),
+					ValuesOverride:    globalUtil.GetEmptyJSON(),
 					UserId:            userId,
 					IsBasicViewLocked: envPropertiesReq.IsBasicViewLocked,
 					CurrentViewEditor: envPropertiesReq.CurrentViewEditor,

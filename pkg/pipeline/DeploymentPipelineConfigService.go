@@ -2471,7 +2471,7 @@ func (impl *CdPipelineConfigServiceImpl) parseEnvOverrideCreateRequestForExterna
 		chartCreateRequest := bean6.TemplateRequest{
 			AppId:               app.Id,
 			ChartRefId:          chartRef.Id,
-			ValuesOverride:      []byte("{}"),
+			ValuesOverride:      globalUtil.GetEmptyJSON(),
 			UserId:              userId,
 			IsAppMetricsEnabled: false,
 		}

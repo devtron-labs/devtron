@@ -36,6 +36,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"go.opentelemetry.io/otel"
 	"net/http"
 	"time"
@@ -234,7 +235,7 @@ func (impl *PropertiesConfigServiceImpl) CreateEnvironmentPropertiesAndBaseIfNee
 			templateRequest := bean3.TemplateRequest{
 				AppId:               appId,
 				ChartRefId:          environmentProperties.ChartRefId,
-				ValuesOverride:      []byte("{}"),
+				ValuesOverride:      globalUtil.GetEmptyJSON(),
 				UserId:              environmentProperties.UserId,
 				IsAppMetricsEnabled: appMetrics,
 			}
@@ -796,7 +797,7 @@ func (impl *PropertiesConfigServiceImpl) createEnvConfigOverrideWithChart(ctx co
 		templateRequest := bean3.TemplateRequest{
 			AppId:               request.AppId,
 			ChartRefId:          request.TargetChartRefId,
-			ValuesOverride:      []byte("{}"),
+			ValuesOverride:      globalUtil.GetEmptyJSON(),
 			UserId:              request.UserId,
 			IsAppMetricsEnabled: appMetrics,
 		}

@@ -812,10 +812,10 @@ func (impl *AppServiceImpl) CreateGitOpsRepo(app *app.App, targetRevision string
 func (impl *AppServiceImpl) GetConfigMapAndSecretJson(appId int, envId int, pipelineId int) ([]byte, error) {
 	var configMapJson string
 	var secretDataJson string
-	merged := []byte("{}")
+	merged := globalUtil.GetEmptyJSON()
 	configMapA, err := impl.configMapRepository.GetByAppIdAppLevel(appId)
 	if err != nil && pg.ErrNoRows != err {
-		return []byte("{}"), err
+		return globalUtil.GetEmptyJSON(), err
 	}
 	if configMapA != nil && configMapA.Id > 0 {
 		configMapJson = configMapA.ConfigMapData
@@ -828,17 +828,17 @@ func (impl *AppServiceImpl) GetConfigMapAndSecretJson(appId int, envId int, pipe
 		}
 		config, err := impl.mergeUtil.JsonPatch([]byte(configMapJson), []byte(secretDataJson))
 		if err != nil {
-			return []byte("{}"), err
+			return globalUtil.GetEmptyJSON(), err
 		}
 		merged, err = impl.mergeUtil.JsonPatch(merged, config)
 		if err != nil {
-			return []byte("{}"), err
+			return globalUtil.GetEmptyJSON(), err
 		}
 	}
 
 	configMapE, err := impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(appId, envId)
 	if err != nil && pg.ErrNoRows != err {
-		return []byte("{}"), err
+		return globalUtil.GetEmptyJSON(), err
 	}
 	if configMapE != nil && configMapE.Id > 0 {
 		configMapJson = configMapE.ConfigMapData
@@ -851,11 +851,11 @@ func (impl *AppServiceImpl) GetConfigMapAndSecretJson(appId int, envId int, pipe
 		}
 		config, err := impl.mergeUtil.JsonPatch([]byte(configMapJson), []byte(secretDataJson))
 		if err != nil {
-			return []byte("{}"), err
+			return globalUtil.GetEmptyJSON(), err
 		}
 		merged, err = impl.mergeUtil.JsonPatch(merged, config)
 		if err != nil {
-			return []byte("{}"), err
+			return globalUtil.GetEmptyJSON(), err
 		}
 	}
 

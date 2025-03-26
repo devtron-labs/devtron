@@ -1847,7 +1847,7 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 			templateRequest := bean3.TemplateRequest{
 				AppId:               appId,
 				ChartRefId:          chartRefId,
-				ValuesOverride:      []byte("{}"),
+				ValuesOverride:      util.GetEmptyJSON(),
 				UserId:              userId,
 				IsAppMetricsEnabled: deploymentTemplateOverride.ShowAppMetrics,
 			}
