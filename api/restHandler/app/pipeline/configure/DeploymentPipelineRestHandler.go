@@ -548,17 +548,15 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 	token := r.Header.Get("token")
 	ctx := context.WithValue(r.Context(), "token", token)
 	var envMetrics bool
-	envConfigProperties, envMetrics, err = handler.deploymentTemplateValidationService.ValidateChangeChartRefRequest(ctx, userId, envConfigProperties, &request)
+	envConfigProperties, envMetrics, err = handler.deploymentTemplateValidationService.ValidateChangeChartRefRequest(ctx, envConfigProperties, &request)
 	if err != nil {
 		handler.Logger.Errorw("validation err, ChangeChartRef", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	envConfigProperties.MergeStrategy = models2.MERGE_STRATEGY_REPLACE // always replace
+	envConfigProperties.UserId = userId
 	request.EnvConfigProperties = envConfigProperties
 	request.EnvMetrics = envMetrics
-	request.UserId = userId
-	request.Token = token
 	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(request.AppId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
@@ -580,7 +578,8 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 			}
 		}(newCtx.Done(), cn.CloseNotify())
 	}
-	createResp, err := handler.propertiesConfigService.ChangeChartRefForEnvConfigOverride(newCtx, &request)
+	envConfigProperties.MergeStrategy = models2.MERGE_STRATEGY_REPLACE // always replace
+	createResp, err := handler.propertiesConfigService.ChangeChartRefForEnvConfigOverride(newCtx, &request, userId)
 	if err != nil {
 		handler.Logger.Errorw("service err, ChangeChartRef", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -603,9 +602,6 @@ func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Res
 		handler.Logger.Errorw("request err, EnvConfigOverrideCreate", "err", err, "payload", envConfigProperties)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
-	}
-	if len(envConfigProperties.MergeStrategy) == 0 {
-		envConfigProperties.MergeStrategy = models2.MERGE_STRATEGY_REPLACE
 	}
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
@@ -1797,7 +1793,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetConfigmapSecretsForDeploymentSt
 		return
 	}
 	// FIXME: add RBAC
-	resp, err := handler.pipelineBuilder.FetchConfigmapSecretsForCdStages(deploymentPipeline.AppId, deploymentPipeline.EnvironmentId, pipelineId)
+	resp, err := handler.pipelineBuilder.FetchConfigmapSecretsForCdStages(deploymentPipeline.AppId, deploymentPipeline.EnvironmentId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetConfigmapSecretsForDeploymentStages", "err", err, "pipelineId", pipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

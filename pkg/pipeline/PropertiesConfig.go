@@ -66,7 +66,7 @@ type PropertiesConfigService interface {
 	CreateEnvironmentPropertiesWithNamespace(appId int, propertiesRequest *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error)
 
 	FetchEnvProperties(appId, envId, chartRefId int) (*bean4.EnvConfigOverride, error)
-	ChangeChartRefForEnvConfigOverride(ctx context.Context, request *bean3.ChartRefChangeRequest) (*bean.EnvironmentProperties, error)
+	ChangeChartRefForEnvConfigOverride(ctx context.Context, request *bean3.ChartRefChangeRequest, userId int32) (*bean.EnvironmentProperties, error)
 }
 type PropertiesConfigServiceImpl struct {
 	logger                           *zap.SugaredLogger
@@ -757,7 +757,7 @@ func (impl *PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespac
 	return environmentProperties, nil
 }
 
-func (impl *PropertiesConfigServiceImpl) ChangeChartRefForEnvConfigOverride(ctx context.Context, request *bean3.ChartRefChangeRequest) (*bean.EnvironmentProperties, error) {
+func (impl *PropertiesConfigServiceImpl) ChangeChartRefForEnvConfigOverride(ctx context.Context, request *bean3.ChartRefChangeRequest, userId int32) (*bean.EnvironmentProperties, error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "PropertiesConfigServiceImpl.ChangeChartRefForEnvConfigOverride")
 	defer span.End()
 	envConfigPropertiesOld, err := impl.FetchEnvProperties(request.AppId, request.EnvId, request.TargetChartRefId)
@@ -765,7 +765,7 @@ func (impl *PropertiesConfigServiceImpl) ChangeChartRefForEnvConfigOverride(ctx 
 		impl.logger.Errorw("service err, ChangeChartRef", "err", err, "payload", request)
 		return nil, fmt.Errorf("could not fetch env properties. error: %v", err)
 	} else if errors2.Is(err, pg.ErrNoRows) {
-		createResp, err := impl.createEnvConfigOverrideWithChart(newCtx, request)
+		createResp, err := impl.createEnvConfigOverrideWithChart(newCtx, request, userId)
 		if err != nil {
 			impl.logger.Errorw("service err, ChangeChartRef", "err", err, "payload", request)
 			return nil, err
@@ -774,7 +774,7 @@ func (impl *PropertiesConfigServiceImpl) ChangeChartRefForEnvConfigOverride(ctx 
 	}
 	envConfigProperties := request.EnvConfigProperties
 	envConfigProperties.Id = envConfigPropertiesOld.Id
-	createResp, err := impl.UpdateEnvironmentProperties(request.AppId, envConfigProperties, request.UserId)
+	createResp, err := impl.UpdateEnvironmentProperties(request.AppId, envConfigProperties, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
 		return nil, fmt.Errorf("could not update env override, error: %v", err)
@@ -782,7 +782,7 @@ func (impl *PropertiesConfigServiceImpl) ChangeChartRefForEnvConfigOverride(ctx 
 	return createResp, nil
 }
 
-func (impl *PropertiesConfigServiceImpl) createEnvConfigOverrideWithChart(ctx context.Context, request *bean3.ChartRefChangeRequest) (*bean.EnvironmentProperties, error) {
+func (impl *PropertiesConfigServiceImpl) createEnvConfigOverrideWithChart(ctx context.Context, request *bean3.ChartRefChangeRequest, userId int32) (*bean.EnvironmentProperties, error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "PropertiesConfigServiceImpl.createEnvConfigOverrideWithChart")
 	defer span.End()
 	createResp, err := impl.CreateEnvironmentProperties(request.AppId, request.EnvConfigProperties)
@@ -798,7 +798,7 @@ func (impl *PropertiesConfigServiceImpl) createEnvConfigOverrideWithChart(ctx co
 			AppId:               request.AppId,
 			ChartRefId:          request.TargetChartRefId,
 			ValuesOverride:      globalUtil.GetEmptyJSON(),
-			UserId:              request.UserId,
+			UserId:              userId,
 			IsAppMetricsEnabled: appMetrics,
 		}
 		_, err := impl.chartService.CreateChartFromEnvOverride(newCtx, templateRequest)

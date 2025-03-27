@@ -66,7 +66,6 @@ type ChartRefChangeRequest struct {
 	EnvConfigProperties *bean2.EnvironmentProperties `json:"-"`
 	EnvMetrics          bool                         `json:"-"`
 	UserId              int32                        `json:"-"`
-	Token               string                       `json:"-"`
 }
 
 type PipelineConfigRequest struct {

@@ -741,7 +741,7 @@ func (impl *ChartRefServiceImpl) GetDeploymentStrategiesForChartRef(chartRefId i
 	pipelineStrategies := make([]bean.PipelineStrategy, 0)
 	globalStrategies, err := impl.globalStrategyMetadataRepository.GetByChartRefId(chartRefId)
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
-		impl.logger.Errorw("error in getting global strategies", "err", err)
+		impl.logger.Errorw("error in getting global strategies", "chartRefId", chartRefId, "err", err)
 		return pipelineStrategies, err
 	} else if errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Infow("no strategies configured for chart", "chartRefId", chartRefId)

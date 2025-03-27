@@ -2599,7 +2599,7 @@ func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, p
 
 		if notFound {
 			//delete from db
-			err := impl.pipelineConfigRepository.Delete(oldItem, userID, tx)
+			err := impl.pipelineConfigRepository.MarkAsDeleted(oldItem, userID, tx)
 			if err != nil {
 				impl.logger.Errorw("error in delete pipeline strategies", "err", err)
 				return fmt.Errorf("error in delete pipeline strategies")

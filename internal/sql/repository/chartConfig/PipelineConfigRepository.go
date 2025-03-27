@@ -42,7 +42,7 @@ type PipelineConfigRepository interface {
 	FindByStrategyAndPipelineId(strategy chartRepoRepository.DeploymentStrategy, pipelineId int) (pipelineStrategy *PipelineStrategy, err error)
 	GetAllStrategyByPipelineId(pipelineId int) ([]*PipelineStrategy, error)
 	GetDefaultStrategyByPipelineId(pipelineId int) (pipelineStrategy *PipelineStrategy, err error)
-	Delete(pipelineStrategy *PipelineStrategy, userId int32, tx *pg.Tx) error
+	MarkAsDeleted(pipelineStrategy *PipelineStrategy, userId int32, tx *pg.Tx) error
 	GetAllStrategyByPipelineIds(pipelineIds []int) ([]*PipelineStrategy, error)
 }
 
@@ -123,9 +123,9 @@ func (impl PipelineConfigRepositoryImpl) GetDefaultStrategyByPipelineId(pipeline
 	return pipelineStrategy, err
 }
 
-// Delete -
+// MarkAsDeleted -
 // it will soft-delete the pipeline strategy from the database
-func (impl PipelineConfigRepositoryImpl) Delete(pipelineStrategy *PipelineStrategy, userId int32, tx *pg.Tx) error {
+func (impl PipelineConfigRepositoryImpl) MarkAsDeleted(pipelineStrategy *PipelineStrategy, userId int32, tx *pg.Tx) error {
 	pipelineStrategy.Deleted = true
 	pipelineStrategy.UpdateAuditLog(userId)
 	return impl.Update(pipelineStrategy, tx)

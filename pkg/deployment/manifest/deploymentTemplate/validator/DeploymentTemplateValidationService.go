@@ -40,8 +40,7 @@ import (
 type DeploymentTemplateValidationService interface {
 	DeploymentTemplateValidate(ctx context.Context, template interface{}, chartRefId int, scope resourceQualifiers.Scope) (bool, error)
 	FlaggerCanaryEnabled(values json.RawMessage) (bool, error)
-	ValidateChangeChartRefRequest(ctx context.Context, userId int32, envConfigProperties *pipelineBean.EnvironmentProperties,
-		request *bean3.ChartRefChangeRequest) (*pipelineBean.EnvironmentProperties, bool, error)
+	ValidateChangeChartRefRequest(ctx context.Context, envConfigProperties *pipelineBean.EnvironmentProperties, request *bean3.ChartRefChangeRequest) (*pipelineBean.EnvironmentProperties, bool, error)
 }
 
 type DeploymentTemplateValidationServiceImpl struct {
@@ -152,8 +151,7 @@ func (impl *DeploymentTemplateValidationServiceImpl) FlaggerCanaryEnabled(values
 	return string(enabled) == bean.TrueFlag, nil
 }
 
-func (impl *DeploymentTemplateValidationServiceImpl) ValidateChangeChartRefRequest(ctx context.Context, userId int32,
-	envConfigProperties *pipelineBean.EnvironmentProperties, request *bean3.ChartRefChangeRequest) (*pipelineBean.EnvironmentProperties, bool, error) {
+func (impl *DeploymentTemplateValidationServiceImpl) ValidateChangeChartRefRequest(ctx context.Context, envConfigProperties *pipelineBean.EnvironmentProperties, request *bean3.ChartRefChangeRequest) (*pipelineBean.EnvironmentProperties, bool, error) {
 	compatible, chartChangeType := impl.chartRefService.ChartRefIdsCompatible(envConfigProperties.ChartRefId, request.TargetChartRefId)
 	if !compatible {
 		errMsg := fmt.Sprintf("chart not compatible for appId: %d, envId: %d", request.AppId, request.EnvId)
@@ -183,7 +181,6 @@ func (impl *DeploymentTemplateValidationServiceImpl) ValidateChangeChartRefReque
 		return envConfigProperties, false, util.NewApiError(http.StatusBadRequest, errMsg, err.Error())
 	}
 	envConfigProperties.ChartRefId = request.TargetChartRefId
-	envConfigProperties.UserId = userId
 	envConfigProperties.EnvironmentId = request.EnvId
 	envConfigProperties.AppMetrics = &envMetrics
 	// VARIABLE_RESOLVE

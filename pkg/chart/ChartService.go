@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/chart/adaptor"
 	bean3 "github.com/devtron-labs/devtron/pkg/chart/bean"
 	read2 "github.com/devtron-labs/devtron/pkg/chart/read"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -344,7 +345,7 @@ func (impl *ChartServiceImpl) Create(templateRequest bean3.TemplateRequest, ctx 
 		return nil, err
 	}
 
-	chartVal, err := impl.chartReadService.ChartAdaptor(chart, appLevelMetricsUpdateReq.EnableMetrics, deploymentConfig)
+	chartVal, err := adaptor.ChartAdaptor(chart, appLevelMetricsUpdateReq.EnableMetrics, deploymentConfig)
 	return chartVal, err
 }
 
@@ -503,7 +504,7 @@ func (impl *ChartServiceImpl) CreateChartFromEnvOverride(ctx context.Context, te
 		return nil, err
 	}
 
-	chartVal, err := impl.chartReadService.ChartAdaptor(chart, false, deploymentConfig)
+	chartVal, err := adaptor.ChartAdaptor(chart, false, deploymentConfig)
 	return chartVal, err
 }
 
@@ -595,7 +596,7 @@ func (impl *ChartServiceImpl) GetByAppIdAndChartRefId(appId int, chartRefId int)
 		impl.logger.Errorw("error in fetching deployment config by appId", "appId", appId, "err", err)
 		return nil, err
 	}
-	chartTemplate, err = impl.chartReadService.ChartAdaptor(chart, isAppMetricsEnabled, deploymentConfig)
+	chartTemplate, err = adaptor.ChartAdaptor(chart, isAppMetricsEnabled, deploymentConfig)
 	return chartTemplate, err
 }
 
@@ -876,7 +877,7 @@ func (impl *ChartServiceImpl) FindPreviousChartByAppId(appId int) (chartTemplate
 		impl.logger.Errorw("error in fetching deployment config by appId", "appId", appId, "err", err)
 		return nil, err
 	}
-	chartTemplate, err = impl.chartReadService.ChartAdaptor(chart, false, deploymentConfig)
+	chartTemplate, err = adaptor.ChartAdaptor(chart, false, deploymentConfig)
 	return chartTemplate, err
 }
 

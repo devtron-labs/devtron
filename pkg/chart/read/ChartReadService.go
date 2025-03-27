@@ -1,21 +1,16 @@
 package read
 
 import (
-	"encoding/json"
-	"fmt"
 	apiGitOpsBean "github.com/devtron-labs/devtron/api/bean/gitOps"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/chart/adaptor"
 	"github.com/devtron-labs/devtron/pkg/chart/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
-	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	chartRefRead "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/read"
-	util2 "github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
-	"strings"
 )
 
 type ChartReadService interface {
@@ -23,8 +18,6 @@ type ChartReadService interface {
 	IsGitOpsRepoConfiguredForDevtronApps(appIds []int) (map[int]bool, error)
 	FindLatestChartForAppByAppId(appId int) (chartTemplate *bean.TemplateRequest, err error)
 	GetChartRefConfiguredForApp(appId int) (*bean3.ChartRefDto, error)
-	ChartAdaptor(chartModel *chartRepoRepository.Chart,
-		isAppMetricsEnabled bool, deploymentConfig *bean2.DeploymentConfig) (*bean.TemplateRequest, error)
 }
 
 type ChartReadServiceImpl struct {
@@ -69,7 +62,7 @@ func (impl *ChartReadServiceImpl) GetByAppIdAndChartRefId(appId int, chartRefId 
 		impl.logger.Errorw("error in fetching deployment config by appId", "appId", appId, "err", err)
 		return nil, err
 	}
-	chartTemplate, err = impl.ChartAdaptor(chart, isAppMetricsEnabled, deploymentConfig)
+	chartTemplate, err = adaptor.ChartAdaptor(chart, isAppMetricsEnabled, deploymentConfig)
 	return chartTemplate, err
 }
 
@@ -115,43 +108,8 @@ func (impl *ChartReadServiceImpl) FindLatestChartForAppByAppId(appId int) (chart
 		impl.logger.Errorw("error in fetching app-metrics", "appId", appId, "err", err)
 		return nil, err
 	}
-	chartTemplate, err = impl.ChartAdaptor(chart, isAppMetricsEnabled, deploymentConfig)
+	chartTemplate, err = adaptor.ChartAdaptor(chart, isAppMetricsEnabled, deploymentConfig)
 	return chartTemplate, err
-}
-
-// ChartAdaptor converts db object chartRepoRepository.Chart to bean.TemplateRequest
-func (impl *ChartReadServiceImpl) ChartAdaptor(chartModel *chartRepoRepository.Chart,
-	isAppMetricsEnabled bool, deploymentConfig *bean2.DeploymentConfig) (*bean.TemplateRequest, error) {
-	if chartModel == nil || chartModel.Id == 0 {
-		return &bean.TemplateRequest{}, &util.ApiError{UserMessage: "no chartInput found"}
-	}
-	gitRepoUrl := ""
-	targetRevision := util2.GetDefaultTargetRevision()
-	if !apiGitOpsBean.IsGitOpsRepoNotConfigured(deploymentConfig.GetRepoURL()) {
-		gitRepoUrl = deploymentConfig.GetRepoURL()
-		targetRevision = deploymentConfig.GetTargetRevision()
-	}
-	templateRequest := &bean.TemplateRequest{
-		RefChartTemplate:        chartModel.ReferenceTemplate,
-		Id:                      chartModel.Id,
-		AppId:                   chartModel.AppId,
-		ChartRepositoryId:       chartModel.ChartRepoId,
-		DefaultAppOverride:      json.RawMessage(chartModel.GlobalOverride),
-		RefChartTemplateVersion: impl.getParentChartVersion(chartModel.ChartVersion),
-		Latest:                  chartModel.Latest,
-		ChartRefId:              chartModel.ChartRefId,
-		IsAppMetricsEnabled:     isAppMetricsEnabled,
-		IsBasicViewLocked:       chartModel.IsBasicViewLocked,
-		CurrentViewEditor:       chartModel.CurrentViewEditor,
-		GitRepoUrl:              gitRepoUrl,
-		IsCustomGitRepository:   deploymentConfig.ConfigType == bean2.CUSTOM.String(),
-		ImageDescriptorTemplate: chartModel.ImageDescriptorTemplate,
-		TargetRevision:          targetRevision,
-	}
-	if chartModel.Latest {
-		templateRequest.LatestChartVersion = chartModel.ChartVersion
-	}
-	return templateRequest, nil
 }
 
 func (impl *ChartReadServiceImpl) GetChartRefConfiguredForApp(appId int) (*bean3.ChartRefDto, error) {
@@ -166,9 +124,4 @@ func (impl *ChartReadServiceImpl) GetChartRefConfiguredForApp(appId int) (*bean3
 		return nil, nil
 	}
 	return chartRef, nil
-}
-
-func (impl *ChartReadServiceImpl) getParentChartVersion(childVersion string) string {
-	placeholders := strings.Split(childVersion, ".")
-	return fmt.Sprintf("%s.%s.0", placeholders[0], placeholders[1])
 }
