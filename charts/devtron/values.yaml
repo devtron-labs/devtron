@@ -21,17 +21,15 @@ global:
 
   # Set the storage class to be used for PVCs (would use default sc if not specified)
   storageClass: ""
-  
   # Add Proxy Configs to be propagated to all the Devtron Microservices.
   configs: {}
-
   nodeSelector: {}
   tolerations: []
   imagePullSecrets: []
 extraManifests: []
 installer:
   repo: "devtron-labs/devtron"
-  release: "v1.3.1"
+  release: "v1.4.0"
   registry: ""
   image: inception
   tag: 473deaa4-185-21582
@@ -83,15 +81,24 @@ components:
         FEATURE_STEP_WISE_LOGS_ENABLE: "true"
         FEATURE_USER_DEFINED_GITOPS_REPO_ENABLE: "true"
         ENABLE_RESOURCE_SCAN: "true"
+        FEATURE_CODE_MIRROR_ENABLE: "false"
     registry: ""
-    image: "dashboard:1c40d516-690-30089"
+    image: "dashboard:a400ce3c-690-31030"
     imagePullPolicy: IfNotPresent
   devtron:
     registry: ""
-    image: "hyperion:e67c3b76-280-30100"
-    cicdImage: "devtron:e67c3b76-434-30101"
+    image: "hyperion:846c2d90-280-31082"
+    cicdImage: "devtron:846c2d90-434-31081"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
+    podSecurityContext:
+      fsGroup: 1001
+      runAsGroup: 1001
+      runAsUser: 1001
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      runAsUser: 1001
     serviceMonitor:
       enabled: false
     service:
@@ -115,7 +122,7 @@ components:
       #      - devtron.example.com
   ciRunner:
     registry: ""
-    image: "ci-runner:0dde3b1a-138-30091"
+    image: "ci-runner:d79b15c6-138-31014"
   argocdDexServer:
     registry: ""
     image: "dex:v2.30.2"
@@ -124,8 +131,16 @@ components:
       authenticator: "authenticator:e414faff-393-13273"
   kubelink:
     registry: ""
-    image: "kubelink:0dde3b1a-564-30082"
+    image: "kubelink:ccd98a22-564-31008"
     imagePullPolicy: IfNotPresent
+    podSecurityContext:
+      fsGroup: 1001
+      runAsGroup: 1001
+      runAsUser: 1001
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      runAsUser: 1001
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
       MANIFEST_FETCH_BATCH_SIZE: "2"
@@ -142,11 +157,12 @@ components:
       keyName: postgresql-password
   kubewatch:
     registry: ""
-    image: "kubewatch:0dde3b1a-419-30285"
+    image: "kubewatch:34abb17d-419-31007"
     imagePullPolicy: IfNotPresent
     configs:
       devtroncd_NAMESPACE: "devtron-ci"
       USE_CUSTOM_HTTP_TRANSPORT: "true"
+      CLUSTER_ARGO_CD_TYPE: "ALL_CLUSTER"
       CI_INFORMER: "true"
       ACD_NAMESPACE: "devtroncd"
       ACD_INFORMER: "true"
@@ -172,7 +188,7 @@ components:
       volumeSize: "20Gi"
   gitsensor:
     registry: ""
-    image: "git-sensor:0dde3b1a-200-30085"
+    image: "git-sensor:2b4b8363-200-31009"
     imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
@@ -190,7 +206,7 @@ components:
   # Values for lens
   lens:
     registry: ""
-    image: "lens:0dde3b1a-333-30090"
+    image: "lens:34abb17d-333-31011"
     imagePullPolicy: IfNotPresent
     secrets: {}
     resources: {}
@@ -226,6 +242,7 @@ components:
     image: "migrator:v4.16.2"
     kubectlImage: "kubectl:latest"
     duplicateChartImage: devtron-utils:dup-chart-repo-v1.1.0
+    entMigratorImage: "devtron-utils:geni-v1.1.4"
     envVars:
       devtron:
         DB_NAME: "orchestrator"
@@ -237,9 +254,17 @@ components:
         DB_NAME: "lens"
   chartSync:
     registry: ""
-    image: chart-sync:0dde3b1a-836-30095
+    image: chart-sync:34abb17d-836-31017
     schedule: "0 19 * * *"
     extraConfigs: {}
+    podSecurityContext:
+      fsGroup: 1001
+      runAsGroup: 1001
+      runAsUser: 1001
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      runAsUser: 1001
 # values for argocd integration
 argo-cd:
   enabled: false
@@ -383,7 +408,7 @@ argo-cd:
 security:
   enabled: false
   imageScanner:
-    image: "image-scanner:0dde3b1a-141-30093"
+    image: "image-scanner:34abb17d-141-31016"
     configs:
       TRIVY_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-db
       TRIVY_JAVA_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-java-db
@@ -401,7 +426,7 @@ security:
 notifier:
   enabled: false
   imagePullPolicy: IfNotPresent
-  image: "notifier:5e9c010b-372-30094"
+  image: "notifier:c2173311-372-31015"
   configs:
     CD_ENVIRONMENT: PROD
     DB: orchestrator
@@ -457,7 +482,7 @@ devtronEnterprise:
   enabled: false
   casbin:
     registry: ""
-    image: "casbin:efc28fb2-6de0e914-462-25420"
+    image: "casbin:f6ff5f74-064b67e5-462-30822"
     imagePullPolicy: IfNotPresent
     configs:
       PG_ADDR: postgresql-postgresql.devtroncd
@@ -467,11 +492,19 @@ devtronEnterprise:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
+    podSecurityContext:
+      fsGroup: 1001
+      runAsGroup: 1001
+      runAsUser: 1001
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      runAsUser: 1001
     resources: {}
   scoop:
     enabled: false
     registry: ""
-    image: "scoop:296d351d-629-24001"
+    image: "scoop:289d080a-629-30405"
     imagePullPolicy: IfNotPresent
     resources: {}
     configs:
