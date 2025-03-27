@@ -48,10 +48,6 @@ func (app *App) IsEmpty() bool {
 	return app.Id == 0
 }
 
-const (
-	SYSTEM_USER_ID = 1
-)
-
 func (app *App) IsAppJobOrExternalType() bool {
 	return len(app.DisplayName) > 0
 }
