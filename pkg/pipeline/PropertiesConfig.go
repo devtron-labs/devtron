@@ -22,6 +22,9 @@ import (
 	errors2 "errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/util"
+	bean5 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	chartService "github.com/devtron-labs/devtron/pkg/chart"
+	bean3 "github.com/devtron-labs/devtron/pkg/chart/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
@@ -47,6 +50,7 @@ import (
 )
 
 type PropertiesConfigService interface {
+	CreateEnvironmentPropertiesAndBaseIfNeeded(ctx context.Context, appId int, environmentProperties *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error)
 	CreateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error)
 	UpdateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties, userId int32) (*bean.EnvironmentProperties, error)
 	//create environment entry for each new environment
@@ -71,6 +75,7 @@ type PropertiesConfigServiceImpl struct {
 	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
 	envConfigOverrideReadService     read.EnvConfigOverrideService
 	deploymentConfigService          common.DeploymentConfigService
+	chartService                     chartService.ChartService
 }
 
 func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
@@ -81,7 +86,8 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 	scopedVariableManager variables.ScopedVariableManager,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	envConfigOverrideReadService read.EnvConfigOverrideService,
-	deploymentConfigService common.DeploymentConfigService) *PropertiesConfigServiceImpl {
+	deploymentConfigService common.DeploymentConfigService,
+	chartService chartService.ChartService) *PropertiesConfigServiceImpl {
 	return &PropertiesConfigServiceImpl{
 		logger:                           logger,
 		envConfigRepo:                    envConfigRepo,
@@ -92,6 +98,7 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 		deployedAppMetricsService:        deployedAppMetricsService,
 		envConfigOverrideReadService:     envConfigOverrideReadService,
 		deploymentConfigService:          deploymentConfigService,
+		chartService:                     chartService,
 	}
 
 }
@@ -212,6 +219,39 @@ func (impl PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environm
 
 func (impl PropertiesConfigServiceImpl) FetchEnvProperties(appId, envId, chartRefId int) (*bean4.EnvConfigOverride, error) {
 	return impl.envConfigOverrideReadService.GetByAppIdEnvIdAndChartRefId(appId, envId, chartRefId)
+}
+
+func (impl PropertiesConfigServiceImpl) CreateEnvironmentPropertiesAndBaseIfNeeded(ctx context.Context, appId int, environmentProperties *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error) {
+	createResp, err := impl.CreateEnvironmentProperties(appId, environmentProperties)
+	if err != nil {
+		if err.Error() == bean5.NOCHARTEXIST {
+			appMetrics := false
+			if environmentProperties.AppMetrics != nil {
+				appMetrics = *environmentProperties.AppMetrics
+			}
+			templateRequest := bean3.TemplateRequest{
+				AppId:               appId,
+				ChartRefId:          environmentProperties.ChartRefId,
+				ValuesOverride:      []byte("{}"),
+				UserId:              environmentProperties.UserId,
+				IsAppMetricsEnabled: appMetrics,
+			}
+			_, err = impl.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
+			if err != nil {
+				impl.logger.Errorw("service err, EnvConfigOverrideCreate", "err", err, "payload", environmentProperties)
+				return nil, err
+			}
+			createResp, err = impl.CreateEnvironmentProperties(appId, environmentProperties)
+			if err != nil {
+				impl.logger.Errorw("service err, EnvConfigOverrideCreate", "err", err, "payload", environmentProperties)
+				return nil, err
+			}
+		} else {
+			impl.logger.Errorw("service err, EnvConfigOverrideCreate", "err", err, "payload", environmentProperties)
+			return nil, err
+		}
+	}
+	return createResp, nil
 }
 
 func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, environmentProperties *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error) {

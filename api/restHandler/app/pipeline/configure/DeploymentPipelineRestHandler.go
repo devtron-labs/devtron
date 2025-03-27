@@ -41,7 +41,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
@@ -718,48 +717,22 @@ func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Res
 		return
 	}
 
-	createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(appId, &envConfigProperties)
-	if err != nil {
-		if err.Error() == bean4.NOCHARTEXIST {
-			ctx, cancel := context.WithCancel(r.Context())
-			if cn, ok := w.(http.CloseNotifier); ok {
-				go func(done <-chan struct{}, closed <-chan bool) {
-					select {
-					case <-done:
-					case <-closed:
-						cancel()
-					}
-				}(ctx.Done(), cn.CloseNotify())
+	ctx, cancel := context.WithCancel(r.Context())
+	if cn, ok := w.(http.CloseNotifier); ok {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
 			}
-			appMetrics := false
-			if envConfigProperties.AppMetrics != nil {
-				appMetrics = *envConfigProperties.AppMetrics
-			}
-			templateRequest := bean3.TemplateRequest{
-				AppId:               appId,
-				ChartRefId:          envConfigProperties.ChartRefId,
-				ValuesOverride:      []byte("{}"),
-				UserId:              userId,
-				IsAppMetricsEnabled: appMetrics,
-			}
+		}(ctx.Done(), cn.CloseNotify())
+	}
 
-			_, err = handler.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
-			if err != nil {
-				handler.Logger.Errorw("service err, EnvConfigOverrideCreate", "err", err, "payload", envConfigProperties)
-				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-				return
-			}
-			createResp, err = handler.propertiesConfigService.CreateEnvironmentProperties(appId, &envConfigProperties)
-			if err != nil {
-				handler.Logger.Errorw("service err, EnvConfigOverrideCreate", "err", err, "payload", envConfigProperties)
-				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-				return
-			}
-		} else {
-			handler.Logger.Errorw("service err, EnvConfigOverrideCreate", "err", err, "payload", envConfigProperties)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
+	createResp, err := handler.propertiesConfigService.CreateEnvironmentPropertiesAndBaseIfNeeded(ctx, appId, &envConfigProperties)
+	if err != nil {
+		handler.Logger.Errorw("service err, CreateEnvironmentPropertiesAndBaseIfNeeded", "payload", envConfigProperties, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
 	}
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
@@ -1037,77 +1010,12 @@ func (handler *PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respo
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-
-	appConfigResponse := make(map[string]interface{})
-	appConfigResponse["globalConfig"] = nil
-
-	err = handler.chartRefService.CheckChartExists(chartRefId)
+	appConfigResponse, err := handler.chartService.GetDeploymentTemplateDataByAppIdAndCharRefId(appId, chartRefId)
 	if err != nil {
 		handler.Logger.Errorw("refChartDir Not Found err, JsonSchemaExtractFromFile", err)
 		common.WriteJsonResp(w, err, nil, http.StatusForbidden)
 		return
 	}
-
-	schema, readme, err := handler.chartRefService.GetSchemaAndReadmeForTemplateByChartRefId(chartRefId)
-	if err != nil {
-		handler.Logger.Errorw("err in getting schema and readme, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
-	}
-
-	template, err := handler.chartReadService.FindLatestChartForAppByAppId(appId)
-	if err != nil && pg.ErrNoRows != err {
-		handler.Logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	if pg.ErrNoRows == err {
-		appOverride, _, err := handler.chartRefService.GetAppOverrideForDefaultTemplate(chartRefId)
-		if err != nil {
-			handler.Logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		appOverride["schema"] = json.RawMessage(schema)
-		appOverride["readme"] = string(readme)
-		mapB, err := json.Marshal(appOverride)
-		if err != nil {
-			handler.Logger.Errorw("marshal err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
-			return
-		}
-		appConfigResponse["globalConfig"] = json.RawMessage(mapB)
-	} else {
-		if template.ChartRefId != chartRefId {
-			templateRequested, err := handler.chartService.GetByAppIdAndChartRefId(appId, chartRefId)
-			if err != nil && err != pg.ErrNoRows {
-				handler.Logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
-				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-				return
-			}
-
-			if pg.ErrNoRows == err {
-				template.ChartRefId = chartRefId
-				template.Id = 0
-				template.Latest = false
-			} else {
-				template.ChartRefId = templateRequested.ChartRefId
-				template.Id = templateRequested.Id
-				template.ChartRepositoryId = templateRequested.ChartRepositoryId
-				template.RefChartTemplate = templateRequested.RefChartTemplate
-				template.RefChartTemplateVersion = templateRequested.RefChartTemplateVersion
-				template.Latest = templateRequested.Latest
-			}
-		}
-		template.Schema = schema
-		template.Readme = string(readme)
-		bytes, err := json.Marshal(template)
-		if err != nil {
-			handler.Logger.Errorw("marshal err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
-			return
-		}
-		appOverride := json.RawMessage(bytes)
-		appConfigResponse["globalConfig"] = appOverride
-	}
-
 	common.WriteJsonResp(w, nil, appConfigResponse, http.StatusOK)
 }
 
@@ -1992,15 +1900,9 @@ func (handler *PipelineConfigRestHandlerImpl) GetCdPipelineById(w http.ResponseW
 		return
 	}
 
-	cdPipeline, err := handler.pipelineBuilder.GetCdPipelineById(pipelineId)
+	cdResp, err := handler.pipelineBuilder.GetCdPipelineByIdResolved(pipelineId, version)
 	if err != nil {
-		handler.Logger.Errorw("service err, GetCdPipelineById", "err", err, "appId", appId, "pipelineId", pipelineId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	cdResp, err := pipeline.CreatePreAndPostStageResponse(cdPipeline, version)
-	if err != nil {
-		handler.Logger.Errorw("service err, CheckForVersionAndCreatePreAndPostStagePayload", "err", err, "appId", appId, "pipelineId", pipelineId)
+		handler.Logger.Errorw("service err, GetCdPipelineByIdResolved", "appId", appId, "pipelineId", pipelineId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

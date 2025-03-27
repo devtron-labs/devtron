@@ -30,7 +30,7 @@ import (
 
 type GitOpsClient interface {
 	CreateRepository(ctx context.Context, config *gitOps.GitOpsConfigDto) (url string, isNew bool, isEmpty bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions)
-	CommitValues(ctx context.Context, config *ChartConfig, gitOpsConfig *gitOps.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error)
+	CommitValues(ctx context.Context, config *ChartConfig, gitOpsConfig *gitOps.GitOpsConfigDto, publishStatusConflictError bool) (commitHash string, commitTime time.Time, err error)
 	GetRepoUrl(config *gitOps.GitOpsConfigDto) (repoUrl string, isRepoEmpty bool, err error)
 	DeleteRepository(config *gitOps.GitOpsConfigDto) error
 	CreateReadme(ctx context.Context, config *gitOps.GitOpsConfigDto) (string, error)

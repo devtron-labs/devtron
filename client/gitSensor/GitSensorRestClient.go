@@ -88,6 +88,7 @@ type GitMaterial struct {
 	FetchSubmodules  bool
 	FilterPattern    []string
 	CloningMode      string
+	CreateBackup     bool
 }
 type GitProvider struct {
 	Id                    int
