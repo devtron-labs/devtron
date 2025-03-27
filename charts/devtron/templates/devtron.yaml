@@ -10,6 +10,9 @@ metadata:
   annotations:
     "helm.sh/resource-policy": keep
 data:
+  DEVTRON_HELM_RELEASE_NAME: {{ $.Release.Name }}
+  DEVTRON_HELM_RELEASE_NAMESPACE: {{ $.Release.Namespace }}
+  FEATURE_MIGRATE_ARGOCD_APPLICATION_ENABLE: "true"
   PG_USER: postgres
   PG_ADDR: postgresql-postgresql.devtroncd
   PG_PORT: "5432"
@@ -246,10 +249,7 @@ spec:
         - configMap:
             name: devtron-cluster-components
           name: devtron-cluster-components-vol
-      {{- if and $.Values.global $.Values.global.podSecurityContext }}
-      securityContext:
-{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
-      {{- end }}
+      {{- include "common.podSecurityContext" (dict "podSecurityContext" $.Values.components.devtron.podSecurityContext "global" $.Values.global) | indent 6 }}
       containers:
         - name: devtron
           {{- if $.Values.installer.modules }}
@@ -262,10 +262,7 @@ spec:
           image: {{ include "common.image" (dict "component" $.Values.components.devtron "global" $.Values.global) }}
           {{- end }}
           imagePullPolicy: {{ .imagePullPolicy }}
-          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
-          securityContext:
-{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
-          {{- end }}
+          {{- include "common.containerSecurityContext" (dict "containerSecurityContext" $.Values.components.devtron.containerSecurityContext "global" $.Values.global) | indent 10 }}
           lifecycle:
             preStop:
               exec:

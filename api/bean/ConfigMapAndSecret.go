@@ -80,6 +80,9 @@ func GetTransformedDataForSecretRootJsonData(data string, mode util.SecretTransf
 	}
 
 	for _, configData := range secretsJson.ConfigSecretJson.Secrets {
+		if configData.Data == nil || configData.External {
+			continue
+		}
 		configData.Data, err = util.GetDecodedAndEncodedData(configData.Data, mode)
 		if err != nil {
 			return "", err
