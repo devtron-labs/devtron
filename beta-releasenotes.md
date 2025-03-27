@@ -4,3 +4,4 @@
 ## Enhancements
 ## Documentation
 ## Others
+- sync: Release candidate v0.32.0 (#6479)
