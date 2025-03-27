@@ -4,4 +4,5 @@
 ## Enhancements
 ## Documentation
 ## Others
+- sync: vendor update (#6480)
 - sync: Release candidate v0.32.0 (#6479)
