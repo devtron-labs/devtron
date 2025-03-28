@@ -42,7 +42,7 @@ type PipelineConfigRepository interface {
 	FindByStrategyAndPipelineId(strategy chartRepoRepository.DeploymentStrategy, pipelineId int) (pipelineStrategy *PipelineStrategy, err error)
 	GetAllStrategyByPipelineId(pipelineId int) ([]*PipelineStrategy, error)
 	GetDefaultStrategyByPipelineId(pipelineId int) (pipelineStrategy *PipelineStrategy, err error)
-	Delete(pipelineStrategy *PipelineStrategy, tx *pg.Tx) error
+	MarkAsDeleted(pipelineStrategy *PipelineStrategy, userId int32, tx *pg.Tx) error
 	GetAllStrategyByPipelineIds(pipelineIds []int) ([]*PipelineStrategy, error)
 }
 
@@ -59,21 +59,25 @@ func (impl PipelineConfigRepositoryImpl) Save(pipelineStrategy *PipelineStrategy
 }
 
 func (impl PipelineConfigRepositoryImpl) Update(pipelineStrategy *PipelineStrategy, tx *pg.Tx) error {
-	_, err := impl.dbConnection.Model(pipelineStrategy).WherePK().UpdateNotNull()
+	_, err := tx.Model(pipelineStrategy).WherePK().UpdateNotNull()
 	return err
 }
 
 func (impl PipelineConfigRepositoryImpl) FindById(id int) (pipelineStrategy *PipelineStrategy, err error) {
 	pipelineStrategy = &PipelineStrategy{}
 	err = impl.dbConnection.Model(pipelineStrategy).
-		Where("id = ?", id).Select()
+		Where("id = ?", id).
+		Where("deleted = ?", false).
+		Select()
 	return pipelineStrategy, err
 }
 
 func (impl PipelineConfigRepositoryImpl) FindByStrategy(strategy chartRepoRepository.DeploymentStrategy) (pipelineStrategy *PipelineStrategy, err error) {
 	pipelineStrategy = &PipelineStrategy{}
 	err = impl.dbConnection.Model(pipelineStrategy).
-		Where("strategy = ?", strategy).Select()
+		Where("strategy = ?", strategy).
+		Where("deleted = ?", false).
+		Select()
 	return pipelineStrategy, err
 }
 
@@ -81,11 +85,15 @@ func (impl PipelineConfigRepositoryImpl) FindByStrategyAndPipelineId(strategy ch
 	pipelineStrategy = &PipelineStrategy{}
 	err = impl.dbConnection.Model(pipelineStrategy).
 		Where("strategy = ?", strategy).
-		Where("pipeline_id = ?", pipelineId).Select()
+		Where("pipeline_id = ?", pipelineId).
+		Where("deleted = ?", false).
+		Select()
 	return pipelineStrategy, err
 }
 
-// it will return for multiple pipeline config for pipeline, per pipeline single pipeline config(blue green, canary)
+// GetAllStrategyByPipelineId -
+// it will return for multiple pipeline strategies for a pipeline
+// per pipeline single pipeline strategy (BLUE_GREEN, CANARY, ROLLING, RECREATE) can be there
 func (impl PipelineConfigRepositoryImpl) GetAllStrategyByPipelineId(pipelineId int) ([]*PipelineStrategy, error) {
 	var pipelineStrategies []*PipelineStrategy
 	err := impl.dbConnection.
@@ -99,7 +107,8 @@ func (impl PipelineConfigRepositoryImpl) GetAllStrategyByPipelineId(pipelineId i
 	return pipelineStrategies, err
 }
 
-// it will return single latest pipeline config for requested pipeline
+// GetDefaultStrategyByPipelineId -
+// it will return single latest pipeline strategy for the requested pipeline
 func (impl PipelineConfigRepositoryImpl) GetDefaultStrategyByPipelineId(pipelineId int) (pipelineStrategy *PipelineStrategy, err error) {
 	pipelineStrategy = &PipelineStrategy{}
 	err = impl.dbConnection.
@@ -114,8 +123,12 @@ func (impl PipelineConfigRepositoryImpl) GetDefaultStrategyByPipelineId(pipeline
 	return pipelineStrategy, err
 }
 
-func (impl PipelineConfigRepositoryImpl) Delete(pipelineStrategy *PipelineStrategy, tx *pg.Tx) error {
-	return tx.Delete(pipelineStrategy)
+// MarkAsDeleted -
+// it will soft-delete the pipeline strategy from the database
+func (impl PipelineConfigRepositoryImpl) MarkAsDeleted(pipelineStrategy *PipelineStrategy, userId int32, tx *pg.Tx) error {
+	pipelineStrategy.Deleted = true
+	pipelineStrategy.UpdateAuditLog(userId)
+	return impl.Update(pipelineStrategy, tx)
 }
 
 func (impl PipelineConfigRepositoryImpl) GetAllStrategyByPipelineIds(pipelineIds []int) ([]*PipelineStrategy, error) {

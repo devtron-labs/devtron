@@ -33,7 +33,7 @@ type AppLevelMetrics struct {
 
 type AppLevelMetricsRepository interface {
 	Save(metrics *AppLevelMetrics) error
-	FindByAppId(id int) (*AppLevelMetrics, error)
+	FindByAppId(appId int) (*AppLevelMetrics, error)
 	Update(metrics *AppLevelMetrics) error
 }
 

@@ -25,7 +25,7 @@ import (
 
 type DevtronAppCMCSService interface {
 	//FetchConfigmapSecretsForCdStages : Delegating the request to appService for fetching cm/cs
-	FetchConfigmapSecretsForCdStages(appId, envId, cdPipelineId int) (ConfigMapSecretsResponse, error)
+	FetchConfigmapSecretsForCdStages(appId, envId int) (ConfigMapSecretsResponse, error)
 }
 
 type DevtronAppCMCSServiceImpl struct {
@@ -46,14 +46,14 @@ func NewDevtronAppCMCSServiceImpl(
 	}
 }
 
-func (impl *DevtronAppCMCSServiceImpl) FetchConfigmapSecretsForCdStages(appId, envId, cdPipelineId int) (ConfigMapSecretsResponse, error) {
-	configMapSecrets, err := impl.appService.GetConfigMapAndSecretJson(appId, envId, cdPipelineId)
+func (impl *DevtronAppCMCSServiceImpl) FetchConfigmapSecretsForCdStages(appId, envId int) (ConfigMapSecretsResponse, error) {
+	configMapSecrets, err := impl.appService.GetConfigMapAndSecretJson(appId, envId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching config secrets ", "err", err)
 		return ConfigMapSecretsResponse{}, err
 	}
 	existingConfigMapSecrets := ConfigMapSecretsResponse{}
-	err = json.Unmarshal([]byte(configMapSecrets), &existingConfigMapSecrets)
+	err = json.Unmarshal(configMapSecrets, &existingConfigMapSecrets)
 	if err != nil {
 		impl.logger.Error(err)
 		return ConfigMapSecretsResponse{}, err

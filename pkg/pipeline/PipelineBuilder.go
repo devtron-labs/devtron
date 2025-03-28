@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
+	chartRefBean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"net/url"
 	"strings"
 	"time"
@@ -202,14 +203,6 @@ func getPatchMessage(err error) string {
 	return ""
 }
 
-type DeploymentType struct {
-	Deployment Deployment `json:"deployment"`
-}
-
-type Deployment struct {
-	Strategy map[string]interface{} `json:"strategy"`
-}
-
 type ConfigMapSecretsResponse struct {
 	Maps    []bean2.ConfigSecretMap `json:"maps"`
 	Secrets []bean2.ConfigSecretMap `json:"secrets"`
@@ -277,12 +270,7 @@ type AppBean struct {
 }
 
 type PipelineStrategiesResponse struct {
-	PipelineStrategy []PipelineStrategy `json:"pipelineStrategy"`
-}
-type PipelineStrategy struct {
-	DeploymentTemplate chartRepoRepository.DeploymentStrategy `json:"deploymentTemplate,omitempty"` //
-	Config             json.RawMessage                        `json:"config"`
-	Default            bool                                   `json:"default"`
+	PipelineStrategy []chartRefBean.PipelineStrategy `json:"pipelineStrategy"`
 }
 
 func CheckAppReleaseNotExist(err error) bool {

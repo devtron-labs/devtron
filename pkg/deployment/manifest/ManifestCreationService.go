@@ -557,7 +557,7 @@ func (impl *ManifestCreationServiceImpl) mergeOverrideValues(envOverride *bean2.
 	} else {
 		templateOverrideValuesByte = []byte(envOverride.ResolvedEnvOverrideValues)
 	}
-	merged, err = impl.mergeUtil.JsonPatch([]byte("{}"), templateOverrideValuesByte)
+	merged, err = impl.mergeUtil.JsonPatch(globalUtil.GetEmptyJSON(), templateOverrideValuesByte)
 	if err != nil {
 		impl.logger.Errorw("error in merging deployment template override values", "err", err, "overrideValues", templateOverrideValuesByte)
 		return nil, err
