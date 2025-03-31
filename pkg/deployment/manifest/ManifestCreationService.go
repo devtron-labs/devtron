@@ -1033,17 +1033,12 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 	impl.logger.Debugw("autoscalingCheckBeforeTrigger", "pipelineId", pipelineId, "hpaResourceRequest", hpaResourceRequest)
 	if hpaResourceRequest.IsEnable {
 		var resourceManifest map[string]interface{}
-		if envDeploymentConfig.IsArgoCdClientSupported() {
-			resourceManifest, err = impl.getArgoCdHPAResourceManifest(newCtx, appName, namespace, hpaResourceRequest)
-			if err != nil {
-				return merged, err
-			}
-		} else {
-			resourceManifest, err = impl.getK8sHPAResourceManifest(newCtx, clusterId, namespace, hpaResourceRequest)
-			if err != nil {
-				return merged, err
-			}
+
+		resourceManifest, err = impl.getK8sHPAResourceManifest(newCtx, clusterId, namespace, hpaResourceRequest)
+		if err != nil {
+			return merged, err
 		}
+
 		if len(resourceManifest) > 0 {
 			statusMap := resourceManifest["status"].(map[string]interface{})
 			currentReplicaVal := statusMap["currentReplicas"]
