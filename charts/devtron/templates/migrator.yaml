@@ -310,6 +310,73 @@ spec:
           name: shared-volume 
   backoffLimit: 20
   activeDeadlineSeconds: 1500
+{{- if $.Values.devtronEnterprise.enabled }}
+---
+{{- if $.Capabilities.APIVersions.Has "batch/v1/Job" }}
+apiVersion: batch/v1
+{{- else }}
+apiVersion: batch/v1beta1
+{{- end }}
+kind: Job
+metadata:
+  namespace: devtroncd
+  name: postgresql-migrate-enterprise
+spec:
+  activeDeadlineSeconds: 1500
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 20
+  completions: 1
+  parallelism: 1
+  template:
+    metadata:
+      labels:
+        app: migrator
+    spec:
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.migrator.nodeSelector "tolerations" $.Values.components.migrator.tolerations "imagePullSecrets" $.Values.components.migrator.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      serviceAccountName: devtron-default-sa
+      initContainers:
+        - command:
+            - /bin/sh
+            - -c
+            - cp -r scripts/sql-ent /shared/
+          image: {{ include "common.image" (dict "component" $.Values.components.devtron "global" $.Values.global "extraImage" $.Values.components.devtron.cicdImage ) }}
+          name: init-ent-migrations
+          volumeMounts:
+            - mountPath: /shared
+              name: shared-volume
+      containers:
+        - command:
+            - /bin/sh
+            - -c
+            - export DATABASE_URL="postgres://${DB_USER_NAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable"; ./geni up
+          env:
+            - name: DATABASE_MIGRATIONS_FOLDER
+              value: /shared/sql-ent/
+            - name: DB_USER_NAME
+              value: postgres
+            - name: DB_HOST
+              value: postgresql-postgresql.devtroncd
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: orchestrator
+            - name: MIGRATE_TO_VERSION
+              value: "0"
+            - name: DATABASE_MIGRATIONS_TABLE
+              value: ent_migrations
+          envFrom:
+            - secretRef:
+                name: postgresql-migrator
+          image: {{ include "common.image" (dict "component" $.Values.components.migrator "global" $.Values.global "extraImage" $.Values.components.migrator.entMigratorImage ) }}
+          name: postgresql-enterprise-migrations
+          volumeMounts:
+            - mountPath: /shared
+              name: shared-volume
+      restartPolicy: OnFailure
+      volumes:
+        - emptyDir: {}
+          name: shared-volume
+{{- end }}
 ---
 {{- if $.Capabilities.APIVersions.Has "batch/v1/Job" }}
 apiVersion: batch/v1

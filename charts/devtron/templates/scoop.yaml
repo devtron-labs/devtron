@@ -52,7 +52,7 @@ spec:
             - name: TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: devtron-secret
+                  name: devtron-custom-secret
                   key: ORCH_TOKEN
           envFrom:
             - configMapRef:

@@ -284,8 +284,7 @@ func (impl *CiWorkflowRepositoryImpl) UpdateArtifactUploaded(id int, isUploaded 
 func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByCiIds(pipelineId []int) (ciWorkflow []*CiWorkflow, err error) {
 	err = impl.dbConnection.Model(&ciWorkflow).
 		Column("ci_workflow.*", "CiPipeline").
-		Where("ci_workflow.ci_pipeline_id in (?) ", pg.In(pipelineId)).
-		Order("ci_workflow.started_on Desc").
+		Where("ci_workflow.id IN (select MAX(id) from ci_workflow where  ci_pipeline_id IN (?) GROUP BY ci_pipeline_id)", pg.In(pipelineId)).
 		Select()
 	return ciWorkflow, err
 }
