@@ -101,6 +101,8 @@ spec:
           envFrom:
           - configMapRef:
               name: devtron-common-cm
+          - configMapRef: 
+              name: devtron-operator-cm
           {{- if $.Values.installer.resources }}    
           resources:
           {{- toYaml $.Values.installer.resources | nindent 12 }}
