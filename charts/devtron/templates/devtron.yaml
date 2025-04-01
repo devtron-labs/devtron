@@ -32,6 +32,7 @@ data:
   CASBIN_CLIENT_URL: casbin-service.devtroncd:9000
   CD_WORKFLOW_EXECUTOR_TYPE: SYSTEM
   CI_WORKFLOW_EXECUTOR_TYPE: SYSTEM
+  DEVTRON_INSTALLATION_TYPE: enterprise
   {{- end }}
 {{- if $.Values.installer.modules }}
 {{- if has "cicd" $.Values.installer.modules }}
