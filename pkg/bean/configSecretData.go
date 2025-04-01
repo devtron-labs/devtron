@@ -88,6 +88,9 @@ func GetTransformedDataForSecretConfigData(data string, mode util.SecretTransfor
 	}
 
 	for _, configData := range secretDataMap {
+		if configData.Data == nil || configData.External {
+			continue
+		}
 		data, err := util.GetDecodedAndEncodedData(configData.Data, mode)
 		if err != nil {
 			return "", err
@@ -110,6 +113,9 @@ func (SecretList) GetTransformedDataForSecret(data string, mode util.SecretTrans
 	}
 
 	for _, configData := range secretsList.ConfigData {
+		if configData.Data == nil || configData.External {
+			continue
+		}
 		configData.Data, err = util.GetDecodedAndEncodedData(configData.Data, mode)
 		if err != nil {
 			return "", err
