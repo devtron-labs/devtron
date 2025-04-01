@@ -36,7 +36,6 @@ import (
 	common2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
 	repository6 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
-	pipelineConst "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
 	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
@@ -195,7 +194,7 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 	}
 
 	// checking if user has given run time parameters for externalCiArtifact, if given then sending git material to Ci-Runner
-	externalCiArtifact, exists := trigger.RuntimeParameters.GetGlobalRuntimeVariables()[pipelineConst.ExtraEnvVarExternalCiArtifactKey]
+	externalCiArtifact, exists := trigger.RuntimeParameters.GetGlobalRuntimeVariables()[buildBean.ExtraEnvVarExternalCiArtifactKey]
 	// validate externalCiArtifact as docker image
 	if exists {
 		externalCiArtifact = strings.TrimSpace(externalCiArtifact)
@@ -220,11 +219,11 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 
 		}
 		// This will overwrite the existing runtime parameters value for constants.externalCiArtifact
-		trigger.RuntimeParameters = trigger.RuntimeParameters.AddRuntimeGlobalVariable(pipelineConst.ExtraEnvVarExternalCiArtifactKey, externalCiArtifact)
+		trigger.RuntimeParameters = trigger.RuntimeParameters.AddRuntimeGlobalVariable(buildBean.ExtraEnvVarExternalCiArtifactKey, externalCiArtifact)
 		var artifactExists bool
 		var err error
 
-		imageDigest, ok := trigger.RuntimeParameters.GetGlobalRuntimeVariables()[pipelineConst.ExtraEnvVarImageDigestKey]
+		imageDigest, ok := trigger.RuntimeParameters.GetGlobalRuntimeVariables()[buildBean.ExtraEnvVarImageDigestKey]
 		if !ok || len(imageDigest) == 0 {
 			artifactExists, err = impl.ciArtifactRepository.IfArtifactExistByImage(externalCiArtifact, trigger.PipelineId)
 			if err != nil {
