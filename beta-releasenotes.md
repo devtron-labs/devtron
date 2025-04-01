@@ -4,6 +4,7 @@
 - fix: optimisation in workflow status api (#6473)
 - fix: let user delete the container reg if the ref app was deleted (#6464)
 ## Enhancements
+- feat: licensing changes (#6474)
 ## Documentation
 ## Others
 - sync: Main sync develop 27mar (#6483)
