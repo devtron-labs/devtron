@@ -33,6 +33,7 @@ data:
   CD_WORKFLOW_EXECUTOR_TYPE: SYSTEM
   CI_WORKFLOW_EXECUTOR_TYPE: SYSTEM
   DEVTRON_INSTALLATION_TYPE: enterprise
+  DEVTRON_VERSION_IDENTIFIER_IN_HELM_VALUES: "devtron.installer.release"
   {{- end }}
 {{- if $.Values.installer.modules }}
 {{- if has "cicd" $.Values.installer.modules }}
