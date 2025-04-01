@@ -34,6 +34,7 @@ data:
   CI_WORKFLOW_EXECUTOR_TYPE: SYSTEM
   DEVTRON_INSTALLATION_TYPE: enterprise
   DEVTRON_VERSION_IDENTIFIER_IN_HELM_VALUES: "devtron.installer.release"
+  DEVTRON_BOM_URL: https://github.com/devtron-labs/charts/blob/devtron-enterprise-%s/charts/devtron-enterprise/devtron-bom.yaml
   {{- end }}
 {{- if $.Values.installer.modules }}
 {{- if has "cicd" $.Values.installer.modules }}
