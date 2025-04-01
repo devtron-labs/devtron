@@ -52,7 +52,8 @@ type ActionResponse struct {
 }
 
 type ModuleEnvConfig struct {
-	ModuleStatusHandlingCronDurationInMin int `env:"MODULE_STATUS_HANDLING_CRON_DURATION_MIN" envDefault:"3"` // default 3 minutes
+	ModuleStatusHandlingCronDurationInMin int      `env:"MODULE_STATUS_HANDLING_CRON_DURATION_MIN" envDefault:"3"` // default 3 minutes
+	InstalledModules                      []string `env:"INSTALLED_MODULES" envDefault:"" envSeparator:"," description:"List of installed modules given in helm values/yaml are written in cm and used by devtron to know which modules are given" example:"security.trivy,security.clair"`
 }
 
 type ModuleResourceStatusDto struct {

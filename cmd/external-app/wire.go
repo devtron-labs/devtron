@@ -97,7 +97,6 @@ import (
 func InitializeApp() (*App, error) {
 	wire.Build(
 		user.SelfRegistrationWireSet,
-
 		sql.PgSqlWireSet,
 		user.UserWireSet,
 		sso.SsoConfigWireSet,
