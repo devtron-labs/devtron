@@ -32,6 +32,7 @@ import (
 	repository6 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	common3 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
 	read2 "github.com/devtron-labs/devtron/pkg/chart/read"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
@@ -329,7 +330,7 @@ func (impl CiCdPipelineOrchestratorImpl) validateCiPipelineMaterial(ciPipelineMa
 
 func (impl CiCdPipelineOrchestratorImpl) getSkipMessage(ciPipeline *pipelineConfig.CiPipeline) string {
 	switch ciPipeline.PipelineType {
-	case string(bean2.LINKED_CD):
+	case string(common3.LINKED_CD):
 		return "“Sync with Environment”"
 	default:
 		return "“Linked Build Pipeline”"
@@ -1010,7 +1011,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 
 		var pipelineMaterials []*pipelineConfig.CiPipelineMaterial
 		for _, r := range ciPipeline.CiMaterial {
-			if ciPipeline.PipelineType == bean2.LINKED_CD {
+			if ciPipeline.PipelineType == common3.LINKED_CD {
 				continue
 			}
 			material := &pipelineConfig.CiPipelineMaterial{

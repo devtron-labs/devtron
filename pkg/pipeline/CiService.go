@@ -32,7 +32,8 @@ import (
 	bean4 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/bean/common"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
-	bean6 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	buildBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	common2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
 	repository6 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	pipelineConst "github.com/devtron-labs/devtron/pkg/pipeline/constants"
@@ -79,6 +80,7 @@ import (
 type CiService interface {
 	TriggerCiPipeline(trigger types.Trigger) (int, error)
 	GetCiMaterials(pipelineId int, ciMaterials []*pipelineConfig.CiPipelineMaterial) ([]*pipelineConfig.CiPipelineMaterial, error)
+	WriteCIFailEvent(ciWorkflow *pipelineConfig.CiWorkflow)
 	SaveCiWorkflowWithStage(wf *pipelineConfig.CiWorkflow) error
 	UpdateCiWorkflowWithStage(wf *pipelineConfig.CiWorkflow) error
 }
@@ -188,7 +190,7 @@ func (impl *CiServiceImpl) GetCiMaterials(pipelineId int, ciMaterials []*pipelin
 
 func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger, ciMaterials []*pipelineConfig.CiPipelineMaterial, workflowRequest *types.WorkflowRequest) error {
 	// externalCi artifact is meant only for CI_JOB
-	if trigger.PipelineType != string(bean6.CI_JOB) {
+	if trigger.PipelineType != string(common2.CI_JOB) {
 		return nil
 	}
 
@@ -247,7 +249,7 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 		}
 
 	}
-	if trigger.PipelineType == string(bean6.CI_JOB) && len(ciMaterials) != 0 && !exists && externalCiArtifact == "" {
+	if trigger.PipelineType == string(common2.CI_JOB) && len(ciMaterials) != 0 && !exists && externalCiArtifact == "" {
 		ciMaterials[0].GitMaterial = nil
 		ciMaterials[0].GitMaterialId = 0
 	}
@@ -490,7 +492,7 @@ func (impl *CiServiceImpl) getEnvironmentForJob(pipeline *pipelineConfig.CiPipel
 
 func (impl *CiServiceImpl) WriteCITriggerEvent(trigger types.Trigger, pipeline *pipelineConfig.CiPipeline, workflowRequest *types.WorkflowRequest) {
 	event, _ := impl.eventFactory.Build(util2.Trigger, &pipeline.Id, pipeline.AppId, nil, util2.CI)
-	material := &client.MaterialTriggerInfo{}
+	material := &buildBean.MaterialTriggerInfo{}
 
 	material.GitTriggers = trigger.CommitHashes
 
@@ -663,7 +665,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	var dockerfilePath string
 	var dockerRepository string
 	var checkoutPath string
-	var ciBuildConfigBean *bean6.CiBuildConfigBean
+	var ciBuildConfigBean *buildBean.CiBuildConfigBean
 	dockerRegistry := &repository3.DockerArtifactStore{}
 	ciBaseBuildConfigEntity := ciTemplate.CiBuildConfig
 	ciBaseBuildConfigBean, err := adapter.ConvertDbBuildConfigToBean(ciBaseBuildConfigEntity)
@@ -774,13 +776,13 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 
 	ciBuildConfigBean.PipelineType = trigger.PipelineType
 
-	if ciBuildConfigBean.CiBuildType == bean6.SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == bean6.MANAGED_DOCKERFILE_BUILD_TYPE {
+	if ciBuildConfigBean.CiBuildType == buildBean.SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == buildBean.MANAGED_DOCKERFILE_BUILD_TYPE {
 		ciBuildConfigBean.DockerBuildConfig.BuildContext = filepath.Join(buildContextCheckoutPath, ciBuildConfigBean.DockerBuildConfig.BuildContext)
 		dockerBuildConfig := ciBuildConfigBean.DockerBuildConfig
 		dockerfilePath = filepath.Join(checkoutPath, dockerBuildConfig.DockerfilePath)
 		dockerBuildConfig.DockerfilePath = dockerfilePath
 		checkoutPath = dockerfilePath[:strings.LastIndex(dockerfilePath, "/")+1]
-	} else if ciBuildConfigBean.CiBuildType == bean6.BUILDPACK_BUILD_TYPE {
+	} else if ciBuildConfigBean.CiBuildType == buildBean.BUILDPACK_BUILD_TYPE {
 		buildPackConfig := ciBuildConfigBean.BuildPackConfig
 		checkoutPath = filepath.Join(checkoutPath, buildPackConfig.ProjectPath)
 	}
@@ -1132,6 +1134,20 @@ func _getTruncatedImageTag(imageTag string) string {
 		return imageTag
 	} else {
 		return imageTag[:_truncatedLength]
+	}
+}
+
+func (impl *CiServiceImpl) WriteCIFailEvent(ciWorkflow *pipelineConfig.CiWorkflow) {
+	event, _ := impl.eventFactory.Build(util2.Fail, &ciWorkflow.CiPipelineId, ciWorkflow.CiPipeline.AppId, nil, util2.CI)
+	material := &buildBean.MaterialTriggerInfo{}
+	material.GitTriggers = ciWorkflow.GitTriggers
+	event.CiWorkflowRunnerId = ciWorkflow.Id
+	event.UserId = int(ciWorkflow.TriggeredBy)
+	event = impl.eventFactory.BuildExtraCIData(event, material)
+	event.CiArtifactId = 0
+	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
+	if evtErr != nil {
+		impl.Logger.Errorw("error in writing event", "err", evtErr)
 	}
 }
 

@@ -26,6 +26,7 @@ import (
 	cdWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
+	buildBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	bean3 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
@@ -435,9 +436,9 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 			return cdWorkflowArtifact, err
 		}
 
-		var ciMaterialsArr []pipelineConfig.CiPipelineMaterialResponse
+		var ciMaterialsArr []buildBean.CiPipelineMaterialResponse
 		for _, ciMaterial := range ciMaterials {
-			res := pipelineConfig.CiPipelineMaterialResponse{
+			res := buildBean.CiPipelineMaterialResponse{
 				Id:              ciMaterial.Id,
 				GitMaterialId:   ciMaterial.GitMaterialId,
 				GitMaterialName: ciMaterial.GitMaterial.Name[strings.Index(ciMaterial.GitMaterial.Name, "-")+1:],
@@ -689,9 +690,9 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		return types.WorkflowResponse{}, err
 	}
 
-	var ciMaterialsArr []pipelineConfig.CiPipelineMaterialResponse
+	var ciMaterialsArr []buildBean.CiPipelineMaterialResponse
 	for _, m := range ciMaterials {
-		res := pipelineConfig.CiPipelineMaterialResponse{
+		res := buildBean.CiPipelineMaterialResponse{
 			Id:              m.Id,
 			GitMaterialId:   m.GitMaterialId,
 			GitMaterialName: m.GitMaterial.Name[strings.Index(m.GitMaterial.Name, "-")+1:],

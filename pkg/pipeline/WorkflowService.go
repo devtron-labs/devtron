@@ -28,7 +28,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
-	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/config/read"
 	v1 "github.com/devtron-labs/devtron/pkg/infraConfig/bean/v1"
@@ -218,7 +218,7 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 
 func (impl *WorkflowServiceImpl) shouldAddExistingCmCsInWorkflow(workflowRequest *types.WorkflowRequest) bool {
 	// CmCs are not added for CI_JOB if IgnoreCmCsInCiJob is true
-	if workflowRequest.CiPipelineType == string(bean2.CI_JOB) && impl.ciCdConfig.IgnoreCmCsInCiJob {
+	if workflowRequest.CiPipelineType == string(common.CI_JOB) && impl.ciCdConfig.IgnoreCmCsInCiJob {
 		return false
 	}
 	return true

@@ -68,7 +68,6 @@ const (
 const DefaultCiWorkflowNamespace = "devtron-ci"
 const Running = "Running"
 const Starting = "Starting"
-const POD_DELETED_MESSAGE = "pod deleted"
 const TERMINATE_MESSAGE = "workflow shutdown with strategy: Terminate"
 const FORCE_ABORT_MESSAGE_AFTER_STARTING_STAGE = "workflow shutdown with strategy: Force Abort"
 const POD_TIMEOUT_MESSAGE = "Pod was active on the node longer than the specified deadline"

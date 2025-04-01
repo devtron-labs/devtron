@@ -22,7 +22,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
-	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/plugin/repository"
@@ -101,7 +101,7 @@ func (impl *CiTriggerCronImpl) TriggerCiCron() {
 			CiPipelineMaterial: ciPipelineMaterials,
 			TriggeredBy:        bean2.SYSTEM_USER_ID,
 			InvalidateCache:    false,
-			PipelineType:       string(pipelineConfigBean.CI_JOB),
+			PipelineType:       string(common.CI_JOB),
 		}
 		_, err = impl.ciHandler.HandleCIManual(ciTriggerRequest)
 		if err != nil {
