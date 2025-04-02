@@ -23,7 +23,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/build/trigger"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	cron2 "github.com/devtron-labs/devtron/util/cron"
@@ -40,13 +40,14 @@ type CiTriggerCronImpl struct {
 	cron                    *cron.Cron
 	cfg                     *CiTriggerCronConfig
 	pipelineStageRepository repository.PipelineStageRepository
-	ciHandler               pipeline.CiHandler
 	ciArtifactRepository    repository2.CiArtifactRepository
 	globalPluginRepository  repository3.GlobalPluginRepository
+	ciTriggerService        trigger.Service
 }
 
 func NewCiTriggerCronImpl(logger *zap.SugaredLogger, cfg *CiTriggerCronConfig, pipelineStageRepository repository.PipelineStageRepository,
-	ciHandler pipeline.CiHandler, ciArtifactRepository repository2.CiArtifactRepository, globalPluginRepository repository3.GlobalPluginRepository, cronLogger *cron2.CronLoggerImpl) *CiTriggerCronImpl {
+	ciArtifactRepository repository2.CiArtifactRepository, globalPluginRepository repository3.GlobalPluginRepository, cronLogger *cron2.CronLoggerImpl,
+	ciTriggerService trigger.Service) *CiTriggerCronImpl {
 	cron := cron.New(
 		cron.WithChain(cron.Recover(cronLogger)))
 	cron.Start()
@@ -54,10 +55,10 @@ func NewCiTriggerCronImpl(logger *zap.SugaredLogger, cfg *CiTriggerCronConfig, p
 		logger:                  logger,
 		cron:                    cron,
 		pipelineStageRepository: pipelineStageRepository,
-		ciHandler:               ciHandler,
 		cfg:                     cfg,
 		ciArtifactRepository:    ciArtifactRepository,
 		globalPluginRepository:  globalPluginRepository,
+		ciTriggerService:        ciTriggerService,
 	}
 
 	_, err := cron.AddFunc(fmt.Sprintf("@every %dm", cfg.SourceControllerCronTime), impl.TriggerCiCron)
@@ -103,7 +104,7 @@ func (impl *CiTriggerCronImpl) TriggerCiCron() {
 			InvalidateCache:    false,
 			PipelineType:       string(common.CI_JOB),
 		}
-		_, err = impl.ciHandler.HandleCIManual(ciTriggerRequest)
+		_, err = impl.ciTriggerService.HandleCIManual(ciTriggerRequest)
 		if err != nil {
 			return
 		}

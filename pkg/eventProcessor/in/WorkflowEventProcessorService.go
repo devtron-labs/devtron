@@ -35,6 +35,7 @@ import (
 	util3 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	"github.com/devtron-labs/devtron/pkg/build/trigger"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
 	deploymentBean "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
@@ -91,6 +92,9 @@ type WorkflowEventProcessorImpl struct {
 	devtronAppReleaseContextMapLock *sync.Mutex
 	appServiceConfig                *app.AppServiceConfig
 
+	//ent only
+	ciTriggerService trigger.Service
+
 	// repositories import to be removed
 	pipelineRepository      pipelineConfig.PipelineRepository
 	ciArtifactRepository    repository.CiArtifactRepository
@@ -118,7 +122,8 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
-	deploymentConfigService common.DeploymentConfigService) (*WorkflowEventProcessorImpl, error) {
+	deploymentConfigService common.DeploymentConfigService,
+	ciTriggerService trigger.Service) (*WorkflowEventProcessorImpl, error) {
 	impl := &WorkflowEventProcessorImpl{
 		logger:                          logger,
 		pubSubClient:                    pubSubClient,
@@ -145,6 +150,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 		ciArtifactRepository:            ciArtifactRepository,
 		cdWorkflowRepository:            cdWorkflowRepository,
 		deploymentConfigService:         deploymentConfigService,
+		ciTriggerService:                ciTriggerService,
 	}
 	appServiceConfig, err := app.GetAppServiceConfig()
 	if err != nil {
@@ -394,7 +400,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCIWorkflowStatusUpdate() error 
 			return
 		}
 
-		err = impl.ciHandler.CheckAndReTriggerCI(wfStatus)
+		err = impl.ciTriggerService.CheckAndReTriggerCI(wfStatus)
 		if err != nil {
 			impl.logger.Errorw("error in checking and re triggering ci", "err", err)
 			//don't return as we have to update the workflow status

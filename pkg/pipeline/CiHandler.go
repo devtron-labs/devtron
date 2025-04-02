@@ -23,13 +23,9 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/common-lib/utils/workFlow"
-	constants2 "github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
-	bean6 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
-	"github.com/devtron-labs/devtron/pkg/bean/common"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	buildBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
-	buildCommonBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
@@ -59,7 +55,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/util/rbac"
-	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/rest"
 
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
@@ -73,9 +68,9 @@ import (
 )
 
 type CiHandler interface {
-	HandleCIWebhook(gitCiTriggerRequest bean.GitCiTriggerRequest) (int, error)
-	HandleCIManual(ciTriggerRequest bean.CiTriggerRequest) (int, error)
-	CheckAndReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error
+	//	HandleCIWebhook(gitCiTriggerRequest bean.GitCiTriggerRequest) (int, error)
+	//HandleCIManual(ciTriggerRequest bean.CiTriggerRequest) (int, error)
+	//CheckAndReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error
 	FetchMaterialsByPipelineId(pipelineId int, showAll bool) ([]buildBean.CiPipelineMaterialResponse, error)
 	FetchMaterialsByPipelineIdAndGitMaterialId(pipelineId int, gitMaterialId int, showAll bool) ([]buildBean.CiPipelineMaterialResponse, error)
 	FetchWorkflowDetails(appId int, pipelineId int, buildId int) (types.WorkflowResponse, error)
@@ -93,7 +88,7 @@ type CiHandler interface {
 	FetchCiStatusForTriggerViewV1(appId int) ([]*pipelineConfig.CiWorkflowStatus, error)
 	RefreshMaterialByCiPipelineMaterialId(gitMaterialId int) (refreshRes *gitSensor.RefreshGitMaterialResponse, err error)
 	FetchMaterialInfoByArtifactId(ciArtifactId int, envId int) (*types.GitTriggerInfoResponse, error)
-	UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild int) error
+	//UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild int) error
 	FetchCiStatusForTriggerViewForEnvironment(request resourceGroup.ResourceGroupingRequest, token string) ([]*pipelineConfig.CiWorkflowStatus, error)
 	CiHandlerEnt
 }
@@ -170,187 +165,6 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 	cih.config = config
 
 	return cih
-}
-
-func (impl *CiHandlerImpl) CheckAndReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error {
-
-	// return if re-trigger feature is disabled
-	if !impl.config.WorkflowRetriesEnabled() {
-		impl.Logger.Debug("CI re-trigger is disabled")
-		return nil
-	}
-
-	status, message, ciWorkFlow, err := impl.extractPodStatusAndWorkflow(workflowStatus)
-	if err != nil {
-		impl.Logger.Errorw("error in extractPodStatusAndWorkflow", "err", err)
-		return err
-	}
-
-	if !executors.CheckIfReTriggerRequired(status, message, ciWorkFlow.Status) {
-		impl.Logger.Debugw("not re-triggering ci", "status", status, "message", message, "ciWorkflowStatus", ciWorkFlow.Status)
-		return nil
-	}
-
-	impl.Logger.Debugw("re-triggering ci", "status", status, "message", message, "ciWorkflowStatus", ciWorkFlow.Status, "ciWorkFlowId", ciWorkFlow.Id)
-
-	retryCount, refCiWorkflow, err := impl.getRefWorkflowAndCiRetryCount(ciWorkFlow)
-	if err != nil {
-		impl.Logger.Errorw("error while getting retry count value for a ciWorkflow", "ciWorkFlowId", ciWorkFlow.Id)
-		return err
-	}
-
-	err = impl.reTriggerCi(retryCount, refCiWorkflow)
-	if err != nil {
-		impl.Logger.Errorw("error in reTriggerCi", "err", err, "status", status, "message", message, "retryCount", retryCount, "ciWorkFlowId", ciWorkFlow.Id)
-	}
-	return err
-}
-
-func (impl *CiHandlerImpl) reTriggerCi(retryCount int, refCiWorkflow *pipelineConfig.CiWorkflow) error {
-	if retryCount >= impl.config.MaxCiWorkflowRetries {
-		impl.Logger.Infow("maximum retries exhausted for this ciWorkflow", "ciWorkflowId", refCiWorkflow.Id, "retries", retryCount, "configuredRetries", impl.config.MaxCiWorkflowRetries)
-		return nil
-	}
-	impl.Logger.Infow("re-triggering ci for a ci workflow", "ReferenceCiWorkflowId", refCiWorkflow.Id)
-	ciPipelineMaterialIds := make([]int, 0, len(refCiWorkflow.GitTriggers))
-	for id, _ := range refCiWorkflow.GitTriggers {
-		ciPipelineMaterialIds = append(ciPipelineMaterialIds, id)
-	}
-	ciMaterials, err := impl.ciPipelineMaterialRepository.GetByIdsIncludeDeleted(ciPipelineMaterialIds)
-	if err != nil {
-		impl.Logger.Errorw("error in getting ci Pipeline Materials using ciPipeline Material Ids", "ciPipelineMaterialIds", ciPipelineMaterialIds, "err", err)
-		return err
-	}
-
-	trigger := types.Trigger{}
-	trigger.BuildTriggerObject(refCiWorkflow, ciMaterials, bean6.SYSTEM_USER_ID, true, nil, "")
-
-	// updating runtime params
-	trigger.RuntimeParameters, err = impl.updateRuntimeParamsForAutoCI(trigger.PipelineId, trigger.RuntimeParameters)
-	if err != nil {
-		impl.Logger.Errorw("err, updateRuntimeParamsForAutoCI", "ciPipelineId", trigger.PipelineId,
-			"runtimeParameters", trigger.RuntimeParameters, "err", err)
-		return err
-	}
-	_, err = impl.ciService.TriggerCiPipeline(trigger)
-
-	if err != nil {
-		impl.Logger.Errorw("error occurred in re-triggering ciWorkflow", "triggerDetails", trigger, "err", err)
-		return err
-	}
-	return nil
-}
-
-func (impl *CiHandlerImpl) HandleCIManual(ciTriggerRequest bean.CiTriggerRequest) (int, error) {
-	impl.Logger.Debugw("HandleCIManual for pipeline ", "PipelineId", ciTriggerRequest.PipelineId)
-	commitHashes, runtimeParams, err := impl.buildManualTriggerCommitHashes(ciTriggerRequest)
-	if err != nil {
-		return 0, err
-	}
-
-	ciArtifact, err := impl.ciArtifactRepository.GetLatestArtifactTimeByCiPipelineId(ciTriggerRequest.PipelineId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.Logger.Errorw("Error in GetLatestArtifactTimeByCiPipelineId", "err", err, "pipelineId", ciTriggerRequest.PipelineId)
-		return 0, err
-	}
-
-	createdOn := time.Time{}
-	if err != pg.ErrNoRows {
-		createdOn = ciArtifact.CreatedOn
-	}
-
-	trigger := types.Trigger{
-		PipelineId:          ciTriggerRequest.PipelineId,
-		CommitHashes:        commitHashes,
-		CiMaterials:         nil,
-		TriggeredBy:         ciTriggerRequest.TriggeredBy,
-		InvalidateCache:     ciTriggerRequest.InvalidateCache,
-		RuntimeParameters:   runtimeParams,
-		EnvironmentId:       ciTriggerRequest.EnvironmentId,
-		PipelineType:        ciTriggerRequest.PipelineType,
-		CiArtifactLastFetch: createdOn,
-	}
-	id, err := impl.ciService.TriggerCiPipeline(trigger)
-
-	if err != nil {
-		return 0, err
-	}
-	return id, nil
-}
-
-func (impl *CiHandlerImpl) HandleCIWebhook(gitCiTriggerRequest bean.GitCiTriggerRequest) (int, error) {
-	impl.Logger.Debugw("HandleCIWebhook for material ", "material", gitCiTriggerRequest.CiPipelineMaterial)
-	ciPipeline, err := impl.GetCiPipeline(gitCiTriggerRequest.CiPipelineMaterial.Id)
-	if err != nil {
-		impl.Logger.Errorw("err in getting ci_pipeline by ciPipelineMaterialId", "ciPipelineMaterialId", gitCiTriggerRequest.CiPipelineMaterial.Id, "err", err)
-		return 0, err
-	}
-	if ciPipeline.IsManual || ciPipeline.PipelineType == buildCommonBean.LINKED_CD.ToString() {
-		impl.Logger.Debugw("not handling for manual pipeline or in case of linked cd", "pipelineId", ciPipeline.Id)
-		return 0, err
-	}
-
-	ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(ciPipeline.Id)
-	if err != nil {
-		impl.Logger.Errorw("err", "err", err)
-		return 0, err
-	}
-	isValidBuildSequence, err := impl.validateBuildSequence(gitCiTriggerRequest, ciPipeline.Id)
-	if !isValidBuildSequence {
-		return 0, errors.New("ignoring older build for ciMaterial " + strconv.Itoa(gitCiTriggerRequest.CiPipelineMaterial.Id) +
-			" commit " + gitCiTriggerRequest.CiPipelineMaterial.GitCommit.Commit)
-	}
-	// updating runtime params
-	runtimeParams := common.NewRuntimeParameters()
-	for k, v := range gitCiTriggerRequest.ExtraEnvironmentVariables {
-		runtimeParams = runtimeParams.AddSystemVariable(k, v)
-	}
-	runtimeParams, err = impl.updateRuntimeParamsForAutoCI(ciPipeline.Id, runtimeParams)
-	if err != nil {
-		impl.Logger.Errorw("err, updateRuntimeParamsForAutoCI", "ciPipelineId", ciPipeline.Id,
-			"runtimeParameters", runtimeParams, "err", err)
-		return 0, err
-	}
-	commitHashes, err := impl.buildAutomaticTriggerCommitHashes(ciMaterials, gitCiTriggerRequest)
-	if err != nil {
-		return 0, err
-	}
-
-	trigger := types.Trigger{
-		PipelineId:        ciPipeline.Id,
-		CommitHashes:      commitHashes,
-		CiMaterials:       ciMaterials,
-		TriggeredBy:       gitCiTriggerRequest.TriggeredBy,
-		RuntimeParameters: runtimeParams,
-	}
-	id, err := impl.ciService.TriggerCiPipeline(trigger)
-	if err != nil {
-		return 0, err
-	}
-	return id, nil
-}
-
-func (impl *CiHandlerImpl) validateBuildSequence(gitCiTriggerRequest bean.GitCiTriggerRequest, pipelineId int) (bool, error) {
-	isValid := true
-	lastTriggeredBuild, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflow(pipelineId)
-	if !(lastTriggeredBuild.Status == string(v1alpha1.NodePending) || lastTriggeredBuild.Status == string(v1alpha1.NodeRunning)) {
-		return true, nil
-	}
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("cannot get last build for pipeline", "pipelineId", pipelineId)
-		return false, err
-	}
-
-	ciPipelineMaterial := gitCiTriggerRequest.CiPipelineMaterial
-
-	if ciPipelineMaterial.Type == string(constants2.SOURCE_TYPE_BRANCH_FIXED) {
-		if ciPipelineMaterial.GitCommit.Date.Before(lastTriggeredBuild.GitTriggers[ciPipelineMaterial.Id].Date) {
-			impl.Logger.Warnw("older commit cannot be built for pipeline", "pipelineId", pipelineId, "ciMaterial", gitCiTriggerRequest.CiPipelineMaterial.Id)
-			isValid = false
-		}
-	}
-
-	return isValid, nil
 }
 
 func (impl *CiHandlerImpl) RefreshMaterialByCiPipelineMaterialId(gitMaterialId int) (refreshRes *gitSensor.RefreshGitMaterialResponse, err error) {
@@ -1157,42 +971,6 @@ func ExtractWorkflowStatus(workflowStatus v1alpha1.WorkflowStatus) (string, stri
 	return workflowName, status, podStatus, message, logLocation, podName
 }
 
-func (impl *CiHandlerImpl) extractPodStatusAndWorkflow(workflowStatus v1alpha1.WorkflowStatus) (string, string, *pipelineConfig.CiWorkflow, error) {
-	workflowName, status, _, message, _, _ := ExtractWorkflowStatus(workflowStatus)
-	if workflowName == "" {
-		impl.Logger.Errorw("extract workflow status, invalid wf name", "workflowName", workflowName, "status", status, "message", message)
-		return status, message, nil, errors.New("invalid wf name")
-	}
-	workflowId, err := strconv.Atoi(workflowName[:strings.Index(workflowName, "-")])
-	if err != nil {
-		impl.Logger.Errorw("extract workflowId, invalid wf name", "workflowName", workflowName, "err", err)
-		return status, message, nil, err
-	}
-
-	savedWorkflow, err := impl.ciWorkflowRepository.FindById(workflowId)
-	if err != nil {
-		impl.Logger.Errorw("cannot get saved wf", "workflowId", workflowId, "err", err)
-		return status, message, nil, err
-	}
-
-	return status, message, savedWorkflow, err
-
-}
-
-func (impl *CiHandlerImpl) getRefWorkflowAndCiRetryCount(savedWorkflow *pipelineConfig.CiWorkflow) (int, *pipelineConfig.CiWorkflow, error) {
-	var err error
-
-	if savedWorkflow.ReferenceCiWorkflowId != 0 {
-		savedWorkflow, err = impl.ciWorkflowRepository.FindById(savedWorkflow.ReferenceCiWorkflowId)
-	}
-	if err != nil {
-		impl.Logger.Errorw("cannot get saved wf", "err", err)
-		return 0, savedWorkflow, err
-	}
-	retryCount, err := impl.ciWorkflowRepository.FindRetriedWorkflowCountByReferenceId(savedWorkflow.Id)
-	return retryCount, savedWorkflow, err
-}
-
 func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, error) {
 	workflowName, status, podStatus, message, _, podName := ExtractWorkflowStatus(workflowStatus)
 	if workflowName == "" {
@@ -1283,191 +1061,6 @@ func (impl *CiHandlerImpl) BuildPayload(ciWorkflow *pipelineConfig.CiWorkflow) *
 func (impl *CiHandlerImpl) stateChanged(status string, podStatus string, msg string,
 	finishedAt time.Time, savedWorkflow *pipelineConfig.CiWorkflow) bool {
 	return savedWorkflow.Status != status || savedWorkflow.PodStatus != podStatus || savedWorkflow.Message != msg || savedWorkflow.FinishedOn != finishedAt
-}
-
-func (impl *CiHandlerImpl) GetCiPipeline(ciMaterialId int) (*pipelineConfig.CiPipeline, error) {
-	ciMaterial, err := impl.ciPipelineMaterialRepository.GetById(ciMaterialId)
-	if err != nil {
-		return nil, err
-	}
-	ciPipeline := ciMaterial.CiPipeline
-	return ciPipeline, nil
-}
-
-func (impl *CiHandlerImpl) buildAutomaticTriggerCommitHashes(ciMaterials []*pipelineConfig.CiPipelineMaterial, request bean.GitCiTriggerRequest) (map[int]pipelineConfig.GitCommit, error) {
-	commitHashes := map[int]pipelineConfig.GitCommit{}
-	for _, ciMaterial := range ciMaterials {
-		if ciMaterial.Id == request.CiPipelineMaterial.Id || len(ciMaterials) == 1 {
-			request.CiPipelineMaterial.GitCommit = SetGitCommitValuesForBuildingCommitHash(ciMaterial, request.CiPipelineMaterial.GitCommit)
-			commitHashes[ciMaterial.Id] = request.CiPipelineMaterial.GitCommit
-		} else {
-			// this is possible in case of non Webhook, as there would be only one pipeline material per git material in case of PR
-			lastCommit, err := impl.getLastSeenCommit(ciMaterial.Id)
-			if err != nil {
-				return map[int]pipelineConfig.GitCommit{}, err
-			}
-			lastCommit = SetGitCommitValuesForBuildingCommitHash(ciMaterial, lastCommit)
-			commitHashes[ciMaterial.Id] = lastCommit
-		}
-	}
-	return commitHashes, nil
-}
-
-func SetGitCommitValuesForBuildingCommitHash(ciMaterial *pipelineConfig.CiPipelineMaterial, oldGitCommit pipelineConfig.GitCommit) pipelineConfig.GitCommit {
-	newGitCommit := oldGitCommit
-	newGitCommit.CiConfigureSourceType = ciMaterial.Type
-	newGitCommit.CiConfigureSourceValue = ciMaterial.Value
-	newGitCommit.GitRepoUrl = ciMaterial.GitMaterial.Url
-	newGitCommit.GitRepoName = ciMaterial.GitMaterial.Name[strings.Index(ciMaterial.GitMaterial.Name, "-")+1:]
-	return newGitCommit
-}
-
-func (impl *CiHandlerImpl) buildManualTriggerCommitHashes(ciTriggerRequest bean.CiTriggerRequest) (map[int]pipelineConfig.GitCommit, *common.RuntimeParameters, error) {
-	commitHashes := map[int]pipelineConfig.GitCommit{}
-	runtimeParams := impl.getRuntimeParamsForBuildingManualTriggerHashes(ciTriggerRequest)
-	for _, ciPipelineMaterial := range ciTriggerRequest.CiPipelineMaterial {
-
-		pipeLineMaterialFromDb, err := impl.ciPipelineMaterialRepository.GetById(ciPipelineMaterial.Id)
-		if err != nil {
-			impl.Logger.Errorw("err in fetching pipeline material by id", "err", err)
-			return map[int]pipelineConfig.GitCommit{}, nil, err
-		}
-
-		pipelineType := pipeLineMaterialFromDb.Type
-		if pipelineType == constants2.SOURCE_TYPE_BRANCH_FIXED {
-			gitCommit, err := impl.BuildManualTriggerCommitHashesForSourceTypeBranchFix(ciPipelineMaterial, pipeLineMaterialFromDb)
-			if err != nil {
-				impl.Logger.Errorw("err", "err", err)
-				return map[int]pipelineConfig.GitCommit{}, nil, err
-			}
-			commitHashes[ciPipelineMaterial.Id] = gitCommit
-
-		} else if pipelineType == constants2.SOURCE_TYPE_WEBHOOK {
-			gitCommit, extraEnvVariables, err := impl.BuildManualTriggerCommitHashesForSourceTypeWebhook(ciPipelineMaterial, pipeLineMaterialFromDb)
-			if err != nil {
-				impl.Logger.Errorw("err", "err", err)
-				return map[int]pipelineConfig.GitCommit{}, nil, err
-			}
-			commitHashes[ciPipelineMaterial.Id] = gitCommit
-			for key, value := range extraEnvVariables {
-				runtimeParams = runtimeParams.AddSystemVariable(key, value)
-			}
-		}
-	}
-	return commitHashes, runtimeParams, nil
-}
-
-func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForSourceTypeBranchFix(ciPipelineMaterial bean.CiPipelineMaterial, pipeLineMaterialFromDb *pipelineConfig.CiPipelineMaterial) (pipelineConfig.GitCommit, error) {
-	commitMetadataRequest := &gitSensor.CommitMetadataRequest{
-		PipelineMaterialId: ciPipelineMaterial.Id,
-		GitHash:            ciPipelineMaterial.GitCommit.Commit,
-		GitTag:             ciPipelineMaterial.GitTag,
-	}
-	gitCommitResponse, err := impl.gitSensorClient.GetCommitMetadataForPipelineMaterial(context.Background(), commitMetadataRequest)
-	if err != nil {
-		impl.Logger.Errorw("err in fetching commit metadata", "commitMetadataRequest", commitMetadataRequest, "err", err)
-		return pipelineConfig.GitCommit{}, err
-	}
-	if gitCommitResponse == nil {
-		return pipelineConfig.GitCommit{}, errors.New("commit not found")
-	}
-
-	gitCommit := pipelineConfig.GitCommit{
-		Commit:                 gitCommitResponse.Commit,
-		Author:                 gitCommitResponse.Author,
-		Date:                   gitCommitResponse.Date,
-		Message:                gitCommitResponse.Message,
-		Changes:                gitCommitResponse.Changes,
-		GitRepoName:            pipeLineMaterialFromDb.GitMaterial.Name[strings.Index(pipeLineMaterialFromDb.GitMaterial.Name, "-")+1:],
-		GitRepoUrl:             pipeLineMaterialFromDb.GitMaterial.Url,
-		CiConfigureSourceValue: pipeLineMaterialFromDb.Value,
-		CiConfigureSourceType:  pipeLineMaterialFromDb.Type,
-	}
-
-	return gitCommit, nil
-}
-
-func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForSourceTypeWebhook(ciPipelineMaterial bean.CiPipelineMaterial, pipeLineMaterialFromDb *pipelineConfig.CiPipelineMaterial) (pipelineConfig.GitCommit, map[string]string, error) {
-	webhookDataInput := ciPipelineMaterial.GitCommit.WebhookData
-
-	// fetch webhook data on the basis of Id
-	webhookDataRequest := &gitSensor.WebhookDataRequest{
-		Id:                   webhookDataInput.Id,
-		CiPipelineMaterialId: ciPipelineMaterial.Id,
-	}
-
-	webhookAndCiData, err := impl.gitSensorClient.GetWebhookData(context.Background(), webhookDataRequest)
-	if err != nil {
-		impl.Logger.Errorw("err", "err", err)
-		return pipelineConfig.GitCommit{}, nil, err
-	}
-	webhookData := webhookAndCiData.WebhookData
-
-	// if webhook event is of merged type, then fetch latest commit for target branch
-	if webhookData.EventActionType == bean.WEBHOOK_EVENT_MERGED_ACTION_TYPE {
-
-		// get target branch name from webhook
-		targetBranchName := webhookData.Data[bean.WEBHOOK_SELECTOR_TARGET_BRANCH_NAME_NAME]
-		if targetBranchName == "" {
-			impl.Logger.Error("target branch not found from webhook data")
-			return pipelineConfig.GitCommit{}, nil, err
-		}
-
-		// get latest commit hash for target branch
-		latestCommitMetadataRequest := &gitSensor.CommitMetadataRequest{
-			PipelineMaterialId: ciPipelineMaterial.Id,
-			BranchName:         targetBranchName,
-		}
-
-		latestCommit, err := impl.gitSensorClient.GetCommitMetadata(context.Background(), latestCommitMetadataRequest)
-
-		if err != nil {
-			impl.Logger.Errorw("err", "err", err)
-			return pipelineConfig.GitCommit{}, nil, err
-		}
-
-		// update webhookData (local) with target latest hash
-		webhookData.Data[bean.WEBHOOK_SELECTOR_TARGET_CHECKOUT_NAME] = latestCommit.Commit
-
-	}
-
-	// build git commit
-	gitCommit := pipelineConfig.GitCommit{
-		GitRepoName:            pipeLineMaterialFromDb.GitMaterial.Name[strings.Index(pipeLineMaterialFromDb.GitMaterial.Name, "-")+1:],
-		GitRepoUrl:             pipeLineMaterialFromDb.GitMaterial.Url,
-		CiConfigureSourceValue: pipeLineMaterialFromDb.Value,
-		CiConfigureSourceType:  pipeLineMaterialFromDb.Type,
-		WebhookData: pipelineConfig.WebhookData{
-			Id:              int(webhookData.Id),
-			EventActionType: webhookData.EventActionType,
-			Data:            webhookData.Data,
-		},
-	}
-
-	return gitCommit, webhookAndCiData.ExtraEnvironmentVariables, nil
-}
-
-func (impl *CiHandlerImpl) getLastSeenCommit(ciMaterialId int) (pipelineConfig.GitCommit, error) {
-	var materialIds []int
-	materialIds = append(materialIds, ciMaterialId)
-	headReq := &gitSensor.HeadRequest{
-		MaterialIds: materialIds,
-	}
-	res, err := impl.gitSensorClient.GetHeadForPipelineMaterials(context.Background(), headReq)
-	if err != nil {
-		return pipelineConfig.GitCommit{}, err
-	}
-	if len(res) == 0 {
-		return pipelineConfig.GitCommit{}, errors.New("received empty response")
-	}
-	gitCommit := pipelineConfig.GitCommit{
-		Commit:  res[0].GitCommit.Commit,
-		Author:  res[0].GitCommit.Author,
-		Date:    res[0].GitCommit.Date,
-		Message: res[0].GitCommit.Message,
-		Changes: res[0].GitCommit.Changes,
-	}
-	return gitCommit, nil
 }
 
 func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewV1(appId int) ([]*pipelineConfig.CiWorkflowStatus, error) {
@@ -1626,127 +1219,6 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 	return gitTriggerInfoResponse, nil
 }
 
-func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild int) error {
-	ciWorkflows, err := impl.ciWorkflowRepository.FindByStatusesIn([]string{constants.Starting, constants.Running})
-	if err != nil {
-		impl.Logger.Errorw("error on fetching ci workflows", "err", err)
-		return err
-	}
-	client, err := impl.K8sUtil.GetClientForInCluster()
-	if err != nil {
-		impl.Logger.Errorw("error while fetching k8s client", "error", err)
-		return err
-	}
-
-	for _, ciWorkflow := range ciWorkflows {
-		var isExt bool
-		var env *repository2.Environment
-		var restConfig *rest.Config
-		if ciWorkflow.Namespace != constants.DefaultCiWorkflowNamespace {
-			isExt = true
-			env, err = impl.envRepository.FindById(ciWorkflow.EnvironmentId)
-			if err != nil {
-				impl.Logger.Errorw("could not fetch stage env", "err", err)
-				return err
-			}
-			restConfig, err = impl.getRestConfig(ciWorkflow)
-			if err != nil {
-				return err
-			}
-		}
-
-		isEligibleToMarkFailed := false
-		isPodDeleted := false
-		if time.Since(ciWorkflow.StartedOn) > (time.Minute * time.Duration(timeoutForFailureCiBuild)) {
-
-			//check weather pod is exists or not, if exits check its status
-			wf, err := impl.workflowService.GetWorkflowStatus(ciWorkflow.ExecutorType, ciWorkflow.Name, ciWorkflow.Namespace, restConfig)
-			if err != nil {
-				impl.Logger.Warnw("unable to fetch ci workflow", "err", err)
-				statusError, ok := err.(*errors2.StatusError)
-				if ok && statusError.Status().Code == http.StatusNotFound {
-					impl.Logger.Warnw("ci workflow not found", "err", err)
-					isEligibleToMarkFailed = true
-				} else {
-					continue
-					// skip this and process for next ci workflow
-				}
-			}
-
-			//if ci workflow is exists, check its pod
-			if !isEligibleToMarkFailed {
-				ns := constants.DefaultCiWorkflowNamespace
-				if isExt {
-					_, client, err = impl.k8sCommonService.GetCoreClientByClusterId(env.ClusterId)
-					if err != nil {
-						impl.Logger.Warnw("error in getting core v1 client using GetCoreClientByClusterId", "err", err, "clusterId", env.Cluster.Id)
-						continue
-					}
-					ns = env.Namespace
-				}
-				_, err := impl.K8sUtil.GetPodByName(ns, ciWorkflow.PodName, client)
-				if err != nil {
-					impl.Logger.Warnw("unable to fetch ci workflow - pod", "err", err)
-					statusError, ok := err.(*errors2.StatusError)
-					if ok && statusError.Status().Code == http.StatusNotFound {
-						impl.Logger.Warnw("pod not found", "err", err)
-						isEligibleToMarkFailed = true
-					} else {
-						continue
-						// skip this and process for next ci workflow
-					}
-				}
-				if ciWorkflow.ExecutorType == cdWorkflow.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
-					if wf.Status == string(v1alpha1.WorkflowFailed) {
-						isPodDeleted = true
-					}
-				} else {
-					// check workflow status,get the status
-					if wf.Status == string(v1alpha1.WorkflowFailed) && wf.Message == cdWorkflow.POD_DELETED_MESSAGE {
-						isPodDeleted = true
-					}
-				}
-			}
-		}
-		if isEligibleToMarkFailed {
-			ciWorkflow.Status = "Failed"
-			ciWorkflow.PodStatus = "Failed"
-			if isPodDeleted {
-				ciWorkflow.Message = cdWorkflow.POD_DELETED_MESSAGE
-				// error logging handled inside handlePodDeleted
-				impl.handlePodDeleted(ciWorkflow)
-			} else {
-				ciWorkflow.Message = "marked failed by job"
-			}
-			err := impl.ciService.UpdateCiWorkflowWithStage(ciWorkflow)
-			if err != nil {
-				impl.Logger.Errorw("unable to update ci workflow, its eligible to mark failed", "err", err)
-				// skip this and process for next ci workflow
-			}
-			err = impl.customTagService.DeactivateImagePathReservation(ciWorkflow.ImagePathReservationId)
-			if err != nil {
-				impl.Logger.Errorw("unable to update ci workflow, its eligible to mark failed", "err", err)
-			}
-		}
-	}
-	return nil
-}
-
-func (impl *CiHandlerImpl) handlePodDeleted(ciWorkflow *pipelineConfig.CiWorkflow) {
-	if !impl.config.WorkflowRetriesEnabled() {
-		impl.Logger.Debug("ci workflow retry feature disabled")
-		return
-	}
-	retryCount, refCiWorkflow, err := impl.getRefWorkflowAndCiRetryCount(ciWorkflow)
-	if err != nil {
-		impl.Logger.Errorw("error in getRefWorkflowAndCiRetryCount", "ciWorkflowId", ciWorkflow.Id, "err", err)
-	}
-	impl.Logger.Infow("re-triggering ci by UpdateCiWorkflowStatusFailedCron", "refCiWorkflowId", refCiWorkflow.Id, "ciWorkflow.Status", ciWorkflow.Status, "ciWorkflow.Message", ciWorkflow.Message, "retryCount", retryCount)
-	err = impl.reTriggerCi(retryCount, refCiWorkflow)
-	if err != nil {
-		impl.Logger.Errorw("error in reTriggerCi", "ciWorkflowId", refCiWorkflow.Id, "workflowStatus", ciWorkflow.Status, "ciWorkflowMessage", "ciWorkflow.Message", "retryCount", retryCount, "err", err)
-	}
-}
 func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(request resourceGroup.ResourceGroupingRequest, token string) ([]*pipelineConfig.CiWorkflowStatus, error) {
 	ciWorkflowStatuses := make([]*pipelineConfig.CiWorkflowStatus, 0)
 	var cdPipelines []*pipelineConfig.Pipeline

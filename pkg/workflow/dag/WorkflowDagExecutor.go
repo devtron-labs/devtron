@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/common-lib/async"
 	"github.com/devtron-labs/common-lib/utils"
+	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/common-lib/utils/workFlow"
 	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
@@ -39,6 +40,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/build/artifacts"
 	bean5 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	buildCommonBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
+	"github.com/devtron-labs/devtron/pkg/build/trigger"
+	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
+	repository5 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
@@ -46,7 +50,9 @@ import (
 	triggerBean "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/service"
 	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
+	k8sPkg "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
 	repository3 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
@@ -58,6 +64,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/workflow/dag/helper"
 	error2 "github.com/devtron-labs/devtron/util/error"
 	util2 "github.com/devtron-labs/devtron/util/event"
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/rest"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -83,6 +92,7 @@ import (
 )
 
 type WorkflowDagExecutor interface {
+	UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild int) error
 	UpdateCiWorkflowForCiSuccess(request *bean2.CiArtifactWebhookRequest) (err error)
 	HandleCiSuccessEvent(triggerContext triggerBean.TriggerContext, ciPipelineId int, request *bean2.CiArtifactWebhookRequest, imagePushedAt time.Time) (id int, err error)
 	HandlePreStageSuccessEvent(triggerContext triggerBean.TriggerContext, cdStageCompleteEvent eventProcessorBean.CdStageCompleteEvent) error
@@ -134,6 +144,12 @@ type WorkflowDagExecutorImpl struct {
 	asyncRunnable           *async.Runnable
 	scanHistoryRepository   repository3.ImageScanHistoryRepository
 	imageScanService        imageScanning.ImageScanService
+
+	K8sUtil          *k8s.K8sServiceImpl
+	envRepository    repository5.EnvironmentRepository
+	k8sCommonService k8sPkg.K8sCommonService
+	workflowService  pipeline.WorkflowService
+	ciTriggerService trigger.Service
 }
 
 func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -162,6 +178,11 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	asyncRunnable *async.Runnable,
 	scanHistoryRepository repository3.ImageScanHistoryRepository,
 	imageScanService imageScanning.ImageScanService,
+	K8sUtil *k8s.K8sServiceImpl,
+	envRepository repository5.EnvironmentRepository,
+	k8sCommonService k8sPkg.K8sCommonService,
+	workflowService pipeline.WorkflowService,
+	ciTriggerService trigger.Service,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
@@ -190,6 +211,11 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		imageScanService:              imageScanService,
 		cdWorkflowRunnerService:       cdWorkflowRunnerService,
 		ciService:                     ciService,
+		K8sUtil:                       K8sUtil,
+		envRepository:                 envRepository,
+		k8sCommonService:              k8sCommonService,
+		workflowService:               workflowService,
+		ciTriggerService:              ciTriggerService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -207,6 +233,130 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	}
 	wde.appServiceConfig = appServiceConfig
 	return wde
+}
+
+func (impl *WorkflowDagExecutorImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild int) error {
+	ciWorkflows, err := impl.ciWorkflowRepository.FindByStatusesIn([]string{constants2.Starting, constants2.Running})
+	if err != nil {
+		impl.logger.Errorw("error on fetching ci workflows", "err", err)
+		return err
+	}
+	client, err := impl.K8sUtil.GetClientForInCluster()
+	if err != nil {
+		impl.logger.Errorw("error while fetching k8s client", "error", err)
+		return err
+	}
+
+	for _, ciWorkflow := range ciWorkflows {
+		var isExt bool
+		var env *repository5.Environment
+		var restConfig *rest.Config
+		if ciWorkflow.Namespace != constants2.DefaultCiWorkflowNamespace {
+			isExt = true
+			env, err = impl.envRepository.FindById(ciWorkflow.EnvironmentId)
+			if err != nil {
+				impl.logger.Errorw("could not fetch stage env", "err", err)
+				return err
+			}
+			restConfig, err = impl.getRestConfig(ciWorkflow)
+			if err != nil {
+				return err
+			}
+		}
+
+		isEligibleToMarkFailed := false
+		isPodDeleted := false
+		if time.Since(ciWorkflow.StartedOn) > (time.Minute * time.Duration(timeoutForFailureCiBuild)) {
+
+			//check weather pod is exists or not, if exits check its status
+			wf, err := impl.workflowService.GetWorkflowStatus(ciWorkflow.ExecutorType, ciWorkflow.Name, ciWorkflow.Namespace, restConfig)
+			if err != nil {
+				impl.logger.Warnw("unable to fetch ci workflow", "err", err)
+				statusError, ok := err.(*errors2.StatusError)
+				if ok && statusError.Status().Code == http.StatusNotFound {
+					impl.logger.Warnw("ci workflow not found", "err", err)
+					isEligibleToMarkFailed = true
+				} else {
+					continue
+					// skip this and process for next ci workflow
+				}
+			}
+
+			//if ci workflow is exists, check its pod
+			if !isEligibleToMarkFailed {
+				ns := constants2.DefaultCiWorkflowNamespace
+				if isExt {
+					_, client, err = impl.k8sCommonService.GetCoreClientByClusterId(env.ClusterId)
+					if err != nil {
+						impl.logger.Warnw("error in getting core v1 client using GetCoreClientByClusterId", "err", err, "clusterId", env.Cluster.Id)
+						continue
+					}
+					ns = env.Namespace
+				}
+				_, err := impl.K8sUtil.GetPodByName(ns, ciWorkflow.PodName, client)
+				if err != nil {
+					impl.logger.Warnw("unable to fetch ci workflow - pod", "err", err)
+					statusError, ok := err.(*errors2.StatusError)
+					if ok && statusError.Status().Code == http.StatusNotFound {
+						impl.logger.Warnw("pod not found", "err", err)
+						isEligibleToMarkFailed = true
+					} else {
+						continue
+						// skip this and process for next ci workflow
+					}
+				}
+				if ciWorkflow.ExecutorType == cdWorkflow2.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
+					if wf.Status == string(v1alpha1.WorkflowFailed) {
+						isPodDeleted = true
+					}
+				} else {
+					// check workflow status,get the status
+					if wf.Status == string(v1alpha1.WorkflowFailed) && wf.Message == cdWorkflow2.POD_DELETED_MESSAGE {
+						isPodDeleted = true
+					}
+				}
+			}
+		}
+		if isEligibleToMarkFailed {
+			ciWorkflow.Status = "Failed"
+			ciWorkflow.PodStatus = "Failed"
+			if isPodDeleted {
+				ciWorkflow.Message = cdWorkflow2.POD_DELETED_MESSAGE
+				// error logging handled inside handlePodDeleted
+				impl.ciTriggerService.HandlePodDeleted(ciWorkflow)
+			} else {
+				ciWorkflow.Message = "marked failed by job"
+			}
+			err := impl.ciService.UpdateCiWorkflowWithStage(ciWorkflow)
+			if err != nil {
+				impl.logger.Errorw("unable to update ci workflow, its eligible to mark failed", "err", err)
+				// skip this and process for next ci workflow
+			}
+			err = impl.customTagService.DeactivateImagePathReservation(ciWorkflow.ImagePathReservationId)
+			if err != nil {
+				impl.logger.Errorw("unable to update ci workflow, its eligible to mark failed", "err", err)
+			}
+		}
+	}
+	return nil
+}
+
+func (impl *WorkflowDagExecutorImpl) getRestConfig(workflow *pipelineConfig.CiWorkflow) (*rest.Config, error) {
+	env, err := impl.envRepository.FindById(workflow.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("could not fetch stage env", "err", err)
+		return nil, err
+	}
+
+	clusterBean := adapter.GetClusterBean(*env.Cluster)
+
+	clusterConfig := clusterBean.GetClusterConfig()
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster id", "err", err)
+		return nil, err
+	}
+	return restConfig, nil
 }
 
 func (impl *WorkflowDagExecutorImpl) HandleCdStageReTrigger(runner *pipelineConfig.CdWorkflowRunner) error {

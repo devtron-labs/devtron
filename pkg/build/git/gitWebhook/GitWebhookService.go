@@ -23,7 +23,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitWebhook/repository"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/build/trigger"
 	"go.uber.org/zap"
 )
 
@@ -33,15 +33,16 @@ type GitWebhookService interface {
 
 type GitWebhookServiceImpl struct {
 	logger               *zap.SugaredLogger
-	ciHandler            pipeline.CiHandler
 	gitWebhookRepository repository.GitWebhookRepository
+	ciTriggerService     trigger.Service
 }
 
-func NewGitWebhookServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.CiHandler, gitWebhookRepository repository.GitWebhookRepository) *GitWebhookServiceImpl {
+func NewGitWebhookServiceImpl(Logger *zap.SugaredLogger, gitWebhookRepository repository.GitWebhookRepository,
+	ciTriggerService trigger.Service) *GitWebhookServiceImpl {
 	return &GitWebhookServiceImpl{
 		logger:               Logger,
-		ciHandler:            ciHandler,
 		gitWebhookRepository: gitWebhookRepository,
+		ciTriggerService:     ciTriggerService,
 	}
 }
 
@@ -70,7 +71,7 @@ func (impl *GitWebhookServiceImpl) HandleGitWebhook(gitWebhookRequest gitSensor.
 		}
 	}
 
-	resp, err := impl.ciHandler.HandleCIWebhook(bean.GitCiTriggerRequest{
+	resp, err := impl.ciTriggerService.HandleCIWebhook(bean.GitCiTriggerRequest{
 		CiPipelineMaterial:        ciPipelineMaterial,
 		TriggeredBy:               bean2.SYSTEM_USER_ID, // Automatic trigger, system user
 		ExtraEnvironmentVariables: gitWebhookRequest.ExtraEnvironmentVariables,
