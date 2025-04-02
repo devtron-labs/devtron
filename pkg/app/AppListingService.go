@@ -233,15 +233,9 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 			resp.CreatedBy = fmt.Sprintf("%s (inactive)", createdBy.EmailId)
 		}
 	}
-	envContainers, err := impl.appListingRepository.FetchOverviewAppsByEnvironment(envId, limit, offset)
+	envContainers, err := impl.FetchAppsEnvContainers(envId, limit, offset)
 	if err != nil {
-		impl.Logger.Errorw("failed to fetch environment containers", "err", err, "envId", envId)
-		return resp, err
-	}
-
-	err = impl.updateAppStatusForHelmTypePipelines(envContainers)
-	if err != nil {
-		impl.Logger.Errorw("err, updateAppStatusForHelmTypePipelines", "envId", envId, "err", err)
+		impl.Logger.Errorw("failed to fetch env containers", "err", err, "envId", envId)
 		return resp, err
 	}
 
@@ -291,6 +285,21 @@ func getUniqueArtifacts(artifactIds []int) (uniqueArtifactIds []int) {
 	}
 
 	return uniqueArtifactIds
+}
+
+func (impl AppListingServiceImpl) FetchAppsEnvContainers(envId, limit, offset int) ([]*AppView.AppEnvironmentContainer, error) {
+	envContainers, err := impl.appListingRepository.FetchAppsEnvContainers(envId, limit, offset)
+	if err != nil {
+		impl.Logger.Errorw("failed to fetch environment containers", "err", err, "envId", envId)
+		return nil, err
+	}
+
+	err = impl.updateAppStatusForHelmTypePipelines(envContainers)
+	if err != nil {
+		impl.Logger.Errorw("err, updateAppStatusForHelmTypePipelines", "envId", envId, "err", err)
+		return nil, err
+	}
+	return envContainers, nil
 }
 
 func (impl AppListingServiceImpl) FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error) {
