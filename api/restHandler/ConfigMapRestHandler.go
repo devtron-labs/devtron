@@ -126,7 +126,7 @@ func (handler ConfigMapRestHandlerImpl) CMGlobalAddUpdate(w http.ResponseWriter,
 	//RBAC END
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 	ctx := r.Context()
-	util.SetSuperAdminInContext(ctx, isSuperAdmin)
+	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
 	res, err := handler.draftAwareResourceService.CMGlobalAddUpdate(ctx, &configMapRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, CMGlobalAddUpdate", "err", err, "payload", configMapRequest)
@@ -172,7 +172,7 @@ func (handler ConfigMapRestHandlerImpl) CMEnvironmentAddUpdate(w http.ResponseWr
 	//RBAC END
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 	ctx := r.Context()
-	util.SetSuperAdminInContext(ctx, isSuperAdmin)
+	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
 	res, err := handler.draftAwareResourceService.CMEnvironmentAddUpdate(ctx, &configMapRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, CMEnvironmentAddUpdate", "err", err, "payload", configMapRequest)
@@ -371,7 +371,7 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalAddUpdate(w http.ResponseWriter,
 	//RBAC END
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 	ctx := r.Context()
-	util.SetSuperAdminInContext(ctx, isSuperAdmin)
+	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
 	res, err := handler.draftAwareResourceService.CSGlobalAddUpdate(ctx, &configMapRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, CSGlobalAddUpdate", "err", err, "payload", configMapRequest)
@@ -418,7 +418,7 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentAddUpdate(w http.ResponseWr
 	//RBAC END
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 	ctx := r.Context()
-	util.SetSuperAdminInContext(ctx, isSuperAdmin)
+	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
 	res, err := handler.draftAwareResourceService.CSEnvironmentAddUpdate(ctx, &configMapRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, CSEnvironmentAddUpdate", "err", err, "payload", configMapRequest)
@@ -533,7 +533,7 @@ func (handler ConfigMapRestHandlerImpl) CMGlobalDelete(w http.ResponseWriter, r 
 	//RBAC END
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 	ctx := r.Context()
-	util.SetSuperAdminInContext(ctx, isSuperAdmin)
+	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
 	deleteReq := &bean.ConfigDataRequest{
 		Id:     id,
 		AppId:  appId,
@@ -595,7 +595,7 @@ func (handler ConfigMapRestHandlerImpl) CMEnvironmentDelete(w http.ResponseWrite
 	//RBAC END
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 	ctx := r.Context()
-	util.SetSuperAdminInContext(ctx, isSuperAdmin)
+	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
 	deleteReq := &bean.ConfigDataRequest{
 		Id:     id,
 		AppId:  appId,
@@ -643,7 +643,7 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalDelete(w http.ResponseWriter, r 
 	//RBAC END
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 	ctx := r.Context()
-	util.SetSuperAdminInContext(ctx, isSuperAdmin)
+	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
 	deleteReq := &bean.ConfigDataRequest{
 		Id:     id,
 		AppId:  appId,
@@ -705,7 +705,7 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentDelete(w http.ResponseWrite
 	//RBAC END
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 	ctx := r.Context()
-	util.SetSuperAdminInContext(ctx, isSuperAdmin)
+	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
 	deleteReq := &bean.ConfigDataRequest{
 		Id:     id,
 		AppId:  appId,

@@ -176,7 +176,7 @@ func (handler *PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(
 		}(ctx.Done(), cn.CloseNotify())
 	}
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
-	util2.SetSuperAdminInContext(ctx, isSuperAdmin)
+	ctx = util2.SetSuperAdminInContext(ctx, isSuperAdmin)
 
 	createResp, err := handler.draftAwareResourceService.Create(ctx, templateRequest)
 	if err != nil {
@@ -730,7 +730,7 @@ func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Res
 		}(ctx.Done(), cn.CloseNotify())
 	}
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
-	util2.SetSuperAdminInContext(ctx, isSuperAdmin)
+	ctx = util2.SetSuperAdminInContext(ctx, isSuperAdmin)
 	createResp, err := handler.draftAwareResourceService.CreateEnvironmentPropertiesAndBaseIfNeeded(ctx, appId, &envConfigProperties)
 	if err != nil {
 		handler.Logger.Errorw("service err, CreateEnvironmentPropertiesAndBaseIfNeeded", "payload", envConfigProperties, "err", err)
@@ -797,7 +797,7 @@ func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Res
 	}
 	ctx := r.Context()
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
-	util2.SetSuperAdminInContext(ctx, isSuperAdmin)
+	ctx = util2.SetSuperAdminInContext(ctx, isSuperAdmin)
 	createResp, err := handler.draftAwareResourceService.UpdateEnvironmentProperties(ctx, appId, &envConfigProperties, token)
 	if err != nil {
 		handler.Logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
@@ -1389,7 +1389,7 @@ func (handler *PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseW
 		return
 	}
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
-	util2.SetSuperAdminInContext(ctx, isSuperAdmin)
+	ctx = util2.SetSuperAdminInContext(ctx, isSuperAdmin)
 
 	_, span = otel.Tracer("orchestrator").Start(ctx, "chartService.UpdateAppOverride")
 	createResp, err := handler.draftAwareResourceService.UpdateAppOverride(ctx, &templateRequest, token)
@@ -1529,7 +1529,7 @@ func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideReset(w http.Resp
 	}
 	ctx := r.Context()
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
-	util2.SetSuperAdminInContext(ctx, isSuperAdmin)
+	ctx = util2.SetSuperAdminInContext(ctx, isSuperAdmin)
 	envProperties := &pipelineBean.EnvironmentProperties{
 		Id:            id,
 		EnvironmentId: environmentId,
