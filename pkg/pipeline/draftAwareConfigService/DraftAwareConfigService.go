@@ -29,9 +29,9 @@ type DraftAwareResourceService interface {
 	// Create here is used for publishing base deployment template while saving dt for the first time.
 	Create(ctx context.Context, templateRequest bean3.TemplateRequest) (*bean3.TemplateRequest, error)
 	// UpdateAppOverride here is used for updating base deployment template.
-	UpdateAppOverride(ctx context.Context, templateRequest *bean3.TemplateRequest) (*bean3.TemplateRequest, error)
+	UpdateAppOverride(ctx context.Context, templateRequest *bean3.TemplateRequest, token string) (*bean3.TemplateRequest, error)
 	// UpdateEnvironmentProperties here is used for updating and saving deployment template at env override level
-	UpdateEnvironmentProperties(ctx context.Context, appId int, propertiesRequest *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error)
+	UpdateEnvironmentProperties(ctx context.Context, appId int, propertiesRequest *bean.EnvironmentProperties, token string) (*bean.EnvironmentProperties, error)
 	// ResetEnvironmentProperties method handles flow when a user deletes the deployment template env override.
 	ResetEnvironmentProperties(ctx context.Context, propertiesRequest *bean.EnvironmentProperties) (bool, error)
 	// CreateEnvironmentPropertiesAndBaseIfNeeded is utilized when the deployment template chart version is updated and saved
@@ -200,7 +200,7 @@ func (impl *DraftAwareResourceServiceImpl) Create(ctx context.Context, templateR
 	return resp, nil
 }
 
-func (impl *DraftAwareResourceServiceImpl) UpdateAppOverride(ctx context.Context, templateRequest *bean3.TemplateRequest) (*bean3.TemplateRequest, error) {
+func (impl *DraftAwareResourceServiceImpl) UpdateAppOverride(ctx context.Context, templateRequest *bean3.TemplateRequest, token string) (*bean3.TemplateRequest, error) {
 	resp, err := impl.chartService.UpdateAppOverride(ctx, templateRequest)
 	if err != nil {
 		impl.logger.Errorw("error in updating base deployment template", "chartId", templateRequest.Id, "appId", templateRequest.AppId, "err", err)
@@ -214,7 +214,7 @@ func (impl *DraftAwareResourceServiceImpl) UpdateAppOverride(ctx context.Context
 	return resp, nil
 }
 
-func (impl *DraftAwareResourceServiceImpl) UpdateEnvironmentProperties(ctx context.Context, appId int, propertiesRequest *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error) {
+func (impl *DraftAwareResourceServiceImpl) UpdateEnvironmentProperties(ctx context.Context, appId int, propertiesRequest *bean.EnvironmentProperties, token string) (*bean.EnvironmentProperties, error) {
 	resp, err := impl.propertiesConfigService.UpdateEnvironmentProperties(appId, propertiesRequest, propertiesRequest.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in creating/updating env level deployment template", "appId", appId, "envId", propertiesRequest.EnvironmentId, "err", err)
