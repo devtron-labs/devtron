@@ -798,7 +798,7 @@ func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Res
 	ctx := r.Context()
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 	util2.SetSuperAdminInContext(ctx, isSuperAdmin)
-	createResp, err := handler.draftAwareResourceService.UpdateEnvironmentProperties(ctx, appId, &envConfigProperties)
+	createResp, err := handler.draftAwareResourceService.UpdateEnvironmentProperties(ctx, appId, &envConfigProperties, token)
 	if err != nil {
 		handler.Logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1392,7 +1392,7 @@ func (handler *PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseW
 	util2.SetSuperAdminInContext(ctx, isSuperAdmin)
 
 	_, span = otel.Tracer("orchestrator").Start(ctx, "chartService.UpdateAppOverride")
-	createResp, err := handler.draftAwareResourceService.UpdateAppOverride(ctx, &templateRequest)
+	createResp, err := handler.draftAwareResourceService.UpdateAppOverride(ctx, &templateRequest, token)
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateAppOverride", "err", err, "payload", templateRequest)
