@@ -1,4 +1,4 @@
-package pipeline
+package trigger
 
 import (
 	"github.com/devtron-labs/common-lib/imageScan/bean"
@@ -7,10 +7,10 @@ import (
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool/repository"
 )
 
-func (impl *CiServiceImpl) fetchImageScanExecutionMedium() (*repository.ScanToolMetadata, bean.ScanExecutionMedium, error) {
+func (impl *ServiceImpl) fetchImageScanExecutionMedium() (*repository.ScanToolMetadata, bean.ScanExecutionMedium, error) {
 	return &repository.ScanToolMetadata{}, "", nil
 }
 
-func (impl *CiServiceImpl) fetchImageScanExecutionStepsForWfRequest(scanToolMetadata *repository.ScanToolMetadata) ([]*types.ImageScanningSteps, []*bean2.RefPluginObject, error) {
+func (impl *ServiceImpl) fetchImageScanExecutionStepsForWfRequest(scanToolMetadata *repository.ScanToolMetadata) ([]*types.ImageScanningSteps, []*bean2.RefPluginObject, error) {
 	return nil, nil, nil
 }

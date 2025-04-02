@@ -591,9 +591,9 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 				Script:         ciScript.Script,
 				OutputLocation: ciScript.OutputLocation,
 			}
-			if ciScript.Stage == BEFORE_DOCKER_BUILD {
+			if ciScript.Stage == common.BEFORE_DOCKER_BUILD {
 				beforeDockerBuildScripts = append(beforeDockerBuildScripts, ciScriptResp)
-			} else if ciScript.Stage == AFTER_DOCKER_BUILD {
+			} else if ciScript.Stage == common.AFTER_DOCKER_BUILD {
 				afterDockerBuildScripts = append(afterDockerBuildScripts, ciScriptResp)
 			}
 		}
@@ -746,9 +746,9 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineById(pipelineId int) (ciPi
 			Script:         ciScript.Script,
 			OutputLocation: ciScript.OutputLocation,
 		}
-		if ciScript.Stage == BEFORE_DOCKER_BUILD {
+		if ciScript.Stage == common.BEFORE_DOCKER_BUILD {
 			beforeDockerBuildScripts = append(beforeDockerBuildScripts, ciScriptResp)
-		} else if ciScript.Stage == AFTER_DOCKER_BUILD {
+		} else if ciScript.Stage == common.AFTER_DOCKER_BUILD {
 			afterDockerBuildScripts = append(afterDockerBuildScripts, ciScriptResp)
 		}
 	}
