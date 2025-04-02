@@ -67,6 +67,8 @@ type PropertiesConfigService interface {
 
 	FetchEnvProperties(appId, envId, chartRefId int) (*bean4.EnvConfigOverride, error)
 	ChangeChartRefForEnvConfigOverride(ctx context.Context, request *bean3.ChartRefChangeRequest, userId int32) (*bean.EnvironmentProperties, error)
+
+	PropertiesConfigServiceEnt
 }
 type PropertiesConfigServiceImpl struct {
 	logger                           *zap.SugaredLogger

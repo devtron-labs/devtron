@@ -41,6 +41,7 @@ type DeploymentTemplateValidationService interface {
 	DeploymentTemplateValidate(ctx context.Context, template interface{}, chartRefId int, scope resourceQualifiers.Scope) (bool, error)
 	FlaggerCanaryEnabled(values json.RawMessage) (bool, error)
 	ValidateChangeChartRefRequest(ctx context.Context, envConfigProperties *pipelineBean.EnvironmentProperties, request *bean3.ChartRefChangeRequest) (*pipelineBean.EnvironmentProperties, bool, error)
+	DeploymentTemplateValidationServiceEnt
 }
 
 type DeploymentTemplateValidationServiceImpl struct {
@@ -48,17 +49,21 @@ type DeploymentTemplateValidationServiceImpl struct {
 	chartRefService           chartRef.ChartRefService
 	scopedVariableManager     variables.ScopedVariableManager
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService
+	*DeploymentTemplateValidationServiceEntImpl
 }
 
 func NewDeploymentTemplateValidationServiceImpl(logger *zap.SugaredLogger,
 	chartRefService chartRef.ChartRefService,
 	scopedVariableManager variables.ScopedVariableManager,
-	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService) *DeploymentTemplateValidationServiceImpl {
+	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
+	deploymentTemplateValidationServiceEntImpl *DeploymentTemplateValidationServiceEntImpl,
+) *DeploymentTemplateValidationServiceImpl {
 	return &DeploymentTemplateValidationServiceImpl{
 		logger:                    logger,
 		chartRefService:           chartRefService,
 		scopedVariableManager:     scopedVariableManager,
 		deployedAppMetricsService: deployedAppMetricsService,
+		DeploymentTemplateValidationServiceEntImpl: deploymentTemplateValidationServiceEntImpl,
 	}
 }
 
@@ -171,7 +176,7 @@ func (impl *DeploymentTemplateValidationServiceImpl) ValidateChangeChartRefReque
 	var err error
 	envConfigProperties.EnvOverrideValues, err = impl.chartRefService.PerformChartSpecificPatchForSwitch(envConfigProperties.EnvOverrideValues, chartChangeType)
 	if err != nil {
-		impl.logger.Errorw("error in chart specific patch operations, PerformChartSpecificPatchForSwitch", "err", err, "payload", request)
+		impl.logger.Errorw("error in chart specific patch operations, ValidateChangeChartRefRequest", "err", err, "payload", request)
 		return envConfigProperties, false, err
 	}
 	envMetrics, err := impl.deployedAppMetricsService.GetMetricsFlagByAppIdAndEnvId(request.AppId, request.EnvId)

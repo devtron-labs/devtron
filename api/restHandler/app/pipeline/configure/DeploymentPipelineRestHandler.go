@@ -105,6 +105,8 @@ type DevtronAppDeploymentConfigRestHandler interface {
 	GetDefaultDeploymentPipelineStrategy(w http.ResponseWriter, r *http.Request)
 
 	EnvConfigOverrideCreateNamespace(w http.ResponseWriter, r *http.Request)
+
+	DevtronAppDeploymentConfigRestHandlerEnt
 }
 
 type DevtronAppPrePostDeploymentRestHandler interface {
@@ -2124,7 +2126,7 @@ func (handler *PipelineConfigRestHandlerImpl) UpgradeForAllApps(w http.ResponseW
 	var failedIds []map[string]string
 	for _, appId := range appIds {
 		appResponse := make(map[string]string)
-		template, err := handler.chartService.GetByAppIdAndChartRefId(appId, chartRefId)
+		template, err := handler.chartReadService.GetByAppIdAndChartRefId(appId, chartRefId)
 		if err != nil && pg.ErrNoRows != err {
 			handler.Logger.Errorw("err in checking weather exist or not, skip for upgrade", "err", err, "payload", chartUpgradeRequest)
 			appResponse["appId"] = strconv.Itoa(appId)

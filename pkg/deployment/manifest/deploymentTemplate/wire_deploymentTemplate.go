@@ -31,6 +31,7 @@ var DeploymentTemplateWireSet = wire.NewSet(
 	read.NewEnvConfigOverrideReadServiceImpl,
 	wire.Bind(new(read.EnvConfigOverrideService), new(*read.EnvConfigOverrideReadServiceImpl)),
 
+	validator.NewDeploymentTemplateValidationServiceEntImpl,
 	validator.NewDeploymentTemplateValidationServiceImpl,
 	wire.Bind(new(validator.DeploymentTemplateValidationService), new(*validator.DeploymentTemplateValidationServiceImpl)),
 
