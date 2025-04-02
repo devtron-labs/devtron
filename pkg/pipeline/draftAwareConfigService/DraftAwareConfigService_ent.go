@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-func (impl *DraftAwareResourceServiceImpl) performExpressEditActionsOnCmCsForExceptionUser(ctx context.Context, name string, configMapRequest *bean.ConfigDataRequest) error {
+func (impl *DraftAwareResourceServiceImpl) performExpressEditActionsOnCmCsForExceptionUser(ctx context.Context, name string, resourceType bean.ResourceType, configMapRequest *bean.ConfigDataRequest) error {
 	return util.NewApiError(http.StatusNotImplemented, "operations not supported in oss", "operations not supported in oss")
 }
 

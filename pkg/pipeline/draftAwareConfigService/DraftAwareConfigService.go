@@ -67,7 +67,7 @@ func (impl *DraftAwareResourceServiceImpl) CMGlobalAddUpdate(ctx context.Context
 	if len(configMapRequest.ConfigData) > 0 && configMapRequest.ConfigData[0] != nil {
 		resourceName = configMapRequest.ConfigData[0].Name
 	}
-	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, resourceName, configMapRequest)
+	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, resourceName, bean.CM, configMapRequest)
 	if err != nil {
 		impl.logger.Errorw("error in performing express edit actions if user is exception", "err", err)
 		return nil, err
@@ -85,7 +85,7 @@ func (impl *DraftAwareResourceServiceImpl) CMEnvironmentAddUpdate(ctx context.Co
 	if len(configMapRequest.ConfigData) > 0 && configMapRequest.ConfigData[0] != nil {
 		resourceName = configMapRequest.ConfigData[0].Name
 	}
-	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, resourceName, configMapRequest)
+	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, resourceName, bean.CM, configMapRequest)
 	if err != nil {
 		impl.logger.Errorw("error in performing express edit actions if user is exception", "err", err)
 		return nil, err
@@ -103,7 +103,7 @@ func (impl *DraftAwareResourceServiceImpl) CSGlobalAddUpdate(ctx context.Context
 	if len(configMapRequest.ConfigData) > 0 && configMapRequest.ConfigData[0] != nil {
 		resourceName = configMapRequest.ConfigData[0].Name
 	}
-	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, resourceName, configMapRequest)
+	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, resourceName, bean.CS, configMapRequest)
 	if err != nil {
 		impl.logger.Errorw("error in performing express edit actions if user is exception", "err", err)
 		return nil, err
@@ -121,7 +121,7 @@ func (impl *DraftAwareResourceServiceImpl) CSEnvironmentAddUpdate(ctx context.Co
 	if len(configMapRequest.ConfigData) > 0 && configMapRequest.ConfigData[0] != nil {
 		resourceName = configMapRequest.ConfigData[0].Name
 	}
-	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, resourceName, configMapRequest)
+	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, resourceName, bean.CS, configMapRequest)
 	if err != nil {
 		impl.logger.Errorw("error in performing express edit actions if user is exception", "err", err)
 		return nil, err
@@ -136,7 +136,7 @@ func (impl *DraftAwareResourceServiceImpl) CMGlobalDelete(ctx context.Context, n
 		impl.logger.Errorw("service err, CMGlobalDelete", "appId", deleteReq.AppId, "id", deleteReq.Id, "name", name, "err", err)
 		return false, err
 	}
-	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, name, deleteReq)
+	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, name, bean.CM, deleteReq)
 	if err != nil {
 		impl.logger.Errorw("error in performing express edit actions if user is exception", "err", err)
 		return false, err
@@ -150,7 +150,7 @@ func (impl *DraftAwareResourceServiceImpl) CMEnvironmentDelete(ctx context.Conte
 		impl.logger.Errorw("service err, CMEnvironmentDelete", "appId", deleteReq.AppId, "envId", deleteReq.EnvironmentId, "id", deleteReq.Id, "err", err)
 		return false, err
 	}
-	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, name, deleteReq)
+	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, name, bean.CM, deleteReq)
 	if err != nil {
 		impl.logger.Errorw("error in performing express edit actions if user is exception", "err", err)
 		return false, err
@@ -164,7 +164,7 @@ func (impl *DraftAwareResourceServiceImpl) CSGlobalDelete(ctx context.Context, n
 		impl.logger.Errorw("service err, CSGlobalDelete", "appId", deleteReq.AppId, "id", deleteReq.Id, "name", name, "err", err)
 		return false, err
 	}
-	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, name, deleteReq)
+	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, name, bean.CS, deleteReq)
 	if err != nil {
 		impl.logger.Errorw("error in performing express edit actions if user is exception", "err", err)
 		return false, err
@@ -178,7 +178,7 @@ func (impl *DraftAwareResourceServiceImpl) CSEnvironmentDelete(ctx context.Conte
 		impl.logger.Errorw("service err, CSEnvironmentDelete", "appId", deleteReq.AppId, "id", deleteReq.Id, "name", name, "err", err)
 		return false, err
 	}
-	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, name, deleteReq)
+	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, name, bean.CS, deleteReq)
 	if err != nil {
 		impl.logger.Errorw("error in performing express edit actions if user is exception", "err", err)
 		return false, err
