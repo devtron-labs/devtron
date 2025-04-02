@@ -7,6 +7,7 @@
 - feat: licensing changes (#6474)
 ## Documentation
 ## Others
+- sync: main changes synced into develop (#6492)
 - sync: Main sync develop 27mar (#6483)
 - sync: vendor update (#6480)
 - sync: Release candidate v0.32.0 (#6479)
