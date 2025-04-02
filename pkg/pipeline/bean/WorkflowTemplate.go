@@ -18,6 +18,7 @@ package bean
 
 import (
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	informerBean "github.com/devtron-labs/common-lib/informer"
 	"github.com/devtron-labs/devtron/api/bean"
 	v1 "k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,6 +48,7 @@ type WorkflowTemplate struct {
 	RefPlugins             []*RefPluginObject
 	TerminationGracePeriod int
 	WorkflowType           string
+	DevtronInstanceUID     string
 }
 
 const (
@@ -76,8 +78,11 @@ func (workflowTemplate *WorkflowTemplate) SetActiveDeadlineSeconds(timeout int64
 }
 
 func (workflowTemplate *WorkflowTemplate) CreateObjectMetadata() *v12.ObjectMeta {
-
-	workflowLabels := map[string]string{WorkflowGenerateNamePrefix: workflowTemplate.WorkflowNamePrefix}
+	workflowLabels := map[string]string{
+		WorkflowGenerateNamePrefix:                        workflowTemplate.WorkflowNamePrefix,
+		informerBean.WorkflowTypeLabelKey:                 workflowTemplate.WorkflowType,
+		informerBean.DevtronAdministratorInstanceLabelKey: workflowTemplate.DevtronInstanceUID,
+	}
 	switch workflowTemplate.WorkflowType {
 	case CI_WORKFLOW_NAME:
 		workflowLabels["devtron.ai/workflow-purpose"] = "ci"

@@ -32,6 +32,7 @@ import (
 	bean5 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	bean6 "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	util3 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
@@ -74,7 +75,7 @@ import (
 type CiHandler interface {
 	HandleCIWebhook(gitCiTriggerRequest bean.GitCiTriggerRequest) (int, error)
 	HandleCIManual(ciTriggerRequest bean.CiTriggerRequest) (int, error)
-	CheckAndReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error
+	CheckAndReTriggerCI(workflowStatus bean6.CiCdStatus) error
 	FetchMaterialsByPipelineId(pipelineId int, showAll bool) ([]pipelineConfig.CiPipelineMaterialResponse, error)
 	FetchMaterialsByPipelineIdAndGitMaterialId(pipelineId int, gitMaterialId int, showAll bool) ([]pipelineConfig.CiPipelineMaterialResponse, error)
 	FetchWorkflowDetails(appId int, pipelineId int, buildId int) (types.WorkflowResponse, error)
@@ -88,7 +89,7 @@ type CiHandler interface {
 
 	GetBuildHistory(pipelineId int, appId int, offset int, size int) ([]types.WorkflowResponse, error)
 	DownloadCiWorkflowArtifacts(pipelineId int, buildId int) (*os.File, error)
-	UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, error)
+	UpdateWorkflow(workflowStatus bean6.CiCdStatus) (int, error)
 
 	FetchCiStatusForTriggerView(appId int) ([]*pipelineConfig.CiWorkflowStatus, error)
 	FetchCiStatusForTriggerViewV1(appId int) ([]*pipelineConfig.CiWorkflowStatus, error)
@@ -171,7 +172,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 	return cih
 }
 
-func (impl *CiHandlerImpl) CheckAndReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error {
+func (impl *CiHandlerImpl) CheckAndReTriggerCI(workflowStatus bean6.CiCdStatus) error {
 
 	//return if re-trigger feature is disabled
 	if !impl.config.WorkflowRetriesEnabled() {
@@ -1110,7 +1111,7 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(workflowId int, ciWorkflow *pipe
 	return resp, err
 }
 
-func ExtractWorkflowStatus(workflowStatus v1alpha1.WorkflowStatus) (string, string, string, string, string, string) {
+func ExtractWorkflowStatus(workflowStatus bean6.CiCdStatus) (string, string, string, string, string, string) {
 	workflowName := ""
 	status := string(workflowStatus.Phase)
 	podStatus := ""
@@ -1140,7 +1141,7 @@ func ExtractWorkflowStatus(workflowStatus v1alpha1.WorkflowStatus) (string, stri
 	return workflowName, status, podStatus, message, logLocation, podName
 }
 
-func (impl *CiHandlerImpl) extractPodStatusAndWorkflow(workflowStatus v1alpha1.WorkflowStatus) (string, string, *pipelineConfig.CiWorkflow, error) {
+func (impl *CiHandlerImpl) extractPodStatusAndWorkflow(workflowStatus bean6.CiCdStatus) (string, string, *pipelineConfig.CiWorkflow, error) {
 	workflowName, status, _, message, _, _ := ExtractWorkflowStatus(workflowStatus)
 	if workflowName == "" {
 		impl.Logger.Errorw("extract workflow status, invalid wf name", "workflowName", workflowName, "status", status, "message", message)
@@ -1176,7 +1177,7 @@ func (impl *CiHandlerImpl) getRefWorkflowAndCiRetryCount(savedWorkflow *pipeline
 	return retryCount, savedWorkflow, err
 }
 
-func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, error) {
+func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus bean6.CiCdStatus) (int, error) {
 	workflowName, status, podStatus, message, _, podName := ExtractWorkflowStatus(workflowStatus)
 	if workflowName == "" {
 		impl.Logger.Errorw("extract workflow status, invalid wf name", "workflowName", workflowName, "status", status, "podStatus", podStatus, "message", message)

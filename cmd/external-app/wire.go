@@ -60,6 +60,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/client/telemetry/posthog"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
@@ -86,6 +87,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool"
 	security2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/ucid"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/commonEnforcementFunctionsUtil"
@@ -131,7 +133,8 @@ func InitializeApp() (*App, error) {
 		util.NewSugardLogger,
 		util.IntValidator,
 		util2.GetACDAuthConfig,
-		telemetry.NewPosthogClient,
+		posthog.NewPosthogClient,
+		ucid.WireSet,
 		delete2.NewDeleteServiceImpl,
 		gitMaterial.GitMaterialWireSet,
 		scanTool.ScanToolWireSet,

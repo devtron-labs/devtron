@@ -24,12 +24,15 @@ import (
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	posthogClient "github.com/devtron-labs/devtron/client/telemetry/posthog"
 	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
 	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	module2 "github.com/devtron-labs/devtron/pkg/module/bean"
+	ucidService "github.com/devtron-labs/devtron/pkg/ucid"
 	cron3 "github.com/devtron-labs/devtron/util/cron"
+	"go.opentelemetry.io/otel"
 	"net/http"
 	"time"
 
@@ -43,21 +46,12 @@ import (
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
-	"github.com/patrickmn/go-cache"
 	"github.com/posthog/posthog-go"
 	"github.com/robfig/cron/v3"
 	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"k8s.io/api/core/v1"
-	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
 )
-
-const LOGIN_COUNT_CONST = "login-count"
-const SKIPPED_ONBOARDING_CONST = "SkippedOnboarding"
-const ADMIN_EMAIL_ID_CONST = "admin"
 
 type TelemetryEventClientImpl struct {
 	cron                           *cron.Cron
@@ -69,7 +63,8 @@ type TelemetryEventClientImpl struct {
 	userService                    user2.UserService
 	attributeRepo                  repository.AttributesRepository
 	ssoLoginService                sso.SSOLoginService
-	PosthogClient                  *PosthogClient
+	posthogClient                  *posthogClient.PosthogClient
+	ucid                           ucidService.Service
 	moduleRepository               moduleRepo.ModuleRepository
 	serverDataStore                *serverDataStore.ServerDataStore
 	userAuditService               user2.UserAuditService
@@ -93,9 +88,9 @@ type TelemetryEventClient interface {
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
 	K8sUtil *k8s.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig, userService user2.UserService,
 	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService,
-	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository,
-	serverDataStore *serverDataStore.ServerDataStore, userAuditService user2.UserAuditService,
-	helmAppClient gRPC.HelmAppClient,
+	posthog *posthogClient.PosthogClient, ucid ucidService.Service,
+	moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore,
+	userAuditService user2.UserAuditService, helmAppClient gRPC.HelmAppClient,
 	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService, cronLogger *cron3.CronLoggerImpl,
 	installedAppReadService installedAppReader.InstalledAppReadServiceEA,
 	envVariables *util.EnvironmentVariables) (*TelemetryEventClientImpl, error) {
@@ -112,7 +107,8 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		userService:                    userService,
 		attributeRepo:                  attributeRepo,
 		ssoLoginService:                ssoLoginService,
-		PosthogClient:                  PosthogClient,
+		posthogClient:                  posthog,
+		ucid:                           ucid,
 		moduleRepository:               moduleRepository,
 		serverDataStore:                serverDataStore,
 		userAuditService:               userAuditService,
@@ -124,13 +120,13 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 	}
 
 	watcher.HeartbeatEventForTelemetry()
-	_, err := cron.AddFunc(SummaryCronExpr, watcher.SummaryEventForTelemetryEA)
+	_, err := cron.AddFunc(posthogClient.SummaryCronExpr, watcher.SummaryEventForTelemetryEA)
 	if err != nil {
 		logger.Errorw("error in starting summery event", "err", err)
 		return nil, err
 	}
 
-	_, err = cron.AddFunc(HeartbeatCronExpr, watcher.HeartbeatEventForTelemetry)
+	_, err = cron.AddFunc(posthogClient.HeartbeatCronExpr, watcher.HeartbeatEventForTelemetry)
 	if err != nil {
 		logger.Errorw("error in starting heartbeat event", "err", err)
 		return nil, err
@@ -154,59 +150,6 @@ func (impl *TelemetryEventClientImpl) GetCloudProvider() (string, error) {
 func (impl *TelemetryEventClientImpl) StopCron() {
 	impl.cron.Stop()
 }
-
-type TelemetryEventEA struct {
-	UCID                               string             `json:"ucid"` //unique client id
-	Timestamp                          time.Time          `json:"timestamp"`
-	EventMessage                       string             `json:"eventMessage,omitempty"`
-	EventType                          TelemetryEventType `json:"eventType"`
-	ServerVersion                      string             `json:"serverVersion,omitempty"`
-	UserCount                          int                `json:"userCount,omitempty"`
-	ClusterCount                       int                `json:"clusterCount,omitempty"`
-	HostURL                            bool               `json:"hostURL,omitempty"`
-	SSOLogin                           bool               `json:"ssoLogin,omitempty"`
-	DevtronVersion                     string             `json:"devtronVersion,omitempty"`
-	DevtronMode                        string             `json:"devtronMode,omitempty"`
-	InstalledIntegrations              []string           `json:"installedIntegrations,omitempty"`
-	InstallFailedIntegrations          []string           `json:"installFailedIntegrations,omitempty"`
-	InstallTimedOutIntegrations        []string           `json:"installTimedOutIntegrations,omitempty"`
-	LastLoginTime                      time.Time          `json:"LastLoginTime,omitempty"`
-	InstallingIntegrations             []string           `json:"installingIntegrations,omitempty"`
-	DevtronReleaseVersion              string             `json:"devtronReleaseVersion,omitempty"`
-	HelmAppAccessCounter               string             `json:"HelmAppAccessCounter,omitempty"`
-	HelmAppUpdateCounter               string             `json:"HelmAppUpdateCounter,omitempty"`
-	ChartStoreVisitCount               string             `json:"ChartStoreVisitCount,omitempty"`
-	SkippedOnboarding                  bool               `json:"SkippedOnboarding"`
-	HelmChartSuccessfulDeploymentCount int                `json:"helmChartSuccessfulDeploymentCount,omitempty"`
-	ExternalHelmAppClusterCount        map[int32]int      `json:"ExternalHelmAppClusterCount,omitempty"`
-	ClusterProvider                    string             `json:"clusterProvider,omitempty"`
-}
-
-const DevtronUniqueClientIdConfigMap = "devtron-ucid"
-const DevtronUniqueClientIdConfigMapKey = "UCID"
-const InstallEventKey = "installEvent"
-const UIEventKey = "uiEventKey"
-
-type TelemetryEventType string
-
-const (
-	Heartbeat                    TelemetryEventType = "Heartbeat"
-	InstallationStart            TelemetryEventType = "InstallationStart"
-	InstallationInProgress       TelemetryEventType = "InstallationInProgress"
-	InstallationInterrupt        TelemetryEventType = "InstallationInterrupt"
-	InstallationSuccess          TelemetryEventType = "InstallationSuccess"
-	InstallationFailure          TelemetryEventType = "InstallationFailure"
-	UpgradeStart                 TelemetryEventType = "UpgradeStart"
-	UpgradeInProgress            TelemetryEventType = "UpgradeInProgress"
-	UpgradeInterrupt             TelemetryEventType = "UpgradeInterrupt"
-	UpgradeSuccess               TelemetryEventType = "UpgradeSuccess"
-	UpgradeFailure               TelemetryEventType = "UpgradeFailure"
-	Summary                      TelemetryEventType = "Summary"
-	InstallationApplicationError TelemetryEventType = "InstallationApplicationError"
-	DashboardAccessed            TelemetryEventType = "DashboardAccessed"
-	DashboardLoggedIn            TelemetryEventType = "DashboardLoggedIn"
-	SIG_TERM                     TelemetryEventType = "SIG_TERM"
-)
 
 func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []bean3.ClusterBean, user []bean.UserInfo,
 	k8sServerVersion *version.Info, hostURL bool, ssoSetup bool, HelmAppAccessCount string, ChartStoreVisitCount string,
@@ -297,9 +240,9 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []be
 	}
 
 	//getting userData from emailId
-	userData, err := impl.userAttributesRepository.GetUserDataByEmailId(ADMIN_EMAIL_ID_CONST)
+	userData, err := impl.userAttributesRepository.GetUserDataByEmailId(AdminEmailIdConst)
 
-	SkippedOnboardingValue := gjson.Get(userData, SKIPPED_ONBOARDING_CONST).Str
+	SkippedOnboardingValue := gjson.Get(userData, SkippedOnboardingConst).Str
 
 	if SkippedOnboardingValue == "true" {
 		SkippedOnboarding = true
@@ -326,13 +269,13 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetryEA() {
 
 func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 	impl.logger.Infow("sending summary event", "eventType", eventType)
-	ucid, err := impl.getUCID()
+	ucid, err := impl.getUCIDAndCheckIsOptedOut(context.Background())
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return err
 	}
 
-	if IsOptOut {
+	if posthogClient.IsOptOut {
 		impl.logger.Warnw("client is opt-out for telemetry, there will be no events capture", "ucid", ucid)
 		return err
 	}
@@ -404,13 +347,13 @@ func (impl *TelemetryEventClientImpl) EnqueuePostHog(ucid string, eventType Tele
 }
 
 func (impl *TelemetryEventClientImpl) SendGenericTelemetryEvent(eventType string, prop map[string]interface{}) error {
-	ucid, err := impl.getUCID()
+	ucid, err := impl.getUCIDAndCheckIsOptedOut(context.Background())
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry generic event", "err", err)
 		return nil
 	}
 
-	if IsOptOut {
+	if posthogClient.IsOptOut {
 		impl.logger.Warnw("client is opt-out for telemetry, there will be no events capture", "ucid", ucid)
 		return nil
 	}
@@ -419,15 +362,15 @@ func (impl *TelemetryEventClientImpl) SendGenericTelemetryEvent(eventType string
 }
 
 func (impl *TelemetryEventClientImpl) EnqueueGenericPostHogEvent(ucid string, eventType string, prop map[string]interface{}) error {
-	if impl.PosthogClient.Client == nil {
+	if impl.posthogClient.Client == nil {
 		impl.logger.Warn("no posthog client found, creating new")
-		client, err := impl.retryPosthogClient(PosthogApiKey, PosthogEndpoint)
+		client, err := impl.retryPosthogClient(posthogClient.PosthogApiKey, posthogClient.PosthogEndpoint)
 		if err == nil {
-			impl.PosthogClient.Client = client
+			impl.posthogClient.Client = client
 		}
 	}
-	if impl.PosthogClient.Client != nil && !impl.globalEnvVariables.IsAirGapEnvironment {
-		err := impl.PosthogClient.Client.Enqueue(posthog.Capture{
+	if impl.posthogClient.Client != nil && !impl.globalEnvVariables.IsAirGapEnvironment {
+		err := impl.posthogClient.Client.Enqueue(posthog.Capture{
 			DistinctId: ucid,
 			Event:      eventType,
 			Properties: prop,
@@ -441,12 +384,12 @@ func (impl *TelemetryEventClientImpl) EnqueueGenericPostHogEvent(ucid string, ev
 }
 
 func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
-	ucid, err := impl.getUCID()
+	ucid, err := impl.getUCIDAndCheckIsOptedOut(context.Background())
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
 		return
 	}
-	if IsOptOut {
+	if posthogClient.IsOptOut {
 		impl.logger.Warnw("client is opt-out for telemetry, there will be no events capture", "ucid", ucid)
 		return
 	}
@@ -488,21 +431,21 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 }
 
 func (impl *TelemetryEventClientImpl) GetTelemetryMetaInfo() (*TelemetryMetaInfo, error) {
-	ucid, err := impl.getUCID()
+	ucid, err := impl.getUCIDAndCheckIsOptedOut(context.Background())
 	if err != nil {
 		impl.logger.Errorw("exception while getting unique client id", "error", err)
 		return nil, err
 	}
 	data := &TelemetryMetaInfo{
-		Url:    PosthogEndpoint,
+		Url:    posthogClient.PosthogEndpoint,
 		UCID:   ucid,
-		ApiKey: PosthogEncodedApiKey,
+		ApiKey: posthogClient.PosthogEncodedApiKey,
 	}
 	return data, err
 }
 
 func (impl *TelemetryEventClientImpl) SendTelemetryInstallEventEA() (*TelemetryEventType, error) {
-	ucid, err := impl.getUCID()
+	ucid, err := impl.getUCIDAndCheckIsOptedOut(context.Background())
 	if err != nil {
 		impl.logger.Errorw("exception while getting unique client id", "error", err)
 		return nil, err
@@ -546,15 +489,19 @@ func (impl *TelemetryEventClientImpl) SendTelemetryInstallEventEA() (*TelemetryE
 		impl.logger.Errorw("Installation EventForTelemetry EA Mode, payload unmarshal error", "error", err)
 		return nil, nil
 	}
-	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
+	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, ucidService.DevtronUniqueClientIdConfigMap, client)
+	if err != nil {
+		impl.logger.Errorw("Installation EventForTelemetry EA Mode, failed to get DevtronUniqueClientIdConfigMap", "error", err)
+		return nil, err
+	}
 	datamap := cm.Data
 
-	installEventValue, installEventKeyExists := datamap[InstallEventKey]
+	installEventValue, installEventKeyExists := datamap[ucidService.InstallEventKey]
 
 	if installEventKeyExists == false || installEventValue == "1" {
 		err = impl.EnqueuePostHog(ucid, InstallationSuccess, prop)
 		if err == nil {
-			datamap[InstallEventKey] = "2"
+			datamap[ucidService.InstallEventKey] = "2"
 			cm.Data = datamap
 			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 			if err != nil {
@@ -568,7 +515,7 @@ func (impl *TelemetryEventClientImpl) SendTelemetryInstallEventEA() (*TelemetryE
 }
 
 func (impl *TelemetryEventClientImpl) SendTelemetryDashboardAccessEvent() error {
-	ucid, err := impl.getUCID()
+	ucid, err := impl.getUCIDAndCheckIsOptedOut(context.Background())
 	if err != nil {
 		impl.logger.Errorw("exception while getting unique client id", "error", err)
 		return err
@@ -612,19 +559,19 @@ func (impl *TelemetryEventClientImpl) SendTelemetryDashboardAccessEvent() error 
 		impl.logger.Errorw("DashboardAccessed EventForTelemetry, payload unmarshal error", "error", err)
 		return err
 	}
-	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
+	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, ucidService.DevtronUniqueClientIdConfigMap, client)
 	if err != nil {
 		impl.logger.Errorw("DashboardAccessed EventForTelemetry,failed to get DevtronUniqueClientIdConfigMap", "error", err)
 		return err
 	}
 	datamap := cm.Data
 
-	accessEventValue, installEventKeyExists := datamap[UIEventKey]
+	accessEventValue, installEventKeyExists := datamap[ucidService.UIEventKey]
 
 	if installEventKeyExists == false || accessEventValue <= "1" {
 		err = impl.EnqueuePostHog(ucid, DashboardAccessed, prop)
 		if err == nil {
-			datamap[UIEventKey] = "2"
+			datamap[ucidService.UIEventKey] = "2"
 			cm.Data = datamap
 			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 			if err != nil {
@@ -638,7 +585,7 @@ func (impl *TelemetryEventClientImpl) SendTelemetryDashboardAccessEvent() error 
 }
 
 func (impl *TelemetryEventClientImpl) SendTelemetryDashboardLoggedInEvent() error {
-	ucid, err := impl.getUCID()
+	ucid, err := impl.getUCIDAndCheckIsOptedOut(context.Background())
 	if err != nil {
 		impl.logger.Errorw("exception while getting unique client id", "error", err)
 		return err
@@ -682,19 +629,19 @@ func (impl *TelemetryEventClientImpl) SendTelemetryDashboardLoggedInEvent() erro
 		impl.logger.Errorw("DashboardLoggedIn EventForTelemetry, payload unmarshal error", "error", err)
 		return err
 	}
-	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
+	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, ucidService.DevtronUniqueClientIdConfigMap, client)
 	if err != nil {
 		impl.logger.Errorw("DashboardLoggedIn EventForTelemetry,failed to get DevtronUniqueClientIdConfigMap", "error", err)
 		return err
 	}
 	datamap := cm.Data
 
-	accessEventValue, installEventKeyExists := datamap[UIEventKey]
+	accessEventValue, installEventKeyExists := datamap[ucidService.UIEventKey]
 
 	if installEventKeyExists == false || accessEventValue != "3" {
 		err = impl.EnqueuePostHog(ucid, DashboardLoggedIn, prop)
 		if err == nil {
-			datamap[UIEventKey] = "3"
+			datamap[ucidService.UIEventKey] = "3"
 			cm.Data = datamap
 			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 			if err != nil {
@@ -707,57 +654,29 @@ func (impl *TelemetryEventClientImpl) SendTelemetryDashboardLoggedInEvent() erro
 	return nil
 }
 
-type TelemetryMetaInfo struct {
-	Url    string `json:"url,omitempty"`
-	UCID   string `json:"ucid,omitempty"`
-	ApiKey string `json:"apiKey,omitempty"`
-}
-
-func (impl *TelemetryEventClientImpl) getUCID() (string, error) {
-	ucid, found := impl.PosthogClient.cache.Get(DevtronUniqueClientIdConfigMapKey)
-	if found {
-		return ucid.(string), nil
-	} else {
-		client, err := impl.K8sUtil.GetClientForInCluster()
-		if err != nil {
-			impl.logger.Errorw("exception while getting unique client id", "error", err)
-			return "", err
-		}
-
-		cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
-		if errStatus, ok := status.FromError(err); !ok || errStatus.Code() == codes.NotFound || errStatus.Code() == codes.Unknown {
-			// if not found, create new cm
-			cm = &v1.ConfigMap{ObjectMeta: v12.ObjectMeta{Name: DevtronUniqueClientIdConfigMap}}
-			data := map[string]string{}
-			data[DevtronUniqueClientIdConfigMapKey] = util.Generate(16) // generate unique random number
-			data[InstallEventKey] = "1"                                 // used in operator to detect event is install or upgrade
-			data[UIEventKey] = "1"
-			cm.Data = data
-			_, err = impl.K8sUtil.CreateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
-			if err != nil {
-				impl.logger.Errorw("exception while getting unique client id", "error", err)
-				return "", err
-			}
-		}
-		dataMap := cm.Data
-		ucid = dataMap[DevtronUniqueClientIdConfigMapKey]
-		impl.PosthogClient.cache.Set(DevtronUniqueClientIdConfigMapKey, ucid, cache.DefaultExpiration)
-		if cm == nil {
-			impl.logger.Errorw("configmap not found while getting unique client id", "cm", cm)
-			return ucid.(string), err
-		}
-		flag, err := impl.checkForOptOut(ucid.(string))
+func (impl *TelemetryEventClientImpl) getUCIDAndCheckIsOptedOut(ctx context.Context) (string, error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TelemetryEventClientImpl.getUCIDAndCheckIsOptedOut")
+	defer span.End()
+	ucid, found, err := impl.ucid.GetUCID()
+	if err != nil {
+		impl.logger.Errorw("exception while getting unique client id", "error", err)
+		return "", err
+	}
+	if !found {
+		flag, err := impl.checkForOptOut(newCtx, ucid)
 		if err != nil {
 			impl.logger.Errorw("error sending event to posthog, failed check for opt-out", "err", err)
 			return "", err
 		}
-		IsOptOut = flag
+		posthogClient.IsOptOut = flag
 	}
-	return ucid.(string), nil
+	return ucid, nil
 }
 
-func (impl *TelemetryEventClientImpl) checkForOptOut(UCID string) (bool, error) {
-	decodedUrl, err := base64.StdEncoding.DecodeString(TelemetryOptOutApiBaseUrl)
+func (impl *TelemetryEventClientImpl) checkForOptOut(ctx context.Context, UCID string) (bool, error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TelemetryEventClientImpl.checkForOptOut")
+	defer span.End()
+	decodedUrl, err := base64.StdEncoding.DecodeString(posthogClient.TelemetryOptOutApiBaseUrl)
 	if err != nil {
 		impl.logger.Errorw("check opt-out list failed, decode error", "err", err)
 		return false, err
@@ -765,13 +684,13 @@ func (impl *TelemetryEventClientImpl) checkForOptOut(UCID string) (bool, error) 
 	encodedUrl := string(decodedUrl)
 	url := fmt.Sprintf("%s/%s", encodedUrl, UCID)
 
-	response, err := util.HttpRequest(url)
+	response, err := util.HttpRequest(newCtx, url)
 	if err != nil {
-		impl.logger.Errorw("check opt-out list failed, rest api error", "err", err)
+		impl.logger.Errorw("check opt-out list failed, rest api error", "ucid", UCID, "err", err)
 		return false, err
 	}
 	flag := response["result"].(bool)
-	return flag, err
+	return flag, nil
 }
 
 func (impl *TelemetryEventClientImpl) retryPosthogClient(PosthogApiKey string, PosthogEndpoint string) (posthog.Client, error) {
@@ -783,7 +702,7 @@ func (impl *TelemetryEventClientImpl) retryPosthogClient(PosthogApiKey string, P
 	return client, err
 }
 
-// returns installedIntegrations, installFailedIntegrations, installTimedOutIntegrations, installingIntegrations
+// buildIntegrationsList - returns installedIntegrations, installFailedIntegrations, installTimedOutIntegrations, installingIntegrations
 func (impl *TelemetryEventClientImpl) buildIntegrationsList() ([]string, []string, []string, []string, error) {
 	impl.logger.Info("building integrations list for telemetry")
 

@@ -18,6 +18,7 @@ package in
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -46,6 +47,7 @@ import (
 	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
+	"github.com/devtron-labs/devtron/pkg/ucid"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/adapter"
 	cdWorkflowBean "github.com/devtron-labs/devtron/pkg/workflow/cd/bean"
@@ -86,6 +88,7 @@ type WorkflowEventProcessorImpl struct {
 	cdWorkflowCommonService      cd.CdWorkflowCommonService
 	cdPipelineConfigService      pipeline.CdPipelineConfigService
 	userDeploymentRequestService service.UserDeploymentRequestService
+	ucid                         ucid.Service
 
 	devtronAppReleaseContextMap     map[int]bean.DevtronAppReleaseContextType
 	devtronAppReleaseContextMapLock *sync.Mutex
@@ -115,6 +118,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	cdWorkflowCommonService cd.CdWorkflowCommonService,
 	cdPipelineConfigService pipeline.CdPipelineConfigService,
 	userDeploymentRequestService service.UserDeploymentRequestService,
+	ucid ucid.Service,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
@@ -139,6 +143,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 		cdWorkflowCommonService:         cdWorkflowCommonService,
 		cdPipelineConfigService:         cdPipelineConfigService,
 		userDeploymentRequestService:    userDeploymentRequestService,
+		ucid:                            ucid,
 		devtronAppReleaseContextMap:     make(map[int]bean.DevtronAppReleaseContextType),
 		devtronAppReleaseContextMapLock: &sync.Mutex{},
 		pipelineRepository:              pipelineRepository,
@@ -387,13 +392,28 @@ func (impl *WorkflowEventProcessorImpl) SubscribeHibernateBulkAction() error {
 
 func (impl *WorkflowEventProcessorImpl) SubscribeCIWorkflowStatusUpdate() error {
 	callback := func(msg *model.PubSubMsg) {
-		wfStatus := v1alpha1.WorkflowStatus{}
+		wfStatus := bean.CiCdStatus{}
 		err := json.Unmarshal([]byte(msg.Data), &wfStatus)
 		if err != nil {
 			impl.logger.Errorw("error while unmarshalling wf status update", "err", err, "msg", msg.Data)
 			return
 		}
-
+		if len(wfStatus.DevtronAdministratorInstance) != 0 {
+			devtronUCID, _, err := impl.ucid.GetUCID()
+			if err != nil {
+				impl.logger.Errorw("error in getting UCID", "err", err)
+				return
+			}
+			decodedUCID, err := base64.StdEncoding.DecodeString(wfStatus.DevtronAdministratorInstance)
+			if err != nil {
+				impl.logger.Errorw("error in decoding UCID", "err", err)
+				return
+			}
+			if string(decodedUCID) != devtronUCID {
+				impl.logger.Warnw("mis match in UCID. skipping...", "decodedUCID", string(decodedUCID), "devtronUCID", devtronUCID)
+				return
+			}
+		}
 		err = impl.ciHandler.CheckAndReTriggerCI(wfStatus)
 		if err != nil {
 			impl.logger.Errorw("error in checking and re triggering ci", "err", err)
@@ -410,7 +430,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCIWorkflowStatusUpdate() error 
 
 	// add required logging here
 	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
-		wfStatus := v1alpha1.WorkflowStatus{}
+		wfStatus := bean.CiCdStatus{}
 		err := json.Unmarshal([]byte(msg.Data), &wfStatus)
 		if err != nil {
 			return "error while unmarshalling wf status update", []interface{}{"err", err, "msg", msg.Data}
@@ -431,13 +451,28 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCIWorkflowStatusUpdate() error 
 
 func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error {
 	callback := func(msg *model.PubSubMsg) {
-		wfStatus := v1alpha1.WorkflowStatus{}
+		wfStatus := bean.CiCdStatus{}
 		err := json.Unmarshal([]byte(msg.Data), &wfStatus)
 		if err != nil {
 			impl.logger.Error("Error while unmarshalling wfStatus json object", "error", err)
 			return
 		}
-
+		if len(wfStatus.DevtronAdministratorInstance) != 0 {
+			devtronUCID, _, err := impl.ucid.GetUCID()
+			if err != nil {
+				impl.logger.Errorw("error in getting UCID", "err", err)
+				return
+			}
+			decodedUCID, err := base64.StdEncoding.DecodeString(wfStatus.DevtronAdministratorInstance)
+			if err != nil {
+				impl.logger.Errorw("error in decoding UCID", "err", err)
+				return
+			}
+			if string(decodedUCID) != devtronUCID {
+				impl.logger.Warnw("mis match in UCID. skipping...", "decodedUCID", string(decodedUCID), "devtronUCID", devtronUCID)
+				return
+			}
+		}
 		wfrId, wfrStatus, stateChanged, err := impl.cdHandler.UpdateWorkflow(wfStatus)
 		impl.logger.Debugw("UpdateWorkflow", "wfrId", wfrId, "wfrStatus", wfrStatus)
 		if err != nil {
@@ -492,7 +527,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 
 	// add required logging here
 	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
-		wfStatus := v1alpha1.WorkflowStatus{}
+		wfStatus := bean.CiCdStatus{}
 		err := json.Unmarshal([]byte(msg.Data), &wfStatus)
 		if err != nil {
 			return "error while unmarshalling wfStatus json object", []interface{}{"error", err}
