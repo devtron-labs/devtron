@@ -769,11 +769,12 @@ func (impl *ChartRefServiceImpl) filterDeploymentTemplate(strategyKey string, pi
 		impl.logger.Errorw("error while unmarshal strategies", "err", err)
 		return "", err
 	}
-	if pipelineStrategies.Deployment.Strategy[strategyKey] == nil {
+	strategyValue, ok := pipelineStrategies.Deployment.Strategy[strategyKey]
+	if !ok {
 		return "", fmt.Errorf("no deployment strategy found for %s", strategyKey)
 	}
 	strategy := make(map[string]interface{})
-	strategy[strategyKey] = pipelineStrategies.Deployment.Strategy[strategyKey].(map[string]interface{})
+	strategy[strategyKey] = strategyValue.(map[string]interface{})
 	pipelineStrategy := bean.DeploymentType{
 		Deployment: bean.Deployment{
 			Strategy: strategy,

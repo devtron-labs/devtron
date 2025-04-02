@@ -548,7 +548,7 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 		return
 	}
 	token := r.Header.Get("token")
-	ctx := context.WithValue(r.Context(), "token", token)
+	ctx := util2.SetTokenInContext(r.Context(), token)
 	var envMetrics bool
 	envConfigProperties, envMetrics, err = handler.deploymentTemplateValidationService.ValidateChangeChartRefRequest(ctx, envConfigProperties, &request)
 	if err != nil {
