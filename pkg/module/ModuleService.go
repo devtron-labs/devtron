@@ -63,12 +63,19 @@ type ModuleServiceImpl struct {
 	moduleServiceHelper            ModuleServiceHelper
 	moduleResourceStatusRepository moduleRepo.ModuleResourceStatusRepository
 	scanToolMetadataService        scanTool.ScanToolMetadataService
+	globalEnvVariables             *util2.GlobalEnvVariables
+	moduleEnvConfig                *bean.ModuleEnvConfig
+	installedModulesMap            map[string]bool
 }
 
 func NewModuleServiceImpl(logger *zap.SugaredLogger, serverEnvConfig *serverEnvConfig.ServerEnvConfig, moduleRepository moduleRepo.ModuleRepository,
 	moduleActionAuditLogRepository ModuleActionAuditLogRepository, helmAppService client.HelmAppService, serverDataStore *serverDataStore.ServerDataStore, serverCacheService server.ServerCacheService, moduleCacheService ModuleCacheService, moduleCronService ModuleCronService,
 	moduleServiceHelper ModuleServiceHelper, moduleResourceStatusRepository moduleRepo.ModuleResourceStatusRepository,
-	scanToolMetadataService scanTool.ScanToolMetadataService) *ModuleServiceImpl {
+	scanToolMetadataService scanTool.ScanToolMetadataService, envVariables *util2.EnvironmentVariables, moduleEnvConfig *bean.ModuleEnvConfig) *ModuleServiceImpl {
+	installedModulesMap := make(map[string]bool)
+	for _, module := range moduleEnvConfig.InstalledModules {
+		installedModulesMap[module] = true
+	}
 	return &ModuleServiceImpl{
 		logger:                         logger,
 		serverEnvConfig:                serverEnvConfig,
@@ -82,6 +89,9 @@ func NewModuleServiceImpl(logger *zap.SugaredLogger, serverEnvConfig *serverEnvC
 		moduleServiceHelper:            moduleServiceHelper,
 		moduleResourceStatusRepository: moduleResourceStatusRepository,
 		scanToolMetadataService:        scanToolMetadataService,
+		globalEnvVariables:             envVariables.GlobalEnvVariables,
+		moduleEnvConfig:                moduleEnvConfig,
+		installedModulesMap:            installedModulesMap,
 	}
 }
 
@@ -180,26 +190,39 @@ func (impl ModuleServiceImpl) GetModuleConfig(name string) (*bean.ModuleConfigDt
 	return moduleConfig, nil
 }
 
+func (impl ModuleServiceImpl) extractModuleTypeFromModule(moduleName string) (string, error) {
+	var moduleType string
+	if len(impl.installedModulesMap) > 0 {
+		if strings.Contains(moduleName, bean.MODULE_TYPE_SECURITY) {
+			moduleType = bean.MODULE_TYPE_SECURITY
+		}
+	} else {
+		// central-api call
+		moduleMetaData, err := impl.moduleServiceHelper.GetModuleMetadata(moduleName)
+		if err != nil {
+			impl.logger.Errorw("Error in getting module metadata", "moduleName", moduleName, "err", err)
+			return "", err
+		}
+		moduleType = gjson.Get(string(moduleMetaData), "result.moduleType").String()
+	}
+	return moduleType, nil
+}
+
 func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (bean.ModuleStatus, string, bool, error) {
 	// if entry is not found in database, then check if that module is legacy or not
 	// if enterprise user -> if legacy -> then mark as installed in db and return as installed, if not legacy -> return as not installed
 	// if non-enterprise user->  fetch helm release enable Key. if true -> then mark as installed in db and return as installed. if false ->
 	//// (continuation of above line) if legacy -> check if cicd is installed with <= 0.5.3 from DB and moduleName != argo-cd -> then mark as installed in db and return as installed. otherwise return as not installed
-
-	// central-api call
-	moduleMetaData, err := impl.moduleServiceHelper.GetModuleMetadata(moduleName)
+	moduleType, err := impl.extractModuleTypeFromModule(moduleName)
 	if err != nil {
-		impl.logger.Errorw("Error in getting module metadata", "moduleName", moduleName, "err", err)
+		impl.logger.Errorw("error in handleModuleNotFoundStatus", "moduleName", moduleName, "err", err)
 		return bean.ModuleStatusNotInstalled, "", false, err
 	}
-	moduleMetaDataStr := string(moduleMetaData)
-	isLegacyModule := gjson.Get(moduleMetaDataStr, "result.isIncludedInLegacyFullPackage").Bool()
-	moduleType := gjson.Get(moduleMetaDataStr, "result.moduleType").String()
 
 	flagForEnablingState := false
 	flagForActiveTool := false
 	if moduleType == bean.MODULE_TYPE_SECURITY {
-		err = impl.moduleRepository.FindByModuleTypeAndStatus(moduleType, bean.ModuleStatusInstalled)
+		err := impl.moduleRepository.FindByModuleTypeAndStatus(moduleType, bean.ModuleStatusInstalled)
 		if err != nil {
 			if err == pg.ErrNoRows {
 				flagForEnablingState = true
@@ -213,51 +236,55 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (bea
 		flagForEnablingState = true
 	}
 
-	// for enterprise user
-	if impl.serverEnvConfig.DevtronInstallationType == serverBean.DevtronInstallationTypeEnterprise {
-		if isLegacyModule {
-			status, err := impl.saveModuleAsInstalled(moduleName, moduleType, flagForEnablingState)
-			return status, moduleType, flagForActiveTool, err
-		}
-		return bean.ModuleStatusNotInstalled, moduleType, false, nil
-	}
-	// for non-enterprise user
-	devtronHelmAppIdentifier := impl.helmAppService.GetDevtronHelmAppIdentifier()
-	releaseInfo, err := impl.helmAppService.GetValuesYaml(context.Background(), devtronHelmAppIdentifier)
-	if err != nil {
-		impl.logger.Errorw("Error in getting values yaml for devtron operator helm release", "moduleName", moduleName, "err", err)
-		apiError := clientErrors.ConvertToApiError(err)
-		if apiError != nil {
-			err = apiError
-		}
-		return bean.ModuleStatusNotInstalled, moduleType, false, err
-	}
-	releaseValues := releaseInfo.MergedValues
-
-	// if check non-cicd module status
-	if moduleName != bean.ModuleNameCiCd {
-		isEnabled := gjson.Get(releaseValues, moduleUtil.BuildModuleEnableKey(moduleName)).Bool()
-		if isEnabled {
-			status, err := impl.saveModuleAsInstalled(moduleName, moduleType, flagForEnablingState)
-			return status, moduleType, flagForActiveTool, err
-		}
-	} else if util2.IsBaseStack() {
-		// check if cicd is in installing state
-		// if devtron is installed with cicd module, then cicd module should be shown as installing
-		installerModulesIface := gjson.Get(releaseValues, bean.INSTALLER_MODULES_HELM_KEY).Value()
-		if installerModulesIface != nil {
-			installerModulesIfaceKind := reflect.TypeOf(installerModulesIface).Kind()
-			if installerModulesIfaceKind == reflect.Slice {
-				installerModules := installerModulesIface.([]interface{})
-				for _, installerModule := range installerModules {
-					if installerModule == moduleName {
-						status, err := impl.saveModule(moduleName, bean.ModuleStatusInstalling, moduleType, flagForEnablingState)
-						return status, moduleType, false, err
-					}
-				}
-			} else {
-				impl.logger.Warnw("Invalid installerModulesIfaceKind expected slice", "installerModulesIfaceKind", installerModulesIfaceKind, "val", installerModulesIface)
+	if len(impl.installedModulesMap) == 0 {
+		devtronHelmAppIdentifier := impl.helmAppService.GetDevtronHelmAppIdentifier()
+		releaseInfo, err := impl.helmAppService.GetValuesYaml(context.Background(), devtronHelmAppIdentifier)
+		if err != nil {
+			impl.logger.Errorw("Error in getting values yaml for devtron operator helm release", "moduleName", moduleName, "err", err)
+			apiError := clientErrors.ConvertToApiError(err)
+			if apiError != nil {
+				err = apiError
 			}
+			return bean.ModuleStatusNotInstalled, moduleType, false, err
+		}
+		releaseValues := releaseInfo.MergedValues
+
+		// if check non-cicd module status
+		if moduleName != bean.ModuleNameCiCd {
+			isEnabled := gjson.Get(releaseValues, moduleUtil.BuildModuleEnableKey(moduleName)).Bool()
+			if isEnabled {
+				status, err := impl.saveModuleAsInstalled(moduleName, moduleType, flagForEnablingState)
+				return status, moduleType, flagForActiveTool, err
+			}
+		} else if util2.IsBaseStack() {
+			// check if cicd is in installing state
+			// if devtron is installed with cicd module, then cicd module should be shown as installing
+			installerModulesIface := gjson.Get(releaseValues, bean.INSTALLER_MODULES_HELM_KEY).Value()
+			if installerModulesIface != nil {
+				installerModulesIfaceKind := reflect.TypeOf(installerModulesIface).Kind()
+				if installerModulesIfaceKind == reflect.Slice {
+					installerModules := installerModulesIface.([]interface{})
+					for _, installerModule := range installerModules {
+						if installerModule == moduleName {
+							status, err := impl.saveModule(moduleName, bean.ModuleStatusInstalling, moduleType, flagForEnablingState)
+							return status, moduleType, false, err
+						}
+					}
+				} else {
+					impl.logger.Warnw("Invalid installerModulesIfaceKind expected slice", "installerModulesIfaceKind", installerModulesIfaceKind, "val", installerModulesIface)
+				}
+			}
+		}
+	} else {
+		if _, ok := impl.installedModulesMap[moduleName]; !ok {
+			return bean.ModuleStatusNotInstalled, moduleType, false, nil
+		}
+		if moduleName != bean.ModuleNameCiCd {
+			status, err := impl.saveModuleAsInstalled(moduleName, moduleType, flagForEnablingState)
+			return status, moduleType, flagForActiveTool, err
+		} else if util2.IsBaseStack() {
+			status, err := impl.saveModule(moduleName, bean.ModuleStatusInstalling, moduleType, flagForEnablingState)
+			return status, moduleType, false, err
 		}
 	}
 
