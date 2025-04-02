@@ -320,10 +320,10 @@ apiVersion: batch/v1beta1
 kind: Job
 metadata:
   namespace: devtroncd
-  name: postgresql-migrate-enterprise
+  name: postgresql-migrate-enterprise-{{ randAlphaNum 5 | lower }}
 spec:
   activeDeadlineSeconds: 1500
-  ttlSecondsAfterFinished: 600
+  ttlSecondsAfterFinished: 1000
   backoffLimit: 20
   completions: 1
   parallelism: 1

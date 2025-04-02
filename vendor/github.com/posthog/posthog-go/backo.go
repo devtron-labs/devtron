@@ -19,10 +19,11 @@ func NewBacko(base time.Duration, factor uint8, jitter float64, cap time.Duratio
 }
 
 // Creates a backo instance with the following defaults:
-//   base: 100 milliseconds
-//   factor: 2
-//   jitter: 0
-//   cap: 10 seconds
+//
+//	base: 100 milliseconds
+//	factor: 2
+//	jitter: 0
+//	cap: 10 seconds
 func DefaultBacko() *Backo {
 	return NewBacko(time.Millisecond*100, 2, 0, time.Second*10)
 }

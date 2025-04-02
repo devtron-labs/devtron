@@ -19,7 +19,9 @@ package http
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"github.com/pkg/errors"
+	"io/ioutil"
 	"net/http"
 	"os"
 )
@@ -79,4 +81,30 @@ func CertPoolFromFile(filename string) (*x509.CertPool, error) {
 		return nil, errors.Errorf("failed to append certificates from file: %s", filename)
 	}
 	return cp, nil
+}
+
+func HttpRequest(url string) (map[string]interface{}, error) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	//var client *http.Client
+	client := &http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode >= 200 && res.StatusCode <= 299 {
+		resBody, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			return nil, err
+		}
+		var apiRes map[string]interface{}
+		err = json.Unmarshal(resBody, &apiRes)
+		if err != nil {
+			return nil, err
+		}
+		return apiRes, err
+	}
+	return nil, err
 }
