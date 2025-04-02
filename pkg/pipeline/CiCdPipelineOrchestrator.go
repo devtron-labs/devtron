@@ -226,9 +226,6 @@ func NewCiCdPipelineOrchestrator(
 	}
 }
 
-const BEFORE_DOCKER_BUILD string = "BEFORE_DOCKER_BUILD"
-const AFTER_DOCKER_BUILD string = "AFTER_DOCKER_BUILD"
-
 func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSource(patchRequest *bean.CiMaterialPatchRequest, userId int32) (*bean.CiMaterialPatchRequest, error) {
 	pipeline, err := impl.findUniquePipelineForAppIdAndEnvironmentId(patchRequest.AppId, patchRequest.EnvironmentId)
 	if err != nil {
