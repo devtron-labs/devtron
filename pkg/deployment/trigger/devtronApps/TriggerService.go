@@ -24,6 +24,7 @@ import (
 	util5 "github.com/devtron-labs/common-lib/utils/k8s"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
+	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -1174,6 +1175,55 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, 
 		}
 	}
 	return true, referenceChartByte, nil
+}
+
+func (impl *TriggerServiceImpl) getHelmHistoryLimitAndChartMetadataForHelmAppCreation(ctx context.Context,
+	valuesOverrideResponse *app.ValuesOverrideResponse) (*chart.Metadata, int32, *gRPC.ReleaseIdentifier, error) {
+	pipelineModel := valuesOverrideResponse.Pipeline
+	envOverride := valuesOverrideResponse.EnvOverride
+
+	var chartMetaData *chart.Metadata
+	releaseName := pipelineModel.DeploymentAppName
+	//getting cluster by id
+	cluster, err := impl.clusterRepository.FindById(envOverride.Environment.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster by id", "clusterId", envOverride.Environment.ClusterId, "err", err)
+		return nil, 0, nil, err
+	} else if cluster == nil {
+		impl.logger.Errorw("error in getting cluster by id, found nil object", "clusterId", envOverride.Environment.ClusterId)
+		return nil, 0, nil, err
+	}
+
+	clusterConfig := impl.getClusterGRPCConfig(*cluster)
+
+	releaseIdentifier := &gRPC.ReleaseIdentifier{
+		ReleaseName:      releaseName,
+		ReleaseNamespace: envOverride.Namespace,
+		ClusterConfig:    clusterConfig,
+	}
+
+	var helmRevisionHistory int32
+	if valuesOverrideResponse.DeploymentConfig.ReleaseMode == util.PIPELINE_RELEASE_MODE_LINK {
+		detail, err := impl.helmAppClient.GetReleaseDetails(ctx, releaseIdentifier)
+		if err != nil {
+			impl.logger.Errorw("error in fetching release details", "clusterId", clusterConfig.ClusterId, "namespace", envOverride.Namespace, "releaseName", releaseName, "err", err)
+			return nil, 0, nil, err
+		}
+		chartMetaData = &chart.Metadata{
+			Name:    detail.ChartName,
+			Version: detail.ChartVersion,
+		}
+		//not modifying revision history in case of linked release
+		helmRevisionHistory = impl.helmAppService.GetRevisionHistoryMaxValue(bean6.SOURCE_LINKED_HELM_APP)
+	} else {
+		chartMetaData = &chart.Metadata{
+			Name:    pipelineModel.App.AppName,
+			Version: envOverride.Chart.ChartVersion,
+		}
+		helmRevisionHistory = impl.helmAppService.GetRevisionHistoryMaxValue(bean6.SOURCE_DEVTRON_APP)
+	}
+
+	return chartMetaData, helmRevisionHistory, releaseIdentifier, nil
 }
 
 func (impl *TriggerServiceImpl) deployArgoCdApp(ctx context.Context, overrideRequest *bean3.ValuesOverrideRequest,

@@ -34,3 +34,11 @@ type AppStoreGitOpsResponse struct {
 }
 
 const HELM_APP_UPDATE_COUNTER = "HelmAppUpdateCounter"
+
+type DeployedInstalledAppInfo struct {
+	ClusterId         int
+	Namespace         string
+	DeploymentAppName string
+	AppName           string
+	DisplayName       string
+}

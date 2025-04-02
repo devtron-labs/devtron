@@ -92,6 +92,7 @@ type GitMaterial struct {
 	FetchSubmodules  bool     `json:"fetchSubmodules"`
 	IsUsedInCiConfig bool     `json:"isUsedInCiConfig"`
 	FilterPattern    []string `json:"filterPattern"`
+	CreateBackup     bool     `json:"createBackup"`
 }
 
 // UpdateSanitisedGitRepoUrl will remove all trailing slashes , leading and trailing spaces from git repository url
@@ -701,6 +702,11 @@ func (cdPipelineConfig *CDPipelineConfigObject) PatchSourceInfo() (int, string) 
 
 func (cdPipelineConfig *CDPipelineConfigObject) IsExternalArgoAppLinkRequest() bool {
 	return cdPipelineConfig.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD &&
+		cdPipelineConfig.GetReleaseMode() == util.PIPELINE_RELEASE_MODE_LINK
+}
+
+func (cdPipelineConfig *CDPipelineConfigObject) IsExternalHelmAppLinkRequest() bool {
+	return cdPipelineConfig.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM &&
 		cdPipelineConfig.GetReleaseMode() == util.PIPELINE_RELEASE_MODE_LINK
 }
 

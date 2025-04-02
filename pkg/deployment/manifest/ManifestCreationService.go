@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	application3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	k8sUtil "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -881,51 +880,6 @@ func (impl *ManifestCreationServiceImpl) getK8sHPAResourceManifest(ctx context.C
 	return k8sResource.ManifestResponse.Manifest.Object, err
 }
 
-func (impl *ManifestCreationServiceImpl) getArgoCdHPAResourceManifest(ctx context.Context, appName, namespace string, hpaResourceRequest *globalUtil.HpaResourceRequest) (map[string]interface{}, error) {
-	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.getArgoCdHPAResourceManifest")
-	defer span.End()
-	resourceManifest := make(map[string]interface{})
-	query := &application3.ApplicationResourceRequest{
-		Name:         &appName,
-		Version:      &hpaResourceRequest.Version,
-		Group:        &hpaResourceRequest.Group,
-		Kind:         &hpaResourceRequest.Kind,
-		ResourceName: &hpaResourceRequest.ResourceName,
-		Namespace:    &namespace,
-	}
-
-	recv, argoErr := impl.acdClientWrapper.GetApplicationResource(newCtx, query)
-	if argoErr != nil {
-		grpcCode, errMsg := util.GetClientDetailedError(argoErr)
-		if grpcCode.IsInvalidArgumentCode() || grpcCode.IsNotFoundCode() {
-			// this is a valid case for hibernated applications, so returning nil
-			// for hibernated applications, we don't have any hpa resource manifest
-			return resourceManifest, nil
-		} else if grpcCode.IsUnavailableCode() {
-			impl.logger.Errorw("ArgoCd server unavailable", "resourceName", hpaResourceRequest.ResourceName, "err", errMsg)
-			return resourceManifest, fmt.Errorf("ArgoCd server error: %s", errMsg)
-		} else if grpcCode.IsDeadlineExceededCode() {
-			impl.logger.Errorw("ArgoCd resource request timeout", "resourceName", hpaResourceRequest.ResourceName, "err", errMsg)
-			return resourceManifest, util.DefaultApiError().
-				WithHttpStatusCode(http.StatusRequestTimeout).
-				WithInternalMessage(errMsg).
-				WithUserDetailMessage("ArgoCd server is not responding, please try again later")
-		}
-		impl.logger.Errorw("ArgoCd Get Resource API Failed", "resourceName", hpaResourceRequest.ResourceName, "err", errMsg)
-		return resourceManifest, fmt.Errorf("ArgoCd client error: %s", errMsg)
-	}
-	if recv != nil && len(*recv.Manifest) > 0 {
-		err := json.Unmarshal([]byte(*recv.Manifest), &resourceManifest)
-		if err != nil {
-			impl.logger.Errorw("failed to unmarshal hpa resource manifest", "manifest", recv.Manifest, "err", err)
-			return resourceManifest, err
-		}
-	} else {
-		impl.logger.Debugw("invalid resource manifest received from ArgoCd", "response", recv)
-	}
-	return resourceManifest, nil
-}
-
 // updateHashToMergedValues
 //   - Generates hash from the given configOrSecretData
 //   - And updates the hash in bean.JsonPath (JSON path) for the merged values
@@ -1033,17 +987,12 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 	impl.logger.Debugw("autoscalingCheckBeforeTrigger", "pipelineId", pipelineId, "hpaResourceRequest", hpaResourceRequest)
 	if hpaResourceRequest.IsEnable {
 		var resourceManifest map[string]interface{}
-		if envDeploymentConfig.IsArgoCdClientSupported() {
-			resourceManifest, err = impl.getArgoCdHPAResourceManifest(newCtx, appName, namespace, hpaResourceRequest)
-			if err != nil {
-				return merged, err
-			}
-		} else {
-			resourceManifest, err = impl.getK8sHPAResourceManifest(newCtx, clusterId, namespace, hpaResourceRequest)
-			if err != nil {
-				return merged, err
-			}
+
+		resourceManifest, err = impl.getK8sHPAResourceManifest(newCtx, clusterId, namespace, hpaResourceRequest)
+		if err != nil {
+			return merged, err
 		}
+
 		if len(resourceManifest) > 0 {
 			statusMap := resourceManifest["status"].(map[string]interface{})
 			currentReplicaVal := statusMap["currentReplicas"]

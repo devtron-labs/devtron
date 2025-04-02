@@ -23,7 +23,7 @@ require (
 	github.com/devtron-labs/authenticator v0.4.35-0.20240809073103-6e11da8083f8
 	github.com/devtron-labs/common-lib v0.18.1-0.20241001061923-eda545dc839e
 	github.com/devtron-labs/go-bitbucket v0.9.60-beta
-	github.com/devtron-labs/protos v0.0.3-0.20240802105333-92ee9bb85d80
+	github.com/devtron-labs/protos v0.0.3-0.20250323220609-ecf8a0f7305e
 	github.com/evanphx/json-patch v5.9.0+incompatible
 	github.com/gammazero/workerpool v1.1.3
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
@@ -291,8 +291,8 @@ require (
 
 replace (
 	github.com/argoproj/argo-workflows/v3 v3.5.13 => github.com/devtron-labs/argo-workflows/v3 v3.5.13
-	github.com/devtron-labs/authenticator => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250317062447-742cf1539ee2
-	github.com/devtron-labs/common-lib => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250317062447-742cf1539ee2
+	github.com/devtron-labs/authenticator => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250328045544-f569098ac485
+	github.com/devtron-labs/common-lib => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250328045544-f569098ac485
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.5.5
 	k8s.io/api => k8s.io/api v0.29.7
