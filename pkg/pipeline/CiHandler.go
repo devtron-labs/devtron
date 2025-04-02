@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/workFlow"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
+	bean6 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/bean/common"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	bean4 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
@@ -222,7 +223,7 @@ func (impl *CiHandlerImpl) reTriggerCi(retryCount int, refCiWorkflow *pipelineCo
 	}
 
 	trigger := types.Trigger{}
-	trigger.BuildTriggerObject(refCiWorkflow, ciMaterials, 1, true, nil, "")
+	trigger.BuildTriggerObject(refCiWorkflow, ciMaterials, bean6.SYSTEM_USER_ID, true, nil, "")
 	_, err = impl.ciService.TriggerCiPipeline(trigger)
 
 	if err != nil {
@@ -1818,20 +1819,14 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(request res
 	if len(ciPipelineIds) == 0 {
 		return ciWorkflowStatuses, nil
 	}
-	ciWorkflows, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByCiIds(ciPipelineIds)
+	latestCiWorkflows, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByCiIds(ciPipelineIds)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("err", "ciPipelineIds", ciPipelineIds, "err", err)
 		return ciWorkflowStatuses, err
 	}
 
 	notTriggeredWorkflows := make(map[int]bool)
-	latestCiWorkflows := make(map[int]*pipelineConfig.CiWorkflow)
-	for _, ciWorkflow := range ciWorkflows {
-		//adding only latest status in the list
-		if _, ok := latestCiWorkflows[ciWorkflow.CiPipelineId]; !ok {
-			latestCiWorkflows[ciWorkflow.CiPipelineId] = ciWorkflow
-		}
-	}
+
 	for _, ciWorkflow := range latestCiWorkflows {
 		ciWorkflowStatus := &pipelineConfig.CiWorkflowStatus{}
 		ciWorkflowStatus.CiPipelineId = ciWorkflow.CiPipelineId

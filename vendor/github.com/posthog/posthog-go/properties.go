@@ -12,7 +12,6 @@ package posthog
 //			.Set("revenue", 10.0)
 //			.Set("currency", "USD"),
 //	}
-//
 type Properties map[string]interface{}
 
 func NewProperties() Properties {
@@ -21,5 +20,19 @@ func NewProperties() Properties {
 
 func (p Properties) Set(name string, value interface{}) Properties {
 	p[name] = value
+	return p
+}
+
+// Merge adds the properties from the provided `props` into the receiver `p`.
+// If a property in `props` already exists in `p`, its value will be overwritten.
+func (p Properties) Merge(props Properties) Properties {
+	if props == nil {
+		return p
+	}
+
+	for k, v := range props {
+		p[k] = v
+	}
+
 	return p
 }

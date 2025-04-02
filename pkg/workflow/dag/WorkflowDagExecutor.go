@@ -35,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow"
 	cdWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/app/status"
+	bean7 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts"
 	bean5 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
@@ -240,7 +241,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCdStageReTrigger(runner *pipelineConf
 		CdWf:                  runner.CdWorkflow,
 		Pipeline:              runner.CdWorkflow.Pipeline,
 		Artifact:              runner.CdWorkflow.CiArtifact,
-		TriggeredBy:           1,
+		TriggeredBy:           bean7.SYSTEM_USER_ID,
 		ApplyAuth:             false,
 		RefCdWorkflowRunnerId: runner.Id,
 		TriggerContext: triggerBean.TriggerContext{
@@ -519,7 +520,6 @@ func (impl *WorkflowDagExecutorImpl) deleteCorruptedPipelineStage(pipelineStage 
 }
 
 func (impl *WorkflowDagExecutorImpl) triggerIfAutoStageCdPipeline(request triggerBean.TriggerRequest) error {
-
 	preStage, err := impl.getPipelineStage(request.Pipeline.Id, repository4.PIPELINE_STAGE_TYPE_PRE_CD)
 	if err != nil {
 		return err
@@ -533,6 +533,8 @@ func (impl *WorkflowDagExecutorImpl) triggerIfAutoStageCdPipeline(request trigge
 	}
 
 	request.TriggerContext.Context = context.Background()
+	//for auto stage setting triggeredBy to system user no matter where the request came from
+	request.TriggeredBy = bean7.SYSTEM_USER_ID
 	if len(request.Pipeline.PreStageConfig) > 0 || (preStage != nil && !deleted) {
 		// pre stage exists
 		if request.Pipeline.PreTriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
@@ -613,7 +615,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(triggerContext t
 		} else {
 			ciArtifactId = cdStageCompleteEvent.CiArtifactDTO.Id
 		}
-		err = impl.cdTriggerService.TriggerAutoCDOnPreStageSuccess(triggerContext, cdStageCompleteEvent.CdPipelineId, ciArtifactId, cdStageCompleteEvent.WorkflowId, cdStageCompleteEvent.TriggeredBy)
+		err = impl.cdTriggerService.TriggerAutoCDOnPreStageSuccess(triggerContext, cdStageCompleteEvent.CdPipelineId, ciArtifactId, cdStageCompleteEvent.WorkflowId)
 		if err != nil {
 			impl.logger.Errorw("error in triggering cd on pre cd succcess", "err", err)
 			return err
@@ -637,11 +639,10 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(triggerContext
 		return err
 	}
 
-	var triggeredByUser int32 = 1
 	//handle corrupt data (https://github.com/devtron-labs/devtron/issues/3826)
-	err, deleted := impl.deleteCorruptedPipelineStage(postStage, triggeredByUser)
+	err, deleted := impl.deleteCorruptedPipelineStage(postStage, bean7.SYSTEM_USER_ID)
 	if err != nil {
-		impl.logger.Errorw("error in deleteCorruptedPipelineStage ", "err", err, "preStage", postStage, "triggeredBy", triggeredByUser)
+		impl.logger.Errorw("error in deleteCorruptedPipelineStage ", "err", err, "preStage", postStage)
 		return err
 	}
 
@@ -653,7 +654,7 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(triggerContext
 			triggerRequest := triggerBean.TriggerRequest{
 				CdWf:                  cdWorkflow,
 				Pipeline:              pipelineOverride.Pipeline,
-				TriggeredBy:           triggeredByUser,
+				TriggeredBy:           bean7.SYSTEM_USER_ID,
 				TriggerContext:        triggerContext,
 				RefCdWorkflowRunnerId: 0,
 			}

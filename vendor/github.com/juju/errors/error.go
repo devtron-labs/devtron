@@ -6,7 +6,6 @@ package errors
 import (
 	"fmt"
 	"reflect"
-	"runtime"
 )
 
 // Err holds a description of an error along with information about
@@ -25,10 +24,58 @@ type Err struct {
 	// previous holds the previous error in the error stack, if any.
 	previous error
 
-	// file and line hold the source code location where the error was
-	// created.
-	file string
+	// function is the package path-qualified function name where the
+	// error was created.
+	function string
+
+	// line is the line number the error was created on inside of function
 	line int
+}
+
+// Locationer is an interface that represents a certain class of errors that
+// contain the location information from where they were raised.
+type Locationer interface {
+	// Location returns the path-qualified function name where the error was
+	// created and the line number
+	Location() (function string, line int)
+}
+
+// locationError is the internal implementation of the Locationer interface.
+type locationError struct {
+	error
+
+	// function is the package path-qualified function name where the
+	// error was created.
+	function string
+
+	// line is the line number the error was created on inside of function
+	line int
+}
+
+// newLocationError constructs a new Locationer error from the supplied error
+// with the location set to callDepth in the stack. If a nill error is provided
+// to this function then a new empty error is constructed.
+func newLocationError(err error, callDepth int) *locationError {
+	le := &locationError{error: err}
+	le.function, le.line = getLocation(callDepth + 1)
+	return le
+}
+
+// Error implementes the error interface.
+func (l *locationError) Error() string {
+	if l.error == nil {
+		return ""
+	}
+	return l.error.Error()
+}
+
+// *locationError implements Locationer.Location interface
+func (l *locationError) Location() (string, int) {
+	return l.function, l.line
+}
+
+func (l *locationError) Unwrap() error {
+	return l.error
 }
 
 // NewErr is used to return an Err for the purpose of embedding in other
@@ -75,10 +122,10 @@ func NewErrWithCause(other error, format string, args ...interface{}) Err {
 	}
 }
 
-// Location is the file and line of where the error was most recently
-// created or annotated.
-func (e *Err) Location() (filename string, line int) {
-	return e.file, e.line
+// Location returns the  package path-qualified function name and line of where
+// the error was most recently created or annotated.
+func (e *Err) Location() (function string, line int) {
+	return e.function, e.line
 }
 
 // Underlying returns the previous error in the error stack, if any. A client
@@ -155,12 +202,10 @@ type unformatter Err
 
 func (unformatter) Format() { /* break the fmt.Formatter interface */ }
 
-// SetLocation records the source location of the error at callDepth stack
-// frames above the call.
+// SetLocation records the package path-qualified function name of the error at
+// callDepth stack frames above the call.
 func (e *Err) SetLocation(callDepth int) {
-	_, file, line, _ := runtime.Caller(callDepth + 1)
-	e.file = trimSourcePath(file)
-	e.line = line
+	e.function, e.line = getLocation(callDepth + 1)
 }
 
 // StackTrace returns one string for each location recorded in the stack of
@@ -173,4 +218,10 @@ func (e *Err) StackTrace() []string {
 // Ideally we'd have a way to check identity, but deep equals will do.
 func sameError(e1, e2 error) bool {
 	return reflect.DeepEqual(e1, e2)
+}
+
+// Unwrap is a synonym for Underlying, which allows Err to be used with the
+// Unwrap, Is and As functions in Go's standard `errors` library.
+func (e *Err) Unwrap() error {
+	return e.previous
 }
