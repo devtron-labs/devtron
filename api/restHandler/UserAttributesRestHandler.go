@@ -32,6 +32,7 @@ import (
 type UserAttributesRestHandler interface {
 	AddUserAttributes(w http.ResponseWriter, r *http.Request)
 	UpdateUserAttributes(w http.ResponseWriter, r *http.Request)
+	PatchUserAttributes(w http.ResponseWriter, r *http.Request)
 	GetUserAttribute(w http.ResponseWriter, r *http.Request)
 }
 
@@ -54,35 +55,13 @@ func NewUserAttributesRestHandlerImpl(logger *zap.SugaredLogger, enforcer casbin
 }
 
 func (handler *UserAttributesRestHandlerImpl) AddUserAttributes(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+	dto, success := handler.validateUserAttributesRequest(w, r, "PatchUserAttributes")
+	if !success {
 		return
 	}
-	decoder := json.NewDecoder(r.Body)
-	var dto attributes.UserAttributesDto
-	err = decoder.Decode(&dto)
-	if err != nil {
-		handler.logger.Errorw("request err, AddUserAttributes", "err", err, "payload", dto)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	dto.UserId = userId
-	//if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
-	//	common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-	//	return
-	//}
-	emailId, err := handler.userService.GetActiveEmailById(userId)
-	if err != nil {
-		handler.logger.Errorw("request err, UpdateUserAttributes", "err", err, "payload", dto)
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	dto.EmailId = emailId
 
 	handler.logger.Infow("request payload, AddUserAttributes", "payload", dto)
-	resp, err := handler.userAttributesService.AddUserAttributes(&dto)
+	resp, err := handler.userAttributesService.AddUserAttributes(dto)
 	if err != nil {
 		handler.logger.Errorw("service err, AddUserAttributes", "err", err, "payload", dto)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -98,43 +77,64 @@ func (handler *UserAttributesRestHandlerImpl) AddUserAttributes(w http.ResponseW
 // @Success 200 {object} attributes.UserAttributesDto
 // @Router /orchestrator/attributes/user/update [POST]
 func (handler *UserAttributesRestHandlerImpl) UpdateUserAttributes(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+	dto, success := handler.validateUserAttributesRequest(w, r, "PatchUserAttributes")
+	if !success {
 		return
 	}
-
-	decoder := json.NewDecoder(r.Body)
-	var dto attributes.UserAttributesDto
-	err = decoder.Decode(&dto)
-	if err != nil {
-		handler.logger.Errorw("request err, UpdateUserAttributes", "err", err, "payload", dto)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	dto.UserId = userId
-	//if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
-	//	common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-	//	return
-	//}
-
-	emailId, err := handler.userService.GetActiveEmailById(userId)
-	if err != nil {
-		handler.logger.Errorw("request err, UpdateUserAttributes", "err", err, "payload", dto)
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	dto.EmailId = emailId
 
 	handler.logger.Infow("request payload, UpdateUserAttributes", "payload", dto)
-	resp, err := handler.userAttributesService.UpdateUserAttributes(&dto)
+	resp, err := handler.userAttributesService.UpdateUserAttributes(dto)
 	if err != nil {
 		handler.logger.Errorw("service err, UpdateUserAttributes", "err", err, "payload", dto)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+
+func (handler *UserAttributesRestHandlerImpl) PatchUserAttributes(w http.ResponseWriter, r *http.Request) {
+	dto, success := handler.validateUserAttributesRequest(w, r, "PatchUserAttributes")
+	if !success {
+		return
+	}
+
+	handler.logger.Infow("request payload, PatchUserAttributes", "payload", dto)
+	resp, err := handler.userAttributesService.PatchUserAttributes(dto)
+	if err != nil {
+		handler.logger.Errorw("service err, PatchUserAttributes", "err", err, "payload", dto)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+
+func (handler *UserAttributesRestHandlerImpl) validateUserAttributesRequest(w http.ResponseWriter, r *http.Request, operation string) (*attributes.UserAttributesDto, bool) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return nil, false
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	var dto attributes.UserAttributesDto
+	err = decoder.Decode(&dto)
+	if err != nil {
+		handler.logger.Errorw("request err, "+operation, "err", err, "payload", dto)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return nil, false
+	}
+
+	dto.UserId = userId
+
+	emailId, err := handler.userService.GetActiveEmailById(userId)
+	if err != nil {
+		handler.logger.Errorw("request err, "+operation, "err", err, "payload", dto)
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return nil, false
+	}
+	dto.EmailId = emailId
+
+	return &dto, true
 }
 
 // @Summary get user attributes
@@ -157,11 +157,6 @@ func (handler *UserAttributesRestHandlerImpl) GetUserAttribute(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
-	//if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
-	//	common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-	//	return
-	//}
 
 	dto := attributes.UserAttributesDto{}
 
