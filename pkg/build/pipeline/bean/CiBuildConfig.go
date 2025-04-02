@@ -30,23 +30,6 @@ const UniquePlaceHolderForAppName = "$etron"
 const PIPELINE_NAME_ALREADY_EXISTS_ERROR = "pipeline name already exist"
 const PIPELINE_TYPE_IS_NOT_VALID = "PipelineType is not valid  for pipeline %s"
 
-type PipelineType string
-
-// default PipelineType
-const DefaultPipelineType = CI_BUILD
-
-const (
-	CI_BUILD  PipelineType = "CI_BUILD"
-	LINKED    PipelineType = "LINKED"
-	EXTERNAL  PipelineType = "EXTERNAL"
-	CI_JOB    PipelineType = "CI_JOB"
-	LINKED_CD PipelineType = "LINKED_CD"
-)
-
-func (pType PipelineType) ToString() string {
-	return string(pType)
-}
-
 type CiBuildConfigBean struct {
 	Id                        int                `json:"id"`
 	GitMaterialId             int                `json:"gitMaterialId,omitempty" validate:"required"`
@@ -79,15 +62,6 @@ type BuildPackConfig struct {
 	BuildPacks      []string          `json:"buildPacks"`
 	Args            map[string]string `json:"args"`
 	ProjectPath     string            `json:"projectPath,omitempty"`
-}
-
-func (pType PipelineType) IsValidPipelineType() bool {
-	switch pType {
-	case CI_BUILD, LINKED, EXTERNAL, CI_JOB, LINKED_CD:
-		return true
-	default:
-		return false
-	}
 }
 
 const (

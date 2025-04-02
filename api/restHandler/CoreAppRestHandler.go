@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
 	pipelineBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	common2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
 	bean3 "github.com/devtron-labs/devtron/pkg/chart/bean"
 	read5 "github.com/devtron-labs/devtron/pkg/chart/read"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
@@ -1688,7 +1689,7 @@ func (handler CoreAppRestHandlerImpl) createCiPipeline(appId int, userId int32, 
 			ParentCiPipeline:         ciPipelineData.ParentCiPipeline,
 			ParentAppId:              ciPipelineData.ParentAppId,
 			LinkedCount:              ciPipelineData.LinkedCount,
-			PipelineType:             pipelineBean.PipelineType(ciPipelineData.PipelineType),
+			PipelineType:             common2.PipelineType(ciPipelineData.PipelineType),
 		},
 	}
 

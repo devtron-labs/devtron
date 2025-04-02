@@ -21,7 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
-	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline/read"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -124,10 +124,10 @@ func (impl *BuildPipelineSwitchServiceImpl) SwitchToCiPipelineExceptExternal(req
 	}
 
 	//get the ciPipeline
-	var switchFromType pipelineConfigBean.PipelineType
+	var switchFromType common.PipelineType
 	var switchFromPipelineId int
 	if request.SwitchFromExternalCiPipelineId != 0 {
-		switchFromType = pipelineConfigBean.EXTERNAL
+		switchFromType = common.EXTERNAL
 		switchFromPipelineId = request.SwitchFromExternalCiPipelineId
 	} else {
 		switchFromPipelineId = request.SwitchFromCiPipelineId
@@ -145,9 +145,9 @@ func (impl *BuildPipelineSwitchServiceImpl) SwitchToCiPipelineExceptExternal(req
 	return impl.createNewPipelineAndReplaceOldPipelineLinks(request.CiPipeline, ciConfig, switchFromPipelineId, switchFromType, request.UserId)
 }
 
-func (impl *BuildPipelineSwitchServiceImpl) createNewPipelineAndReplaceOldPipelineLinks(ciPipelineReq *bean.CiPipeline, ciConfig *bean.CiConfigRequest, switchFromPipelineId int, switchFromType pipelineConfigBean.PipelineType, userId int32) (*bean.CiConfigRequest, error) {
+func (impl *BuildPipelineSwitchServiceImpl) createNewPipelineAndReplaceOldPipelineLinks(ciPipelineReq *bean.CiPipeline, ciConfig *bean.CiConfigRequest, switchFromPipelineId int, switchFromType common.PipelineType, userId int32) (*bean.CiConfigRequest, error) {
 
-	isSelfLinkedCiPipeline := switchFromType != pipelineConfigBean.EXTERNAL && ciPipelineReq.IsLinkedCi() && ciPipelineReq.ParentCiPipeline == switchFromPipelineId
+	isSelfLinkedCiPipeline := switchFromType != common.EXTERNAL && ciPipelineReq.IsLinkedCi() && ciPipelineReq.ParentCiPipeline == switchFromPipelineId
 	if isSelfLinkedCiPipeline {
 		errMsg := "cannot create linked ci pipeline from the same source"
 		return nil, util.DefaultApiError().WithInternalMessage(errMsg).WithUserMessage(errMsg).WithHttpStatusCode(http.StatusBadRequest)
@@ -208,7 +208,7 @@ func (impl *BuildPipelineSwitchServiceImpl) createNewPipelineAndReplaceOldPipeli
 
 // add switchType and remove other id
 // make constants for error msgs
-func (impl *BuildPipelineSwitchServiceImpl) validateCiPipelineSwitch(switchFromCiPipelineId int, switchToType, switchFromType pipelineConfigBean.PipelineType) error {
+func (impl *BuildPipelineSwitchServiceImpl) validateCiPipelineSwitch(switchFromCiPipelineId int, switchToType, switchFromType common.PipelineType) error {
 	// this will only allow below conversions
 	// ext -> {ci_job,direct,linked}
 	// direct -> {ci_job,linked}
@@ -220,13 +220,13 @@ func (impl *BuildPipelineSwitchServiceImpl) validateCiPipelineSwitch(switchFromC
 	}
 
 	// refer SwitchToExternalCi
-	if switchToType == pipelineConfigBean.EXTERNAL {
+	if switchToType == common.EXTERNAL {
 		return errors.New(string(cannotConvertToExternalCi))
 	}
 
 	// we should not check the below logic for external_ci type as builds are not built in devtron and
 	// linked pipelines won't be there as per current external-ci-pipeline architecture
-	if switchFromCiPipelineId > 0 && switchFromType != pipelineConfigBean.EXTERNAL {
+	if switchFromCiPipelineId > 0 && switchFromType != common.EXTERNAL {
 		err := impl.validateSwitchPreConditions(switchFromCiPipelineId)
 		if err != nil {
 			return err
@@ -252,13 +252,13 @@ func (impl *BuildPipelineSwitchServiceImpl) deleteCiAndItsWorkflowMappings(tx *p
 	return err
 }
 
-func (impl *BuildPipelineSwitchServiceImpl) deleteOldCiPipelineAndWorkflowMappingBeforeSwitch(tx *pg.Tx, switchFromPipelineId int, switchFromType pipelineConfigBean.PipelineType, userId int32) (*appWorkflow.AppWorkflowMapping, error) {
+func (impl *BuildPipelineSwitchServiceImpl) deleteOldCiPipelineAndWorkflowMappingBeforeSwitch(tx *pg.Tx, switchFromPipelineId int, switchFromType common.PipelineType, userId int32) (*appWorkflow.AppWorkflowMapping, error) {
 	// 1) delete build pipelines
 	// 2) delete app workflowMappings
 	var err error
 	pipelineId := switchFromPipelineId
 	pipelineType := ""
-	if switchFromType == pipelineConfigBean.EXTERNAL {
+	if switchFromType == common.EXTERNAL {
 		err = impl.deleteExternalCi(tx, switchFromPipelineId, userId)
 		pipelineType = appWorkflow.WEBHOOK
 	} else {

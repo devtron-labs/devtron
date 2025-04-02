@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/bean/common"
+	buildBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	v12 "k8s.io/api/core/v1"
@@ -550,17 +551,18 @@ type ArtifactsForCiJob struct {
 }
 
 type GitTriggerInfoResponse struct {
-	CiMaterials      []pipelineConfig.CiPipelineMaterialResponse `json:"ciMaterials"`
-	TriggeredByEmail string                                      `json:"triggeredByEmail"`
-	LastDeployedTime string                                      `json:"lastDeployedTime,omitempty"`
-	AppId            int                                         `json:"appId"`
-	AppName          string                                      `json:"appName"`
-	EnvironmentId    int                                         `json:"environmentId"`
-	EnvironmentName  string                                      `json:"environmentName"`
-	Default          bool                                        `json:"default,omitempty"`
-	ImageTaggingData ImageTaggingResponseDTO                     `json:"imageTaggingData"`
-	Image            string                                      `json:"image"`
-	TargetPlatforms  []*bean2.TargetPlatform                     `json:"targetPlatforms"`
+	CiMaterials      []buildBean.CiPipelineMaterialResponse `json:"ciMaterials"`
+	TriggeredByEmail string                                 `json:"triggeredByEmail"`
+	LastDeployedTime string                                 `json:"lastDeployedTime,omitempty"`
+	CiPipelineId     int                                    `json:"ciPipelineId"`
+	AppId            int                                    `json:"appId"`
+	AppName          string                                 `json:"appName"`
+	EnvironmentId    int                                    `json:"environmentId"`
+	EnvironmentName  string                                 `json:"environmentName"`
+	Default          bool                                   `json:"default,omitempty"`
+	ImageTaggingData ImageTaggingResponseDTO                `json:"imageTaggingData"`
+	Image            string                                 `json:"image"`
+	TargetPlatforms  []*bean2.TargetPlatform                `json:"targetPlatforms"`
 }
 
 type Trigger struct {
