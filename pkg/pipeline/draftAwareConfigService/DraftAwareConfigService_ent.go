@@ -11,6 +11,6 @@ func (impl *DraftAwareResourceServiceImpl) performExpressEditActionsOnCmCsForExc
 	return util.NewApiError(http.StatusNotImplemented, "operations not supported in oss", "operations not supported in oss")
 }
 
-func (impl *DraftAwareResourceServiceImpl) performExpressEditActionsOnDeplTemplateForExceptionUser(ctx context.Context, appId, envId int, resourceName string) error {
+func (impl *DraftAwareResourceServiceImpl) performExpressEditActionsOnDeplTemplateForExceptionUser(ctx context.Context, appId, envId int, resourceName string, isExpressEdit bool) error {
 	return util.NewApiError(http.StatusNotImplemented, "operation not supported in oss", "operation not supported in oss")
 }

@@ -192,7 +192,7 @@ func (impl *DraftAwareResourceServiceImpl) Create(ctx context.Context, templateR
 		impl.logger.Errorw("error in creating base deployment template", "appId", templateRequest.AppId, "err", err)
 		return nil, err
 	}
-	err = impl.performExpressEditActionsOnDeplTemplateForExceptionUser(ctx, templateRequest.AppId, -1, "")
+	err = impl.performExpressEditActionsOnDeplTemplateForExceptionUser(ctx, templateRequest.AppId, -1, "", false)
 	if err != nil {
 		impl.logger.Errorw("error in performing express edit actions if user is exception", "err", err)
 		return nil, err
@@ -206,7 +206,7 @@ func (impl *DraftAwareResourceServiceImpl) UpdateAppOverride(ctx context.Context
 		impl.logger.Errorw("error in updating base deployment template", "chartId", templateRequest.Id, "appId", templateRequest.AppId, "err", err)
 		return nil, err
 	}
-	err = impl.performExpressEditActionsOnDeplTemplateForExceptionUser(ctx, templateRequest.AppId, -1, "")
+	err = impl.performExpressEditActionsOnDeplTemplateForExceptionUser(ctx, templateRequest.AppId, -1, "", false)
 	if err != nil {
 		impl.logger.Errorw("error in performing express edit actions if user is exception", "err", err)
 		return nil, err
@@ -220,7 +220,7 @@ func (impl *DraftAwareResourceServiceImpl) UpdateEnvironmentProperties(ctx conte
 		impl.logger.Errorw("error in creating/updating env level deployment template", "appId", appId, "envId", propertiesRequest.EnvironmentId, "err", err)
 		return nil, err
 	}
-	err = impl.performExpressEditActionsOnDeplTemplateForExceptionUser(ctx, appId, propertiesRequest.EnvironmentId, "")
+	err = impl.performExpressEditActionsOnDeplTemplateForExceptionUser(ctx, appId, propertiesRequest.EnvironmentId, "", false)
 	if err != nil {
 		impl.logger.Errorw("error in performing express edit actions if user is exception", "err", err)
 		return nil, err
@@ -234,7 +234,7 @@ func (impl *DraftAwareResourceServiceImpl) ResetEnvironmentProperties(ctx contex
 		impl.logger.Errorw("service err, ResetEnvironmentProperties", "chartEnvConfigOverrideId", propertiesRequest.Id, "userId", propertiesRequest.UserId, "err", err)
 		return false, err
 	}
-	err = impl.performExpressEditActionsOnDeplTemplateForExceptionUser(ctx, propertiesRequest.AppId, propertiesRequest.EnvironmentId, "")
+	err = impl.performExpressEditActionsOnDeplTemplateForExceptionUser(ctx, propertiesRequest.AppId, propertiesRequest.EnvironmentId, "", false)
 	if err != nil {
 		impl.logger.Errorw("error in performing express edit actions if user is exception", "err", err)
 		return false, err
@@ -248,7 +248,7 @@ func (impl *DraftAwareResourceServiceImpl) CreateEnvironmentPropertiesAndBaseIfN
 		impl.logger.Errorw("error, CreateEnvironmentPropertiesAndBaseIfNeeded", "appId", appId, "req", environmentProperties, "err", err)
 		return nil, err
 	}
-	err = impl.performExpressEditActionsOnDeplTemplateForExceptionUser(ctx, environmentProperties.AppId, environmentProperties.EnvironmentId, "")
+	err = impl.performExpressEditActionsOnDeplTemplateForExceptionUser(ctx, environmentProperties.AppId, environmentProperties.EnvironmentId, "", false)
 	if err != nil {
 		impl.logger.Errorw("error in performing express edit actions if user is exception", "err", err)
 		return nil, err
