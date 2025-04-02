@@ -49,6 +49,8 @@ type AwsS3BaseConfig struct {
 	BucketName        string `json:"bucketName"`
 	Region            string `json:"region"`
 	VersioningEnabled bool   `json:"versioningEnabled"`
+	PartSize          int64  `json:"partSize"`
+	Concurrency       int    `json:"concurrency"`
 }
 
 type AzureBlobConfig struct {
