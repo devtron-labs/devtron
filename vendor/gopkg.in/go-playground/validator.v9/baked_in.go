@@ -103,6 +103,7 @@ var (
 		"rgba":                 isRGBA,
 		"hsl":                  isHSL,
 		"hsla":                 isHSLA,
+		"e164":                 isE164,
 		"email":                isEmail,
 		"url":                  isURL,
 		"uri":                  isURI,
@@ -224,14 +225,28 @@ func isOneOf(fl FieldLevel) bool {
 func isUnique(fl FieldLevel) bool {
 
 	field := fl.Field()
+	param := fl.Param()
 	v := reflect.ValueOf(struct{}{})
 
 	switch field.Kind() {
 	case reflect.Slice, reflect.Array:
-		m := reflect.MakeMap(reflect.MapOf(field.Type().Elem(), v.Type()))
+		if param == "" {
+			m := reflect.MakeMap(reflect.MapOf(field.Type().Elem(), v.Type()))
 
+			for i := 0; i < field.Len(); i++ {
+				m.SetMapIndex(field.Index(i), v)
+			}
+			return field.Len() == m.Len()
+		}
+
+		sf, ok := field.Type().Elem().FieldByName(param)
+		if !ok {
+			panic(fmt.Sprintf("Bad field name %s", param))
+		}
+
+		m := reflect.MakeMap(reflect.MapOf(sf.Type, v.Type()))
 		for i := 0; i < field.Len(); i++ {
-			m.SetMapIndex(field.Index(i), v)
+			m.SetMapIndex(field.Index(i).FieldByName(param), v)
 		}
 		return field.Len() == m.Len()
 	case reflect.Map:
@@ -1219,6 +1234,11 @@ func isFile(fl FieldLevel) bool {
 	panic(fmt.Sprintf("Bad field type %T", field.Interface()))
 }
 
+// IsE164 is the validation function for validating if the current field's value is a valid e.164 formatted phone number.
+func isE164(fl FieldLevel) bool {
+	return e164Regex.MatchString(fl.Field().String())
+}
+
 // IsEmail is the validation function for validating if the current field's value is a valid email address.
 func isEmail(fl FieldLevel) bool {
 	return emailRegex.MatchString(fl.Field().String())
@@ -1316,11 +1336,11 @@ func hasValue(fl FieldLevel) bool {
 // requireCheckField is a func for check field kind
 func requireCheckFieldKind(fl FieldLevel, param string, defaultNotFoundValue bool) bool {
 	field := fl.Field()
-	var ok bool
 	kind := field.Kind()
+	var nullable, found bool
 	if len(param) > 0 {
-		field, kind, ok = fl.GetStructFieldOKAdvanced(fl.Parent(), param)
-		if !ok {
+		field, kind, nullable, found = fl.GetStructFieldOKAdvanced2(fl.Parent(), param)
+		if !found {
 			return defaultNotFoundValue
 		}
 	}
@@ -1328,9 +1348,12 @@ func requireCheckFieldKind(fl FieldLevel, param string, defaultNotFoundValue boo
 	case reflect.Invalid:
 		return defaultNotFoundValue
 	case reflect.Slice, reflect.Map, reflect.Ptr, reflect.Interface, reflect.Chan, reflect.Func:
-		return !field.IsNil()
+		return field.IsNil()
 	default:
-		return field.IsValid() && field.Interface() != reflect.Zero(field.Type()).Interface()
+		if nullable && field.Interface() != nil {
+			return false
+		}
+		return field.IsValid() && field.Interface() == reflect.Zero(field.Type()).Interface()
 	}
 }
 
@@ -1339,7 +1362,7 @@ func requireCheckFieldKind(fl FieldLevel, param string, defaultNotFoundValue boo
 func requiredWith(fl FieldLevel) bool {
 	params := parseOneOfParam2(fl.Param())
 	for _, param := range params {
-		if requireCheckFieldKind(fl, param, false) {
+		if !requireCheckFieldKind(fl, param, true) {
 			return hasValue(fl)
 		}
 	}
@@ -1351,7 +1374,7 @@ func requiredWith(fl FieldLevel) bool {
 func requiredWithAll(fl FieldLevel) bool {
 	params := parseOneOfParam2(fl.Param())
 	for _, param := range params {
-		if !requireCheckFieldKind(fl, param, false) {
+		if requireCheckFieldKind(fl, param, true) {
 			return true
 		}
 	}
@@ -1361,11 +1384,8 @@ func requiredWithAll(fl FieldLevel) bool {
 // RequiredWithout is the validation function
 // The field under validation must be present and not empty only when any of the other specified fields are not present.
 func requiredWithout(fl FieldLevel) bool {
-	params := parseOneOfParam2(fl.Param())
-	for _, param := range params {
-		if !requireCheckFieldKind(fl, param, true) {
-			return hasValue(fl)
-		}
+	if requireCheckFieldKind(fl, strings.TrimSpace(fl.Param()), true) {
+		return hasValue(fl)
 	}
 	return true
 }
@@ -1375,7 +1395,7 @@ func requiredWithout(fl FieldLevel) bool {
 func requiredWithoutAll(fl FieldLevel) bool {
 	params := parseOneOfParam2(fl.Param())
 	for _, param := range params {
-		if requireCheckFieldKind(fl, param, true) {
+		if !requireCheckFieldKind(fl, param, true) {
 			return true
 		}
 	}
