@@ -316,7 +316,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeTriggerBulkAction() error {
 			CdWf:           adapter.ConvertCdWorkflowDtoToDbObj(wf), //TODO: update object from db to dto
 			Artifact:       artifact,
 			Pipeline:       pipelineObj,
-			TriggeredBy:    cdWorkflow.CreatedBy,
+			TriggeredBy:    cdWorkflow.CreatedBy, //actual request sent by user who created initial workflow, and then nats event is sent
 			ApplyAuth:      false,
 			TriggerContext: triggerContext,
 		}

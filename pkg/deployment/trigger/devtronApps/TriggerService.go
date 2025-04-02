@@ -104,7 +104,7 @@ type TriggerService interface {
 	TriggerPostStage(request bean.TriggerRequest) (*bean4.ManifestPushTemplate, error)
 	TriggerPreStage(request bean.TriggerRequest) (*bean4.ManifestPushTemplate, error)
 
-	TriggerAutoCDOnPreStageSuccess(triggerContext bean.TriggerContext, cdPipelineId, ciArtifactId, workflowId int, triggerdBy int32) error
+	TriggerAutoCDOnPreStageSuccess(triggerContext bean.TriggerContext, cdPipelineId, ciArtifactId, workflowId int) error
 
 	TriggerStageForBulk(triggerRequest bean.TriggerRequest) error
 
@@ -646,7 +646,7 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 		WorkflowType: bean3.CD_WORKFLOW_TYPE_DEPLOY,
 		ExecutorType: cdWorkflow.WORKFLOW_EXECUTOR_TYPE_SYSTEM,
 		Status:       cdWorkflow.WorkflowInitiated, // deployment Initiated for auto trigger
-		TriggeredBy:  1,
+		TriggeredBy:  triggeredBy,
 		StartedOn:    triggeredAt,
 		Namespace:    impl.config.GetDefaultNamespace(),
 		CdWorkflowId: cdWf.Id,
@@ -677,13 +677,12 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
 		return err
 	}
-	// setting triggeredBy as 1(system user) since case of auto trigger
-	validationErr := impl.validateDeploymentTriggerRequest(ctx, adapter.NewValidateDeploymentTriggerObj(runner, pipeline, artifact.ImageDigest, envDeploymentConfig, 1, false))
+	validationErr := impl.validateDeploymentTriggerRequest(ctx, adapter.NewValidateDeploymentTriggerObj(runner, pipeline, artifact.ImageDigest, envDeploymentConfig, triggeredBy, false))
 	if validationErr != nil {
 		impl.logger.Errorw("validation error deployment request", "cdWfr", runner.Id, "err", validationErr)
 		return validationErr
 	}
-	releaseErr := impl.TriggerCD(ctx, artifact, cdWf.Id, savedWfr.Id, pipeline, envDeploymentConfig, triggeredAt)
+	releaseErr := impl.TriggerCD(ctx, artifact, cdWf.Id, savedWfr.Id, pipeline, envDeploymentConfig, triggeredAt, triggeredBy)
 	// if releaseErr found, then the mark current deployment Failed and return
 	if releaseErr != nil {
 		err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, releaseErr, triggeredBy)
@@ -695,9 +694,9 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 	return nil
 }
 
-func (impl *TriggerServiceImpl) TriggerCD(ctx context.Context, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, envDeploymentConfig *bean9.DeploymentConfig, triggeredAt time.Time) error {
+func (impl *TriggerServiceImpl) TriggerCD(ctx context.Context, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, envDeploymentConfig *bean9.DeploymentConfig, triggeredAt time.Time, triggeredBy int32) error {
 	impl.logger.Debugw("automatic pipeline trigger attempt async", "artifactId", artifact.Id)
-	err := impl.triggerReleaseAsync(ctx, artifact, cdWorkflowId, wfrId, pipeline, envDeploymentConfig, triggeredAt)
+	err := impl.triggerReleaseAsync(ctx, artifact, cdWorkflowId, wfrId, pipeline, envDeploymentConfig, triggeredAt, triggeredBy)
 	if err != nil {
 		impl.logger.Errorw("error in cd trigger", "err", err)
 		return err
@@ -705,8 +704,8 @@ func (impl *TriggerServiceImpl) TriggerCD(ctx context.Context, artifact *reposit
 	return err
 }
 
-func (impl *TriggerServiceImpl) triggerReleaseAsync(ctx context.Context, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, envDeploymentConfig *bean9.DeploymentConfig, triggeredAt time.Time) error {
-	err := impl.validateAndTrigger(ctx, pipeline, envDeploymentConfig, artifact, cdWorkflowId, wfrId, triggeredAt)
+func (impl *TriggerServiceImpl) triggerReleaseAsync(ctx context.Context, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, envDeploymentConfig *bean9.DeploymentConfig, triggeredAt time.Time, triggeredBy int32) error {
+	err := impl.validateAndTrigger(ctx, pipeline, envDeploymentConfig, artifact, cdWorkflowId, wfrId, triggeredAt, triggeredBy)
 	if err != nil {
 		impl.logger.Errorw("error in trigger for pipeline", "pipelineId", strconv.Itoa(pipeline.Id))
 	}
@@ -714,7 +713,7 @@ func (impl *TriggerServiceImpl) triggerReleaseAsync(ctx context.Context, artifac
 	return err
 }
 
-func (impl *TriggerServiceImpl) validateAndTrigger(ctx context.Context, p *pipelineConfig.Pipeline, envDeploymentConfig *bean9.DeploymentConfig, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time) error {
+func (impl *TriggerServiceImpl) validateAndTrigger(ctx context.Context, p *pipelineConfig.Pipeline, envDeploymentConfig *bean9.DeploymentConfig, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time, triggeredBy int32) error {
 	//TODO: verify this logic
 	object := impl.enforcerUtil.GetAppRBACNameByAppId(p.AppId)
 	envApp := strings.Split(object, "/")
@@ -722,11 +721,11 @@ func (impl *TriggerServiceImpl) validateAndTrigger(ctx context.Context, p *pipel
 		impl.logger.Error("invalid req, app and env not found from rbac")
 		return errors.New("invalid req, app and env not found from rbac")
 	}
-	err := impl.releasePipeline(ctx, p, envDeploymentConfig, artifact, cdWorkflowId, wfrId, triggeredAt)
+	err := impl.releasePipeline(ctx, p, envDeploymentConfig, artifact, cdWorkflowId, wfrId, triggeredAt, triggeredBy)
 	return err
 }
 
-func (impl *TriggerServiceImpl) releasePipeline(ctx context.Context, pipeline *pipelineConfig.Pipeline, envDeploymentConfig *bean9.DeploymentConfig, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time) error {
+func (impl *TriggerServiceImpl) releasePipeline(ctx context.Context, pipeline *pipelineConfig.Pipeline, envDeploymentConfig *bean9.DeploymentConfig, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time, triggeredBy int32) error {
 	startTime := time.Now()
 	defer func() {
 		impl.logger.Debugw("auto trigger release process completed", "timeTaken", time.Since(startTime), "cdPipelineId", pipeline.Id, "artifactId", artifact.Id, "wfrId", wfrId)
@@ -751,8 +750,7 @@ func (impl *TriggerServiceImpl) releasePipeline(ctx context.Context, pipeline *p
 
 	adapter.SetPipelineFieldsInOverrideRequest(request, pipeline, envDeploymentConfig)
 
-	// setting deployedBy as 1(system user) since case of auto trigger
-	id, _, err := impl.handleCDTriggerRelease(ctx, request, envDeploymentConfig, triggeredAt, 1)
+	id, _, err := impl.handleCDTriggerRelease(ctx, request, envDeploymentConfig, triggeredAt, triggeredBy)
 	if err != nil {
 		impl.logger.Errorw("error in auto  cd pipeline trigger", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
 	} else {
