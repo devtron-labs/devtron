@@ -43,6 +43,7 @@ type EnvironmentProperties struct {
 	ClusterId         int                         `json:"clusterId"`
 	MergeStrategy     models.MergeStrategy        `json:"mergeStrategy"`
 	MigratedFrom      *bean.ExternalReleaseType   `json:"migratedFrom,omitempty"`
+	AppId             int                         `json:"appId"`
 }
 
 type EnvironmentOverrideCreateInternalDTO struct {

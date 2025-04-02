@@ -175,8 +175,10 @@ func (handler *PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	util2.SetSuperAdminInContext(ctx, isSuperAdmin)
 
-	createResp, err := handler.chartService.Create(templateRequest, r.Context())
+	createResp, err := handler.draftAwareResourceService.Create(ctx, templateRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, ConfigureDeploymentTemplateForApp", "err", err, "payload", templateRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -727,8 +729,9 @@ func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Res
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-
-	createResp, err := handler.propertiesConfigService.CreateEnvironmentPropertiesAndBaseIfNeeded(ctx, appId, &envConfigProperties)
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	util2.SetSuperAdminInContext(ctx, isSuperAdmin)
+	createResp, err := handler.draftAwareResourceService.CreateEnvironmentPropertiesAndBaseIfNeeded(ctx, appId, &envConfigProperties)
 	if err != nil {
 		handler.Logger.Errorw("service err, CreateEnvironmentPropertiesAndBaseIfNeeded", "payload", envConfigProperties, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -792,8 +795,10 @@ func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Res
 		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
 		return
 	}
-
-	createResp, err := handler.propertiesConfigService.UpdateEnvironmentProperties(appId, &envConfigProperties, userId)
+	ctx := r.Context()
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	util2.SetSuperAdminInContext(ctx, isSuperAdmin)
+	createResp, err := handler.draftAwareResourceService.UpdateEnvironmentProperties(ctx, appId, &envConfigProperties)
 	if err != nil {
 		handler.Logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1383,9 +1388,11 @@ func (handler *PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseW
 		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
 		return
 	}
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	util2.SetSuperAdminInContext(ctx, isSuperAdmin)
 
 	_, span = otel.Tracer("orchestrator").Start(ctx, "chartService.UpdateAppOverride")
-	createResp, err := handler.chartService.UpdateAppOverride(ctx, &templateRequest)
+	createResp, err := handler.draftAwareResourceService.UpdateAppOverride(ctx, &templateRequest)
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateAppOverride", "err", err, "payload", templateRequest)
@@ -1520,7 +1527,16 @@ func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideReset(w http.Resp
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	isSuccess, err := handler.propertiesConfigService.ResetEnvironmentProperties(id, userId)
+	ctx := r.Context()
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	util2.SetSuperAdminInContext(ctx, isSuperAdmin)
+	envProperties := &pipelineBean.EnvironmentProperties{
+		Id:            id,
+		EnvironmentId: environmentId,
+		UserId:        userId,
+		AppId:         appId,
+	}
+	isSuccess, err := handler.draftAwareResourceService.ResetEnvironmentProperties(ctx, envProperties)
 	if err != nil {
 		handler.Logger.Errorw("service err, EnvConfigOverrideReset", "err", err, "appId", appId, "environmentId", environmentId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
