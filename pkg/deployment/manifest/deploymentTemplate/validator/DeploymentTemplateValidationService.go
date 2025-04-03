@@ -14,15 +14,19 @@
  * limitations under the License.
  */
 
-package deploymentTemplate
+package validator
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/util"
+	bean3 "github.com/devtron-labs/devtron/pkg/chart/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
@@ -30,26 +34,36 @@ import (
 	"github.com/xeipuuv/gojsonschema"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
+	"net/http"
 )
 
 type DeploymentTemplateValidationService interface {
 	DeploymentTemplateValidate(ctx context.Context, template interface{}, chartRefId int, scope resourceQualifiers.Scope) (bool, error)
 	FlaggerCanaryEnabled(values json.RawMessage) (bool, error)
+	ValidateChangeChartRefRequest(ctx context.Context, envConfigProperties *pipelineBean.EnvironmentProperties, request *bean3.ChartRefChangeRequest) (*pipelineBean.EnvironmentProperties, bool, error)
+	DeploymentTemplateValidationServiceEnt
 }
 
 type DeploymentTemplateValidationServiceImpl struct {
-	logger                *zap.SugaredLogger
-	chartRefService       chartRef.ChartRefService
-	scopedVariableManager variables.ScopedVariableManager
+	logger                    *zap.SugaredLogger
+	chartRefService           chartRef.ChartRefService
+	scopedVariableManager     variables.ScopedVariableManager
+	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService
+	*DeploymentTemplateValidationServiceEntImpl
 }
 
 func NewDeploymentTemplateValidationServiceImpl(logger *zap.SugaredLogger,
 	chartRefService chartRef.ChartRefService,
-	scopedVariableManager variables.ScopedVariableManager) *DeploymentTemplateValidationServiceImpl {
+	scopedVariableManager variables.ScopedVariableManager,
+	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
+	deploymentTemplateValidationServiceEntImpl *DeploymentTemplateValidationServiceEntImpl,
+) *DeploymentTemplateValidationServiceImpl {
 	return &DeploymentTemplateValidationServiceImpl{
-		logger:                logger,
-		chartRefService:       chartRefService,
-		scopedVariableManager: scopedVariableManager,
+		logger:                    logger,
+		chartRefService:           chartRefService,
+		scopedVariableManager:     scopedVariableManager,
+		deployedAppMetricsService: deployedAppMetricsService,
+		DeploymentTemplateValidationServiceEntImpl: deploymentTemplateValidationServiceEntImpl,
 	}
 }
 
@@ -140,4 +154,51 @@ func (impl *DeploymentTemplateValidationServiceImpl) FlaggerCanaryEnabled(values
 		return true, fmt.Errorf("flagger canary enabled field must be set and be equal to false")
 	}
 	return string(enabled) == bean.TrueFlag, nil
+}
+
+func (impl *DeploymentTemplateValidationServiceImpl) ValidateChangeChartRefRequest(ctx context.Context, envConfigProperties *pipelineBean.EnvironmentProperties, request *bean3.ChartRefChangeRequest) (*pipelineBean.EnvironmentProperties, bool, error) {
+	compatible, chartChangeType := impl.chartRefService.ChartRefIdsCompatible(envConfigProperties.ChartRefId, request.TargetChartRefId)
+	if !compatible {
+		errMsg := fmt.Sprintf("chart not compatible for appId: %d, envId: %d", request.AppId, request.EnvId)
+		return envConfigProperties, false, util.NewApiError(http.StatusUnprocessableEntity, errMsg, errMsg)
+	}
+	if !chartChangeType.IsFlaggerCanarySupported() {
+		enabled, err := impl.FlaggerCanaryEnabled(envConfigProperties.EnvOverrideValues)
+		if err != nil {
+			impl.logger.Errorw("error in checking flaggerCanary, ChangeChartRef", "err", err, "payload", envConfigProperties.EnvOverrideValues)
+			return envConfigProperties, false, err
+		} else if enabled {
+			impl.logger.Errorw("rollout charts do not support flaggerCanary, ChangeChartRef", "templateValues", envConfigProperties.EnvOverrideValues)
+			errMsg := fmt.Sprintf("%q charts do not support flaggerCanary", chartChangeType.NewChartType)
+			return envConfigProperties, false, util.NewApiError(http.StatusUnprocessableEntity, errMsg, errMsg)
+		}
+	}
+	var err error
+	envConfigProperties.EnvOverrideValues, err = impl.chartRefService.PerformChartSpecificPatchForSwitch(envConfigProperties.EnvOverrideValues, chartChangeType)
+	if err != nil {
+		impl.logger.Errorw("error in chart specific patch operations, ValidateChangeChartRefRequest", "err", err, "payload", request)
+		return envConfigProperties, false, err
+	}
+	envMetrics, err := impl.deployedAppMetricsService.GetMetricsFlagByAppIdAndEnvId(request.AppId, request.EnvId)
+	if err != nil {
+		impl.logger.Errorw("could not find envMetrics for, ChangeChartRef", "err", err, "payload", request)
+		errMsg := fmt.Sprintf("could not find envMetrics for appId: %d, envId: %d", request.AppId, request.EnvId)
+		return envConfigProperties, false, util.NewApiError(http.StatusBadRequest, errMsg, err.Error())
+	}
+	envConfigProperties.ChartRefId = request.TargetChartRefId
+	envConfigProperties.EnvironmentId = request.EnvId
+	envConfigProperties.AppMetrics = &envMetrics
+	// VARIABLE_RESOLVE
+	scope := resourceQualifiers.Scope{
+		AppId:     request.AppId,
+		EnvId:     request.EnvId,
+		ClusterId: envConfigProperties.ClusterId,
+	}
+	validate, err2 := impl.DeploymentTemplateValidate(ctx, envConfigProperties.EnvOverrideValues, envConfigProperties.ChartRefId, scope)
+	if !validate {
+		impl.logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", request)
+		errMsg := fmt.Sprintf("template schema validation error for appId: %d, envId: %d", request.AppId, request.EnvId)
+		return envConfigProperties, envMetrics, util.NewApiError(http.StatusBadRequest, errMsg, err2.Error())
+	}
+	return envConfigProperties, envMetrics, nil
 }
