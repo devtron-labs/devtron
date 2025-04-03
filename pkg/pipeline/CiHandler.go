@@ -24,7 +24,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/common-lib/utils/workFlow"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
+	cdWorkflowBean "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/bean/common"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
@@ -666,8 +666,8 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int, forceAbort bool) (int, er
 		return workflow.Id, nil
 	}
 
-	workflow.Status = cdWorkflow.WorkflowCancel
-	if workflow.ExecutorType == cdWorkflow.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
+	workflow.Status = cdWorkflowBean.WorkflowCancel
+	if workflow.ExecutorType == cdWorkflowBean.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
 		workflow.PodStatus = "Failed"
 		workflow.Message = constants2.TERMINATE_MESSAGE
 	}
@@ -710,7 +710,7 @@ func (impl *CiHandlerImpl) handleForceAbortCaseForCi(workflow *pipelineConfig.Ci
 }
 
 func (impl *CiHandlerImpl) updateWorkflowForForceAbort(workflow *pipelineConfig.CiWorkflow) error {
-	workflow.Status = cdWorkflow.WorkflowCancel
+	workflow.Status = cdWorkflowBean.WorkflowCancel
 	workflow.PodStatus = string(bean.Failed)
 	workflow.Message = constants2.FORCE_ABORT_MESSAGE_AFTER_STARTING_STAGE
 	err := impl.ciService.UpdateCiWorkflowWithStage(workflow)
@@ -878,7 +878,7 @@ func (impl *CiHandlerImpl) getWorkflowLogs(ciWorkflow *pipelineConfig.CiWorkflow
 	if logStream == nil || err != nil {
 		if !ciWorkflow.BlobStorageEnabled {
 			return nil, nil, &util.ApiError{Code: "200", HttpStatusCode: 400, UserMessage: "logs-not-stored-in-repository"}
-		} else if string(v1alpha1.NodeSucceeded) == ciWorkflow.Status || string(v1alpha1.NodeError) == ciWorkflow.Status || string(v1alpha1.NodeFailed) == ciWorkflow.Status || ciWorkflow.Status == cdWorkflow.WorkflowCancel {
+		} else if string(v1alpha1.NodeSucceeded) == ciWorkflow.Status || string(v1alpha1.NodeError) == ciWorkflow.Status || string(v1alpha1.NodeFailed) == ciWorkflow.Status || ciWorkflow.Status == cdWorkflowBean.WorkflowCancel {
 			impl.Logger.Debugw("pod is not live", "podName", ciWorkflow.PodName, "err", err)
 			return impl.getLogsFromRepository(ciWorkflow, clusterConfig, isExt)
 		}
@@ -1200,22 +1200,24 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus eventProcessorBean.CiCd
 	ciArtifactLocation := fmt.Sprintf(ciArtifactLocationFormat, savedWorkflow.Id, savedWorkflow.Id)
 
 	if impl.stateChanged(status, podStatus, message, workflowStatus.FinishedAt.Time, savedWorkflow) {
-		if savedWorkflow.Status != cdWorkflow.WorkflowCancel {
+		if savedWorkflow.Status != cdWorkflowBean.WorkflowCancel {
 			savedWorkflow.Status = status
 		}
 		savedWorkflow.PodStatus = podStatus
-		if !slices.Contains(cdWorkflow.WfrTerminalStatusList, savedWorkflow.Status) {
-			savedWorkflow.Message = message
-			// NOTE: we are doing this for a quick fix where ci pending message become larger than 250 and in db we had set the charter limit to 250
-			if len(message) > 250 {
-				savedWorkflow.Message = message[:250]
+		if !slices.Contains(cdWorkflowBean.WfrTerminalStatusList, savedWorkflow.Status) {
+			if !slices.Contains(cdWorkflowBean.WfrTerminalStatusList, savedWorkflow.PodStatus) {
+				savedWorkflow.Message = message
+				// NOTE: we are doing this for a quick fix where ci pending message become larger than 250 and in db we had set the charter limit to 250
+				if len(message) > 250 {
+					savedWorkflow.Message = message[:250]
+				}
 			}
 			savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
 		} else {
 			impl.Logger.Warnw("cd stage already in terminal state. skipped message and finishedOn from being updated",
 				"wfId", savedWorkflow.Id, "status", savedWorkflow.Status, "message", message, "finishedOn", workflowStatus.FinishedAt.Time)
 		}
-		if savedWorkflow.ExecutorType == cdWorkflow.WORKFLOW_EXECUTOR_TYPE_SYSTEM && savedWorkflow.Status == cdWorkflow.WorkflowCancel {
+		if savedWorkflow.ExecutorType == cdWorkflowBean.WORKFLOW_EXECUTOR_TYPE_SYSTEM && savedWorkflow.Status == cdWorkflowBean.WorkflowCancel {
 			savedWorkflow.PodStatus = "Failed"
 			savedWorkflow.Message = constants2.TERMINATE_MESSAGE
 		}
@@ -1708,7 +1710,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 						// skip this and process for next ci workflow
 					}
 				}
-				if ciWorkflow.ExecutorType == cdWorkflow.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
+				if ciWorkflow.ExecutorType == cdWorkflowBean.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
 					if wf.Status == string(v1alpha1.WorkflowFailed) {
 						isPodDeleted = true
 					}
@@ -1724,7 +1726,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 			ciWorkflow.Status = "Failed"
 			ciWorkflow.PodStatus = "Failed"
 			if isPodDeleted {
-				ciWorkflow.Message = cdWorkflow.POD_DELETED_MESSAGE
+				ciWorkflow.Message = cdWorkflowBean.POD_DELETED_MESSAGE
 				//error logging handled inside handlePodDeleted
 				impl.handlePodDeleted(ciWorkflow)
 			} else {
