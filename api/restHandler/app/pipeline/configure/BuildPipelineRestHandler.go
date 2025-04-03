@@ -1508,7 +1508,7 @@ func (handler *PipelineConfigRestHandlerImpl) HandleWorkflowWebhook(w http.Respo
 		return
 	}
 	handler.Logger.Infow("request payload, HandleWorkflowWebhook", "payload", wfUpdateReq)
-	resp, err := handler.ciHandler.UpdateWorkflow(wfUpdateReq)
+	resp, _, err := handler.ciHandler.UpdateWorkflow(wfUpdateReq)
 	if err != nil {
 		handler.Logger.Errorw("service err, HandleWorkflowWebhook", "err", err, "payload", wfUpdateReq)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)

@@ -414,18 +414,20 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCIWorkflowStatusUpdate() error 
 				return
 			}
 		}
-		err = impl.ciHandler.CheckAndReTriggerCI(wfStatus)
+		// update the ci workflow status
+		_, stateChanged, err := impl.ciHandler.UpdateWorkflow(wfStatus)
 		if err != nil {
-			impl.logger.Errorw("error in checking and re triggering ci", "err", err)
-			//don't return as we have to update the workflow status
-		}
-
-		_, err = impl.ciHandler.UpdateWorkflow(wfStatus)
-		if err != nil {
-			impl.logger.Errorw("error on update workflow status", "err", err, "msg", msg.Data)
+			impl.logger.Errorw("error on update workflow status", "msg", msg.Data, "err", err)
 			return
 		}
-
+		if stateChanged {
+			// check if we need to re-trigger the ci
+			err = impl.ciHandler.CheckAndReTriggerCI(wfStatus)
+			if err != nil {
+				impl.logger.Errorw("error in checking and re triggering ci", "wfStatus", wfStatus, "err", err)
+				return
+			}
+		}
 	}
 
 	// add required logging here
@@ -474,9 +476,9 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 			}
 		}
 		wfrId, wfrStatus, stateChanged, err := impl.cdHandler.UpdateWorkflow(wfStatus)
-		impl.logger.Debugw("UpdateWorkflow", "wfrId", wfrId, "wfrStatus", wfrStatus)
+		impl.logger.Debugw("cd UpdateWorkflow for wfStatus", "wfrId", wfrId, "wfrStatus", wfrStatus, "wfStatus", wfStatus)
 		if err != nil {
-			impl.logger.Error("err", err)
+			impl.logger.Errorw("error in cd workflow status update", "wfrId", wfrId, "wfrStatus", wfrStatus, "wfStatus", wfStatus, "err", err)
 			return
 		}
 
@@ -492,6 +494,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 					err := impl.cdHandler.DeactivateImageReservationPathsOnFailure(wfr.ImagePathReservationIds)
 					if err != nil {
 						impl.logger.Errorw("error in removing image path reservation ", "imagePathReservationIds", wfr.ImagePathReservationIds, "err", err)
+						// not returning here as we need to send the notification event and re-trigger the cd stage (if required)
 					}
 				}
 			}

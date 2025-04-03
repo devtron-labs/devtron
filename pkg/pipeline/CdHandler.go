@@ -268,15 +268,15 @@ func (impl *CdHandlerImpl) handleForceAbortCaseForCdStage(workflowRunner *pipeli
 }
 
 func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus bean6.CiCdStatus) (int, string, bool, error) {
-	wfStatusRs := impl.extractWorkfowStatus(workflowStatus)
+	wfStatusRs := impl.extractWorkflowStatus(workflowStatus)
 	workflowName, status, podStatus, message, podName := wfStatusRs.WorkflowName, wfStatusRs.Status, wfStatusRs.PodStatus, wfStatusRs.Message, wfStatusRs.PodName
-	impl.Logger.Debugw("cd update for ", "wf ", workflowName, "status", status)
+	impl.Logger.Debugw("cd workflow status update event for", "wf ", workflowName, "status", status)
 	if workflowName == "" {
 		return 0, "", false, errors.New("invalid wf name")
 	}
 	workflowId, err := strconv.Atoi(workflowName[:strings.Index(workflowName, "-")])
 	if err != nil {
-		impl.Logger.Error("invalid wf status update req", "err", err)
+		impl.Logger.Errorw("invalid wf status update req", "workflowName", workflowName, "err", err)
 		return 0, "", false, err
 	}
 
@@ -309,29 +309,29 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus bean6.CiCdStatus) (int,
 		// removed log location from here since we are saving it at trigger
 		savedWorkflow.PodName = podName
 		savedWorkflow.UpdateAuditLog(1)
-		impl.Logger.Debugw("updating workflow ", "workflow", savedWorkflow)
+		impl.Logger.Debugw("updating cd workflow runner", "workflow", savedWorkflow)
 		err = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(savedWorkflow)
 		if err != nil {
-			impl.Logger.Error("update wf failed for id " + strconv.Itoa(savedWorkflow.Id))
-			return 0, "", true, err
+			impl.Logger.Errorw("update wf failed for id", "wfId", savedWorkflow.Id, "err", err)
+			return savedWorkflow.Id, "", true, err
 		}
 		appId := savedWorkflow.CdWorkflow.Pipeline.AppId
 		envId := savedWorkflow.CdWorkflow.Pipeline.EnvironmentId
 		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
 		if err != nil {
 			impl.Logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
-			return 0, "", true, err
+			return savedWorkflow.Id, savedWorkflow.Status, true, err
 		}
 		globalUtil.TriggerCDMetrics(pipelineAdapter.GetTriggerMetricsFromRunnerObj(savedWorkflow, envDeploymentConfig), impl.config.ExposeCDMetrics)
 		if string(v1alpha1.NodeError) == savedWorkflow.Status || string(v1alpha1.NodeFailed) == savedWorkflow.Status {
-			impl.Logger.Warnw("cd stage failed for workflow: ", "wfId", savedWorkflow.Id)
+			impl.Logger.Warnw("cd stage failed for workflow", "wfId", savedWorkflow.Id)
 		}
 		return savedWorkflow.Id, savedWorkflow.Status, true, nil
 	}
 	return savedWorkflow.Id, savedWorkflow.Status, false, nil
 }
 
-func (impl *CdHandlerImpl) extractWorkfowStatus(workflowStatus bean6.CiCdStatus) *types.WorkflowStatus {
+func (impl *CdHandlerImpl) extractWorkflowStatus(workflowStatus bean6.CiCdStatus) *types.WorkflowStatus {
 	workflowName := ""
 	status := string(workflowStatus.Phase)
 	podStatus := "Pending"

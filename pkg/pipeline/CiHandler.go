@@ -90,7 +90,7 @@ type CiHandler interface {
 
 	GetBuildHistory(pipelineId int, appId int, offset int, size int) ([]types.WorkflowResponse, error)
 	DownloadCiWorkflowArtifacts(pipelineId int, buildId int) (*os.File, error)
-	UpdateWorkflow(workflowStatus bean6.CiCdStatus) (int, error)
+	UpdateWorkflow(workflowStatus bean6.CiCdStatus) (int, bool, error)
 
 	FetchCiStatusForTriggerView(appId int) ([]*pipelineConfig.CiWorkflowStatus, error)
 	FetchCiStatusForTriggerViewV1(appId int) ([]*pipelineConfig.CiWorkflowStatus, error)
@@ -1165,35 +1165,34 @@ func (impl *CiHandlerImpl) extractPodStatusAndWorkflow(workflowStatus bean6.CiCd
 }
 
 func (impl *CiHandlerImpl) getRefWorkflowAndCiRetryCount(savedWorkflow *pipelineConfig.CiWorkflow) (int, *pipelineConfig.CiWorkflow, error) {
-	var err error
-
 	if savedWorkflow.ReferenceCiWorkflowId != 0 {
+		var err error
 		savedWorkflow, err = impl.ciWorkflowRepository.FindById(savedWorkflow.ReferenceCiWorkflowId)
-	}
-	if err != nil {
-		impl.Logger.Errorw("cannot get saved wf", "err", err)
-		return 0, savedWorkflow, err
+		if err != nil {
+			impl.Logger.Errorw("cannot get saved wf", "err", err)
+			return 0, savedWorkflow, err
+		}
 	}
 	retryCount, err := impl.ciWorkflowRepository.FindRetriedWorkflowCountByReferenceId(savedWorkflow.Id)
 	return retryCount, savedWorkflow, err
 }
 
-func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus bean6.CiCdStatus) (int, error) {
+func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus bean6.CiCdStatus) (int, bool, error) {
 	workflowName, status, podStatus, message, _, podName := ExtractWorkflowStatus(workflowStatus)
 	if workflowName == "" {
 		impl.Logger.Errorw("extract workflow status, invalid wf name", "workflowName", workflowName, "status", status, "podStatus", podStatus, "message", message)
-		return 0, errors.New("invalid wf name")
+		return 0, false, errors.New("invalid wf name")
 	}
 	workflowId, err := strconv.Atoi(workflowName[:strings.Index(workflowName, "-")])
 	if err != nil {
 		impl.Logger.Errorw("invalid wf status update req", "err", err)
-		return 0, err
+		return 0, false, err
 	}
 
 	savedWorkflow, err := impl.ciWorkflowRepository.FindById(workflowId)
 	if err != nil {
 		impl.Logger.Errorw("cannot get saved wf", "err", err)
-		return 0, err
+		return 0, false, err
 	}
 
 	ciArtifactLocationFormat := impl.config.GetArtifactLocationFormat()
@@ -1228,11 +1227,12 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus bean6.CiCdStatus) (int,
 		err = impl.ciService.UpdateCiWorkflowWithStage(savedWorkflow)
 		if err != nil {
 			impl.Logger.Error("update wf failed for id " + strconv.Itoa(savedWorkflow.Id))
-			return 0, err
+			return savedWorkflow.Id, true, err
 		}
 		impl.sendCIFailEvent(savedWorkflow, status, message)
+		return savedWorkflow.Id, true, nil
 	}
-	return savedWorkflow.Id, nil
+	return savedWorkflow.Id, false, nil
 }
 
 func (impl *CiHandlerImpl) sendCIFailEvent(savedWorkflow *pipelineConfig.CiWorkflow, status, message string) {
