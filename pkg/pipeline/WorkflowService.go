@@ -18,7 +18,6 @@ package pipeline
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -223,7 +222,7 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 		impl.Logger.Errorw("error in getting UCID", "err", err)
 		return bean3.WorkflowTemplate{}, err
 	}
-	workflowTemplate.DevtronInstanceUID = base64.StdEncoding.EncodeToString([]byte(devtronUCID))
+	workflowTemplate.DevtronInstanceUID = devtronUCID
 	return workflowTemplate, nil
 }
 

@@ -18,7 +18,6 @@ package in
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -404,13 +403,8 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCIWorkflowStatusUpdate() error 
 				impl.logger.Errorw("error in getting UCID", "err", err)
 				return
 			}
-			decodedUCID, err := base64.StdEncoding.DecodeString(wfStatus.DevtronAdministratorInstance)
-			if err != nil {
-				impl.logger.Errorw("error in decoding UCID", "err", err)
-				return
-			}
-			if string(decodedUCID) != devtronUCID {
-				impl.logger.Warnw("mis match in UCID. skipping...", "decodedUCID", string(decodedUCID), "devtronUCID", devtronUCID)
+			if wfStatus.DevtronAdministratorInstance != devtronUCID {
+				impl.logger.Warnw("mis match in UCID. skipping...", "devtronAdministratorInstance", wfStatus.DevtronAdministratorInstance, "devtronUCID", devtronUCID)
 				return
 			}
 		}
@@ -465,13 +459,8 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 				impl.logger.Errorw("error in getting UCID", "err", err)
 				return
 			}
-			decodedUCID, err := base64.StdEncoding.DecodeString(wfStatus.DevtronAdministratorInstance)
-			if err != nil {
-				impl.logger.Errorw("error in decoding UCID", "err", err)
-				return
-			}
-			if string(decodedUCID) != devtronUCID {
-				impl.logger.Warnw("mis match in UCID. skipping...", "decodedUCID", string(decodedUCID), "devtronUCID", devtronUCID)
+			if wfStatus.DevtronAdministratorInstance != devtronUCID {
+				impl.logger.Warnw("mis match in UCID. skipping...", "devtronAdministratorInstance", wfStatus.DevtronAdministratorInstance, "devtronUCID", devtronUCID)
 				return
 			}
 		}
