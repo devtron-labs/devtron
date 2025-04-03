@@ -8,6 +8,7 @@
 - feat: licensing changes (#6474)
 ## Documentation
 ## Others
+- chore: code restructuring (#6476)
 - sync: main changes synced into develop (#6492)
 - sync: Main sync develop 27mar (#6483)
 - sync: vendor update (#6480)
