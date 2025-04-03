@@ -136,6 +136,8 @@
  | ARGO_GIT_COMMIT_RETRY_DELAY_ON_CONFLICT | int |1 |  |  | false |
  | ARGO_REPO_REGISTER_RETRY_COUNT | int |3 |  |  | false |
  | ARGO_REPO_REGISTER_RETRY_DELAY | int |10 |  |  | false |
+ | ARGO_SYNC_DELAY_SECONDS | int |2 |  |  | false |
+ | ARGO_SYNC_RETRY_COUNT | int |1 |  |  | false |
  | ASYNC_BUILDX_CACHE_EXPORT | bool |false |  |  | false |
  | BATCH_SIZE | int |5 |  |  | false |
  | BLOB_STORAGE_ENABLED | bool |false |  |  | false |

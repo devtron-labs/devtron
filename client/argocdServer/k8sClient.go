@@ -59,7 +59,10 @@ const (
 	ARGOCD_APPLICATION_TEMPLATE = "./scripts/argo-assets/APPLICATION_TEMPLATE.tmpl"
 )
 
-var ErrAnotherOperationInProgress = status.Errorf(codes.FailedPrecondition, "another operation is already in progress")
+var (
+	ErrAnotherOperationInProgress = status.Errorf(codes.FailedPrecondition, "another operation is already in progress")
+	ErrNoOperationInProgress      = status.Errorf(codes.InvalidArgument, "Unable to terminate operation. No operation is in progress")
+)
 
 type ArgoK8sClient interface {
 	CreateAcdApp(ctx context.Context, appRequest *AppTemplate, applicationTemplatePath string) (string, error)
@@ -367,31 +370,30 @@ func (impl ArgoK8sClientImpl) RefreshApp(ctx context.Context, k8sConfig *bean.Ar
 
 func (impl ArgoK8sClientImpl) TerminateApp(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string) error {
 	impl.logger.Infow("terminating argo application", "appName", appName)
-	terminatePatch := map[string]interface{}{
-		"status": map[string]interface{}{
-			"operationState": map[string]interface{}{
-				"phase": common.OperationTerminating,
-			},
-		},
-	}
-	err := impl.patchApplicationObject(ctx, k8sConfig, appName, terminatePatch)
-	if err != nil {
-		impl.logger.Errorw("error in patching argo application", "appName", appName, "err", err)
-		return err
-	}
-	deadline := time.Now().Add(2 * time.Second)
-	for {
-		app, err := impl.GetArgoApplication(k8sConfig, appName)
+	for i := 0; i < 10; i++ {
+		a, err := impl.GetArgoApplication(k8sConfig, appName)
 		if err != nil {
 			impl.logger.Errorw("error in getting argo application", "appName", appName, "err", err)
 			return err
 		}
-		if app.Operation == nil || app.Status.OperationState.Phase == common.OperationFailed {
-			break
+		if a.Operation == nil || a.Status.OperationState == nil {
+			return ErrNoOperationInProgress
 		}
-		if time.Now().After(deadline) {
-			return errors.New("timed out waiting for argo application to terminate")
+		a.Status.OperationState.Phase = common.OperationTerminating
+		appJson, err := json.Marshal(a)
+		if err != nil {
+			impl.logger.Errorw("error in marshaling application", "appName", appName, "err", err)
+			return err
 		}
+		_, err = impl.k8sUtil.UpdateResource(ctx, k8sConfig.RestConfig, v1alpha1.ApplicationSchemaGroupVersionKind, k8sConfig.AcdNamespace, string(appJson))
+		if err == nil {
+			time.Sleep(1 * time.Second)
+			return nil
+		}
+		if !k8sError.IsConflict(err) {
+			return fmt.Errorf("error updating application: %w", err)
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 	return nil
 }

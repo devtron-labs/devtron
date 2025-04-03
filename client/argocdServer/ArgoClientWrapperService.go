@@ -366,7 +366,7 @@ func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationAndRefreshWithK8s
 			if errors.Is(err, ErrAnotherOperationInProgress) {
 				impl.logger.Infow("Another operation is already in progress, terminating app")
 				err = impl.argoK8sClient.TerminateApp(ctx, k8sConfig, appName)
-				if err != nil {
+				if err != nil && !errors.Is(err, ErrNoOperationInProgress) {
 					impl.logger.Errorw("error in terminating argo application", "appName", appName, "err", err)
 					return err
 				}
