@@ -32,6 +32,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	bean6 "github.com/devtron-labs/devtron/pkg/app/bean"
 	attributesBean "github.com/devtron-labs/devtron/pkg/attributes/bean"
+	bean7 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/bean/common"
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
@@ -177,7 +178,7 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) (*b
 	return manifestPushTemplate, nil
 }
 
-func (impl *TriggerServiceImpl) TriggerAutoCDOnPreStageSuccess(triggerContext bean.TriggerContext, cdPipelineId, ciArtifactId, workflowId int, triggerdBy int32) error {
+func (impl *TriggerServiceImpl) TriggerAutoCDOnPreStageSuccess(triggerContext bean.TriggerContext, cdPipelineId, ciArtifactId, workflowId int) error {
 	pipeline, err := impl.pipelineRepository.FindById(cdPipelineId)
 	if err != nil {
 		return err
@@ -204,7 +205,7 @@ func (impl *TriggerServiceImpl) TriggerAutoCDOnPreStageSuccess(triggerContext be
 			CdWf:           cdWorkflow,
 			Pipeline:       pipeline,
 			Artifact:       ciArtifact,
-			TriggeredBy:    triggerdBy,
+			TriggeredBy:    bean7.SYSTEM_USER_ID,
 			TriggerContext: triggerContext,
 		}
 

@@ -20,6 +20,7 @@ import (
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitWebhook/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -71,7 +72,7 @@ func (impl *GitWebhookServiceImpl) HandleGitWebhook(gitWebhookRequest gitSensor.
 
 	resp, err := impl.ciHandler.HandleCIWebhook(bean.GitCiTriggerRequest{
 		CiPipelineMaterial:        ciPipelineMaterial,
-		TriggeredBy:               1, // Automatic trigger, userId is 1
+		TriggeredBy:               bean2.SYSTEM_USER_ID, // Automatic trigger, system user
 		ExtraEnvironmentVariables: gitWebhookRequest.ExtraEnvironmentVariables,
 	})
 	if err != nil {
