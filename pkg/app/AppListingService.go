@@ -450,6 +450,7 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 			}
 		}
 		envContainers = filteredContainers
+		appSize = len(filteredContainers)
 	}
 	return envContainers, appSize, nil
 }
