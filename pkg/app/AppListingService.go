@@ -37,7 +37,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"golang.org/x/exp/slices"
 	"net/http"
-	"sigs.k8s.io/kustomize/kyaml/sliceutil"
 	"strconv"
 	"strings"
 	"time"
@@ -386,8 +385,10 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 	// fun to check if "HIBERNATING" exists in fetchAppListingRequest.AppStatuses
 	isFilteredOnHibernatingStatus := impl.isFilteredOnHibernatingStatus(fetchAppListingRequest)
 	// remove ""HIBERNATING" from fetchAppListingRequest.AppStatuses
+	appStatusesFilter := make([]string, 0)
 	if isFilteredOnHibernatingStatus {
-		fetchAppListingRequest.AppStatuses = sliceutil.Remove(fetchAppListingRequest.AppStatuses, bean2.HIBERNATING)
+		appStatusesFilter = fetchAppListingRequest.AppStatuses
+		fetchAppListingRequest.AppStatuses = []string{}
 	}
 
 	appListingFilter := helper.AppListingFilter{
@@ -448,7 +449,7 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 	if isFilteredOnHibernatingStatus {
 		filteredContainers := make([]*AppView.AppEnvironmentContainer, 0)
 		for _, container := range envContainers {
-			if container.AppStatus == bean2.HIBERNATING {
+			if slices.Contains(appStatusesFilter, container.AppStatus) {
 				filteredContainers = append(filteredContainers, container)
 			}
 		}
