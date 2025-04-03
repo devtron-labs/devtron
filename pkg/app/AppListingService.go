@@ -36,6 +36,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"golang.org/x/exp/slices"
 	"net/http"
+	"sigs.k8s.io/kustomize/kyaml/sliceutil"
 	"strconv"
 	"strings"
 	"time"
@@ -378,6 +379,14 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 	if len(fetchAppListingRequest.Namespaces) != 0 && len(fetchAppListingRequest.Environments) == 0 {
 		return []*AppView.AppEnvironmentContainer{}, 0, nil
 	}
+
+	// fun to check if "HIBERNATING" exists in fetchAppListingRequest.AppStatuses
+	isFilteredOnHibernatingStatus := impl.isFilteredOnHibernatingStatus(fetchAppListingRequest)
+	// remove ""HIBERNATING" from fetchAppListingRequest.AppStatuses
+	if isFilteredOnHibernatingStatus {
+		fetchAppListingRequest.AppStatuses = sliceutil.Remove(fetchAppListingRequest.AppStatuses, "HIBERNATING")
+	}
+
 	appListingFilter := helper.AppListingFilter{
 		Environments:      fetchAppListingRequest.Environments,
 		Statuses:          fetchAppListingRequest.Statuses,
@@ -431,7 +440,27 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 	if err != nil {
 		impl.Logger.Errorw("error, UpdateAppStatusForHelmTypePipelines", "envIds", envIds, "err", err)
 	}
+
+	// apply filter for "HIBERNATING" status
+	if isFilteredOnHibernatingStatus {
+		filteredContainers := make([]*AppView.AppEnvironmentContainer, 0)
+		for _, container := range envContainers {
+			if container.AppStatus == "HIBERNATING" {
+				filteredContainers = append(filteredContainers, container)
+			}
+		}
+		envContainers = filteredContainers
+	}
 	return envContainers, appSize, nil
+}
+
+func (impl AppListingServiceImpl) isFilteredOnHibernatingStatus(fetchAppListingRequest FetchAppListingRequest) bool {
+	if fetchAppListingRequest.AppStatuses != nil && len(fetchAppListingRequest.AppStatuses) > 0 {
+		if slices.Contains(fetchAppListingRequest.AppStatuses, "HIBERNATING") {
+			return true
+		}
+	}
+	return false
 }
 
 func (impl AppListingServiceImpl) ISLastReleaseStopType(appId, envId int) (bool, error) {
