@@ -30,9 +30,9 @@ import (
 	read5 "github.com/devtron-labs/devtron/pkg/chart/read"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
-	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"github.com/devtron-labs/devtron/pkg/pipeline/draftAwareConfigService"
+	validator2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/validator"
 	security2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/read"
 	read3 "github.com/devtron-labs/devtron/pkg/team/read"
@@ -109,7 +109,7 @@ type PipelineConfigRestHandlerImpl struct {
 	ciPipelineMaterialRepository        pipelineConfig.CiPipelineMaterialRepository
 	ciHandler                           pipeline.CiHandler
 	Logger                              *zap.SugaredLogger
-	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService
+	deploymentTemplateValidationService validator2.DeploymentTemplateValidationService
 	chartService                        chart.ChartService
 	devtronAppGitOpConfigService        gitOpsConfig.DevtronAppGitOpConfigService
 	propertiesConfigService             pipeline.PropertiesConfigService
@@ -143,7 +143,7 @@ type PipelineConfigRestHandlerImpl struct {
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
-	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService,
+	deploymentTemplateValidationService validator2.DeploymentTemplateValidationService,
 	chartService chart.ChartService,
 	devtronAppGitOpConfigService gitOpsConfig.DevtronAppGitOpConfigService,
 	propertiesConfigService pipeline.PropertiesConfigService,

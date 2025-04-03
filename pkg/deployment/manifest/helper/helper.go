@@ -167,7 +167,7 @@ func NewMergedCmAndCsJsonV2Request(overrideRequest *bean.ValuesOverrideRequest, 
 
 func NewMergedCmAndCsJsonV2Response() *bean3.MergedCmAndCsJsonV2Response {
 	return &bean3.MergedCmAndCsJsonV2Response{
-		MergedJson:     []byte("{}"),
+		MergedJson:     util4.GetEmptyJSON(),
 		ExternalCsList: make([]string, 0),
 		ExternalCmList: make([]string, 0),
 	}
