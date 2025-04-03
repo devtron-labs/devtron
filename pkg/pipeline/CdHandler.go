@@ -279,9 +279,9 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus bean6.CiCdStatus) (int,
 		return 0, "", false, err
 	}
 
-	savedWorkflow, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(workflowId)
+	savedWorkflow, err := impl.cdWorkflowRepository.FindPreOrPostCdWorkflowRunnerById(workflowId)
 	if err != nil {
-		impl.Logger.Error("cannot get saved wf", "err", err)
+		impl.Logger.Error("cannot get saved wf", "workflowId", workflowId, "err", err)
 		return 0, "", false, err
 	}
 

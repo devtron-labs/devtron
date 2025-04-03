@@ -288,8 +288,11 @@ func GetClientInstance(config *rest.Config, namespace string) (v1alpha12.Workflo
 }
 
 func CheckIfReTriggerRequired(status, message, workflowRunnerStatus string) bool {
-	return ((status == string(v1alpha1.NodeError) || status == string(v1alpha1.NodeFailed)) &&
-		message == cdWorkflow.POD_DELETED_MESSAGE) && (workflowRunnerStatus != cdWorkflow.WorkflowCancel && workflowRunnerStatus != cdWorkflow.WorkflowAborted)
+	return (status == string(v1alpha1.NodeError) || status == string(v1alpha1.NodeFailed)) &&
+		message == cdWorkflow.POD_DELETED_MESSAGE &&
+		workflowRunnerStatus != cdWorkflow.WorkflowCancel &&
+		workflowRunnerStatus != cdWorkflow.WorkflowAborted &&
+		workflowRunnerStatus != cdWorkflow.WorkflowSucceeded
 
 }
 
