@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean/AppView"
+	bean2 "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
@@ -386,7 +387,7 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 	isFilteredOnHibernatingStatus := impl.isFilteredOnHibernatingStatus(fetchAppListingRequest)
 	// remove ""HIBERNATING" from fetchAppListingRequest.AppStatuses
 	if isFilteredOnHibernatingStatus {
-		fetchAppListingRequest.AppStatuses = sliceutil.Remove(fetchAppListingRequest.AppStatuses, "HIBERNATING")
+		fetchAppListingRequest.AppStatuses = sliceutil.Remove(fetchAppListingRequest.AppStatuses, bean2.HIBERNATING)
 	}
 
 	appListingFilter := helper.AppListingFilter{
@@ -447,7 +448,7 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 	if isFilteredOnHibernatingStatus {
 		filteredContainers := make([]*AppView.AppEnvironmentContainer, 0)
 		for _, container := range envContainers {
-			if container.AppStatus == "HIBERNATING" {
+			if container.AppStatus == bean2.HIBERNATING {
 				filteredContainers = append(filteredContainers, container)
 			}
 		}
@@ -459,7 +460,7 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 
 func (impl AppListingServiceImpl) isFilteredOnHibernatingStatus(fetchAppListingRequest FetchAppListingRequest) bool {
 	if fetchAppListingRequest.AppStatuses != nil && len(fetchAppListingRequest.AppStatuses) > 0 {
-		if slices.Contains(fetchAppListingRequest.AppStatuses, "HIBERNATING") {
+		if slices.Contains(fetchAppListingRequest.AppStatuses, bean2.HIBERNATING) {
 			return true
 		}
 	}
