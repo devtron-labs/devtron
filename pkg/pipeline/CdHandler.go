@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils"
 	bean4 "github.com/devtron-labs/common-lib/utils/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
-	cdWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
+	cdWorkflowAdapter "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
+	cdWorkflowBean "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
@@ -39,6 +39,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -227,7 +228,7 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, forceAbort bool, us
 			return 0, err
 		}
 	}
-	workflowRunner.Status = cdWorkflow2.WorkflowCancel
+	workflowRunner.Status = cdWorkflowBean.WorkflowCancel
 	workflowRunner.UpdatedOn = time.Now()
 	workflowRunner.UpdatedBy = userId
 	err = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(workflowRunner)
@@ -239,7 +240,7 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, forceAbort bool, us
 }
 
 func (impl *CdHandlerImpl) updateWorkflowRunnerForForceAbort(workflowRunner *pipelineConfig.CdWorkflowRunner) error {
-	workflowRunner.Status = cdWorkflow2.WorkflowCancel
+	workflowRunner.Status = cdWorkflowBean.WorkflowCancel
 	workflowRunner.PodStatus = string(bean2.Failed)
 	workflowRunner.Message = constants.FORCE_ABORT_MESSAGE_AFTER_STARTING_STAGE
 	err := impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(workflowRunner)
@@ -288,13 +289,22 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus bean6.CiCdStatus) (int,
 	cdArtifactLocationFormat := impl.config.GetArtifactLocationFormat()
 	cdArtifactLocation := fmt.Sprintf(cdArtifactLocationFormat, savedWorkflow.CdWorkflowId, savedWorkflow.Id)
 	if impl.stateChanged(status, podStatus, message, workflowStatus.FinishedAt.Time, savedWorkflow) {
-		if savedWorkflow.Status != cdWorkflow2.WorkflowCancel {
+		if savedWorkflow.Status != cdWorkflowBean.WorkflowCancel {
 			savedWorkflow.Status = status
 		}
 		savedWorkflow.CdArtifactLocation = cdArtifactLocation
 		savedWorkflow.PodStatus = podStatus
-		savedWorkflow.Message = message
-		savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
+		if !slices.Contains(cdWorkflowBean.WfrTerminalStatusList, savedWorkflow.Status) {
+			savedWorkflow.Message = message
+			// NOTE: we are doing this to fix where a pre-cd / post-cd workflow message becomes larger than 1000, and in db we had set the charter limit to 1000
+			if len(message) > 1000 {
+				savedWorkflow.Message = message[:1000]
+			}
+			savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
+		} else {
+			impl.Logger.Warnw("cd stage already in terminal state. skipped message and finishedOn from being updated",
+				"wfId", savedWorkflow.Id, "status", savedWorkflow.Status, "message", message, "finishedOn", workflowStatus.FinishedAt.Time)
+		}
 		savedWorkflow.Name = workflowName
 		// removed log location from here since we are saving it at trigger
 		savedWorkflow.PodName = podName
@@ -312,7 +322,7 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus bean6.CiCdStatus) (int,
 			impl.Logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
 			return 0, "", true, err
 		}
-		util3.TriggerCDMetrics(cdWorkflow.GetTriggerMetricsFromRunnerObj(savedWorkflow, envDeploymentConfig), impl.config.ExposeCDMetrics)
+		util3.TriggerCDMetrics(cdWorkflowAdapter.GetTriggerMetricsFromRunnerObj(savedWorkflow, envDeploymentConfig), impl.config.ExposeCDMetrics)
 		if string(v1alpha1.NodeError) == savedWorkflow.Status || string(v1alpha1.NodeFailed) == savedWorkflow.Status {
 			impl.Logger.Warnw("cd stage failed for workflow: ", "wfId", savedWorkflow.Id)
 		}
@@ -558,7 +568,7 @@ func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineC
 	if logStream == nil || err != nil {
 		if !cdWorkflow.BlobStorageEnabled {
 			return nil, nil, errors.New("logs-not-stored-in-repository")
-		} else if string(v1alpha1.NodeSucceeded) == cdWorkflow.Status || string(v1alpha1.NodeError) == cdWorkflow.Status || string(v1alpha1.NodeFailed) == cdWorkflow.Status || cdWorkflow.Status == cdWorkflow2.WorkflowCancel {
+		} else if string(v1alpha1.NodeSucceeded) == cdWorkflow.Status || string(v1alpha1.NodeError) == cdWorkflow.Status || string(v1alpha1.NodeFailed) == cdWorkflow.Status || cdWorkflow.Status == cdWorkflowBean.WorkflowCancel {
 			impl.Logger.Debugw("pod is not live", "podName", cdWorkflow.PodName, "err", err)
 			return impl.getLogsFromRepository(pipelineId, cdWorkflow, clusterConfig, runStageInEnv)
 		}
@@ -583,7 +593,7 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 		PipelineId:    cdWorkflow.CdWorkflow.PipelineId,
 		WorkflowId:    cdWorkflow.Id,
 		PodName:       cdWorkflow.PodName,
-		LogsFilePath:  cdWorkflow.LogLocation, // impl.ciCdConfig.CiDefaultBuildLogsKeyPrefix + "/" + cdWorkflow.Name + "/main.log", //TODO - fixme
+		LogsFilePath:  cdWorkflow.LogLocation, // impl.ciCdConfig.CiDefaultBuildLogsKeyPrefix + "/" + cdWorkflowAda.Name + "/main.log", //TODO - fixme
 		CloudProvider: impl.config.CloudProvider,
 		AzureBlobConfig: &blob_storage.AzureBlobBaseConfig{
 			Enabled:           impl.config.CloudProvider == types.BLOB_STORAGE_AZURE,

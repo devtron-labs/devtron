@@ -41,6 +41,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -1203,16 +1204,21 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus bean6.CiCdStatus) (int,
 			savedWorkflow.Status = status
 		}
 		savedWorkflow.PodStatus = podStatus
-		savedWorkflow.Message = message
-		// NOTE: we are doing this for a quick fix where ci pending message become larger than 250 and in db we had set the charter limit to 250
-		if len(message) > 250 {
-			savedWorkflow.Message = message[:250]
+		if !slices.Contains(cdWorkflow.WfrTerminalStatusList, savedWorkflow.Status) {
+			savedWorkflow.Message = message
+			// NOTE: we are doing this for a quick fix where ci pending message become larger than 250 and in db we had set the charter limit to 250
+			if len(message) > 250 {
+				savedWorkflow.Message = message[:250]
+			}
+			savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
+		} else {
+			impl.Logger.Warnw("cd stage already in terminal state. skipped message and finishedOn from being updated",
+				"wfId", savedWorkflow.Id, "status", savedWorkflow.Status, "message", message, "finishedOn", workflowStatus.FinishedAt.Time)
 		}
 		if savedWorkflow.ExecutorType == cdWorkflow.WORKFLOW_EXECUTOR_TYPE_SYSTEM && savedWorkflow.Status == cdWorkflow.WorkflowCancel {
 			savedWorkflow.PodStatus = "Failed"
 			savedWorkflow.Message = constants2.TERMINATE_MESSAGE
 		}
-		savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
 		savedWorkflow.Name = workflowName
 		//savedWorkflow.LogLocation = "/ci-pipeline/" + strconv.Itoa(savedWorkflow.CiPipelineId) + "/workflow/" + strconv.Itoa(savedWorkflow.Id) + "/logs" //TODO need to fetch from workflow object
 		//savedWorkflow.LogLocation = logLocation // removed because we are saving log location at trigger
