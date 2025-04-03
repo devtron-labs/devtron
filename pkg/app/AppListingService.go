@@ -380,6 +380,8 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 		return []*AppView.AppEnvironmentContainer{}, 0, nil
 	}
 
+	// Currently AppStatus is available in Db for only ArgoApps
+	// We fetch AppStatus on the fly for Helm Apps from scoop, So AppStatus filter will be applied in last
 	// fun to check if "HIBERNATING" exists in fetchAppListingRequest.AppStatuses
 	isFilteredOnHibernatingStatus := impl.isFilteredOnHibernatingStatus(fetchAppListingRequest)
 	// remove ""HIBERNATING" from fetchAppListingRequest.AppStatuses
