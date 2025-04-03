@@ -52,14 +52,16 @@ type WorkflowTemplate struct {
 }
 
 const (
-	CI_WORKFLOW_NAME           = "ci"
-	CI_WORKFLOW_WITH_STAGES    = "ci-stages-with-env"
-	CiStage                    = "CI"
-	JobStage                   = "JOB"
-	CdStage                    = "CD"
-	CD_WORKFLOW_NAME           = "cd"
-	CD_WORKFLOW_WITH_STAGES    = "cd-stages-with-env"
-	WorkflowGenerateNamePrefix = "devtron.ai/generate-name-prefix"
+	CI_WORKFLOW_NAME            = "ci"
+	CI_WORKFLOW_WITH_STAGES     = "ci-stages-with-env"
+	CiStage                     = "CI"
+	JobStage                    = "JOB"
+	CdStage                     = "CD"
+	CD_WORKFLOW_NAME            = "cd"
+	CD_WORKFLOW_WITH_STAGES     = "cd-stages-with-env"
+	WorkflowGenerateNamePrefix  = "devtron.ai/generate-name-prefix"
+	DevtronLabelPurposeKey      = "devtron.ai/purpose"
+	DevtronLabelPurposeWorkflow = "workflow"
 )
 
 func (workflowTemplate *WorkflowTemplate) GetEntrypoint() string {
