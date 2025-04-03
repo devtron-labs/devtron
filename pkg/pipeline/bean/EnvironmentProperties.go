@@ -69,3 +69,9 @@ type EnvironmentPropertiesResponse struct {
 	Schema            json.RawMessage       `json:"schema"`
 	Readme            string                `json:"readme"`
 }
+
+type DeploymentConfigMetadata struct {
+	AppId        int
+	EnvId        int
+	ResourceName string // if base then BaseDeploymentTemplate or if at env level{envName-DeploymentTemplateOverride}
+}

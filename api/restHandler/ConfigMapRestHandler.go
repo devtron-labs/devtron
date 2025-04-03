@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/pipeline/draftAwareConfigService"
-	"github.com/devtron-labs/devtron/util"
 	"net/http"
 	"strconv"
 
@@ -74,14 +73,14 @@ type ConfigMapRestHandlerImpl struct {
 	pipelineRepository        pipelineConfig.PipelineRepository
 	enforcerUtil              rbac.EnforcerUtil
 	configMapService          pipeline.ConfigMapService
-	draftAwareResourceService draftAwareConfigService.DraftAwareResourceService
+	draftAwareResourceService draftAwareConfigService.DraftAwareConfigService
 }
 
 func NewConfigMapRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
 	chartService chart.ChartService, userAuthService user.UserService, teamService team.TeamService,
 	enforcer casbin.Enforcer, pipelineRepository pipelineConfig.PipelineRepository,
 	enforcerUtil rbac.EnforcerUtil, configMapService pipeline.ConfigMapService,
-	draftAwareResourceService draftAwareConfigService.DraftAwareResourceService,
+	draftAwareResourceService draftAwareConfigService.DraftAwareConfigService,
 ) *ConfigMapRestHandlerImpl {
 	return &ConfigMapRestHandlerImpl{
 		pipelineBuilder:           pipelineBuilder,
@@ -124,10 +123,14 @@ func (handler ConfigMapRestHandlerImpl) CMGlobalAddUpdate(w http.ResponseWriter,
 		return
 	}
 	//RBAC END
-	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 	ctx := r.Context()
-	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
-	res, err := handler.draftAwareResourceService.CMGlobalAddUpdate(ctx, &configMapRequest)
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	userEmail, err := handler.userAuthService.GetActiveEmailById(userId)
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
+		return
+	}
+	res, err := handler.draftAwareResourceService.CMGlobalAddUpdate(ctx, &configMapRequest, isSuperAdmin, userEmail)
 	if err != nil {
 		handler.Logger.Errorw("service err, CMGlobalAddUpdate", "err", err, "payload", configMapRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -170,10 +173,14 @@ func (handler ConfigMapRestHandlerImpl) CMEnvironmentAddUpdate(w http.ResponseWr
 		}
 	}
 	//RBAC END
-	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 	ctx := r.Context()
-	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
-	res, err := handler.draftAwareResourceService.CMEnvironmentAddUpdate(ctx, &configMapRequest)
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	userEmail, err := handler.userAuthService.GetActiveEmailById(userId)
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
+		return
+	}
+	res, err := handler.draftAwareResourceService.CMEnvironmentAddUpdate(ctx, &configMapRequest, isSuperAdmin, userEmail)
 	if err != nil {
 		handler.Logger.Errorw("service err, CMEnvironmentAddUpdate", "err", err, "payload", configMapRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -369,10 +376,14 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalAddUpdate(w http.ResponseWriter,
 		return
 	}
 	//RBAC END
-	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 	ctx := r.Context()
-	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
-	res, err := handler.draftAwareResourceService.CSGlobalAddUpdate(ctx, &configMapRequest)
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	userEmail, err := handler.userAuthService.GetActiveEmailById(userId)
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
+		return
+	}
+	res, err := handler.draftAwareResourceService.CSGlobalAddUpdate(ctx, &configMapRequest, isSuperAdmin, userEmail)
 	if err != nil {
 		handler.Logger.Errorw("service err, CSGlobalAddUpdate", "err", err, "payload", configMapRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -416,10 +427,14 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentAddUpdate(w http.ResponseWr
 		}
 	}
 	//RBAC END
-	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 	ctx := r.Context()
-	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
-	res, err := handler.draftAwareResourceService.CSEnvironmentAddUpdate(ctx, &configMapRequest)
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	userEmail, err := handler.userAuthService.GetActiveEmailById(userId)
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
+		return
+	}
+	res, err := handler.draftAwareResourceService.CSEnvironmentAddUpdate(ctx, &configMapRequest, isSuperAdmin, userEmail)
 	if err != nil {
 		handler.Logger.Errorw("service err, CSEnvironmentAddUpdate", "err", err, "payload", configMapRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -531,15 +546,19 @@ func (handler ConfigMapRestHandlerImpl) CMGlobalDelete(w http.ResponseWriter, r 
 		return
 	}
 	//RBAC END
-	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 	ctx := r.Context()
-	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	userEmail, err := handler.userAuthService.GetActiveEmailById(userId)
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
+		return
+	}
 	deleteReq := &bean.ConfigDataRequest{
 		Id:     id,
 		AppId:  appId,
 		UserId: userId,
 	}
-	res, err := handler.draftAwareResourceService.CMGlobalDelete(ctx, name, deleteReq)
+	res, err := handler.draftAwareResourceService.CMGlobalDelete(ctx, name, deleteReq, isSuperAdmin, userEmail)
 	if err != nil {
 		handler.Logger.Errorw("service err, CMGlobalDelete", "err", err, "appId", appId, "id", id, "name", name)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -593,15 +612,19 @@ func (handler ConfigMapRestHandlerImpl) CMEnvironmentDelete(w http.ResponseWrite
 		}
 	}
 	//RBAC END
-	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 	ctx := r.Context()
-	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	userEmail, err := handler.userAuthService.GetActiveEmailById(userId)
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
+		return
+	}
 	deleteReq := &bean.ConfigDataRequest{
 		Id:     id,
 		AppId:  appId,
 		UserId: userId,
 	}
-	res, err := handler.draftAwareResourceService.CMEnvironmentDelete(ctx, name, deleteReq)
+	res, err := handler.draftAwareResourceService.CMEnvironmentDelete(ctx, name, deleteReq, isSuperAdmin, userEmail)
 	if err != nil {
 		handler.Logger.Errorw("service err, CMEnvironmentDelete", "err", err, "appId", appId, "envId", envId, "id", id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -641,15 +664,19 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalDelete(w http.ResponseWriter, r 
 		return
 	}
 	//RBAC END
-	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 	ctx := r.Context()
-	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	userEmail, err := handler.userAuthService.GetActiveEmailById(userId)
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
+		return
+	}
 	deleteReq := &bean.ConfigDataRequest{
 		Id:     id,
 		AppId:  appId,
 		UserId: userId,
 	}
-	res, err := handler.draftAwareResourceService.CSGlobalDelete(ctx, name, deleteReq)
+	res, err := handler.draftAwareResourceService.CSGlobalDelete(ctx, name, deleteReq, isSuperAdmin, userEmail)
 	if err != nil {
 		handler.Logger.Errorw("service err, CSGlobalDelete", "err", err, "appId", appId, "id", id, "name", name)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -703,15 +730,19 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentDelete(w http.ResponseWrite
 		}
 	}
 	//RBAC END
-	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 	ctx := r.Context()
-	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	userEmail, err := handler.userAuthService.GetActiveEmailById(userId)
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
+		return
+	}
 	deleteReq := &bean.ConfigDataRequest{
 		Id:     id,
 		AppId:  appId,
 		UserId: userId,
 	}
-	res, err := handler.draftAwareResourceService.CSEnvironmentDelete(ctx, name, deleteReq)
+	res, err := handler.draftAwareResourceService.CSEnvironmentDelete(ctx, name, deleteReq, isSuperAdmin, userEmail)
 	if err != nil {
 		handler.Logger.Errorw("service err, CSEnvironmentDelete", "err", err, "appId", appId, "envId", envId, "id", id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

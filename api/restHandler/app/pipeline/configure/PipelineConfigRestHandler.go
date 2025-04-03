@@ -139,7 +139,7 @@ type PipelineConfigRestHandlerImpl struct {
 	teamReadService                     read3.TeamReadService
 	environmentRepository               repository2.EnvironmentRepository
 	chartReadService                    read5.ChartReadService
-	draftAwareResourceService           draftAwareConfigService.DraftAwareResourceService
+	draftAwareResourceService           draftAwareConfigService.DraftAwareConfigService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -174,7 +174,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	teamReadService read3.TeamReadService,
 	EnvironmentRepository repository2.EnvironmentRepository,
 	chartReadService read5.ChartReadService,
-	draftAwareResourceService draftAwareConfigService.DraftAwareResourceService,
+	draftAwareResourceService draftAwareConfigService.DraftAwareConfigService,
 ) *PipelineConfigRestHandlerImpl {
 	envConfig := &PipelineRestHandlerEnvConfig{}
 	err := env.Parse(envConfig)

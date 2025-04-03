@@ -533,7 +533,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(chartConfig.ConfigMapRepository), new(*chartConfig.ConfigMapRepositoryImpl)),
 
 		draftAwareConfigService.NewDraftAwareResourceServiceImpl,
-		wire.Bind(new(draftAwareConfigService.DraftAwareResourceService), new(*draftAwareConfigService.DraftAwareResourceServiceImpl)),
+		wire.Bind(new(draftAwareConfigService.DraftAwareConfigService), new(*draftAwareConfigService.DraftAwareConfigServiceImpl)),
 
 		config.WireSet,
 

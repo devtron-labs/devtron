@@ -25,8 +25,6 @@ import (
 const (
 	IsSuperAdminFlag = "isSuperAdmin"
 	UserId           = "userId"
-	EmailId          = "emailId"
-	Token            = "token"
 )
 
 func SetSuperAdminInContext(ctx context.Context, isSuperAdmin bool) context.Context {
@@ -41,30 +39,4 @@ func GetIsSuperAdminFromContext(ctx context.Context) (bool, error) {
 		return flag.(bool), nil
 	}
 	return false, fmt.Errorf("context not valid, isSuperAdmin flag not set correctly %v", flag)
-}
-
-func GetUserIdFromContext(ctx context.Context) (int32, error) {
-	flag := ctx.Value(UserId)
-
-	if flag != nil && reflect.TypeOf(flag).Kind() == reflect.Int32 {
-		return flag.(int32), nil
-	}
-	return 0, fmt.Errorf("context not valid, userId flag not set correctly %v", flag)
-}
-
-func GetUserEmailFromContext(ctx context.Context) (string, error) {
-	flag := ctx.Value(EmailId)
-
-	if flag != nil && reflect.TypeOf(flag).Kind() == reflect.String {
-		return flag.(string), nil
-	}
-	return "", fmt.Errorf("context not valid, emailId flag not set correctly %v", flag)
-}
-func GetTokenFromContext(ctx context.Context) (string, error) {
-	flag := ctx.Value(Token)
-
-	if flag != nil && reflect.TypeOf(flag).Kind() == reflect.String {
-		return flag.(string), nil
-	}
-	return "", fmt.Errorf("context not valid, token flag not set correctly %v", flag)
 }

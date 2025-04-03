@@ -176,9 +176,13 @@ func (handler *PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(
 		}(ctx.Done(), cn.CloseNotify())
 	}
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
-	ctx = util2.SetSuperAdminInContext(ctx, isSuperAdmin)
+	userEmail, err := handler.userAuthService.GetActiveEmailById(userId)
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
+		return
+	}
 
-	createResp, err := handler.draftAwareResourceService.Create(ctx, templateRequest)
+	createResp, err := handler.draftAwareResourceService.Create(ctx, templateRequest, isSuperAdmin, userEmail)
 	if err != nil {
 		handler.Logger.Errorw("service err, ConfigureDeploymentTemplateForApp", "err", err, "payload", templateRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -693,6 +697,7 @@ func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Res
 	}
 	envConfigProperties.UserId = userId
 	envConfigProperties.EnvironmentId = environmentId
+	envConfigProperties.AppId = appId
 	handler.Logger.Infow("request payload, EnvConfigOverrideCreate", "payload", envConfigProperties)
 
 	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
@@ -730,8 +735,12 @@ func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Res
 		}(ctx.Done(), cn.CloseNotify())
 	}
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
-	ctx = util2.SetSuperAdminInContext(ctx, isSuperAdmin)
-	createResp, err := handler.draftAwareResourceService.CreateEnvironmentPropertiesAndBaseIfNeeded(ctx, appId, &envConfigProperties)
+	userEmail, err := handler.userAuthService.GetActiveEmailById(userId)
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
+		return
+	}
+	createResp, err := handler.draftAwareResourceService.CreateEnvironmentPropertiesAndBaseIfNeeded(ctx, &envConfigProperties, isSuperAdmin, userEmail)
 	if err != nil {
 		handler.Logger.Errorw("service err, CreateEnvironmentPropertiesAndBaseIfNeeded", "payload", envConfigProperties, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -770,6 +779,7 @@ func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Res
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	envConfigProperties.AppId = envConfigOverride.Chart.AppId
 	appId := envConfigOverride.Chart.AppId
 	envId := envConfigOverride.TargetEnvironment
 	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
@@ -797,8 +807,12 @@ func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Res
 	}
 	ctx := r.Context()
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
-	ctx = util2.SetSuperAdminInContext(ctx, isSuperAdmin)
-	createResp, err := handler.draftAwareResourceService.UpdateEnvironmentProperties(ctx, appId, &envConfigProperties, token)
+	userEmail, err := handler.userAuthService.GetActiveEmailById(userId)
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
+		return
+	}
+	createResp, err := handler.draftAwareResourceService.UpdateEnvironmentProperties(ctx, &envConfigProperties, token, isSuperAdmin, userEmail)
 	if err != nil {
 		handler.Logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1389,10 +1403,14 @@ func (handler *PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseW
 		return
 	}
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
-	ctx = util2.SetSuperAdminInContext(ctx, isSuperAdmin)
+	userEmail, err := handler.userAuthService.GetActiveEmailById(userId)
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
+		return
+	}
 
 	_, span = otel.Tracer("orchestrator").Start(ctx, "chartService.UpdateAppOverride")
-	createResp, err := handler.draftAwareResourceService.UpdateAppOverride(ctx, &templateRequest, token)
+	createResp, err := handler.draftAwareResourceService.UpdateAppOverride(ctx, &templateRequest, token, isSuperAdmin, userEmail)
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateAppOverride", "err", err, "payload", templateRequest)
@@ -1529,14 +1547,18 @@ func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideReset(w http.Resp
 	}
 	ctx := r.Context()
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
-	ctx = util2.SetSuperAdminInContext(ctx, isSuperAdmin)
+	userEmail, err := handler.userAuthService.GetActiveEmailById(userId)
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
+		return
+	}
 	envProperties := &pipelineBean.EnvironmentProperties{
 		Id:            id,
 		EnvironmentId: environmentId,
 		UserId:        userId,
 		AppId:         appId,
 	}
-	isSuccess, err := handler.draftAwareResourceService.ResetEnvironmentProperties(ctx, envProperties)
+	isSuccess, err := handler.draftAwareResourceService.ResetEnvironmentProperties(ctx, envProperties, isSuperAdmin, userEmail)
 	if err != nil {
 		handler.Logger.Errorw("service err, EnvConfigOverrideReset", "err", err, "appId", appId, "environmentId", environmentId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

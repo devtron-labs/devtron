@@ -7,10 +7,10 @@ import (
 	"net/http"
 )
 
-func (impl *DraftAwareResourceServiceImpl) performExpressEditActionsOnCmCsForExceptionUser(ctx context.Context, name string, resourceType bean.ResourceType, configMapRequest *bean.ConfigDataRequest) error {
+func (impl *DraftAwareConfigServiceImpl) performExpressEditActionsOnCmCsForExceptionUser(ctx context.Context, configProperty *bean.ConfigNameAndType, configMapRequest *bean.ConfigDataRequest, isSuperAdmin bool, userEmail string) error {
 	return util.NewApiError(http.StatusNotImplemented, "operations not supported in oss", "operations not supported in oss")
 }
 
-func (impl *DraftAwareResourceServiceImpl) performExpressEditActionsOnDeplTemplateForExceptionUser(ctx context.Context, appId, envId int, resourceName string, isExpressEdit bool) error {
+func (impl *DraftAwareConfigServiceImpl) performExpressEditActionsOnDeplTemplateForExceptionUser(ctx context.Context, deplConfigMetadata *bean.DeploymentConfigMetadata, isExpressEdit bool, isSuperAdmin bool, userEmail string) error {
 	return util.NewApiError(http.StatusNotImplemented, "operation not supported in oss", "operation not supported in oss")
 }

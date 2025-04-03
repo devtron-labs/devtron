@@ -9,35 +9,49 @@ import (
 	"go.uber.org/zap"
 )
 
-type DraftAwareResourceService interface {
-	// below methods operate on cm cs creation and updation
+type DraftAwareConfigMapService interface {
+	// below methods operate on cm creation and updation
 
-	CMGlobalAddUpdate(ctx context.Context, configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error)
-	CMEnvironmentAddUpdate(ctx context.Context, configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error)
-	CSGlobalAddUpdate(ctx context.Context, configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error)
-	CSEnvironmentAddUpdate(ctx context.Context, configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error)
+	CMGlobalAddUpdate(ctx context.Context, configMapRequest *bean.ConfigDataRequest, isSuperAdmin bool, userEmail string) (*bean.ConfigDataRequest, error)
+	CMEnvironmentAddUpdate(ctx context.Context, configMapRequest *bean.ConfigDataRequest, isSuperAdmin bool, userEmail string) (*bean.ConfigDataRequest, error)
+	// below methods operate on cm deletion
 
-	// below methods operate on cm cs deletion
+	CMGlobalDelete(ctx context.Context, name string, deleteReq *bean.ConfigDataRequest, isSuperAdmin bool, userEmail string) (bool, error)
+	CMEnvironmentDelete(ctx context.Context, name string, deleteReq *bean.ConfigDataRequest, isSuperAdmin bool, userEmail string) (bool, error)
+}
 
-	CMGlobalDelete(ctx context.Context, name string, deleteReq *bean.ConfigDataRequest) (bool, error)
-	CMEnvironmentDelete(ctx context.Context, name string, deleteReq *bean.ConfigDataRequest) (bool, error)
-	CSGlobalDelete(ctx context.Context, name string, deleteReq *bean.ConfigDataRequest) (bool, error)
-	CSEnvironmentDelete(ctx context.Context, name string, deleteReq *bean.ConfigDataRequest) (bool, error)
+type DraftAwareSecretService interface {
+	// below methods operate on cm creation and updation
 
+	CSGlobalAddUpdate(ctx context.Context, configMapRequest *bean.ConfigDataRequest, isSuperAdmin bool, userEmail string) (*bean.ConfigDataRequest, error)
+	CSEnvironmentAddUpdate(ctx context.Context, configMapRequest *bean.ConfigDataRequest, isSuperAdmin bool, userEmail string) (*bean.ConfigDataRequest, error)
+	// below methods operate on cm deletion
+
+	CSGlobalDelete(ctx context.Context, name string, deleteReq *bean.ConfigDataRequest, isSuperAdmin bool, userEmail string) (bool, error)
+	CSEnvironmentDelete(ctx context.Context, name string, deleteReq *bean.ConfigDataRequest, isSuperAdmin bool, userEmail string) (bool, error)
+}
+
+type DraftAwareDeploymentTemplateService interface {
 	// below methods operate on deployment template
 
 	// Create here is used for publishing base deployment template while saving dt for the first time.
-	Create(ctx context.Context, templateRequest bean3.TemplateRequest) (*bean3.TemplateRequest, error)
+	Create(ctx context.Context, templateRequest bean3.TemplateRequest, isSuperAdmin bool, userEmail string) (*bean3.TemplateRequest, error)
 	// UpdateAppOverride here is used for updating base deployment template.
-	UpdateAppOverride(ctx context.Context, templateRequest *bean3.TemplateRequest, token string) (*bean3.TemplateRequest, error)
+	UpdateAppOverride(ctx context.Context, templateRequest *bean3.TemplateRequest, token string, isSuperAdmin bool, userEmail string) (*bean3.TemplateRequest, error)
 	// UpdateEnvironmentProperties here is used for updating and saving deployment template at env override level
-	UpdateEnvironmentProperties(ctx context.Context, appId int, propertiesRequest *bean.EnvironmentProperties, token string) (*bean.EnvironmentProperties, error)
+	UpdateEnvironmentProperties(ctx context.Context, propertiesRequest *bean.EnvironmentProperties, token string, isSuperAdmin bool, userEmail string) (*bean.EnvironmentProperties, error)
 	// ResetEnvironmentProperties method handles flow when a user deletes the deployment template env override.
-	ResetEnvironmentProperties(ctx context.Context, propertiesRequest *bean.EnvironmentProperties) (bool, error)
+	ResetEnvironmentProperties(ctx context.Context, propertiesRequest *bean.EnvironmentProperties, isSuperAdmin bool, userEmail string) (bool, error)
 	// CreateEnvironmentPropertiesAndBaseIfNeeded is utilized when the deployment template chart version is updated and saved
-	CreateEnvironmentPropertiesAndBaseIfNeeded(ctx context.Context, appId int, environmentProperties *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error)
+	CreateEnvironmentPropertiesAndBaseIfNeeded(ctx context.Context, environmentProperties *bean.EnvironmentProperties, isSuperAdmin bool, userEmail string) (*bean.EnvironmentProperties, error)
 }
-type DraftAwareResourceServiceImpl struct {
+
+type DraftAwareConfigService interface {
+	DraftAwareConfigMapService
+	DraftAwareSecretService
+	DraftAwareDeploymentTemplateService
+}
+type DraftAwareConfigServiceImpl struct {
 	logger                  *zap.SugaredLogger
 	configMapService        pipeline.ConfigMapService
 	chartService            chartService.ChartService
@@ -48,8 +62,8 @@ func NewDraftAwareResourceServiceImpl(logger *zap.SugaredLogger,
 	configMapService pipeline.ConfigMapService,
 	chartService chartService.ChartService,
 	propertiesConfigService pipeline.PropertiesConfigService,
-) *DraftAwareResourceServiceImpl {
-	return &DraftAwareResourceServiceImpl{
+) *DraftAwareConfigServiceImpl {
+	return &DraftAwareConfigServiceImpl{
 		logger:                  logger,
 		configMapService:        configMapService,
 		chartService:            chartService,
@@ -57,7 +71,7 @@ func NewDraftAwareResourceServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *DraftAwareResourceServiceImpl) CMGlobalAddUpdate(ctx context.Context, configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error) {
+func (impl *DraftAwareConfigServiceImpl) CMGlobalAddUpdate(ctx context.Context, configMapRequest *bean.ConfigDataRequest, isSuperAdmin bool, userEmail string) (*bean.ConfigDataRequest, error) {
 	resp, err := impl.configMapService.CMGlobalAddUpdate(configMapRequest)
 	if err != nil {
 		impl.logger.Errorw("error in CMGlobalAddUpdate", "configMapRequest", configMapRequest, "err", err)
@@ -67,7 +81,11 @@ func (impl *DraftAwareResourceServiceImpl) CMGlobalAddUpdate(ctx context.Context
 	if len(configMapRequest.ConfigData) > 0 && configMapRequest.ConfigData[0] != nil {
 		resourceName = configMapRequest.ConfigData[0].Name
 	}
-	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, resourceName, bean.CM, configMapRequest)
+	configProperty := &bean.ConfigNameAndType{
+		Name: resourceName,
+		Type: bean.CM,
+	}
+	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, configProperty, configMapRequest, isSuperAdmin, userEmail)
 	if err != nil {
 		impl.logger.Errorw("error in performing express edit actions if user is exception", "err", err)
 		return nil, err
@@ -75,7 +93,7 @@ func (impl *DraftAwareResourceServiceImpl) CMGlobalAddUpdate(ctx context.Context
 	return resp, nil
 }
 
-func (impl *DraftAwareResourceServiceImpl) CMEnvironmentAddUpdate(ctx context.Context, configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error) {
+func (impl *DraftAwareConfigServiceImpl) CMEnvironmentAddUpdate(ctx context.Context, configMapRequest *bean.ConfigDataRequest, isSuperAdmin bool, userEmail string) (*bean.ConfigDataRequest, error) {
 	resp, err := impl.configMapService.CMEnvironmentAddUpdate(configMapRequest)
 	if err != nil {
 		impl.logger.Errorw("error in CMEnvironmentAddUpdate", "configMapRequest", configMapRequest, "err", err)
@@ -85,7 +103,11 @@ func (impl *DraftAwareResourceServiceImpl) CMEnvironmentAddUpdate(ctx context.Co
 	if len(configMapRequest.ConfigData) > 0 && configMapRequest.ConfigData[0] != nil {
 		resourceName = configMapRequest.ConfigData[0].Name
 	}
-	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, resourceName, bean.CM, configMapRequest)
+	configProperty := &bean.ConfigNameAndType{
+		Name: resourceName,
+		Type: bean.CM,
+	}
+	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, configProperty, configMapRequest, isSuperAdmin, userEmail)
 	if err != nil {
 		impl.logger.Errorw("error in performing express edit actions if user is exception", "err", err)
 		return nil, err
@@ -93,7 +115,7 @@ func (impl *DraftAwareResourceServiceImpl) CMEnvironmentAddUpdate(ctx context.Co
 	return resp, nil
 }
 
-func (impl *DraftAwareResourceServiceImpl) CSGlobalAddUpdate(ctx context.Context, configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error) {
+func (impl *DraftAwareConfigServiceImpl) CSGlobalAddUpdate(ctx context.Context, configMapRequest *bean.ConfigDataRequest, isSuperAdmin bool, userEmail string) (*bean.ConfigDataRequest, error) {
 	resp, err := impl.configMapService.CSGlobalAddUpdate(configMapRequest)
 	if err != nil {
 		impl.logger.Errorw("error in CSGlobalAddUpdate", "err", err)
@@ -103,7 +125,11 @@ func (impl *DraftAwareResourceServiceImpl) CSGlobalAddUpdate(ctx context.Context
 	if len(configMapRequest.ConfigData) > 0 && configMapRequest.ConfigData[0] != nil {
 		resourceName = configMapRequest.ConfigData[0].Name
 	}
-	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, resourceName, bean.CS, configMapRequest)
+	configProperty := &bean.ConfigNameAndType{
+		Name: resourceName,
+		Type: bean.CS,
+	}
+	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, configProperty, configMapRequest, isSuperAdmin, userEmail)
 	if err != nil {
 		impl.logger.Errorw("error in performing express edit actions if user is exception", "err", err)
 		return nil, err
@@ -111,7 +137,7 @@ func (impl *DraftAwareResourceServiceImpl) CSGlobalAddUpdate(ctx context.Context
 	return resp, nil
 }
 
-func (impl *DraftAwareResourceServiceImpl) CSEnvironmentAddUpdate(ctx context.Context, configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error) {
+func (impl *DraftAwareConfigServiceImpl) CSEnvironmentAddUpdate(ctx context.Context, configMapRequest *bean.ConfigDataRequest, isSuperAdmin bool, userEmail string) (*bean.ConfigDataRequest, error) {
 	resp, err := impl.configMapService.CSEnvironmentAddUpdate(configMapRequest)
 	if err != nil {
 		impl.logger.Errorw("error in CSGlobalAddUpdate", "err", err)
@@ -121,7 +147,11 @@ func (impl *DraftAwareResourceServiceImpl) CSEnvironmentAddUpdate(ctx context.Co
 	if len(configMapRequest.ConfigData) > 0 && configMapRequest.ConfigData[0] != nil {
 		resourceName = configMapRequest.ConfigData[0].Name
 	}
-	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, resourceName, bean.CS, configMapRequest)
+	configProperty := &bean.ConfigNameAndType{
+		Name: resourceName,
+		Type: bean.CS,
+	}
+	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, configProperty, configMapRequest, isSuperAdmin, userEmail)
 	if err != nil {
 		impl.logger.Errorw("error in performing express edit actions if user is exception", "err", err)
 		return nil, err
@@ -130,13 +160,17 @@ func (impl *DraftAwareResourceServiceImpl) CSEnvironmentAddUpdate(ctx context.Co
 
 }
 
-func (impl *DraftAwareResourceServiceImpl) CMGlobalDelete(ctx context.Context, name string, deleteReq *bean.ConfigDataRequest) (bool, error) {
+func (impl *DraftAwareConfigServiceImpl) CMGlobalDelete(ctx context.Context, name string, deleteReq *bean.ConfigDataRequest, isSuperAdmin bool, userEmail string) (bool, error) {
 	resp, err := impl.configMapService.CMGlobalDelete(name, deleteReq.Id, deleteReq.UserId)
 	if err != nil {
 		impl.logger.Errorw("service err, CMGlobalDelete", "appId", deleteReq.AppId, "id", deleteReq.Id, "name", name, "err", err)
 		return false, err
 	}
-	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, name, bean.CM, deleteReq)
+	configProperty := &bean.ConfigNameAndType{
+		Name: name,
+		Type: bean.CM,
+	}
+	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, configProperty, deleteReq, isSuperAdmin, userEmail)
 	if err != nil {
 		impl.logger.Errorw("error in performing express edit actions if user is exception", "err", err)
 		return false, err
@@ -144,13 +178,17 @@ func (impl *DraftAwareResourceServiceImpl) CMGlobalDelete(ctx context.Context, n
 	return resp, nil
 }
 
-func (impl *DraftAwareResourceServiceImpl) CMEnvironmentDelete(ctx context.Context, name string, deleteReq *bean.ConfigDataRequest) (bool, error) {
+func (impl *DraftAwareConfigServiceImpl) CMEnvironmentDelete(ctx context.Context, name string, deleteReq *bean.ConfigDataRequest, isSuperAdmin bool, userEmail string) (bool, error) {
 	resp, err := impl.configMapService.CMEnvironmentDelete(name, deleteReq.Id, deleteReq.UserId)
 	if err != nil {
 		impl.logger.Errorw("service err, CMEnvironmentDelete", "appId", deleteReq.AppId, "envId", deleteReq.EnvironmentId, "id", deleteReq.Id, "err", err)
 		return false, err
 	}
-	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, name, bean.CM, deleteReq)
+	configProperty := &bean.ConfigNameAndType{
+		Name: name,
+		Type: bean.CM,
+	}
+	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, configProperty, deleteReq, isSuperAdmin, userEmail)
 	if err != nil {
 		impl.logger.Errorw("error in performing express edit actions if user is exception", "err", err)
 		return false, err
@@ -158,13 +196,17 @@ func (impl *DraftAwareResourceServiceImpl) CMEnvironmentDelete(ctx context.Conte
 	return resp, nil
 }
 
-func (impl *DraftAwareResourceServiceImpl) CSGlobalDelete(ctx context.Context, name string, deleteReq *bean.ConfigDataRequest) (bool, error) {
+func (impl *DraftAwareConfigServiceImpl) CSGlobalDelete(ctx context.Context, name string, deleteReq *bean.ConfigDataRequest, isSuperAdmin bool, userEmail string) (bool, error) {
 	resp, err := impl.configMapService.CSGlobalDelete(name, deleteReq.Id, deleteReq.UserId)
 	if err != nil {
 		impl.logger.Errorw("service err, CSGlobalDelete", "appId", deleteReq.AppId, "id", deleteReq.Id, "name", name, "err", err)
 		return false, err
 	}
-	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, name, bean.CS, deleteReq)
+	configProperty := &bean.ConfigNameAndType{
+		Name: name,
+		Type: bean.CS,
+	}
+	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, configProperty, deleteReq, isSuperAdmin, userEmail)
 	if err != nil {
 		impl.logger.Errorw("error in performing express edit actions if user is exception", "err", err)
 		return false, err
@@ -172,13 +214,17 @@ func (impl *DraftAwareResourceServiceImpl) CSGlobalDelete(ctx context.Context, n
 	return resp, nil
 }
 
-func (impl *DraftAwareResourceServiceImpl) CSEnvironmentDelete(ctx context.Context, name string, deleteReq *bean.ConfigDataRequest) (bool, error) {
+func (impl *DraftAwareConfigServiceImpl) CSEnvironmentDelete(ctx context.Context, name string, deleteReq *bean.ConfigDataRequest, isSuperAdmin bool, userEmail string) (bool, error) {
 	resp, err := impl.configMapService.CSEnvironmentDelete(name, deleteReq.Id, deleteReq.UserId)
 	if err != nil {
 		impl.logger.Errorw("service err, CSEnvironmentDelete", "appId", deleteReq.AppId, "id", deleteReq.Id, "name", name, "err", err)
 		return false, err
 	}
-	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, name, bean.CS, deleteReq)
+	configProperty := &bean.ConfigNameAndType{
+		Name: name,
+		Type: bean.CS,
+	}
+	err = impl.performExpressEditActionsOnCmCsForExceptionUser(ctx, configProperty, deleteReq, isSuperAdmin, userEmail)
 	if err != nil {
 		impl.logger.Errorw("error in performing express edit actions if user is exception", "err", err)
 		return false, err
@@ -186,13 +232,18 @@ func (impl *DraftAwareResourceServiceImpl) CSEnvironmentDelete(ctx context.Conte
 	return resp, nil
 }
 
-func (impl *DraftAwareResourceServiceImpl) Create(ctx context.Context, templateRequest bean3.TemplateRequest) (*bean3.TemplateRequest, error) {
+func (impl *DraftAwareConfigServiceImpl) Create(ctx context.Context, templateRequest bean3.TemplateRequest, isSuperAdmin bool, userEmail string) (*bean3.TemplateRequest, error) {
 	resp, err := impl.chartService.Create(templateRequest, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in creating base deployment template", "appId", templateRequest.AppId, "err", err)
 		return nil, err
 	}
-	err = impl.performExpressEditActionsOnDeplTemplateForExceptionUser(ctx, templateRequest.AppId, -1, "", false)
+	deplConfigMetadata := &bean.DeploymentConfigMetadata{
+		AppId:        templateRequest.AppId,
+		EnvId:        -1,
+		ResourceName: "",
+	}
+	err = impl.performExpressEditActionsOnDeplTemplateForExceptionUser(ctx, deplConfigMetadata, false, isSuperAdmin, userEmail)
 	if err != nil {
 		impl.logger.Errorw("error in performing express edit actions if user is exception", "err", err)
 		return nil, err
@@ -200,13 +251,18 @@ func (impl *DraftAwareResourceServiceImpl) Create(ctx context.Context, templateR
 	return resp, nil
 }
 
-func (impl *DraftAwareResourceServiceImpl) UpdateAppOverride(ctx context.Context, templateRequest *bean3.TemplateRequest, token string) (*bean3.TemplateRequest, error) {
+func (impl *DraftAwareConfigServiceImpl) UpdateAppOverride(ctx context.Context, templateRequest *bean3.TemplateRequest, token string, isSuperAdmin bool, userEmail string) (*bean3.TemplateRequest, error) {
 	resp, err := impl.chartService.UpdateAppOverride(ctx, templateRequest)
 	if err != nil {
 		impl.logger.Errorw("error in updating base deployment template", "chartId", templateRequest.Id, "appId", templateRequest.AppId, "err", err)
 		return nil, err
 	}
-	err = impl.performExpressEditActionsOnDeplTemplateForExceptionUser(ctx, templateRequest.AppId, -1, "", false)
+	deplConfigMetadata := &bean.DeploymentConfigMetadata{
+		AppId:        templateRequest.AppId,
+		EnvId:        -1,
+		ResourceName: "",
+	}
+	err = impl.performExpressEditActionsOnDeplTemplateForExceptionUser(ctx, deplConfigMetadata, false, isSuperAdmin, userEmail)
 	if err != nil {
 		impl.logger.Errorw("error in performing express edit actions if user is exception", "err", err)
 		return nil, err
@@ -214,13 +270,18 @@ func (impl *DraftAwareResourceServiceImpl) UpdateAppOverride(ctx context.Context
 	return resp, nil
 }
 
-func (impl *DraftAwareResourceServiceImpl) UpdateEnvironmentProperties(ctx context.Context, appId int, propertiesRequest *bean.EnvironmentProperties, token string) (*bean.EnvironmentProperties, error) {
-	resp, err := impl.propertiesConfigService.UpdateEnvironmentProperties(appId, propertiesRequest, propertiesRequest.UserId)
+func (impl *DraftAwareConfigServiceImpl) UpdateEnvironmentProperties(ctx context.Context, propertiesRequest *bean.EnvironmentProperties, token string, isSuperAdmin bool, userEmail string) (*bean.EnvironmentProperties, error) {
+	resp, err := impl.propertiesConfigService.UpdateEnvironmentProperties(propertiesRequest.AppId, propertiesRequest, propertiesRequest.UserId)
 	if err != nil {
-		impl.logger.Errorw("error in creating/updating env level deployment template", "appId", appId, "envId", propertiesRequest.EnvironmentId, "err", err)
+		impl.logger.Errorw("error in creating/updating env level deployment template", "appId", propertiesRequest.AppId, "envId", propertiesRequest.EnvironmentId, "err", err)
 		return nil, err
 	}
-	err = impl.performExpressEditActionsOnDeplTemplateForExceptionUser(ctx, appId, propertiesRequest.EnvironmentId, "", false)
+	deplConfigMetadata := &bean.DeploymentConfigMetadata{
+		AppId:        propertiesRequest.AppId,
+		EnvId:        propertiesRequest.EnvironmentId,
+		ResourceName: "",
+	}
+	err = impl.performExpressEditActionsOnDeplTemplateForExceptionUser(ctx, deplConfigMetadata, false, isSuperAdmin, userEmail)
 	if err != nil {
 		impl.logger.Errorw("error in performing express edit actions if user is exception", "err", err)
 		return nil, err
@@ -228,13 +289,18 @@ func (impl *DraftAwareResourceServiceImpl) UpdateEnvironmentProperties(ctx conte
 	return resp, nil
 }
 
-func (impl *DraftAwareResourceServiceImpl) ResetEnvironmentProperties(ctx context.Context, propertiesRequest *bean.EnvironmentProperties) (bool, error) {
+func (impl *DraftAwareConfigServiceImpl) ResetEnvironmentProperties(ctx context.Context, propertiesRequest *bean.EnvironmentProperties, isSuperAdmin bool, userEmail string) (bool, error) {
 	isSuccess, err := impl.propertiesConfigService.ResetEnvironmentProperties(propertiesRequest.Id, propertiesRequest.UserId)
 	if err != nil {
 		impl.logger.Errorw("service err, ResetEnvironmentProperties", "chartEnvConfigOverrideId", propertiesRequest.Id, "userId", propertiesRequest.UserId, "err", err)
 		return false, err
 	}
-	err = impl.performExpressEditActionsOnDeplTemplateForExceptionUser(ctx, propertiesRequest.AppId, propertiesRequest.EnvironmentId, "", false)
+	deplConfigMetadata := &bean.DeploymentConfigMetadata{
+		AppId:        propertiesRequest.AppId,
+		EnvId:        propertiesRequest.EnvironmentId,
+		ResourceName: "",
+	}
+	err = impl.performExpressEditActionsOnDeplTemplateForExceptionUser(ctx, deplConfigMetadata, false, isSuperAdmin, userEmail)
 	if err != nil {
 		impl.logger.Errorw("error in performing express edit actions if user is exception", "err", err)
 		return false, err
@@ -242,13 +308,18 @@ func (impl *DraftAwareResourceServiceImpl) ResetEnvironmentProperties(ctx contex
 	return isSuccess, nil
 }
 
-func (impl *DraftAwareResourceServiceImpl) CreateEnvironmentPropertiesAndBaseIfNeeded(ctx context.Context, appId int, environmentProperties *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error) {
-	resp, err := impl.propertiesConfigService.CreateEnvironmentPropertiesAndBaseIfNeeded(ctx, appId, environmentProperties)
+func (impl *DraftAwareConfigServiceImpl) CreateEnvironmentPropertiesAndBaseIfNeeded(ctx context.Context, environmentProperties *bean.EnvironmentProperties, isSuperAdmin bool, userEmail string) (*bean.EnvironmentProperties, error) {
+	resp, err := impl.propertiesConfigService.CreateEnvironmentPropertiesAndBaseIfNeeded(ctx, environmentProperties.AppId, environmentProperties)
 	if err != nil {
-		impl.logger.Errorw("error, CreateEnvironmentPropertiesAndBaseIfNeeded", "appId", appId, "req", environmentProperties, "err", err)
+		impl.logger.Errorw("error, CreateEnvironmentPropertiesAndBaseIfNeeded", "appId", environmentProperties.AppId, "req", environmentProperties, "err", err)
 		return nil, err
 	}
-	err = impl.performExpressEditActionsOnDeplTemplateForExceptionUser(ctx, environmentProperties.AppId, environmentProperties.EnvironmentId, "", false)
+	deplConfigMetadata := &bean.DeploymentConfigMetadata{
+		AppId:        environmentProperties.AppId,
+		EnvId:        environmentProperties.EnvironmentId,
+		ResourceName: "",
+	}
+	err = impl.performExpressEditActionsOnDeplTemplateForExceptionUser(ctx, deplConfigMetadata, false, isSuperAdmin, userEmail)
 	if err != nil {
 		impl.logger.Errorw("error in performing express edit actions if user is exception", "err", err)
 		return nil, err
