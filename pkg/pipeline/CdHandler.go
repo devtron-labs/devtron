@@ -30,7 +30,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
-	bean6 "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
+	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	util2 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
@@ -71,7 +71,7 @@ const (
 )
 
 type CdHandler interface {
-	UpdateWorkflow(workflowStatus bean6.CiCdStatus) (int, string, bool, error)
+	UpdateWorkflow(workflowStatus eventProcessorBean.CiCdStatus) (int, string, bool, error)
 	GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]pipelineBean.CdWorkflowWithArtifact, error)
 	GetRunningWorkflowLogs(environmentId int, pipelineId int, workflowId int) (*bufio.Reader, func() error, error)
 	FetchCdWorkflowDetails(appId int, environmentId int, pipelineId int, buildId int) (types.WorkflowResponse, error)
@@ -267,7 +267,7 @@ func (impl *CdHandlerImpl) handleForceAbortCaseForCdStage(workflowRunner *pipeli
 	return nil
 }
 
-func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus bean6.CiCdStatus) (int, string, bool, error) {
+func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus eventProcessorBean.CiCdStatus) (int, string, bool, error) {
 	wfStatusRs := impl.extractWorkflowStatus(workflowStatus)
 	workflowName, status, podStatus, message, podName := wfStatusRs.WorkflowName, wfStatusRs.Status, wfStatusRs.PodStatus, wfStatusRs.Message, wfStatusRs.PodName
 	impl.Logger.Debugw("cd workflow status update event for", "wf ", workflowName, "status", status)
@@ -331,7 +331,7 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus bean6.CiCdStatus) (int,
 	return savedWorkflow.Id, savedWorkflow.Status, false, nil
 }
 
-func (impl *CdHandlerImpl) extractWorkflowStatus(workflowStatus bean6.CiCdStatus) *types.WorkflowStatus {
+func (impl *CdHandlerImpl) extractWorkflowStatus(workflowStatus eventProcessorBean.CiCdStatus) *types.WorkflowStatus {
 	workflowName := ""
 	status := string(workflowStatus.Phase)
 	podStatus := "Pending"

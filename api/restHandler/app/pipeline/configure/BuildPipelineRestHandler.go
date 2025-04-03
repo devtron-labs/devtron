@@ -25,7 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
-	bean3 "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
+	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/util/stringsUtil"
 	"golang.org/x/exp/maps"
@@ -1500,7 +1500,7 @@ func (handler *PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWrit
 
 func (handler *PipelineConfigRestHandlerImpl) HandleWorkflowWebhook(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	var wfUpdateReq bean3.CiCdStatus
+	var wfUpdateReq eventProcessorBean.CiCdStatus
 	err := decoder.Decode(&wfUpdateReq)
 	if err != nil {
 		handler.Logger.Errorw("request err, HandleWorkflowWebhook", "err", err, "payload", wfUpdateReq)

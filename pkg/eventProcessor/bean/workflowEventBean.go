@@ -120,3 +120,9 @@ type CiCdStatus struct {
 	DevtronAdministratorInstance string `json:"devtronAdministratorInstance"`
 	*v1alpha1.WorkflowStatus
 }
+
+func NewCiCdStatus() CiCdStatus {
+	return CiCdStatus{
+		WorkflowStatus: &v1alpha1.WorkflowStatus{},
+	}
+}

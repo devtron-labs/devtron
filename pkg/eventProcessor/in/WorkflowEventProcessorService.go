@@ -392,7 +392,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeHibernateBulkAction() error {
 
 func (impl *WorkflowEventProcessorImpl) SubscribeCIWorkflowStatusUpdate() error {
 	callback := func(msg *model.PubSubMsg) {
-		wfStatus := bean.CiCdStatus{}
+		wfStatus := bean.NewCiCdStatus()
 		err := json.Unmarshal([]byte(msg.Data), &wfStatus)
 		if err != nil {
 			impl.logger.Errorw("error while unmarshalling wf status update", "err", err, "msg", msg.Data)
@@ -432,7 +432,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCIWorkflowStatusUpdate() error 
 
 	// add required logging here
 	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
-		wfStatus := bean.CiCdStatus{}
+		wfStatus := bean.NewCiCdStatus()
 		err := json.Unmarshal([]byte(msg.Data), &wfStatus)
 		if err != nil {
 			return "error while unmarshalling wf status update", []interface{}{"err", err, "msg", msg.Data}
@@ -453,7 +453,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCIWorkflowStatusUpdate() error 
 
 func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error {
 	callback := func(msg *model.PubSubMsg) {
-		wfStatus := bean.CiCdStatus{}
+		wfStatus := bean.NewCiCdStatus()
 		err := json.Unmarshal([]byte(msg.Data), &wfStatus)
 		if err != nil {
 			impl.logger.Error("Error while unmarshalling wfStatus json object", "error", err)
@@ -530,7 +530,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 
 	// add required logging here
 	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
-		wfStatus := bean.CiCdStatus{}
+		wfStatus := bean.NewCiCdStatus()
 		err := json.Unmarshal([]byte(msg.Data), &wfStatus)
 		if err != nil {
 			return "error while unmarshalling wfStatus json object", []interface{}{"error", err}
