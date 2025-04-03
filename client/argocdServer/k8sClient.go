@@ -23,10 +23,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"io/ioutil"
 	k8sError "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -56,10 +59,15 @@ const (
 	ARGOCD_APPLICATION_TEMPLATE = "./scripts/argo-assets/APPLICATION_TEMPLATE.tmpl"
 )
 
+var ErrAnotherOperationInProgress = status.Errorf(codes.FailedPrecondition, "another operation is already in progress")
+
 type ArgoK8sClient interface {
 	CreateAcdApp(ctx context.Context, appRequest *AppTemplate, applicationTemplatePath string) (string, error)
-	GetArgoApplication(k8sConfig *bean.ArgoK8sConfig, appName string) (map[string]interface{}, error)
+	GetArgoApplication(k8sConfig *bean.ArgoK8sConfig, appName string) (*v1alpha1.Application, error)
 	DeleteArgoApplication(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string, cascadeDelete bool) error
+	SyncArgoApplication(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string) error
+	RefreshApp(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName, refreshType string) error
+	TerminateApp(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string) error
 }
 type ArgoK8sClientImpl struct {
 	logger  *zap.SugaredLogger
@@ -187,7 +195,7 @@ func (impl ArgoK8sClientImpl) convertArgoK8sClientError(apiError *util.ApiError,
 	return apiError
 }
 
-func (impl ArgoK8sClientImpl) GetArgoApplication(k8sConfig *bean.ArgoK8sConfig, appName string) (map[string]interface{}, error) {
+func (impl ArgoK8sClientImpl) GetArgoApplication(k8sConfig *bean.ArgoK8sConfig, appName string) (*v1alpha1.Application, error) {
 
 	config := k8sConfig.RestConfig
 	config.GroupVersion = &schema.GroupVersion{Group: "argoproj.io", Version: "v1alpha1"}
@@ -198,7 +206,7 @@ func (impl ArgoK8sClientImpl) GetArgoApplication(k8sConfig *bean.ArgoK8sConfig, 
 	if err != nil {
 		return nil, err
 	}
-	impl.logger.Infow("get argo cd application", "req", appName)
+	impl.logger.Debugw("get argo cd application", "req", appName)
 	//acdApplication := &v1alpha12.Application{}
 	//opts := metav1.GetOptions{}
 	res, err := client.
@@ -218,35 +226,172 @@ func (impl ArgoK8sClientImpl) GetArgoApplication(k8sConfig *bean.ArgoK8sConfig, 
 		impl.logger.Errorw("unmarshal error on app update status", "err", err)
 		return nil, fmt.Errorf("error get argo cd app")
 	}
+	application, err := GetAppObject(response)
+	if err != nil {
+		impl.logger.Errorw("error in getting app object", "deploymentAppName", appName, "err", err)
+		return nil, err
+	}
 	impl.logger.Infow("get argo cd application", "res", response, "err", err)
-	return response, err
+	return application, err
 }
 
 func (impl ArgoK8sClientImpl) DeleteArgoApplication(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string, cascadeDelete bool) error {
 
-	patchType := types.MergePatchType
-	patchJSON := ""
-
-	//TODO: ayush test cascade delete
+	metadata := make(map[string]interface{})
 	if cascadeDelete {
-		patchJSON = `{"metadata": {"finalizers": ["resources-finalizer.argocd.argoproj.io"]}}`
+		//patchJSON = `{"metadata": {"finalizers": ["resources-finalizer.argocd.argoproj.io"]}}`
+		metadata = map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"finalizers": []string{"resources-finalizer.argocd.argoproj.io"},
+			},
+		}
 	} else {
-		patchJSON = `{"metadata": {"finalizers": null}}`
+		//patchJSON = `{"metadata": {"finalizers": null}}`
+		metadata = map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"finalizers": nil,
+			},
+		}
 	}
-
-	applicationGVK := v1alpha1.ApplicationSchemaGroupVersionKind
-
-	_, err := impl.k8sUtil.PatchResourceRequest(ctx, k8sConfig.RestConfig, patchType, patchJSON, appName, k8sConfig.AcdNamespace, applicationGVK)
+	err := impl.patchApplicationObject(ctx, k8sConfig, appName, metadata)
 	if err != nil {
-		impl.logger.Errorw("error in patching argo application", "err", err)
+		impl.logger.Errorw("error in patching argo application", "appName", appName, "err", err)
 		return err
 	}
 
-	_, err = impl.k8sUtil.DeleteResource(ctx, k8sConfig.RestConfig, applicationGVK, k8sConfig.AcdNamespace, appName, true)
+	_, err = impl.k8sUtil.DeleteResource(ctx, k8sConfig.RestConfig, v1alpha1.ApplicationSchemaGroupVersionKind, k8sConfig.AcdNamespace, appName, true)
 	if err != nil {
 		impl.logger.Errorw("error in patching argo application", "acdAppName", appName, "err", err)
 		return err
 	}
 
+	return nil
+}
+
+func (impl ArgoK8sClientImpl) SyncArgoApplication(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string) error {
+	impl.logger.Infow("syncing argo application", "appName", appName)
+	app, err := impl.GetArgoApplication(k8sConfig, appName)
+	if err != nil {
+		impl.logger.Errorw("error in getting argo application", "appName", appName, "err", err)
+		return err
+	}
+	if app.Operation != nil {
+		return ErrAnotherOperationInProgress
+	}
+	operation := &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{
+			Prune: true,
+		},
+		Retry: v1alpha1.RetryStrategy{
+			Limit: 1,
+		},
+	}
+	err = impl.SetAppOperation(ctx, k8sConfig, app.Name, operation)
+	if err != nil {
+		impl.logger.Errorw("error in patching argo application", "appName", appName, "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl ArgoK8sClientImpl) SetAppOperation(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string, op *v1alpha1.Operation) error {
+	for {
+		argoApp, err := impl.GetArgoApplication(k8sConfig, appName)
+		if err != nil {
+			impl.logger.Errorw("error in getting argo application", "appName", appName, "err", err)
+			return err
+		}
+		if argoApp.Operation != nil {
+			return ErrAnotherOperationInProgress
+		}
+		argoApp.Operation = op
+		argoApp.Status.OperationState = nil
+		appJson, err := json.Marshal(argoApp)
+		if err != nil {
+			impl.logger.Errorw("error in marshaling application", "appName", appName, "err", err)
+			return err
+		}
+		_, err = impl.k8sUtil.UpdateResource(ctx, k8sConfig.RestConfig, v1alpha1.ApplicationSchemaGroupVersionKind, k8sConfig.AcdNamespace, string(appJson))
+		if op.Sync == nil {
+			return status.Errorf(codes.InvalidArgument, "Operation unspecified")
+		}
+		if err == nil {
+			return nil
+		}
+		if !k8sError.IsConflict(err) {
+			return fmt.Errorf("error updating application %q: %w", appName, err)
+		}
+		impl.logger.Infow("Failed to set operation for app '%s' due to update conflict. Retrying again...", appName)
+	}
+}
+
+func (impl ArgoK8sClientImpl) patchApplicationObject(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string, patch map[string]interface{}) error {
+	impl.logger.Infow("patching argo application", "appName", appName, "patch", patch)
+	patchJSON, err := json.Marshal(patch)
+	if err != nil {
+		return fmt.Errorf("error marshaling metadata: %w", err)
+	}
+	patchType := types.MergePatchType
+	applicationGVK := v1alpha1.ApplicationSchemaGroupVersionKind
+	for attempt := 0; attempt < 5; attempt++ {
+		_, err := impl.k8sUtil.PatchResourceRequest(ctx, k8sConfig.RestConfig, patchType, string(patchJSON), appName, k8sConfig.AcdNamespace, applicationGVK)
+		if err != nil {
+			if !k8sError.IsConflict(err) {
+				return fmt.Errorf("error patching json in application %s: %w", appName, err)
+			}
+		} else {
+			impl.logger.Infof("patch for application", "appName", appName, "err", err)
+			return nil
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return nil
+}
+
+func (impl ArgoK8sClientImpl) RefreshApp(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName, refreshType string) error {
+	impl.logger.Infow("refreshing argo application", "appName", appName)
+	metadata := map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"annotations": map[string]string{
+				bean.AnnotationKeyRefresh: refreshType,
+			},
+		},
+	}
+	err := impl.patchApplicationObject(ctx, k8sConfig, appName, metadata)
+	if err != nil {
+		impl.logger.Errorw("error in patching argo application", "appName", appName, "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl ArgoK8sClientImpl) TerminateApp(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string) error {
+	impl.logger.Infow("terminating argo application", "appName", appName)
+	terminatePatch := map[string]interface{}{
+		"status": map[string]interface{}{
+			"operationState": map[string]interface{}{
+				"phase": common.OperationTerminating,
+			},
+		},
+	}
+	err := impl.patchApplicationObject(ctx, k8sConfig, appName, terminatePatch)
+	if err != nil {
+		impl.logger.Errorw("error in patching argo application", "appName", appName, "err", err)
+		return err
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		app, err := impl.GetArgoApplication(k8sConfig, appName)
+		if err != nil {
+			impl.logger.Errorw("error in getting argo application", "appName", appName, "err", err)
+			return err
+		}
+		if app.Operation == nil || app.Status.OperationState.Phase == common.OperationFailed {
+			break
+		}
+		if time.Now().After(deadline) {
+			return errors.New("timed out waiting for argo application to terminate")
+		}
+	}
 	return nil
 }

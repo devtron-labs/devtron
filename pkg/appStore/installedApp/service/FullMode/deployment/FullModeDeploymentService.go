@@ -25,6 +25,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/common"
+	"github.com/devtron-labs/devtron/pkg/cluster/bean"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
@@ -163,7 +164,7 @@ func (impl *FullModeDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 
 	//STEP 7: normal refresh ACD - update for step 6 to avoid delay
 	syncTime := time.Now()
-	err = impl.argoClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(ctx, installAppVersionRequest.ACDAppName, chartGitAttr.TargetRevision)
+	err = impl.argoClientWrapperService.SyncArgoCDApplicationAndRefreshWithK8sClient(ctx, bean.DefaultClusterId, argocdServer.DevtronInstalationNs, installAppVersionRequest.ACDAppName)
 	if err != nil {
 		impl.Logger.Errorw("error in getting the argo application with normal refresh", "err", err)
 		return nil, err
