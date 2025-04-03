@@ -399,7 +399,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCIWorkflowStatusUpdate() error 
 			return
 		}
 		if len(wfStatus.DevtronAdministratorInstance) != 0 {
-			devtronUCID, _, err := impl.ucid.GetUCID()
+			devtronUCID, _, err := impl.ucid.GetUCIDWithOutCache()
 			if err != nil {
 				impl.logger.Errorw("error in getting UCID", "err", err)
 				return
@@ -458,7 +458,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 			return
 		}
 		if len(wfStatus.DevtronAdministratorInstance) != 0 {
-			devtronUCID, _, err := impl.ucid.GetUCID()
+			devtronUCID, _, err := impl.ucid.GetUCIDWithOutCache()
 			if err != nil {
 				impl.logger.Errorw("error in getting UCID", "err", err)
 				return

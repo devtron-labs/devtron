@@ -657,7 +657,7 @@ func (impl *TelemetryEventClientImpl) SendTelemetryDashboardLoggedInEvent() erro
 func (impl *TelemetryEventClientImpl) getUCIDAndCheckIsOptedOut(ctx context.Context) (string, error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TelemetryEventClientImpl.getUCIDAndCheckIsOptedOut")
 	defer span.End()
-	ucid, found, err := impl.ucid.GetUCID()
+	ucid, found, err := impl.ucid.GetUCIDWithCache(impl.posthogClient.GetCache())
 	if err != nil {
 		impl.logger.Errorw("exception while getting unique client id", "error", err)
 		return "", err

@@ -218,7 +218,7 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 	clusterConfig, err := impl.getClusterConfig(workflowRequest)
 	workflowTemplate.ClusterConfig = clusterConfig
 	workflowTemplate.WorkflowType = workflowRequest.GetWorkflowTypeForWorkflowRequest()
-	devtronUCID, _, err := impl.ucid.GetUCID()
+	devtronUCID, _, err := impl.ucid.GetUCIDWithOutCache()
 	if err != nil {
 		impl.Logger.Errorw("error in getting UCID", "err", err)
 		return bean3.WorkflowTemplate{}, err
