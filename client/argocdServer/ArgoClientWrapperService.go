@@ -40,6 +40,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/util/retryFunc"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"strings"
@@ -50,6 +51,8 @@ type ACDConfig struct {
 	ArgoCDAutoSyncEnabled     bool `env:"ARGO_AUTO_SYNC_ENABLED" envDefault:"true"` // will gradually switch this flag to false in enterprise
 	RegisterRepoMaxRetryCount int  `env:"ARGO_REPO_REGISTER_RETRY_COUNT" envDefault:"3"`
 	RegisterRepoMaxRetryDelay int  `env:"ARGO_REPO_REGISTER_RETRY_DELAY" envDefault:"10"`
+	SyncRetryCount            int  `env:"ARGO_SYNC_RETRY_COUNT" envDefault:"1"`
+	SyncDelaySeconds          int  `env:"ARGO_SYNC_DELAY_SECONDS" envDefault:"2"`
 }
 
 func (config *ACDConfig) IsManualSyncEnabled() bool {
@@ -356,23 +359,35 @@ func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationAndRefreshWithK8s
 		impl.logger.Errorw("error in getting k8s config", "err", err)
 		return err
 	}
-	application, err := impl.argoK8sClient.GetArgoApplication(k8sConfig, appName)
-	if err != nil {
-		impl.logger.Errorw("err in getting argo app by name", "app", appName, "err", err)
-		return nil
-	}
-
-	if application.Operation != nil {
-		err = impl.argoK8sClient.TerminateApp(ctx, k8sConfig, appName)
-		if err != nil {
-			impl.logger.Errorw("err in syncing argo application", "app", appName, "err", err)
-			return err
-		}
-	}
 	if impl.ACDConfig.IsManualSyncEnabled() {
 		impl.logger.Debugw("syncing ArgoCd app using k8s as manual sync is enabled", "argoAppName", appName)
 		err = impl.argoK8sClient.SyncArgoApplication(ctx, k8sConfig, appName)
 		if err != nil {
+			if errors.Is(err, ErrAnotherOperationInProgress) {
+				impl.logger.Infow("Another operation is already in progress, terminating app")
+				err = impl.argoK8sClient.TerminateApp(ctx, k8sConfig, appName)
+				if err != nil {
+					impl.logger.Errorw("error in terminating argo application", "appName", appName, "err", err)
+					return err
+				}
+				callback := func(int) error {
+					err = impl.argoK8sClient.SyncArgoApplication(ctx, k8sConfig, appName)
+					if err != nil {
+						return err
+					}
+					return nil
+				}
+				shouldRetry := func(err error) bool {
+					return errors.Is(err, ErrAnotherOperationInProgress)
+				}
+				err = retryFunc.Retry(callback,
+					shouldRetry,
+					impl.ACDConfig.SyncRetryCount,
+					time.Second*time.Duration(impl.ACDConfig.SyncDelaySeconds),
+					impl.logger,
+				)
+				return err
+			}
 			impl.logger.Errorw("err in syncing argo application", "app", appName, "err", err)
 			return err
 		}

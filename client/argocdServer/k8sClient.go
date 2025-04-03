@@ -28,6 +28,8 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"io/ioutil"
 	k8sError "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -56,6 +58,8 @@ const (
 	TimeoutSlow                 = 30 * time.Second
 	ARGOCD_APPLICATION_TEMPLATE = "./scripts/argo-assets/APPLICATION_TEMPLATE.tmpl"
 )
+
+var ErrAnotherOperationInProgress = status.Errorf(codes.FailedPrecondition, "another operation is already in progress")
 
 type ArgoK8sClient interface {
 	CreateAcdApp(ctx context.Context, appRequest *AppTemplate, applicationTemplatePath string) (string, error)
@@ -202,7 +206,7 @@ func (impl ArgoK8sClientImpl) GetArgoApplication(k8sConfig *bean.ArgoK8sConfig, 
 	if err != nil {
 		return nil, err
 	}
-	impl.logger.Infow("get argo cd application", "req", appName)
+	impl.logger.Debugw("get argo cd application", "req", appName)
 	//acdApplication := &v1alpha12.Application{}
 	//opts := metav1.GetOptions{}
 	res, err := client.
@@ -266,22 +270,59 @@ func (impl ArgoK8sClientImpl) DeleteArgoApplication(ctx context.Context, k8sConf
 
 func (impl ArgoK8sClientImpl) SyncArgoApplication(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string) error {
 	impl.logger.Infow("syncing argo application", "appName", appName)
-	operation := map[string]interface{}{
-		"operation": map[string]interface{}{
-			"sync": map[string]interface{}{
-				"prune": true,
-			},
-			"retry": map[string]interface{}{
-				"limit": 1,
-			},
+	app, err := impl.GetArgoApplication(k8sConfig, appName)
+	if err != nil {
+		impl.logger.Errorw("error in getting argo application", "appName", appName, "err", err)
+		return err
+	}
+	if app.Operation != nil {
+		return ErrAnotherOperationInProgress
+	}
+	operation := &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{
+			Prune: true,
+		},
+		Retry: v1alpha1.RetryStrategy{
+			Limit: 1,
 		},
 	}
-	err := impl.patchApplicationObject(ctx, k8sConfig, appName, operation)
+	err = impl.SetAppOperation(ctx, k8sConfig, app.Name, operation)
 	if err != nil {
 		impl.logger.Errorw("error in patching argo application", "appName", appName, "err", err)
 		return err
 	}
 	return nil
+}
+
+func (impl ArgoK8sClientImpl) SetAppOperation(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string, op *v1alpha1.Operation) error {
+	for {
+		argoApp, err := impl.GetArgoApplication(k8sConfig, appName)
+		if err != nil {
+			impl.logger.Errorw("error in getting argo application", "appName", appName, "err", err)
+			return err
+		}
+		if argoApp.Operation != nil {
+			return ErrAnotherOperationInProgress
+		}
+		argoApp.Operation = op
+		argoApp.Status.OperationState = nil
+		appJson, err := json.Marshal(argoApp)
+		if err != nil {
+			impl.logger.Errorw("error in marshaling application", "appName", appName, "err", err)
+			return err
+		}
+		_, err = impl.k8sUtil.UpdateResource(ctx, k8sConfig.RestConfig, v1alpha1.ApplicationSchemaGroupVersionKind, k8sConfig.AcdNamespace, string(appJson))
+		if op.Sync == nil {
+			return status.Errorf(codes.InvalidArgument, "Operation unspecified")
+		}
+		if err == nil {
+			return nil
+		}
+		if !k8sError.IsConflict(err) {
+			return fmt.Errorf("error updating application %q: %w", appName, err)
+		}
+		impl.logger.Infow("Failed to set operation for app '%s' due to update conflict. Retrying again...", appName)
+	}
 }
 
 func (impl ArgoK8sClientImpl) patchApplicationObject(ctx context.Context, k8sConfig *bean.ArgoK8sConfig, appName string, patch map[string]interface{}) error {
