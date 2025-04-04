@@ -147,6 +147,14 @@ func (r ResourceType) ToString() string {
 	return string(r)
 }
 
+func (r ResourceType) IsCS() bool {
+	return r == CS
+}
+
+func (r ResourceType) IsCM() bool {
+	return r == CM
+}
+
 type ResolvedCmCsRequest struct {
 	Scope resourceQualifiers.Scope
 	AppId int

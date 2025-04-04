@@ -22,7 +22,10 @@ import (
 	"reflect"
 )
 
-const IsSuperAdminFlag = "isSuperAdmin"
+const (
+	IsSuperAdminFlag = "isSuperAdmin"
+	UserId           = "userId"
+)
 
 func SetSuperAdminInContext(ctx context.Context, isSuperAdmin bool) context.Context {
 	ctx = context.WithValue(ctx, IsSuperAdminFlag, isSuperAdmin)

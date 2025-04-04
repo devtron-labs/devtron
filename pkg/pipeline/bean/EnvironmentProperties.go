@@ -43,6 +43,7 @@ type EnvironmentProperties struct {
 	ClusterId         int                         `json:"clusterId"`
 	MergeStrategy     models.MergeStrategy        `json:"mergeStrategy"`
 	MigratedFrom      *bean.ExternalReleaseType   `json:"migratedFrom,omitempty"`
+	AppId             int                         `json:"appId"`
 }
 
 type EnvironmentOverrideCreateInternalDTO struct {
@@ -67,4 +68,10 @@ type EnvironmentPropertiesResponse struct {
 	Namespace         string                `json:"namespace" validate:"name-space-component"`
 	Schema            json.RawMessage       `json:"schema"`
 	Readme            string                `json:"readme"`
+}
+
+type DeploymentConfigMetadata struct {
+	AppId        int
+	EnvId        int
+	ResourceName string // if base then BaseDeploymentTemplate or if at env level{envName-DeploymentTemplateOverride}
 }
