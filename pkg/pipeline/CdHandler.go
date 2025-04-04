@@ -289,11 +289,6 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus eventProcessorBean.CiCd
 	cdArtifactLocationFormat := impl.config.GetArtifactLocationFormat()
 	cdArtifactLocation := fmt.Sprintf(cdArtifactLocationFormat, savedWorkflow.CdWorkflowId, savedWorkflow.Id)
 	if impl.stateChanged(status, podStatus, message, workflowStatus.FinishedAt.Time, savedWorkflow) {
-		if savedWorkflow.Status != cdWorkflowBean.WorkflowCancel {
-			savedWorkflow.Status = status
-		}
-		savedWorkflow.CdArtifactLocation = cdArtifactLocation
-		savedWorkflow.PodStatus = podStatus
 		if !slices.Contains(cdWorkflowBean.WfrTerminalStatusList, savedWorkflow.PodStatus) {
 			savedWorkflow.Message = message
 			// NOTE: we are doing this to fix where a pre-cd / post-cd workflow message becomes larger than 1000, and in db we had set the charter limit to 1000
@@ -307,6 +302,11 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus eventProcessorBean.CiCd
 			impl.Logger.Warnw("cd stage already in terminal state. skipped message and finishedOn from being updated",
 				"wfId", savedWorkflow.Id, "podStatus", savedWorkflow.PodStatus, "status", savedWorkflow.Status, "message", message, "finishedOn", workflowStatus.FinishedAt.Time)
 		}
+		if savedWorkflow.Status != cdWorkflowBean.WorkflowCancel {
+			savedWorkflow.Status = status
+		}
+		savedWorkflow.CdArtifactLocation = cdArtifactLocation
+		savedWorkflow.PodStatus = podStatus
 		savedWorkflow.Name = workflowName
 		// removed log location from here since we are saving it at trigger
 		savedWorkflow.PodName = podName
@@ -330,7 +330,7 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus eventProcessorBean.CiCd
 		}
 		return savedWorkflow.Id, savedWorkflow.Status, true, nil
 	}
-	return savedWorkflow.Id, savedWorkflow.Status, false, nil
+	return savedWorkflow.Id, status, false, nil
 }
 
 func (impl *CdHandlerImpl) extractWorkflowStatus(workflowStatus eventProcessorBean.CiCdStatus) *types.WorkflowStatus {

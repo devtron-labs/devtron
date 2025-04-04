@@ -1200,10 +1200,6 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus eventProcessorBean.CiCd
 	ciArtifactLocation := fmt.Sprintf(ciArtifactLocationFormat, savedWorkflow.Id, savedWorkflow.Id)
 
 	if impl.stateChanged(status, podStatus, message, workflowStatus.FinishedAt.Time, savedWorkflow) {
-		if savedWorkflow.Status != cdWorkflowBean.WorkflowCancel {
-			savedWorkflow.Status = status
-		}
-		savedWorkflow.PodStatus = podStatus
 		if !slices.Contains(cdWorkflowBean.WfrTerminalStatusList, savedWorkflow.PodStatus) {
 			savedWorkflow.Message = message
 			// NOTE: we are doing this for a quick fix where ci pending message become larger than 250 and in db we had set the charter limit to 250
@@ -1217,6 +1213,10 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus eventProcessorBean.CiCd
 			impl.Logger.Warnw("cd stage already in terminal state. skipped message and finishedOn from being updated",
 				"wfId", savedWorkflow.Id, "podStatus", savedWorkflow.PodStatus, "status", savedWorkflow.Status, "message", message, "finishedOn", workflowStatus.FinishedAt.Time)
 		}
+		if savedWorkflow.Status != cdWorkflowBean.WorkflowCancel {
+			savedWorkflow.Status = status
+		}
+		savedWorkflow.PodStatus = podStatus
 		if savedWorkflow.ExecutorType == cdWorkflowBean.WORKFLOW_EXECUTOR_TYPE_SYSTEM && savedWorkflow.Status == cdWorkflowBean.WorkflowCancel {
 			savedWorkflow.PodStatus = "Failed"
 			savedWorkflow.Message = constants2.TERMINATE_MESSAGE
