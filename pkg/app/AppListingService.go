@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean/AppView"
+	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
@@ -144,6 +145,7 @@ type AppListingServiceImpl struct {
 	ciArtifactRepository           repository.CiArtifactRepository
 	envConfigOverrideReadService   read.EnvConfigOverrideService
 	ciPipelineConfigReadService    ciConfig.CiPipelineConfigReadService
+	grafanaClient                  grafana.GrafanaClient
 }
 
 func NewAppListingServiceImpl(Logger *zap.SugaredLogger,
@@ -157,7 +159,8 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger,
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService, userRepository userrepository.UserRepository,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService, ciArtifactRepository repository.CiArtifactRepository,
 	envConfigOverrideReadService read.EnvConfigOverrideService,
-	ciPipelineConfigReadService ciConfig.CiPipelineConfigReadService) *AppListingServiceImpl {
+	ciPipelineConfigReadService ciConfig.CiPipelineConfigReadService,
+	grafanaClient grafana.GrafanaClient) *AppListingServiceImpl {
 	return &AppListingServiceImpl{
 		Logger:                         Logger,
 		appListingRepository:           appListingRepository,
@@ -177,6 +180,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger,
 		ciArtifactRepository:           ciArtifactRepository,
 		envConfigOverrideReadService:   envConfigOverrideReadService,
 		ciPipelineConfigReadService:    ciPipelineConfigReadService,
+		grafanaClient:                  grafanaClient,
 	}
 }
 
@@ -587,12 +591,30 @@ func (impl AppListingServiceImpl) FetchAppDetails(ctx context.Context, appId int
 		impl.Logger.Errorw("error in fetching env details, FetchAppDetails service", "error", err)
 		return AppView.AppDetailContainer{}, err
 	}
+
+	err = impl.setGrafanaDataSourceUrl(&appDetailContainer, environment)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching grafana url", "error", err)
+		return AppView.AppDetailContainer{}, err
+	}
+
 	appDetailContainer, err = impl.setIpAccessProvidedData(ctx, appDetailContainer, appDetailContainer.ClusterId, environment.IsVirtualEnvironment)
 	if err != nil {
 		return appDetailContainer, err
 	}
 
 	return appDetailContainer, nil
+}
+
+func (impl AppListingServiceImpl) setGrafanaDataSourceUrl(appDetailContainer *AppView.AppDetailContainer, env *repository2.Environment) error {
+	if env.GrafanaDatasourceId > 0 {
+		grafanaUrl, err := impl.grafanaClient.GetGrafanaDataSourceUrl(env.GrafanaDatasourceId)
+		if err != nil {
+			return err
+		}
+		appDetailContainer.DeploymentDetailContainer.GrafanaDataSourceUrl = grafanaUrl
+	}
+	return nil
 }
 
 func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, appDetailContainer AppView.AppDetailContainer, clusterId int, isVirtualEnv bool) (AppView.AppDetailContainer, error) {

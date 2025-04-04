@@ -156,6 +156,7 @@ type DeploymentDetailContainer struct {
 	AppName                       string                 `json:"appName"`
 	EnvironmentId                 int                    `json:"environmentId"`
 	EnvironmentName               string                 `json:"environmentName"`
+	GrafanaDataSourceUrl          string                 `json:"grafanaDataSourceUrl"`
 	Namespace                     string                 `json:"namespace,omitempty"`
 	Status                        string                 `json:"status,omitempty"`
 	StatusMessage                 string                 `json:"statusMessage,omitempty"`
