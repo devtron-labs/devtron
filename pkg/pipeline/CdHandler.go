@@ -35,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
 	bean5 "github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus/bean"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -204,6 +205,8 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, forceAbort bool, us
 			impl.Logger.Errorw("error in terminating dangling workflows", "cancelWfDtoRequest", cancelWfDtoRequest, "err", err)
 			// ignoring error here in case of force abort, confirmed from product
 		}
+	} else if err != nil && strings.Contains(err.Error(), "cannot find workflow") {
+		return 0, &util.ApiError{Code: "200", HttpStatusCode: http.StatusBadRequest, UserMessage: err.Error()}
 	} else if err != nil {
 		impl.Logger.Error("cannot terminate wf runner", "err", err)
 		return 0, err

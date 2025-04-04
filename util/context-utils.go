@@ -37,3 +37,10 @@ func GetIsSuperAdminFromContext(ctx context.Context) (bool, error) {
 	}
 	return false, fmt.Errorf("context not valid, isSuperAdmin flag not set correctly %v", flag)
 }
+
+// SetTokenInContext - Set token in context
+// NOTE: In OSS we don't have the token embedded in ctx already.
+// TODO: Support NewRequestCtx in OSS as well.
+func SetTokenInContext(ctx context.Context, token string) context.Context {
+	return context.WithValue(ctx, "token", token)
+}

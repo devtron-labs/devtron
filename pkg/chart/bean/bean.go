@@ -19,6 +19,7 @@ package bean
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 )
 
 var ReservedChartRefNamesList *[]ReservedChartList
@@ -59,9 +60,12 @@ type ChartUpgradeRequest struct {
 }
 
 type ChartRefChangeRequest struct {
-	AppId            int `json:"appId" validate:"required"`
-	EnvId            int `json:"envId" validate:"required"`
-	TargetChartRefId int `json:"targetChartRefId" validate:"required"`
+	AppId               int                          `json:"appId" validate:"required"`
+	EnvId               int                          `json:"envId" validate:"required"`
+	TargetChartRefId    int                          `json:"targetChartRefId" validate:"required"`
+	EnvConfigProperties *bean2.EnvironmentProperties `json:"-"`
+	EnvMetrics          bool                         `json:"-"`
+	UserId              int32                        `json:"-"`
 }
 
 type PipelineConfigRequest struct {
