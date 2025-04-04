@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	models2 "github.com/devtron-labs/devtron/internal/sql/models"
+	bean4 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/chart/bean"
 
 	devtronAppGitOpConfigBean "github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig/bean"
@@ -412,8 +413,18 @@ func (handler *PipelineConfigRestHandlerImpl) HandleChangeDeploymentRequest(w ht
 	// Retrieve argocd token
 
 	ctx := r.Context()
-
-	resp, err := handler.pipelineBuilder.ChangeDeploymentType(ctx, deploymentAppTypeChangeRequest)
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	userEmail, err := handler.userAuthService.GetActiveEmailById(userId)
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
+		return
+	}
+	userMetadata := &bean4.UserMetadata{
+		UserEmailId:      userEmail,
+		IsUserSuperAdmin: isSuperAdmin,
+		UserId:           userId,
+	}
+	resp, err := handler.pipelineBuilder.ChangeDeploymentType(ctx, deploymentAppTypeChangeRequest, userMetadata)
 
 	if err != nil {
 		nErr := errors.New("failed to change deployment type with error msg: " + err.Error())
@@ -464,7 +475,18 @@ func (handler *PipelineConfigRestHandlerImpl) HandleChangeDeploymentTypeRequest(
 	}
 
 	ctx := r.Context()
-	resp, err := handler.pipelineBuilder.ChangePipelineDeploymentType(ctx, deploymentTypeChangeRequest)
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	userEmail, err := handler.userAuthService.GetActiveEmailById(userId)
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
+		return
+	}
+	userMetadata := &bean4.UserMetadata{
+		UserEmailId:      userEmail,
+		IsUserSuperAdmin: isSuperAdmin,
+		UserId:           userId,
+	}
+	resp, err := handler.pipelineBuilder.ChangePipelineDeploymentType(ctx, deploymentTypeChangeRequest, userMetadata)
 
 	if err != nil {
 		handler.Logger.Errorw(err.Error(), "payload", deploymentTypeChangeRequest, "err", err)
@@ -513,7 +535,18 @@ func (handler *PipelineConfigRestHandlerImpl) HandleTriggerDeploymentAfterTypeCh
 	}
 
 	ctx := r.Context()
-	resp, err := handler.pipelineBuilder.TriggerDeploymentAfterTypeChange(ctx, deploymentAppTriggerRequest)
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	userEmail, err := handler.userAuthService.GetActiveEmailById(userId)
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
+		return
+	}
+	userMetadata := &bean4.UserMetadata{
+		UserEmailId:      userEmail,
+		IsUserSuperAdmin: isSuperAdmin,
+		UserId:           userId,
+	}
+	resp, err := handler.pipelineBuilder.TriggerDeploymentAfterTypeChange(ctx, deploymentAppTriggerRequest, userMetadata)
 
 	if err != nil {
 		handler.Logger.Errorw(err.Error(),

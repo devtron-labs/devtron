@@ -17,6 +17,7 @@
 package bean
 
 import (
+	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
 	"time"
 )
@@ -33,12 +34,13 @@ type StopDeploymentGroupRequest struct {
 }
 
 type DeploymentGroupAppWithEnv struct {
-	EnvironmentId     int               `json:"environmentId"`
-	DeploymentGroupId int               `json:"deploymentGroupId"`
-	AppId             int               `json:"appId"`
-	Active            bool              `json:"active"`
-	UserId            int32             `json:"userId"`
-	RequestType       bean4.RequestType `json:"requestType" validate:"oneof=START STOP"`
+	EnvironmentId     int                    `json:"environmentId"`
+	DeploymentGroupId int                    `json:"deploymentGroupId"`
+	AppId             int                    `json:"appId"`
+	Active            bool                   `json:"active"`
+	UserId            int32                  `json:"userId"`
+	RequestType       bean4.RequestType      `json:"requestType" validate:"oneof=START STOP"`
+	UserMetadata      *userBean.UserMetadata `json:"-"`
 }
 
 type CdPipelineDeleteEvent struct {

@@ -19,6 +19,7 @@ package restHandler
 import (
 	"encoding/json"
 	"fmt"
+	bean4 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
 	"github.com/devtron-labs/devtron/pkg/bulkAction/bean"
@@ -212,9 +213,14 @@ func (handler BulkUpdateRestHandlerImpl) CheckAuthForBulkUpdate(AppId int, EnvId
 
 }
 func (handler BulkUpdateRestHandlerImpl) BulkUpdate(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	decoder := json.NewDecoder(r.Body)
 	var script bean.BulkUpdateScript
-	err := decoder.Decode(&script)
+	err = decoder.Decode(&script)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -250,8 +256,18 @@ func (handler BulkUpdateRestHandlerImpl) BulkUpdate(w http.ResponseWriter, r *ht
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		}
 	}
-
-	response := handler.bulkUpdateService.BulkUpdate(script.Spec)
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	userEmail, err := handler.userAuthService.GetActiveEmailById(userId)
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
+		return
+	}
+	userMetadata := &bean4.UserMetadata{
+		UserEmailId:      userEmail,
+		IsUserSuperAdmin: isSuperAdmin,
+		UserId:           userId,
+	}
+	response := handler.bulkUpdateService.BulkUpdate(script.Spec, userMetadata)
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 
@@ -261,7 +277,19 @@ func (handler BulkUpdateRestHandlerImpl) BulkHibernate(w http.ResponseWriter, r 
 		return // response already written by the helper on error.
 	}
 	token := r.Header.Get("token")
-	response, err := handler.bulkUpdateService.BulkHibernate(request, r.Context(), w, token, handler.checkAuthForBulkHibernateAndUnhibernate)
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	userEmail, err := handler.userAuthService.GetActiveEmailById(request.UserId)
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
+		return
+	}
+	userMetadata := &bean4.UserMetadata{
+		UserEmailId:      userEmail,
+		IsUserSuperAdmin: isSuperAdmin,
+		UserId:           request.UserId,
+	}
+
+	response, err := handler.bulkUpdateService.BulkHibernate(r.Context(), request, token, handler.checkAuthForBulkHibernateAndUnhibernate, userMetadata)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -298,7 +326,18 @@ func (handler BulkUpdateRestHandlerImpl) BulkUnHibernate(w http.ResponseWriter, 
 		return // response already written by the helper on error.
 	}
 	token := r.Header.Get("token")
-	response, err := handler.bulkUpdateService.BulkUnHibernate(request, r.Context(), w, token, handler.checkAuthForBulkHibernateAndUnhibernate)
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	userEmail, err := handler.userAuthService.GetActiveEmailById(request.UserId)
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
+		return
+	}
+	userMetadata := &bean4.UserMetadata{
+		UserEmailId:      userEmail,
+		IsUserSuperAdmin: isSuperAdmin,
+		UserId:           request.UserId,
+	}
+	response, err := handler.bulkUpdateService.BulkUnHibernate(r.Context(), request, token, handler.checkAuthForBulkHibernateAndUnhibernate, userMetadata)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -326,7 +365,18 @@ func (handler BulkUpdateRestHandlerImpl) BulkDeploy(w http.ResponseWriter, r *ht
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	response, err := handler.bulkUpdateService.BulkDeploy(&request, token, handler.checkAuthBatch)
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	userEmail, err := handler.userAuthService.GetActiveEmailById(userId)
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
+		return
+	}
+	userMetadata := &bean4.UserMetadata{
+		UserEmailId:      userEmail,
+		IsUserSuperAdmin: isSuperAdmin,
+		UserId:           userId,
+	}
+	response, err := handler.bulkUpdateService.BulkDeploy(&request, token, handler.checkAuthBatch, userMetadata)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
