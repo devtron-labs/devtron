@@ -168,6 +168,7 @@
  | DEX_CSTOREKEY | string | |  |  | false |
  | DEX_JWTKEY | string | |  |  | false |
  | DEX_RURL | string |http://127.0.0.1:8080/callback |  |  | false |
+ | DEX_SCOPES |  | |  |  | false |
  | DEX_SECRET | string | |  |  | false |
  | DEX_URL | string | |  |  | false |
  | ECR_REPO_NAME_PREFIX | string |test/ |  |  | false |

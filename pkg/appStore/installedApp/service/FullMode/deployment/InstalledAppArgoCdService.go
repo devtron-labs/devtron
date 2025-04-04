@@ -25,7 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -167,7 +167,7 @@ func (impl *FullModeDeploymentServiceImpl) DeleteACD(acdAppName string, ctx cont
 func (impl *FullModeDeploymentServiceImpl) createInArgo(ctx context.Context, chartGitAttribute *commonBean.ChartGitAttribute, envModel bean.EnvironmentBean, argocdAppName string) error {
 	appNamespace := envModel.Namespace
 	if appNamespace == "" {
-		appNamespace = cluster2.DEFAULT_NAMESPACE
+		appNamespace = bean2.DefaultNamespace
 	}
 	appReq := &argocdServer.AppTemplate{
 		ApplicationName: argocdAppName,

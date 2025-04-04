@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/util/stringsUtil"
 	"golang.org/x/exp/maps"
@@ -36,7 +37,6 @@ import (
 	"github.com/devtron-labs/devtron/util/response/pagination"
 	"github.com/gorilla/schema"
 
-	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -1500,7 +1500,7 @@ func (handler *PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWrit
 
 func (handler *PipelineConfigRestHandlerImpl) HandleWorkflowWebhook(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	var wfUpdateReq v1alpha1.WorkflowStatus
+	var wfUpdateReq eventProcessorBean.CiCdStatus
 	err := decoder.Decode(&wfUpdateReq)
 	if err != nil {
 		handler.Logger.Errorw("request err, HandleWorkflowWebhook", "err", err, "payload", wfUpdateReq)
@@ -1508,7 +1508,7 @@ func (handler *PipelineConfigRestHandlerImpl) HandleWorkflowWebhook(w http.Respo
 		return
 	}
 	handler.Logger.Infow("request payload, HandleWorkflowWebhook", "payload", wfUpdateReq)
-	resp, err := handler.ciHandler.UpdateWorkflow(wfUpdateReq)
+	resp, _, err := handler.ciHandler.UpdateWorkflow(wfUpdateReq)
 	if err != nil {
 		handler.Logger.Errorw("service err, HandleWorkflowWebhook", "err", err, "payload", wfUpdateReq)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)

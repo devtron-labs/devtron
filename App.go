@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/middlewares"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
+	"github.com/devtron-labs/devtron/client/telemetry/posthog"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/in"
 	"log"
@@ -31,7 +32,6 @@ import (
 	"time"
 
 	"github.com/devtron-labs/devtron/api/util"
-	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/otel"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 
@@ -55,7 +55,7 @@ type App struct {
 	EnforcerV2    *casbinv2.SyncedEnforcer
 	server        *http.Server
 	db            *pg.DB
-	posthogClient *telemetry.PosthogClient
+	posthogClient *posthog.PosthogClient
 	// eventProcessor.CentralEventProcessor is used to register event processors
 	centralEventProcessor *eventProcessor.CentralEventProcessor // do not remove this.
 	// used for local dev only
@@ -73,7 +73,7 @@ func NewApp(router *router.MuxRouter,
 	enforcer *casbin.SyncedEnforcer,
 	db *pg.DB,
 	sessionManager2 *authMiddleware.SessionManager,
-	posthogClient *telemetry.PosthogClient,
+	posthogClient *posthog.PosthogClient,
 	loggingMiddleware util.LoggingMiddleware,
 	centralEventProcessor *eventProcessor.CentralEventProcessor,
 	pubSubClient *pubsub.PubSubClientServiceImpl,

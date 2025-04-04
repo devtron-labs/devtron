@@ -501,7 +501,7 @@ func (impl *ChartRepositoryServiceImpl) ValidateAndUpdateChartRepo(request *Char
 }
 
 func (impl *ChartRepositoryServiceImpl) TriggerChartSyncManual(chartProviderConfig *ChartProviderConfig) error {
-	defaultClusterBean, err := impl.clusterReadService.FindOne(bean2.DEFAULT_CLUSTER)
+	defaultClusterBean, err := impl.clusterReadService.FindOne(bean2.DefaultCluster)
 	if err != nil {
 		impl.logger.Errorw("defaultClusterBean err, TriggerChartSyncManual", "err", err)
 		return err
