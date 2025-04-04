@@ -21,17 +21,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/caarlos0/env"
+	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/attributes/bean"
+	"go.uber.org/zap"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
-
-	"github.com/caarlos0/env"
-	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/attributes"
-	"go.uber.org/zap"
 )
 
 type GrafanaClientConfig struct {
@@ -41,7 +39,6 @@ type GrafanaClientConfig struct {
 	DestinationURL  string `env:"GRAFANA_URL" envDefault:""`
 }
 
-const GrafanaPathForDashboard = "grafana/api/datasources/proxy/%d/api/v1/query?query=1&time=%d"
 const PromDatasource = "/api/datasources"
 const AddPromDatasource = "/api/datasources"
 const DeletePromDatasource = "/api/datasources/%d"
@@ -59,7 +56,6 @@ func GetGrafanaClientConfig() (*GrafanaClientConfig, error) {
 }
 
 type GrafanaClient interface {
-	GetGrafanaDataSourceUrl(int) (string, error)
 	GetAllDatasource() ([]*GetPrometheusDatasourceResponse, error)
 	CreateDatasource(createDatasourceRequest CreateDatasourceRequest) (*DatasourceResponse, error)
 	GetDatasource(datasourceId int) (*GetPrometheusDatasourceResponse, error)
@@ -165,16 +161,6 @@ type GrafanaClientImpl struct {
 
 func NewGrafanaClientImpl(logger *zap.SugaredLogger, client *http.Client, config *GrafanaClientConfig, attributesService attributes.AttributesService) *GrafanaClientImpl {
 	return &GrafanaClientImpl{logger: logger, client: client, config: config, attributesService: attributesService}
-}
-
-func (impl *GrafanaClientImpl) GetGrafanaDataSourceUrl(datasourceId int) (string, error) {
-	url := ""
-	if datasourceId > 0 {
-		timestamp := time.Now().Unix()
-		url = fmt.Sprintf(GrafanaPathForDashboard, datasourceId, timestamp)
-	}
-
-	return url, nil
 }
 
 func (impl *GrafanaClientImpl) GetAllDatasource() ([]*GetPrometheusDatasourceResponse, error) {

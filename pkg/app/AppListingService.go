@@ -591,12 +591,8 @@ func (impl AppListingServiceImpl) FetchAppDetails(ctx context.Context, appId int
 		impl.Logger.Errorw("error in fetching env details, FetchAppDetails service", "error", err)
 		return AppView.AppDetailContainer{}, err
 	}
-
-	err = impl.setGrafanaDataSourceUrl(&appDetailContainer, environment)
-	if err != nil {
-		impl.Logger.Errorw("error in fetching grafana url", "error", err)
-		return AppView.AppDetailContainer{}, err
-	}
+	// set Grafana data source id, will be used by Dashboard to show matrix
+	appDetailContainer.DeploymentDetailContainer.GrafanaDataSourceID = environment.GrafanaDatasourceId
 
 	appDetailContainer, err = impl.setIpAccessProvidedData(ctx, appDetailContainer, appDetailContainer.ClusterId, environment.IsVirtualEnvironment)
 	if err != nil {
@@ -604,17 +600,6 @@ func (impl AppListingServiceImpl) FetchAppDetails(ctx context.Context, appId int
 	}
 
 	return appDetailContainer, nil
-}
-
-func (impl AppListingServiceImpl) setGrafanaDataSourceUrl(appDetailContainer *AppView.AppDetailContainer, env *repository2.Environment) error {
-	if env.GrafanaDatasourceId > 0 {
-		grafanaUrl, err := impl.grafanaClient.GetGrafanaDataSourceUrl(env.GrafanaDatasourceId)
-		if err != nil {
-			return err
-		}
-		appDetailContainer.DeploymentDetailContainer.GrafanaDataSourceUrl = grafanaUrl
-	}
-	return nil
 }
 
 func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, appDetailContainer AppView.AppDetailContainer, clusterId int, isVirtualEnv bool) (AppView.AppDetailContainer, error) {
