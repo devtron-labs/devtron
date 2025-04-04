@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Grafana revert patch (#6498)
 - fix: made triggeredBy for CI & CD uniform (#6489)
 - fix: hpa permission denied error (#6485)
 - fix: force abort for pre/post cd  (#6475)
