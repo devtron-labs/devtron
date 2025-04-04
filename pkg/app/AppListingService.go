@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean/AppView"
-	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
@@ -145,7 +144,6 @@ type AppListingServiceImpl struct {
 	ciArtifactRepository           repository.CiArtifactRepository
 	envConfigOverrideReadService   read.EnvConfigOverrideService
 	ciPipelineConfigReadService    ciConfig.CiPipelineConfigReadService
-	grafanaClient                  grafana.GrafanaClient
 }
 
 func NewAppListingServiceImpl(Logger *zap.SugaredLogger,
@@ -159,8 +157,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger,
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService, userRepository userrepository.UserRepository,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService, ciArtifactRepository repository.CiArtifactRepository,
 	envConfigOverrideReadService read.EnvConfigOverrideService,
-	ciPipelineConfigReadService ciConfig.CiPipelineConfigReadService,
-	grafanaClient grafana.GrafanaClient) *AppListingServiceImpl {
+	ciPipelineConfigReadService ciConfig.CiPipelineConfigReadService) *AppListingServiceImpl {
 	return &AppListingServiceImpl{
 		Logger:                         Logger,
 		appListingRepository:           appListingRepository,
@@ -180,7 +177,6 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger,
 		ciArtifactRepository:           ciArtifactRepository,
 		envConfigOverrideReadService:   envConfigOverrideReadService,
 		ciPipelineConfigReadService:    ciPipelineConfigReadService,
-		grafanaClient:                  grafanaClient,
 	}
 }
 
