@@ -504,7 +504,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 						impl.logger.Errorw("error in HandleCdStageReTrigger", "workflowRunnerId", wfr.Id, "status", status, "message", wfStatus.Message, "error", err)
 						return
 					}
-					impl.logger.Debugw("re-triggered cd stage", "workflowRunnerId", wfr.Id, "status", status, "message", wfStatus.Message)
+					impl.logger.Infow("re-triggered cd stage", "workflowRunnerId", wfr.Id, "status", status, "message", wfStatus.Message)
 				} else {
 					// we send this notification on *workflow_runner* status, both success and failure
 					// during workflow runner failure, particularly when failure occurred due to pod deletion , we get two events from kubewatch.
