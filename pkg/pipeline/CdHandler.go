@@ -294,18 +294,18 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus eventProcessorBean.CiCd
 		}
 		savedWorkflow.CdArtifactLocation = cdArtifactLocation
 		savedWorkflow.PodStatus = podStatus
-		if !slices.Contains(cdWorkflowBean.WfrTerminalStatusList, savedWorkflow.Status) {
-			if !slices.Contains(cdWorkflowBean.WfrTerminalStatusList, savedWorkflow.PodStatus) {
-				savedWorkflow.Message = message
-				// NOTE: we are doing this to fix where a pre-cd / post-cd workflow message becomes larger than 1000, and in db we had set the charter limit to 1000
-				if len(message) > 1000 {
-					savedWorkflow.Message = message[:1000]
-				}
+		if !slices.Contains(cdWorkflowBean.WfrTerminalStatusList, savedWorkflow.PodStatus) {
+			savedWorkflow.Message = message
+			// NOTE: we are doing this to fix where a pre-cd / post-cd workflow message becomes larger than 1000, and in db we had set the charter limit to 1000
+			if len(message) > 1000 {
+				savedWorkflow.Message = message[:1000]
 			}
-			savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
+			if !slices.Contains(cdWorkflowBean.WfrTerminalStatusList, savedWorkflow.Status) {
+				savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
+			}
 		} else {
 			impl.Logger.Warnw("cd stage already in terminal state. skipped message and finishedOn from being updated",
-				"wfId", savedWorkflow.Id, "status", savedWorkflow.Status, "message", message, "finishedOn", workflowStatus.FinishedAt.Time)
+				"wfId", savedWorkflow.Id, "podStatus", savedWorkflow.PodStatus, "status", savedWorkflow.Status, "message", message, "finishedOn", workflowStatus.FinishedAt.Time)
 		}
 		savedWorkflow.Name = workflowName
 		// removed log location from here since we are saving it at trigger
