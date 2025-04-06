@@ -2,7 +2,6 @@ package trigger
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
@@ -63,6 +62,8 @@ type Service interface {
 	HandleCIManual(ciTriggerRequest bean.CiTriggerRequest) (int, error)
 	HandleCIWebhook(gitCiTriggerRequest bean.GitCiTriggerRequest) (int, error)
 	TriggerCiPipeline(trigger types.Trigger) (int, error)
+
+	StartCiWorkflowAndPrepareWfRequest(trigger types.Trigger) (*pipelineConfig.CiPipeline, map[string]string, *pipelineConfig.CiWorkflow, *types.WorkflowRequest, error)
 }
 
 type BuildxCacheFlags struct {
@@ -569,135 +570,10 @@ func SetGitCommitValuesForBuildingCommitHash(ciMaterial *pipelineConfig.CiPipeli
 }
 
 func (impl *ServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error) {
-	impl.Logger.Debug("ci pipeline manual trigger")
-	ciMaterials, err := impl.GetCiMaterials(trigger.PipelineId, trigger.CiMaterials)
+	pipeline, variableSnapshot, savedCiWf, workflowRequest, err := impl.StartCiWorkflowAndPrepareWfRequest(trigger)
 	if err != nil {
 		return 0, err
 	}
-
-	ciPipelineScripts, err := impl.ciPipelineRepository.FindCiScriptsByCiPipelineId(trigger.PipelineId)
-	if err != nil && !util.IsErrNoRows(err) {
-		return 0, err
-	}
-
-	var pipeline *pipelineConfig.CiPipeline
-	for _, m := range ciMaterials {
-		pipeline = m.CiPipeline
-		break
-	}
-
-	scope := resourceQualifiers.Scope{
-		AppId: pipeline.App.Id,
-	}
-	ciWorkflowConfigNamespace := impl.config.GetDefaultNamespace()
-	envModal, isJob, err := impl.getEnvironmentForJob(pipeline, trigger)
-	if err != nil {
-		return 0, err
-	}
-	if isJob && envModal != nil {
-		ciWorkflowConfigNamespace = envModal.Namespace
-
-		// This will be populated for jobs running in selected environment
-		scope.EnvId = envModal.Id
-		scope.ClusterId = envModal.ClusterId
-
-		scope.SystemMetadata = &resourceQualifiers.SystemMetadata{
-			EnvironmentName: envModal.Name,
-			ClusterName:     envModal.Cluster.ClusterName,
-			Namespace:       envModal.Namespace,
-		}
-	}
-	if scope.SystemMetadata == nil {
-		scope.SystemMetadata = &resourceQualifiers.SystemMetadata{
-			Namespace: ciWorkflowConfigNamespace,
-			AppName:   pipeline.App.AppName,
-		}
-	}
-
-	savedCiWf, err := impl.saveNewWorkflow(pipeline, ciWorkflowConfigNamespace, trigger.CommitHashes, trigger.TriggeredBy, trigger.EnvironmentId, isJob, trigger.ReferenceCiWorkflowId)
-	if err != nil {
-		impl.Logger.Errorw("could not save new workflow", "err", err)
-		return 0, err
-	}
-
-	// preCiSteps, postCiSteps, refPluginsData, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, ciEvent)
-	request := pipelineConfigBean.NewBuildPrePostStepDataReq(pipeline.Id, pipelineConfigBean.CiStage, scope)
-	prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(request)
-	if err != nil {
-		impl.Logger.Errorw("error in getting pre steps data for wf request", "err", err, "ciPipelineId", pipeline.Id)
-		dbErr := impl.markCurrentCiWorkflowFailed(savedCiWf, err)
-		if dbErr != nil {
-			impl.Logger.Errorw("saving workflow error", "err", dbErr)
-		}
-		return 0, err
-	}
-	preCiSteps := prePostAndRefPluginResponse.PreStageSteps
-	postCiSteps := prePostAndRefPluginResponse.PostStageSteps
-	refPluginsData := prePostAndRefPluginResponse.RefPluginData
-	variableSnapshot := prePostAndRefPluginResponse.VariableSnapshot
-
-	if len(preCiSteps) == 0 && isJob {
-		errMsg := fmt.Sprintf("No tasks are configured in this job pipeline")
-		validationErr := util.NewApiError(http.StatusNotFound, errMsg, errMsg)
-
-		return 0, validationErr
-	}
-
-	// get env variables of git trigger data and add it in the extraEnvVariables
-	gitTriggerEnvVariables, _, err := impl.ciCdPipelineOrchestrator.GetGitCommitEnvVarDataForCICDStage(savedCiWf.GitTriggers)
-	if err != nil {
-		impl.Logger.Errorw("error in getting gitTrigger env data for stage", "gitTriggers", savedCiWf.GitTriggers, "err", err)
-		return 0, err
-	}
-
-	for k, v := range gitTriggerEnvVariables {
-		trigger.RuntimeParameters = trigger.RuntimeParameters.AddSystemVariable(k, v)
-	}
-
-	workflowRequest, err := impl.buildWfRequestForCiPipeline(pipeline, trigger, ciMaterials, savedCiWf, ciWorkflowConfigNamespace, ciPipelineScripts, preCiSteps, postCiSteps, refPluginsData, isJob)
-	if err != nil {
-		impl.Logger.Errorw("make workflow req", "err", err)
-		return 0, err
-	}
-	err = impl.handleRuntimeParamsValidations(trigger, ciMaterials, workflowRequest)
-	if err != nil {
-		savedCiWf.Status = cdWorkflow.WorkflowAborted
-		savedCiWf.Message = err.Error()
-		err1 := impl.ciService.UpdateCiWorkflowWithStage(savedCiWf)
-		if err1 != nil {
-			impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
-		}
-		return 0, err
-	}
-
-	workflowRequest.Scope = scope
-	workflowRequest.AppId = pipeline.AppId
-	workflowRequest.BuildxCacheModeMin = impl.buildxCacheFlags.BuildxCacheModeMin
-	workflowRequest.AsyncBuildxCacheExport = impl.buildxCacheFlags.AsyncBuildxCacheExport
-	if impl.config != nil && impl.config.BuildxK8sDriverOptions != "" {
-		err = impl.setBuildxK8sDriverData(workflowRequest)
-		if err != nil {
-			impl.Logger.Errorw("error in setBuildxK8sDriverData", "BUILDX_K8S_DRIVER_OPTIONS", impl.config.BuildxK8sDriverOptions, "err", err)
-			return 0, err
-		}
-	}
-
-	// savedCiWf.LogLocation = impl.ciCdConfig.CiDefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix + "/main.log"
-	savedCiWf.LogLocation = fmt.Sprintf("%s/%s/main.log", impl.config.GetDefaultBuildLogsKeyPrefix(), workflowRequest.WorkflowNamePrefix)
-	err = impl.updateCiWorkflow(workflowRequest, savedCiWf)
-
-	appLabels, err := impl.appCrudOperationService.GetLabelsByAppId(pipeline.AppId)
-	if err != nil {
-		return 0, err
-	}
-	workflowRequest.AppLabels = appLabels
-	workflowRequest.Env = envModal
-	if isJob {
-		workflowRequest.Type = pipelineConfigBean.JOB_WORKFLOW_PIPELINE_TYPE
-	} else {
-		workflowRequest.Type = pipelineConfigBean.CI_WORKFLOW_PIPELINE_TYPE
-	}
-
 	workflowRequest.CiPipelineType = trigger.PipelineType
 	err = impl.executeCiPipeline(workflowRequest)
 	if err != nil {
@@ -738,31 +614,151 @@ func (impl *ServiceImpl) GetCiMaterials(pipelineId int, ciMaterials []*pipelineC
 	}
 }
 
-func (impl *ServiceImpl) setBuildxK8sDriverData(workflowRequest *types.WorkflowRequest) error {
-	ciBuildConfig := workflowRequest.CiBuildConfig
-	if ciBuildConfig != nil {
-		if dockerBuildConfig := ciBuildConfig.DockerBuildConfig; dockerBuildConfig != nil {
-			k8sDriverOptions, err := impl.getK8sDriverOptions()
-			if err != nil {
-				errMsg := "error in parsing BUILDX_K8S_DRIVER_OPTIONS from the devtron-cm, "
-				err = errors.New(errMsg + "error : " + err.Error())
-				impl.Logger.Errorw(errMsg, "err", err)
-			}
-			dockerBuildConfig.BuildxK8sDriverOptions = k8sDriverOptions
+func (impl *ServiceImpl) StartCiWorkflowAndPrepareWfRequest(trigger types.Trigger) (*pipelineConfig.CiPipeline, map[string]string, *pipelineConfig.CiWorkflow, *types.WorkflowRequest, error) {
+	impl.Logger.Debugw("ci pipeline manual trigger", "request", trigger)
+	ciMaterials, err := impl.GetCiMaterials(trigger.PipelineId, trigger.CiMaterials)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
 
+	ciPipelineScripts, err := impl.ciPipelineRepository.FindCiScriptsByCiPipelineId(trigger.PipelineId)
+	if err != nil && !util.IsErrNoRows(err) {
+		return nil, nil, nil, nil, err
+	}
+
+	var pipeline *pipelineConfig.CiPipeline
+	for _, m := range ciMaterials {
+		pipeline = m.CiPipeline
+		break
+	}
+
+	scope := resourceQualifiers.Scope{
+		AppId: pipeline.App.Id,
+	}
+	ciWorkflowConfigNamespace := impl.config.GetDefaultNamespace()
+	envModal, isJob, err := impl.getEnvironmentForJob(pipeline, trigger)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	if isJob && envModal != nil {
+
+		err = impl.checkArgoSetupRequirement(envModal)
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+
+		ciWorkflowConfigNamespace = envModal.Namespace
+
+		// This will be populated for jobs running in selected environment
+		scope.EnvId = envModal.Id
+		scope.ClusterId = envModal.ClusterId
+
+		scope.SystemMetadata = &resourceQualifiers.SystemMetadata{
+			EnvironmentName: envModal.Name,
+			ClusterName:     envModal.Cluster.ClusterName,
+			Namespace:       envModal.Namespace,
 		}
 	}
-	return nil
+	if scope.SystemMetadata == nil {
+		scope.SystemMetadata = &resourceQualifiers.SystemMetadata{
+			Namespace: ciWorkflowConfigNamespace,
+			AppName:   pipeline.App.AppName,
+		}
+	}
+	savedCiWf, err := impl.saveNewWorkflowForCITrigger(pipeline, ciWorkflowConfigNamespace, trigger.CommitHashes, trigger.TriggeredBy, ciMaterials, trigger.EnvironmentId, isJob, trigger.ReferenceCiWorkflowId)
+	if err != nil {
+		impl.Logger.Errorw("could not save new workflow", "err", err)
+		return nil, nil, nil, nil, err
+	}
+	// preCiSteps, postCiSteps, refPluginsData, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, ciEvent)
+	request := pipelineConfigBean.NewBuildPrePostStepDataReq(pipeline.Id, pipelineConfigBean.CiStage, scope)
+	request = updateBuildPrePostStepDataReq(request, trigger)
+	prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(request)
+	if err != nil {
+		impl.Logger.Errorw("error in getting pre steps data for wf request", "err", err, "ciPipelineId", pipeline.Id)
+		dbErr := impl.markCurrentCiWorkflowFailed(savedCiWf, err)
+		if dbErr != nil {
+			impl.Logger.Errorw("saving workflow error", "err", dbErr)
+		}
+		return nil, nil, nil, nil, err
+	}
+	preCiSteps := prePostAndRefPluginResponse.PreStageSteps
+	postCiSteps := prePostAndRefPluginResponse.PostStageSteps
+	refPluginsData := prePostAndRefPluginResponse.RefPluginData
+	variableSnapshot := prePostAndRefPluginResponse.VariableSnapshot
+
+	if len(preCiSteps) == 0 && isJob {
+		errMsg := fmt.Sprintf("No tasks are configured in this job pipeline")
+		validationErr := util.NewApiError(http.StatusNotFound, errMsg, errMsg)
+		return nil, nil, nil, nil, validationErr
+	}
+
+	// get env variables of git trigger data and add it in the extraEnvVariables
+	gitTriggerEnvVariables, _, err := impl.ciCdPipelineOrchestrator.GetGitCommitEnvVarDataForCICDStage(savedCiWf.GitTriggers)
+	if err != nil {
+		impl.Logger.Errorw("error in getting gitTrigger env data for stage", "gitTriggers", savedCiWf.GitTriggers, "err", err)
+		return nil, nil, nil, nil, err
+	}
+
+	for k, v := range gitTriggerEnvVariables {
+		trigger.RuntimeParameters = trigger.RuntimeParameters.AddSystemVariable(k, v)
+	}
+
+	workflowRequest, err := impl.buildWfRequestForCiPipeline(pipeline, trigger, ciMaterials, savedCiWf, ciWorkflowConfigNamespace, ciPipelineScripts, preCiSteps, postCiSteps, refPluginsData, isJob)
+	if err != nil {
+		impl.Logger.Errorw("make workflow req", "err", err)
+		return nil, nil, nil, nil, err
+	}
+	err = impl.handleRuntimeParamsValidations(trigger, ciMaterials, workflowRequest)
+	if err != nil {
+		savedCiWf.Status = cdWorkflow.WorkflowAborted
+		savedCiWf.Message = err.Error()
+		err1 := impl.ciService.UpdateCiWorkflowWithStage(savedCiWf)
+		if err1 != nil {
+			impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
+		}
+		return nil, nil, nil, nil, err
+	}
+
+	workflowRequest.Scope = scope
+	workflowRequest.AppId = pipeline.AppId
+	workflowRequest.Env = envModal
+	if isJob {
+		workflowRequest.Type = pipelineConfigBean.JOB_WORKFLOW_PIPELINE_TYPE
+	} else {
+		workflowRequest.Type = pipelineConfigBean.CI_WORKFLOW_PIPELINE_TYPE
+	}
+	workflowRequest, err = impl.updateWorkflowRequestWithBuildCacheData(workflowRequest, scope)
+	if err != nil {
+		impl.Logger.Errorw("error, updateWorkflowRequestWithBuildCacheData", "workflowRequest", workflowRequest, "err", err)
+		return nil, nil, nil, nil, err
+	}
+	if impl.canSetK8sDriverData(workflowRequest) {
+		err = impl.setBuildxK8sDriverData(workflowRequest)
+		if err != nil {
+			impl.Logger.Errorw("error in setBuildxK8sDriverData", "BUILDX_K8S_DRIVER_OPTIONS", impl.config.BuildxK8sDriverOptions, "err", err)
+			return nil, nil, nil, nil, err
+		}
+	}
+	savedCiWf.LogLocation = fmt.Sprintf("%s/%s/main.log", impl.config.GetDefaultBuildLogsKeyPrefix(), workflowRequest.WorkflowNamePrefix)
+	err = impl.updateCiWorkflow(workflowRequest, savedCiWf)
+	appLabels, err := impl.appCrudOperationService.GetLabelsByAppId(pipeline.AppId)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	workflowRequest.AppLabels = appLabels
+	workflowRequest = impl.updateWorkflowRequestWithEntSupportData(workflowRequest)
+	return pipeline, variableSnapshot, savedCiWf, workflowRequest, nil
 }
 
-func (impl *ServiceImpl) getK8sDriverOptions() ([]map[string]string, error) {
-	buildxK8sDriverOptions := make([]map[string]string, 0)
-	err := json.Unmarshal([]byte(impl.config.BuildxK8sDriverOptions), &buildxK8sDriverOptions)
+func (impl *ServiceImpl) setBuildxK8sDriverData(workflowRequest *types.WorkflowRequest) error {
+	dockerBuildConfig := workflowRequest.CiBuildConfig.DockerBuildConfig
+	k8sDriverOptions, err := impl.getK8sDriverOptions(workflowRequest, dockerBuildConfig.TargetPlatform)
 	if err != nil {
-		return nil, err
-	} else {
-		return buildxK8sDriverOptions, nil
+		impl.Logger.Errorw("error in parsing BUILDX_K8S_DRIVER_OPTIONS from the devtron-cm", "err", err)
 	}
+	dockerBuildConfig.BuildxK8sDriverOptions = k8sDriverOptions
+	return nil
 }
 
 func (impl *ServiceImpl) getEnvironmentForJob(pipeline *pipelineConfig.CiPipeline, trigger types.Trigger) (*repository6.Environment, bool, error) {
@@ -796,9 +792,14 @@ func (impl *ServiceImpl) BuildPayload(trigger types.Trigger, pipeline *pipelineC
 	return payload
 }
 
-func (impl *ServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, ciWorkflowConfigNamespace string,
-	commitHashes map[int]pipelineConfig.GitCommit, userId int32, EnvironmentId int, isJob bool, refCiWorkflowId int) (wf *pipelineConfig.CiWorkflow, error error) {
+func (impl *ServiceImpl) saveNewWorkflowForCITrigger(pipeline *pipelineConfig.CiPipeline, ciWorkflowConfigNamespace string,
+	commitHashes map[int]pipelineConfig.GitCommit, userId int32, ciMaterials []*pipelineConfig.CiPipelineMaterial, EnvironmentId int, isJob bool, refCiWorkflowId int) (*pipelineConfig.CiWorkflow, error) {
 
+	isCiTriggerBlocked, err := impl.checkIfCITriggerIsBlocked(pipeline, ciMaterials, isJob)
+	if err != nil {
+		impl.Logger.Errorw("error, checkIfCITriggerIsBlocked", "pipelineId", pipeline.Id, "err", err)
+		return &pipelineConfig.CiWorkflow{}, err
+	}
 	ciWorkflow := &pipelineConfig.CiWorkflow{
 		Name:                  pipeline.Name + "-" + strconv.Itoa(pipeline.Id),
 		Status:                cdWorkflow.WorkflowStarting, // starting CIStage
@@ -817,7 +818,10 @@ func (impl *ServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, ci
 		ciWorkflow.Namespace = ciWorkflowConfigNamespace
 		ciWorkflow.EnvironmentId = EnvironmentId
 	}
-	err := impl.ciService.SaveCiWorkflowWithStage(ciWorkflow)
+	if isCiTriggerBlocked {
+		return impl.handleWFIfCITriggerIsBlocked(ciWorkflow)
+	}
+	err = impl.ciService.SaveCiWorkflowWithStage(ciWorkflow)
 	if err != nil {
 		impl.Logger.Errorw("saving workflow error", "err", err)
 		return &pipelineConfig.CiWorkflow{}, err
@@ -882,7 +886,12 @@ func (impl *ServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.Ci
 				CaCert:                ciMaterial.GitMaterial.GitProvider.CaCert,
 			},
 		}
-
+		var err error
+		ciProjectDetail, err = impl.updateCIProjectDetailWithCloningMode(pipeline.AppId, ciMaterial, ciProjectDetail)
+		if err != nil {
+			impl.Logger.Errorw("error, updateCIProjectDetailWithCloningMode", "pipelineId", pipeline.Id, "err", err)
+			return nil, err
+		}
 		if ciMaterial.Type == constants.SOURCE_TYPE_WEBHOOK {
 			webhookData := commitHashForPipelineId.WebhookData
 			ciProjectDetail.WebhookData = pipelineConfig.WebhookData{
@@ -1072,15 +1081,8 @@ func (impl *ServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.Ci
 		checkoutPath = filepath.Join(checkoutPath, buildPackConfig.ProjectPath)
 	}
 
-	defaultTargetPlatform := impl.config.DefaultTargetPlatform
-	useBuildx := impl.config.UseBuildx
-
 	if ciBuildConfigBean.DockerBuildConfig != nil {
-		if ciBuildConfigBean.DockerBuildConfig.TargetPlatform == "" && useBuildx {
-			ciBuildConfigBean.DockerBuildConfig.TargetPlatform = defaultTargetPlatform
-			ciBuildConfigBean.DockerBuildConfig.UseBuildx = useBuildx
-		}
-		ciBuildConfigBean.DockerBuildConfig.BuildxProvenanceMode = impl.config.BuildxProvenanceMode
+		ciBuildConfigBean = impl.updateCIBuildConfig(ciBuildConfigBean)
 	}
 
 	workflowRequest := &types.WorkflowRequest{
@@ -1117,16 +1119,15 @@ func (impl *ServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.Ci
 		WorkflowExecutor:            impl.config.GetWorkflowExecutorType(),
 		Type:                        pipelineConfigBean.CI_WORKFLOW_PIPELINE_TYPE,
 		CiArtifactLastFetch:         trigger.CiArtifactLastFetch,
-		RegistryDestinationImageMap: registryDestinationImageMap,
 		RegistryCredentialMap:       registryCredentialMap,
 		PluginArtifactStage:         pluginArtifactStage,
 		ImageScanMaxRetries:         impl.config.ImageScanMaxRetries,
 		ImageScanRetryDelay:         impl.config.ImageScanRetryDelay,
 		UseDockerApiToGetDigest:     impl.config.UseDockerApiToGetDigest,
+		RegistryDestinationImageMap: registryDestinationImageMap,
 	}
-	workflowRequest.SetAwsInspectorConfig("")
-	//in oss, there is no pipeline level workflow cache config, so we pass inherit to get the app level config
-	workflowCacheConfig := impl.ciCdPipelineOrchestrator.GetWorkflowCacheConfig(pipeline.App.AppType, trigger.PipelineType, common.WorkflowCacheConfigInherit)
+	workflowRequest.SetEntOnlyFields(trigger, impl.config)
+	workflowCacheConfig := impl.ciCdPipelineOrchestrator.GetWorkflowCacheConfig(pipeline.App.AppType, trigger.PipelineType, pipeline.GetWorkflowCacheConfig())
 	workflowRequest.IgnoreDockerCachePush = !workflowCacheConfig.Value
 	workflowRequest.IgnoreDockerCachePull = !workflowCacheConfig.Value
 	impl.Logger.Debugw("Ignore Cache values", "IgnoreDockerCachePush", workflowRequest.IgnoreDockerCachePush, "IgnoreDockerCachePull", workflowRequest.IgnoreDockerCachePull)
@@ -1151,6 +1152,11 @@ func (impl *ServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.Ci
 		}
 	}
 	if dockerRegistry != nil {
+		workflowRequest, err = impl.updateWorkflowRequestWithRemoteConnConf(dockerRegistry, workflowRequest)
+		if err != nil {
+			impl.Logger.Errorw("error occurred updating workflow request", "dockerRegistryId", dockerRegistry.Id, "err", err)
+			return nil, err
+		}
 		workflowRequest.DockerRegistryId = dockerRegistry.Id
 		workflowRequest.DockerRegistryType = string(dockerRegistry.RegistryType)
 		workflowRequest.DockerImageTag = dockerImageTag
@@ -1456,6 +1462,11 @@ func (impl *ServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger, c
 			if artifactExists {
 				impl.Logger.Errorw("ci artifact already exists with same image name", "artifact", externalCiArtifact)
 				return fmt.Errorf("ci artifact already exists with same image name")
+			}
+			workflowRequest, err = impl.updateWorkflowRequestForDigestPull(trigger.PipelineId, workflowRequest)
+			if err != nil {
+				impl.Logger.Errorw("error in updating workflow request", "err", err)
+				return err
 			}
 		} else {
 			artifactExists, err = impl.ciArtifactRepository.IfArtifactExistByImageDigest(imageDigest, externalCiArtifact, trigger.PipelineId)
