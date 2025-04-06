@@ -48,7 +48,7 @@ func NewOtelTracingServiceImpl(logger *zap.SugaredLogger) *OtelTracingServiceImp
 }
 
 type OtelConfig struct {
-	OtelCollectorUrl string `env:"OTEL_COLLECTOR_URL" envDefault:""`
+	OtelCollectorUrl string `env:"OTEL_COLLECTOR_URL" envDefault:"" description: "Opentelemetry URL "`
 }
 
 // Init configures an OpenTelemetry exporter and trace provider

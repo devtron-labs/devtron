@@ -189,13 +189,13 @@ func TestDeleteWithAppIdEnvId(t *testing.T) {
 }
 
 type Config struct {
-	Addr            string `env:"TEST_PG_ADDR" envDefault:"127.0.0.1"`
-	Port            string `env:"TEST_PG_PORT" envDefault:"55000"`
-	User            string `env:"TEST_PG_USER" envDefault:"postgres"`
-	Password        string `env:"TEST_PG_PASSWORD" envDefault:"postgrespw" secretData:"-"`
-	Database        string `env:"TEST_PG_DATABASE" envDefault:"orchestrator"`
-	ApplicationName string `env:"TEST_APP" envDefault:"orchestrator"`
-	LogQuery        bool   `env:"TEST_PG_LOG_QUERY" envDefault:"true"`
+	Addr            string `env:"TEST_PG_ADDR" envDefault:"127.0.0.1" description: "Postgres URL"`
+	Port            string `env:"TEST_PG_PORT" envDefault:"55000" description: "Postgres port number"`
+	User            string `env:"TEST_PG_USER" envDefault:"postgres"description: "Postgres user"`
+	Password        string `env:"TEST_PG_PASSWORD" envDefault:"postgrespw" secretData:"-" description: "Postgres user password"`
+	Database        string `env:"TEST_PG_DATABASE" envDefault:"orchestrator" description: "Postgres database name"`
+	ApplicationName string `env:"TEST_APP" envDefault:"orchestrator" description: "application name"`
+	LogQuery        bool   `env:"TEST_PG_LOG_QUERY" envDefault:"true" description: "Log PostgreSQL queries."`
 }
 
 func getDbConn() (*pg.DB, error) {

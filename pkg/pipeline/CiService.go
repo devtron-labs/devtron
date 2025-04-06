@@ -83,8 +83,8 @@ type CiService interface {
 	UpdateCiWorkflowWithStage(wf *pipelineConfig.CiWorkflow) error
 }
 type BuildxCacheFlags struct {
-	BuildxCacheModeMin     bool `env:"BUILDX_CACHE_MODE_MIN" envDefault:"false"`
-	AsyncBuildxCacheExport bool `env:"ASYNC_BUILDX_CACHE_EXPORT" envDefault:"false"`
+	BuildxCacheModeMin     bool `env:"BUILDX_CACHE_MODE_MIN" envDefault:"false" description: "To set build cache mode to minimum in buildx" `
+	AsyncBuildxCacheExport bool `env:"ASYNC_BUILDX_CACHE_EXPORT" envDefault:"false" description: "To enable async container image cache export"`
 }
 
 type CiServiceImpl struct {

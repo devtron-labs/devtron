@@ -74,10 +74,10 @@ type CacheData struct {
 
 // CATEGORY=RBAC
 type EnforcerConfig struct {
-	CacheEnabled          bool `env:"ENFORCER_CACHE" envDefault:"false"`
-	CacheExpirationInSecs int  `env:"ENFORCER_CACHE_EXPIRATION_IN_SEC" envDefault:"86400"`
-	EnforcerBatchSize     int  `env:"ENFORCER_MAX_BATCH_SIZE" envDefault:"1"`
-	UseCasbinV2           bool `env:"USE_CASBIN_V2" envDefault:"false"`
+	CacheEnabled          bool `env:"ENFORCER_CACHE" envDefault:"false" description: "To Enable enforcer cache."`
+	CacheExpirationInSecs int  `env:"ENFORCER_CACHE_EXPIRATION_IN_SEC" envDefault:"86400" description: "Expiration time (in seconds) for enforcer cache. "`
+	EnforcerBatchSize     int  `env:"ENFORCER_MAX_BATCH_SIZE" envDefault:"1" description: "Maximum batch size for the enforcer."`
+	UseCasbinV2           bool `env:"USE_CASBIN_V2" envDefault:"false" description: "To enable casbin V2 API"`
 }
 
 func getConfig() (*EnforcerConfig, error) {

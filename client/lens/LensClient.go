@@ -30,8 +30,8 @@ import (
 )
 
 type LensConfig struct {
-	Url     string `env:"LENS_URL" envDefault:"http://lens-milandevtron-service:80"`
-	Timeout int    `env:"LENS_TIMEOUT" envDefault:"0"` // in seconds
+	Url     string `env:"LENS_URL" envDefault:"http://lens-milandevtron-service:80" description: "Lens micro-service URL"`
+	Timeout int    `env:"LENS_TIMEOUT" envDefault:"0" description: "Lens microservice timeout."` // in seconds
 }
 type StatusCode int
 

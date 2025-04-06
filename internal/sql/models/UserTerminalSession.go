@@ -55,10 +55,10 @@ type UserTerminalPodEvents struct {
 }
 
 type UserTerminalSessionConfig struct {
-	MaxSessionPerUser                 int    `env:"MAX_SESSION_PER_USER" envDefault:"5"`
-	TerminalPodStatusSyncTimeInSecs   int    `env:"TERMINAL_POD_STATUS_SYNC_In_SECS" envDefault:"600"`
-	TerminalPodDefaultNamespace       string `env:"TERMINAL_POD_DEFAULT_NAMESPACE" envDefault:"default"`
-	TerminalPodInActiveDurationInMins int    `env:"TERMINAL_POD_INACTIVE_DURATION_IN_MINS" envDefault:"10"`
+	MaxSessionPerUser                 int    `env:"MAX_SESSION_PER_USER" envDefault:"5" description: "max no of cluster terminal pods can be created by an user"`
+	TerminalPodStatusSyncTimeInSecs   int    `env:"TERMINAL_POD_STATUS_SYNC_In_SECS" envDefault:"600" description: "this is the time interval at which the status of the cluster terminal pod"`
+	TerminalPodDefaultNamespace       string `env:"TERMINAL_POD_DEFAULT_NAMESPACE" envDefault:"default" description: "Cluster terminal default namespace"`
+	TerminalPodInActiveDurationInMins int    `env:"TERMINAL_POD_INACTIVE_DURATION_IN_MINS" envDefault:"10" description: "Timeout for cluster terminal to be inactive"`
 }
 
 type UserTerminalSessionResponse struct {

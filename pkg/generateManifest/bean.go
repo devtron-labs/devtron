@@ -92,6 +92,6 @@ type ResourceMetadata struct {
 	GroupVersionKind schema.GroupVersionKind `json:"groupVersionKind"`
 }
 type RestartWorkloadConfig struct {
-	WorkerPoolSize   int `env:"FEATURE_RESTART_WORKLOAD_WORKER_POOL_SIZE" envDefault:"5"`
-	RequestBatchSize int `env:"FEATURE_RESTART_WORKLOAD_BATCH_SIZE" envDefault:"1"`
+	WorkerPoolSize   int `env:"FEATURE_RESTART_WORKLOAD_WORKER_POOL_SIZE" envDefault:"5" description: "restart workload retrieval pool size"`
+	RequestBatchSize int `env:"FEATURE_RESTART_WORKLOAD_BATCH_SIZE" envDefault:"1" description: "restart workload retrieval batch size "`
 }

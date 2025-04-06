@@ -68,7 +68,7 @@ import (
 )
 
 type PipelineRestHandlerEnvConfig struct {
-	UseArtifactListApiV2 bool `env:"USE_ARTIFACT_LISTING_API_V2" envDefault:"true"` //deprecated
+	UseArtifactListApiV2 bool `env:"USE_ARTIFACT_LISTING_API_V2" envDefault:"true" description: "To use the V2 API for listing artifacts in Listing the images in pipeline"` //deprecated
 }
 
 type DevtronAppRestHandler interface {

@@ -38,7 +38,7 @@ type ProxyConnection struct {
 }
 
 type Config struct {
-	ProxyServiceConfig string `env:"PROXY_SERVICE_CONFIG" envDefault:"{}"`
+	ProxyServiceConfig string `env:"PROXY_SERVICE_CONFIG" envDefault:"{}" description: "Proxy configuration for micro-service to be accessible on orhcestrator ingress"`
 }
 
 func GetProxyConfig() (*Config, error) {

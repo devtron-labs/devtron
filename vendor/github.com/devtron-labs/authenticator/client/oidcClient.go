@@ -77,18 +77,18 @@ func getOidcClient(dexServerAddress string, settings *oidc.Settings, userVerifie
 const dexProxyUri = "api/dex"
 
 type DexConfig struct {
-	DexHost          string `env:"DEX_HOST" envDefault:"http://localhost"`
-	DexPort          string `env:"DEX_PORT" envDefault:"5556"`
-	DexClientID      string `env:"DEX_CLIENT_ID" envDefault:"argo-cd"`
+	DexHost          string `env:"DEX_HOST" envDefault:"http://localhost" description: "Dex service endpoint(http://argocd-dex-server.devtroncd)"`
+	DexPort          string `env:"DEX_PORT" envDefault:"5556" description: "Dex service port"`
+	DexClientID      string `env:"DEX_CLIENT_ID" envDefault:"argo-cd" description: "dex client id to be used when connecting to dex server"`
 	DexServerAddress string
 	Url              string
 	DexClientSecret  string
 	ServerSecret     string
 	// Specifies token expiration duration
-	UserSessionDurationSeconds int       `env:"USER_SESSION_DURATION_SECONDS" envDefault:"86400"`
+	UserSessionDurationSeconds int       `env:"USER_SESSION_DURATION_SECONDS" envDefault:"86400" description: "Session time after which user have to reLogin"`
 	AdminPasswordMtime         time.Time `json:"ADMIN_PASSWORD_MTIME"`
 	DexConfigRaw               string
-	DevtronSecretName          string `env:"DEVTRON_SECRET_NAME" envDefault:"devtron-secret"`
+	DevtronSecretName          string `env:"DEVTRON_SECRET_NAME" envDefault:"devtron-secret" description: "Secret name for orchestrator micro-services"`
 }
 
 func (c *DexConfig) GetDexProxyUrl() (string, error) {

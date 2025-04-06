@@ -105,7 +105,7 @@ func NewUserCommonServiceImpl(userAuthRepository repository.UserAuthRepository,
 }
 
 type UserRbacConfig struct {
-	UseRbacCreationV2 bool `env:"USE_RBAC_CREATION_V2" envDefault:"true"`
+	UseRbacCreationV2 bool `env:"USE_RBAC_CREATION_V2" envDefault:"true" description: "To use the V2 for RBAC creation"`
 }
 
 func (impl UserCommonServiceImpl) CreateDefaultPoliciesForAllTypes(roleFieldsDto *bean.RoleModelFieldsDto, userId int32) (bool, error, []bean3.Policy) {

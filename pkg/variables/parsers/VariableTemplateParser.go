@@ -57,9 +57,9 @@ func NewVariableTemplateParserImpl(logger *zap.SugaredLogger) (*VariableTemplate
 }
 
 type VariableTemplateParserConfig struct {
-	ScopedVariableEnabled          bool   `env:"SCOPED_VARIABLE_ENABLED" envDefault:"false"`
-	ScopedVariableHandlePrimitives bool   `env:"SCOPED_VARIABLE_HANDLE_PRIMITIVES" envDefault:"false"`
-	VariableExpressionRegex        string `env:"VARIABLE_EXPRESSION_REGEX" envDefault:"@{{([^}]+)}}"`
+	ScopedVariableEnabled          bool   `env:"SCOPED_VARIABLE_ENABLED" envDefault:"false" description: "To enable scoped variable option"`
+	ScopedVariableHandlePrimitives bool   `env:"SCOPED_VARIABLE_HANDLE_PRIMITIVES" envDefault:"false" description: "This describe should we handle primitives or not in scoped variable template parsing."`
+	VariableExpressionRegex        string `env:"VARIABLE_EXPRESSION_REGEX" envDefault:"@{{([^}]+)}}" description: "Scoped variable expression regex"`
 }
 
 func (cfg VariableTemplateParserConfig) isScopedVariablesDisabled() bool {
