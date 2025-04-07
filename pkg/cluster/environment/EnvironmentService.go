@@ -46,7 +46,7 @@ import (
 
 type EnvironmentService interface {
 	FindOne(environment string) (*bean2.EnvironmentBean, error)
-	GetDataSourceName(environment string) (dataSourceData DataSourceMetaData, err error)
+	GetDataSourceName(environment string) (dataSourceData bean2.DataSourceMetaData, err error)
 	Create(mappings *bean2.EnvironmentBean, userId int32) (*bean2.EnvironmentBean, error)
 	Update(mappings *bean2.EnvironmentBean, userId int32) (*bean2.EnvironmentBean, error)
 	GetAllActive() ([]bean2.EnvironmentBean, error)
@@ -106,8 +106,8 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 	}
 }
 
-func (impl EnvironmentServiceImpl) GetDataSourceName(environment string) (DataSourceMetaData, error) {
-	datasource := DataSourceMetaData{}
+func (impl EnvironmentServiceImpl) GetDataSourceName(environment string) (bean2.DataSourceMetaData, error) {
+	datasource := bean2.DataSourceMetaData{}
 	model, err := impl.environmentRepository.FindOne(environment)
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment", "err", err)
@@ -126,11 +126,6 @@ func (impl EnvironmentServiceImpl) GetDataSourceName(environment string) (DataSo
 		datasource.Id = model.GrafanaDatasourceId
 		return datasource, nil
 	}
-}
-
-type DataSourceMetaData struct {
-	Id   int    `json:"id"`
-	Name string `json:"name"`
 }
 
 func (impl EnvironmentServiceImpl) Create(mappings *bean2.EnvironmentBean, userId int32) (*bean2.EnvironmentBean, error) {

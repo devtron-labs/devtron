@@ -66,3 +66,8 @@ const (
 	PIPELINE_DEPLOYMENT_TYPE_HELM = "helm"
 	PIPELINE_DEPLOYMENT_TYPE_ACD  = "argo_cd"
 )
+
+type DataSourceMetaData struct {
+	Id   int    `json:"id"`
+	Name string `json:"name"`
+}
