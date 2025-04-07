@@ -398,14 +398,14 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCIWorkflowStatusUpdate() error 
 			impl.logger.Errorw("error while unmarshalling wf status update", "err", err, "msg", msg.Data)
 			return
 		}
-		if len(wfStatus.DevtronAdministratorInstance) != 0 {
+		if len(wfStatus.DevtronOwnerInstance) != 0 {
 			devtronUCID, _, err := impl.ucid.GetUCIDWithOutCache()
 			if err != nil {
 				impl.logger.Errorw("error in getting UCID", "err", err)
 				return
 			}
-			if wfStatus.DevtronAdministratorInstance != devtronUCID {
-				impl.logger.Warnw("mis match in UCID. skipping...", "devtronAdministratorInstance", wfStatus.DevtronAdministratorInstance, "devtronUCID", devtronUCID)
+			if wfStatus.DevtronOwnerInstance != devtronUCID {
+				impl.logger.Warnw("mis match in UCID. skipping...", "devtronAdministratorInstance", wfStatus.DevtronOwnerInstance, "devtronUCID", devtronUCID)
 				return
 			}
 		}
@@ -457,14 +457,14 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 			impl.logger.Error("Error while unmarshalling wfStatus json object", "error", err)
 			return
 		}
-		if len(wfStatus.DevtronAdministratorInstance) != 0 {
+		if len(wfStatus.DevtronOwnerInstance) != 0 {
 			devtronUCID, _, err := impl.ucid.GetUCIDWithOutCache()
 			if err != nil {
 				impl.logger.Errorw("error in getting UCID", "err", err)
 				return
 			}
-			if wfStatus.DevtronAdministratorInstance != devtronUCID {
-				impl.logger.Warnw("mis match in UCID. skipping...", "devtronAdministratorInstance", wfStatus.DevtronAdministratorInstance, "devtronUCID", devtronUCID)
+			if wfStatus.DevtronOwnerInstance != devtronUCID {
+				impl.logger.Warnw("mis match in UCID. skipping...", "devtronAdministratorInstance", wfStatus.DevtronOwnerInstance, "devtronUCID", devtronUCID)
 				return
 			}
 		}

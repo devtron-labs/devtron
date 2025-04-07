@@ -117,7 +117,7 @@ type DevtronAppReleaseContextType struct {
 }
 
 type CiCdStatus struct {
-	DevtronAdministratorInstance string `json:"devtronAdministratorInstance"`
+	DevtronOwnerInstance string `json:"devtronOwnerInstance"`
 	*v1alpha1.WorkflowStatus
 }
 
