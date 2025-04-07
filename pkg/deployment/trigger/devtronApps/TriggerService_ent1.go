@@ -10,9 +10,9 @@ import (
 	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/coreEntities/argoApplication/helper"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/publish"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
-	"github.com/devtron-labs/devtron/pkg/nucleus/argoApplication/helper"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"helm.sh/helm/v3/pkg/chart"
 )

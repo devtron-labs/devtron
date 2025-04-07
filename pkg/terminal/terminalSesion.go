@@ -32,7 +32,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/read"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/nucleus/argoApplication/read/config"
+	"github.com/devtron-labs/devtron/pkg/coreEntities/argoApplication/read/config"
 	errors1 "github.com/juju/errors"
 	"go.uber.org/zap"
 	"io"

@@ -17,9 +17,9 @@
 package argoApplication
 
 import (
-	argoApplication2 "github.com/devtron-labs/devtron/pkg/nucleus/argoApplication"
-	"github.com/devtron-labs/devtron/pkg/nucleus/argoApplication/read"
-	"github.com/devtron-labs/devtron/pkg/nucleus/argoApplication/read/config"
+	argoApplication2 "github.com/devtron-labs/devtron/pkg/coreEntities/argoApplication"
+	"github.com/devtron-labs/devtron/pkg/coreEntities/argoApplication/read"
+	"github.com/devtron-labs/devtron/pkg/coreEntities/argoApplication/read/config"
 	"github.com/google/wire"
 )
 
