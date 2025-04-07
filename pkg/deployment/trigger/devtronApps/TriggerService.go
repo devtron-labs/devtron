@@ -17,6 +17,7 @@
 package devtronApps
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -52,6 +53,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
 	pipeline2 "github.com/devtron-labs/devtron/pkg/build/pipeline"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
@@ -68,6 +70,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/service"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
+	"github.com/devtron-labs/devtron/pkg/executor"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -93,6 +96,7 @@ import (
 	status2 "google.golang.org/grpc/status"
 	"helm.sh/helm/v3/pkg/chart"
 	"net/http"
+	"os"
 	"path"
 	"regexp"
 	"strconv"
@@ -112,6 +116,10 @@ type TriggerService interface {
 	TriggerAutomaticDeployment(request bean.TriggerRequest) error
 
 	TriggerRelease(ctx context.Context, overrideRequest *bean3.ValuesOverrideRequest, envDeploymentConfig *bean9.DeploymentConfig, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifestPushTemplate *bean4.ManifestPushTemplate, err error)
+
+	CancelStage(workflowRunnerId int, forceAbort bool, userId int32) (int, error)
+	DownloadCdWorkflowArtifacts(buildId int) (*os.File, error)
+	GetRunningWorkflowLogs(environmentId int, pipelineId int, workflowId int) (*bufio.Reader, func() error, error)
 }
 
 type TriggerServiceImpl struct {
@@ -136,7 +144,6 @@ type TriggerServiceImpl struct {
 	pluginInputVariableParser           pipeline.PluginInputVariableParser
 	prePostCdScriptHistoryService       history.PrePostCdScriptHistoryService
 	scopedVariableManager               variables.ScopedVariableCMCSManager
-	cdWorkflowService                   pipeline.WorkflowService
 	imageDigestPolicyService            imageDigestPolicy.ImageDigestPolicyService
 	userService                         user.UserService
 	gitSensorClient                     gitSensorClient.Client
@@ -174,6 +181,10 @@ type TriggerServiceImpl struct {
 	attributeService                    attributes.AttributesService
 	clusterRepository                   repository5.ClusterRepository
 	cdWorkflowRunnerService             cd.CdWorkflowRunnerService
+	clusterService                      cluster.ClusterService
+	ciLogService                        pipeline.CiLogService
+	workflowService                     executor.WorkflowService
+	blobConfigStorageService            pipeline.BlobStorageConfigService
 }
 
 func NewTriggerServiceImpl(logger *zap.SugaredLogger,
@@ -194,7 +205,6 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 	pluginInputVariableParser pipeline.PluginInputVariableParser,
 	prePostCdScriptHistoryService history.PrePostCdScriptHistoryService,
 	scopedVariableManager variables.ScopedVariableCMCSManager,
-	cdWorkflowService pipeline.WorkflowService,
 	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService,
 	userService user.UserService,
 	gitSensorClient gitSensorClient.Client,
@@ -233,6 +243,10 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 	attributeService attributes.AttributesService,
 	clusterRepository repository5.ClusterRepository,
 	cdWorkflowRunnerService cd.CdWorkflowRunnerService,
+	clusterService cluster.ClusterService,
+	ciLogService pipeline.CiLogService,
+	workflowService executor.WorkflowService,
+	blobConfigStorageService pipeline.BlobStorageConfigService,
 ) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,
@@ -253,7 +267,6 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 		pluginInputVariableParser:           pluginInputVariableParser,
 		prePostCdScriptHistoryService:       prePostCdScriptHistoryService,
 		scopedVariableManager:               scopedVariableManager,
-		cdWorkflowService:                   cdWorkflowService,
 		imageDigestPolicyService:            imageDigestPolicyService,
 		userService:                         userService,
 		gitSensorClient:                     gitSensorClient,
@@ -297,7 +310,11 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 		attributeService:            attributeService,
 		cdWorkflowRunnerService:     cdWorkflowRunnerService,
 
-		clusterRepository: clusterRepository,
+		clusterRepository:        clusterRepository,
+		clusterService:           clusterService,
+		ciLogService:             ciLogService,
+		workflowService:          workflowService,
+		blobConfigStorageService: blobConfigStorageService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {

@@ -1,6 +1,7 @@
 package trigger
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/common-lib/utils"
 	bean4 "github.com/devtron-labs/common-lib/utils/bean"
+	"github.com/devtron-labs/common-lib/utils/k8s"
 	commonBean "github.com/devtron-labs/common-lib/workflow"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/gitSensor"
@@ -31,13 +33,20 @@ import (
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	buildBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	buildCommonBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
+	"github.com/devtron-labs/devtron/pkg/cluster"
+	adapter2 "github.com/devtron-labs/devtron/pkg/cluster/adapter"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	repository6 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	"github.com/devtron-labs/devtron/pkg/executor"
 	pipeline2 "github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
+	util2 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
@@ -47,7 +56,10 @@ import (
 	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"io/ioutil"
+	"k8s.io/client-go/rest"
 	"net/http"
+	"os"
 	"path"
 	"path/filepath"
 	"slices"
@@ -61,9 +73,14 @@ type Service interface {
 	CheckAndReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error
 	HandleCIManual(ciTriggerRequest bean.CiTriggerRequest) (int, error)
 	HandleCIWebhook(gitCiTriggerRequest bean.GitCiTriggerRequest) (int, error)
-	TriggerCiPipeline(trigger types.Trigger) (int, error)
+	//TriggerCiPipeline(trigger types.Trigger) (int, error)
 
 	StartCiWorkflowAndPrepareWfRequest(trigger types.Trigger) (*pipelineConfig.CiPipeline, map[string]string, *pipelineConfig.CiWorkflow, *types.WorkflowRequest, error)
+
+	CancelBuild(workflowId int, forceAbort bool) (int, error)
+	GetRunningWorkflowLogs(workflowId int) (*bufio.Reader, func() error, error)
+	GetHistoricBuildLogs(workflowId int, ciWorkflow *pipelineConfig.CiWorkflow) (map[string]string, error)
+	DownloadCiWorkflowArtifacts(pipelineId int, buildId int) (*os.File, error)
 }
 
 type BuildxCacheFlags struct {
@@ -73,7 +90,7 @@ type BuildxCacheFlags struct {
 
 type ServiceImpl struct {
 	Logger                       *zap.SugaredLogger
-	workflowService              pipeline2.WorkflowService
+	workflowService              executor.WorkflowService
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
 	ciArtifactRepository         repository5.CiArtifactRepository
@@ -94,9 +111,14 @@ type ServiceImpl struct {
 	ciService                    pipeline2.CiService
 	ciWorkflowRepository         pipelineConfig.CiWorkflowRepository
 	gitSensorClient              gitSensor.Client
+	ciLogService                 pipeline2.CiLogService
+	blobConfigStorageService     pipeline2.BlobStorageConfigService
+	clusterService               cluster.ClusterService
+	envService                   environment.EnvironmentService
+	K8sUtil                      *k8s.K8sServiceImpl
 }
 
-func NewServiceImpl(Logger *zap.SugaredLogger, workflowService pipeline2.WorkflowService,
+func NewServiceImpl(Logger *zap.SugaredLogger, workflowService executor.WorkflowService,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	ciArtifactRepository repository5.CiArtifactRepository,
@@ -114,6 +136,11 @@ func NewServiceImpl(Logger *zap.SugaredLogger, workflowService pipeline2.Workflo
 	ciService pipeline2.CiService,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	gitSensorClient gitSensor.Client,
+	ciLogService pipeline2.CiLogService,
+	blobConfigStorageService pipeline2.BlobStorageConfigService,
+	clusterService cluster.ClusterService,
+	envService environment.EnvironmentService,
+	K8sUtil *k8s.K8sServiceImpl,
 ) *ServiceImpl {
 	buildxCacheFlags := &BuildxCacheFlags{}
 	err := env.Parse(buildxCacheFlags)
@@ -142,6 +169,11 @@ func NewServiceImpl(Logger *zap.SugaredLogger, workflowService pipeline2.Workflo
 		ciService:                    ciService,
 		ciWorkflowRepository:         ciWorkflowRepository,
 		gitSensorClient:              gitSensorClient,
+		ciLogService:                 ciLogService,
+		blobConfigStorageService:     blobConfigStorageService,
+		clusterService:               clusterService,
+		envService:                   envService,
+		K8sUtil:                      K8sUtil,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -227,7 +259,7 @@ func (impl *ServiceImpl) reTriggerCi(retryCount int, refCiWorkflow *pipelineConf
 			"runtimeParameters", trigger.RuntimeParameters, "err", err)
 		return err
 	}
-	_, err = impl.TriggerCiPipeline(trigger)
+	_, err = impl.triggerCiPipeline(trigger)
 
 	if err != nil {
 		impl.Logger.Errorw("error occurred in re-triggering ciWorkflow", "triggerDetails", trigger, "err", err)
@@ -265,7 +297,7 @@ func (impl *ServiceImpl) HandleCIManual(ciTriggerRequest bean.CiTriggerRequest) 
 		PipelineType:        ciTriggerRequest.PipelineType,
 		CiArtifactLastFetch: createdOn,
 	}
-	id, err := impl.TriggerCiPipeline(trigger)
+	id, err := impl.triggerCiPipeline(trigger)
 
 	if err != nil {
 		return 0, err
@@ -318,7 +350,7 @@ func (impl *ServiceImpl) HandleCIWebhook(gitCiTriggerRequest bean.GitCiTriggerRe
 		TriggeredBy:       gitCiTriggerRequest.TriggeredBy,
 		RuntimeParameters: runtimeParams,
 	}
-	id, err := impl.TriggerCiPipeline(trigger)
+	id, err := impl.triggerCiPipeline(trigger)
 	if err != nil {
 		return 0, err
 	}
@@ -569,7 +601,7 @@ func SetGitCommitValuesForBuildingCommitHash(ciMaterial *pipelineConfig.CiPipeli
 	return newGitCommit
 }
 
-func (impl *ServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error) {
+func (impl *ServiceImpl) triggerCiPipeline(trigger types.Trigger) (int, error) {
 	pipeline, variableSnapshot, savedCiWf, workflowRequest, err := impl.StartCiWorkflowAndPrepareWfRequest(trigger)
 	if err != nil {
 		return 0, err
@@ -1528,4 +1560,398 @@ func (impl *ServiceImpl) markCurrentCiWorkflowFailed(savedCiWf *pipelineConfig.C
 		return dbErr
 	}
 	return nil
+}
+
+func (impl *ServiceImpl) CancelBuild(workflowId int, forceAbort bool) (int, error) {
+	workflow, err := impl.ciWorkflowRepository.FindById(workflowId)
+	if err != nil {
+		impl.Logger.Errorw("error in finding ci-workflow by workflow id", "ciWorkflowId", workflowId, "err", err)
+		return 0, err
+	}
+	isExt := workflow.Namespace != constants2.DefaultCiWorkflowNamespace
+	var env *repository6.Environment
+	var restConfig *rest.Config
+	if isExt {
+		restConfig, err = impl.getRestConfig(workflow)
+		if err != nil {
+			return 0, err
+		}
+	}
+	// Terminate workflow
+	cancelWfDtoRequest := &types.CancelWfRequestDto{
+		ExecutorType: workflow.ExecutorType,
+		WorkflowName: workflow.Name,
+		Namespace:    workflow.Namespace,
+		RestConfig:   restConfig,
+		IsExt:        isExt,
+		Environment:  env,
+	}
+	// Terminate workflow
+	err = impl.workflowService.TerminateWorkflow(cancelWfDtoRequest)
+	if err != nil && forceAbort {
+		impl.Logger.Errorw("error in terminating workflow, with force abort flag flag as true", "workflowName", workflow.Name, "err", err)
+
+		cancelWfDtoRequest.WorkflowGenerateName = fmt.Sprintf("%d-%s", workflowId, workflow.Name)
+		err1 := impl.workflowService.TerminateDanglingWorkflows(cancelWfDtoRequest)
+		if err1 != nil {
+			impl.Logger.Errorw("error in terminating dangling workflows", "cancelWfDtoRequest", cancelWfDtoRequest, "err", err)
+			// ignoring error here in case of force abort, confirmed from product
+		}
+	} else if err != nil && strings.Contains(err.Error(), "cannot find workflow") {
+		return 0, &util.ApiError{Code: "200", HttpStatusCode: http.StatusBadRequest, UserMessage: err.Error()}
+	} else if err != nil {
+		impl.Logger.Errorw("cannot terminate wf", "err", err)
+		return 0, err
+	}
+	if forceAbort {
+		err = impl.handleForceAbortCaseForCi(workflow, forceAbort)
+		if err != nil {
+			impl.Logger.Errorw("error in handleForceAbortCaseForCi", "forceAbortFlag", forceAbort, "workflow", workflow, "err", err)
+			return 0, err
+		}
+		return workflow.Id, nil
+	}
+
+	workflow.Status = cdWorkflow.WorkflowCancel
+	if workflow.ExecutorType == cdWorkflow.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
+		workflow.PodStatus = "Failed"
+		workflow.Message = constants2.TERMINATE_MESSAGE
+	}
+	err = impl.ciService.UpdateCiWorkflowWithStage(workflow)
+	if err != nil {
+		impl.Logger.Errorw("cannot update deleted workflow status, but wf deleted", "err", err)
+		return 0, err
+	}
+	imagePathReservationId := workflow.ImagePathReservationId
+	err = impl.customTagService.DeactivateImagePathReservation(imagePathReservationId)
+	if err != nil {
+		impl.Logger.Errorw("error in marking image tag unreserved", "err", err)
+		return 0, err
+	}
+	imagePathReservationIds := workflow.ImagePathReservationIds
+	if len(imagePathReservationIds) > 0 {
+		err = impl.customTagService.DeactivateImagePathReservationByImageIds(imagePathReservationIds)
+		if err != nil {
+			impl.Logger.Errorw("error in marking image tag unreserved", "err", err)
+			return 0, err
+		}
+	}
+	return workflow.Id, nil
+}
+
+func (impl *ServiceImpl) handleForceAbortCaseForCi(workflow *pipelineConfig.CiWorkflow, forceAbort bool) error {
+	isWorkflowInNonTerminalStage := workflow.Status == string(v1alpha1.NodePending) || workflow.Status == string(v1alpha1.NodeRunning)
+	if !isWorkflowInNonTerminalStage {
+		if forceAbort {
+			return impl.updateWorkflowForForceAbort(workflow)
+		} else {
+			return &util.ApiError{Code: "200", HttpStatusCode: 400, UserMessage: "cannot cancel build, build not in progress"}
+		}
+	}
+	//this arises when someone deletes the workflow in resource browser and wants to force abort a ci
+	if workflow.Status == string(v1alpha1.NodeRunning) && forceAbort {
+		return impl.updateWorkflowForForceAbort(workflow)
+	}
+	return nil
+}
+
+func (impl *ServiceImpl) updateWorkflowForForceAbort(workflow *pipelineConfig.CiWorkflow) error {
+	workflow.Status = cdWorkflow.WorkflowCancel
+	workflow.PodStatus = string(bean.Failed)
+	workflow.Message = constants2.FORCE_ABORT_MESSAGE_AFTER_STARTING_STAGE
+	err := impl.ciService.UpdateCiWorkflowWithStage(workflow)
+	if err != nil {
+		impl.Logger.Errorw("error in updating workflow status", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl *ServiceImpl) getRestConfig(workflow *pipelineConfig.CiWorkflow) (*rest.Config, error) {
+	env, err := impl.envRepository.FindById(workflow.EnvironmentId)
+	if err != nil {
+		impl.Logger.Errorw("could not fetch stage env", "err", err)
+		return nil, err
+	}
+
+	clusterBean := adapter2.GetClusterBean(*env.Cluster)
+
+	clusterConfig := clusterBean.GetClusterConfig()
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
+	if err != nil {
+		impl.Logger.Errorw("error in getting rest config by cluster id", "err", err)
+		return nil, err
+	}
+	return restConfig, nil
+}
+
+func (impl *ServiceImpl) GetRunningWorkflowLogs(workflowId int) (*bufio.Reader, func() error, error) {
+	ciWorkflow, err := impl.ciWorkflowRepository.FindById(workflowId)
+	if err != nil {
+		impl.Logger.Errorw("err", "err", err)
+		return nil, nil, err
+	}
+	return impl.getWorkflowLogs(ciWorkflow)
+}
+
+func (impl *ServiceImpl) getWorkflowLogs(ciWorkflow *pipelineConfig.CiWorkflow) (*bufio.Reader, func() error, error) {
+	if string(v1alpha1.NodePending) == ciWorkflow.PodStatus {
+		return bufio.NewReader(strings.NewReader("")), func() error { return nil }, nil
+	}
+	ciLogRequest := types.BuildLogRequest{
+		PodName:   ciWorkflow.PodName,
+		Namespace: ciWorkflow.Namespace,
+	}
+	isExt := false
+	clusterConfig := &k8s.ClusterConfig{}
+	if ciWorkflow.EnvironmentId != 0 {
+		env, err := impl.envRepository.FindById(ciWorkflow.EnvironmentId)
+		if err != nil {
+			return nil, nil, err
+		}
+		var clusterBean clusterBean.ClusterBean
+		if env != nil && env.Cluster != nil {
+			clusterBean = adapter2.GetClusterBean(*env.Cluster)
+		}
+		clusterConfig = clusterBean.GetClusterConfig()
+		isExt = true
+	}
+
+	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(ciLogRequest, clusterConfig, isExt)
+	if logStream == nil || err != nil {
+		if !ciWorkflow.BlobStorageEnabled {
+			return nil, nil, &util.ApiError{Code: "200", HttpStatusCode: 400, UserMessage: "logs-not-stored-in-repository"}
+		} else if string(v1alpha1.NodeSucceeded) == ciWorkflow.Status || string(v1alpha1.NodeError) == ciWorkflow.Status || string(v1alpha1.NodeFailed) == ciWorkflow.Status || ciWorkflow.Status == cdWorkflow.WorkflowCancel {
+			impl.Logger.Debugw("pod is not live", "podName", ciWorkflow.PodName, "err", err)
+			return impl.getLogsFromRepository(ciWorkflow, clusterConfig, isExt)
+		}
+		if err != nil {
+			impl.Logger.Errorw("err on fetch workflow logs", "err", err)
+			return nil, nil, &util.ApiError{Code: "200", HttpStatusCode: 400, UserMessage: err.Error()}
+		} else if logStream == nil {
+			return nil, cleanUp, fmt.Errorf("no logs found for pod %s", ciWorkflow.PodName)
+		}
+	}
+	logReader := bufio.NewReader(logStream)
+	return logReader, cleanUp, err
+}
+
+func (impl *ServiceImpl) getLogsFromRepository(ciWorkflow *pipelineConfig.CiWorkflow, clusterConfig *k8s.ClusterConfig, isExt bool) (*bufio.Reader, func() error, error) {
+	impl.Logger.Debug("getting historic logs", "ciWorkflowId", ciWorkflow.Id)
+	ciConfigLogsBucket := impl.config.GetDefaultBuildLogsBucket()
+	ciConfigCiCacheRegion := impl.config.DefaultCacheBucketRegion
+	logsFilePath := impl.config.GetDefaultBuildLogsKeyPrefix() + "/" + ciWorkflow.Name + "/main.log" // this is for backward compatibilty
+	if strings.Contains(ciWorkflow.LogLocation, "main.log") {
+		logsFilePath = ciWorkflow.LogLocation
+	}
+	ciLogRequest := types.BuildLogRequest{
+		PipelineId:    ciWorkflow.CiPipelineId,
+		WorkflowId:    ciWorkflow.Id,
+		PodName:       ciWorkflow.PodName,
+		LogsFilePath:  logsFilePath,
+		CloudProvider: impl.config.CloudProvider,
+		AzureBlobConfig: &blob_storage.AzureBlobBaseConfig{
+			Enabled:           impl.config.CloudProvider == types.BLOB_STORAGE_AZURE,
+			AccountName:       impl.config.AzureAccountName,
+			BlobContainerName: impl.config.AzureBlobContainerCiLog,
+			AccountKey:        impl.config.AzureAccountKey,
+		},
+		AwsS3BaseConfig: &blob_storage.AwsS3BaseConfig{
+			AccessKey:         impl.config.BlobStorageS3AccessKey,
+			Passkey:           impl.config.BlobStorageS3SecretKey,
+			EndpointUrl:       impl.config.BlobStorageS3Endpoint,
+			IsInSecure:        impl.config.BlobStorageS3EndpointInsecure,
+			BucketName:        ciConfigLogsBucket,
+			Region:            ciConfigCiCacheRegion,
+			VersioningEnabled: impl.config.BlobStorageS3BucketVersioned,
+		},
+		GcpBlobBaseConfig: &blob_storage.GcpBlobBaseConfig{
+			BucketName:             ciConfigLogsBucket,
+			CredentialFileJsonData: impl.config.BlobStorageGcpCredentialJson,
+		},
+	}
+	useExternalBlobStorage := pipeline2.IsExternalBlobStorageEnabled(isExt, impl.config.UseBlobStorageConfigInCiWorkflow)
+	if useExternalBlobStorage {
+		// fetch extClusterBlob cm and cs from k8s client, if they are present then read creds
+		// from them else return.
+		cmConfig, secretConfig, err := impl.blobConfigStorageService.FetchCmAndSecretBlobConfigFromExternalCluster(clusterConfig, ciWorkflow.Namespace)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching config map and secret from external cluster", "err", err, "clusterConfig", clusterConfig)
+			return nil, nil, err
+		}
+		rq := &ciLogRequest
+		rq.SetBuildLogRequest(cmConfig, secretConfig)
+	}
+	oldLogsStream, cleanUp, err := impl.ciLogService.FetchLogs(impl.config.BaseLogLocationPath, ciLogRequest)
+	if err != nil {
+		impl.Logger.Errorw("err", "err", err)
+		return nil, nil, err
+	}
+	logReader := bufio.NewReader(oldLogsStream)
+	return logReader, cleanUp, err
+}
+
+func (impl *ServiceImpl) GetHistoricBuildLogs(workflowId int, ciWorkflow *pipelineConfig.CiWorkflow) (map[string]string, error) {
+	var err error
+	if ciWorkflow == nil {
+		ciWorkflow, err = impl.ciWorkflowRepository.FindById(workflowId)
+		if err != nil {
+			impl.Logger.Errorw("err", "err", err)
+			return nil, err
+		}
+	}
+	ciConfigLogsBucket := impl.config.GetDefaultBuildLogsBucket()
+	ciConfigCiCacheRegion := impl.config.DefaultCacheBucketRegion
+	ciLogRequest := types.BuildLogRequest{
+		PipelineId:    ciWorkflow.CiPipelineId,
+		WorkflowId:    ciWorkflow.Id,
+		PodName:       ciWorkflow.PodName,
+		LogsFilePath:  ciWorkflow.LogLocation,
+		CloudProvider: impl.config.CloudProvider,
+		AzureBlobConfig: &blob_storage.AzureBlobBaseConfig{
+			Enabled:           impl.config.CloudProvider == types.BLOB_STORAGE_AZURE,
+			AccountName:       impl.config.AzureAccountName,
+			BlobContainerName: impl.config.AzureBlobContainerCiLog,
+			AccountKey:        impl.config.AzureAccountKey,
+		},
+		AwsS3BaseConfig: &blob_storage.AwsS3BaseConfig{
+			AccessKey:         impl.config.BlobStorageS3AccessKey,
+			Passkey:           impl.config.BlobStorageS3SecretKey,
+			EndpointUrl:       impl.config.BlobStorageS3Endpoint,
+			IsInSecure:        impl.config.BlobStorageS3EndpointInsecure,
+			BucketName:        ciConfigLogsBucket,
+			Region:            ciConfigCiCacheRegion,
+			VersioningEnabled: impl.config.BlobStorageS3BucketVersioned,
+		},
+		GcpBlobBaseConfig: &blob_storage.GcpBlobBaseConfig{
+			BucketName:             ciConfigLogsBucket,
+			CredentialFileJsonData: impl.config.BlobStorageGcpCredentialJson,
+		},
+	}
+	useExternalBlobStorage := pipeline2.IsExternalBlobStorageEnabled(ciWorkflow.IsExternalRunInJobType(), impl.config.UseBlobStorageConfigInCiWorkflow)
+	if useExternalBlobStorage {
+		envBean, err := impl.envService.FindById(ciWorkflow.EnvironmentId)
+		if err != nil {
+			impl.Logger.Errorw("error in getting envBean by envId", "err", err, "envId", ciWorkflow.EnvironmentId)
+			return nil, err
+		}
+		clusterConfig, err := impl.clusterService.GetClusterConfigByClusterId(envBean.ClusterId)
+		if err != nil {
+			impl.Logger.Errorw("GetClusterConfigByClusterId, error in fetching clusterConfig by clusterId", "err", err, "clusterId", envBean.ClusterId)
+			return nil, err
+		}
+		// fetch extClusterBlob cm and cs from k8s client, if they are present then read creds
+		// from them else return.
+		cmConfig, secretConfig, err := impl.blobConfigStorageService.FetchCmAndSecretBlobConfigFromExternalCluster(clusterConfig, ciWorkflow.Namespace)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching config map and secret from external cluster", "err", err, "clusterConfig", clusterConfig)
+			return nil, err
+		}
+		rq := &ciLogRequest
+		rq.SetBuildLogRequest(cmConfig, secretConfig)
+	}
+	logsFile, cleanUp, err := impl.ciLogService.FetchLogs(impl.config.BaseLogLocationPath, ciLogRequest)
+	logs, err := ioutil.ReadFile(logsFile.Name())
+	if err != nil {
+		impl.Logger.Errorw("err", "err", err)
+		return map[string]string{}, err
+	}
+	logStr := string(logs)
+	resp := make(map[string]string)
+	resp["logs"] = logStr
+	defer cleanUp()
+	return resp, err
+}
+
+func (impl *ServiceImpl) DownloadCiWorkflowArtifacts(pipelineId int, buildId int) (*os.File, error) {
+	ciWorkflow, err := impl.ciWorkflowRepository.FindById(buildId)
+	if err != nil {
+		impl.Logger.Errorw("unable to fetch ciWorkflow", "err", err)
+		return nil, err
+	}
+	useExternalBlobStorage := pipeline2.IsExternalBlobStorageEnabled(ciWorkflow.IsExternalRunInJobType(), impl.config.UseBlobStorageConfigInCiWorkflow)
+	if !ciWorkflow.BlobStorageEnabled {
+		return nil, errors.New("logs-not-stored-in-repository")
+	}
+
+	if ciWorkflow.CiPipelineId != pipelineId {
+		impl.Logger.Error("invalid request, wf not in pipeline")
+		return nil, errors.New("invalid request, wf not in pipeline")
+	}
+
+	ciConfigLogsBucket := impl.config.GetDefaultBuildLogsBucket()
+	item := strconv.Itoa(ciWorkflow.Id)
+	ciConfigCiCacheRegion := impl.config.DefaultCacheBucketRegion
+	azureBlobConfig := &blob_storage.AzureBlobBaseConfig{
+		Enabled:           impl.config.CloudProvider == types.BLOB_STORAGE_AZURE,
+		AccountName:       impl.config.AzureAccountName,
+		BlobContainerName: impl.config.AzureBlobContainerCiLog,
+		AccountKey:        impl.config.AzureAccountKey,
+	}
+	awsS3BaseConfig := &blob_storage.AwsS3BaseConfig{
+		AccessKey:         impl.config.BlobStorageS3AccessKey,
+		Passkey:           impl.config.BlobStorageS3SecretKey,
+		EndpointUrl:       impl.config.BlobStorageS3Endpoint,
+		IsInSecure:        impl.config.BlobStorageS3EndpointInsecure,
+		BucketName:        ciConfigLogsBucket,
+		Region:            ciConfigCiCacheRegion,
+		VersioningEnabled: impl.config.BlobStorageS3BucketVersioned,
+	}
+	gcpBlobBaseConfig := &blob_storage.GcpBlobBaseConfig{
+		BucketName:             ciConfigLogsBucket,
+		CredentialFileJsonData: impl.config.BlobStorageGcpCredentialJson,
+	}
+
+	ciArtifactLocationFormat := impl.config.GetArtifactLocationFormat()
+	key := fmt.Sprintf(ciArtifactLocationFormat, ciWorkflow.Id, ciWorkflow.Id)
+	if len(ciWorkflow.CiArtifactLocation) != 0 && util2.IsValidUrlSubPath(ciWorkflow.CiArtifactLocation) {
+		key = ciWorkflow.CiArtifactLocation
+	} else if util2.IsValidUrlSubPath(key) {
+		impl.ciWorkflowRepository.MigrateCiArtifactLocation(ciWorkflow.Id, key)
+	}
+	baseLogLocationPathConfig := impl.config.BaseLogLocationPath
+	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
+	destinationKey := filepath.Clean(filepath.Join(baseLogLocationPathConfig, item))
+	request := &blob_storage.BlobStorageRequest{
+		StorageType:         impl.config.CloudProvider,
+		SourceKey:           key,
+		DestinationKey:      destinationKey,
+		AzureBlobBaseConfig: azureBlobConfig,
+		AwsS3BaseConfig:     awsS3BaseConfig,
+		GcpBlobBaseConfig:   gcpBlobBaseConfig,
+	}
+	if useExternalBlobStorage {
+		envBean, err := impl.envService.FindById(ciWorkflow.EnvironmentId)
+		if err != nil {
+			impl.Logger.Errorw("error in getting envBean by envId", "err", err, "envId", ciWorkflow.EnvironmentId)
+			return nil, err
+		}
+		clusterConfig, err := impl.clusterService.GetClusterConfigByClusterId(envBean.ClusterId)
+		if err != nil {
+			impl.Logger.Errorw("GetClusterConfigByClusterId, error in fetching clusterConfig by clusterId", "err", err, "clusterId", envBean.ClusterId)
+			return nil, err
+		}
+		// fetch extClusterBlob cm and cs from k8s client, if they are present then read creds
+		// from them else return.
+		cmConfig, secretConfig, err := impl.blobConfigStorageService.FetchCmAndSecretBlobConfigFromExternalCluster(clusterConfig, ciWorkflow.Namespace)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching config map and secret from external cluster", "err", err, "clusterConfig", clusterConfig)
+			return nil, err
+		}
+		request = pipeline2.UpdateRequestWithExtClusterCmAndSecret(request, cmConfig, secretConfig)
+	}
+	_, numBytes, err := blobStorageService.Get(request)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while downloading file", "request", request, "error", err)
+		return nil, errors.New("failed to download resource")
+	}
+
+	file, err := os.Open(destinationKey)
+	if err != nil {
+		impl.Logger.Errorw("unable to open file", "file", item, "err", err)
+		return nil, errors.New("unable to open file")
+	}
+
+	impl.Logger.Infow("Downloaded ", "filename", file.Name(), "bytes", numBytes)
+	return file, nil
 }

@@ -74,6 +74,11 @@ func NewPipelineStageService(logger *zap.SugaredLogger,
 	}
 }
 
+const (
+	preCdStage  = "preCD"
+	postCdStage = "postCD"
+)
+
 type PipelineStageServiceImpl struct {
 	logger                  *zap.SugaredLogger
 	pipelineStageRepository repository.PipelineStageRepository

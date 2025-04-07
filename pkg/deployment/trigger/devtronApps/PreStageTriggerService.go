@@ -147,7 +147,7 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) (*b
 	cdStageWorkflowRequest.Pipeline = pipeline
 	cdStageWorkflowRequest.Env = env
 	cdStageWorkflowRequest.Type = pipelineConfigBean.CD_WORKFLOW_PIPELINE_TYPE
-	_, jobHelmPackagePath, err := impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest)
+	_, jobHelmPackagePath, err := impl.workflowService.SubmitWorkflow(cdStageWorkflowRequest)
 	span.End()
 	if err != nil {
 		runner.Status = cdWorkflow.WorkflowFailed

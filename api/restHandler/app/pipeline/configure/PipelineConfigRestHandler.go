@@ -33,6 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
 	security2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/read"
 	read3 "github.com/devtron-labs/devtron/pkg/team/read"
@@ -140,6 +141,7 @@ type PipelineConfigRestHandlerImpl struct {
 	environmentRepository               repository2.EnvironmentRepository
 	chartReadService                    read5.ChartReadService
 	ciTriggerService                    trigger.Service
+	cdTriggerService                    devtronApps.TriggerService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -174,7 +176,9 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	teamReadService read3.TeamReadService,
 	EnvironmentRepository repository2.EnvironmentRepository,
 	chartReadService read5.ChartReadService,
-	ciTriggerService trigger.Service) *PipelineConfigRestHandlerImpl {
+	ciTriggerService trigger.Service,
+	cdTriggerService devtronApps.TriggerService,
+) *PipelineConfigRestHandlerImpl {
 	envConfig := &PipelineRestHandlerEnvConfig{}
 	err := env.Parse(envConfig)
 	if err != nil {
@@ -216,6 +220,8 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		teamReadService:                     teamReadService,
 		environmentRepository:               EnvironmentRepository,
 		chartReadService:                    chartReadService,
+		ciTriggerService:                    ciTriggerService,
+		cdTriggerService:                    cdTriggerService,
 	}
 }
 

@@ -50,6 +50,7 @@ import (
 	triggerBean "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/service"
 	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
+	"github.com/devtron-labs/devtron/pkg/executor"
 	k8sPkg "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
@@ -148,7 +149,7 @@ type WorkflowDagExecutorImpl struct {
 	K8sUtil          *k8s.K8sServiceImpl
 	envRepository    repository5.EnvironmentRepository
 	k8sCommonService k8sPkg.K8sCommonService
-	workflowService  pipeline.WorkflowService
+	workflowService  executor.WorkflowService
 	ciTriggerService trigger.Service
 }
 
@@ -181,7 +182,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	K8sUtil *k8s.K8sServiceImpl,
 	envRepository repository5.EnvironmentRepository,
 	k8sCommonService k8sPkg.K8sCommonService,
-	workflowService pipeline.WorkflowService,
+	workflowService executor.WorkflowService,
 	ciTriggerService trigger.Service,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,

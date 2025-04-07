@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package pipeline
+package executor
 
 import (
 	"context"
@@ -33,6 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/config/read"
 	v1 "github.com/devtron-labs/devtron/pkg/infraConfig/bean/v1"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
@@ -66,7 +67,7 @@ type WorkflowServiceImpl struct {
 	ciCdConfig             *types.CiCdConfig
 	configMapService       read.ConfigReadService
 	envRepository          repository2.EnvironmentRepository
-	globalCMCSService      GlobalCMCSService
+	globalCMCSService      pipeline.GlobalCMCSService
 	argoWorkflowExecutor   executors.ArgoWorkflowExecutor
 	systemWorkflowExecutor executors.SystemWorkflowExecutor
 	k8sUtil                *k8s.K8sServiceImpl
@@ -80,7 +81,7 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger,
 	envRepository repository2.EnvironmentRepository,
 	ciCdConfig *types.CiCdConfig,
 	configMapService read.ConfigReadService,
-	globalCMCSService GlobalCMCSService,
+	globalCMCSService pipeline.GlobalCMCSService,
 	argoWorkflowExecutor executors.ArgoWorkflowExecutor,
 	k8sUtil *k8s.K8sServiceImpl,
 	systemWorkflowExecutor executors.SystemWorkflowExecutor,
@@ -378,6 +379,7 @@ func (impl *WorkflowServiceImpl) getWorkflowExecutor(executorType cdWorkflow.Wor
 	impl.Logger.Warnw("workflow executor not found", "type", executorType)
 	return nil
 }
+
 func (impl *WorkflowServiceImpl) GetWorkflow(executorType cdWorkflow.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*unstructured.UnstructuredList, error) {
 	impl.Logger.Debug("getting wf", name)
 	workflowExecutor := impl.getWorkflowExecutor(executorType)
