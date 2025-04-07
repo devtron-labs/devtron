@@ -85,12 +85,14 @@ components:
     registry: ""
     image: "dashboard:a400ce3c-690-31030"
     imagePullPolicy: IfNotPresent
+    healthPort: 8080
   devtron:
     registry: ""
     image: "hyperion:846c2d90-280-31082"
     cicdImage: "devtron:846c2d90-434-31081"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
+    healthPort: 8080
     podSecurityContext:
       fsGroup: 1001
       runAsGroup: 1001
@@ -133,6 +135,7 @@ components:
     registry: ""
     image: "kubelink:ccd98a22-564-31008"
     imagePullPolicy: IfNotPresent
+    healthPort: 50052
     podSecurityContext:
       fsGroup: 1001
       runAsGroup: 1001
@@ -159,6 +162,7 @@ components:
     registry: ""
     image: "kubewatch:34abb17d-419-31007"
     imagePullPolicy: IfNotPresent
+    healthPort: 8080
     configs:
       devtroncd_NAMESPACE: "devtron-ci"
       USE_CUSTOM_HTTP_TRANSPORT: "true"
@@ -194,6 +198,7 @@ components:
       enabled: false
     persistence:
       volumeSize: 2Gi
+    healthPort: 8080
     configs:
       PG_ADDR: postgresql-postgresql.devtroncd
       PG_USER: postgres
@@ -210,6 +215,7 @@ components:
     imagePullPolicy: IfNotPresent
     secrets: {}
     resources: {}
+    healthPort: 8080
     configs:
       GIT_SENSOR_PROTOCOL: GRPC
       GIT_SENSOR_URL: git-sensor-service.devtroncd:90
@@ -409,6 +415,7 @@ security:
   enabled: false
   imageScanner:
     image: "image-scanner:34abb17d-141-31016"
+    healthPort: 8080
     configs:
       TRIVY_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-db
       TRIVY_JAVA_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-java-db
@@ -434,6 +441,7 @@ notifier:
     DB_PORT: "5432"
     DB_USER: postgres
   secrets: {}
+  healthPort: 3000
   dbconfig:
     secretName: postgresql-postgresql
     keyName: postgresql-password
@@ -484,6 +492,7 @@ devtronEnterprise:
     registry: ""
     image: "casbin:f6ff5f74-064b67e5-462-30822"
     imagePullPolicy: IfNotPresent
+    healthPort: 8080
     configs:
       PG_ADDR: postgresql-postgresql.devtroncd
       PG_DATABASE: casbin
