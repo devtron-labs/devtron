@@ -31,7 +31,6 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	bean7 "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	client "github.com/devtron-labs/devtron/client/events"
-	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -146,7 +145,6 @@ type TriggerServiceImpl struct {
 	scopedVariableManager               variables.ScopedVariableCMCSManager
 	imageDigestPolicyService            imageDigestPolicy.ImageDigestPolicyService
 	userService                         user.UserService
-	gitSensorClient                     gitSensorClient.Client
 	config                              *types.CdConfig
 	helmAppService                      client2.HelmAppService
 	imageScanService                    security2.ImageScanService
@@ -175,7 +173,6 @@ type TriggerServiceImpl struct {
 	K8sUtil                             *util5.K8sServiceImpl
 	transactionUtilImpl                 *sql.TransactionUtilImpl
 	deploymentConfigService             common.DeploymentConfigService
-	deploymentServiceTypeConfig         *globalUtil.DeploymentServiceTypeConfig
 	ciCdPipelineOrchestrator            pipeline.CiCdPipelineOrchestrator
 	gitOperationService                 git.GitOperationService
 	attributeService                    attributes.AttributesService
@@ -207,7 +204,6 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 	scopedVariableManager variables.ScopedVariableCMCSManager,
 	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService,
 	userService user.UserService,
-	gitSensorClient gitSensorClient.Client,
 	helmAppService client2.HelmAppService,
 	enforcerUtil rbac.EnforcerUtil,
 	userDeploymentRequestService service.UserDeploymentRequestService,
@@ -269,7 +265,6 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 		scopedVariableManager:               scopedVariableManager,
 		imageDigestPolicyService:            imageDigestPolicyService,
 		userService:                         userService,
-		gitSensorClient:                     gitSensorClient,
 		helmAppService:                      helmAppService,
 		enforcerUtil:                        enforcerUtil,
 		eventFactory:                        eventFactory,
@@ -303,12 +298,11 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 
 		transactionUtilImpl: transactionUtilImpl,
 
-		deploymentConfigService:     deploymentConfigService,
-		deploymentServiceTypeConfig: envVariables.DeploymentServiceTypeConfig,
-		ciCdPipelineOrchestrator:    ciCdPipelineOrchestrator,
-		gitOperationService:         gitOperationService,
-		attributeService:            attributeService,
-		cdWorkflowRunnerService:     cdWorkflowRunnerService,
+		deploymentConfigService:  deploymentConfigService,
+		ciCdPipelineOrchestrator: ciCdPipelineOrchestrator,
+		gitOperationService:      gitOperationService,
+		attributeService:         attributeService,
+		cdWorkflowRunnerService:  cdWorkflowRunnerService,
 
 		clusterRepository:        clusterRepository,
 		clusterService:           clusterService,
