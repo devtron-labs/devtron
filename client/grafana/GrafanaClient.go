@@ -160,6 +160,8 @@ type GrafanaClientImpl struct {
 	attributesService attributes.AttributesService
 }
 
+const DoesNotExist = "data source does not exist"
+
 func NewGrafanaClientImpl(logger *zap.SugaredLogger, client *http.Client, config *GrafanaClientConfig, attributesService attributes.AttributesService) *GrafanaClientImpl {
 	return &GrafanaClientImpl{logger: logger, client: client, config: config, attributesService: attributesService}
 }
@@ -227,6 +229,7 @@ func (impl *GrafanaClientImpl) GetDatasource(datasourceId int) (*GetPrometheusDa
 		return nil, err
 	}
 	req.Header.Set("X-Grafana-Org-Id", strconv.Itoa(impl.config.GrafanaOrgId))
+	req.Header.Set("Content-Type", "application/json")
 	resp, err := impl.client.Do(req)
 	if err != nil {
 		impl.logger.Errorw("err", "err", err)
@@ -247,6 +250,9 @@ func (impl *GrafanaClientImpl) GetDatasource(datasourceId int) (*GetPrometheusDa
 		}
 	} else {
 		impl.logger.Errorw("api err in grafana communication", "res", string(resBody))
+		if status == 404 {
+			return nil, fmt.Errorf(DoesNotExist)
+		}
 		return nil, fmt.Errorf("res not success in grafana communication, Statuscode: %d ,response body: %s", status, string(resBody))
 	}
 	impl.logger.Debugw("grafana resp", "body", apiRes)

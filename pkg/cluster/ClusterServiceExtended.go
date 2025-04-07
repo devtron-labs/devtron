@@ -188,7 +188,11 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *bean.C
 		//going to grafana client and trying to get data source
 		if bean.PrometheusUrl != "" && env.GrafanaDatasourceId != 0 {
 			promDatasource, err := impl.grafanaClient.GetDatasource(env.GrafanaDatasourceId)
-			if err != nil {
+			if err.Error() == grafana.DoesNotExist {
+				// datasource might have been deleted manually, have to create a new datasource
+				grafanaDatasourceId, _ := impl.CreateGrafanaDataSource(bean, env)
+				env.GrafanaDatasourceId = grafanaDatasourceId
+			} else {
 				impl.logger.Errorw("error on getting data source", "err", err)
 				return nil, err
 			}
@@ -232,7 +236,6 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *bean.C
 				return nil, err
 			}
 		}
-
 	}
 
 	// if git-ops configured and ArgoCD module is installed, then only update cluster in ACD, otherwise ignore
