@@ -122,15 +122,15 @@ func (impl EnvironmentServiceImpl) GetDataSourceName(environment string) (DataSo
 			impl.logger.Errorw("error in fetching datasource", "err", err)
 			return datasource, err
 		}
-		datasource.name = data.Name
-		datasource.id = model.GrafanaDatasourceId
+		datasource.Name = data.Name
+		datasource.Id = model.GrafanaDatasourceId
 		return datasource, nil
 	}
 }
 
 type DataSourceMetaData struct {
-	id   int
-	name string
+	Id   int    `json:"id"`
+	Name string `json:"name"`
 }
 
 func (impl EnvironmentServiceImpl) Create(mappings *bean2.EnvironmentBean, userId int32) (*bean2.EnvironmentBean, error) {
