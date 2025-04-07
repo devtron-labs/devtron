@@ -129,8 +129,8 @@ func (impl EnvironmentServiceImpl) GetDataSourceName(environment string) (DataSo
 }
 
 type DataSourceMetaData struct {
-	Id   int
-	Name string
+	id   int
+	name string
 }
 
 func (impl EnvironmentServiceImpl) Create(mappings *bean2.EnvironmentBean, userId int32) (*bean2.EnvironmentBean, error) {
