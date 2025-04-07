@@ -24,8 +24,8 @@ import (
 	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/common-lib/utils/workFlow"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
-	bean6 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	cdWorkflowBean "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
+	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/bean/common"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	bean4 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
@@ -33,6 +33,7 @@ import (
 	bean5 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	util3 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
@@ -41,6 +42,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -75,7 +77,7 @@ import (
 type CiHandler interface {
 	HandleCIWebhook(gitCiTriggerRequest bean.GitCiTriggerRequest) (int, error)
 	HandleCIManual(ciTriggerRequest bean.CiTriggerRequest) (int, error)
-	CheckAndReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error
+	CheckAndReTriggerCI(workflowStatus eventProcessorBean.CiCdStatus) error
 	FetchMaterialsByPipelineId(pipelineId int, showAll bool) ([]pipelineConfig.CiPipelineMaterialResponse, error)
 	FetchMaterialsByPipelineIdAndGitMaterialId(pipelineId int, gitMaterialId int, showAll bool) ([]pipelineConfig.CiPipelineMaterialResponse, error)
 	FetchWorkflowDetails(appId int, pipelineId int, buildId int) (types.WorkflowResponse, error)
@@ -89,7 +91,7 @@ type CiHandler interface {
 
 	GetBuildHistory(pipelineId int, appId int, offset int, size int) ([]types.WorkflowResponse, error)
 	DownloadCiWorkflowArtifacts(pipelineId int, buildId int) (*os.File, error)
-	UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, error)
+	UpdateWorkflow(workflowStatus eventProcessorBean.CiCdStatus) (int, bool, error)
 
 	FetchCiStatusForTriggerView(appId int) ([]*pipelineConfig.CiWorkflowStatus, error)
 	FetchCiStatusForTriggerViewV1(appId int) ([]*pipelineConfig.CiWorkflowStatus, error)
@@ -172,7 +174,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 	return cih
 }
 
-func (impl *CiHandlerImpl) CheckAndReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error {
+func (impl *CiHandlerImpl) CheckAndReTriggerCI(workflowStatus eventProcessorBean.CiCdStatus) error {
 
 	//return if re-trigger feature is disabled
 	if !impl.config.WorkflowRetriesEnabled() {
@@ -223,7 +225,7 @@ func (impl *CiHandlerImpl) reTriggerCi(retryCount int, refCiWorkflow *pipelineCo
 	}
 
 	trigger := types.Trigger{}
-	trigger.BuildTriggerObject(refCiWorkflow, ciMaterials, bean6.SYSTEM_USER_ID, true, nil, "")
+	trigger.BuildTriggerObject(refCiWorkflow, ciMaterials, userBean.SYSTEM_USER_ID, true, nil, "")
 	_, err = impl.ciService.TriggerCiPipeline(trigger)
 
 	if err != nil {
@@ -664,8 +666,8 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int, forceAbort bool) (int, er
 		return workflow.Id, nil
 	}
 
-	workflow.Status = cdWorkflow.WorkflowCancel
-	if workflow.ExecutorType == cdWorkflow.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
+	workflow.Status = cdWorkflowBean.WorkflowCancel
+	if workflow.ExecutorType == cdWorkflowBean.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
 		workflow.PodStatus = "Failed"
 		workflow.Message = constants2.TERMINATE_MESSAGE
 	}
@@ -708,7 +710,7 @@ func (impl *CiHandlerImpl) handleForceAbortCaseForCi(workflow *pipelineConfig.Ci
 }
 
 func (impl *CiHandlerImpl) updateWorkflowForForceAbort(workflow *pipelineConfig.CiWorkflow) error {
-	workflow.Status = cdWorkflow.WorkflowCancel
+	workflow.Status = cdWorkflowBean.WorkflowCancel
 	workflow.PodStatus = string(bean.Failed)
 	workflow.Message = constants2.FORCE_ABORT_MESSAGE_AFTER_STARTING_STAGE
 	err := impl.ciService.UpdateCiWorkflowWithStage(workflow)
@@ -876,7 +878,7 @@ func (impl *CiHandlerImpl) getWorkflowLogs(ciWorkflow *pipelineConfig.CiWorkflow
 	if logStream == nil || err != nil {
 		if !ciWorkflow.BlobStorageEnabled {
 			return nil, nil, &util.ApiError{Code: "200", HttpStatusCode: 400, UserMessage: "logs-not-stored-in-repository"}
-		} else if string(v1alpha1.NodeSucceeded) == ciWorkflow.Status || string(v1alpha1.NodeError) == ciWorkflow.Status || string(v1alpha1.NodeFailed) == ciWorkflow.Status || ciWorkflow.Status == cdWorkflow.WorkflowCancel {
+		} else if string(v1alpha1.NodeSucceeded) == ciWorkflow.Status || string(v1alpha1.NodeError) == ciWorkflow.Status || string(v1alpha1.NodeFailed) == ciWorkflow.Status || ciWorkflow.Status == cdWorkflowBean.WorkflowCancel {
 			impl.Logger.Debugw("pod is not live", "podName", ciWorkflow.PodName, "err", err)
 			return impl.getLogsFromRepository(ciWorkflow, clusterConfig, isExt)
 		}
@@ -1111,7 +1113,7 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(workflowId int, ciWorkflow *pipe
 	return resp, err
 }
 
-func ExtractWorkflowStatus(workflowStatus v1alpha1.WorkflowStatus) (string, string, string, string, string, string) {
+func ExtractWorkflowStatus(workflowStatus eventProcessorBean.CiCdStatus) (string, string, string, string, string, string) {
 	workflowName := ""
 	status := string(workflowStatus.Phase)
 	podStatus := ""
@@ -1141,7 +1143,7 @@ func ExtractWorkflowStatus(workflowStatus v1alpha1.WorkflowStatus) (string, stri
 	return workflowName, status, podStatus, message, logLocation, podName
 }
 
-func (impl *CiHandlerImpl) extractPodStatusAndWorkflow(workflowStatus v1alpha1.WorkflowStatus) (string, string, *pipelineConfig.CiWorkflow, error) {
+func (impl *CiHandlerImpl) extractPodStatusAndWorkflow(workflowStatus eventProcessorBean.CiCdStatus) (string, string, *pipelineConfig.CiWorkflow, error) {
 	workflowName, status, _, message, _, _ := ExtractWorkflowStatus(workflowStatus)
 	if workflowName == "" {
 		impl.Logger.Errorw("extract workflow status, invalid wf name", "workflowName", workflowName, "status", status, "message", message)
@@ -1164,55 +1166,57 @@ func (impl *CiHandlerImpl) extractPodStatusAndWorkflow(workflowStatus v1alpha1.W
 }
 
 func (impl *CiHandlerImpl) getRefWorkflowAndCiRetryCount(savedWorkflow *pipelineConfig.CiWorkflow) (int, *pipelineConfig.CiWorkflow, error) {
-	var err error
-
 	if savedWorkflow.ReferenceCiWorkflowId != 0 {
+		var err error
 		savedWorkflow, err = impl.ciWorkflowRepository.FindById(savedWorkflow.ReferenceCiWorkflowId)
-	}
-	if err != nil {
-		impl.Logger.Errorw("cannot get saved wf", "err", err)
-		return 0, savedWorkflow, err
+		if err != nil {
+			impl.Logger.Errorw("cannot get saved wf", "err", err)
+			return 0, savedWorkflow, err
+		}
 	}
 	retryCount, err := impl.ciWorkflowRepository.FindRetriedWorkflowCountByReferenceId(savedWorkflow.Id)
 	return retryCount, savedWorkflow, err
 }
 
-func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, error) {
+func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus eventProcessorBean.CiCdStatus) (int, bool, error) {
 	workflowName, status, podStatus, message, _, podName := ExtractWorkflowStatus(workflowStatus)
 	if workflowName == "" {
 		impl.Logger.Errorw("extract workflow status, invalid wf name", "workflowName", workflowName, "status", status, "podStatus", podStatus, "message", message)
-		return 0, errors.New("invalid wf name")
+		return 0, false, errors.New("invalid wf name")
 	}
 	workflowId, err := strconv.Atoi(workflowName[:strings.Index(workflowName, "-")])
 	if err != nil {
 		impl.Logger.Errorw("invalid wf status update req", "err", err)
-		return 0, err
+		return 0, false, err
 	}
 
 	savedWorkflow, err := impl.ciWorkflowRepository.FindById(workflowId)
 	if err != nil {
 		impl.Logger.Errorw("cannot get saved wf", "err", err)
-		return 0, err
+		return 0, false, err
 	}
 
 	ciArtifactLocationFormat := impl.config.GetArtifactLocationFormat()
 	ciArtifactLocation := fmt.Sprintf(ciArtifactLocationFormat, savedWorkflow.Id, savedWorkflow.Id)
 
 	if impl.stateChanged(status, podStatus, message, workflowStatus.FinishedAt.Time, savedWorkflow) {
-		if savedWorkflow.Status != cdWorkflow.WorkflowCancel {
+		if !slices.Contains(cdWorkflowBean.WfrTerminalStatusList, savedWorkflow.PodStatus) {
+			savedWorkflow.Message = message
+			if !slices.Contains(cdWorkflowBean.WfrTerminalStatusList, savedWorkflow.Status) {
+				savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
+			}
+		} else {
+			impl.Logger.Warnw("cd stage already in terminal state. skipped message and finishedOn from being updated",
+				"wfId", savedWorkflow.Id, "podStatus", savedWorkflow.PodStatus, "status", savedWorkflow.Status, "message", message, "finishedOn", workflowStatus.FinishedAt.Time)
+		}
+		if savedWorkflow.Status != cdWorkflowBean.WorkflowCancel {
 			savedWorkflow.Status = status
 		}
 		savedWorkflow.PodStatus = podStatus
-		savedWorkflow.Message = message
-		// NOTE: we are doing this for a quick fix where ci pending message become larger than 250 and in db we had set the charter limit to 250
-		if len(message) > 250 {
-			savedWorkflow.Message = message[:250]
-		}
-		if savedWorkflow.ExecutorType == cdWorkflow.WORKFLOW_EXECUTOR_TYPE_SYSTEM && savedWorkflow.Status == cdWorkflow.WorkflowCancel {
+		if savedWorkflow.ExecutorType == cdWorkflowBean.WORKFLOW_EXECUTOR_TYPE_SYSTEM && savedWorkflow.Status == cdWorkflowBean.WorkflowCancel {
 			savedWorkflow.PodStatus = "Failed"
 			savedWorkflow.Message = constants2.TERMINATE_MESSAGE
 		}
-		savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
 		savedWorkflow.Name = workflowName
 		//savedWorkflow.LogLocation = "/ci-pipeline/" + strconv.Itoa(savedWorkflow.CiPipelineId) + "/workflow/" + strconv.Itoa(savedWorkflow.Id) + "/logs" //TODO need to fetch from workflow object
 		//savedWorkflow.LogLocation = logLocation // removed because we are saving log location at trigger
@@ -1222,11 +1226,12 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		err = impl.ciService.UpdateCiWorkflowWithStage(savedWorkflow)
 		if err != nil {
 			impl.Logger.Error("update wf failed for id " + strconv.Itoa(savedWorkflow.Id))
-			return 0, err
+			return savedWorkflow.Id, true, err
 		}
 		impl.sendCIFailEvent(savedWorkflow, status, message)
+		return savedWorkflow.Id, true, nil
 	}
-	return savedWorkflow.Id, nil
+	return savedWorkflow.Id, false, nil
 }
 
 func (impl *CiHandlerImpl) sendCIFailEvent(savedWorkflow *pipelineConfig.CiWorkflow, status, message string) {
@@ -1701,7 +1706,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 						// skip this and process for next ci workflow
 					}
 				}
-				if ciWorkflow.ExecutorType == cdWorkflow.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
+				if ciWorkflow.ExecutorType == cdWorkflowBean.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
 					if wf.Status == string(v1alpha1.WorkflowFailed) {
 						isPodDeleted = true
 					}
@@ -1717,7 +1722,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 			ciWorkflow.Status = "Failed"
 			ciWorkflow.PodStatus = "Failed"
 			if isPodDeleted {
-				ciWorkflow.Message = cdWorkflow.POD_DELETED_MESSAGE
+				ciWorkflow.Message = cdWorkflowBean.POD_DELETED_MESSAGE
 				//error logging handled inside handlePodDeleted
 				impl.handlePodDeleted(ciWorkflow)
 			} else {

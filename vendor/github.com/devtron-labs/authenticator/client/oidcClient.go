@@ -44,9 +44,11 @@ func GetSettings(conf *DexConfig) (*oidc.Settings, error) {
 	settings := &oidc.Settings{
 		URL: conf.Url,
 		OIDCConfig: oidc.OIDCConfig{CLIClientID: conf.DexClientID,
-			ClientSecret: conf.DexClientSecret,
-			Issuer:       proxyUrl,
-			ServerSecret: conf.ServerSecret},
+			ClientSecret:    conf.DexClientSecret,
+			Issuer:          proxyUrl,
+			ServerSecret:    conf.ServerSecret,
+			RequestedScopes: conf.DexScopes,
+		},
 		UserSessionDuration: time.Duration(conf.UserSessionDurationSeconds) * time.Second,
 		AdminPasswordMtime:  conf.AdminPasswordMtime,
 	}
@@ -88,7 +90,8 @@ type DexConfig struct {
 	UserSessionDurationSeconds int       `env:"USER_SESSION_DURATION_SECONDS" envDefault:"86400"`
 	AdminPasswordMtime         time.Time `json:"ADMIN_PASSWORD_MTIME"`
 	DexConfigRaw               string
-	DevtronSecretName          string `env:"DEVTRON_SECRET_NAME" envDefault:"devtron-secret"`
+	DevtronSecretName          string   `env:"DEVTRON_SECRET_NAME" envDefault:"devtron-secret"`
+	DexScopes                  []string `env:"DEX_SCOPES" envDefault:"" envSeparator:","`
 }
 
 func (c *DexConfig) GetDexProxyUrl() (string, error) {

@@ -22,14 +22,15 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils"
 	bean4 "github.com/devtron-labs/common-lib/utils/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
-	cdWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
+	pipelineAdapter "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
+	cdWorkflowBean "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	bean3 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
+	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	util2 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
@@ -38,6 +39,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -54,7 +56,7 @@ import (
 	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
-	util3 "github.com/devtron-labs/devtron/util"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
@@ -69,7 +71,7 @@ const (
 )
 
 type CdHandler interface {
-	UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, string, bool, error)
+	UpdateWorkflow(workflowStatus eventProcessorBean.CiCdStatus) (int, string, bool, error)
 	GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]pipelineBean.CdWorkflowWithArtifact, error)
 	GetRunningWorkflowLogs(environmentId int, pipelineId int, workflowId int) (*bufio.Reader, func() error, error)
 	FetchCdWorkflowDetails(appId int, environmentId int, pipelineId int, buildId int) (types.WorkflowResponse, error)
@@ -226,7 +228,7 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, forceAbort bool, us
 			return 0, err
 		}
 	}
-	workflowRunner.Status = cdWorkflow2.WorkflowCancel
+	workflowRunner.Status = cdWorkflowBean.WorkflowCancel
 	workflowRunner.UpdatedOn = time.Now()
 	workflowRunner.UpdatedBy = userId
 	err = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(workflowRunner)
@@ -238,7 +240,7 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, forceAbort bool, us
 }
 
 func (impl *CdHandlerImpl) updateWorkflowRunnerForForceAbort(workflowRunner *pipelineConfig.CdWorkflowRunner) error {
-	workflowRunner.Status = cdWorkflow2.WorkflowCancel
+	workflowRunner.Status = cdWorkflowBean.WorkflowCancel
 	workflowRunner.PodStatus = string(bean2.Failed)
 	workflowRunner.Message = constants.FORCE_ABORT_MESSAGE_AFTER_STARTING_STAGE
 	err := impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(workflowRunner)
@@ -265,62 +267,69 @@ func (impl *CdHandlerImpl) handleForceAbortCaseForCdStage(workflowRunner *pipeli
 	return nil
 }
 
-func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, string, bool, error) {
-	wfStatusRs := impl.extractWorkfowStatus(workflowStatus)
+func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus eventProcessorBean.CiCdStatus) (int, string, bool, error) {
+	wfStatusRs := impl.extractWorkflowStatus(workflowStatus)
 	workflowName, status, podStatus, message, podName := wfStatusRs.WorkflowName, wfStatusRs.Status, wfStatusRs.PodStatus, wfStatusRs.Message, wfStatusRs.PodName
-	impl.Logger.Debugw("cd update for ", "wf ", workflowName, "status", status)
+	impl.Logger.Debugw("cd workflow status update event for", "wf ", workflowName, "status", status)
 	if workflowName == "" {
 		return 0, "", false, errors.New("invalid wf name")
 	}
 	workflowId, err := strconv.Atoi(workflowName[:strings.Index(workflowName, "-")])
 	if err != nil {
-		impl.Logger.Error("invalid wf status update req", "err", err)
+		impl.Logger.Errorw("invalid wf status update req", "workflowName", workflowName, "err", err)
 		return 0, "", false, err
 	}
 
-	savedWorkflow, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(workflowId)
+	savedWorkflow, err := impl.cdWorkflowRepository.FindPreOrPostCdWorkflowRunnerById(workflowId)
 	if err != nil {
-		impl.Logger.Error("cannot get saved wf", "err", err)
+		impl.Logger.Error("cannot get saved wf", "workflowId", workflowId, "err", err)
 		return 0, "", false, err
 	}
 
 	cdArtifactLocationFormat := impl.config.GetArtifactLocationFormat()
 	cdArtifactLocation := fmt.Sprintf(cdArtifactLocationFormat, savedWorkflow.CdWorkflowId, savedWorkflow.Id)
 	if impl.stateChanged(status, podStatus, message, workflowStatus.FinishedAt.Time, savedWorkflow) {
-		if savedWorkflow.Status != cdWorkflow2.WorkflowCancel {
+		if !slices.Contains(cdWorkflowBean.WfrTerminalStatusList, savedWorkflow.PodStatus) {
+			savedWorkflow.Message = message
+			if !slices.Contains(cdWorkflowBean.WfrTerminalStatusList, savedWorkflow.Status) {
+				savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
+			}
+		} else {
+			impl.Logger.Warnw("cd stage already in terminal state. skipped message and finishedOn from being updated",
+				"wfId", savedWorkflow.Id, "podStatus", savedWorkflow.PodStatus, "status", savedWorkflow.Status, "message", message, "finishedOn", workflowStatus.FinishedAt.Time)
+		}
+		if savedWorkflow.Status != cdWorkflowBean.WorkflowCancel {
 			savedWorkflow.Status = status
 		}
 		savedWorkflow.CdArtifactLocation = cdArtifactLocation
 		savedWorkflow.PodStatus = podStatus
-		savedWorkflow.Message = message
-		savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
 		savedWorkflow.Name = workflowName
 		// removed log location from here since we are saving it at trigger
 		savedWorkflow.PodName = podName
 		savedWorkflow.UpdateAuditLog(1)
-		impl.Logger.Debugw("updating workflow ", "workflow", savedWorkflow)
+		impl.Logger.Debugw("updating cd workflow runner", "workflow", savedWorkflow)
 		err = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(savedWorkflow)
 		if err != nil {
-			impl.Logger.Error("update wf failed for id " + strconv.Itoa(savedWorkflow.Id))
-			return 0, "", true, err
+			impl.Logger.Errorw("update wf failed for id", "wfId", savedWorkflow.Id, "err", err)
+			return savedWorkflow.Id, "", true, err
 		}
 		appId := savedWorkflow.CdWorkflow.Pipeline.AppId
 		envId := savedWorkflow.CdWorkflow.Pipeline.EnvironmentId
 		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
 		if err != nil {
 			impl.Logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
-			return 0, "", true, err
+			return savedWorkflow.Id, savedWorkflow.Status, true, err
 		}
-		util3.TriggerCDMetrics(cdWorkflow.GetTriggerMetricsFromRunnerObj(savedWorkflow, envDeploymentConfig), impl.config.ExposeCDMetrics)
+		globalUtil.TriggerCDMetrics(pipelineAdapter.GetTriggerMetricsFromRunnerObj(savedWorkflow, envDeploymentConfig), impl.config.ExposeCDMetrics)
 		if string(v1alpha1.NodeError) == savedWorkflow.Status || string(v1alpha1.NodeFailed) == savedWorkflow.Status {
-			impl.Logger.Warnw("cd stage failed for workflow: ", "wfId", savedWorkflow.Id)
+			impl.Logger.Warnw("cd stage failed for workflow", "wfId", savedWorkflow.Id)
 		}
 		return savedWorkflow.Id, savedWorkflow.Status, true, nil
 	}
-	return savedWorkflow.Id, savedWorkflow.Status, false, nil
+	return savedWorkflow.Id, status, false, nil
 }
 
-func (impl *CdHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.WorkflowStatus) *types.WorkflowStatus {
+func (impl *CdHandlerImpl) extractWorkflowStatus(workflowStatus eventProcessorBean.CiCdStatus) *types.WorkflowStatus {
 	workflowName := ""
 	status := string(workflowStatus.Phase)
 	podStatus := "Pending"
@@ -557,7 +566,7 @@ func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineC
 	if logStream == nil || err != nil {
 		if !cdWorkflow.BlobStorageEnabled {
 			return nil, nil, errors.New("logs-not-stored-in-repository")
-		} else if string(v1alpha1.NodeSucceeded) == cdWorkflow.Status || string(v1alpha1.NodeError) == cdWorkflow.Status || string(v1alpha1.NodeFailed) == cdWorkflow.Status || cdWorkflow.Status == cdWorkflow2.WorkflowCancel {
+		} else if string(v1alpha1.NodeSucceeded) == cdWorkflow.Status || string(v1alpha1.NodeError) == cdWorkflow.Status || string(v1alpha1.NodeFailed) == cdWorkflow.Status || cdWorkflow.Status == cdWorkflowBean.WorkflowCancel {
 			impl.Logger.Debugw("pod is not live", "podName", cdWorkflow.PodName, "err", err)
 			return impl.getLogsFromRepository(pipelineId, cdWorkflow, clusterConfig, runStageInEnv)
 		}

@@ -17,11 +17,13 @@
 package http
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"github.com/pkg/errors"
-	"io/ioutil"
+	"go.opentelemetry.io/otel"
+	"io"
 	"net/http"
 	"os"
 )
@@ -83,8 +85,10 @@ func CertPoolFromFile(filename string) (*x509.CertPool, error) {
 	return cp, nil
 }
 
-func HttpRequest(url string) (map[string]interface{}, error) {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+func HttpRequest(ctx context.Context, url string) (map[string]interface{}, error) {
+	newCtx, span := otel.Tracer("common").Start(ctx, "http.HttpRequest")
+	defer span.End()
+	req, err := http.NewRequestWithContext(newCtx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +99,7 @@ func HttpRequest(url string) (map[string]interface{}, error) {
 		return nil, err
 	}
 	if res.StatusCode >= 200 && res.StatusCode <= 299 {
-		resBody, err := ioutil.ReadAll(res.Body)
+		resBody, err := io.ReadAll(res.Body)
 		if err != nil {
 			return nil, err
 		}
