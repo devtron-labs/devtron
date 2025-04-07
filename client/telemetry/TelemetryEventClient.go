@@ -78,6 +78,7 @@ type TelemetryEventClientImpl struct {
 	userAttributesRepository       repository.UserAttributesRepository
 	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService
 	telemetryConfig                TelemetryConfig
+	globalEnvVariables             *util.GlobalEnvVariables
 }
 
 type TelemetryEventClient interface {
@@ -96,7 +97,8 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 	serverDataStore *serverDataStore.ServerDataStore, userAuditService user2.UserAuditService,
 	helmAppClient gRPC.HelmAppClient,
 	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService, cronLogger *cron3.CronLoggerImpl,
-	installedAppReadService installedAppReader.InstalledAppReadServiceEA) (*TelemetryEventClientImpl, error) {
+	installedAppReadService installedAppReader.InstalledAppReadServiceEA,
+	envVariables *util.EnvironmentVariables) (*TelemetryEventClientImpl, error) {
 	cron := cron.New(
 		cron.WithChain(cron.Recover(cronLogger)))
 	cron.Start()
@@ -118,6 +120,7 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		installedAppReadService:        installedAppReadService,
 		cloudProviderIdentifierService: cloudProviderIdentifierService,
 		telemetryConfig:                TelemetryConfig{},
+		globalEnvVariables:             envVariables.GlobalEnvVariables,
 	}
 
 	watcher.HeartbeatEventForTelemetry()
@@ -423,7 +426,7 @@ func (impl *TelemetryEventClientImpl) EnqueueGenericPostHogEvent(ucid string, ev
 			impl.PosthogClient.Client = client
 		}
 	}
-	if impl.PosthogClient.Client != nil {
+	if impl.PosthogClient.Client != nil && !impl.globalEnvVariables.IsAirGapEnvironment {
 		err := impl.PosthogClient.Client.Enqueue(posthog.Capture{
 			DistinctId: ucid,
 			Event:      eventType,

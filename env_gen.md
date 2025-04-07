@@ -126,9 +126,11 @@
 | Key   | Type     | Default Value     | Description       | Example       | Deprecated       |
 |-------|----------|-------------------|-------------------|-----------------------|------------------|
  | - |  | |  |  | false |
+ | ADDITIONAL_NODE_GROUP_LABELS |  | | Add comma separated list of additional node group labels to default labels | karpenter.sh/nodepool,cloud.google.com/gke-nodepool | false |
  | APP_SYNC_IMAGE | string |quay.io/devtron/chart-sync:1227622d-132-3775 |  |  | false |
  | APP_SYNC_JOB_RESOURCES_OBJ | string | |  |  | false |
  | APP_SYNC_SERVICE_ACCOUNT | string |chart-sync |  |  | false |
+ | APP_SYNC_SHUTDOWN_WAIT_DURATION | int |120 |  |  | false |
  | ARGO_AUTO_SYNC_ENABLED | bool |true |  |  | false |
  | ARGO_GIT_COMMIT_RETRY_COUNT_ON_CONFLICT | int |3 |  |  | false |
  | ARGO_GIT_COMMIT_RETRY_DELAY_ON_CONFLICT | int |1 |  |  | false |
@@ -189,10 +191,12 @@
  | GRAFANA_USERNAME | string |admin |  |  | false |
  | HIDE_IMAGE_TAGGING_HARD_DELETE | bool |false |  |  | false |
  | IGNORE_AUTOCOMPLETE_AUTH_CHECK | bool |false |  |  | false |
+ | INSTALLED_MODULES |  | | List of installed modules given in helm values/yaml are written in cm and used by devtron to know which modules are given | security.trivy,security.clair | false |
  | INSTALLER_CRD_NAMESPACE | string |devtroncd |  |  | false |
  | INSTALLER_CRD_OBJECT_GROUP_NAME | string |installer.devtron.ai |  |  | false |
  | INSTALLER_CRD_OBJECT_RESOURCE | string |installers |  |  | false |
  | INSTALLER_CRD_OBJECT_VERSION | string |v1alpha1 |  |  | false |
+ | IS_AIR_GAP_ENVIRONMENT | bool |false |  |  | false |
  | JwtExpirationTime | int |120 |  |  | false |
  | K8s_CLIENT_MAX_IDLE_CONNS_PER_HOST | int |25 |  |  | false |
  | K8s_TCP_IDLE_CONN_TIMEOUT | int |300 |  |  | false |

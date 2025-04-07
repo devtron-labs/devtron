@@ -342,7 +342,7 @@ github.com/davecgh/go-spew/spew
 # github.com/deckarep/golang-set v1.8.0
 ## explicit; go 1.17
 github.com/deckarep/golang-set
-# github.com/devtron-labs/authenticator v0.4.35-0.20240809073103-6e11da8083f8 => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250313102545-75df8a5bec13
+# github.com/devtron-labs/authenticator v0.4.35-0.20240809073103-6e11da8083f8 => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250401095543-affde454fe43
 ## explicit; go 1.21
 github.com/devtron-labs/authenticator/apiToken
 github.com/devtron-labs/authenticator/client
@@ -350,7 +350,7 @@ github.com/devtron-labs/authenticator/jwt
 github.com/devtron-labs/authenticator/middleware
 github.com/devtron-labs/authenticator/oidc
 github.com/devtron-labs/authenticator/password
-# github.com/devtron-labs/common-lib v0.18.1-0.20241001061923-eda545dc839e => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250313102545-75df8a5bec13
+# github.com/devtron-labs/common-lib v0.18.1-0.20241001061923-eda545dc839e => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250401095543-affde454fe43
 ## explicit; go 1.21
 github.com/devtron-labs/common-lib/async
 github.com/devtron-labs/common-lib/blob-storage
@@ -383,7 +383,7 @@ github.com/devtron-labs/common-lib/workflow
 # github.com/devtron-labs/go-bitbucket v0.9.60-beta
 ## explicit; go 1.14
 github.com/devtron-labs/go-bitbucket
-# github.com/devtron-labs/protos v0.0.3-0.20240802105333-92ee9bb85d80
+# github.com/devtron-labs/protos v0.0.3-0.20250323220609-ecf8a0f7305e
 ## explicit; go 1.17
 github.com/devtron-labs/protos/gitSensor
 # github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f
@@ -535,12 +535,12 @@ github.com/go-pg/pg/internal/parser
 github.com/go-pg/pg/internal/pool
 github.com/go-pg/pg/orm
 github.com/go-pg/pg/types
-# github.com/go-playground/locales v0.14.0
-## explicit; go 1.13
+# github.com/go-playground/locales v0.14.1
+## explicit; go 1.17
 github.com/go-playground/locales
 github.com/go-playground/locales/currency
-# github.com/go-playground/universal-translator v0.18.0
-## explicit; go 1.13
+# github.com/go-playground/universal-translator v0.18.1
+## explicit; go 1.18
 github.com/go-playground/universal-translator
 # github.com/go-redis/cache/v9 v9.0.0
 ## explicit; go 1.13
@@ -777,11 +777,9 @@ github.com/josharian/intern
 # github.com/json-iterator/go v1.1.12
 ## explicit; go 1.12
 github.com/json-iterator/go
-# github.com/juju/errors v0.0.0-20200330140219-3fe23663418f
-## explicit
+# github.com/juju/errors v1.0.0
+## explicit; go 1.18
 github.com/juju/errors
-# github.com/juju/testing v0.0.0-20210324180055-18c50b0c2098
-## explicit; go 1.14
 # github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 ## explicit
 github.com/kballard/go-shellquote
@@ -792,9 +790,10 @@ github.com/kevinburke/ssh_config
 ## explicit; go 1.18
 github.com/klauspost/compress/flate
 github.com/klauspost/compress/s2
-# github.com/leodido/go-urn v1.2.0
-## explicit; go 1.13
+# github.com/leodido/go-urn v1.4.0
+## explicit; go 1.18
 github.com/leodido/go-urn
+github.com/leodido/go-urn/scim/schema
 # github.com/lib/pq v1.10.9
 ## explicit; go 1.13
 github.com/lib/pq
@@ -903,8 +902,8 @@ github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 ## explicit
 github.com/pmezard/go-difflib/difflib
-# github.com/posthog/posthog-go v0.0.0-20210610161230-cd4408afb35a
-## explicit; go 1.15
+# github.com/posthog/posthog-go v1.4.1
+## explicit; go 1.18
 github.com/posthog/posthog-go
 # github.com/prometheus/client_golang v1.18.0
 ## explicit; go 1.19
@@ -1029,9 +1028,6 @@ github.com/xeipuuv/gojsonschema
 # github.com/xlab/treeprint v1.2.0
 ## explicit; go 1.13
 github.com/xlab/treeprint
-# github.com/xtgo/uuid v0.0.0-20140804021211-a0b114877d4c
-## explicit
-github.com/xtgo/uuid
 # github.com/yannh/kubeconform v0.5.0
 ## explicit; go 1.17
 github.com/yannh/kubeconform/pkg/cache
@@ -1436,9 +1432,7 @@ google.golang.org/protobuf/types/known/wrapperspb
 # gopkg.in/evanphx/json-patch.v4 v4.12.0
 ## explicit
 gopkg.in/evanphx/json-patch.v4
-# gopkg.in/go-playground/assert.v1 v1.2.1
-## explicit
-# gopkg.in/go-playground/validator.v9 v9.30.0
+# gopkg.in/go-playground/validator.v9 v9.31.0
 ## explicit
 gopkg.in/go-playground/validator.v9
 # gopkg.in/igm/sockjs-go.v3 v3.0.0
@@ -2226,8 +2220,8 @@ xorm.io/xorm/log
 xorm.io/xorm/names
 xorm.io/xorm/schemas
 xorm.io/xorm/tags
-# github.com/devtron-labs/authenticator => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250313102545-75df8a5bec13
-# github.com/devtron-labs/common-lib => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250313102545-75df8a5bec13
+# github.com/devtron-labs/authenticator => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250401095543-affde454fe43
+# github.com/devtron-labs/common-lib => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250401095543-affde454fe43
 # github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 # github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.5.5
 # k8s.io/api => k8s.io/api v0.29.7

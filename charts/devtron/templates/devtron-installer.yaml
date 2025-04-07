@@ -8,10 +8,14 @@ metadata:
   name: installer-devtron
   namespace: devtroncd
 spec:
+  {{- if $.Values.devtronEnterprise.enabled }}
+  url: https://raw.githubusercontent.com/{{ $.Values.installer.repo }}/refs/tags/devtron-enterprise-{{ $.Values.installer.release }}/charts/devtron-enterprise/installation-script
+  {{- else }}
   {{- if or (eq $.Values.installer.source "gitee") (eq $.Values.installer.source "Gitee")}}
   url: https://gitee.com/{{ $.Values.installer.repo }}/raw/{{ $.Values.installer.release }}/manifests/installation-script
   {{- else }}
   url: https://raw.githubusercontent.com/{{ $.Values.installer.repo }}/{{ $.Values.installer.release }}/manifests/installation-script
+  {{- end }}
   {{- end }}
   reSync: true
 {{- end }}
