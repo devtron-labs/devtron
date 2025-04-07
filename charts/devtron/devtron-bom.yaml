@@ -66,6 +66,7 @@ components:
     registry: ""
     image: "kubelink:ccd98a22-564-31008"
     imagePullPolicy: IfNotPresent
+    healthPort: 50052
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
       USE_CUSTOM_HTTP_TRANSPORT: "true"
@@ -88,7 +89,6 @@ components:
       allowPrivilegeEscalation: false
       runAsNonRoot: true
       runAsUser: 1001
-    healthPort: 50052
   kubewatch:
     registry: ""
     image: "kubewatch:34abb17d-419-31007"
