@@ -32,7 +32,7 @@ const (
 )
 
 const (
-	DevtronAdministratorInstanceLabelKey = "devtron.ai/administrator-instance"
+	DevtronOwnerInstanceLabelKey = "devtron.ai/owner-instance"
 )
 
 const (

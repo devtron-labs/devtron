@@ -20,7 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/client/telemetry/posthog"
+	posthogTelemetry "github.com/devtron-labs/common-lib/telemetry"
 	"net/http"
 	"os"
 	"time"
@@ -41,14 +41,14 @@ type App struct {
 	Logger         *zap.SugaredLogger
 	server         *http.Server
 	telemetry      telemetry.TelemetryEventClient
-	posthogClient  *posthog.PosthogClient
+	posthogClient  *posthogTelemetry.PosthogClient
 }
 
 func NewApp(db *pg.DB,
 	sessionManager *authMiddleware.SessionManager,
 	MuxRouter *MuxRouter,
 	telemetry telemetry.TelemetryEventClient,
-	posthogClient *posthog.PosthogClient,
+	posthogClient *posthogTelemetry.PosthogClient,
 	Logger *zap.SugaredLogger) *App {
 	return &App{
 		db:             db,

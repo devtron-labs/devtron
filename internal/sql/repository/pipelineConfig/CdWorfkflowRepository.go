@@ -458,7 +458,6 @@ func (impl *CdWorkflowRepositoryImpl) SaveWorkFlowRunnerWithTx(wfr *CdWorkflowRu
 }
 
 func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunnerWithTx(wfr *CdWorkflowRunner, tx *pg.Tx) error {
-	wfr.Message = util.GetTruncatedMessage(wfr.Message, 1000)
 	err := tx.Update(wfr)
 	return err
 }

@@ -22,6 +22,7 @@ package main
 import (
 	"github.com/devtron-labs/authenticator/middleware"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
+	posthogTelemetry "github.com/devtron-labs/common-lib/telemetry"
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	"github.com/devtron-labs/devtron/api/appStore"
@@ -60,7 +61,6 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/telemetry"
-	"github.com/devtron-labs/devtron/client/telemetry/posthog"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
@@ -133,7 +133,7 @@ func InitializeApp() (*App, error) {
 		util.NewSugardLogger,
 		util.IntValidator,
 		util2.GetACDAuthConfig,
-		posthog.NewPosthogClient,
+		posthogTelemetry.NewPosthogClient,
 		ucid.WireSet,
 		delete2.NewDeleteServiceImpl,
 		gitMaterial.GitMaterialWireSet,

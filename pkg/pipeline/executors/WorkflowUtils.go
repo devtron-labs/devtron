@@ -298,10 +298,10 @@ func CheckIfReTriggerRequired(status, message, workflowRunnerStatus string) bool
 
 func GetWorkflowLabelsForSystemExecutor(workflowTemplate bean.WorkflowTemplate) map[string]string {
 	return map[string]string{
-		DEVTRON_WORKFLOW_LABEL_KEY:                        DEVTRON_WORKFLOW_LABEL_VALUE,
-		bean.DevtronLabelPurposeKey:                       bean.DevtronLabelPurposeWorkflow,
-		informerBean.WorkflowTypeLabelKey:                 workflowTemplate.WorkflowType,
-		bean.WorkflowGenerateNamePrefix:                   workflowTemplate.WorkflowNamePrefix,
-		informerBean.DevtronAdministratorInstanceLabelKey: workflowTemplate.DevtronInstanceUID,
+		DEVTRON_WORKFLOW_LABEL_KEY:                DEVTRON_WORKFLOW_LABEL_VALUE,
+		bean.DevtronLabelPurposeKey:               bean.DevtronLabelPurposeWorkflow,
+		informerBean.WorkflowTypeLabelKey:         workflowTemplate.WorkflowType,
+		bean.WorkflowGenerateNamePrefix:           workflowTemplate.WorkflowNamePrefix,
+		informerBean.DevtronOwnerInstanceLabelKey: workflowTemplate.DevtronInstanceUID,
 	}
 }

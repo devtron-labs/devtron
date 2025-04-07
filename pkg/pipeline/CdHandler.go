@@ -291,10 +291,6 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus eventProcessorBean.CiCd
 	if impl.stateChanged(status, podStatus, message, workflowStatus.FinishedAt.Time, savedWorkflow) {
 		if !slices.Contains(cdWorkflowBean.WfrTerminalStatusList, savedWorkflow.PodStatus) {
 			savedWorkflow.Message = message
-			// NOTE: we are doing this to fix where a pre-cd / post-cd workflow message becomes larger than 1000, and in db we had set the charter limit to 1000
-			if len(message) > 1000 {
-				savedWorkflow.Message = message[:1000]
-			}
 			if !slices.Contains(cdWorkflowBean.WfrTerminalStatusList, savedWorkflow.Status) {
 				savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
 			}

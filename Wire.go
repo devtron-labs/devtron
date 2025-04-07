@@ -22,7 +22,8 @@ package main
 import (
 	"github.com/devtron-labs/authenticator/middleware"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
-	pubsub1 "github.com/devtron-labs/common-lib/pubsub-lib"
+	pubSub "github.com/devtron-labs/common-lib/pubsub-lib"
+	posthogTelemetry "github.com/devtron-labs/common-lib/telemetry"
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	appStoreRestHandler "github.com/devtron-labs/devtron/api/appStore"
@@ -97,7 +98,6 @@ import (
 	"github.com/devtron-labs/devtron/client/lens"
 	"github.com/devtron-labs/devtron/client/proxy"
 	"github.com/devtron-labs/devtron/client/telemetry"
-	"github.com/devtron-labs/devtron/client/telemetry/posthog"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appStatusRepo "github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
@@ -502,7 +502,7 @@ func InitializeApp() (*App, error) {
 		pipeline.NewCiLogServiceImpl,
 		wire.Bind(new(pipeline.CiLogService), new(*pipeline.CiLogServiceImpl)),
 
-		pubsub1.NewPubSubClientServiceImpl,
+		pubSub.NewPubSubClientServiceImpl,
 
 		rbac.NewEnforcerUtilImpl,
 		wire.Bind(new(rbac.EnforcerUtil), new(*rbac.EnforcerUtilImpl)),
@@ -694,7 +694,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.TelemetryRouter), new(*router.TelemetryRouterImpl)),
 		restHandler.NewTelemetryRestHandlerImpl,
 		wire.Bind(new(restHandler.TelemetryRestHandler), new(*restHandler.TelemetryRestHandlerImpl)),
-		posthog.NewPosthogClient,
+		posthogTelemetry.NewPosthogClient,
 		ucid.WireSet,
 
 		cloudProviderIdentifier.NewProviderIdentifierServiceImpl,

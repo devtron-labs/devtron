@@ -81,9 +81,9 @@ func (workflowTemplate *WorkflowTemplate) SetActiveDeadlineSeconds(timeout int64
 
 func (workflowTemplate *WorkflowTemplate) CreateObjectMetadata() *v12.ObjectMeta {
 	workflowLabels := map[string]string{
-		WorkflowGenerateNamePrefix:                        workflowTemplate.WorkflowNamePrefix,
-		informerBean.WorkflowTypeLabelKey:                 workflowTemplate.WorkflowType,
-		informerBean.DevtronAdministratorInstanceLabelKey: workflowTemplate.DevtronInstanceUID,
+		WorkflowGenerateNamePrefix:                workflowTemplate.WorkflowNamePrefix,
+		informerBean.WorkflowTypeLabelKey:         workflowTemplate.WorkflowType,
+		informerBean.DevtronOwnerInstanceLabelKey: workflowTemplate.DevtronInstanceUID,
 	}
 	switch workflowTemplate.WorkflowType {
 	case CI_WORKFLOW_NAME:

@@ -20,9 +20,9 @@ import (
 	"context"
 	"encoding/json"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
+	posthogTelemetry "github.com/devtron-labs/common-lib/telemetry"
 	util2 "github.com/devtron-labs/common-lib/utils/k8s"
 	client "github.com/devtron-labs/devtron/api/helm-app/gRPC"
-	posthogClient "github.com/devtron-labs/devtron/client/telemetry/posthog"
 	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
 	"github.com/devtron-labs/devtron/pkg/auth/sso"
 	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
@@ -74,7 +74,7 @@ type TelemetryEventClientImplExtended struct {
 func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
 	K8sUtil *util2.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig,
 	environmentService environment.EnvironmentService, userService user2.UserService,
-	appListingRepository repository.AppListingRepository, posthog *posthogClient.PosthogClient, ucid ucidService.Service,
+	appListingRepository repository.AppListingRepository, posthog *posthogTelemetry.PosthogClient, ucid ucidService.Service,
 	ciPipelineConfigReadService ciConfig.CiPipelineConfigReadService, pipelineRepository pipelineConfig.PipelineRepository,
 	gitProviderRepository repository3.GitProviderRepository, attributeRepo repository.AttributesRepository,
 	ssoLoginService sso.SSOLoginService, appRepository app.AppRepository,
@@ -129,13 +129,13 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	}
 
 	watcher.HeartbeatEventForTelemetry()
-	_, err := cron.AddFunc(posthogClient.SummaryCronExpr, watcher.SummaryEventForTelemetry)
+	_, err := cron.AddFunc(posthogTelemetry.SummaryCronExpr, watcher.SummaryEventForTelemetry)
 	if err != nil {
 		logger.Errorw("error in starting summery event", "err", err)
 		return nil, err
 	}
 
-	_, err = cron.AddFunc(posthogClient.HeartbeatCronExpr, watcher.HeartbeatEventForTelemetry)
+	_, err = cron.AddFunc(posthogTelemetry.HeartbeatCronExpr, watcher.HeartbeatEventForTelemetry)
 	if err != nil {
 		logger.Errorw("error in starting heartbeat event", "err", err)
 		return nil, err
@@ -158,7 +158,7 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 		return err
 	}
 
-	if posthogClient.IsOptOut {
+	if posthogTelemetry.IsOptOut {
 		impl.logger.Warnw("client is opt-out for telemetry, there will be no events capture", "ucid", ucid)
 		return err
 	}

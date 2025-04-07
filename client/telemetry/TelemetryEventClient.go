@@ -22,9 +22,9 @@ import (
 	"encoding/json"
 	"fmt"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
+	posthogTelemetry "github.com/devtron-labs/common-lib/telemetry"
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
-	posthogClient "github.com/devtron-labs/devtron/client/telemetry/posthog"
 	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
 	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
@@ -63,7 +63,7 @@ type TelemetryEventClientImpl struct {
 	userService                    user2.UserService
 	attributeRepo                  repository.AttributesRepository
 	ssoLoginService                sso.SSOLoginService
-	posthogClient                  *posthogClient.PosthogClient
+	posthogClient                  *posthogTelemetry.PosthogClient
 	ucid                           ucidService.Service
 	moduleRepository               moduleRepo.ModuleRepository
 	serverDataStore                *serverDataStore.ServerDataStore
@@ -88,7 +88,7 @@ type TelemetryEventClient interface {
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
 	K8sUtil *k8s.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig, userService user2.UserService,
 	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService,
-	posthog *posthogClient.PosthogClient, ucid ucidService.Service,
+	posthog *posthogTelemetry.PosthogClient, ucid ucidService.Service,
 	moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore,
 	userAuditService user2.UserAuditService, helmAppClient gRPC.HelmAppClient,
 	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService, cronLogger *cron3.CronLoggerImpl,
@@ -120,13 +120,13 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 	}
 
 	watcher.HeartbeatEventForTelemetry()
-	_, err := cron.AddFunc(posthogClient.SummaryCronExpr, watcher.SummaryEventForTelemetryEA)
+	_, err := cron.AddFunc(posthogTelemetry.SummaryCronExpr, watcher.SummaryEventForTelemetryEA)
 	if err != nil {
 		logger.Errorw("error in starting summery event", "err", err)
 		return nil, err
 	}
 
-	_, err = cron.AddFunc(posthogClient.HeartbeatCronExpr, watcher.HeartbeatEventForTelemetry)
+	_, err = cron.AddFunc(posthogTelemetry.HeartbeatCronExpr, watcher.HeartbeatEventForTelemetry)
 	if err != nil {
 		logger.Errorw("error in starting heartbeat event", "err", err)
 		return nil, err
@@ -275,7 +275,7 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 		return err
 	}
 
-	if posthogClient.IsOptOut {
+	if posthogTelemetry.IsOptOut {
 		impl.logger.Warnw("client is opt-out for telemetry, there will be no events capture", "ucid", ucid)
 		return err
 	}
@@ -353,7 +353,7 @@ func (impl *TelemetryEventClientImpl) SendGenericTelemetryEvent(eventType string
 		return nil
 	}
 
-	if posthogClient.IsOptOut {
+	if posthogTelemetry.IsOptOut {
 		impl.logger.Warnw("client is opt-out for telemetry, there will be no events capture", "ucid", ucid)
 		return nil
 	}
@@ -364,7 +364,7 @@ func (impl *TelemetryEventClientImpl) SendGenericTelemetryEvent(eventType string
 func (impl *TelemetryEventClientImpl) EnqueueGenericPostHogEvent(ucid string, eventType string, prop map[string]interface{}) error {
 	if impl.posthogClient.Client == nil {
 		impl.logger.Warn("no posthog client found, creating new")
-		client, err := impl.retryPosthogClient(posthogClient.PosthogApiKey, posthogClient.PosthogEndpoint)
+		client, err := impl.retryPosthogClient(posthogTelemetry.PosthogApiKey, posthogTelemetry.PosthogEndpoint)
 		if err == nil {
 			impl.posthogClient.Client = client
 		}
@@ -389,7 +389,7 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 		impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
 		return
 	}
-	if posthogClient.IsOptOut {
+	if posthogTelemetry.IsOptOut {
 		impl.logger.Warnw("client is opt-out for telemetry, there will be no events capture", "ucid", ucid)
 		return
 	}
@@ -437,9 +437,9 @@ func (impl *TelemetryEventClientImpl) GetTelemetryMetaInfo() (*TelemetryMetaInfo
 		return nil, err
 	}
 	data := &TelemetryMetaInfo{
-		Url:    posthogClient.PosthogEndpoint,
+		Url:    posthogTelemetry.PosthogEndpoint,
 		UCID:   ucid,
-		ApiKey: posthogClient.PosthogEncodedApiKey,
+		ApiKey: posthogTelemetry.PosthogEncodedApiKey,
 	}
 	return data, err
 }
@@ -668,7 +668,7 @@ func (impl *TelemetryEventClientImpl) getUCIDAndCheckIsOptedOut(ctx context.Cont
 			impl.logger.Errorw("error sending event to posthog, failed check for opt-out", "err", err)
 			return "", err
 		}
-		posthogClient.IsOptOut = flag
+		posthogTelemetry.IsOptOut = flag
 	}
 	return ucid, nil
 }
@@ -676,7 +676,7 @@ func (impl *TelemetryEventClientImpl) getUCIDAndCheckIsOptedOut(ctx context.Cont
 func (impl *TelemetryEventClientImpl) checkForOptOut(ctx context.Context, UCID string) (bool, error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TelemetryEventClientImpl.checkForOptOut")
 	defer span.End()
-	decodedUrl, err := base64.StdEncoding.DecodeString(posthogClient.TelemetryOptOutApiBaseUrl)
+	decodedUrl, err := base64.StdEncoding.DecodeString(posthogTelemetry.TelemetryOptOutApiBaseUrl)
 	if err != nil {
 		impl.logger.Errorw("check opt-out list failed, decode error", "err", err)
 		return false, err
