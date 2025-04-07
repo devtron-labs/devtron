@@ -85,7 +85,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	ciBuildConfigService pipeline.CiBuildConfigService, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore,
 	helmAppClient client.HelmAppClient, installedAppReadService installedAppReader.InstalledAppReadService, userAttributesRepository repository.UserAttributesRepository,
 	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService, cronLogger *cron3.CronLoggerImpl,
-	gitOpsConfigReadService config.GitOpsConfigReadService) (*TelemetryEventClientImplExtended, error) {
+	gitOpsConfigReadService config.GitOpsConfigReadService, envVariables *util.EnvironmentVariables) (*TelemetryEventClientImplExtended, error) {
 
 	cron := cron.New(
 		cron.WithChain(cron.Recover(cronLogger)))
@@ -125,6 +125,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 			userAttributesRepository:       userAttributesRepository,
 			cloudProviderIdentifierService: cloudProviderIdentifierService,
 			telemetryConfig:                TelemetryConfig{},
+			globalEnvVariables:             envVariables.GlobalEnvVariables,
 		},
 	}
 

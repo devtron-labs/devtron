@@ -39,6 +39,8 @@ func NewUserAttributesRouterImpl(userAttributesRestHandler user.UserAttributesRe
 func (router UserAttributesRouterImpl) InitUserAttributesRouter(attributesRouter *mux.Router) {
 	attributesRouter.Path("/update").
 		HandlerFunc(router.userAttributesRestHandler.UpdateUserAttributes).Methods("POST")
+	attributesRouter.Path("/patch").
+		HandlerFunc(router.userAttributesRestHandler.PatchUserAttributes).Methods("PATCH")
 	attributesRouter.Path("/get").
 		HandlerFunc(router.userAttributesRestHandler.GetUserAttribute).Queries("key", "{key}").Methods("GET")
 }
