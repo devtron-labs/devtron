@@ -31,6 +31,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	"github.com/devtron-labs/devtron/pkg/pipeline/draftAwareConfigService"
 	validator2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/validator"
 	security2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/read"
@@ -138,6 +139,7 @@ type PipelineConfigRestHandlerImpl struct {
 	teamReadService                     read3.TeamReadService
 	environmentRepository               repository2.EnvironmentRepository
 	chartReadService                    read5.ChartReadService
+	draftAwareResourceService           draftAwareConfigService.DraftAwareConfigService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -171,7 +173,9 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	gitProviderReadService gitProviderRead.GitProviderReadService,
 	teamReadService read3.TeamReadService,
 	EnvironmentRepository repository2.EnvironmentRepository,
-	chartReadService read5.ChartReadService) *PipelineConfigRestHandlerImpl {
+	chartReadService read5.ChartReadService,
+	draftAwareResourceService draftAwareConfigService.DraftAwareConfigService,
+) *PipelineConfigRestHandlerImpl {
 	envConfig := &PipelineRestHandlerEnvConfig{}
 	err := env.Parse(envConfig)
 	if err != nil {
@@ -213,6 +217,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		teamReadService:                     teamReadService,
 		environmentRepository:               EnvironmentRepository,
 		chartReadService:                    chartReadService,
+		draftAwareResourceService:           draftAwareResourceService,
 	}
 }
 
