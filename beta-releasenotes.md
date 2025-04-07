@@ -9,6 +9,7 @@
 - feat: licensing changes (#6474)
 ## Documentation
 ## Others
+- misc: patch api for user attribute (#6490)
 - chore: nil implementations fixed for user attribute in telemetry (#6497)
 - chore: code restructuring (#6476)
 - sync: main changes synced into develop (#6492)
