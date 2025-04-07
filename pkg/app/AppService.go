@@ -29,7 +29,7 @@ import (
 	internalUtil "github.com/devtron-labs/devtron/internal/util"
 	bean3 "github.com/devtron-labs/devtron/pkg/app/bean"
 	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
-	"github.com/devtron-labs/devtron/pkg/coreEntities/argoApplication/helper"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/helper"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
