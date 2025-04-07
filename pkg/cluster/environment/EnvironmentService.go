@@ -122,8 +122,8 @@ func (impl EnvironmentServiceImpl) GetDataSourceName(environment string) (DataSo
 			impl.logger.Errorw("error in fetching datasource", "err", err)
 			return datasource, err
 		}
-		datasource.Name = data.Name
-		datasource.Id = model.GrafanaDatasourceId
+		datasource.name = data.Name
+		datasource.id = model.GrafanaDatasourceId
 		return datasource, nil
 	}
 }
