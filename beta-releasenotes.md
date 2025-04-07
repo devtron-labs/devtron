@@ -6,6 +6,7 @@
 - fix: optimisation in workflow status api (#6473)
 - fix: let user delete the container reg if the ref app was deleted (#6464)
 ## Enhancements
+- feat: Config Approval bypass v1 (for cm, cs and deployment template) (#6493)
 - feat: licensing changes (#6474)
 ## Documentation
 ## Others
