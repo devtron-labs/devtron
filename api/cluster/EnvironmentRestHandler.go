@@ -51,6 +51,7 @@ const ENV_DELETE_SUCCESS_RESP = "Environment deleted successfully."
 type EnvironmentRestHandler interface {
 	Create(w http.ResponseWriter, r *http.Request)
 	Get(w http.ResponseWriter, r *http.Request)
+	GetDataSourceName(w http.ResponseWriter, r *http.Request)
 	GetAll(w http.ResponseWriter, r *http.Request)
 	GetAllActive(w http.ResponseWriter, r *http.Request)
 	Update(w http.ResponseWriter, r *http.Request)
@@ -165,6 +166,19 @@ func (impl EnvironmentRestHandlerImpl) Get(w http.ResponseWriter, r *http.Reques
 	//RBAC enforcer Ends
 
 	common.WriteJsonResp(w, err, bean, http.StatusOK)
+}
+
+func (impl EnvironmentRestHandlerImpl) GetDataSourceName(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	environment := vars["environment"]
+
+	name, err := impl.environmentClusterMappingsService.GetDataSourceName(environment)
+	if err != nil {
+		impl.logger.Errorw("service err, Get", "err", err, "env", environment)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, name, http.StatusOK)
 }
 
 func (impl EnvironmentRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request) {
