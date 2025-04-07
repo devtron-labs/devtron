@@ -16,8 +16,8 @@ type PipelineConfigRepository struct {
 	mock.Mock
 }
 
-// Delete provides a mock function with given fields: pipelineStrategy, tx
-func (_m *PipelineConfigRepository) Delete(pipelineStrategy *chartConfig.PipelineStrategy, tx *pg.Tx) error {
+// MarkAsDeleted provides a mock function with given fields: pipelineStrategy, tx
+func (_m *PipelineConfigRepository) MarkAsDeleted(pipelineStrategy *chartConfig.PipelineStrategy, userId int32, tx *pg.Tx) error {
 	ret := _m.Called(pipelineStrategy, tx)
 
 	var r0 error

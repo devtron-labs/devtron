@@ -110,7 +110,7 @@ func Test_transformStrategy(t *testing.T) {
 			},
 				bean.Strategy{
 					DeploymentTemplate: "RECREATE",
-					Config:             []byte("{}"),
+					Config:             globalUtil.GetEmptyJSON(),
 					Default:            false,
 				}},
 			wantErr: false,
