@@ -46,7 +46,7 @@ import (
 
 type EnvironmentService interface {
 	FindOne(environment string) (*bean2.EnvironmentBean, error)
-	GetDataSourceName(environment string) (string, error)
+	GetDataSourceName(environment string) (dataSourceData DataSourceMetaData, err error)
 	Create(mappings *bean2.EnvironmentBean, userId int32) (*bean2.EnvironmentBean, error)
 	Update(mappings *bean2.EnvironmentBean, userId int32) (*bean2.EnvironmentBean, error)
 	GetAllActive() ([]bean2.EnvironmentBean, error)
@@ -106,23 +106,31 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 	}
 }
 
-func (impl EnvironmentServiceImpl) GetDataSourceName(environment string) (string, error) {
+func (impl EnvironmentServiceImpl) GetDataSourceName(environment string) (DataSourceMetaData, error) {
+	datasource := DataSourceMetaData{}
 	model, err := impl.environmentRepository.FindOne(environment)
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment", "err", err)
-		return "", err
+		return datasource, err
 	}
 	if model.GrafanaDatasourceId == 0 {
-		return "", fmt.Errorf("prometheus endpoint not found")
+		return datasource, fmt.Errorf("prometheus endpoint not found")
 	} else {
 		impl.logger.Debugw("environment datasource name", "datasource", model.GrafanaDatasourceId)
-		datasource, err := impl.grafanaClient.GetDatasource(model.GrafanaDatasourceId)
+		data, err := impl.grafanaClient.GetDatasource(model.GrafanaDatasourceId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching datasource", "err", err)
-			return "", err
+			return datasource, err
 		}
-		return datasource.Name, nil
+		datasource.Name = data.Name
+		datasource.Id = model.GrafanaDatasourceId
+		return datasource, nil
 	}
+}
+
+type DataSourceMetaData struct {
+	Id   int
+	Name string
 }
 
 func (impl EnvironmentServiceImpl) Create(mappings *bean2.EnvironmentBean, userId int32) (*bean2.EnvironmentBean, error) {
