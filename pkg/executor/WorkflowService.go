@@ -70,9 +70,9 @@ type WorkflowServiceImpl struct {
 	globalCMCSService      pipeline.GlobalCMCSService
 	argoWorkflowExecutor   executors.ArgoWorkflowExecutor
 	systemWorkflowExecutor executors.SystemWorkflowExecutor
-	k8sUtil                *k8s.K8sServiceImpl
 	k8sCommonService       k8s2.K8sCommonService
 	infraProvider          infraProviders.InfraProvider
+	k8sUtil                *k8s.K8sServiceImpl
 }
 
 // TODO: Move to bean
@@ -83,10 +83,11 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger,
 	configMapService read.ConfigReadService,
 	globalCMCSService pipeline.GlobalCMCSService,
 	argoWorkflowExecutor executors.ArgoWorkflowExecutor,
-	k8sUtil *k8s.K8sServiceImpl,
 	systemWorkflowExecutor executors.SystemWorkflowExecutor,
 	k8sCommonService k8s2.K8sCommonService,
-	infraProvider infraProviders.InfraProvider) (*WorkflowServiceImpl, error) {
+	infraProvider infraProviders.InfraProvider,
+	k8sUtil *k8s.K8sServiceImpl,
+) (*WorkflowServiceImpl, error) {
 	commonWorkflowService := &WorkflowServiceImpl{
 		Logger:                 Logger,
 		ciCdConfig:             ciCdConfig,
@@ -110,9 +111,6 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger,
 
 const (
 	CI_NODE_SELECTOR_APP_LABEL_KEY = "devtron.ai/node-selector"
-
-	preCdStage  = "preCD"
-	postCdStage = "postCD"
 )
 
 func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *types.WorkflowRequest) (*unstructured.UnstructuredList, string, error) {
@@ -120,13 +118,16 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *types.WorkflowR
 	if err != nil {
 		return nil, "", err
 	}
-	workflowExecutor := impl.getWorkflowExecutor(workflowRequest.WorkflowExecutor)
-	if workflowExecutor == nil {
-		return nil, "", errors.New("workflow executor not found")
+	var createdWf *unstructured.UnstructuredList
+	canExecuteWorkflow, jobHelmChartPath, err := impl.checkIfCanExecuteWorkflowAndHandleVirtualExec(workflowRequest, workflowTemplate)
+	if canExecuteWorkflow {
+		workflowExecutor := impl.getWorkflowExecutor(workflowRequest.WorkflowExecutor)
+		if workflowExecutor == nil {
+			return nil, "", errors.New("workflow executor not found")
+		}
+		createdWf, err = workflowExecutor.ExecuteWorkflow(workflowTemplate)
 	}
-	createdWf, err := workflowExecutor.ExecuteWorkflow(workflowTemplate)
-	jobHelmPackagePath := "" // due to ENT
-	return createdWf, jobHelmPackagePath, err
+	return createdWf, jobHelmChartPath, err
 }
 
 func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.WorkflowRequest) (bean3.WorkflowTemplate, error) {
@@ -142,6 +143,11 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 		return bean3.WorkflowTemplate{}, err
 	}
 
+	workflowTemplate, err = impl.updateWorkflowTemplateWithLabels(workflowRequest, workflowTemplate)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while updating workflow template with labels", "err", err)
+		return bean3.WorkflowTemplate{}, err
+	}
 	workflowRequest.AddNodeConstraintsFromConfig(&workflowTemplate, impl.ciCdConfig)
 	infraConfiguration := &v1.InfraConfig{}
 	shouldAddExistingCmCsInWorkflow := impl.shouldAddExistingCmCsInWorkflow(workflowRequest)
