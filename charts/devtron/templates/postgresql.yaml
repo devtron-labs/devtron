@@ -145,7 +145,7 @@ spec:
           {{- toYaml .resources | nindent 12 }}
           {{- end }}
           ports:
-            - name: postgres
+            - name: tcp-postgresql
               containerPort: 5432
               protocol: TCP
           env:

@@ -182,7 +182,7 @@ components:
   postgres:
     registry: ""
     image: "postgres:11.9.0-debian-10-r26"
-    armImage: "postgres:14"
+    armImage: "postgres:14.9"
     initImage: "minideb:latest"
     imagePullPolicy: "IfNotPresent"
     metrics:
