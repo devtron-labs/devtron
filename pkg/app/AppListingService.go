@@ -73,6 +73,7 @@ type AppListingService interface {
 
 	FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*AppView.AppEnvironmentContainer, int, error)
 	FetchOverviewAppsByEnvironment(envId, limit, offset int) (*OverviewAppsByEnvironmentBean, error)
+	FetchAppsEnvContainers(envId, limit, offset int, appIds []int) ([]*AppView.AppEnvironmentContainer, error)
 }
 
 const (

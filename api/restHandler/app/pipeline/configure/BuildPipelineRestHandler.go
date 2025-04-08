@@ -77,6 +77,7 @@ type DevtronAppBuildRestHandler interface {
 	CancelWorkflow(w http.ResponseWriter, r *http.Request)
 
 	UpdateBranchCiPipelinesWithRegex(w http.ResponseWriter, r *http.Request)
+	GetAppMetadataListByEnvironment(w http.ResponseWriter, r *http.Request)
 	GetCiPipelineByEnvironment(w http.ResponseWriter, r *http.Request)
 	GetCiPipelineByEnvironmentMin(w http.ResponseWriter, r *http.Request)
 	GetExternalCiByEnvironment(w http.ResponseWriter, r *http.Request)
@@ -2293,4 +2294,74 @@ func (handler *PipelineConfigRestHandlerImpl) GetSourceCiDownStreamInfo(w http.R
 		return
 	}
 	common.WriteJsonResp(w, err, linkedCIDetails, http.StatusOK)
+}
+
+func (handler *PipelineConfigRestHandlerImpl) GetAppMetadataListByEnvironment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	token := r.Header.Get("token")
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		handler.Logger.Errorw("request err, GetAppMetadataListByEnvironment", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	v := r.URL.Query()
+	appIdsString := v.Get("appIds")
+	var appIds []int
+	if len(appIdsString) > 0 {
+		appIdsSlices := strings.Split(appIdsString, ",")
+		for _, appId := range appIdsSlices {
+			id, err := strconv.Atoi(appId)
+			if err != nil {
+				common.WriteJsonResp(w, err, "please provide valid appIds", http.StatusBadRequest)
+				return
+			}
+			appIds = append(appIds, id)
+		}
+	}
+
+	resp, err := handler.pipelineBuilder.GetAppMetadataListByEnvironment(envId, appIds)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetAppMetadataListByEnvironment", "err", err, "envId", envId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	// return all if user is super admin
+	if isActionUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); isActionUserSuperAdmin {
+		common.WriteJsonResp(w, err, resp, http.StatusOK)
+		return
+	}
+
+	// get all the appIds
+	appIds = make([]int, 0)
+	appContainers := resp.Apps
+	for _, appBean := range resp.Apps {
+		appIds = append(appIds, appBean.AppId)
+	}
+
+	// get rbac objects for the appids
+	rbacObjectsWithAppId := handler.enforcerUtil.GetRbacObjectsByAppIds(appIds)
+	rbacObjects := make([]string, len(rbacObjectsWithAppId))
+	itr := 0
+	for _, object := range rbacObjectsWithAppId {
+		rbacObjects[itr] = object
+		itr++
+	}
+	// enforce rbac in batch
+	rbacResult := handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, rbacObjects)
+	// filter out rbac passed apps
+	resp.Apps = make([]*bean1.AppMetaData, 0)
+	for _, appBean := range appContainers {
+		rbacObject := rbacObjectsWithAppId[appBean.AppId]
+		if rbacResult[rbacObject] {
+			resp.Apps = append(resp.Apps, appBean)
+		}
+	}
+	resp.AppCount = len(resp.Apps)
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
