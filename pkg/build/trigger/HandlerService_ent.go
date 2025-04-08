@@ -17,67 +17,67 @@ import (
 	"net/http"
 )
 
-func (impl *ServiceImpl) updateRuntimeParamsForAutoCI(ciPipelineId int, runtimeParameters *common.RuntimeParameters) (*common.RuntimeParameters, error) {
+func (impl *HandlerServiceImpl) updateRuntimeParamsForAutoCI(ciPipelineId int, runtimeParameters *common.RuntimeParameters) (*common.RuntimeParameters, error) {
 	return runtimeParameters, nil
 }
 
-func (impl *ServiceImpl) getRuntimeParamsForBuildingManualTriggerHashes(ciTriggerRequest bean3.CiTriggerRequest) *common.RuntimeParameters {
+func (impl *HandlerServiceImpl) getRuntimeParamsForBuildingManualTriggerHashes(ciTriggerRequest bean3.CiTriggerRequest) *common.RuntimeParameters {
 	return common.NewRuntimeParameters()
 }
 
-func (impl *ServiceImpl) fetchImageScanExecutionMedium() (*repository.ScanToolMetadata, bean.ScanExecutionMedium, error) {
+func (impl *HandlerServiceImpl) fetchImageScanExecutionMedium() (*repository.ScanToolMetadata, bean.ScanExecutionMedium, error) {
 	return &repository.ScanToolMetadata{}, "", nil
 }
 
-func (impl *ServiceImpl) fetchImageScanExecutionStepsForWfRequest(scanToolMetadata *repository.ScanToolMetadata) ([]*types.ImageScanningSteps, []*pipelineConfigBean.RefPluginObject, error) {
+func (impl *HandlerServiceImpl) fetchImageScanExecutionStepsForWfRequest(scanToolMetadata *repository.ScanToolMetadata) ([]*types.ImageScanningSteps, []*pipelineConfigBean.RefPluginObject, error) {
 	return nil, nil, nil
 }
 
-func (impl *ServiceImpl) checkIfCITriggerIsBlocked(pipeline *pipelineConfig.CiPipeline,
+func (impl *HandlerServiceImpl) checkIfCITriggerIsBlocked(pipeline *pipelineConfig.CiPipeline,
 	ciMaterials []*pipelineConfig.CiPipelineMaterial, isJob bool) (bool, error) {
 	return false, nil
 }
 
-func (impl *ServiceImpl) handleWFIfCITriggerIsBlocked(ciWorkflow *pipelineConfig.CiWorkflow) (*pipelineConfig.CiWorkflow, error) {
+func (impl *HandlerServiceImpl) handleWFIfCITriggerIsBlocked(ciWorkflow *pipelineConfig.CiWorkflow) (*pipelineConfig.CiWorkflow, error) {
 	impl.Logger.Errorw("cannot trigger pipeline, blocked by mandatory plugin policy", "ciPipelineId", ciWorkflow.CiPipelineId)
 	return &pipelineConfig.CiWorkflow{}, util.GetApiErrorAdapter(http.StatusInternalServerError, "500", "Invalid flow access, corrupt data possibility", "Invalid flow access, corrupt data possibility")
 }
 
-func (impl *ServiceImpl) checkArgoSetupRequirement(envModal *repository2.Environment) error {
+func (impl *HandlerServiceImpl) checkArgoSetupRequirement(envModal *repository2.Environment) error {
 	return nil
 }
 
-func (impl *ServiceImpl) updateWorkflowRequestForDigestPull(pipelineId int, workflowRequest *types.WorkflowRequest) (*types.WorkflowRequest, error) {
+func (impl *HandlerServiceImpl) updateWorkflowRequestForDigestPull(pipelineId int, workflowRequest *types.WorkflowRequest) (*types.WorkflowRequest, error) {
 	return workflowRequest, nil
 }
 
-func (impl *ServiceImpl) updateCIProjectDetailWithCloningMode(appId int, ciMaterial *pipelineConfig.CiPipelineMaterial,
+func (impl *HandlerServiceImpl) updateCIProjectDetailWithCloningMode(appId int, ciMaterial *pipelineConfig.CiPipelineMaterial,
 	ciProjectDetail pipelineConfigBean.CiProjectDetails) (pipelineConfigBean.CiProjectDetails, error) {
 	return ciProjectDetail, nil
 }
 
-func (impl *ServiceImpl) updateWorkflowRequestWithRemoteConnConf(dockerRegistry *repository3.DockerArtifactStore,
+func (impl *HandlerServiceImpl) updateWorkflowRequestWithRemoteConnConf(dockerRegistry *repository3.DockerArtifactStore,
 	workflowRequest *types.WorkflowRequest) (*types.WorkflowRequest, error) {
 	return workflowRequest, nil
 }
 
-func (impl *ServiceImpl) updateWorkflowRequestWithEntSupportData(workflowRequest *types.WorkflowRequest) *types.WorkflowRequest {
+func (impl *HandlerServiceImpl) updateWorkflowRequestWithEntSupportData(workflowRequest *types.WorkflowRequest) *types.WorkflowRequest {
 	return workflowRequest
 }
 
-func (impl *ServiceImpl) updateWorkflowRequestWithBuildCacheData(workflowRequest *types.WorkflowRequest,
+func (impl *HandlerServiceImpl) updateWorkflowRequestWithBuildCacheData(workflowRequest *types.WorkflowRequest,
 	scope resourceQualifiers.Scope) (*types.WorkflowRequest, error) {
 	workflowRequest.BuildxCacheModeMin = impl.buildxCacheFlags.BuildxCacheModeMin
 	workflowRequest.AsyncBuildxCacheExport = impl.buildxCacheFlags.AsyncBuildxCacheExport
 	return workflowRequest, nil
 }
 
-func (impl *ServiceImpl) canSetK8sDriverData(workflowRequest *types.WorkflowRequest) bool {
+func (impl *HandlerServiceImpl) canSetK8sDriverData(workflowRequest *types.WorkflowRequest) bool {
 	return impl.config != nil && impl.config.BuildxK8sDriverOptions != "" && workflowRequest.CiBuildConfig != nil &&
 		workflowRequest.CiBuildConfig.DockerBuildConfig != nil
 }
 
-func (impl *ServiceImpl) getK8sDriverOptions(workflowRequest *types.WorkflowRequest, targetPlatforms string) ([]map[string]string, error) {
+func (impl *HandlerServiceImpl) getK8sDriverOptions(workflowRequest *types.WorkflowRequest, targetPlatforms string) ([]map[string]string, error) {
 	buildxK8sDriverOptions := make([]map[string]string, 0)
 	err := json.Unmarshal([]byte(impl.config.BuildxK8sDriverOptions), &buildxK8sDriverOptions)
 	if err != nil {
@@ -86,7 +86,7 @@ func (impl *ServiceImpl) getK8sDriverOptions(workflowRequest *types.WorkflowRequ
 	return buildxK8sDriverOptions, nil
 }
 
-func (impl *ServiceImpl) updateCIBuildConfig(ciBuildConfigBean *bean2.CiBuildConfigBean) *bean2.CiBuildConfigBean {
+func (impl *HandlerServiceImpl) updateCIBuildConfig(ciBuildConfigBean *bean2.CiBuildConfigBean) *bean2.CiBuildConfigBean {
 	defaultTargetPlatform := impl.config.DefaultTargetPlatform
 	useBuildx := impl.config.UseBuildx
 	if ciBuildConfigBean.DockerBuildConfig != nil {

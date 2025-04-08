@@ -1643,7 +1643,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetPrePostDeploymentLogs(w http.Re
 	}
 	//RBAC CHECK
 
-	logsReader, cleanUp, err := handler.cdTriggerService.GetRunningWorkflowLogs(environmentId, pipelineId, workflowId)
+	logsReader, cleanUp, err := handler.cdHandlerService.GetRunningWorkflowLogs(environmentId, pipelineId, workflowId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetPrePostDeploymentLogs", "err", err, "appId", appId, "environmentId", environmentId, "pipelineId", pipelineId, "workflowId", workflowId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1768,7 +1768,7 @@ func (handler *PipelineConfigRestHandlerImpl) DownloadArtifacts(w http.ResponseW
 	}
 	//RBAC CHECK
 
-	file, err := handler.cdTriggerService.DownloadCdWorkflowArtifacts(buildId)
+	file, err := handler.cdHandlerService.DownloadCdWorkflowArtifacts(buildId)
 	defer file.Close()
 
 	if err != nil {
@@ -1952,7 +1952,7 @@ func (handler *PipelineConfigRestHandlerImpl) CancelStage(w http.ResponseWriter,
 	}
 	//RBAC
 
-	resp, err := handler.cdTriggerService.CancelStage(workflowRunnerId, forceAbort, userId)
+	resp, err := handler.cdHandlerService.CancelStage(workflowRunnerId, forceAbort, userId)
 	if err != nil {
 		handler.Logger.Errorw("service err, CancelStage", "err", err, "pipelineId", pipelineId, "workflowRunnerId", workflowRunnerId)
 		if util.IsErrNoRows(err) {

@@ -79,7 +79,7 @@ type WorkflowEventProcessorImpl struct {
 	cdHandler                    pipeline.CdHandler
 	eventFactory                 client.EventFactory
 	eventClient                  client.EventClient
-	cdTriggerService             devtronApps.TriggerService
+	cdHandlerService             devtronApps.HandlerService
 	deployedAppService           deployedApp.DeployedAppService
 	webhookService               pipeline.WebhookService
 	validator                    *validator.Validate
@@ -93,7 +93,7 @@ type WorkflowEventProcessorImpl struct {
 	appServiceConfig                *app.AppServiceConfig
 
 	//ent only
-	ciTriggerService trigger.Service
+	ciHandlerService trigger.HandlerService
 
 	// repositories import to be removed
 	pipelineRepository      pipelineConfig.PipelineRepository
@@ -111,7 +111,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	workflowDagExecutor dag.WorkflowDagExecutor,
 	ciHandler pipeline.CiHandler, cdHandler pipeline.CdHandler,
 	eventFactory client.EventFactory, eventClient client.EventClient,
-	cdTriggerService devtronApps.TriggerService,
+	cdHandlerService devtronApps.HandlerService,
 	deployedAppService deployedApp.DeployedAppService,
 	webhookService pipeline.WebhookService,
 	validator *validator.Validate,
@@ -123,7 +123,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	ciArtifactRepository repository.CiArtifactRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	deploymentConfigService common.DeploymentConfigService,
-	ciTriggerService trigger.Service) (*WorkflowEventProcessorImpl, error) {
+	ciHandlerService trigger.HandlerService) (*WorkflowEventProcessorImpl, error) {
 	impl := &WorkflowEventProcessorImpl{
 		logger:                          logger,
 		pubSubClient:                    pubSubClient,
@@ -136,7 +136,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 		eventFactory:                    eventFactory,
 		eventClient:                     eventClient,
 		workflowDagExecutor:             workflowDagExecutor,
-		cdTriggerService:                cdTriggerService,
+		cdHandlerService:                cdHandlerService,
 		deployedAppService:              deployedAppService,
 		webhookService:                  webhookService,
 		validator:                       validator,
@@ -150,7 +150,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 		ciArtifactRepository:            ciArtifactRepository,
 		cdWorkflowRepository:            cdWorkflowRepository,
 		deploymentConfigService:         deploymentConfigService,
-		ciTriggerService:                ciTriggerService,
+		ciHandlerService:                ciHandlerService,
 	}
 	appServiceConfig, err := app.GetAppServiceConfig()
 	if err != nil {
@@ -326,7 +326,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeTriggerBulkAction() error {
 			ApplyAuth:      false,
 			TriggerContext: triggerContext,
 		}
-		err = impl.cdTriggerService.TriggerStageForBulk(triggerRequest)
+		err = impl.cdHandlerService.TriggerStageForBulk(triggerRequest)
 		if err != nil {
 			impl.logger.Errorw("error in cd trigger ", "err", err)
 			wf.WorkflowStatus = cdWorkflowModelBean.TRIGGER_ERROR
@@ -400,7 +400,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCIWorkflowStatusUpdate() error 
 			return
 		}
 
-		err = impl.ciTriggerService.CheckAndReTriggerCI(wfStatus)
+		err = impl.ciHandlerService.CheckAndReTriggerCI(wfStatus)
 		if err != nil {
 			impl.logger.Errorw("error in checking and re triggering ci", "err", err)
 			//don't return as we have to update the workflow status

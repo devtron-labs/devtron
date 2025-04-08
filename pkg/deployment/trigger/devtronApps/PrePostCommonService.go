@@ -26,7 +26,7 @@ import (
 	"time"
 )
 
-func (impl *TriggerServiceImpl) CancelStage(workflowRunnerId int, forceAbort bool, userId int32) (int, error) {
+func (impl *HandlerServiceImpl) CancelStage(workflowRunnerId int, forceAbort bool, userId int32) (int, error) {
 	workflowRunner, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(workflowRunnerId)
 	if err != nil {
 		impl.logger.Errorw("err", "err", err)
@@ -113,7 +113,7 @@ func (impl *TriggerServiceImpl) CancelStage(workflowRunnerId int, forceAbort boo
 	return workflowRunner.Id, nil
 }
 
-func (impl *TriggerServiceImpl) updateWorkflowRunnerForForceAbort(workflowRunner *pipelineConfig.CdWorkflowRunner) error {
+func (impl *HandlerServiceImpl) updateWorkflowRunnerForForceAbort(workflowRunner *pipelineConfig.CdWorkflowRunner) error {
 	workflowRunner.Status = cdWorkflow2.WorkflowCancel
 	workflowRunner.PodStatus = string(bean2.Failed)
 	workflowRunner.Message = constants.FORCE_ABORT_MESSAGE_AFTER_STARTING_STAGE
@@ -125,7 +125,7 @@ func (impl *TriggerServiceImpl) updateWorkflowRunnerForForceAbort(workflowRunner
 	return nil
 }
 
-func (impl *TriggerServiceImpl) handleForceAbortCaseForCdStage(workflowRunner *pipelineConfig.CdWorkflowRunner, forceAbort bool) error {
+func (impl *HandlerServiceImpl) handleForceAbortCaseForCdStage(workflowRunner *pipelineConfig.CdWorkflowRunner, forceAbort bool) error {
 	isWorkflowInNonTerminalStage := workflowRunner.Status == string(v1alpha1.NodePending) || workflowRunner.Status == string(v1alpha1.NodeRunning)
 	if !isWorkflowInNonTerminalStage {
 		if forceAbort {
@@ -141,7 +141,7 @@ func (impl *TriggerServiceImpl) handleForceAbortCaseForCdStage(workflowRunner *p
 	return nil
 }
 
-func (impl *TriggerServiceImpl) DownloadCdWorkflowArtifacts(buildId int) (*os.File, error) {
+func (impl *HandlerServiceImpl) DownloadCdWorkflowArtifacts(buildId int) (*os.File, error) {
 	wfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(buildId)
 	if err != nil {
 		impl.logger.Errorw("unable to fetch ciWorkflow", "err", err)
@@ -224,7 +224,7 @@ func (impl *TriggerServiceImpl) DownloadCdWorkflowArtifacts(buildId int) (*os.Fi
 	return file, nil
 }
 
-func (impl *TriggerServiceImpl) GetRunningWorkflowLogs(environmentId int, pipelineId int, wfrId int) (*bufio.Reader, func() error, error) {
+func (impl *HandlerServiceImpl) GetRunningWorkflowLogs(environmentId int, pipelineId int, wfrId int) (*bufio.Reader, func() error, error) {
 	cdWorkflow, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(wfrId)
 	if err != nil {
 		impl.logger.Errorw("error on fetch wf runner", "err", err)
@@ -256,7 +256,7 @@ func (impl *TriggerServiceImpl) GetRunningWorkflowLogs(environmentId int, pipeli
 	return impl.getWorkflowLogs(pipelineId, cdWorkflow, clusterConfig, isExtCluster)
 }
 
-func (impl *TriggerServiceImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, clusterConfig *k8s.ClusterConfig, runStageInEnv bool) (*bufio.Reader, func() error, error) {
+func (impl *HandlerServiceImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, clusterConfig *k8s.ClusterConfig, runStageInEnv bool) (*bufio.Reader, func() error, error) {
 	cdLogRequest := types.BuildLogRequest{
 		PodName:   cdWorkflow.PodName,
 		Namespace: cdWorkflow.Namespace,
@@ -281,7 +281,7 @@ func (impl *TriggerServiceImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipe
 	return logReader, cleanUp, err
 }
 
-func (impl *TriggerServiceImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, clusterConfig *k8s.ClusterConfig, isExt bool) (*bufio.Reader, func() error, error) {
+func (impl *HandlerServiceImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, clusterConfig *k8s.ClusterConfig, isExt bool) (*bufio.Reader, func() error, error) {
 	impl.logger.Debug("getting historic logs", "pipelineId", pipelineId)
 
 	cdConfigLogsBucket := impl.config.GetDefaultBuildLogsBucket() // TODO -fixme

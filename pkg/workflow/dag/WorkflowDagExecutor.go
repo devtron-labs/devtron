@@ -136,7 +136,7 @@ type WorkflowDagExecutorImpl struct {
 	helmAppService client2.HelmAppService
 
 	cdWorkflowCommonService      cd.CdWorkflowCommonService
-	cdTriggerService             devtronApps.TriggerService
+	cdHandlerService             devtronApps.HandlerService
 	userDeploymentRequestService service.UserDeploymentRequestService
 
 	manifestCreationService manifest.ManifestCreationService
@@ -150,7 +150,7 @@ type WorkflowDagExecutorImpl struct {
 	envRepository    repository5.EnvironmentRepository
 	k8sCommonService k8sPkg.K8sCommonService
 	workflowService  executor.WorkflowService
-	ciTriggerService trigger.Service
+	ciHandlerService trigger.HandlerService
 }
 
 func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -171,7 +171,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	ciService pipeline.CiService,
 	helmAppService client2.HelmAppService,
 	cdWorkflowCommonService cd.CdWorkflowCommonService,
-	cdTriggerService devtronApps.TriggerService,
+	cdHandlerService devtronApps.HandlerService,
 	userDeploymentRequestService service.UserDeploymentRequestService,
 	manifestCreationService manifest.ManifestCreationService,
 	commonArtifactService artifacts.CommonArtifactService,
@@ -183,7 +183,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	envRepository repository5.EnvironmentRepository,
 	k8sCommonService k8sPkg.K8sCommonService,
 	workflowService executor.WorkflowService,
-	ciTriggerService trigger.Service,
+	ciHandlerService trigger.HandlerService,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
@@ -202,7 +202,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		pipelineStatusTimelineService: pipelineStatusTimelineService,
 		helmAppService:                helmAppService,
 		cdWorkflowCommonService:       cdWorkflowCommonService,
-		cdTriggerService:              cdTriggerService,
+		cdHandlerService:              cdHandlerService,
 		userDeploymentRequestService:  userDeploymentRequestService,
 		manifestCreationService:       manifestCreationService,
 		commonArtifactService:         commonArtifactService,
@@ -216,7 +216,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		envRepository:                 envRepository,
 		k8sCommonService:              k8sCommonService,
 		workflowService:               workflowService,
-		ciTriggerService:              ciTriggerService,
+		ciHandlerService:              ciHandlerService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -324,7 +324,7 @@ func (impl *WorkflowDagExecutorImpl) UpdateCiWorkflowStatusFailure(timeoutForFai
 			if isPodDeleted {
 				ciWorkflow.Message = cdWorkflow2.POD_DELETED_MESSAGE
 				// error logging handled inside handlePodDeleted
-				impl.ciTriggerService.HandlePodDeleted(ciWorkflow)
+				impl.ciHandlerService.HandlePodDeleted(ciWorkflow)
 			} else {
 				ciWorkflow.Message = "marked failed by job"
 			}
@@ -401,13 +401,13 @@ func (impl *WorkflowDagExecutorImpl) HandleCdStageReTrigger(runner *pipelineConf
 	}
 
 	if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
-		_, err = impl.cdTriggerService.TriggerPreStage(triggerRequest)
+		_, err = impl.cdHandlerService.TriggerPreStage(triggerRequest)
 		if err != nil {
 			impl.logger.Errorw("error in TriggerPreStage ", "err", err, "cdWorkflowRunnerId", runner.Id)
 			return err
 		}
 	} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
-		_, err = impl.cdTriggerService.TriggerPostStage(triggerRequest)
+		_, err = impl.cdHandlerService.TriggerPostStage(triggerRequest)
 		if err != nil {
 			impl.logger.Errorw("error in TriggerPostStage ", "err", err, "cdWorkflowRunnerId", runner.Id)
 			return err
@@ -560,7 +560,7 @@ func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncInstallRequest(cdAsyncIn
 		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "err", err)
 		return err
 	}
-	releaseId, _, releaseErr := impl.cdTriggerService.TriggerRelease(newCtx, overrideRequest, envDeploymentConfig, cdAsyncInstallReq.TriggeredAt, cdAsyncInstallReq.TriggeredBy)
+	releaseId, _, releaseErr := impl.cdHandlerService.TriggerRelease(newCtx, overrideRequest, envDeploymentConfig, cdAsyncInstallReq.TriggeredAt, cdAsyncInstallReq.TriggeredBy)
 	if releaseErr != nil {
 		impl.logger.Errorw("error encountered in ProcessDevtronAsyncInstallRequest", "err", releaseErr, "cdWfrId", cdWfr.Id)
 		impl.handleAsyncTriggerReleaseError(newCtx, releaseErr, cdWfr, overrideRequest)
@@ -690,13 +690,13 @@ func (impl *WorkflowDagExecutorImpl) triggerIfAutoStageCdPipeline(request trigge
 		// pre stage exists
 		if request.Pipeline.PreTriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
 			impl.logger.Debugw("trigger pre stage for pipeline", "artifactId", request.Artifact.Id, "pipelineId", request.Pipeline.Id)
-			_, err = impl.cdTriggerService.TriggerPreStage(request) // TODO handle error here
+			_, err = impl.cdHandlerService.TriggerPreStage(request) // TODO handle error here
 			return err
 		}
 	} else if request.Pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
 		// trigger deployment
 		impl.logger.Debugw("trigger cd for pipeline", "artifactId", request.Artifact.Id, "pipelineId", request.Pipeline.Id)
-		err = impl.cdTriggerService.TriggerAutomaticDeployment(request)
+		err = impl.cdHandlerService.TriggerAutomaticDeployment(request)
 		return err
 	}
 	return nil
@@ -766,7 +766,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(triggerContext t
 		} else {
 			ciArtifactId = cdStageCompleteEvent.CiArtifactDTO.Id
 		}
-		err = impl.cdTriggerService.TriggerAutoCDOnPreStageSuccess(triggerContext, cdStageCompleteEvent.CdPipelineId, ciArtifactId, cdStageCompleteEvent.WorkflowId)
+		err = impl.cdHandlerService.TriggerAutoCDOnPreStageSuccess(triggerContext, cdStageCompleteEvent.CdPipelineId, ciArtifactId, cdStageCompleteEvent.WorkflowId)
 		if err != nil {
 			impl.logger.Errorw("error in triggering cd on pre cd succcess", "err", err)
 			return err
@@ -810,7 +810,7 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(triggerContext
 				RefCdWorkflowRunnerId: 0,
 			}
 			triggerRequest.TriggerContext.Context = context.Background()
-			_, err = impl.cdTriggerService.TriggerPostStage(triggerRequest)
+			_, err = impl.cdHandlerService.TriggerPostStage(triggerRequest)
 			if err != nil {
 				impl.logger.Errorw("error in triggering post stage after successful deployment event", "err", err, "cdWorkflow", cdWorkflow)
 				return err

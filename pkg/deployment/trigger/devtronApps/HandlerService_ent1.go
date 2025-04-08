@@ -17,29 +17,29 @@ import (
 	"helm.sh/helm/v3/pkg/chart"
 )
 
-func (impl *TriggerServiceImpl) getEnrichedWorkflowRunner(overrideRequest *bean3.ValuesOverrideRequest, artifact *repository3.CiArtifact, wfrId int) *pipelineConfig.CdWorkflowRunner {
+func (impl *HandlerServiceImpl) getEnrichedWorkflowRunner(overrideRequest *bean3.ValuesOverrideRequest, artifact *repository3.CiArtifact, wfrId int) *pipelineConfig.CdWorkflowRunner {
 	return nil
 }
 
-func (impl *TriggerServiceImpl) postDeployHook(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, referenceChartByte []byte, err error) {
+func (impl *HandlerServiceImpl) postDeployHook(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, referenceChartByte []byte, err error) {
 	impl.logger.Debugw("no post deploy hook registered")
 }
 
-func (impl *TriggerServiceImpl) isDevtronAsyncArgoCdInstallModeEnabledForApp(appId, envId int, forceSync bool) (bool, error) {
+func (impl *HandlerServiceImpl) isDevtronAsyncArgoCdInstallModeEnabledForApp(appId, envId int, forceSync bool) (bool, error) {
 	return impl.globalEnvVariables.EnableAsyncArgoCdInstallDevtronChart && !forceSync, nil
 }
 
-func (impl *TriggerServiceImpl) getClusterGRPCConfig(cluster repository2.Cluster) *gRPC.ClusterConfig {
+func (impl *HandlerServiceImpl) getClusterGRPCConfig(cluster repository2.Cluster) *gRPC.ClusterConfig {
 	clusterConfig := helper.ConvertClusterBeanToGrpcConfig(cluster)
 	return clusterConfig
 }
 
-func (impl *TriggerServiceImpl) overrideReferenceChartByteForHelmTypeApp(valuesOverrideResponse *app.ValuesOverrideResponse,
+func (impl *HandlerServiceImpl) overrideReferenceChartByteForHelmTypeApp(valuesOverrideResponse *app.ValuesOverrideResponse,
 	chartMetaData *chart.Metadata, referenceTemplatePath string, referenceChartByte []byte) ([]byte, error) {
 	return referenceChartByte, nil
 }
 
-func (impl *TriggerServiceImpl) getManifestPushService(storageType string) publish.ManifestPushService {
+func (impl *HandlerServiceImpl) getManifestPushService(storageType string) publish.ManifestPushService {
 	var manifestPushService publish.ManifestPushService
 	if storageType == bean2.ManifestStorageGit {
 		manifestPushService = impl.gitOpsManifestPushService
@@ -47,25 +47,25 @@ func (impl *TriggerServiceImpl) getManifestPushService(storageType string) publi
 	return manifestPushService
 }
 
-func (impl *TriggerServiceImpl) preStageHandlingForTriggerStageInBulk(triggerRequest *bean.TriggerRequest) error {
+func (impl *HandlerServiceImpl) preStageHandlingForTriggerStageInBulk(triggerRequest *bean.TriggerRequest) error {
 	return nil
 }
 
-func (impl *TriggerServiceImpl) manifestGenerationFailedTimelineHandling(triggerEvent bean.TriggerEvent, overrideRequest *bean3.ValuesOverrideRequest, err error) {
+func (impl *HandlerServiceImpl) manifestGenerationFailedTimelineHandling(triggerEvent bean.TriggerEvent, overrideRequest *bean3.ValuesOverrideRequest, err error) {
 }
 
-func (impl *TriggerServiceImpl) getHelmManifestForTriggerRelease(ctx context.Context, triggerEvent bean.TriggerEvent, overrideRequest *bean3.ValuesOverrideRequest,
+func (impl *HandlerServiceImpl) getHelmManifestForTriggerRelease(ctx context.Context, triggerEvent bean.TriggerEvent, overrideRequest *bean3.ValuesOverrideRequest,
 	valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string) ([]byte, error) {
 	return nil, nil
 }
 
-func (impl *TriggerServiceImpl) buildManifestPushTemplateForNonGitStorageType(overrideRequest *bean3.ValuesOverrideRequest,
+func (impl *HandlerServiceImpl) buildManifestPushTemplateForNonGitStorageType(overrideRequest *bean3.ValuesOverrideRequest,
 	valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string, err error, manifestPushConfig *repository.ManifestPushConfig,
 	manifestPushTemplate *bean4.ManifestPushTemplate) error {
 	return nil
 }
 
-func (impl *TriggerServiceImpl) triggerReleaseSuccessHandling(triggerEvent bean.TriggerEvent, overrideRequest *bean3.ValuesOverrideRequest,
+func (impl *HandlerServiceImpl) triggerReleaseSuccessHandling(triggerEvent bean.TriggerEvent, overrideRequest *bean3.ValuesOverrideRequest,
 	valuesOverrideResponse *app.ValuesOverrideResponse, helmManifest []byte) error {
 	return nil
 }

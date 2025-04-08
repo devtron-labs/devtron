@@ -740,7 +740,7 @@ func (handler *PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseW
 	ciTriggerRequest.TriggeredBy = userId
 	handler.Logger.Infow("request payload, TriggerCiPipeline", "payload", ciTriggerRequest)
 	response := make(map[string]string)
-	resp, err := handler.ciTriggerService.HandleCIManual(ciTriggerRequest)
+	resp, err := handler.ciHandlerService.HandleCIManual(ciTriggerRequest)
 	if errors.Is(err, bean1.ErrImagePathInUse) {
 		handler.Logger.Errorw("service err duplicate image tag, TriggerCiPipeline", "err", err, "payload", ciTriggerRequest)
 		common.WriteJsonResp(w, err, err, http.StatusConflict)
@@ -974,7 +974,7 @@ func (handler *PipelineConfigRestHandlerImpl) DownloadCiWorkflowArtifacts(w http
 	}
 	//RBAC
 
-	file, err := handler.ciTriggerService.DownloadCiWorkflowArtifacts(pipelineId, buildId)
+	file, err := handler.ciHandlerService.DownloadCiWorkflowArtifacts(pipelineId, buildId)
 	defer file.Close()
 	if err != nil {
 		handler.Logger.Errorw("service err, DownloadCiWorkflowArtifacts", "err", err, "pipelineId", pipelineId, "buildId", buildId)
@@ -1029,7 +1029,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetHistoricBuildLogs(w http.Respon
 		return
 	}
 	//RBAC
-	resp, err := handler.ciTriggerService.GetHistoricBuildLogs(workflowId, nil)
+	resp, err := handler.ciHandlerService.GetHistoricBuildLogs(workflowId, nil)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetHistoricBuildLogs", "err", err, "pipelineId", pipelineId, "workflowId", workflowId)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
@@ -1168,7 +1168,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildLogs(w http.ResponseWriter
 			return
 		}
 	}
-	logsReader, cleanUp, err := handler.ciTriggerService.GetRunningWorkflowLogs(workflowId)
+	logsReader, cleanUp, err := handler.ciHandlerService.GetRunningWorkflowLogs(workflowId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetBuildLogs", "err", err, "pipelineId", pipelineId, "workflowId", workflowId, "lastEventId", lastEventId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1611,7 +1611,7 @@ func (handler *PipelineConfigRestHandlerImpl) CancelWorkflow(w http.ResponseWrit
 
 	//RBAC
 
-	resp, err := handler.ciTriggerService.CancelBuild(workflowId, forceAbort)
+	resp, err := handler.ciHandlerService.CancelBuild(workflowId, forceAbort)
 	if err != nil {
 		handler.Logger.Errorw("service err, CancelWorkflow", "err", err, "workflowId", workflowId, "pipelineId", pipelineId)
 		if util.IsErrNoRows(err) {

@@ -5,6 +5,6 @@ import (
 )
 
 var WireSet = wire.NewSet(
-	NewServiceImpl,
-	wire.Bind(new(Service), new(*ServiceImpl)),
+	NewHandlerServiceImpl,
+	wire.Bind(new(HandlerService), new(*HandlerServiceImpl)),
 )

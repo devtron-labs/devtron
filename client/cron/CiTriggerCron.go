@@ -42,12 +42,12 @@ type CiTriggerCronImpl struct {
 	pipelineStageRepository repository.PipelineStageRepository
 	ciArtifactRepository    repository2.CiArtifactRepository
 	globalPluginRepository  repository3.GlobalPluginRepository
-	ciTriggerService        trigger.Service
+	ciHandlerService        trigger.HandlerService
 }
 
 func NewCiTriggerCronImpl(logger *zap.SugaredLogger, cfg *CiTriggerCronConfig, pipelineStageRepository repository.PipelineStageRepository,
 	ciArtifactRepository repository2.CiArtifactRepository, globalPluginRepository repository3.GlobalPluginRepository, cronLogger *cron2.CronLoggerImpl,
-	ciTriggerService trigger.Service) *CiTriggerCronImpl {
+	ciHandlerService trigger.HandlerService) *CiTriggerCronImpl {
 	cron := cron.New(
 		cron.WithChain(cron.Recover(cronLogger)))
 	cron.Start()
@@ -58,7 +58,7 @@ func NewCiTriggerCronImpl(logger *zap.SugaredLogger, cfg *CiTriggerCronConfig, p
 		cfg:                     cfg,
 		ciArtifactRepository:    ciArtifactRepository,
 		globalPluginRepository:  globalPluginRepository,
-		ciTriggerService:        ciTriggerService,
+		ciHandlerService:        ciHandlerService,
 	}
 
 	_, err := cron.AddFunc(fmt.Sprintf("@every %dm", cfg.SourceControllerCronTime), impl.TriggerCiCron)
@@ -104,7 +104,7 @@ func (impl *CiTriggerCronImpl) TriggerCiCron() {
 			InvalidateCache:    false,
 			PipelineType:       string(common.CI_JOB),
 		}
-		_, err = impl.ciTriggerService.HandleCIManual(ciTriggerRequest)
+		_, err = impl.ciHandlerService.HandleCIManual(ciTriggerRequest)
 		if err != nil {
 			return
 		}

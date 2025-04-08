@@ -140,8 +140,8 @@ type PipelineConfigRestHandlerImpl struct {
 	teamReadService                     read3.TeamReadService
 	environmentRepository               repository2.EnvironmentRepository
 	chartReadService                    read5.ChartReadService
-	ciTriggerService                    trigger.Service
-	cdTriggerService                    devtronApps.TriggerService
+	ciHandlerService                    trigger.HandlerService
+	cdHandlerService                    devtronApps.HandlerService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -176,8 +176,8 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	teamReadService read3.TeamReadService,
 	EnvironmentRepository repository2.EnvironmentRepository,
 	chartReadService read5.ChartReadService,
-	ciTriggerService trigger.Service,
-	cdTriggerService devtronApps.TriggerService,
+	ciHandlerService trigger.HandlerService,
+	cdHandlerService devtronApps.HandlerService,
 ) *PipelineConfigRestHandlerImpl {
 	envConfig := &PipelineRestHandlerEnvConfig{}
 	err := env.Parse(envConfig)
@@ -220,8 +220,8 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		teamReadService:                     teamReadService,
 		environmentRepository:               EnvironmentRepository,
 		chartReadService:                    chartReadService,
-		ciTriggerService:                    ciTriggerService,
-		cdTriggerService:                    cdTriggerService,
+		ciHandlerService:                    ciHandlerService,
+		cdHandlerService:                    cdHandlerService,
 	}
 }
 

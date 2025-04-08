@@ -34,15 +34,15 @@ type GitWebhookService interface {
 type GitWebhookServiceImpl struct {
 	logger               *zap.SugaredLogger
 	gitWebhookRepository repository.GitWebhookRepository
-	ciTriggerService     trigger.Service
+	ciHandlerService     trigger.HandlerService
 }
 
 func NewGitWebhookServiceImpl(Logger *zap.SugaredLogger, gitWebhookRepository repository.GitWebhookRepository,
-	ciTriggerService trigger.Service) *GitWebhookServiceImpl {
+	ciHandlerService trigger.HandlerService) *GitWebhookServiceImpl {
 	return &GitWebhookServiceImpl{
 		logger:               Logger,
 		gitWebhookRepository: gitWebhookRepository,
-		ciTriggerService:     ciTriggerService,
+		ciHandlerService:     ciHandlerService,
 	}
 }
 
@@ -71,7 +71,7 @@ func (impl *GitWebhookServiceImpl) HandleGitWebhook(gitWebhookRequest gitSensor.
 		}
 	}
 
-	resp, err := impl.ciTriggerService.HandleCIWebhook(bean.GitCiTriggerRequest{
+	resp, err := impl.ciHandlerService.HandleCIWebhook(bean.GitCiTriggerRequest{
 		CiPipelineMaterial:        ciPipelineMaterial,
 		TriggeredBy:               bean2.SYSTEM_USER_ID, // Automatic trigger, system user
 		ExtraEnvironmentVariables: gitWebhookRequest.ExtraEnvironmentVariables,
