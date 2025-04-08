@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Grafana data-source get API (#6503)
 - fix: Grafana revert patch (#6498)
 - fix: made triggeredBy for CI & CD uniform (#6489)
 - fix: hpa permission denied error (#6485)
