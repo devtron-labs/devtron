@@ -144,6 +144,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor"
+	"github.com/devtron-labs/devtron/pkg/executor"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
@@ -218,7 +219,7 @@ func InitializeApp() (*App, error) {
 		userResource.UserResourceWireSet,
 		policyGovernance.PolicyGovernanceWireSet,
 		resourceScan.ScanningResultWireSet,
-
+		executor.ExecutorWireSet,
 		// -------wireset end ----------
 		// -------
 		gitSensor.GetConfig,
@@ -476,9 +477,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository.NotificationSettingsRepository), new(*repository.NotificationSettingsRepositoryImpl)),
 		util.IntValidator,
 		types.GetCiCdConfig,
-
-		pipeline.NewWorkflowServiceImpl,
-		wire.Bind(new(pipeline.WorkflowService), new(*pipeline.WorkflowServiceImpl)),
 
 		pipeline.NewCiServiceImpl,
 		wire.Bind(new(pipeline.CiService), new(*pipeline.CiServiceImpl)),

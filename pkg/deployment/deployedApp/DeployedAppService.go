@@ -46,7 +46,7 @@ type DeployedAppService interface {
 type DeployedAppServiceImpl struct {
 	logger               *zap.SugaredLogger
 	k8sCommonService     k8s.K8sCommonService
-	cdTriggerService     devtronApps.TriggerService
+	cdHandlerService     devtronApps.HandlerService
 	envRepository        repository.EnvironmentRepository
 	pipelineRepository   pipelineConfig.PipelineRepository
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
@@ -54,14 +54,14 @@ type DeployedAppServiceImpl struct {
 
 func NewDeployedAppServiceImpl(logger *zap.SugaredLogger,
 	k8sCommonService k8s.K8sCommonService,
-	cdTriggerService devtronApps.TriggerService,
+	cdHandlerService devtronApps.HandlerService,
 	envRepository repository.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository) *DeployedAppServiceImpl {
 	return &DeployedAppServiceImpl{
 		logger:               logger,
 		k8sCommonService:     k8sCommonService,
-		cdTriggerService:     cdTriggerService,
+		cdHandlerService:     cdHandlerService,
 		envRepository:        envRepository,
 		pipelineRepository:   pipelineRepository,
 		cdWorkflowRepository: cdWorkflowRepository,
@@ -127,7 +127,7 @@ func (impl *DeployedAppServiceImpl) stopStartApp(ctx context.Context, stopReques
 		Context:     ctx,
 		ReferenceId: stopRequest.ReferenceId,
 	}
-	id, _, _, err := impl.cdTriggerService.ManualCdTrigger(triggerContext, overrideRequest)
+	id, _, _, err := impl.cdHandlerService.ManualCdTrigger(triggerContext, overrideRequest)
 	if err != nil {
 		impl.logger.Errorw("error in stopping app", "err", err, "appId", stopRequest.AppId, "envId", stopRequest.EnvironmentId)
 		return 0, err

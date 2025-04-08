@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package pipeline
+package executor
 
 import (
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
@@ -35,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -59,10 +60,10 @@ var cmManifest3 = "{\"kind\":\"ConfigMap\",\"apiVersion\":\"v1\",\"metadata\":{\
 var cmManifest4 = "{\"kind\":\"ConfigMap\",\"apiVersion\":\"v1\",\"metadata\":{\"name\":\"cm4-5-ci\",\"creationTimestamp\":null,\"ownerReferences\":[{\"apiVersion\":\"argoproj.io/v1alpha1\",\"kind\":\"Workflow\",\"name\":\"{{workflow.name}}\",\"uid\":\"{{workflow.uid}}\",\"blockOwnerDeletion\":true}]},\"data\":{\"key4\":\"value4\"}}"
 
 func getWorkflowServiceImpl(t *testing.T) *WorkflowServiceImpl {
-	logger, dbConnection := getDbConnAndLoggerService(t)
+	logger, dbConnection := pipeline.getDbConnAndLoggerService(t)
 	ciCdConfig, _ := types.GetCiCdConfig()
 	newGlobalCMCSRepositoryImpl := repository.NewGlobalCMCSRepositoryImpl(logger, dbConnection)
-	globalCMCSServiceImpl := NewGlobalCMCSServiceImpl(logger, newGlobalCMCSRepositoryImpl)
+	globalCMCSServiceImpl := pipeline.NewGlobalCMCSServiceImpl(logger, newGlobalCMCSRepositoryImpl)
 	newEnvConfigOverrideRepository := chartConfig.NewEnvConfigOverrideRepository(dbConnection)
 	newConfigMapRepositoryImpl := chartConfig.NewConfigMapRepositoryImpl(logger, dbConnection)
 	newChartRepository := chartRepoRepository.NewChartRepository(dbConnection)

@@ -26,12 +26,14 @@ import (
 	read2 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
 	gitProviderRead "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
 	bean3 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/build/trigger"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
 	read5 "github.com/devtron-labs/devtron/pkg/chart/read"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
 	security2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/read"
 	read3 "github.com/devtron-labs/devtron/pkg/team/read"
@@ -138,6 +140,8 @@ type PipelineConfigRestHandlerImpl struct {
 	teamReadService                     read3.TeamReadService
 	environmentRepository               repository2.EnvironmentRepository
 	chartReadService                    read5.ChartReadService
+	ciHandlerService                    trigger.HandlerService
+	cdHandlerService                    devtronApps.HandlerService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -171,7 +175,10 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	gitProviderReadService gitProviderRead.GitProviderReadService,
 	teamReadService read3.TeamReadService,
 	EnvironmentRepository repository2.EnvironmentRepository,
-	chartReadService read5.ChartReadService) *PipelineConfigRestHandlerImpl {
+	chartReadService read5.ChartReadService,
+	ciHandlerService trigger.HandlerService,
+	cdHandlerService devtronApps.HandlerService,
+) *PipelineConfigRestHandlerImpl {
 	envConfig := &PipelineRestHandlerEnvConfig{}
 	err := env.Parse(envConfig)
 	if err != nil {
@@ -213,6 +220,8 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		teamReadService:                     teamReadService,
 		environmentRepository:               EnvironmentRepository,
 		chartReadService:                    chartReadService,
+		ciHandlerService:                    ciHandlerService,
+		cdHandlerService:                    cdHandlerService,
 	}
 }
 
