@@ -1,7 +1,7 @@
 ###### BUILD ENVIRONMENT ######
 
 # Base Image
-FROM node:12.18.1 as build
+FROM node:22.14.0 as build
 
 # Moving into working directory
 WORKDIR /app
@@ -30,3 +30,4 @@ EXPOSE 80
 
 # Command to run
 CMD ["nginx", "-g", "daemon off;"]
+
