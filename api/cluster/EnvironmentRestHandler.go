@@ -170,15 +170,30 @@ func (impl EnvironmentRestHandlerImpl) Get(w http.ResponseWriter, r *http.Reques
 
 func (impl EnvironmentRestHandlerImpl) GetDataSourceName(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	environment := vars["environment"]
+	environmentName := vars["environmentName"]
 
-	name, err := impl.environmentClusterMappingsService.GetDataSourceName(environment)
+	bean, err := impl.environmentClusterMappingsService.FindOne(environmentName)
 	if err != nil {
-		impl.logger.Errorw("service err, Get", "err", err, "env", environment)
+		impl.logger.Errorw("service err, Get", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, name, http.StatusOK)
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, bean.EnvironmentIdentifier); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+
+	resp, err := impl.environmentClusterMappingsService.GetDataSourceName(bean)
+	if err != nil {
+		impl.logger.Errorw("service err, Get", "err", err, "env", environmentName)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
 func (impl EnvironmentRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request) {

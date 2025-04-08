@@ -36,6 +36,8 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 )
 
+const DataSourceNameFormat = "Prometheus-%s-EnvId-%d"
+
 // extends ClusterServiceImpl and enhances method of ClusterService with full mode specific errors
 type ClusterServiceImplExtended struct {
 	environmentRepository   repository.EnvironmentRepository
@@ -268,7 +270,8 @@ func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *bea
 		//starts grafana creation
 		// appending envId to ensure unique datasource name for each environment (ex- env got deleted and created with same name)
 		// reverting to old name will be done in next release
-		DataSourceName := "Prometheus-" + env.Name + "-EnvId-" + fmt.Sprint(env.Id)
+
+		DataSourceName := fmt.Sprintf(DataSourceNameFormat, env.Name, env.Id)
 		createDatasourceReq := grafana.CreateDatasourceRequest{
 			Name:      DataSourceName,
 			Type:      "prometheus",

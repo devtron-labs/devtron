@@ -43,7 +43,7 @@ func (impl EnvironmentRouterImpl) InitEnvironmentClusterMappingsRouter(environme
 		HandlerFunc(impl.environmentClusterMappingsRestHandler.Get)
 	environmentClusterMappingsRouter.Path("/data-source-name").
 		Methods("GET").
-		Queries("environment", "{environment}").
+		Queries("environmentName", "{environmentName}").
 		HandlerFunc(impl.environmentClusterMappingsRestHandler.GetDataSourceName)
 	environmentClusterMappingsRouter.Path("").
 		Methods("GET").

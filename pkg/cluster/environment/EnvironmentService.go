@@ -46,7 +46,7 @@ import (
 
 type EnvironmentService interface {
 	FindOne(environment string) (*bean2.EnvironmentBean, error)
-	GetDataSourceName(environment string) (dataSourceData bean2.DataSourceMetaData, err error)
+	GetDataSourceName(*bean2.EnvironmentBean) (dataSourceData *bean2.DataSourceMetaData, err error)
 	Create(mappings *bean2.EnvironmentBean, userId int32) (*bean2.EnvironmentBean, error)
 	Update(mappings *bean2.EnvironmentBean, userId int32) (*bean2.EnvironmentBean, error)
 	GetAllActive() ([]bean2.EnvironmentBean, error)
@@ -106,24 +106,19 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 	}
 }
 
-func (impl EnvironmentServiceImpl) GetDataSourceName(environment string) (bean2.DataSourceMetaData, error) {
-	datasource := bean2.DataSourceMetaData{}
-	model, err := impl.environmentRepository.FindOne(environment)
-	if err != nil {
-		impl.logger.Errorw("error in fetching environment", "err", err)
-		return datasource, err
-	}
-	if model.GrafanaDatasourceId == 0 {
+func (impl EnvironmentServiceImpl) GetDataSourceName(bean *bean2.EnvironmentBean) (*bean2.DataSourceMetaData, error) {
+	datasource := &bean2.DataSourceMetaData{}
+	if bean.DataSourceId == 0 || bean.PrometheusEndpoint == "" {
 		return datasource, fmt.Errorf("prometheus endpoint not found")
 	} else {
-		impl.logger.Debugw("environment datasource name", "datasource", model.GrafanaDatasourceId)
-		data, err := impl.grafanaClient.GetDatasource(model.GrafanaDatasourceId)
+		impl.logger.Debugw("environment datasource name", "datasource", bean.DataSourceId)
+		data, err := impl.grafanaClient.GetDatasource(bean.DataSourceId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching datasource", "err", err)
 			return datasource, err
 		}
 		datasource.Name = data.Name
-		datasource.Id = model.GrafanaDatasourceId
+		datasource.Id = bean.DataSourceId
 		return datasource, nil
 	}
 }
@@ -210,6 +205,7 @@ func (impl EnvironmentServiceImpl) FindOne(environment string) (*bean2.Environme
 		Default:               model.Default,
 		EnvironmentIdentifier: model.EnvironmentIdentifier,
 		Description:           model.Description,
+		DataSourceId:          model.GrafanaDatasourceId,
 	}
 	return bean, nil
 }

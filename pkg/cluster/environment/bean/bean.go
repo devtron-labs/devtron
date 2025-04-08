@@ -39,6 +39,7 @@ type EnvironmentBean struct {
 	ClusterCAData          string            `json:"-"`
 	ClusterKeyData         string            `json:"-"`
 	ClusterCertData        string            `json:"-"`
+	DataSourceId           int               `json:"-"`
 }
 
 type EnvDto struct {
