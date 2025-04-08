@@ -1848,11 +1848,11 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 			templateRequest := bean3.TemplateRequest{
 				AppId:               appId,
 				ChartRefId:          chartRefId,
-				ValuesOverride:      []byte("{}"),
+				ValuesOverride:      util.GetEmptyJSON(),
 				UserId:              userId,
 				IsAppMetricsEnabled: deploymentTemplateOverride.ShowAppMetrics,
 			}
-			newChartEntry, err := handler.chartService.CreateChartFromEnvOverride(templateRequest, context.Background())
+			newChartEntry, err := handler.chartService.CreateChartFromEnvOverride(context.Background(), templateRequest)
 			if err != nil {
 				handler.logger.Errorw("service err, CreateChartFromEnvOverride", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
 				return err
