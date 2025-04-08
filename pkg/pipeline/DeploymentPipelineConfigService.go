@@ -2471,11 +2471,11 @@ func (impl *CdPipelineConfigServiceImpl) parseEnvOverrideCreateRequestForExterna
 		chartCreateRequest := bean6.TemplateRequest{
 			AppId:               app.Id,
 			ChartRefId:          chartRef.Id,
-			ValuesOverride:      []byte("{}"),
+			ValuesOverride:      globalUtil.GetEmptyJSON(),
 			UserId:              userId,
 			IsAppMetricsEnabled: false,
 		}
-		_, err = impl.chartService.CreateChartFromEnvOverride(chartCreateRequest, context.Background())
+		_, err = impl.chartService.CreateChartFromEnvOverride(context.Background(), chartCreateRequest)
 		if err != nil {
 			impl.logger.Errorw("error in creating chart from env override", "appId", app.Id, "chartRefId", chartRef.Id, "err", err)
 			return nil, err
@@ -2552,7 +2552,8 @@ func (impl *CdPipelineConfigServiceImpl) extractHelmChartForExternalArgoApp(repo
 }
 
 func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, pipeline *bean.CDPipelineConfigObject, userID int32) (err error) {
-
+	_, span := otel.Tracer("orchestrator").Start(ctx, "CdPipelineConfigServiceImpl.updateCdPipeline")
+	defer span.End()
 	if len(pipeline.PreStage.Config) > 0 && !strings.Contains(pipeline.PreStage.Config, "beforeStages") {
 		err = &util.ApiError{
 			HttpStatusCode:  http.StatusBadRequest,
@@ -2598,7 +2599,7 @@ func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, p
 
 		if notFound {
 			//delete from db
-			err := impl.pipelineConfigRepository.Delete(oldItem, tx)
+			err := impl.pipelineConfigRepository.MarkAsDeleted(oldItem, userID, tx)
 			if err != nil {
 				impl.logger.Errorw("error in delete pipeline strategies", "err", err)
 				return fmt.Errorf("error in delete pipeline strategies")
