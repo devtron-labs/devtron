@@ -38,6 +38,7 @@ import (
 	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	repository6 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/executor"
 	pipeline2 "github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
@@ -70,7 +71,7 @@ import (
 
 type HandlerService interface {
 	HandlePodDeleted(ciWorkflow *pipelineConfig.CiWorkflow)
-	CheckAndReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error
+	CheckAndReTriggerCI(workflowStatus eventProcessorBean.CiCdStatus) error
 	HandleCIManual(ciTriggerRequest bean.CiTriggerRequest) (int, error)
 	HandleCIWebhook(gitCiTriggerRequest bean.GitCiTriggerRequest) (int, error)
 
@@ -198,7 +199,7 @@ func (impl *HandlerServiceImpl) HandlePodDeleted(ciWorkflow *pipelineConfig.CiWo
 	}
 }
 
-func (impl *HandlerServiceImpl) CheckAndReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error {
+func (impl *HandlerServiceImpl) CheckAndReTriggerCI(workflowStatus eventProcessorBean.CiCdStatus) error {
 
 	// return if re-trigger feature is disabled
 	if !impl.config.WorkflowRetriesEnabled() {
@@ -356,7 +357,7 @@ func (impl *HandlerServiceImpl) HandleCIWebhook(gitCiTriggerRequest bean.GitCiTr
 	return id, nil
 }
 
-func (impl *HandlerServiceImpl) extractPodStatusAndWorkflow(workflowStatus v1alpha1.WorkflowStatus) (string, string, *pipelineConfig.CiWorkflow, error) {
+func (impl *HandlerServiceImpl) extractPodStatusAndWorkflow(workflowStatus eventProcessorBean.CiCdStatus) (string, string, *pipelineConfig.CiWorkflow, error) {
 	workflowName, status, _, message, _, _ := pipeline2.ExtractWorkflowStatus(workflowStatus)
 	if workflowName == "" {
 		impl.Logger.Errorw("extract workflow status, invalid wf name", "workflowName", workflowName, "status", status, "message", message)
@@ -383,10 +384,10 @@ func (impl *HandlerServiceImpl) getRefWorkflowAndCiRetryCount(savedWorkflow *pip
 
 	if savedWorkflow.ReferenceCiWorkflowId != 0 {
 		savedWorkflow, err = impl.ciWorkflowRepository.FindById(savedWorkflow.ReferenceCiWorkflowId)
-	}
-	if err != nil {
-		impl.Logger.Errorw("cannot get saved wf", "err", err)
-		return 0, savedWorkflow, err
+		if err != nil {
+			impl.Logger.Errorw("cannot get saved wf", "err", err)
+			return 0, savedWorkflow, err
+		}
 	}
 	retryCount, err := impl.ciWorkflowRepository.FindRetriedWorkflowCountByReferenceId(savedWorkflow.Id)
 	return retryCount, savedWorkflow, err

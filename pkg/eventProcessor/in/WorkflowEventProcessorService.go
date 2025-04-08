@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/registry"
 	apiBean "github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/client/events"
+	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -47,6 +48,7 @@ import (
 	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
+	"github.com/devtron-labs/devtron/pkg/ucid"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/adapter"
 	cdWorkflowBean "github.com/devtron-labs/devtron/pkg/workflow/cd/bean"
@@ -87,6 +89,7 @@ type WorkflowEventProcessorImpl struct {
 	cdWorkflowCommonService      cd.CdWorkflowCommonService
 	cdPipelineConfigService      pipeline.CdPipelineConfigService
 	userDeploymentRequestService service.UserDeploymentRequestService
+	ucid                         ucid.Service
 
 	devtronAppReleaseContextMap     map[int]bean.DevtronAppReleaseContextType
 	devtronAppReleaseContextMapLock *sync.Mutex
@@ -119,6 +122,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	cdWorkflowCommonService cd.CdWorkflowCommonService,
 	cdPipelineConfigService pipeline.CdPipelineConfigService,
 	userDeploymentRequestService service.UserDeploymentRequestService,
+	ucid ucid.Service,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
@@ -144,6 +148,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 		cdWorkflowCommonService:         cdWorkflowCommonService,
 		cdPipelineConfigService:         cdPipelineConfigService,
 		userDeploymentRequestService:    userDeploymentRequestService,
+		ucid:                            ucid,
 		devtronAppReleaseContextMap:     make(map[int]bean.DevtronAppReleaseContextType),
 		devtronAppReleaseContextMapLock: &sync.Mutex{},
 		pipelineRepository:              pipelineRepository,
@@ -393,30 +398,45 @@ func (impl *WorkflowEventProcessorImpl) SubscribeHibernateBulkAction() error {
 
 func (impl *WorkflowEventProcessorImpl) SubscribeCIWorkflowStatusUpdate() error {
 	callback := func(msg *model.PubSubMsg) {
-		wfStatus := v1alpha1.WorkflowStatus{}
+		wfStatus := bean.NewCiCdStatus()
 		err := json.Unmarshal([]byte(msg.Data), &wfStatus)
 		if err != nil {
 			impl.logger.Errorw("error while unmarshalling wf status update", "err", err, "msg", msg.Data)
 			return
 		}
-
-		err = impl.ciHandlerService.CheckAndReTriggerCI(wfStatus)
-		if err != nil {
-			impl.logger.Errorw("error in checking and re triggering ci", "err", err)
-			//don't return as we have to update the workflow status
+		if len(wfStatus.DevtronOwnerInstance) != 0 {
+			devtronUCID, _, err := impl.ucid.GetUCIDWithOutCache()
+			if err != nil {
+				impl.logger.Errorw("error in getting UCID", "err", err)
+				return
+			}
+			if wfStatus.DevtronOwnerInstance != devtronUCID {
+				impl.logger.Warnw("mis match in UCID. skipping...", "devtronAdministratorInstance", wfStatus.DevtronOwnerInstance, "devtronUCID", devtronUCID)
+				return
+			}
 		}
-
-		_, err = impl.ciHandler.UpdateWorkflow(wfStatus)
+		// update the ci workflow status
+		ciWfId, stateChanged, err := impl.ciHandler.UpdateWorkflow(wfStatus)
 		if err != nil {
-			impl.logger.Errorw("error on update workflow status", "err", err, "msg", msg.Data)
+			impl.logger.Errorw("error on update workflow status", "msg", msg.Data, "err", err)
 			return
 		}
-
+		if stateChanged {
+			// check if we need to re-trigger the ci
+			err = impl.ciHandlerService.CheckAndReTriggerCI(wfStatus)
+			if err != nil {
+				middleware.ReTriggerFailedCounter.WithLabelValues("CI", strconv.Itoa(ciWfId)).Inc()
+				impl.logger.Errorw("error in checking and re triggering ci", "wfStatus", wfStatus, "err", err)
+				return
+			}
+		} else {
+			impl.logger.Debugw("no state change detected for the ci workflow status update, ignoring this event", "workflowRunnerId", ciWfId, "wfStatus", wfStatus)
+		}
 	}
 
 	// add required logging here
 	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
-		wfStatus := v1alpha1.WorkflowStatus{}
+		wfStatus := bean.NewCiCdStatus()
 		err := json.Unmarshal([]byte(msg.Data), &wfStatus)
 		if err != nil {
 			return "error while unmarshalling wf status update", []interface{}{"err", err, "msg", msg.Data}
@@ -429,7 +449,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCIWorkflowStatusUpdate() error 
 	err := impl.pubSubClient.Subscribe(pubsub.WORKFLOW_STATUS_UPDATE_TOPIC, callback, loggerFunc)
 
 	if err != nil {
-		impl.logger.Error("err", err)
+		impl.logger.Error("error in subscribing to ci workflow status update topic", "err", err)
 		return err
 	}
 	return nil
@@ -437,17 +457,27 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCIWorkflowStatusUpdate() error 
 
 func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error {
 	callback := func(msg *model.PubSubMsg) {
-		wfStatus := v1alpha1.WorkflowStatus{}
+		wfStatus := bean.NewCiCdStatus()
 		err := json.Unmarshal([]byte(msg.Data), &wfStatus)
 		if err != nil {
 			impl.logger.Error("Error while unmarshalling wfStatus json object", "error", err)
 			return
 		}
-
-		wfrId, wfrStatus, stateChanged, err := impl.cdHandler.UpdateWorkflow(wfStatus)
-		impl.logger.Debugw("UpdateWorkflow", "wfrId", wfrId, "wfrStatus", wfrStatus)
+		if len(wfStatus.DevtronOwnerInstance) != 0 {
+			devtronUCID, _, err := impl.ucid.GetUCIDWithOutCache()
+			if err != nil {
+				impl.logger.Errorw("error in getting UCID", "err", err)
+				return
+			}
+			if wfStatus.DevtronOwnerInstance != devtronUCID {
+				impl.logger.Warnw("mis match in UCID. skipping...", "devtronAdministratorInstance", wfStatus.DevtronOwnerInstance, "devtronUCID", devtronUCID)
+				return
+			}
+		}
+		wfrId, status, stateChanged, err := impl.cdHandler.UpdateWorkflow(wfStatus)
+		impl.logger.Debugw("cd UpdateWorkflow for wfStatus", "wfrId", wfrId, "status", status, "wfStatus", wfStatus)
 		if err != nil {
-			impl.logger.Error("err", err)
+			impl.logger.Errorw("error in cd workflow status update", "wfrId", wfrId, "status", status, "wfStatus", wfStatus, "err", err)
 			return
 		}
 
@@ -458,11 +488,12 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 				return
 			}
 
-			if wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
+			if wfr.Status == string(v1alpha1.NodeFailed) || wfr.Status == string(v1alpha1.NodeError) {
 				if len(wfr.ImagePathReservationIds) > 0 {
 					err := impl.cdHandler.DeactivateImageReservationPathsOnFailure(wfr.ImagePathReservationIds)
 					if err != nil {
 						impl.logger.Errorw("error in removing image path reservation ", "imagePathReservationIds", wfr.ImagePathReservationIds, "err", err)
+						// not returning here as we need to send the notification event and re-trigger the cd stage (if required)
 					}
 				}
 			}
@@ -470,13 +501,16 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 			wfStatusInEvent := string(wfStatus.Phase)
 			if wfStatusInEvent == string(v1alpha1.NodeSucceeded) || wfStatusInEvent == string(v1alpha1.NodeFailed) || wfStatusInEvent == string(v1alpha1.NodeError) {
 				// the re-trigger should only happen when we get a pod deleted event.
-				if wfr != nil && executors.CheckIfReTriggerRequired(wfrStatus, wfStatus.Message, wfr.Status) {
+				if executors.CheckIfReTriggerRequired(status, wfStatus.Message, wfr.Status) {
 					err = impl.workflowDagExecutor.HandleCdStageReTrigger(wfr)
 					if err != nil {
 						// check if this log required or not
-						impl.logger.Errorw("error in HandleCdStageReTrigger", "workflowRunnerId", wfr.Id, "workflowStatus", wfrStatus, "workflowStatusMessage", wfStatus.Message, "error", err)
+						workflowType := fmt.Sprintf("%s-CD", wfr.WorkflowType)
+						middleware.ReTriggerFailedCounter.WithLabelValues(workflowType, strconv.Itoa(wfrId)).Inc()
+						impl.logger.Errorw("error in HandleCdStageReTrigger", "workflowRunnerId", wfr.Id, "status", status, "message", wfStatus.Message, "error", err)
+						return
 					}
-					impl.logger.Debugw("re-triggered cd stage", "workflowRunnerId", wfr.Id, "workflowStatus", wfrStatus, "workflowStatusMessage", wfStatus.Message)
+					impl.logger.Infow("re-triggered cd stage", "workflowRunnerId", wfr.Id, "status", status, "message", wfStatus.Message)
 				} else {
 					// we send this notification on *workflow_runner* status, both success and failure
 					// during workflow runner failure, particularly when failure occurred due to pod deletion , we get two events from kubewatch.
@@ -492,13 +526,13 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 				}
 			}
 		} else {
-			impl.logger.Debugw("no state change detected for the cd workflow status update, ignoring this event", "workflowRunnerId", wfrId, "wfrStatus", wfrStatus)
+			impl.logger.Debugw("no state change detected for the cd workflow status update, ignoring this event", "workflowRunnerId", wfrId, "status", status)
 		}
 	}
 
 	// add required logging here
 	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
-		wfStatus := v1alpha1.WorkflowStatus{}
+		wfStatus := bean.NewCiCdStatus()
 		err := json.Unmarshal([]byte(msg.Data), &wfStatus)
 		if err != nil {
 			return "error while unmarshalling wfStatus json object", []interface{}{"error", err}
@@ -509,7 +543,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 
 	err := impl.pubSubClient.Subscribe(pubsub.CD_WORKFLOW_STATUS_UPDATE, callback, loggerFunc)
 	if err != nil {
-		impl.logger.Error("err", err)
+		impl.logger.Error("error in subscribing to cd workflow status update topic", "err", err)
 		return err
 	}
 	return nil

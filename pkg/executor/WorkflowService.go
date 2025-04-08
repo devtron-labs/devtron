@@ -39,6 +39,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders/infraGetters"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
+	"github.com/devtron-labs/devtron/pkg/ucid"
 	"go.uber.org/zap"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -72,6 +73,7 @@ type WorkflowServiceImpl struct {
 	systemWorkflowExecutor executors.SystemWorkflowExecutor
 	k8sCommonService       k8s2.K8sCommonService
 	infraProvider          infraProviders.InfraProvider
+	ucid                   ucid.Service
 	k8sUtil                *k8s.K8sServiceImpl
 }
 
@@ -86,6 +88,7 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger,
 	systemWorkflowExecutor executors.SystemWorkflowExecutor,
 	k8sCommonService k8s2.K8sCommonService,
 	infraProvider infraProviders.InfraProvider,
+	ucid ucid.Service,
 	k8sUtil *k8s.K8sServiceImpl,
 ) (*WorkflowServiceImpl, error) {
 	commonWorkflowService := &WorkflowServiceImpl{
@@ -99,6 +102,7 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger,
 		systemWorkflowExecutor: systemWorkflowExecutor,
 		k8sCommonService:       k8sCommonService,
 		infraProvider:          infraProvider,
+		ucid:                   ucid,
 	}
 	restConfig, err := k8sUtil.GetK8sInClusterRestConfig()
 	if err != nil {
@@ -220,6 +224,12 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 	clusterConfig, err := impl.getClusterConfig(workflowRequest)
 	workflowTemplate.ClusterConfig = clusterConfig
 	workflowTemplate.WorkflowType = workflowRequest.GetWorkflowTypeForWorkflowRequest()
+	devtronUCID, _, err := impl.ucid.GetUCIDWithOutCache()
+	if err != nil {
+		impl.Logger.Errorw("error in getting UCID", "err", err)
+		return bean3.WorkflowTemplate{}, err
+	}
+	workflowTemplate.DevtronInstanceUID = devtronUCID
 	return workflowTemplate, nil
 }
 
