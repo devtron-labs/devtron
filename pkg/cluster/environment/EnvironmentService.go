@@ -109,9 +109,10 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 func (impl EnvironmentServiceImpl) GetDataSourceName(bean *bean2.EnvironmentBean) (*bean2.DataSourceMetaData, error) {
 	datasource := &bean2.DataSourceMetaData{}
 	if bean.DataSourceId == 0 || bean.PrometheusEndpoint == "" {
-		return datasource, fmt.Errorf("prometheus endpoint not found")
+		impl.logger.Debugw("grafana data source not configured for given", "dataSourceId", bean.DataSourceId)
+		return datasource, nil
 	} else {
-		impl.logger.Debugw("environment datasource name", "datasource", bean.DataSourceId)
+		impl.logger.Debugw("environment datasource", "datasource", bean.DataSourceId)
 		data, err := impl.grafanaClient.GetDatasource(bean.DataSourceId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching datasource", "err", err)
