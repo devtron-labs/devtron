@@ -145,7 +145,8 @@ func (impl *AppListingRepositoryImpl) FetchAppsEnvContainers(envId int, limit, o
 		 LEFT JOIN 
 		 (SELECT pco.pipeline_id,MAX(pco.created_on) as last_deployed_time from pipeline_config_override pco 
 		 GROUP BY pco.pipeline_id) ld ON ld.pipeline_id = p.id 
-		 WHERE a.active = true`
+		 WHERE a.active = true
+		 ORDER BY a.app_name`
 
 	queryParams := []interface{}{envId, envId}
 
@@ -154,8 +155,6 @@ func (impl *AppListingRepositoryImpl) FetchAppsEnvContainers(envId int, limit, o
 		query += " AND a.id IN (?)"
 		queryParams = append(queryParams, pg.In(appIds))
 	}
-
-	query += " ORDER BY a.app_name"
 
 	if limit > 0 {
 		query += fmt.Sprintf("LIMIT ? ")
