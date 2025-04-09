@@ -73,7 +73,7 @@ type AppListingService interface {
 
 	FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*AppView.AppEnvironmentContainer, int, error)
 	FetchOverviewAppsByEnvironment(envId, limit, offset int) (*OverviewAppsByEnvironmentBean, error)
-	FetchAppsEnvContainers(envId, limit, offset int, appIds []int) ([]*AppView.AppEnvironmentContainer, error)
+	FetchAppsEnvContainers(envId int, appIds []int, limit, offset int) ([]*AppView.AppEnvironmentContainer, error)
 }
 
 const (
@@ -236,7 +236,7 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 		}
 	}
 	var appIds []int
-	envContainers, err := impl.FetchAppsEnvContainers(envId, limit, offset, appIds)
+	envContainers, err := impl.FetchAppsEnvContainers(envId, appIds, limit, offset)
 	if err != nil {
 		impl.Logger.Errorw("failed to fetch env containers", "err", err, "envId", envId)
 		return resp, err
@@ -290,8 +290,8 @@ func getUniqueArtifacts(artifactIds []int) (uniqueArtifactIds []int) {
 	return uniqueArtifactIds
 }
 
-func (impl AppListingServiceImpl) FetchAppsEnvContainers(envId, limit, offset int, appIds []int) ([]*AppView.AppEnvironmentContainer, error) {
-	envContainers, err := impl.appListingRepository.FetchAppsEnvContainers(envId, limit, offset, appIds)
+func (impl AppListingServiceImpl) FetchAppsEnvContainers(envId int, appIds []int, limit, offset int) ([]*AppView.AppEnvironmentContainer, error) {
+	envContainers, err := impl.appListingRepository.FetchAppsEnvContainers(envId, appIds, limit, offset)
 	if err != nil {
 		impl.Logger.Errorw("failed to fetch environment containers", "err", err, "envId", envId)
 		return nil, err

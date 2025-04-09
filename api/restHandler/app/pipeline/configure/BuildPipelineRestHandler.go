@@ -2327,7 +2327,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetAppMetadataListByEnvironment(w 
 
 	resp, err := handler.pipelineBuilder.GetAppMetadataListByEnvironment(envId, appIds)
 	if err != nil {
-		handler.Logger.Errorw("service err, GetAppMetadataListByEnvironment", "err", err, "envId", envId)
+		handler.Logger.Errorw("service err, GetAppMetadataListByEnvironment", "envId", envId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -2346,12 +2346,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetAppMetadataListByEnvironment(w 
 
 	// get rbac objects for the appids
 	rbacObjectsWithAppId := handler.enforcerUtil.GetRbacObjectsByAppIds(appIds)
-	rbacObjects := make([]string, len(rbacObjectsWithAppId))
-	itr := 0
-	for _, object := range rbacObjectsWithAppId {
-		rbacObjects[itr] = object
-		itr++
-	}
+	rbacObjects := maps.Values(rbacObjectsWithAppId)
 	// enforce rbac in batch
 	rbacResult := handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, rbacObjects)
 	// filter out rbac passed apps

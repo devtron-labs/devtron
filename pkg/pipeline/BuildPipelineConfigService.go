@@ -2165,7 +2165,7 @@ func (impl *CiPipelineConfigServiceImpl) CreateExternalCiAndAppWorkflowMapping(a
 
 func (impl *CiPipelineConfigServiceImpl) GetAppMetadataListByEnvironment(envId int, appIds []int) (appMetadataListBean pipelineConfigBean.AppMetadataListBean, err error) {
 	appMetadataListBean = pipelineConfigBean.AppMetadataListBean{}
-	envContainers, err := impl.appListingService.FetchAppsEnvContainers(envId, 0, 0, appIds)
+	envContainers, err := impl.appListingService.FetchAppsEnvContainers(envId, appIds, 0, 0)
 	if err != nil {
 		impl.logger.Errorw("failed to fetch env containers", "err", err, "envId", envId)
 		return appMetadataListBean, err
