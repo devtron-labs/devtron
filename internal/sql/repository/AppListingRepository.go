@@ -158,11 +158,11 @@ func (impl *AppListingRepositoryImpl) FetchAppsEnvContainers(envId int, limit, o
 	query += " ORDER BY a.app_name"
 
 	if limit > 0 {
-		query += " LIMIT ?"
+		query += fmt.Sprintf("LIMIT ? ")
 		queryParams = append(queryParams, limit)
 	}
 	if offset > 0 {
-		query += " OFFSET ?"
+		query += fmt.Sprintf("OFFSET ? ")
 		queryParams = append(queryParams, offset)
 	}
 
