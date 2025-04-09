@@ -146,7 +146,7 @@ func (impl *AppListingRepositoryImpl) FetchAppsEnvContainers(envId int, limit, o
 		 (SELECT pco.pipeline_id,MAX(pco.created_on) as last_deployed_time from pipeline_config_override pco 
 		 GROUP BY pco.pipeline_id) ld ON ld.pipeline_id = p.id 
 		 WHERE a.active = true
-		 ORDER BY a.app_name`
+		 ORDER BY a.app_name `
 
 	queryParams := []interface{}{envId, envId}
 
