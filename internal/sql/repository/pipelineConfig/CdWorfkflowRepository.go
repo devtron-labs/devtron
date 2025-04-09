@@ -126,6 +126,7 @@ type CdWorkflowRunner struct {
 	RefCdWorkflowRunnerId   int                             `sql:"ref_cd_workflow_runner_id,notnull"`
 	ImagePathReservationIds []int                           `sql:"image_path_reservation_ids" pg:",array,notnull"`
 	ReferenceId             *string                         `sql:"reference_id"`
+	ImageState              string                          `sql:"image_state"` // image_state currently not utilized in oss
 	CdWorkflow              *CdWorkflow
 	sql.AuditLog
 }
