@@ -18,6 +18,9 @@ metadata:
   annotations:
     "helm.sh/resource-policy": keep
 data:
+{{- if $.Values.devtronEnterprise.enabled }}
+  GATEKEEPER_URL: "https://license.devtron.ai/dashboard"
+{{- end }}
 {{- if .config }}
   GA_ENABLED: {{ .config.analytics | default "false" | quote }}
   HOTJAR_ENABLED: {{ .config.hotjar | default "false" | quote }}

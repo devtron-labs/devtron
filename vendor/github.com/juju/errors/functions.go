@@ -4,7 +4,9 @@
 package errors
 
 import (
+	stderrors "errors"
 	"fmt"
+	"runtime"
 	"strings"
 )
 
@@ -32,6 +34,18 @@ func Errorf(format string, args ...interface{}) error {
 	return err
 }
 
+// getLocation records the package path-qualified function name of the error at
+// callDepth stack frames above the call.
+func getLocation(callDepth int) (string, int) {
+	rpc := make([]uintptr, 1)
+	n := runtime.Callers(callDepth+2, rpc[:])
+	if n < 1 {
+		return "", 0
+	}
+	frame, _ := runtime.CallersFrames(rpc).Next()
+	return frame.Function, frame.Line
+}
+
 // Trace adds the location of the Trace call to the stack.  The Cause of the
 // resulting error is the same as the error parameter.  If the other error is
 // nil, the result will be nil.
@@ -42,6 +56,7 @@ func Errorf(format string, args ...interface{}) error {
 //   }
 //
 func Trace(other error) error {
+	//return SetLocation(other, 2)
 	if other == nil {
 		return nil
 	}
@@ -211,13 +226,9 @@ type wrapper interface {
 	Underlying() error
 }
 
-type locationer interface {
-	Location() (string, int)
-}
-
 var (
 	_ wrapper    = (*Err)(nil)
-	_ locationer = (*Err)(nil)
+	_ Locationer = (*Err)(nil)
 	_ causer     = (*Err)(nil)
 )
 
@@ -235,7 +246,7 @@ func Details(err error) string {
 	s = append(s, '[')
 	for {
 		s = append(s, '{')
-		if err, ok := err.(locationer); ok {
+		if err, ok := err.(Locationer); ok {
 			file, line := err.Location()
 			if file != "" {
 				s = append(s, fmt.Sprintf("%s:%d", file, line)...)
@@ -286,10 +297,9 @@ func errorStack(err error) []string {
 	var lines []string
 	for {
 		var buff []byte
-		if err, ok := err.(locationer); ok {
+		if err, ok := err.(Locationer); ok {
 			file, line := err.Location()
 			// Strip off the leading GOPATH/src path elements.
-			file = trimSourcePath(file)
 			if file != "" {
 				buff = append(buff, fmt.Sprintf("%s:%d", file, line)...)
 				buff = append(buff, ": "...)
@@ -327,4 +337,118 @@ func errorStack(err error) []string {
 		result = append(result, lines[i-1])
 	}
 	return result
+}
+
+// Unwrap is a proxy for the Unwrap function in Go's standard `errors` library
+// (pkg.go.dev/errors).
+func Unwrap(err error) error {
+	return stderrors.Unwrap(err)
+}
+
+// Is is a proxy for the Is function in Go's standard `errors` library
+// (pkg.go.dev/errors).
+func Is(err, target error) bool {
+	return stderrors.Is(err, target)
+}
+
+// HasType is a function wrapper around AsType dropping the where return value
+// from AsType() making a function that can be used like this:
+//
+//  return HasType[*MyError](err)
+//
+// Or
+//
+//  if HasType[*MyError](err) {}
+func HasType[T error](err error) bool {
+	_, rval := AsType[T](err)
+	return rval
+}
+
+// As is a proxy for the As function in Go's standard `errors` library
+// (pkg.go.dev/errors).
+func As(err error, target interface{}) bool {
+	return stderrors.As(err, target)
+}
+
+// AsType is a convenience method for checking and getting an error from within
+// a chain that is of type T. If no error is found of type T in the chain the
+// zero value of T is returned with false. If an error in the chain implementes
+// As(any) bool then it's As method will be called if it's type is not of type T.
+
+// AsType finds the first error in err's chain that is assignable to type T, and
+// if a match is found, returns that error value and true. Otherwise, it returns
+// T's zero value and false.
+//
+// AsType is equivalent to errors.As, but uses a type parameter and returns
+// the target, to avoid having to define a variable before the call. For
+// example, callers can replace this:
+//
+//  var pathError *fs.PathError
+//  if errors.As(err, &pathError) {
+//      fmt.Println("Failed at path:", pathError.Path)
+//  }
+//
+// With:
+//
+//  if pathError, ok := errors.AsType[*fs.PathError](err); ok {
+//      fmt.Println("Failed at path:", pathError.Path)
+//  }
+func AsType[T error](err error) (T, bool) {
+	for err != nil {
+		if e, is := err.(T); is {
+			return e, true
+		}
+		var res T
+		if x, ok := err.(interface{ As(any) bool }); ok && x.As(&res) {
+			return res, true
+		}
+		err = stderrors.Unwrap(err)
+	}
+	var zero T
+	return zero, false
+}
+
+// SetLocation takes a given error and records where in the stack SetLocation
+// was called from and returns the wrapped error with the location information
+// set. The returned error implements the Locationer interface. If err is nil
+// then a nil error is returned.
+func SetLocation(err error, callDepth int) error {
+	if err == nil {
+		return nil
+	}
+
+	return newLocationError(err, callDepth)
+}
+
+// fmtNoop provides an internal type for wrapping errors so they won't be
+// printed in fmt type commands. As this type is used by the Hide function it's
+// expected that error not be nil.
+type fmtNoop struct {
+	error
+}
+
+// Format implements the fmt.Formatter interface so that the error wrapped by
+// fmtNoop will not be printed.
+func (*fmtNoop) Format(_ fmt.State, r rune) {}
+
+// Is implements errors.Is. It useful for us to be able to check if an error
+// chain has fmtNoop for formatting purposes.
+func (f *fmtNoop) Is(err error) bool {
+	_, is := err.(*fmtNoop)
+	return is
+}
+
+// Unwrap implements the errors.Unwrap method returning the error wrapped by
+// fmtNoop.
+func (f *fmtNoop) Unwrap() error {
+	return f.error
+}
+
+// Hide takes an error and silences it's error string from appearing in fmt
+// like
+func Hide(err error) error {
+	if err == nil {
+		return nil
+	}
+	return &fmtNoop{err}
 }

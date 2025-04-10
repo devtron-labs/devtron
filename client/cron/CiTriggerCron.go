@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/caarlos0/env"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
+	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -98,7 +99,7 @@ func (impl *CiTriggerCronImpl) TriggerCiCron() {
 		ciTriggerRequest := bean.CiTriggerRequest{
 			PipelineId:         ciPipelineId,
 			CiPipelineMaterial: ciPipelineMaterials,
-			TriggeredBy:        1,
+			TriggeredBy:        bean2.SYSTEM_USER_ID,
 			InvalidateCache:    false,
 			PipelineType:       string(pipelineConfigBean.CI_JOB),
 		}

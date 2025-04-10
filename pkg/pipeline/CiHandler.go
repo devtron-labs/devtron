@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/workFlow"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
+	bean6 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/bean/common"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	bean4 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
@@ -222,7 +223,7 @@ func (impl *CiHandlerImpl) reTriggerCi(retryCount int, refCiWorkflow *pipelineCo
 	}
 
 	trigger := types.Trigger{}
-	trigger.BuildTriggerObject(refCiWorkflow, ciMaterials, 1, true, nil, "")
+	trigger.BuildTriggerObject(refCiWorkflow, ciMaterials, bean6.SYSTEM_USER_ID, true, nil, "")
 	_, err = impl.ciService.TriggerCiPipeline(trigger)
 
 	if err != nil {
