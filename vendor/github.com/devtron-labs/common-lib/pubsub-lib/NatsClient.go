@@ -32,11 +32,11 @@ type NatsClient struct {
 }
 
 type NatsClientConfig struct {
-	NatsServerHost string `env:"NATS_SERVER_HOST" envDefault:"nats://devtron-nats.devtroncd:4222" description:"Nats micro-service URL "`
+	NatsServerHost string `env:"NATS_SERVER_HOST" envDefault:"nats://devtron-nats.devtroncd:4222"`
 
 	// consumer wise
 	// NatsMsgProcessingBatchSize is the number of messages that will be processed in one go
-	NatsMsgProcessingBatchSize int `env:"NATS_MSG_PROCESSING_BATCH_SIZE" envDefault:"1" description:"NatsMsgProcessingBatchSize is the number of messages that will be processed in one go"`
+	NatsMsgProcessingBatchSize int `env:"NATS_MSG_PROCESSING_BATCH_SIZE" envDefault:"1"`
 
 	// NatsMsgBufferSize is the number of messages that will be buffered in memory (channel size)
 	// it is recommended to set this value equal to NatsMsgProcessingBatchSize as we want to process maximum messages in the buffer in one go.
@@ -45,10 +45,10 @@ type NatsClientConfig struct {
 	// NatsMsgBufferSize can be configured independently of NatsMsgProcessingBatchSize if needed by setting its value to positive value in env.
 	// if NatsMsgBufferSize set to a non-positive value then it will take the value of NatsMsgProcessingBatchSize.
 	// Note: always get this value by calling GetNatsMsgBufferSize method
-	NatsMsgBufferSize    int `env:"NATS_MSG_BUFFER_SIZE" envDefault:"-1" description:"NatsMsgBufferSize is the number of messages that will be buffered in memory (channel size)"`
-	NatsMsgMaxAge        int `env:"NATS_MSG_MAX_AGE" envDefault:"86400" description:"Age for the message to persist "` 
-	NatsMsgAckWaitInSecs int `env:"NATS_MSG_ACK_WAIT_IN_SECS" envDefault:"120" description:"Time to wait for acknowledging the message"`
-	NatsMsgReplicas      int `env:"NATS_MSG_REPLICAS" envDefault:"0" description:"Replica count for runnings nats instance"`
+	NatsMsgBufferSize    int `env:"NATS_MSG_BUFFER_SIZE" envDefault:"-1"`
+	NatsMsgMaxAge        int `env:"NATS_MSG_MAX_AGE" envDefault:"86400"`
+	NatsMsgAckWaitInSecs int `env:"NATS_MSG_ACK_WAIT_IN_SECS" envDefault:"120"`
+	NatsMsgReplicas      int `env:"NATS_MSG_REPLICAS" envDefault:"0"`
 }
 
 func (ncc NatsClientConfig) GetNatsMsgBufferSize() int {
