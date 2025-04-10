@@ -209,7 +209,7 @@ spec:
             - mountPath: /tmp
               name: tmp
             - mountPath: /var/lib/postgresql/data
-              name: data
+              name: devtron
             - mountPath: /docker-entrypoint-initdb.d
               name: scripts
             - mountPath: /etc/postgresql
