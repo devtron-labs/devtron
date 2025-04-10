@@ -69,8 +69,8 @@ func NewCiTriggerCronImpl(logger *zap.SugaredLogger, cfg *CiTriggerCronConfig, p
 }
 
 type CiTriggerCronConfig struct {
-	SourceControllerCronTime int    `env:"CI_TRIGGER_CRON_TIME" envDefault:"2"`
-	PluginName               string `env:"PLUGIN_NAME"  envDefault:"Pull images from container repository"`
+	SourceControllerCronTime int    `env:"CI_TRIGGER_CRON_TIME" envDefault:"2" description:"For image poll plugin"`
+	PluginName               string `env:"PLUGIN_NAME"  envDefault:"Pull images from container repository" description:"Handles image retrieval from a container repository and triggers subsequent CI processes upon detecting new images.Current default plugin name: Pull Images from Container Repository."`
 }
 
 func GetCiTriggerCronConfig() (*CiTriggerCronConfig, error) {
