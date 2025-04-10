@@ -77,8 +77,8 @@ type K8sCommonServiceImpl struct {
 	ClusterReadService           read.ClusterReadService
 }
 type K8sApplicationServiceConfig struct {
-	BatchSize        int `env:"BATCH_SIZE" envDefault:"5" description: "there is feature to get URL's of services/ingresses. so to extract those, we need to parse all the servcie and ingress objects of the application. this BATCH_SIZE flag controls the no of these objects get parsed in one go."`
-	TimeOutInSeconds int `env:"TIMEOUT_IN_SECONDS" envDefault:"5" description: "timeout to compute the urls from services and ingress objects of an application"`
+	BatchSize        int `env:"BATCH_SIZE" envDefault:"5" description:"there is feature to get URL's of services/ingresses. so to extract those, we need to parse all the servcie and ingress objects of the application. this BATCH_SIZE flag controls the no of these objects get parsed in one go."`
+	TimeOutInSeconds int `env:"TIMEOUT_IN_SECONDS" envDefault:"5" description:"timeout to compute the urls from services and ingress objects of an application"`
 }
 
 func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sServiceImpl,

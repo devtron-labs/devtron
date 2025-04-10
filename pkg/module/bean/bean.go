@@ -52,7 +52,7 @@ type ActionResponse struct {
 }
 
 type ModuleEnvConfig struct {
-	ModuleStatusHandlingCronDurationInMin int `env:"MODULE_STATUS_HANDLING_CRON_DURATION_MIN" envDefault:"3" description: "Module status update cron, used in stack manager, to update the module installation status."` // default 3 minutes
+	ModuleStatusHandlingCronDurationInMin int `env:"MODULE_STATUS_HANDLING_CRON_DURATION_MIN" envDefault:"3" description:"Module status update cron, used in stack manager, to update the module installation status."` // default 3 minutes
 }
 
 type ModuleResourceStatusDto struct {

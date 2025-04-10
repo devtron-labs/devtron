@@ -52,7 +52,7 @@ func GetEcrConfig() (*EcrConfig, error) {
 type SecurityConfig struct {
 	//FORCE_SECURITY_SCANNING flag is being maintained in both dashboard and orchestrator CM's
 	//TODO: rishabh will remove FORCE_SECURITY_SCANNING from dashboard's CM.
-	ForceSecurityScanning bool `env:"FORCE_SECURITY_SCANNING" envDefault:"false" description: "By enabling this no one can disable image scaning on ci-pipeline from UI"`
+	ForceSecurityScanning bool `env:"FORCE_SECURITY_SCANNING" envDefault:"false" description:"By enabling this no one can disable image scaning on ci-pipeline from UI"`
 }
 
 type PipelineBuilder interface {

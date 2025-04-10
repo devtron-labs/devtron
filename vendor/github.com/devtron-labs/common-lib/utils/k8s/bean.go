@@ -169,12 +169,12 @@ func GetResourceKey(obj *unstructured.Unstructured) ResourceKey {
 }
 
 type CustomK8sHttpTransportConfig struct {
-	UseCustomTransport  bool `env:"USE_CUSTOM_HTTP_TRANSPORT" envDefault:"false" description: "There is an issue in updating cluster bearer token with same cluster url due to transport layer token caching in k8s client lib. so we added a custom transport while calling k8s api server. this flag controls the usage of this transport.(custom or k8s)"`
-	TimeOut             int  `env:"K8s_TCP_TIMEOUT" envDefault:"30" description: "is the maximum amount of time a dial will wait for a connect to complete, required only if USE_CUSTOM_HTTP_TRANSPORT is true."`
-	KeepAlive           int  `env:"K8s_TCP_KEEPALIVE" envDefault:"30" description: "specifies the interval between keep-alive probes for an active, required only if USE_CUSTOM_HTTP_TRANSPORT is true."`
-	TLSHandshakeTimeout int  `env:"K8s_TLS_HANDSHAKE_TIMEOUT" envDefault:"10" description: "specifies the maximum amount of time to wait for a TLS handshake. Zero means no timeout, required only if USE_CUSTOM_HTTP_TRANSPORT is true."`
-	MaxIdleConnsPerHost int  `env:"K8s_CLIENT_MAX_IDLE_CONNS_PER_HOST" envDefault:"25" description: "k8s client max idle connections per host"` 
-	IdleConnTimeout     int  `env:"K8s_TCP_IDLE_CONN_TIMEOUT" envDefault:"300" description: "maximum amount of time an idle (keep-alive) connection will remain idle before closing itself, required only if USE_CUSTOM_HTTP_TRANSPORT is true."`
+	UseCustomTransport  bool `env:"USE_CUSTOM_HTTP_TRANSPORT" envDefault:"false" description:"There is an issue in updating cluster bearer token with same cluster url due to transport layer token caching in k8s client lib. so we added a custom transport while calling k8s api server. this flag controls the usage of this transport.(custom or k8s)"`
+	TimeOut             int  `env:"K8s_TCP_TIMEOUT" envDefault:"30" description:"is the maximum amount of time a dial will wait for a connect to complete, required only if USE_CUSTOM_HTTP_TRANSPORT is true."`
+	KeepAlive           int  `env:"K8s_TCP_KEEPALIVE" envDefault:"30" description:"specifies the interval between keep-alive probes for an active, required only if USE_CUSTOM_HTTP_TRANSPORT is true."`
+	TLSHandshakeTimeout int  `env:"K8s_TLS_HANDSHAKE_TIMEOUT" envDefault:"10" description:"specifies the maximum amount of time to wait for a TLS handshake. Zero means no timeout, required only if USE_CUSTOM_HTTP_TRANSPORT is true."`
+	MaxIdleConnsPerHost int  `env:"K8s_CLIENT_MAX_IDLE_CONNS_PER_HOST" envDefault:"25" description:"k8s client max idle connections per host"` 
+	IdleConnTimeout     int  `env:"K8s_TCP_IDLE_CONN_TIMEOUT" envDefault:"300" description:"maximum amount of time an idle (keep-alive) connection will remain idle before closing itself, required only if USE_CUSTOM_HTTP_TRANSPORT is true."`
 }
 
 type LocalDevMode bool

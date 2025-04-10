@@ -45,8 +45,8 @@ func NewGitCommandManager(logger *zap.SugaredLogger) GitCommandManager {
 }
 
 type configuration struct {
-	UseGitCli           bool `env:"USE_GIT_CLI" envDefault:"false" description: "To enable git cli"`
-	CliCmdTimeoutGlobal int  `env:"CLI_CMD_TIMEOUT_GLOBAL_SECONDS" envDefault:"0" description: "Used in git cli opeartion timeout"`
+	UseGitCli           bool `env:"USE_GIT_CLI" envDefault:"false" description:"To enable git cli"`
+	CliCmdTimeoutGlobal int  `env:"CLI_CMD_TIMEOUT_GLOBAL_SECONDS" envDefault:"0" description:"Used in git cli opeartion timeout"`
 }
 
 func ParseConfiguration() (*configuration, error) {

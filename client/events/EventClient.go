@@ -38,8 +38,8 @@ import (
 )
 
 type EventClientConfig struct {
-	DestinationURL     string             `env:"EVENT_URL" envDefault:"http://localhost:3000/notify" description: "Notifier service url"`
-	NotificationMedium NotificationMedium `env:"NOTIFICATION_MEDIUM" envDefault:"rest" description: "notification medium"`
+	DestinationURL     string             `env:"EVENT_URL" envDefault:"http://localhost:3000/notify" description:"Notifier service url"`
+	NotificationMedium NotificationMedium `env:"NOTIFICATION_MEDIUM" envDefault:"rest" description:"notification medium"`
 }
 type NotificationMedium string
 

@@ -47,8 +47,8 @@ type K8sClient struct {
 }
 
 type RuntimeConfig struct {
-	LocalDevMode                LocalDevMode `env:"RUNTIME_CONFIG_LOCAL_DEV" envDefault:"false" description: "Used in local development process. Allows to read from local kube config file path for default cluster operations."`
-	DevtronDefaultNamespaceName string       `env:"DEVTRON_DEFAULT_NAMESPACE" envDefault:"devtroncd" description: "default namespace for devtron"`
+	LocalDevMode                LocalDevMode `env:"RUNTIME_CONFIG_LOCAL_DEV" envDefault:"false" description:"Used in local development process. Allows to read from local kube config file path for default cluster operations."`
+	DevtronDefaultNamespaceName string       `env:"DEVTRON_DEFAULT_NAMESPACE" envDefault:"devtroncd" description:"default namespace for devtron"`
 }
 
 func GetRuntimeConfig() (*RuntimeConfig, error) {

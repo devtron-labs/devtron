@@ -22,9 +22,9 @@ import (
 
 // CATEGORY=INFRA_SETUP
 type Config struct {
-	Host      string `env:"DASHBOARD_HOST" envDefault:"localhost" description: "Dashboard micro-service URL"`
-	Port      string `env:"DASHBOARD_PORT" envDefault:"3000" description: "Port for dashboard micro-service"`
-	Namespace string `env:"DASHBOARD_NAMESPACE" envDefault:"devtroncd" description: "Dashboard micro-service namespace"`
+	Host      string `env:"DASHBOARD_HOST" envDefault:"localhost" description:"Dashboard micro-service URL"`
+	Port      string `env:"DASHBOARD_PORT" envDefault:"3000" description:"Port for dashboard micro-service"`
+	Namespace string `env:"DASHBOARD_NAMESPACE" envDefault:"devtroncd" description:"Dashboard micro-service namespace"`
 }
 
 func GetConfig() (*Config, error) {

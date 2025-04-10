@@ -66,8 +66,8 @@ func NewCiStatusUpdateCronImpl(logger *zap.SugaredLogger, appService app.AppServ
 }
 
 type CiWorkflowStatusUpdateConfig struct {
-	CiWorkflowStatusUpdateCron string `env:"CI_WORKFLOW_STATUS_UPDATE_CRON" envDefault:"*/5 * * * *" description: "Cron schedule for CI pipeline status"`
-	TimeoutForFailedCiBuild    string `env:"TIMEOUT_FOR_FAILED_CI_BUILD" envDefault:"15" description: "Timeout for Failed CI build "` //in minutes
+	CiWorkflowStatusUpdateCron string `env:"CI_WORKFLOW_STATUS_UPDATE_CRON" envDefault:"*/5 * * * *" description:"Cron schedule for CI pipeline status"`
+	TimeoutForFailedCiBuild    string `env:"TIMEOUT_FOR_FAILED_CI_BUILD" envDefault:"15" description:"Timeout for Failed CI build "` //in minutes
 }
 
 func GetCiWorkflowStatusUpdateConfig() (*CiWorkflowStatusUpdateConfig, error) {

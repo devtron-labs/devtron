@@ -125,10 +125,10 @@ type NatsTopic struct {
 }
 type ConfigJson struct {
 	// StreamConfigJson is a json string of map[string]NatsStreamConfig
-	StreamConfigJson string `env:"STREAM_CONFIG_JSON" description: "this is json map of nats stream configurations per stream. eg: {"ORCHESTRATOR":{"max_age":3600,"replicas":1}}"`
+	StreamConfigJson string `env:"STREAM_CONFIG_JSON" description:"this is json map of nats stream configurations per stream. eg: {"ORCHESTRATOR":{"max_age":3600,"replicas":1}}"`
 	// ConsumerConfigJson is a json string of map[string]NatsConsumerConfig
 	// eg: "{\"ARGO_PIPELINE_STATUS_UPDATE_DURABLE-1\" : \"{\"natsMsgProcessingBatchSize\" : 3, \"natsMsgBufferSize\" : 3, \"ackWaitInSecs\": 300}\"}"
-	ConsumerConfigJson string `env:"CONSUMER_CONFIG_JSON" description: "ConsumerConfigJson is a json string of map[string]NatsConsumerConfig eg: "{\"ARGO_PIPELINE_STATUS_UPDATE_DURABLE-1\" : \"{\"natsMsgProcessingBatchSize\" : 3, \"natsMsgBufferSize\" : 3, \"ackWaitInSecs\": 300}\"}""`
+	ConsumerConfigJson string `env:"CONSUMER_CONFIG_JSON" description:"ConsumerConfigJson is a json string of map[string]NatsConsumerConfig eg: "{\"ARGO_PIPELINE_STATUS_UPDATE_DURABLE-1\" : \"{\"natsMsgProcessingBatchSize\" : 3, \"natsMsgBufferSize\" : 3, \"ackWaitInSecs\": 300}\"}""`
 }
 
 var natsTopicMapping = map[string]NatsTopic{

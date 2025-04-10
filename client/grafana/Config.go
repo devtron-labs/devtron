@@ -19,9 +19,9 @@ package grafana
 import "github.com/caarlos0/env"
 
 type Config struct {
-	Host      string `env:"GRAFANA_HOST" envDefault:"localhost" description: "Host URL for the grafana dashboard"`
-	Port      string `env:"GRAFANA_PORT" envDefault:"8090" description: "Port for grafana micro-service"`
-	Namespace string `env:"GRAFANA_NAMESPACE" envDefault:"devtroncd" description: "Namespace for grafana"`
+	Host      string `env:"GRAFANA_HOST" envDefault:"localhost" description:"Host URL for the grafana dashboard"`
+	Port      string `env:"GRAFANA_PORT" envDefault:"8090" description:"Port for grafana micro-service"`
+	Namespace string `env:"GRAFANA_NAMESPACE" envDefault:"devtroncd" description:"Namespace for grafana"`
 }
 
 func GetConfig() (*Config, error) {

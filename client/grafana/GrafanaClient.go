@@ -34,10 +34,10 @@ import (
 )
 
 type GrafanaClientConfig struct {
-	GrafanaUsername string `env:"GRAFANA_USERNAME" envDefault:"admin" description: "Username for grafana "`
-	GrafanaPassword string `env:"GRAFANA_PASSWORD" envDefault:"prom-operator" description: "Password for grafana dashboard"`
-	GrafanaOrgId    int    `env:"GRAFANA_ORG_ID" envDefault:"2" description: "Org ID for grafana for application metrics"`
-	DestinationURL  string `env:"GRAFANA_URL" envDefault:"" description: "Host URL for the grafana dashboard"`
+	GrafanaUsername string `env:"GRAFANA_USERNAME" envDefault:"admin" description:"Username for grafana "`
+	GrafanaPassword string `env:"GRAFANA_PASSWORD" envDefault:"prom-operator" description:"Password for grafana dashboard"`
+	GrafanaOrgId    int    `env:"GRAFANA_ORG_ID" envDefault:"2" description:"Org ID for grafana for application metrics"`
+	DestinationURL  string `env:"GRAFANA_URL" envDefault:"" description:"Host URL for the grafana dashboard"`
 }
 
 const PromDatasource = "/api/datasources"

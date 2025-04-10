@@ -62,13 +62,13 @@ func (impl *TokenCache) BuildACDSynchContext() (acdContext context.Context, err 
 
 // CATEGORY=GITOPS
 type ACDAuthConfig struct {
-	ACDUsername                      string `env:"ACD_USERNAME" envDefault:"admin" description: "User name for argocd"`
-	ACDPassword                      string `env:"ACD_PASSWORD" description: "Password for the Argocd (deprecated)"`
-	ACDConfigMapName                 string `env:"ACD_CM" envDefault:"argocd-cm" description: "Name of the argocd CM"`
-	ACDConfigMapNamespace            string `env:"ACD_NAMESPACE" envDefault:"devtroncd" description: "To pass the argocd namespace"`
-	GitOpsSecretName                 string `env:"GITOPS_SECRET_NAME" envDefault:"devtron-gitops-secret" description: "devtron-gitops-secret"`
-	ResourceListForReplicas          string `env:"RESOURCE_LIST_FOR_REPLICAS" envDefault:"Deployment,Rollout,StatefulSet,ReplicaSet" description: "this holds the list of k8s resource names which support replicas key. this list used in hibernate/un hibernate process"`
-	ResourceListForReplicasBatchSize int    `env:"RESOURCE_LIST_FOR_REPLICAS_BATCH_SIZE" envDefault:"5" description: "this the batch size to control no of above resources can be parsed in one go to determine hibernate status"`
+	ACDUsername                      string `env:"ACD_USERNAME" envDefault:"admin" description:"User name for argocd"`
+	ACDPassword                      string `env:"ACD_PASSWORD" description:"Password for the Argocd (deprecated)"`
+	ACDConfigMapName                 string `env:"ACD_CM" envDefault:"argocd-cm" description:"Name of the argocd CM"`
+	ACDConfigMapNamespace            string `env:"ACD_NAMESPACE" envDefault:"devtroncd" description:"To pass the argocd namespace"`
+	GitOpsSecretName                 string `env:"GITOPS_SECRET_NAME" envDefault:"devtron-gitops-secret" description:"devtron-gitops-secret"`
+	ResourceListForReplicas          string `env:"RESOURCE_LIST_FOR_REPLICAS" envDefault:"Deployment,Rollout,StatefulSet,ReplicaSet" description:"this holds the list of k8s resource names which support replicas key. this list used in hibernate/un hibernate process"`
+	ResourceListForReplicasBatchSize int    `env:"RESOURCE_LIST_FOR_REPLICAS_BATCH_SIZE" envDefault:"5" description:"this the batch size to control no of above resources can be parsed in one go to determine hibernate status"`
 }
 
 func GetACDAuthConfig() (*ACDAuthConfig, error) {

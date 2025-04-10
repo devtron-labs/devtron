@@ -53,7 +53,7 @@ const (
 )
 
 type CrudOperationServiceConfig struct {
-	PropagateExtraLabels bool `env:"PROPAGATE_EXTRA_LABELS" envDefault:"false" description: "Add additional propagate labels like api.devtron.ai/appName, api.devtron.ai/envName, api.devtron.ai/project along with the user defined ones."`
+	PropagateExtraLabels bool `env:"PROPAGATE_EXTRA_LABELS" envDefault:"false" description:"Add additional propagate labels like api.devtron.ai/appName, api.devtron.ai/envName, api.devtron.ai/project along with the user defined ones."`
 }
 
 type AppCrudOperationService interface {

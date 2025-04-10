@@ -17,5 +17,5 @@
 package bean
 
 type Config struct {
-	IgnoreAuthCheck bool `env:"IGNORE_AUTOCOMPLETE_AUTH_CHECK" envDefault:"false" description: "flag for ignoring auth check in autocomplete apis."`
+	IgnoreAuthCheck bool `env:"IGNORE_AUTOCOMPLETE_AUTH_CHECK" envDefault:"false" description:"flag for ignoring auth check in autocomplete apis."`
 }

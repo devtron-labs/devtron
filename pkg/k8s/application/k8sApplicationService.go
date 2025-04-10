@@ -145,7 +145,7 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService clus
 }
 
 type EphemeralContainerConfig struct {
-	EphemeralServerVersionRegex string `env:"EPHEMERAL_SERVER_VERSION_REGEX" envDefault:"v[1-9]\\.\\b(2[3-9]|[3-9][0-9])\\b.*" description: "ephemeral containers support version regex that is compared with k8sServerVersion"`
+	EphemeralServerVersionRegex string `env:"EPHEMERAL_SERVER_VERSION_REGEX" envDefault:"v[1-9]\\.\\b(2[3-9]|[3-9][0-9])\\b.*" description:"ephemeral containers support version regex that is compared with k8sServerVersion"`
 }
 
 func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Request) (*bean4.ResourceRequestBean, error) {

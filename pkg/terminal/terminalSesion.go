@@ -282,8 +282,8 @@ func handleTerminalSession(session sockjs.Session) {
 }
 
 type SocketConfig struct {
-	SocketHeartbeatSeconds int `env:"SOCKET_HEARTBEAT_SECONDS" envDefault:"25" description: "In order to keep proxies and load balancers from closing long running http requests we need to pretend that the connection is active and send a heartbeat packet once in a while. This setting controls how often this is done. By default a heartbeat packet is sent every 25 seconds."`
-	SocketDisconnectDelay  int `env:"SOCKET_DISCONNECT_DELAY_SECONDS" envDefault:"5" description: "The server closes a session when a client receiving connection have not been seen for a while.This delay is configured by this setting. By default the session is closed when a receiving connection wasn't seen for 5 seconds."`
+	SocketHeartbeatSeconds int `env:"SOCKET_HEARTBEAT_SECONDS" envDefault:"25" description:"In order to keep proxies and load balancers from closing long running http requests we need to pretend that the connection is active and send a heartbeat packet once in a while. This setting controls how often this is done. By default a heartbeat packet is sent every 25 seconds."`
+	SocketDisconnectDelay  int `env:"SOCKET_DISCONNECT_DELAY_SECONDS" envDefault:"5" description:"The server closes a session when a client receiving connection have not been seen for a while.This delay is configured by this setting. By default the session is closed when a receiving connection wasn't seen for 5 seconds."`
 }
 
 var cfg *SocketConfig
