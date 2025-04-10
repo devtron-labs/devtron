@@ -51,7 +51,7 @@ type AppListingRepository interface {
 	DeploymentDetailByArtifactId(ciArtifactId int, envId int) (AppView.DeploymentDetailContainer, error)
 	FindAppCount(isProd bool) (int, error)
 	FetchAppsByEnvironmentV2(appListingFilter helper.AppListingFilter) ([]*AppView.AppEnvironmentContainer, int, error)
-	FetchAppsEnvContainers(envId, limit, offset int, appIds []int) ([]*AppView.AppEnvironmentContainer, error)
+	FetchAppsEnvContainers(envId int, appIds []int, limit, offset int) ([]*AppView.AppEnvironmentContainer, error)
 	FetchLastDeployedImage(appId, envId int) (*LastDeployed, error)
 }
 
@@ -137,7 +137,7 @@ func (impl *AppListingRepositoryImpl) FetchOverviewCiPipelines(jobId int) ([]*Ap
 	return jobContainers, nil
 }
 
-func (impl *AppListingRepositoryImpl) FetchAppsEnvContainers(envId int, limit, offset int, appIds []int) ([]*AppView.AppEnvironmentContainer, error) {
+func (impl *AppListingRepositoryImpl) FetchAppsEnvContainers(envId int, appIds []int, limit, offset int) ([]*AppView.AppEnvironmentContainer, error) {
 	query := ` SELECT a.id as app_id,a.app_name,aps.status as app_status, ld.last_deployed_time, p.id as pipeline_id 
 		 FROM app a 
 		 INNER JOIN pipeline p ON p.app_id = a.id and p.deleted = false and p.environment_id = ? 
@@ -145,7 +145,8 @@ func (impl *AppListingRepositoryImpl) FetchAppsEnvContainers(envId int, limit, o
 		 LEFT JOIN 
 		 (SELECT pco.pipeline_id,MAX(pco.created_on) as last_deployed_time from pipeline_config_override pco 
 		 GROUP BY pco.pipeline_id) ld ON ld.pipeline_id = p.id 
-		 WHERE a.active = true`
+		 WHERE a.active = true 
+		 ORDER BY a.app_name `
 
 	queryParams := []interface{}{envId, envId}
 
@@ -155,14 +156,12 @@ func (impl *AppListingRepositoryImpl) FetchAppsEnvContainers(envId int, limit, o
 		queryParams = append(queryParams, pg.In(appIds))
 	}
 
-	query += " ORDER BY a.app_name"
-
 	if limit > 0 {
-		query += " LIMIT ?"
+		query += fmt.Sprintf("LIMIT ? ")
 		queryParams = append(queryParams, limit)
 	}
 	if offset > 0 {
-		query += " OFFSET ?"
+		query += fmt.Sprintf("OFFSET ? ")
 		queryParams = append(queryParams, offset)
 	}
 
