@@ -25,6 +25,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	bean6 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
@@ -37,10 +38,10 @@ import (
 )
 
 type DeployedAppService interface {
-	StopStartApp(ctx context.Context, stopRequest *bean.StopAppRequest) (int, error)
-	RotatePods(ctx context.Context, podRotateRequest *bean.PodRotateRequest) (*bean4.RotatePodResponse, error)
-	StopStartAppV1(ctx context.Context, stopRequest *bean.StopAppRequest) (int, error)
-	HibernationPatch(ctx context.Context, appId, envId int) (*bean.HibernationPatchResponse, error)
+	StopStartApp(ctx context.Context, stopRequest *bean.StopAppRequest, userMetadata *bean6.UserMetadata) (int, error)
+	RotatePods(ctx context.Context, podRotateRequest *bean.PodRotateRequest, userMetadata *bean6.UserMetadata) (*bean4.RotatePodResponse, error)
+	StopStartAppV1(ctx context.Context, stopRequest *bean.StopAppRequest, userMetadata *bean6.UserMetadata) (int, error)
+	HibernationPatch(ctx context.Context, appId, envId int, userMetadata *bean6.UserMetadata) (*bean.HibernationPatchResponse, error)
 }
 
 type DeployedAppServiceImpl struct {
@@ -68,11 +69,11 @@ func NewDeployedAppServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *DeployedAppServiceImpl) StopStartApp(ctx context.Context, stopRequest *bean.StopAppRequest) (int, error) {
-	return impl.stopStartApp(ctx, stopRequest)
+func (impl *DeployedAppServiceImpl) StopStartApp(ctx context.Context, stopRequest *bean.StopAppRequest, userMetadata *bean6.UserMetadata) (int, error) {
+	return impl.stopStartApp(ctx, stopRequest, userMetadata)
 }
 
-func (impl *DeployedAppServiceImpl) stopStartApp(ctx context.Context, stopRequest *bean.StopAppRequest) (int, error) {
+func (impl *DeployedAppServiceImpl) stopStartApp(ctx context.Context, stopRequest *bean.StopAppRequest, userMetadata *bean6.UserMetadata) (int, error) {
 	pipelines, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(stopRequest.AppId, stopRequest.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipeline", "app", stopRequest.AppId, "env", stopRequest.EnvironmentId, "err", err)
@@ -98,7 +99,7 @@ func (impl *DeployedAppServiceImpl) stopStartApp(ctx context.Context, stopReques
 		impl.logger.Errorw("error in fetching latest release", "err", err)
 		return 0, err
 	}
-	err = impl.checkForFeasibilityBeforeStartStop(stopRequest.AppId, stopRequest.EnvironmentId, stopRequest.UserId)
+	err = impl.checkForFeasibilityBeforeStartStop(stopRequest.AppId, stopRequest.EnvironmentId, userMetadata)
 	if err != nil {
 		impl.logger.Errorw("error in checking for feasibility before hibernating and un hibernating", "stopRequest", stopRequest, "err", err)
 		return 0, err
@@ -127,7 +128,7 @@ func (impl *DeployedAppServiceImpl) stopStartApp(ctx context.Context, stopReques
 		Context:     ctx,
 		ReferenceId: stopRequest.ReferenceId,
 	}
-	id, _, _, err := impl.cdTriggerService.ManualCdTrigger(triggerContext, overrideRequest)
+	id, _, _, err := impl.cdTriggerService.ManualCdTrigger(triggerContext, overrideRequest, userMetadata)
 	if err != nil {
 		impl.logger.Errorw("error in stopping app", "err", err, "appId", stopRequest.AppId, "envId", stopRequest.EnvironmentId)
 		return 0, err
@@ -135,7 +136,7 @@ func (impl *DeployedAppServiceImpl) stopStartApp(ctx context.Context, stopReques
 	return id, err
 }
 
-func (impl *DeployedAppServiceImpl) RotatePods(ctx context.Context, podRotateRequest *bean.PodRotateRequest) (*bean4.RotatePodResponse, error) {
+func (impl *DeployedAppServiceImpl) RotatePods(ctx context.Context, podRotateRequest *bean.PodRotateRequest, userMetadata *bean6.UserMetadata) (*bean4.RotatePodResponse, error) {
 	impl.logger.Infow("rotate pod request", "payload", podRotateRequest)
 	//extract cluster id and namespace from env id
 	environmentId := podRotateRequest.EnvironmentId
@@ -144,7 +145,7 @@ func (impl *DeployedAppServiceImpl) RotatePods(ctx context.Context, podRotateReq
 		impl.logger.Errorw("error occurred while fetching env details", "envId", environmentId, "err", err)
 		return nil, err
 	}
-	err = impl.checkForFeasibilityBeforeStartStop(podRotateRequest.AppId, podRotateRequest.EnvironmentId, podRotateRequest.UserId)
+	err = impl.checkForFeasibilityBeforeStartStop(podRotateRequest.AppId, podRotateRequest.EnvironmentId, userMetadata)
 	if err != nil {
 		impl.logger.Errorw("error in checking for feasibility in Rotating pods", "podRotateRequest", podRotateRequest, "err", err)
 		return nil, err

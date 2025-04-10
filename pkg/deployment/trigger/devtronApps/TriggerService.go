@@ -48,6 +48,7 @@ import (
 	statusBean "github.com/devtron-labs/devtron/pkg/app/status/bean"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
+	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
 	pipeline2 "github.com/devtron-labs/devtron/pkg/build/pipeline"
@@ -108,7 +109,7 @@ type TriggerService interface {
 
 	TriggerStageForBulk(triggerRequest bean.TriggerRequest) error
 
-	ManualCdTrigger(triggerContext bean.TriggerContext, overrideRequest *bean3.ValuesOverrideRequest) (int, string, *bean4.ManifestPushTemplate, error)
+	ManualCdTrigger(triggerContext bean.TriggerContext, overrideRequest *bean3.ValuesOverrideRequest, userMetadata *userBean.UserMetadata) (int, string, *bean4.ManifestPushTemplate, error)
 	TriggerAutomaticDeployment(request bean.TriggerRequest) error
 
 	TriggerRelease(ctx context.Context, overrideRequest *bean3.ValuesOverrideRequest, envDeploymentConfig *bean9.DeploymentConfig, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifestPushTemplate *bean4.ManifestPushTemplate, err error)
@@ -395,7 +396,7 @@ func (impl *TriggerServiceImpl) validateDeploymentTriggerRequest(ctx context.Con
 }
 
 // TODO: write a wrapper to handle auto and manual trigger
-func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerContext, overrideRequest *bean3.ValuesOverrideRequest) (int, string, *bean4.ManifestPushTemplate, error) {
+func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerContext, overrideRequest *bean3.ValuesOverrideRequest, userMetadata *userBean.UserMetadata) (int, string, *bean4.ManifestPushTemplate, error) {
 
 	triggerContext.TriggerType = bean.Manual
 	// setting triggeredAt variable to have consistent data for various audit log places in db for deployment time

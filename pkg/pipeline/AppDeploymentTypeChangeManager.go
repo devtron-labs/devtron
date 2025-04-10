@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
 	app2 "github.com/devtron-labs/devtron/pkg/app"
+	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/chart/read"
@@ -53,13 +54,13 @@ type AppDeploymentTypeChangeManager interface {
 	// ChangeDeploymentType : takes in DeploymentAppTypeChangeRequest struct and
 	// deletes all the cd pipelines for that deployment type in all apps that belongs to
 	// that environment and updates the db with desired deployment app type
-	ChangeDeploymentType(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
+	ChangeDeploymentType(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest, userMetadata *userBean.UserMetadata) (*bean.DeploymentAppTypeChangeResponse, error)
 	// ChangePipelineDeploymentType : takes in DeploymentAppTypeChangeRequest struct and
 	// deletes all the cd pipelines for that deployment type in all apps that belongs to
 	// that environment and updates the db with desired deployment app type
-	ChangePipelineDeploymentType(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
+	ChangePipelineDeploymentType(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest, userMetadata *userBean.UserMetadata) (*bean.DeploymentAppTypeChangeResponse, error)
 	// TriggerDeploymentAfterTypeChange : triggers a new deployment after type change
-	TriggerDeploymentAfterTypeChange(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
+	TriggerDeploymentAfterTypeChange(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest, userMetadata *userBean.UserMetadata) (*bean.DeploymentAppTypeChangeResponse, error)
 	// DeleteDeploymentApps : takes in a list of pipelines and delete the applications
 	DeleteDeploymentApps(ctx context.Context, pipelines []*pipelineConfig.Pipeline, deploymentConfig []*bean4.DeploymentConfig, userId int32) *bean.DeploymentAppTypeChangeResponse
 	// DeleteDeploymentAppsForEnvironment : takes in environment id and current deployment app type
@@ -117,7 +118,7 @@ func NewAppDeploymentTypeChangeManagerImpl(
 }
 
 func (impl *AppDeploymentTypeChangeManagerImpl) ChangeDeploymentType(ctx context.Context,
-	request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error) {
+	request *bean.DeploymentAppTypeChangeRequest, userMetadata *userBean.UserMetadata) (*bean.DeploymentAppTypeChangeResponse, error) {
 
 	var response *bean.DeploymentAppTypeChangeResponse
 	var deleteDeploymentType bean3.DeploymentType
@@ -252,7 +253,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangeDeploymentType(ctx context
 }
 
 func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx context.Context,
-	request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error) {
+	request *bean.DeploymentAppTypeChangeRequest, userMetadata *userBean.UserMetadata) (*bean.DeploymentAppTypeChangeResponse, error) {
 
 	response := &bean.DeploymentAppTypeChangeResponse{
 		EnvId:                 request.EnvId,
@@ -369,7 +370,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 }
 
 func (impl *AppDeploymentTypeChangeManagerImpl) TriggerDeploymentAfterTypeChange(ctx context.Context,
-	request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error) {
+	request *bean.DeploymentAppTypeChangeRequest, userMetadata *userBean.UserMetadata) (*bean.DeploymentAppTypeChangeResponse, error) {
 
 	response := &bean.DeploymentAppTypeChangeResponse{
 		EnvId:                 request.EnvId,
