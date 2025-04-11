@@ -30,7 +30,7 @@ import (
 	"time"
 )
 
-func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) (*bean4.ManifestPushTemplate, error) {
+func (impl *HandlerServiceImpl) TriggerPostStage(request bean.TriggerRequest) (*bean4.ManifestPushTemplate, error) {
 	request.WorkflowType = bean2.CD_WORKFLOW_TYPE_POST
 	// setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
@@ -123,7 +123,7 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) (*
 		return nil, err
 	}
 
-	_, jobHelmPackagePath, err := impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest)
+	_, jobHelmPackagePath, err := impl.workflowService.SubmitWorkflow(cdStageWorkflowRequest)
 	if err != nil {
 		impl.logger.Errorw("error in submitting workflow", "err", err, "workflowId", cdStageWorkflowRequest.WorkflowId, "pipeline", pipeline, "env", env)
 		runner.Status = cdWorkflow.WorkflowFailed
@@ -164,7 +164,7 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) (*
 	return manifestPushTempate, nil
 }
 
-func (impl *TriggerServiceImpl) buildWfRequestErrorHandler(runner *pipelineConfig.CdWorkflowRunner, err error, triggeredBy int32) (*bean4.ManifestPushTemplate, error) {
+func (impl *HandlerServiceImpl) buildWfRequestErrorHandler(runner *pipelineConfig.CdWorkflowRunner, err error, triggeredBy int32) (*bean4.ManifestPushTemplate, error) {
 	dbErr := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, err, triggeredBy)
 	if dbErr != nil {
 		impl.logger.Errorw("error while updating current runner status to failed, buildWfRequestErrorHandler", "runner", runner.Id, "err", dbErr, "releaseErr", err)

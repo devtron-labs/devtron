@@ -21,6 +21,7 @@ import (
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned"
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
+	informerBean "github.com/devtron-labs/common-lib/informer"
 	"github.com/devtron-labs/common-lib/utils"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -287,16 +288,20 @@ func GetClientInstance(config *rest.Config, namespace string) (v1alpha12.Workflo
 }
 
 func CheckIfReTriggerRequired(status, message, workflowRunnerStatus string) bool {
-	return ((status == string(v1alpha1.NodeError) || status == string(v1alpha1.NodeFailed)) &&
-		message == cdWorkflow.POD_DELETED_MESSAGE) && (workflowRunnerStatus != cdWorkflow.WorkflowCancel && workflowRunnerStatus != cdWorkflow.WorkflowAborted)
+	return (status == string(v1alpha1.NodeError) || status == string(v1alpha1.NodeFailed)) &&
+		message == cdWorkflow.POD_DELETED_MESSAGE &&
+		workflowRunnerStatus != cdWorkflow.WorkflowCancel &&
+		workflowRunnerStatus != cdWorkflow.WorkflowAborted &&
+		workflowRunnerStatus != cdWorkflow.WorkflowSucceeded
 
 }
 
 func GetWorkflowLabelsForSystemExecutor(workflowTemplate bean.WorkflowTemplate) map[string]string {
 	return map[string]string{
-		DEVTRON_WORKFLOW_LABEL_KEY:      DEVTRON_WORKFLOW_LABEL_VALUE,
-		"devtron.ai/purpose":            "workflow",
-		"workflowType":                  workflowTemplate.WorkflowType,
-		bean.WorkflowGenerateNamePrefix: workflowTemplate.WorkflowNamePrefix,
+		DEVTRON_WORKFLOW_LABEL_KEY:                DEVTRON_WORKFLOW_LABEL_VALUE,
+		bean.DevtronLabelPurposeKey:               bean.DevtronLabelPurposeWorkflow,
+		informerBean.WorkflowTypeLabelKey:         workflowTemplate.WorkflowType,
+		bean.WorkflowGenerateNamePrefix:           workflowTemplate.WorkflowNamePrefix,
+		informerBean.DevtronOwnerInstanceLabelKey: workflowTemplate.DevtronInstanceUID,
 	}
 }

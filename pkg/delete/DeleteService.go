@@ -108,7 +108,7 @@ func (impl DeleteServiceImpl) DeleteClusterSecret(deleteRequest *bean2.ClusterBe
 		return nil
 	}
 	secretName := cluster.ParseSecretNameForKubelinkInformer(deleteRequest.Id)
-	err = impl.K8sUtil.DeleteSecret(cluster.DEFAULT_NAMESPACE, secretName, k8sClient)
+	err = impl.K8sUtil.DeleteSecret(bean2.DefaultNamespace, secretName, k8sClient)
 	return err
 }
 

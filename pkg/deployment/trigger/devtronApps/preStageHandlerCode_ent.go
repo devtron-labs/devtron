@@ -14,33 +14,33 @@ import (
 	"time"
 )
 
-func (impl *TriggerServiceImpl) checkFeasibilityForPreStage(pipeline *pipelineConfig.Pipeline, request *bean2.TriggerRequest,
+func (impl *HandlerServiceImpl) checkFeasibilityForPreStage(pipeline *pipelineConfig.Pipeline, request *bean2.TriggerRequest,
 	env *repository.Environment, artifact *repository2.CiArtifact, triggeredBy int32) (interface{}, error) {
 	//here return type is interface as ResourceFilterEvaluationAudit is not present in this version
 	return nil, nil
 }
 
-func (impl *TriggerServiceImpl) createAuditDataForDeploymentWindowBypass(request bean2.TriggerRequest, wfrId int) error {
+func (impl *HandlerServiceImpl) createAuditDataForDeploymentWindowBypass(request bean2.TriggerRequest, wfrId int) error {
 	return nil
 }
 
-func (impl *TriggerServiceImpl) getManifestPushTemplateForPreStage(ctx context.Context, envDeploymentConfig *bean3.DeploymentConfig,
+func (impl *HandlerServiceImpl) getManifestPushTemplateForPreStage(ctx context.Context, envDeploymentConfig *bean3.DeploymentConfig,
 	pipeline *pipelineConfig.Pipeline, artifact *repository2.CiArtifact, jobHelmPackagePath string,
 	cdWf *pipelineConfig.CdWorkflow, runner *pipelineConfig.CdWorkflowRunner, triggeredBy int32, triggeredAt time.Time,
 	request bean2.TriggerRequest) (*bean6.ManifestPushTemplate, error) {
 	return nil, nil
 }
 
-func (impl *TriggerServiceImpl) setCloningModeInCIProjectDetail(ciProjectDetail *bean.CiProjectDetails, appId int,
+func (impl *HandlerServiceImpl) setCloningModeInCIProjectDetail(ciProjectDetail *bean.CiProjectDetails, appId int,
 	m *pipelineConfig.CiPipelineMaterial) error {
 	return nil
 }
 
-func (impl *TriggerServiceImpl) getPreStageBuildRegistryConfigIfSourcePipelineNotPresent(appId int) (*types.DockerArtifactStoreBean, error) {
+func (impl *HandlerServiceImpl) getPreStageBuildRegistryConfigIfSourcePipelineNotPresent(appId int) (*types.DockerArtifactStoreBean, error) {
 	return nil, fmt.Errorf("soucePipeline is mandatory, corrupt data")
 }
 
-func (impl *TriggerServiceImpl) handlerFilterEvaluationAudit(filterEvaluationAudit interface{},
+func (impl *HandlerServiceImpl) handlerFilterEvaluationAudit(filterEvaluationAudit interface{},
 	runner *pipelineConfig.CdWorkflowRunner) error {
 	//here ip type of filterEvaluationAudit is interface as ResourceFilterEvaluationAudit is not present in this version
 	return nil

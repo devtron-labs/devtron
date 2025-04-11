@@ -117,6 +117,11 @@ var TerminalSessionDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Help: "duration of each terminal session",
 }, []string{"podName", "namespace", "clusterId"})
 
+var ReTriggerFailedCounter = promauto.NewCounterVec(prometheus.CounterOpts{
+	Name: "re_trigger_failed_counter",
+	Help: "ci/ pre cd/ post cd workflow re-trigger failed counter",
+}, []string{"workflowType", "workflowId"})
+
 // prometheusMiddleware implements mux.MiddlewareFunc.
 func PrometheusMiddleware(next http.Handler) http.Handler {
 	//	prometheus.MustRegister(requestCounter)

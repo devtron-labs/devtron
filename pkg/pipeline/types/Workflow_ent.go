@@ -30,6 +30,6 @@ func (workflowRequest *WorkflowRequest) SetImageScanningSteps(imageScanningSteps
 	return
 }
 
-func (workflowRequest *WorkflowRequest) SetAwsInspectorConfig(awsInspectorConfig string) {
+func (workflowRequest *WorkflowRequest) SetEntOnlyFields(trigger Trigger, ciConfig *CiConfig) {
 	return
 }

@@ -66,7 +66,7 @@ type PipelineTriggerRestHandlerImpl struct {
 	deploymentGroupService      deploymentGroup.DeploymentGroupService
 	deploymentConfigService     pipeline.PipelineDeploymentConfigService
 	deployedAppService          deployedApp.DeployedAppService
-	cdTriggerService            devtronApps.TriggerService
+	cdHandlerService            devtronApps.HandlerService
 	workflowEventPublishService out.WorkflowEventPublishService
 }
 
@@ -75,7 +75,7 @@ func NewPipelineRestHandler(appService app.AppService, userAuthService user.User
 	deploymentGroupService deploymentGroup.DeploymentGroupService,
 	deploymentConfigService pipeline.PipelineDeploymentConfigService,
 	deployedAppService deployedApp.DeployedAppService,
-	cdTriggerService devtronApps.TriggerService,
+	cdHandlerService devtronApps.HandlerService,
 	workflowEventPublishService out.WorkflowEventPublishService) *PipelineTriggerRestHandlerImpl {
 	pipelineHandler := &PipelineTriggerRestHandlerImpl{
 		appService:                  appService,
@@ -88,7 +88,7 @@ func NewPipelineRestHandler(appService app.AppService, userAuthService user.User
 		deploymentGroupService:      deploymentGroupService,
 		deploymentConfigService:     deploymentConfigService,
 		deployedAppService:          deployedAppService,
-		cdTriggerService:            cdTriggerService,
+		cdHandlerService:            cdHandlerService,
 		workflowEventPublishService: workflowEventPublishService,
 	}
 	return pipelineHandler
@@ -140,7 +140,7 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 	triggerContext := bean3.TriggerContext{
 		Context: ctx,
 	}
-	mergeResp, helmPackageName, _, err := handler.cdTriggerService.ManualCdTrigger(triggerContext, &overrideRequest)
+	mergeResp, helmPackageName, _, err := handler.cdHandlerService.ManualCdTrigger(triggerContext, &overrideRequest)
 	span.End()
 	if err != nil {
 		handler.logger.Errorw("request err, OverrideConfig", "err", err, "payload", overrideRequest)

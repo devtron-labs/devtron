@@ -20,6 +20,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/build/artifacts"
 	"github.com/devtron-labs/devtron/pkg/build/git"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
+	"github.com/devtron-labs/devtron/pkg/build/trigger"
 	"github.com/google/wire"
 )
 
@@ -27,4 +28,5 @@ var WireSet = wire.NewSet(
 	artifacts.WireSet,
 	pipeline.WireSet,
 	git.GitWireSet,
+	trigger.WireSet,
 )

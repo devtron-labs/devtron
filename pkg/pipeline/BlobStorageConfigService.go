@@ -91,7 +91,7 @@ func (impl *BlobStorageConfigServiceImpl) FetchCmAndSecretBlobConfigFromExternal
 	return cmConfig, secretConfig, nil
 }
 
-func updateRequestWithExtClusterCmAndSecret(request *blob_storage.BlobStorageRequest, cmConfig *bean2.CmBlobStorageConfig, secretConfig *bean2.SecretBlobStorageConfig) *blob_storage.BlobStorageRequest {
+func UpdateRequestWithExtClusterCmAndSecret(request *blob_storage.BlobStorageRequest, cmConfig *bean2.CmBlobStorageConfig, secretConfig *bean2.SecretBlobStorageConfig) *blob_storage.BlobStorageRequest {
 	request.StorageType = cmConfig.CloudProvider
 
 	request.AwsS3BaseConfig.AccessKey = cmConfig.S3AccessKey
@@ -112,4 +112,9 @@ func updateRequestWithExtClusterCmAndSecret(request *blob_storage.BlobStorageReq
 	request.GcpBlobBaseConfig.BucketName = cmConfig.CdDefaultBuildLogsBucket
 
 	return request
+}
+
+func IsExternalBlobStorageEnabled(isExternalRun bool, useBlobStorageConfigInCdWorkflow bool) bool {
+	// TODO impl.config.UseBlobStorageConfigInCdWorkflow fetches the live status, we need to check from db as well, we should put useExternalBlobStorage in db
+	return isExternalRun && !useBlobStorageConfigInCdWorkflow
 }

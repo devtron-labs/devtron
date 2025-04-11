@@ -251,7 +251,7 @@ func (impl *GitOpsConfigServiceImpl) registerGitOpsClientConfig(ctx context.Cont
 		}
 	} else {
 
-		clusterBean, err := impl.clusterReadService.FindOne(bean2.DEFAULT_CLUSTER)
+		clusterBean, err := impl.clusterReadService.FindOne(bean2.DefaultCluster)
 		if err != nil {
 			return nil, err
 		}
@@ -538,7 +538,7 @@ func (impl *GitOpsConfigServiceImpl) patchGitOpsClientConfig(model *repository.G
 		}
 
 	} else {
-		clusterBean, err := impl.clusterReadService.FindOne(bean2.DEFAULT_CLUSTER)
+		clusterBean, err := impl.clusterReadService.FindOne(bean2.DefaultCluster)
 		if err != nil {
 			return err
 		}

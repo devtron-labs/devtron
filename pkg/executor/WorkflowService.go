@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package pipeline
+package executor
 
 import (
 	"context"
@@ -28,16 +28,18 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
-	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/config/read"
 	v1 "github.com/devtron-labs/devtron/pkg/infraConfig/bean/v1"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders/infraGetters"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
+	"github.com/devtron-labs/devtron/pkg/ucid"
 	"go.uber.org/zap"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -66,12 +68,13 @@ type WorkflowServiceImpl struct {
 	ciCdConfig             *types.CiCdConfig
 	configMapService       read.ConfigReadService
 	envRepository          repository2.EnvironmentRepository
-	globalCMCSService      GlobalCMCSService
+	globalCMCSService      pipeline.GlobalCMCSService
 	argoWorkflowExecutor   executors.ArgoWorkflowExecutor
 	systemWorkflowExecutor executors.SystemWorkflowExecutor
-	k8sUtil                *k8s.K8sServiceImpl
 	k8sCommonService       k8s2.K8sCommonService
 	infraProvider          infraProviders.InfraProvider
+	ucid                   ucid.Service
+	k8sUtil                *k8s.K8sServiceImpl
 }
 
 // TODO: Move to bean
@@ -80,12 +83,14 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger,
 	envRepository repository2.EnvironmentRepository,
 	ciCdConfig *types.CiCdConfig,
 	configMapService read.ConfigReadService,
-	globalCMCSService GlobalCMCSService,
+	globalCMCSService pipeline.GlobalCMCSService,
 	argoWorkflowExecutor executors.ArgoWorkflowExecutor,
-	k8sUtil *k8s.K8sServiceImpl,
 	systemWorkflowExecutor executors.SystemWorkflowExecutor,
 	k8sCommonService k8s2.K8sCommonService,
-	infraProvider infraProviders.InfraProvider) (*WorkflowServiceImpl, error) {
+	infraProvider infraProviders.InfraProvider,
+	ucid ucid.Service,
+	k8sUtil *k8s.K8sServiceImpl,
+) (*WorkflowServiceImpl, error) {
 	commonWorkflowService := &WorkflowServiceImpl{
 		Logger:                 Logger,
 		ciCdConfig:             ciCdConfig,
@@ -97,6 +102,7 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger,
 		systemWorkflowExecutor: systemWorkflowExecutor,
 		k8sCommonService:       k8sCommonService,
 		infraProvider:          infraProvider,
+		ucid:                   ucid,
 	}
 	restConfig, err := k8sUtil.GetK8sInClusterRestConfig()
 	if err != nil {
@@ -109,9 +115,6 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger,
 
 const (
 	CI_NODE_SELECTOR_APP_LABEL_KEY = "devtron.ai/node-selector"
-
-	preCdStage  = "preCD"
-	postCdStage = "postCD"
 )
 
 func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *types.WorkflowRequest) (*unstructured.UnstructuredList, string, error) {
@@ -119,13 +122,16 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *types.WorkflowR
 	if err != nil {
 		return nil, "", err
 	}
-	workflowExecutor := impl.getWorkflowExecutor(workflowRequest.WorkflowExecutor)
-	if workflowExecutor == nil {
-		return nil, "", errors.New("workflow executor not found")
+	var createdWf *unstructured.UnstructuredList
+	canExecuteWorkflow, jobHelmChartPath, err := impl.checkIfCanExecuteWorkflowAndHandleVirtualExec(workflowRequest, workflowTemplate)
+	if canExecuteWorkflow {
+		workflowExecutor := impl.getWorkflowExecutor(workflowRequest.WorkflowExecutor)
+		if workflowExecutor == nil {
+			return nil, "", errors.New("workflow executor not found")
+		}
+		createdWf, err = workflowExecutor.ExecuteWorkflow(workflowTemplate)
 	}
-	createdWf, err := workflowExecutor.ExecuteWorkflow(workflowTemplate)
-	jobHelmPackagePath := "" // due to ENT
-	return createdWf, jobHelmPackagePath, err
+	return createdWf, jobHelmChartPath, err
 }
 
 func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.WorkflowRequest) (bean3.WorkflowTemplate, error) {
@@ -141,6 +147,11 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 		return bean3.WorkflowTemplate{}, err
 	}
 
+	workflowTemplate, err = impl.updateWorkflowTemplateWithLabels(workflowRequest, workflowTemplate)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while updating workflow template with labels", "err", err)
+		return bean3.WorkflowTemplate{}, err
+	}
 	workflowRequest.AddNodeConstraintsFromConfig(&workflowTemplate, impl.ciCdConfig)
 	infraConfiguration := &v1.InfraConfig{}
 	shouldAddExistingCmCsInWorkflow := impl.shouldAddExistingCmCsInWorkflow(workflowRequest)
@@ -213,12 +224,18 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 	clusterConfig, err := impl.getClusterConfig(workflowRequest)
 	workflowTemplate.ClusterConfig = clusterConfig
 	workflowTemplate.WorkflowType = workflowRequest.GetWorkflowTypeForWorkflowRequest()
+	devtronUCID, _, err := impl.ucid.GetUCIDWithOutCache()
+	if err != nil {
+		impl.Logger.Errorw("error in getting UCID", "err", err)
+		return bean3.WorkflowTemplate{}, err
+	}
+	workflowTemplate.DevtronInstanceUID = devtronUCID
 	return workflowTemplate, nil
 }
 
 func (impl *WorkflowServiceImpl) shouldAddExistingCmCsInWorkflow(workflowRequest *types.WorkflowRequest) bool {
 	// CmCs are not added for CI_JOB if IgnoreCmCsInCiJob is true
-	if workflowRequest.CiPipelineType == string(bean2.CI_JOB) && impl.ciCdConfig.IgnoreCmCsInCiJob {
+	if workflowRequest.CiPipelineType == string(common.CI_JOB) && impl.ciCdConfig.IgnoreCmCsInCiJob {
 		return false
 	}
 	return true
@@ -378,6 +395,7 @@ func (impl *WorkflowServiceImpl) getWorkflowExecutor(executorType cdWorkflow.Wor
 	impl.Logger.Warnw("workflow executor not found", "type", executorType)
 	return nil
 }
+
 func (impl *WorkflowServiceImpl) GetWorkflow(executorType cdWorkflow.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*unstructured.UnstructuredList, error) {
 	impl.Logger.Debug("getting wf", name)
 	workflowExecutor := impl.getWorkflowExecutor(executorType)

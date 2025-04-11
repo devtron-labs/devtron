@@ -19,6 +19,7 @@ package bean
 import (
 	"context"
 	"encoding/json"
+	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/common-lib/utils/registry"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -113,4 +114,15 @@ type DevtronAppReleaseContextType struct {
 	CancelParentContext context.CancelFunc
 	CancelContext       context.CancelCauseFunc
 	RunnerId            int
+}
+
+type CiCdStatus struct {
+	DevtronOwnerInstance string `json:"devtronOwnerInstance"`
+	*v1alpha1.WorkflowStatus
+}
+
+func NewCiCdStatus() CiCdStatus {
+	return CiCdStatus{
+		WorkflowStatus: &v1alpha1.WorkflowStatus{},
+	}
 }

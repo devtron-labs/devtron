@@ -7,7 +7,7 @@ import (
 
 const (
 	DefaultClusterId = 1
-	DEFAULT_CLUSTER  = "default_cluster"
+	DefaultCluster   = "default_cluster"
 )
 
 type PrometheusAuth struct {
@@ -81,3 +81,8 @@ type DefaultClusterComponent struct {
 	EnvName        string `json:"envName"`
 	Status         string `json:"status"`
 }
+
+const (
+	DefaultNamespace     = "default"
+	SecretFieldUpdatedOn = "updated_on"
+)

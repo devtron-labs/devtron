@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	informerBean "github.com/devtron-labs/common-lib/informer"
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	"github.com/devtron-labs/devtron/pkg/cluster/bean"
@@ -28,7 +29,6 @@ import (
 	cronUtil "github.com/devtron-labs/devtron/util/cron"
 	"github.com/robfig/cron/v3"
 	"log"
-	"net/http"
 	"net/url"
 	"sync"
 	"time"
@@ -38,8 +38,8 @@ import (
 	casbin2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	repository3 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
-	errors1 "github.com/juju/errors"
-	"k8s.io/apimachinery/pkg/api/errors"
+	customErr "github.com/juju/errors"
+	k8sError "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
@@ -54,18 +54,6 @@ import (
 	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-)
-
-const (
-	DEFAULT_CLUSTER                  = "default_cluster"
-	DEFAULT_NAMESPACE                = "default"
-	CLUSTER_MODIFY_EVENT_SECRET_TYPE = "cluster.request/modify"
-	CLUSTER_ACTION_ADD               = "add"
-	CLUSTER_ACTION_UPDATE            = "update"
-	SECRET_FIELD_CLUSTER_ID          = "cluster_id"
-	SECRET_FIELD_UPDATED_ON          = "updated_on"
-	SECRET_FIELD_ACTION              = "action"
-	TokenFilePath                    = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 )
 
 type ClusterService interface {
@@ -195,7 +183,7 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *bean.ClusterB
 
 	if err != nil {
 		if len(err.Error()) > 2000 {
-			err = errors.NewBadRequest("unable to connect to cluster")
+			err = k8sError.NewBadRequest("unable to connect to cluster")
 		}
 		return nil, err
 	}
@@ -248,16 +236,16 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *bean.ClusterB
 	secretName := ParseSecretNameForKubelinkInformer(bean.Id)
 
 	data := make(map[string][]byte)
-	data[SECRET_FIELD_CLUSTER_ID] = []byte(fmt.Sprintf("%v", bean.Id))
-	data[SECRET_FIELD_ACTION] = []byte(CLUSTER_ACTION_ADD)
-	data[SECRET_FIELD_UPDATED_ON] = []byte(time.Now().String()) // this field will ensure that informer detects change as other fields can be constant even if cluster config changes
-	_, err = impl.K8sUtil.CreateSecret(DEFAULT_NAMESPACE, data, secretName, CLUSTER_MODIFY_EVENT_SECRET_TYPE, k8sClient, nil, nil)
+	data[informerBean.SecretFieldClusterId] = []byte(fmt.Sprintf("%v", bean.Id))
+	data[informerBean.SecretFieldAction] = []byte(informerBean.ClusterActionAdd)
+	data[clusterBean.SecretFieldUpdatedOn] = []byte(time.Now().String()) // this field will ensure that informer detects change as other fields can be constant even if cluster config changes
+	// TODO Asutosh: Why not UPSERT ??
+	_, err = impl.K8sUtil.CreateSecret(clusterBean.DefaultNamespace, data, secretName, informerBean.ClusterModifyEventSecretType, k8sClient, nil, nil)
 	if err != nil {
-		impl.logger.Errorw("error in updating secret for informers")
+		impl.logger.Errorw("error in creating secret for informers", "secretName", secretName, "err", err)
 		return bean, nil
 	}
-
-	return bean, err
+	return bean, nil
 }
 
 // UpdateClusterDescription is new api service logic to only update description, this should be done in cluster update operation only
@@ -415,7 +403,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *bean.ClusterBe
 	}
 
 	if bean.ServerUrl != model.ServerUrl || bean.InsecureSkipTLSVerify != model.InsecureSkipTlsVerify || dbConfigBearerToken != requestConfigBearerToken || dbConfigTlsKey != requestConfigTlsKey || dbConfigCertData != requestConfigCertData || dbConfigCAData != requestConfigCAData {
-		if bean.ClusterName == clusterBean.DEFAULT_CLUSTER {
+		if bean.ClusterName == clusterBean.DefaultCluster {
 			impl.logger.Errorw("default_cluster is reserved by the system and cannot be updated, default_cluster", "name", bean.ClusterName)
 			return nil, fmt.Errorf("default_cluster is reserved by the system and cannot be updated")
 		}
@@ -480,37 +468,47 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *bean.ClusterBe
 		impl.SyncNsInformer(bean)
 	}
 	impl.logger.Infow("saving secret for cluster informer")
-	k8sClient, err := impl.K8sUtil.GetCoreV1ClientInCluster()
-	if err != nil {
-		return bean, nil
-	}
-	// below secret will act as an event for informer running on secret object in kubelink
 	if bean.HasConfigOrUrlChanged {
-		secretName := ParseSecretNameForKubelinkInformer(bean.Id)
-		secret, err := impl.K8sUtil.GetSecret(DEFAULT_NAMESPACE, secretName, k8sClient)
-		statusError, _ := err.(*errors.StatusError)
-		if err != nil && statusError.Status().Code != http.StatusNotFound {
-			impl.logger.Errorw("secret not found", "err", err)
-			return bean, nil
-		}
 		data := make(map[string][]byte)
-		data[SECRET_FIELD_CLUSTER_ID] = []byte(fmt.Sprintf("%v", bean.Id))
-		data[SECRET_FIELD_ACTION] = []byte(CLUSTER_ACTION_UPDATE)
-		data[SECRET_FIELD_UPDATED_ON] = []byte(time.Now().String()) // this field will ensure that informer detects change as other fields can be constant even if cluster config changes
-		if secret == nil {
-			_, err = impl.K8sUtil.CreateSecret(DEFAULT_NAMESPACE, data, secretName, CLUSTER_MODIFY_EVENT_SECRET_TYPE, k8sClient, nil, nil)
-			if err != nil {
-				impl.logger.Errorw("error in creating secret for informers")
-			}
-		} else {
-			secret.Data = data
-			secret, err = impl.K8sUtil.UpdateSecret(DEFAULT_NAMESPACE, secret, k8sClient)
-			if err != nil {
-				impl.logger.Errorw("error in updating secret for informers")
-			}
+		data[informerBean.SecretFieldClusterId] = []byte(fmt.Sprintf("%v", bean.Id))
+		data[informerBean.SecretFieldAction] = []byte(informerBean.ClusterActionUpdate)
+		data[clusterBean.SecretFieldUpdatedOn] = []byte(time.Now().String()) // this field will ensure that informer detects change as other fields can be constant even if cluster config changes
+		if err = impl.upsertClusterSecret(bean, data); err != nil {
+			impl.logger.Errorw("error upserting cluster secret", "data", data, "err", err)
+			// TODO Asutosh: why error is not propagated ??
+			return bean, nil
 		}
 	}
 	return bean, nil
+}
+
+func (impl *ClusterServiceImpl) upsertClusterSecret(bean *bean.ClusterBean, data map[string][]byte) error {
+	k8sClient, err := impl.K8sUtil.GetCoreV1ClientInCluster()
+	if err != nil {
+		impl.logger.Errorw("error in getting k8s client", "err", err)
+		return err
+	}
+	// below secret will act as an event for informer running on a secret object in kubelink and kubewatch
+	secretName := ParseSecretNameForKubelinkInformer(bean.Id)
+	secret, err := impl.K8sUtil.GetSecret(clusterBean.DefaultNamespace, secretName, k8sClient)
+	if err != nil && !k8sError.IsNotFound(err) {
+		impl.logger.Errorw("error in getting cluster secret", "secretName", secretName, "err", err)
+		return err
+	} else if k8sError.IsNotFound(err) {
+		_, err = impl.K8sUtil.CreateSecret(clusterBean.DefaultNamespace, data, secretName, informerBean.ClusterModifyEventSecretType, k8sClient, nil, nil)
+		if err != nil {
+			impl.logger.Errorw("error in creating secret for informers", "secretName", secretName, "err", err)
+			return err
+		}
+	} else {
+		secret.Data = data
+		secret, err = impl.K8sUtil.UpdateSecret(clusterBean.DefaultNamespace, secret, k8sClient)
+		if err != nil {
+			impl.logger.Errorw("error in updating secret for informers", "secretName", secretName, "err", err)
+			return err
+		}
+	}
+	return nil
 }
 
 func (impl *ClusterServiceImpl) SyncNsInformer(bean *bean.ClusterBean) {
@@ -609,8 +607,9 @@ func (impl *ClusterServiceImpl) DeleteFromDb(bean *bean.ClusterBean, userId int3
 		impl.logger.Errorw("error in getting in cluster k8s client", "err", err, "clusterName", bean.ClusterName)
 		return "", nil
 	}
+	// TODO Asutosh: why we maintain this duplicate code ??
 	secretName := ParseSecretNameForKubelinkInformer(bean.Id)
-	err = impl.K8sUtil.DeleteSecret(DEFAULT_NAMESPACE, secretName, k8sClient)
+	err = impl.K8sUtil.DeleteSecret(clusterBean.DefaultNamespace, secretName, k8sClient)
 	impl.logger.Errorw("error in deleting secret", "error", err)
 	return existingCluster.ClusterName, nil
 }
@@ -621,7 +620,7 @@ func (impl *ClusterServiceImpl) CheckIfConfigIsValid(cluster *bean.ClusterBean) 
 	if err != nil {
 		if _, ok := err.(*url.Error); ok {
 			return fmt.Errorf("Incorrect server url : %v", err)
-		} else if statusError, ok := err.(*errors.StatusError); ok {
+		} else if statusError, ok := err.(*k8sError.StatusError); ok {
 			if statusError != nil {
 				errReason := statusError.ErrStatus.Reason
 				var errMsg string
@@ -850,16 +849,16 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 	err := json.Unmarshal([]byte(kubeConfig), &kubeConfigDataMap)
 	if err != nil {
 		impl.logger.Errorw("error in unmarshalling kubeConfig")
-		return nil, errors1.New("invalid kubeConfig found , " + err.Error())
+		return nil, customErr.New("invalid kubeConfig found , " + err.Error())
 	}
 
 	if kubeConfigDataMap["apiVersion"] == nil {
 		impl.logger.Errorw("api version missing from kubeConfig")
-		return nil, errors1.New("api version missing from kubeConfig")
+		return nil, customErr.New("api version missing from kubeConfig")
 	}
 	if kubeConfigDataMap["kind"] == nil {
 		impl.logger.Errorw("kind missing from kubeConfig")
-		return nil, errors1.New("kind missing from kubeConfig")
+		return nil, customErr.New("kind missing from kubeConfig")
 	}
 
 	gvk.Version = kubeConfigDataMap["apiVersion"].(string)
@@ -909,7 +908,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 			clusterBeanObject.ErrorInConnecting = "cluster name missing from kubeconfig"
 		}
 
-		if clusterBeanObject.ClusterName == clusterBean.DEFAULT_CLUSTER {
+		if clusterBeanObject.ClusterName == clusterBean.DefaultCluster {
 			clusterBeanObject.ErrorInConnecting = "default_cluster is reserved by the system and cannot be updated"
 		}
 
@@ -1000,7 +999,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 
 	if len(ValidateObjects) == 0 {
 		impl.logger.Errorw("No valid cluster object provided in kubeconfig for context", "context", kubeConfig)
-		return nil, errors1.New("No valid cluster object provided in kubeconfig for context")
+		return nil, customErr.New("No valid cluster object provided in kubeconfig for context")
 	} else {
 		return ValidateObjects, nil
 	}
@@ -1014,7 +1013,7 @@ func (impl *ClusterServiceImpl) GetAndUpdateConnectionStatusForOneCluster(k8sCli
 	if err != nil {
 		if _, ok := err.(*url.Error); ok {
 			err = fmt.Errorf("Incorrect server url : %v", err)
-		} else if statusError, ok := err.(*errors.StatusError); ok {
+		} else if statusError, ok := err.(*k8sError.StatusError); ok {
 			if statusError != nil {
 				errReason := statusError.ErrStatus.Reason
 				var errMsg string
