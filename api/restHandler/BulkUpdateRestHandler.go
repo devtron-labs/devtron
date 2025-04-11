@@ -289,7 +289,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkHibernate(w http.ResponseWriter, r 
 		UserId:           request.UserId,
 	}
 
-	response, err := handler.bulkUpdateService.BulkHibernate(r.Context(), request, token, handler.checkAuthForBulkHibernateAndUnhibernate, userMetadata)
+	response, err := handler.bulkUpdateService.BulkHibernate(r.Context(), request, handler.checkAuthForBulkHibernateAndUnhibernate, userMetadata)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -337,7 +337,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkUnHibernate(w http.ResponseWriter, 
 		IsUserSuperAdmin: isSuperAdmin,
 		UserId:           request.UserId,
 	}
-	response, err := handler.bulkUpdateService.BulkUnHibernate(r.Context(), request, token, handler.checkAuthForBulkHibernateAndUnhibernate, userMetadata)
+	response, err := handler.bulkUpdateService.BulkUnHibernate(r.Context(), request, handler.checkAuthForBulkHibernateAndUnhibernate, userMetadata)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return

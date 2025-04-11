@@ -17,6 +17,7 @@
 package util
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -29,6 +30,8 @@ import (
 	"strconv"
 	"time"
 )
+
+const TokenKey = "token"
 
 func ReadFromUrlWithRetry(url string) ([]byte, error) {
 	var (
@@ -151,4 +154,9 @@ func getTLSKeyFileName() string {
 func getCertFileName() string {
 	randomName := fmt.Sprintf("%v.crt", GetRandomName())
 	return randomName
+}
+
+func GetTokenFromContext(ctx context.Context) string {
+	token, _ := ctx.Value(TokenKey).(string)
+	return token
 }

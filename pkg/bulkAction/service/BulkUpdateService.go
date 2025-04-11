@@ -74,9 +74,9 @@ type BulkUpdateService interface {
 	BulkUpdateSecret(bulkUpdatePayload *bean4.BulkUpdatePayload, userMetadata *bean6.UserMetadata) *bean4.CmAndSecretBulkUpdateResponse
 	BulkUpdate(bulkUpdateRequest *bean4.BulkUpdatePayload, userMetadata *bean6.UserMetadata) (bulkUpdateResponse *bean4.BulkUpdateResponse)
 	// BulkHibernate deprecated
-	BulkHibernate(ctx context.Context, request *bean4.BulkApplicationForEnvironmentPayload, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool, userMetadata *bean6.UserMetadata) (*bean4.BulkApplicationHibernateUnhibernateForEnvironmentResponse, error)
-	BulkHibernateV1(ctx context.Context, request *bean4.BulkApplicationForEnvironmentPayload, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool, userMetadata *bean6.UserMetadata) (*bean4.BulkApplicationHibernateUnhibernateForEnvironmentResponse, error)
-	BulkUnHibernate(ctx context.Context, request *bean4.BulkApplicationForEnvironmentPayload, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool, userMetadata *bean6.UserMetadata) (*bean4.BulkApplicationHibernateUnhibernateForEnvironmentResponse, error)
+	BulkHibernate(ctx context.Context, request *bean4.BulkApplicationForEnvironmentPayload, checkAuthForBulkActions func(token string, appObject string, envObject string) bool, userMetadata *bean6.UserMetadata) (*bean4.BulkApplicationHibernateUnhibernateForEnvironmentResponse, error)
+	BulkHibernateV1(ctx context.Context, request *bean4.BulkApplicationForEnvironmentPayload, checkAuthForBulkActions func(token string, appObject string, envObject string) bool, userMetadata *bean6.UserMetadata) (*bean4.BulkApplicationHibernateUnhibernateForEnvironmentResponse, error)
+	BulkUnHibernate(ctx context.Context, request *bean4.BulkApplicationForEnvironmentPayload, checkAuthForBulkActions func(token string, appObject string, envObject string) bool, userMetadata *bean6.UserMetadata) (*bean4.BulkApplicationHibernateUnhibernateForEnvironmentResponse, error)
 	BulkDeploy(request *bean4.BulkApplicationForEnvironmentPayload, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool), userMetadata *bean6.UserMetadata) (*bean4.BulkApplicationForEnvironmentResponse, error)
 	BulkBuildTrigger(request *bean4.BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*bean4.BulkApplicationForEnvironmentResponse, error)
 
@@ -988,7 +988,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdate(bulkUpdatePayload *bean4.BulkUpdate
 	return bulkUpdateResponse
 }
 
-func (impl BulkUpdateServiceImpl) BulkHibernate(ctx context.Context, request *bean4.BulkApplicationForEnvironmentPayload, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool,
+func (impl BulkUpdateServiceImpl) BulkHibernate(ctx context.Context, request *bean4.BulkApplicationForEnvironmentPayload, checkAuthForBulkActions func(token string, appObject string, envObject string) bool,
 	userMetadata *bean6.UserMetadata) (*bean4.BulkApplicationHibernateUnhibernateForEnvironmentResponse, error) {
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
@@ -1024,7 +1024,7 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(ctx context.Context, request *be
 		}
 		appObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		envObject := impl.enforcerUtil.GetEnvRBACNameByAppId(pipeline.AppId, pipeline.EnvironmentId)
-		isValidAuth := checkAuthForBulkActions(token, appObject, envObject)
+		isValidAuth := checkAuthForBulkActions(util2.GetTokenFromContext(ctx), appObject, envObject)
 		if !isValidAuth {
 			//skip hibernate for the app if user does not have access on that
 			pipelineResponse := response[appKey]
@@ -1145,7 +1145,7 @@ func (impl BulkUpdateServiceImpl) buildHibernateUnHibernateRequestForHelmPipelin
 	}
 	return appIdentifier, hibernateRequest, nil
 }
-func (impl BulkUpdateServiceImpl) BulkUnHibernate(ctx context.Context, request *bean4.BulkApplicationForEnvironmentPayload, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool,
+func (impl BulkUpdateServiceImpl) BulkUnHibernate(ctx context.Context, request *bean4.BulkApplicationForEnvironmentPayload, checkAuthForBulkActions func(token string, appObject string, envObject string) bool,
 	userMetadata *bean6.UserMetadata) (*bean4.BulkApplicationHibernateUnhibernateForEnvironmentResponse, error) {
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
@@ -1180,7 +1180,7 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(ctx context.Context, request *
 		}
 		appObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		envObject := impl.enforcerUtil.GetEnvRBACNameByAppId(pipeline.AppId, pipeline.EnvironmentId)
-		isValidAuth := checkAuthForBulkActions(token, appObject, envObject)
+		isValidAuth := checkAuthForBulkActions(util2.GetTokenFromContext(ctx), appObject, envObject)
 		if !isValidAuth {
 			//skip hibernate for the app if user does not have access on that
 			pipelineResponse := response[appKey]
