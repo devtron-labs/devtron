@@ -75,7 +75,7 @@ func NewHelmAppClientImpl(logger *zap.SugaredLogger,
 
 // CATEGORY=INFRA_SETUP
 type HelmClientConfig struct {
-	Url string `env:"HELM_CLIENT_URL" envDefault:"127.0.0.1:50051"`
+	Url string `env:"HELM_CLIENT_URL" envDefault:"127.0.0.1:50051" description:"Kubelink micro-service url "`
 }
 
 func GetConfig() (*HelmClientConfig, error) {
