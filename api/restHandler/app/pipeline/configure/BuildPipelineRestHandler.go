@@ -144,7 +144,12 @@ func (handler *PipelineConfigRestHandlerImpl) CreateCiConfig(w http.ResponseWrit
 	}
 
 	createResp, err := handler.pipelineBuilder.CreateCiPipeline(&createRequest)
-	handler.handleServiceError(w, err, createResp, "create ci config", createRequest)
+	if err != nil {
+		handler.Logger.Errorw("service err, create", "err", err, "create request", createRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
 func (handler *PipelineConfigRestHandlerImpl) UpdateCiTemplate(w http.ResponseWriter, r *http.Request) {
@@ -172,7 +177,12 @@ func (handler *PipelineConfigRestHandlerImpl) UpdateCiTemplate(w http.ResponseWr
 	}
 
 	createResp, err := handler.pipelineBuilder.UpdateCiTemplate(&configRequest)
-	handler.handleServiceError(w, err, createResp, "UpdateCiTemplate", configRequest)
+	if err != nil {
+		handler.Logger.Errorw("service err", "err", err, "context", "UpdateCiTemplate", "data", configRequest)
+		common.WriteJsonResp(w, err, createResp, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, createResp, http.StatusOK)
 }
 
 func (handler *PipelineConfigRestHandlerImpl) UpdateBranchCiPipelinesWithRegex(w http.ResponseWriter, r *http.Request) {
@@ -218,7 +228,12 @@ func (handler *PipelineConfigRestHandlerImpl) UpdateBranchCiPipelinesWithRegex(w
 
 	//if include/exclude configured showAll will include excluded materials also in list, if not configured it will ignore this flag
 	resp, err := handler.ciHandler.FetchMaterialsByPipelineId(patchRequest.Id, false)
-	handler.handleServiceError(w, err, resp, "FetchMaterials", map[string]interface{}{"pipelineId": patchRequest.Id})
+	if err != nil {
+		handler.Logger.Errorw("service err", "err", err, "context", "FetchMaterials", "data", map[string]interface{}{"pipelineId": patchRequest.Id})
+		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
 func (handler *PipelineConfigRestHandlerImpl) parseSourceChangeRequest(w http.ResponseWriter, r *http.Request) (*bean.CiMaterialPatchRequest, int32, error) {
@@ -525,7 +540,12 @@ func (handler *PipelineConfigRestHandlerImpl) GetCiPipeline(w http.ResponseWrite
 	}
 
 	ciConf, err := handler.pipelineBuilder.GetCiPipelineRespResolved(appId)
-	handler.handleServiceError(w, err, ciConf, "GetCiPipelineRespResolved", map[string]interface{}{"appId": appId})
+	if err != nil {
+		handler.Logger.Errorw("service err", "err", err, "context", "GetCiPipelineRespResolved", "data", map[string]interface{}{"appId": appId})
+		common.WriteJsonResp(w, err, ciConf, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, ciConf, http.StatusOK)
 }
 
 func (handler *PipelineConfigRestHandlerImpl) GetExternalCi(w http.ResponseWriter, r *http.Request) {
@@ -542,7 +562,12 @@ func (handler *PipelineConfigRestHandlerImpl) GetExternalCi(w http.ResponseWrite
 	}
 
 	ciConf, err := handler.pipelineBuilder.GetExternalCi(appId)
-	handler.handleServiceError(w, err, ciConf, "GetExternalCi", map[string]interface{}{"appId": appId})
+	if err != nil {
+		handler.Logger.Errorw("service err", "err", err, "context", "GetExternalCi", "data", map[string]interface{}{"appId": appId})
+		common.WriteJsonResp(w, err, ciConf, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, ciConf, http.StatusOK)
 }
 
 func (handler *PipelineConfigRestHandlerImpl) GetExternalCiById(w http.ResponseWriter, r *http.Request) {
@@ -564,7 +589,12 @@ func (handler *PipelineConfigRestHandlerImpl) GetExternalCiById(w http.ResponseW
 	}
 
 	ciConf, err := handler.pipelineBuilder.GetExternalCiById(appId, externalCiId)
-	handler.handleServiceError(w, err, ciConf, "GetExternalCiById", map[string]interface{}{"appId": appId, "externalCiId": externalCiId})
+	if err != nil {
+		handler.Logger.Errorw("service err", "err", err, "context", "GetExternalCiById", "data", map[string]interface{}{"appId": appId, "externalCiId": externalCiId})
+		common.WriteJsonResp(w, err, ciConf, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, ciConf, http.StatusOK)
 }
 
 func (handler *PipelineConfigRestHandlerImpl) validateCiTriggerRBAC(token string, ciPipelineId, triggerEnvironmentId int) error {
@@ -719,7 +749,12 @@ func (handler *PipelineConfigRestHandlerImpl) FetchMaterials(w http.ResponseWrit
 	}
 
 	resp, err := handler.ciHandler.FetchMaterialsByPipelineId(pipelineId, showAll)
-	handler.handleServiceError(w, err, resp, "FetchMaterials", map[string]interface{}{"pipelineId": pipelineId})
+	if err != nil {
+		handler.Logger.Errorw("service err", "err", err, "context", "FetchMaterials", "data", map[string]interface{}{"pipelineId": pipelineId})
+		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
 func (handler *PipelineConfigRestHandlerImpl) FetchMaterialsByMaterialId(w http.ResponseWriter, r *http.Request) {
@@ -758,7 +793,12 @@ func (handler *PipelineConfigRestHandlerImpl) FetchMaterialsByMaterialId(w http.
 	}
 
 	resp, err := handler.ciHandler.FetchMaterialsByPipelineIdAndGitMaterialId(pipelineId, gitMaterialId, showAll)
-	handler.handleServiceError(w, err, resp, "FetchMaterialsByMaterialId", map[string]interface{}{"pipelineId": pipelineId, "gitMaterialId": gitMaterialId})
+	if err != nil {
+		handler.Logger.Errorw("service err", "err", err, "context", "FetchMaterialsByMaterialId", "data", map[string]interface{}{"pipelineId": pipelineId, "gitMaterialId": gitMaterialId})
+		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
 func (handler *PipelineConfigRestHandlerImpl) RefreshMaterials(w http.ResponseWriter, r *http.Request) {
@@ -789,7 +829,12 @@ func (handler *PipelineConfigRestHandlerImpl) RefreshMaterials(w http.ResponseWr
 	}
 
 	resp, err := handler.ciHandler.RefreshMaterialByCiPipelineMaterialId(material.Id)
-	handler.handleServiceError(w, err, resp, "RefreshMaterials", map[string]interface{}{"gitMaterialId": gitMaterialId})
+	if err != nil {
+		handler.Logger.Errorw("service err", "err", err, "context", "RefreshMaterials", "data", map[string]interface{}{"gitMaterialId": gitMaterialId})
+		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
 func (handler *PipelineConfigRestHandlerImpl) GetCiPipelineMin(w http.ResponseWriter, r *http.Request) {
@@ -826,7 +871,12 @@ func (handler *PipelineConfigRestHandlerImpl) GetCiPipelineMin(w http.ResponseWr
 	}
 
 	ciPipelines, err := handler.pipelineBuilder.GetCiPipelineMin(appId, envIds)
-	handler.handleServiceError(w, err, ciPipelines, "GetCiPipelineMin", map[string]interface{}{"appId": appId})
+	if err != nil {
+		handler.Logger.Errorw("service err", "err", err, "context", "GetCiPipelineMin", "data", map[string]interface{}{"appId": appId})
+		common.WriteJsonResp(w, err, ciPipelines, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, ciPipelines, http.StatusOK)
 }
 
 func (handler *PipelineConfigRestHandlerImpl) DownloadCiWorkflowArtifacts(w http.ResponseWriter, r *http.Request) {
@@ -921,7 +971,12 @@ func (handler *PipelineConfigRestHandlerImpl) GetHistoricBuildLogs(w http.Respon
 	}
 
 	resp, err := handler.ciHandler.GetHistoricBuildLogs(workflowId, nil)
-	handler.handleServiceError(w, err, resp, "GetHistoricBuildLogs", map[string]interface{}{"pipelineId": pipelineId, "workflowId": workflowId})
+	if err != nil {
+		handler.Logger.Errorw("service err", "err", err, "context", "GetHistoricBuildLogs", "data", map[string]interface{}{"pipelineId": pipelineId, "workflowId": workflowId})
+		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
 func (handler *PipelineConfigRestHandlerImpl) GetBuildHistory(w http.ResponseWriter, r *http.Request) {

@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"net/http"
@@ -120,21 +119,6 @@ func (handler *PipelineConfigRestHandlerImpl) getCiPipelineWithAuth(w http.Respo
 	}
 
 	return ciPipeline, true
-}
-
-// handleServiceError handles service errors and writes appropriate response
-func (handler *PipelineConfigRestHandlerImpl) handleServiceError(w http.ResponseWriter, err error, resp interface{}, logContext string, logData interface{}) {
-	if err != nil {
-		if util.IsErrNoRows(err) {
-			err = &util.ApiError{Code: "404", HttpStatusCode: http.StatusNotFound, UserMessage: "no data found"}
-			common.WriteJsonResp(w, err, nil, http.StatusOK)
-		} else {
-			handler.Logger.Errorw("service err", "err", err, "context", logContext, "data", logData)
-			common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
-		}
-		return
-	}
-	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
 // getQueryParamBool gets a boolean query parameter from the request
