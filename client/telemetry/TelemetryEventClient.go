@@ -98,7 +98,8 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 	helmAppClient gRPC.HelmAppClient,
 	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService, cronLogger *cron3.CronLoggerImpl,
 	installedAppReadService installedAppReader.InstalledAppReadServiceEA,
-	envVariables *util.EnvironmentVariables) (*TelemetryEventClientImpl, error) {
+	envVariables *util.EnvironmentVariables,
+	userAttributesRepository repository.UserAttributesRepository) (*TelemetryEventClientImpl, error) {
 	cron := cron.New(
 		cron.WithChain(cron.Recover(cronLogger)))
 	cron.Start()
@@ -121,6 +122,7 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		cloudProviderIdentifierService: cloudProviderIdentifierService,
 		telemetryConfig:                TelemetryConfig{},
 		globalEnvVariables:             envVariables.GlobalEnvVariables,
+		userAttributesRepository:       userAttributesRepository,
 	}
 
 	watcher.HeartbeatEventForTelemetry()
