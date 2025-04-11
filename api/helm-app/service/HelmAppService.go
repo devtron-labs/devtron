@@ -159,9 +159,9 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.Clu
 
 // CATEGORY=CD
 type HelmReleaseConfig struct {
-	RevisionHistoryLimitDevtronApp      int `env:"REVISION_HISTORY_LIMIT_DEVTRON_APP" envDefault:"1"`
-	RevisionHistoryLimitHelmApp         int `env:"REVISION_HISTORY_LIMIT_HELM_APP" envDefault:"1"`
-	RevisionHistoryLimitExternalHelmApp int `env:"REVISION_HISTORY_LIMIT_EXTERNAL_HELM_APP" envDefault:"0"`
+	RevisionHistoryLimitDevtronApp      int `env:"REVISION_HISTORY_LIMIT_DEVTRON_APP" envDefault:"1" description:"Count for devtron application rivision history"`
+	RevisionHistoryLimitHelmApp         int `env:"REVISION_HISTORY_LIMIT_HELM_APP" envDefault:"1" description:"To set the history limit for the helm app being deployed through devtron"`
+	RevisionHistoryLimitExternalHelmApp int `env:"REVISION_HISTORY_LIMIT_EXTERNAL_HELM_APP" envDefault:"0" description:"Count for external helm application rivision history"`
 	RevisionHistoryLimitLinkedHelmApp   int `env:"REVISION_HISTORY_LIMIT_LINKED_HELM_APP" envDefault:"15"`
 }
 
