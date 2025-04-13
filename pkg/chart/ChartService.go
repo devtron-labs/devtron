@@ -315,7 +315,7 @@ func (impl *ChartServiceImpl) Create(templateRequest bean3.TemplateRequest, ctx 
 		return nil, err
 	}
 
-	err = impl.UpdateChartLocationForEnvironmentConfigs(templateRequest.AppId, chart.ChartRefId, templateRequest.UserId, version)
+	err = impl.updateChartLocationForEnvironmentConfigs(newCtx, templateRequest.AppId, chart.ChartRefId, templateRequest.UserId, version)
 	if err != nil {
 		impl.logger.Errorw("error in updating chart location in env overrides", "appId", templateRequest.AppId, "err", err)
 		return nil, err
@@ -350,8 +350,10 @@ func (impl *ChartServiceImpl) Create(templateRequest bean3.TemplateRequest, ctx 
 	return chartVal, err
 }
 
-func (impl *ChartServiceImpl) UpdateChartLocationForEnvironmentConfigs(appId, chartRefId int, userId int32, version string) error {
-	envOverrides, err := impl.envConfigOverrideReadService.GetAllOverridesForApp(appId)
+func (impl *ChartServiceImpl) updateChartLocationForEnvironmentConfigs(ctx context.Context, appId, chartRefId int, userId int32, version string) error {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ChartServiceImpl.updateChartLocationForEnvironmentConfigs")
+	defer span.End()
+	envOverrides, err := impl.envConfigOverrideReadService.GetAllOverridesForApp(newCtx, appId)
 	if err != nil {
 		impl.logger.Errorw("error in getting all overrides for app", "appId", appId, "err", err)
 		return err
@@ -661,7 +663,7 @@ func (impl *ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateReq
 			return nil, err
 		}
 
-		err = impl.UpdateChartLocationForEnvironmentConfigs(templateRequest.AppId, templateRequest.ChartRefId, templateRequest.UserId, template.ChartVersion)
+		err = impl.updateChartLocationForEnvironmentConfigs(newCtx, templateRequest.AppId, templateRequest.ChartRefId, templateRequest.UserId, template.ChartVersion)
 		if err != nil {
 			impl.logger.Errorw("error in updating chart location in env overrides", "appId", templateRequest.AppId, "err", err)
 			return nil, err
