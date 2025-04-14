@@ -6,3 +6,7 @@ SET template_payload = '{"from": "{{fromEmail}}", "to": "{{toEmail}}","subject":
 WHERE node_type = 'CD'
   AND event_type_id = 1
   AND channel_type='ses';
+
+--adding resource_version to global_policy table for maintaining optimistic concurrency control
+ALTER TABLE global_policy ADD COLUMN IF NOT EXISTS resource_version VARCHAR(50);
+
