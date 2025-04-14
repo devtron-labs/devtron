@@ -14,6 +14,7 @@
 - feat: licensing changes (#6474)
 ## Documentation
 ## Others
+- sync: Main sync develop (#6518)
 - sync: vendor update (#6515)
 - sync: Release candidate v0.33.0 (#6514)
 - misc: update the descriptions of env variables (#6499)
