@@ -408,7 +408,7 @@ func InitializeApp() (*App, error) {
 	clusterServiceImplExtended := cluster.NewClusterServiceImplExtended(environmentRepositoryImpl, grafanaClientImpl, installedAppRepositoryImpl, gitOpsConfigReadServiceImpl, clusterServiceImpl, argoClientWrapperServiceImpl)
 	loginService := middleware.NewUserLogin(sessionManager, k8sClient)
 	userAuthServiceImpl := user.NewUserAuthServiceImpl(userAuthRepositoryImpl, sessionManager, loginService, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, userServiceImpl)
-	environmentServiceImpl := environment.NewEnvironmentServiceImpl(environmentRepositoryImpl, clusterServiceImplExtended, sugaredLogger, k8sServiceImpl, k8sInformerFactoryImpl, userAuthServiceImpl, attributesRepositoryImpl, clusterReadServiceImpl)
+	environmentServiceImpl := environment.NewEnvironmentServiceImpl(environmentRepositoryImpl, clusterServiceImplExtended, sugaredLogger, k8sServiceImpl, k8sInformerFactoryImpl, userAuthServiceImpl, attributesRepositoryImpl, clusterReadServiceImpl, grafanaClientImpl)
 	environmentReadServiceImpl := read3.NewEnvironmentReadServiceImpl(sugaredLogger, environmentRepositoryImpl)
 	validate, err := util.IntValidator()
 	if err != nil {
