@@ -1,4 +1,5 @@
 ## Bugs
+- fix: sql query memory issue (#6516)
 - fix: postgresql skip unique constraints error and handle network connection error (#6509)
 - fix: Grafana data-source get API (#6503)
 - fix: Grafana revert patch (#6498)
