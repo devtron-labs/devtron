@@ -515,6 +515,10 @@ spec:
                 secretKeyRef:
                   key: postgresql-password
                   name: postgresql-postgresql
+            - name: POSTGRES_HOST_AUTH_METHOD
+              value: "md5"
+            - name: POSTGRES_INITDB_ARGS
+              value: "--auth-local=md5"
           envFrom:
             - secretRef:
                 name: postgresql-postgresql
