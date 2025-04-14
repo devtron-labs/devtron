@@ -170,6 +170,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 		payload.TriggeredBy = user.EmailId
 		event.Payload = payload
 	}
+	event = impl.addExtraCdDataForEnterprise(event, wfr)
 	return event
 }
 
