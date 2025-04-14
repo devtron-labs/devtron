@@ -45,6 +45,7 @@ func NewResourceGroupingRouterImpl(restHandler configure.PipelineConfigRestHandl
 func (router ResourceGroupingRouterImpl) InitResourceGroupingRouter(resourceGroupingRouter *mux.Router) {
 	resourceGroupingRouter.Path("/{envId}/app-wf").
 		HandlerFunc(router.appWorkflowRestHandler.FindAppWorkflowByEnvironment).Methods("GET")
+	resourceGroupingRouter.Path("/{envId}/app-metadata").HandlerFunc(router.pipelineConfigRestHandler.GetAppMetadataListByEnvironment).Methods("GET")
 	resourceGroupingRouter.Path("/{envId}/ci-pipeline").HandlerFunc(router.pipelineConfigRestHandler.GetCiPipelineByEnvironment).Methods("GET")
 	resourceGroupingRouter.Path("/{envId}/cd-pipeline").HandlerFunc(router.pipelineConfigRestHandler.GetCdPipelinesByEnvironment).Methods("GET")
 	resourceGroupingRouter.Path("/{envId}/external-ci").HandlerFunc(router.pipelineConfigRestHandler.GetExternalCiByEnvironment).Methods("GET")

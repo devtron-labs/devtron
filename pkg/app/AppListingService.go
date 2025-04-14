@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean/AppView"
+	bean2 "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
@@ -72,6 +73,7 @@ type AppListingService interface {
 
 	FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*AppView.AppEnvironmentContainer, int, error)
 	FetchOverviewAppsByEnvironment(envId, limit, offset int) (*OverviewAppsByEnvironmentBean, error)
+	FetchAppsEnvContainers(envId int, appIds []int, limit, offset int) ([]*AppView.AppEnvironmentContainer, error)
 }
 
 const (
@@ -233,15 +235,10 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 			resp.CreatedBy = fmt.Sprintf("%s (inactive)", createdBy.EmailId)
 		}
 	}
-	envContainers, err := impl.appListingRepository.FetchOverviewAppsByEnvironment(envId, limit, offset)
+	var appIds []int
+	envContainers, err := impl.FetchAppsEnvContainers(envId, appIds, limit, offset)
 	if err != nil {
-		impl.Logger.Errorw("failed to fetch environment containers", "err", err, "envId", envId)
-		return resp, err
-	}
-
-	err = impl.updateAppStatusForHelmTypePipelines(envContainers)
-	if err != nil {
-		impl.Logger.Errorw("err, updateAppStatusForHelmTypePipelines", "envId", envId, "err", err)
+		impl.Logger.Errorw("failed to fetch env containers", "err", err, "envId", envId)
 		return resp, err
 	}
 
@@ -291,6 +288,21 @@ func getUniqueArtifacts(artifactIds []int) (uniqueArtifactIds []int) {
 	}
 
 	return uniqueArtifactIds
+}
+
+func (impl AppListingServiceImpl) FetchAppsEnvContainers(envId int, appIds []int, limit, offset int) ([]*AppView.AppEnvironmentContainer, error) {
+	envContainers, err := impl.appListingRepository.FetchAppsEnvContainers(envId, appIds, limit, offset)
+	if err != nil {
+		impl.Logger.Errorw("failed to fetch environment containers", "err", err, "envId", envId)
+		return nil, err
+	}
+
+	err = impl.updateAppStatusForHelmTypePipelines(envContainers)
+	if err != nil {
+		impl.Logger.Errorw("err, updateAppStatusForHelmTypePipelines", "envId", envId, "err", err)
+		return nil, err
+	}
+	return envContainers, nil
 }
 
 func (impl AppListingServiceImpl) FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error) {
@@ -368,6 +380,18 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 	if len(fetchAppListingRequest.Namespaces) != 0 && len(fetchAppListingRequest.Environments) == 0 {
 		return []*AppView.AppEnvironmentContainer{}, 0, nil
 	}
+
+	// Currently AppStatus is available in Db for only ArgoApps
+	// We fetch AppStatus on the fly for Helm Apps from scoop, So AppStatus filter will be applied in last
+	// fun to check if "HIBERNATING" exists in fetchAppListingRequest.AppStatuses
+	isFilteredOnHibernatingStatus := impl.isFilteredOnHibernatingStatus(fetchAppListingRequest)
+	// remove ""HIBERNATING" from fetchAppListingRequest.AppStatuses
+	appStatusesFilter := make([]string, 0)
+	if isFilteredOnHibernatingStatus {
+		appStatusesFilter = fetchAppListingRequest.AppStatuses
+		fetchAppListingRequest.AppStatuses = []string{}
+	}
+
 	appListingFilter := helper.AppListingFilter{
 		Environments:      fetchAppListingRequest.Environments,
 		Statuses:          fetchAppListingRequest.Statuses,
@@ -421,7 +445,28 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 	if err != nil {
 		impl.Logger.Errorw("error, UpdateAppStatusForHelmTypePipelines", "envIds", envIds, "err", err)
 	}
+
+	// apply filter for "HIBERNATING" status
+	if isFilteredOnHibernatingStatus {
+		filteredContainers := make([]*AppView.AppEnvironmentContainer, 0)
+		for _, container := range envContainers {
+			if slices.Contains(appStatusesFilter, container.AppStatus) {
+				filteredContainers = append(filteredContainers, container)
+			}
+		}
+		envContainers = filteredContainers
+		appSize = len(filteredContainers)
+	}
 	return envContainers, appSize, nil
+}
+
+func (impl AppListingServiceImpl) isFilteredOnHibernatingStatus(fetchAppListingRequest FetchAppListingRequest) bool {
+	if fetchAppListingRequest.AppStatuses != nil && len(fetchAppListingRequest.AppStatuses) > 0 {
+		if slices.Contains(fetchAppListingRequest.AppStatuses, bean2.HIBERNATING) {
+			return true
+		}
+	}
+	return false
 }
 
 func (impl AppListingServiceImpl) ISLastReleaseStopType(appId, envId int) (bool, error) {
