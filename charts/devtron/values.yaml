@@ -17,7 +17,7 @@ global:
   #     value: "value1"
   #     effect: "NoSchedule"
   # imagePullSecrets:
-  #     - name: your-image-pull-secret
+  #   - name: your-image-pull-secret
 
   # Set the storage class to be used for PVCs (would use default sc if not specified)
   storageClass: ""
