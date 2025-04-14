@@ -1,4 +1,5 @@
 ## Bugs
+- fix: making tx independent of git sensor call (#6519)
 - fix: sql query memory issue (#6516)
 - fix: postgresql skip unique constraints error and handle network connection error (#6509)
 - fix: Grafana data-source get API (#6503)
