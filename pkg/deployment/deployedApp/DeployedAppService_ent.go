@@ -9,7 +9,7 @@ import (
 func (impl *DeployedAppServiceImpl) getTemplate(stopRequest *bean.StopAppRequest) (string, error) {
 	return "", nil
 }
-func (impl *DeployedAppServiceImpl) checkForFeasibilityBeforeStartStop(appId, envId int, userMetadata *bean6.UserMetadata) error {
+func (impl *DeployedAppServiceImpl) checkForFeasibilityBeforeStartStop(ctx context.Context, appId, envId int, userMetadata *bean6.UserMetadata) error {
 	return nil
 }
 

@@ -99,7 +99,7 @@ func (impl *DeployedAppServiceImpl) stopStartApp(ctx context.Context, stopReques
 		impl.logger.Errorw("error in fetching latest release", "err", err)
 		return 0, err
 	}
-	err = impl.checkForFeasibilityBeforeStartStop(stopRequest.AppId, stopRequest.EnvironmentId, userMetadata)
+	err = impl.checkForFeasibilityBeforeStartStop(ctx, stopRequest.AppId, stopRequest.EnvironmentId, userMetadata)
 	if err != nil {
 		impl.logger.Errorw("error in checking for feasibility before hibernating and un hibernating", "stopRequest", stopRequest, "err", err)
 		return 0, err
@@ -145,7 +145,7 @@ func (impl *DeployedAppServiceImpl) RotatePods(ctx context.Context, podRotateReq
 		impl.logger.Errorw("error occurred while fetching env details", "envId", environmentId, "err", err)
 		return nil, err
 	}
-	err = impl.checkForFeasibilityBeforeStartStop(podRotateRequest.AppId, podRotateRequest.EnvironmentId, userMetadata)
+	err = impl.checkForFeasibilityBeforeStartStop(ctx, podRotateRequest.AppId, podRotateRequest.EnvironmentId, userMetadata)
 	if err != nil {
 		impl.logger.Errorw("error in checking for feasibility in Rotating pods", "podRotateRequest", podRotateRequest, "err", err)
 		return nil, err
