@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bulkAction/bean"
 	"github.com/devtron-labs/devtron/pkg/bulkAction/service"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	"github.com/devtron-labs/devtron/util"
 	"net/http"
 	"strconv"
 	"strings"
@@ -257,11 +258,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkUpdate(w http.ResponseWriter, r *ht
 		}
 	}
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
-	userEmail, err := handler.userAuthService.GetActiveEmailById(userId)
-	if err != nil {
-		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
-		return
-	}
+	userEmail := util.GetEmailFromContext(r.Context())
 	userMetadata := &bean4.UserMetadata{
 		UserEmailId:      userEmail,
 		IsUserSuperAdmin: isSuperAdmin,
@@ -278,11 +275,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkHibernate(w http.ResponseWriter, r 
 	}
 	token := r.Header.Get("token")
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
-	userEmail, err := handler.userAuthService.GetActiveEmailById(request.UserId)
-	if err != nil {
-		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
-		return
-	}
+	userEmail := util.GetEmailFromContext(r.Context())
 	userMetadata := &bean4.UserMetadata{
 		UserEmailId:      userEmail,
 		IsUserSuperAdmin: isSuperAdmin,
@@ -327,11 +320,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkUnHibernate(w http.ResponseWriter, 
 	}
 	token := r.Header.Get("token")
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
-	userEmail, err := handler.userAuthService.GetActiveEmailById(request.UserId)
-	if err != nil {
-		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
-		return
-	}
+	userEmail := util.GetEmailFromContext(r.Context())
 	userMetadata := &bean4.UserMetadata{
 		UserEmailId:      userEmail,
 		IsUserSuperAdmin: isSuperAdmin,
@@ -366,11 +355,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkDeploy(w http.ResponseWriter, r *ht
 		return
 	}
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
-	userEmail, err := handler.userAuthService.GetActiveEmailById(userId)
-	if err != nil {
-		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
-		return
-	}
+	userEmail := util.GetEmailFromContext(r.Context())
 	userMetadata := &bean4.UserMetadata{
 		UserEmailId:      userEmail,
 		IsUserSuperAdmin: isSuperAdmin,

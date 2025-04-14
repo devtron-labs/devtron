@@ -142,11 +142,7 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 		Context: ctx,
 	}
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
-	userEmail, err := handler.userAuthService.GetActiveEmailById(userId)
-	if err != nil {
-		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
-		return
-	}
+	userEmail := util.GetEmailFromContext(ctx)
 	userMetadata := &bean5.UserMetadata{
 		UserEmailId:      userEmail,
 		IsUserSuperAdmin: isSuperAdmin,
@@ -197,11 +193,7 @@ func (handler PipelineTriggerRestHandlerImpl) RotatePods(w http.ResponseWriter, 
 		return
 	}
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
-	userEmail, err := handler.userAuthService.GetActiveEmailById(userId)
-	if err != nil {
-		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
-		return
-	}
+	userEmail := util.GetEmailFromContext(r.Context())
 	userMetadata := &bean5.UserMetadata{
 		UserEmailId:      userEmail,
 		IsUserSuperAdmin: isSuperAdmin,
@@ -253,11 +245,7 @@ func (handler PipelineTriggerRestHandlerImpl) StartStopApp(w http.ResponseWriter
 	//rback block ends here
 	ctx := r.Context()
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
-	userEmail, err := handler.userAuthService.GetActiveEmailById(userId)
-	if err != nil {
-		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
-		return
-	}
+	userEmail := util.GetEmailFromContext(ctx)
 	userMetadata := &bean5.UserMetadata{
 		UserEmailId:      userEmail,
 		IsUserSuperAdmin: isSuperAdmin,
@@ -318,11 +306,7 @@ func (handler PipelineTriggerRestHandlerImpl) StartStopDeploymentGroup(w http.Re
 	}
 	//rback block ends here
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
-	userEmail, err := handler.userAuthService.GetActiveEmailById(userId)
-	if err != nil {
-		common.WriteJsonResp(w, fmt.Errorf("userEmail not found by userId"), "userEmail not found by userId", http.StatusNotFound)
-		return
-	}
+	userEmail := util.GetEmailFromContext(r.Context())
 	userMetadata := &bean5.UserMetadata{
 		UserEmailId:      userEmail,
 		IsUserSuperAdmin: isSuperAdmin,

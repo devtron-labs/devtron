@@ -31,7 +31,10 @@ import (
 	"time"
 )
 
-const TokenKey = "token"
+const (
+	EmailId  = "emailId"
+	TokenKey = "token"
+)
 
 func ReadFromUrlWithRetry(url string) ([]byte, error) {
 	var (
@@ -159,4 +162,9 @@ func getCertFileName() string {
 func GetTokenFromContext(ctx context.Context) string {
 	token, _ := ctx.Value(TokenKey).(string)
 	return token
+}
+
+func GetEmailFromContext(ctx context.Context) string {
+	email, _ := ctx.Value(EmailId).(string)
+	return email
 }
