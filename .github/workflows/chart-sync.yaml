@@ -2,15 +2,16 @@ name: chart-sync
 
 # Controls when the workflow will run
 on:
-  # Triggers the workflow on publishing new release on main branch and in charts directory only
-  push:
-    branches:    
-      - 'main'
-    paths:
-      - 'charts/**'
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
-
+    inputs:
+      RELEASE_TYPE:
+        description: 'Release Type'
+        required: true
+        default: 'minor'
+      NEXT_RELEASE_VERSION:
+        description: 'Release TAG'
+        required: true
+        default: 'v1.4.0'
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This workflow contains a single job called "build"
@@ -34,3 +35,5 @@ jobs:
         git-source-dir: ${{ secrets.GIT_SOURCE_DIR }}
         working-dir: ${{ secrets.WORKING_DIR }}
         RELEASE_BRANCH: "main"
+        RELEASE_TYPE: ${{ github.event.inputs.RELEASE_TYPE }}
+        RELEASE_TAG: ${{ github.event.inputs.NEXT_RELEASE_VERSION }}
