@@ -1,4 +1,4 @@
-Note: We have restrucutred the readme. If you are looking for Devtron's CI/CD capabilites, please [click here](#devtron-platform)
+Note: We have restructured the readme. If you are looking for Devtron's CI/CD capabilites, please [click here](#devtron-platform)
 #
 
 <p align="center">
