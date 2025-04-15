@@ -39,6 +39,7 @@ type EnvironmentBean struct {
 	ClusterCAData          string            `json:"-"`
 	ClusterKeyData         string            `json:"-"`
 	ClusterCertData        string            `json:"-"`
+	DataSourceId           int               `json:"-"`
 }
 
 type EnvDto struct {
@@ -66,3 +67,8 @@ const (
 	PIPELINE_DEPLOYMENT_TYPE_HELM = "helm"
 	PIPELINE_DEPLOYMENT_TYPE_ACD  = "argo_cd"
 )
+
+type DataSourceMetaData struct {
+	Id   int    `json:"id"`
+	Name string `json:"name"`
+}

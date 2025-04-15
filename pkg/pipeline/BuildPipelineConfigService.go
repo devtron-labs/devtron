@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -118,6 +119,7 @@ type CiPipelineConfigService interface {
 	GetExternalCiByEnvironment(request resourceGroup2.ResourceGroupingRequest, token string) (ciConfig []*bean.ExternalCiConfig, err error)
 	DeleteCiPipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error)
 	CreateExternalCiAndAppWorkflowMapping(appId, appWorkflowId int, userId int32, tx *pg.Tx) (int, *appWorkflow.AppWorkflowMapping, error)
+	GetAppMetadataListByEnvironment(envId int, appIds []int) (appMetadataListBean pipelineConfigBean.AppMetadataListBean, err error)
 }
 
 type CiPipelineConfigServiceImpl struct {
@@ -148,6 +150,7 @@ type CiPipelineConfigServiceImpl struct {
 	buildPipelineSwitchService    BuildPipelineSwitchService
 	pipelineStageRepository       repository.PipelineStageRepository
 	globalPluginRepository        repository2.GlobalPluginRepository
+	appListingService             app.AppListingService
 }
 
 func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
@@ -175,7 +178,8 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	buildPipelineSwitchService BuildPipelineSwitchService,
 	pipelineStageRepository repository.PipelineStageRepository,
-	globalPluginRepository repository2.GlobalPluginRepository) *CiPipelineConfigServiceImpl {
+	globalPluginRepository repository2.GlobalPluginRepository,
+	appListingService app.AppListingService) *CiPipelineConfigServiceImpl {
 	securityConfig := &SecurityConfig{}
 	err := env.Parse(securityConfig)
 	if err != nil {
@@ -209,6 +213,7 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 		buildPipelineSwitchService:    buildPipelineSwitchService,
 		pipelineStageRepository:       pipelineStageRepository,
 		globalPluginRepository:        globalPluginRepository,
+		appListingService:             appListingService,
 	}
 }
 
@@ -2156,4 +2161,25 @@ func (impl *CiPipelineConfigServiceImpl) CreateExternalCiAndAppWorkflowMapping(a
 		return 0, nil, err
 	}
 	return externalCiPipeline.Id, appWorkflowMap, nil
+}
+
+func (impl *CiPipelineConfigServiceImpl) GetAppMetadataListByEnvironment(envId int, appIds []int) (appMetadataListBean pipelineConfigBean.AppMetadataListBean, err error) {
+	appMetadataListBean = pipelineConfigBean.AppMetadataListBean{}
+	envContainers, err := impl.appListingService.FetchAppsEnvContainers(envId, appIds, 0, 0)
+	if err != nil {
+		impl.logger.Errorw("failed to fetch env containers", "err", err, "envId", envId)
+		return appMetadataListBean, err
+	}
+	appMetadataList := make([]*pipelineConfigBean.AppMetaData, 0)
+	for _, envContainer := range envContainers {
+		appMetaData := &pipelineConfigBean.AppMetaData{
+			AppId:     envContainer.AppId,
+			AppName:   envContainer.AppName,
+			AppStatus: envContainer.AppStatus,
+		}
+		appMetadataList = append(appMetadataList, appMetaData)
+	}
+	appMetadataListBean.Apps = appMetadataList
+	appMetadataListBean.AppCount = len(envContainers)
+	return appMetadataListBean, nil
 }

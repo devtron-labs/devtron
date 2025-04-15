@@ -51,6 +51,7 @@ const ENV_DELETE_SUCCESS_RESP = "Environment deleted successfully."
 type EnvironmentRestHandler interface {
 	Create(w http.ResponseWriter, r *http.Request)
 	Get(w http.ResponseWriter, r *http.Request)
+	GetDataSourceName(w http.ResponseWriter, r *http.Request)
 	GetAll(w http.ResponseWriter, r *http.Request)
 	GetAllActive(w http.ResponseWriter, r *http.Request)
 	Update(w http.ResponseWriter, r *http.Request)
@@ -165,6 +166,34 @@ func (impl EnvironmentRestHandlerImpl) Get(w http.ResponseWriter, r *http.Reques
 	//RBAC enforcer Ends
 
 	common.WriteJsonResp(w, err, bean, http.StatusOK)
+}
+
+func (impl EnvironmentRestHandlerImpl) GetDataSourceName(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	environmentName := vars["environmentName"]
+
+	bean, err := impl.environmentClusterMappingsService.FindOne(environmentName)
+	if err != nil {
+		impl.logger.Errorw("service err, Get", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, bean.EnvironmentIdentifier); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+
+	resp, err := impl.environmentClusterMappingsService.GetDataSourceName(bean)
+	if err != nil {
+		impl.logger.Errorw("service err, Get", "err", err, "env", environmentName)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
 func (impl EnvironmentRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request) {
