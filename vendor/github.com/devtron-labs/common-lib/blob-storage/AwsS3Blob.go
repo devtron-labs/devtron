@@ -203,31 +203,55 @@ func (r *Resolver) ResolveEndpoint(_ context.Context, params s3v2.EndpointParame
 	return transport.Endpoint{URI: u}, nil
 }
 
-func GetS3BucketBasicsClient(ctx context.Context, region string, accessKey, secretKey string, endpointUrl string) (BucketBasics, error) {
-	cfg, err := config.LoadDefaultConfig(ctx, config.WithCredentialsProvider(credentialsv2.NewStaticCredentialsProvider(accessKey, secretKey, "")))
+func getS3DefaultSDKConfig(ctx context.Context, region, accessKey, secretKey, endpointUrl string) (s3Cfg awsv2.Config, err error) {
+	if len(endpointUrl) != 0 && len(region) == 0 {
+		// case handled for minio
+		region = "us-east-1"
+		s3Cfg = awsv2.Config{Region: region}
+		return s3Cfg, nil
+	}
+	var cfg awsv2.Config
+	if len(accessKey) == 0 || len(secretKey) == 0 {
+		// case handled for S3 IAM role
+		cfg, err = config.LoadDefaultConfig(ctx, config.WithRegion(region))
+		if err != nil {
+			return awsv2.Config{}, err
+		}
+	} else {
+		// case handled for S3 with access key and secret key
+		cfg, err = config.LoadDefaultConfig(ctx, config.WithCredentialsProvider(credentialsv2.NewStaticCredentialsProvider(accessKey, secretKey, "")))
+		if err != nil {
+			return awsv2.Config{}, err
+		}
+	}
+	s3Cfg = awsv2.Config{Region: region, Credentials: cfg.Credentials}
+	return s3Cfg, nil
+}
+
+func getS3Client(s3Cfg awsv2.Config, endpointUrl string) (s3Client *s3v2.Client, err error) {
+	if len(endpointUrl) > 0 {
+		parsedEndpointUrl, err := url.Parse(endpointUrl)
+		if err != nil {
+			return s3Client, err
+		}
+		return s3v2.NewFromConfig(s3Cfg, func(o *s3v2.Options) {
+			o.UsePathStyle = true
+			o.EndpointResolverV2 = &Resolver{URL: parsedEndpointUrl}
+		}), nil
+	} else {
+		return s3v2.NewFromConfig(s3Cfg), nil
+	}
+}
+
+func GetS3BucketBasicsClient(ctx context.Context, region, accessKey, secretKey, endpointUrl string) (BucketBasics, error) {
+	s3Cfg, err := getS3DefaultSDKConfig(ctx, region, accessKey, secretKey, endpointUrl)
 	if err != nil {
 		return BucketBasics{}, err
 	}
-	sdkConfig := awsv2.Config{Region: region}
-	sdkConfig.Credentials = cfg.Credentials
-	var s3Client *s3v2.Client
-	if len(endpointUrl) > 0 {
-		if len(region) == 0 {
-			region = "us-east-1" //for minio
-			sdkConfig = awsv2.Config{Region: region}
-		}
-		endpointURL, err := url.Parse(endpointUrl)
-		if err != nil {
-			return BucketBasics{}, err
-		}
-		s3Client = s3v2.NewFromConfig(sdkConfig, func(o *s3v2.Options) {
-			o.UsePathStyle = true
-			o.EndpointResolverV2 = &Resolver{URL: endpointURL}
-		})
-	} else {
-		s3Client = s3v2.NewFromConfig(sdkConfig)
+	s3Client, err := getS3Client(s3Cfg, endpointUrl)
+	if err != nil {
+		return BucketBasics{}, err
 	}
-
 	bucketBasics := BucketBasics{S3Client: s3Client}
 	return bucketBasics, nil
 }
