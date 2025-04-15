@@ -7,4 +7,4 @@ WHERE node_type = 'CD'
   AND event_type_id = 1
   AND channel_type='ses';
 
-ALTER TABLE global_policy DROP COLUMN IF EXISTS resource_version;
+ALTER TABLE global_policy DROP COLUMN IF EXISTS policy_revision;
