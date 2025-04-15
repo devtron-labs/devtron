@@ -8,6 +8,5 @@ WHERE node_type = 'CD'
   AND channel_type='ses';
 
 --adding resource_version to global_policy table for maintaining optimistic concurrency control
-ALTER TABLE global_policy ADD COLUMN IF NOT EXISTS policy_revision VARCHAR(20);
--- Create a sequence for global policy revisions
-CREATE SEQUENCE global_policy_policy_revision_seq;
+ALTER TABLE global_policy ADD COLUMN IF NOT EXISTS policy_revision text;
+
