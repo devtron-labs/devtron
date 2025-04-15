@@ -4,6 +4,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: postgresql-postgresql
+  namespace: devtroncd
   labels:
     app: postgresql
     release: "devtron"
@@ -15,7 +16,7 @@ spec:
   ports:
     - name: tcp-postgresql
       port: 5432
-      targetPort: tcp-postgresql
+      targetPort: 5432
   selector:
     app: postgresql
     release: "devtron"
@@ -25,6 +26,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: postgresql-postgresql-headless
+  namespace: devtroncd
   labels:
     app: postgresql
     release: "devtron"
@@ -37,7 +39,7 @@ spec:
   ports:
     - name: tcp-postgresql
       port: 5432
-      targetPort: tcp-postgresql
+      targetPort: 5432
   selector:
     app: postgresql
     release: "devtron"
@@ -46,6 +48,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: postgresql-postgresql-metrics
+  namespace: devtroncd
   labels:
     app: postgresql
     release: "devtron"
