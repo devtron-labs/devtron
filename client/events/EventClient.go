@@ -40,6 +40,7 @@ import (
 type EventClientConfig struct {
 	DestinationURL     string             `env:"EVENT_URL" envDefault:"http://localhost:3000/notify" description:"Notifier service url"`
 	NotificationMedium NotificationMedium `env:"NOTIFICATION_MEDIUM" envDefault:"rest" description:"notification medium"`
+	EnableNotifierV2   bool               `env:"ENABLE_NOTIFIER_V2" envDefault:"false" description:"enable notifier v2"`
 }
 type NotificationMedium string
 
@@ -259,21 +260,34 @@ func (impl *EventRESTClientImpl) sendEventsOnNats(body []byte) error {
 // do not call this method if notification module is not installed
 func (impl *EventRESTClientImpl) sendEvent(event Event) (bool, error) {
 	impl.logger.Debugw("event before send", "event", event)
-	body, err := json.Marshal(event)
-	if err != nil {
-		impl.logger.Errorw("error while marshaling event request ", "err", err)
-		return false, err
-	}
-	if impl.config.NotificationMedium == PUB_SUB {
-		err = impl.sendEventsOnNats(body)
+	var body string
+	var destinationUrl string
+	if impl.config.EnableNotifierV2 {
+		// logic to get NotificationSettings from event
+
+		// embed event and NotificationSettings in body
+
+		// destination Url
+		destinationUrl = impl.config.DestinationURL + "/v2"
+	} else {
+		destinationUrl = impl.config.DestinationURL
+		body, err := json.Marshal(event)
 		if err != nil {
-			impl.logger.Errorw("error while publishing event  ", "err", err)
+			impl.logger.Errorw("error while marshaling event request ", "err", err)
 			return false, err
 		}
-		return true, nil
+		if impl.config.NotificationMedium == PUB_SUB {
+			err = impl.sendEventsOnNats(body)
+			if err != nil {
+				impl.logger.Errorw("error while publishing event  ", "err", err)
+				return false, err
+			}
+			return true, nil
+		}
 	}
+
 	var reqBody = []byte(body)
-	req, err := http.NewRequest(http.MethodPost, impl.config.DestinationURL, bytes.NewBuffer(reqBody))
+	req, err := http.NewRequest(http.MethodPost, destinationUrl, bytes.NewBuffer(reqBody))
 	if err != nil {
 		impl.logger.Errorw("error while writing event", "err", err)
 		return false, err
