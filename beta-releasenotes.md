@@ -1,4 +1,5 @@
 ## Bugs
+- fix: added support for IAM role S3 blob client (#6521)
 - fix: making tx independent of git sensor call (#6519)
 - fix: sql query memory issue (#6516)
 - fix: postgresql skip unique constraints error and handle network connection error (#6509)
