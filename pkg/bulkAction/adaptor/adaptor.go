@@ -11,3 +11,12 @@ func GetCmAndSecretBulkUpdateResponseForOneApp(appId int, appName string, envId 
 		Message: message,
 	}
 }
+
+func GetDeploymentTemplateBulkUpdateResponseForOneApp(appId int, appName string, envId int, message string) *bean.DeploymentTemplateBulkUpdateResponseForOneApp {
+	return &bean.DeploymentTemplateBulkUpdateResponseForOneApp{
+		AppId:   appId,
+		AppName: appName,
+		EnvId:   envId,
+		Message: message,
+	}
+}
