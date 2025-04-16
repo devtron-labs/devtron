@@ -28,7 +28,7 @@
 ## CI_RUNNER Related Environment Variables
 | Key   | Type     | Default Value     | Description       | Example       | Deprecated       |
 |-------|----------|-------------------|-------------------|-----------------------|------------------|
- | AZURE_ACCOUNT_KEY | string | | If blob storage is bieng used of azure then pass the secret key to access the bucket |  | false |
+ | AZURE_ACCOUNT_KEY | string | | If blob storage is being used of azure then pass the secret key to access the bucket |  | false |
  | AZURE_ACCOUNT_NAME | string | | Account name for azure blob storage |  | false |
  | AZURE_BLOB_CONTAINER_CI_CACHE | string | | Cache bucket name for azure blob storage |  | false |
  | AZURE_BLOB_CONTAINER_CI_LOG | string | | Log bucket for azure blob storage |  | false |
@@ -174,6 +174,7 @@
  | ECR_REPO_NAME_PREFIX | string |test/ | Prefix for ECR repo to be created in does not exist |  | false |
  | ENABLE_ASYNC_ARGO_CD_INSTALL_DEVTRON_CHART | bool |false | To enable async installation of gitops application |  | false |
  | ENABLE_ASYNC_INSTALL_DEVTRON_CHART | bool |false | To enable async installation of no-gitops application |  | false |
+ | ENABLE_NOTIFIER_V2 | bool |false | enable notifier v2 |  | false |
  | EPHEMERAL_SERVER_VERSION_REGEX | string |v[1-9]\.\b(2[3-9]\|[3-9][0-9])\b.* | ephemeral containers support version regex that is compared with k8sServerVersion |  | false |
  | EVENT_URL | string |http://localhost:3000/notify | Notifier service url |  | false |
  | EXECUTE_WIRE_NIL_CHECKER | bool |false | checks for any nil pointer in wire.go |  | false |

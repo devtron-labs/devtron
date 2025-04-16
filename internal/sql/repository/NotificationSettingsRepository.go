@@ -44,6 +44,7 @@ type NotificationSettingsRepository interface {
 	FindNotificationSettingBuildOptions(settingRequest *SearchRequest) ([]*SettingOptionDTO, error)
 	FetchNotificationSettingGroupBy(viewId int) ([]NotificationSettings, error)
 	FindNotificationSettingsByConfigIdAndConfigType(configId int, configType string) ([]*NotificationSettings, error)
+	FindNotificationSettingsByEvent(pipelineType string, pipelineId int, eventTypeId int, appId int, envId int, teamId int, clusterId int, isProdEnv bool, envIdsForCiPipeline []int) ([]NotificationSettings, error)
 }
 
 type NotificationSettingsRepositoryImpl struct {
@@ -353,5 +354,231 @@ func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingsByConfig
 	if err != nil {
 		return nil, err
 	}
+	return notificationSettings, nil
+}
+
+// FindByEventSource finds notification settings based on event source parameters
+// note: if the query in this func is changed, please update the same query in notifier
+func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingsByEvent(pipelineType string, pipelineId int, eventTypeId int, appId int, envId int, teamId int, clusterId int, isProdEnv bool, envIdsForCiPipeline []int) ([]NotificationSettings, error) {
+	// Handle special case for event type 6 (deployment blocked with auto trigger)
+	if eventTypeId == 6 {
+		// This is the case when deployment is blocked and pipeline is set to auto trigger
+		eventTypeId = 3
+	}
+
+	// Determine environment identifier based on isProdEnv flag
+	envIdentifier := resourceQualifiers.AllExistingAndFutureNonProdEnvsInt
+	if isProdEnv {
+		envIdentifier = resourceQualifiers.AllExistingAndFutureProdEnvsInt
+	}
+
+	// Build the query with all the complex conditions
+	var notificationSettings []NotificationSettings
+	query := impl.dbConnection.Model(&notificationSettings).
+		Where("pipeline_type = ?", pipelineType).
+		Where("event_type_id = ?", eventTypeId)
+
+	// Add all the OR conditions as WhereGroup
+	query = query.WhereGroup(func(q *orm.Query) (*orm.Query, error) {
+		// App specific, env/team/pipeline null
+		q = q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
+			q = q.Where("app_id = ?", appId).
+				Where("env_id IS NULL").
+				Where("team_id IS NULL").
+				Where("pipeline_id IS NULL")
+			return q, nil
+		})
+
+		// Env specific, app/team/pipeline null
+		q = q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
+			q = q.Where("app_id IS NULL").
+				Where("env_id = ?", envId).
+				Where("team_id IS NULL").
+				Where("pipeline_id IS NULL")
+			return q, nil
+		})
+
+		// Team specific, app/env/pipeline null
+		q = q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
+			q = q.Where("app_id IS NULL").
+				Where("env_id IS NULL").
+				Where("team_id = ?", teamId).
+				Where("pipeline_id IS NULL")
+			return q, nil
+		})
+
+		// App and env specific, team/pipeline null
+		q = q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
+			q = q.Where("app_id = ?", appId).
+				Where("team_id IS NULL").
+				Where("env_id = ?", envId).
+				Where("pipeline_id IS NULL")
+			return q, nil
+		})
+
+		// App and envIdentifier specific, team/pipeline null
+		q = q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
+			q = q.Where("app_id = ?", appId).
+				Where("team_id IS NULL").
+				Where("env_id = ?", envIdentifier).
+				Where("pipeline_id IS NULL")
+			return q, nil
+		})
+
+		// App, env, team specific with pipeline
+		q = q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
+			q = q.Where("app_id = ?", appId).
+				Where("env_id = ?", envId).
+				Where("team_id = ?", teamId).
+				WhereOr("pipeline_id = ?", pipelineId)
+			return q, nil
+		})
+
+		// All envs of cluster, env/app/team null
+		q = q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
+			q = q.Where("app_id IS NULL").
+				Where("team_id IS NULL").
+				Where("env_id IS NULL").
+				Where("cluster_id = ?", clusterId)
+			return q, nil
+		})
+
+		// All envs of cluster in an app
+		q = q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
+			q = q.Where("app_id = ?", appId).
+				Where("env_id IS NULL").
+				Where("cluster_id = ?", clusterId)
+			return q, nil
+		})
+
+		// All envs of cluster in a team, app is null
+		q = q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
+			q = q.Where("app_id IS NULL").
+				Where("team_id = ?", teamId).
+				Where("env_id IS NULL").
+				Where("cluster_id = ?", clusterId)
+			return q, nil
+		})
+
+		// For all prod/non-prod envs across for pipelines of a project, app/cluster/pipeline null
+		q = q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
+			q = q.Where("app_id IS NULL").
+				Where("env_id = ?", envIdentifier).
+				Where("team_id = ?", teamId).
+				Where("pipeline_id IS NULL").
+				Where("cluster_id IS NULL")
+			return q, nil
+		})
+
+		// For all prod/non-prod envs across for pipelines of an app, project/cluster/pipeline null
+		q = q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
+			q = q.Where("app_id = ?", appId).
+				Where("team_id IS NULL").
+				Where("env_id = ?", envIdentifier).
+				Where("pipeline_id IS NULL").
+				Where("cluster_id IS NULL")
+			return q, nil
+		})
+
+		// For all prod/non-prod envs across all clusters, cluster/app/team null
+		q = q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
+			q = q.Where("app_id IS NULL").
+				Where("env_id = ?", envIdentifier).
+				Where("team_id IS NULL").
+				Where("pipeline_id IS NULL")
+			return q, nil
+		})
+
+		// All prod/non-prod envs of a cluster, app/team null
+		q = q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
+			q = q.Where("app_id IS NULL").
+				Where("team_id IS NULL").
+				Where("env_id = ?", envIdentifier).
+				Where("cluster_id = ?", clusterId)
+			return q, nil
+		})
+
+		// All prod/non-prod envs of a cluster in an app
+		q = q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
+			q = q.Where("app_id = ?", appId).
+				Where("env_id = ?", envIdentifier).
+				Where("cluster_id = ?", clusterId)
+			return q, nil
+		})
+
+		// All prod/non-prod envs of a cluster in a team, app null
+		q = q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
+			q = q.Where("app_id IS NULL").
+				Where("env_id = ?", envIdentifier).
+				Where("team_id = ?", teamId).
+				Where("cluster_id = ?", clusterId)
+			return q, nil
+		})
+
+		// Handle envIdsForCiPipeline if provided
+		if len(envIdsForCiPipeline) > 0 {
+			// For team with specific envs
+			q = q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
+				q = q.Where("app_id IS NULL").
+					Where("env_id IN (?)", pg.In(envIdsForCiPipeline)).
+					Where("team_id = ?", teamId).
+					Where("pipeline_id IS NULL")
+				return q, nil
+			})
+
+			// For app with specific envs
+			q = q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
+				q = q.Where("app_id = ?", appId).
+					Where("team_id IS NULL").
+					Where("env_id IN (?)", pg.In(envIdsForCiPipeline)).
+					Where("pipeline_id IS NULL")
+				return q, nil
+			})
+
+			// For app, team, pipeline with specific envs
+			q = q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
+				q = q.Where("app_id = ?", appId).
+					Where("env_id IN (?)", pg.In(envIdsForCiPipeline)).
+					Where("team_id = ?", teamId).
+					Where("pipeline_id = ?", pipelineId)
+				return q, nil
+			})
+
+			// For cluster with specific envs
+			q = q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
+				q = q.Where("app_id IS NULL").
+					Where("team_id IS NULL").
+					Where("env_id IN (?)", pg.In(envIdsForCiPipeline)).
+					Where("cluster_id = ?", clusterId)
+				return q, nil
+			})
+
+			// For app, cluster with specific envs
+			q = q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
+				q = q.Where("app_id = ?", appId).
+					Where("env_id IN (?)", pg.In(envIdsForCiPipeline)).
+					Where("cluster_id = ?", clusterId)
+				return q, nil
+			})
+
+			// For team, cluster with specific envs
+			q = q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
+				q = q.Where("app_id IS NULL").
+					Where("env_id IN (?)", pg.In(envIdsForCiPipeline)).
+					Where("team_id = ?", teamId).
+					Where("cluster_id = ?", clusterId)
+				return q, nil
+			})
+		}
+
+		return q, nil
+	})
+
+	// Execute the query
+	err := query.Select()
+	if err != nil {
+		return nil, err
+	}
+
 	return notificationSettings, nil
 }

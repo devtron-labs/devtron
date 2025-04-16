@@ -61,24 +61,25 @@ type EventClient interface {
 }
 
 type Event struct {
-	EventTypeId        int               `json:"eventTypeId"`
-	EventName          string            `json:"eventName"`
-	PipelineId         int               `json:"pipelineId"`
-	PipelineType       string            `json:"pipelineType"`
-	CorrelationId      string            `json:"correlationId"`
-	Payload            *Payload          `json:"payload"`
-	EventTime          string            `json:"eventTime"`
-	TeamId             int               `json:"teamId"`
-	AppId              int               `json:"appId"`
-	EnvId              int               `json:"envId"`
-	IsProdEnv          bool              `json:"isProdEnv"`
-	ClusterId          int               `json:"clusterId"`
-	CdWorkflowType     bean.WorkflowType `json:"cdWorkflowType,omitempty"`
-	CdWorkflowRunnerId int               `json:"cdWorkflowRunnerId"`
-	CiWorkflowRunnerId int               `json:"ciWorkflowRunnerId"`
-	CiArtifactId       int               `json:"ciArtifactId"`
-	BaseUrl            string            `json:"baseUrl"`
-	UserId             int               `json:"-"`
+	EventTypeId         int               `json:"eventTypeId"`
+	EventName           string            `json:"eventName"`
+	PipelineId          int               `json:"pipelineId"`
+	PipelineType        string            `json:"pipelineType"`
+	CorrelationId       string            `json:"correlationId"`
+	Payload             *Payload          `json:"payload"`
+	EventTime           string            `json:"eventTime"`
+	TeamId              int               `json:"teamId"`
+	AppId               int               `json:"appId"`
+	EnvId               int               `json:"envId"`
+	IsProdEnv           bool              `json:"isProdEnv"`
+	ClusterId           int               `json:"clusterId"`
+	CdWorkflowType      bean.WorkflowType `json:"cdWorkflowType,omitempty"`
+	CdWorkflowRunnerId  int               `json:"cdWorkflowRunnerId"`
+	CiWorkflowRunnerId  int               `json:"ciWorkflowRunnerId"`
+	CiArtifactId        int               `json:"ciArtifactId"`
+	EnvIdsForCiPipeline []int             `json:"envIdsForCiPipeline"`
+	BaseUrl             string            `json:"baseUrl"`
+	UserId              int               `json:"-"`
 }
 
 type Payload struct {
@@ -120,22 +121,25 @@ type MaterialTriggerInfo struct {
 }
 
 type EventRESTClientImpl struct {
-	logger               *zap.SugaredLogger
-	client               *http.Client
-	config               *EventClientConfig
-	pubsubClient         *pubsub.PubSubClientServiceImpl
-	ciPipelineRepository pipelineConfig.CiPipelineRepository
-	pipelineRepository   pipelineConfig.PipelineRepository
-	attributesRepository repository.AttributesRepository
-	moduleService        module.ModuleService
+	logger                         *zap.SugaredLogger
+	client                         *http.Client
+	config                         *EventClientConfig
+	pubsubClient                   *pubsub.PubSubClientServiceImpl
+	ciPipelineRepository           pipelineConfig.CiPipelineRepository
+	pipelineRepository             pipelineConfig.PipelineRepository
+	attributesRepository           repository.AttributesRepository
+	moduleService                  module.ModuleService
+	notificationSettingsRepository repository.NotificationSettingsRepository
 }
 
 func NewEventRESTClientImpl(logger *zap.SugaredLogger, client *http.Client, config *EventClientConfig, pubsubClient *pubsub.PubSubClientServiceImpl,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
-	attributesRepository repository.AttributesRepository, moduleService module.ModuleService) *EventRESTClientImpl {
+	attributesRepository repository.AttributesRepository, moduleService module.ModuleService,
+	notificationSettingsRepository repository.NotificationSettingsRepository) *EventRESTClientImpl {
 	return &EventRESTClientImpl{logger: logger, client: client, config: config, pubsubClient: pubsubClient,
 		ciPipelineRepository: ciPipelineRepository, pipelineRepository: pipelineRepository,
-		attributesRepository: attributesRepository, moduleService: moduleService}
+		attributesRepository: attributesRepository, moduleService: moduleService,
+		notificationSettingsRepository: notificationSettingsRepository}
 }
 
 func (impl *EventRESTClientImpl) buildFinalPayload(event Event, cdPipeline *pipelineConfig.Pipeline, ciPipeline *pipelineConfig.CiPipeline) *Payload {
@@ -263,23 +267,52 @@ func (impl *EventRESTClientImpl) sendEvent(event Event) (bool, error) {
 	var body string
 	var destinationUrl string
 	if impl.config.EnableNotifierV2 {
-		// logic to get NotificationSettings from event
-
-		// embed event and NotificationSettings in body
-
-		// destination Url
+		impl.logger.Infow("sending event to notifier v2")
+		// destination Url for v2
 		destinationUrl = impl.config.DestinationURL + "/v2"
-	} else {
-		destinationUrl = impl.config.DestinationURL
-		body, err := json.Marshal(event)
+		// Get NotificationSettings from event
+		notificationSettings, err := impl.notificationSettingsRepository.FindNotificationSettingsByEvent(
+			event.PipelineType,
+			event.PipelineId,
+			event.EventTypeId,
+			event.AppId,
+			event.EnvId,
+			event.TeamId,
+			event.ClusterId,
+			event.IsProdEnv,
+			event.EnvIdsForCiPipeline,
+		)
 		if err != nil {
-			impl.logger.Errorw("error while marshaling event request ", "err", err)
+			impl.logger.Errorw("error while fetching notification settings", "err", err)
 			return false, err
 		}
+
+		// Create a combined payload with event and notification settings
+		combinedPayload := map[string]interface{}{
+			"event":                event,
+			"notificationSettings": notificationSettings,
+		}
+
+		// Marshal the combined payload
+		bodyBytes, err := json.Marshal(combinedPayload)
+		if err != nil {
+			impl.logger.Errorw("error while marshaling combined event request", "err", err)
+			return false, err
+		}
+		body = string(bodyBytes)
+
+	} else {
+		destinationUrl = impl.config.DestinationURL
+		bodyBytes, err := json.Marshal(event)
+		if err != nil {
+			impl.logger.Errorw("error while marshaling event request", "err", err)
+			return false, err
+		}
+		body = string(bodyBytes)
 		if impl.config.NotificationMedium == PUB_SUB {
-			err = impl.sendEventsOnNats(body)
+			err = impl.sendEventsOnNats([]byte(body))
 			if err != nil {
-				impl.logger.Errorw("error while publishing event  ", "err", err)
+				impl.logger.Errorw("error while publishing event", "err", err)
 				return false, err
 			}
 			return true, nil
