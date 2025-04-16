@@ -199,6 +199,7 @@ func (workflowRequest *WorkflowRequest) GetWorkflowTemplate(workflowJson []byte,
 		workflowTemplate.WorkflowRunnerId = workflowRequest.WorkflowRunnerId
 		workflowTemplate.PrePostDeploySteps = workflowRequest.PrePostDeploySteps
 	}
+	workflowTemplate.PodGCDeleteDelayDuration = config.PodGCDeleteDelayDuration
 	return workflowTemplate
 }
 

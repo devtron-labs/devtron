@@ -153,7 +153,8 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 				Templates: templates,
 				Volumes:   workflowTemplate.Volumes,
 				PodGC: &v1alpha1.PodGC{
-					Strategy: v1alpha1.PodGCOnWorkflowCompletion,
+					Strategy:            v1alpha1.PodGCOnWorkflowCompletion,
+					DeleteDelayDuration: workflowTemplate.PodGCDeleteDelayDuration,
 				},
 			},
 		}
