@@ -31,8 +31,8 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
-	"github.com/devtron-labs/devtron/pkg/pipeline/draftAwareConfigService"
 	validator2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/validator"
+	"github.com/devtron-labs/devtron/pkg/pipeline/draftAwareConfigService"
 	security2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/read"
 	read3 "github.com/devtron-labs/devtron/pkg/team/read"
@@ -225,6 +225,7 @@ const (
 	devtron             = "DEVTRON"
 	SSH_URL_PREFIX      = "git@"
 	HTTPS_URL_PREFIX    = "https://"
+	HTTP_URL_PREFIX     = "http://"
 	argoWFLogIdentifier = "argo=true"
 )
 

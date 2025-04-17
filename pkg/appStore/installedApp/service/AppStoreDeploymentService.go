@@ -29,6 +29,7 @@ import (
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -90,6 +91,7 @@ type AppStoreDeploymentServiceImpl struct {
 	deletePostProcessor                  DeletePostProcessor
 	appStoreValidator                    AppStoreValidator
 	deploymentConfigService              common.DeploymentConfigService
+	OCIRegistryConfigRepository          repository2.OCIRegistryConfigRepository
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
@@ -109,7 +111,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
 	gitOpsConfigReadService config.GitOpsConfigReadService, deletePostProcessor DeletePostProcessor,
 	appStoreValidator AppStoreValidator,
 	deploymentConfigService common.DeploymentConfigService,
-) *AppStoreDeploymentServiceImpl {
+	OCIRegistryConfigRepository repository2.OCIRegistryConfigRepository) *AppStoreDeploymentServiceImpl {
 
 	return &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
@@ -130,6 +132,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
 		deletePostProcessor:                  deletePostProcessor,
 		appStoreValidator:                    appStoreValidator,
 		deploymentConfigService:              deploymentConfigService,
+		OCIRegistryConfigRepository:          OCIRegistryConfigRepository,
 	}
 }
 
@@ -951,7 +954,49 @@ func (impl *AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(insta
 	}
 
 	// STEP-2 update APP with chart info
-	chartRepoInfo := appStoreAppVersion.AppStore.ChartRepo
+	//TODO: below code is duplicated
+	var IsOCIRepo bool
+	var registryCredential *bean4.RegistryCredential
+	var chartRepository *bean4.ChartRepository
+	dockerRegistryId := appStoreAppVersion.AppStore.DockerArtifactStoreId
+	if dockerRegistryId != "" {
+		ociRegistryConfigs, err := impl.OCIRegistryConfigRepository.FindByDockerRegistryId(dockerRegistryId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching oci registry config", "err", err)
+			return nil, err
+		}
+		var ociRegistryConfig *repository2.OCIRegistryConfig
+		for _, config := range ociRegistryConfigs {
+			if config.RepositoryAction == repository2.STORAGE_ACTION_TYPE_PULL || config.RepositoryAction == repository2.STORAGE_ACTION_TYPE_PULL_AND_PUSH {
+				ociRegistryConfig = config
+				break
+			}
+		}
+		IsOCIRepo = true
+		registryCredential = &bean4.RegistryCredential{
+			RegistryUrl:         appStoreAppVersion.AppStore.DockerArtifactStore.RegistryURL,
+			Username:            appStoreAppVersion.AppStore.DockerArtifactStore.Username,
+			Password:            appStoreAppVersion.AppStore.DockerArtifactStore.Password,
+			AwsRegion:           appStoreAppVersion.AppStore.DockerArtifactStore.AWSRegion,
+			AccessKey:           appStoreAppVersion.AppStore.DockerArtifactStore.AWSAccessKeyId,
+			SecretKey:           appStoreAppVersion.AppStore.DockerArtifactStore.AWSSecretAccessKey,
+			RegistryType:        string(appStoreAppVersion.AppStore.DockerArtifactStore.RegistryType),
+			RepoName:            appStoreAppVersion.AppStore.Name,
+			IsPublic:            ociRegistryConfig.IsPublic,
+			Connection:          appStoreAppVersion.AppStore.DockerArtifactStore.Connection,
+			RegistryName:        appStoreAppVersion.AppStore.DockerArtifactStore.Id,
+			RegistryCertificate: appStoreAppVersion.AppStore.DockerArtifactStore.Cert,
+		}
+	} else {
+		chartRepository = &bean4.ChartRepository{
+			Name:                    appStoreAppVersion.AppStore.ChartRepo.Name,
+			Url:                     appStoreAppVersion.AppStore.ChartRepo.Url,
+			Username:                appStoreAppVersion.AppStore.ChartRepo.UserName,
+			Password:                appStoreAppVersion.AppStore.ChartRepo.Password,
+			AllowInsecureConnection: appStoreAppVersion.AppStore.ChartRepo.AllowInsecureConnection,
+		}
+	}
+
 	updateReleaseRequest := &bean3.UpdateApplicationWithChartInfoRequestDto{
 		InstallReleaseRequest: &bean4.InstallReleaseRequest{
 			ValuesYaml:   installAppVersionRequest.ValuesOverrideYaml,
@@ -961,18 +1006,14 @@ func (impl *AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(insta
 				ReleaseNamespace: installAppVersionRequest.Namespace,
 				ReleaseName:      installAppVersionRequest.DisplayName,
 			},
+			RegistryCredential:         registryCredential,
+			ChartRepository:            chartRepository,
+			IsOCIRepo:                  IsOCIRepo,
+			InstallAppVersionHistoryId: 0,
 		},
 		SourceAppType: bean3.SOURCE_HELM_APP,
 	}
-	if chartRepoInfo != nil {
-		updateReleaseRequest.ChartRepository = &bean4.ChartRepository{
-			Name:                    chartRepoInfo.Name,
-			Url:                     chartRepoInfo.Url,
-			Username:                chartRepoInfo.UserName,
-			Password:                chartRepoInfo.Password,
-			AllowInsecureConnection: chartRepoInfo.AllowInsecureConnection,
-		}
-	}
+
 	res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installAppVersionRequest.ClusterId, updateReleaseRequest)
 	if err != nil {
 		return nil, err

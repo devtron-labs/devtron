@@ -1,0 +1,1 @@
+ALTER TABLE docker_artifact_store DROP COLUMN IF EXISTS credentials_type;

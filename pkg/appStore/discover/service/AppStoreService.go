@@ -130,5 +130,10 @@ func (impl *AppStoreServiceImpl) SearchAppStoreChartByName(chartName string) ([]
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
 	}
+	for _, appStore := range appStoreApplications {
+		if len(appStore.ChartRepoName) == 0 && len(appStore.DockerArtifactStoreId) != 0 {
+			appStore.ChartRepoName = appStore.DockerArtifactStoreId
+		}
+	}
 	return appStoreApplications, nil
 }
