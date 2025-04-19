@@ -41,7 +41,7 @@ components:
   devtron:
     registry: ""
     image: "hyperion:846c2d90-280-31082"
-    cicdImage: "devtron:846c2d90-434-31081"
+    cicdImage: "devtron:37ee8a65-434-32064"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     podSecurityContext:
