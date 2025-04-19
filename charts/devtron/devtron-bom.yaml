@@ -196,6 +196,8 @@ components:
       runAsNonRoot: true
       runAsUser: 1001
     extraConfigs: {}
+  notifier:
+    image: notifier:56798239-372-32072
 # values for argocd integration
 argo-cd:
   global:
