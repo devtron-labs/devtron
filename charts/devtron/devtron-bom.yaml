@@ -119,7 +119,7 @@ components:
       image: postgres_exporter:v0.10.1
   gitsensor:
     registry: ""
-    image: "git-sensor:31f7877c-200-31629"
+    image: "git-sensor:6d3037d9-200-32069"
     imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
@@ -196,8 +196,6 @@ components:
       runAsNonRoot: true
       runAsUser: 1001
     extraConfigs: {}
-  git-sensor:
-    image: git-sensor:6d3037d9-200-32069
 # values for argocd integration
 argo-cd:
   global:
