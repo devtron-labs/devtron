@@ -196,8 +196,6 @@ components:
       runAsNonRoot: true
       runAsUser: 1001
     extraConfigs: {}
-  notifier:
-    image: notifier:56798239-372-32072
 # values for argocd integration
 argo-cd:
   global:
@@ -228,7 +226,7 @@ security:
       tag: 4.3.6
 # Values for notifier integration
 notifier:
-  image: "notifier:c2173311-372-31015"
+  image: "notifier:56798239-372-32072"
   healthPort: 3000
 minio:
   image: "minio:RELEASE.2021-02-14T04-01-33Z"
