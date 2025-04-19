@@ -268,6 +268,8 @@ components:
       allowPrivilegeEscalation: false
       runAsNonRoot: true
       runAsUser: 1001
+  git-sensor:
+    image: git-sensor:6d3037d9-200-32069
 # values for argocd integration
 argo-cd:
   enabled: false

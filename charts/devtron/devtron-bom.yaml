@@ -196,6 +196,8 @@ components:
       runAsNonRoot: true
       runAsUser: 1001
     extraConfigs: {}
+  git-sensor:
+    image: git-sensor:6d3037d9-200-32069
 # values for argocd integration
 argo-cd:
   global:
