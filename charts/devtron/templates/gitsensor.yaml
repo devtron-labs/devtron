@@ -112,6 +112,26 @@ spec:
           volumeMounts:
             - name: git-volume
               mountPath: /git-base/
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: {{ $.Values.components.gitsensor.healthPort}}
+              scheme: HTTP
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: {{ $.Values.components.gitsensor.healthPort}}
+              scheme: HTTP
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
           env:
             - name: DEVTRON_APP_NAME
               value: git-sensor

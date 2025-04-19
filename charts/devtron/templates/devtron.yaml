@@ -34,6 +34,7 @@ data:
   CI_WORKFLOW_EXECUTOR_TYPE: SYSTEM
   DEVTRON_INSTALLATION_TYPE: enterprise
   DEVTRON_VERSION_IDENTIFIER_IN_HELM_VALUES: "devtron.installer.release"
+  DEVTRON_MANAGED_LICENSING_ENABLED: "false"
   DEVTRON_BOM_URL: https://raw.githubusercontent.com/devtron-labs/charts/refs/tags/devtron-enterprise-%s/charts/devtron-enterprise/devtron-bom.yaml
   {{- end }}
 {{- if $.Values.installer.modules }}
@@ -206,6 +207,7 @@ data:
       {{- $modules = append $modules "argo-cd" }}
     {{- end }}
   {{- end }}
+  POSTGRES_MIGRATED: "14"
   INSTALLED_MODULES: {{ if $modules }}{{ printf "'%s'" (join "," $modules) }}{{ else }}""{{ end }}
   DEFAULT_CI_IMAGE: {{ include "common.image" (dict "component" $.Values.components.ciRunner "global" $.Values.global ) }}
 ---
@@ -278,6 +280,26 @@ spec:
                   - -c
                   - ' curl -X POST -H "Content-Type: application/json" -d ''{"eventType":
                   "SIG_TERM"}'' localhost:8080/orchestrator/telemetry/summary'
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: {{ $.Values.components.devtron.healthPort}}
+              scheme: HTTP
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: {{ $.Values.components.devtron.healthPort}}
+              scheme: HTTP
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
           ports:
             - name: devtron
               containerPort: 8080
