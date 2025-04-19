@@ -268,8 +268,6 @@ components:
       allowPrivilegeEscalation: false
       runAsNonRoot: true
       runAsUser: 1001
-  notifier:
-    image: notifier:56798239-372-32072
 # values for argocd integration
 argo-cd:
   enabled: false
@@ -432,7 +430,7 @@ security:
 notifier:
   enabled: false
   imagePullPolicy: IfNotPresent
-  image: "notifier:c2173311-372-31015"
+  image: "notifier:56798239-372-32072"
   configs:
     CD_ENVIRONMENT: PROD
     DB: orchestrator
