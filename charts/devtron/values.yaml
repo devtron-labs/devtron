@@ -17,15 +17,14 @@ global:
   #     value: "value1"
   #     effect: "NoSchedule"
   # imagePullSecrets:
-  #     - name: your-image-pull-secret
-
+  #   - name: your-image-pull-secret
+  nodeSelector: {}
+  tolerations: []
+  imagePullSecrets: []
   # Set the storage class to be used for PVCs (would use default sc if not specified)
   storageClass: ""
   # Add Proxy Configs to be propagated to all the Devtron Microservices.
   configs: {}
-  nodeSelector: {}
-  tolerations: []
-  imagePullSecrets: []
 extraManifests: []
 installer:
   repo: "devtron-labs/devtron"
@@ -181,13 +180,11 @@ components:
       keyName: postgresql-password
   postgres:
     registry: ""
-    image: "postgres:11.9.0-debian-10-r26"
-    armImage: "postgres:11.9"
+    image: "postgres:14.9"
     initImage: "minideb:latest"
     imagePullPolicy: "IfNotPresent"
     metrics:
-      image: postgres_exporter:v0.4.7
-      armImage: postgres_exporter:v0.10.1
+      image: postgres_exporter:v0.10.1
     persistence:
       volumeSize: "20Gi"
   gitsensor:

@@ -207,6 +207,7 @@ data:
       {{- $modules = append $modules "argo-cd" }}
     {{- end }}
   {{- end }}
+  POSTGRES_MIGRATED: "14"
   INSTALLED_MODULES: {{ if $modules }}{{ printf "'%s'" (join "," $modules) }}{{ else }}""{{ end }}
   DEFAULT_CI_IMAGE: {{ include "common.image" (dict "component" $.Values.components.ciRunner "global" $.Values.global ) }}
 ---
