@@ -181,13 +181,11 @@ components:
       keyName: postgresql-password
   postgres:
     registry: ""
-    image: "postgres:11.9.0-debian-10-r26"
-    armImage: "postgres:14.9"
+    image: "postgres:14.9"
     initImage: "minideb:latest"
     imagePullPolicy: "IfNotPresent"
     metrics:
-      image: postgres_exporter:v0.4.7
-      armImage: postgres_exporter:v0.10.1
+      image: postgres_exporter:v0.10.1
     persistence:
       volumeSize: "20Gi"
   gitsensor:

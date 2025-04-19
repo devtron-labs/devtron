@@ -111,7 +111,7 @@ spec:
             runAsGroup: 999
             runAsNonRoot: true
             runAsUser: 999
-          image: {{ include "common.image" (dict "component" $.Values.components.postgres "global" $.Values.global "extraImage" $.Values.components.postgres.armImage ) }}
+          image: {{ include "common.image" (dict "component" $.Values.components.postgres "global" $.Values.global "extraImage" $.Values.components.postgres.image ) }}
           imagePullPolicy: {{ .imagePullPolicy }}
           {{- if .initContainer }}
           {{- if .initContainer.resources }}
@@ -141,7 +141,7 @@ spec:
             runAsGroup: 999
             runAsNonRoot: true
             runAsUser: 999
-          image: {{ include "common.image" (dict "component" $.Values.components.postgres "global" $.Values.global "extraImage" $.Values.components.postgres.armImage ) }}
+          image: {{ include "common.image" (dict "component" $.Values.components.postgres "global" $.Values.global "extraImage" $.Values.components.postgres.image ) }}
           imagePullPolicy: {{ .imagePullPolicy }}
           {{- if .resources }}
           resources:
@@ -218,7 +218,7 @@ spec:
             - mountPath: /etc/postgresql
               name: configs
         - name: metrics
-          image: {{ include "common.image" (dict "component" $.Values.components.postgres.metrics "global" $.Values.global "extraImage" $.Values.components.postgres.metrics.armImage ) }}
+          image: {{ include "common.image" (dict "component" $.Values.components.postgres.metrics "global" $.Values.global "extraImage" $.Values.components.postgres.metrics.image ) }}
           imagePullPolicy: {{ .imagePullPolicy }}
           env:
             - name: DATA_SOURCE_URI
