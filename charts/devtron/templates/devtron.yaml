@@ -278,6 +278,26 @@ spec:
                   - -c
                   - ' curl -X POST -H "Content-Type: application/json" -d ''{"eventType":
                   "SIG_TERM"}'' localhost:8080/orchestrator/telemetry/summary'
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: {{ $.Values.components.devtron.healthPort}}
+              scheme: HTTP
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: {{ $.Values.components.devtron.healthPort}}
+              scheme: HTTP
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
           ports:
             - name: devtron
               containerPort: 8080
