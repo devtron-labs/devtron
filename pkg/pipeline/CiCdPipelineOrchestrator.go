@@ -1442,14 +1442,16 @@ func (impl CiCdPipelineOrchestratorImpl) CreateMaterials(createMaterialRequest *
 		}
 		materials = append(materials, inputMaterial)
 	}
-	err = impl.addRepositoryToGitSensor(materials, "")
-	if err != nil {
-		impl.logger.Errorw("error in updating to sensor", "err", err)
-		return nil, err
-	}
+	// moving transaction before addRepositoryToGitSensor as commiting transaction after addRepositoryToGitSensor was causing problems
+	// in case request was cancelled data was getting saved in git sensor but not getting saved in orchestrator db. Same is done in update flow.
 	err = impl.transactionManager.CommitTx(tx)
 	if err != nil {
 		impl.logger.Errorw("error in committing tx Create material", "err", err, "materials", materials)
+		return nil, err
+	}
+	err = impl.addRepositoryToGitSensor(materials, "")
+	if err != nil {
+		impl.logger.Errorw("error in updating to sensor", "err", err)
 		return nil, err
 	}
 	impl.logger.Debugw("all materials are ", "materials", materials)
@@ -1467,16 +1469,16 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateMaterial(updateMaterialDTO *bean.
 		impl.logger.Errorw("err", "err", err)
 		return nil, err
 	}
+	err = impl.transactionManager.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing tx Create material", "err", err)
+		return nil, err
+	}
 
 	err = impl.updateRepositoryToGitSensor(updatedMaterial, "",
 		updateMaterialDTO.Material.CreateBackup)
 	if err != nil {
 		impl.logger.Errorw("error in updating to git-sensor", "err", err)
-		return nil, err
-	}
-	err = impl.transactionManager.CommitTx(tx)
-	if err != nil {
-		impl.logger.Errorw("error in committing tx Update material", "err", err)
 		return nil, err
 	}
 	return updateMaterialDTO, nil

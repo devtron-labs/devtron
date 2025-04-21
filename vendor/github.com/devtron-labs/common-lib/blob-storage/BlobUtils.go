@@ -22,11 +22,25 @@ import (
 	"os/exec"
 )
 
+const (
+	WhenSupported = "when_supported"
+	WhenRequired  = "when_required"
+)
+
 func setAWSEnvironmentVariables(s3Config *AwsS3BaseConfig, command *exec.Cmd) {
 	if s3Config.AccessKey != "" && s3Config.Passkey != "" {
-		command.Env = append(os.Environ(),
+		command.Env = os.Environ()
+		command.Env = append(command.Env,
 			fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", s3Config.AccessKey),
 			fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", s3Config.Passkey),
+		)
+	}
+	if s3Config.EndpointUrl != "" {
+		command.Env = append(command.Env,
+			// The below is required for https://github.com/aws/aws-cli/issues/9214
+			// This is only required for secure endpoints only https://github.com/boto/boto3/issues/4398#issuecomment-2712259341
+			fmt.Sprintf("AWS_REQUEST_CHECKSUM_CALCULATION=%s", WhenRequired),
+			fmt.Sprintf("AWS_RESPONSE_CHECKSUM_VALIDATION=%s", WhenRequired),
 		)
 	}
 }
