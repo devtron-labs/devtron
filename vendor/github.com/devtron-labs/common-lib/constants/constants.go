@@ -73,3 +73,10 @@ const (
 	SourceSubTypeCi       SourceSubType = 1 // relevant for ci code(2,1) or ci built image(1,1)
 	SourceSubTypeManifest SourceSubType = 2 // relevant for devtron app deployment manifest/helm app manifest(2,2) or images retrieved from manifest(1,2))
 )
+
+type CredentialsType string
+
+const (
+	CredentialsTypeAnonymous        CredentialsType = "anonymous"
+	CredentialsTypeUsernamePassword CredentialsType = "username_password"
+)
