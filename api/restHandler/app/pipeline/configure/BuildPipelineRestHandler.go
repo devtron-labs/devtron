@@ -30,6 +30,7 @@ import (
 	"golang.org/x/exp/maps"
 	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -1479,10 +1480,12 @@ func (handler *PipelineConfigRestHandlerImpl) ValidateGitMaterialUrl(gitProvider
 		return false, err
 	}
 	if gitProvider.AuthMode == constants.AUTH_MODE_SSH {
-		hasPrefixResult := strings.HasPrefix(url, SSH_URL_PREFIX)
+		// this regex is used to generic ssh providers like gogs where format is <user>@<host>:<org>/<repo>.git
+		var scpLikeSSHRegex = regexp.MustCompile(`^[\w-]+@[\w.-]+:[\w./-]+\.git$`)
+		hasPrefixResult := strings.HasPrefix(url, SSH_URL_PREFIX) || scpLikeSSHRegex.MatchString(url)
 		return hasPrefixResult, nil
 	}
-	hasPrefixResult := strings.HasPrefix(url, HTTPS_URL_PREFIX)
+	hasPrefixResult := strings.HasPrefix(url, HTTPS_URL_PREFIX) || strings.HasPrefix(url, HTTP_URL_PREFIX)
 	return hasPrefixResult, nil
 }
 
