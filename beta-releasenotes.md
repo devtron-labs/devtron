@@ -19,6 +19,7 @@
 - feat: licensing changes (#6474)
 ## Documentation
 ## Others
+- sync: Vendor update develop (#6528)
 - sync: Main sync develop (#6527)
 - sync: Main sync develop (#6518)
 - sync: vendor update (#6515)
