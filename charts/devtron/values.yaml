@@ -257,7 +257,7 @@ components:
         DB_NAME: "lens"
   chartSync:
     registry: ""
-    image: chart-sync:6d3037d9-836-32074
+    image: chart-sync:c49b4aa5-836-32103
     schedule: "0 19 * * *"
     extraConfigs: {}
     podSecurityContext:
