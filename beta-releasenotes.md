@@ -1,4 +1,5 @@
 ## Bugs
+- fix: issues in helm apps and git provide (#6523)
 - fix: added more fields in webhook notification (#6520)
 - fix: CI dangling pod after aborting build (#6522)
 - fix: added support for IAM role S3 blob client (#6521)
