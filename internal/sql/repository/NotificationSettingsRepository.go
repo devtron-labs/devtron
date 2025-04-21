@@ -90,6 +90,25 @@ type NotificationSettings struct {
 	ClusterId            *int     `sql:"cluster_id"`
 }
 
+type NotificationSettingsBean struct {
+	Id           int           `json:"id"`
+	TeamId       *int          `json:"team_id"`
+	AppId        *int          `json:"app_id"`
+	EnvId        *int          `json:"env_id"`
+	PipelineId   *int          `json:"pipeline_id"`
+	PipelineType string        `json:"pipeline_type"`
+	EventTypeId  int           `json:"event_type_id"`
+	Config       []ConfigEntry `json:"config"`
+	ViewId       int           `json:"view_id"`
+}
+
+type ConfigEntry struct {
+	Dest      string `json:"dest"`
+	Rule      string `json:"rule"`
+	ConfigId  int    `json:"configId"`
+	Recipient string `json:"recipient"`
+}
+
 type SettingOptionDTO struct {
 	//TeamId       int    `json:"-"`
 	//AppId        int    `json:"-"`

@@ -287,10 +287,34 @@ func (impl *EventRESTClientImpl) sendEvent(event Event) (bool, error) {
 			return false, err
 		}
 
+		// convert notificationSetting to notificationSettingbean
+		notificationSettingsBean := make([]*repository.NotificationSettingsBean, 0)
+		for _, item := range notificationSettings {
+			config := make([]repository.ConfigEntry, 0)
+			if item.Config != "" {
+				err := json.Unmarshal([]byte(item.Config), &config)
+				if err != nil {
+					impl.logger.Errorw("error while unmarshaling config", "err", err)
+					return false, err
+				}
+			}
+			notificationSettingsBean = append(notificationSettingsBean, &repository.NotificationSettingsBean{
+				Id:           item.Id,
+				TeamId:       item.TeamId,
+				AppId:        item.AppId,
+				EnvId:        item.EnvId,
+				PipelineId:   item.PipelineId,
+				PipelineType: item.PipelineType,
+				EventTypeId:  item.EventTypeId,
+				Config:       config,
+				ViewId:       item.ViewId,
+			})
+		}
+
 		// Create a combined payload with event and notification settings
 		combinedPayload := map[string]interface{}{
 			"event":                event,
-			"notificationSettings": notificationSettings,
+			"notificationSettings": notificationSettingsBean,
 		}
 
 		// Marshal the combined payload
