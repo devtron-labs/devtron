@@ -28,7 +28,7 @@
 ## CI_RUNNER Related Environment Variables
 | Key   | Type     | Default Value     | Description       | Example       | Deprecated       |
 |-------|----------|-------------------|-------------------|-----------------------|------------------|
- | AZURE_ACCOUNT_KEY | string | | If blob storage is bieng used of azure then pass the secret key to access the bucket |  | false |
+ | AZURE_ACCOUNT_KEY | string | | If blob storage is being used of azure then pass the secret key to access the bucket |  | false |
  | AZURE_ACCOUNT_NAME | string | | Account name for azure blob storage |  | false |
  | AZURE_BLOB_CONTAINER_CI_CACHE | string | | Cache bucket name for azure blob storage |  | false |
  | AZURE_BLOB_CONTAINER_CI_LOG | string | | Log bucket for azure blob storage |  | false |

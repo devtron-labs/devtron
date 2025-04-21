@@ -1,0 +1,1 @@
+ALTER TABLE docker_artifact_store ADD COLUMN IF NOT EXISTS credentials_type VARCHAR(124);
