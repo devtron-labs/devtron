@@ -267,18 +267,19 @@ func (impl *EventRESTClientImpl) sendEvent(event Event) (bool, error) {
 	impl.logger.Debugw("event before send", "event", event)
 
 	// Step 1: Create payload and destination URL based on config
-	body, destinationUrl, err := impl.createPayloadAndDestination(event)
+	bodyBytes, destinationUrl, err := impl.createPayloadAndDestination(event)
 	if err != nil {
 		return false, err
 	}
 
 	// Step 2: Send via appropriate medium (NATS or REST)
-	return impl.deliverEvent(body, destinationUrl)
+	return impl.deliverEvent(bodyBytes, destinationUrl)
 }
 
-func (impl *EventRESTClientImpl) createPayloadAndDestination(event Event) (string, string, error) {
-	var body string
+func (impl *EventRESTClientImpl) createPayloadAndDestination(event Event) ([]byte, string, error) {
+	var bodyBytes []byte
 	var destinationUrl string
+	var err error
 
 	if impl.config.EnableNotifierV2 {
 		// V2 payload and URL
@@ -302,7 +303,7 @@ func (impl *EventRESTClientImpl) createPayloadAndDestination(event Event) (strin
 		)
 		if err != nil {
 			impl.logger.Errorw("error while fetching notification settings", "err", err)
-			return "", "", err
+			return nil, "", err
 		}
 
 		notificationSettingsBean := make([]*repository.NotificationSettingsBean, 0)
@@ -311,7 +312,7 @@ func (impl *EventRESTClientImpl) createPayloadAndDestination(event Event) (strin
 			if item.Config != "" {
 				if err := json.Unmarshal([]byte(item.Config), &config); err != nil {
 					impl.logger.Errorw("error while unmarshaling config", "err", err)
-					return "", "", err
+					return nil, "", err
 				}
 			}
 			notificationSettingsBean = append(notificationSettingsBean, &repository.NotificationSettingsBean{
@@ -332,30 +333,28 @@ func (impl *EventRESTClientImpl) createPayloadAndDestination(event Event) (strin
 			"notificationSettings": notificationSettingsBean,
 		}
 
-		bodyBytes, err := json.Marshal(combinedPayload)
+		bodyBytes, err = json.Marshal(combinedPayload)
 		if err != nil {
 			impl.logger.Errorw("error while marshaling combined event request", "err", err)
-			return "", "", err
+			return nil, "", err
 		}
-		body = string(bodyBytes)
 	} else {
 		// Default payload and URL
 		destinationUrl = impl.config.DestinationURL
-		bodyBytes, err := json.Marshal(event)
+		bodyBytes, err = json.Marshal(event)
 		if err != nil {
 			impl.logger.Errorw("error while marshaling event request", "err", err)
-			return "", "", err
+			return nil, "", err
 		}
-		body = string(bodyBytes)
 	}
 
-	return body, destinationUrl, nil
+	return bodyBytes, destinationUrl, nil
 }
 
-func (impl *EventRESTClientImpl) deliverEvent(body string, destinationUrl string) (bool, error) {
+func (impl *EventRESTClientImpl) deliverEvent(bodyBytes []byte, destinationUrl string) (bool, error) {
 	// Check if it should use NATS
 	if impl.config.NotificationMedium == PUB_SUB {
-		err := impl.sendEventsOnNats([]byte(body))
+		err := impl.sendEventsOnNats(bodyBytes)
 		if err != nil {
 			impl.logger.Errorw("error while publishing event", "err", err)
 			return false, err
@@ -364,8 +363,7 @@ func (impl *EventRESTClientImpl) deliverEvent(body string, destinationUrl string
 	}
 
 	// Default to REST
-	reqBody := []byte(body)
-	req, err := http.NewRequest(http.MethodPost, destinationUrl, bytes.NewBuffer(reqBody))
+	req, err := http.NewRequest(http.MethodPost, destinationUrl, bytes.NewBuffer(bodyBytes))
 	if err != nil {
 		impl.logger.Errorw("error while writing event", "err", err)
 		return false, err
