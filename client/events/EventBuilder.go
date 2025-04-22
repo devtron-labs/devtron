@@ -204,6 +204,26 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCIData(event Event, material *Mate
 		payload.TriggeredBy = user.EmailId
 		event.Payload = payload
 	}
+
+	// fetching all the envs which are directly or indirectly linked with the ci pipeline
+	if event.PipelineId > 0 {
+		// Get the pipeline to check if it's external
+		ciPipeline, err := impl.ciPipelineRepository.FindById(event.PipelineId)
+		if err != nil {
+			impl.logger.Errorw("error in getting ci pipeline", "pipelineId", event.PipelineId, "err", err)
+		} else {
+			envs, err := impl.envRepository.FindEnvLinkedWithCiPipelines(ciPipeline.IsExternal, []int{event.PipelineId})
+			if err != nil {
+				impl.logger.Errorw("error in finding environments linked with ci pipeline", "pipelineId", event.PipelineId, "err", err)
+			} else {
+				event.EnvIdsForCiPipeline = []int{}
+				for _, env := range envs {
+					event.EnvIdsForCiPipeline = append(event.EnvIdsForCiPipeline, env.Id)
+				}
+			}
+		}
+	}
+
 	return event
 }
 
