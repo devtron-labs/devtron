@@ -1,5 +1,12 @@
 BEGIN;
 
+-- Drop the existing index if it exists because it did not have the version to it, added new index with version
+DROP INDEX IF EXISTS idx_unique_policy_name_policy_of;
+-- Create unique index for global_policy table
+CREATE UNIQUE INDEX idx_unique_policy_name_policy_of
+    ON global_policy (name,policy_of,version)
+    WHERE deleted = false;
+
 INSERT INTO global_policy(name, policy_of, version, description, policy_json, enabled, deleted, created_by, created_on, updated_by, updated_on)
 VALUES('ReleaseActionCheckPolicy', 'RELEASE_ACTION_CHECK', 'V2', 'Policy used for validating different actions requested on release.',
        '{
