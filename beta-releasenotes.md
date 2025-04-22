@@ -19,6 +19,7 @@
 - feat: licensing changes (#6474)
 ## Documentation
 ## Others
+- refactor: Refactor ci and multi cluster cicd (#6505)
 - sync: Vendor update develop (#6528)
 - sync: Main sync develop (#6527)
 - sync: Main sync develop (#6518)
