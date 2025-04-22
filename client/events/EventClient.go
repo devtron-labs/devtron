@@ -277,108 +277,119 @@ func (impl *EventRESTClientImpl) sendEvent(event Event) (bool, error) {
 }
 
 func (impl *EventRESTClientImpl) createPayloadAndDestination(event Event) ([]byte, string, error) {
-	var bodyBytes []byte
-	var destinationUrl string
-	var err error
-
 	if impl.config.EnableNotifierV2 {
-		// V2 payload and URL
-		destinationUrl = impl.config.DestinationURL + "/v2"
+		return impl.createV2PayloadAndDestination(event)
+	}
+	return impl.createDefaultPayloadAndDestination(event)
+}
 
-		req := repository.GetRulesRequest{
-			TeamId:              event.TeamId,
-			EnvId:               event.EnvId,
-			AppId:               event.AppId,
-			PipelineId:          event.PipelineId,
-			PipelineType:        event.PipelineType,
-			IsProdEnv:           &event.IsProdEnv,
-			ClusterId:           event.ClusterId,
-			EnvIdsForCiPipeline: event.EnvIdsForCiPipeline,
-		}
+func (impl *EventRESTClientImpl) createV2PayloadAndDestination(event Event) ([]byte, string, error) {
+	destinationUrl := impl.config.DestinationURL + "/v2"
 
-		notificationSettings, err := impl.notificationSettingsRepository.FindNotificationSettingsWithRules(
-			context.Background(),
-			event.EventTypeId,
-			req,
-		)
-		if err != nil {
-			impl.logger.Errorw("error while fetching notification settings", "err", err)
-			return nil, "", err
-		}
+	// Fetch notification settings
+	req := repository.GetRulesRequest{
+		TeamId:              event.TeamId,
+		EnvId:               event.EnvId,
+		AppId:               event.AppId,
+		PipelineId:          event.PipelineId,
+		PipelineType:        event.PipelineType,
+		IsProdEnv:           &event.IsProdEnv,
+		ClusterId:           event.ClusterId,
+		EnvIdsForCiPipeline: event.EnvIdsForCiPipeline,
+	}
+	notificationSettings, err := impl.notificationSettingsRepository.FindNotificationSettingsWithRules(
+		context.Background(), event.EventTypeId, req,
+	)
+	if err != nil {
+		impl.logger.Errorw("error while fetching notification settings", "err", err)
+		return nil, "", err
+	}
 
-		notificationSettingsBean := make([]*repository.NotificationSettingsBean, 0)
-		for _, item := range notificationSettings {
-			config := make([]repository.ConfigEntry, 0)
-			if item.Config != "" {
-				if err := json.Unmarshal([]byte(item.Config), &config); err != nil {
-					impl.logger.Errorw("error while unmarshaling config", "err", err)
-					return nil, "", err
-				}
-			}
-			notificationSettingsBean = append(notificationSettingsBean, &repository.NotificationSettingsBean{
-				Id:           item.Id,
-				TeamId:       item.TeamId,
-				AppId:        item.AppId,
-				EnvId:        item.EnvId,
-				PipelineId:   item.PipelineId,
-				PipelineType: item.PipelineType,
-				EventTypeId:  item.EventTypeId,
-				Config:       config,
-				ViewId:       item.ViewId,
-			})
-		}
+	// Process notification settings into beans
+	notificationSettingsBean, err := impl.processNotificationSettings(notificationSettings)
+	if err != nil {
+		return nil, "", err
+	}
 
-		combinedPayload := map[string]interface{}{
-			"event":                event,
-			"notificationSettings": notificationSettingsBean,
-		}
+	// Create combined payload
+	combinedPayload := map[string]interface{}{
+		"event":                event,
+		"notificationSettings": notificationSettingsBean,
+	}
 
-		bodyBytes, err = json.Marshal(combinedPayload)
-		if err != nil {
-			impl.logger.Errorw("error while marshaling combined event request", "err", err)
-			return nil, "", err
-		}
-	} else {
-		// Default payload and URL
-		destinationUrl = impl.config.DestinationURL
-		bodyBytes, err = json.Marshal(event)
-		if err != nil {
-			impl.logger.Errorw("error while marshaling event request", "err", err)
-			return nil, "", err
-		}
+	bodyBytes, err := json.Marshal(combinedPayload)
+	if err != nil {
+		impl.logger.Errorw("error while marshaling combined event request", "err", err)
+		return nil, "", err
 	}
 
 	return bodyBytes, destinationUrl, nil
 }
 
+func (impl *EventRESTClientImpl) createDefaultPayloadAndDestination(event Event) ([]byte, string, error) {
+	bodyBytes, err := json.Marshal(event)
+	if err != nil {
+		impl.logger.Errorw("error while marshaling event request", "err", err)
+		return nil, "", err
+	}
+	return bodyBytes, impl.config.DestinationURL, nil
+}
+
+func (impl *EventRESTClientImpl) processNotificationSettings(notificationSettings []repository.NotificationSettings) ([]*repository.NotificationSettingsBean, error) {
+	notificationSettingsBean := make([]*repository.NotificationSettingsBean, 0)
+	for _, item := range notificationSettings {
+		config := make([]repository.ConfigEntry, 0)
+		if item.Config != "" {
+			if err := json.Unmarshal([]byte(item.Config), &config); err != nil {
+				impl.logger.Errorw("error while unmarshaling config", "err", err)
+				return nil, err
+			}
+		}
+		notificationSettingsBean = append(notificationSettingsBean, &repository.NotificationSettingsBean{
+			Id:           item.Id,
+			TeamId:       item.TeamId,
+			AppId:        item.AppId,
+			EnvId:        item.EnvId,
+			PipelineId:   item.PipelineId,
+			PipelineType: item.PipelineType,
+			EventTypeId:  item.EventTypeId,
+			Config:       config,
+			ViewId:       item.ViewId,
+		})
+	}
+	return notificationSettingsBean, nil
+}
+
 func (impl *EventRESTClientImpl) deliverEvent(bodyBytes []byte, destinationUrl string) (bool, error) {
-	// Check if it should use NATS
 	if impl.config.NotificationMedium == PUB_SUB {
-		err := impl.sendEventsOnNats(bodyBytes)
-		if err != nil {
+		if err := impl.sendEventsOnNats(bodyBytes); err != nil {
 			impl.logger.Errorw("error while publishing event", "err", err)
 			return false, err
 		}
 		return true, nil
 	}
 
-	// Default to REST
 	req, err := http.NewRequest(http.MethodPost, destinationUrl, bytes.NewBuffer(bodyBytes))
 	if err != nil {
-		impl.logger.Errorw("error while writing event", "err", err)
+		impl.logger.Errorw("error while creating HTTP request", "err", err)
 		return false, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := impl.client.Do(req)
 	if err != nil {
-		impl.logger.Errorw("error while notifier request ", "err", err)
+		impl.logger.Errorw("error while sending HTTP request", "err", err)
 		return false, err
 	}
 	defer resp.Body.Close()
 
-	impl.logger.Debugw("event completed", "event resp", resp)
-	return true, err
+	if resp.StatusCode >= 300 {
+		impl.logger.Errorw("unexpected response from notifier", "status", resp.StatusCode)
+		return false, fmt.Errorf("unexpected response code: %d", resp.StatusCode)
+	}
+
+	impl.logger.Debugw("event successfully delivered", "status", resp.StatusCode)
+	return true, nil
 }
 
 func (impl *EventRESTClientImpl) WriteNatsEvent(topic string, payload interface{}) error {
