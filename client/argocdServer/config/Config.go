@@ -71,7 +71,7 @@ func (impl *ArgoCDConfigGetterImpl) GetGRPCConfig() (*bean.ArgoGRPCConfig, error
 }
 
 func (impl *ArgoCDConfigGetterImpl) GetK8sConfig() (*bean.ArgoK8sConfig, error) {
-	clusterBean, err := impl.clusterReadService.FindOne(bean2.DEFAULT_CLUSTER)
+	clusterBean, err := impl.clusterReadService.FindOne(bean2.DefaultCluster)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster bean from db", "err", err)
 		return nil, err
