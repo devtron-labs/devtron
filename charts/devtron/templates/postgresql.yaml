@@ -14,13 +14,13 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-    - name: tcp-postgresql
+    - name: postgres
       port: 5432
-      targetPort: 5432
+      protocol: TCP
+      targetPort: postgres
   selector:
-    app: postgresql
-    release: "devtron"
-    role: master
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/instance: devtron
 ---
 apiVersion: v1
 kind: Service
@@ -37,12 +37,13 @@ spec:
   type: ClusterIP
   clusterIP: None
   ports:
-    - name: tcp-postgresql
+    - name: postgres
       port: 5432
-      targetPort: 5432
+      protocol: TCP
+      targetPort: postgres
   selector:
-    app: postgresql
-    release: "devtron"
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/instance: devtron
 ---
 apiVersion: v1
 kind: Service
@@ -64,22 +65,21 @@ spec:
       port: 9187
       targetPort: http-metrics
   selector:
-    app: postgresql
-    release: devtron
-    role: master
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/instance: devtron
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: postgresql-postgresql
-  namespace: devtroncd
   labels:
-    app: postgresql
-    release: "devtron"
+    helm.sh/chart: postgres-0.4.0
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/instance: devtron
+    app.kubernetes.io/version: "14.5"
+    app.kubernetes.io/managed-by: Helm
   annotations:
     "helm.sh/resource-policy": keep
-    "meta.helm.sh/release-name": devtron
-    "meta.helm.sh/release-namespace": devtroncd
 spec:
   replicas: 1
   serviceName: postgresql-postgresql
@@ -88,15 +88,13 @@ spec:
     type: RollingUpdate
   selector:
     matchLabels:
-      app: postgresql
-      release: "devtron"
-      role: master
+      app.kubernetes.io/name: postgres
+      app.kubernetes.io/instance: devtron
   template:
     metadata:
       labels:
-        app: postgresql
-        release: "devtron"
-        role: master
+        app.kubernetes.io/name: postgres
+        app.kubernetes.io/instance: devtron
     spec:
       {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.postgres.nodeSelector "tolerations" $.Values.components.postgres.tolerations "imagePullSecrets" $.Values.components.postgres.imagePullSecrets "global" $.Values.global) | indent 6 }}
       serviceAccountName: devtron-default-sa
@@ -148,7 +146,7 @@ spec:
           {{- toYaml .resources | nindent 12 }}
           {{- end }}
           ports:
-            - name: tcp-postgresql
+            - name: postgres
               containerPort: 5432
               protocol: TCP
           env:
@@ -159,11 +157,6 @@ spec:
                 secretKeyRef:
                   key: postgresql-password
                   name: postgresql-postgresql
-            - name: POSTGRES_USER
-              valueFrom:
-                secretKeyRef:
-                  name: postgresql-postgresql
-                  key: POSTGRES_USER
             - name: POSTGRES_HOST_AUTH_METHOD
               value: "md5"
             - name: POSTGRES_INITDB_ARGS
@@ -219,7 +212,7 @@ spec:
               name: configs
         - name: metrics
           image: {{ include "common.image" (dict "component" $.Values.components.postgres.metrics "global" $.Values.global "extraImage" $.Values.components.postgres.metrics.image ) }}
-          imagePullPolicy: {{ .imagePullPolicy }}
+          imagePullPolicy: "IfNotPresent"
           env:
             - name: DATA_SOURCE_URI
               value: "127.0.0.1:5432/orchestrator?sslmode=disable"
@@ -257,6 +250,7 @@ spec:
             timeoutSeconds: 5
             successThreshold: 1
             failureThreshold: 6
+          volumeMounts:
           ports:
             - name: http-metrics
               containerPort: 9187
