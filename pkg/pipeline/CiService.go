@@ -497,6 +497,15 @@ func (impl *CiServiceImpl) WriteCITriggerEvent(trigger types.Trigger, pipeline *
 	event.UserId = int(trigger.TriggeredBy)
 	event.CiWorkflowRunnerId = workflowRequest.WorkflowId
 	event = impl.eventFactory.BuildExtraCIData(event, material)
+
+	// fetching all the envs which are directly or indirectly linked with the ci pipeline
+	envs, _ := impl.envRepository.FindEnvLinkedWithCiPipelines(false, []int{trigger.PipelineId})
+
+	event.EnvIdsForCiPipeline = []int{}
+	for _, env := range envs {
+		event.EnvIdsForCiPipeline = append(event.EnvIdsForCiPipeline, env.Id)
+	}
+
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
 		impl.Logger.Errorw("error in writing event", "err", evtErr)

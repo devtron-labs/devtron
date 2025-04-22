@@ -18,6 +18,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -271,23 +272,28 @@ func (impl *EventRESTClientImpl) sendEvent(event Event) (bool, error) {
 		// destination Url for v2
 		destinationUrl = impl.config.DestinationURL + "/v2"
 		// Get NotificationSettings from event
-		notificationSettings, err := impl.notificationSettingsRepository.FindNotificationSettingsByEvent(
-			event.PipelineType,
-			event.PipelineId,
+		req := repository.GetRulesRequest{
+			TeamId:              event.TeamId,
+			EnvId:               event.EnvId,
+			AppId:               event.AppId,
+			PipelineId:          event.PipelineId,
+			PipelineType:        event.PipelineType,
+			IsProdEnv:           &event.IsProdEnv,
+			ClusterId:           event.ClusterId,
+			EnvIdsForCiPipeline: event.EnvIdsForCiPipeline,
+		}
+		// Get NotificationSettings from event
+		notificationSettings, err := impl.notificationSettingsRepository.FindNotificationSettingsWithRules(
+			context.Background(),
 			event.EventTypeId,
-			event.AppId,
-			event.EnvId,
-			event.TeamId,
-			event.ClusterId,
-			event.IsProdEnv,
-			event.EnvIdsForCiPipeline,
+			req,
 		)
 		if err != nil {
 			impl.logger.Errorw("error while fetching notification settings", "err", err)
 			return false, err
 		}
 
-		// convert notificationSetting to notificationSettingbean
+		// convert notificationSetting to notificationSettingsBean
 		notificationSettingsBean := make([]*repository.NotificationSettingsBean, 0)
 		for _, item := range notificationSettings {
 			config := make([]repository.ConfigEntry, 0)
