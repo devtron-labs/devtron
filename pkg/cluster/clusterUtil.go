@@ -3,9 +3,9 @@ package cluster
 import "fmt"
 
 const (
-	SECRET_NAME = "cluster-event"
+	SecretName = "cluster-event"
 )
 
 func ParseSecretNameForKubelinkInformer(clusterId int) string {
-	return fmt.Sprintf("%s-%d", SECRET_NAME, clusterId)
+	return fmt.Sprintf("%s-%d", SecretName, clusterId)
 }
