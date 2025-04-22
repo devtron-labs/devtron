@@ -233,6 +233,7 @@ const (
 	devtron             = "DEVTRON"
 	SSH_URL_PREFIX      = "git@"
 	HTTPS_URL_PREFIX    = "https://"
+	HTTP_URL_PREFIX     = "http://"
 	argoWFLogIdentifier = "argo=true"
 )
 

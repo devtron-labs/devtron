@@ -98,7 +98,7 @@ type CiCdConfig struct {
 	MaxCiWorkflowRetries             int                             `env:"MAX_CI_WORKFLOW_RETRIES" envDefault:"0" description:"Maximum time CI-workflow create pod if it fails to complete"`
 	NatsServerHost                   string                          `env:"NATS_SERVER_HOST" envDefault:"nats://devtron-nats.devtroncd:4222"`
 	ImageScanMaxRetries              int                             `env:"IMAGE_SCAN_MAX_RETRIES" envDefault:"3" description:"Max retry count for image-scanning"`
-	ImageScanRetryDelay              int                             `env:"IMAGE_SCAN_RETRY_DELAY" envDefault:"5" description:"Delay for the image-scaning to start"` 
+	ImageScanRetryDelay              int                             `env:"IMAGE_SCAN_RETRY_DELAY" envDefault:"5" description:"Delay for the image-scaning to start"`
 	ShowDockerBuildCmdInLogs         bool                            `env:"SHOW_DOCKER_BUILD_ARGS" envDefault:"true" description:"To enable showing the args passed for CI in build logs"`
 	IgnoreCmCsInCiJob                bool                            `env:"IGNORE_CM_CS_IN_CI_JOB" envDefault:"false" description:"Ignore CM/CS in CI-pipeline as Job"`
 	//Deprecated: use WorkflowCacheConfig instead
@@ -151,7 +151,7 @@ type CiCdConfig struct {
 	AzureGatewayConnectionInsecure             bool                         `env:"AZURE_GATEWAY_CONNECTION_INSECURE" envDefault:"true" description:"Azure gateway connection allows insecure if true"`
 	AzureBlobContainerCiLog                    string                       `env:"AZURE_BLOB_CONTAINER_CI_LOG" description:"Log bucket for azure blob storage"`
 	AzureBlobContainerCiCache                  string                       `env:"AZURE_BLOB_CONTAINER_CI_CACHE" description:"Cache bucket name for azure blob storage"`
-	AzureAccountKey                            string                       `env:"AZURE_ACCOUNT_KEY" description:"If blob storage is bieng used of azure then pass the secret key to access the bucket"`
+	AzureAccountKey                            string                       `env:"AZURE_ACCOUNT_KEY" description:"If blob storage is being used of azure then pass the secret key to access the bucket"`
 	BuildLogTTLValue                           int                          `env:"BUILD_LOG_TTL_VALUE_IN_SECS" envDefault:"3600" description:"This is the time that the pods of ci/pre-cd/post-cd live after completion state."`
 	BaseLogLocationPath                        string                       `env:"BASE_LOG_LOCATION_PATH" envDefault:"/home/devtron/" description:"Used to store, download logs of ci workflow, artifact"`
 	InAppLoggingEnabled                        bool                         `env:"IN_APP_LOGGING_ENABLED" envDefault:"false" description:"Used in case of argo workflow is enabled. If enabled logs push will be managed by us, else will be managed by argo workflow."`

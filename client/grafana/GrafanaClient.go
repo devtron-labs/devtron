@@ -380,7 +380,7 @@ func (impl *GrafanaClientImpl) CreateDatasource(createDatasourceRequest CreateDa
 	url = fmt.Sprintf(url, impl.config.GrafanaUsername, impl.config.GrafanaPassword)
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(reqBody))
 	if err != nil {
-		// do not log url or req body as they contains sensitive data
+		// do not log url or req body as they contain sensitive data
 		impl.logger.Errorw("error while creating http request", "destinationURL", impl.config.DestinationURL, "err", err)
 		return nil, err
 	}

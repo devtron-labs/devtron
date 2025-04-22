@@ -60,6 +60,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/repoCredsK8sClient"
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/client/dashboard"
+	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -147,6 +148,10 @@ func InitializeApp() (*App, error) {
 		// appStatus ends
 		rbac.NewEnforcerUtilImpl,
 		wire.Bind(new(rbac.EnforcerUtil), new(*rbac.EnforcerUtilImpl)),
+
+		grafana.GetGrafanaClientConfig,
+		grafana.NewGrafanaClientImpl,
+		wire.Bind(new(grafana.GrafanaClient), new(*grafana.GrafanaClientImpl)),
 
 		commonEnforcementFunctionsUtil.NewCommonEnforcementUtilImpl,
 		wire.Bind(new(commonEnforcementFunctionsUtil.CommonEnforcementUtil), new(*commonEnforcementFunctionsUtil.CommonEnforcementUtilImpl)),
