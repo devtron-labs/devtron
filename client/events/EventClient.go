@@ -22,20 +22,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
-	"github.com/devtron-labs/devtron/pkg/module"
-	bean3 "github.com/devtron-labs/devtron/pkg/module/bean"
-	"net/http"
-	"time"
-
 	"github.com/caarlos0/env"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
+	buildBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/module"
+	bean3 "github.com/devtron-labs/devtron/pkg/module/bean"
 	util "github.com/devtron-labs/devtron/util/event"
 	"go.uber.org/zap"
+	"net/http"
 )
 
 type EventClientConfig struct {
@@ -84,41 +82,19 @@ type Event struct {
 }
 
 type Payload struct {
-	AppName               string               `json:"appName"`
-	EnvName               string               `json:"envName"`
-	PipelineName          string               `json:"pipelineName"`
-	Source                string               `json:"source"`
-	DockerImageUrl        string               `json:"dockerImageUrl"`
-	TriggeredBy           string               `json:"triggeredBy"`
-	Stage                 string               `json:"stage"`
-	DeploymentHistoryLink string               `json:"deploymentHistoryLink"`
-	AppDetailLink         string               `json:"appDetailLink"`
-	DownloadLink          string               `json:"downloadLink"`
-	BuildHistoryLink      string               `json:"buildHistoryLink"`
-	MaterialTriggerInfo   *MaterialTriggerInfo `json:"material"`
-	FailureReason         string               `json:"failureReason"`
-}
-
-type CiPipelineMaterialResponse struct {
-	Id              int                    `json:"id"`
-	GitMaterialId   int                    `json:"gitMaterialId"`
-	GitMaterialUrl  string                 `json:"gitMaterialUrl"`
-	GitMaterialName string                 `json:"gitMaterialName"`
-	Type            string                 `json:"type"`
-	Value           string                 `json:"value"`
-	Active          bool                   `json:"active"`
-	History         []*gitSensor.GitCommit `json:"history,omitempty"`
-	LastFetchTime   time.Time              `json:"lastFetchTime"`
-	IsRepoError     bool                   `json:"isRepoError"`
-	RepoErrorMsg    string                 `json:"repoErrorMsg"`
-	IsBranchError   bool                   `json:"isBranchError"`
-	BranchErrorMsg  string                 `json:"branchErrorMsg"`
-	Url             string                 `json:"url"`
-}
-
-type MaterialTriggerInfo struct {
-	GitTriggers map[int]pipelineConfig.GitCommit `json:"gitTriggers"`
-	CiMaterials []CiPipelineMaterialResponse     `json:"ciMaterials"`
+	AppName               string                         `json:"appName"`
+	EnvName               string                         `json:"envName"`
+	PipelineName          string                         `json:"pipelineName"`
+	Source                string                         `json:"source"`
+	DockerImageUrl        string                         `json:"dockerImageUrl"`
+	TriggeredBy           string                         `json:"triggeredBy"`
+	Stage                 string                         `json:"stage"`
+	DeploymentHistoryLink string                         `json:"deploymentHistoryLink"`
+	AppDetailLink         string                         `json:"appDetailLink"`
+	DownloadLink          string                         `json:"downloadLink"`
+	BuildHistoryLink      string                         `json:"buildHistoryLink"`
+	MaterialTriggerInfo   *buildBean.MaterialTriggerInfo `json:"material"`
+	FailureReason         string                         `json:"failureReason"`
 }
 
 type EventRESTClientImpl struct {
