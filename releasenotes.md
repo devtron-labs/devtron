@@ -19,7 +19,6 @@
 - feat: only deploy unhibernated apps in app group (#6494)
 - feat: Config Approval bypass v1 (for cm, cs and deployment template) (#6493)
 - feat: licensing changes (#6474)
-## Documentation
 ## Others
 - refactor: Refactor ci and multi cluster cicd (#6505)
 - sync: Vendor update develop (#6528)
