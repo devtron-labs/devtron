@@ -28,7 +28,7 @@ global:
 extraManifests: []
 installer:
   repo: "devtron-labs/devtron"
-  release: "v1.4.1"
+  release: "v1.5.0"
   registry: ""
   image: inception
   tag: 473deaa4-185-21582

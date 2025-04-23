@@ -1,3 +1,5 @@
+## v1.5.0
+
 ## Bugs
 - fix: issues in helm apps and git provide (#6523)
 - fix: added more fields in webhook notification (#6520)
@@ -34,3 +36,5 @@
 - sync: Main sync develop 27mar (#6483)
 - sync: vendor update (#6480)
 - sync: Release candidate v0.32.0 (#6479)
+
+

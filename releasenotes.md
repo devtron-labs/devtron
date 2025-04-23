@@ -1,0 +1,40 @@
+## v1.5.0
+
+## Bugs
+- fix: issues in helm apps and git provide (#6523)
+- fix: added more fields in webhook notification (#6520)
+- fix: CI dangling pod after aborting build (#6522)
+- fix: added support for IAM role S3 blob client (#6521)
+- fix: making tx independent of git sensor call (#6519)
+- fix: sql query memory issue (#6516)
+- fix: postgresql skip unique constraints error and handle network connection error (#6509)
+- fix: Grafana data-source get API (#6503)
+- fix: Grafana revert patch (#6498)
+- fix: made triggeredBy for CI & CD uniform (#6489)
+- fix: hpa permission denied error (#6485)
+- fix: force abort for pre/post cd  (#6475)
+- fix: optimisation in workflow status api (#6473)
+- fix: let user delete the container reg if the ref app was deleted (#6464)
+## Enhancements
+- feat: only deploy unhibernated apps in app group (#6494)
+- feat: Config Approval bypass v1 (for cm, cs and deployment template) (#6493)
+- feat: licensing changes (#6474)
+## Documentation
+## Others
+- refactor: Refactor ci and multi cluster cicd (#6505)
+- sync: Vendor update develop (#6528)
+- sync: Main sync develop (#6527)
+- sync: Main sync develop (#6518)
+- sync: vendor update (#6515)
+- sync: Release candidate v0.33.0 (#6514)
+- misc: update the descriptions of env variables (#6499)
+- sync: Main sync develop 8apr (#6504)
+- misc: patch api for user attribute (#6490)
+- chore: nil implementations fixed for user attribute in telemetry (#6497)
+- chore: code restructuring (#6476)
+- sync: main changes synced into develop (#6492)
+- sync: Main sync develop 27mar (#6483)
+- sync: vendor update (#6480)
+- sync: Release candidate v0.32.0 (#6479)
+
+
