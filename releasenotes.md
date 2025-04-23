@@ -1,3 +1,18 @@
+====CRITICAL UPGRADE NOTICE - POSTGRES 11 TO 14====
+
+IMPORTANT: This upgrade requires planned downtime
+Before proceeding with the upgrade to version 1.5.0, please:
+
+1. Review the [Upgrade Guide](https://docs.devtron.ai/upgrade/devtron-upgrade-1.5.0) for all prerequisites.
+
+2. Deploy the [Devtron-Backup Chart](https://docs.devtron.ai/install/devtron-backup).
+
+3. Verify at least one successful backup has been completed.
+
+WARNING: Your Devtron will be unavailable during the entire prerequisite process until successful completion.
+
+For questions or assistance, our team is available on [Discord](https://discord.devtron.ai/).
+
 ## v1.5.0
 
 ## Enhancements
@@ -17,5 +32,3 @@
 - misc: Update the descriptions of env variables (#6499)
 - misc: Patch api for user attribute (#6490)
 - chore: Nil implementations fixed for user attribute in telemetry (#6497)
-
-
