@@ -1,3 +1,4 @@
+<!--upgrade-prerequisites-required-->
 ====CRITICAL UPGRADE NOTICE - POSTGRES 11 TO 14====
 
 IMPORTANT: This upgrade requires planned downtime
@@ -12,6 +13,7 @@ Before proceeding with the upgrade to version 1.5.0, please:
 WARNING: Your Devtron will be unavailable during the entire prerequisite process until successful completion.
 
 For questions or assistance, our team is available on [Discord](https://discord.devtron.ai/).
+<!--upgrade-prerequisites-required-->
 
 ## v1.5.0
 
