@@ -501,7 +501,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 			wfStatusInEvent := string(wfStatus.Phase)
 			if wfStatusInEvent == string(v1alpha1.NodeSucceeded) || wfStatusInEvent == string(v1alpha1.NodeFailed) || wfStatusInEvent == string(v1alpha1.NodeError) {
 				// the re-trigger should only happen when we get a pod deleted event.
-				if executors.CheckIfReTriggerRequired(status, wfStatus.Message, wfr.Status) {
+				if executors.CheckIfReTriggerRequired(status, wfr.Message, wfr.Status) {
 					err = impl.workflowDagExecutor.HandleCdStageReTrigger(wfr)
 					if err != nil {
 						// check if this log required or not
