@@ -688,14 +688,6 @@ func (impl *ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateReq
 		return nil, err
 	}
 
-	if currentLatestChart.Id != 0 && currentLatestChart.Id != templateRequest.Id {
-		err = impl.updateChartLocationForEnvironmentConfigs(newCtx, templateRequest.AppId, templateRequest.ChartRefId, templateRequest.UserId, template.ChartVersion)
-		if err != nil {
-			impl.logger.Errorw("error in updating chart location in env overrides", "appId", templateRequest.AppId, "err", err)
-			return nil, err
-		}
-	}
-
 	config, err := impl.deploymentConfigService.GetConfigForDevtronApps(template.AppId, 0)
 	if err != nil {
 		impl.logger.Errorw("error in fetching config", "appId", template.AppId, "err", err)
@@ -725,6 +717,14 @@ func (impl *ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateReq
 	if err != nil {
 		impl.logger.Errorw("error in creating or updating deploymentConfig", "appId", templateRequest.AppId, "err", err)
 		return nil, err
+	}
+
+	if currentLatestChart.Id != 0 && currentLatestChart.Id != templateRequest.Id {
+		err = impl.updateChartLocationForEnvironmentConfigs(newCtx, templateRequest.AppId, templateRequest.ChartRefId, templateRequest.UserId, template.ChartVersion)
+		if err != nil {
+			impl.logger.Errorw("error in updating chart location in env overrides", "appId", templateRequest.AppId, "err", err)
+			return nil, err
+		}
 	}
 
 	appLevelMetricsUpdateReq := &bean.DeployedAppMetricsRequest{
