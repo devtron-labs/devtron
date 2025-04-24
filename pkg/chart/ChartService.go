@@ -663,12 +663,6 @@ func (impl *ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateReq
 			return nil, err
 		}
 
-		err = impl.updateChartLocationForEnvironmentConfigs(newCtx, templateRequest.AppId, templateRequest.ChartRefId, templateRequest.UserId, template.ChartVersion)
-		if err != nil {
-			impl.logger.Errorw("error in updating chart location in env overrides", "appId", templateRequest.AppId, "err", err)
-			return nil, err
-		}
-
 	} else {
 		return nil, nil
 	}
@@ -692,6 +686,14 @@ func (impl *ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateReq
 	span.End()
 	if err != nil {
 		return nil, err
+	}
+
+	if currentLatestChart.Id != 0 && currentLatestChart.Id != templateRequest.Id {
+		err = impl.updateChartLocationForEnvironmentConfigs(newCtx, templateRequest.AppId, templateRequest.ChartRefId, templateRequest.UserId, template.ChartVersion)
+		if err != nil {
+			impl.logger.Errorw("error in updating chart location in env overrides", "appId", templateRequest.AppId, "err", err)
+			return nil, err
+		}
 	}
 
 	config, err := impl.deploymentConfigService.GetConfigForDevtronApps(template.AppId, 0)
