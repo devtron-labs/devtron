@@ -1,3 +1,3 @@
 package constants
 
-type ImageStateWhileDeployment string
+type ArtifactStateWhileDeployment string
