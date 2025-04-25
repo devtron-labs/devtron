@@ -222,3 +222,14 @@ func (v *VariableAndConditionDataForStep) GetTriggerSkipConditions() []*Conditio
 func (v *VariableAndConditionDataForStep) GetSuccessFailureConditions() []*ConditionObject {
 	return v.successFailureConditions
 }
+
+type AppMetadataListBean struct {
+	AppCount int            `json:"appCount"`
+	Apps     []*AppMetaData `json:"apps"`
+}
+
+type AppMetaData struct {
+	AppId     int    `json:"appId"`
+	AppName   string `json:"appName"`
+	AppStatus string `json:"appStatus"`
+}

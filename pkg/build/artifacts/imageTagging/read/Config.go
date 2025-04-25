@@ -19,7 +19,7 @@ package read
 // ImageTaggingServiceConfig holds the configuration for the image tagging service
 type ImageTaggingServiceConfig struct {
 	// HideImageTaggingHardDelete is a flag to hide the hard delete option in the image tagging service
-	HideImageTaggingHardDelete bool `env:"HIDE_IMAGE_TAGGING_HARD_DELETE" envDefault:"false"`
+	HideImageTaggingHardDelete bool `env:"HIDE_IMAGE_TAGGING_HARD_DELETE" envDefault:"false" description:"Flag to hide the hard delete option in the image tagging service"`
 }
 
 func (c *ImageTaggingServiceConfig) IsHardDeleteHidden() bool {

@@ -75,10 +75,10 @@ func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepos
 }
 
 type VariableConfig struct {
-	VariableNameRegex    string `env:"SCOPED_VARIABLE_NAME_REGEX" envDefault:"^[a-zA-Z][a-zA-Z0-9_-]{0,62}[a-zA-Z0-9]$"`
-	VariableCacheEnabled bool   `env:"VARIABLE_CACHE_ENABLED" envDefault:"true"`
-	SystemVariablePrefix string `env:"SYSTEM_VAR_PREFIX" envDefault:"DEVTRON_"`
-	ScopedVariableFormat string `env:"SCOPED_VARIABLE_FORMAT" envDefault:"@{{%s}}"`
+	VariableNameRegex    string `env:"SCOPED_VARIABLE_NAME_REGEX" envDefault:"^[a-zA-Z][a-zA-Z0-9_-]{0,62}[a-zA-Z0-9]$" description:"Regex for scoped variable name that must passed this regex."`
+	VariableCacheEnabled bool   `env:"VARIABLE_CACHE_ENABLED" envDefault:"true" description:"This is used to  control caching of all the scope variables defined in the system."`
+	SystemVariablePrefix string `env:"SYSTEM_VAR_PREFIX" envDefault:"DEVTRON_" description:"Scoped variable prefix, variable name must have this prefix."`
+	ScopedVariableFormat string `env:"SCOPED_VARIABLE_FORMAT" envDefault:"@{{%s}}" description:"Its a scope format for varialbe name."`
 }
 
 func loadVariableCache(cfg *VariableConfig, service *ScopedVariableServiceImpl) {
