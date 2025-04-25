@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	apiBean "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
@@ -51,6 +50,7 @@ type CdWorkflowRepository interface {
 	FindWorkflowRunnerByCdWorkflowId(wfIds []int) ([]*CdWorkflowRunner, error)
 	FindPreviousCdWfRunnerByStatus(pipelineId int, currentWFRunnerId int, status []string) ([]*CdWorkflowRunner, error)
 	FindWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error)
+	FindPreOrPostCdWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error)
 	FindBasicWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error)
 	FindRetriedWorkflowCountByReferenceId(wfrId int) (int, error)
 	FindLatestWfrByAppIdAndEnvironmentId(appId int, environmentId int) (*CdWorkflowRunner, error)
@@ -149,24 +149,6 @@ func (c *CdWorkflowRunner) IsExternalRun() bool {
 		isExtCluster = c.CdWorkflow.Pipeline.RunPostStageInEnv
 	}
 	return isExtCluster
-}
-
-type CiPipelineMaterialResponse struct {
-	Id              int                    `json:"id"`
-	GitMaterialId   int                    `json:"gitMaterialId"`
-	GitMaterialUrl  string                 `json:"gitMaterialUrl"`
-	GitMaterialName string                 `json:"gitMaterialName"`
-	Type            string                 `json:"type"`
-	Value           string                 `json:"value"`
-	Active          bool                   `json:"active"`
-	History         []*gitSensor.GitCommit `json:"history,omitempty"`
-	LastFetchTime   time.Time              `json:"lastFetchTime"`
-	IsRepoError     bool                   `json:"isRepoError"`
-	RepoErrorMsg    string                 `json:"repoErrorMsg"`
-	IsBranchError   bool                   `json:"isBranchError"`
-	BranchErrorMsg  string                 `json:"branchErrorMsg"`
-	Url             string                 `json:"url"`
-	Regex           string                 `json:"regex"`
 }
 
 type TriggerWorkflowStatus struct {
@@ -459,7 +441,6 @@ func (impl *CdWorkflowRepositoryImpl) SaveWorkFlowRunnerWithTx(wfr *CdWorkflowRu
 }
 
 func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunnerWithTx(wfr *CdWorkflowRunner, tx *pg.Tx) error {
-	wfr.Message = util.GetTruncatedMessage(wfr.Message, 1000)
 	err := tx.Update(wfr)
 	return err
 }
@@ -527,6 +508,16 @@ func (impl *CdWorkflowRepositoryImpl) FindWorkflowRunnerById(wfrId int) (*CdWork
 	wfr := &CdWorkflowRunner{}
 	err := impl.dbConnection.Model(wfr).Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact", "CdWorkflow.Pipeline.Environment").
 		Where("cd_workflow_runner.id = ?", wfrId).Select()
+	return wfr, err
+}
+
+func (impl *CdWorkflowRepositoryImpl) FindPreOrPostCdWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error) {
+	wfr := &CdWorkflowRunner{}
+	err := impl.dbConnection.Model(wfr).
+		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact", "CdWorkflow.Pipeline.Environment").
+		Where("cd_workflow_runner.id = ?", wfrId).
+		Where("cd_workflow_runner.workflow_type != ?", apiBean.CD_WORKFLOW_TYPE_DEPLOY).
+		Select()
 	return wfr, err
 }
 

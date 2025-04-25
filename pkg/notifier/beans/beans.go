@@ -23,6 +23,8 @@ const (
 	DevtronCiPipelineId       WebhookVariable = "{{devtronCiPipelineId}}"
 	DevtronCdPipelineId       WebhookVariable = "{{devtronCdPipelineId}}"
 	DevtronTriggeredByEmail   WebhookVariable = "{{devtronTriggeredByEmail}}"
+	DevtronBuildGitCommitHash WebhookVariable = "{{devtronBuildGitCommitHash}}"
+	DevtronPipelineType       WebhookVariable = "{{devtronPipelineType}}"
 	EventType                 WebhookVariable = "{{eventType}}"
 )
 

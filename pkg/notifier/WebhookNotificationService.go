@@ -109,6 +109,8 @@ func (impl *WebhookNotificationServiceImpl) GetWebhookVariables() (map[string]be
 		"devtronCiPipelineId":       beans.DevtronCiPipelineId,
 		"devtronCdPipelineId":       beans.DevtronCdPipelineId,
 		"devtronTriggeredByEmail":   beans.DevtronTriggeredByEmail,
+		"devtronPipelineType":       beans.DevtronPipelineType,
+		"devtronBuildGitCommitHash": beans.DevtronBuildGitCommitHash,
 		"eventType":                 beans.EventType,
 	}
 
@@ -119,7 +121,7 @@ func (impl *WebhookNotificationServiceImpl) FetchAllWebhookNotificationConfig() 
 	var responseDto []*beans.WebhookConfigDto
 	webhookConfigs, err := impl.webhookRepository.FindAll()
 	if err != nil && !util.IsErrNoRows(err) {
-		impl.logger.Errorw("cannot find all webhoook config", "err", err)
+		impl.logger.Errorw("cannot find all webhook config", "err", err)
 		return []*beans.WebhookConfigDto{}, err
 	}
 	for _, webhookConfig := range webhookConfigs {

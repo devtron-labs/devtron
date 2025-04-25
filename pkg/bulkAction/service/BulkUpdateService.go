@@ -36,6 +36,7 @@ import (
 	appWorkflow2 "github.com/devtron-labs/devtron/pkg/appWorkflow"
 	bean6 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/build/trigger"
 	bean4 "github.com/devtron-labs/devtron/pkg/bulkAction/bean"
 	"github.com/devtron-labs/devtron/pkg/bulkAction/utils"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -103,6 +104,7 @@ type BulkUpdateServiceImpl struct {
 	chartRefService                  chartRef.ChartRefService
 	deployedAppService               deployedApp.DeployedAppService
 	cdPipelineEventPublishService    out.CDPipelineEventPublishService
+	ciHandlerService                 trigger.HandlerService
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,
@@ -122,7 +124,8 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	chartRefService chartRef.ChartRefService,
 	deployedAppService deployedApp.DeployedAppService,
-	cdPipelineEventPublishService out.CDPipelineEventPublishService) *BulkUpdateServiceImpl {
+	cdPipelineEventPublishService out.CDPipelineEventPublishService,
+	ciHandlerService trigger.HandlerService) *BulkUpdateServiceImpl {
 	return &BulkUpdateServiceImpl{
 		bulkUpdateRepository:             bulkUpdateRepository,
 		logger:                           logger,
@@ -142,6 +145,7 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 		chartRefService:                  chartRefService,
 		deployedAppService:               deployedAppService,
 		cdPipelineEventPublishService:    cdPipelineEventPublishService,
+		ciHandlerService:                 ciHandlerService,
 	}
 
 }
@@ -1471,7 +1475,7 @@ func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *bean4.BulkApplicatio
 			}
 
 			ciTriggerRequest := latestCommitsMap[pipeline.CiPipelineId]
-			_, err = impl.ciHandler.HandleCIManual(ciTriggerRequest)
+			_, err = impl.ciHandlerService.HandleCIManual(ciTriggerRequest)
 			if err != nil {
 				impl.logger.Errorw("service err, HandleCIManual", "err", err, "ciTriggerRequest", ciTriggerRequest)
 				//return nil, err

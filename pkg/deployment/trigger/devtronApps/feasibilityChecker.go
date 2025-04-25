@@ -24,7 +24,7 @@ type FeasibilityManager interface {
 	CheckFeasibility(triggerRequirementRequest *bean.TriggerRequirementRequestDto) error
 }
 
-func (impl *TriggerServiceImpl) CheckFeasibility(triggerRequirementRequest *bean.TriggerRequirementRequestDto) error {
+func (impl *HandlerServiceImpl) CheckFeasibility(triggerRequirementRequest *bean.TriggerRequirementRequestDto) error {
 	// have not implemented right now, will be implemented in future for security vulnerability
 	return nil
 }

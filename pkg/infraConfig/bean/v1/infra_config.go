@@ -31,7 +31,7 @@ type InfraConfig struct {
 	CiReqMem   string `env:"REQ_CI_MEM" envDefault:"3G"`
 	// CiDefaultTimeout is the default timeout for CI jobs in seconds
 	// Earlier it was in int64, but now it is in float64
-	CiDefaultTimeout float64 `env:"DEFAULT_TIMEOUT" envDefault:"3600"`
+	CiDefaultTimeout float64 `env:"DEFAULT_TIMEOUT" envDefault:"3600" description:"Timeout for CI to be completed"`
 
 	// cm and cs
 	ConfigMaps []bean.ConfigSecretMap `env:"-"`

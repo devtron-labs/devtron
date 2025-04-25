@@ -11,6 +11,7 @@ import (
 	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/common-lib/cloud-provider-identifier"
+	"github.com/devtron-labs/common-lib/telemetry"
 	"github.com/devtron-labs/common-lib/utils/grpc"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	apiToken2 "github.com/devtron-labs/devtron/api/apiToken"
@@ -51,7 +52,8 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/config"
 	"github.com/devtron-labs/devtron/client/argocdServer/repoCredsK8sClient"
 	"github.com/devtron-labs/devtron/client/dashboard"
-	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/client/grafana"
+	telemetry2 "github.com/devtron-labs/devtron/client/telemetry"
 	repository5 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
@@ -129,6 +131,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/team/read"
 	repository2 "github.com/devtron-labs/devtron/pkg/team/repository"
 	"github.com/devtron-labs/devtron/pkg/terminal"
+	"github.com/devtron-labs/devtron/pkg/ucid"
 	"github.com/devtron-labs/devtron/pkg/userResource"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/pkg/webhook/helm"
@@ -242,13 +245,19 @@ func InitializeApp() (*App, error) {
 	appStatusRepositoryImpl := appStatus.NewAppStatusRepositoryImpl(db, sugaredLogger)
 	environmentRepositoryImpl := repository4.NewEnvironmentRepositoryImpl(db, sugaredLogger, appStatusRepositoryImpl)
 	attributesRepositoryImpl := repository5.NewAttributesRepositoryImpl(db)
-	environmentServiceImpl := environment.NewEnvironmentServiceImpl(environmentRepositoryImpl, clusterServiceImpl, sugaredLogger, k8sServiceImpl, k8sInformerFactoryImpl, userAuthServiceImpl, attributesRepositoryImpl, clusterReadServiceImpl)
+	httpClient := util.NewHttpClient()
+	grafanaClientConfig, err := grafana.GetGrafanaClientConfig()
+	if err != nil {
+		return nil, err
+	}
+	attributesServiceImpl := attributes.NewAttributesServiceImpl(sugaredLogger, attributesRepositoryImpl)
+	grafanaClientImpl := grafana.NewGrafanaClientImpl(sugaredLogger, httpClient, grafanaClientConfig, attributesServiceImpl)
+	environmentServiceImpl := environment.NewEnvironmentServiceImpl(environmentRepositoryImpl, clusterServiceImpl, sugaredLogger, k8sServiceImpl, k8sInformerFactoryImpl, userAuthServiceImpl, attributesRepositoryImpl, clusterReadServiceImpl, grafanaClientImpl)
 	chartRepoRepositoryImpl := chartRepoRepository.NewChartRepoRepositoryImpl(db)
 	acdAuthConfig, err := util3.GetACDAuthConfig()
 	if err != nil {
 		return nil, err
 	}
-	httpClient := util.NewHttpClient()
 	serverEnvConfigServerEnvConfig, err := serverEnvConfig.ParseServerEnvConfig()
 	if err != nil {
 		return nil, err
@@ -333,7 +342,6 @@ func InitializeApp() (*App, error) {
 	}
 	gitOpsConfigRepositoryImpl := repository5.NewGitOpsConfigRepositoryImpl(sugaredLogger, db)
 	gitOpsConfigReadServiceImpl := config2.NewGitOpsConfigReadServiceImpl(sugaredLogger, gitOpsConfigRepositoryImpl, userServiceImpl, environmentVariables, moduleReadServiceImpl)
-	attributesServiceImpl := attributes.NewAttributesServiceImpl(sugaredLogger, attributesRepositoryImpl)
 	deploymentTypeOverrideServiceImpl := providerConfig.NewDeploymentTypeOverrideServiceImpl(sugaredLogger, environmentVariables, attributesServiceImpl)
 	chartTemplateServiceImpl := util.NewChartTemplateServiceImpl(sugaredLogger)
 	appStoreDeploymentCommonServiceImpl := appStoreDeploymentCommon.NewAppStoreDeploymentCommonServiceImpl(sugaredLogger, appStoreApplicationVersionRepositoryImpl, chartTemplateServiceImpl, userServiceImpl, helmAppServiceImpl, installedAppDBServiceImpl)
@@ -346,7 +354,7 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	deletePostProcessorImpl := service2.NewDeletePostProcessorImpl(sugaredLogger)
-	appStoreDeploymentServiceImpl := service2.NewAppStoreDeploymentServiceImpl(sugaredLogger, installedAppRepositoryImpl, installedAppDBServiceImpl, appStoreDeploymentDBServiceImpl, chartGroupDeploymentRepositoryImpl, appStoreApplicationVersionRepositoryImpl, appRepositoryImpl, eaModeDeploymentServiceImpl, eaModeDeploymentServiceImpl, environmentServiceImpl, helmAppServiceImpl, installedAppVersionHistoryRepositoryImpl, environmentVariables, acdConfig, gitOpsConfigReadServiceImpl, deletePostProcessorImpl, appStoreValidatorImpl, deploymentConfigServiceImpl)
+	appStoreDeploymentServiceImpl := service2.NewAppStoreDeploymentServiceImpl(sugaredLogger, installedAppRepositoryImpl, installedAppDBServiceImpl, appStoreDeploymentDBServiceImpl, chartGroupDeploymentRepositoryImpl, appStoreApplicationVersionRepositoryImpl, appRepositoryImpl, eaModeDeploymentServiceImpl, eaModeDeploymentServiceImpl, environmentServiceImpl, helmAppServiceImpl, installedAppVersionHistoryRepositoryImpl, environmentVariables, acdConfig, gitOpsConfigReadServiceImpl, deletePostProcessorImpl, appStoreValidatorImpl, deploymentConfigServiceImpl, ociRegistryConfigRepositoryImpl)
 	fluxApplicationServiceImpl := fluxApplication.NewFluxApplicationServiceImpl(sugaredLogger, helmAppReadServiceImpl, clusterServiceImpl, helmAppClientImpl, pumpImpl)
 	k8sResourceHistoryRepositoryImpl := repository10.NewK8sResourceHistoryRepositoryImpl(db, sugaredLogger)
 	k8sResourceHistoryServiceImpl := kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl(k8sResourceHistoryRepositoryImpl, sugaredLogger, appRepositoryImpl, environmentRepositoryImpl)
@@ -388,9 +396,10 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	serviceImpl := ucid.NewServiceImpl(sugaredLogger, k8sServiceImpl, acdAuthConfig)
 	providerIdentifierServiceImpl := providerIdentifier.NewProviderIdentifierServiceImpl(sugaredLogger)
 	userAttributesRepositoryImpl := repository5.NewUserAttributesRepositoryImpl(db)
-	telemetryEventClientImpl, err := telemetry.NewTelemetryEventClientImpl(sugaredLogger, httpClient, clusterServiceImpl, k8sServiceImpl, acdAuthConfig, userServiceImpl, attributesRepositoryImpl, ssoLoginServiceImpl, posthogClient, moduleRepositoryImpl, serverDataStoreServerDataStore, userAuditServiceImpl, helmAppClientImpl, providerIdentifierServiceImpl, cronLoggerImpl, installedAppReadServiceEAImpl, environmentVariables, userAttributesRepositoryImpl)
+	telemetryEventClientImpl, err := telemetry2.NewTelemetryEventClientImpl(sugaredLogger, httpClient, clusterServiceImpl, k8sServiceImpl, acdAuthConfig, userServiceImpl, attributesRepositoryImpl, ssoLoginServiceImpl, posthogClient, serviceImpl, moduleRepositoryImpl, serverDataStoreServerDataStore, userAuditServiceImpl, helmAppClientImpl, providerIdentifierServiceImpl, cronLoggerImpl, installedAppReadServiceEAImpl, environmentVariables, userAttributesRepositoryImpl)
 	if err != nil {
 		return nil, err
 	}

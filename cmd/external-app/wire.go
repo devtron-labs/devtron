@@ -22,6 +22,7 @@ package main
 import (
 	"github.com/devtron-labs/authenticator/middleware"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
+	posthogTelemetry "github.com/devtron-labs/common-lib/telemetry"
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	"github.com/devtron-labs/devtron/api/appStore"
@@ -59,6 +60,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/repoCredsK8sClient"
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/client/dashboard"
+	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -86,6 +88,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool"
 	security2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/ucid"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/commonEnforcementFunctionsUtil"
@@ -131,7 +134,8 @@ func InitializeApp() (*App, error) {
 		util.NewSugardLogger,
 		util.IntValidator,
 		util2.GetACDAuthConfig,
-		telemetry.NewPosthogClient,
+		posthogTelemetry.NewPosthogClient,
+		ucid.WireSet,
 		delete2.NewDeleteServiceImpl,
 		gitMaterial.GitMaterialWireSet,
 		scanTool.ScanToolWireSet,
@@ -144,6 +148,10 @@ func InitializeApp() (*App, error) {
 		// appStatus ends
 		rbac.NewEnforcerUtilImpl,
 		wire.Bind(new(rbac.EnforcerUtil), new(*rbac.EnforcerUtilImpl)),
+
+		grafana.GetGrafanaClientConfig,
+		grafana.NewGrafanaClientImpl,
+		wire.Bind(new(grafana.GrafanaClient), new(*grafana.GrafanaClientImpl)),
 
 		commonEnforcementFunctionsUtil.NewCommonEnforcementUtilImpl,
 		wire.Bind(new(commonEnforcementFunctionsUtil.CommonEnforcementUtil), new(*commonEnforcementFunctionsUtil.CommonEnforcementUtilImpl)),
