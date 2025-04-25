@@ -474,7 +474,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 				return
 			}
 		}
-		wfrId, status, stateChanged, err := impl.cdHandler.UpdateWorkflow(wfStatus)
+		wfrId, status, stateChanged, wfStatusMessage, err := impl.cdHandler.UpdateWorkflow(wfStatus)
 		impl.logger.Debugw("cd UpdateWorkflow for wfStatus", "wfrId", wfrId, "status", status, "wfStatus", wfStatus)
 		if err != nil {
 			impl.logger.Errorw("error in cd workflow status update", "wfrId", wfrId, "status", status, "wfStatus", wfStatus, "err", err)
@@ -501,7 +501,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 			wfStatusInEvent := string(wfStatus.Phase)
 			if wfStatusInEvent == string(v1alpha1.NodeSucceeded) || wfStatusInEvent == string(v1alpha1.NodeFailed) || wfStatusInEvent == string(v1alpha1.NodeError) {
 				// the re-trigger should only happen when we get a pod deleted event.
-				if executors.CheckIfReTriggerRequired(status, wfr.Message, wfr.Status) {
+				if executors.CheckIfReTriggerRequired(status, wfStatusMessage, wfr.Status) {
 					err = impl.workflowDagExecutor.HandleCdStageReTrigger(wfr)
 					if err != nil {
 						// check if this log required or not
