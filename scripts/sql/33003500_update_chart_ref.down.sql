@@ -1,0 +1,1 @@
+update chart_ref set name=NULL where name like 'Rollout Deployment' and location like 'reference%';
