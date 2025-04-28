@@ -26,13 +26,13 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	read4 "github.com/devtron-labs/devtron/pkg/app/appDetails/read"
 	userrepository "github.com/devtron-labs/devtron/pkg/auth/user/repository"
+	buildCommonBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
 	ciConfig "github.com/devtron-labs/devtron/pkg/build/pipeline/read"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
-	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	errors2 "github.com/juju/errors"
 	"go.opentelemetry.io/otel"
 	"golang.org/x/exp/slices"
@@ -652,7 +652,7 @@ func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, a
 		}
 
 		if ciPipeline != nil && ciPipeline.CiTemplate != nil && len(*ciPipeline.CiTemplate.DockerRegistryId) > 0 {
-			if !ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0 && ciPipeline.PipelineType != string(constants.LINKED_CD) {
+			if !ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0 && ciPipeline.PipelineType != string(buildCommonBean.LINKED_CD) {
 				appDetailContainer.IsExternalCi = false
 			}
 			// get dockerRegistryId starts

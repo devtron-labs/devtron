@@ -25,18 +25,19 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/util/stringsUtil"
 	"golang.org/x/exp/maps"
 	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/devtron-labs/devtron/util/response/pagination"
 	"github.com/gorilla/schema"
 
-	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -700,8 +701,7 @@ func (handler *PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseW
 	handler.Logger.Infow("request payload, TriggerCiPipeline", "payload", ciTriggerRequest)
 
 	response := make(map[string]string)
-	resp, err := handler.ciHandler.HandleCIManual(ciTriggerRequest)
-
+	resp, err := handler.ciHandlerService.HandleCIManual(ciTriggerRequest)
 	if errors.Is(err, bean1.ErrImagePathInUse) {
 		handler.Logger.Errorw("service err duplicate image tag, TriggerCiPipeline", "err", err, "payload", ciTriggerRequest)
 		common.WriteJsonResp(w, err, err, http.StatusConflict)
@@ -917,7 +917,8 @@ func (handler *PipelineConfigRestHandlerImpl) DownloadCiWorkflowArtifacts(w http
 		return
 	}
 
-	file, err := handler.ciHandler.DownloadCiWorkflowArtifacts(pipelineId, buildId)
+	file, err := handler.ciHandlerService.DownloadCiWorkflowArtifacts(pipelineId, buildId)
+	defer file.Close()
 	if err != nil {
 		handler.Logger.Errorw("service err, DownloadCiWorkflowArtifacts", "err", err, "pipelineId", pipelineId, "buildId", buildId)
 		if util.IsErrNoRows(err) {
@@ -973,8 +974,8 @@ func (handler *PipelineConfigRestHandlerImpl) GetHistoricBuildLogs(w http.Respon
 		common.WriteJsonResp(w, nil, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-
-	resp, err := handler.ciHandler.GetHistoricBuildLogs(workflowId, nil)
+	// RBAC
+	resp, err := handler.ciHandlerService.GetHistoricBuildLogs(workflowId, nil)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetHistoricBuildLogs", "err", err, "pipelineId", pipelineId, "workflowId", workflowId)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
@@ -1113,7 +1114,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildLogs(w http.ResponseWriter
 			return
 		}
 	}
-	logsReader, cleanUp, err := handler.ciHandler.GetRunningWorkflowLogs(workflowId)
+	logsReader, cleanUp, err := handler.ciHandlerService.GetRunningWorkflowLogs(workflowId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetBuildLogs", "err", err, "pipelineId", pipelineId, "workflowId", workflowId, "lastEventId", lastEventId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1445,7 +1446,7 @@ func (handler *PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWrit
 
 func (handler *PipelineConfigRestHandlerImpl) HandleWorkflowWebhook(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	var wfUpdateReq v1alpha1.WorkflowStatus
+	var wfUpdateReq eventProcessorBean.CiCdStatus
 	err := decoder.Decode(&wfUpdateReq)
 	if err != nil {
 		handler.Logger.Errorw("request err, HandleWorkflowWebhook", "err", err, "payload", wfUpdateReq)
@@ -1453,7 +1454,7 @@ func (handler *PipelineConfigRestHandlerImpl) HandleWorkflowWebhook(w http.Respo
 		return
 	}
 	handler.Logger.Infow("request payload, HandleWorkflowWebhook", "payload", wfUpdateReq)
-	resp, err := handler.ciHandler.UpdateWorkflow(wfUpdateReq)
+	resp, _, err := handler.ciHandler.UpdateWorkflow(wfUpdateReq)
 	if err != nil {
 		handler.Logger.Errorw("service err, HandleWorkflowWebhook", "err", err, "payload", wfUpdateReq)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
@@ -1479,10 +1480,12 @@ func (handler *PipelineConfigRestHandlerImpl) ValidateGitMaterialUrl(gitProvider
 		return false, err
 	}
 	if gitProvider.AuthMode == constants.AUTH_MODE_SSH {
-		hasPrefixResult := strings.HasPrefix(url, SSH_URL_PREFIX)
+		// this regex is used to generic ssh providers like gogs where format is <user>@<host>:<org>/<repo>.git
+		var scpLikeSSHRegex = regexp.MustCompile(`^[\w-]+@[\w.-]+:[\w./-]+\.git$`)
+		hasPrefixResult := strings.HasPrefix(url, SSH_URL_PREFIX) || scpLikeSSHRegex.MatchString(url)
 		return hasPrefixResult, nil
 	}
-	hasPrefixResult := strings.HasPrefix(url, HTTPS_URL_PREFIX)
+	hasPrefixResult := strings.HasPrefix(url, HTTPS_URL_PREFIX) || strings.HasPrefix(url, HTTP_URL_PREFIX)
 	return hasPrefixResult, nil
 }
 
@@ -1556,7 +1559,7 @@ func (handler *PipelineConfigRestHandlerImpl) CancelWorkflow(w http.ResponseWrit
 
 	//RBAC
 
-	resp, err := handler.ciHandler.CancelBuild(workflowId, forceAbort)
+	resp, err := handler.ciHandlerService.CancelBuild(workflowId, forceAbort)
 	if err != nil {
 		handler.Logger.Errorw("service err, CancelWorkflow", "err", err, "workflowId", workflowId, "pipelineId", pipelineId)
 		if util.IsErrNoRows(err) {
