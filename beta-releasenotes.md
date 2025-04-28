@@ -3,5 +3,6 @@
 ## Enhancements
 ## Documentation
 ## Others
+- sync: Main sync develop (#6542)
 - sync: vendor update (#6540)
 - sync: Release candidate v0.34.0 (#6539)
