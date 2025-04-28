@@ -10,7 +10,7 @@ global:
   containerRegistry: "quay.io/devtron"
 extraManifests: []
 installer:
-  release: "v1.4.0"
+  release: "v1.5.0"
   registry: ""
   image: "inception"
   tag: "473deaa4-185-21582"
@@ -33,14 +33,15 @@ components:
         FEATURE_STEP_WISE_LOGS_ENABLE: "true"
         FEATURE_USER_DEFINED_GITOPS_REPO_ENABLE: "true"
         ENABLE_RESOURCE_SCAN: "true"
-        FEATURE_CODE_MIRROR_ENABLE: "false"
+        FEATURE_CODE_MIRROR_ENABLE: "true"
     registry: ""
-    image: "dashboard:a400ce3c-690-31030"
+    image: "dashboard:0fc42ac3-690-32105"
     imagePullPolicy: IfNotPresent
+    healthPort: 8080
   devtron:
     registry: ""
-    image: "hyperion:846c2d90-280-31082"
-    cicdImage: "devtron:846c2d90-434-31081"
+    image: "hyperion:e2daf69a-280-32104"
+    cicdImage: "devtron:e2daf69a-434-32096"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     podSecurityContext:
@@ -51,9 +52,10 @@ components:
       allowPrivilegeEscalation: false
       runAsNonRoot: true
       runAsUser: 1001
+    healthPort: 8080
   ciRunner:
     registry: ""
-    image: "ci-runner:d79b15c6-138-31014"
+    image: "ci-runner:c49b4aa5-138-32101"
   argocdDexServer:
     registry: ""
     image: "dex:v2.30.2"
@@ -62,7 +64,7 @@ components:
       authenticator: "authenticator:e414faff-393-13273"
   kubelink:
     registry: ""
-    image: "kubelink:ccd98a22-564-31008"
+    image: "kubelink:c49b4aa5-564-32098"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
@@ -86,10 +88,12 @@ components:
       allowPrivilegeEscalation: false
       runAsNonRoot: true
       runAsUser: 1001
+    healthPort: 50052
   kubewatch:
     registry: ""
-    image: "kubewatch:34abb17d-419-31007"
+    image: "kubewatch:c49b4aa5-419-32097"
     imagePullPolicy: IfNotPresent
+    healthPort: 8080
     configs:
       devtroncd_NAMESPACE: "devtron-ci"
       USE_CUSTOM_HTTP_TRANSPORT: "true"
@@ -108,16 +112,14 @@ components:
       keyName: postgresql-password
   postgres:
     registry: ""
-    image: "postgres:11.9.0-debian-10-r26"
-    armImage: "postgres:11.9"
+    image: "postgres:14.9"
     initImage: "minideb:latest"
     imagePullPolicy: "IfNotPresent"
     metrics:
-      image: postgres_exporter:v0.4.7
-      armImage: postgres_exporter:v0.10.1
+      image: postgres_exporter:v0.10.1
   gitsensor:
     registry: ""
-    image: "git-sensor:2b4b8363-200-31009"
+    image: "git-sensor:c49b4aa5-200-32099"
     imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
@@ -132,10 +134,11 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
+    healthPort: 8080
   # Values for lens
   lens:
     registry: ""
-    image: "lens:34abb17d-333-31011"
+    image: "lens:c49b4aa5-333-32100"
     imagePullPolicy: IfNotPresent
     configs:
       GIT_SENSOR_PROTOCOL: GRPC
@@ -148,6 +151,7 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
+    healthPort: 8080
   # Change below values for nats
   nats:
     registry: ""
@@ -181,7 +185,7 @@ components:
         DB_NAME: "lens"
   chartSync:
     registry: ""
-    image: chart-sync:34abb17d-836-31017
+    image: chart-sync:c49b4aa5-836-32103
     schedule: "0 19 * * *"
     podSecurityContext:
       fsGroup: 1001
@@ -211,7 +215,8 @@ workflowController:
   IMDSv1ExecutorImage: "argoexec:v3.0.7"
 security:
   imageScanner:
-    image: "image-scanner:34abb17d-141-31016"
+    image: "image-scanner:c49b4aa5-141-32102"
+    healthPort: 8080
     configs:
       TRIVY_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-db
       TRIVY_JAVA_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-java-db
@@ -221,7 +226,8 @@ security:
       tag: 4.3.6
 # Values for notifier integration
 notifier:
-  image: "notifier:c2173311-372-31015"
+  image: "notifier:56798239-372-32072"
+  healthPort: 3000
 minio:
   image: "minio:RELEASE.2021-02-14T04-01-33Z"
   mbImage: "minio-mc:RELEASE.2021-02-14T04-28-06Z"
@@ -263,6 +269,7 @@ devtronEnterprise:
       allowPrivilegeEscalation: false
       runAsNonRoot: true
       runAsUser: 1001
+    healthPort: 8080
   scoop:
     enabled: false
     registry: ""
