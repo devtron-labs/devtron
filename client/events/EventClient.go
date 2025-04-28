@@ -17,6 +17,7 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -36,9 +37,13 @@ import (
 )
 
 type EventClientConfig struct {
-	DestinationURL   string `env:"EVENT_URL" envDefault:"http://localhost:3000/notify" description:"Notifier service url"`
-	EnableNotifierV2 bool   `env:"ENABLE_NOTIFIER_V2" envDefault:"false" description:"enable notifier v2"`
+	DestinationURL     string             `env:"EVENT_URL" envDefault:"http://localhost:3000/notify" description:"Notifier service url"`
+	NotificationMedium NotificationMedium `env:"NOTIFICATION_MEDIUM" envDefault:"rest" description:"notification medium"`
+	EnableNotifierV2   bool               `env:"ENABLE_NOTIFIER_V2" envDefault:"false" description:"enable notifier v2"`
 }
+type NotificationMedium string
+
+const PUB_SUB NotificationMedium = "nats"
 
 func GetEventClientConfig() (*EventClientConfig, error) {
 	cfg := &EventClientConfig{}
@@ -229,7 +234,6 @@ func (impl *EventRESTClientImpl) sendEventsOnNats(body []byte) error {
 		impl.logger.Errorw("err while publishing msg for testing topic", "msg", body, "err", err)
 		return err
 	}
-	impl.logger.Debugw("event successfully delivered via NATS")
 	return nil
 
 }
@@ -239,27 +243,25 @@ func (impl *EventRESTClientImpl) sendEvent(event Event) (bool, error) {
 	impl.logger.Debugw("event before send", "event", event)
 
 	// Step 1: Create payload and destination URL based on config
-	bodyBytes, err := impl.createPayloadAndDestination(event)
+	bodyBytes, destinationUrl, err := impl.createPayloadAndDestination(event)
 	if err != nil {
 		return false, err
 	}
 
-	// Step 2: Send via NATS
-	if err = impl.sendEventsOnNats(bodyBytes); err != nil {
-		return false, err
-	}
-
-	return true, nil
+	// Step 2: Send via appropriate medium (NATS or REST)
+	return impl.deliverEvent(bodyBytes, destinationUrl)
 }
 
-func (impl *EventRESTClientImpl) createPayloadAndDestination(event Event) ([]byte, error) {
+func (impl *EventRESTClientImpl) createPayloadAndDestination(event Event) ([]byte, string, error) {
 	if impl.config.EnableNotifierV2 {
 		return impl.createV2PayloadAndDestination(event)
 	}
 	return impl.createDefaultPayloadAndDestination(event)
 }
 
-func (impl *EventRESTClientImpl) createV2PayloadAndDestination(event Event) ([]byte, error) {
+func (impl *EventRESTClientImpl) createV2PayloadAndDestination(event Event) ([]byte, string, error) {
+	destinationUrl := impl.config.DestinationURL + "/v2"
+
 	// Fetch notification settings
 	req := repository.GetRulesRequest{
 		TeamId:              event.TeamId,
@@ -276,13 +278,13 @@ func (impl *EventRESTClientImpl) createV2PayloadAndDestination(event Event) ([]b
 	)
 	if err != nil {
 		impl.logger.Errorw("error while fetching notification settings", "err", err)
-		return nil, err
+		return nil, "", err
 	}
 
 	// Process notification settings into beans
 	notificationSettingsBean, err := impl.processNotificationSettings(notificationSettings)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	// Create combined payload
@@ -294,19 +296,19 @@ func (impl *EventRESTClientImpl) createV2PayloadAndDestination(event Event) ([]b
 	bodyBytes, err := json.Marshal(combinedPayload)
 	if err != nil {
 		impl.logger.Errorw("error while marshaling combined event request", "err", err)
-		return nil, err
+		return nil, "", err
 	}
 
-	return bodyBytes, nil
+	return bodyBytes, destinationUrl, nil
 }
 
-func (impl *EventRESTClientImpl) createDefaultPayloadAndDestination(event Event) ([]byte, error) {
+func (impl *EventRESTClientImpl) createDefaultPayloadAndDestination(event Event) ([]byte, string, error) {
 	bodyBytes, err := json.Marshal(event)
 	if err != nil {
 		impl.logger.Errorw("error while marshaling event request", "err", err)
-		return nil, err
+		return nil, "", err
 	}
-	return bodyBytes, nil
+	return bodyBytes, impl.config.DestinationURL, nil
 }
 
 func (impl *EventRESTClientImpl) processNotificationSettings(notificationSettings []repository.NotificationSettings) ([]*repository.NotificationSettingsBean, error) {
@@ -332,6 +334,38 @@ func (impl *EventRESTClientImpl) processNotificationSettings(notificationSetting
 		})
 	}
 	return notificationSettingsBean, nil
+}
+
+func (impl *EventRESTClientImpl) deliverEvent(bodyBytes []byte, destinationUrl string) (bool, error) {
+	if impl.config.NotificationMedium == PUB_SUB {
+		if err := impl.sendEventsOnNats(bodyBytes); err != nil {
+			impl.logger.Errorw("error while publishing event", "err", err)
+			return false, err
+		}
+		return true, nil
+	}
+
+	req, err := http.NewRequest(http.MethodPost, destinationUrl, bytes.NewBuffer(bodyBytes))
+	if err != nil {
+		impl.logger.Errorw("error while creating HTTP request", "err", err)
+		return false, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := impl.client.Do(req)
+	if err != nil {
+		impl.logger.Errorw("error while sending HTTP request", "err", err)
+		return false, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		impl.logger.Errorw("unexpected response from notifier", "status", resp.StatusCode)
+		return false, fmt.Errorf("unexpected response code: %d", resp.StatusCode)
+	}
+
+	impl.logger.Debugw("event successfully delivered", "status", resp.StatusCode)
+	return true, nil
 }
 
 func (impl *EventRESTClientImpl) WriteNatsEvent(topic string, payload interface{}) error {

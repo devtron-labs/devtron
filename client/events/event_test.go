@@ -23,7 +23,7 @@ func TestSendEventsOnNats(t *testing.T) {
 		logger:               logger,
 		pubsubClient:         mockPubsubClient,
 		client:               client,
-		config:               &EventClientConfig{DestinationURL: "localhost:3000/notify"},
+		config:               &EventClientConfig{DestinationURL: "localhost:3000/notify", NotificationMedium: PUB_SUB},
 		ciPipelineRepository: pipelineConfig.NewCiPipelineRepositoryImpl(db, logger, trans),
 		pipelineRepository:   pipelineConfig.NewPipelineRepositoryImpl(db, logger),
 		attributesRepository: repository.NewAttributesRepositoryImpl(db),
