@@ -217,7 +217,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCIData(event Event, material *buil
 			if err != nil {
 				impl.logger.Errorw("error in finding environments linked with ci pipeline", "pipelineId", event.PipelineId, "err", err)
 			} else {
-				event.EnvIdsForCiPipeline = []int{}
+				event.EnvIdsForCiPipeline = make([]int, 0, len(envs))
 				for _, env := range envs {
 					event.EnvIdsForCiPipeline = append(event.EnvIdsForCiPipeline, env.Id)
 				}
