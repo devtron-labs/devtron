@@ -221,7 +221,6 @@
  | NATS_MSG_MAX_AGE | int |86400 |  |  | false |
  | NATS_MSG_PROCESSING_BATCH_SIZE | int |1 |  |  | false |
  | NATS_MSG_REPLICAS | int |0 |  |  | false |
- | NOTIFICATION_MEDIUM | NotificationMedium |rest | notification medium |  | false |
  | OTEL_COLLECTOR_URL | string | | Opentelemetry URL  |  | false |
  | PARALLELISM_LIMIT_FOR_TAG_PROCESSING | int | | App manual sync job parallel tag processing count. |  | false |
  | PG_EXPORT_PROM_METRICS | bool |true |  |  | false |
