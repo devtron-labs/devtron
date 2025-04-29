@@ -1,6 +1,13 @@
 BEGIN;
 
 DELETE FROM global_policy where policy_of = 'RELEASE_ACTION_CHECK' AND version = 'V2';
+-- reverting to old state
+DROP INDEX IF EXISTS idx_unique_policy_name_policy_of_version;
+-- reverting to old state
+CREATE UNIQUE INDEX idx_unique_policy_name_policy_of
+    ON global_policy (name,policy_of)
+    WHERE deleted = false;
+
 UPDATE devtron_resource_schema set schema = '{
     "type": "object",
     "title": "Release Schema",

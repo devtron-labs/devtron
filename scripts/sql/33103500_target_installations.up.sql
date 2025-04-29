@@ -3,7 +3,7 @@ BEGIN;
 -- Drop the existing index if it exists because it did not have the version to it, added new index with version
 DROP INDEX IF EXISTS idx_unique_policy_name_policy_of;
 -- Create unique index for global_policy table
-CREATE UNIQUE INDEX idx_unique_policy_name_policy_of
+CREATE UNIQUE INDEX idx_unique_policy_name_policy_of_version
     ON global_policy (name,policy_of,version)
     WHERE deleted = false;
 
