@@ -6,24 +6,12 @@ name: Create Release
 # or on push in charts directory of main branch.
 on:
   workflow_dispatch:
-    inputs:
-      RELEASE_TYPE:
-        description: 'Release type (major/minor/patch/beta)'
-        required: true
-        type: choice
-        options:
-          - major
-          - minor
-          - patch
-          - beta
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
 
   create-release-tag:
     runs-on: ubuntu-latest
-    container:
-      image: alpine:latest
 
     env:
       GITHUB_TOKENS: ${{ secrets.GH_SYSTEMSDT_TOKEN }}
@@ -31,14 +19,10 @@ jobs:
       GIT_CONFIG_NAME: ${{ secrets.GH_SYSTEMSDT_USERNAME }}
       GIT_USERNAME: ${{ secrets.GH_SYSTEMSDT_USERNAME }}
       GIT_REPO: ${{ github.repository }}
-      RELEASE_TYPE: ${{ inputs.RELEASE_TYPE }}
-      REPO: https://github.com/akshatsinha007/devtron
+      REPO: https://github.com/devtron-labs/devtron
       RELEASE_BRANCH: "main"
 
     steps:
-      - name: Install dependencies
-        run: |
-          apk update && apk add --no-cache git github-cli
 
       - name: Configure Git
         run: |
@@ -58,40 +42,6 @@ jobs:
           # Create and push tag
           git tag $NEXT_RELEASE_VERSION
           git push -f https://$GIT_USERNAME:$GITHUB_TOKENS@github.com/$GIT_REPO $NEXT_RELEASE_VERSION
-
-      - name: Update release notes
-        run: |
-          cd preci/$(basename "$REPO")
-          
-          if [[ "$RELEASE_TYPE" == "beta" ]]; then
-            # For beta releases, just commit and push all changes
-            git add .
-            git commit -m "Updated release-notes files"
-            git push -f https://$GIT_USERNAME:$GITHUB_TOKENS@github.com/$GIT_REPO --all
-          else
-            # For major/minor/patch releases, perform full release notes update
-            echo -e "## $NEXT_RELEASE_VERSION\n" > tmp
-            if [ -f beta-releasenotes.md ]; then
-              cat beta-releasenotes.md >> tmp
-              echo -e "\n" >> tmp
-            fi
-            if [ -f releasenotes.md ]; then
-              cat releasenotes.md >> tmp
-            fi
-            mv tmp releasenotes.md
-            
-            # Remove beta release notes
-            rm -f beta-releasenotes.md
-            
-            # Create changelog file
-            mkdir -p CHANGELOG
-            cat releasenotes.md > CHANGELOG/release-notes-${NEXT_RELEASE_VERSION}.md
-            
-            # Commit and push changes
-            git add .
-            git commit -m "Updated release-notes files"
-            git push -f https://$GIT_USERNAME:$GITHUB_TOKENS@github.com/$GIT_REPO $RELEASE_BRANCH
-          fi
   
   create-release:
     needs: create-release-tag
@@ -106,7 +56,12 @@ jobs:
         echo $RELEASE_TYPE
         echo $GITHUB_REPOSITORY
         echo $RELEASE_BRANCH
-
+        version=$(curl -s https://raw.githubusercontent.com/devtron-labs/devtron/refs/heads/main/charts/devtron/Chart.yaml | grep "appVersion" | awk -F ': ' '{print $2}' )
+        if [[ "$version" == *"-rc"* ]]; then
+          RELEASE_TYPE="beta"
+        else
+          RELEASE_TYPE="minor"
+        fi
         gh repo clone $GITHUB_REPOSITORY
         cd devtron
         if [[ "$RELEASE_TYPE" == "major" || "$RELEASE_TYPE" == "minor" || "$RELEASE_TYPE" == "patch" ]]
@@ -123,7 +78,6 @@ jobs:
             touch $FILE_NAME
             echo "## Enhancements" >> beta-releasenotes.md
             echo "## Bugs" > beta-releasenotes.md
-            echo "## Others" >> beta-releasenotes.md
             git add .
             git commit -am "Updated release-notes files"
             git push -f https://${GIT_CONFIG_NAME}:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY} release-bot
@@ -134,7 +88,6 @@ jobs:
             git config --global user.name "$GIT_CONFIG_NAME"
             echo "## Enhancements" >> beta-releasenotes.md
             echo "## Bugs" > beta-releasenotes.md
-            echo "## Others" >> beta-releasenotes.md
             git add .
             git commit -am "Created release-notes files"
             git push -f https://${GIT_CONFIG_NAME}:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY} release-bot
@@ -145,10 +98,15 @@ jobs:
         GH_TOKEN: ${{ secrets.GH_SYSTEMSDT_TOKEN }}
         GIT_CONFIG_NAME: ${{ vars.GH_SYSTEMSDT_USERNAME }}
         GIT_CONFIG_EMAIL: ${{ secrets.GH_SYSTEMSDT_EMAIL }}
-        RELEASE_TYPE: ${{ github.event.inputs.RELEASE_TYPE }}
     # Send notification on discord
     - name: discord-notify
       run: |
+        version=$(curl -s https://raw.githubusercontent.com/devtron-labs/devtron/refs/heads/main/charts/devtron/Chart.yaml | grep "appVersion" | awk -F ': ' '{print $2}' )
+        if [[ "$version" == *"-rc"* ]]; then
+          RELEASE_TYPE="beta"
+        else
+          RELEASE_TYPE="minor"
+        fi
         if [[ "$RELEASE_TYPE" == "major" || "$RELEASE_TYPE" == "minor" || "$RELEASE_TYPE" == "patch" ]]
         then
         sudo apt install python3 python3-pip -y
@@ -163,4 +121,4 @@ jobs:
         echo "Not sending notification due to beta"
         fi
       env:
-        RELEASE_TYPE: ${{ github.event.inputs.RELEASE_TYPE }}
+        RELEASE_BRANCH: ${{ secrets.RELEASE_BRANCH }}
