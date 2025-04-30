@@ -1,3 +1,11 @@
+{{- if .Release.IsUpgrade }}
+    {{- $liveCm := lookup "v1" "ConfigMap" "devtroncd" "devtron-custom-cm" }}
+    {{- $currentValue := pluck "POSTGRES_MIGRATED" $liveCm.data | first | default "" }}
+    {{- if ne $currentValue "14" }}
+      {{- fail "Upgrade Failed Please ensure that you have completed the pre-requisites mentioned in https://docs.devtron.ai/upgrade/devtron-upgrade-1.5.0" }}
+    {{- end }}
+{{- end }}
+
 Please wait for ~1 minute before running any of the following commands.
 
 1. Run the following command to get the password for the default admin user:
