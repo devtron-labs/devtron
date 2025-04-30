@@ -780,15 +780,6 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 		}
 	}
 
-	if teamResponse != nil || appResponse != nil {
-		ciMatching := &beans.SearchFilterResponse{
-			PipelineType: string(util.CI),
-			TeamResponse: teamResponse,
-			AppResponse:  appResponse,
-		}
-		searchFilterResponse = append(searchFilterResponse, ciMatching)
-	}
-
 	if teamResponse != nil || appResponse != nil || envResponse != nil || clusterResponse != nil {
 		cdMatching := &beans.SearchFilterResponse{
 			PipelineType:    string(util.CD),
