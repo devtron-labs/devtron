@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/workflow/util"
 	"github.com/devtron-labs/common-lib/utils"
@@ -307,23 +306,16 @@ func (impl *WorkflowServiceImpl) prepareCmCsForWorkflowTemplate(workflowRequest 
 		return nil, nil, err
 	}
 	allowAll := workflowRequest.IsDevtronJob() || workflowRequest.IsDevtronCI()
-	namePrefix := workflowRequest.GetExistingCmCsNamePrefix()
 	for _, cm := range workflowConfigMaps {
 		// HERE we are allowing all existingSecrets in case of JOB/ BUILD Infra
 		if _, ok := pipelineLevelConfigMaps[cm.Name]; ok || allowAll {
-			if !cm.External {
-				cm.Name = fmt.Sprintf("%s-cm-%s", cm.Name, namePrefix)
-			}
-			modifiedWorkflowConfigMaps = append(modifiedWorkflowConfigMaps, cm)
+			modifiedWorkflowConfigMaps = append(modifiedWorkflowConfigMaps, workflowRequest.ModifyConfigSecretMap(cm, bean.ConfigMap))
 		}
 	}
 	for _, secret := range workflowSecrets {
 		// HERE we are allowing all existingSecrets in case of JOB/ BUILD Infra
 		if _, ok := pipelineLevelSecrets[secret.Name]; ok || allowAll {
-			if !secret.External {
-				secret.Name = fmt.Sprintf("%s-cs-%s", secret.Name, namePrefix)
-			}
-			modifiedWorkflowSecrets = append(modifiedWorkflowSecrets, secret)
+			modifiedWorkflowSecrets = append(modifiedWorkflowSecrets, workflowRequest.ModifyConfigSecretMap(secret, bean.Secret))
 		}
 	}
 	return modifiedWorkflowConfigMaps, modifiedWorkflowSecrets, nil

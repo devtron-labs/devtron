@@ -18,27 +18,25 @@ package executors
 
 import (
 	"encoding/json"
-	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
+	argoWfApiV1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned"
-	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
+	argoWfClientV1 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	"github.com/devtron-labs/common-lib/utils"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
+	apiBean "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/util"
-	v12 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sApiV1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
 	"strconv"
 )
 
-var ArgoWorkflowOwnerRef = v1.OwnerReference{APIVersion: "argoproj.io/v1alpha1", Kind: "Workflow", Name: "{{workflow.name}}", UID: "{{workflow.uid}}", BlockOwnerDeletion: &[]bool{true}[0]}
-
-func ExtractVolumes(configMaps []bean2.ConfigSecretMap, secrets []bean2.ConfigSecretMap) []v12.Volume {
-	var volumes []v12.Volume
-	configMapVolumes := ExtractVolumesFromCmCs(configMaps, secrets)
+func ExtractVolumes(configMaps []apiBean.ConfigSecretMap, secrets []apiBean.ConfigSecretMap) []k8sApiV1.Volume {
+	var volumes []k8sApiV1.Volume
+	configMapVolumes := extractVolumesFromCmCs(configMaps, secrets)
 	volumes = append(volumes, configMapVolumes...)
 
 	// Add downwardAPI volume
@@ -47,8 +45,8 @@ func ExtractVolumes(configMaps []bean2.ConfigSecretMap, secrets []bean2.ConfigSe
 	return volumes
 }
 
-func ExtractVolumesFromCmCs(configMaps []bean2.ConfigSecretMap, secrets []bean2.ConfigSecretMap) []v12.Volume {
-	var volumes []v12.Volume
+func extractVolumesFromCmCs(configMaps []apiBean.ConfigSecretMap, secrets []apiBean.ConfigSecretMap) []k8sApiV1.Volume {
+	var volumes []k8sApiV1.Volume
 	configMapVolumes := extractVolumesFromConfigSecretMaps(true, configMaps)
 	secretVolumes := extractVolumesFromConfigSecretMaps(false, secrets)
 
@@ -62,21 +60,21 @@ func ExtractVolumesFromCmCs(configMaps []bean2.ConfigSecretMap, secrets []bean2.
 	return volumes
 }
 
-func createDownwardAPIVolume() v12.Volume {
-	return v12.Volume{
+func createDownwardAPIVolume() k8sApiV1.Volume {
+	return k8sApiV1.Volume{
 		Name: utils.DEVTRON_SELF_DOWNWARD_API_VOLUME,
-		VolumeSource: v12.VolumeSource{
-			DownwardAPI: &v12.DownwardAPIVolumeSource{
-				Items: []v12.DownwardAPIVolumeFile{
+		VolumeSource: k8sApiV1.VolumeSource{
+			DownwardAPI: &k8sApiV1.DownwardAPIVolumeSource{
+				Items: []k8sApiV1.DownwardAPIVolumeFile{
 					{
 						Path: utils.POD_LABELS,
-						FieldRef: &v12.ObjectFieldSelector{
+						FieldRef: &k8sApiV1.ObjectFieldSelector{
 							FieldPath: "metadata." + utils.POD_LABELS,
 						},
 					},
 					{
 						Path: utils.POD_ANNOTATIONS,
-						FieldRef: &v12.ObjectFieldSelector{
+						FieldRef: &k8sApiV1.ObjectFieldSelector{
 							FieldPath: "metadata." + utils.POD_ANNOTATIONS,
 						},
 					},
@@ -86,30 +84,30 @@ func createDownwardAPIVolume() v12.Volume {
 	}
 }
 
-func extractVolumesFromConfigSecretMaps(isCm bool, configSecretMaps []bean2.ConfigSecretMap) []v12.Volume {
-	var volumes []v12.Volume
+func extractVolumesFromConfigSecretMaps(isCm bool, configSecretMaps []apiBean.ConfigSecretMap) []k8sApiV1.Volume {
+	var volumes []k8sApiV1.Volume
 	for _, configSecretMap := range configSecretMaps {
 		if configSecretMap.Type != util.ConfigMapSecretUsageTypeVolume {
 			// not volume type so ignoring
 			continue
 		}
-		var volumeSource v12.VolumeSource
+		var volumeSource k8sApiV1.VolumeSource
 		if isCm {
-			volumeSource = v12.VolumeSource{
-				ConfigMap: &v12.ConfigMapVolumeSource{
-					LocalObjectReference: v12.LocalObjectReference{
+			volumeSource = k8sApiV1.VolumeSource{
+				ConfigMap: &k8sApiV1.ConfigMapVolumeSource{
+					LocalObjectReference: k8sApiV1.LocalObjectReference{
 						Name: configSecretMap.Name,
 					},
 				},
 			}
 		} else {
-			volumeSource = v12.VolumeSource{
-				Secret: &v12.SecretVolumeSource{
+			volumeSource = k8sApiV1.VolumeSource{
+				Secret: &k8sApiV1.SecretVolumeSource{
 					SecretName: configSecretMap.Name,
 				},
 			}
 		}
-		volumes = append(volumes, v12.Volume{
+		volumes = append(volumes, k8sApiV1.Volume{
 			Name:         configSecretMap.Name + "-vol",
 			VolumeSource: volumeSource,
 		})
@@ -117,62 +115,9 @@ func extractVolumesFromConfigSecretMaps(isCm bool, configSecretMaps []bean2.Conf
 	return volumes
 }
 
-func GetConfigMapJson(configMapSecretDto types.ConfigMapSecretDto) (string, error) {
-	configMapBody := GetConfigMapBody(configMapSecretDto)
-	configMapJson, err := json.Marshal(configMapBody)
-	if err != nil {
-		return "", err
-	}
-	return string(configMapJson), err
-}
-
-func GetConfigMapBody(configMapSecretDto types.ConfigMapSecretDto) v12.ConfigMap {
-	return v12.ConfigMap{
-		TypeMeta: v1.TypeMeta{
-			Kind:       "ConfigMap",
-			APIVersion: "v1",
-		},
-		ObjectMeta: v1.ObjectMeta{
-			Name:            configMapSecretDto.Name,
-			OwnerReferences: []v1.OwnerReference{configMapSecretDto.OwnerRef},
-		},
-		Data: configMapSecretDto.Data,
-	}
-}
-
-func GetSecretJson(configMapSecretDto types.ConfigMapSecretDto) (string, error) {
-	secretBody := GetSecretBody(configMapSecretDto)
-	secretJson, err := json.Marshal(secretBody)
-	if err != nil {
-		return "", err
-	}
-	return string(secretJson), err
-}
-
-func GetSecretBody(configMapSecretDto types.ConfigMapSecretDto) v12.Secret {
-	secretDataMap := make(map[string][]byte)
-
-	// adding handling to get base64 decoded value in map value
-	cmsDataMarshaled, _ := json.Marshal(configMapSecretDto.Data)
-	json.Unmarshal(cmsDataMarshaled, &secretDataMap)
-
-	return v12.Secret{
-		TypeMeta: v1.TypeMeta{
-			Kind:       "Secret",
-			APIVersion: "v1",
-		},
-		ObjectMeta: v1.ObjectMeta{
-			Name:            configMapSecretDto.Name,
-			OwnerReferences: []v1.OwnerReference{configMapSecretDto.OwnerRef},
-		},
-		Data: secretDataMap,
-		Type: "Opaque",
-	}
-}
-
-func GetFromGlobalCmCsDtos(globalCmCsConfigs []*bean.GlobalCMCSDto) ([]bean2.ConfigSecretMap, []bean2.ConfigSecretMap, error) {
-	workflowConfigMaps := make([]bean2.ConfigSecretMap, 0, len(globalCmCsConfigs))
-	workflowSecrets := make([]bean2.ConfigSecretMap, 0, len(globalCmCsConfigs))
+func GetFromGlobalCmCsDtos(globalCmCsConfigs []*bean.GlobalCMCSDto) ([]apiBean.ConfigSecretMap, []apiBean.ConfigSecretMap, error) {
+	workflowConfigMaps := make([]apiBean.ConfigSecretMap, 0, len(globalCmCsConfigs))
+	workflowSecrets := make([]apiBean.ConfigSecretMap, 0, len(globalCmCsConfigs))
 
 	for _, config := range globalCmCsConfigs {
 		configSecretMap, err := config.ConvertToConfigSecretMap()
@@ -188,39 +133,39 @@ func GetFromGlobalCmCsDtos(globalCmCsConfigs []*bean.GlobalCMCSDto) ([]bean2.Con
 	return workflowConfigMaps, workflowSecrets, nil
 }
 
-func AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs []*bean.GlobalCMCSDto, steps *[]v1alpha1.ParallelSteps, volumes *[]v12.Volume, templates *[]v1alpha1.Template) error {
+func AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs []*bean.GlobalCMCSDto, steps *[]argoWfApiV1.ParallelSteps, volumes *[]k8sApiV1.Volume, templates *[]argoWfApiV1.Template) error {
 
 	cmIndex := 0
 	csIndex := 0
 	for _, config := range globalCmCsConfigs {
 		if config.ConfigType == repository.CM_TYPE_CONFIG {
-			cmJson, err := GetConfigMapJson(types.ConfigMapSecretDto{Name: config.Name, Data: config.Data, OwnerRef: ArgoWorkflowOwnerRef})
+			cmJson, err := adapter.GetConfigMapJson(types.ConfigMapSecretDto{Name: config.Name, Data: config.Data, OwnerRef: ArgoWorkflowOwnerRef})
 			if err != nil {
 				return err
 			}
 			if config.Type == repository.VOLUME_CONFIG {
-				*volumes = append(*volumes, v12.Volume{
+				*volumes = append(*volumes, k8sApiV1.Volume{
 					Name: config.Name + "-vol",
-					VolumeSource: v12.VolumeSource{
-						ConfigMap: &v12.ConfigMapVolumeSource{
-							LocalObjectReference: v12.LocalObjectReference{
+					VolumeSource: k8sApiV1.VolumeSource{
+						ConfigMap: &k8sApiV1.ConfigMapVolumeSource{
+							LocalObjectReference: k8sApiV1.LocalObjectReference{
 								Name: config.Name,
 							},
 						},
 					},
 				})
 			}
-			*steps = append(*steps, v1alpha1.ParallelSteps{
-				Steps: []v1alpha1.WorkflowStep{
+			*steps = append(*steps, argoWfApiV1.ParallelSteps{
+				Steps: []argoWfApiV1.WorkflowStep{
 					{
 						Name:     "create-env-cm-gb-" + strconv.Itoa(cmIndex),
 						Template: "cm-gb-" + strconv.Itoa(cmIndex),
 					},
 				},
 			})
-			*templates = append(*templates, v1alpha1.Template{
+			*templates = append(*templates, argoWfApiV1.Template{
 				Name: "cm-gb-" + strconv.Itoa(cmIndex),
-				Resource: &v1alpha1.ResourceTemplate{
+				Resource: &argoWfApiV1.ResourceTemplate{
 					Action:            "create",
 					SetOwnerReference: true,
 					Manifest:          string(cmJson),
@@ -240,31 +185,31 @@ func AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs []*bean.Gl
 				return err
 			}
 
-			secretJson, err := GetSecretJson(types.ConfigMapSecretDto{Name: config.Name, Data: encodedSecretDataMap, OwnerRef: ArgoWorkflowOwnerRef})
+			secretJson, err := adapter.GetSecretJson(types.ConfigMapSecretDto{Name: config.Name, Data: encodedSecretDataMap, OwnerRef: ArgoWorkflowOwnerRef})
 			if err != nil {
 				return err
 			}
 			if config.Type == repository.VOLUME_CONFIG {
-				*volumes = append(*volumes, v12.Volume{
+				*volumes = append(*volumes, k8sApiV1.Volume{
 					Name: config.Name + "-vol",
-					VolumeSource: v12.VolumeSource{
-						Secret: &v12.SecretVolumeSource{
+					VolumeSource: k8sApiV1.VolumeSource{
+						Secret: &k8sApiV1.SecretVolumeSource{
 							SecretName: config.Name,
 						},
 					},
 				})
 			}
-			*steps = append(*steps, v1alpha1.ParallelSteps{
-				Steps: []v1alpha1.WorkflowStep{
+			*steps = append(*steps, argoWfApiV1.ParallelSteps{
+				Steps: []argoWfApiV1.WorkflowStep{
 					{
 						Name:     "create-env-sec-gb-" + strconv.Itoa(csIndex),
 						Template: "sec-gb-" + strconv.Itoa(csIndex),
 					},
 				},
 			})
-			*templates = append(*templates, v1alpha1.Template{
+			*templates = append(*templates, argoWfApiV1.Template{
 				Name: "sec-gb-" + strconv.Itoa(csIndex),
-				Resource: &v1alpha1.ResourceTemplate{
+				Resource: &argoWfApiV1.ResourceTemplate{
 					Action:            "create",
 					SetOwnerReference: true,
 					Manifest:          string(secretJson),
@@ -277,7 +222,7 @@ func AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs []*bean.Gl
 	return nil
 }
 
-func GetClientInstance(config *rest.Config, namespace string) (v1alpha12.WorkflowInterface, error) {
+func GetClientInstance(config *rest.Config, namespace string) (argoWfClientV1.WorkflowInterface, error) {
 	clientSet, err := versioned.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -287,12 +232,12 @@ func GetClientInstance(config *rest.Config, namespace string) (v1alpha12.Workflo
 }
 
 func CheckIfReTriggerRequired(status, message, workflowRunnerStatus string) bool {
-	return ((status == string(v1alpha1.NodeError) || status == string(v1alpha1.NodeFailed)) &&
+	return ((status == string(argoWfApiV1.NodeError) || status == string(argoWfApiV1.NodeFailed)) &&
 		message == cdWorkflow.POD_DELETED_MESSAGE) && (workflowRunnerStatus != cdWorkflow.WorkflowCancel && workflowRunnerStatus != cdWorkflow.WorkflowAborted)
 
 }
 
-func GetWorkflowLabelsForSystemExecutor(workflowTemplate bean.WorkflowTemplate) map[string]string {
+func getWorkflowLabelsForSystemExecutor(workflowTemplate bean.WorkflowTemplate) map[string]string {
 	return map[string]string{
 		DEVTRON_WORKFLOW_LABEL_KEY:      DEVTRON_WORKFLOW_LABEL_VALUE,
 		"devtron.ai/purpose":            "workflow",
