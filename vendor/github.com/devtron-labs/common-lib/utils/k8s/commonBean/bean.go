@@ -24,6 +24,7 @@ import (
 )
 
 const (
+	ConfigMapKind                = "ConfigMap"
 	SecretKind                   = "Secret"
 	ServiceKind                  = "Service"
 	ServiceAccountKind           = "ServiceAccount"
@@ -300,8 +301,8 @@ type PodMetadata struct {
 	EphemeralContainers []*EphemeralContainerData `json:"ephemeralContainers"`
 }
 
-// use value field as generic type
 // InfoItem contains arbitrary, human readable information about an application
+// use value field as generic type
 type InfoItem struct {
 	// Name is a human readable title for this piece of information.
 	Name string `json:"name,omitempty"`

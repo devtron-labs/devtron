@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors/adapter"
 	types2 "github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/batch/v1"
@@ -33,11 +34,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/pointer"
-)
-
-const (
-	WORKFLOW_JOB_BACKOFF_LIMIT = 0
-	WORKFLOW_JOB_FINALIZER     = "foregroundDeletion"
 )
 
 type SystemWorkflowExecutor interface {
@@ -185,7 +181,7 @@ func (impl *SystemWorkflowExecutorImpl) GetWorkflowStatus(workflowName string, n
 }
 
 func (impl *SystemWorkflowExecutorImpl) getJobTemplate(workflowTemplate bean.WorkflowTemplate) *v1.Job {
-	workflowLabels := GetWorkflowLabelsForSystemExecutor(workflowTemplate)
+	workflowLabels := getWorkflowLabelsForSystemExecutor(workflowTemplate)
 
 	//setting TerminationGracePeriodSeconds in PodSpec
 	//which ensures Pod has enough time to execute cleanup on SIGTERM event
@@ -199,10 +195,10 @@ func (impl *SystemWorkflowExecutorImpl) getJobTemplate(workflowTemplate bean.Wor
 			GenerateName: fmt.Sprintf(WORKFLOW_GENERATE_NAME_REGEX, workflowTemplate.WorkflowNamePrefix),
 			//Annotations:  map[string]string{"workflows.argoproj.io/controller-instanceid": workflowTemplate.WfControllerInstanceID},
 			Labels:     workflowLabels,
-			Finalizers: []string{WORKFLOW_JOB_FINALIZER},
+			Finalizers: []string{WorkflowJobFinalizer},
 		},
 		Spec: v1.JobSpec{
-			BackoffLimit:            pointer.Int32Ptr(WORKFLOW_JOB_BACKOFF_LIMIT),
+			BackoffLimit:            pointer.Int32Ptr(WorkflowJobBackoffLimit),
 			ActiveDeadlineSeconds:   workflowTemplate.ActiveDeadlineSeconds,
 			TTLSecondsAfterFinished: workflowTemplate.TTLValue,
 			Template: corev1.PodTemplateSpec{
@@ -225,13 +221,12 @@ func (impl *SystemWorkflowExecutorImpl) getCmAndSecrets(workflowTemplate bean.Wo
 		if configSecretMap.External {
 			continue
 		}
-		configDataMap, err := configSecretMap.GetDataMap()
+		configMapSecretDto, err := adapter.GetConfigMapSecretDto(configSecretMap, impl.createJobOwnerRefVal(createdJob), false)
 		if err != nil {
-			impl.logger.Errorw("error occurred while extracting data map", "Data", configSecretMap.Data, "err", err)
+			impl.logger.Errorw("error occurred while creating config map dto", "err", err)
 			return configMaps, secrets, err
 		}
-		configMapSecretDto := types2.ConfigMapSecretDto{Name: configSecretMap.Name, Data: configDataMap, OwnerRef: impl.createJobOwnerRefVal(createdJob)}
-		configMap := GetConfigMapBody(configMapSecretDto)
+		configMap := adapter.GetConfigMapBody(configMapSecretDto)
 		configMaps = append(configMaps, configMap)
 	}
 	secretMaps := workflowTemplate.Secrets
@@ -239,13 +234,16 @@ func (impl *SystemWorkflowExecutorImpl) getCmAndSecrets(workflowTemplate bean.Wo
 		if secretMapData.External {
 			continue
 		}
-		dataMap, err := secretMapData.GetDataMap()
+		configMapSecretDto, err := adapter.GetConfigMapSecretDto(secretMapData, impl.createJobOwnerRefVal(createdJob), true)
 		if err != nil {
-			impl.logger.Errorw("error occurred while extracting data map", "Data", secretMapData.Data, "err", err)
+			impl.logger.Errorw("error occurred while creating config map dto", "err", err)
 			return configMaps, secrets, err
 		}
-		configMapSecretDto := types2.ConfigMapSecretDto{Name: secretMapData.Name, Data: dataMap, OwnerRef: impl.createJobOwnerRefVal(createdJob)}
-		secretBody := GetSecretBody(configMapSecretDto)
+		secretBody, err := adapter.GetSecretBody(configMapSecretDto)
+		if err != nil {
+			impl.logger.Errorw("error occurred while creating secret body", "err", err)
+			return configMaps, secrets, err
+		}
 		secrets = append(secrets, secretBody)
 	}
 	return configMaps, secrets, nil
