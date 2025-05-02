@@ -70,6 +70,7 @@ func (handler UserAuthHandlerImpl) LoginHandler(w http.ResponseWriter, r *http.R
 	if err != nil {
 		handler.logger.Errorw("request err, LoginHandler", "err", err, "payload", up)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
 
 	err = handler.validator.Struct(up)
