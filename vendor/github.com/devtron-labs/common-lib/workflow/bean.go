@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -167,8 +168,8 @@ type VariableObject struct {
 	ReferenceVariableName      string       `json:"referenceVariableName"`
 	ReferenceVariableStepIndex int          `json:"referenceVariableStepIndex"`
 	VariableStepIndexInPlugin  int          `json:"variableStepIndexInPlugin"`
-	FileReferencePath          string       `json:"fileReferencePath"` // FileContent is the base64 encoded content of the file
-	TypedValue                 interface{}  `json:"-"`                 // TypedValue is the formatted value of the variable after type conversion
+	FileContent                string       `json:"fileContent"` // FileContent is the base64 encoded content of the file
+	TypedValue                 interface{}  `json:"-"`           // TypedValue is the formatted value of the variable after type conversion
 }
 
 // TypeCheck converts the VariableObject.Value to the VariableObject.Format type
@@ -187,15 +188,9 @@ func (v *VariableObject) TypeCheck() error {
 	return nil
 }
 
-// SetFileContent sets the content of the file referenced by the VariableObject.FileReferencePath field.
+// SetFileContent decodes the base64 encoded file content and writes it to the file at filePath
 func (v *VariableObject) SetFileContent(filePath string) error {
 	if v.Format != FormatTypeFile {
-		return nil
-	}
-	if len(v.FileReferencePath) == 0 {
-		// for plugins we may receive the filePath as "",
-		// even thought VariableObject.Value is there;
-		// for this case don't mount the file.
 		return nil
 	}
 	file, fileErr := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.ModePerm)
@@ -203,9 +198,9 @@ func (v *VariableObject) SetFileContent(filePath string) error {
 		return fileErr
 	}
 	defer file.Close()
-	fileBytes, err := os.ReadFile(v.FileReferencePath)
-	if err != nil {
-		return err
+	fileBytes, fileErr := base64.StdEncoding.DecodeString(v.FileContent)
+	if fileErr != nil {
+		return fileErr
 	}
 	_, wErr := file.Write(fileBytes)
 	if wErr != nil {
