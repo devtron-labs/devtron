@@ -22,9 +22,9 @@ import (
 	"github.com/argoproj/argo-workflows/v3/workflow/common"
 	"github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/common-lib/utils"
-	bean7 "github.com/devtron-labs/common-lib/utils/bean"
+	commonBean "github.com/devtron-labs/common-lib/utils/bean"
 	"github.com/devtron-labs/common-lib/utils/workFlow"
-	bean3 "github.com/devtron-labs/devtron/api/bean"
+	apiBean "github.com/devtron-labs/devtron/api/bean"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -152,6 +152,7 @@ type WorkflowRequest struct {
 	AsyncBuildxCacheExport      bool   `json:"asyncBuildxCacheExport"`
 	UseDockerApiToGetDigest     bool   `json:"useDockerApiToGetDigest"`
 	HostUrl                     string `json:"hostUrl"`
+	WorkflowRequestEnt
 }
 
 func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {
@@ -494,7 +495,7 @@ func (workflowRequest *WorkflowRequest) getWorkflowImage() string {
 	}
 }
 
-func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdConfig, infraConfigurations *infraBean.InfraConfig, workflowJson []byte, workflowTemplate *bean.WorkflowTemplate, workflowConfigMaps []bean3.ConfigSecretMap, workflowSecrets []bean3.ConfigSecretMap) (v1.Container, error) {
+func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdConfig, infraConfigurations *infraBean.InfraConfig, workflowJson []byte, workflowTemplate *bean.WorkflowTemplate, workflowConfigMaps []apiBean.ConfigSecretMap, workflowSecrets []apiBean.ConfigSecretMap) (v1.Container, error) {
 	privileged := true
 	pvc := workflowRequest.getPVCForWorkflowRequest()
 	containerEnvVariables := workflowRequest.getContainerEnvVariables(config, workflowJson)
@@ -569,7 +570,15 @@ func (workflowRequest *WorkflowRequest) updateVolumeMountsForCi(config *CiCdConf
 	return nil
 }
 
-func UpdateContainerEnvsFromCmCs(workflowMainContainer *v1.Container, configMaps []bean3.ConfigSecretMap, secrets []bean3.ConfigSecretMap) {
+func (workflowRequest *WorkflowRequest) ModifyConfigSecretMap(workflowConfigSecretMap apiBean.ConfigSecretMap, configType apiBean.ConfigType) apiBean.ConfigSecretMap {
+	namePrefix := workflowRequest.GetExistingCmCsNamePrefix()
+	if !workflowConfigSecretMap.External {
+		workflowConfigSecretMap.Name = fmt.Sprintf("%s-%s-%s", workflowConfigSecretMap.Name, configType.String(), namePrefix)
+	}
+	return workflowConfigSecretMap
+}
+
+func UpdateContainerEnvsFromCmCs(workflowMainContainer *v1.Container, configMaps []apiBean.ConfigSecretMap, secrets []apiBean.ConfigSecretMap) {
 	for _, configMap := range configMaps {
 		updateContainerEnvs(true, workflowMainContainer, configMap)
 	}
@@ -579,7 +588,7 @@ func UpdateContainerEnvsFromCmCs(workflowMainContainer *v1.Container, configMaps
 	}
 }
 
-func updateContainerEnvs(isCM bool, workflowMainContainer *v1.Container, configSecretMap bean3.ConfigSecretMap) {
+func updateContainerEnvs(isCM bool, workflowMainContainer *v1.Container, configSecretMap apiBean.ConfigSecretMap) {
 	if configSecretMap.Type == repository2.VOLUME_CONFIG {
 		workflowMainContainer.VolumeMounts = append(workflowMainContainer.VolumeMounts, v1.VolumeMount{
 			Name:      configSecretMap.Name + "-vol",
@@ -675,10 +684,10 @@ type WorkflowResponse struct {
 	ImageReleaseTags       []*repository3.ImageTag                     `json:"imageReleaseTags"`
 	ImageComment           *repository3.ImageComment                   `json:"imageComment"`
 	AppWorkflowId          int                                         `json:"appWorkflowId"`
-	CustomTag              *bean3.CustomTagErrorResponse               `json:"customTag,omitempty"`
+	CustomTag              *apiBean.CustomTagErrorResponse             `json:"customTag,omitempty"`
 	PipelineType           string                                      `json:"pipelineType"`
 	ReferenceWorkflowId    int                                         `json:"referenceWorkflowId"`
-	TargetPlatforms        []*bean7.TargetPlatform                     `json:"targetPlatforms"`
+	TargetPlatforms        []*commonBean.TargetPlatform                `json:"targetPlatforms"`
 	WorkflowExecutionStage map[string][]*bean6.WorkflowStageDto        `json:"workflowExecutionStages"`
 }
 
@@ -686,6 +695,7 @@ type ConfigMapSecretDto struct {
 	Name     string
 	Data     map[string]string
 	OwnerRef v12.OwnerReference
+	ConfigMapSecretEntDto
 }
 
 type WorkflowStatus struct {
