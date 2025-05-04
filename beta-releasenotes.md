@@ -3,6 +3,7 @@
 - fix: chart name fixed in chart reference table (#6543)
 - fix: error pg.ErrNoRow on base deployment template update (#6533)
 ## Enhancements
+- feat: mount file type variable in ci-runner through cm (#6546)
 ## Documentation
 ## Others
 - chore: pipeline timeline alter sql (#6541)
