@@ -42,6 +42,7 @@ type PrePostAndRefPluginStepsResponse struct {
 	PostStageSteps   []*StepObject
 	RefPluginData    []*RefPluginObject
 	VariableSnapshot map[string]string
+	PrePostAndRefPluginStepsResponseEnt
 }
 
 type StepObject struct {
