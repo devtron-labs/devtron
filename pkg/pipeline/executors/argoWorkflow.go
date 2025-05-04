@@ -21,38 +21,23 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
+	argoWfApiV1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned"
-	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
+	argoWfClientV1 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/workflow/util"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
+	apiBean "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"go.uber.org/zap"
-	v12 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sApiV1 "k8s.io/api/core/v1"
+	k8sMetaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/rest"
 	"net/url"
 )
-
-const (
-	STEP_NAME_REGEX              = "create-env-%s-gb-%d"
-	TEMPLATE_NAME_REGEX          = "%s-gb-%d"
-	WORKFLOW_MINIO_CRED          = "workflow-minio-cred"
-	CRED_ACCESS_KEY              = "accessKey"
-	CRED_SECRET_KEY              = "secretKey"
-	S3_ENDPOINT_URL              = "s3.amazonaws.com"
-	DEVTRON_WORKFLOW_LABEL_KEY   = "devtron.ai/workflow-purpose"
-	DEVTRON_WORKFLOW_LABEL_VALUE = "cd"
-	WORKFLOW_GENERATE_NAME_REGEX = "%s-"
-	RESOURCE_CREATE_ACTION       = "create"
-)
-
-var ACCESS_KEY_SELECTOR = &v12.SecretKeySelector{Key: CRED_ACCESS_KEY, LocalObjectReference: v12.LocalObjectReference{Name: WORKFLOW_MINIO_CRED}}
-var SECRET_KEY_SELECTOR = &v12.SecretKeySelector{Key: CRED_SECRET_KEY, LocalObjectReference: v12.LocalObjectReference{Name: WORKFLOW_MINIO_CRED}}
 
 type WorkflowExecutor interface {
 	ExecuteWorkflow(workflowTemplate bean.WorkflowTemplate) (*unstructured.UnstructuredList, error)
@@ -81,7 +66,7 @@ func (impl *ArgoWorkflowExecutorImpl) TerminateWorkflow(workflowName string, nam
 		impl.logger.Errorw("cannot build wf client", "wfName", workflowName, "err", err)
 		return err
 	}
-	_, err = wfClient.Get(context.Background(), workflowName, v1.GetOptions{})
+	_, err = wfClient.Get(context.Background(), workflowName, k8sMetaV1.GetOptions{})
 	if err != nil {
 		impl.logger.Errorw("cannot find workflow", "name", workflowName, "err", err)
 		return errors.New("cannot find workflow " + workflowName)
@@ -98,7 +83,7 @@ func (impl *ArgoWorkflowExecutorImpl) TerminateDanglingWorkflow(workflowGenerate
 		return err
 	}
 	jobSelectorLabel := fmt.Sprintf("%s=%s", bean.WorkflowGenerateNamePrefix, workflowGenerateName)
-	wfList, err := wfClient.List(context.Background(), v1.ListOptions{LabelSelector: jobSelectorLabel})
+	wfList, err := wfClient.List(context.Background(), k8sMetaV1.ListOptions{LabelSelector: jobSelectorLabel})
 	if err != nil {
 		impl.logger.Errorw("error in fetching list of workflows", "namespace", namespace, "err", err)
 		return err
@@ -127,7 +112,7 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 	}
 
 	wfContainer := workflowTemplate.Containers[0]
-	ciCdTemplate := v1alpha1.Template{
+	ciCdTemplate := argoWfApiV1.Template{
 		Name:      workflowTemplate.WorkflowType,
 		Container: &wfContainer,
 		ActiveDeadlineSeconds: &intstr.IntOrString{
@@ -140,20 +125,20 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 	objectMeta := workflowTemplate.CreateObjectMetadata()
 
 	var (
-		ciCdWorkflow = v1alpha1.Workflow{
+		ciCdWorkflow = argoWfApiV1.Workflow{
 			ObjectMeta: *objectMeta,
-			Spec: v1alpha1.WorkflowSpec{
+			Spec: argoWfApiV1.WorkflowSpec{
 				ServiceAccountName: workflowTemplate.ServiceAccountName,
 				NodeSelector:       workflowTemplate.NodeSelector,
 				Tolerations:        workflowTemplate.Tolerations,
 				Entrypoint:         entryPoint,
-				TTLStrategy: &v1alpha1.TTLStrategy{
+				TTLStrategy: &argoWfApiV1.TTLStrategy{
 					SecondsAfterCompletion: workflowTemplate.TTLValue,
 				},
 				Templates: templates,
 				Volumes:   workflowTemplate.Volumes,
-				PodGC: &v1alpha1.PodGC{
-					Strategy: v1alpha1.PodGCOnWorkflowCompletion,
+				PodGC: &argoWfApiV1.PodGC{
+					Strategy: argoWfApiV1.PodGCOnWorkflowCompletion,
 				},
 			},
 		}
@@ -172,7 +157,7 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 		return nil, err
 	}
 
-	createdWf, err := wfClient.Create(context.Background(), &ciCdWorkflow, v1.CreateOptions{})
+	createdWf, err := wfClient.Create(context.Background(), &ciCdWorkflow, k8sMetaV1.CreateOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in wf trigger", "err", err)
 		return nil, err
@@ -202,13 +187,13 @@ func (impl *ArgoWorkflowExecutorImpl) GetWorkflowStatus(workflowName string, nam
 	return wfStatus, err
 }
 
-func (impl *ArgoWorkflowExecutorImpl) getWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) (*v1alpha1.Workflow, error) {
+func (impl *ArgoWorkflowExecutorImpl) getWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) (*argoWfApiV1.Workflow, error) {
 	wfClient, err := impl.getClientInstance(namespace, clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("cannot build wf client", "wfName", workflowName, "err", err)
 		return nil, err
 	}
-	wf, err := wfClient.Get(context.Background(), workflowName, v1.GetOptions{})
+	wf, err := wfClient.Get(context.Background(), workflowName, k8sMetaV1.GetOptions{})
 	if err != nil {
 		impl.logger.Errorw("cannot find workflow", "name", workflowName, "err", err)
 		return nil, fmt.Errorf("cannot find workflow %s", workflowName)
@@ -226,13 +211,13 @@ func (impl *ArgoWorkflowExecutorImpl) convertToUnstructured(cdWorkflow interface
 	return unstructuredList
 }
 
-func (impl *ArgoWorkflowExecutorImpl) updateBlobStorageConfig(workflowTemplate bean.WorkflowTemplate, cdTemplate *v1alpha1.Template) {
-	cdTemplate.ArchiveLocation = &v1alpha1.ArtifactLocation{
+func (impl *ArgoWorkflowExecutorImpl) updateBlobStorageConfig(workflowTemplate bean.WorkflowTemplate, cdTemplate *argoWfApiV1.Template) {
+	cdTemplate.ArchiveLocation = &argoWfApiV1.ArtifactLocation{
 		ArchiveLogs: &workflowTemplate.ArchiveLogs,
 	}
 	if workflowTemplate.BlobStorageConfigured {
-		var s3Artifact *v1alpha1.S3Artifact
-		var gcsArtifact *v1alpha1.GCSArtifact
+		var s3Artifact *argoWfApiV1.S3Artifact
+		var gcsArtifact *argoWfApiV1.GCSArtifact
 		blobStorageS3Config := workflowTemplate.BlobStorageS3Config
 		gcpBlobConfig := workflowTemplate.GcpBlobConfig
 		cloudStorageKey := workflowTemplate.CloudStorageKey
@@ -249,25 +234,15 @@ func (impl *ArgoWorkflowExecutorImpl) updateBlobStorageConfig(workflowTemplate b
 				}
 			}
 			isInsecure := blobStorageS3Config.IsInSecure
-			var accessKeySelector *v12.SecretKeySelector
-			var secretKeySelector *v12.SecretKeySelector
+			var accessKeySelector *k8sApiV1.SecretKeySelector
+			var secretKeySelector *k8sApiV1.SecretKeySelector
 			if blobStorageS3Config.AccessKey != "" {
-				accessKeySelector = &v12.SecretKeySelector{
-					Key: CRED_ACCESS_KEY,
-					LocalObjectReference: v12.LocalObjectReference{
-						Name: WORKFLOW_MINIO_CRED,
-					},
-				}
-				secretKeySelector = &v12.SecretKeySelector{
-					Key: CRED_SECRET_KEY,
-					LocalObjectReference: v12.LocalObjectReference{
-						Name: WORKFLOW_MINIO_CRED,
-					},
-				}
+				accessKeySelector = AccessKeySelector
+				secretKeySelector = SecretKeySelector
 			}
-			s3Artifact = &v1alpha1.S3Artifact{
+			s3Artifact = &argoWfApiV1.S3Artifact{
 				Key: cloudStorageKey,
-				S3Bucket: v1alpha1.S3Bucket{
+				S3Bucket: argoWfApiV1.S3Bucket{
 					Endpoint:        s3CompatibleEndpointUrl,
 					AccessKeySecret: accessKeySelector,
 					SecretKeySecret: secretKeySelector,
@@ -280,16 +255,11 @@ func (impl *ArgoWorkflowExecutorImpl) updateBlobStorageConfig(workflowTemplate b
 				s3Artifact.Region = blobStorageS3Config.CiLogRegion
 			}
 		} else if gcpBlobConfig != nil {
-			gcsArtifact = &v1alpha1.GCSArtifact{
+			gcsArtifact = &argoWfApiV1.GCSArtifact{
 				Key: cloudStorageKey,
-				GCSBucket: v1alpha1.GCSBucket{
-					Bucket: gcpBlobConfig.LogBucketName,
-					ServiceAccountKeySecret: &v12.SecretKeySelector{
-						Key: CRED_SECRET_KEY,
-						LocalObjectReference: v12.LocalObjectReference{
-							Name: WORKFLOW_MINIO_CRED,
-						},
-					},
+				GCSBucket: argoWfApiV1.GCSBucket{
+					Bucket:                  gcpBlobConfig.LogBucketName,
+					ServiceAccountKeySecret: SecretKeySelector,
 				},
 			}
 		}
@@ -300,9 +270,9 @@ func (impl *ArgoWorkflowExecutorImpl) updateBlobStorageConfig(workflowTemplate b
 	}
 }
 
-func (impl *ArgoWorkflowExecutorImpl) getArgoTemplates(configMaps []bean2.ConfigSecretMap, secrets []bean2.ConfigSecretMap, isCi bool) ([]v1alpha1.Template, error) {
-	var templates []v1alpha1.Template
-	var steps []v1alpha1.ParallelSteps
+func (impl *ArgoWorkflowExecutorImpl) getArgoTemplates(configMaps []apiBean.ConfigSecretMap, secrets []apiBean.ConfigSecretMap, isCi bool) ([]argoWfApiV1.Template, error) {
+	var templates []argoWfApiV1.Template
+	var steps []argoWfApiV1.ParallelSteps
 	cmIndex := 0
 	csIndex := 0
 	for _, configMap := range configMaps {
@@ -339,8 +309,8 @@ func (impl *ArgoWorkflowExecutorImpl) getArgoTemplates(configMaps []bean2.Config
 		templateName = bean.CI_WORKFLOW_WITH_STAGES
 	}
 
-	steps = append(steps, v1alpha1.ParallelSteps{
-		Steps: []v1alpha1.WorkflowStep{
+	steps = append(steps, argoWfApiV1.ParallelSteps{
+		Steps: []argoWfApiV1.WorkflowStep{
 			{
 				Name:     "run-wf",
 				Template: stepName,
@@ -348,7 +318,7 @@ func (impl *ArgoWorkflowExecutorImpl) getArgoTemplates(configMaps []bean2.Config
 		},
 	})
 
-	templates = append(templates, v1alpha1.Template{
+	templates = append(templates, argoWfApiV1.Template{
 		Name:  templateName,
 		Steps: steps,
 	})
@@ -356,22 +326,30 @@ func (impl *ArgoWorkflowExecutorImpl) getArgoTemplates(configMaps []bean2.Config
 	return templates, nil
 }
 
-func (impl *ArgoWorkflowExecutorImpl) appendCMCSToStepAndTemplate(isSecret bool, configSecretMap bean2.ConfigSecretMap, cmSecretIndex int) (v1alpha1.ParallelSteps, v1alpha1.Template, error) {
-	var parallelStep v1alpha1.ParallelSteps
-	var argoTemplate v1alpha1.Template
-	configDataMap, err := configSecretMap.GetDataMap()
+func (impl *ArgoWorkflowExecutorImpl) getConfigMapOrSecretJson(configMapSecretDto types.ConfigMapSecretDto, isSecret bool) (cmSecretJson string, err error) {
+	if isSecret {
+		cmSecretJson, err = adapter.GetSecretJson(configMapSecretDto)
+		if err != nil {
+			impl.logger.Errorw("error occurred while extracting cm/secret json", "secretName", configMapSecretDto.Name, "err", err)
+			return cmSecretJson, err
+		}
+	} else {
+		cmSecretJson, err = adapter.GetConfigMapJson(configMapSecretDto)
+		if err != nil {
+			impl.logger.Errorw("error occurred while extracting cm/secret json", "configMapName", configMapSecretDto.Name, "err", err)
+			return cmSecretJson, err
+		}
+	}
+	return cmSecretJson, nil
+}
+
+func (impl *ArgoWorkflowExecutorImpl) appendCMCSToStepAndTemplate(isSecret bool, configSecretMap apiBean.ConfigSecretMap, cmSecretIndex int) (parallelStep argoWfApiV1.ParallelSteps, argoTemplate argoWfApiV1.Template, err error) {
+	configMapSecretDto, err := adapter.GetConfigMapSecretDto(configSecretMap, ArgoWorkflowOwnerRef, isSecret)
 	if err != nil {
-		impl.logger.Errorw("error occurred while extracting data map", "Data", configSecretMap.Data, "err", err)
+		impl.logger.Errorw("error occurred while extracting config map secret dto", "configSecretName", configSecretMap.Name, "err", err)
 		return parallelStep, argoTemplate, err
 	}
-
-	var cmSecretJson string
-	configMapSecretDto := types.ConfigMapSecretDto{Name: configSecretMap.Name, Data: configDataMap, OwnerRef: ArgoWorkflowOwnerRef}
-	if isSecret {
-		cmSecretJson, err = GetSecretJson(configMapSecretDto)
-	} else {
-		cmSecretJson, err = GetConfigMapJson(configMapSecretDto)
-	}
+	cmSecretJson, err := impl.getConfigMapOrSecretJson(configMapSecretDto, isSecret)
 	if err != nil {
 		impl.logger.Errorw("error occurred while extracting cm/secret json", "configSecretName", configSecretMap.Name, "err", err)
 		return parallelStep, argoTemplate, err
@@ -380,24 +358,24 @@ func (impl *ArgoWorkflowExecutorImpl) appendCMCSToStepAndTemplate(isSecret bool,
 	return parallelStep, argoTemplate, nil
 }
 
-func (impl *ArgoWorkflowExecutorImpl) createStepAndTemplate(isSecret bool, cmSecretIndex int, cmSecretJson string) (v1alpha1.ParallelSteps, v1alpha1.Template) {
+func (impl *ArgoWorkflowExecutorImpl) createStepAndTemplate(isSecret bool, cmSecretIndex int, cmSecretJson string) (argoWfApiV1.ParallelSteps, argoWfApiV1.Template) {
 	stepName := fmt.Sprintf(STEP_NAME_REGEX, "cm", cmSecretIndex)
 	templateName := fmt.Sprintf(TEMPLATE_NAME_REGEX, "cm", cmSecretIndex)
 	if isSecret {
 		stepName = fmt.Sprintf(STEP_NAME_REGEX, "secret", cmSecretIndex)
 		templateName = fmt.Sprintf(TEMPLATE_NAME_REGEX, "secret", cmSecretIndex)
 	}
-	parallelStep := v1alpha1.ParallelSteps{
-		Steps: []v1alpha1.WorkflowStep{
+	parallelStep := argoWfApiV1.ParallelSteps{
+		Steps: []argoWfApiV1.WorkflowStep{
 			{
 				Name:     stepName,
 				Template: templateName,
 			},
 		},
 	}
-	argoTemplate := v1alpha1.Template{
+	argoTemplate := argoWfApiV1.Template{
 		Name: templateName,
-		Resource: &v1alpha1.ResourceTemplate{
+		Resource: &argoWfApiV1.ResourceTemplate{
 			Action:            RESOURCE_CREATE_ACTION,
 			SetOwnerReference: true,
 			Manifest:          string(cmSecretJson),
@@ -406,7 +384,7 @@ func (impl *ArgoWorkflowExecutorImpl) createStepAndTemplate(isSecret bool, cmSec
 	return parallelStep, argoTemplate
 }
 
-func (impl *ArgoWorkflowExecutorImpl) getClientInstance(namespace string, clusterConfig *rest.Config) (v1alpha12.WorkflowInterface, error) {
+func (impl *ArgoWorkflowExecutorImpl) getClientInstance(namespace string, clusterConfig *rest.Config) (argoWfClientV1.WorkflowInterface, error) {
 	clientSet, err := versioned.NewForConfig(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error occurred while creating client from config", "err", err)
