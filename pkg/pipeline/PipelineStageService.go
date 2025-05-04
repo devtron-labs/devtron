@@ -1985,14 +1985,14 @@ func (impl *PipelineStageServiceImpl) buildPipelineStepDataForWfRequest(step *re
 
 func (impl *PipelineStageServiceImpl) buildVariableAndConditionDataForWfRequest(stepId int) (*bean.VariableAndConditionDataForStep, error) {
 	variableAndConditionData := bean.NewVariableAndConditionDataForStep()
-	//getting all variables in the step
-	variables, err := impl.pipelineStageRepository.GetVariablesByStepId(stepId)
+	// getting all variables in the step
+	stepVariables, err := impl.pipelineStageRepository.GetVariablesByStepId(stepId)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("error in getting variables by stepId", "err", err, "stepId", stepId)
 		return variableAndConditionData, err
 	}
 	variableNameIdMap := make(map[int]string)
-	for _, variable := range variables {
+	for _, variable := range stepVariables {
 		variableNameIdMap[variable.Id] = variable.Name
 		// getting format
 		// ignoring error as it is already validated in func validatePipelineStageStepVariableForTrigger
