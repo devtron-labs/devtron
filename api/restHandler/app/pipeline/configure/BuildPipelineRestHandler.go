@@ -876,8 +876,10 @@ func (handler *PipelineConfigRestHandlerImpl) GetCiPipelineMin(w http.ResponseWr
 		if util.IsErrNoRows(err) {
 			err = &util.ApiError{Code: "404", HttpStatusCode: http.StatusNotFound, UserMessage: "no data found"}
 			common.WriteJsonResp(w, err, nil, http.StatusOK)
+			return
 		} else {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
 		}
 	}
 	common.WriteJsonResp(w, nil, ciPipelines, http.StatusOK)

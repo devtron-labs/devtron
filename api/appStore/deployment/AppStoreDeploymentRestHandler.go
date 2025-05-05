@@ -539,6 +539,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateProjectHelmApp(w http.Res
 		if err != nil {
 			handler.Logger.Errorw("error in decoding app id", "err", err)
 			common.WriteJsonResp(w, err, "error in decoding app id", http.StatusBadRequest)
+			return
 		}
 		// this rbac object checks that whether user have permission to change current project.
 		rbacObjectForCurrentProject, rbacObjectForCurrentProject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
@@ -555,6 +556,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateProjectHelmApp(w http.Res
 		if err != nil {
 			handler.Logger.Errorw("service err, InstalledAppId", "err", err, "InstalledAppId", request.InstalledAppId)
 			common.WriteJsonResp(w, fmt.Errorf("Unable to fetch installed app details"), nil, http.StatusBadRequest)
+			return
 		}
 		if installedApp.IsVirtualEnvironment {
 			rbacObjectForCurrentProject, _ := handler.enforcerUtilHelm.GetAppRBACNameByInstalledAppId(request.InstalledAppId)
@@ -580,8 +582,10 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateProjectHelmApp(w http.Res
 	if err != nil {
 		handler.Logger.Errorw("error in updating project for helm apps", "err", err)
 		common.WriteJsonResp(w, err, "error in updating project", http.StatusBadRequest)
+		return
 	} else {
 		handler.Logger.Errorw("Helm App project update")
 		common.WriteJsonResp(w, nil, "Project Updated", http.StatusOK)
+		return
 	}
 }
