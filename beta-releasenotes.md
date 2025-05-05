@@ -6,6 +6,7 @@
 - feat: mount file type variable in ci-runner through cm (#6546)
 ## Documentation
 ## Others
+- sync: Main sync develop (#6548)
 - misc: Approval bypass v2 oss (#6510)
 - chore: pipeline timeline alter sql (#6541)
 - sync: Main sync develop (#6542)
