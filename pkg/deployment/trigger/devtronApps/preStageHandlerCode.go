@@ -23,7 +23,7 @@ import (
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	commonBean "github.com/devtron-labs/common-lib/workflow"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
+	apiBean "github.com/devtron-labs/devtron/api/bean"
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
 	constants2 "github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -62,7 +62,7 @@ import (
 )
 
 func (impl *HandlerServiceImpl) TriggerPreStage(request bean.TriggerRequest) (*bean6.ManifestPushTemplate, error) {
-	request.WorkflowType = bean2.CD_WORKFLOW_TYPE_PRE
+	request.WorkflowType = apiBean.CD_WORKFLOW_TYPE_PRE
 	// setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
 	triggeredBy := request.TriggeredBy
@@ -219,7 +219,7 @@ func (impl *HandlerServiceImpl) TriggerAutoCDOnPreStageSuccess(triggerContext be
 func (impl *HandlerServiceImpl) checkDeploymentTriggeredAlready(wfId int) bool {
 	deploymentTriggeredAlready := false
 	// TODO : need to check this logic for status check in case of multiple deployments requirement for same workflow
-	workflowRunner, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(context.Background(), wfId, bean2.CD_WORKFLOW_TYPE_DEPLOY)
+	workflowRunner, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(context.Background(), wfId, apiBean.CD_WORKFLOW_TYPE_DEPLOY)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching workflow runner", "wfId", wfId, "err", err)
 		return deploymentTriggeredAlready
@@ -236,7 +236,7 @@ func (impl *HandlerServiceImpl) createStartingWfAndRunner(request bean.TriggerRe
 	//in case of pre stage manual trigger auth is already applied and for auto triggers there is no need for auth check here
 	cdWf := request.CdWf
 	var err error
-	if cdWf == nil && request.WorkflowType == bean2.CD_WORKFLOW_TYPE_PRE {
+	if cdWf == nil && request.WorkflowType == apiBean.CD_WORKFLOW_TYPE_PRE {
 		cdWf = &pipelineConfig.CdWorkflow{
 			CiArtifactId: artifact.Id,
 			PipelineId:   pipeline.Id,
@@ -279,9 +279,9 @@ func (impl *HandlerServiceImpl) getEnvAndNsIfRunStageInEnv(ctx context.Context, 
 	var err error
 	namespace := impl.config.GetDefaultNamespace()
 	runStageInEnv := false
-	if workflowStage == bean2.CD_WORKFLOW_TYPE_PRE {
+	if workflowStage == apiBean.CD_WORKFLOW_TYPE_PRE {
 		runStageInEnv = pipeline.RunPreStageInEnv
-	} else if workflowStage == bean2.CD_WORKFLOW_TYPE_POST {
+	} else if workflowStage == apiBean.CD_WORKFLOW_TYPE_POST {
 		runStageInEnv = pipeline.RunPostStageInEnv
 	}
 	_, span := otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
@@ -588,7 +588,7 @@ func (impl *HandlerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 	}
 	if pipelineStage != nil {
 		var variableSnapshot map[string]string
-		if runner.WorkflowType == bean2.CD_WORKFLOW_TYPE_PRE {
+		if runner.WorkflowType == apiBean.CD_WORKFLOW_TYPE_PRE {
 			// TODO: use const from pipeline.WorkflowService:95
 			request := pipelineConfigBean.NewBuildPrePostStepDataReq(cdPipeline.Id, "preCD", scope)
 			prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(request)
@@ -599,7 +599,7 @@ func (impl *HandlerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 			preDeploySteps = prePostAndRefPluginResponse.PreStageSteps
 			refPluginsData = prePostAndRefPluginResponse.RefPluginData
 			variableSnapshot = prePostAndRefPluginResponse.VariableSnapshot
-		} else if runner.WorkflowType == bean2.CD_WORKFLOW_TYPE_POST {
+		} else if runner.WorkflowType == apiBean.CD_WORKFLOW_TYPE_POST {
 			// TODO: use const from pipeline.WorkflowService:96
 			request := pipelineConfigBean.NewBuildPrePostStepDataReq(cdPipeline.Id, "postCD", scope)
 			prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(request)
@@ -630,9 +630,9 @@ func (impl *HandlerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 		}
 	} else {
 		//in this case no plugin script is not present for this cdPipeline hence going with attaching preStage or postStage config
-		if runner.WorkflowType == bean2.CD_WORKFLOW_TYPE_PRE {
+		if runner.WorkflowType == apiBean.CD_WORKFLOW_TYPE_PRE {
 			stageYaml = cdPipeline.PreStageConfig
-		} else if runner.WorkflowType == bean2.CD_WORKFLOW_TYPE_POST {
+		} else if runner.WorkflowType == apiBean.CD_WORKFLOW_TYPE_POST {
 			stageYaml = cdPipeline.PostStageConfig
 			deployStageWfr, deployStageTriggeredByUserEmail, pipelineReleaseCounter, err = impl.getDeployStageDetails(cdPipeline.Id)
 			if err != nil {
@@ -813,11 +813,11 @@ func (impl *HandlerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 	// For Pre-CD / Post-CD workflow, cache is not uploaded; hence no need to set cache bucket
 	cdWorkflowConfigCdCacheBucket := ""
 
-	if runner.WorkflowType == bean2.CD_WORKFLOW_TYPE_PRE {
+	if runner.WorkflowType == apiBean.CD_WORKFLOW_TYPE_PRE {
 		// populate input variables of steps with extra env variables
 		setExtraEnvVariableInDeployStep(preDeploySteps, runtimeParams.GetSystemVariables(), webhookAndCiData)
 		cdStageWorkflowRequest.PrePostDeploySteps = preDeploySteps
-	} else if runner.WorkflowType == bean2.CD_WORKFLOW_TYPE_POST {
+	} else if runner.WorkflowType == apiBean.CD_WORKFLOW_TYPE_POST {
 		// populate input variables of steps with extra env variables
 		setExtraEnvVariableInDeployStep(postDeploySteps, runtimeParams.GetSystemVariables(), webhookAndCiData)
 		cdStageWorkflowRequest.PrePostDeploySteps = postDeploySteps
@@ -1007,7 +1007,7 @@ func setExtraEnvVariableInDeployStep(deploySteps []*pipelineConfigBean.StepObjec
 func (impl *HandlerServiceImpl) getDeployStageDetails(pipelineId int) (pipelineConfig.CdWorkflowRunner, string, int, error) {
 	deployStageWfr := pipelineConfig.CdWorkflowRunner{}
 	//getting deployment pipeline latest wfr by pipelineId
-	deployStageWfr, err := impl.cdWorkflowRepository.FindLatestByPipelineIdAndRunnerType(pipelineId, bean2.CD_WORKFLOW_TYPE_DEPLOY)
+	deployStageWfr, err := impl.cdWorkflowRepository.FindLatestByPipelineIdAndRunnerType(pipelineId, apiBean.CD_WORKFLOW_TYPE_DEPLOY)
 	if err != nil {
 		impl.logger.Errorw("error in getting latest status of deploy type wfr by pipelineId", "err", err, "pipelineId", pipelineId)
 		return deployStageWfr, "", 0, err
@@ -1046,14 +1046,14 @@ func ReplaceImageTagWithDigest(image, digest string) string {
 }
 
 func (impl *HandlerServiceImpl) sendPreStageNotification(ctx context.Context, cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline) error {
-	wfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(ctx, cdWf.Id, bean2.CD_WORKFLOW_TYPE_PRE)
+	wfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(ctx, cdWf.Id, apiBean.CD_WORKFLOW_TYPE_PRE)
 	if err != nil {
 		return err
 	}
 
 	event, _ := impl.eventFactory.Build(util2.Trigger, &pipeline.Id, pipeline.AppId, &pipeline.EnvironmentId, util2.CD)
 	impl.logger.Debugw("event PreStageTrigger", "event", event)
-	event = impl.eventFactory.BuildExtraCDData(event, &wfr, 0, bean2.CD_WORKFLOW_TYPE_PRE)
+	event = impl.eventFactory.BuildExtraCDData(event, &wfr, 0, apiBean.CD_WORKFLOW_TYPE_PRE)
 	_, span := otel.Tracer("orchestrator").Start(ctx, "eventClient.WriteNotificationEvent")
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	span.End()
