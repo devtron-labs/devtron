@@ -1,4 +1,4 @@
-name: Devtron-auto-labeler
+name: Devtron-auto-labeller
 
 on:
   issue_comment:
@@ -25,11 +25,11 @@ jobs:
           ISSUE_NUMBER=$(jq -r '.issue.number // .pull_request.number' "$GITHUB_EVENT_PATH")
           COMMENT_AUTHOR=$(jq -r '.comment.user.login' "$GITHUB_EVENT_PATH")
 
-          ORG_NAME="devtron-labs"
+          ORG_NAME="satyam-tests"
 
           # Check if the person is authorized to add labels
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token $GH_TOKEN" "https://api.github.com/orgs/$ORG_NAME/members/$COMMENT_AUTHOR")
-          if [[ "$RESPONSE" -ne 204 ]]; then
+          curl -s -H "Authorization: token $GH_TOKEN" "https://api.github.com/orgs/$ORG_NAME/members/$COMMENT_AUTHOR" > /dev/null
+          if [[ $? -ne 0 ]]; then
             gh issue comment "$ISSUE_NUMBER" --body "Hi @$COMMENT_AUTHOR, you must be a member of the organization '$ORG_NAME' to add or remove labels."
             echo "User '$COMMENT_AUTHOR' is not a member of the organization '$ORG_NAME'. Exiting."
             exit 1
@@ -53,7 +53,7 @@ jobs:
             fi
           fi
 
-          # Removes Label Logic
+          # Remove Label Logic
           if [[ "$COMMENT_BODY" =~ ^/remove[[:space:]](.+)$ ]]; then
             LABEL_NAME_TO_REMOVE=$(echo "$COMMENT_BODY" | sed -n 's|/remove ||p')
 
