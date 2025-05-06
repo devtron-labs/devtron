@@ -19,6 +19,8 @@ type EnvConfigOverrideService interface {
 	FindChartForAppByAppIdAndEnvId(appId, targetEnvironmentId int) (*bean.EnvConfigOverride, error)
 	GetByAppIdEnvIdAndChartRefId(appId, envId int, chartRefId int) (*bean.EnvConfigOverride, error)
 	GetAllOverridesForApp(appId int) ([]*bean.EnvConfigOverride, error)
+
+	EnvConfigOverrideServiceEnt
 }
 
 type EnvConfigOverrideReadServiceImpl struct {
