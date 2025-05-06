@@ -36,6 +36,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
 	statusBean "github.com/devtron-labs/devtron/pkg/app/status/bean"
+	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean9 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
@@ -152,7 +153,7 @@ func (impl *HandlerServiceImpl) validateDeploymentTriggerRequest(ctx context.Con
 }
 
 // TODO: write a wrapper to handle auto and manual trigger
-func (impl *HandlerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerContext, overrideRequest *bean3.ValuesOverrideRequest) (int, string, *bean4.ManifestPushTemplate, error) {
+func (impl *HandlerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerContext, overrideRequest *bean3.ValuesOverrideRequest, userMetadata *userBean.UserMetadata) (int, string, *bean4.ManifestPushTemplate, error) {
 
 	triggerContext.TriggerType = bean.Manual
 	// setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
