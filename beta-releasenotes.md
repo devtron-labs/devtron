@@ -1,4 +1,5 @@
 ## Bugs
+- fix: stack manager page break on server api giving internal server error  (#6556)
 - fix: rest handler missing return statements (#6545)
 - fix: chart name fixed in chart reference table (#6543)
 - fix: error pg.ErrNoRow on base deployment template update (#6533)
