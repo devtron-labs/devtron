@@ -6,6 +6,7 @@
 - feat: mount file type variable in ci-runner through cm (#6546)
 ## Documentation
 ## Others
+- misc: Updated Chart.yaml (#6555)
 - chore: update auto-label.yml (#6372)
 - sync: Main sync develop (#6548)
 - misc: Approval bypass v2 oss (#6510)
