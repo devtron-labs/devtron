@@ -52,7 +52,8 @@ Navigate to the `github.com` directory on your local machine:
 - `cd go/src/github.com`
 - `git clone http://github.com/devtron-labs/devtron`
 - Configure [Environment Variables](https://github.com/devtron-labs/devtron/blob/main/scripts/dev-conf/envfile.env)
-- Run the server:
+- Install [wire]{https://github.com/google/wire} (Required)
+- Run the server: 
 
     ```bash
     make run
