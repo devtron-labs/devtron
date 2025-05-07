@@ -32,12 +32,19 @@ This document provides instructions for setting up a development environment to 
 
 3. Download the kubeconfig file to access your cluster. It’s a good idea to set it up locally and configure the context to point to the specific cluster you’re working with.
 
-4. Forward the port of PostgreSQL service and Devtron NATS service:
-
-    ```bash
-    kubectl -n devtroncd port-forward svc/devtron-nats 4222:4222 
-    kubectl -n devtroncd port-forward svc/postgresql-postgresql 5432:5432
-    ```
+4. Forward the necessary service ports (e.g., PostgreSQL, NATS) for local access
+    
+   ```
+       #Required
+       kubectl -n devtroncd port-forward svc/devtron-nats 4222:4222  # Allows event driven communictation between microservices.   
+       kubectl -n devtroncd port-forward svc/postgresql-postgresql 5432:5432 #Allows your local code to connect to the database running in the cluster.
+   
+       #Optional
+       kubectl -n devtroncd port-forward svc/argocd-server 8000:80 #Required to interact with ArgoCD's API (GitOps)
+       kubectl -n devtroncd port-forward svc/argocd-dex-server 5556:5556 #Required for SSO Logins.
+       kubectl -n devtroncd port-forward svc/kubelink-service 50051:50051 #Required for no-gitops (helm) and fetches the status of resources.
+       kubectl -n devtroncd port-forward svc/git-sensor-service 7070:80 # Monitors Git repositories for changes and triggers appropriate workflows in Devtron.
+   ```
 
 5. Use this command to extract the password of PostgreSQL (Required to put in ENV):
 
@@ -52,7 +59,7 @@ Navigate to the `github.com` directory on your local machine:
 - `cd go/src/github.com`
 - `git clone http://github.com/devtron-labs/devtron`
 - Configure [Environment Variables](https://github.com/devtron-labs/devtron/blob/main/scripts/dev-conf/envfile.env)
-- Install [wire]{https://github.com/google/wire} (Required)
+- Install [wire](ttps://github.com/google/wire) (Required)
 - Run the server: 
 
     ```bash
@@ -61,7 +68,20 @@ Navigate to the `github.com` directory on your local machine:
 
 This will start your server on `localhost:8080`.
 
-### Need help?
+## Cleanup
+
+   ```
+   1. Uninstall Devtron and delete the 'devtroncd' namespace
+         helm uninstall devtron -n devtroncd
+         kubectl delete namespace devtroncd 
+         
+   2. Remove the local Devtron codebase
+         rm -rf ~/go/src/github.com/devtron-labs/devtron
+   ```
+## Contributing
+Please check [contributing guidelines](https://github.com/devtron-labs/devtron/blob/main/CONTRIBUTING.md)
+
+## Need help?
 
 If you’re looking for the fastest response to your questions, we encourage you to visit our Discord community. Specifically, you can post your inquiries in the [#setup-and-installation](https://discord.com/channels/769482988882493450/801441246849007667) channel, where our team and community members are actively available to assist you on discord channel.
 
