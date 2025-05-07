@@ -375,7 +375,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeHibernateBulkAction() error {
 			ReferenceId:   pointer.String(msg.MsgId),
 		}
 		ctx := context.Background()
-		_, err = impl.deployedAppService.StopStartApp(ctx, stopAppRequest)
+		_, err = impl.deployedAppService.StopStartApp(ctx, stopAppRequest, deploymentGroupAppWithEnv.UserMetadata)
 		if err != nil {
 			impl.logger.Errorw("error in stop app request", "err", err)
 			return

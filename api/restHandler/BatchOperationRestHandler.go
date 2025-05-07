@@ -94,6 +94,7 @@ func (handler BatchOperationRestHandlerImpl) Operate(w http.ResponseWriter, r *h
 
 		if workflow.Destination.App == nil || len(*workflow.Destination.App) == 0 {
 			common.WriteJsonResp(w, errors.New("app name cannot be empty"), nil, http.StatusBadRequest)
+			return
 		}
 		rbacString := handler.enforcerUtil.GetProjectAdminRBACNameBYAppName(*workflow.Destination.App)
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, rbacString); !ok {

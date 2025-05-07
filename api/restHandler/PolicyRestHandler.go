@@ -218,6 +218,7 @@ func (impl PolicyRestHandlerImpl) GetPolicy(w http.ResponseWriter, r *http.Reque
 		if err != nil {
 			impl.logger.Errorw("request err, GetPolicy", "err", err, "id", id)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
 		}
 		req.Id = ids
 	}

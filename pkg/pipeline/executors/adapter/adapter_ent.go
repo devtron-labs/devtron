@@ -14,15 +14,18 @@
  * limitations under the License.
  */
 
-package bean
+package adapter
 
 import (
 	"github.com/devtron-labs/devtron/api/bean"
-	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
+	k8sApiV1 "k8s.io/api/core/v1"
 )
 
-type BulkCDDeployEvent struct {
-	ValuesOverrideRequest *bean.ValuesOverrideRequest `json:"valuesOverrideRequest"` //TODO migrate this
-	UserId                int32                       `json:"userId"`
-	UserMetadata          *bean2.UserMetadata         `json:"userMetadata"`
+func updateBinaryDataInConfigMapSecretDto(configSecretMap bean.ConfigSecretMap, configMapSecretDto types.ConfigMapSecretDto, isSecret bool) types.ConfigMapSecretDto {
+	return configMapSecretDto
+}
+
+func getConfigMapBodyEnt(configMapSecretDto types.ConfigMapSecretDto, configMap k8sApiV1.ConfigMap) k8sApiV1.ConfigMap {
+	return configMap
 }

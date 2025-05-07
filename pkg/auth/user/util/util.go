@@ -16,7 +16,12 @@
 
 package util
 
-import "strings"
+import (
+	"context"
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	util2 "github.com/devtron-labs/devtron/util"
+	"strings"
+)
 
 const (
 	ApiTokenPrefix = "API-TOKEN:"
@@ -38,4 +43,16 @@ func CheckIfAdminOrApiToken(email string) bool {
 
 func CheckIfApiToken(email string) bool {
 	return strings.HasPrefix(email, ApiTokenPrefix)
+}
+
+func GetUserMetadata(ctx context.Context, userId int32, isSuperAdmin bool) *bean.UserMetadata {
+	// Get user email from context
+	userEmail := util2.GetEmailFromContext(ctx)
+
+	// Create and return the UserMetadata object
+	return &bean.UserMetadata{
+		UserEmailId:      userEmail,
+		IsUserSuperAdmin: isSuperAdmin,
+		UserId:           userId,
+	}
 }

@@ -729,6 +729,7 @@ func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.Re
 		if err != nil {
 			handler.logger.Errorw(bean2.AppIdDecodingError, "err", err, "appIdentifier", request.AppIdentifier)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
 		}
 		valid, err := handler.argoApplicationReadService.ValidateArgoResourceRequest(r.Context(), appIdentifier, request.K8sRequest)
 		if err != nil || !valid {
