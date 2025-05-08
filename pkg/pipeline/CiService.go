@@ -79,6 +79,7 @@ func (impl *CiServiceImpl) WriteCITriggerEvent(trigger types.Trigger, pipeline *
 	event.UserId = int(trigger.TriggeredBy)
 	event.CiWorkflowRunnerId = workflowRequest.WorkflowId
 	event = impl.eventFactory.BuildExtraCIData(event, material)
+
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
 		impl.Logger.Errorw("error in writing event", "err", evtErr)
