@@ -7,6 +7,7 @@
 - feat: mount file type variable in ci-runner through cm (#6546)
 ## Documentation
 ## Others
+- sync: Release candidate v0.35.0 (#6559)
 - misc: updated ucid-cm and added prehook (#6557)
 - misc: Updated Chart.yaml (#6555)
 - chore: update auto-label.yml (#6372)
