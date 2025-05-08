@@ -16,13 +16,5 @@
 
 package bean
 
-import (
-	"github.com/devtron-labs/devtron/api/bean"
-	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
-)
-
-type BulkCDDeployEvent struct {
-	ValuesOverrideRequest *bean.ValuesOverrideRequest `json:"valuesOverrideRequest"` //TODO migrate this
-	UserId                int32                       `json:"userId"`
-	UserMetadata          *bean2.UserMetadata         `json:"userMetadata"`
+type PrePostAndRefPluginStepsResponseEnt struct {
 }

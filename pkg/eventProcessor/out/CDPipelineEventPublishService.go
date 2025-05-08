@@ -20,13 +20,14 @@ import (
 	"encoding/json"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"go.uber.org/zap"
 )
 
 type CDPipelineEventPublishService interface {
 	PublishBulkTriggerTopicEvent(pipelineId, appId,
-		artifactId int, userId int32) error
+		artifactId int, userMetadata *bean3.UserMetadata) error
 
 	PublishArgoTypePipelineSyncEvent(pipelineId, installedAppVersionId int,
 		userId int32, isAppStoreApplication bool) error
@@ -46,16 +47,17 @@ func NewCDPipelineEventPublishServiceImpl(logger *zap.SugaredLogger,
 }
 
 func (impl *CDPipelineEventPublishServiceImpl) PublishBulkTriggerTopicEvent(pipelineId, appId,
-	artifactId int, userId int32) error {
+	artifactId int, userMetadata *bean3.UserMetadata) error {
 	event := &bean.BulkCDDeployEvent{
 		ValuesOverrideRequest: &bean2.ValuesOverrideRequest{
 			PipelineId:     pipelineId,
 			AppId:          appId,
 			CiArtifactId:   artifactId,
-			UserId:         userId,
+			UserId:         userMetadata.UserId,
 			CdWorkflowType: bean2.CD_WORKFLOW_TYPE_DEPLOY,
 		},
-		UserId: userId,
+		UserId:       userMetadata.UserId,
+		UserMetadata: userMetadata,
 	}
 	payload, err := json.Marshal(event)
 	if err != nil {

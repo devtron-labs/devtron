@@ -142,5 +142,6 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 	if err != nil {
 		impl.logger.Errorw("Error while handling webhook in git-sensor", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
 	}
 }

@@ -142,3 +142,9 @@ const (
 	ApplicationBasedKey MergingBaseKey = "application"
 	EnvironmentBasedKey MergingBaseKey = "environment"
 )
+
+type UserMetadata struct {
+	UserEmailId      string
+	IsUserSuperAdmin bool
+	UserId           int32
+}

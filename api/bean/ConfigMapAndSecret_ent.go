@@ -16,13 +16,13 @@
 
 package bean
 
-import (
-	"github.com/devtron-labs/devtron/api/bean"
-	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
-)
+type ConfigSecretMapEnt struct {
+}
 
-type BulkCDDeployEvent struct {
-	ValuesOverrideRequest *bean.ValuesOverrideRequest `json:"valuesOverrideRequest"` //TODO migrate this
-	UserId                int32                       `json:"userId"`
-	UserMetadata          *bean2.UserMetadata         `json:"userMetadata"`
+func (configSecret *ConfigSecretMap) AddDataToKey(keyName string, data []byte) (*ConfigSecretMap, error) {
+	return configSecret, nil
+}
+
+func (configSecret *ConfigSecretMap) GetBinaryDataMap() map[string][]byte {
+	return nil
 }

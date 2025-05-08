@@ -16,13 +16,18 @@
 
 package bean
 
-import (
-	"github.com/devtron-labs/devtron/api/bean"
-	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
-)
+import apiBean "github.com/devtron-labs/devtron/api/bean"
 
-type BulkCDDeployEvent struct {
-	ValuesOverrideRequest *bean.ValuesOverrideRequest `json:"valuesOverrideRequest"` //TODO migrate this
-	UserId                int32                       `json:"userId"`
-	UserMetadata          *bean2.UserMetadata         `json:"userMetadata"`
+type StepVariableEntDto struct {
+}
+
+type VariableAndConditionDataForStepEnt struct {
+}
+
+func (v *VariableAndConditionDataForStep) GetFileReferenceConfigMap() []*apiBean.ConfigSecretMap {
+	return nil
+}
+
+func (v *VariableAndConditionDataForStep) AddFileReferenceConfigMap(configMap *apiBean.ConfigSecretMap) *VariableAndConditionDataForStep {
+	return v
 }
