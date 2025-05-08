@@ -1,7 +1,7 @@
 # Dockerfile
 
 # Base Image
-FROM python:3.8
+FROM python:3.13
 
 # set default environment variables
 ENV PYTHONUNBUFFERED 1
