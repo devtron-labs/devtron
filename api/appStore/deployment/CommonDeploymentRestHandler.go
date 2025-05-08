@@ -268,6 +268,7 @@ func (handler *CommonDeploymentRestHandlerImpl) RollbackApplication(w http.Respo
 	appOfferingMode, installedAppDto, err := handler.getAppOfferingMode(installedAppId, *request.HAppId)
 	if err != nil {
 		common.WriteJsonResp(w, err, "bad request", http.StatusBadRequest)
+		return
 	}
 	installedAppDto.UserId = userId
 	//rbac block starts from here

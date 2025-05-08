@@ -88,6 +88,9 @@ func Difference[T comparable](a, b []T) []T {
 func GetDeReferencedSlice[T any](ptrObjects []*T) []T {
 	deReferencedArray := make([]T, 0)
 	for _, item := range ptrObjects {
+		if item == nil {
+			continue
+		}
 		deReferencedArray = append(deReferencedArray, *item)
 	}
 	return deReferencedArray
