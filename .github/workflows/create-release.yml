@@ -78,6 +78,7 @@ jobs:
             touch $FILE_NAME
             echo "## Enhancements" >> beta-releasenotes.md
             echo "## Bugs" > beta-releasenotes.md
+            echo "## Others" >> beta-releasenotes.md
             git add .
             git commit -am "Updated release-notes files"
             git push -f https://${GIT_CONFIG_NAME}:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY} release-bot
@@ -88,6 +89,7 @@ jobs:
             git config --global user.name "$GIT_CONFIG_NAME"
             echo "## Enhancements" >> beta-releasenotes.md
             echo "## Bugs" > beta-releasenotes.md
+            echo "## Others" >> beta-releasenotes.md
             git add .
             git commit -am "Created release-notes files"
             git push -f https://${GIT_CONFIG_NAME}:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY} release-bot
