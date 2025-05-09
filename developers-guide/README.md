@@ -30,7 +30,7 @@ This document provides instructions for setting up a development environment to 
 
     Note: If you want to install Devtron on a Managed Kubernetes cluster, please [refer to the guide](https://docs.devtron.ai/install/demo-tutorials).
 
-3. Download the kubeconfig file to access your cluster. It’s a good idea to set it up locally and configure the context to point to the specific cluster you’re working with.
+3. [Download the kubeconfig file](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/(url)) to access your cluster. It’s a good idea to set it up locally and configure the context to point to the specific cluster you’re working with.
 
 4. Forward the necessary service ports (e.g., PostgreSQL, NATS) for local access
     
@@ -59,7 +59,7 @@ Navigate to the `github.com` directory on your local machine:
 - `cd go/src/github.com`
 - `git clone http://github.com/devtron-labs/devtron`
 - Configure [Environment Variables](https://github.com/devtron-labs/devtron/blob/main/scripts/dev-conf/envfile.env)
-- Install [wire](ttps://github.com/google/wire) (Required)
+- Install [wire](https://github.com/google/wire) (Required)
 - Run the server: 
 
     ```bash
