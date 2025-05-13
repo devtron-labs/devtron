@@ -184,7 +184,7 @@ func (impl *DevtronAppConfigServiceImpl) FindAllMatchesByAppName(appName string,
 		if appType == helper.Job {
 			name = app.DisplayName
 		}
-		appsRes = append(appsRes, &AppBean{Id: app.Id, Name: name})
+		appsRes = append(appsRes, &AppBean{Id: app.Id, Name: name, CreatedBy: app.CreatedBy, Description: app.Description})
 	}
 	return appsRes, err
 }
@@ -241,7 +241,7 @@ func (impl *DevtronAppConfigServiceImpl) FindAppsByTeamId(teamId int) ([]*AppBea
 		return nil, err
 	}
 	for _, app := range apps {
-		appsRes = append(appsRes, &AppBean{Id: app.Id, Name: app.AppName})
+		appsRes = append(appsRes, &AppBean{Id: app.Id, Name: app.AppName, CreatedBy: app.CreatedBy, Description: app.Description})
 	}
 	return appsRes, err
 }
