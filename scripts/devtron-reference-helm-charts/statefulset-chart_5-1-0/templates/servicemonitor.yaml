@@ -56,6 +56,10 @@ spec:
       metricRelabelings:
 {{toYaml .servicemonitor.metricRelabelings | indent 8 }}
       {{- end }}
+      {{- if .servicemonitor.relabelings }}
+      relabelings:
+{{ toYaml .servicemonitor.relabelings | indent 8 }}
+      {{- end }}
         {{- end }}
       {{- end }}
     {{- end }}
@@ -94,6 +98,10 @@ spec:
       {{- if .servicemonitor.metricRelabelings}}
       metricRelabelings:
 {{toYaml .servicemonitor.metricRelabelings | indent 8 }}
+      {{- end }}
+      {{- if .servicemonitor.relabelings }}
+      relabelings:
+{{ toYaml .servicemonitor.relabelings | indent 8 }}
       {{- end }}
           {{- end }}
         {{- end }}
