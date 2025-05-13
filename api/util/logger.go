@@ -28,13 +28,14 @@ import (
 )
 
 type AuditLoggerDTO struct {
-	UrlPath         string    `json:"urlPath"`
-	UserEmail       string    `json:"userEmail"`
-	UpdatedOn       time.Time `json:"updatedOn"`
-	QueryParams     string    `json:"queryParams"`
-	ApiResponseCode int       `json:"apiResponseCode"`
-	RequestPayload  []byte    `json:"requestPayload"`
-	RequestMethod   string    `json:"requestMethod"`
+	UrlPath         string        `json:"urlPath"`
+	UserEmail       string        `json:"userEmail"`
+	UpdatedOn       time.Time     `json:"updatedOn"`
+	QueryParams     string        `json:"queryParams"`
+	ApiResponseCode int           `json:"apiResponseCode"`
+	RequestPayload  []byte        `json:"requestPayload"`
+	RequestMethod   string        `json:"requestMethod"`
+	ResponseTime    time.Duration `json:"responseTime"`
 }
 
 type LoggingMiddlewareImpl struct {
@@ -72,10 +73,13 @@ func (impl LoggingMiddlewareImpl) LoggingMiddleware(next http.Handler) http.Hand
 		// Restore the request body for downstream handlers
 		r.Body = io.NopCloser(&bodyBuffer)
 
+		// Record start time for calculating response time
+		startTime := time.Now()
+
 		auditLogDto := &AuditLoggerDTO{
 			UrlPath:        r.URL.Path,
 			UserEmail:      userEmail,
-			UpdatedOn:      time.Now(),
+			UpdatedOn:      startTime,
 			QueryParams:    r.URL.Query().Encode(),
 			RequestPayload: bodyBuffer.Bytes(),
 			RequestMethod:  r.Method,
@@ -83,11 +87,13 @@ func (impl LoggingMiddlewareImpl) LoggingMiddleware(next http.Handler) http.Hand
 		// Call the next handler in the chain.
 		next.ServeHTTP(d, r)
 
+		// Calculate response time
+		auditLogDto.ResponseTime = time.Since(startTime)
 		auditLogDto.ApiResponseCode = d.Status()
 		LogRequest(auditLogDto)
 	})
 }
 
 func LogRequest(auditLogDto *AuditLoggerDTO) {
-	log.Printf("AUDIT_LOG: requestMethod: %s, urlPath: %s, queryParams: %s, updatedBy: %s, updatedOn: %s, apiResponseCode: %d, requestPayload: %s", auditLogDto.RequestMethod, auditLogDto.UrlPath, auditLogDto.QueryParams, auditLogDto.UserEmail, auditLogDto.UpdatedOn, auditLogDto.ApiResponseCode, auditLogDto.RequestPayload)
+	log.Printf("AUDIT_LOG: requestMethod: %s, urlPath: %s, queryParams: %s, updatedBy: %s, updatedOn: %s, apiResponseCode: %d, responseTime: %s, requestPayload: %s", auditLogDto.RequestMethod, auditLogDto.UrlPath, auditLogDto.QueryParams, auditLogDto.UserEmail, auditLogDto.UpdatedOn, auditLogDto.ApiResponseCode, auditLogDto.ResponseTime, auditLogDto.RequestPayload)
 }
