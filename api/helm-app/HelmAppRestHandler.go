@@ -191,6 +191,7 @@ func (handler *HelmAppRestHandlerImpl) Hibernate(w http.ResponseWriter, r *http.
 		appType, err = strconv.Atoi(appTypeString)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
 		}
 	}
 
@@ -282,6 +283,7 @@ func (handler *HelmAppRestHandlerImpl) UnHibernate(w http.ResponseWriter, r *htt
 		appType, err = strconv.Atoi(appTypeString)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
 		}
 	}
 	token := r.Header.Get("token")

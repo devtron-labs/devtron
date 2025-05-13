@@ -38,6 +38,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
+	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
 	pipeline2 "github.com/devtron-labs/devtron/pkg/build/pipeline"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -94,7 +95,7 @@ type HandlerService interface {
 
 	TriggerStageForBulk(triggerRequest bean.TriggerRequest) error
 
-	ManualCdTrigger(triggerContext bean.TriggerContext, overrideRequest *bean3.ValuesOverrideRequest) (int, string, *bean4.ManifestPushTemplate, error)
+	ManualCdTrigger(triggerContext bean.TriggerContext, overrideRequest *bean3.ValuesOverrideRequest, userMetadata *userBean.UserMetadata) (int, string, *bean4.ManifestPushTemplate, error)
 	TriggerAutomaticDeployment(request bean.TriggerRequest) error
 
 	TriggerRelease(ctx context.Context, overrideRequest *bean3.ValuesOverrideRequest, envDeploymentConfig *bean9.DeploymentConfig, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifestPushTemplate *bean4.ManifestPushTemplate, err error)

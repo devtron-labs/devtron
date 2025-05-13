@@ -124,6 +124,7 @@ func (impl *ReleaseMetricsRestHandlerImpl) ResetDataForAllAppEnvironment(w http.
 	if err != nil {
 		impl.logger.Errorw("service err, ResetDataForAllAppEnvironment", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
 	}
 	for _, pipeline := range pipelines {
 		appRbacObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
