@@ -572,6 +572,7 @@ func BuildJobListingResponse(jobContainers []*AppView.JobListingContainer, JobsL
 			val.JobName = jobContainer.JobName
 			val.JobActualName = jobContainer.JobActualName
 			val.ProjectId = jobContainer.ProjectId
+			val.Description = AppView.GenericNoteResponseBean{Description: jobContainer.Description}
 		}
 
 		if len(val.JobCiPipelines) == 0 {
@@ -595,6 +596,10 @@ func BuildJobListingResponse(jobContainers []*AppView.JobListingContainer, JobsL
 
 			val.JobCiPipelines = append(val.JobCiPipelines, ciPipelineObj)
 		}
+
+		if len(jobContainer.Description) >= 0 {
+		}
+
 		jobContainersMapping[jobContainer.JobId] = val
 
 	}
