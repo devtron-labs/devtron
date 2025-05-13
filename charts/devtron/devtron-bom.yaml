@@ -10,7 +10,7 @@ global:
   containerRegistry: "quay.io/devtron"
 extraManifests: []
 installer:
-  release: "v1.5.0"
+  release: "v1.5.1"
   registry: ""
   image: "inception"
   tag: "473deaa4-185-21582"
@@ -40,8 +40,8 @@ components:
     healthPort: 8080
   devtron:
     registry: ""
-    image: "hyperion:e2daf69a-280-32104"
-    cicdImage: "devtron:e2daf69a-434-32096"
+    image: "hyperion:e4fc95a9-280-32767"
+    cicdImage: "devtron:e4fc95a9-434-32763"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     podSecurityContext:

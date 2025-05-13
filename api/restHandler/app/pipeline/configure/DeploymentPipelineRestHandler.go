@@ -1418,11 +1418,8 @@ func (handler *PipelineConfigRestHandlerImpl) GetArtifactsForRollback(w http.Res
 	// rbac for edit tags access
 	var ciArtifactResponse bean.CiArtifactResponse
 	triggerAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object)
-	if handler.pipelineRestHandlerEnvConfig.UseArtifactListApiV2 {
-		ciArtifactResponse, err = handler.pipelineBuilder.FetchArtifactForRollbackV2(cdPipelineId, app.Id, offset, limit, searchString, app, deploymentPipeline)
-	} else {
-		ciArtifactResponse, err = handler.pipelineBuilder.FetchArtifactForRollback(cdPipelineId, app.Id, offset, limit, searchString)
-	}
+
+	ciArtifactResponse, err = handler.pipelineBuilder.FetchArtifactForRollbackV2(cdPipelineId, app.Id, offset, limit, searchString, app, deploymentPipeline)
 
 	if err != nil {
 		handler.Logger.Errorw("service err, GetArtifactsForRollback", "err", err, "cdPipelineId", cdPipelineId)
