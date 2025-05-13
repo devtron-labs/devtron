@@ -1,4 +1,5 @@
 ## Enhancements
+- feat: added support for relabelings in servicemonitor (#6562)
 ## Bugs
 ## Others
 - sync: Main sync develop (#6565)
