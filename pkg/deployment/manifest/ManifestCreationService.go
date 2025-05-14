@@ -379,9 +379,6 @@ func (impl *ManifestCreationServiceImpl) GetEnvOverrideForSpecificConfigTrigger(
 	}
 	templateName := deploymentTemplateHistory.TemplateName
 	templateVersion := deploymentTemplateHistory.TemplateVersion
-	if templateName == "Rollout Deployment" {
-		templateName = ""
-	}
 	//getting chart_ref by id
 	_, span = otel.Tracer("orchestrator").Start(ctx, "chartRefRepository.FindByVersionAndName")
 	chartRefDto, err := impl.chartRefService.FindByVersionAndName(templateVersion, templateName)
