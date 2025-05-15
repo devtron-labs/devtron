@@ -1,3 +1,5 @@
+## v1.6.0
+
 ## Enhancements
 - feat: added support for relabelings in servicemonitor (#6562)
 ## Bugs
@@ -16,3 +18,4 @@
 - misc: Approval bypass v2 oss (#6510)
 - chore: pipeline timeline alter sql (#6541)
 - sync: vendor update (#6540)
+
