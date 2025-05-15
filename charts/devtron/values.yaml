@@ -261,7 +261,7 @@ components:
     registry: ""
     image: chart-sync:c49b4aa5-836-32103
     schedule: "0 19 * * *"
-    extraConfigs: 
+    extraConfigs:
       PG_ADDR: postgresql-postgresql.devtroncd
     podSecurityContext:
       fsGroup: 1001
@@ -433,7 +433,7 @@ security:
 notifier:
   enabled: false
   imagePullPolicy: IfNotPresent
-  image: "notifier:56798239-372-32072"
+  image: "notifier:99e2f3cd-372-32893"
   configs:
     CD_ENVIRONMENT: PROD
     DB: orchestrator
