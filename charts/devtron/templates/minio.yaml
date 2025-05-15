@@ -126,6 +126,7 @@ data:
     createBucket devtron-ci-log none false
     createBucket devtron-ci-cache none false
     {{- if eq ($.Values.minio.retention | int) 0 }}
+    echo "No Lifecycle Policy Specified"
     {{- else }}
     ${MC} ilm add myminio/devtron-ci-cache --expiry-days {{ $.Values.minio.retention }}
     ${MC} ilm ls myminio/devtron-ci-cache
