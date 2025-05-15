@@ -137,4 +137,5 @@ spec:
     app: kubelink
   sessionAffinity: None
   type: ClusterIP
+  clusterIP: None
 {{- end }}

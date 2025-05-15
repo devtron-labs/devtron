@@ -449,6 +449,7 @@ notifier:
 # Set enable to true if you want to use minio for storing cache and logs
 minio:
   enabled: false
+  retention: 30
   replicaCount: 1
   image: "minio:RELEASE.2021-02-14T04-01-33Z"
   imagePullPolicy: IfNotPresent
