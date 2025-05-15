@@ -92,18 +92,24 @@ func (impl *PipelineStatusTimelineResourcesServiceImpl) SaveOrUpdatePipelineTime
 	if application != nil && application.Status.OperationState != nil && application.Status.OperationState.SyncResult != nil {
 		for _, resource := range application.Status.OperationState.SyncResult.Resources {
 			if resource != nil {
+				resourceStatus := string(resource.HookPhase)
+				if len(resourceStatus) == 0 {
+					resourceStatus = string(resource.Status)
+				}
+				//if resource is already present in the timelineResources, then update it
 				if index, ok := oldTimelineResourceMap[resource.Name]; ok {
-					timelineResources[index].ResourceStatus = string(resource.HookPhase)
+					timelineResources[index].ResourceStatus = resourceStatus
 					timelineResources[index].StatusMessage = resource.Message
 					timelineResources[index].UpdatedBy = userId
 					timelineResources[index].UpdatedOn = time.Now()
 					timelineResourcesToBeUpdated = append(timelineResourcesToBeUpdated, timelineResources[index])
 				} else {
+					//if resource is not present in the timelineResources, then create a new one
 					newTimelineResource := &pipelineConfig.PipelineStatusTimelineResources{
 						ResourceName:   resource.Name,
 						ResourceKind:   resource.Kind,
 						ResourceGroup:  resource.Group,
-						ResourceStatus: string(resource.HookPhase),
+						ResourceStatus: resourceStatus,
 						StatusMessage:  resource.Message,
 						AuditLog: sql.AuditLog{
 							CreatedBy: userId,

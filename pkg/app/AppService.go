@@ -74,14 +74,14 @@ import (
 type AppServiceConfig struct {
 	CdPipelineStatusCronTime                   string `env:"CD_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *" description:"Cron time for CD pipeline status"`
 	CdHelmPipelineStatusCronTime               string `env:"CD_HELM_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *" description:"Cron time to check the pipeline status "`
-	CdPipelineStatusTimeoutDuration            string `env:"CD_PIPELINE_STATUS_TIMEOUT_DURATION" envDefault:"20" description:"Timeout for CD pipeline to get healthy" `              // in minutes
-	PipelineDegradedTime                       string `env:"PIPELINE_DEGRADED_TIME" envDefault:"10" description:"Time to mark a pipeline degraded if not healthy in defined time"`                                // in minutes
-	GetPipelineDeployedWithinHours             int    `env:"DEPLOY_STATUS_CRON_GET_PIPELINE_DEPLOYED_WITHIN_HOURS" envDefault:"12" description:"This flag is used to fetch the deployment status of the application. It retrieves the status of deployments that occurred between 12 hours and 10 minutes prior to the current time. It fetches non-terminal statuses."` // in hours
-	HelmPipelineStatusCheckEligibleTime        string `env:"HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME" envDefault:"120" description:"eligible time for checking helm app status periodically and update in db, value is in seconds., default is 120, if wfr is updated within configured time i.e. HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME then do not include for this cron cycle."`             // in seconds
+	CdPipelineStatusTimeoutDuration            string `env:"CD_PIPELINE_STATUS_TIMEOUT_DURATION" envDefault:"20" description:"Timeout for CD pipeline to get healthy" `                                                                                                                                                                                                               // in minutes
+	PipelineDegradedTime                       string `env:"PIPELINE_DEGRADED_TIME" envDefault:"10" description:"Time to mark a pipeline degraded if not healthy in defined time"`                                                                                                                                                                                                    // in minutes
+	GetPipelineDeployedWithinHours             int    `env:"DEPLOY_STATUS_CRON_GET_PIPELINE_DEPLOYED_WITHIN_HOURS" envDefault:"12" description:"This flag is used to fetch the deployment status of the application. It retrieves the status of deployments that occurred between 12 hours and 10 minutes prior to the current time. It fetches non-terminal statuses."`              // in hours
+	HelmPipelineStatusCheckEligibleTime        string `env:"HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME" envDefault:"120" description:"eligible time for checking helm app status periodically and update in db, value is in seconds., default is 120, if wfr is updated within configured time i.e. HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME then do not include for this cron cycle."` // in seconds
 	ExposeCDMetrics                            bool   `env:"EXPOSE_CD_METRICS" envDefault:"false"`
-	DevtronChartHelmInstallRequestTimeout      int    `env:"DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT" envDefault:"6" description:"Context timeout for no gitops concurrent async deployments"`         // in minutes
-	DevtronChartArgoCdInstallRequestTimeout    int    `env:"DEVTRON_CHART_ARGO_CD_INSTALL_REQUEST_TIMEOUT" envDefault:"1" description:"Context timeout for gitops concurrent async deployments"` // in minutes
-	ArgoCdManualSyncCronPipelineDeployedBefore int    `env:"ARGO_APP_MANUAL_SYNC_TIME" envDefault:"3" description:"retry argocd app manual sync if the timeline is stuck in ARGOCD_SYNC_INITIATED state for more than this defined time (in mins)"`                     // in minutes
+	DevtronChartHelmInstallRequestTimeout      int    `env:"DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT" envDefault:"6" description:"Context timeout for no gitops concurrent async deployments"`                                                         // in minutes
+	DevtronChartArgoCdInstallRequestTimeout    int    `env:"DEVTRON_CHART_ARGO_CD_INSTALL_REQUEST_TIMEOUT" envDefault:"1" description:"Context timeout for gitops concurrent async deployments"`                                                    // in minutes
+	ArgoCdManualSyncCronPipelineDeployedBefore int    `env:"ARGO_APP_MANUAL_SYNC_TIME" envDefault:"3" description:"retry argocd app manual sync if the timeline is stuck in ARGOCD_SYNC_INITIATED state for more than this defined time (in mins)"` // in minutes
 }
 
 func GetAppServiceConfig() (*AppServiceConfig, error) {
@@ -555,10 +555,15 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 		if err != nil {
 			impl.logger.Errorw("error in save/update pipeline status fetch detail", "err", err, "cdWfrId", runnerHistoryId)
 		}
+		syncStartTime, found := helper.GetSyncStartTime(app)
+		if !found {
+			impl.logger.Warnw("sync operation not started yet", "app", app)
+			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, fmt.Errorf("sync operation not started yet")
+		}
 		// creating cd pipeline status timeline
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: runnerHistoryId,
-			StatusTime:         helper.GetSyncStartTime(app, statusTime),
+			StatusTime:         syncStartTime,
 			AuditLog: sql.AuditLog{
 				CreatedBy: 1,
 				CreatedOn: time.Now(),
@@ -591,7 +596,12 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			timeline.Id = 0
 			timeline.Status = timelineStatus.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
 			timeline.StatusDetail = app.Status.OperationState.Message
-			timeline.StatusTime = helper.GetSyncFinishTime(app, statusTime)
+			syncFinishTime, found := helper.GetSyncFinishTime(app)
+			if !found {
+				impl.logger.Warnw("sync operation not found for the deployment", "app", app)
+				return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, fmt.Errorf("sync operation not found for the deployment")
+			}
+			timeline.StatusTime = syncFinishTime
 			// checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
 			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
 			if err != nil {
@@ -610,6 +620,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 				haveNewTimeline = true
 				timeline.Status = timelineStatus.TIMELINE_STATUS_APP_HEALTHY
 				timeline.StatusDetail = "App status is Healthy."
+				timeline.StatusTime = statusTime
 			}
 			if haveNewTimeline {
 				// not checking if this status is already present or not because already checked for terminal status existence earlier
@@ -668,10 +679,15 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 		if err != nil {
 			impl.logger.Errorw("error in save/update pipeline status fetch detail", "err", err, "installedAppVersionHistoryId", runnerHistoryId)
 		}
+		syncStartTime, found := helper.GetSyncStartTime(app)
+		if !found {
+			impl.logger.Warnw("sync operation not started yet", "app", app)
+			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, fmt.Errorf("sync operation not started yet")
+		}
 		// creating installedAppVersionHistory status timeline
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			InstalledAppVersionHistoryId: runnerHistoryId,
-			StatusTime:                   helper.GetSyncStartTime(app, statusTime),
+			StatusTime:                   syncStartTime,
 			AuditLog: sql.AuditLog{
 				CreatedBy: 1,
 				CreatedOn: time.Now(),
@@ -704,7 +720,12 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			timeline.Id = 0
 			timeline.Status = timelineStatus.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
 			timeline.StatusDetail = app.Status.OperationState.Message
-			timeline.StatusTime = helper.GetSyncFinishTime(app, statusTime)
+			syncFinishTime, found := helper.GetSyncFinishTime(app)
+			if !found {
+				impl.logger.Warnw("sync operation not found for the deployment", "app", app)
+				return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, fmt.Errorf("sync operation not found for the deployment")
+			}
+			timeline.StatusTime = syncFinishTime
 			// checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
 			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
 			if err != nil {
