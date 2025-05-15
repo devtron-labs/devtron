@@ -349,7 +349,7 @@ func (impl *ChartServiceImpl) Create(templateRequest bean3.TemplateRequest, ctx 
 }
 
 func (impl *ChartServiceImpl) UpdateChartLocationForEnvironmentConfigs(appId, chartRefId int, userId int32, version string) error {
-	envOverrides, err := impl.envConfigOverrideReadService.GetAllOverridesForApp(appId)
+	envOverrides, err := impl.envConfigOverrideReadService.GetAllOverridesForApp(context.Background(), appId)
 	if err != nil {
 		impl.logger.Errorw("error in getting all overrides for app", "appId", appId, "err", err)
 		return err
