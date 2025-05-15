@@ -414,7 +414,7 @@ argo-cd:
 security:
   enabled: false
   imageScanner:
-    image: "image-scanner:c49b4aa5-141-32102"
+    image: "image-scanner:da156379-141-32912"
     healthPort: 8080
     configs:
       TRIVY_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-db
