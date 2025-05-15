@@ -455,7 +455,8 @@ func (impl *WorkflowStatusServiceImpl) CheckAndSendArgoPipelineStatusSyncEventIf
 	}
 
 	// pipelineId can be cdPipelineId or installedAppVersionId, using isAppStoreApplication flag to identify between them
-	if lastSyncTime.IsZero() || (!lastSyncTime.IsZero() && time.Since(lastSyncTime) > 5*time.Second) { // create new nats event
+	if lastSyncTime.IsZero() || (!lastSyncTime.IsZero() && time.Since(lastSyncTime) > 5*time.Second) {
+		// create new nats event
 		err = impl.cdPipelineEventPublishService.PublishArgoTypePipelineSyncEvent(pipelineId, installedAppVersionId, userId, isAppStoreApplication)
 		if err != nil {
 			impl.logger.Errorw("error, PublishArgoTypePipelineSyncEvent", "err", err)
