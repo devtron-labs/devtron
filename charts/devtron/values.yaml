@@ -246,6 +246,8 @@ components:
     kubectlImage: "kubectl:latest"
     duplicateChartImage: devtron-utils:dup-chart-repo-v1.1.0
     entMigratorImage: "devtron-utils:geni-v1.1.4"
+    configs:
+      PG_ADDR: postgresql-postgresql.devtroncd
     envVars:
       devtron:
         DB_NAME: "orchestrator"
@@ -259,7 +261,8 @@ components:
     registry: ""
     image: chart-sync:c49b4aa5-836-32103
     schedule: "0 19 * * *"
-    extraConfigs: {}
+    extraConfigs: 
+      PG_ADDR: postgresql-postgresql.devtroncd
     podSecurityContext:
       fsGroup: 1001
       runAsGroup: 1001
