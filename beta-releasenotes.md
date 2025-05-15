@@ -6,6 +6,7 @@
 - fix: chart name fixed in chart reference table (#6543)
 - fix: error pg.ErrNoRow on base deployment template update (#6533)
 ## Others
+- chore: rollout reference chart 5-1-0 (#6573)
 - chore: release target installations scripts (#6529)
 - sync: Main sync develop (#6565)
 - misc: append response time in audit log  (#6566)
