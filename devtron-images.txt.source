@@ -9,7 +9,7 @@ quay.io/devtron/bats:v1.4.1
 quay.io/devtron/busybox:1.31.1
 quay.io/devtron/chart-sync:c49b4aa5-836-32103
 quay.io/devtron/curl:7.73.0
-quay.io/devtron/dashboard:0fc42ac3-690-32105
+quay.io/devtron/dashboard:c5dfd7aa-690-32907
 quay.io/devtron/devtron-utils:dup-chart-repo-v1.1.0
 quay.io/devtron/devtron:e4fc95a9-434-32763
 quay.io/devtron/ci-runner:c49b4aa5-138-32101
