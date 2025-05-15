@@ -1,6 +1,6 @@
 quay.io/devtron/image-scanner:da156379-141-32912
 quay.io/devtron/inception:473deaa4-185-21582
-quay.io/devtron/hyperion:e4fc95a9-280-32767
+quay.io/devtron/hyperion:fe2a86bb-280-32916
 public.ecr.aws/docker/library/redis:7.0.5-alpine
 quay.io/argoproj/argocd:v2.5.2
 quay.io/argoproj/workflow-controller:v3.4.3
