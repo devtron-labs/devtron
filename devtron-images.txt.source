@@ -1,9 +1,12 @@
 public.ecr.aws/docker/library/redis:7.0.5-alpine
 quay.io/argoproj/argocd:v2.5.2
 quay.io/argoproj/workflow-controller:v3.4.3
+quay.io/devtron/alpine-k8s-utils:latest
+quay.io/devtron/alpine-netshoot:latest
 quay.io/devtron/authenticator:e414faff-393-13273
 quay.io/devtron/bats:v1.4.1
 quay.io/devtron/busybox:1.31.1
+quay.io/devtron/centos-k8s-utils:latest
 quay.io/devtron/chart-sync:c49b4aa5-836-32103
 quay.io/devtron/ci-runner:c49b4aa5-138-32101
 quay.io/devtron/clair:4.3.6
@@ -19,6 +22,7 @@ quay.io/devtron/image-scanner:c49b4aa5-141-32102
 quay.io/devtron/inception:473deaa4-185-21582
 quay.io/devtron/k8s-sidecar:1.1.0
 quay.io/devtron/k8s-utils:tutum-curl
+quay.io/devtron/k9s-k8s-utils:latest
 quay.io/devtron/kubectl:latest
 quay.io/devtron/kubelink:c49b4aa5-564-32098
 quay.io/devtron/kubewatch:c49b4aa5-419-32097
@@ -35,3 +39,4 @@ quay.io/devtron/postgres:14.9
 quay.io/devtron/postgres_exporter:v0.10.1
 quay.io/devtron/postgres_exporter:v0.4.7
 quay.io/devtron/prometheus-nats-exporter:0.9.0
+quay.io/devtron/ubuntu-k8s-utils:latest
