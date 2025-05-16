@@ -12,4 +12,3 @@
 - misc: updated ucid-cm and added prehook (#6557)
 - misc: Approval bypass v2 oss (#6510)
 - chore: pipeline timeline alter sql (#6541)
-- sync: vendor update (#6540)
