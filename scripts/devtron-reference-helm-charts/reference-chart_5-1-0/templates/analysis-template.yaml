@@ -1,0 +1,34 @@
+{{- if .Values.analysisTemplate.enabled }}
+{{- range .Values.analysisTemplate.templates }}
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  {{- if .annotations }}
+  annotations:
+{{ toYaml .annotations | indent 4 }}
+  {{- end }}
+  name: {{ .name }}
+  labels:
+    app: {{ template ".Chart.Name .name" $ }}
+    release: {{ $.Release.Name }}
+    pipelineName: {{ $.Values.pipelineName }}
+    {{- if $.Values.appLabels }}
+{{ toYaml $.Values.appLabels | indent 4 }}
+    {{- end }}
+    {{- if .labels }}
+{{ toYaml .labels | indent 4 }}
+    {{- end }}
+spec:
+  {{- if .args }}
+  args:
+{{ toYaml .args | indent 2 }}
+  {{- end }}
+  {{- if .measurementRetention }}
+  measurementRetention:
+{{ toYaml .measurementRetention | indent 2 }}
+  {{- end }}
+  metrics:
+{{ toYaml .metrics | indent 2 }}
+---
+{{- end }}
+{{- end }}
