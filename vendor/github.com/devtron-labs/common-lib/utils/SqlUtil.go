@@ -85,31 +85,31 @@ func ExecutePGQueryProcessor(cfg bean.PgQueryMonitoringConfig, event bean.PgQuer
 		} else {
 			status = SUCCESS
 		}
-		PgQueryDuration.WithLabelValues(status, cfg.ServiceName, event.FuncName, getErrorType(pgError).String()).Observe(queryDuration.Seconds())
+		PgQueryDuration.WithLabelValues(status, cfg.ServiceName, getErrorType(pgError).String()).Observe(queryDuration.Seconds())
 	}
 
 	// Log pg query if enabled
 	logThresholdQueries := cfg.LogSlowQuery && queryDuration.Milliseconds() > cfg.QueryDurationThreshold
 	logNetworkFailure := queryError && cfg.LogAllFailureQueries && isNetworkError(pgError)
 	if logNetworkFailure {
-		log.Println(fmt.Sprintf("%s - query time", PgNetworkErrorLogPrefix), "duration", queryDuration.Seconds(), "query", event.Query, "pgError", pgError)
+		log.Println(fmt.Sprintf("%s - query time", PgNetworkErrorLogPrefix), "duration", queryDuration.Seconds(), "functionName", event.FuncName, "query", event.Query, "pgError", pgError)
 	}
 	logFailureQuery := queryError && cfg.LogAllFailureQueries && !isNetworkError(pgError)
 	if logFailureQuery {
-		log.Println(fmt.Sprintf("%s - query time", PgQueryFailLogPrefix), "duration", queryDuration.Seconds(), "query", event.Query, "pgError", pgError)
+		log.Println(fmt.Sprintf("%s - query time", PgQueryFailLogPrefix), "duration", queryDuration.Seconds(), "functionName", event.FuncName, "query", event.Query, "pgError", pgError)
 	}
 	if logThresholdQueries {
-		log.Println(fmt.Sprintf("%s - query time", PgQuerySlowLogPrefix), "duration", queryDuration.Seconds(), "query", event.Query)
+		log.Println(fmt.Sprintf("%s - query time", PgQuerySlowLogPrefix), "duration", queryDuration.Seconds(), "functionName", event.FuncName, "query", event.Query)
 	}
 	if cfg.LogAllQuery {
-		log.Println("query time", "duration", queryDuration.Seconds(), "query", event.Query)
+		log.Println("query time", "duration", queryDuration.Seconds(), "functionName", event.FuncName, "query", event.Query)
 	}
 }
 
 var PgQueryDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Name: "pg_query_duration_seconds",
 	Help: "Duration of PG queries",
-}, []string{"status", "serviceName", "functionName", "errorType"})
+}, []string{"status", "serviceName", "errorType"})
 
 func getErrorType(err error) ErrorType {
 	if err == nil {
