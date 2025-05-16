@@ -3,7 +3,6 @@
 ## Enhancements
 - feat: added support for relabelings in servicemonitor (#6562)
 ## Bugs
-- fix: deployment with specific trigger for rollout chart  (#6571)
 - fix: rest handler missing return statements (#6545)
 - fix: chart name fixed in chart reference table (#6543)
 - fix: error pg.ErrNoRow on base deployment template update (#6533)
