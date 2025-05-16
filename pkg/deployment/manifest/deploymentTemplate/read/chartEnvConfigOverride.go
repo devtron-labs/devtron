@@ -81,7 +81,7 @@ func (impl EnvConfigOverrideReadServiceImpl) ActiveEnvConfigOverride(appId, envi
 	overrideDTO := adapter.EnvOverrideDBToDTO(overrideDBObj)
 	overrideDTO, err = impl.getOverrideDataWithUpdatedPatchDataUnResolved(overrideDTO, appId)
 	if err != nil {
-		impl.logger.Errorw("error in patching values with base template values", "envId", environmentId, "appId", overrideDTO.Chart.AppId, "err", err)
+		impl.logger.Errorw("error in patching values with base template values", "envId", environmentId, "appId", appId, "err", err)
 		return nil, err
 	}
 	return overrideDTO, nil
@@ -180,9 +180,9 @@ func (impl EnvConfigOverrideReadServiceImpl) FindChartForAppByAppIdAndEnvId(appI
 		return nil, err
 	}
 	overrideDTO := adapter.EnvOverrideDBToDTO(overrideDBObj)
-	overrideDTO, err = impl.getOverrideDataWithUpdatedPatchDataUnResolved(overrideDTO, overrideDTO.Chart.AppId)
+	overrideDTO, err = impl.getOverrideDataWithUpdatedPatchDataUnResolved(overrideDTO, appId)
 	if err != nil {
-		impl.logger.Errorw("error in patching values with base template values", "envId", overrideDTO.TargetEnvironment, "appId", overrideDTO.Chart.AppId, "err", err)
+		impl.logger.Errorw("error in patching values with base template values", "envId", overrideDTO.TargetEnvironment, "appId", appId, "err", err)
 		return nil, err
 	}
 	return overrideDTO, nil
