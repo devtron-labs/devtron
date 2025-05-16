@@ -1,5 +1,5 @@
 
-# StatefulSet Chart v5.1.0
+# Deployment Chart - v4.21.0
 
 ## 1. Yaml File -
 
@@ -17,6 +17,7 @@ ContainerPort:
     nodePort: 32056
     supportStreaming: true
     useHTTP2: true
+    protocol: TCP
 ```
 
 | Key | Description |
@@ -29,12 +30,13 @@ ContainerPort:
 | `nodePort` | nodeport of the corresponding kubernetes service. |
 | `supportStreaming` | Used for high performance protocols like grpc where timeout needs to be disabled. |
 | `useHTTP2` | Envoy container can accept HTTP2 requests. |
+| `protocol` | Protocol for port. Must be UDP, TCP, or SCTP. Defaults to "TCP"|
 
 ### EnvVariables
 ```yaml
 EnvVariables: []
 ```
-
+To set environment variables for the containers that run in the Pod.
 ### EnvVariablesFromSecretKeys
 ```yaml
 EnvVariablesFromSecretKeys: 
@@ -45,120 +47,16 @@ EnvVariablesFromSecretKeys:
 ```
  It is use to get the name of Environment Variable name, Secret name and the Key name from which we are using the value in that corresponding Environment Variable.
 
- ### EnvVariablesFromCongigMapKeys
+ ### EnvVariablesFromConfigMapKeys
 ```yaml
-EnvVariablesFromCongigMapKeys: 
+EnvVariablesFromConfigMapKeys: 
   - name: ENV_NAME
     configMapName: CONFIG_MAP_NAME
     keyName: CONFIG_MAP_KEY
 
 ```
  It is use to get the name of Environment Variable name, Config Map name and the Key name from which we are using the value in that corresponding Environment Variable.
-
-To set environment variables for the containers that run in the Pod.
-### StatefulSetConfig
-
-| Key | Description |
-| :--- | :--- |
-| `labels` |  set of key-value pairs used to identify the StatefulSet . |
-| `annotations` | A map of key-value pairs that are attached to the stateful set as metadata. |
-| `serviceName` | The name of the Kubernetes Service that the StatefulSet should create. |
-| `podManagementPolicy` | A policy that determines how Pods are created and deleted by the StatefulSet. In this case, the policy is set to "Parallel", which means that all Pods are created at once. |
-| `revisionHistoryLimit` | The number of revisions that should be stored for each replica of the StatefulSet. |
-| `updateStrategy` | The update strategy used by the StatefulSet when rolling out changes. |
-| `mountPath` | The path where the volume should be mounted in the container. |
-
-volumeClaimTemplates: An array of volume claim templates that are used to create persistent volumes for the StatefulSet. Each volume claim template specifies the storage class, access mode, storage size, and other details of the persistent volume.
-
-
-| Key | Description |
-| :--- | :--- |
-| `apiVersion` |  The API version of the PVC . |
-| `kind` | The type of object that the PVC is. |
-| `metadata` | Metadata that is attached to the resource being created. |
-| `labels` | A set of key-value pairs used to label the object for identification and selection. |
-| `spec` | The specification of the object, which defines its desired state and behavior.|
-| `accessModes` | A list of access modes for the PersistentVolumeClaim, such as "ReadWriteOnce" or "ReadWriteMany". |
-| `dataSource` | A data source used to populate the PersistentVolumeClaim, such as a Snapshot or a StorageClass. |
-| `kind`| specifies the kind of the snapshot, in this case Snapshot.|
-| `apiGroup`| specifies the API group of the snapshot API, in this case snapshot.storage.k8s.io.|
-| `name`| specifies the name of the snapshot, in this case my-snapshot.|
-| `dataSourceRef` | A  reference to a data source used to create the persistent volume. In this case, it's a secret. |
-| `updateStrategy` | The update strategy used by the StatefulSet when rolling out changes. |
-| `resources` | The resource requests and limits for the PersistentVolumeClaim, which define the minimum and maximum amount of storage it can use. |
-| `requests` | The amount of storage requested by the PersistentVolumeClaim. |
-| `limits` | The maximum amount of storage that the PersistentVolumeClaim can use. |
-| `storageClassName` | The name of the storage class to use for the persistent volume. |
-| `selector` | The selector used to match a persistent volume to a persistent volume claim. |
-| `matchLabels` | a map of key-value pairs to match the labels of the corresponding PersistentVolume.|
-| `matchExpressions` |A set of requirements that the selected object must meet to be considered a match. |
-| `key` | The key of the label or annotation to match.|
-| `operator` | The operator used to compare the key-value pairs (in this case, "In" specifies a set membership test).|
-| `values` | A list of values that the selected object's label or annotation must match.|
-| `volumeMode` | The mode of the volume, either "Filesystem" or "Block". |
-| `volumeName` | The name of the PersistentVolume that is created for the PersistentVolumeClaim. |
-These are  all the configuration settings for the StatefulSet.
-```yaml
-statefulSetConfig:
-  labels:
-    app: my-statefulset
-    environment: production
-  annotations:
-    example.com/version: "1.0"
-  serviceName: "my-statefulset-service"
-  podManagementPolicy: "Parallel"
-  revisionHistoryLimit: 5
-  mountPath: "/data"
-  volumeClaimTemplates:
-    - apiVersion: v1
-      kind: PersistentVolumeClaim
-      metadata:
-        labels:
-          app: my-statefulset
-      spec:
-        accessModes:
-          - ReadWriteOnce
-        dataSource:
-          kind: Snapshot
-          apiGroup: snapshot.storage.k8s.io
-          name: my-snapshot
-        resources:
-          requests:
-            storage: 5Gi
-          limits:
-            storage: 10Gi
-        storageClassName: my-storage-class
-        selector:
-          matchLabels:
-            app: my-statefulset
-        volumeMode: Filesystem
-        volumeName: my-pv
-  - apiVersion: v1
-    kind: PersistentVolumeClaim
-    metadata:
-      name: pvc-logs
-      labels:
-        app: myapp
-    spec:
-      accessModes:
-        - ReadWriteMany
-      dataSourceRef:
-        kind: Secret
-        apiGroup: v1
-        name: my-secret
-      resources:
-        requests:
-          storage: 5Gi
-      storageClassName: my-storage-class
-      selector:
-        matchExpressions:
-          - {key: environment, operator: In, values: [production]}
-      volumeMode: Block
-      volumeName: my-pv
-
-```
-
-
+ 
 ### Liveness Probe
 
 If this check fails, kubernetes restarts the pod. This should return error code in case of non-recoverable error.
@@ -177,6 +75,9 @@ LivenessProbe:
       value: abc
   scheme: ""
   tcp: true
+  grpc:
+    port: 8080
+    service: ""
 ```
 
 | Key | Description |
@@ -190,6 +91,8 @@ LivenessProbe:
 | `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
+| `grpc` | GRPC specifies an action involving a GRPC port. Port is a required field if using gRPC service for health probes. Number must be in the range 1 to 65535. Service (optional) is the name of the service to place in the gRPC HealthCheckRequest. |
+
 
 
 ### MaxUnavailable
@@ -232,6 +135,9 @@ ReadinessProbe:
       value: abc
   scheme: ""
   tcp: true
+  grpc:
+    port: 8080
+    service: ""
 ```
 
 | Key | Description |
@@ -245,6 +151,31 @@ ReadinessProbe:
 | `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
+| `grpc` | GRPC specifies an action involving a GRPC port. Port is a required field if using gRPC service for health probes. Number must be in the range 1 to 65535. Service (optional) is the name of the service to place in the gRPC HealthCheckRequest. |
+
+
+### Pod Disruption Budget
+
+You can create `PodDisruptionBudget` for each application. A PDB limits the number of pods of a replicated application that are down simultaneously from voluntary disruptions. For example, an application would like to ensure the number of replicas running is never brought below the certain number.
+
+```yaml
+podDisruptionBudget: 
+     minAvailable: 1
+```
+
+or
+
+```yaml
+podDisruptionBudget: 
+     maxUnavailable: 50%
+```
+
+You can specify either `maxUnavailable` or `minAvailable` in a PodDisruptionBudget and it can be expressed as integers or as a percentage
+
+| Key | Description |
+| :--- | :--- |
+| `minAvailable` | Evictions are allowed as long as they leave behind 1 or more healthy pods of the total number of desired replicas. |
+| `maxUnavailable` | Evictions are allowed as long as at most 1 unhealthy replica among the total number of desired replicas. |
 
 ### Ambassador Mappings
 
@@ -293,6 +224,11 @@ autoscaling:
   MaxReplicas: 2
   TargetCPUUtilizationPercentage: 90
   TargetMemoryUtilizationPercentage: 80
+  containerResource:
+    enabled: true
+    TargetCPUUtilizationPercentage: 90
+    TargetMemoryUtilizationPercentage: 80
+
   extraMetrics: []
 ```
 
@@ -304,6 +240,79 @@ autoscaling:
 | `TargetCPUUtilizationPercentage` | The target CPU utilization that is expected for a container. |
 | `TargetMemoryUtilizationPercentage` | The target memory utilization that is expected for a container. |
 | `extraMetrics` | Used to give external metrics for autoscaling. |
+| `containerResource` | Used to scale resource as per container resource. |
+
+### Flagger
+
+You can use flagger for canary releases with deployment objects. It supports flexible traffic routing with istio service mesh as well.
+
+```yaml
+flaggerCanary:
+  addOtherGateways: []
+  addOtherHosts: []
+  analysis:
+    interval: 15s
+    maxWeight: 50
+    stepWeight: 5
+    threshold: 5
+  annotations: {}
+  appProtocol: http
+  corsPolicy:
+    allowCredentials: false
+    allowHeaders:
+      - x-some-header
+    allowMethods:
+      - GET
+    allowOrigin:
+      - example.com
+    maxAge: 24h
+  createIstioGateway:
+    annotations: {}
+    enabled: false
+    host: example.com
+    labels: {}
+    tls:
+      enabled: false
+      secretName: example-tls-secret
+  enabled: false
+  gatewayRefs: null
+  headers:
+    request:
+      add:
+        x-some-header: value
+  labels: {}
+  loadtest:
+    enabled: true
+    url: http://flagger-loadtester.istio-system/
+  match:
+    - uri:
+        prefix: /
+  port: 8080
+  portDiscovery: true
+  retries: null
+  rewriteUri: /
+  targetPort: 8080
+  thresholds:
+    latency: 500
+    successRate: 90
+  timeout: null
+```
+
+| Key | Description |
+| :--- | :--- |
+| `enabled` | Set true to enable canary releases using flagger else set false.|
+| `addOtherGateways` | To provide multiple istio gateways for flagger. |
+| `addOtherHosts` | Add multiple hosts for istio service mesh with flagger. |
+| `analysis` | Define how the canary release should progresss and at what interval. |
+| `annotations` | Annotation to add on flagger resource. |
+| `labels` | Labels to add on flagger resource. |
+| `appProtocol` | Protocol to use for canary. |
+| `corsPolicy` | Provide cors headers on flagger resource. |
+| `createIstioGateway` | Set to true if you want to create istio gateway as well with flagger. |
+| `headers` | Add headers if any. |
+| `loadtest` | Enable load testing for your canary release. |
+
+
 
 ### Fullname Override
 
@@ -401,7 +410,6 @@ ingressInternal:
 | `host` | Host name |
 | `tls` | It contains security details |
 
-
 ### additionalBackends
 
 This defines additional backend path in the ingress .
@@ -423,7 +431,6 @@ This defines additional backend path in the ingress .
                 number: 80
 ```
 
-
 ### Init Containers
 ```yaml
 initContainers: 
@@ -435,6 +442,8 @@ initContainers:
     volumeMounts:
      - mountPath: /etc/ls-oms
        name: ls-oms-cm-vol
+   args:
+    - sleep 300    
    command:
      - flyway
      - -configFiles=/etc/ls-oms/flyway.conf
@@ -539,10 +548,16 @@ Requests are what the container is guaranteed to get.
 
 This defines annotations and the type of service, optionally can define name also.
 
+Supports "ClientIP" and "None". Used to maintain session affinity. Enable
+    client IP based session affinity.
+
 ```yaml
   service:
     type: ClusterIP
     annotations: {}
+    sessionAffinity:
+      enabled: true
+      sessionAffinityConfig: {}
 ```
 
 ### Volumes
@@ -814,6 +829,7 @@ kedaAutoscaling:
   authenticationRef: 
     name: keda-trigger-auth-kafka-credential
 ```
+
 ### Winter-Soldier
 Winter Soldier can be used to
 - cleans up (delete) Kubernetes resources
@@ -848,7 +864,7 @@ Here,
 here is an example,
 ```yaml
 winterSoldier:
-  apiVersion: pincher.devtron.ai/v1alpha1
+  apiVersion: pincher.devtron.ai/v1alpha1 
   enabled: true
   annotations: {}
   labels: {}
@@ -882,7 +898,6 @@ The above example will select the application objects which have been created 10
 - CpuToNumber - This can be used to compare CPU. For eg any({{spec.containers.#.resources.requests}}, { MemoryToNumber(.memory) < MemoryToNumber('60Mi')}) will check if any resource.requests is less than 60Mi.
 
 
-
 ### Security Context
 A security context defines privilege and access control settings for a Pod or Container.
 
@@ -910,6 +925,37 @@ topologySpreadConstraints:
     whenUnsatisfiable: DoNotSchedule
     autoLabelSelector: true
     customLabelSelector: {}
+    minDomains: 1
+    nodeAffinityPolicy: Ignore
+```
+
+### Persistent Volume Claim
+You can use persistent volume claim to mount volume as per your usecase.
+
+```yaml
+persistentVolumeClaim:
+  name: my-pvc
+  storageClassName: default
+  accessMode:
+    - ReadWriteOnce
+  mountPath: /tmp
+```
+
+### Vertical Pod Autoscaling
+This is connected to VPA and controls scaling up and down in response to request load.
+```yaml
+verticalPodScaling:
+  enabled: true
+  resourcePolicy: {}
+  updatePolicy: {}
+ ```
+
+### Scheduler Name
+
+You can provide you own custom scheduler to schedule your application
+
+```yaml
+schedulerName: ""
 ```
 
 ### Deployment Metrics
