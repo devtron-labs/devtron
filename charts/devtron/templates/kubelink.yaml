@@ -123,7 +123,7 @@ kind: Service
 metadata:
   labels:
     app: kubelink
-  name: kubelink-service
+  name: kubelink-service-headless
   namespace: devtroncd
   annotations:
     "helm.sh/resource-policy": keep
@@ -137,4 +137,5 @@ spec:
     app: kubelink
   sessionAffinity: None
   type: ClusterIP
+  clusterIP: None
 {{- end }}

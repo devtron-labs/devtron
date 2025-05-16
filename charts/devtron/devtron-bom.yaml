@@ -10,7 +10,7 @@ global:
   containerRegistry: "quay.io/devtron"
 extraManifests: []
 installer:
-  release: "v1.5.1"
+  release: "v1.6.0"
   registry: ""
   image: "inception"
   tag: "473deaa4-185-21582"
@@ -35,13 +35,13 @@ components:
         ENABLE_RESOURCE_SCAN: "true"
         FEATURE_CODE_MIRROR_ENABLE: "true"
     registry: ""
-    image: "dashboard:0fc42ac3-690-32105"
+    image: "dashboard:c5dfd7aa-690-32907"
     imagePullPolicy: IfNotPresent
     healthPort: 8080
   devtron:
     registry: ""
-    image: "hyperion:e4fc95a9-280-32767"
-    cicdImage: "devtron:e4fc95a9-434-32763"
+    image: "hyperion:667bd63f-280-32953"
+    cicdImage: "devtron:667bd63f-434-32952"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     podSecurityContext:
@@ -55,7 +55,7 @@ components:
     healthPort: 8080
   ciRunner:
     registry: ""
-    image: "ci-runner:c49b4aa5-138-32101"
+    image: "ci-runner:da156379-138-32911"
   argocdDexServer:
     registry: ""
     image: "dex:v2.30.2"
@@ -64,7 +64,7 @@ components:
       authenticator: "authenticator:e414faff-393-13273"
   kubelink:
     registry: ""
-    image: "kubelink:c49b4aa5-564-32098"
+    image: "kubelink:da156379-564-32903"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
@@ -91,7 +91,7 @@ components:
     healthPort: 50052
   kubewatch:
     registry: ""
-    image: "kubewatch:c49b4aa5-419-32097"
+    image: "kubewatch:da156379-419-32900"
     imagePullPolicy: IfNotPresent
     healthPort: 8080
     configs:
@@ -119,7 +119,7 @@ components:
       image: postgres_exporter:v0.10.1
   gitsensor:
     registry: ""
-    image: "git-sensor:c49b4aa5-200-32099"
+    image: "git-sensor:da156379-200-32905"
     imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
@@ -138,7 +138,7 @@ components:
   # Values for lens
   lens:
     registry: ""
-    image: "lens:c49b4aa5-333-32100"
+    image: "lens:da156379-333-32910"
     imagePullPolicy: IfNotPresent
     configs:
       GIT_SENSOR_PROTOCOL: GRPC
@@ -174,6 +174,8 @@ components:
     kubectlImage: "kubectl:latest"
     duplicateChartImage: devtron-utils:dup-chart-repo-v1.1.0
     entMigratorImage: "devtron-utils:geni-v1.1.4"
+    configs:
+      PG_ADDR: postgresql-postgresql.devtroncd
     envVars:
       devtron:
         DB_NAME: "orchestrator"
@@ -185,8 +187,10 @@ components:
         DB_NAME: "lens"
   chartSync:
     registry: ""
-    image: chart-sync:c49b4aa5-836-32103
+    image: chart-sync:da156379-836-32914
     schedule: "0 19 * * *"
+    extraConfigs:
+      PG_ADDR: postgresql-postgresql.devtroncd
     podSecurityContext:
       fsGroup: 1001
       runAsGroup: 1001
@@ -195,7 +199,6 @@ components:
       allowPrivilegeEscalation: false
       runAsNonRoot: true
       runAsUser: 1001
-    extraConfigs: {}
 # values for argocd integration
 argo-cd:
   global:
@@ -215,7 +218,7 @@ workflowController:
   IMDSv1ExecutorImage: "argoexec:v3.0.7"
 security:
   imageScanner:
-    image: "image-scanner:c49b4aa5-141-32102"
+    image: "image-scanner:da156379-141-32912"
     healthPort: 8080
     configs:
       TRIVY_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-db
@@ -226,7 +229,7 @@ security:
       tag: 4.3.6
 # Values for notifier integration
 notifier:
-  image: "notifier:56798239-372-32072"
+  image: "notifier:99e2f3cd-372-32893"
   healthPort: 3000
 minio:
   image: "minio:RELEASE.2021-02-14T04-01-33Z"
