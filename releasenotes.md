@@ -10,5 +10,4 @@
 ## Others
 - chore: rollout reference chart 5-1-0 (#6573)
 - misc: updated ucid-cm and added prehook (#6557)
-- misc: Approval bypass v2 oss (#6510)
 - chore: pipeline timeline alter sql (#6541)
