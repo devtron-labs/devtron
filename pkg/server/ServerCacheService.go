@@ -77,6 +77,8 @@ func (impl *ServerCacheServiceImpl) UpdateServerEnvAndDataStore() error {
 		impl.serverEnvConfig.ErrorEncounteredOnGettingDevtronHelmRelease = err
 		// return nil, err
 		// not returning the error as it will bring down orchestrator
+	} else {
+		impl.serverEnvConfig.ErrorEncounteredOnGettingDevtronHelmRelease = nil
 	}
 
 	// if not installed, treat it as OSS kubectl user
