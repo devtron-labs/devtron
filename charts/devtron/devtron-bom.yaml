@@ -199,7 +199,6 @@ components:
       allowPrivilegeEscalation: false
       runAsNonRoot: true
       runAsUser: 1001
-    extraConfigs: {}
 # values for argocd integration
 argo-cd:
   global:
