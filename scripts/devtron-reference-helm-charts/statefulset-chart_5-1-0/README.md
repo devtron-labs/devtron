@@ -1,5 +1,5 @@
 
-# StatefulSet Chart 1.0.0
+# StatefulSet Chart 5.1.0
 
 ## 1. Yaml File -
 
