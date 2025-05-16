@@ -69,7 +69,7 @@ func (router PipelineConfigRouterImpl) InitPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/cd-pipeline/patch/deployment/trigger").HandlerFunc(router.restHandler.HandleTriggerDeploymentAfterTypeChange).Methods("POST")
 	configRouter.Path("/cd-pipeline/{appId}").HandlerFunc(router.restHandler.GetCdPipelines).Methods("GET")
 	configRouter.Path("/cd-pipeline/{appId}/env/{envId}").HandlerFunc(router.restHandler.GetCdPipelinesForAppAndEnv).Methods("GET")
-	configRouter.Path("/cd-pipeline/validate-link-request").HandlerFunc(router.restHandler.ValidateArgoCDAppLinkRequest).Methods("POST")
+	configRouter.Path("/cd-pipeline/validate-link-request").HandlerFunc(router.restHandler.ValidateExternalAppLinkRequest).Methods("POST")
 	//save environment specific override
 	configRouter.Path("/env/{appId}/{environmentId}").HandlerFunc(router.restHandler.EnvConfigOverrideCreate).Methods("POST")
 	configRouter.Path("/env/patch").HandlerFunc(router.restHandler.ChangeChartRef).Methods("PATCH")

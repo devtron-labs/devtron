@@ -1,0 +1,2 @@
+ALTER TABLE resource_qualifier_mapping DROP COLUMN IF EXISTS global_policy_id;
+ALTER TABLE resource_qualifier_mapping DROP CONSTRAINT IF EXISTS resource_qualifier_mapping_global_policy_id_fkey;

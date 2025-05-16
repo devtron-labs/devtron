@@ -51,7 +51,6 @@ type GitOperationService interface {
 	PushChartToGitOpsRepoForHelmApp(ctx context.Context, pushChartToGitRequest *bean.PushChartToGitRequestDTO, requirementsConfig, valuesConfig *ChartConfig) (*commonBean.ChartGitAttribute, string, error)
 
 	CreateRepository(ctx context.Context, dto *apiBean.GitOpsConfigDto, userId int32) (string, bool, bool, error)
-	GetRepoUrlByRepoName(repoName string) (string, error)
 
 	GetClonedDir(ctx context.Context, chartDir, repoUrl, targetRevision string) (string, error)
 	ReloadGitOpsProvider() error
@@ -170,7 +169,7 @@ func (impl *GitOperationServiceImpl) PushChartToGitRepo(ctx context.Context, git
 		commit, err := impl.gitFactory.GitOpsHelper.CommitAndPushAllChanges(newCtx, clonedDir, targetRevision, "first commit", userName, userEmailId)
 		if err != nil {
 			impl.logger.Errorw("error in pushing git", "err", err)
-			callback := func() error {
+			callback := func(int) error {
 				commit, err = impl.updateRepoAndPushAllChanges(newCtx, clonedDir, repoUrl, targetRevision,
 					tempReferenceTemplateDir, dir, userName, userEmailId, impl.gitFactory.GitOpsHelper)
 				return err
@@ -264,8 +263,12 @@ func (impl *GitOperationServiceImpl) CommitValues(ctx context.Context, chartGitA
 		return commitHash, commitTime, err
 	}
 	gitOpsConfig := &apiBean.GitOpsConfigDto{BitBucketWorkspaceId: bitbucketMetadata.BitBucketWorkspaceId}
-	callback := func() error {
-		commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(newCtx, chartGitAttr, gitOpsConfig)
+	callback := func(retriesLeft int) error {
+		publishStatusConflictError := false
+		if retriesLeft <= 0 {
+			publishStatusConflictError = true
+		}
+		commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(newCtx, chartGitAttr, gitOpsConfig, publishStatusConflictError)
 		return err
 	}
 	err = retryFunc.Retry(callback, impl.isRetryableGitCommitError,
@@ -301,26 +304,6 @@ func (impl *GitOperationServiceImpl) CreateRepository(ctx context.Context, dto *
 		}
 	}
 	return repoUrl, isNew, isEmpty, nil
-}
-
-func (impl *GitOperationServiceImpl) GetRepoUrlByRepoName(repoName string) (string, error) {
-	repoUrl := ""
-	bitbucketMetadata, err := impl.gitOpsConfigReadService.GetBitbucketMetadata()
-	if err != nil {
-		impl.logger.Errorw("error in getting bitbucket metadata", "err", err)
-		return repoUrl, err
-	}
-	dto := &apiBean.GitOpsConfigDto{
-		GitRepoName:          repoName,
-		BitBucketWorkspaceId: bitbucketMetadata.BitBucketWorkspaceId,
-		BitBucketProjectKey:  bitbucketMetadata.BitBucketProjectKey,
-	}
-	repoUrl, _, err = impl.gitFactory.Client.GetRepoUrl(dto)
-	if err != nil {
-		//will allow to continue to persist status on next operation
-		impl.logger.Errorw("error in getting repo url", "err", err, "repoName", repoName)
-	}
-	return repoUrl, nil
 }
 
 // PushChartToGitOpsRepoForHelmApp pushes built chart to GitOps repo (Specific implementation for Helm Apps)

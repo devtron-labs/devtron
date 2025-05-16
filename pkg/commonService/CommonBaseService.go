@@ -75,6 +75,7 @@ func (impl *CommonBaseServiceImpl) EnvironmentVariableList() (*EnvironmentVariab
 		return environmentVariableList, err
 	}
 	environmentVariableList.FeatureGitOpsFlags = featureGitOpsFlags
+	environmentVariableList.IsAirGapEnvironment = impl.globalEnvVariables.GlobalEnvVariables.IsAirGapEnvironment
 	return environmentVariableList, nil
 }
 

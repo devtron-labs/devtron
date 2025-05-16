@@ -213,7 +213,10 @@ func (impl EnvConfigOverrideReadServiceImpl) GetAllOverridesForApp(ctx context.C
 	}
 	envConfigOverrides := make([]*bean.EnvConfigOverride, 0, len(overrideDBObjs))
 	for _, dbObj := range overrideDBObjs {
-		envConfigOverrides = append(envConfigOverrides, adapter.EnvOverrideDBToDTO(&dbObj))
+		if dbObj == nil {
+			continue // nil pointer handling
+		}
+		envConfigOverrides = append(envConfigOverrides, adapter.EnvOverrideDBToDTO(dbObj))
 	}
 	return envConfigOverrides, nil
 }

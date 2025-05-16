@@ -30,6 +30,7 @@ import (
 )
 
 type DeployedAppMetricsService interface {
+	CheckIsAppMetricsSupported(chartRefId int) (bool, error)
 	GetMetricsFlagByAppId(appId int) (bool, error)
 	GetMetricsFlagByAppIdAndEnvId(appId, envId int) (bool, error)
 	GetMetricsFlagForAPipelineByAppIdAndEnvId(appId, envId int) (bool, error)
@@ -104,7 +105,7 @@ func (impl *DeployedAppMetricsServiceImpl) GetMetricsFlagForAPipelineByAppIdAndE
 
 // CheckAndUpdateAppOrEnvLevelMetrics - this method checks whether chart being used supports metrics or not, is app level or env level and updates accordingly
 func (impl *DeployedAppMetricsServiceImpl) CreateOrUpdateAppOrEnvLevelMetrics(ctx context.Context, req *bean.DeployedAppMetricsRequest) error {
-	isAppMetricsSupported, err := impl.checkIsAppMetricsSupported(req.ChartRefId)
+	isAppMetricsSupported, err := impl.CheckIsAppMetricsSupported(req.ChartRefId)
 	if err != nil {
 		return err
 	}
@@ -148,7 +149,7 @@ func (impl *DeployedAppMetricsServiceImpl) DeleteEnvLevelMetricsIfPresent(appId,
 	return nil
 }
 
-func (impl *DeployedAppMetricsServiceImpl) checkIsAppMetricsSupported(chartRefId int) (bool, error) {
+func (impl *DeployedAppMetricsServiceImpl) CheckIsAppMetricsSupported(chartRefId int) (bool, error) {
 	chartRefValue, err := impl.chartRefService.FindById(chartRefId)
 	if err != nil {
 		impl.logger.Errorw("error in finding reference chart by id", "err", err)

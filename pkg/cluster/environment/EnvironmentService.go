@@ -19,6 +19,7 @@ package environment
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/client/grafana"
 	bean3 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	bean4 "github.com/devtron-labs/devtron/pkg/cluster/bean"
@@ -45,6 +46,7 @@ import (
 
 type EnvironmentService interface {
 	FindOne(environment string) (*bean2.EnvironmentBean, error)
+	GetDataSourceName(*bean2.EnvironmentBean) (dataSourceData *bean2.DataSourceMetaData, err error)
 	Create(mappings *bean2.EnvironmentBean, userId int32) (*bean2.EnvironmentBean, error)
 	Update(mappings *bean2.EnvironmentBean, userId int32) (*bean2.EnvironmentBean, error)
 	GetAllActive() ([]bean2.EnvironmentBean, error)
@@ -80,6 +82,7 @@ type EnvironmentServiceImpl struct {
 	userAuthService      user.UserAuthService
 	attributesRepository repository2.AttributesRepository
 	clusterReadService   read.ClusterReadService
+	grafanaClient        grafana.GrafanaClient
 }
 
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
@@ -87,7 +90,8 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 	K8sUtil *util2.K8sServiceImpl, k8sInformerFactory informer.K8sInformerFactory,
 	//  propertiesConfigService pipeline.PropertiesConfigService,
 	userAuthService user.UserAuthService, attributesRepository repository2.AttributesRepository,
-	clusterReadService read.ClusterReadService) *EnvironmentServiceImpl {
+	clusterReadService read.ClusterReadService,
+	grafanaClient grafana.GrafanaClient) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
 		environmentRepository: environmentRepository,
 		logger:                logger,
@@ -98,6 +102,25 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 		userAuthService:      userAuthService,
 		attributesRepository: attributesRepository,
 		clusterReadService:   clusterReadService,
+		grafanaClient:        grafanaClient,
+	}
+}
+
+func (impl EnvironmentServiceImpl) GetDataSourceName(bean *bean2.EnvironmentBean) (*bean2.DataSourceMetaData, error) {
+	datasource := &bean2.DataSourceMetaData{}
+	if bean.DataSourceId == 0 || bean.PrometheusEndpoint == "" {
+		impl.logger.Debugw("grafana data source not configured for given", "dataSourceId", bean.DataSourceId)
+		return datasource, nil
+	} else {
+		impl.logger.Debugw("environment datasource", "datasource", bean.DataSourceId)
+		data, err := impl.grafanaClient.GetDatasource(bean.DataSourceId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching datasource", "err", err)
+			return datasource, err
+		}
+		datasource.Name = data.Name
+		datasource.Id = bean.DataSourceId
+		return datasource, nil
 	}
 }
 
@@ -183,6 +206,7 @@ func (impl EnvironmentServiceImpl) FindOne(environment string) (*bean2.Environme
 		Default:               model.Default,
 		EnvironmentIdentifier: model.EnvironmentIdentifier,
 		Description:           model.Description,
+		DataSourceId:          model.GrafanaDatasourceId,
 	}
 	return bean, nil
 }

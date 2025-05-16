@@ -55,6 +55,13 @@ type WorkflowComponents struct {
 	CdPipelineIds        []int
 }
 
+type AppWorkflowListRespDto struct {
+	Workflows                 []AppWorkflowDto `json:"workflows"`
+	AppId                     int              `json:"appId"`
+	AppName                   string           `json:"appName"`
+	IsGitOpsRepoNotConfigured bool             `json:"isGitOpsRepoNotConfigured"`
+}
+
 type AppWorkflowDto struct {
 	Id                    int                     `json:"id,omitempty"`
 	Name                  string                  `json:"name"`

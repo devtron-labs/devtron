@@ -39,7 +39,7 @@ func GetLogger() *zap.SugaredLogger {
 type LogConfig struct {
 	Level int `env:"LOG_LEVEL" envDefault:"0"` // default info
 
-	DevMode bool `env:"LOGGER_DEV_MODE" envDefault:"false"`
+	DevMode bool `env:"LOGGER_DEV_MODE" envDefault:"false" description:"Enables a different logger theme."`
 }
 
 func InitLogger() (*zap.SugaredLogger, error) {

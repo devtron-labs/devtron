@@ -22,7 +22,8 @@ package main
 import (
 	"github.com/devtron-labs/authenticator/middleware"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
-	pubsub1 "github.com/devtron-labs/common-lib/pubsub-lib"
+	pubSub "github.com/devtron-labs/common-lib/pubsub-lib"
+	posthogTelemetry "github.com/devtron-labs/common-lib/telemetry"
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	appStoreRestHandler "github.com/devtron-labs/devtron/api/appStore"
@@ -144,6 +145,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor"
+	"github.com/devtron-labs/devtron/pkg/executor"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
@@ -152,6 +154,7 @@ import (
 	repository7 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/draftAwareConfigService"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
@@ -164,6 +167,7 @@ import (
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/ucid"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
@@ -218,7 +222,7 @@ func InitializeApp() (*App, error) {
 		userResource.UserResourceWireSet,
 		policyGovernance.PolicyGovernanceWireSet,
 		resourceScan.ScanningResultWireSet,
-
+		executor.ExecutorWireSet,
 		// -------wireset end ----------
 		// -------
 		gitSensor.GetConfig,
@@ -477,9 +481,6 @@ func InitializeApp() (*App, error) {
 		util.IntValidator,
 		types.GetCiCdConfig,
 
-		pipeline.NewWorkflowServiceImpl,
-		wire.Bind(new(pipeline.WorkflowService), new(*pipeline.WorkflowServiceImpl)),
-
 		pipeline.NewCiServiceImpl,
 		wire.Bind(new(pipeline.CiService), new(*pipeline.CiServiceImpl)),
 
@@ -500,7 +501,7 @@ func InitializeApp() (*App, error) {
 		pipeline.NewCiLogServiceImpl,
 		wire.Bind(new(pipeline.CiLogService), new(*pipeline.CiLogServiceImpl)),
 
-		pubsub1.NewPubSubClientServiceImpl,
+		pubSub.NewPubSubClientServiceImpl,
 
 		rbac.NewEnforcerUtilImpl,
 		wire.Bind(new(rbac.EnforcerUtil), new(*rbac.EnforcerUtilImpl)),
@@ -530,6 +531,9 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.ConfigMapService), new(*pipeline.ConfigMapServiceImpl)),
 		chartConfig.NewConfigMapRepositoryImpl,
 		wire.Bind(new(chartConfig.ConfigMapRepository), new(*chartConfig.ConfigMapRepositoryImpl)),
+
+		draftAwareConfigService.NewDraftAwareResourceServiceImpl,
+		wire.Bind(new(draftAwareConfigService.DraftAwareConfigService), new(*draftAwareConfigService.DraftAwareConfigServiceImpl)),
 
 		config.WireSet,
 
@@ -692,7 +696,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.TelemetryRouter), new(*router.TelemetryRouterImpl)),
 		restHandler.NewTelemetryRestHandlerImpl,
 		wire.Bind(new(restHandler.TelemetryRestHandler), new(*restHandler.TelemetryRestHandlerImpl)),
-		telemetry.NewPosthogClient,
+		posthogTelemetry.NewPosthogClient,
+		ucid.WireSet,
 
 		cloudProviderIdentifier.NewProviderIdentifierServiceImpl,
 		wire.Bind(new(cloudProviderIdentifier.ProviderIdentifierService), new(*cloudProviderIdentifier.ProviderIdentifierServiceImpl)),

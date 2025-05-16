@@ -17,21 +17,18 @@ global:
   #     value: "value1"
   #     effect: "NoSchedule"
   # imagePullSecrets:
-  #     - name: your-image-pull-secret
-
-  # Set the storage class to be used for PVCs (would use default sc if not specified)
-  storageClass: ""
-  
-  # Add Proxy Configs to be propagated to all the Devtron Microservices.
-  configs: {}
-
+  #   - name: your-image-pull-secret
   nodeSelector: {}
   tolerations: []
   imagePullSecrets: []
+  # Set the storage class to be used for PVCs (would use default sc if not specified)
+  storageClass: ""
+  # Add Proxy Configs to be propagated to all the Devtron Microservices.
+  configs: {}
 extraManifests: []
 installer:
   repo: "devtron-labs/devtron"
-  release: "v1.3.1"
+  release: "v1.5.1"
   registry: ""
   image: inception
   tag: 473deaa4-185-21582
@@ -83,15 +80,26 @@ components:
         FEATURE_STEP_WISE_LOGS_ENABLE: "true"
         FEATURE_USER_DEFINED_GITOPS_REPO_ENABLE: "true"
         ENABLE_RESOURCE_SCAN: "true"
+        FEATURE_CODE_MIRROR_ENABLE: "true"
     registry: ""
-    image: "dashboard:1c40d516-690-30089"
+    image: "dashboard:0fc42ac3-690-32105"
     imagePullPolicy: IfNotPresent
+    healthPort: 8080
   devtron:
     registry: ""
-    image: "hyperion:e67c3b76-280-30100"
-    cicdImage: "devtron:e67c3b76-434-30101"
+    image: "hyperion:e4fc95a9-280-32767"
+    cicdImage: "devtron:e4fc95a9-434-32763"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
+    healthPort: 8080
+    podSecurityContext:
+      fsGroup: 1001
+      runAsGroup: 1001
+      runAsUser: 1001
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      runAsUser: 1001
     serviceMonitor:
       enabled: false
     service:
@@ -115,7 +123,7 @@ components:
       #      - devtron.example.com
   ciRunner:
     registry: ""
-    image: "ci-runner:0dde3b1a-138-30091"
+    image: "ci-runner:c49b4aa5-138-32101"
   argocdDexServer:
     registry: ""
     image: "dex:v2.30.2"
@@ -124,8 +132,17 @@ components:
       authenticator: "authenticator:e414faff-393-13273"
   kubelink:
     registry: ""
-    image: "kubelink:0dde3b1a-564-30082"
+    image: "kubelink:c49b4aa5-564-32098"
     imagePullPolicy: IfNotPresent
+    healthPort: 50052
+    podSecurityContext:
+      fsGroup: 1001
+      runAsGroup: 1001
+      runAsUser: 1001
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      runAsUser: 1001
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
       MANIFEST_FETCH_BATCH_SIZE: "2"
@@ -142,11 +159,13 @@ components:
       keyName: postgresql-password
   kubewatch:
     registry: ""
-    image: "kubewatch:0dde3b1a-419-30285"
+    image: "kubewatch:c49b4aa5-419-32097"
     imagePullPolicy: IfNotPresent
+    healthPort: 8080
     configs:
       devtroncd_NAMESPACE: "devtron-ci"
       USE_CUSTOM_HTTP_TRANSPORT: "true"
+      CLUSTER_ARGO_CD_TYPE: "ALL_CLUSTER"
       CI_INFORMER: "true"
       ACD_NAMESPACE: "devtroncd"
       ACD_INFORMER: "true"
@@ -161,23 +180,22 @@ components:
       keyName: postgresql-password
   postgres:
     registry: ""
-    image: "postgres:11.9.0-debian-10-r26"
-    armImage: "postgres:11.9"
+    image: "postgres:14.9"
     initImage: "minideb:latest"
     imagePullPolicy: "IfNotPresent"
     metrics:
-      image: postgres_exporter:v0.4.7
-      armImage: postgres_exporter:v0.10.1
+      image: postgres_exporter:v0.10.1
     persistence:
       volumeSize: "20Gi"
   gitsensor:
     registry: ""
-    image: "git-sensor:0dde3b1a-200-30085"
+    image: "git-sensor:c49b4aa5-200-32099"
     imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
     persistence:
       volumeSize: 2Gi
+    healthPort: 8080
     configs:
       PG_ADDR: postgresql-postgresql.devtroncd
       PG_USER: postgres
@@ -190,10 +208,11 @@ components:
   # Values for lens
   lens:
     registry: ""
-    image: "lens:0dde3b1a-333-30090"
+    image: "lens:c49b4aa5-333-32100"
     imagePullPolicy: IfNotPresent
     secrets: {}
     resources: {}
+    healthPort: 8080
     configs:
       GIT_SENSOR_PROTOCOL: GRPC
       GIT_SENSOR_URL: git-sensor-service.devtroncd:90
@@ -226,6 +245,7 @@ components:
     image: "migrator:v4.16.2"
     kubectlImage: "kubectl:latest"
     duplicateChartImage: devtron-utils:dup-chart-repo-v1.1.0
+    entMigratorImage: "devtron-utils:geni-v1.1.4"
     envVars:
       devtron:
         DB_NAME: "orchestrator"
@@ -237,9 +257,17 @@ components:
         DB_NAME: "lens"
   chartSync:
     registry: ""
-    image: chart-sync:0dde3b1a-836-30095
+    image: chart-sync:c49b4aa5-836-32103
     schedule: "0 19 * * *"
     extraConfigs: {}
+    podSecurityContext:
+      fsGroup: 1001
+      runAsGroup: 1001
+      runAsUser: 1001
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      runAsUser: 1001
 # values for argocd integration
 argo-cd:
   enabled: false
@@ -383,7 +411,8 @@ argo-cd:
 security:
   enabled: false
   imageScanner:
-    image: "image-scanner:0dde3b1a-141-30093"
+    image: "image-scanner:c49b4aa5-141-32102"
+    healthPort: 8080
     configs:
       TRIVY_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-db
       TRIVY_JAVA_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-java-db
@@ -401,7 +430,7 @@ security:
 notifier:
   enabled: false
   imagePullPolicy: IfNotPresent
-  image: "notifier:5e9c010b-372-30094"
+  image: "notifier:56798239-372-32072"
   configs:
     CD_ENVIRONMENT: PROD
     DB: orchestrator
@@ -409,6 +438,7 @@ notifier:
     DB_PORT: "5432"
     DB_USER: postgres
   secrets: {}
+  healthPort: 3000
   dbconfig:
     secretName: postgresql-postgresql
     keyName: postgresql-password
@@ -457,8 +487,9 @@ devtronEnterprise:
   enabled: false
   casbin:
     registry: ""
-    image: "casbin:efc28fb2-6de0e914-462-25420"
+    image: "casbin:f6ff5f74-064b67e5-462-30822"
     imagePullPolicy: IfNotPresent
+    healthPort: 8080
     configs:
       PG_ADDR: postgresql-postgresql.devtroncd
       PG_DATABASE: casbin
@@ -467,11 +498,19 @@ devtronEnterprise:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
+    podSecurityContext:
+      fsGroup: 1001
+      runAsGroup: 1001
+      runAsUser: 1001
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      runAsUser: 1001
     resources: {}
   scoop:
     enabled: false
     registry: ""
-    image: "scoop:296d351d-629-24001"
+    image: "scoop:289d080a-629-30405"
     imagePullPolicy: IfNotPresent
     resources: {}
     configs:

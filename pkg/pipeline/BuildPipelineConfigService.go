@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -35,6 +36,7 @@ import (
 	repository3 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	bean3 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline/read"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -55,12 +57,16 @@ import (
 )
 
 type CiPipelineConfigService interface {
+	// GetCiPipelineRespResolved : gets the ci pipeline get response after resolving empty data response as expected by FE
+	GetCiPipelineRespResolved(appId int) (*bean.CiConfigRequest, error)
 	//GetCiPipeline : retrieves CI pipeline configuration (CiConfigRequest) for a specific application (appId).
 	// It fetches CI pipeline data, including pipeline materials, scripts, and associated configurations.
 	// It returns a detailed CiConfigRequest.
 	//If any errors occur during the retrieval process  CI pipeline configuration remains nil.
 	//If you want less detail of ciPipeline ,Please refer GetCiPipelineMin
 	GetCiPipeline(appId int) (ciConfig *bean.CiConfigRequest, err error)
+	// GetCiPipelineByIdWithDefaultTag : Retrieve ciPipeline for given ciPipelineId with defaultTagData
+	GetCiPipelineByIdWithDefaultTag(pipelineId int) (ciPipeline *bean.CiPipeline, err error)
 	//GetCiPipelineById : Retrieve ciPipeline for given ciPipelineId
 	GetCiPipelineById(pipelineId int) (ciPipeline *bean.CiPipeline, err error)
 	//GetTriggerViewCiPipeline : retrieves a detailed view of the CI pipelines configured for a specific application (appId).
@@ -114,6 +120,7 @@ type CiPipelineConfigService interface {
 	GetExternalCiByEnvironment(request resourceGroup2.ResourceGroupingRequest, token string) (ciConfig []*bean.ExternalCiConfig, err error)
 	DeleteCiPipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error)
 	CreateExternalCiAndAppWorkflowMapping(appId, appWorkflowId int, userId int32, tx *pg.Tx) (int, *appWorkflow.AppWorkflowMapping, error)
+	GetAppMetadataListByEnvironment(envId int, appIds []int) (appMetadataListBean pipelineConfigBean.AppMetadataListBean, err error)
 }
 
 type CiPipelineConfigServiceImpl struct {
@@ -144,6 +151,7 @@ type CiPipelineConfigServiceImpl struct {
 	buildPipelineSwitchService    BuildPipelineSwitchService
 	pipelineStageRepository       repository.PipelineStageRepository
 	globalPluginRepository        repository2.GlobalPluginRepository
+	appListingService             app.AppListingService
 }
 
 func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
@@ -171,7 +179,8 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	buildPipelineSwitchService BuildPipelineSwitchService,
 	pipelineStageRepository repository.PipelineStageRepository,
-	globalPluginRepository repository2.GlobalPluginRepository) *CiPipelineConfigServiceImpl {
+	globalPluginRepository repository2.GlobalPluginRepository,
+	appListingService app.AppListingService) *CiPipelineConfigServiceImpl {
 	securityConfig := &SecurityConfig{}
 	err := env.Parse(securityConfig)
 	if err != nil {
@@ -205,6 +214,7 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 		buildPipelineSwitchService:    buildPipelineSwitchService,
 		pipelineStageRepository:       pipelineStageRepository,
 		globalPluginRepository:        globalPluginRepository,
+		appListingService:             appListingService,
 	}
 }
 
@@ -298,11 +308,11 @@ func (impl *CiPipelineConfigServiceImpl) patchCiPipelineUpdateSource(baseCiConfi
 	}
 	// updating PipelineType from db if not present in request
 	if modifiedCiPipeline.PipelineType == "" {
-		if bean3.PipelineType(pipeline.PipelineType) != "" {
-			modifiedCiPipeline.PipelineType = bean3.PipelineType(pipeline.PipelineType)
+		if common.PipelineType(pipeline.PipelineType) != "" {
+			modifiedCiPipeline.PipelineType = common.PipelineType(pipeline.PipelineType)
 		} else {
 			// updating default pipelineType if not present in request
-			modifiedCiPipeline.PipelineType = bean3.DefaultPipelineType
+			modifiedCiPipeline.PipelineType = common.DefaultPipelineType
 
 		}
 	}
@@ -511,6 +521,17 @@ func (impl *CiPipelineConfigServiceImpl) getCiTemplateVariables(appId int) (ciCo
 	return ciConfig, err
 }
 
+func (impl *CiPipelineConfigServiceImpl) GetCiPipelineRespResolved(appId int) (*bean.CiConfigRequest, error) {
+	ciConf, err := impl.GetCiPipeline(appId)
+	if err != nil {
+		return nil, err
+	}
+	if ciConf == nil || ciConf.Id == 0 {
+		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no data found"}
+	}
+	return ciConf, err
+}
+
 func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfigRequest, err error) {
 	ciConfig, err = impl.getCiTemplateVariables(appId)
 	if err != nil {
@@ -575,9 +596,9 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 				Script:         ciScript.Script,
 				OutputLocation: ciScript.OutputLocation,
 			}
-			if ciScript.Stage == BEFORE_DOCKER_BUILD {
+			if ciScript.Stage == common.BEFORE_DOCKER_BUILD {
 				beforeDockerBuildScripts = append(beforeDockerBuildScripts, ciScriptResp)
-			} else if ciScript.Stage == AFTER_DOCKER_BUILD {
+			} else if ciScript.Stage == common.AFTER_DOCKER_BUILD {
 				afterDockerBuildScripts = append(afterDockerBuildScripts, ciScriptResp)
 			}
 		}
@@ -602,7 +623,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 			AfterDockerBuildScripts:  afterDockerBuildScripts,
 			ScanEnabled:              pipeline.ScanEnabled,
 			IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
-			PipelineType:             bean3.PipelineType(pipeline.PipelineType),
+			PipelineType:             common.PipelineType(pipeline.PipelineType),
 		}
 		ciEnvMapping, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(pipeline.Id)
 		if err != nil && err != pg.ErrNoRows {
@@ -675,6 +696,16 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 	return ciConfig, err
 }
 
+func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByIdWithDefaultTag(pipelineId int) (ciPipeline *bean.CiPipeline, err error) {
+	ciPipeline, err = impl.GetCiPipelineById(pipelineId)
+	if err != nil {
+		impl.logger.Infow("service error, GetCIPipelineById", "pipelineId", pipelineId, "err", err)
+		return nil, err
+	}
+	ciPipeline.DefaultTag = []string{"{git_hash}", "{ci_pipeline_id}", "{global_counter}"}
+	return ciPipeline, nil
+}
+
 func (impl *CiPipelineConfigServiceImpl) GetCiPipelineById(pipelineId int) (ciPipeline *bean.CiPipeline, err error) {
 	pipeline, err := impl.ciPipelineRepository.FindById(pipelineId)
 	if err != nil && !util.IsErrNoRows(err) {
@@ -720,9 +751,9 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineById(pipelineId int) (ciPi
 			Script:         ciScript.Script,
 			OutputLocation: ciScript.OutputLocation,
 		}
-		if ciScript.Stage == BEFORE_DOCKER_BUILD {
+		if ciScript.Stage == common.BEFORE_DOCKER_BUILD {
 			beforeDockerBuildScripts = append(beforeDockerBuildScripts, ciScriptResp)
-		} else if ciScript.Stage == AFTER_DOCKER_BUILD {
+		} else if ciScript.Stage == common.AFTER_DOCKER_BUILD {
 			afterDockerBuildScripts = append(afterDockerBuildScripts, ciScriptResp)
 		}
 	}
@@ -748,7 +779,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineById(pipelineId int) (ciPi
 		AfterDockerBuildScripts:  afterDockerBuildScripts,
 		ScanEnabled:              pipeline.ScanEnabled,
 		IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
-		PipelineType:             bean3.PipelineType(pipeline.PipelineType),
+		PipelineType:             common.PipelineType(pipeline.PipelineType),
 	}
 	customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pipelineConfigBean.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
 	if err != nil && err != pg.ErrNoRows {
@@ -872,7 +903,7 @@ func (impl *CiPipelineConfigServiceImpl) GetTriggerViewCiPipeline(appId int) (*b
 			ParentCiPipeline:         pipeline.ParentCiPipeline,
 			ScanEnabled:              pipeline.ScanEnabled,
 			IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
-			PipelineType:             bean3.PipelineType(pipeline.PipelineType),
+			PipelineType:             common.PipelineType(pipeline.PipelineType),
 		}
 		if ciTemplateBean, ok := ciOverrideTemplateMap[pipeline.Id]; ok {
 			templateOverride := ciTemplateBean.CiTemplateOverride
@@ -1238,7 +1269,7 @@ func (impl *CiPipelineConfigServiceImpl) UpdateCiTemplate(updateRequest *bean.Ci
 	}
 	for _, ciTemplateOverride := range ciTemplateOverrides {
 		if _, ok := ciPipelineIdsMap[ciTemplateOverride.CiPipelineId]; ok {
-			if ciPipelineIdsMap[ciTemplateOverride.CiPipelineId].PipelineType == string(bean3.CI_JOB) {
+			if ciPipelineIdsMap[ciTemplateOverride.CiPipelineId].PipelineType == string(common.CI_JOB) {
 				ciTemplateOverride.DockerRepository = updateRequest.DockerRepository
 				ciTemplateOverride.DockerRegistryId = updateRequest.DockerRegistry
 				_, err = impl.ciTemplateOverrideRepository.Update(ciTemplateOverride)
@@ -1294,7 +1325,7 @@ func (impl *CiPipelineConfigServiceImpl) PatchCiPipeline(request *bean.CiPatchRe
 		impl.logger.Errorw("err in fetching template for pipeline patch, ", "err", err, "appId", request.AppId)
 		return nil, err
 	}
-	if request.CiPipeline.PipelineType == bean3.CI_JOB {
+	if request.CiPipeline.PipelineType == common.CI_JOB {
 		request.CiPipeline.IsDockerConfigOverridden = true
 		request.CiPipeline.DockerConfigOverride = bean.DockerConfigOverride{
 			DockerRegistry:   ciConfig.DockerRegistry,
@@ -1487,15 +1518,15 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineMin(appId int, envIds []in
 	var ciPipelineResp []*bean.CiPipelineMin
 	for _, pipeline := range pipelines {
 		parentCiPipeline := pipelineConfig.CiPipeline{}
-		pipelineType := bean3.CI_BUILD
+		pipelineType := common.CI_BUILD
 
 		if pipelineParentCiMap[pipeline.Id] != nil {
 			parentCiPipeline = *pipelineParentCiMap[pipeline.Id]
-			pipelineType = bean3.LINKED
+			pipelineType = common.LINKED
 		} else if pipeline.IsExternal == true {
-			pipelineType = bean3.EXTERNAL
-		} else if pipeline.PipelineType == string(bean3.CI_JOB) {
-			pipelineType = bean3.CI_JOB
+			pipelineType = common.EXTERNAL
+		} else if pipeline.PipelineType == string(common.CI_JOB) {
+			pipelineType = common.CI_JOB
 		}
 
 		ciPipeline := &bean.CiPipelineMin{
@@ -1711,7 +1742,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByEnvironment(request reso
 				ExternalCiConfig:         externalCiConfig,
 				ScanEnabled:              pipeline.ScanEnabled,
 				IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
-				PipelineType:             bean3.PipelineType(pipeline.PipelineType),
+				PipelineType:             common.PipelineType(pipeline.PipelineType),
 			}
 			parentPipelineAppId, ok := pipelineIdVsAppId[parentCiPipelineId]
 			if ok {
@@ -2131,4 +2162,25 @@ func (impl *CiPipelineConfigServiceImpl) CreateExternalCiAndAppWorkflowMapping(a
 		return 0, nil, err
 	}
 	return externalCiPipeline.Id, appWorkflowMap, nil
+}
+
+func (impl *CiPipelineConfigServiceImpl) GetAppMetadataListByEnvironment(envId int, appIds []int) (appMetadataListBean pipelineConfigBean.AppMetadataListBean, err error) {
+	appMetadataListBean = pipelineConfigBean.AppMetadataListBean{}
+	envContainers, err := impl.appListingService.FetchAppsEnvContainers(envId, appIds, 0, 0)
+	if err != nil {
+		impl.logger.Errorw("failed to fetch env containers", "err", err, "envId", envId)
+		return appMetadataListBean, err
+	}
+	appMetadataList := make([]*pipelineConfigBean.AppMetaData, 0)
+	for _, envContainer := range envContainers {
+		appMetaData := &pipelineConfigBean.AppMetaData{
+			AppId:     envContainer.AppId,
+			AppName:   envContainer.AppName,
+			AppStatus: envContainer.AppStatus,
+		}
+		appMetadataList = append(appMetadataList, appMetaData)
+	}
+	appMetadataListBean.Apps = appMetadataList
+	appMetadataListBean.AppCount = len(envContainers)
+	return appMetadataListBean, nil
 }

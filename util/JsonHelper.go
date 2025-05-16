@@ -2,7 +2,7 @@ package util
 
 import "encoding/json"
 
-// IsEmptyJSON checks if a given string represents an empty JSON object
+// IsEmptyJSONForJsonString checks if a given string represents an empty JSON object
 func IsEmptyJSONForJsonString(jsonStr string) (bool, error) {
 	var data interface{}
 	err := json.Unmarshal([]byte(jsonStr), &data)
@@ -18,4 +18,8 @@ func IsEmptyJSONForJsonString(jsonStr string) (bool, error) {
 
 	// If not a JSON object, return false
 	return false, nil
+}
+
+func GetEmptyJSON() []byte {
+	return []byte("{}")
 }

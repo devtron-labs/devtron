@@ -21,7 +21,7 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/app"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	cron2 "github.com/devtron-labs/devtron/util/cron"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
@@ -38,12 +38,13 @@ type CiStatusUpdateCronImpl struct {
 	appService                   app.AppService
 	ciWorkflowStatusUpdateConfig *CiWorkflowStatusUpdateConfig
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
-	ciHandler                    pipeline.CiHandler
+	workflowDagExecutor          dag.WorkflowDagExecutor
 }
 
 func NewCiStatusUpdateCronImpl(logger *zap.SugaredLogger, appService app.AppService,
 	ciWorkflowStatusUpdateConfig *CiWorkflowStatusUpdateConfig, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	ciHandler pipeline.CiHandler, cronLogger *cron2.CronLoggerImpl) *CiStatusUpdateCronImpl {
+	cronLogger *cron2.CronLoggerImpl,
+	workflowDagExecutor dag.WorkflowDagExecutor) *CiStatusUpdateCronImpl {
 	cron := cron.New(
 		cron.WithChain(cron.Recover(cronLogger)))
 	cron.Start()
@@ -53,7 +54,7 @@ func NewCiStatusUpdateCronImpl(logger *zap.SugaredLogger, appService app.AppServ
 		appService:                   appService,
 		ciWorkflowStatusUpdateConfig: ciWorkflowStatusUpdateConfig,
 		ciPipelineRepository:         ciPipelineRepository,
-		ciHandler:                    ciHandler,
+		workflowDagExecutor:          workflowDagExecutor,
 	}
 
 	// execute periodically, update ci workflow status for failed process
@@ -66,8 +67,8 @@ func NewCiStatusUpdateCronImpl(logger *zap.SugaredLogger, appService app.AppServ
 }
 
 type CiWorkflowStatusUpdateConfig struct {
-	CiWorkflowStatusUpdateCron string `env:"CI_WORKFLOW_STATUS_UPDATE_CRON" envDefault:"*/5 * * * *"`
-	TimeoutForFailedCiBuild    string `env:"TIMEOUT_FOR_FAILED_CI_BUILD" envDefault:"15"` //in minutes
+	CiWorkflowStatusUpdateCron string `env:"CI_WORKFLOW_STATUS_UPDATE_CRON" envDefault:"*/5 * * * *" description:"Cron schedule for CI pipeline status"`
+	TimeoutForFailedCiBuild    string `env:"TIMEOUT_FOR_FAILED_CI_BUILD" envDefault:"15" description:"Timeout for Failed CI build "` //in minutes
 }
 
 func GetCiWorkflowStatusUpdateConfig() (*CiWorkflowStatusUpdateConfig, error) {
@@ -87,7 +88,7 @@ func (impl *CiStatusUpdateCronImpl) UpdateCiWorkflowStatusFailedCron() {
 		impl.logger.Errorw("error in converting string to int", "err", err)
 		return
 	}
-	err = impl.ciHandler.UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild)
+	err = impl.workflowDagExecutor.UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild)
 	if err != nil {
 		impl.logger.Errorw("error in updating ci workflow status for failed workflows", "err", err)
 		return

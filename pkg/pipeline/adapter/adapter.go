@@ -23,7 +23,9 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/ciPipeline"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
 	bean3 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -189,7 +191,7 @@ func mergeMap(oldDockerArgs map[string]string, ciLevelDockerArgs map[string]stri
 
 // IsLinkedCD will return if the pipelineConfig.CiPipeline is a Linked CD
 func IsLinkedCD(ci pipelineConfig.CiPipeline) bool {
-	return ci.ParentCiPipeline != 0 && ci.PipelineType == string(bean2.LINKED_CD)
+	return ci.ParentCiPipeline != 0 && ci.PipelineType == string(common.LINKED_CD)
 }
 
 // IsLinkedCI will return if the pipelineConfig.CiPipeline is a Linked CI
@@ -198,7 +200,7 @@ func IsLinkedCI(ci *pipelineConfig.CiPipeline) bool {
 		return false
 	}
 	return ci.ParentCiPipeline != 0 &&
-		ci.PipelineType == string(bean2.LINKED)
+		ci.PipelineType == string(common.LINKED)
 }
 
 // IsCIJob will return if the pipelineConfig.CiPipeline is a CI JOB
@@ -206,7 +208,7 @@ func IsCIJob(ci *pipelineConfig.CiPipeline) bool {
 	if ci == nil {
 		return false
 	}
-	return ci.PipelineType == string(bean2.CI_JOB)
+	return ci.PipelineType == string(common.CI_JOB)
 }
 
 // GetSourceCiDownStreamResponse will take the models []bean.LinkedCIDetails and []pipelineConfig.CdWorkflowRunner (for last deployment status) and generate the []CiPipeline.SourceCiDownStreamResponse
@@ -380,7 +382,7 @@ func GetStepVariableDto(variable *repository.PipelineStageStepVariable) (*pipeli
 	return variableDto, nil
 }
 
-func NewMigrateReleaseValidationRequest(pipeline *bean.CDPipelineConfigObject) *pipelineConfigBean.MigrateReleaseValidationRequest {
+func NewMigrateExternalAppValidationRequest(pipeline *bean.CDPipelineConfigObject, env *repository2.Environment) *pipelineConfigBean.MigrateReleaseValidationRequest {
 	request := &pipelineConfigBean.MigrateReleaseValidationRequest{
 		AppId:             pipeline.AppId,
 		DeploymentAppName: pipeline.DeploymentAppName,
@@ -390,6 +392,11 @@ func NewMigrateReleaseValidationRequest(pipeline *bean.CDPipelineConfigObject) *
 		request.ApplicationMetadataRequest = pipelineConfigBean.ApplicationMetadataRequest{
 			ApplicationObjectClusterId: pipeline.ApplicationObjectClusterId,
 			ApplicationObjectNamespace: pipeline.ApplicationObjectNamespace,
+		}
+	} else if pipeline.DeploymentAppType == bean3.PIPELINE_DEPLOYMENT_TYPE_HELM {
+		request.HelmReleaseMetadataRequest = pipelineConfigBean.HelmReleaseMetadataRequest{
+			ReleaseClusterId: env.ClusterId,
+			ReleaseNamespace: env.Namespace,
 		}
 	}
 	return request

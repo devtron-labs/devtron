@@ -32,14 +32,15 @@ import (
 	repository6 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	buildCommonBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
 	read2 "github.com/devtron-labs/devtron/pkg/chart/read"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/common/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
-	constants3 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	util4 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"github.com/devtron-labs/devtron/pkg/plugin"
+	"github.com/devtron-labs/devtron/util/beHelper"
 	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"golang.org/x/exp/slices"
 	"net/http"
@@ -225,9 +226,6 @@ func NewCiCdPipelineOrchestrator(
 	}
 }
 
-const BEFORE_DOCKER_BUILD string = "BEFORE_DOCKER_BUILD"
-const AFTER_DOCKER_BUILD string = "AFTER_DOCKER_BUILD"
-
 func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSource(patchRequest *bean.CiMaterialPatchRequest, userId int32) (*bean.CiMaterialPatchRequest, error) {
 	pipeline, err := impl.findUniquePipelineForAppIdAndEnvironmentId(patchRequest.AppId, patchRequest.EnvironmentId)
 	if err != nil {
@@ -328,7 +326,7 @@ func (impl CiCdPipelineOrchestratorImpl) validateCiPipelineMaterial(ciPipelineMa
 
 func (impl CiCdPipelineOrchestratorImpl) getSkipMessage(ciPipeline *pipelineConfig.CiPipeline) string {
 	switch ciPipeline.PipelineType {
-	case string(bean2.LINKED_CD):
+	case string(buildCommonBean.LINKED_CD):
 		return "“Sync with Environment”"
 	default:
 		return "“Linked Build Pipeline”"
@@ -1009,7 +1007,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 
 		var pipelineMaterials []*pipelineConfig.CiPipelineMaterial
 		for _, r := range ciPipeline.CiMaterial {
-			if ciPipeline.PipelineType == bean2.LINKED_CD {
+			if ciPipeline.PipelineType == buildCommonBean.LINKED_CD {
 				continue
 			}
 			material := &pipelineConfig.CiPipelineMaterial{
@@ -1351,7 +1349,7 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) erro
 
 	impl.logger.Debug("deleting materials in git_sensor")
 	for _, m := range materials {
-		err = impl.updateRepositoryToGitSensor(m, "")
+		err = impl.updateRepositoryToGitSensor(m, "", false)
 		if err != nil {
 			impl.logger.Errorw("error in updating to git-sensor", "err", err)
 			return err
@@ -1441,14 +1439,16 @@ func (impl CiCdPipelineOrchestratorImpl) CreateMaterials(createMaterialRequest *
 		}
 		materials = append(materials, inputMaterial)
 	}
-	err = impl.addRepositoryToGitSensor(materials, "")
-	if err != nil {
-		impl.logger.Errorw("error in updating to sensor", "err", err)
-		return nil, err
-	}
+	// moving transaction before addRepositoryToGitSensor as commiting transaction after addRepositoryToGitSensor was causing problems
+	// in case request was cancelled data was getting saved in git sensor but not getting saved in orchestrator db. Same is done in update flow.
 	err = impl.transactionManager.CommitTx(tx)
 	if err != nil {
 		impl.logger.Errorw("error in committing tx Create material", "err", err, "materials", materials)
+		return nil, err
+	}
+	err = impl.addRepositoryToGitSensor(materials, "")
+	if err != nil {
+		impl.logger.Errorw("error in updating to sensor", "err", err)
 		return nil, err
 	}
 	impl.logger.Debugw("all materials are ", "materials", materials)
@@ -1466,21 +1466,23 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateMaterial(updateMaterialDTO *bean.
 		impl.logger.Errorw("err", "err", err)
 		return nil, err
 	}
-
-	err = impl.updateRepositoryToGitSensor(updatedMaterial, "")
-	if err != nil {
-		impl.logger.Errorw("error in updating to git-sensor", "err", err)
-		return nil, err
-	}
 	err = impl.transactionManager.CommitTx(tx)
 	if err != nil {
-		impl.logger.Errorw("error in committing tx Update material", "err", err)
+		impl.logger.Errorw("error in committing tx Create material", "err", err)
+		return nil, err
+	}
+
+	err = impl.updateRepositoryToGitSensor(updatedMaterial, "",
+		updateMaterialDTO.Material.CreateBackup)
+	if err != nil {
+		impl.logger.Errorw("error in updating to git-sensor", "err", err)
 		return nil, err
 	}
 	return updateMaterialDTO, nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *repository6.GitMaterial, cloningMode string) error {
+func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *repository6.GitMaterial,
+	cloningMode string, createBackup bool) error {
 	sensorMaterial := &gitSensor.GitMaterial{
 		Name:             material.Name,
 		Url:              material.Url,
@@ -1491,8 +1493,16 @@ func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *r
 		FetchSubmodules:  material.FetchSubmodules,
 		FilterPattern:    material.FilterPattern,
 		CloningMode:      cloningMode,
+		CreateBackup:     createBackup,
 	}
-	return impl.GitSensorClient.UpdateRepo(context.Background(), sensorMaterial)
+	timeout := 10 * time.Minute
+	if createBackup {
+		// additional time may be required for dir snapshot
+		timeout = 15 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return impl.GitSensorClient.UpdateRepo(ctx, sensorMaterial)
 }
 
 func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*bean.GitMaterial, cloningMode string) error {
@@ -1510,7 +1520,9 @@ func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*b
 		}
 		sensorMaterials = append(sensorMaterials, sensorMaterial)
 	}
-	return impl.GitSensorClient.AddRepo(context.Background(), sensorMaterials)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	return impl.GitSensorClient.AddRepo(ctx, sensorMaterials)
 }
 
 // FIXME: not thread safe
@@ -2276,7 +2288,7 @@ func (impl CiCdPipelineOrchestratorImpl) AddPipelineToTemplate(createRequest *be
 	if createRequest.AppWorkflowId == 0 {
 		// create workflow
 		wf := &appWorkflow.AppWorkflow{
-			Name:   fmt.Sprintf("wf-%d-%s", createRequest.AppId, util2.Generate(4)),
+			Name:   beHelper.GetAppWorkflowName(createRequest.AppId),
 			AppId:  createRequest.AppId,
 			Active: true,
 			AuditLog: sql.AuditLog{
@@ -2490,7 +2502,7 @@ func (impl *CiCdPipelineOrchestratorImpl) GetWorkflowCacheConfig(appType helper.
 	if appType == helper.Job {
 		return util4.GetWorkflowCacheConfig(pipelineWorkflowCacheConfig, impl.workflowCacheConfig.IgnoreJob)
 	} else {
-		if pipelineType == string(constants3.CI_JOB) {
+		if pipelineType == string(buildCommonBean.CI_JOB) {
 			return util4.GetWorkflowCacheConfigWithBackwardCompatibility(pipelineWorkflowCacheConfig, impl.ciConfig.WorkflowCacheConfig, impl.workflowCacheConfig.IgnoreCIJob, impl.ciConfig.SkipCiJobBuildCachePushPull)
 		} else {
 			return util4.GetWorkflowCacheConfigWithBackwardCompatibility(pipelineWorkflowCacheConfig, impl.ciConfig.WorkflowCacheConfig, impl.workflowCacheConfig.IgnoreCI, impl.ciConfig.IgnoreDockerCacheForCI)

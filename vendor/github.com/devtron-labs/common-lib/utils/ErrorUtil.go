@@ -16,7 +16,11 @@
 
 package utils
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+	"github.com/go-pg/pg"
+)
 
 type ApiError struct {
 	HttpStatusCode    int         `json:"-"`
@@ -38,4 +42,8 @@ func (e *ApiError) ErrorfInternal(format string, a ...interface{}) error {
 // default user message will be set
 func (e ApiError) ErrorfUser(format string, a ...interface{}) error {
 	return &ApiError{InternalMessage: fmt.Sprintf(format, a...)}
+}
+
+func IsErrNoRows(err error) bool {
+	return errors.Is(err, pg.ErrNoRows)
 }

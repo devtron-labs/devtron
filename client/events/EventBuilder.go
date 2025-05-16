@@ -19,6 +19,7 @@ package client
 import (
 	"context"
 	"fmt"
+	buildBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"strings"
 	"time"
@@ -38,7 +39,7 @@ import (
 type EventFactory interface {
 	Build(eventType util.EventType, sourceId *int, appId int, envId *int, pipelineType util.PipelineType) (Event, error)
 	BuildExtraCDData(event Event, wfr *pipelineConfig.CdWorkflowRunner, pipelineOverrideId int, stage bean2.WorkflowType) Event
-	BuildExtraCIData(event Event, material *MaterialTriggerInfo) Event
+	BuildExtraCIData(event Event, material *buildBean.MaterialTriggerInfo) Event
 	//BuildFinalData(event Event) *Payload
 }
 
@@ -170,10 +171,11 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 		payload.TriggeredBy = user.EmailId
 		event.Payload = payload
 	}
+	event = impl.addExtraCdDataForEnterprise(event, wfr)
 	return event
 }
 
-func (impl *EventSimpleFactoryImpl) BuildExtraCIData(event Event, material *MaterialTriggerInfo) Event {
+func (impl *EventSimpleFactoryImpl) BuildExtraCIData(event Event, material *buildBean.MaterialTriggerInfo) Event {
 	if material == nil {
 		materialInfo, err := impl.getCiMaterialInfo(event.PipelineId, event.CiArtifactId)
 		if err != nil {
@@ -207,8 +209,8 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCIData(event Event, material *Mate
 	return event
 }
 
-func (impl *EventSimpleFactoryImpl) getCiMaterialInfo(ciPipelineId int, ciArtifactId int) (*MaterialTriggerInfo, error) {
-	materialTriggerInfo := &MaterialTriggerInfo{}
+func (impl *EventSimpleFactoryImpl) getCiMaterialInfo(ciPipelineId int, ciArtifactId int) (*buildBean.MaterialTriggerInfo, error) {
+	materialTriggerInfo := &buildBean.MaterialTriggerInfo{}
 	if ciPipelineId > 0 {
 		ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(ciPipelineId)
 		if err != nil {
@@ -216,13 +218,13 @@ func (impl *EventSimpleFactoryImpl) getCiMaterialInfo(ciPipelineId int, ciArtifa
 			return nil, err
 		}
 
-		var ciMaterialsArr []CiPipelineMaterialResponse
+		var ciMaterialsArr []buildBean.CiPipelineMaterialResponse
 		for _, m := range ciMaterials {
 			if m.GitMaterial == nil {
 				impl.logger.Warnw("git material are empty", "material", m)
 				continue
 			}
-			res := CiPipelineMaterialResponse{
+			res := buildBean.CiPipelineMaterialResponse{
 				Id:              m.Id,
 				GitMaterialId:   m.GitMaterialId,
 				GitMaterialName: m.GitMaterial.Name[strings.Index(m.GitMaterial.Name, "-")+1:],

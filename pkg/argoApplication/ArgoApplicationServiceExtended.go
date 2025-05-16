@@ -31,8 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/read"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/cluster/environment"
-	util5 "github.com/devtron-labs/devtron/pkg/util"
+	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/util"
 	"google.golang.org/grpc"
 	v12 "k8s.io/api/apps/v1"
@@ -43,18 +42,25 @@ import (
 
 type ArgoApplicationServiceExtendedImpl struct {
 	*ArgoApplicationServiceImpl
-	environmentService         environment.EnvironmentService
-	aCDAuthConfig              *util5.ACDAuthConfig
+	aCDAuthConfig              *util3.ACDAuthConfig
 	argoApplicationReadService read.ArgoApplicationReadService
 	clusterService             cluster.ClusterService
 	acdClientWrapper           argocdServer.ArgoClientWrapperService
 }
 
-func NewArgoApplicationServiceExtendedServiceImpl(argoApplicationServiceImpl *ArgoApplicationServiceImpl,
-	acdClientWrapper argocdServer.ArgoClientWrapperService) *ArgoApplicationServiceExtendedImpl {
+func NewArgoApplicationServiceExtendedServiceImpl(
+	aCDAuthConfig *util3.ACDAuthConfig,
+	argoApplicationServiceImpl *ArgoApplicationServiceImpl,
+	acdClientWrapper argocdServer.ArgoClientWrapperService,
+	argoApplicationReadService read.ArgoApplicationReadService,
+	clusterService cluster.ClusterService,
+) *ArgoApplicationServiceExtendedImpl {
 	return &ArgoApplicationServiceExtendedImpl{
-		ArgoApplicationServiceImpl: argoApplicationServiceImpl,
+		aCDAuthConfig:              aCDAuthConfig,
+		clusterService:             clusterService,
+		argoApplicationReadService: argoApplicationReadService,
 		acdClientWrapper:           acdClientWrapper,
+		ArgoApplicationServiceImpl: argoApplicationServiceImpl,
 	}
 }
 

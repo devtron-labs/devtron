@@ -212,7 +212,7 @@ func (impl ClusterRepositoryImpl) FindByClusterURL(clusterURL string) (*Cluster,
 	err := impl.dbConnection.
 		Model(cluster).
 		Where("server_url =?", clusterURL).
-		Where("active =?", true).
+		Where("active =?", true).Order("id DESC").Limit(1).
 		Select()
 	return cluster, err
 }

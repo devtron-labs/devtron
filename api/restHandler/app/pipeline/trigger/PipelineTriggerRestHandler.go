@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	util2 "github.com/devtron-labs/devtron/internal/util"
+	bean5 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
@@ -66,7 +67,7 @@ type PipelineTriggerRestHandlerImpl struct {
 	deploymentGroupService      deploymentGroup.DeploymentGroupService
 	deploymentConfigService     pipeline.PipelineDeploymentConfigService
 	deployedAppService          deployedApp.DeployedAppService
-	cdTriggerService            devtronApps.TriggerService
+	cdHandlerService            devtronApps.HandlerService
 	workflowEventPublishService out.WorkflowEventPublishService
 }
 
@@ -75,7 +76,7 @@ func NewPipelineRestHandler(appService app.AppService, userAuthService user.User
 	deploymentGroupService deploymentGroup.DeploymentGroupService,
 	deploymentConfigService pipeline.PipelineDeploymentConfigService,
 	deployedAppService deployedApp.DeployedAppService,
-	cdTriggerService devtronApps.TriggerService,
+	cdHandlerService devtronApps.HandlerService,
 	workflowEventPublishService out.WorkflowEventPublishService) *PipelineTriggerRestHandlerImpl {
 	pipelineHandler := &PipelineTriggerRestHandlerImpl{
 		appService:                  appService,
@@ -88,7 +89,7 @@ func NewPipelineRestHandler(appService app.AppService, userAuthService user.User
 		deploymentGroupService:      deploymentGroupService,
 		deploymentConfigService:     deploymentConfigService,
 		deployedAppService:          deployedAppService,
-		cdTriggerService:            cdTriggerService,
+		cdHandlerService:            cdHandlerService,
 		workflowEventPublishService: workflowEventPublishService,
 	}
 	return pipelineHandler
@@ -140,7 +141,14 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 	triggerContext := bean3.TriggerContext{
 		Context: ctx,
 	}
-	mergeResp, helmPackageName, _, err := handler.cdTriggerService.ManualCdTrigger(triggerContext, &overrideRequest)
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	userEmail := util.GetEmailFromContext(ctx)
+	userMetadata := &bean5.UserMetadata{
+		UserEmailId:      userEmail,
+		IsUserSuperAdmin: isSuperAdmin,
+		UserId:           userId,
+	}
+	mergeResp, helmPackageName, _, err := handler.cdHandlerService.ManualCdTrigger(triggerContext, &overrideRequest, userMetadata)
 	span.End()
 	if err != nil {
 		handler.logger.Errorw("request err, OverrideConfig", "err", err, "payload", overrideRequest)
@@ -184,7 +192,14 @@ func (handler PipelineTriggerRestHandlerImpl) RotatePods(w http.ResponseWriter, 
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	rotatePodResponse, err := handler.deployedAppService.RotatePods(r.Context(), &podRotateRequest)
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	userEmail := util.GetEmailFromContext(r.Context())
+	userMetadata := &bean5.UserMetadata{
+		UserEmailId:      userEmail,
+		IsUserSuperAdmin: isSuperAdmin,
+		UserId:           userId,
+	}
+	rotatePodResponse, err := handler.deployedAppService.RotatePods(r.Context(), &podRotateRequest, userMetadata)
 	if err != nil {
 		handler.logger.Errorw("service err, RotatePods", "err", err, "payload", podRotateRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -229,7 +244,14 @@ func (handler PipelineTriggerRestHandlerImpl) StartStopApp(w http.ResponseWriter
 	}
 	//rback block ends here
 	ctx := r.Context()
-	mergeResp, err := handler.deployedAppService.StopStartApp(ctx, &overrideRequest)
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	userEmail := util.GetEmailFromContext(ctx)
+	userMetadata := &bean5.UserMetadata{
+		UserEmailId:      userEmail,
+		IsUserSuperAdmin: isSuperAdmin,
+		UserId:           userId,
+	}
+	mergeResp, err := handler.deployedAppService.StopStartApp(ctx, &overrideRequest, userMetadata)
 	if err != nil {
 		handler.logger.Errorw("service err, StartStopApp", "err", err, "payload", overrideRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -283,7 +305,14 @@ func (handler PipelineTriggerRestHandlerImpl) StartStopDeploymentGroup(w http.Re
 		return
 	}
 	//rback block ends here
-	res, err := handler.workflowEventPublishService.TriggerBulkHibernateAsync(stopDeploymentGroupRequest)
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	userEmail := util.GetEmailFromContext(r.Context())
+	userMetadata := &bean5.UserMetadata{
+		UserEmailId:      userEmail,
+		IsUserSuperAdmin: isSuperAdmin,
+		UserId:           userId,
+	}
+	res, err := handler.workflowEventPublishService.TriggerBulkHibernateAsync(stopDeploymentGroupRequest, userMetadata)
 	if err != nil {
 		handler.logger.Errorw("service err, StartStopDeploymentGroup", "err", err, "payload", stopDeploymentGroupRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
