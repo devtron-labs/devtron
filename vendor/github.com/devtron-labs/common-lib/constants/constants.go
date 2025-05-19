@@ -34,6 +34,7 @@ const (
 	Kubelink     ServiceName = "KUBELINK"
 	GitSensor    ServiceName = "GITSENSOR"
 	Kubewatch    ServiceName = "KUBEWATCH"
+	ImageScanner ServiceName = "IMAGE_SCANNER"
 )
 
 // metrics name constants
