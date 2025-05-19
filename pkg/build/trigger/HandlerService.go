@@ -1910,7 +1910,7 @@ func (impl *HandlerServiceImpl) DownloadCiWorkflowArtifacts(pipelineId int, buil
 		impl.ciWorkflowRepository.MigrateCiArtifactLocation(ciWorkflow.Id, key)
 	}
 	baseLogLocationPathConfig := impl.config.BaseLogLocationPath
-	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
+	blobStorageService := blob_storage.NewBlobStorageServiceImpl(impl.Logger)
 	destinationKey := filepath.Clean(filepath.Join(baseLogLocationPathConfig, item))
 	request := &blob_storage.BlobStorageRequest{
 		StorageType:         impl.config.CloudProvider,
