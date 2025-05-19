@@ -52,6 +52,7 @@ import (
 	v14 "k8s.io/api/apps/v1"
 	batchV1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
+	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -146,6 +147,10 @@ type K8sService interface {
 	OverrideRestConfigWithCustomTransport(restConfig *rest.Config) (*rest.Config, error)
 	CreateNsWithLabels(namespace string, labels map[string]string, client *v12.CoreV1Client) (ns *v1.Namespace, err error)
 	CreateNs(namespace string, client *v12.CoreV1Client) (ns *v1.Namespace, err error)
+	GetGVRForCRD(config *rest.Config, CRDName string) (schema.GroupVersionResource, error)
+	GetResourceByGVR(ctx context.Context, config *rest.Config, GVR schema.GroupVersionResource, resourceName, namespace string) (*unstructured.Unstructured, error)
+	PatchResourceByGVR(ctx context.Context, config *rest.Config, GVR schema.GroupVersionResource, resourceName, namespace string, patchType types.PatchType, patchData []byte) (*unstructured.Unstructured, error)
+	DeleteResourceByGVR(ctx context.Context, config *rest.Config, GVR schema.GroupVersionResource, resourceName, namespace string, forceDelete bool) error
 }
 
 func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *RuntimeConfig) (*K8sServiceImpl, error) {
@@ -1902,6 +1907,77 @@ func (impl *K8sServiceImpl) CreateOrUpdateSecretByName(client *v12.CoreV1Client,
 			impl.logger.Errorw("Error in creating secret for chart repo", "uniqueSecretName", uniqueSecretName, "err", err)
 			return err
 		}
+	}
+	return nil
+}
+
+func (impl *K8sServiceImpl) GetGVRForCRD(config *rest.Config, CRDName string) (schema.GroupVersionResource, error) {
+	apiExtClient, err := apiextensionsclient.NewForConfig(config)
+	if err != nil {
+		impl.logger.Error("error in getting api extension client", "err", err)
+		return schema.GroupVersionResource{}, err
+	}
+	crd, err := apiExtClient.ApiextensionsV1().CustomResourceDefinitions().Get(context.TODO(), CRDName, metav1.GetOptions{})
+	if err != nil {
+		impl.logger.Error("error in getting terraform crd", "err", err)
+		return schema.GroupVersionResource{}, err
+	}
+	var servedVersion string
+	for _, v := range crd.Spec.Versions {
+		if v.Served {
+			servedVersion = v.Name
+			break
+		}
+	}
+	return schema.GroupVersionResource{
+		Group:    crd.Spec.Group,
+		Version:  servedVersion,
+		Resource: crd.Spec.Names.Plural,
+	}, nil
+}
+
+func (impl *K8sServiceImpl) GetResourceByGVR(ctx context.Context, config *rest.Config, GVR schema.GroupVersionResource, resourceName, namespace string) (*unstructured.Unstructured, error) {
+	dynClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		impl.logger.Errorw("failed to create dynamic client", "err", err)
+		return nil, err
+	}
+	resource, err := dynClient.Resource(GVR).Namespace(namespace).Get(ctx, resourceName, metav1.GetOptions{})
+	if err != nil {
+		impl.logger.Errorw("failed to get resource", "resourceName", resourceName, "namespace", namespace, "err", err)
+		return nil, err
+	}
+	return resource, nil
+}
+
+func (impl *K8sServiceImpl) PatchResourceByGVR(ctx context.Context, config *rest.Config, GVR schema.GroupVersionResource, resourceName, namespace string, patchType types.PatchType, patchData []byte) (*unstructured.Unstructured, error) {
+	dynClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		impl.logger.Errorw("failed to create dynamic client", "err", err)
+		return nil, err
+	}
+	resource, err := dynClient.Resource(GVR).Namespace(namespace).Patch(ctx, resourceName, patchType, patchData, metav1.PatchOptions{FieldManager: "patch"})
+	if err != nil {
+		impl.logger.Errorw("failed to get resource", "resourceName", resourceName, "namespace", namespace, "err", err)
+		return nil, err
+	}
+	return resource, nil
+}
+
+func (impl *K8sServiceImpl) DeleteResourceByGVR(ctx context.Context, config *rest.Config, GVR schema.GroupVersionResource, resourceName, namespace string, forceDelete bool) error {
+	dynClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		impl.logger.Errorw("failed to create dynamic client", "err", err)
+		return err
+	}
+	deleteOptions := metav1.DeleteOptions{}
+	if forceDelete {
+		deleteOptions.GracePeriodSeconds = pointer.Int64Ptr(0)
+	}
+	err = dynClient.Resource(GVR).Namespace(namespace).Delete(ctx, resourceName, deleteOptions)
+	if err != nil {
+		impl.logger.Errorw("failed to get resource", "resourceName", resourceName, "namespace", namespace, "err", err)
+		return err
 	}
 	return nil
 }

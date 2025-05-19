@@ -28,8 +28,8 @@ import (
 
 type BlobStorageService interface {
 	PutWithCommand(request *BlobStorageRequest) error
-	Get(request *BlobStorageRequest) (bool, error)
-	DeleteObjectForS3(request *BlobStorageRequest) error
+	Get(request *BlobStorageRequest) (bool, int64, error)
+	UploadToBlobWithSession(request *BlobStorageRequest) error
 }
 
 type BlobStorageServiceImpl struct {
@@ -102,19 +102,6 @@ func (impl *BlobStorageServiceImpl) Get(request *BlobStorageRequest) (bool, int6
 	}
 
 	return downloadSuccess, numBytes, err
-}
-
-// TODO: Have not Tested it
-func (impl *BlobStorageServiceImpl) DeleteObjectForS3(request *BlobStorageRequest) error {
-	if request.StorageType == BLOB_STORAGE_S3 {
-		awsS3Blob := AwsS3Blob{}
-		err := awsS3Blob.DeleteObjectFromBlob(request)
-		if err != nil {
-			impl.logger.Errorw("error in deleting object from S3", "err", err, "DestinationKey", request.DestinationKey, "StorageType", request.StorageType)
-			return err
-		}
-	}
-	return nil
 }
 
 func (impl *BlobStorageServiceImpl) UploadToBlobWithSession(request *BlobStorageRequest) error {
