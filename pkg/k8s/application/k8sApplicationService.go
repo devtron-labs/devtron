@@ -263,6 +263,7 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 			request.ClusterId = appIdentifier.ClusterId
 			request.K8sRequest.ResourceIdentifier.Namespace = namespace
 			request.AppId = appId
+			request.ExternalArgoAppIdentifier = appIdentifier
 		} else if request.AppType == bean3.HelmAppType {
 			// For Helm App resources
 			appIdentifier, err := impl.helmAppService.DecodeAppId(appId)
@@ -370,6 +371,8 @@ func (impl *K8sApplicationServiceImpl) ValidateTerminalRequestQuery(r *http.Requ
 			resourceRequestBean.ClusterId = appIdentifier.ClusterId
 			request.ClusterId = appIdentifier.ClusterId
 			request.ExternalArgoApplicationName = appIdentifier.AppName
+			request.ExternalArgoApplicationNamespace = appIdentifier.Namespace
+			request.ExternalArgoAppIdentifier = appIdentifier
 		}
 	} else {
 		// Validate Cluster Id

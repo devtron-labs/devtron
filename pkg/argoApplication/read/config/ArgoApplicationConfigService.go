@@ -23,7 +23,7 @@ type ArgoApplicationConfigServiceImpl struct {
 }
 
 type ArgoApplicationConfigService interface {
-	GetRestConfigForExternalArgo(ctx context.Context, clusterId int, externalArgoApplicationName string) (*rest.Config, error)
+	GetRestConfigForExternalArgo(ctx context.Context, clusterId int, externalArgoAppIdentifier *bean.ArgoAppIdentifier) (*rest.Config, error)
 	GetClusterConfigFromAllClusters(clusterId int) (*k8s.ClusterConfig, clusterRepository.Cluster, map[string]int, error)
 }
 
@@ -59,20 +59,20 @@ func (impl *ArgoApplicationConfigServiceImpl) GetClusterConfigFromAllClusters(cl
 	return clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err
 }
 
-func (impl *ArgoApplicationConfigServiceImpl) GetRestConfigForExternalArgo(ctx context.Context, clusterId int, externalArgoApplicationName string) (*rest.Config, error) {
-	clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.GetClusterConfigFromAllClusters(clusterId)
+func (impl *ArgoApplicationConfigServiceImpl) GetRestConfigForExternalArgo(ctx context.Context, clusterId int, externalArgoAppIdentifier *bean.ArgoAppIdentifier) (*rest.Config, error) {
+	clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.GetClusterConfigFromAllClusters(externalArgoAppIdentifier.ClusterId)
 	if err != nil {
-		impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterId)
+		impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", externalArgoAppIdentifier.ClusterId)
 		return nil, err
 	}
 	restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
 	if err != nil {
-		impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", clusterId)
+		impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", externalArgoAppIdentifier.ClusterId)
 		return nil, err
 	}
-	resourceResp, err := impl.k8sUtil.GetResource(ctx, bean.DevtronCDNamespae, externalArgoApplicationName, bean.GvkForArgoApplication, restConfig)
+	resourceResp, err := impl.k8sUtil.GetResource(ctx, externalArgoAppIdentifier.Namespace, externalArgoAppIdentifier.AppName, bean.GvkForArgoApplication, restConfig)
 	if err != nil {
-		impl.logger.Errorw("not on external cluster", "err", err, "externalArgoApplicationName", externalArgoApplicationName)
+		impl.logger.Errorw("not on external cluster", "err", err, "externalArgoApplicationName", externalArgoAppIdentifier.AppName, "externalArgoApplicationNamespace", externalArgoAppIdentifier.Namespace)
 		return nil, err
 	}
 	restConfig, err = impl.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
