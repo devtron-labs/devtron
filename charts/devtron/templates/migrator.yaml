@@ -27,7 +27,7 @@ spec:
           - name: PG_USER
             value: postgres
           - name: PG_ADDR
-            value: postgresql-postgresql.devtroncd
+            value: {{ .configs.PG_ADDR | default "postgresql-postgresql.devtroncd" }}
           - name: DB_PORT
             value: "5432"
           - name: PG_DATABASE
@@ -80,7 +80,7 @@ spec:
             - name: DB_USER_NAME
               value: postgres
             - name: DB_HOST
-              value: postgresql-postgresql.devtroncd
+              value: {{ .configs.PG_ADDR | default "postgresql-postgresql.devtroncd" }}
             - name: DB_PORT
               value: "5432"
             - name: DB_NAME
@@ -186,7 +186,7 @@ spec:
             - name: DB_USER_NAME
               value: postgres
             - name: DB_HOST
-              value: postgresql-postgresql.devtroncd
+              value: {{ .configs.PG_ADDR | default "postgresql-postgresql.devtroncd" }}
             - name: DB_PORT
               value: "5432"
             - name: DB_NAME
@@ -273,7 +273,7 @@ spec:
             - name: DB_USER_NAME
               value: postgres
             - name: DB_HOST
-              value: postgresql-postgresql.devtroncd
+              value: {{ .configs.PG_ADDR | default "postgresql-postgresql.devtroncd" }}
             - name: DB_PORT
               value: "5432"
             - name: DB_NAME
@@ -355,7 +355,7 @@ spec:
             - name: DB_USER_NAME
               value: postgres
             - name: DB_HOST
-              value: postgresql-postgresql.devtroncd
+              value: {{ .configs.PG_ADDR | default "postgresql-postgresql.devtroncd" }}
             - name: DB_PORT
               value: "5432"
             - name: DB_NAME
@@ -430,7 +430,7 @@ spec:
             - name: DB_USER_NAME
               value: postgres
             - name: DB_HOST
-              value: postgresql-postgresql.devtroncd
+              value: {{ .configs.PG_ADDR | default "postgresql-postgresql.devtroncd" }}
             - name: DB_PORT
               value: "5432"
             - name: DB_NAME
