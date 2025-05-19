@@ -88,7 +88,7 @@ func (impl *CiLogServiceImpl) FetchLogs(baseLogLocationPathConfig string, logReq
 	tempFile := baseLogLocationPathConfig
 	tempFile = filepath.Clean(filepath.Join(tempFile, logRequest.PodName+".log"))
 
-	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
+	blobStorageService := blob_storage.NewBlobStorageServiceImpl(impl.logger)
 	request := &blob_storage.BlobStorageRequest{
 		StorageType:         logRequest.CloudProvider,
 		SourceKey:           logRequest.LogsFilePath,
