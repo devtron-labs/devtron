@@ -694,6 +694,13 @@ func (impl *TelemetryEventClientImpl) checkForOptOut(ctx context.Context, UCID s
 		return false, err
 	}
 
+	// Check if response code is 200
+	code, codeExists := response["code"]
+	if !codeExists || code != int32(200) {
+		impl.logger.Errorw("check opt-out list failed, invalid response code", "ucid", UCID, "code", code)
+		return false, errors.New(fmt.Sprintf("invalid response code %v", code))
+	}
+
 	flag, ok := response["result"].(bool)
 	if !ok {
 		impl.logger.Errorw("check opt-out list failed, type assertion error", "ucid", UCID)
