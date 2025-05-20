@@ -1050,7 +1050,10 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 	} else {
 		ciArtifactArr = append(ciArtifactArr, pluginArtifacts[0])
 	}
-	go impl.WriteCiSuccessEvent(request, pipelineModal, buildArtifact)
+	runnableFunc := func() {
+		impl.WriteCiSuccessEvent(request, pipelineModal, buildArtifact)
+	}
+	impl.asyncRunnable.Execute(runnableFunc)
 	async := false
 
 	// execute auto trigger in batch on CI success event

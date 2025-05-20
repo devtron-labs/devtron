@@ -385,7 +385,8 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	argoCDConfigGetterImpl := config3.NewArgoCDConfigGetter(beanConfig, environmentVariables, acdAuthConfig, clusterReadServiceImpl, sugaredLogger, k8sServiceImpl)
-	argoCDConnectionManagerImpl, err := connection.NewArgoCDConnectionManagerImpl(sugaredLogger, settingsManager, moduleRepositoryImpl, environmentVariables, k8sServiceImpl, k8sCommonServiceImpl, versionServiceImpl, gitOpsConfigReadServiceImpl, k8sRuntimeConfig, argoCDConfigGetterImpl)
+	runnable := asyncProvider.NewAsyncRunnable(sugaredLogger)
+	argoCDConnectionManagerImpl, err := connection.NewArgoCDConnectionManagerImpl(sugaredLogger, settingsManager, moduleRepositoryImpl, environmentVariables, k8sServiceImpl, k8sCommonServiceImpl, versionServiceImpl, gitOpsConfigReadServiceImpl, k8sRuntimeConfig, argoCDConfigGetterImpl, runnable)
 	if err != nil {
 		return nil, err
 	}
@@ -404,7 +405,6 @@ func InitializeApp() (*App, error) {
 	}
 	chartTemplateServiceImpl := util.NewChartTemplateServiceImpl(sugaredLogger)
 	gitOperationServiceImpl := git.NewGitOperationServiceImpl(sugaredLogger, gitFactory, gitOpsConfigReadServiceImpl, chartTemplateServiceImpl, environmentVariables)
-	runnable := asyncProvider.NewAsyncRunnable(sugaredLogger)
 	repositoryCredsK8sClientImpl := repoCredsK8sClient.NewRepositoryCredsK8sClientImpl(sugaredLogger, k8sServiceImpl)
 	argoClientWrapperServiceEAImpl := argocdServer.NewArgoClientWrapperServiceEAImpl(sugaredLogger, repositoryCredsK8sClientImpl, argoCDConfigGetterImpl)
 	argoK8sClientImpl := argocdServer.NewArgoK8sClientImpl(sugaredLogger, k8sServiceImpl)
@@ -685,7 +685,7 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	blobStorageConfigServiceImpl := pipeline.NewBlobStorageConfigServiceImpl(sugaredLogger, k8sServiceImpl, ciCdConfig)
-	handlerServiceImpl := trigger.NewHandlerServiceImpl(sugaredLogger, workflowServiceImpl, ciPipelineMaterialRepositoryImpl, ciPipelineRepositoryImpl, ciArtifactRepositoryImpl, pipelineStageServiceImpl, userServiceImpl, ciTemplateReadServiceImpl, appCrudOperationServiceImpl, environmentRepositoryImpl, appRepositoryImpl, scopedVariableManagerImpl, customTagServiceImpl, ciCdPipelineOrchestratorImpl, attributesServiceImpl, pluginInputVariableParserImpl, globalPluginServiceImpl, ciServiceImpl, ciWorkflowRepositoryImpl, clientImpl, ciLogServiceImpl, blobStorageConfigServiceImpl, clusterServiceImplExtended, environmentServiceImpl, k8sServiceImpl)
+	handlerServiceImpl := trigger.NewHandlerServiceImpl(sugaredLogger, workflowServiceImpl, ciPipelineMaterialRepositoryImpl, ciPipelineRepositoryImpl, ciArtifactRepositoryImpl, pipelineStageServiceImpl, userServiceImpl, ciTemplateReadServiceImpl, appCrudOperationServiceImpl, environmentRepositoryImpl, appRepositoryImpl, scopedVariableManagerImpl, customTagServiceImpl, ciCdPipelineOrchestratorImpl, attributesServiceImpl, pluginInputVariableParserImpl, globalPluginServiceImpl, ciServiceImpl, ciWorkflowRepositoryImpl, clientImpl, ciLogServiceImpl, blobStorageConfigServiceImpl, clusterServiceImplExtended, environmentServiceImpl, k8sServiceImpl, runnable)
 	gitWebhookServiceImpl := gitWebhook.NewGitWebhookServiceImpl(sugaredLogger, gitWebhookRepositoryImpl, handlerServiceImpl)
 	gitWebhookRestHandlerImpl := restHandler.NewGitWebhookRestHandlerImpl(sugaredLogger, gitWebhookServiceImpl)
 	ecrConfig, err := pipeline.GetEcrConfig()

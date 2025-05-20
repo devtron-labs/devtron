@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/common-lib/async"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/common-lib/utils"
 	bean4 "github.com/devtron-labs/common-lib/utils/bean"
@@ -116,6 +117,7 @@ type HandlerServiceImpl struct {
 	clusterService               cluster.ClusterService
 	envService                   environment.EnvironmentService
 	K8sUtil                      *k8s.K8sServiceImpl
+	asyncRunnable                *async.Runnable
 }
 
 func NewHandlerServiceImpl(Logger *zap.SugaredLogger, workflowService executor.WorkflowService,
@@ -141,6 +143,7 @@ func NewHandlerServiceImpl(Logger *zap.SugaredLogger, workflowService executor.W
 	clusterService cluster.ClusterService,
 	envService environment.EnvironmentService,
 	K8sUtil *k8s.K8sServiceImpl,
+	asyncRunnable *async.Runnable,
 ) *HandlerServiceImpl {
 	buildxCacheFlags := &BuildxCacheFlags{}
 	err := env.Parse(buildxCacheFlags)
@@ -174,6 +177,7 @@ func NewHandlerServiceImpl(Logger *zap.SugaredLogger, workflowService executor.W
 		clusterService:               clusterService,
 		envService:                   envService,
 		K8sUtil:                      K8sUtil,
+		asyncRunnable:                asyncRunnable,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -628,7 +632,12 @@ func (impl *HandlerServiceImpl) triggerCiPipeline(trigger types.Trigger) (int, e
 	}
 
 	middleware.CiTriggerCounter.WithLabelValues(pipeline.App.AppName, pipeline.Name).Inc()
-	go impl.ciService.WriteCITriggerEvent(trigger, pipeline, workflowRequest)
+
+	runnableFunc := func() {
+		impl.ciService.WriteCITriggerEvent(trigger, pipeline, workflowRequest)
+	}
+	impl.asyncRunnable.Execute(runnableFunc)
+
 	return savedCiWf.Id, err
 }
 
