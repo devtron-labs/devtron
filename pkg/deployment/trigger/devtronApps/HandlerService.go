@@ -19,6 +19,10 @@ package devtronApps
 import (
 	"bufio"
 	"context"
+	"os"
+	"time"
+
+	"github.com/devtron-labs/common-lib/async"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	util5 "github.com/devtron-labs/common-lib/utils/k8s"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
@@ -36,6 +40,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
 	"github.com/devtron-labs/devtron/pkg/app/status"
+	"github.com/devtron-labs/devtron/pkg/asyncProvider"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
@@ -70,8 +75,6 @@ import (
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
-	"os"
-	"time"
 )
 
 /*
@@ -166,6 +169,7 @@ type HandlerServiceImpl struct {
 	ciLogService                        pipeline.CiLogService
 	workflowService                     executor.WorkflowService
 	blobConfigStorageService            pipeline.BlobStorageConfigService
+	asyncRunnable                       *async.Runnable
 }
 
 func NewHandlerServiceImpl(logger *zap.SugaredLogger,
@@ -293,6 +297,7 @@ func NewHandlerServiceImpl(logger *zap.SugaredLogger,
 		ciLogService:             ciLogService,
 		workflowService:          workflowService,
 		blobConfigStorageService: blobConfigStorageService,
+		asyncRunnable:            asyncProvider.NewAsyncRunnable(logger),
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {

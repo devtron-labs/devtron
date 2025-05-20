@@ -20,6 +20,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
+	"strconv"
+	"time"
+
 	health2 "github.com/argoproj/gitops-engine/pkg/health"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -40,12 +44,10 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
-	"net/url"
-	"strconv"
-	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/common-lib/async"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -124,6 +126,7 @@ type AppServiceImpl struct {
 	deploymentConfigService                common2.DeploymentConfigService
 	envConfigOverrideReadService           read.EnvConfigOverrideService
 	cdWorkflowRunnerService                cd.CdWorkflowRunnerService
+	asyncRunnable                          *async.Runnable
 }
 
 type AppService interface {
@@ -151,7 +154,7 @@ func NewAppService(
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	commonService commonService.CommonService,
 	chartTemplateService internalUtil.ChartTemplateService,
-	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository,
+	pipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository,
 	pipelineStatusTimelineResourcesService status2.PipelineStatusTimelineResourcesService,
 	pipelineStatusSyncDetailService status2.PipelineStatusSyncDetailService,
 	pipelineStatusTimelineService status2.PipelineStatusTimelineService,
@@ -164,7 +167,8 @@ func NewAppService(
 	appListingService AppListingService,
 	deploymentConfigService common2.DeploymentConfigService,
 	envConfigOverrideReadService read.EnvConfigOverrideService,
-	cdWorkflowRunnerService cd.CdWorkflowRunnerService) *AppServiceImpl {
+	cdWorkflowRunnerService cd.CdWorkflowRunnerService,
+	asyncRunnable *async.Runnable) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		mergeUtil:                              mergeUtil,
 		pipelineOverrideRepository:             pipelineOverrideRepository,
@@ -178,7 +182,7 @@ func NewAppService(
 		cdWorkflowRepository:                   cdWorkflowRepository,
 		commonService:                          commonService,
 		chartTemplateService:                   chartTemplateService,
-		pipelineStatusTimelineRepository:       cdPipelineStatusTimelineRepo,
+		pipelineStatusTimelineRepository:       pipelineStatusTimelineRepo,
 		pipelineStatusTimelineResourcesService: pipelineStatusTimelineResourcesService,
 		pipelineStatusSyncDetailService:        pipelineStatusSyncDetailService,
 		pipelineStatusTimelineService:          pipelineStatusTimelineService,
@@ -195,6 +199,7 @@ func NewAppService(
 		deploymentConfigService:                deploymentConfigService,
 		envConfigOverrideReadService:           envConfigOverrideReadService,
 		cdWorkflowRunnerService:                cdWorkflowRunnerService,
+		asyncRunnable:                          asyncRunnable,
 	}
 	return appServiceImpl
 }
@@ -320,7 +325,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 				}
 				if isSucceeded {
 					impl.logger.Infow("writing cd success event", "gitHash", gitHash, "pipelineOverride", pipelineOverride)
-					go impl.WriteCDSuccessEvent(cdPipeline.AppId, cdPipeline.EnvironmentId, pipelineOverride)
+					impl.asyncRunnable.Execute(func() { impl.WriteCDSuccessEvent(cdPipeline.AppId, cdPipeline.EnvironmentId, pipelineOverride) })
 				}
 			} else {
 				impl.logger.Debugw("event received for older triggered revision", "gitHash", gitHash)
