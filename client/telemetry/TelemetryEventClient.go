@@ -696,7 +696,7 @@ func (impl *TelemetryEventClientImpl) checkForOptOut(ctx context.Context, UCID s
 
 	// Check if response code is 200
 	code, codeExists := response["code"]
-	if !codeExists || code != int32(200) {
+	if !codeExists || code != float64(200) {
 		impl.logger.Errorw("check opt-out list failed, invalid response code", "ucid", UCID, "code", code)
 		return false, errors.New(fmt.Sprintf("invalid response code %v", code))
 	}
