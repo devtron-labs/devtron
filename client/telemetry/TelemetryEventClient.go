@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	posthogTelemetry "github.com/devtron-labs/common-lib/telemetry"
@@ -690,17 +691,13 @@ func (impl *TelemetryEventClientImpl) checkForOptOut(ctx context.Context, UCID s
 	if err != nil {
 		// this should be non-blocking call and should not fail the request for ucid getting
 		impl.logger.Errorw("check opt-out list failed, rest api error", "ucid", UCID, "err", err)
-	}
-
-	if response == nil || response["result"] == nil {
-		impl.logger.Errorw("check opt-out list failed, response is nil", "ucid", UCID)
-		return false, nil
+		return false, err
 	}
 
 	flag, ok := response["result"].(bool)
 	if !ok {
 		impl.logger.Errorw("check opt-out list failed, type assertion error", "ucid", UCID)
-		return false, nil
+		return false, errors.New("type assertion error")
 	}
 	return flag, nil
 }
