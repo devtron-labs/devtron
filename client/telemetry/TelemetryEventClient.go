@@ -691,7 +691,17 @@ func (impl *TelemetryEventClientImpl) checkForOptOut(ctx context.Context, UCID s
 		// this should be non-blocking call and should not fail the request for ucid getting
 		impl.logger.Errorw("check opt-out list failed, rest api error", "ucid", UCID, "err", err)
 	}
-	flag := response["result"].(bool)
+
+	if response == nil || response["result"] == nil {
+		impl.logger.Errorw("check opt-out list failed, response is nil", "ucid", UCID)
+		return false, nil
+	}
+
+	flag, ok := response["result"].(bool)
+	if !ok {
+		impl.logger.Errorw("check opt-out list failed, type assertion error", "ucid", UCID)
+		return false, nil
+	}
 	return flag, nil
 }
 
