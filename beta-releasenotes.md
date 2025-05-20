@@ -1,5 +1,6 @@
 ## Enhancements
 ## Bugs
+- fix: reverted telemetry connection error (#6587)
 - fix: anomalies in deployment status timeline (#6569)
 - fix: scoped var complex type resolution not working in patch type overrides (#6572)
 ## Others
