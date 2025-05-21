@@ -555,11 +555,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 		if err != nil {
 			impl.logger.Errorw("error in save/update pipeline status fetch detail", "err", err, "cdWfrId", runnerHistoryId)
 		}
-		syncStartTime, found := helper.GetSyncStartTime(app)
-		if !found {
-			impl.logger.Warnw("sync operation not started yet", "app", app)
-			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, fmt.Errorf("sync operation not started yet")
-		}
+		syncStartTime := helper.GetSyncStartTime(app, statusTime)
 		// creating cd pipeline status timeline
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: runnerHistoryId,
@@ -596,11 +592,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			timeline.Id = 0
 			timeline.Status = timelineStatus.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
 			timeline.StatusDetail = app.Status.OperationState.Message
-			syncFinishTime, found := helper.GetSyncFinishTime(app)
-			if !found {
-				impl.logger.Warnw("sync operation not found for the deployment", "app", app)
-				return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, fmt.Errorf("sync operation not found for the deployment")
-			}
+			syncFinishTime := helper.GetSyncFinishTime(app, statusTime)
 			timeline.StatusTime = syncFinishTime
 			// checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
 			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
@@ -679,11 +671,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 		if err != nil {
 			impl.logger.Errorw("error in save/update pipeline status fetch detail", "err", err, "installedAppVersionHistoryId", runnerHistoryId)
 		}
-		syncStartTime, found := helper.GetSyncStartTime(app)
-		if !found {
-			impl.logger.Warnw("sync operation not started yet", "app", app)
-			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, fmt.Errorf("sync operation not started yet")
-		}
+		syncStartTime := helper.GetSyncStartTime(app, statusTime)
 		// creating installedAppVersionHistory status timeline
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			InstalledAppVersionHistoryId: runnerHistoryId,
@@ -720,11 +708,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			timeline.Id = 0
 			timeline.Status = timelineStatus.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
 			timeline.StatusDetail = app.Status.OperationState.Message
-			syncFinishTime, found := helper.GetSyncFinishTime(app)
-			if !found {
-				impl.logger.Warnw("sync operation not found for the deployment", "app", app)
-				return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, fmt.Errorf("sync operation not found for the deployment")
-			}
+			syncFinishTime := helper.GetSyncFinishTime(app, statusTime)
 			timeline.StatusTime = syncFinishTime
 			// checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
 			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
