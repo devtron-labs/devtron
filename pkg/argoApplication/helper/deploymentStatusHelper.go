@@ -9,6 +9,7 @@ import (
 // GetSyncStartTime assumes that it is always called for calculating start time of latest git hash
 func GetSyncStartTime(app *v1alpha1.Application, defaultStartTime time.Time) time.Time {
 	startTime := metav1.NewTime(defaultStartTime)
+	// FIXME: this should be the git hash of the latest PCO
 	gitHash := app.Status.Sync.Revision
 	if app.Status.OperationState != nil {
 		startTime = app.Status.OperationState.StartedAt
@@ -25,6 +26,7 @@ func GetSyncStartTime(app *v1alpha1.Application, defaultStartTime time.Time) tim
 // GetSyncFinishTime assumes that it is always called for calculating finish time of latest git hash
 func GetSyncFinishTime(app *v1alpha1.Application, defaultEndTime time.Time) time.Time {
 	finishTime := metav1.NewTime(defaultEndTime)
+	// FIXME: this should be the git hash of the latest PCO
 	gitHash := app.Status.Sync.Revision
 	if app.Status.OperationState != nil && app.Status.OperationState.FinishedAt != nil {
 		finishTime = *app.Status.OperationState.FinishedAt
