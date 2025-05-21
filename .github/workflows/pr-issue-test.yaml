@@ -1,0 +1,24 @@
+name: Validate Pull Request-TEST(pull_request_target)
+
+on:
+  pull_request_target:
+    types: 
+      - opened
+      - synchronize
+      - edited
+    # branches:    
+    #   - 'main'
+    #   - 'release-**'
+    #   - 'develop'
+    #   - 'hotfix-**'
+    #   - 'fix/pr-validator'
+jobs:
+  pr-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: test
+        run: echo "workflow triggered"
+    # uses: devtron-labs/utilities/.github/workflows/pr-validator.yaml@feat/central-pr-validator
+    # secrets: inherit
+    # with:
+    #   validate_sql: true
