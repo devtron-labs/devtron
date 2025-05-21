@@ -127,6 +127,7 @@ type K8sService interface {
 type K8sServiceImpl struct {
 	logger              *zap.SugaredLogger
 	runTimeConfig       *RuntimeConfig
+	kubeConfigBuilder   KubeConfigBuilderInterface
 	httpTransportConfig *HttpTransportConfig
 	kubeconfig          *string
 	opts                Options
@@ -166,6 +167,14 @@ func NewK8sUtil(
 	logger *zap.SugaredLogger,
 	runTimeConfig *RuntimeConfig,
 ) (*K8sServiceImpl, error) {
+	return NewK8sUtilBuilder(logger, runTimeConfig, NewKubeConfigBuilder())
+}
+
+func NewK8sUtilBuilder(
+	logger *zap.SugaredLogger,
+	runTimeConfig *RuntimeConfig,
+	kubeConfigBuilder KubeConfigBuilderInterface,
+) (*K8sServiceImpl, error) {
 	var kubeconfig *string
 	if runTimeConfig.LocalDevMode {
 		usr, err := user.Current()
@@ -181,19 +190,19 @@ func NewK8sUtil(
 		runTimeConfig:       runTimeConfig,
 		kubeconfig:          kubeconfig,
 		httpTransportConfig: NewHttpTransportConfig(logger),
+		kubeConfigBuilder:   kubeConfigBuilder,
 	}, nil
 }
 
 func (impl *K8sServiceImpl) NewKubeConfigImpl(
 	httpTransportConfig HttpTransportInterface,
-	kubeConfigBuilder KubeConfigBuilderInterface,
 ) *KubeConfigImpl {
 	return NewKubeConfigImpl(
 		impl.logger,
 		impl.runTimeConfig,
 		impl.kubeconfig,
 		httpTransportConfig,
-		kubeConfigBuilder,
+		impl.kubeConfigBuilder,
 	)
 }
 
@@ -204,10 +213,10 @@ func (impl *K8sServiceImpl) NewKubeConfigImpl(
 func (impl *K8sServiceImpl) WithHttpTransport(opt Options) KubeConfigInterface {
 	switch opt.GetTransportType() {
 	case TransportTypeDefault:
-		return impl.NewKubeConfigImpl(impl.GetDefaultHttpClientConfig(), NewKubeConfigBuilder())
+		return impl.NewKubeConfigImpl(impl.GetDefaultHttpClientConfig())
 	default:
 		// default fallback is custom transport
-		return impl.NewKubeConfigImpl(impl.GetCustomHttpClientConfig(), NewKubeConfigBuilder())
+		return impl.NewKubeConfigImpl(impl.GetCustomHttpClientConfig())
 	}
 }
 
