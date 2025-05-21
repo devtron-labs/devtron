@@ -12,7 +12,8 @@ func GetSyncStartTime(app *v1alpha1.Application) (time.Time, bool) {
 		app.Status.OperationState.Operation.Sync != nil &&
 		app.Status.OperationState.Operation.Sync.Revision == gitHash {
 		return app.Status.OperationState.StartedAt.Time, true
-	} else if len(app.Status.History) != 0 {
+	}
+	if len(app.Status.History) != 0 {
 		if app.Status.History.LastRevisionHistory().Revision == gitHash &&
 			app.Status.History.LastRevisionHistory().DeployStartedAt != nil {
 			startTime := *app.Status.History.LastRevisionHistory().DeployStartedAt
@@ -31,7 +32,8 @@ func GetSyncFinishTime(app *v1alpha1.Application) (time.Time, bool) {
 		app.Status.OperationState.FinishedAt != nil {
 		finishTime := *app.Status.OperationState.FinishedAt
 		return finishTime.Time, true
-	} else if len(app.Status.History) != 0 {
+	}
+	if len(app.Status.History) != 0 {
 		if app.Status.History.LastRevisionHistory().Revision == gitHash &&
 			app.Status.History.LastRevisionHistory().DeployStartedAt != nil {
 			finishTime := *app.Status.History.LastRevisionHistory().DeployStartedAt
