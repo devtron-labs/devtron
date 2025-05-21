@@ -145,6 +145,7 @@ type PipelineRepository interface {
 	FindDeploymentAppTypeByIds(ids []int) (pipelines []*Pipeline, err error)
 	GetAllAppsByClusterAndDeploymentAppType(clusterIds []int, deploymentAppName string) ([]*PipelineDeploymentConfigObj, error)
 	GetAllArgoAppInfoByDeploymentAppNames(deploymentAppNames []string) ([]*PipelineDeploymentConfigObj, error)
+	FindEnvIdsByIdsInIncludingDeleted(ids []int) ([]int, error)
 }
 
 type CiArtifactDTO struct {
@@ -950,4 +951,19 @@ func (impl *PipelineRepositoryImpl) GetAllArgoAppInfoByDeploymentAppNames(deploy
 		}).
 		Select(&result)
 	return result, err
+}
+
+func (impl *PipelineRepositoryImpl) FindEnvIdsByIdsInIncludingDeleted(ids []int) ([]int, error) {
+	var envIds []int
+	if len(ids) == 0 {
+		return envIds, nil
+	}
+	err := impl.dbConnection.Model(&Pipeline{}).
+		Column("pipeline.environment_id").
+		Where("pipeline.id in (?)", pg.In(ids)).
+		Select(&envIds)
+	if err != nil {
+		impl.logger.Errorw("error on fetching pipelines", "ids", ids, "err", err)
+	}
+	return envIds, err
 }
