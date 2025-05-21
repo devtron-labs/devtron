@@ -193,7 +193,7 @@ func (impl *K8sCommonServiceImpl) GetRestConfigOfCluster(ctx context.Context, re
 	//getting rest config by clusterId
 	clusterId := request.ClusterId
 	if request.ExternalArgoAppIdentifier != nil && len(request.ExternalArgoAppIdentifier.AppName) > 0 {
-		restConfig, err := impl.argoApplicationConfigService.GetRestConfigForExternalArgo(ctx, clusterId, request.ExternalArgoAppIdentifier)
+		restConfig, err := impl.argoApplicationConfigService.GetRestConfigForExternalArgo(ctx, request.ExternalArgoAppIdentifier)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", clusterId, "externalArgoApplicationName", request.ExternalArgoAppIdentifier.AppName)
 			return nil, err
@@ -460,7 +460,7 @@ func (impl *K8sCommonServiceImpl) GetCoreClientByClusterId(clusterId int) (*kube
 }
 
 func (impl *K8sCommonServiceImpl) GetCoreClientByClusterIdForExternalArgoApps(req *bean4.EphemeralContainerRequest) (*kubernetes.Clientset, *clientV1.CoreV1Client, error) {
-	restConfig, err := impl.argoApplicationConfigService.GetRestConfigForExternalArgo(context.Background(), req.ClusterId, req.ExternalArgoAppIdentifier)
+	restConfig, err := impl.argoApplicationConfigService.GetRestConfigForExternalArgo(context.Background(), req.ExternalArgoAppIdentifier)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId, "externalArgoApplicationName", req.ExternalArgoApplicationName)
 	}

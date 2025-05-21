@@ -23,7 +23,7 @@ type ArgoApplicationConfigServiceImpl struct {
 }
 
 type ArgoApplicationConfigService interface {
-	GetRestConfigForExternalArgo(ctx context.Context, clusterId int, externalArgoAppIdentifier *bean.ArgoAppIdentifier) (*rest.Config, error)
+	GetRestConfigForExternalArgo(ctx context.Context, externalArgoAppIdentifier *bean.ArgoAppIdentifier) (*rest.Config, error)
 	GetClusterConfigFromAllClusters(clusterId int) (*k8s.ClusterConfig, clusterRepository.Cluster, map[string]int, error)
 }
 
@@ -59,7 +59,7 @@ func (impl *ArgoApplicationConfigServiceImpl) GetClusterConfigFromAllClusters(cl
 	return clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err
 }
 
-func (impl *ArgoApplicationConfigServiceImpl) GetRestConfigForExternalArgo(ctx context.Context, clusterId int, externalArgoAppIdentifier *bean.ArgoAppIdentifier) (*rest.Config, error) {
+func (impl *ArgoApplicationConfigServiceImpl) GetRestConfigForExternalArgo(ctx context.Context, externalArgoAppIdentifier *bean.ArgoAppIdentifier) (*rest.Config, error) {
 	clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.GetClusterConfigFromAllClusters(externalArgoAppIdentifier.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", externalArgoAppIdentifier.ClusterId)
