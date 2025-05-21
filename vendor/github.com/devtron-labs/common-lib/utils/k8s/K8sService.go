@@ -132,11 +132,21 @@ type K8sServiceImpl struct {
 	opts                Options
 }
 
-func (impl *K8sServiceImpl) GetCustomHttpClientConfig() *CustomK8sHttpTransportConfig {
+func (impl *K8sServiceImpl) SetCustomHttpClientConfig(customHttpClientConfig HttpTransportInterface) *K8sServiceImpl {
+	impl.httpTransportConfig.customHttpClientConfig = customHttpClientConfig
+	return impl
+}
+
+func (impl *K8sServiceImpl) GetCustomHttpClientConfig() HttpTransportInterface {
 	return impl.httpTransportConfig.customHttpClientConfig
 }
 
-func (impl *K8sServiceImpl) GetDefaultHttpClientConfig() *DefaultK8sHttpTransportConfig {
+func (impl *K8sServiceImpl) SetDefaultHttpClientConfig(defaultHttpClientConfig HttpTransportInterface) *K8sServiceImpl {
+	impl.httpTransportConfig.defaultHttpClientConfig = defaultHttpClientConfig
+	return impl
+}
+
+func (impl *K8sServiceImpl) GetDefaultHttpClientConfig() HttpTransportInterface {
 	return impl.httpTransportConfig.defaultHttpClientConfig
 }
 
@@ -178,13 +188,13 @@ func (impl *K8sServiceImpl) NewKubeConfigImpl(
 	httpTransportConfig HttpTransportInterface,
 	kubeConfigBuilder KubeConfigBuilderInterface,
 ) *KubeConfigImpl {
-	return &KubeConfigImpl{
-		logger:              impl.logger,
-		runTimeConfig:       impl.runTimeConfig,
-		kubeconfig:          impl.kubeconfig,
-		httpTransportConfig: httpTransportConfig,
-		kubeConfigBuilder:   kubeConfigBuilder,
-	}
+	return NewKubeConfigImpl(
+		impl.logger,
+		impl.runTimeConfig,
+		impl.kubeconfig,
+		httpTransportConfig,
+		kubeConfigBuilder,
+	)
 }
 
 // WithHttpTransport toggles between default and overridden transport.

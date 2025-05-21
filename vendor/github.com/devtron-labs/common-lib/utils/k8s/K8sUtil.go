@@ -1453,7 +1453,7 @@ func (impl *K8sServiceImpl) GetK8sConfigAndClientsByRestConfig(restConfig *rest.
 	return impl.WithHttpTransport(impl.getOpts(opts)).GetK8sConfigAndClientsByRestConfig(restConfig)
 }
 
-func (impl *K8sServiceImpl) deleteNs(namespace string, client *v12.CoreV1Client) error {
+func (impl *K8sServiceImpl) DeleteNs(namespace string, client *v12.CoreV1Client) error {
 	err := client.Namespaces().Delete(context.Background(), namespace, metav1.DeleteOptions{})
 	return err
 }

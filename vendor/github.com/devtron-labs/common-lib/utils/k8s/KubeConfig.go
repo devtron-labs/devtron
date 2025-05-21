@@ -34,6 +34,21 @@ type KubeConfigImpl struct {
 	kubeConfigBuilder   KubeConfigBuilderInterface
 }
 
+func NewKubeConfigImpl(
+	logger *zap.SugaredLogger,
+	runTimeConfig *RuntimeConfig,
+	kubeconfig *string,
+	httpTransportConfig HttpTransportInterface,
+	kubeConfigBuilder KubeConfigBuilderInterface) *KubeConfigImpl {
+	return &KubeConfigImpl{
+		logger:              logger,
+		runTimeConfig:       runTimeConfig,
+		kubeconfig:          kubeconfig,
+		httpTransportConfig: httpTransportConfig,
+		kubeConfigBuilder:   kubeConfigBuilder,
+	}
+}
+
 type KubeConfigInterface interface {
 	GetK8sInClusterRestConfig() (*rest.Config, error)
 	GetK8sConfigAndClients(clusterConfig *ClusterConfig) (*rest.Config, *http.Client, *kubernetes.Clientset, error)
@@ -85,12 +100,6 @@ func (impl *KubeConfigImpl) GetK8sInClusterConfigAndDynamicClients() (*rest.Conf
 		return nil, nil, nil, err
 	}
 
-	restConfig, err = impl.httpTransportConfig.OverrideConfigWithCustomTransport(restConfig)
-	if err != nil {
-		impl.logger.Errorw("error in overriding reset config", "err", err)
-		return nil, nil, nil, err
-	}
-
 	k8sHttpClient, err := OverrideK8sHttpClientWithTracer(restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s http client set by rest config for in cluster", "err", err)
@@ -120,16 +129,17 @@ func (impl *KubeConfigImpl) GetK8sInClusterConfigAndClients() (*rest.Config, *ht
 }
 
 func (impl *KubeConfigImpl) GetRestConfigByCluster(clusterConfig *ClusterConfig) (*rest.Config, error) {
-	restConfig, err := impl.GetRestConfig(clusterConfig)
+	var restConfig *rest.Config
+	var err error
+	if clusterConfig.Host == commonBean.DefaultClusterUrl && len(clusterConfig.BearerToken) == 0 {
+		return impl.GetK8sInClusterRestConfig()
+	}
+	restConfig, err = impl.kubeConfigBuilder.BuildKubeConfigForCluster(clusterConfig)
 	if err != nil {
-		impl.logger.Errorw("error, GetRestConfigByClusterWithoutCustomTransport", "err", err)
+		impl.logger.Errorw("error in getting rest config for cluster", "err", err, "clusterName", clusterConfig.ClusterName)
 		return nil, err
 	}
-	restConfig, err = impl.OverrideRestConfigWithCustomTransport(restConfig)
-	if err != nil {
-		impl.logger.Errorw("error in overriding rest config with custom transport configurations", "err", err)
-	}
-	return restConfig, err
+	return impl.OverrideRestConfigWithCustomTransport(restConfig)
 }
 
 func (impl *KubeConfigImpl) OverrideRestConfigWithCustomTransport(restConfig *rest.Config) (*rest.Config, error) {
@@ -154,20 +164,6 @@ func (impl *KubeConfigImpl) GetK8sConfigAndClientsByRestConfig(restConfig *rest.
 		return nil, nil, err
 	}
 	return k8sHttpClient, k8sClientSet, nil
-}
-
-func (impl *KubeConfigImpl) GetRestConfig(clusterConfig *ClusterConfig) (*rest.Config, error) {
-	var restConfig *rest.Config
-	var err error
-	if clusterConfig.Host == commonBean.DefaultClusterUrl && len(clusterConfig.BearerToken) == 0 {
-		restConfig, err = impl.GetK8sInClusterRestConfig()
-		if err != nil {
-			impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
-			return nil, err
-		}
-		return restConfig, nil
-	}
-	return impl.kubeConfigBuilder.BuildKubeConfigForCluster(clusterConfig)
 }
 
 type KubeConfigBuilder struct{}

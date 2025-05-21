@@ -58,8 +58,8 @@ const (
 )
 
 type HttpTransportConfig struct {
-	customHttpClientConfig  *CustomK8sHttpTransportConfig
-	defaultHttpClientConfig *DefaultK8sHttpTransportConfig
+	customHttpClientConfig  HttpTransportInterface
+	defaultHttpClientConfig HttpTransportInterface
 }
 
 func NewHttpTransportConfig(logger *zap.SugaredLogger) *HttpTransportConfig {
