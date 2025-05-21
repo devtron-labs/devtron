@@ -1,5 +1,6 @@
 ## Enhancements
 ## Bugs
+- fix: add safety checks to prevent index-out-of-range panics in CdHandler (#6597)
 - fix: centralised PR validator (#6590)
 - fix: reverted telemetry connection error (#6587)
 - fix: anomalies in deployment status timeline (#6569)
