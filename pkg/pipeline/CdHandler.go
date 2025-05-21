@@ -878,24 +878,13 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(request resou
 	objects := impl.enforcerUtil.GetAppAndEnvObjectByPipelineIds(pipelineIds)
 	pipelineIds = []int{}
 	for _, object := range objects {
-		// Safety check to prevent index out of range panic
-		if len(object) >= 2 {
-			appObjectArr = append(appObjectArr, object[0])
-			envObjectArr = append(envObjectArr, object[1])
-		} else {
-			impl.Logger.Warnw("skipping object with insufficient elements", "object", object)
-		}
+		appObjectArr = append(appObjectArr, object[0])
+		envObjectArr = append(envObjectArr, object[1])
 	}
 	appResults, envResults := request.CheckAuthBatch(token, appObjectArr, envObjectArr)
 	for _, pipeline := range cdPipelines {
-		// Safety check to prevent index out of range panic
-		objectArr, ok := objects[pipeline.Id]
-		if !ok || len(objectArr) < 2 {
-			impl.Logger.Warnw("skipping pipeline with missing object data", "pipelineId", pipeline.Id)
-			continue
-		}
-		appObject := objectArr[0]
-		envObject := objectArr[1]
+		appObject := objects[pipeline.Id][0]
+		envObject := objects[pipeline.Id][1]
 		if !(appResults[appObject] && envResults[envObject]) {
 			// if user unauthorized, skip items
 			continue
