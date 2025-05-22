@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/rbac"
 	"github.com/devtron-labs/devtron/pkg/cluster/read"
 	bean3 "github.com/devtron-labs/devtron/pkg/k8s/bean"
+	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
 
@@ -60,6 +61,7 @@ type K8sCapacityRestHandlerImpl struct {
 	environmentService environment.EnvironmentService
 	clusterRbacService rbac.ClusterRbacService
 	clusterReadService read.ClusterReadService
+	validator          *validator.Validate
 }
 
 func NewK8sCapacityRestHandlerImpl(logger *zap.SugaredLogger,
@@ -68,7 +70,7 @@ func NewK8sCapacityRestHandlerImpl(logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	environmentService environment.EnvironmentService,
 	clusterRbacService rbac.ClusterRbacService,
-	clusterReadService read.ClusterReadService) *K8sCapacityRestHandlerImpl {
+	clusterReadService read.ClusterReadService, validator *validator.Validate) *K8sCapacityRestHandlerImpl {
 	return &K8sCapacityRestHandlerImpl{
 		logger:             logger,
 		k8sCapacityService: k8sCapacityService,
@@ -78,6 +80,7 @@ func NewK8sCapacityRestHandlerImpl(logger *zap.SugaredLogger,
 		environmentService: environmentService,
 		clusterRbacService: clusterRbacService,
 		clusterReadService: clusterReadService,
+		validator:          validator,
 	}
 }
 
@@ -401,6 +404,15 @@ func (handler *K8sCapacityRestHandlerImpl) DrainNode(w http.ResponseWriter, r *h
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
+	// Validate the struct using the validator
+	err = handler.validator.Struct(nodeDrainReq)
+	if err != nil {
+		handler.logger.Errorw("validation error", "err", err, "payload", nodeDrainReq)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
