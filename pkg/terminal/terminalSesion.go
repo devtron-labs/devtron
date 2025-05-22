@@ -538,7 +538,7 @@ func (impl *TerminalSessionHandlerImpl) getClientSetAndRestConfigForTerminalConn
 	var clusterConfig *k8s.ClusterConfig
 	var restConfig *rest.Config
 	var err error
-	if len(req.ExternalArgoApplicationName) > 0 {
+	if req.ExternalArgoAppIdentifier != nil {
 		restConfig, err = impl.argoApplicationConfigService.GetRestConfigForExternalArgo(context.Background(), req.ExternalArgoAppIdentifier)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId, "externalArgoApplicationName", req.ExternalArgoApplicationName)
@@ -659,7 +659,7 @@ func (impl *TerminalSessionHandlerImpl) RunCmdInRemotePod(req *TerminalSessionRe
 func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudit(req *TerminalSessionRequest) error {
 	var restConfig *rest.Config
 	var err error
-	if len(req.ExternalArgoApplicationName) > 0 {
+	if req.ExternalArgoAppIdentifier != nil {
 		restConfig, err = impl.argoApplicationConfigService.GetRestConfigForExternalArgo(context.Background(), req.ExternalArgoAppIdentifier)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId, "externalArgoApplicationName", req.ExternalArgoApplicationName)

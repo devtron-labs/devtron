@@ -879,7 +879,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req *bean5.E
 	var clientSet *kubernetes.Clientset
 	var v1Client *v1.CoreV1Client
 	var err error
-	if len(req.ExternalArgoApplicationName) > 0 {
+	if req.ExternalArgoAppIdentifier != nil {
 		clientSet, v1Client, err = impl.k8sCommonService.GetCoreClientByClusterIdForExternalArgoApps(req)
 		if err != nil {
 			impl.logger.Errorw("error in getting coreV1 client by clusterId", "err", err, "req", req)
