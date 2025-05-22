@@ -6,6 +6,7 @@
 - fix: anomalies in deployment status timeline (#6569)
 - fix: scoped var complex type resolution not working in patch type overrides (#6572)
 ## Others
+- sync: Vendor update develop (#6603)
 - sync: Main sync develop (#6599)
 - sync: vendor update in main (#6596)
 - sync: Release candidate v0.36.0 (#6595)
