@@ -96,7 +96,7 @@ func (impl DeleteServiceExtendedImpl) DeleteCluster(deleteRequest *bean2.Cluster
 		impl.logger.Errorw("error im deleting cluster", "err", err, "deleteRequest", deleteRequest)
 		return err
 	}
-	err = impl.DeleteClusterSecret(deleteRequest, err)
+	err = impl.DeleteClusterConfigMap(deleteRequest, err)
 	if err != nil {
 		impl.logger.Errorw("error in deleting cluster secret", "clusterId", deleteRequest.Id, "error", err)
 		return err

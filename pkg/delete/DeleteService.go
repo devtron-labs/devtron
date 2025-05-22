@@ -22,6 +22,7 @@ import (
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	bean4 "github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
@@ -34,6 +35,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/team/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	k8sError "k8s.io/apimachinery/pkg/api/errors"
 	http2 "net/http"
 )
 
@@ -44,7 +46,7 @@ type DeleteService interface {
 	DeleteChartRepo(deleteRequest *chartRepo.ChartRepoDto) error
 	DeleteDockerRegistryConfig(deleteRequest *types.DockerArtifactStoreBean) error
 	CanDeleteChartRegistryPullConfig(storeId string) bool
-	DeleteClusterSecret(deleteRequest *bean2.ClusterBean, err error) error
+	DeleteClusterConfigMap(deleteRequest *bean2.ClusterBean, err error) error
 }
 
 type DeleteServiceImpl struct {
@@ -91,25 +93,37 @@ func (impl DeleteServiceImpl) DeleteCluster(deleteRequest *bean2.ClusterBean, us
 		impl.logger.Errorw("error im deleting cluster", "err", err, "deleteRequest", deleteRequest)
 		return err
 	}
-	err = impl.DeleteClusterSecret(deleteRequest, err)
+	// deleting a cluster config map created at time of cluster creation/updation so that informer in kubelink and kubewatch can delete the cluster from cache
+	err = impl.DeleteClusterConfigMap(deleteRequest, err)
 	if err != nil {
-		impl.logger.Errorw("error in deleting cluster secret", "clusterId", deleteRequest.Id, "error", err)
+		impl.logger.Errorw("error in deleting cluster cm", "clusterId", deleteRequest.Id, "error", err)
 		return err
 	}
 	impl.k8sInformerFactory.DeleteClusterFromCache(clusterName)
 	return nil
 }
 
-func (impl DeleteServiceImpl) DeleteClusterSecret(deleteRequest *bean2.ClusterBean, err error) error {
+func (impl DeleteServiceImpl) DeleteClusterConfigMap(deleteRequest *bean2.ClusterBean, err error) error {
 	// kubelink informers are listening this secret, deleting this secret will inform kubelink that this cluster is deleted
 	k8sClient, err := impl.K8sUtil.GetCoreV1ClientInCluster()
 	if err != nil {
 		impl.logger.Errorw("error in getting in cluster k8s client", "err", err, "clusterName", deleteRequest.ClusterName)
 		return nil
 	}
-	secretName := cluster.ParseSecretNameForKubelinkInformer(deleteRequest.Id)
-	err = impl.K8sUtil.DeleteSecret(bean2.DefaultNamespace, secretName, k8sClient)
-	return err
+	cmName := cluster.ParseCmNameForK8sInformerOnClusterEvent(deleteRequest.Id)
+	err = impl.K8sUtil.DeleteConfigMap(bean4.DevtronCDNamespae, cmName, k8sClient)
+	if k8sError.IsNotFound(err) {
+		// when cm not found in devtroncd ns then delete the secret in default ns(secret name would be the same as cm name)
+		err1 := impl.K8sUtil.DeleteSecret(bean2.DefaultNamespace, cmName, k8sClient)
+		if err1 != nil {
+			impl.logger.Errorw("error in deleting cluster secret in default ns ", "secretName", cmName, "err", err1)
+			return err1
+		}
+	} else if err != nil {
+		impl.logger.Errorw("error in deleting cluster config map in devtroncd ns ", "cmName", cmName, "err", err)
+		return err
+	}
+	return nil
 }
 
 func (impl DeleteServiceImpl) DeleteEnvironment(deleteRequest *bean.EnvironmentBean, userId int32) error {

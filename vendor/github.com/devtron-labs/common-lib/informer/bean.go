@@ -17,12 +17,13 @@
 package informer
 
 const (
-	ClusterModifyEventSecretType = "cluster.request/modify"
-	ClusterActionAdd             = "add"
-	ClusterActionUpdate          = "update"
-	ClusterActionDelete          = "delete"
-	SecretFieldAction            = "action"
-	SecretFieldClusterId         = "cluster_id"
+	ClusterModifyEventSecretType    = "cluster.request/modify"
+	ClusterModifyEventSecretTypeKey = "type"
+	ClusterActionAdd                = "add"
+	ClusterActionUpdate             = "update"
+	ClusterActionDelete             = "delete"
+	CmFieldAction                   = "action"
+	CmFieldClusterId                = "cluster_id"
 )
 
 const (

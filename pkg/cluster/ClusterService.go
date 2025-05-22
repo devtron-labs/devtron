@@ -22,9 +22,11 @@ import (
 	"fmt"
 	informerBean "github.com/devtron-labs/common-lib/informer"
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	bean3 "github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	"github.com/devtron-labs/devtron/pkg/cluster/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster/helper"
 	"github.com/devtron-labs/devtron/pkg/cluster/read"
 	cronUtil "github.com/devtron-labs/devtron/util/cron"
 	"github.com/robfig/cron/v3"
@@ -227,22 +229,9 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *bean.ClusterB
 		impl.SyncNsInformer(bean)
 	}
 	impl.logger.Info("saving secret for cluster informer")
-	k8sClient, err := impl.K8sUtil.GetCoreV1ClientInCluster()
-	if err != nil {
-		impl.logger.Errorw("error in getting k8s Client in cluster", "err", err, "clusterName", bean.ClusterName)
-		return bean, nil
-	}
-	//creating cluster secret, this secret will be read informer in kubelink to know that a new cluster has been added
-	secretName := ParseSecretNameForKubelinkInformer(bean.Id)
-
-	data := make(map[string][]byte)
-	data[informerBean.SecretFieldClusterId] = []byte(fmt.Sprintf("%v", bean.Id))
-	data[informerBean.SecretFieldAction] = []byte(informerBean.ClusterActionAdd)
-	data[clusterBean.SecretFieldUpdatedOn] = []byte(time.Now().String()) // this field will ensure that informer detects change as other fields can be constant even if cluster config changes
-	// TODO Asutosh: Why not UPSERT ??
-	_, err = impl.K8sUtil.CreateSecret(clusterBean.DefaultNamespace, data, secretName, informerBean.ClusterModifyEventSecretType, k8sClient, nil, nil)
-	if err != nil {
-		impl.logger.Errorw("error in creating secret for informers", "secretName", secretName, "err", err)
+	cmData, labels := helper.CreateClusterModifyEventData(bean.Id, informerBean.ClusterActionAdd)
+	if err = impl.upsertClusterConfigMap(bean, cmData, labels); err != nil {
+		impl.logger.Errorw("error upserting cluster secret", "cmData", cmData, "err", err)
 		return bean, nil
 	}
 	return bean, nil
@@ -469,12 +458,9 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *bean.ClusterBe
 	}
 	impl.logger.Infow("saving secret for cluster informer")
 	if bean.HasConfigOrUrlChanged {
-		data := make(map[string][]byte)
-		data[informerBean.SecretFieldClusterId] = []byte(fmt.Sprintf("%v", bean.Id))
-		data[informerBean.SecretFieldAction] = []byte(informerBean.ClusterActionUpdate)
-		data[clusterBean.SecretFieldUpdatedOn] = []byte(time.Now().String()) // this field will ensure that informer detects change as other fields can be constant even if cluster config changes
-		if err = impl.upsertClusterSecret(bean, data); err != nil {
-			impl.logger.Errorw("error upserting cluster secret", "data", data, "err", err)
+		cmData, labels := helper.CreateClusterModifyEventData(bean.Id, informerBean.ClusterActionUpdate)
+		if err = impl.upsertClusterConfigMap(bean, cmData, labels); err != nil {
+			impl.logger.Errorw("error upserting cluster secret", "cmData", cmData, "err", err)
 			// TODO Asutosh: why error is not propagated ??
 			return bean, nil
 		}
@@ -482,29 +468,29 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *bean.ClusterBe
 	return bean, nil
 }
 
-func (impl *ClusterServiceImpl) upsertClusterSecret(bean *bean.ClusterBean, data map[string][]byte) error {
+func (impl *ClusterServiceImpl) upsertClusterConfigMap(bean *bean.ClusterBean, data, labels map[string]string) error {
 	k8sClient, err := impl.K8sUtil.GetCoreV1ClientInCluster()
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client", "err", err)
 		return err
 	}
-	// below secret will act as an event for informer running on a secret object in kubelink and kubewatch
-	secretName := ParseSecretNameForKubelinkInformer(bean.Id)
-	secret, err := impl.K8sUtil.GetSecret(clusterBean.DefaultNamespace, secretName, k8sClient)
+	// below cm will act as an event for informer running on a secret object in kubelink and kubewatch
+	cmName := ParseCmNameForK8sInformerOnClusterEvent(bean.Id)
+	configMap, err := impl.K8sUtil.GetConfigMap(bean3.DevtronCDNamespae, cmName, k8sClient)
 	if err != nil && !k8sError.IsNotFound(err) {
-		impl.logger.Errorw("error in getting cluster secret", "secretName", secretName, "err", err)
+		impl.logger.Errorw("error in getting cluster config map", "cmName", cmName, "err", err)
 		return err
 	} else if k8sError.IsNotFound(err) {
-		_, err = impl.K8sUtil.CreateSecret(clusterBean.DefaultNamespace, data, secretName, informerBean.ClusterModifyEventSecretType, k8sClient, nil, nil)
+		_, err = impl.K8sUtil.CreateConfigMapObject(bean3.DevtronCDNamespae, data, cmName, k8sClient, labels, nil)
 		if err != nil {
-			impl.logger.Errorw("error in creating secret for informers", "secretName", secretName, "err", err)
+			impl.logger.Errorw("error in creating cm object for informer", "cmName", cmName, "err", err)
 			return err
 		}
 	} else {
-		secret.Data = data
-		secret, err = impl.K8sUtil.UpdateSecret(clusterBean.DefaultNamespace, secret, k8sClient)
+		configMap.Data = data
+		configMap, err = impl.K8sUtil.UpdateConfigMap(bean3.DevtronCDNamespae, configMap, k8sClient)
 		if err != nil {
-			impl.logger.Errorw("error in updating secret for informers", "secretName", secretName, "err", err)
+			impl.logger.Errorw("error in updating cm for informers", "cmName", cmName, "err", err)
 			return err
 		}
 	}
@@ -602,15 +588,6 @@ func (impl *ClusterServiceImpl) DeleteFromDb(bean *bean.ClusterBean, userId int3
 		impl.logger.Errorw("error in deleting cluster", "id", bean.Id, "err", err)
 		return "", err
 	}
-	k8sClient, err := impl.K8sUtil.GetCoreV1ClientInCluster()
-	if err != nil {
-		impl.logger.Errorw("error in getting in cluster k8s client", "err", err, "clusterName", bean.ClusterName)
-		return "", nil
-	}
-	// TODO Asutosh: why we maintain this duplicate code ??
-	secretName := ParseSecretNameForKubelinkInformer(bean.Id)
-	err = impl.K8sUtil.DeleteSecret(clusterBean.DefaultNamespace, secretName, k8sClient)
-	impl.logger.Errorw("error in deleting secret", "error", err)
 	return existingCluster.ClusterName, nil
 }
 
