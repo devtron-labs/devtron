@@ -497,7 +497,7 @@ func (workflowRequest *WorkflowRequest) getWorkflowImage() string {
 }
 
 func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdConfig, infraConfigurations *infraBean.InfraConfig, workflowJson []byte, workflowTemplate *bean.WorkflowTemplate, workflowConfigMaps []apiBean.ConfigSecretMap, workflowSecrets []apiBean.ConfigSecretMap) (v1.Container, error) {
-	privileged := true
+	privileged := false
 	pvc := workflowRequest.getPVCForWorkflowRequest()
 	containerEnvVariables := workflowRequest.getContainerEnvVariables(config, workflowJson)
 	workflowMainContainer := v1.Container{
