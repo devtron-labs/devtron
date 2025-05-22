@@ -168,14 +168,14 @@ type NodeConditionObject struct {
 }
 
 type NodeUpdateRequestDto struct {
-	ClusterId        int               `json:"clusterId"`
-	Name             string            `json:"name"`
+	ClusterId        int               `json:"clusterId" validate:"number,required"`
+	Name             string            `json:"name" validate:"required"`
 	ManifestPatch    string            `json:"manifestPatch"`
 	Version          string            `json:"version"`
 	Kind             string            `json:"kind"`
 	Taints           []corev1.Taint    `json:"taints"`
 	NodeCordonHelper *NodeCordonHelper `json:"nodeCordonOptions"`
-	NodeDrainHelper  *NodeDrainHelper  `json:"nodeDrainOptions"`
+	NodeDrainHelper  *NodeDrainHelper  `json:"nodeDrainOptions" validate:"required"`
 }
 
 type NodeCordonHelper struct {
