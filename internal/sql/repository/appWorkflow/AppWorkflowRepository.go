@@ -178,7 +178,7 @@ func (impl AppWorkflowRepositoryImpl) DeleteAppWorkflowAndAllMappings(appWorkflo
 	appWorkflow.Active = false
 	err = tx.Update(appWorkflow)
 	if err != nil {
-		impl.Logger.Errorw("err", err)
+		impl.Logger.Errorw("error in deleting app workflow", "appWorkflow", appWorkflow, "err", err)
 		return err
 	}
 	return nil
