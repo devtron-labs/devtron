@@ -19,6 +19,7 @@ package bean
 import (
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/fluxApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 )
@@ -33,6 +34,7 @@ type ResourceRequestBean struct {
 	ClusterId                   int                        `json:"clusterId"` // clusterId is used when request is for direct cluster (not for helm release)
 	ExternalArgoApplicationName string                     `json:"externalArgoApplicationName,omitempty"`
 	ExternalFluxAppIdentifier   *bean2.FluxAppIdentifier   `json: "-"`
+	ExternalArgoAppIdentifier   *bean3.ArgoAppIdentifier   `json:"-"`
 }
 
 func (r *ResourceRequestBean) IsValidAppType() bool {
