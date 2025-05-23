@@ -46,7 +46,7 @@ type DeleteService interface {
 	DeleteChartRepo(deleteRequest *chartRepo.ChartRepoDto) error
 	DeleteDockerRegistryConfig(deleteRequest *types.DockerArtifactStoreBean) error
 	CanDeleteChartRegistryPullConfig(storeId string) bool
-	DeleteClusterConfigMap(deleteRequest *bean2.ClusterBean, err error) error
+	DeleteClusterConfigMap(deleteRequest *bean2.ClusterBean) error
 }
 
 type DeleteServiceImpl struct {
@@ -94,7 +94,7 @@ func (impl DeleteServiceImpl) DeleteCluster(deleteRequest *bean2.ClusterBean, us
 		return err
 	}
 	// deleting a cluster config map created at time of cluster creation/updation so that informer in kubelink and kubewatch can delete the cluster from cache
-	err = impl.DeleteClusterConfigMap(deleteRequest, err)
+	err = impl.DeleteClusterConfigMap(deleteRequest)
 	if err != nil {
 		impl.logger.Errorw("error in deleting cluster cm", "clusterId", deleteRequest.Id, "error", err)
 		return err
@@ -103,7 +103,7 @@ func (impl DeleteServiceImpl) DeleteCluster(deleteRequest *bean2.ClusterBean, us
 	return nil
 }
 
-func (impl DeleteServiceImpl) DeleteClusterConfigMap(deleteRequest *bean2.ClusterBean, err error) error {
+func (impl DeleteServiceImpl) DeleteClusterConfigMap(deleteRequest *bean2.ClusterBean) error {
 	// kubelink informers are listening this secret, deleting this secret will inform kubelink that this cluster is deleted
 	k8sClient, err := impl.K8sUtil.GetCoreV1ClientInCluster()
 	if err != nil {
