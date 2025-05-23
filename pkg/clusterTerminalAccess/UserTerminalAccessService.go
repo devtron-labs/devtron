@@ -32,7 +32,6 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/pkg/asyncProvider"
 	utils1 "github.com/devtron-labs/devtron/pkg/clusterTerminalAccess/clusterTerminalUtils"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	bean2 "github.com/devtron-labs/devtron/pkg/k8s/bean"
@@ -102,7 +101,12 @@ func GetTerminalAccessConfig() (*models.UserTerminalSessionConfig, error) {
 	return config, err
 }
 
-func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessRepository repository.TerminalAccessRepository, config *models.UserTerminalSessionConfig, k8sCommonService k8s.K8sCommonService, terminalSessionHandler terminal.TerminalSessionHandler, K8sCapacityService capacity.K8sCapacityService, k8sUtil *k8s2.K8sServiceImpl, cronLogger *cron3.CronLoggerImpl) (*UserTerminalAccessServiceImpl, error) {
+func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger,
+	terminalAccessRepository repository.TerminalAccessRepository,
+	config *models.UserTerminalSessionConfig, k8sCommonService k8s.K8sCommonService,
+	terminalSessionHandler terminal.TerminalSessionHandler,
+	K8sCapacityService capacity.K8sCapacityService, k8sUtil *k8s2.K8sServiceImpl,
+	cronLogger *cron3.CronLoggerImpl, asyncRunnable *async.Runnable) (*UserTerminalAccessServiceImpl, error) {
 	//fetches all running and starting entities from db and start SyncStatus
 	podStatusSyncCron := cron.New(cron.WithChain(cron.Recover(cronLogger)))
 	terminalAccessDataArrayMutex := &sync.RWMutex{}
@@ -118,7 +122,7 @@ func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessR
 		terminalSessionHandler:       terminalSessionHandler,
 		K8sCapacityService:           K8sCapacityService,
 		k8sUtil:                      k8sUtil,
-		asyncRunnable:                asyncProvider.NewAsyncRunnable(logger),
+		asyncRunnable:                asyncRunnable,
 	}
 	podStatusSyncCron.Start()
 	_, err := podStatusSyncCron.AddFunc(fmt.Sprintf("@every %ds", config.TerminalPodStatusSyncTimeInSecs), accessServiceImpl.SyncPodStatus)
