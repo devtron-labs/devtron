@@ -1,4 +1,5 @@
 ## Enhancements
+- feat: Enable selection of all CI pipelines at once when the Environment filter is applied in Notifications (#6526)
 ## Bugs
 - fix: add safety checks to prevent index-out-of-range panics in CdHandler (#6597)
 - fix: centralised PR validator (#6590)
