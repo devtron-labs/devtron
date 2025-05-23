@@ -224,7 +224,7 @@ func (impl *HandlerServiceImpl) DownloadCdWorkflowArtifacts(buildId int) (*os.Fi
 	return file, nil
 }
 
-func (impl *HandlerServiceImpl) GetRunningWorkflowLogs(environmentId int, pipelineId int, wfrId int) (*bufio.Reader, func() error, error) {
+func (impl *HandlerServiceImpl) GetRunningWorkflowLogs(environmentId int, pipelineId int, wfrId int, followLogs bool) (*bufio.Reader, func() error, error) {
 	cdWorkflow, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(wfrId)
 	if err != nil {
 		impl.logger.Errorw("error on fetch wf runner", "err", err)
@@ -253,16 +253,16 @@ func (impl *HandlerServiceImpl) GetRunningWorkflowLogs(environmentId int, pipeli
 	} else if cdWorkflow.WorkflowType == types.POST {
 		isExtCluster = pipeline.RunPostStageInEnv
 	}
-	return impl.getWorkflowLogs(pipelineId, cdWorkflow, clusterConfig, isExtCluster)
+	return impl.getWorkflowLogs(pipelineId, cdWorkflow, clusterConfig, isExtCluster, followLogs)
 }
 
-func (impl *HandlerServiceImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, clusterConfig *k8s.ClusterConfig, runStageInEnv bool) (*bufio.Reader, func() error, error) {
+func (impl *HandlerServiceImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, clusterConfig *k8s.ClusterConfig, runStageInEnv bool, followLogs bool) (*bufio.Reader, func() error, error) {
 	cdLogRequest := types.BuildLogRequest{
 		PodName:   cdWorkflow.PodName,
 		Namespace: cdWorkflow.Namespace,
 	}
 
-	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(cdLogRequest, clusterConfig, runStageInEnv)
+	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(cdLogRequest, clusterConfig, runStageInEnv, followLogs)
 	if logStream == nil || err != nil {
 		if !cdWorkflow.BlobStorageEnabled {
 			return nil, nil, errors.New("logs-not-stored-in-repository")
