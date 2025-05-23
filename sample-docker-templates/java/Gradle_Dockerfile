@@ -1,31 +1,37 @@
 ################################# Build Container ###############################
 
-# Base Image of Build Container
+# Use latest Gradle with JDK 21 and Alpine for minimal size and speed
 FROM gradle:8.13.0-jdk21-alpine AS build
 
-# Changing the ownership of file and copying files in container
+# Set working directory and ensure proper permissions
 COPY --chown=gradle:gradle . /home/gradle/src
-
-# Moving into workdir
 WORKDIR /home/gradle/src
 
-# Compiling & building the code
+# Build the application without using the Gradle daemon
 RUN gradle build --no-daemon
 
 ################################# Prod Container #################################
 
-# Base Image for Prod Container
-FROM openjdk:21-jdk-slim
+# Use a minimal JDK base image for production
+FROM eclipse-temurin:21-jdk-jammy
 
+# Create a non-root user to run the app securely
+RUN useradd -m -s /bin/bash nonroot
 
-# Exposing Port of this container
-EXPOSE 8080
+# Set the working directory
+WORKDIR /app
 
-# Creating a dir
-RUN mkdir /app
-
-# Copying only the jar files created before
+# Copy the JAR file from the build stage
 COPY --from=build /home/gradle/src/build/libs/*.jar /app/demo.jar
 
-# Uncomment if you want to run default commands during the initialization of this container
-# CMD ["java","-jar","/app/demo.jar"]  
+# Set ownership of the jar file
+RUN chown nonroot:nonroot /app/demo.jar
+
+# Switch to non-root user
+USER nonroot
+
+# Expose the application port
+EXPOSE 8080
+
+# Run the jar file
+CMD ["java", "-jar", "/app/demo.jar"]

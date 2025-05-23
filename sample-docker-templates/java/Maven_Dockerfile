@@ -1,33 +1,45 @@
 ################################# Build Container ###############################
 
-# Base Image for Build Container
+# Use latest Maven with Amazon Corretto 21 on Debian for consistent build environment
 FROM maven:3.9.9-amazoncorretto-21-debian as base
 
-# Moving into working directory
+# Set working directory inside container
 WORKDIR /build
 
-# Copying pom.xml file initially for caching
+# Copy pom.xml separately to leverage Docker cache for dependencies
 COPY pom.xml .
 
-# Downloading Dependencies 
+# Download dependencies for offline use
 RUN mvn dependency:go-offline
 
-# Copying files to /build/src/ inside container
+# Copy the source code to container
 COPY src/ /build/src/
 
-# Building package 
+# Build the project and package the application
 RUN mvn clean package
 
 ################################# Prod Container #################################
 
-# Base Image for Prod Container
-FROM openjdk:21-jdk-slim
+# Use a slim OpenJDK 21 image based on Debian for production
+FROM eclipse-temurin:21-jdk-jammy
 
-# Exposing Port of this new container
-EXPOSE 8080
+# Create a non-root user 'nonroot' for security best practices
+RUN useradd -m -s /bin/bash nonroot
 
-# Copying the executable jar file build on previous container
+# Set working directory
+WORKDIR /app
+
+# Copy the built jar from build stage
 COPY --from=base /build/target/*.jar /app/demo.jar
 
-# Uncomment if you want to run default commands during the initialization of this container
-# CMD ["java","-jar","/app/demo.jar"]  
+# Change ownership to non-root user
+RUN chown nonroot:nonroot /app/demo.jar
+
+# Switch to non-root user
+USER nonroot
+
+# Expose the port the app listens on
+EXPOSE 8080
+
+# Default command to run the jar file
+CMD ["java", "-jar", "/app/demo.jar"]

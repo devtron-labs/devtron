@@ -1,33 +1,40 @@
 ###### BUILD ENVIRONMENT ######
 
-# Base Image
+# Use official Node.js LTS base image for building React app
 FROM node:22.14.0 as build
 
-# Moving into working directory
+# Set working directory
 WORKDIR /app
 
-# Adding all files and dirs to /app inside container 
-ADD . /app/
+# Copy all source files to container
+COPY . /app/
 
-# Installing dependencies
+# Install dependencies
 RUN npm install
 
-# Creating Production build for react-app
+# Create production build of React app
 RUN npm run build
 
-# In this dockerfile using the concept of docker multistage build
 
 ###### PRODUCTION ENVIRONMENT ######
 
-# Base Image for prod env
+# Use official stable nginx Alpine image (small and secure)
 FROM nginx:stable-alpine
 
-# Adding the build files from previous container to nginx/html
+# Create a non-root user and group 'nonroot' for security best practice
+RUN addgroup -S nonroot && adduser -S nonroot -G nonroot
+
+# Copy React build files from build stage to nginx html folder
 COPY --from=build /app/build /usr/share/nginx/html
 
-# Exposing port 80 to listen http requests
+# Change ownership to nonroot user to avoid running as root inside container
+RUN chown -R nonroot:nonroot /usr/share/nginx/html
+
+# Switch to non-root user
+USER nonroot
+
+# Expose port 80 for HTTP
 EXPOSE 80
 
-# Command to run
+# Run nginx in foreground
 CMD ["nginx", "-g", "daemon off;"]
-

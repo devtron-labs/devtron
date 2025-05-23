@@ -1,41 +1,44 @@
-# Using Base image
-FROM alpine:latest
+# Use specific Alpine version (3.21) for stability and reproducibility
+FROM alpine:3.21
 
-# Build args
+# Metadata args for build info (optional)
 ARG VCS_REF
 ARG BUILD_DATE
 
-# Setting resource quota
+# Setting resource quota args (optional, for your usage)
 ARG MIN_MEM=2G
 ARG MAX_MEM=2G
 
-RUN apk add --update bash && \
-  apk fetch openjdk8 && \
-  apk add --no-cache openjdk8;
+# Install required packages: bash, openjdk8, unzip, build-base, wget
+RUN apk add --no-cache bash openjdk8 unzip build-base wget
 
-RUN apk add --no-cache build-base wget && \
-  cd /usr/lib && \
-  # Installing Kotlin compiler in zip file
-  wget 'https://github.com/JetBrains/kotlin/releases/download/v1.3.72/kotlin-compiler-1.3.72.zip' && \
-  # Unzipping the downloaded zip file
-  unzip kotlin-compiler-*.zip && \
-  rm kotlin-compiler-*.zip && \
-  rm -f kotlinc/bin/*.bat;
+# Download and install Kotlin compiler
+RUN cd /usr/lib && \
+    wget https://github.com/JetBrains/kotlin/releases/download/v1.3.72/kotlin-compiler-1.3.72.zip && \
+    unzip kotlin-compiler-1.3.72.zip && \
+    rm kotlin-compiler-1.3.72.zip && \
+    rm -f kotlinc/bin/*.bat
 
-# Setting up environmental variable path
-ENV PATH $PATH:/usr/lib/kotlinc/bin
+# Add Kotlin compiler to PATH
+ENV PATH="/usr/lib/kotlinc/bin:${PATH}"
 
-# Making a directory named 'app' in the container
-RUN mkdir app
+# Create app directory and set permissions
+RUN mkdir /app
 
-# Copying 'app.kt' from 'app' folder on host to recently created 'app' folder in container
-COPY app/app.kt /app
+# Copy source code into container
+COPY app/app.kt /app/
 
 # Set working directory
 WORKDIR /app
 
-# Compiling source
+# Create a non-root user 'nonroot' and assign ownership of /app to it
+RUN adduser -D nonroot && chown -R nonroot:nonroot /app
+
+# Switch to non-root user
+USER nonroot
+
+# Compile Kotlin source to jar
 RUN kotlinc app.kt -include-runtime -d app.jar
 
-# Execution
-CMD ["java","-jar","./app.jar"]
+# Run the compiled jar
+CMD ["java", "-jar", "./app.jar"]

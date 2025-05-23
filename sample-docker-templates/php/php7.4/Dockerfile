@@ -1,16 +1,18 @@
 FROM ubuntu:24.04
 
-RUN apt-get update
-RUN apt-get -y upgrade
+ENV DEBIAN_FRONTEND=noninteractive
 
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --fix-missing php7.4 \
-      php7.4-cli \
-      php-fpm \
-      php7.4-mysql \
-      php7.4-curl \
-      net-tools
+RUN apt-get update && apt-get -y upgrade && \
+    apt-get install -y --no-install-recommends \
+      php8.2 \
+      php8.2-cli \
+      php8.2-fpm \
+      php8.2-mysql \
+      php8.2-curl \
+      net-tools \
+      nginx && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN DEBIAN_FRONTEND="noninteractive" apt-get install -y nginx-full
 ADD nginx-site.conf /etc/nginx/sites-available/default
 
 WORKDIR /var/www/html/
@@ -21,4 +23,4 @@ COPY . /var/www/html
 
 EXPOSE 80
 
-CMD ["/bin/bash", "-c", "service php7.4-fpm start && nginx -g \"daemon off;\""]
+CMD ["/bin/bash", "-c", "service php8.2-fpm start && nginx -g 'daemon off;'"]

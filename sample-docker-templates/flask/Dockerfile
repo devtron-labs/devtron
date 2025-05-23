@@ -1,39 +1,50 @@
-#Base Image
-FROM python:3.13
+# Base Image - Using python:3.13-slim for reduced image size
+FROM python:3.13-slim
 
-#Getting System Ready to install dependencies
-RUN apt-get clean \
-    && apt-get -y update
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV LANG=C.UTF-8
 
-#Installing nginx
-RUN apt-get -y install nginx \
-    && apt-get -y install python3-dev \
-    && apt-get -y install build-essential
+# Install system dependencies (nginx, build tools) without recommended packages to keep image small
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    nginx \
+    python3-dev \
+    build-essential \
+    # Clean up to reduce image size
+    && rm -rf /var/lib/apt/lists/* 
 
-#Creating symbolic link for access and error log from nginx
-RUN ln -sf /dev/stdout /var/log/nginx/access.log \
-    && ln -sf /dev/stderr /var/log/nginx/error.log
+# Symlink nginx logs to stdout/stderr for containerized log access
+RUN ln -sf /dev/stdout /var/log/nginx/access.log && \
+    ln -sf /dev/stderr /var/log/nginx/error.log
 
-#Creating a dir in Container
-RUN mkdir /app
+# Create application directory
+RUN mkdir -p /app
 
-#Moving into the directory created
+# Set working directory
 WORKDIR /app
 
-#Changing ownership of files in /app
-RUN chown -R www-data:www-data /app
+# Add application code
+COPY . /app/
 
-#Adding the complete project in dir created
-ADD . /app/
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
-#Installing dependencies
-RUN pip3 install -r requirements.txt
-
-# Refer https://raw.githubusercontent.com/devtron-labs/devtron/main/sample-docker-templates/flask/nginx.default for sample nginx.default file
+# Copy nginx config
 COPY nginx.default /etc/nginx/sites-available/default
 
-#Refer https://raw.githubusercontent.com/devtron-labs/devtron/main/sample-docker-templates/flask/start.sh for sample start.sh file
-#Making start.sh executable
+# Make start.sh executable
 RUN chmod +x ./start.sh
 
+# Create a non-root user and change ownership of /app to that user
+RUN groupadd -r nonroot && useradd -r -g nonroot nonroot && \
+    chown -R nonroot:nonroot /app /var/log/nginx
+
+# Expose port 80 (used by nginx)
+EXPOSE 80
+
+# Switch to non-root user for better container security
+USER nonroot
+
+# Run app with start.sh
 CMD ["./start.sh"]

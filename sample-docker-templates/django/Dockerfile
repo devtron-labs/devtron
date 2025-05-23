@@ -1,13 +1,12 @@
-# Dockerfile
-
 # Base Image
-FROM python:3.13
+# Using official python 3.13-slim for smaller footprint and latest stable version
+FROM python:3.13-slim
 
-# set default environment variables
-ENV PYTHONUNBUFFERED 1
-ENV LANG C.UTF-8
+# Set environment variables for Python behavior
+ENV PYTHONUNBUFFERED=1
+ENV LANG=C.UTF-8
 
-# to take runtime arguments and set env variables
+# Accept build arguments for Django superuser creation
 ARG DJANGO_SUPERUSER_USERNAME
 ENV DJANGO_SUPERUSER_USERNAME=${DJANGO_SUPERUSER_USERNAME}
 
@@ -17,32 +16,40 @@ ENV DJANGO_SUPERUSER_PASSWORD=${DJANGO_SUPERUSER_PASSWORD}
 ARG DJANGO_SUPERUSER_EMAIL
 ENV DJANGO_SUPERUSER_EMAIL=${DJANGO_SUPERUSER_EMAIL}
 
-# create and set working directory
+# Create app directory and assign ownership later to non-root user
 RUN mkdir /app
+
 WORKDIR /app
 
-RUN chown -R www-data:www-data /app
+# Install system dependencies and nginx with minimal packages, no recommends
+RUN apt-get update && apt-get install -y --no-install-recommends nginx vim && \
+    rm -rf /var/lib/apt/lists/*
 
-# Add current directory code to working directory
+# Copy app source code
 COPY . /app/
 
-# install environment dependencies
-RUN pip install -r requirements.txt 
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
-# install nginx
-RUN apt-get update && apt-get install nginx vim -y --no-install-recommends
+# Create a non-root user 'nonroot' and group, change ownership of /app and nginx logs
+RUN groupadd -r nonroot && useradd -r -g nonroot nonroot && \
+    chown -R nonroot:nonroot /app /var/log/nginx
 
-#Refer https://github.com/devtron-labs/devtron/blob/main/sample-docker-templates/django/nginx.default for sample nginx.default file
+# Copy nginx config file
 COPY nginx.default /etc/nginx/sites-available/default
 
-RUN ln -sf /dev/stdout /var/log/nginx/access.log \
-    && ln -sf /dev/stderr /var/log/nginx/error.log
+# Symlink nginx logs to stdout/stderr for container logging
+RUN ln -sf /dev/stdout /var/log/nginx/access.log && \
+    ln -sf /dev/stderr /var/log/nginx/error.log
 
-
-# start server
+# Expose port 8000 for Django/gunicorn and nginx
 EXPOSE 8000
 
+# Use non-root user for better security
+USER nonroot
+
+# Set stop signal for graceful shutdown
 STOPSIGNAL SIGTERM
 
-# Refer https://github.com/devtron-labs/devtron/blob/main/sample-docker-templates/django/start-server.sh for sample start-server.sh file
+# Start server script (migrations, superuser creation, gunicorn & nginx)
 CMD ["/app/start-server.sh"]

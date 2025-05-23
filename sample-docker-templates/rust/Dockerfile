@@ -1,25 +1,34 @@
-# Using Base image
-FROM alpine:latest
+# Use a specific Alpine version for stability instead of 'latest'
+FROM alpine:3.21
 
-#Build args
+# Build args for metadata (optional, can be used for labels)
 ARG VCS_REF
 ARG BUILD_DATE
 
-# Setting resource quota
+# Set resource quota as environment variables (optional usage)
 ARG MIN_MEM=2G
 ARG MAX_MEM=2G
 
-# Installing rust and making a folder named 'src' into it
-RUN  apk add --no-cache rust &&  mkdir /src
+# Install rust compiler and related tools, and create working dir
+RUN apk add --no-cache rust && mkdir /src
 
-# Copying 'main.rs' from 'src' folder on host to recently created 'src' folder in container
+# Copy source code into container
 COPY src/main.rs /src
 
 # Set working directory
 WORKDIR /src
 
-#Compiling source
+# Compile Rust source to binary 'main'
 RUN rustc main.rs
 
-#Execution
+# Create non-root user for security
+RUN addgroup -S nonroot && adduser -S nonroot -G nonroot
+
+# Change ownership of the compiled binary
+RUN chown nonroot:nonroot /src/main
+
+# Switch to non-root user
+USER nonroot
+
+# Run the compiled binary
 CMD ["./main"]
