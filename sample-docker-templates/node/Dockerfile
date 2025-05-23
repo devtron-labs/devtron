@@ -1,38 +1,43 @@
-# Use a smaller, secure, and stable Node.js image
+# Use a minimal Node.js base image
 FROM node:22-alpine
 
-# Set environment as production
+# Set environment for production
 ENV NODE_ENV=production
 
 # Install necessary packages: nginx only
 RUN apk update && apk add --no-cache nginx
 
-# Create app directory and give access to non-root user
+# Set working directory
 WORKDIR /app
 
-# Copy app files
-COPY . /app/
+# Copy application code
+COPY . .
 
-# Use COPY instead of ADD (best practice)
-COPY nginx.default /etc/nginx/http.d/default.conf
+# Main global config
+COPY nginx.conf /etc/nginx/nginx.conf
+
+# Default server/site config
+COPY nginx-default.conf /etc/nginx/http.d/default.conf
 
 # Install production dependencies
-RUN npm install --production && \
+RUN npm install --production --prefer-offline --no-audit && \
     npm i -g pm2
 
-# Create non-root user and assign directory
-RUN addgroup -S nonroot && adduser -S nonroot -G nonroot && \
-    chown -R nonroot:nonroot /app /var/log/nginx
+# Create non-root user and set permissions
+RUN addgroup -g 2002 nonroot && \
+    adduser -u 2002 -G nonroot -S nonroot && \
+    mkdir -p /var/lib/nginx/tmp/client_body && \
+    chown -R nonroot:nonroot /app /var/log/nginx /var/lib/nginx
 
-# Expose port 80 for nginx
-EXPOSE 80
+# Expose port 8080
+EXPOSE 8080
 
-# Use non-root user for container execution
+# Switch to non-root user
 USER nonroot
 
-# Create symlinks for nginx logs (optional, but helpful for logging)
+# Link logs to stdout/stderr
 RUN ln -sf /dev/stdout /var/log/nginx/access.log && \
     ln -sf /dev/stderr /var/log/nginx/error.log
 
-# Start nginx and node app properly
-CMD ["sh", "-c", "nginx && pm2-runtime src/index.js -i 0"]
+# Start your app listening on port 8080 
+CMD ["sh", "-c", "nginx && pm2-runtime src/index.js -i 0 --port=8080"]
