@@ -800,24 +800,12 @@
               "description": "GPU resource requests and limits",
               "properties": {
                 "limits": {
-                  "type": "object",
-                  "description": "GPU resource limits",
-                  "properties": {
-                    "gpu": {
-                      "type": "string",
-                      "description": "Limit for GPU resources"
-                    }
-                  }
+                  "type": "string",
+                  "description": "GPU resource limits"
                 },
                 "requests": {
-                  "type": "object",
-                  "description": "GPU resource requests",
-                  "properties": {
-                    "gpu": {
-                      "type": "string",
-                      "description": "Request for GPU resources"
-                    }
-                  }
+                  "type": "string",
+                  "description": "GPU resource requests"
                 }
               }
             }
