@@ -114,7 +114,7 @@ func (impl *DeploymentConfigServiceImpl) CreateOrUpdateConfig(tx *pg.Tx, config 
 		return nil, err
 	}
 
-	configDbObj, err := impl.GetConfigDBObj(config.AppId, config.EnvironmentId)
+	configDbObj, err := impl.GetConfigDBObj(tx, config.AppId, config.EnvironmentId)
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in fetching deployment config from DB by appId and envId",
 			"appId", config.AppId, "envId", config.EnvironmentId, "err", err)
@@ -275,7 +275,7 @@ func (impl *DeploymentConfigServiceImpl) GetAndMigrateConfigIfAbsentForHelmApp(a
 
 func (impl *DeploymentConfigServiceImpl) UpdateRepoUrlForAppAndEnvId(repoURL string, appId, envId int) error {
 
-	dbObj, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(appId, envId)
+	dbObj, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(nil, appId, envId)
 	if err != nil {
 		impl.logger.Errorw("error in getting deployment config by appId", "appId", appId, "envId", envId, "err", err)
 		return err
@@ -445,7 +445,7 @@ func (impl *DeploymentConfigServiceImpl) getConfigForHelmApps(appId int, envId i
 		helmDeploymentConfig *bean.DeploymentConfig
 		isMigrationNeeded    bool
 	)
-	config, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(appId, envId)
+	config, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(nil, appId, envId)
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in fetching deployment config by by appId and envId", "appId", appId, "envId", envId, "err", err)
 		return nil, err
@@ -596,18 +596,17 @@ func (impl *DeploymentConfigServiceImpl) getAllEnvLevelConfigsForLinkedReleases(
 	}
 	return configs, nil
 }
-
-func (impl *DeploymentConfigServiceImpl) GetConfigDBObj(appId, envId int) (*deploymentConfig.DeploymentConfig, error) {
+func (impl *DeploymentConfigServiceImpl) GetConfigDBObj(tx *pg.Tx, appId, envId int) (*deploymentConfig.DeploymentConfig, error) {
 	var configDbObj *deploymentConfig.DeploymentConfig
 	var err error
 	if envId == 0 {
-		configDbObj, err = impl.deploymentConfigRepository.GetAppLevelConfigForDevtronApps(appId)
+		configDbObj, err = impl.deploymentConfigRepository.GetAppLevelConfigForDevtronApps(tx, appId)
 		if err != nil {
 			impl.logger.Errorw("error in getting deployment config db object by appId", "appId", appId, "err", err)
 			return nil, err
 		}
 	} else {
-		configDbObj, err = impl.deploymentConfigRepository.GetByAppIdAndEnvId(appId, envId)
+		configDbObj, err = impl.deploymentConfigRepository.GetByAppIdAndEnvId(tx, appId, envId)
 		if err != nil {
 			impl.logger.Errorw("error in getting deployment config db object by appId and envId", "appId", appId, "envId", envId, "err", err)
 			return nil, err

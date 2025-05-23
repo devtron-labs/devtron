@@ -18,7 +18,7 @@ data:
   PG_ADDR: postgresql-postgresql.devtroncd
   {{- end }}
   PG_PORT: "5432"
-  HELM_CLIENT_URL: kubelink-service:50051
+  HELM_CLIENT_URL: kubelink-service-headless:50051
   DASHBOARD_PORT: "80"
   DASHBOARD_HOST: dashboard-service.devtroncd
   PG_DATABASE: orchestrator
