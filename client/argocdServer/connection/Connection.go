@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/devtron-labs/common-lib/async"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/client/argocdServer/bean"
 	config2 "github.com/devtron-labs/devtron/client/argocdServer/config"
@@ -81,6 +82,7 @@ type ArgoCDConnectionManagerImpl struct {
 	gitOpsConfigReadService config.GitOpsConfigReadService
 	runTimeConfig           *k8s.RuntimeConfig
 	argoCDConfigGetter      config2.ArgoCDConfigGetter
+	asyncRunnable           *async.Runnable
 }
 
 func NewArgoCDConnectionManagerImpl(Logger *zap.SugaredLogger,
@@ -92,7 +94,8 @@ func NewArgoCDConnectionManagerImpl(Logger *zap.SugaredLogger,
 	versionService version.VersionService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	runTimeConfig *k8s.RuntimeConfig,
-	argoCDConfigGetter config2.ArgoCDConfigGetter) (*ArgoCDConnectionManagerImpl, error) {
+	argoCDConfigGetter config2.ArgoCDConfigGetter,
+	asyncRunnable *async.Runnable) (*ArgoCDConnectionManagerImpl, error) {
 	argoUserServiceImpl := &ArgoCDConnectionManagerImpl{
 		logger:                  Logger,
 		settingsManager:         settingsManager,
@@ -105,13 +108,17 @@ func NewArgoCDConnectionManagerImpl(Logger *zap.SugaredLogger,
 		gitOpsConfigReadService: gitOpsConfigReadService,
 		runTimeConfig:           runTimeConfig,
 		argoCDConfigGetter:      argoCDConfigGetter,
+		asyncRunnable:           asyncRunnable,
 	}
 	if !runTimeConfig.LocalDevMode {
 		grpcConfig, err := argoCDConfigGetter.GetGRPCConfig()
 		if err != nil {
 			Logger.Errorw("error in GetAllGRPCConfigs", "error", err)
 		}
-		go argoUserServiceImpl.ValidateGitOpsAndGetOrUpdateArgoCdUserDetail(grpcConfig)
+		runnableFunc := func() {
+			argoUserServiceImpl.ValidateGitOpsAndGetOrUpdateArgoCdUserDetail(grpcConfig)
+		}
+		asyncRunnable.Execute(runnableFunc)
 	}
 	return argoUserServiceImpl, nil
 }

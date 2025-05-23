@@ -22,6 +22,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/devtron-labs/common-lib/async"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
 	"github.com/devtron-labs/devtron/pkg/apis/devtron/v1/validation"
@@ -44,10 +45,11 @@ type BatchOperationRestHandlerImpl struct {
 	teamService     team.TeamService
 	logger          *zap.SugaredLogger
 	enforcerUtil    rbac.EnforcerUtil
+	asyncRunnable   *async.Runnable
 }
 
 func NewBatchOperationRestHandlerImpl(userAuthService user.UserService, enforcer casbin.Enforcer, workflowAction batch.WorkflowAction,
-	teamService team.TeamService, logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil) *BatchOperationRestHandlerImpl {
+	teamService team.TeamService, logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil, asyncRunnable *async.Runnable) *BatchOperationRestHandlerImpl {
 	return &BatchOperationRestHandlerImpl{
 		userAuthService: userAuthService,
 		enforcer:        enforcer,
@@ -55,6 +57,7 @@ func NewBatchOperationRestHandlerImpl(userAuthService user.UserService, enforcer
 		teamService:     teamService,
 		logger:          logger,
 		enforcerUtil:    enforcerUtil,
+		asyncRunnable:   asyncRunnable,
 	}
 }
 
@@ -104,13 +107,14 @@ func (handler BatchOperationRestHandlerImpl) Operate(w http.ResponseWriter, r *h
 
 		ctx, cancel := context.WithCancel(r.Context())
 		if cn, ok := w.(http.CloseNotifier); ok {
-			go func(done <-chan struct{}, closed <-chan bool) {
+			runnableFunc := func(done <-chan struct{}, closed <-chan bool) {
 				select {
 				case <-done:
 				case <-closed:
 					cancel()
 				}
-			}(ctx.Done(), cn.CloseNotify())
+			}
+			handler.asyncRunnable.Execute(func() { runnableFunc(ctx.Done(), cn.CloseNotify()) })
 		}
 		err = handler.workflowAction.Execute(&workflow, emptyProps, r.Context())
 		if err != nil {
