@@ -1,31 +1,15 @@
-# base image
-FROM ubuntu:16.04
+# Use Ubuntu 24.04 LTS as base image for latest stable environment
+FROM ubuntu:24.04
 
-# update & install system
-RUN apt-get update
-RUN apt-get -y upgrade
+RUN apt-get update && apt-get upgrade -y && \
+    apt-get install -y php8.2 php8.2-cli php8.2-fpm nginx && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# installing packages
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --fix-missing php7.0 \
-      php7.0-cli \
-      php-fpm
-
-RUN DEBIAN_FRONTEND="noninteractive" apt-get install -y nginx-full
-
-# copying nginx conf to its path
+# Copy configs, code, etc.
 COPY nginx-site.conf /etc/nginx/sites-available/default
-
-# setting working dir
 WORKDIR /var/www/html/
-
-# creating nested dir where fpm service would be found
-RUN mkdir -p /run/php
-
-# copying static files to location
 COPY . /var/www/html
 
-# service exposed
 EXPOSE 80
 
-# executing command
-CMD ["/bin/bash", "-c", "service php7.0-fpm start && nginx -g \"daemon off;\""]
+CMD ["/bin/bash", "-c", "service php8.2-fpm start && nginx -g 'daemon off;'"]

@@ -1,36 +1,41 @@
-################################# Build Container ###############################
+################################# Build Container #################################
 
-FROM golang:1.16 as builder
+# Use the latest stable Go image for building
+FROM golang:1.22.3 AS builder
 
-# Setup the working directory
+# Set working directory inside the container
 WORKDIR /app
 
-# COPY go module
-COPY go.mod go.sum /app/
-
-# Download go modules and cache for next time build
+# Copy Go module files and download dependencies
+COPY go.mod go.sum ./
 RUN go mod download
 
-# Add source code
-ADD . /app/
+# Copy the entire source code into the container
+COPY . .
 
-# Build the source
+# Build the Go binary with CGO disabled for static linking
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main app.go
 
+################################# Production Container ############################
 
-################################# Prod Container #################################
+# Use a minimal and secure Alpine base image
+FROM alpine:3.20
 
-# Use a minimal alpine image
-FROM alpine:3.7
+# Install CA certificates (for HTTPS calls)
+RUN apk --no-cache add ca-certificates
 
-# Add ca-certificates in case you need them
-RUN apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
+# Create a non-root user and switch to it
+RUN adduser -D -g '' nonroot
+USER nonroot
 
 # Set working directory
-WORKDIR /root
+WORKDIR /home/nonroot
 
-# Copy the binary from builder
+# Copy the compiled binary from the builder stage
 COPY --from=builder /app/main .
 
-# Run the binary
+# Expose port if your app serves over a specific port (optional)
+# EXPOSE 8080
+
+# Start the application
 CMD ["./main"]

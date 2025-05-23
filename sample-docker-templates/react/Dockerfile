@@ -1,32 +1,43 @@
-###### BUILD ENVIRONMENT ######
+# Use a minimal Node.js base image
+FROM node:22-alpine
 
-# Base Image
-FROM node:12.18.1 as build
+# Set environment for production
+ENV NODE_ENV=production
 
-# Moving into working directory
+# Install necessary packages: nginx only
+RUN apk update && apk add --no-cache nginx
+
+# Set working directory
 WORKDIR /app
 
-# Adding all files and dirs to /app inside container 
-ADD . /app/
+# Copy application code
+COPY . .
 
-# Installing dependencies
-RUN npm install
+# Main global config
+COPY nginx.conf /etc/nginx/nginx.conf
 
-# Creating Production build for react-app
-RUN npm run build
+# Default server/site config
+COPY nginx-default.conf /etc/nginx/http.d/default.conf
 
-# In this dockerfile using the concept of docker multistage build
+# Install production dependencies
+RUN npm install --production --prefer-offline --no-audit && \
+    npm i -g pm2
 
-###### PRODUCTION ENVIRONMENT ######
+# Create non-root user and set permissions
+RUN addgroup -g 2002 nonroot && \
+    adduser -u 2002 -G nonroot -S nonroot && \
+    mkdir -p /var/lib/nginx/tmp/client_body && \
+    chown -R nonroot:nonroot /app /var/log/nginx /var/lib/nginx
 
-# Base Image for prod env
-FROM nginx:stable-alpine
+# Expose port 8080
+EXPOSE 8080
 
-# Adding the build files from previous container to nginx/html
-COPY --from=build /app/build /usr/share/nginx/html
+# Switch to non-root user
+USER nonroot
 
-# Exposing port 80 to listen http requests
-EXPOSE 80
+# Link logs to stdout/stderr
+RUN ln -sf /dev/stdout /var/log/nginx/access.log && \
+    ln -sf /dev/stderr /var/log/nginx/error.log
 
-# Command to run
-CMD ["nginx", "-g", "daemon off;"]
+# Start your app listening on port 8080 
+CMD ["sh", "-c", "nginx && pm2-runtime src/index.js -i 0 --port=8080"]

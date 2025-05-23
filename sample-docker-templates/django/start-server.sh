@@ -1,22 +1,15 @@
-#!/usr/bin/env bash
-#
-# Copyright (c) 2024. Devtron Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
+#!/bin/sh
 
-# start-server.sh
-python manage.py migrate 
-python manage.py createsuperuser --no-input
+# Apply DB migrations
+python manage.py migrate
 
-(gunicorn DjangoApp.wsgi --user www-data --bind 0.0.0.0:8000 --workers 3) && nginx -g "daemon off;"
+# Create superuser if details provided (non-interactive)
+if [ -n "$DJANGO_SUPERUSER_USERNAME" ] && [ -n "$DJANGO_SUPERUSER_PASSWORD" ] && [ -n "$DJANGO_SUPERUSER_EMAIL" ]; then
+    python manage.py createsuperuser --no-input || true
+fi
+
+# Start gunicorn as non-root user binding on all interfaces port 8000, 3 workers
+gunicorn DjangoApp.wsgi --user nonroot --bind 0.0.0.0:8000 --workers 3 &
+
+# Start nginx in foreground
+nginx -g "daemon off;"
