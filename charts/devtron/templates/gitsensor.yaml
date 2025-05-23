@@ -75,25 +75,6 @@ spec:
         runAsUser: 1000
       serviceAccountName: devtron-default-sa
       {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.gitsensor.nodeSelector "tolerations" $.Values.components.gitsensor.tolerations "imagePullSecrets" $.Values.components.gitsensor.imagePullSecrets "global" $.Values.global) | indent 6 }}
-      initContainers:
-        - command:
-          - /bin/sh
-          - -c
-          - mkdir -p /git-base/ssh-keys && chown -R devtron:devtron /git-base && chmod 777 /git-base/ssh-keys
-          image: {{ include "common.image" (dict "component" $.Values.components.gitsensor "global" $.Values.global) }}
-          imagePullPolicy: IfNotPresent
-          name: chown-git-base
-          resources: {}
-          envFrom:
-          - configMapRef:
-              name: devtron-common-cm
-          securityContext:
-            runAsUser: 0
-          terminationMessagePath: /dev/termination-log
-          terminationMessagePolicy: File
-          volumeMounts:
-          - mountPath: /git-base/
-            name: git-volume
       containers:
         - name: git-sensor
           image: {{ include "common.image" (dict "component" $.Values.components.gitsensor "global" $.Values.global) }}
