@@ -104,7 +104,7 @@ type HandlerService interface {
 
 	CancelStage(workflowRunnerId int, forceAbort bool, userId int32) (int, error)
 	DownloadCdWorkflowArtifacts(buildId int) (*os.File, error)
-	GetRunningWorkflowLogs(environmentId int, pipelineId int, workflowId int) (*bufio.Reader, func() error, error)
+	GetRunningWorkflowLogs(environmentId int, pipelineId int, workflowId int, followLogs bool) (*bufio.Reader, func() error, error)
 }
 
 type HandlerServiceImpl struct {
