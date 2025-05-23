@@ -193,21 +193,10 @@ spec:
           args:
 {{ toYaml .args | indent 12 -}}
 {{- end }}
-          {{- $resources := $.Values.resources | default dict }}
-          {{- $gpuResources := (and (hasKey $.Values.gpu "enabled") $.Values.gpu.enabled (hasKey $.Values.gpu "resources")) | ternary $.Values.gpu.resources (dict) }}
-          {{- $limits := merge (get $resources "limits" | default dict) (get $gpuResources "limits" | default dict) }}
-          {{- $requests := merge (get $resources "requests" | default dict) (get $gpuResources "requests" | default dict) }}
-          {{- if or $limits $requests }}
+{{- if .resources}}
           resources:
-          {{- if $limits }}
-            limits:
-{{ toYaml $limits | indent 14 }}
-          {{- end }}
-          {{- if $requests }}
-            requests:
-{{ toYaml $requests | indent 14 }}
-          {{- end }}
-          {{- end }}
+{{ toYaml .resources | indent 12 -}}
+{{- end }}
 {{- if .volumeMounts}}
           volumeMounts:
 {{ toYaml .volumeMounts | indent 12 -}}
@@ -409,21 +398,30 @@ spec:
 {{ toYaml .Values.ReadinessProbe.grpc | indent 14 }}
             {{- end}}
 {{- end }}
-          {{- $resources := $.Values.resources | default dict }}
-          {{- $gpuResources := (and (hasKey $.Values.gpu "enabled") $.Values.gpu.enabled (hasKey $.Values.gpu "resources")) | ternary $.Values.gpu.resources (dict) }}
-          {{- $limits := merge (get $resources "limits" | default dict) (get $gpuResources "limits" | default dict) }}
-          {{- $requests := merge (get $resources "requests" | default dict) (get $gpuResources "requests" | default dict) }}
-          {{- if or $limits $requests }}
+{{- $resources := $.Values.resources | default dict }}
+{{- $gpu := $.Values.gpu | default dict }}
+{{- $gpuEnabled := and (hasKey $gpu "enabled") $gpu.enabled (hasKey $gpu "provider") (hasKey $gpu "resources") }}
+{{- $gpuLimits := dict }}
+{{- $gpuRequests := dict }}
+{{- if $gpuEnabled }}
+  {{- $gpuLimits = dict $gpu.provider ($gpu.resources.limits | default 0) }}
+  {{- $gpuLimits = dict "limits" $gpuLimits }}
+  {{- $gpuRequests = dict $gpu.provider ($gpu.resources.requests | default 0) }}
+  {{- $gpuRequests = dict "requests" $gpuRequests }}
+{{- end }}
+{{- $limits := merge (get $resources "limits" | default dict) (get $gpuLimits "limits" | default dict) }}
+{{- $requests := merge (get $resources "requests" | default dict) (get $gpuRequests "requests" | default dict) }}
+{{- if or $limits $requests }}
           resources:
-          {{- if $limits }}
+{{- if $limits }}
             limits:
 {{ toYaml $limits | indent 14 }}
-          {{- end }}
-          {{- if $requests }}
+{{- end }}
+{{- if $requests }}
             requests:
 {{ toYaml $requests | indent 14 }}
-          {{- end }}
-          {{- end }}
+{{- end }}
+{{- end }}
 {{- if or $.Values.StartupProbe.Path  $.Values.StartupProbe.command $.Values.StartupProbe.tcp $.Values.StartupProbe.grpc }}
           startupProbe:
 {{- if $.Values.StartupProbe.Path }}

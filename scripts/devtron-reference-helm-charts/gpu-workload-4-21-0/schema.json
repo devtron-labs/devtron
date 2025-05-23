@@ -734,65 +734,6 @@
           "type": "string",
           "description": "image of envoy to be used"
         },
-        "gpu": {
-          "type": "object",
-          "description": "GPU resource configuration",
-          "title": "GPU",
-          "properties": {
-            "enabled": {
-              "type": "boolean",
-              "description": "Enable GPU resources"
-            },
-            "driver": {
-              "type": "string",
-              "description": "GPU driver type (e.g. nvidia, amd64, intel). Supported: nvidia, amd64, intel."
-            },
-            "resources": {
-              "type": "object",
-              "description": "GPU resource requests and limits",
-              "properties": {
-                "requests": {
-                  "type": "object",
-                  "description": "Requested GPU resources",
-                  "properties": {
-                    "nvidia.com/gpu": {
-                      "type": ["integer", "string"],
-                      "description": "Number of NVIDIA GPUs requested"
-                    },
-                    "amd.com/gpu": {
-                      "type": ["integer", "string"],
-                      "description": "Number of AMD GPUs requested"
-                    },
-                    "intel.com/gpu": {
-                      "type": ["integer", "string"],
-                      "description": "Number of Intel GPUs requested"
-                    }
-                  },
-                  "additionalProperties": true
-                },
-                "limits": {
-                  "type": "object",
-                  "description": "GPU resource limits",
-                  "properties": {
-                    "nvidia.com/gpu": {
-                      "type": ["integer", "string"],
-                      "description": "Maximum number of NVIDIA GPUs allowed"
-                    },
-                    "amd.com/gpu": {
-                      "type": ["integer", "string"],
-                      "description": "Maximum number of AMD GPUs allowed"
-                    },
-                    "intel.com/gpu": {
-                      "type": ["integer", "string"],
-                      "description": "Maximum number of Intel GPUs allowed"
-                    }
-                  },
-                  "additionalProperties": true
-                }
-              }
-            }
-          }
-        },
         "resources": {
           "type": "object",
           "description": "minimum and maximum RAM and CPU available to the application",
@@ -840,6 +781,48 @@
         }
       }
     },
+      "gpu": {
+          "type": "object",
+          "description": "GPU resource configuration",
+          "title": "GPU",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable GPU resources",
+              "title": "GPU Spec"
+            },
+            "provider": {
+              "type": "string",
+              "description": "GPU driver type e.g. nvidia.com/gpu, amd.com/gpu, intel.com/gpu"
+            },
+            "resources": {
+              "type": "object",
+              "description": "GPU resource requests and limits",
+              "properties": {
+                "limits": {
+                  "type": "object",
+                  "description": "GPU resource limits",
+                  "properties": {
+                    "gpu": {
+                      "type": "string",
+                      "description": "Limit for GPU resources"
+                    }
+                  }
+                },
+                "requests": {
+                  "type": "object",
+                  "description": "GPU resource requests",
+                  "properties": {
+                    "gpu": {
+                      "type": "string",
+                      "description": "Request for GPU resources"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
       "hostAliases":{
       "type": "array",
       "title": "hostAliases",
