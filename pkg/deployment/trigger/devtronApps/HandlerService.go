@@ -40,7 +40,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
 	"github.com/devtron-labs/devtron/pkg/app/status"
-	"github.com/devtron-labs/devtron/pkg/asyncProvider"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
@@ -231,7 +230,7 @@ func NewHandlerServiceImpl(logger *zap.SugaredLogger,
 	ciLogService pipeline.CiLogService,
 	workflowService executor.WorkflowService,
 	blobConfigStorageService pipeline.BlobStorageConfigService,
-) (*HandlerServiceImpl, error) {
+	asyncRunnable *async.Runnable) (*HandlerServiceImpl, error) {
 	impl := &HandlerServiceImpl{
 		logger:                              logger,
 		cdWorkflowCommonService:             cdWorkflowCommonService,
@@ -297,7 +296,7 @@ func NewHandlerServiceImpl(logger *zap.SugaredLogger,
 		ciLogService:             ciLogService,
 		workflowService:          workflowService,
 		blobConfigStorageService: blobConfigStorageService,
-		asyncRunnable:            asyncProvider.NewAsyncRunnable(logger),
+		asyncRunnable:            asyncRunnable,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {

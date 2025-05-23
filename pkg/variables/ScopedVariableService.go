@@ -26,7 +26,6 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/async"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/pkg/asyncProvider"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/read"
@@ -62,13 +61,13 @@ type ScopedVariableServiceImpl struct {
 }
 
 func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository repository2.ScopedVariableRepository, appRepository app.AppRepository, environmentRepository repository3.EnvironmentRepository, devtronResourceSearchableKeyService read.DevtronResourceSearchableKeyService, clusterRepository repository.ClusterRepository,
-	qualifierMappingService resourceQualifiers.QualifierMappingService) (*ScopedVariableServiceImpl, error) {
+	qualifierMappingService resourceQualifiers.QualifierMappingService, asyncRunnable *async.Runnable) (*ScopedVariableServiceImpl, error) {
 	scopedVariableService := &ScopedVariableServiceImpl{
 		logger:                   logger,
 		scopedVariableRepository: scopedVariableRepository,
 		qualifierMappingService:  qualifierMappingService,
 		VariableCache:            &cache.VariableCacheObj{CacheLock: &sync.Mutex{}},
-		asyncRunnable:            asyncProvider.NewAsyncRunnable(logger),
+		asyncRunnable:            asyncRunnable,
 	}
 	cfg, err := GetVariableNameConfig()
 	if err != nil {

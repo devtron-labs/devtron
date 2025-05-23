@@ -28,7 +28,6 @@ import (
 
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/common-lib/async"
-	commonConstants "github.com/devtron-labs/common-lib/constants"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/common-lib/utils/registry"
@@ -131,7 +130,8 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	ciArtifactRepository repository.CiArtifactRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	deploymentConfigService common.DeploymentConfigService,
-	ciHandlerService trigger.HandlerService) (*WorkflowEventProcessorImpl, error) {
+	ciHandlerService trigger.HandlerService,
+	asyncRunnable *async.Runnable) (*WorkflowEventProcessorImpl, error) {
 	impl := &WorkflowEventProcessorImpl{
 		logger:                          logger,
 		pubSubClient:                    pubSubClient,
@@ -160,7 +160,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 		cdWorkflowRepository:            cdWorkflowRepository,
 		deploymentConfigService:         deploymentConfigService,
 		ciHandlerService:                ciHandlerService,
-		asyncRunnable:                   async.NewAsyncRunnable(logger, commonConstants.Orchestrator),
+		asyncRunnable:                   asyncRunnable,
 	}
 	appServiceConfig, err := app.GetAppServiceConfig()
 	if err != nil {
