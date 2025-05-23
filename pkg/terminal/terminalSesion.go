@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package terminal
 
 import (
@@ -570,23 +571,17 @@ func (impl *TerminalSessionHandlerImpl) getClientSetAndRestConfigForTerminalConn
 		}
 
 		clusterConfig = clusterBean.GetClusterConfig()
-		restConfig, err = impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
+		restConfig, err = impl.k8sUtil.GetRestConfigByCluster(clusterConfig, k8s.WithDefaultHttpTransport())
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config by cluster", "err", err, "clusterName", clusterConfig.ClusterName)
 			return nil, nil, err
 		}
 
-		_, clientSet, err := impl.k8sUtil.GetK8sConfigAndClientsByRestConfig(restConfig)
+		_, clientSet, err := impl.k8sUtil.GetK8sConfigAndClientsByRestConfig(restConfig, k8s.WithDefaultHttpTransport())
 		if err != nil {
 			impl.logger.Errorw("error in clientSet", "err", err)
 			return nil, nil, err
 		}
-
-		// we have to get the clientSet before setting the custom transport to nil
-		// we need re populate the tls config in the restConfig.
-		// rest config with custom transport will break spdy client
-		clusterConfig.PopulateTlsConfigurationsInto(restConfig)
-		restConfig.Transport = nil
 		return restConfig, clientSet, nil
 	}
 }
