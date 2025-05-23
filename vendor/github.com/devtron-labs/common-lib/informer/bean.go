@@ -24,6 +24,7 @@ const (
 	ClusterActionDelete             = "delete"
 	CmFieldAction                   = "action"
 	CmFieldClusterId                = "cluster_id"
+	ClusterModifyEventCmLabelValue  = "type=cluster-request-modify"
 )
 
 const (

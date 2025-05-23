@@ -14,7 +14,7 @@ func CreateClusterModifyEventData(clusterId int, action string) (map[string]stri
 	data[clusterBean.CmFieldUpdatedOn] = time.Now().String()
 
 	labels := make(map[string]string)
-	labels[informerBean.ClusterModifyEventSecretTypeKey] = informerBean.ClusterModifyEventSecretType
+	labels[informerBean.ClusterModifyEventSecretTypeKey] = "cluster-request-modify"
 
 	return data, labels
 }
