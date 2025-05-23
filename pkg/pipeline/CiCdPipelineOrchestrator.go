@@ -1369,6 +1369,20 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) erro
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
+	// deleting deployment config first as it is dependent on app
+	appDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(appId, 0)
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
+		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "err", err)
+		return err
+	} else if err == nil && appDeploymentConfig != nil {
+		appDeploymentConfig.Active = false
+		appDeploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(tx, appDeploymentConfig, userId)
+		if err != nil {
+			impl.logger.Errorw("error in deleting deployment config for pipeline", "appId", appId, "err", err)
+			return err
+		}
+	}
+	// deleting app
 	app.Active = false
 	app.UpdatedOn = time.Now()
 	app.UpdatedBy = userId
@@ -1382,18 +1396,6 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) erro
 	if err != nil {
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
 		return err
-	}
-	appDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(appId, 0)
-	if err != nil && !errors.Is(err, pg.ErrNoRows) {
-		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "err", err)
-		return err
-	} else if err == nil && appDeploymentConfig != nil {
-		appDeploymentConfig.Active = false
-		appDeploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(tx, appDeploymentConfig, userId)
-		if err != nil {
-			impl.logger.Errorw("error in deleting deployment config for pipeline", "appId", appId, "err", err)
-			return err
-		}
 	}
 	err = tx.Commit()
 	if err != nil {
