@@ -78,7 +78,7 @@ type HandlerService interface {
 	StartCiWorkflowAndPrepareWfRequest(trigger types.Trigger) (*pipelineConfig.CiPipeline, map[string]string, *pipelineConfig.CiWorkflow, *types.WorkflowRequest, error)
 
 	CancelBuild(workflowId int, forceAbort bool) (int, error)
-	GetRunningWorkflowLogs(workflowId int) (*bufio.Reader, func() error, error)
+	GetRunningWorkflowLogs(workflowId int, followLogs bool) (*bufio.Reader, func() error, error)
 	GetHistoricBuildLogs(workflowId int, ciWorkflow *pipelineConfig.CiWorkflow) (map[string]string, error)
 	DownloadCiWorkflowArtifacts(pipelineId int, buildId int) (*os.File, error)
 }
@@ -1685,16 +1685,16 @@ func (impl *HandlerServiceImpl) getRestConfig(workflow *pipelineConfig.CiWorkflo
 	return restConfig, nil
 }
 
-func (impl *HandlerServiceImpl) GetRunningWorkflowLogs(workflowId int) (*bufio.Reader, func() error, error) {
+func (impl *HandlerServiceImpl) GetRunningWorkflowLogs(workflowId int, followLogs bool) (*bufio.Reader, func() error, error) {
 	ciWorkflow, err := impl.ciWorkflowRepository.FindById(workflowId)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
 		return nil, nil, err
 	}
-	return impl.getWorkflowLogs(ciWorkflow)
+	return impl.getWorkflowLogs(ciWorkflow, followLogs)
 }
 
-func (impl *HandlerServiceImpl) getWorkflowLogs(ciWorkflow *pipelineConfig.CiWorkflow) (*bufio.Reader, func() error, error) {
+func (impl *HandlerServiceImpl) getWorkflowLogs(ciWorkflow *pipelineConfig.CiWorkflow, followLogs bool) (*bufio.Reader, func() error, error) {
 	if string(v1alpha1.NodePending) == ciWorkflow.PodStatus {
 		return bufio.NewReader(strings.NewReader("")), func() error { return nil }, nil
 	}
@@ -1717,7 +1717,7 @@ func (impl *HandlerServiceImpl) getWorkflowLogs(ciWorkflow *pipelineConfig.CiWor
 		isExt = true
 	}
 
-	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(ciLogRequest, clusterConfig, isExt)
+	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(ciLogRequest, clusterConfig, isExt, followLogs)
 	if logStream == nil || err != nil {
 		if !ciWorkflow.BlobStorageEnabled {
 			return nil, nil, &util.ApiError{Code: "200", HttpStatusCode: 400, UserMessage: "logs-not-stored-in-repository"}

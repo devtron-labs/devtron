@@ -1609,6 +1609,16 @@ func (handler *PipelineConfigRestHandlerImpl) GetPrePostDeploymentLogs(w http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	followLogs := true
+	if ok := r.URL.Query().Has("followLogs"); ok {
+		followLogsStr := r.URL.Query().Get("followLogs")
+		follow, err := strconv.ParseBool(followLogsStr)
+		if err != nil {
+			common.WriteJsonResp(w, err, "followLogs is not a valid bool", http.StatusBadRequest)
+			return
+		}
+		followLogs = follow
+	}
 	handler.Logger.Infow("request payload, GetPrePostDeploymentLogs", "err", err, "appId", appId, "environmentId", environmentId, "pipelineId", pipelineId, "workflowId", workflowId)
 
 	// RBAC CHECK
@@ -1619,7 +1629,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetPrePostDeploymentLogs(w http.Re
 	}
 	// RBAC CHECK
 
-	logsReader, cleanUp, err := handler.cdHandlerService.GetRunningWorkflowLogs(environmentId, pipelineId, workflowId)
+	logsReader, cleanUp, err := handler.cdHandlerService.GetRunningWorkflowLogs(environmentId, pipelineId, workflowId, followLogs)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetPrePostDeploymentLogs", "err", err, "appId", appId, "environmentId", environmentId, "pipelineId", pipelineId, "workflowId", workflowId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
