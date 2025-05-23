@@ -829,10 +829,10 @@ github.com/denisenkom/go-mssqldb v0.0.0-20200428022330-06a60b6afbbc h1:VRRKCwnzq
 github.com/denisenkom/go-mssqldb v0.0.0-20200428022330-06a60b6afbbc/go.mod h1:xbL0rPBG9cCiLr28tMa8zpbdarY27NDyej4t/EjAShU=
 github.com/devtron-labs/argo-workflows/v3 v3.5.13 h1:3pINq0gXOSeTw2z/vYe+j80lRpSN5Rp/8mfQORh8SmU=
 github.com/devtron-labs/argo-workflows/v3 v3.5.13/go.mod h1:/vqxcovDPT4zqr4DjR5v7CF8ggpY1l3TSa2CIG3jmjA=
-github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250523141611-5ed7eaadfc41 h1:Df2bw3zWsiPTDnPc8HmnTwCZst9Zo+4BBz+LtvQpzSg=
-github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250523141611-5ed7eaadfc41/go.mod h1:FfaLDXN1ZXxyRpnskBqVIYkpkWDCzBmDgIO9xqLnxdQ=
-github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250523141611-5ed7eaadfc41 h1:0KfHkfiPcjhlrl7CJxMvy8OlCqL0pBEDaxCpiiS/u0c=
-github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250523141611-5ed7eaadfc41/go.mod h1:HQVUnQI7WHwVq89Bib/18xJqM89S1+xI0O7REctMMrA=
+github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250523142930-01ed8fbeb6e5 h1:PYrpBS2NM9MlfacQuiBm5cElBqN2ER8VQfnjp2zqghw=
+github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250523142930-01ed8fbeb6e5/go.mod h1:FfaLDXN1ZXxyRpnskBqVIYkpkWDCzBmDgIO9xqLnxdQ=
+github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250523142930-01ed8fbeb6e5 h1:Wame1Nk/8TuGPcSMzp81DOqFw5Kpd+Q9Q+/ZjZFKCz4=
+github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250523142930-01ed8fbeb6e5/go.mod h1:HQVUnQI7WHwVq89Bib/18xJqM89S1+xI0O7REctMMrA=
 github.com/devtron-labs/go-bitbucket v0.9.60-beta h1:VEx1jvDgdtDPS6A1uUFoaEi0l1/oLhbr+90xOwr6sDU=
 github.com/devtron-labs/go-bitbucket v0.9.60-beta/go.mod h1:GnuiCesvh8xyHeMCb+twm8lBR/kQzJYSKL28ZfObp1Y=
 github.com/devtron-labs/protos v0.0.3-0.20250323220609-ecf8a0f7305e h1:U6UdYbW8a7xn5IzFPd8cywjVVPfutGJCudjePAfL/Hs=

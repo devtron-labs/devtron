@@ -17,14 +17,15 @@
 package informer
 
 const (
-	ClusterModifyEventSecretType    = "cluster.request/modify"
-	ClusterModifyEventSecretTypeKey = "type"
-	ClusterActionAdd                = "add"
-	ClusterActionUpdate             = "update"
-	ClusterActionDelete             = "delete"
-	CmFieldAction                   = "action"
-	CmFieldClusterId                = "cluster_id"
-	ClusterModifyEventCmLabelValue  = "type=cluster-request-modify"
+	ClusterModifyEventSecretType      = "cluster.request/modify"
+	ClusterModifyEventSecretTypeKey   = "type"
+	ClusterActionAdd                  = "add"
+	ClusterActionUpdate               = "update"
+	ClusterActionDelete               = "delete"
+	CmFieldAction                     = "action"
+	CmFieldClusterId                  = "cluster_id"
+	ClusterModifyEventCmLabelKeyValue = "type=cluster-request-modify"
+	ClusterModifyEventCmLabelValue    = "cluster-request-modify"
 )
 
 const (
