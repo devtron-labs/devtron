@@ -105,7 +105,7 @@ type ApplicationClientWrapper interface {
 	// IsArgoAppPatchRequired decides weather the v1alpha1.ApplicationSource requires to be updated
 	IsArgoAppPatchRequired(argoAppSpec *v1alpha1.ApplicationSource, currentGitRepoUrl, currentTargetRevision, currentChartPath string) bool
 
-	// GetGitOpsRepoName returns the GitOps repository name, configured for the argoCd app
+	// GetGitOpsRepoNameForApplication returns the GitOps repository name, configured for the argoCd app
 	GetGitOpsRepoNameForApplication(ctx context.Context, appName string) (gitOpsRepoName string, err error)
 
 	GetGitOpsRepoURLForApplication(ctx context.Context, appName string) (gitOpsRepoURL string, err error)
@@ -127,6 +127,7 @@ type RepoCredsClientWrapper interface {
 type CertificateClientWrapper interface {
 	CreateCertificate(ctx context.Context, query *certificate.RepositoryCertificateCreateRequest) (*v1alpha1.RepositoryCertificateList, error)
 	DeleteCertificate(ctx context.Context, query *certificate.RepositoryCertificateQuery, opts ...grpc.CallOption) (*v1alpha1.RepositoryCertificateList, error)
+	CertificateClientWrapperEnt
 }
 
 type ClusterClientWrapper interface {
@@ -147,7 +148,7 @@ type ArgoClientWrapperServiceImpl struct {
 	repositoryService       repository.ServiceClient
 	clusterClient           cluster.ServiceClient
 	repoCredsClient         repocreds2.ServiceClient
-	CertificateClient       certificate2.ServiceClient
+	certificateClient       certificate2.ServiceClient
 	logger                  *zap.SugaredLogger
 	ACDConfig               *ACDConfig
 	gitOpsConfigReadService config.GitOpsConfigReadService
@@ -176,7 +177,7 @@ func NewArgoClientWrapperServiceImpl(
 		repositoryService:              repositoryService,
 		clusterClient:                  clusterClient,
 		repoCredsClient:                repocredsClient,
-		CertificateClient:              CertificateClient,
+		certificateClient:              CertificateClient,
 		logger:                         logger,
 		ACDConfig:                      ACDConfig,
 		gitOpsConfigReadService:        gitOpsConfigReadService,
@@ -586,7 +587,7 @@ func (impl *ArgoClientWrapperServiceImpl) CreateCertificate(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	return impl.CertificateClient.CreateCertificate(ctx, grpcConfig, query)
+	return impl.certificateClient.CreateCertificate(ctx, grpcConfig, query)
 }
 
 func (impl *ArgoClientWrapperServiceImpl) DeleteCertificate(ctx context.Context, query *certificate.RepositoryCertificateQuery, opts ...grpc.CallOption) (*v1alpha1.RepositoryCertificateList, error) {
@@ -594,5 +595,5 @@ func (impl *ArgoClientWrapperServiceImpl) DeleteCertificate(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	return impl.CertificateClient.DeleteCertificate(ctx, grpcConfig, query, opts...)
+	return impl.certificateClient.DeleteCertificate(ctx, grpcConfig, query, opts...)
 }
