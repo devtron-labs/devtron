@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package terminal
 
 import (
@@ -23,6 +24,15 @@ import (
 	"encoding/json"
 	errors2 "errors"
 	"fmt"
+	"github.com/devtron-labs/common-lib/async"
+	"io"
+	"log"
+	"net/http"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/internal/middleware"
@@ -35,14 +45,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	errors1 "github.com/juju/errors"
 	"go.uber.org/zap"
-	"io"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"log"
-	"net/http"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
 
 	"gopkg.in/igm/sockjs-go.v3/sockjs"
 	v1 "k8s.io/api/core/v1"
@@ -457,12 +460,13 @@ type TerminalSessionHandlerImpl struct {
 	ephemeralContainerService    cluster.EphemeralContainerService
 	argoApplicationConfigService config.ArgoApplicationConfigService
 	ClusterReadService           read.ClusterReadService
+	asyncRunnable                *async.Runnable
 }
 
 func NewTerminalSessionHandlerImpl(environmentService environment.EnvironmentService,
 	logger *zap.SugaredLogger, k8sUtil *k8s.K8sServiceImpl, ephemeralContainerService cluster.EphemeralContainerService,
 	argoApplicationConfigService config.ArgoApplicationConfigService,
-	ClusterReadService read.ClusterReadService) *TerminalSessionHandlerImpl {
+	ClusterReadService read.ClusterReadService, asyncRunnable *async.Runnable) *TerminalSessionHandlerImpl {
 	return &TerminalSessionHandlerImpl{
 		environmentService:           environmentService,
 		logger:                       logger,
@@ -470,6 +474,7 @@ func NewTerminalSessionHandlerImpl(environmentService environment.EnvironmentSer
 		ephemeralContainerService:    ephemeralContainerService,
 		argoApplicationConfigService: argoApplicationConfigService,
 		ClusterReadService:           ClusterReadService,
+		asyncRunnable:                asyncRunnable,
 	}
 }
 
@@ -515,18 +520,18 @@ func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionR
 	})
 	config, client, err := impl.getClientSetAndRestConfigForTerminalConn(req)
 
-	go func() {
+	impl.asyncRunnable.Execute(func() {
 		err := impl.saveEphemeralContainerTerminalAccessAudit(req)
 		if err != nil {
 			impl.logger.Errorw("error in saving ephemeral container terminal access audit,so skipping auditing", "err", err)
 		}
-	}()
+	})
 
 	if err != nil {
 		impl.logger.Errorw("error in fetching config", "err", err)
 		return http.StatusInternalServerError, nil, err
 	}
-	go WaitForTerminal(client, config, req)
+	impl.asyncRunnable.Execute(func() { WaitForTerminal(client, config, req) })
 	return http.StatusOK, &TerminalMessage{SessionID: sessionID}, nil
 }
 
@@ -566,23 +571,17 @@ func (impl *TerminalSessionHandlerImpl) getClientSetAndRestConfigForTerminalConn
 		}
 
 		clusterConfig = clusterBean.GetClusterConfig()
-		restConfig, err = impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
+		restConfig, err = impl.k8sUtil.GetRestConfigByCluster(clusterConfig, k8s.WithDefaultHttpTransport())
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config by cluster", "err", err, "clusterName", clusterConfig.ClusterName)
 			return nil, nil, err
 		}
 
-		_, clientSet, err := impl.k8sUtil.GetK8sConfigAndClientsByRestConfig(restConfig)
+		_, clientSet, err := impl.k8sUtil.GetK8sConfigAndClientsByRestConfig(restConfig, k8s.WithDefaultHttpTransport())
 		if err != nil {
 			impl.logger.Errorw("error in clientSet", "err", err)
 			return nil, nil, err
 		}
-
-		// we have to get the clientSet before setting the custom transport to nil
-		// we need re populate the tls config in the restConfig.
-		// rest config with custom transport will break spdy client
-		clusterConfig.PopulateTlsConfigurationsInto(restConfig)
-		restConfig.Transport = nil
 		return restConfig, clientSet, nil
 	}
 }

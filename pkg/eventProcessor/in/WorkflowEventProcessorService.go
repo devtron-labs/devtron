@@ -21,7 +21,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
+	"strconv"
+	"sync"
+	"time"
+
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
+	"github.com/devtron-labs/common-lib/async"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/common-lib/utils/registry"
@@ -63,10 +69,6 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"k8s.io/utils/pointer"
-	"slices"
-	"strconv"
-	"sync"
-	"time"
 )
 
 type WorkflowEventProcessorImpl struct {
@@ -90,6 +92,7 @@ type WorkflowEventProcessorImpl struct {
 	cdPipelineConfigService      pipeline.CdPipelineConfigService
 	userDeploymentRequestService service.UserDeploymentRequestService
 	ucid                         ucid.Service
+	asyncRunnable                *async.Runnable
 
 	devtronAppReleaseContextMap     map[int]bean.DevtronAppReleaseContextType
 	devtronAppReleaseContextMapLock *sync.Mutex
@@ -127,7 +130,8 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	ciArtifactRepository repository.CiArtifactRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	deploymentConfigService common.DeploymentConfigService,
-	ciHandlerService trigger.HandlerService) (*WorkflowEventProcessorImpl, error) {
+	ciHandlerService trigger.HandlerService,
+	asyncRunnable *async.Runnable) (*WorkflowEventProcessorImpl, error) {
 	impl := &WorkflowEventProcessorImpl{
 		logger:                          logger,
 		pubSubClient:                    pubSubClient,
@@ -156,6 +160,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 		cdWorkflowRepository:            cdWorkflowRepository,
 		deploymentConfigService:         deploymentConfigService,
 		ciHandlerService:                ciHandlerService,
+		asyncRunnable:                   asyncRunnable,
 	}
 	appServiceConfig, err := app.GetAppServiceConfig()
 	if err != nil {
@@ -163,7 +168,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	}
 	impl.appServiceConfig = appServiceConfig
 	// handle incomplete deployment requests after restart
-	go impl.ProcessIncompleteDeploymentReq()
+	impl.asyncRunnable.Execute(func() { impl.ProcessIncompleteDeploymentReq() })
 	return impl, nil
 }
 

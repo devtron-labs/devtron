@@ -17,11 +17,13 @@
 package repository
 
 import (
+	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
+	"go.opentelemetry.io/otel"
 	"k8s.io/utils/pointer"
 	"strconv"
 )
@@ -44,6 +46,7 @@ type NotificationSettingsRepository interface {
 	FindNotificationSettingBuildOptions(settingRequest *SearchRequest) ([]*SettingOptionDTO, error)
 	FetchNotificationSettingGroupBy(viewId int) ([]NotificationSettings, error)
 	FindNotificationSettingsByConfigIdAndConfigType(configId int, configType string) ([]*NotificationSettings, error)
+	FindNotificationSettingsWithRules(ctx context.Context, eventId int, req GetRulesRequest) ([]NotificationSettings, error)
 }
 
 type NotificationSettingsRepositoryImpl struct {
@@ -89,6 +92,25 @@ type NotificationSettings struct {
 	ClusterId            *int     `sql:"cluster_id"`
 }
 
+type NotificationSettingsBean struct {
+	Id           int           `json:"id"`
+	TeamId       *int          `json:"team_id"`
+	AppId        *int          `json:"app_id"`
+	EnvId        *int          `json:"env_id"`
+	PipelineId   *int          `json:"pipeline_id"`
+	PipelineType string        `json:"pipeline_type"`
+	EventTypeId  int           `json:"event_type_id"`
+	Config       []ConfigEntry `json:"config"`
+	ViewId       int           `json:"view_id"`
+}
+
+type ConfigEntry struct {
+	Dest      string `json:"dest"`
+	Rule      string `json:"rule"`
+	ConfigId  int    `json:"configId"`
+	Recipient string `json:"recipient"`
+}
+
 type SettingOptionDTO struct {
 	//TeamId       int    `json:"-"`
 	//AppId        int    `json:"-"`
@@ -99,6 +121,17 @@ type SettingOptionDTO struct {
 	AppName         string `json:"appName"`
 	EnvironmentName string `json:"environmentName,omitempty"`
 	ClusterName     string `json:"clusterName"`
+}
+
+type GetRulesRequest struct {
+	TeamId              int
+	EnvId               int
+	AppId               int
+	PipelineId          int
+	PipelineType        string
+	IsProdEnv           *bool
+	ClusterId           int
+	EnvIdsForCiPipeline []int
 }
 
 func (impl *NotificationSettingsRepositoryImpl) FindNSViewCount() (int, error) {
@@ -350,6 +383,257 @@ func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingsByConfig
 	var notificationSettings []*NotificationSettings
 	err := impl.dbConnection.Model(&notificationSettings).Where("config::text like ?", "%dest\":\""+configType+"%").
 		Where("config::text like ?", "%configId\":"+strconv.Itoa(configId)+"%").Select()
+	if err != nil {
+		return nil, err
+	}
+	return notificationSettings, nil
+}
+
+func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingsWithRules(ctx context.Context, eventId int, req GetRulesRequest) ([]NotificationSettings, error) {
+	_, span := otel.Tracer("NotificationSettingsRepository").Start(ctx, "FindNotificationSettingsWithRules")
+	defer span.End()
+	if len(req.PipelineType) == 0 || eventId == 0 {
+		return nil, pg.ErrNoRows
+	}
+
+	// Handle special case for event type 6 (deployment blocked with auto trigger)
+	if eventId == 6 {
+		// This is the case when deployment is blocked and pipeline is set to auto trigger
+		eventId = 3
+	}
+
+	var notificationSettings []NotificationSettings
+	settingsFilerConditions := func(query *orm.Query) (*orm.Query, error) {
+		query = query.
+			WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+				query = query.
+					Where("notification_settings.app_id = ?", req.AppId).
+					Where("notification_settings.env_id IS NULL").
+					Where("notification_settings.team_id IS NULL").
+					Where("notification_settings.pipeline_id IS NULL").
+					Where("notification_settings.cluster_id IS NULL")
+				return query, nil
+			}).
+			WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+				query = query.
+					Where("notification_settings.app_id IS NULL").
+					Where("notification_settings.env_id = ?", req.EnvId).
+					Where("notification_settings.team_id IS NULL").
+					Where("notification_settings.pipeline_id IS NULL").
+					Where("notification_settings.cluster_id IS NULL")
+				return query, nil
+			}).
+			WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+				query = query.
+					Where("notification_settings.app_id IS NULL").
+					Where("notification_settings.env_id IS NULL").
+					Where("notification_settings.team_id = ?", req.TeamId).
+					Where("notification_settings.pipeline_id IS NULL").
+					Where("notification_settings.cluster_id IS NULL")
+				return query, nil
+			}).
+			WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+				query = query.
+					Where("notification_settings.app_id IS NULL").
+					Where("notification_settings.env_id IS NULL").
+					Where("notification_settings.team_id IS NULL").
+					Where("notification_settings.pipeline_id = ?", req.PipelineId).
+					Where("notification_settings.cluster_id IS NULL")
+				return query, nil
+			}).
+			WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+				query = query.
+					Where("notification_settings.app_id IS NULL").
+					Where("notification_settings.env_id = ?", req.EnvId).
+					Where("notification_settings.team_id = ?", req.TeamId).
+					Where("notification_settings.pipeline_id IS NULL").
+					Where("notification_settings.cluster_id IS NULL")
+				return query, nil
+			}).
+			WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+				query = query.
+					Where("notification_settings.app_id = ?", req.AppId).
+					Where("notification_settings.team_id IS NULL").
+					Where("notification_settings.env_id = ?", req.EnvId).
+					Where("notification_settings.pipeline_id IS NULL").
+					Where("notification_settings.cluster_id IS NULL")
+				return query, nil
+			}).
+			WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+				query = query.
+					Where("notification_settings.app_id = ?", req.AppId).
+					Where("notification_settings.env_id = ?", req.EnvId).
+					Where("notification_settings.team_id = ?", req.TeamId).
+					WhereOr("notification_settings.pipeline_id = ?", req.PipelineId)
+				return query, nil
+			}). // all envs of cluster , env,app and team are null
+			WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+				query = query.
+					Where("notification_settings.app_id IS NULL").
+					Where("notification_settings.team_id IS NULL").
+					Where("notification_settings.env_id IS NULL").
+					Where("notification_settings.cluster_id = ?", req.ClusterId)
+				return query, nil
+			}). // all envs of cluster in a app
+			WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+				query = query.
+					Where("notification_settings.app_id = ?", req.AppId).
+					Where("notification_settings.env_id IS NULL").
+					Where("notification_settings.cluster_id = ?", req.ClusterId)
+				return query, nil
+			}). // all envs of cluster in a team, app is null
+			WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+				query = query.
+					Where("notification_settings.app_id IS NULL").
+					Where("notification_settings.team_id = ?", req.TeamId).
+					Where("notification_settings.env_id IS NULL").
+					Where("notification_settings.cluster_id = ?", req.ClusterId)
+				return query, nil
+			})
+
+		if req.IsProdEnv != nil {
+			envIdentifier := resourceQualifiers.AllExistingAndFutureNonProdEnvsInt
+			if *req.IsProdEnv {
+				envIdentifier = resourceQualifiers.AllExistingAndFutureProdEnvsInt
+			}
+
+			query = query.
+				// for all prod/non-prod envs across for pipelines of a project, app,cluster and pipeline is null
+				WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+					query = query.
+						Where("notification_settings.app_id IS NULL").
+						Where("notification_settings.env_id = ?", envIdentifier).
+						Where("notification_settings.team_id = ?", req.TeamId).
+						Where("notification_settings.pipeline_id IS NULL").
+						Where("notification_settings.cluster_id IS NULL")
+					return query, nil
+				}).
+				// for all prod/non-prod envs across for pipelines of an app, project,cluster and pipeline is null
+				WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+					query = query.
+						Where("notification_settings.app_id = ?", req.AppId).
+						Where("notification_settings.team_id IS NULL").
+						Where("notification_settings.env_id = ?", envIdentifier).
+						Where("notification_settings.pipeline_id IS NULL").
+						Where("notification_settings.cluster_id IS NULL")
+					return query, nil
+				}).
+				// for all prod/non-prod envs across all clusters, cluster, app and team is null
+				WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+					query = query.
+						Where("notification_settings.app_id IS NULL").
+						Where("notification_settings.env_id = ?", envIdentifier).
+						Where("notification_settings.team_id IS NULL").
+						Where("notification_settings.pipeline_id IS NULL")
+					return query, nil
+				}).
+				// all prod envs of a cluster , app and team is null
+				// all non-prod envs of a cluster , app and team is null
+				WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+					query = query.
+						Where("notification_settings.app_id IS NULL").
+						Where("notification_settings.team_id IS NULL").
+						Where("notification_settings.env_id = ?", envIdentifier).
+						Where("notification_settings.cluster_id = ?", req.ClusterId)
+					return query, nil
+				}). // all prod envs of a cluster in a app
+				// all non prod envs of a cluster in a app
+				WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+					query = query.
+						Where("notification_settings.app_id = ?", req.AppId).
+						Where("notification_settings.env_id = ? ", envIdentifier).
+						Where("notification_settings.cluster_id = ?", req.ClusterId)
+					return query, nil
+				}). // all prod envs of a cluster in a team, app is null
+				// all non prod envs of a cluster in a team, app is null
+				WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+					query = query.
+						Where("notification_settings.app_id IS NULL").
+						Where("notification_settings.team_id = ?", req.TeamId).
+						Where("notification_settings.env_id = ?", envIdentifier).
+						Where("notification_settings.cluster_id = ?", req.ClusterId)
+					return query, nil
+				})
+		}
+		if len(req.EnvIdsForCiPipeline) > 0 {
+			query = query.
+				// for all envs across for pipelines of a project, app,cluster and pipeline is null
+				WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+					query = query.
+						Where("notification_settings.app_id IS NULL").
+						Where("notification_settings.env_id in (?)", pg.In(req.EnvIdsForCiPipeline)).
+						Where("notification_settings.team_id = ?", req.TeamId).
+						Where("notification_settings.pipeline_id IS NULL").
+						Where("notification_settings.cluster_id IS NULL")
+					return query, nil
+				}).
+				// for all  envs across for pipelines of an app, project,cluster and pipeline is null
+				WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+					query = query.
+						Where("notification_settings.app_id = ?", req.AppId).
+						Where("notification_settings.team_id IS NULL").
+						Where("notification_settings.env_id in (?)", pg.In(req.EnvIdsForCiPipeline)).
+						Where("notification_settings.pipeline_id IS NULL").
+						Where("notification_settings.cluster_id IS NULL")
+					return query, nil
+				}).
+				// for all envs across all clusters, cluster, app and team is null
+				WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+					query = query.
+						Where("notification_settings.app_id IS NULL").
+						Where("notification_settings.env_id in (?)", pg.In(req.EnvIdsForCiPipeline)).
+						Where("notification_settings.team_id IS NULL").
+						Where("notification_settings.pipeline_id IS NULL")
+					return query, nil
+				}).
+				// for all envs ids of an app within a project with pipeline id
+				WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+					query = query.
+						Where("notification_settings.app_id = ?", req.AppId).
+						Where("notification_settings.env_id in (?)", pg.In(req.EnvIdsForCiPipeline)).
+						Where("notification_settings.team_id = ?", req.TeamId).
+						Where("notification_settings.pipeline_id = ?", req.PipelineId)
+					return query, nil
+				}).
+				// all envs of a cluster , app and team is null
+				WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+					query = query.
+						Where("notification_settings.app_id IS NULL").
+						Where("notification_settings.team_id IS NULL").
+						Where("notification_settings.env_id in (?)", pg.In(req.EnvIdsForCiPipeline)).
+						Where("notification_settings.cluster_id = ?", req.ClusterId)
+					return query, nil
+				}).
+				// all envs of a cluster in an app
+				WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+					query = query.
+						Where("notification_settings.app_id = ?", req.AppId).
+						Where("notification_settings.env_id in (?) ", pg.In(req.EnvIdsForCiPipeline)).
+						Where("notification_settings.cluster_id = ?", req.ClusterId)
+					return query, nil
+				}).
+				// all envs of a cluster in a team, app is null
+				WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+					query = query.
+						Where("notification_settings.app_id IS NULL").
+						Where("notification_settings.team_id = ?", req.TeamId).
+						Where("notification_settings.env_id in (?)", pg.In(req.EnvIdsForCiPipeline)).
+						Where("notification_settings.cluster_id = ?", req.ClusterId)
+					return query, nil
+				})
+		}
+		return query, nil
+
+	}
+
+	query := impl.dbConnection.
+		Model(&notificationSettings).
+		Column("notification_settings.*", "NotificationRule").
+		Where("notification_settings.pipeline_type = ?", req.PipelineType).
+		Where("notification_settings.event_type_id = ?", eventId).
+		WhereGroup(settingsFilerConditions)
+
+	err := query.Select()
 	if err != nil {
 		return nil, err
 	}

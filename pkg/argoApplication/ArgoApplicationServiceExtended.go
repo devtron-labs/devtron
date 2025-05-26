@@ -22,6 +22,7 @@ import (
 	"fmt"
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/devtron-labs/common-lib/async"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -46,6 +47,7 @@ type ArgoApplicationServiceExtendedImpl struct {
 	argoApplicationReadService read.ArgoApplicationReadService
 	clusterService             cluster.ClusterService
 	acdClientWrapper           argocdServer.ArgoClientWrapperService
+	asyncRunnable              *async.Runnable
 }
 
 func NewArgoApplicationServiceExtendedServiceImpl(
@@ -54,6 +56,7 @@ func NewArgoApplicationServiceExtendedServiceImpl(
 	acdClientWrapper argocdServer.ArgoClientWrapperService,
 	argoApplicationReadService read.ArgoApplicationReadService,
 	clusterService cluster.ClusterService,
+	asyncRunnable *async.Runnable,
 ) *ArgoApplicationServiceExtendedImpl {
 	return &ArgoApplicationServiceExtendedImpl{
 		aCDAuthConfig:              aCDAuthConfig,
@@ -61,6 +64,7 @@ func NewArgoApplicationServiceExtendedServiceImpl(
 		argoApplicationReadService: argoApplicationReadService,
 		acdClientWrapper:           acdClientWrapper,
 		ArgoApplicationServiceImpl: argoApplicationServiceImpl,
+		asyncRunnable:              asyncRunnable,
 	}
 }
 
@@ -328,7 +332,7 @@ func (c *ArgoApplicationServiceExtendedImpl) parseResult(resp *v1alpha1.Applicat
 	for _, node := range queryNodes {
 		rQuery := transform(node, query.ApplicationName)
 		qCount++
-		go func(request application2.ApplicationResourceRequest) {
+		runnableFunc := func(request application2.ApplicationResourceRequest) {
 			ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 			defer cancel()
 			startTime := time.Now()
@@ -343,7 +347,8 @@ func (c *ArgoApplicationServiceExtendedImpl) parseResult(resp *v1alpha1.Applicat
 			} else {
 				response <- argoApplication.Result{Response: nil, Error: fmt.Errorf("connection closed by client"), Request: &request}
 			}
-		}(*rQuery)
+		}
+		c.asyncRunnable.Execute(func() { runnableFunc(*rQuery) })
 	}
 
 	if qCount == 0 {
