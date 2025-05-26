@@ -2,6 +2,7 @@
 - feat: wf logs (#6606)
 - feat: Enable selection of all CI pipelines at once when the Environment filter is applied in Notifications (#6526)
 ## Bugs
+- fix: workflow getting incorrectly deleted in case of webhook and unreachable cluster's cd pipeline (#6602)
 - fix: add safety checks to prevent index-out-of-range panics in CdHandler (#6597)
 - fix: centralised PR validator (#6590)
 - fix: reverted telemetry connection error (#6587)
