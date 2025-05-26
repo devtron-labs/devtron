@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/common-lib/async"
+	util "github.com/devtron-labs/devtron/util/event"
 	"time"
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
@@ -171,12 +172,20 @@ func (impl *WorkflowStatusServiceImpl) CheckHelmAppStatusPeriodicallyAndUpdateIn
 		}
 		wfr.UpdatedBy = 1
 		wfr.UpdatedOn = time.Now()
+
+		pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(wfr.CdWorkflowId)
+		if err != nil {
+			impl.logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", wfr.CdWorkflowId)
+			return err
+		}
+
 		if wfr.Status == cdWorkflow2.WorkflowFailed {
 			err = impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineSuperseded(wfr.RefCdWorkflowRunnerId)
 			if err != nil {
 				impl.logger.Errorw("error updating CdPipelineStatusTimeline", "err", err)
 				return err
 			}
+			go impl.appService.WriteCDNotificationEvent(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride, util.Fail)
 		}
 		err = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(wfr)
 		if err != nil {
@@ -196,19 +205,16 @@ func (impl *WorkflowStatusServiceImpl) CheckHelmAppStatusPeriodicallyAndUpdateIn
 
 		impl.logger.Infow("updated workflow runner status for helm app", "wfr", wfr)
 		if wfr.Status == cdWorkflow2.WorkflowSucceeded {
-			pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(wfr.CdWorkflowId)
-			if err != nil {
-				impl.logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", wfr.CdWorkflowId)
-				return err
-			}
 			impl.asyncRunnable.Execute(func() {
-				impl.appService.WriteCDSuccessEvent(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride)
+				impl.appService.WriteCDNotificationEvent(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride, util.Success)
 			})
 			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(bean3.TriggerContext{}, pipelineOverride)
 			if err != nil {
 				impl.logger.Errorw("error on handling deployment success event", "wfr", wfr, "err", err)
 				return err
 			}
+		} else if wfr.Status == cdWorkflow2.WorkflowTimedOut {
+			go impl.appService.WriteCDNotificationEvent(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride, util.Fail)
 		}
 	}
 	return nil

@@ -135,7 +135,7 @@ type AppService interface {
 	GetConfigMapAndSecretJson(appId int, envId int) ([]byte, error)
 	UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Application, cdWfrId int, updateTimedOutStatus bool) error
 	UpdateDeploymentStatusForGitOpsPipelines(app *v1alpha1.Application, applicationClusterId int, statusTime time.Time, isAppStore bool) (bool, bool, *chartConfig.PipelineOverride, error)
-	WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride)
+	WriteCDNotificationEvent(appId int, envId int, override *chartConfig.PipelineOverride, eventType eventUtil.EventType)
 	CreateGitOpsRepo(app *app.App, targetRevision string, userId int32) (gitopsRepoName string, chartGitAttr *commonBean.ChartGitAttribute, err error)
 
 	// TODO: move inside reader service
@@ -325,7 +325,9 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 				}
 				if isSucceeded {
 					impl.logger.Infow("writing cd success event", "gitHash", gitHash, "pipelineOverride", pipelineOverride)
-					impl.asyncRunnable.Execute(func() { impl.WriteCDSuccessEvent(cdPipeline.AppId, cdPipeline.EnvironmentId, pipelineOverride) })
+					impl.asyncRunnable.Execute(func() {
+						impl.WriteCDNotificationEvent(cdPipeline.AppId, cdPipeline.EnvironmentId, pipelineOverride, eventUtil.Success)
+					})
 				}
 			} else {
 				impl.logger.Debugw("event received for older triggered revision", "gitHash", gitHash)
@@ -773,9 +775,9 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 	return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, nil
 }
 
-func (impl *AppServiceImpl) WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride) {
-	event, _ := impl.eventFactory.Build(eventUtil.Success, &override.PipelineId, appId, &envId, eventUtil.CD)
-	impl.logger.Debugw("event WriteCDSuccessEvent", "event", event, "override", override)
+func (impl *AppServiceImpl) WriteCDNotificationEvent(appId int, envId int, override *chartConfig.PipelineOverride, eventType eventUtil.EventType) {
+	event, _ := impl.eventFactory.Build(eventType, &override.PipelineId, appId, &envId, eventUtil.CD)
+	impl.logger.Debugw("event WriteCDNotificationEvent", "event", event, "override", override)
 	event = impl.eventFactory.BuildExtraCDData(event, nil, override.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {

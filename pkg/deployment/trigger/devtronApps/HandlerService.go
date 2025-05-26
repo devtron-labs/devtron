@@ -169,6 +169,7 @@ type HandlerServiceImpl struct {
 	workflowService                     executor.WorkflowService
 	blobConfigStorageService            pipeline.BlobStorageConfigService
 	asyncRunnable                       *async.Runnable
+	appService                          app.AppService
 }
 
 func NewHandlerServiceImpl(logger *zap.SugaredLogger,
@@ -230,7 +231,8 @@ func NewHandlerServiceImpl(logger *zap.SugaredLogger,
 	ciLogService pipeline.CiLogService,
 	workflowService executor.WorkflowService,
 	blobConfigStorageService pipeline.BlobStorageConfigService,
-	asyncRunnable *async.Runnable) (*HandlerServiceImpl, error) {
+	asyncRunnable *async.Runnable,
+	appService app.AppService) (*HandlerServiceImpl, error) {
 	impl := &HandlerServiceImpl{
 		logger:                              logger,
 		cdWorkflowCommonService:             cdWorkflowCommonService,
@@ -297,6 +299,7 @@ func NewHandlerServiceImpl(logger *zap.SugaredLogger,
 		workflowService:          workflowService,
 		blobConfigStorageService: blobConfigStorageService,
 		asyncRunnable:            asyncRunnable,
+		appService:               appService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
