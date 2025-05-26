@@ -19,6 +19,10 @@ package devtronApps
 import (
 	"bufio"
 	"context"
+	"os"
+	"time"
+
+	"github.com/devtron-labs/common-lib/async"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	util5 "github.com/devtron-labs/common-lib/utils/k8s"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
@@ -70,8 +74,6 @@ import (
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
-	"os"
-	"time"
 )
 
 /*
@@ -102,7 +104,7 @@ type HandlerService interface {
 
 	CancelStage(workflowRunnerId int, forceAbort bool, userId int32) (int, error)
 	DownloadCdWorkflowArtifacts(buildId int) (*os.File, error)
-	GetRunningWorkflowLogs(environmentId int, pipelineId int, workflowId int) (*bufio.Reader, func() error, error)
+	GetRunningWorkflowLogs(environmentId int, pipelineId int, workflowId int, followLogs bool) (*bufio.Reader, func() error, error)
 }
 
 type HandlerServiceImpl struct {
@@ -166,6 +168,7 @@ type HandlerServiceImpl struct {
 	ciLogService                        pipeline.CiLogService
 	workflowService                     executor.WorkflowService
 	blobConfigStorageService            pipeline.BlobStorageConfigService
+	asyncRunnable                       *async.Runnable
 }
 
 func NewHandlerServiceImpl(logger *zap.SugaredLogger,
@@ -227,7 +230,7 @@ func NewHandlerServiceImpl(logger *zap.SugaredLogger,
 	ciLogService pipeline.CiLogService,
 	workflowService executor.WorkflowService,
 	blobConfigStorageService pipeline.BlobStorageConfigService,
-) (*HandlerServiceImpl, error) {
+	asyncRunnable *async.Runnable) (*HandlerServiceImpl, error) {
 	impl := &HandlerServiceImpl{
 		logger:                              logger,
 		cdWorkflowCommonService:             cdWorkflowCommonService,
@@ -293,6 +296,7 @@ func NewHandlerServiceImpl(logger *zap.SugaredLogger,
 		ciLogService:             ciLogService,
 		workflowService:          workflowService,
 		blobConfigStorageService: blobConfigStorageService,
+		asyncRunnable:            asyncRunnable,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {

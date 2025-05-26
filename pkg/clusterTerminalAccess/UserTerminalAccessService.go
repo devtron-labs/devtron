@@ -21,7 +21,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/caarlos0/env/v6"
+	"github.com/devtron-labs/common-lib/async"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -43,10 +49,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
 )
 
 type UserTerminalAccessService interface {
@@ -75,6 +77,7 @@ type UserTerminalAccessServiceImpl struct {
 	terminalSessionHandler       terminal.TerminalSessionHandler
 	K8sCapacityService           capacity.K8sCapacityService
 	k8sUtil                      *k8s2.K8sServiceImpl
+	asyncRunnable                *async.Runnable
 }
 
 type UserTerminalAccessSessionData struct {
@@ -98,7 +101,12 @@ func GetTerminalAccessConfig() (*models.UserTerminalSessionConfig, error) {
 	return config, err
 }
 
-func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessRepository repository.TerminalAccessRepository, config *models.UserTerminalSessionConfig, k8sCommonService k8s.K8sCommonService, terminalSessionHandler terminal.TerminalSessionHandler, K8sCapacityService capacity.K8sCapacityService, k8sUtil *k8s2.K8sServiceImpl, cronLogger *cron3.CronLoggerImpl) (*UserTerminalAccessServiceImpl, error) {
+func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger,
+	terminalAccessRepository repository.TerminalAccessRepository,
+	config *models.UserTerminalSessionConfig, k8sCommonService k8s.K8sCommonService,
+	terminalSessionHandler terminal.TerminalSessionHandler,
+	K8sCapacityService capacity.K8sCapacityService, k8sUtil *k8s2.K8sServiceImpl,
+	cronLogger *cron3.CronLoggerImpl, asyncRunnable *async.Runnable) (*UserTerminalAccessServiceImpl, error) {
 	//fetches all running and starting entities from db and start SyncStatus
 	podStatusSyncCron := cron.New(cron.WithChain(cron.Recover(cronLogger)))
 	terminalAccessDataArrayMutex := &sync.RWMutex{}
@@ -114,6 +122,7 @@ func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessR
 		terminalSessionHandler:       terminalSessionHandler,
 		K8sCapacityService:           K8sCapacityService,
 		k8sUtil:                      k8sUtil,
+		asyncRunnable:                asyncRunnable,
 	}
 	podStatusSyncCron.Start()
 	_, err := podStatusSyncCron.AddFunc(fmt.Sprintf("@every %ds", config.TerminalPodStatusSyncTimeInSecs), accessServiceImpl.SyncPodStatus)
@@ -121,7 +130,7 @@ func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessR
 		logger.Errorw("error occurred while starting cron job", "time in secs", config.TerminalPodStatusSyncTimeInSecs)
 		return nil, err
 	}
-	go accessServiceImpl.SyncRunningInstances()
+	accessServiceImpl.asyncRunnable.Execute(func() { accessServiceImpl.SyncRunningInstances() })
 	return accessServiceImpl, err
 }
 func (impl *UserTerminalAccessServiceImpl) ValidateShell(podName, namespace, shellName, containerName string, clusterId int) (bool, string, error) {

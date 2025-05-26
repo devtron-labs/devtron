@@ -19,6 +19,10 @@ package resourceTree
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/common-lib/async"
+	"strconv"
+	"time"
+
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
@@ -42,8 +46,6 @@ import (
 	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	util2 "github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
-	"strconv"
-	"time"
 )
 
 type Service interface {
@@ -66,6 +68,7 @@ type ServiceImpl struct {
 	k8sApplicationService            application2.K8sApplicationService
 	k8sCommonService                 k8s.K8sCommonService
 	environmentReadService           read2.EnvironmentReadService
+	asyncRunnable                    *async.Runnable
 }
 
 func NewServiceImpl(logger *zap.SugaredLogger,
@@ -78,6 +81,7 @@ func NewServiceImpl(logger *zap.SugaredLogger,
 	k8sApplicationService application2.K8sApplicationService,
 	k8sCommonService k8s.K8sCommonService,
 	environmentReadService read2.EnvironmentReadService,
+	asyncRunnable *async.Runnable,
 ) *ServiceImpl {
 	serviceImpl := &ServiceImpl{
 		logger:                           logger,
@@ -90,6 +94,7 @@ func NewServiceImpl(logger *zap.SugaredLogger,
 		k8sApplicationService:            k8sApplicationService,
 		k8sCommonService:                 k8sCommonService,
 		environmentReadService:           environmentReadService,
+		asyncRunnable:                    asyncRunnable,
 	}
 	return serviceImpl
 }
@@ -164,7 +169,7 @@ func (impl *ServiceImpl) FetchResourceTree(ctx context.Context, appId int, envId
 			}
 		}
 		resourceTree = util2.InterfaceToMapAdapter(resp)
-		go func() {
+		impl.asyncRunnable.Execute(func() {
 			if resp.Status == string(health.HealthStatusHealthy) {
 				err = impl.cdApplicationStatusUpdateHandler.SyncPipelineStatusForResourceTreeCall(cdPipeline)
 				if err != nil {
@@ -176,7 +181,7 @@ func (impl *ServiceImpl) FetchResourceTree(ctx context.Context, appId int, envId
 			if err != nil {
 				impl.logger.Warnw("error in updating app status", "err", err, "appId", cdPipeline.AppId, "envId", cdPipeline.EnvironmentId)
 			}
-		}()
+		})
 		k8sAppDetail := AppView.AppDetailContainer{
 			DeploymentDetailContainer: AppView.DeploymentDetailContainer{
 				ClusterId: cdPipeline.Environment.ClusterId,

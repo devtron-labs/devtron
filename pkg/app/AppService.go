@@ -20,6 +20,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
+	"strconv"
+	"time"
+
 	health2 "github.com/argoproj/gitops-engine/pkg/health"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -40,12 +44,10 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
-	"net/url"
-	"strconv"
-	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/common-lib/async"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -124,6 +126,7 @@ type AppServiceImpl struct {
 	deploymentConfigService                common2.DeploymentConfigService
 	envConfigOverrideReadService           read.EnvConfigOverrideService
 	cdWorkflowRunnerService                cd.CdWorkflowRunnerService
+	asyncRunnable                          *async.Runnable
 }
 
 type AppService interface {
@@ -164,7 +167,8 @@ func NewAppService(
 	appListingService AppListingService,
 	deploymentConfigService common2.DeploymentConfigService,
 	envConfigOverrideReadService read.EnvConfigOverrideService,
-	cdWorkflowRunnerService cd.CdWorkflowRunnerService) *AppServiceImpl {
+	cdWorkflowRunnerService cd.CdWorkflowRunnerService,
+	asyncRunnable *async.Runnable) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		mergeUtil:                              mergeUtil,
 		pipelineOverrideRepository:             pipelineOverrideRepository,
@@ -195,6 +199,7 @@ func NewAppService(
 		deploymentConfigService:                deploymentConfigService,
 		envConfigOverrideReadService:           envConfigOverrideReadService,
 		cdWorkflowRunnerService:                cdWorkflowRunnerService,
+		asyncRunnable:                          asyncRunnable,
 	}
 	return appServiceImpl
 }
@@ -320,7 +325,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 				}
 				if isSucceeded {
 					impl.logger.Infow("writing cd success event", "gitHash", gitHash, "pipelineOverride", pipelineOverride)
-					go impl.WriteCDSuccessEvent(cdPipeline.AppId, cdPipeline.EnvironmentId, pipelineOverride)
+					impl.asyncRunnable.Execute(func() { impl.WriteCDSuccessEvent(cdPipeline.AppId, cdPipeline.EnvironmentId, pipelineOverride) })
 				}
 			} else {
 				impl.logger.Debugw("event received for older triggered revision", "gitHash", gitHash)
@@ -555,11 +560,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 		if err != nil {
 			impl.logger.Errorw("error in save/update pipeline status fetch detail", "err", err, "cdWfrId", runnerHistoryId)
 		}
-		syncStartTime, found := helper.GetSyncStartTime(app)
-		if !found {
-			impl.logger.Warnw("sync operation not started yet", "app", app)
-			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, fmt.Errorf("sync operation not started yet")
-		}
+		syncStartTime := helper.GetSyncStartTime(app, statusTime)
 		// creating cd pipeline status timeline
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: runnerHistoryId,
@@ -596,11 +597,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			timeline.Id = 0
 			timeline.Status = timelineStatus.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
 			timeline.StatusDetail = app.Status.OperationState.Message
-			syncFinishTime, found := helper.GetSyncFinishTime(app)
-			if !found {
-				impl.logger.Warnw("sync operation not found for the deployment", "app", app)
-				return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, fmt.Errorf("sync operation not found for the deployment")
-			}
+			syncFinishTime := helper.GetSyncFinishTime(app, statusTime)
 			timeline.StatusTime = syncFinishTime
 			// checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
 			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
@@ -679,11 +676,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 		if err != nil {
 			impl.logger.Errorw("error in save/update pipeline status fetch detail", "err", err, "installedAppVersionHistoryId", runnerHistoryId)
 		}
-		syncStartTime, found := helper.GetSyncStartTime(app)
-		if !found {
-			impl.logger.Warnw("sync operation not started yet", "app", app)
-			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, fmt.Errorf("sync operation not started yet")
-		}
+		syncStartTime := helper.GetSyncStartTime(app, statusTime)
 		// creating installedAppVersionHistory status timeline
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			InstalledAppVersionHistoryId: runnerHistoryId,
@@ -720,11 +713,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			timeline.Id = 0
 			timeline.Status = timelineStatus.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
 			timeline.StatusDetail = app.Status.OperationState.Message
-			syncFinishTime, found := helper.GetSyncFinishTime(app)
-			if !found {
-				impl.logger.Warnw("sync operation not found for the deployment", "app", app)
-				return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, fmt.Errorf("sync operation not found for the deployment")
-			}
+			syncFinishTime := helper.GetSyncFinishTime(app, statusTime)
 			timeline.StatusTime = syncFinishTime
 			// checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
 			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
@@ -744,6 +733,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 				haveNewTimeline = true
 				timeline.Status = timelineStatus.TIMELINE_STATUS_APP_HEALTHY
 				timeline.StatusDetail = "App status is Healthy."
+				timeline.StatusTime = statusTime
 			}
 			if haveNewTimeline {
 				// not checking if this status is already present or not because already checked for terminal status existence earlier

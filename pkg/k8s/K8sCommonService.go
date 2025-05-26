@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/common-lib/async"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/bean/AppView"
@@ -75,6 +76,7 @@ type K8sCommonServiceImpl struct {
 	K8sApplicationServiceConfig  *K8sApplicationServiceConfig
 	argoApplicationConfigService config.ArgoApplicationConfigService
 	ClusterReadService           read.ClusterReadService
+	asyncRunnable                *async.Runnable
 }
 type K8sApplicationServiceConfig struct {
 	BatchSize        int `env:"BATCH_SIZE" envDefault:"5" description:"there is feature to get URL's of services/ingresses. so to extract those, we need to parse all the servcie and ingress objects of the application. this BATCH_SIZE flag controls the no of these objects get parsed in one go."`
@@ -83,7 +85,7 @@ type K8sApplicationServiceConfig struct {
 
 func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sServiceImpl,
 	argoApplicationConfigService config.ArgoApplicationConfigService,
-	ClusterReadService read.ClusterReadService) *K8sCommonServiceImpl {
+	ClusterReadService read.ClusterReadService, asyncRunnable *async.Runnable) *K8sCommonServiceImpl {
 	cfg := &K8sApplicationServiceConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -95,6 +97,7 @@ func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sService
 		K8sApplicationServiceConfig:  cfg,
 		argoApplicationConfigService: argoApplicationConfigService,
 		ClusterReadService:           ClusterReadService,
+		asyncRunnable:                asyncRunnable,
 	}
 }
 
@@ -295,7 +298,8 @@ func (impl *K8sCommonServiceImpl) GetManifestsByBatch(ctx context.Context, reque
 	var res []bean5.BatchResourceResponse
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(impl.K8sApplicationServiceConfig.TimeOutInSeconds)*time.Second)
 	defer cancel()
-	go func() {
+
+	runnableFunc := func() {
 		ans := impl.getManifestsByBatch(ctx, requests)
 		select {
 		case <-ctx.Done():
@@ -303,7 +307,9 @@ func (impl *K8sCommonServiceImpl) GetManifestsByBatch(ctx context.Context, reque
 		default:
 			ch <- ans
 		}
-	}()
+	}
+	impl.asyncRunnable.Execute(runnableFunc)
+
 	select {
 	case ans := <-ch:
 		res = ans
@@ -398,7 +404,7 @@ func (impl *K8sCommonServiceImpl) getManifestsByBatch(ctx context.Context, reque
 		var wg sync.WaitGroup
 		for j := 0; j < batchSize; j++ {
 			wg.Add(1)
-			go func(j int) {
+			runnableFunc := func(j int) {
 				resp := bean5.BatchResourceResponse{}
 				response, err := impl.GetResource(ctx, &requests[i+j])
 				if response != nil {
@@ -407,7 +413,8 @@ func (impl *K8sCommonServiceImpl) getManifestsByBatch(ctx context.Context, reque
 				resp.Err = err
 				res[i+j] = resp
 				wg.Done()
-			}(j)
+			}
+			impl.asyncRunnable.Execute(func() { runnableFunc(j) })
 		}
 		wg.Wait()
 		i += batchSize

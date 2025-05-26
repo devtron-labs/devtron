@@ -1085,6 +1085,16 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildLogs(w http.ResponseWriter
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	followLogs := true
+	if ok := r.URL.Query().Has("followLogs"); ok {
+		followLogsStr := r.URL.Query().Get("followLogs")
+		follow, err := strconv.ParseBool(followLogsStr)
+		if err != nil {
+			common.WriteJsonResp(w, err, "followLogs is not a valid bool", http.StatusBadRequest)
+			return
+		}
+		followLogs = follow
+	}
 
 	workflowId, err := strconv.Atoi(vars["workflowId"])
 	if err != nil {
@@ -1116,7 +1126,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildLogs(w http.ResponseWriter
 			return
 		}
 	}
-	logsReader, cleanUp, err := handler.ciHandlerService.GetRunningWorkflowLogs(workflowId)
+	logsReader, cleanUp, err := handler.ciHandlerService.GetRunningWorkflowLogs(workflowId, followLogs)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetBuildLogs", "err", err, "pipelineId", pipelineId, "workflowId", workflowId, "lastEventId", lastEventId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
