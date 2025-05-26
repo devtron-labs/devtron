@@ -107,7 +107,7 @@ func (impl *HelmAppClientImpl) getConnection() (*grpc.ClientConn, error) {
 			grpc.MaxCallRecvMsgSize(impl.grpcConfig.KubelinkMaxSendMsgSize*1024*1024), // GRPC Request size
 			grpc.MaxCallSendMsgSize(impl.grpcConfig.KubelinkMaxRecvMsgSize*1024*1024), // GRPC Response size
 		),
-		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
+		grpc.WithDefaultServiceConfig(impl.grpcConfig.KubelinkGRPCServiceConfig),
 	)
 	endpoint := fmt.Sprintf("dns:///%s", impl.helmClientConfig.Url)
 	conn, err := grpc.DialContext(ctx, endpoint, opts...)
