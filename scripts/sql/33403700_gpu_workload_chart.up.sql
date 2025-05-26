@@ -6,4 +6,4 @@ VALUES (1,(select id from chart_ref where version='4.21.0' and name='GPU-Workloa
 (4,(select id from chart_ref where version='4.21.0' and name='GPU-Workload'), true, now(), 1, now(), 1,false);
 
 INSERT INTO chart_ref_metadata("chart_name","chart_description") VALUES 
-('GPU-Workload','GPU Workload Charts enable the deployment of GPU workloads on Kubernetes Clusters.');
+('GPU-Workload','GPU Workload Charts to enable the deployment of GPU workloads on Kubernetes Clusters.');

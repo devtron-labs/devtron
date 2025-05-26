@@ -503,12 +503,10 @@ resources: {}
 
 gpu:
   enabled: false
+  provider: "nvidia.com/gpu"
   resources:
-    requests:
-      nvidia.com/gpu: 1
-    limits:
-      nvidia.com/gpu: 1
-
+    limits: 1
+    requests: 1
 
 volumeMounts: []
 #     - name: log-volume
