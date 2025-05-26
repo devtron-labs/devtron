@@ -309,6 +309,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 				impl.logger.Errorw("error on update cd workflow runner", "CdWorkflowId", pipelineOverride.CdWorkflowId, "status", cdWorkflow2.WorkflowTimedOut, "err", err)
 				return isSucceeded, isTimelineUpdated, pipelineOverride, err
 			}
+			go impl.WriteCDNotificationEvent(cdPipeline.AppId, cdPipeline.EnvironmentId, pipelineOverride, eventUtil.Fail)
 			return isSucceeded, isTimelineUpdated, pipelineOverride, nil
 		}
 		if reconciledAt.IsZero() || (kubectlSyncedTimeline != nil && kubectlSyncedTimeline.Id > 0 && reconciledAt.After(kubectlSyncedTimeline.StatusTime)) {
