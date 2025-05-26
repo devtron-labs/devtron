@@ -27,7 +27,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
@@ -78,13 +77,13 @@ func (impl *GitOpsHelper) CloneAndGetDefaultBranch(url, targetDir string) (clone
 		impl.logger.Errorw("error in git clone and fetch", "err", err, "url", url, "targetDir", targetDir)
 		return clonedDir, defaultBranch, err
 	}
-	var found bool
-	defaultBranch, found, err = impl.getDefaultTargetRevision(gitCtx, clonedDir)
+	var isEmptyRepo bool
+	defaultBranch, isEmptyRepo, err = impl.getDefaultTargetRevision(gitCtx, clonedDir, url)
 	if err != nil {
 		impl.logger.Warnw("no branch found in git repo", "err", err, "clonedDir", clonedDir)
 		return clonedDir, defaultBranch, err
 	}
-	if found {
+	if !isEmptyRepo {
 		_, errMsg, err := impl.pullFromBranch(gitCtx, clonedDir, defaultBranch)
 		if err != nil {
 			impl.logger.Errorw("error on git pull", "err", err, "errMsg", errMsg, "clonedDir", clonedDir, "branch", defaultBranch)
@@ -228,24 +227,31 @@ func (impl *GitOpsHelper) getRemoteBranchList(ctx git.GitContext, rootDir string
 	return validBranches, nil
 }
 
-func (impl *GitOpsHelper) getDefaultTargetRevision(ctx git.GitContext, rootDir string) (defaultBranch string, branchFound bool, err error) {
+func (impl *GitOpsHelper) getDefaultTargetRevision(ctx git.GitContext, rootDir, url string) (defaultBranch string, isEmptyRepo bool, err error) {
 	validBranches, err := impl.getRemoteBranchList(ctx, rootDir)
 	if err != nil {
 		impl.logger.Errorw("error in getting remote branch list", "err", err, "rootDir", rootDir)
-		return defaultBranch, branchFound, err
+		return defaultBranch, isEmptyRepo, err
 	}
-	defaultBranch, err = impl.getDefaultBranch(ctx, rootDir, validBranches)
+	defaultBranch, isEmptyRepo, err = impl.getDefaultBranch(ctx, rootDir, validBranches)
 	if err != nil {
 		impl.logger.Errorw("error in getting default branch", "err", err, "branches", validBranches)
-		return defaultBranch, branchFound, err
+		return defaultBranch, isEmptyRepo, err
 	}
-	if slices.Contains(validBranches, defaultBranch) {
-		branchFound = true
+	if isEmptyRepo {
+		// if no branch found then it's a new git repo,
+		// return default branch.
+		// default branch is always the current branch after git clone.
+		defaultBranch, err = impl.getDefaultBranchForEmptyRepo(ctx, rootDir, url)
+		if err != nil {
+			impl.logger.Errorw("error in getting default branch for empty repo", "err", err, "url", url)
+			return defaultBranch, isEmptyRepo, err
+		}
 	}
 	if strings.HasPrefix(defaultBranch, "origin/") {
 		defaultBranch = strings.TrimPrefix(defaultBranch, "origin/")
 	}
-	return defaultBranch, branchFound, err
+	return defaultBranch, isEmptyRepo, err
 }
 
 func (impl *GitOpsHelper) getSanitisedTargetRevision(ctx git.GitContext, rootDir, targetRevision string) (string, error) {
@@ -265,10 +271,40 @@ func (impl *GitOpsHelper) getSanitisedTargetRevision(ctx git.GitContext, rootDir
 	return branch, nil
 }
 
+func (impl *GitOpsHelper) getDefaultBranchForEmptyRepo(ctx git.GitContext, cloneDir, repoUrl string) (branch string, err error) {
+	err = os.RemoveAll(cloneDir)
+	if err != nil {
+		impl.logger.Errorw("error in cleaning cloneDir", "err", err, "cloneDir", cloneDir)
+		return "", err
+	}
+	cloneResponse, errMsg, err := impl.gitCommandManager.Clone(ctx, cloneDir, repoUrl)
+	if err != nil {
+		impl.logger.Errorw("error on git clone", "url", repoUrl, "cloneDir", cloneDir, "response", cloneResponse, "errMsg", errMsg, "err", err)
+		return "", err
+	} else if errMsg != "" {
+		impl.logger.Errorw("error on git clone", "url", repoUrl, "cloneDir", cloneDir, "response", cloneResponse, "errMsg", errMsg)
+		return "", fmt.Errorf(errMsg)
+	}
+	impl.logger.Debugw("git clone completed, trying to get current branch", "url", repoUrl, "cloneDir", cloneDir, "response", cloneResponse)
+	response, errMsg, err := impl.gitCommandManager.GetCurrentBranch(ctx, cloneDir)
+	if err != nil {
+		impl.logger.Errorw("error on git pull", "url", repoUrl, "cloneDir", cloneDir, "response", response, "errMsg", errMsg, "err", err)
+		return response, err
+	}
+	if strings.TrimSpace(response) != "" {
+		branch = strings.TrimSpace(response)
+		impl.logger.Debugw("default branch found in git repo", "branch", branch, "url", repoUrl, "cloneDir", cloneDir)
+		return branch, nil
+	}
+	// if no branch found then return default branch
+	impl.logger.Warnw("no branch found in git repo, returning default branch", "branch", util.GetDefaultTargetRevision(), "url", repoUrl, "cloneDir", cloneDir)
+	return util.GetDefaultTargetRevision(), nil
+}
+
 // getDefaultBranch returns the default branch of the git repository.
 // - CASE 1: If the git repository has some branches, it will return the default branch.
 // - CASE 2: If the git repository has no branches, it will return the current branch.
-func (impl *GitOpsHelper) getDefaultBranch(ctx git.GitContext, rootDir string, branches []string) (branch string, err error) {
+func (impl *GitOpsHelper) getDefaultBranch(ctx git.GitContext, rootDir string, branches []string) (branch string, isEmptyRepo bool, err error) {
 	// if git repo has some branch, take pull of the default branch.
 	// but eventually commit will push into TargetRevision branch.
 	if len(branches) != 0 {
@@ -277,31 +313,21 @@ func (impl *GitOpsHelper) getDefaultBranch(ctx git.GitContext, rootDir string, b
 		response, errMsg, err := impl.gitCommandManager.GetDefaultBranch(ctx, rootDir)
 		if err != nil {
 			impl.logger.Errorw("error on git pull", "response", response, "errMsg", errMsg, "err", err)
-			return response, err
+			return branch, isEmptyRepo, err
 		}
 		if strings.TrimSpace(response) != "" {
 			branch = strings.TrimSpace(response)
 			impl.logger.Debugw("default branch found in git repo", "branch", branch)
-			return branch, nil
+			return branch, isEmptyRepo, nil
 		}
-		return strings.TrimSpace(branches[0]), nil
+		branch = strings.TrimSpace(branches[0])
+		return branch, isEmptyRepo, nil
+	} else {
+		isEmptyRepo = true
+		impl.logger.Warnw("no branch found in git repo, returning default branch", "branch", util.GetDefaultTargetRevision())
+		branch = util.GetDefaultTargetRevision()
+		return branch, isEmptyRepo, err
 	}
-	// if no branch found then it's a new git repo,
-	// return default branch.
-	// default branch is always the current branch after git init.
-	impl.logger.Debugw("no branch found in git repo, trying to get current branch", "branches", branches)
-	response, errMsg, err := impl.gitCommandManager.GetCurrentBranch(ctx, rootDir)
-	if err != nil {
-		impl.logger.Errorw("error on git pull", "response", response, "errMsg", errMsg, "err", err)
-		return response, err
-	}
-	if strings.TrimSpace(response) != "" {
-		branch = strings.TrimSpace(response)
-		impl.logger.Debugw("default branch found in git repo", "branch", branch)
-		return branch, nil
-	}
-	impl.logger.Warnw("no branch found in git repo, returning default branch", "branch", util.GetDefaultTargetRevision())
-	return util.GetDefaultTargetRevision(), nil
 }
 
 func (impl *GitOpsHelper) getTargetRevision(ctx git.GitContext, rootDir string, branches []string, targetRevision string) (branch string, err error) {
@@ -313,7 +339,12 @@ func (impl *GitOpsHelper) getTargetRevision(ctx git.GitContext, rootDir string, 
 			return util.GetDefaultTargetRevision(), nil
 		}
 	}
-	return impl.getDefaultBranch(ctx, rootDir, branches)
+	branch, _, err = impl.getDefaultBranch(ctx, rootDir, branches)
+	if err != nil {
+		impl.logger.Errorw("error in getting default branch", "err", err, "branches", branches, "targetRevision", targetRevision)
+		return "", err
+	}
+	return branch, err
 }
 
 /*
