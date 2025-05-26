@@ -43,7 +43,9 @@ import (
 
 type GitOperationService interface {
 	CreateGitRepositoryForDevtronApp(ctx context.Context, gitOpsRepoName string, targetRevision string, userId int32) (chartGitAttribute *commonBean.ChartGitAttribute, err error)
-	CreateReadmeInGitRepo(ctx context.Context, gitOpsRepoName string, targetRevision string, userId int32) error
+	// CreateFirstCommitOnHead - creates the first commit on the head of the git repository (mostly empty).
+	// To register the git repository in ArgoCD, there should be a commit HEAD on the default branch.
+	CreateFirstCommitOnHead(ctx context.Context, gitOpsRepoName string, userId int32) error
 	GitPull(clonedDir string, repoUrl string, targetRevision string) error
 
 	CommitValues(ctx context.Context, chartGitAttr *ChartConfig) (commitHash string, commitTime time.Time, err error)
@@ -210,7 +212,7 @@ func (impl *GitOperationServiceImpl) updateRepoAndPushAllChanges(ctx context.Con
 	return commit, nil
 }
 
-func (impl *GitOperationServiceImpl) CreateReadmeInGitRepo(ctx context.Context, gitOpsRepoName string, targetRevision string, userId int32) error {
+func (impl *GitOperationServiceImpl) CreateFirstCommitOnHead(ctx context.Context, gitOpsRepoName string, userId int32) error {
 	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(userId)
 	gitOpsConfig, err := impl.gitOpsConfigReadService.GetGitOpsConfigActive()
 	if err != nil {
@@ -222,9 +224,8 @@ func (impl *GitOperationServiceImpl) CreateReadmeInGitRepo(ctx context.Context, 
 		gitOpsConfig.UserEmailId = userEmailId
 		gitOpsConfig.Username = userName
 		gitOpsConfig.GitRepoName = gitOpsRepoName
-		gitOpsConfig.TargetRevision = targetRevision
 	}
-	_, err = impl.gitFactory.Client.CreateReadme(ctx, gitOpsConfig)
+	_, err = impl.gitFactory.Client.CreateFirstCommitOnHead(ctx, gitOpsConfig)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme", "err", err, "gitOpsRepoName", gitOpsRepoName, "userId", userId)
 		return err

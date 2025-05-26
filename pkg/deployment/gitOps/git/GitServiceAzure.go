@@ -185,6 +185,10 @@ func (impl GitAzureClient) CreateRepository(ctx context.Context, config *bean2.G
 	return *operationReference.WebUrl, true, isEmpty, detailedErrorGitOpsConfigActions
 }
 
+func (impl GitAzureClient) CreateFirstCommitOnHead(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
+	return impl.CreateReadme(ctx, config)
+}
+
 func (impl GitAzureClient) CreateReadme(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
 
 	var err error

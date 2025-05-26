@@ -231,7 +231,15 @@ func getDir() string {
 	return strconv.FormatInt(r1, 10)
 }
 
+func (impl GitBitbucketClient) CreateFirstCommitOnHead(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
+	return impl.createReadme(ctx, config, true)
+}
+
 func (impl GitBitbucketClient) CreateReadme(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
+	return impl.createReadme(ctx, config, false)
+}
+
+func (impl GitBitbucketClient) createReadme(ctx context.Context, config *bean2.GitOpsConfigDto, useDefaultBranch bool) (string, error) {
 	var err error
 	start := time.Now()
 	defer func() {
@@ -250,6 +258,10 @@ func (impl GitBitbucketClient) CreateReadme(ctx context.Context, config *bean2.G
 		UserEmailId:    config.UserEmailId,
 	}
 	cfg.SetBitBucketBaseDir(getDir())
+	if useDefaultBranch {
+		// UseDefaultBranch will override the TargetRevision and use the default branch of the repo
+		cfg.UseDefaultBranch = true
+	}
 	hash, _, err := impl.CommitValues(ctx, cfg, config, true)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme bitbucket", "repo", config.GitRepoName, "err", err)
@@ -279,7 +291,10 @@ func (impl GitBitbucketClient) cleanUp(cloneDir string) {
 }
 
 func (impl GitBitbucketClient) CommitValues(ctx context.Context, config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto, publishStatusConflictError bool) (commitHash string, commitTime time.Time, err error) {
+	return impl.commitValues(ctx, config, gitOpsConfig, publishStatusConflictError)
+}
 
+func (impl GitBitbucketClient) commitValues(ctx context.Context, config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto, publishStatusConflictError bool) (commitHash string, commitTime time.Time, err error) {
 	start := time.Now()
 
 	homeDir, err := os.UserHomeDir()

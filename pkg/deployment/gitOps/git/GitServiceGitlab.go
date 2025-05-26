@@ -317,6 +317,10 @@ func (impl GitLabClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl stri
 	return "", isRepoEmpty, nil
 }
 
+func (impl GitLabClient) CreateFirstCommitOnHead(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
+	return impl.CreateReadme(ctx, config)
+}
+
 func (impl GitLabClient) CreateReadme(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
 	var err error
 	start := time.Now()

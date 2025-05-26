@@ -34,6 +34,9 @@ type GitOpsClient interface {
 	GetRepoUrl(config *gitOps.GitOpsConfigDto) (repoUrl string, isRepoEmpty bool, err error)
 	DeleteRepository(config *gitOps.GitOpsConfigDto) error
 	CreateReadme(ctx context.Context, config *gitOps.GitOpsConfigDto) (string, error)
+	// CreateFirstCommitOnHead creates a commit on the HEAD of the repository, used for initializing the repository.
+	// It is used when the repository is empty and needs an initial commit.
+	CreateFirstCommitOnHead(ctx context.Context, config *gitOps.GitOpsConfigDto) (string, error)
 }
 
 func GetGitConfig(gitOpsConfigReadService config.GitOpsConfigReadService) (*bean.GitConfig, error) {

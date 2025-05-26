@@ -51,9 +51,9 @@ import (
 )
 
 type ACDConfig struct {
-	ArgoCDAutoSyncEnabled     bool `env:"ARGO_AUTO_SYNC_ENABLED" envDefault:"true" description:"If enabled all argocd application will have auto sync enabled"` // will gradually switch this flag to false in enterprise
-	RegisterRepoMaxRetryCount int  `env:"ARGO_REPO_REGISTER_RETRY_COUNT" envDefault:"3" description:"Argo app registration in argo retries on deployment"`
-	RegisterRepoMaxRetryDelay int  `env:"ARGO_REPO_REGISTER_RETRY_DELAY" envDefault:"10" description:"Argo app registration in argo cd on deployment delay between retry"`
+	ArgoCDAutoSyncEnabled     bool `env:"ARGO_AUTO_SYNC_ENABLED" envDefault:"true" description:"If enabled all argocd application will have auto sync enabled" example:"true" deprecated:"false"` // will gradually switch this flag to false in enterprise
+	RegisterRepoMaxRetryCount int  `env:"ARGO_REPO_REGISTER_RETRY_COUNT" envDefault:"3" description:"Retry count for registering a GitOps repository to ArgoCD" example:"3" deprecated:"false"`
+	RegisterRepoMaxRetryDelay int  `env:"ARGO_REPO_REGISTER_RETRY_DELAY" envDefault:"5" description:"Delay (in Seconds) between the retries for registering a GitOps repository to ArgoCD" example:"5" deprecated:"false"`
 }
 
 func (config *ACDConfig) IsManualSyncEnabled() bool {
@@ -522,7 +522,7 @@ func (impl *ArgoClientWrapperServiceImpl) createRepoInArgoCd(ctx context.Context
 	}
 	repo, err := impl.repositoryService.Create(ctx, grpcConfig, &repository2.RepoCreateRequest{Repo: repo, Upsert: true})
 	if err != nil {
-		impl.logger.Errorw("error in creating argo Repository", "err", err)
+		impl.logger.Errorw("error in creating argo Repository", "err", err, "url", gitOpsRepoUrl)
 		return err
 	}
 	return nil
@@ -544,15 +544,18 @@ func (impl *ArgoClientWrapperServiceImpl) handleArgoRepoCreationError(ctx contex
 		}
 	}
 	if isEmptyRepoError {
-		// - found empty repository, create some file in repository
+		impl.logger.Infow("handling for empty repo", "url", gitOpsRepoUrl)
+		// - found empty repository (there is no origin/HEAD)
+		// - create new commit on HEAD (default branch) with a README file
+		// - then register the repository in ArgoCD
 		gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(gitOpsRepoUrl)
-		err := impl.gitOperationService.CreateReadmeInGitRepo(ctx, gitOpsRepoName, targetRevision, userId)
+		err := impl.gitOperationService.CreateFirstCommitOnHead(ctx, gitOpsRepoName, userId)
 		if err != nil {
 			impl.logger.Errorw("error in creating file in git repo", "err", err)
 			return err
 		}
 	}
-	// try to register with after creating readme file
+	// try to register with after commiting a file to origin/HEAD
 	return impl.createRepoInArgoCd(ctx, grpcConfig, gitOpsRepoUrl)
 }
 

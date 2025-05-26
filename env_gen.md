@@ -131,11 +131,11 @@
  | APP_SYNC_JOB_RESOURCES_OBJ | string | | To pass the resource of app sync |  | false |
  | APP_SYNC_SERVICE_ACCOUNT | string |chart-sync | Service account to be used in app sync Job |  | false |
  | APP_SYNC_SHUTDOWN_WAIT_DURATION | int |120 |  |  | false |
- | ARGO_AUTO_SYNC_ENABLED | bool |true | If enabled all argocd application will have auto sync enabled |  | false |
+ | ARGO_AUTO_SYNC_ENABLED | bool |true | If enabled all argocd application will have auto sync enabled | true | false |
  | ARGO_GIT_COMMIT_RETRY_COUNT_ON_CONFLICT | int |3 | retry argocd app manual sync if the timeline is stuck in ARGOCD_SYNC_INITIATED state for more than this defined time (in mins) |  | false |
  | ARGO_GIT_COMMIT_RETRY_DELAY_ON_CONFLICT | int |1 | Delay on retrying the maifest commit the on gitops |  | false |
- | ARGO_REPO_REGISTER_RETRY_COUNT | int |3 | Argo app registration in argo retries on deployment |  | false |
- | ARGO_REPO_REGISTER_RETRY_DELAY | int |10 | Argo app registration in argo cd on deployment delay between retry |  | false |
+ | ARGO_REPO_REGISTER_RETRY_COUNT | int |3 | Retry count for registering a GitOps repository to ArgoCD | 3 | false |
+ | ARGO_REPO_REGISTER_RETRY_DELAY | int |5 | Delay (in Seconds) between the retries for registering a GitOps repository to ArgoCD | 5 | false |
  | ASYNC_BUILDX_CACHE_EXPORT | bool |false | To enable async container image cache export |  | false |
  | BATCH_SIZE | int |5 | there is feature to get URL's of services/ingresses. so to extract those, we need to parse all the servcie and ingress objects of the application. this BATCH_SIZE flag controls the no of these objects get parsed in one go. |  | false |
  | BLOB_STORAGE_ENABLED | bool |false |  |  | false |

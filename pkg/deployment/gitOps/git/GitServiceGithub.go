@@ -194,6 +194,10 @@ func (impl GitHubClient) CreateRepository(ctx context.Context, config *bean2.Git
 	return *r.CloneURL, true, isEmpty, detailedErrorGitOpsConfigActions
 }
 
+func (impl GitHubClient) CreateFirstCommitOnHead(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
+	return impl.CreateReadme(ctx, config)
+}
+
 func (impl GitHubClient) CreateReadme(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
 	var err error
 	start := time.Now()
