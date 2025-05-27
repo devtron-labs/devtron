@@ -46,7 +46,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/common-lib/async"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -125,7 +124,6 @@ type AppServiceImpl struct {
 	deploymentConfigService                common2.DeploymentConfigService
 	envConfigOverrideReadService           read.EnvConfigOverrideService
 	cdWorkflowRunnerService                cd.CdWorkflowRunnerService
-	asyncRunnable                          *async.Runnable
 	deploymentEventHandler                 DeploymentEventHandler
 }
 
@@ -167,7 +165,6 @@ func NewAppService(
 	deploymentConfigService common2.DeploymentConfigService,
 	envConfigOverrideReadService read.EnvConfigOverrideService,
 	cdWorkflowRunnerService cd.CdWorkflowRunnerService,
-	asyncRunnable *async.Runnable,
 	deploymentEventHandler DeploymentEventHandler) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		mergeUtil:                              mergeUtil,
@@ -199,7 +196,6 @@ func NewAppService(
 		deploymentConfigService:                deploymentConfigService,
 		envConfigOverrideReadService:           envConfigOverrideReadService,
 		cdWorkflowRunnerService:                cdWorkflowRunnerService,
-		asyncRunnable:                          asyncRunnable,
 		deploymentEventHandler:                 deploymentEventHandler,
 	}
 	return appServiceImpl
@@ -310,7 +306,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 				impl.logger.Errorw("error on update cd workflow runner", "CdWorkflowId", pipelineOverride.CdWorkflowId, "status", cdWorkflow2.WorkflowTimedOut, "err", err)
 				return isSucceeded, isTimelineUpdated, pipelineOverride, err
 			}
-			go impl.deploymentEventHandler.WriteCDNotificationEvent(cdPipeline.AppId, cdPipeline.EnvironmentId, pipelineOverride, eventUtil.Fail)
+			impl.deploymentEventHandler.WriteCDNotificationEventAsync(cdPipeline.AppId, cdPipeline.EnvironmentId, pipelineOverride, eventUtil.Fail)
 			return isSucceeded, isTimelineUpdated, pipelineOverride, nil
 		}
 		if reconciledAt.IsZero() || (kubectlSyncedTimeline != nil && kubectlSyncedTimeline.Id > 0 && reconciledAt.After(kubectlSyncedTimeline.StatusTime)) {
@@ -327,9 +323,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 				}
 				if isSucceeded {
 					impl.logger.Infow("writing cd success event", "gitHash", gitHash, "pipelineOverride", pipelineOverride)
-					impl.asyncRunnable.Execute(func() {
-						impl.deploymentEventHandler.WriteCDNotificationEvent(cdPipeline.AppId, cdPipeline.EnvironmentId, pipelineOverride, eventUtil.Success)
-					})
+					impl.deploymentEventHandler.WriteCDNotificationEventAsync(cdPipeline.AppId, cdPipeline.EnvironmentId, pipelineOverride, eventUtil.Success)
 				}
 			} else {
 				impl.logger.Debugw("event received for older triggered revision", "gitHash", gitHash)

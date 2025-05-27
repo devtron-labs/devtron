@@ -19,7 +19,6 @@ package status
 import (
 	"context"
 	"fmt"
-	"github.com/devtron-labs/common-lib/async"
 	util "github.com/devtron-labs/devtron/util/event"
 	"time"
 
@@ -91,7 +90,6 @@ type WorkflowStatusServiceImpl struct {
 	appListingService                    app.AppListingService
 	deploymentConfigService              common2.DeploymentConfigService
 	cdWorkflowRunnerService              cd.CdWorkflowRunnerService
-	asyncRunnable                        *async.Runnable
 	deploymentEventHandler               app.DeploymentEventHandler
 }
 
@@ -115,7 +113,6 @@ func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
 	appListingService app.AppListingService,
 	deploymentConfigService common2.DeploymentConfigService,
 	cdWorkflowRunnerService cd.CdWorkflowRunnerService,
-	asyncRunnable *async.Runnable,
 	deploymentEventHandler app.DeploymentEventHandler) (*WorkflowStatusServiceImpl, error) {
 	impl := &WorkflowStatusServiceImpl{
 		logger:                               logger,
@@ -140,7 +137,6 @@ func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
 		appListingService:                    appListingService,
 		deploymentConfigService:              deploymentConfigService,
 		cdWorkflowRunnerService:              cdWorkflowRunnerService,
-		asyncRunnable:                        asyncRunnable,
 		deploymentEventHandler:               deploymentEventHandler,
 	}
 	config, err := types.GetCdConfig()
@@ -187,7 +183,7 @@ func (impl *WorkflowStatusServiceImpl) CheckHelmAppStatusPeriodicallyAndUpdateIn
 				impl.logger.Errorw("error updating CdPipelineStatusTimeline", "err", err)
 				return err
 			}
-			go impl.deploymentEventHandler.WriteCDNotificationEvent(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride, util.Fail)
+			impl.deploymentEventHandler.WriteCDNotificationEventAsync(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride, util.Fail)
 		}
 		err = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(wfr)
 		if err != nil {
@@ -207,16 +203,14 @@ func (impl *WorkflowStatusServiceImpl) CheckHelmAppStatusPeriodicallyAndUpdateIn
 
 		impl.logger.Infow("updated workflow runner status for helm app", "wfr", wfr)
 		if wfr.Status == cdWorkflow2.WorkflowSucceeded {
-			impl.asyncRunnable.Execute(func() {
-				impl.deploymentEventHandler.WriteCDNotificationEvent(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride, util.Success)
-			})
+			impl.deploymentEventHandler.WriteCDNotificationEventAsync(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride, util.Success)
 			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(bean3.TriggerContext{}, pipelineOverride)
 			if err != nil {
 				impl.logger.Errorw("error on handling deployment success event", "wfr", wfr, "err", err)
 				return err
 			}
 		} else if wfr.Status == cdWorkflow2.WorkflowTimedOut {
-			go impl.deploymentEventHandler.WriteCDNotificationEvent(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride, util.Fail)
+			impl.deploymentEventHandler.WriteCDNotificationEventAsync(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride, util.Fail)
 		}
 	}
 	return nil

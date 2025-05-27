@@ -17,6 +17,7 @@
 package app
 
 import (
+	"github.com/devtron-labs/common-lib/async"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -26,19 +27,22 @@ import (
 
 type DeploymentEventHandler interface {
 	WriteCDNotificationEvent(appId int, envId int, override *chartConfig.PipelineOverride, eventType util.EventType)
+	WriteCDNotificationEventAsync(appId int, envId int, override *chartConfig.PipelineOverride, eventType util.EventType)
 }
 
 type DeploymentEventHandlerImpl struct {
-	logger       *zap.SugaredLogger
-	eventFactory client.EventFactory
-	eventClient  client.EventClient
+	logger        *zap.SugaredLogger
+	eventFactory  client.EventFactory
+	eventClient   client.EventClient
+	asyncRunnable *async.Runnable
 }
 
-func NewDeploymentEventHandlerImpl(logger *zap.SugaredLogger, eventClient client.EventClient, eventFactory client.EventFactory) *DeploymentEventHandlerImpl {
+func NewDeploymentEventHandlerImpl(logger *zap.SugaredLogger, eventClient client.EventClient, eventFactory client.EventFactory, asyncRunnable *async.Runnable) *DeploymentEventHandlerImpl {
 	deploymentEventHandlerImpl := &DeploymentEventHandlerImpl{
-		logger:       logger,
-		eventClient:  eventClient,
-		eventFactory: eventFactory,
+		logger:        logger,
+		eventClient:   eventClient,
+		eventFactory:  eventFactory,
+		asyncRunnable: asyncRunnable,
 	}
 	return deploymentEventHandlerImpl
 }
@@ -51,4 +55,11 @@ func (impl *DeploymentEventHandlerImpl) WriteCDNotificationEvent(appId int, envI
 	if evtErr != nil {
 		impl.logger.Errorw("error in writing event", "event", event, "err", evtErr)
 	}
+}
+
+// WriteCDNotificationEventAsync executes WriteCDNotificationEvent in a panic-safe goroutine
+func (impl *DeploymentEventHandlerImpl) WriteCDNotificationEventAsync(appId int, envId int, override *chartConfig.PipelineOverride, eventType util.EventType) {
+	impl.asyncRunnable.Execute(func() {
+		impl.WriteCDNotificationEvent(appId, envId, override, eventType)
+	})
 }
