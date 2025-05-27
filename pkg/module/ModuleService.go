@@ -251,7 +251,7 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (bea
 
 		// if check non-cicd module status
 		if moduleName != bean.ModuleNameCiCd {
-			isEnabled := gjson.Get(releaseValues, moduleUtil.BuildModuleEnableKey(moduleName)).Bool()
+			isEnabled := gjson.Get(releaseValues, moduleUtil.BuildModuleEnableKey(impl.serverEnvConfig.DevtronOperatorBasePath, moduleName)).Bool()
 			if isEnabled {
 				status, err := impl.saveModuleAsInstalled(moduleName, moduleType, flagForEnablingState)
 				return status, moduleType, flagForActiveTool, err
@@ -417,13 +417,13 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 		impl.logger.Errorw("error in getting modules with installed status ", "err", err)
 		return nil, err
 	}
-	moduleEnableKeys := moduleUtil.BuildAllModuleEnableKeys(moduleName)
+	moduleEnableKeys := moduleUtil.BuildAllModuleEnableKeys(impl.serverEnvConfig.DevtronOperatorBasePath, moduleName)
 	for _, moduleEnableKey := range moduleEnableKeys {
 		extraValues[moduleEnableKey] = true
 	}
 	for _, alreadyInstalledModuleName := range alreadyInstalledModuleNames {
 		if alreadyInstalledModuleName != moduleName {
-			alreadyInstalledModuleEnableKeys := moduleUtil.BuildAllModuleEnableKeys(alreadyInstalledModuleName)
+			alreadyInstalledModuleEnableKeys := moduleUtil.BuildAllModuleEnableKeys(impl.serverEnvConfig.DevtronOperatorBasePath, alreadyInstalledModuleName)
 			for _, alreadyInstalledModuleEnableKey := range alreadyInstalledModuleEnableKeys {
 				extraValues[alreadyInstalledModuleEnableKey] = true
 			}
