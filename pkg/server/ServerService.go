@@ -21,6 +21,7 @@ import (
 	"errors"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/client/argocdServer/bean"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	moduleUtil "github.com/devtron-labs/devtron/pkg/module/util"
@@ -102,27 +103,33 @@ func (impl ServerServiceImpl) GetServerInfo(showServerStatus bool) (*serverBean.
 		return nil, err
 	}
 
-	helmReleaseStatus := devtronAppDetail.ReleaseStatus.Status
+	//helmReleaseStatus := devtronAppDetail.ReleaseStatus.Status
+	//
+	//
+	//// for hyperion mode  i.e. installer object not found - use mapping
+	//// for full mode  -
+	//// if installer object status is applied then use mapping
+	//// if empty or downloaded, then check timeout
+	//// else if deployed then upgrading
+	//// else use mapping
+	//if !impl.serverDataStore.InstallerCrdObjectExists {
+	//	serverStatus = mapServerStatusFromHelmReleaseStatus(helmReleaseStatus)
+	//} else {
+	//	if impl.serverDataStore.InstallerCrdObjectStatus == serverBean.InstallerCrdObjectStatusApplied {
+	//		serverStatus = mapServerStatusFromHelmReleaseStatus(helmReleaseStatus)
+	//	} else if time.Now().After(devtronAppDetail.GetLastDeployed().AsTime().Add(1 * time.Hour)) {
+	//		serverStatus = serverBean.ServerStatusTimeout
+	//	} else if helmReleaseStatus == serverBean.HelmReleaseStatusDeployed {
+	//		serverStatus = serverBean.ServerStatusUpgrading
+	//	} else {
+	//		serverStatus = mapServerStatusFromHelmReleaseStatus(helmReleaseStatus)
+	//	}
+	//}
 	var serverStatus string
-
-	// for hyperion mode  i.e. installer object not found - use mapping
-	// for full mode  -
-	// if installer object status is applied then use mapping
-	// if empty or downloaded, then check timeout
-	// else if deployed then upgrading
-	// else use mapping
-	if !impl.serverDataStore.InstallerCrdObjectExists {
-		serverStatus = mapServerStatusFromHelmReleaseStatus(helmReleaseStatus)
+	if time.Now().After(devtronAppDetail.GetLastDeployed().AsTime().Add(1 * time.Hour)) {
+		serverStatus = serverBean.ServerStatusTimeout
 	} else {
-		if impl.serverDataStore.InstallerCrdObjectStatus == serverBean.InstallerCrdObjectStatusApplied {
-			serverStatus = mapServerStatusFromHelmReleaseStatus(helmReleaseStatus)
-		} else if time.Now().After(devtronAppDetail.GetLastDeployed().AsTime().Add(1 * time.Hour)) {
-			serverStatus = serverBean.ServerStatusTimeout
-		} else if helmReleaseStatus == serverBean.HelmReleaseStatusDeployed {
-			serverStatus = serverBean.ServerStatusUpgrading
-		} else {
-			serverStatus = mapServerStatusFromHelmReleaseStatus(helmReleaseStatus)
-		}
+		serverStatus = mapApplicationStatusToServerStatus(devtronAppDetail.ApplicationStatus)
 	}
 
 	serverInfoDto.Status = serverStatus
@@ -203,4 +210,19 @@ func mapServerStatusFromHelmReleaseStatus(helmReleaseStatus string) string {
 		serverStatus = serverBean.ServerStatusUnknown
 	}
 	return serverStatus
+}
+func mapApplicationStatusToServerStatus(status string) string {
+	var serverStatus string
+	switch status {
+	case bean.Healthy:
+		serverStatus = serverBean.ServerStatusHealthy
+	case bean.Degraded, serverBean.HelmReleaseStatusFailed:
+		serverStatus = serverBean.ServerStatusUpgradeFailed
+	case bean.Progressing:
+		serverStatus = serverBean.ServerStatusUpgrading
+	default:
+		serverStatus = serverBean.ServerStatusUnknown
+	}
+	return serverStatus
+
 }
