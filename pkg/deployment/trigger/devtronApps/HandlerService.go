@@ -169,7 +169,7 @@ type HandlerServiceImpl struct {
 	workflowService                     executor.WorkflowService
 	blobConfigStorageService            pipeline.BlobStorageConfigService
 	asyncRunnable                       *async.Runnable
-	appService                          app.AppService
+	deploymentEventHandler              app.DeploymentEventHandler
 }
 
 func NewHandlerServiceImpl(logger *zap.SugaredLogger,
@@ -232,7 +232,7 @@ func NewHandlerServiceImpl(logger *zap.SugaredLogger,
 	workflowService executor.WorkflowService,
 	blobConfigStorageService pipeline.BlobStorageConfigService,
 	asyncRunnable *async.Runnable,
-	appService app.AppService) (*HandlerServiceImpl, error) {
+	deploymentEventHandler app.DeploymentEventHandler) (*HandlerServiceImpl, error) {
 	impl := &HandlerServiceImpl{
 		logger:                              logger,
 		cdWorkflowCommonService:             cdWorkflowCommonService,
@@ -299,7 +299,7 @@ func NewHandlerServiceImpl(logger *zap.SugaredLogger,
 		workflowService:          workflowService,
 		blobConfigStorageService: blobConfigStorageService,
 		asyncRunnable:            asyncRunnable,
-		appService:               appService,
+		deploymentEventHandler:   deploymentEventHandler,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {

@@ -47,7 +47,7 @@ func NewDeploymentEventHandlerImpl(logger *zap.SugaredLogger, eventClient client
 	return deploymentEventHandlerImpl
 }
 
-func (impl *DeploymentEventHandlerImpl) WriteCDNotificationEvent(appId int, envId int, override *chartConfig.PipelineOverride, eventType util.EventType) {
+func (impl *DeploymentEventHandlerImpl) writeCDNotificationEvent(appId int, envId int, override *chartConfig.PipelineOverride, eventType util.EventType) {
 	event, _ := impl.eventFactory.Build(eventType, &override.PipelineId, appId, &envId, util.CD)
 	impl.logger.Debugw("event WriteCDNotificationEvent", "event", event, "override", override)
 	event = impl.eventFactory.BuildExtraCDData(event, nil, override.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
@@ -60,6 +60,6 @@ func (impl *DeploymentEventHandlerImpl) WriteCDNotificationEvent(appId int, envI
 // WriteCDNotificationEventAsync executes WriteCDNotificationEvent in a panic-safe goroutine
 func (impl *DeploymentEventHandlerImpl) WriteCDNotificationEventAsync(appId int, envId int, override *chartConfig.PipelineOverride, eventType util.EventType) {
 	impl.asyncRunnable.Execute(func() {
-		impl.WriteCDNotificationEvent(appId, envId, override, eventType)
+		impl.writeCDNotificationEvent(appId, envId, override, eventType)
 	})
 }
