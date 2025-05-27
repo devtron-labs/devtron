@@ -195,7 +195,7 @@ func (impl *K8sCommonServiceImpl) UpdateResource(ctx context.Context, request *b
 func (impl *K8sCommonServiceImpl) GetRestConfigOfCluster(ctx context.Context, request *bean5.ResourceRequestBean) (*rest.Config, error) {
 	//getting rest config by clusterId
 	clusterId := request.ClusterId
-	if request.ExternalArgoAppIdentifier != nil && len(request.ExternalArgoAppIdentifier.AppName) > 0 {
+	if request.ExternalArgoAppIdentifier != nil {
 		restConfig, err := impl.argoApplicationConfigService.GetRestConfigForExternalArgo(ctx, request.ExternalArgoAppIdentifier)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", clusterId, "externalArgoApplicationName", request.ExternalArgoAppIdentifier.AppName)
