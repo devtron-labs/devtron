@@ -1,4 +1,4 @@
-Note: We have restrucutred the readme. If you are looking for Devtron's CI/CD capabilites, please [click here](#devtron-platform)
+Note: We have restructured the readme. If you are looking for Devtron's CI/CD capabilities, please [click here](#devtron-platform)
 #
 
 <p align="center">
@@ -43,7 +43,7 @@ Note: We have restrucutred the readme. If you are looking for Devtron's CI/CD ca
 Devtron's **extensible Kubernetes Dashboard** provides clear visibility into your Kubernetes clusters and streamlines Helm app management through a single, intuitive interface.<br> 
 With built-in RBAC, it ensures secure access while offering integrated insights into workloads deployed via GitOps tools like **ArgoCD** and **FluxCD** across multiple clusters. Devtron creates a centralized DevOps hub, accelerating operations by up to 20x :rocket:
 
-Check out the below video to experince the full power of the **Kubernetes Dashboard**.
+Check out the below video to experience the full power of the **Kubernetes Dashboard**.
 
 <a href="https://youtu.be/oqCAB9b-SGQ?si=YoUJfHL43VXRU5wx">
 <br>
@@ -65,9 +65,9 @@ Devtron's Kubernetes Dashboard offers a variety of different features, giving yo
 ### Features 🤩
 
 - Simplified configuration and management for Helm applications with easy rollback
-- Compare and reconcile configuration drifts across enviornments
-- Manage Helm deployments to multiple Kubernetes enviornments
-- A single pane of glass for Helm, ArgoCD and FluxCD applications across multiple clusters
+- Compare and reconcile configuration drifts across environments
+- Manage Helm deployments to multiple Kubernetes environments
+- A single pane of glass for Helm, ArgoCD, and FluxCD applications across multiple clusters
 - Centralized Dashboard to view and manage K8s resources across multiple clusters
 - Comprehensive SSO and RBAC to ensure secure dashboard access for team collaboration
 
@@ -111,16 +111,11 @@ For Devtron version less than v0.6.0, run the following command to get the admin
 kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
 
-
 Please refer to the document for more information on how to [access the Devtron Dashboard](https://docs.dashboard.devtron.ai/getting-started/install-devtron-dashboard).
-
-### Install Multi-Architecture Nodes (ARM and AMD)
-
-To install Devtron on clusters with the multi-architecture nodes (ARM and AMD), append the Devtron installation command with ```--set installer.arch=multi-arch```
 
 ## Devtron Platform
 
-The Devtron Platform provides a complete solution for all DevOps requirements, helping to create a single centrailzed DevOps Platform for managing all applications across Kubernetes clusters. <br>
+The Devtron Platform provides a complete solution for all DevOps requirements, helping to create a single centralized DevOps Platform for managing all applications across Kubernetes clusters. <br>
 
 With Devtron Platform, you can accelerate your application delivery lifecycle by leveraging advanced features like canary deployments, A/B testing, and automated rollbacks. Devtron Platform helps you achieve faster time-to-market and improved application reliability by simplifying Kubernetes operations and streamlining development workflows.
 
