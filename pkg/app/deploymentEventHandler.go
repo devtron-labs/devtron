@@ -26,7 +26,6 @@ import (
 )
 
 type DeploymentEventHandler interface {
-	WriteCDNotificationEvent(appId int, envId int, override *chartConfig.PipelineOverride, eventType util.EventType)
 	WriteCDNotificationEventAsync(appId int, envId int, override *chartConfig.PipelineOverride, eventType util.EventType)
 }
 
