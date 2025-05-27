@@ -303,6 +303,9 @@ func InitializeApp() (*App, error) {
 		pipeline.NewCiMaterialConfigServiceImpl,
 		wire.Bind(new(pipeline.CiMaterialConfigService), new(*pipeline.CiMaterialConfigServiceImpl)),
 
+		app.NewDeploymentEventHandlerImpl,
+		wire.Bind(new(app.DeploymentEventHandler), new(*app.DeploymentEventHandlerImpl)),
+
 		pipeline.NewAppArtifactManagerImpl,
 		wire.Bind(new(pipeline.AppArtifactManager), new(*pipeline.AppArtifactManagerImpl)),
 		pipeline.NewDevtronAppCMCSServiceImpl,
