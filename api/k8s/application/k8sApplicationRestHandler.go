@@ -1025,6 +1025,8 @@ func (handler *K8sApplicationRestHandlerImpl) CreateEphemeralContainer(w http.Re
 		return
 	}
 	request.UserId = userId
+	request.ExternalArgoAppIdentifier = resourceRequestBean.ExternalArgoAppIdentifier
+
 	err = handler.k8sApplicationService.CreatePodEphemeralContainers(&request)
 	if err != nil {
 		handler.logger.Errorw("error occurred in creating ephemeral container", "err", err, "requestPayload", request)
@@ -1073,6 +1075,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteEphemeralContainer(w http.Re
 		return
 	}
 	request.UserId = userId
+	request.ExternalArgoAppIdentifier = resourceRequestBean.ExternalArgoAppIdentifier
 	_, err = handler.k8sApplicationService.TerminatePodEphemeralContainer(request)
 	if err != nil {
 		handler.logger.Errorw("error occurred in terminating ephemeral container", "err", err, "requestPayload", request)
@@ -1156,6 +1159,7 @@ func (handler *K8sApplicationRestHandlerImpl) verifyRbacForAppRequests(token str
 			handler.logger.Errorw("error in decoding appId", "err", err, "appId", request.AppId)
 			return false, err
 		}
+		request.ExternalArgoAppIdentifier = argoAppIdentifier
 		request.ClusterId = argoAppIdentifier.ClusterId
 		request.ExternalArgoApplicationName = argoAppIdentifier.AppName
 		valid, err := handler.argoApplicationReadService.ValidateArgoResourceRequest(r.Context(), argoAppIdentifier, request.K8sRequest)

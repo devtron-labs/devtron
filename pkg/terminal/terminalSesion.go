@@ -36,6 +36,7 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/internal/middleware"
+	bean3 "github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/read/config"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/bean"
@@ -396,9 +397,11 @@ type TerminalSessionRequest struct {
 	EnvironmentId int
 	AppId         int
 	//ClusterId is optional
-	ClusterId                   int
-	UserId                      int32
-	ExternalArgoApplicationName string
+	ClusterId                        int
+	UserId                           int32
+	ExternalArgoApplicationName      string
+	ExternalArgoApplicationNamespace string
+	ExternalArgoAppIdentifier        *bean3.ArgoAppIdentifier
 }
 
 const CommandExecutionFailed = "Failed to Execute Command"
@@ -540,8 +543,8 @@ func (impl *TerminalSessionHandlerImpl) getClientSetAndRestConfigForTerminalConn
 	var clusterConfig *k8s.ClusterConfig
 	var restConfig *rest.Config
 	var err error
-	if len(req.ExternalArgoApplicationName) > 0 {
-		restConfig, err = impl.argoApplicationConfigService.GetRestConfigForExternalArgo(context.Background(), req.ClusterId, req.ExternalArgoApplicationName)
+	if req.ExternalArgoAppIdentifier != nil {
+		restConfig, err = impl.argoApplicationConfigService.GetRestConfigForExternalArgo(context.Background(), req.ExternalArgoAppIdentifier)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId, "externalArgoApplicationName", req.ExternalArgoApplicationName)
 			return nil, nil, err
@@ -655,8 +658,8 @@ func (impl *TerminalSessionHandlerImpl) RunCmdInRemotePod(req *TerminalSessionRe
 func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudit(req *TerminalSessionRequest) error {
 	var restConfig *rest.Config
 	var err error
-	if len(req.ExternalArgoApplicationName) > 0 {
-		restConfig, err = impl.argoApplicationConfigService.GetRestConfigForExternalArgo(context.Background(), req.ClusterId, req.ExternalArgoApplicationName)
+	if req.ExternalArgoAppIdentifier != nil {
+		restConfig, err = impl.argoApplicationConfigService.GetRestConfigForExternalArgo(context.Background(), req.ExternalArgoAppIdentifier)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId, "externalArgoApplicationName", req.ExternalArgoApplicationName)
 			return err
