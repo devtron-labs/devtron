@@ -313,7 +313,7 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 		}
 		dc, err := impl.deploymentConfigService.GetConfigForHelmApps(installedApp.AppId, installedApp.EnvironmentId)
 		if err != nil {
-			impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", pipeline.AppId, "environmentId", pipeline.EnvironmentId, "err", err)
+			impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", installedApp.AppId, "environmentId", installedApp.EnvironmentId, "err", err)
 			return nil, isTimelineUpdated
 		}
 		applicationObjectClusterId := dc.GetApplicationObjectClusterId()
