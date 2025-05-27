@@ -311,23 +311,26 @@ func (impl *GitOpsHelper) getDefaultBranch(ctx git.GitContext, rootDir string, b
 		// if no branch found then try to get the default branch from git
 		impl.logger.Debugw("no branch found in git repo, trying to get default branch", "branches", branches)
 		response, errMsg, err := impl.gitCommandManager.GetDefaultBranch(ctx, rootDir)
-		if err != nil {
-			impl.logger.Errorw("error on git pull", "response", response, "errMsg", errMsg, "err", err)
-			return branch, isEmptyRepo, err
-		}
-		if strings.TrimSpace(response) != "" {
+		if err == nil && strings.TrimSpace(response) != "" {
 			branch = strings.TrimSpace(response)
 			impl.logger.Debugw("default branch found in git repo", "branch", branch)
 			return branch, isEmptyRepo, nil
 		}
+		impl.logger.Errorw("error on git pull", "response", response, "errMsg", errMsg, "err", err)
+		// if error is not nil, then it means no default branch found in git repo.
+		// so we will return the first branch as default branch.
+
+		// As the origin/HEAD is found in the branches list,
+		// we will consider it as an empty repository.
+		isEmptyRepo = true
+		impl.logger.Warnw("no default branch found in git repo, returning first branch", "branches", branches)
 		branch = strings.TrimSpace(branches[0])
 		return branch, isEmptyRepo, nil
-	} else {
-		isEmptyRepo = true
-		impl.logger.Warnw("no branch found in git repo, returning default branch", "branch", util.GetDefaultTargetRevision())
-		branch = util.GetDefaultTargetRevision()
-		return branch, isEmptyRepo, err
 	}
+	isEmptyRepo = true
+	impl.logger.Warnw("no branch found in git repo, returning default branch", "branch", util.GetDefaultTargetRevision())
+	branch = util.GetDefaultTargetRevision()
+	return branch, isEmptyRepo, err
 }
 
 func (impl *GitOpsHelper) getTargetRevision(ctx git.GitContext, rootDir string, branches []string, targetRevision string) (branch string, err error) {
