@@ -486,11 +486,7 @@ func (impl *ClusterServiceImpl) upsertClusterConfigMap(bean *bean.ClusterBean, d
 		impl.logger.Errorw("error in getting cluster config map", "cmName", cmName, "err", err)
 		return err
 	} else if k8sError.IsNotFound(err) {
-		_, err = impl.K8sUtil.CreateConfigMapObject(bean3.DevtronCDNamespae, k8sClient,
-			configMap2.WithData(data),
-			configMap2.WithCmName(cmName),
-			configMap2.WithLabels(labels))
-
+		_, err = impl.K8sUtil.CreateConfigMapObject(cmName, bean3.DevtronCDNamespae, k8sClient, configMap2.WithData(data), configMap2.WithLabels(labels))
 		if err != nil {
 			impl.logger.Errorw("error in creating cm object for informer", "cmName", cmName, "err", err)
 			return err

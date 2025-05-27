@@ -6,15 +6,6 @@ import (
 
 type Option func(*v1.ConfigMap)
 
-// WithCmName adds config map name to a ConfigMap
-func WithCmName(name string) Option {
-	return func(cm *v1.ConfigMap) {
-		if len(name) > 0 {
-			cm.ObjectMeta.Name = name
-		}
-	}
-}
-
 // WithLabels adds labels to a ConfigMap
 func WithLabels(labels map[string]string) Option {
 	return func(cm *v1.ConfigMap) {

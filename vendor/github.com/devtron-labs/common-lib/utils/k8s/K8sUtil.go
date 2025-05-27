@@ -237,9 +237,12 @@ func (impl *K8sServiceImpl) CreateConfigMap(namespace string, cm *v1.ConfigMap, 
 	}
 }
 
-func (impl *K8sServiceImpl) CreateConfigMapObject(namespace string, client *v12.CoreV1Client, opts ...configMap.Option) (*v1.ConfigMap, error) {
-
-	configMap := &v1.ConfigMap{}
+func (impl *K8sServiceImpl) CreateConfigMapObject(name, namespace string, client *v12.CoreV1Client, opts ...configMap.Option) (*v1.ConfigMap, error) {
+	configMap := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+	}
 	for _, option := range opts {
 		option(configMap)
 	}
