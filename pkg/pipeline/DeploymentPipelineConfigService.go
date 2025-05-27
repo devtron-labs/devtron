@@ -1336,7 +1336,8 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 				impl.logger.Errorw("error in deleting workflow mapping", "err", err)
 				return deleteResponse, err
 			}
-			err = impl.appWorkflowRepository.DeleteAppWorkflow(appWorkflow, tx)
+			//delete app workflow and all it's mappings
+			err = impl.appWorkflowRepository.DeleteAppWorkflowAndAllMappings(appWorkflow, tx)
 			if err != nil {
 				impl.logger.Errorw("error in deleting workflow mapping", "err", err)
 				return deleteResponse, err
