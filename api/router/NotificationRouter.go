@@ -32,9 +32,9 @@ func NewNotificationRouterImpl(notificationRestHandler restHandler.NotificationR
 	return &NotificationRouterImpl{notificationRestHandler: notificationRestHandler}
 }
 func (impl NotificationRouterImpl) InitNotificationRegRouter(configRouter *mux.Router) {
-	// to maintain backward compatibility, will be deprecated in future
+	// do not remove it, this path is used in devtcl cli
 	configRouter.Path("").
-		HandlerFunc(impl.notificationRestHandler.SaveNotificationSettings).
+		HandlerFunc(impl.notificationRestHandler.SaveNotificationSettingsV2).
 		Methods("POST")
 	// new router to save notification settings
 	configRouter.Path("/v2").

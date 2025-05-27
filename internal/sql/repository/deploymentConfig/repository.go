@@ -58,8 +58,8 @@ type Repository interface {
 	SaveAll(tx *pg.Tx, configs []*DeploymentConfig) ([]*DeploymentConfig, error)
 	Update(tx *pg.Tx, config *DeploymentConfig) (*DeploymentConfig, error)
 	UpdateAll(tx *pg.Tx, config []*DeploymentConfig) ([]*DeploymentConfig, error)
-	GetByAppIdAndEnvId(appId, envId int) (*DeploymentConfig, error)
-	GetAppLevelConfigForDevtronApps(appId int) (*DeploymentConfig, error)
+	GetByAppIdAndEnvId(tx *pg.Tx, appId, envId int) (*DeploymentConfig, error)
+	GetAppLevelConfigForDevtronApps(tx *pg.Tx, appId int) (*DeploymentConfig, error)
 	GetAppAndEnvLevelConfigsInBulk(appIdToEnvIdsMap map[int][]int) ([]*DeploymentConfig, error)
 	GetByAppIdAndEnvIdEvenIfInactive(appId, envId int) (*DeploymentConfig, error)
 	GetConfigByAppIds(appIds []int) ([]*DeploymentConfig, error)
@@ -121,9 +121,15 @@ func (impl *RepositoryImpl) UpdateAll(tx *pg.Tx, configs []*DeploymentConfig) ([
 	return configs, err
 }
 
-func (impl *RepositoryImpl) GetByAppIdAndEnvId(appId, envId int) (*DeploymentConfig, error) {
+func (impl *RepositoryImpl) GetByAppIdAndEnvId(tx *pg.Tx, appId, envId int) (*DeploymentConfig, error) {
 	result := &DeploymentConfig{}
-	err := impl.dbConnection.Model(result).
+	var query *orm.Query
+	if tx != nil {
+		query = tx.Model(result)
+	} else {
+		query = impl.dbConnection.Model(result)
+	}
+	err := query.
 		Join("INNER JOIN app a").
 		JoinOn("deployment_config.app_id = a.id").
 		Join("INNER JOIN environment e").
@@ -138,9 +144,15 @@ func (impl *RepositoryImpl) GetByAppIdAndEnvId(appId, envId int) (*DeploymentCon
 	return result, err
 }
 
-func (impl *RepositoryImpl) GetAppLevelConfigForDevtronApps(appId int) (*DeploymentConfig, error) {
+func (impl *RepositoryImpl) GetAppLevelConfigForDevtronApps(tx *pg.Tx, appId int) (*DeploymentConfig, error) {
 	result := &DeploymentConfig{}
-	err := impl.dbConnection.Model(result).
+	var query *orm.Query
+	if tx != nil {
+		query = tx.Model(result)
+	} else {
+		query = impl.dbConnection.Model(result)
+	}
+	err := query.
 		Join("INNER JOIN app a").
 		JoinOn("deployment_config.app_id = a.id").
 		Where("a.active = ?", true).

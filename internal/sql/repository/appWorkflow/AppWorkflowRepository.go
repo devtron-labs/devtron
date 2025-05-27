@@ -32,7 +32,7 @@ type AppWorkflowRepository interface {
 	FindByIds(ids []int) (*AppWorkflow, error)
 	FindByAppId(appId int) (appWorkflow []*AppWorkflow, err error)
 	FindByAppIds(appIds []int) (appWorkflow []*AppWorkflow, err error)
-	DeleteAppWorkflow(appWorkflow *AppWorkflow, tx *pg.Tx) error
+	DeleteAppWorkflowAndAllMappings(appWorkflow *AppWorkflow, tx *pg.Tx) error
 
 	SaveAppWorkflowMapping(wf *AppWorkflowMapping, tx *pg.Tx) (*AppWorkflowMapping, error)
 	FindByWorkflowId(workflowId int) ([]*AppWorkflowMapping, error)
@@ -164,26 +164,21 @@ func (impl AppWorkflowRepositoryImpl) FindByIds(ids []int) (*AppWorkflow, error)
 	return appWorkflow, err
 }
 
-func (impl AppWorkflowRepositoryImpl) DeleteAppWorkflow(appWorkflow *AppWorkflow, tx *pg.Tx) error {
-	appWorkflowMappings, err := impl.FindWFCIMappingByWorkflowId(appWorkflow.Id)
-	if err != nil && pg.ErrNoRows != err {
-		impl.Logger.Errorw("err", err)
-		return err
-	}
-	if len(appWorkflowMappings) > 0 {
-		for _, item := range appWorkflowMappings {
-			err = impl.DeleteAppWorkflowMapping(item, tx)
-			if err != nil {
-				impl.Logger.Errorw("err", err)
-				return err
-			}
+func (impl AppWorkflowRepositoryImpl) DeleteAppWorkflowAndAllMappings(appWorkflow *AppWorkflow, tx *pg.Tx) error {
+	// Delete app workflow mapping
+	mapping, err := impl.FindWFAllMappingByWorkflowId(appWorkflow.Id)
+	for _, item := range mapping {
+		err := impl.DeleteAppWorkflowMapping(item, tx)
+		if err != nil {
+			impl.Logger.Errorw("error in deleting workflow mapping", "err", err)
+			return err
 		}
 	}
 
 	appWorkflow.Active = false
-	err = impl.dbConnection.Update(appWorkflow)
+	err = tx.Update(appWorkflow)
 	if err != nil {
-		impl.Logger.Errorw("err", err)
+		impl.Logger.Errorw("error in deleting app workflow", "appWorkflow", appWorkflow, "err", err)
 		return err
 	}
 	return nil

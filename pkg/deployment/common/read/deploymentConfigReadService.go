@@ -123,7 +123,7 @@ func (impl *DeploymentConfigReadServiceImpl) GetDeploymentConfigForApp(appId int
 		appLevelConfig    *bean.DeploymentConfig
 		isMigrationNeeded bool
 	)
-	appLevelConfigDbObj, err := impl.deploymentConfigRepository.GetAppLevelConfigForDevtronApps(appId)
+	appLevelConfigDbObj, err := impl.deploymentConfigRepository.GetAppLevelConfigForDevtronApps(nil, appId)
 	if err != nil && !interalUtil.IsErrNoRows(err) {
 		impl.logger.Errorw("error in getting deployment config db object by appId", "appId", appId, "err", err)
 		return appLevelConfig, isMigrationNeeded, err
@@ -158,7 +158,7 @@ func (impl *DeploymentConfigReadServiceImpl) GetDeploymentConfigForAppAndEnv(app
 		envLevelConfig    *bean.DeploymentConfig
 		isMigrationNeeded bool
 	)
-	appAndEnvLevelConfigDBObj, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(appId, envId)
+	appAndEnvLevelConfigDBObj, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(nil, appId, envId)
 	if err != nil && !interalUtil.IsErrNoRows(err) {
 		impl.logger.Errorw("error in getting deployment config db object by appId and envId", "appId", appId, "envId", envId, "err", err)
 		return envLevelConfig, isMigrationNeeded, err
