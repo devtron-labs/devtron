@@ -9,6 +9,7 @@
 - fix: anomalies in deployment status timeline (#6569)
 - fix: scoped var complex type resolution not working in patch type overrides (#6572)
 ## Others
+- chore: removed multi-arch section from readme (#6613)
 - chore: git sensor grpc lb policy change (#6610)
 - misc: go routines wrapped into panic safe function (#6589)
 - chore: http transport service refactoring (#6592)
