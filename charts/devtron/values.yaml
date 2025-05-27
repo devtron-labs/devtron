@@ -104,7 +104,6 @@ components:
       enabled: false
     service:
       type: LoadBalancer
-      # loadBalancerIP: ""
       port: 80
       # nodePort: 32080
       labels: {}
