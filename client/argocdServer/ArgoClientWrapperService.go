@@ -52,7 +52,7 @@ import (
 
 type ACDConfig struct {
 	ArgoCDAutoSyncEnabled     bool `env:"ARGO_AUTO_SYNC_ENABLED" envDefault:"true" description:"If enabled all argocd application will have auto sync enabled" example:"true" deprecated:"false"` // will gradually switch this flag to false in enterprise
-	RegisterRepoMaxRetryCount int  `env:"ARGO_REPO_REGISTER_RETRY_COUNT" envDefault:"3" description:"Retry count for registering a GitOps repository to ArgoCD" example:"3" deprecated:"false"`
+	RegisterRepoMaxRetryCount int  `env:"ARGO_REPO_REGISTER_RETRY_COUNT" envDefault:"4" description:"Retry count for registering a GitOps repository to ArgoCD" example:"3" deprecated:"false"`
 	RegisterRepoMaxRetryDelay int  `env:"ARGO_REPO_REGISTER_RETRY_DELAY" envDefault:"5" description:"Delay (in Seconds) between the retries for registering a GitOps repository to ArgoCD" example:"5" deprecated:"false"`
 }
 
