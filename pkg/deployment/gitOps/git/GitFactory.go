@@ -34,8 +34,7 @@ type GitFactory struct {
 	logger       *zap.SugaredLogger
 }
 
-func (factory *GitFactory) Reload(gitOpsConfigReadService config.GitOpsConfigReadService) error {
-	var err error
+func (factory *GitFactory) Reload(gitOpsConfigReadService config.GitOpsConfigReadService) (err error) {
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("Reload", "GitService", start, err)
@@ -96,8 +95,11 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *gitOps.GitOpsCon
 	}()
 	cfg := adapter.ConvertGitOpsConfigToGitConfig(gitOpsConfig)
 	//factory.GitOpsHelper.SetAuth(cfg.GetAuth())
-	gitOpsHelper := NewGitOpsHelperImpl(cfg.GetAuth(), factory.logger, cfg.GetTLSConfig(), gitOpsConfig.EnableTLSVerification)
-
+	gitOpsHelper, err := NewGitOpsHelperImpl(cfg.GetAuth(), factory.logger, cfg.GetTLSConfig(), gitOpsConfig.EnableTLSVerification)
+	if err != nil {
+		factory.logger.Errorw("error in creating gitOps helper", "err", err, "gitProvider", cfg.GitProvider)
+		return nil, nil, err
+	}
 	client, err := NewGitOpsClient(cfg, factory.logger, gitOpsHelper)
 	if err != nil {
 		return client, gitOpsHelper, err
@@ -113,7 +115,10 @@ func NewGitFactory(logger *zap.SugaredLogger, gitOpsConfigReadService config.Git
 	if err != nil {
 		return nil, err
 	}
-	gitOpsHelper := NewGitOpsHelperImpl(cfg.GetAuth(), logger, cfg.GetTLSConfig(), cfg.EnableTLSVerification)
+	gitOpsHelper, err := NewGitOpsHelperImpl(cfg.GetAuth(), logger, cfg.GetTLSConfig(), cfg.EnableTLSVerification)
+	if err != nil {
+		logger.Errorw("error in creating gitOps helper", "err", err, "gitProvider", cfg.GitProvider)
+	}
 	client, err := NewGitOpsClient(cfg, logger, gitOpsHelper)
 	if err != nil {
 		logger.Errorw("error in creating gitOps client", "err", err, "gitProvider", cfg.GitProvider)

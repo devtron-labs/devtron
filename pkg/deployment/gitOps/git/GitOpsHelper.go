@@ -43,14 +43,15 @@ type GitOpsHelper struct {
 	isTlsEnabled      bool
 }
 
-func NewGitOpsHelperImpl(auth *git.BasicAuth, logger *zap.SugaredLogger, tlsConfig *bean.TLSConfig, isTlsEnabled bool) *GitOpsHelper {
-	return &GitOpsHelper{
+func NewGitOpsHelperImpl(auth *git.BasicAuth, logger *zap.SugaredLogger, tlsConfig *bean.TLSConfig, isTlsEnabled bool) (*GitOpsHelper, error) {
+	gitOpsHelper := &GitOpsHelper{
 		Auth:              auth,
 		logger:            logger,
 		gitCommandManager: git.NewGitCommandManager(logger),
 		tlsConfig:         tlsConfig,
 		isTlsEnabled:      isTlsEnabled,
 	}
+	return gitOpsHelper, nil
 }
 
 func (impl *GitOpsHelper) SetAuth(auth *git.BasicAuth) {
