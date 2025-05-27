@@ -31,6 +31,9 @@ spec:
   loadBalancerSourceRanges:
 {{ toYaml .loadBalancerSourceRanges | nindent 4}}
 {{- end }}
+{{- if .loadBalancerIP }}
+  loadBalancerIP: {{ .loadBalancerIP }}
+{{- end }}
   selector:
     app: devtron
   sessionAffinity: None
