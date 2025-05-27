@@ -22,6 +22,7 @@ import (
 	"fmt"
 	informerBean "github.com/devtron-labs/common-lib/informer"
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	configMap2 "github.com/devtron-labs/common-lib/utils/k8s/configMap"
 	bean3 "github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	"github.com/devtron-labs/devtron/pkg/cluster/bean"
@@ -481,7 +482,11 @@ func (impl *ClusterServiceImpl) upsertClusterConfigMap(bean *bean.ClusterBean, d
 		impl.logger.Errorw("error in getting cluster config map", "cmName", cmName, "err", err)
 		return err
 	} else if k8sError.IsNotFound(err) {
-		_, err = impl.K8sUtil.CreateConfigMapObject(bean3.DevtronCDNamespae, data, cmName, k8sClient, labels, nil)
+		_, err = impl.K8sUtil.CreateConfigMapObject(bean3.DevtronCDNamespae, k8sClient,
+			configMap2.WithData(data),
+			configMap2.WithCmName(cmName),
+			configMap2.WithLabels(labels))
+
 		if err != nil {
 			impl.logger.Errorw("error in creating cm object for informer", "cmName", cmName, "err", err)
 			return err

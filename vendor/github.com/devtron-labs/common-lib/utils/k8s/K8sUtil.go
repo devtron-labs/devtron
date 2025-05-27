@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils"
 	http2 "github.com/devtron-labs/common-lib/utils/http"
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	"github.com/devtron-labs/common-lib/utils/k8s/configMap"
 	"io"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/kubernetes/pkg/api/legacyscheme"
@@ -236,23 +237,12 @@ func (impl *K8sServiceImpl) CreateConfigMap(namespace string, cm *v1.ConfigMap, 
 	}
 }
 
-func (impl *K8sServiceImpl) CreateConfigMapObject(namespace string, data map[string]string, configMapName string, client *v12.CoreV1Client,
-	labels map[string]string, annotations map[string]string) (*v1.ConfigMap, error) {
-	configMap := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: configMapName,
-		},
-	}
-	if labels != nil && len(labels) > 0 {
-		configMap.ObjectMeta.Labels = labels
-	}
-	if annotations != nil && len(annotations) > 0 {
-		configMap.ObjectMeta.Annotations = annotations
-	}
-	if data != nil && len(data) > 0 {
-		configMap.Data = data
-	}
+func (impl *K8sServiceImpl) CreateConfigMapObject(namespace string, client *v12.CoreV1Client, opts ...configMap.Option) (*v1.ConfigMap, error) {
 
+	configMap := &v1.ConfigMap{}
+	for _, option := range opts {
+		option(configMap)
+	}
 	return impl.CreateConfigMap(namespace, configMap, client)
 }
 

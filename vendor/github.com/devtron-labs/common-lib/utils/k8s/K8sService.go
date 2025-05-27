@@ -19,6 +19,7 @@ package k8s
 import (
 	"context"
 	"flag"
+	"github.com/devtron-labs/common-lib/utils/k8s/configMap"
 	"go.uber.org/zap"
 	"io"
 	batchV1 "k8s.io/api/batch/v1"
@@ -76,8 +77,7 @@ type K8sService interface {
 	PatchConfigMap(namespace string, clusterConfig *ClusterConfig, name string, data map[string]interface{}) (*v1.ConfigMap, error)
 	UpdateConfigMap(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) (*v1.ConfigMap, error)
 	CreateConfigMap(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) (*v1.ConfigMap, error)
-	CreateConfigMapObject(namespace string, data map[string]string, configMapName string, client *v12.CoreV1Client,
-		labels map[string]string, annotations map[string]string) (*v1.ConfigMap, error)
+	CreateConfigMapObject(namespace string, client *v12.CoreV1Client, opts ...configMap.Option) (*v1.ConfigMap, error)
 	GetConfigMap(namespace string, name string, client *v12.CoreV1Client) (*v1.ConfigMap, error)
 	DeleteConfigMap(namespace string, name string, client *v12.CoreV1Client) error
 	GetConfigMapWithCtx(ctx context.Context, namespace string, name string, client *v12.CoreV1Client) (*v1.ConfigMap, error)
