@@ -259,7 +259,7 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (bea
 		} else if util2.IsBaseStack() {
 			// check if cicd is in installing state
 			// if devtron is installed with cicd module, then cicd module should be shown as installing
-			installerModulesIface := gjson.Get(releaseValues, bean.INSTALLER_MODULES_HELM_KEY).Value()
+			installerModulesIface := gjson.Get(releaseValues, impl.serverEnvConfig.DevtronInstallerModulesPath).Value()
 			if installerModulesIface != nil {
 				installerModulesIfaceKind := reflect.TypeOf(installerModulesIface).Kind()
 				if installerModulesIfaceKind == reflect.Slice {
@@ -410,8 +410,8 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 	}
 
 	extraValues := make(map[string]interface{})
-	extraValues["installer.release"] = moduleActionRequest.Version
-	extraValues[bean.INSTALLER_MODULES_HELM_KEY] = []interface{}{moduleName}
+	extraValues[impl.serverEnvConfig.DevtronInstallerReleasePath] = moduleActionRequest.Version
+	extraValues[impl.serverEnvConfig.DevtronInstallerModulesPath] = []interface{}{moduleName}
 	alreadyInstalledModuleNames, err := impl.moduleRepository.GetInstalledModuleNames()
 	if err != nil {
 		impl.logger.Errorw("error in getting modules with installed status ", "err", err)
