@@ -126,6 +126,10 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 			cloudProviderIdentifierService: cloudProviderIdentifierService,
 			telemetryConfig:                TelemetryConfig{},
 			globalEnvVariables:             envVariables.GlobalEnvVariables,
+			// Pass existing repositories from TelemetryEventClientExtended to embedded TelemetryEventClientImpl
+			appRepository:        appRepository,
+			ciWorkflowRepository: ciWorkflowRepository,
+			cdWorkflowRepository: cdWorkflowRepository,
 		},
 	}
 
@@ -318,6 +322,18 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload.HelmAppUpdateCounter = HelmAppUpdateCounter
 	payload.HelmChartSuccessfulDeploymentCount = HelmChartSuccessfulDeploymentCount
 	payload.ExternalHelmAppClusterCount = ExternalHelmAppClusterCount
+
+	// Collect new telemetry metrics
+	payload.HelmAppCount = impl.getHelmAppCount()
+	payload.DevtronAppCount = impl.getDevtronAppCount()
+	payload.JobCount = impl.getJobCount()
+	payload.JobPipelineCount = impl.getJobPipelineCount()
+	payload.JobPipelineTriggeredLast24h = impl.getJobPipelineTriggeredLast24h()
+	payload.JobPipelineSucceededLast24h = impl.getJobPipelineSucceededLast24h()
+	payload.UserCreatedPluginCount = impl.getUserCreatedPluginCount()
+	payload.PolicyCount = impl.getPolicyCount()
+	payload.AppliedPolicyRowCount = impl.getAppliedPolicyRowCount()
+	payload.PhysicalClusterCount, payload.IsolatedClusterCount = impl.getClusterCounts()
 
 	payload.ClusterProvider, err = impl.GetCloudProvider()
 	if err != nil {
