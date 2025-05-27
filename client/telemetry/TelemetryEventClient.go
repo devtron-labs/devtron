@@ -41,7 +41,6 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/auth/sso"
 	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
@@ -275,7 +274,7 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []be
 // New methods for collecting additional telemetry metrics
 
 func (impl *TelemetryEventClientImpl) getHelmAppCount() int {
-	count, err := impl.installedAppReadService.GetDeploymentSuccessfulStatusCountForTelemetry()
+	count, err := impl.installedAppReadService.GetActiveInstalledAppCount()
 	if err != nil {
 		impl.logger.Errorw("error getting helm app count", "err", err)
 		return -1
@@ -284,47 +283,19 @@ func (impl *TelemetryEventClientImpl) getHelmAppCount() int {
 }
 
 func (impl *TelemetryEventClientImpl) getDevtronAppCount() int {
-	// Use a simple approach - count all active apps that are not jobs
-	if impl.appRepository == nil {
-		impl.logger.Warnw("appRepository not available for devtron app count")
-		return -1
-	}
-
-	// Get all active apps and filter out jobs
-	apps, err := impl.appRepository.FindAll()
+	devtronAppCount, err := impl.appRepository.FindDevtronAppCount()
 	if err != nil {
 		impl.logger.Errorw("error getting all apps for devtron app count", "err", err)
 		return -1
 	}
-
-	devtronAppCount := 0
-	for _, app := range apps {
-		if app.AppType != helper.Job && app.Active {
-			devtronAppCount++
-		}
-	}
-
 	return devtronAppCount
 }
 
 func (impl *TelemetryEventClientImpl) getJobCount() int {
-	// Use a simple approach - count all active apps that are jobs
-	if impl.appRepository == nil {
-		impl.logger.Warnw("appRepository not available for job count")
-		return -1
-	}
-
-	apps, err := impl.appRepository.FindAll()
+	jobCount, err := impl.appRepository.FindJobCount()
 	if err != nil {
 		impl.logger.Errorw("error getting all apps for job count", "err", err)
 		return -1
-	}
-
-	jobCount := 0
-	for _, app := range apps {
-		if app.AppType == helper.Job && app.Active {
-			jobCount++
-		}
 	}
 
 	return jobCount
