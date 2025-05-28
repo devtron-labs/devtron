@@ -39,6 +39,7 @@ type UserAuditRepository interface {
 	GetLatestByUserId(userId int32) (*UserAudit, error)
 	GetLatestUser() (*UserAudit, error)
 	Update(userAudit *UserAudit) error
+	GetActiveUsersCountInLast30Days() (int, error)
 }
 
 type UserAuditRepositoryImpl struct {
@@ -85,4 +86,17 @@ func (impl UserAuditRepositoryImpl) GetLatestUser() (*UserAudit, error) {
 		Limit(1).
 		Select()
 	return userAudit, err
+}
+
+func (impl UserAuditRepositoryImpl) GetActiveUsersCountInLast30Days() (int, error) {
+	var count int
+	// Calculate the date 30 days ago from now
+	thirtyDaysAgo := time.Now().AddDate(0, 0, -30)
+
+	// Count distinct users who have been active (have updated_on) in the last 30 days
+	_, err := impl.dbConnection.Query(&count,
+		"SELECT COUNT(DISTINCT user_id) FROM user_audit WHERE updated_on >= ?",
+		thirtyDaysAgo)
+
+	return count, err
 }

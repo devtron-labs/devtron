@@ -347,6 +347,7 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload.PolicyCount = impl.getPolicyCount()
 	payload.AppliedPolicyRowCount = impl.getAppliedPolicyRowCount()
 	payload.PhysicalClusterCount, payload.IsolatedClusterCount = impl.getClusterCounts()
+	payload.ActiveUsersLast30Days = impl.getActiveUsersLast30Days()
 
 	payload.ClusterProvider, err = impl.GetCloudProvider()
 	if err != nil {

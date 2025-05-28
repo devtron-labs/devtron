@@ -156,3 +156,19 @@ func (impl *TelemetryEventClientImpl) getJobPipelineSucceededLast24h() int {
 func (impl *TelemetryEventClientImpl) getAppliedPolicyRowCount() int {
 	return 0
 }
+
+func (impl *TelemetryEventClientImpl) getActiveUsersLast30Days() int {
+	if impl.userAuditService == nil {
+		impl.logger.Warnw("userAuditService not available for active users count")
+		return -1
+	}
+
+	count, err := impl.userAuditService.GetActiveUsersCountInLast30Days()
+	if err != nil {
+		impl.logger.Errorw("error getting active users count in last 30 days", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted active users in last 30 days", "count", count)
+	return count
+}

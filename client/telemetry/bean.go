@@ -87,6 +87,7 @@ type TelemetryEventEA struct {
 	AppliedPolicyRowCount       int `json:"appliedPolicyRowCount,omitempty"`
 	PhysicalClusterCount        int `json:"physicalClusterCount,omitempty"`
 	IsolatedClusterCount        int `json:"isolatedClusterCount,omitempty"`
+	ActiveUsersLast30Days       int `json:"activeUsersLast30Days,omitempty"`
 }
 
 const AppsCount int = 50
@@ -160,4 +161,5 @@ type TelemetryEventDto struct {
 	AppliedPolicyRowCount       int `json:"appliedPolicyRowCount,omitempty"`
 	PhysicalClusterCount        int `json:"physicalClusterCount,omitempty"`
 	IsolatedClusterCount        int `json:"isolatedClusterCount,omitempty"`
+	ActiveUsersLast30Days       int `json:"activeUsersLast30Days,omitempty"`
 }
