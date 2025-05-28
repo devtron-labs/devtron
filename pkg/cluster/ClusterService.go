@@ -492,6 +492,7 @@ func (impl *ClusterServiceImpl) upsertClusterConfigMap(bean *bean.ClusterBean, d
 			return err
 		}
 	} else {
+		configMap.Labels = labels
 		configMap.Data = data
 		configMap, err = impl.K8sUtil.UpdateConfigMap(bean3.DevtronCDNamespae, configMap, k8sClient)
 		if err != nil {

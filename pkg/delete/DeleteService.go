@@ -114,10 +114,10 @@ func (impl DeleteServiceImpl) DeleteClusterConfigMap(deleteRequest *bean2.Cluste
 	err = impl.K8sUtil.DeleteConfigMap(bean4.DevtronCDNamespae, cmName, k8sClient)
 	if k8sError.IsNotFound(err) {
 		// when cm not found in devtroncd ns then delete the secret in default ns(secret name would be the same as cm name)
-		err1 := impl.K8sUtil.DeleteSecret(bean2.DefaultNamespace, cmName, k8sClient)
-		if err1 != nil {
-			impl.logger.Errorw("error in deleting cluster secret in default ns ", "secretName", cmName, "err", err1)
-			return err1
+		err = impl.K8sUtil.DeleteSecret(bean2.DefaultNamespace, cmName, k8sClient)
+		if err != nil {
+			impl.logger.Errorw("error in deleting cluster secret in default ns ", "secretName", cmName, "err", err)
+			return err
 		}
 	} else if err != nil {
 		impl.logger.Errorw("error in deleting cluster config map in devtroncd ns ", "cmName", cmName, "err", err)

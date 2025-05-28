@@ -24,8 +24,8 @@ const (
 	ClusterActionDelete               = "delete"
 	CmFieldAction                     = "action"
 	CmFieldClusterId                  = "cluster_id"
-	ClusterModifyEventCmLabelKeyValue = "type=cluster-request-modify"
-	ClusterModifyEventCmLabelValue    = "cluster-request-modify"
+	ClusterModifyEventCmLabelKeyValue = "type=devtron.ai-cluster-request-modify"
+	ClusterModifyEventCmLabelValue    = "devtron.ai-cluster-request-modify"
 )
 
 const (
