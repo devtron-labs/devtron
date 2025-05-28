@@ -2,6 +2,7 @@
 - feat: wf logs (#6606)
 - feat: Enable selection of all CI pipelines at once when the Environment filter is applied in Notifications (#6526)
 ## Bugs
+- fix: oci chart deployment values.yaml and requirement.yaml not compatible (#6620)
 - fix: panic fix installedApp type timeline update (#6614)
 - fix: workflow getting incorrectly deleted in case of webhook and unreachable cluster's cd pipeline (#6602)
 - fix: add safety checks to prevent index-out-of-range panics in CdHandler (#6597)
