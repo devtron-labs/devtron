@@ -165,5 +165,5 @@ type TelemetryEventDto struct {
 	IsolatedClusterCount        int `json:"isolatedClusterCount,omitempty"`
 	ActiveUsersLast30Days       int `json:"activeUsersLast30Days,omitempty"`
 	GitOpsPipelineCount         int `json:"gitOpsPipelineCount,omitempty"`
-	NoGitOpsPipelineCount       int `json:"noGitOpsPipelineCount,omitempty"`
+	HelmPipelineCount           int `json:"helmPipelineCount,omitempty"`
 }

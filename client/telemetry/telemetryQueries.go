@@ -198,7 +198,7 @@ func (impl *TelemetryEventClientImpl) getGitOpsPipelineCount() int {
 	return count
 }
 
-func (impl *TelemetryEventClientImpl) getNoGitOpsPipelineCount() int {
+func (impl *TelemetryEventClientImpl) helmPipelineCount() int {
 	// Check if we have the required dependency
 	if impl.cdWorkflowRepository == nil {
 		impl.logger.Warnw("cdWorkflowRepository not available for No-GitOps pipeline count")

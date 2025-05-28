@@ -349,7 +349,7 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload.PhysicalClusterCount, payload.IsolatedClusterCount = impl.getClusterCounts()
 	payload.ActiveUsersLast30Days = impl.getActiveUsersLast30Days()
 	payload.GitOpsPipelineCount = impl.getGitOpsPipelineCount()
-	payload.NoGitOpsPipelineCount = impl.getNoGitOpsPipelineCount()
+	payload.HelmPipelineCount = impl.helmPipelineCount()
 
 	payload.ClusterProvider, err = impl.GetCloudProvider()
 	if err != nil {
