@@ -110,7 +110,7 @@ func (impl *GitOpsHelper) cloneAndFetch(url, targetDir string) (ctx git.GitConte
 func (impl *GitOpsHelper) pullFromTargetRevision(ctx git.GitContext, clonedDir, targetRevision string) (err error) {
 	branch, err := impl.getSanitisedTargetRevision(ctx, clonedDir, targetRevision)
 	if err != nil {
-		impl.logger.Warnw("no branch found in git repo", "clonedDir", clonedDir, "targetRevision", targetRevision, "err", err)
+		impl.logger.Errorw("no branch found in git repo", "clonedDir", clonedDir, "targetRevision", targetRevision, "err", err)
 		return err
 	}
 	_, errMsg, err := impl.pullFromBranch(ctx, clonedDir, branch)

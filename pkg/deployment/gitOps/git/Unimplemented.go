@@ -28,27 +28,27 @@ type UnimplementedGitOpsClient struct{}
 func (u *UnimplementedGitOpsClient) CreateRepository(ctx context.Context, config *gitOps.GitOpsConfigDto) (url string, isNew bool, isEmpty bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	return "", false, false, DetailedErrorGitOpsConfigActions{
 		StageErrorMap: map[string]error{
-			fmt.Sprintf("GitOps will not work"): fmt.Errorf("no gitops config found, please configure gitops first and try again"),
+			fmt.Sprintf("GitOps will not work"): fmt.Errorf("invalid gitops config found, please configure gitops properly and try again"),
 		},
 	}
 }
 
 func (u *UnimplementedGitOpsClient) CommitValues(ctx context.Context, config *ChartConfig, gitOpsConfig *gitOps.GitOpsConfigDto, publishStatusConflictError bool) (commitHash string, commitTime time.Time, err error) {
-	return "", time.Time{}, fmt.Errorf("no gitops config found, please configure gitops first")
+	return "", time.Time{}, fmt.Errorf("invalid gitops config found, please configure gitops properly and try again")
 }
 
 func (u *UnimplementedGitOpsClient) GetRepoUrl(config *gitOps.GitOpsConfigDto) (repoUrl string, isRepoEmpty bool, err error) {
-	return "", false, fmt.Errorf("no gitops config found, please configure gitops first")
+	return "", false, fmt.Errorf("invalid gitops config found, please configure gitops properly and try again")
 }
 
 func (u *UnimplementedGitOpsClient) DeleteRepository(config *gitOps.GitOpsConfigDto) error {
-	return fmt.Errorf("no gitops config found, please configure gitops first")
+	return fmt.Errorf("invalid gitops config found, please configure gitops properly and try again")
 }
 
 func (u *UnimplementedGitOpsClient) CreateReadme(ctx context.Context, config *gitOps.GitOpsConfigDto) (string, error) {
-	return "", fmt.Errorf("no gitops config found, please configure gitops first")
+	return "", fmt.Errorf("invalid gitops config found, please configure gitops properly and try again")
 }
 
 func (u *UnimplementedGitOpsClient) CreateFirstCommitOnHead(ctx context.Context, config *gitOps.GitOpsConfigDto) (string, error) {
-	return "", fmt.Errorf("no gitops config found, please configure gitops first")
+	return "", fmt.Errorf("invalid gitops config found, please configure gitops properly and try again")
 }

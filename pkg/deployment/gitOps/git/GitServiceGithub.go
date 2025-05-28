@@ -267,7 +267,7 @@ func (impl GitHubClient) CommitValues(ctx context.Context, config *ChartConfig, 
 	}
 	c, httpRes, err := impl.client.Repositories.CreateFile(ctx, impl.org, config.ChartRepoName, path, options)
 	if err != nil && httpRes != nil && httpRes.StatusCode == http2.StatusConflict {
-		impl.logger.Warn("conflict found in commit github", "config", config, "err", err)
+		impl.logger.Warnw("conflict found in commit github", "config", config, "err", err)
 		if publishStatusConflictErrorMetrics {
 			globalUtil.TriggerGitOpsMetrics("CommitValues", "GitHubClient", start, err)
 		}

@@ -108,6 +108,7 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *gitOps.GitOpsCon
 	}
 	client, err := NewGitOpsClient(cfg, factory.logger, gitOpsHelper)
 	if err != nil {
+		factory.logger.Errorw("error in creating gitOps client", "gitProvider", cfg.GitProvider, "err", err)
 		return client, gitOpsHelper, err
 	}
 
@@ -138,6 +139,9 @@ func NewGitFactory(logger *zap.SugaredLogger, gitOpsConfigReadService config.Git
 	if err != nil {
 		logger.Errorw("error in creating gitOps client", "gitProvider", gitConfig.GitProvider, "err", err)
 		// error handling is skipped intentionally here, otherwise orchestration will not work
+	}
+	if client == nil {
+		client = &UnimplementedGitOpsClient{}
 	}
 	gitFactory.Client = client
 	return gitFactory, nil
