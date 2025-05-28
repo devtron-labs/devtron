@@ -134,7 +134,7 @@
  | ARGO_AUTO_SYNC_ENABLED | bool |true | If enabled all argocd application will have auto sync enabled | true | false |
  | ARGO_GIT_COMMIT_RETRY_COUNT_ON_CONFLICT | int |3 | retry argocd app manual sync if the timeline is stuck in ARGOCD_SYNC_INITIATED state for more than this defined time (in mins) |  | false |
  | ARGO_GIT_COMMIT_RETRY_DELAY_ON_CONFLICT | int |1 | Delay on retrying the maifest commit the on gitops |  | false |
- | ARGO_REPO_REGISTER_RETRY_COUNT | int |3 | Retry count for registering a GitOps repository to ArgoCD | 3 | false |
+ | ARGO_REPO_REGISTER_RETRY_COUNT | int |4 | Retry count for registering a GitOps repository to ArgoCD | 3 | false |
  | ARGO_REPO_REGISTER_RETRY_DELAY | int |5 | Delay (in Seconds) between the retries for registering a GitOps repository to ArgoCD | 5 | false |
  | ASYNC_BUILDX_CACHE_EXPORT | bool |false | To enable async container image cache export |  | false |
  | BATCH_SIZE | int |5 | there is feature to get URL's of services/ingresses. so to extract those, we need to parse all the servcie and ingress objects of the application. this BATCH_SIZE flag controls the no of these objects get parsed in one go. |  | false |
@@ -205,8 +205,6 @@
  | K8s_TCP_KEEPALIVE | int |30 |  |  | false |
  | K8s_TCP_TIMEOUT | int |30 |  |  | false |
  | K8s_TLS_HANDSHAKE_TIMEOUT | int |10 |  |  | false |
- | KUBELINK_GRPC_MAX_RECEIVE_MSG_SIZE | int |20 |  |  | false |
- | KUBELINK_GRPC_MAX_SEND_MSG_SIZE | int |4 |  |  | false |
  | LENS_TIMEOUT | int |0 | Lens microservice timeout. |  | false |
  | LENS_URL | string |http://lens-milandevtron-service:80 | Lens micro-service URL |  | false |
  | LIMIT_CI_CPU | string |0.5 |  |  | false |
@@ -287,9 +285,13 @@
  | DEX_HOST | string |http://localhost |  |  | false |
  | DEX_PORT | string |5556 |  |  | false |
  | GIT_SENSOR_PROTOCOL | string |REST | Protocol to connect with git-sensor micro-service |  | false |
+ | GIT_SENSOR_SERVICE_CONFIG | string |{"loadBalancingPolicy":"pick_first"} | git-sensor grpc service config |  | false |
  | GIT_SENSOR_TIMEOUT | int |0 | Timeout for getting response from the git-sensor |  | false |
  | GIT_SENSOR_URL | string |127.0.0.1:7070 | git-sensor micro-service url  |  | false |
  | HELM_CLIENT_URL | string |127.0.0.1:50051 | Kubelink micro-service url  |  | false |
+ | KUBELINK_GRPC_MAX_RECEIVE_MSG_SIZE | int |20 |  |  | false |
+ | KUBELINK_GRPC_MAX_SEND_MSG_SIZE | int |4 |  |  | false |
+ | KUBELINK_GRPC_SERVICE_CONFIG | string |{"loadBalancingPolicy":"round_robin"} | kubelink grpc service config |  | false |
 
 
 ## POSTGRES Related Environment Variables

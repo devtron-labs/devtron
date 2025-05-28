@@ -227,7 +227,7 @@ func (impl *GitOperationServiceImpl) CreateFirstCommitOnHead(ctx context.Context
 	}
 	_, err = impl.gitFactory.Client.CreateFirstCommitOnHead(ctx, gitOpsConfig)
 	if err != nil {
-		impl.logger.Errorw("error in creating readme", "err", err, "gitOpsRepoName", gitOpsRepoName, "userId", userId)
+		impl.logger.Errorw("error in creating readme", "gitOpsRepoName", gitOpsRepoName, "userId", userId, "err", err)
 		return err
 	}
 	return nil
@@ -300,7 +300,7 @@ func (impl *GitOperationServiceImpl) CreateRepository(ctx context.Context, dto *
 	repoUrl, isNew, isEmpty, detailedError := impl.gitFactory.Client.CreateRepository(ctx, dto)
 	for _, err := range detailedError.StageErrorMap {
 		if err != nil {
-			impl.logger.Errorw("error in creating git project", "err", err, "req", dto)
+			impl.logger.Errorw("error in creating git project", "req", dto, "err", err)
 			return "", false, false, err
 		}
 	}
@@ -338,12 +338,12 @@ func (impl *GitOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(ctx context
 	}
 	err = impl.addConfigFileToChart(requirementsConfig, dir, clonedDir)
 	if err != nil {
-		impl.logger.Errorw("error in adding requirements.yaml to chart", "err", err, "appName", pushChartToGitRequest.AppName)
+		impl.logger.Errorw("error in adding requirements.yaml to chart", "appName", pushChartToGitRequest.AppName, "err", err)
 		return nil, "", err
 	}
 	err = impl.addConfigFileToChart(valuesConfig, dir, clonedDir)
 	if err != nil {
-		impl.logger.Errorw("error in adding values.yaml to chart", "err", err, "appName", pushChartToGitRequest.AppName)
+		impl.logger.Errorw("error in adding values.yaml to chart", "appName", pushChartToGitRequest.AppName, "err", err)
 		return nil, "", err
 	}
 	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(pushChartToGitRequest.UserId)
@@ -353,7 +353,7 @@ func (impl *GitOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(ctx context
 		impl.logger.Warn("re-trying, taking pull and then push again")
 		err = impl.GitPull(clonedDir, pushChartToGitRequest.RepoURL, pushChartToGitRequest.TargetRevision)
 		if err != nil {
-			impl.logger.Errorw("error in git pull", "err", err, "appName", gitOpsChartLocation)
+			impl.logger.Errorw("error in git pull", "appName", gitOpsChartLocation, "err", err)
 			return nil, "", err
 		}
 		err = dirCopy.Copy(pushChartToGitRequest.TempChartRefDir, dir)

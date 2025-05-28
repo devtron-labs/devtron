@@ -258,10 +258,8 @@ func (impl GitBitbucketClient) createReadme(ctx context.Context, config *bean2.G
 		UserEmailId:    config.UserEmailId,
 	}
 	cfg.SetBitBucketBaseDir(getDir())
-	if useDefaultBranch {
-		// UseDefaultBranch will override the TargetRevision and use the default branch of the repo
-		cfg.UseDefaultBranch = true
-	}
+	// UseDefaultBranch will override the TargetRevision and use the default branch of the repo
+	cfg.UseDefaultBranch = useDefaultBranch
 	hash, _, err := impl.CommitValues(ctx, cfg, config, true)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme bitbucket", "repo", config.GitRepoName, "err", err)
@@ -286,7 +284,7 @@ func (impl GitBitbucketClient) ensureProjectAvailabilityOnSsh(repoOptions *bitbu
 func (impl GitBitbucketClient) cleanUp(cloneDir string) {
 	err := os.RemoveAll(cloneDir)
 	if err != nil {
-		impl.logger.Errorw("error cleaning work path for git-ops", "err", err, "cloneDir", cloneDir)
+		impl.logger.Errorw("error cleaning work path for git-ops", "cloneDir", cloneDir, "err", err)
 	}
 }
 

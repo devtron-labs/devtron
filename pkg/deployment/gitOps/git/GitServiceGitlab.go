@@ -382,7 +382,7 @@ func (impl GitLabClient) CommitValues(ctx context.Context, config *ChartConfig, 
 	c, httpRes, err := impl.client.Commits.CreateCommit(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath,
 		config.ChartRepoName), actions, gitlab.WithContext(ctx))
 	if err != nil && httpRes != nil && httpRes.StatusCode == http.StatusBadRequest {
-		impl.logger.Warn("conflict found in commit gitlab", "err", err, "config", config)
+		impl.logger.Warn("conflict found in commit gitlab", "config", config, "err", err)
 		if publishStatusConflictError {
 			util.TriggerGitOpsMetrics("CommitValues", "GitLabClient", start, err)
 		}

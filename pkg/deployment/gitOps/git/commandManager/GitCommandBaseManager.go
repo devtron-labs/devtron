@@ -29,12 +29,8 @@ import (
 )
 
 type GitCommandManagerBase interface {
-	Clone(ctx GitContext, rootDir, repoUrl string) (response, errMsg string, err error)
 	Fetch(ctx GitContext, rootDir string) (response, errMsg string, err error)
 	ListBranch(ctx GitContext, rootDir string) (response, errMsg string, err error)
-	// GetCurrentBranch returns the current branch of the git repository directory.
-	//	command: git -C <rootDir> branch --show-current
-	GetCurrentBranch(ctx GitContext, rootDir string) (response, errMsg string, err error)
 	// GetDefaultBranch returns the default branch of the git repository directory.
 	//	command: git -C <rootDir> rev-parse --abbrev-ref origin/HEAD
 	// If the repository is empty, it returns an error.
@@ -46,26 +42,6 @@ type GitCommandManagerBase interface {
 type GitManagerBaseImpl struct {
 	logger *zap.SugaredLogger
 	cfg    *configuration
-}
-
-func (impl *GitManagerBaseImpl) Clone(ctx GitContext, rootDir, repoUrl string) (response, errMsg string, err error) {
-	start := time.Now()
-	defer func() {
-		util.TriggerGitOpsMetrics("Clone", "GitCli", start, err)
-	}()
-	impl.logger.Debugw("git clone --depth=1 --single-branch --no-tags", "location", rootDir, "repoUrl", repoUrl)
-	args := []string{"clone", "--depth=1", "--single-branch", "--no-tags", repoUrl, rootDir}
-	cmd, cancel := impl.createCmdWithContext(ctx, "git", args...)
-	defer cancel()
-	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), TLS_FOLDER)
-	if err != nil {
-		//making it non-blocking
-		impl.logger.Errorw("error encountered in createFilesForTlsData", "err", err)
-	}
-	defer git_manager.DeleteTlsFiles(tlsPathInfo)
-	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth, tlsPathInfo)
-	impl.logger.Debugw("git clone --depth=1 --single-branch --no-tags output", "root", rootDir, "repoUrl", repoUrl, "opt", output, "errMsg", errMsg, "error", err)
-	return output, errMsg, err
 }
 
 func (impl *GitManagerBaseImpl) Fetch(ctx GitContext, rootDir string) (response, errMsg string, err error) {
@@ -103,25 +79,6 @@ func (impl *GitManagerBaseImpl) ListBranch(ctx GitContext, rootDir string) (resp
 	defer git_manager.DeleteTlsFiles(tlsPathInfo)
 	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth, tlsPathInfo)
 	impl.logger.Debugw("git branch -r output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
-	return output, errMsg, err
-}
-
-func (impl *GitManagerBaseImpl) GetCurrentBranch(ctx GitContext, rootDir string) (response, errMsg string, err error) {
-	start := time.Now()
-	defer func() {
-		util.TriggerGitOpsMetrics("GetCurrentBranch", "GitCli", start, err)
-	}()
-	impl.logger.Debugw("git branch --show-current", "location", rootDir)
-	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "branch", "--show-current")
-	defer cancel()
-	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), TLS_FOLDER)
-	if err != nil {
-		//making it non-blocking
-		impl.logger.Errorw("error encountered in createFilesForTlsData", "err", err)
-	}
-	defer git_manager.DeleteTlsFiles(tlsPathInfo)
-	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth, tlsPathInfo)
-	impl.logger.Debugw("git branch --show-current output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
 	return output, errMsg, err
 }
 
