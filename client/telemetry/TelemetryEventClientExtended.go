@@ -407,7 +407,11 @@ func (impl *TelemetryEventClientImplExtended) getCiBuildTypeData() (int, int, in
 func (impl *TelemetryEventClientImplExtended) getCiBuildTypeVsStatusVsCount() (successCount map[bean.CiBuildType]int, failureCount map[bean.CiBuildType]int) {
 	successCount = make(map[bean.CiBuildType]int)
 	failureCount = make(map[bean.CiBuildType]int)
-	buildTypeAndStatusVsCount := impl.ciWorkflowRepository.FindBuildTypeAndStatusDataOfLast1Day()
+	buildTypeAndStatusVsCount, err := impl.ciWorkflowRepository.FindBuildTypeAndStatusDataOfLast1Day()
+	if err != nil {
+		impl.logger.Errorw("error getting build type vs status vs count data", "err", err)
+		return successCount, failureCount
+	}
 	for _, buildTypeCount := range buildTypeAndStatusVsCount {
 		if buildTypeCount == nil {
 			continue

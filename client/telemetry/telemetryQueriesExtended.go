@@ -27,10 +27,10 @@ func (impl *TelemetryEventClientImplExtended) getJobCount() int {
 
 func (impl *TelemetryEventClientImplExtended) getJobPipelineTriggeredLast24h() int {
 	// Get build type and status data for the last 24 hours
-	buildTypeStatusData := impl.ciWorkflowRepository.FindBuildTypeAndStatusDataOfLast1Day()
-	if buildTypeStatusData == nil {
+	buildTypeStatusData, err := impl.ciWorkflowRepository.FindBuildTypeAndStatusDataOfLast1Day()
+	if err != nil {
 		impl.logger.Warnw("no build type status data available for last 24 hours")
-		return 0
+		return -1
 	}
 
 	// Count job pipeline triggers
@@ -47,10 +47,10 @@ func (impl *TelemetryEventClientImplExtended) getJobPipelineTriggeredLast24h() i
 
 func (impl *TelemetryEventClientImplExtended) getJobPipelineSucceededLast24h() int {
 	// Get build type and status data for the last 24 hours
-	buildTypeStatusData := impl.ciWorkflowRepository.FindBuildTypeAndStatusDataOfLast1Day()
-	if buildTypeStatusData == nil {
+	buildTypeStatusData, err := impl.ciWorkflowRepository.FindBuildTypeAndStatusDataOfLast1Day()
+	if err != nil {
 		impl.logger.Warnw("no build type status data available for last 24 hours")
-		return 0
+		return -1
 	}
 
 	// Count successful job pipeline runs
@@ -71,7 +71,7 @@ func (impl *TelemetryEventClientImplExtended) getUserCreatedPluginCount() int {
 	plugins, err := impl.pluginRepository.GetAllPluginMinDataByType(string(pluginRepository.PLUGIN_TYPE_SHARED))
 	if err != nil {
 		impl.logger.Errorw("error getting user created plugin count", "err", err)
-		return 0
+		return -1
 	}
 
 	return len(plugins)
