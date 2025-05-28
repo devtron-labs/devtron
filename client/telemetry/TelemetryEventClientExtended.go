@@ -26,6 +26,7 @@ import (
 	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
 	"github.com/devtron-labs/devtron/pkg/auth/sso"
 	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
+	authPolicyRepository "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
 	repository3 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
@@ -34,6 +35,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
+	pluginRepository "github.com/devtron-labs/devtron/pkg/plugin/repository"
+	cvePolicyRepository "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
 	ucidService "github.com/devtron-labs/devtron/pkg/ucid"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
@@ -85,7 +88,12 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	ciBuildConfigService pipeline.CiBuildConfigService, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore,
 	helmAppClient client.HelmAppClient, installedAppReadService installedAppReader.InstalledAppReadService, userAttributesRepository repository.UserAttributesRepository,
 	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService, cronLogger *cron3.CronLoggerImpl,
-	gitOpsConfigReadService config.GitOpsConfigReadService, envVariables *util.EnvironmentVariables) (*TelemetryEventClientImplExtended, error) {
+	gitOpsConfigReadService config.GitOpsConfigReadService, envVariables *util.EnvironmentVariables,
+	// Optional repositories for additional telemetry metrics
+	pluginRepository pluginRepository.GlobalPluginRepository,
+	cvePolicyRepository cvePolicyRepository.CvePolicyRepository,
+	defaultAuthPolicyRepository authPolicyRepository.DefaultAuthPolicyRepository,
+	rbacPolicyRepository authPolicyRepository.RbacPolicyDataRepository) (*TelemetryEventClientImplExtended, error) {
 
 	cron := cron.New(
 		cron.WithChain(cron.Recover(cronLogger)))
@@ -130,6 +138,11 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 			appRepository:        appRepository,
 			ciWorkflowRepository: ciWorkflowRepository,
 			cdWorkflowRepository: cdWorkflowRepository,
+			// Pass plugin and policy repositories for additional telemetry metrics
+			pluginRepository:            pluginRepository,
+			cvePolicyRepository:         cvePolicyRepository,
+			defaultAuthPolicyRepository: defaultAuthPolicyRepository,
+			rbacPolicyRepository:        rbacPolicyRepository,
 		},
 	}
 
