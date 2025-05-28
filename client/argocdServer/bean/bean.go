@@ -46,7 +46,8 @@ const RegisterRepoMaxRetryCount = 3
 var EmptyRepoErrorList = []string{"failed to get index: 404 Not Found", "remote repository is empty"}
 
 // ArgoRepoSyncDelayErr - This error occurs inconsistently; ArgoCD requires 80-120s after last commit for create repository operation
-const ArgoRepoSyncDelayErr = "Unable to resolve 'HEAD' to a commit SHA"
+// Error message reference: https://github.com/argoproj/argo-cd/blob/master/util/git/client.go#L718
+const ArgoRepoSyncDelayErr = "unable to resolve 'HEAD' to a commit SHA"
 
 const (
 	Degraded    = "Degraded"

@@ -128,6 +128,20 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *apiBe
 		impl.logger.Errorw("error in getting argo module", "error", err)
 		return apiBean.DetailedErrorGitOpsConfigResponse{}, err
 	}
+	exists, err := impl.gitOpsRepository.CheckIfGitOpsProviderExist(config.Provider)
+	if err != nil {
+		impl.logger.Errorw("error in checking if gitops provider exists", "provider", config.Provider, "err", err)
+		return apiBean.DetailedErrorGitOpsConfigResponse{}, err
+	}
+	if exists {
+		impl.logger.Errorw("gitops provider already exists", "provider", config.Provider)
+		err = &util.ApiError{
+			HttpStatusCode:  http.StatusConflict,
+			InternalMessage: "gitops provider already exists",
+			UserMessage:     "gitops provider already exists",
+		}
+		return apiBean.DetailedErrorGitOpsConfigResponse{}, err
+	}
 	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(argoModule.IsInstalled(), config)
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
 		err = impl.updateArgoCdUserDetailIfNotPresent(argoModule)
@@ -642,7 +656,7 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 
 	existingModel, err := impl.gitOpsRepository.GetGitOpsConfigActive()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in creating new gitops config", "error", err)
+		impl.logger.Errorw("error in getting active gitops config", "error", err)
 		return err
 	}
 	if request.Active {
