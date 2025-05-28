@@ -6,6 +6,10 @@ import (
 )
 
 func (impl *TelemetryEventClientImpl) getHelmAppCount() int {
+	if impl.installedAppReadService == nil {
+		impl.logger.Warnw("installedAppReadService not available for helm app count")
+		return -1
+	}
 	count, err := impl.installedAppReadService.GetActiveInstalledAppCount()
 	if err != nil {
 		impl.logger.Errorw("error getting helm app count", "err", err)
@@ -15,6 +19,10 @@ func (impl *TelemetryEventClientImpl) getHelmAppCount() int {
 }
 
 func (impl *TelemetryEventClientImpl) getDevtronAppCount() int {
+	if impl.appRepository == nil {
+		impl.logger.Warnw("appRepository not available for devtron app count")
+		return -1
+	}
 	devtronAppCount, err := impl.appRepository.FindDevtronAppCount()
 	if err != nil {
 		impl.logger.Errorw("error getting all apps for devtron app count", "err", err)
@@ -24,6 +32,10 @@ func (impl *TelemetryEventClientImpl) getDevtronAppCount() int {
 }
 
 func (impl *TelemetryEventClientImpl) getJobCount() int {
+	if impl.appRepository == nil {
+		impl.logger.Warnw("appRepository not available for job count")
+		return -1
+	}
 	jobCount, err := impl.appRepository.FindJobCount()
 	if err != nil {
 		impl.logger.Errorw("error getting all apps for job count", "err", err)
@@ -34,6 +46,11 @@ func (impl *TelemetryEventClientImpl) getJobCount() int {
 }
 
 func (impl *TelemetryEventClientImpl) getUserCreatedPluginCount() int {
+	if impl.pluginRepository == nil {
+		impl.logger.Warnw("pluginRepository not available for user created plugin count")
+		return -1
+	}
+
 	// Get all user-created plugins (SHARED type)
 	plugins, err := impl.pluginRepository.GetAllPluginMinDataByType(string(repository.PLUGIN_TYPE_SHARED))
 	if err != nil {
@@ -45,6 +62,11 @@ func (impl *TelemetryEventClientImpl) getUserCreatedPluginCount() int {
 }
 
 func (impl *TelemetryEventClientImpl) getPolicyCount() int {
+	if impl.cvePolicyRepository == nil {
+		impl.logger.Warnw("cvePolicyRepository not available for policy count")
+		return -1
+	}
+
 	// Get global policies
 	globalPolicies, err := impl.cvePolicyRepository.GetGlobalPolicies()
 	if err != nil {
@@ -79,6 +101,12 @@ func (impl *TelemetryEventClientImpl) getJobPipelineCount() int {
 }
 
 func (impl *TelemetryEventClientImpl) getJobPipelineTriggeredLast24h() int {
+	// Check if we have the required dependency
+	if impl.ciWorkflowRepository == nil {
+		impl.logger.Warnw("ciWorkflowRepository not available for job pipeline triggered count")
+		return -1
+	}
+
 	// Get build type and status data for the last 24 hours
 	buildTypeStatusData := impl.ciWorkflowRepository.FindBuildTypeAndStatusDataOfLast1Day()
 	if buildTypeStatusData == nil {
@@ -99,6 +127,12 @@ func (impl *TelemetryEventClientImpl) getJobPipelineTriggeredLast24h() int {
 }
 
 func (impl *TelemetryEventClientImpl) getJobPipelineSucceededLast24h() int {
+	// Check if we have the required dependency
+	if impl.ciWorkflowRepository == nil {
+		impl.logger.Warnw("ciWorkflowRepository not available for job pipeline succeeded count")
+		return -1
+	}
+
 	// Get build type and status data for the last 24 hours
 	buildTypeStatusData := impl.ciWorkflowRepository.FindBuildTypeAndStatusDataOfLast1Day()
 	if buildTypeStatusData == nil {
