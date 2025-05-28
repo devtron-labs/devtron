@@ -172,3 +172,54 @@ func (impl *TelemetryEventClientImpl) getActiveUsersLast30Days() int {
 	impl.logger.Debugw("counted active users in last 30 days", "count", count)
 	return count
 }
+
+func (impl *TelemetryEventClientImpl) getGitOpsPipelineCount() int {
+	// Check if we have the required dependency
+	if impl.cdWorkflowRepository == nil {
+		impl.logger.Warnw("cdWorkflowRepository not available for GitOps pipeline count")
+		return -1
+	}
+
+	var count int
+	query := `
+		SELECT COUNT(DISTINCT p.id)
+		FROM pipeline p
+		WHERE p.deleted = false AND p.deployment_app_type = 'argo_cd'
+	`
+
+	dbConnection := impl.cdWorkflowRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query)
+	if err != nil {
+		impl.logger.Errorw("error getting GitOps pipeline count", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted GitOps pipelines", "count", count)
+	return count
+}
+
+func (impl *TelemetryEventClientImpl) getNoGitOpsPipelineCount() int {
+	// Check if we have the required dependency
+	if impl.cdWorkflowRepository == nil {
+		impl.logger.Warnw("cdWorkflowRepository not available for No-GitOps pipeline count")
+		return -1
+	}
+
+	// Get the pipeline repository from cdWorkflowRepository connection
+	var count int
+	query := `
+		SELECT COUNT(DISTINCT p.id)
+		FROM pipeline p
+		WHERE p.deleted = false AND p.deployment_app_type = 'helm'
+	`
+
+	dbConnection := impl.cdWorkflowRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query)
+	if err != nil {
+		impl.logger.Errorw("error getting No-GitOps pipeline count", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted No-GitOps pipelines", "count", count)
+	return count
+}

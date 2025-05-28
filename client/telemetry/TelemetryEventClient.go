@@ -340,6 +340,8 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 	payload.AppliedPolicyRowCount = impl.getAppliedPolicyRowCount()
 	payload.PhysicalClusterCount, payload.IsolatedClusterCount = impl.getClusterCounts()
 	payload.ActiveUsersLast30Days = impl.getActiveUsersLast30Days()
+	payload.GitOpsPipelineCount = impl.getGitOpsPipelineCount()
+	payload.NoGitOpsPipelineCount = impl.getNoGitOpsPipelineCount()
 
 	payload.ClusterProvider, err = impl.GetCloudProvider()
 	if err != nil {
