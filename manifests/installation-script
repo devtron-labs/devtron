@@ -1,4 +1,4 @@
 LTAG="v1.6.0";
 REPO_RAW_URL="https://raw.githubusercontent.com/devtron-labs/devtron/";
-
+sleep(180);
 log("executed devtron setup installation");
