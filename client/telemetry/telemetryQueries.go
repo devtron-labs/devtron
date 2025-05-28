@@ -1,9 +1,6 @@
 package telemetry
 
-import (
-	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
-	"github.com/devtron-labs/devtron/pkg/plugin/repository"
-)
+// EA-mode compatible telemetry queries - no imports needed for current methods
 
 func (impl *TelemetryEventClientImpl) getHelmAppCount() int {
 	if impl.installedAppReadService == nil {
@@ -18,62 +15,7 @@ func (impl *TelemetryEventClientImpl) getHelmAppCount() int {
 	return count
 }
 
-func (impl *TelemetryEventClientImpl) getDevtronAppCount() int {
-	if impl.appRepository == nil {
-		impl.logger.Warnw("appRepository not available for devtron app count")
-		return -1
-	}
-	devtronAppCount, err := impl.appRepository.FindDevtronAppCount()
-	if err != nil {
-		impl.logger.Errorw("error getting all apps for devtron app count", "err", err)
-		return -1
-	}
-	return devtronAppCount
-}
-
-func (impl *TelemetryEventClientImpl) getJobCount() int {
-	if impl.appRepository == nil {
-		impl.logger.Warnw("appRepository not available for job count")
-		return -1
-	}
-	jobCount, err := impl.appRepository.FindJobCount()
-	if err != nil {
-		impl.logger.Errorw("error getting all apps for job count", "err", err)
-		return -1
-	}
-
-	return jobCount
-}
-
-func (impl *TelemetryEventClientImpl) getUserCreatedPluginCount() int {
-	if impl.pluginRepository == nil {
-		impl.logger.Warnw("pluginRepository not available for user created plugin count")
-		return -1
-	}
-
-	// Get all user-created plugins (SHARED type)
-	plugins, err := impl.pluginRepository.GetAllPluginMinDataByType(string(repository.PLUGIN_TYPE_SHARED))
-	if err != nil {
-		impl.logger.Errorw("error getting user created plugin count", "err", err)
-		return 0
-	}
-
-	return len(plugins)
-}
-
-func (impl *TelemetryEventClientImpl) getPolicyCount() int {
-	if impl.cvePolicyRepository == nil {
-		impl.logger.Warnw("cvePolicyRepository not available for policy count")
-		return -1
-	}
-
-	// Get global policies
-	globalPolicies, err := impl.cvePolicyRepository.GetGlobalPolicies()
-	if err != nil {
-		impl.logger.Errorw("error getting global CVE policies", "err", err)
-	}
-	return len(globalPolicies)
-}
+// EA-mode compatible telemetry methods
 
 func (impl *TelemetryEventClientImpl) getClusterCounts() (physicalCount int, isolatedCount int) {
 	clusters, err := impl.clusterService.FindAllActive()
@@ -96,66 +38,8 @@ func (impl *TelemetryEventClientImpl) getClusterCounts() (physicalCount int, iso
 	return physicalCount, isolatedCount
 }
 
-func (impl *TelemetryEventClientImpl) getJobPipelineCount() int {
-	return 0
-}
-
-func (impl *TelemetryEventClientImpl) getJobPipelineTriggeredLast24h() int {
-	// Check if we have the required dependency
-	if impl.ciWorkflowRepository == nil {
-		impl.logger.Warnw("ciWorkflowRepository not available for job pipeline triggered count")
-		return -1
-	}
-
-	// Get build type and status data for the last 24 hours
-	buildTypeStatusData := impl.ciWorkflowRepository.FindBuildTypeAndStatusDataOfLast1Day()
-	if buildTypeStatusData == nil {
-		impl.logger.Warnw("no build type status data available for last 24 hours")
-		return 0
-	}
-
-	// Count job pipeline triggers
-	// Job pipelines have build type "CI_JOB"
-	jobTriggeredCount := 0
-	for _, data := range buildTypeStatusData {
-		if data.Type == string(common.CI_JOB) {
-			jobTriggeredCount += data.Count
-		}
-	}
-
-	return jobTriggeredCount
-}
-
-func (impl *TelemetryEventClientImpl) getJobPipelineSucceededLast24h() int {
-	// Check if we have the required dependency
-	if impl.ciWorkflowRepository == nil {
-		impl.logger.Warnw("ciWorkflowRepository not available for job pipeline succeeded count")
-		return -1
-	}
-
-	// Get build type and status data for the last 24 hours
-	buildTypeStatusData := impl.ciWorkflowRepository.FindBuildTypeAndStatusDataOfLast1Day()
-	if buildTypeStatusData == nil {
-		impl.logger.Warnw("no build type status data available for last 24 hours")
-		return 0
-	}
-
-	// Count successful job pipeline runs
-	// Job pipelines have build type "CI_JOB"
-	successfulJobCount := 0
-	for _, data := range buildTypeStatusData {
-		if data.Type == "CI_JOB" && data.Status == "Succeeded" {
-			successfulJobCount += data.Count
-		}
-	}
-
-	impl.logger.Debugw("counted successful job pipeline runs in last 24h", "count", successfulJobCount)
-	return successfulJobCount
-}
-
-func (impl *TelemetryEventClientImpl) getAppliedPolicyRowCount() int {
-	return 0
-}
+// Note: FULL-mode specific methods like getDevtronAppCount, getJobCount, etc.
+// are now implemented in TelemetryEventClientImplExtended in telemetryQueriesExtended.go
 
 func (impl *TelemetryEventClientImpl) getActiveUsersLast30Days() int {
 	if impl.userAuditService == nil {
@@ -170,56 +54,5 @@ func (impl *TelemetryEventClientImpl) getActiveUsersLast30Days() int {
 	}
 
 	impl.logger.Debugw("counted active users in last 30 days", "count", count)
-	return count
-}
-
-func (impl *TelemetryEventClientImpl) getGitOpsPipelineCount() int {
-	// Check if we have the required dependency
-	if impl.cdWorkflowRepository == nil {
-		impl.logger.Warnw("cdWorkflowRepository not available for GitOps pipeline count")
-		return -1
-	}
-
-	var count int
-	query := `
-		SELECT COUNT(DISTINCT p.id)
-		FROM pipeline p
-		WHERE p.deleted = false AND p.deployment_app_type = 'argo_cd'
-	`
-
-	dbConnection := impl.cdWorkflowRepository.GetConnection()
-	_, err := dbConnection.Query(&count, query)
-	if err != nil {
-		impl.logger.Errorw("error getting GitOps pipeline count", "err", err)
-		return -1
-	}
-
-	impl.logger.Debugw("counted GitOps pipelines", "count", count)
-	return count
-}
-
-func (impl *TelemetryEventClientImpl) helmPipelineCount() int {
-	// Check if we have the required dependency
-	if impl.cdWorkflowRepository == nil {
-		impl.logger.Warnw("cdWorkflowRepository not available for No-GitOps pipeline count")
-		return -1
-	}
-
-	// Get the pipeline repository from cdWorkflowRepository connection
-	var count int
-	query := `
-		SELECT COUNT(DISTINCT p.id)
-		FROM pipeline p
-		WHERE p.deleted = false AND p.deployment_app_type = 'helm'
-	`
-
-	dbConnection := impl.cdWorkflowRepository.GetConnection()
-	_, err := dbConnection.Query(&count, query)
-	if err != nil {
-		impl.logger.Errorw("error getting No-GitOps pipeline count", "err", err)
-		return -1
-	}
-
-	impl.logger.Debugw("counted No-GitOps pipelines", "count", count)
 	return count
 }

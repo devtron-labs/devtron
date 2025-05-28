@@ -29,12 +29,8 @@ import (
 	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
 	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
-	authPolicyRepository "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	module2 "github.com/devtron-labs/devtron/pkg/module/bean"
-	pluginRepository "github.com/devtron-labs/devtron/pkg/plugin/repository"
-	cvePolicyRepository "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
-
 	ucidService "github.com/devtron-labs/devtron/pkg/ucid"
 	cron3 "github.com/devtron-labs/devtron/util/cron"
 	"go.opentelemetry.io/otel"
@@ -43,8 +39,6 @@ import (
 
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
-	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/auth/sso"
 	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -81,15 +75,6 @@ type TelemetryEventClientImpl struct {
 	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService
 	telemetryConfig                TelemetryConfig
 	globalEnvVariables             *util.GlobalEnvVariables
-	// Additional repositories for telemetry metrics (passed from TelemetryEventClientExtended)
-	appRepository        appRepository.AppRepository
-	ciWorkflowRepository pipelineConfig.CiWorkflowRepository
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
-	// Repositories for plugin and policy metrics
-	pluginRepository            pluginRepository.GlobalPluginRepository
-	cvePolicyRepository         cvePolicyRepository.CvePolicyRepository
-	defaultAuthPolicyRepository authPolicyRepository.DefaultAuthPolicyRepository
-	rbacPolicyRepository        authPolicyRepository.RbacPolicyDataRepository
 }
 
 type TelemetryEventClient interface {
@@ -135,7 +120,6 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		telemetryConfig:                TelemetryConfig{},
 		globalEnvVariables:             envVariables.GlobalEnvVariables,
 		userAttributesRepository:       userAttributesRepository,
-		// Note: appRepository, ciWorkflowRepository, cdWorkflowRepository will be set by TelemetryEventClientExtended
 	}
 
 	watcher.HeartbeatEventForTelemetry()
@@ -328,20 +312,22 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 	payload.HelmChartSuccessfulDeploymentCount = helmChartSuccessfulDeploymentCount
 	payload.ExternalHelmAppClusterCount = ExternalHelmAppClusterCount
 
-	// Collect new telemetry metrics
+	// Collect EA-mode compatible telemetry metrics
 	payload.HelmAppCount = impl.getHelmAppCount()
-	payload.DevtronAppCount = impl.getDevtronAppCount()
-	payload.JobCount = impl.getJobCount()
-	payload.JobPipelineCount = impl.getJobPipelineCount()
-	payload.JobPipelineTriggeredLast24h = impl.getJobPipelineTriggeredLast24h()
-	payload.JobPipelineSucceededLast24h = impl.getJobPipelineSucceededLast24h()
-	payload.UserCreatedPluginCount = impl.getUserCreatedPluginCount()
-	payload.PolicyCount = impl.getPolicyCount()
-	payload.AppliedPolicyRowCount = impl.getAppliedPolicyRowCount()
 	payload.PhysicalClusterCount, payload.IsolatedClusterCount = impl.getClusterCounts()
 	payload.ActiveUsersLast30Days = impl.getActiveUsersLast30Days()
-	payload.GitOpsPipelineCount = impl.getGitOpsPipelineCount()
-	payload.NoGitOpsPipelineCount = impl.helmPipelineCount()
+
+	// Set FULL-mode only metrics to 0 for EA mode
+	payload.DevtronAppCount = 0
+	payload.JobCount = 0
+	payload.JobPipelineCount = 0
+	payload.JobPipelineTriggeredLast24h = 0
+	payload.JobPipelineSucceededLast24h = 0
+	payload.UserCreatedPluginCount = 0
+	payload.PolicyCount = 0
+	payload.AppliedPolicyRowCount = 0
+	payload.GitOpsPipelineCount = 0
+	payload.NoGitOpsPipelineCount = 0
 
 	payload.ClusterProvider, err = impl.GetCloudProvider()
 	if err != nil {

@@ -71,6 +71,11 @@ type TelemetryEventClientImplExtended struct {
 	chartRepository               chartRepoRepository.ChartRepository
 	ciBuildConfigService          pipeline.CiBuildConfigService
 	gitOpsConfigReadService       config.GitOpsConfigReadService
+	// Additional repositories for FULL-mode telemetry metrics
+	pluginRepository            pluginRepository.GlobalPluginRepository
+	cvePolicyRepository         cvePolicyRepository.CvePolicyRepository
+	defaultAuthPolicyRepository authPolicyRepository.DefaultAuthPolicyRepository
+	rbacPolicyRepository        authPolicyRepository.RbacPolicyDataRepository
 	*TelemetryEventClientImpl
 }
 
@@ -113,6 +118,11 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 		chartRepository:               chartRepository,
 		ciBuildConfigService:          ciBuildConfigService,
 		gitOpsConfigReadService:       gitOpsConfigReadService,
+		// Initialize FULL-mode specific repositories
+		pluginRepository:            pluginRepository,
+		cvePolicyRepository:         cvePolicyRepository,
+		defaultAuthPolicyRepository: defaultAuthPolicyRepository,
+		rbacPolicyRepository:        rbacPolicyRepository,
 		TelemetryEventClientImpl: &TelemetryEventClientImpl{
 			cron:                           cron,
 			logger:                         logger,
@@ -134,15 +144,6 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 			cloudProviderIdentifierService: cloudProviderIdentifierService,
 			telemetryConfig:                TelemetryConfig{},
 			globalEnvVariables:             envVariables.GlobalEnvVariables,
-			// Pass existing repositories from TelemetryEventClientExtended to embedded TelemetryEventClientImpl
-			appRepository:        appRepository,
-			ciWorkflowRepository: ciWorkflowRepository,
-			cdWorkflowRepository: cdWorkflowRepository,
-			// Pass plugin and policy repositories for additional telemetry metrics
-			pluginRepository:            pluginRepository,
-			cvePolicyRepository:         cvePolicyRepository,
-			defaultAuthPolicyRepository: defaultAuthPolicyRepository,
-			rbacPolicyRepository:        rbacPolicyRepository,
 		},
 	}
 
