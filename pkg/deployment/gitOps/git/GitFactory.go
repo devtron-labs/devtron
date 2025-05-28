@@ -36,8 +36,6 @@ type GitFactory struct {
 	logger       *zap.SugaredLogger
 }
 
-type EmptyStruct struct{}
-
 func (factory *GitFactory) Reload(gitOpsConfigReadService config.GitOpsConfigReadService) (err error) {
 	start := time.Now()
 	defer func() {
