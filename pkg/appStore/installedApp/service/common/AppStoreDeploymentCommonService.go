@@ -210,8 +210,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetRequirementsString(appStoreAp
 	if appStoreAppVersion.AppStore.ChartRepo != nil {
 		dependency.Repository = appStoreAppVersion.AppStore.ChartRepo.Url
 	} else if appStoreAppVersion.AppStore.DockerArtifactStore != nil {
-		dependency.Repository = appStoreAppVersion.AppStore.DockerArtifactStore.RegistryURL
-		repositoryURL, repositoryName, err := sanitizeRepoNameAndURLForOCIRepo(dependency.Repository, dependency.Name)
+		repositoryURL, repositoryName, err := sanitizeRepoNameAndURLForOCIRepo(appStoreAppVersion.AppStore.DockerArtifactStore.RegistryURL, appStoreAppVersion.AppStore.Name)
 		if err != nil {
 			impl.logger.Errorw("error in getting sanitized repository name and url", "repositoryURL", repositoryURL, "repositoryName", repositoryName, "err", err)
 			return "", err
