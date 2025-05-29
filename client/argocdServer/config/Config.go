@@ -29,6 +29,7 @@ import (
 type ArgoCDConfigGetter interface {
 	GetGRPCConfig() (*bean.ArgoGRPCConfig, error)
 	GetK8sConfig() (*bean.ArgoK8sConfig, error)
+	GetK8sConfigWithClusterIdAndNamespace(clusterId int, namespace string) (*bean.ArgoK8sConfig, error)
 }
 
 type ArgoCDConfigGetterImpl struct {
@@ -70,7 +71,7 @@ func (impl *ArgoCDConfigGetterImpl) GetGRPCConfig() (*bean.ArgoGRPCConfig, error
 }
 
 func (impl *ArgoCDConfigGetterImpl) GetK8sConfig() (*bean.ArgoK8sConfig, error) {
-	clusterBean, err := impl.clusterReadService.FindOne(bean2.DEFAULT_CLUSTER)
+	clusterBean, err := impl.clusterReadService.FindOne(bean2.DefaultCluster)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster bean from db", "err", err)
 		return nil, err
@@ -85,6 +86,25 @@ func (impl *ArgoCDConfigGetterImpl) GetK8sConfig() (*bean.ArgoK8sConfig, error) 
 		RestConfig:       restConfig,
 		AcdNamespace:     impl.ACDAuthConfig.ACDConfigMapNamespace,
 		AcdConfigMapName: impl.ACDAuthConfig.ACDConfigMapName,
+	}
+	return k8sConfig, nil
+}
+
+func (impl *ArgoCDConfigGetterImpl) GetK8sConfigWithClusterIdAndNamespace(clusterId int, namespace string) (*bean.ArgoK8sConfig, error) {
+	clusterBean, err := impl.clusterReadService.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cluster bean from db", "err", err)
+		return nil, err
+	}
+	cfg := clusterBean.GetClusterConfig()
+	restConfig, err := impl.K8sService.GetRestConfigByCluster(cfg)
+	if err != nil {
+		impl.logger.Errorw("error in getting k8s config", "err", err)
+		return nil, err
+	}
+	k8sConfig := &bean.ArgoK8sConfig{
+		RestConfig:   restConfig,
+		AcdNamespace: namespace,
 	}
 	return k8sConfig, nil
 }

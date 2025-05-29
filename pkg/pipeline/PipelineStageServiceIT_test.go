@@ -32,6 +32,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables/models"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository4 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -669,7 +670,7 @@ func setupSuite(t *testing.T) func(t *testing.T) {
 		RunPostStageInEnv:    false,
 		DeploymentAppCreated: false,
 		DeploymentAppType:    "helm",
-		DeploymentAppName:    fmt.Sprintf("%s-%s", string(randomAppName), string(randomEnvName)),
+		DeploymentAppName:    util.BuildDeployedAppName(string(randomAppName), string(randomEnvName)),
 		AuditLog:             sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
 	err = pipelineRepoImpl.Save([]*pipelineConfig.Pipeline{pipeline}, tx)

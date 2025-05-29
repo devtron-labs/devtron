@@ -29,6 +29,7 @@ import (
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -90,6 +91,7 @@ type AppStoreDeploymentServiceImpl struct {
 	deletePostProcessor                  DeletePostProcessor
 	appStoreValidator                    AppStoreValidator
 	deploymentConfigService              common.DeploymentConfigService
+	OCIRegistryConfigRepository          repository2.OCIRegistryConfigRepository
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
@@ -109,7 +111,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
 	gitOpsConfigReadService config.GitOpsConfigReadService, deletePostProcessor DeletePostProcessor,
 	appStoreValidator AppStoreValidator,
 	deploymentConfigService common.DeploymentConfigService,
-) *AppStoreDeploymentServiceImpl {
+	OCIRegistryConfigRepository repository2.OCIRegistryConfigRepository) *AppStoreDeploymentServiceImpl {
 
 	return &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
@@ -130,6 +132,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
 		deletePostProcessor:                  deletePostProcessor,
 		appStoreValidator:                    appStoreValidator,
 		deploymentConfigService:              deploymentConfigService,
+		OCIRegistryConfigRepository:          OCIRegistryConfigRepository,
 	}
 }
 
@@ -592,14 +595,14 @@ func (impl *AppStoreDeploymentServiceImpl) updateInstalledApp(ctx context.Contex
 	installedAppDeploymentAction := adapter.NewInstalledAppDeploymentAction(deploymentConfig.DeploymentAppType)
 	// migrate installedApp.GitOpsRepoName to installedApp.GitOpsRepoUrl
 	if util.IsAcdApp(deploymentConfig.DeploymentAppType) &&
-		len(deploymentConfig.RepoURL) == 0 {
+		len(deploymentConfig.GetRepoURL()) == 0 {
 		gitRepoUrl, err := impl.fullModeDeploymentService.GetAcdAppGitOpsRepoURL(installedApp.App.AppName, installedApp.Environment.Name)
 		if err != nil {
 			impl.logger.Errorw("error in GitOps repository url migration", "err", err)
 			return nil, err
 		}
-		deploymentConfig.RepoURL = gitRepoUrl
-		installedApp.GitOpsRepoUrl = gitRepoUrl
+		deploymentConfig.SetRepoURL(gitRepoUrl)
+		//installedApp.GitOpsRepoUrl = gitRepoUrl
 		installedApp.GitOpsRepoName = impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(gitRepoUrl)
 	}
 	// migration ends
@@ -752,9 +755,9 @@ func (impl *AppStoreDeploymentServiceImpl) updateInstalledApp(ctx context.Contex
 	installedApp.UpdateStatus(appStoreBean.DEPLOY_SUCCESS)
 	installedApp.UpdateAuditLog(upgradeAppRequest.UserId)
 	if monoRepoMigrationRequired {
-		//if monorepo case is true then repoUrl is changed then also update repo url in database
+		//if mono repo case is true then repoUrl is changed then also update repo url in database
 		installedApp.UpdateGitOpsRepository(gitOpsResponse.ChartGitAttribute.RepoUrl, installedApp.IsCustomRepository)
-		deploymentConfig.RepoURL = gitOpsResponse.ChartGitAttribute.RepoUrl
+		deploymentConfig.SetRepoURL(gitOpsResponse.ChartGitAttribute.RepoUrl)
 	}
 	installedApp, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, tx)
 	if err != nil {
@@ -951,7 +954,49 @@ func (impl *AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(insta
 	}
 
 	// STEP-2 update APP with chart info
-	chartRepoInfo := appStoreAppVersion.AppStore.ChartRepo
+	//TODO: below code is duplicated
+	var IsOCIRepo bool
+	var registryCredential *bean4.RegistryCredential
+	var chartRepository *bean4.ChartRepository
+	dockerRegistryId := appStoreAppVersion.AppStore.DockerArtifactStoreId
+	if dockerRegistryId != "" {
+		ociRegistryConfigs, err := impl.OCIRegistryConfigRepository.FindByDockerRegistryId(dockerRegistryId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching oci registry config", "err", err)
+			return nil, err
+		}
+		var ociRegistryConfig *repository2.OCIRegistryConfig
+		for _, config := range ociRegistryConfigs {
+			if config.RepositoryAction == repository2.STORAGE_ACTION_TYPE_PULL || config.RepositoryAction == repository2.STORAGE_ACTION_TYPE_PULL_AND_PUSH {
+				ociRegistryConfig = config
+				break
+			}
+		}
+		IsOCIRepo = true
+		registryCredential = &bean4.RegistryCredential{
+			RegistryUrl:         appStoreAppVersion.AppStore.DockerArtifactStore.RegistryURL,
+			Username:            appStoreAppVersion.AppStore.DockerArtifactStore.Username,
+			Password:            appStoreAppVersion.AppStore.DockerArtifactStore.Password,
+			AwsRegion:           appStoreAppVersion.AppStore.DockerArtifactStore.AWSRegion,
+			AccessKey:           appStoreAppVersion.AppStore.DockerArtifactStore.AWSAccessKeyId,
+			SecretKey:           appStoreAppVersion.AppStore.DockerArtifactStore.AWSSecretAccessKey,
+			RegistryType:        string(appStoreAppVersion.AppStore.DockerArtifactStore.RegistryType),
+			RepoName:            appStoreAppVersion.AppStore.Name,
+			IsPublic:            ociRegistryConfig.IsPublic,
+			Connection:          appStoreAppVersion.AppStore.DockerArtifactStore.Connection,
+			RegistryName:        appStoreAppVersion.AppStore.DockerArtifactStore.Id,
+			RegistryCertificate: appStoreAppVersion.AppStore.DockerArtifactStore.Cert,
+		}
+	} else {
+		chartRepository = &bean4.ChartRepository{
+			Name:                    appStoreAppVersion.AppStore.ChartRepo.Name,
+			Url:                     appStoreAppVersion.AppStore.ChartRepo.Url,
+			Username:                appStoreAppVersion.AppStore.ChartRepo.UserName,
+			Password:                appStoreAppVersion.AppStore.ChartRepo.Password,
+			AllowInsecureConnection: appStoreAppVersion.AppStore.ChartRepo.AllowInsecureConnection,
+		}
+	}
+
 	updateReleaseRequest := &bean3.UpdateApplicationWithChartInfoRequestDto{
 		InstallReleaseRequest: &bean4.InstallReleaseRequest{
 			ValuesYaml:   installAppVersionRequest.ValuesOverrideYaml,
@@ -961,18 +1006,14 @@ func (impl *AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(insta
 				ReleaseNamespace: installAppVersionRequest.Namespace,
 				ReleaseName:      installAppVersionRequest.DisplayName,
 			},
+			RegistryCredential:         registryCredential,
+			ChartRepository:            chartRepository,
+			IsOCIRepo:                  IsOCIRepo,
+			InstallAppVersionHistoryId: 0,
 		},
 		SourceAppType: bean3.SOURCE_HELM_APP,
 	}
-	if chartRepoInfo != nil {
-		updateReleaseRequest.ChartRepository = &bean4.ChartRepository{
-			Name:                    chartRepoInfo.Name,
-			Url:                     chartRepoInfo.Url,
-			Username:                chartRepoInfo.UserName,
-			Password:                chartRepoInfo.Password,
-			AllowInsecureConnection: chartRepoInfo.AllowInsecureConnection,
-		}
-	}
+
 	res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installAppVersionRequest.ClusterId, updateReleaseRequest)
 	if err != nil {
 		return nil, err
@@ -998,11 +1039,11 @@ func (impl *AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(insta
 // checkIfMonoRepoMigrationRequired checks if gitOps repo name is changed
 func (impl *AppStoreDeploymentServiceImpl) checkIfMonoRepoMigrationRequired(installedApp *repository.InstalledApps, deploymentConfig *bean5.DeploymentConfig) bool {
 	monoRepoMigrationRequired := false
-	if !util.IsAcdApp(deploymentConfig.DeploymentAppType) || gitOps.IsGitOpsRepoNotConfigured(deploymentConfig.RepoURL) || deploymentConfig.ConfigType == bean5.CUSTOM.String() {
+	if !util.IsAcdApp(deploymentConfig.DeploymentAppType) || gitOps.IsGitOpsRepoNotConfigured(deploymentConfig.GetRepoURL()) || deploymentConfig.ConfigType == bean5.CUSTOM.String() {
 		return false
 	}
 	var err error
-	gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(deploymentConfig.RepoURL)
+	gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(deploymentConfig.GetRepoURL())
 	if len(gitOpsRepoName) == 0 {
 		gitOpsRepoName, err = impl.fullModeDeploymentService.GetAcdAppGitOpsRepoName(installedApp.App.AppName, installedApp.Environment.Name)
 		if err != nil || gitOpsRepoName == "" {
@@ -1017,62 +1058,6 @@ func (impl *AppStoreDeploymentServiceImpl) checkIfMonoRepoMigrationRequired(inst
 		monoRepoMigrationRequired = true
 	}
 	return monoRepoMigrationRequired
-}
-
-// handleGitOpsRepoUrlMigration will migrate git_ops_repo_name to git_ops_repo_url
-func (impl *AppStoreDeploymentServiceImpl) handleGitOpsRepoUrlMigration(tx *pg.Tx, installedApp *repository.InstalledApps, deploymentConfig *bean5.DeploymentConfig, userId int32) error {
-	var (
-		localTx *pg.Tx
-		err     error
-	)
-
-	if tx == nil {
-		dbConnection := impl.installedAppRepository.GetConnection()
-		localTx, err = dbConnection.Begin()
-		if err != nil {
-			return err
-		}
-		// Rollback tx on error.
-		defer localTx.Rollback()
-	}
-
-	gitRepoUrl, err := impl.fullModeDeploymentService.GetGitRepoUrl(installedApp.GitOpsRepoName)
-	if err != nil {
-		impl.logger.Errorw("error in GitOps repository url migration", "err", err)
-		return err
-	}
-	installedApp.GitOpsRepoUrl = gitRepoUrl
-	installedApp.UpdatedOn = time.Now()
-	installedApp.UpdatedBy = userId
-
-	var dbTx *pg.Tx
-	if localTx != nil {
-		dbTx = localTx
-	} else {
-		dbTx = tx
-	}
-
-	_, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, dbTx)
-	if err != nil {
-		impl.logger.Errorw("error in updating installed app model", "err", err)
-		return err
-	}
-
-	deploymentConfig.RepoURL = gitRepoUrl
-	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(dbTx, deploymentConfig, userId)
-	if err != nil {
-		impl.logger.Errorw("error in updating deployment config", "err", err)
-		return err
-	}
-
-	if localTx != nil {
-		err = localTx.Commit()
-		if err != nil {
-			impl.logger.Errorw("error while committing transaction to db", "error", err)
-			return err
-		}
-	}
-	return err
 }
 
 // getAppNameForInstalledApp will fetch and returns AppName from app table

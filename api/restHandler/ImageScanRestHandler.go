@@ -198,6 +198,7 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 		if err != nil {
 			impl.logger.Errorw("request err, FetchExecutionDetail", "err", err, "imageScanDeployInfoIdS", imageScanDeployInfoIdS)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
 		}
 	}
 	artifactIdS := v.Get("artifactId")
@@ -206,6 +207,7 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 		if err != nil {
 			impl.logger.Errorw("request err, FetchExecutionDetail", "err", err, "artifactIdS", artifactIdS)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
 		}
 	}
 	appIds := v.Get("appId")
@@ -214,6 +216,7 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 		if err != nil {
 			impl.logger.Errorw("request err, FetchExecutionDetail", "err", err, "appIds", appIds)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
 		}
 	}
 	envIds := v.Get("envId")
@@ -222,6 +225,7 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 		if err != nil {
 			impl.logger.Errorw("request err, FetchExecutionDetail", "err", err, "envIds", envIds)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
 		}
 	}
 	image := v.Get("image")
@@ -266,6 +270,7 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 			}
 		} else {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
 		}
 		//RBAC
 	} else {
@@ -285,6 +290,7 @@ func (impl ImageScanRestHandlerImpl) FetchMinScanResultByAppIdAndEnvId(w http.Re
 		if err != nil {
 			impl.logger.Errorw("request err, FetchMinScanResultByAppIdAndEnvId", "err", err, "appIds", appIds)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
 		}
 		request.AppId = appId
 	}
@@ -294,6 +300,7 @@ func (impl ImageScanRestHandlerImpl) FetchMinScanResultByAppIdAndEnvId(w http.Re
 		if err != nil {
 			impl.logger.Errorw("request err, FetchMinScanResultByAppIdAndEnvId", "err", err, "envIds", envIds)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
 		}
 		request.EnvId = envId
 	}

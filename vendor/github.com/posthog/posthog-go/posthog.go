@@ -8,11 +8,13 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 )
 
 const unimplementedError = "not implemented"
+const SIZE_DEFAULT = 50_000
 
 // This interface is the main API exposed by the posthog package.
 // Values that satsify this interface are returned by the client constructors
@@ -37,13 +39,31 @@ type Client interface {
 	Enqueue(Message) error
 	//
 	// Method returns if a feature flag is on for a given user based on their distinct ID
-	IsFeatureEnabled(string, string, bool) (bool, error)
+	IsFeatureEnabled(FeatureFlagPayload) (interface{}, error)
+	//
+	// Method returns variant value if multivariantflag or otherwise a boolean indicating
+	// if the given flag is on or off for the user
+	GetFeatureFlag(FeatureFlagPayload) (interface{}, error)
+	//
+	// Method returns feature flag payload value matching key for user (supports multivariate flags).
+	GetFeatureFlagPayload(FeatureFlagPayload) (string, error)
+	//
+	// Method returns decrypted feature flag payload value for remote config flags.
+	GetRemoteConfigPayload(string) (string, error)
+	//
+	// Get all flags - returns all flags for a user
+	GetAllFlags(FeatureFlagPayloadNoKey) (map[string]interface{}, error)
 	//
 	// Method forces a reload of feature flags
+	// NB: This is only available when using a PersonalApiKey
 	ReloadFeatureFlags() error
 	//
 	// Get feature flags - for testing only
+	// NB: This is only available when using a PersonalApiKey
 	GetFeatureFlags() ([]FeatureFlag, error)
+	//
+	// Get the last captured event
+	GetLastCapturedEvent() *Capture
 }
 
 type client struct {
@@ -69,6 +89,13 @@ type client struct {
 
 	// A background poller for fetching feature flags
 	featureFlagsPoller *FeatureFlagsPoller
+
+	distinctIdsFeatureFlagsReported *SizeLimitedMap
+
+	// Last captured event
+	lastCapturedEvent *Capture
+	// Mutex to protect last captured event
+	lastEventMutex sync.RWMutex
 }
 
 // Instantiate a new client that uses the write key passed as first argument to
@@ -91,16 +118,26 @@ func NewWithConfig(apiKey string, config Config) (cli Client, err error) {
 	}
 
 	c := &client{
-		Config:   makeConfig(config),
-		key:      apiKey,
-		msgs:     make(chan APIMessage, 100),
-		quit:     make(chan struct{}),
-		shutdown: make(chan struct{}),
-		http:     makeHttpClient(config.Transport),
+		Config:                          makeConfig(config),
+		key:                             apiKey,
+		msgs:                            make(chan APIMessage, 100),
+		quit:                            make(chan struct{}),
+		shutdown:                        make(chan struct{}),
+		http:                            makeHttpClient(config.Transport),
+		distinctIdsFeatureFlagsReported: newSizeLimitedMap(SIZE_DEFAULT),
 	}
 
 	if len(c.PersonalApiKey) > 0 {
-		c.featureFlagsPoller = newFeatureFlagsPoller(c.key, c.Config.PersonalApiKey, c.Errorf, c.Endpoint, c.http, c.DefaultFeatureFlagsPollingInterval)
+		c.featureFlagsPoller = newFeatureFlagsPoller(
+			c.key,
+			c.Config.PersonalApiKey,
+			c.Errorf,
+			c.Endpoint,
+			c.http,
+			c.DefaultFeatureFlagsPollingInterval,
+			c.NextFeatureFlagsPollingTick,
+			c.FeatureFlagRequestTimeout,
+		)
 	}
 
 	go c.loop()
@@ -127,6 +164,11 @@ func dereferenceMessage(msg Message) Message {
 		}
 		return *m
 	case *Identify:
+		if m == nil {
+			return nil
+		}
+		return *m
+	case *GroupIdentify:
 		if m == nil {
 			return nil
 		}
@@ -160,9 +202,42 @@ func (c *client) Enqueue(msg Message) (err error) {
 		m.Timestamp = makeTimestamp(m.Timestamp, ts)
 		msg = m
 
+	case GroupIdentify:
+		m.Timestamp = makeTimestamp(m.Timestamp, ts)
+		msg = m
+
 	case Capture:
 		m.Type = "capture"
 		m.Timestamp = makeTimestamp(m.Timestamp, ts)
+		if m.SendFeatureFlags {
+			// Add all feature variants to event
+			featureVariants, err := c.getFeatureVariants(m.DistinctId, m.Groups, NewProperties(), map[string]Properties{})
+			if err != nil {
+				c.Errorf("unable to get feature variants - %s", err)
+			}
+
+			if m.Properties == nil {
+				m.Properties = NewProperties()
+			}
+
+			for feature, variant := range featureVariants {
+				propKey := fmt.Sprintf("$feature/%s", feature)
+				m.Properties[propKey] = variant
+			}
+			// Add all feature flag keys to $active_feature_flags key
+			featureKeys := make([]string, len(featureVariants))
+			i := 0
+			for k := range featureVariants {
+				featureKeys[i] = k
+				i++
+			}
+			m.Properties["$active_feature_flags"] = featureKeys
+		}
+		if m.Properties == nil {
+			m.Properties = NewProperties()
+		}
+		m.Properties.Merge(c.DefaultEventProperties)
+		c.setLastCapturedEvent(m)
 		msg = m
 
 	default:
@@ -181,25 +256,44 @@ func (c *client) Enqueue(msg Message) (err error) {
 	}()
 
 	c.msgs <- msg.APIfy()
+
 	return
 }
 
-func (c *client) IsFeatureEnabled(flagKey string, distinctId string, defaultValue bool) (bool, error) {
-	if c.featureFlagsPoller == nil {
-		errorMessage := "specifying a PersonalApiKey is required for using feature flags"
-		c.Errorf(errorMessage)
-		return false, errors.New(errorMessage)
+func (c *client) setLastCapturedEvent(event Capture) {
+	c.lastEventMutex.Lock()
+	defer c.lastEventMutex.Unlock()
+	c.lastCapturedEvent = &event
+}
+
+func (c *client) GetLastCapturedEvent() *Capture {
+	c.lastEventMutex.RLock()
+	defer c.lastEventMutex.RUnlock()
+	if c.lastCapturedEvent == nil {
+		return nil
 	}
-	isEnabled, err := c.featureFlagsPoller.IsFeatureEnabled(flagKey, distinctId, defaultValue)
-	c.Enqueue(Capture{
-		DistinctId: distinctId,
-		Event:      "$feature_flag_called",
-		Properties: NewProperties().
-			Set("$feature_flag", flagKey).
-			Set("$feature_flag_response", isEnabled).
-			Set("$feature_flag_errored", err != nil),
-	})
-	return isEnabled, err
+	// Return a copy to avoid data races
+	eventCopy := *c.lastCapturedEvent
+	return &eventCopy
+}
+
+func (c *client) IsFeatureEnabled(flagConfig FeatureFlagPayload) (interface{}, error) {
+	if err := flagConfig.validate(); err != nil {
+		return false, err
+	}
+
+	result, err := c.GetFeatureFlag(flagConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	if result == "false" {
+		result = false
+	} else if result == "true" {
+		result = true
+	}
+
+	return result, nil
 }
 
 func (c *client) ReloadFeatureFlags() error {
@@ -212,13 +306,94 @@ func (c *client) ReloadFeatureFlags() error {
 	return nil
 }
 
+func (c *client) GetFeatureFlagPayload(flagConfig FeatureFlagPayload) (string, error) {
+	if err := flagConfig.validate(); err != nil {
+		return "", err
+	}
+
+	var payload string
+	var err error
+
+	if c.featureFlagsPoller != nil {
+		// get feature flag from the poller, which uses the personal api key
+		// this is only available when using a PersonalApiKey
+		payload, err = c.featureFlagsPoller.GetFeatureFlagPayload(flagConfig)
+	} else {
+		// if there's no poller, get the feature flag from the decide endpoint
+		c.debugf("getting feature flag from decide endpoint")
+		payload, err = c.getFeatureFlagPayloadFromDecide(flagConfig.Key, flagConfig.DistinctId, flagConfig.Groups, flagConfig.PersonProperties, flagConfig.GroupProperties)
+	}
+
+	return payload, err
+}
+
+func (c *client) GetFeatureFlag(flagConfig FeatureFlagPayload) (interface{}, error) {
+	if err := flagConfig.validate(); err != nil {
+		return false, err
+	}
+
+	var flagValue interface{}
+	var err error
+
+	if c.featureFlagsPoller != nil {
+		// get feature flag from the poller, which uses the personal api key
+		// this is only available when using a PersonalApiKey
+		flagValue, err = c.featureFlagsPoller.GetFeatureFlag(flagConfig)
+	} else {
+		// if there's no poller, get the feature flag from the decide endpoint
+		c.debugf("getting feature flag from decide endpoint")
+		flagValue, err = c.getFeatureFlagFromDecide(flagConfig.Key, flagConfig.DistinctId, flagConfig.Groups, flagConfig.PersonProperties, flagConfig.GroupProperties)
+	}
+
+	if *flagConfig.SendFeatureFlagEvents && !c.distinctIdsFeatureFlagsReported.contains(flagConfig.DistinctId, flagConfig.Key) {
+		c.Enqueue(Capture{
+			DistinctId: flagConfig.DistinctId,
+			Event:      "$feature_flag_called",
+			Properties: NewProperties().
+				Set("$feature_flag", flagConfig.Key).
+				Set("$feature_flag_response", flagValue).
+				Set("$feature_flag_errored", err != nil),
+			Groups: flagConfig.Groups,
+		})
+		c.distinctIdsFeatureFlagsReported.add(flagConfig.DistinctId, flagConfig.Key)
+	}
+
+	return flagValue, err
+}
+
+func (c *client) GetRemoteConfigPayload(flagKey string) (string, error) {
+	return c.makeRemoteConfigRequest(flagKey)
+}
+
 func (c *client) GetFeatureFlags() ([]FeatureFlag, error) {
 	if c.featureFlagsPoller == nil {
 		errorMessage := "specifying a PersonalApiKey is required for using feature flags"
 		c.Errorf(errorMessage)
 		return nil, errors.New(errorMessage)
 	}
-	return c.featureFlagsPoller.GetFeatureFlags(), nil
+	return c.featureFlagsPoller.GetFeatureFlags()
+}
+
+func (c *client) GetAllFlags(flagConfig FeatureFlagPayloadNoKey) (map[string]interface{}, error) {
+
+	if err := flagConfig.validate(); err != nil {
+		return nil, err
+	}
+
+	var flagsValue map[string]interface{}
+	var err error
+
+	if c.featureFlagsPoller != nil {
+		// get feature flags from the poller, which uses the personal api key
+		// this is only available when using a PersonalApiKey
+		flagsValue, err = c.featureFlagsPoller.GetAllFlags(flagConfig)
+	} else {
+		// if there's no poller, get the feature flags from the decide endpoint
+		c.debugf("getting all feature flags from decide endpoint")
+		flagsValue, err = c.getAllFeatureFlagsFromDecide(flagConfig.DistinctId, flagConfig.Groups, flagConfig.PersonProperties, flagConfig.GroupProperties)
+	}
+
+	return flagsValue, err
 }
 
 // Close and flush metrics.
@@ -235,7 +410,7 @@ func (c *client) Close() (err error) {
 	return
 }
 
-// Asychronously send a batched requests.
+// Asynchronously send a batched requests.
 func (c *client) sendAsync(msgs []message, wg *sync.WaitGroup, ex *executor) {
 	wg.Add(1)
 
@@ -262,8 +437,9 @@ func (c *client) send(msgs []message) {
 	const attempts = 10
 
 	b, err := json.Marshal(batch{
-		ApiKey:   c.key,
-		Messages: msgs,
+		ApiKey:              c.key,
+		HistoricalMigration: c.HistoricalMigration,
+		Messages:            msgs,
 	})
 
 	if err != nil {
@@ -303,7 +479,7 @@ func (c *client) upload(b []byte) error {
 
 	version := getVersion()
 
-	req.Header.Add("User-Agent", "posthog-go (version: "+version+")")
+	req.Header.Add("User-Agent", SdkName+"/"+version)
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Content-Length", fmt.Sprintf("%d", len(b)))
 
@@ -442,4 +618,168 @@ func (c *client) notifyFailure(msgs []message, err error) {
 			c.Callback.Failure(m.msg, err)
 		}
 	}
+}
+
+func (c *client) getFeatureVariants(distinctId string, groups Groups, personProperties Properties, groupProperties map[string]Properties) (map[string]interface{}, error) {
+	if c.featureFlagsPoller == nil {
+		errorMessage := "specifying a PersonalApiKey is required for using feature flags"
+		c.Errorf(errorMessage)
+		return nil, errors.New(errorMessage)
+	}
+
+	featureVariants, err := c.featureFlagsPoller.getFeatureFlagVariants(distinctId, groups, personProperties, groupProperties)
+	if err != nil {
+		return nil, err
+	}
+	return featureVariants.FeatureFlags, nil
+}
+
+func (c *client) makeDecideRequest(distinctId string, groups Groups, personProperties Properties, groupProperties map[string]Properties) (*DecideResponse, error) {
+	requestData := DecideRequestData{
+		ApiKey:           c.key,
+		DistinctId:       distinctId,
+		Groups:           groups,
+		PersonProperties: personProperties,
+		GroupProperties:  groupProperties,
+	}
+
+	requestDataBytes, err := json.Marshal(requestData)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal decide endpoint request data: %v", err)
+	}
+
+	decideEndpoint := "decide/?v=3"
+	url, err := url.Parse(c.Endpoint + "/" + decideEndpoint)
+	if err != nil {
+		return nil, fmt.Errorf("creating url: %v", err)
+	}
+
+	req, err := http.NewRequest("POST", url.String(), bytes.NewReader(requestDataBytes))
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "posthog-go/"+Version)
+
+	res, err := c.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("sending request: %v", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code from /decide/: %d", res.StatusCode)
+	}
+
+	resBody, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading response from /decide/: %v", err)
+	}
+
+	var decideResponse DecideResponse
+	err = json.Unmarshal(resBody, &decideResponse)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing response from /decide/: %v", err)
+	}
+
+	return &decideResponse, nil
+}
+
+func (c *client) makeRemoteConfigRequest(flagKey string) (string, error) {
+	remoteConfigEndpoint := fmt.Sprintf("api/projects/@current/feature_flags/%s/remote_config/", flagKey)
+	url, err := url.Parse(c.Endpoint + "/" + remoteConfigEndpoint)
+	if err != nil {
+		return "", fmt.Errorf("creating url: %v", err)
+	}
+
+	req, err := http.NewRequest("GET", url.String(), nil)
+	if err != nil {
+		return "", fmt.Errorf("creating request: %v", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+c.PersonalApiKey)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "posthog-go/"+Version)
+
+	res, err := c.http.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("sending request: %v", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("unexpected status code from %s: %d", remoteConfigEndpoint, res.StatusCode)
+	}
+
+	resBody, err := io.ReadAll(res.Body)
+	if err != nil {
+		return "", fmt.Errorf("error reading response from /remote_config/: %v", err)
+	}
+
+	var responseData string
+	if err := json.Unmarshal(resBody, &responseData); err != nil {
+		return "", fmt.Errorf("error parsing JSON response from /remote_config/: %v", err)
+	}
+	return responseData, nil
+}
+
+// isFeatureFlagsQuotaLimited checks if feature flags are quota limited in the decide response
+func (c *client) isFeatureFlagsQuotaLimited(decideResponse *DecideResponse) bool {
+	if decideResponse.QuotaLimited != nil {
+		for _, limitedFeature := range *decideResponse.QuotaLimited {
+			if limitedFeature == "feature_flags" {
+				c.Errorf("[FEATURE FLAGS] PostHog feature flags quota limited. Learn more about billing limits at https://posthog.com/docs/billing/limits-alerts")
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (c *client) getFeatureFlagFromDecide(key string, distinctId string, groups Groups, personProperties Properties, groupProperties map[string]Properties) (interface{}, error) {
+	decideResponse, err := c.makeDecideRequest(distinctId, groups, personProperties, groupProperties)
+	if err != nil {
+		return nil, err
+	}
+
+	if c.isFeatureFlagsQuotaLimited(decideResponse) {
+		return false, nil
+	}
+
+	if value, ok := decideResponse.FeatureFlags[key]; ok {
+		return value, nil
+	}
+
+	return false, nil
+}
+
+func (c *client) getFeatureFlagPayloadFromDecide(key string, distinctId string, groups Groups, personProperties Properties, groupProperties map[string]Properties) (string, error) {
+	decideResponse, err := c.makeDecideRequest(distinctId, groups, personProperties, groupProperties)
+	if err != nil {
+		return "", err
+	}
+
+	if c.isFeatureFlagsQuotaLimited(decideResponse) {
+		return "", nil
+	}
+
+	if value, ok := decideResponse.FeatureFlagPayloads[key]; ok {
+		return value, nil
+	}
+
+	return "", nil
+}
+
+func (c *client) getAllFeatureFlagsFromDecide(distinctId string, groups Groups, personProperties Properties, groupProperties map[string]Properties) (map[string]interface{}, error) {
+	decideResponse, err := c.makeDecideRequest(distinctId, groups, personProperties, groupProperties)
+	if err != nil {
+		return nil, err
+	}
+
+	if c.isFeatureFlagsQuotaLimited(decideResponse) {
+		return map[string]interface{}{}, nil
+	}
+
+	return decideResponse.FeatureFlags, nil
 }

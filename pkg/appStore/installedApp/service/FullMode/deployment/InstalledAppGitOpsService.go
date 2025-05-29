@@ -18,10 +18,8 @@ package deployment
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
@@ -30,7 +28,7 @@ import (
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	validationBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation/bean"
-	util2 "github.com/devtron-labs/devtron/util"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/google/go-github/github"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/xanzy/go-gitlab"
@@ -53,8 +51,7 @@ type InstalledAppGitOpsService interface {
 	// git.GitOperationService.CommitValues (If repo exists and Repo migration is not needed)
 	// functions to perform GitOps during upgrade deployments (GitOps based Helm Apps)
 	UpdateAppGitOpsOperations(manifest *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, monoRepoMigrationRequired bool, commitRequirements bool) (*bean.AppStoreGitOpsResponse, error)
-	ValidateCustomGitRepoURL(request validationBean.ValidateCustomGitRepoURLRequest) (string, bool, error)
-	GetGitRepoUrl(gitOpsRepoName string) (string, error)
+	ValidateCustomGitOpsConfig(request validationBean.ValidateGitOpsRepoRequest) (string, bool, error)
 	CreateArgoRepoSecretIfNeeded(appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error
 }
 
@@ -138,7 +135,8 @@ func (impl *FullModeDeploymentServiceImpl) UpdateAppGitOpsOperations(manifest *b
 		noTargetFoundForRequirements, _ := impl.parseGitRepoErrorResponse(requirementsCommitErr)
 		if noTargetFoundForRequirements || noTargetFoundForValues {
 			//create repo again and try again  -  auto fix
-			_, _, err := impl.createGitOpsRepo(impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(installAppVersionRequest.GitOpsRepoURL), installAppVersionRequest.UserId)
+			_, _, err := impl.createGitOpsRepo(impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(installAppVersionRequest.GitOpsRepoURL),
+				installAppVersionRequest.GetTargetRevision(), installAppVersionRequest.UserId)
 			if err != nil {
 				impl.Logger.Errorw("error in creating GitOps repo for valuesCommitErr or requirementsCommitErr", "gitRepoUrl", installAppVersionRequest.GitOpsRepoURL)
 				return nil, err
@@ -149,7 +147,11 @@ func (impl *FullModeDeploymentServiceImpl) UpdateAppGitOpsOperations(manifest *b
 		return nil, fmt.Errorf("error in committing values and requirements to git repository")
 	}
 	gitOpsResponse.GitHash = gitHash
-	gitOpsResponse.ChartGitAttribute = &commonBean.ChartGitAttribute{RepoUrl: installAppVersionRequest.GitOpsRepoURL, ChartLocation: installAppVersionRequest.ACDAppName}
+	gitOpsResponse.ChartGitAttribute = &commonBean.ChartGitAttribute{
+		RepoUrl:        installAppVersionRequest.GitOpsRepoURL,
+		TargetRevision: installAppVersionRequest.GetTargetRevision(),
+		ChartLocation:  installAppVersionRequest.ACDAppName,
+	}
 	return gitOpsResponse, nil
 }
 
@@ -199,12 +201,12 @@ func (impl *FullModeDeploymentServiceImpl) createGitOpsRepoAndPushChart(installA
 			return nil, "", fmt.Errorf("Invalid request! Git repository URL is not found for installed app '%s'", installAppVersionRequest.AppName)
 		}
 		gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(installAppVersionRequest.AppName)
-		gitopsRepoURL, isNew, err := impl.createGitOpsRepo(gitOpsRepoName, installAppVersionRequest.UserId)
+		gitOpsRepoURL, isNew, err := impl.createGitOpsRepo(gitOpsRepoName, installAppVersionRequest.GetTargetRevision(), installAppVersionRequest.UserId)
 		if err != nil {
 			impl.Logger.Errorw("Error in creating gitops repo for ", "appName", installAppVersionRequest.AppName, "err", err)
 			return nil, "", err
 		}
-		installAppVersionRequest.GitOpsRepoURL = gitopsRepoURL
+		installAppVersionRequest.GitOpsRepoURL = gitOpsRepoURL
 		installAppVersionRequest.IsCustomRepository = false
 		installAppVersionRequest.IsNewGitOpsRepo = isNew
 
@@ -219,7 +221,7 @@ func (impl *FullModeDeploymentServiceImpl) createGitOpsRepoAndPushChart(installA
 }
 
 // createGitOpsRepo creates a gitOps repo with readme
-func (impl *FullModeDeploymentServiceImpl) createGitOpsRepo(gitOpsRepoName string, userId int32) (string, bool, error) {
+func (impl *FullModeDeploymentServiceImpl) createGitOpsRepo(gitOpsRepoName string, targetRevision string, userId int32) (string, bool, error) {
 	bitbucketMetadata, err := impl.gitOpsConfigReadService.GetBitbucketMetadata()
 	if err != nil {
 		impl.Logger.Errorw("error in getting bitbucket metadata", "err", err)
@@ -228,60 +230,17 @@ func (impl *FullModeDeploymentServiceImpl) createGitOpsRepo(gitOpsRepoName strin
 	//getting user name & emailId for commit author data
 	gitRepoRequest := &bean2.GitOpsConfigDto{
 		GitRepoName:          gitOpsRepoName,
+		TargetRevision:       targetRevision,
 		Description:          "helm chart for " + gitOpsRepoName,
 		BitBucketWorkspaceId: bitbucketMetadata.BitBucketWorkspaceId,
 		BitBucketProjectKey:  bitbucketMetadata.BitBucketProjectKey,
 	}
-	repoUrl, isNew, err := impl.gitOperationService.CreateRepository(context.Background(), gitRepoRequest, userId)
+	repoUrl, isNew, _, err := impl.gitOperationService.CreateRepository(context.Background(), gitRepoRequest, userId)
 	if err != nil {
 		impl.Logger.Errorw("error in creating git project", "name", gitOpsRepoName, "err", err)
 		return "", false, err
 	}
 	return repoUrl, isNew, err
-}
-
-func (impl *FullModeDeploymentServiceImpl) updateValuesYamlInGit(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
-	valuesString, err := impl.appStoreDeploymentCommonService.GetValuesString(installAppVersionRequest.AppStoreName, installAppVersionRequest.ValuesOverrideYaml)
-	if err != nil {
-		impl.Logger.Errorw("error in getting values string", "err", err)
-		return nil, err
-	}
-
-	valuesGitConfig, err := impl.getGitCommitConfig(installAppVersionRequest, valuesString, appStoreBean.VALUES_YAML_FILE)
-	if err != nil {
-		impl.Logger.Errorw("error in getting git commit config", "err", err)
-	}
-
-	commitHash, _, err := impl.gitOperationService.CommitValues(context.Background(), valuesGitConfig)
-	if err != nil {
-		impl.Logger.Errorw("error in git commit", "err", err)
-		return installAppVersionRequest, errors.New(timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString())
-	}
-	//update timeline status for git commit state
-	installAppVersionRequest.GitHash = commitHash
-	return installAppVersionRequest, nil
-}
-
-func (impl *FullModeDeploymentServiceImpl) updateRequirementYamlInGit(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error {
-	requirementsString, err := impl.appStoreDeploymentCommonService.GetRequirementsString(appStoreAppVersion)
-	if err != nil {
-		impl.Logger.Errorw("error in getting requirements string", "err", err)
-		return err
-	}
-
-	requirementsGitConfig, err := impl.getGitCommitConfig(installAppVersionRequest, requirementsString, appStoreBean.REQUIREMENTS_YAML_FILE)
-	if err != nil {
-		impl.Logger.Errorw("error in getting git commit config", "err", err)
-		return err
-	}
-
-	_, _, err = impl.gitOperationService.CommitValues(context.Background(), requirementsGitConfig)
-	if err != nil {
-		impl.Logger.Errorw("error in values commit", "err", err)
-		return errors.New(timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString())
-	}
-
-	return nil
 }
 
 // createChartProxyAndGetPath parse chart in local directory and returns path of local dir and values.yaml
@@ -309,7 +268,7 @@ func (impl *FullModeDeploymentServiceImpl) getGitCommitConfig(installAppVersionR
 		return nil, err
 	}
 
-	argocdAppName := util2.BuildDeployedAppName(installAppVersionRequest.AppName, environment.Name)
+	argoCdAppName := globalUtil.BuildDeployedAppName(installAppVersionRequest.AppName, environment.Name)
 	if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) &&
 		len(installAppVersionRequest.GitOpsRepoURL) == 0 &&
 		installAppVersionRequest.InstalledAppId != 0 {
@@ -332,7 +291,8 @@ func (impl *FullModeDeploymentServiceImpl) getGitCommitConfig(installAppVersionR
 			return nil, apiErr
 		}
 		//installAppVersionRequest.GitOpsRepoURL = InstalledApp.GitOpsRepoUrl
-		installAppVersionRequest.GitOpsRepoURL = deploymentConfig.RepoURL
+		installAppVersionRequest.GitOpsRepoURL = deploymentConfig.GetRepoURL()
+		installAppVersionRequest.TargetRevision = deploymentConfig.GetTargetRevision()
 	}
 	gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(installAppVersionRequest.GitOpsRepoURL)
 	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(installAppVersionRequest.UserId)
@@ -340,8 +300,9 @@ func (impl *FullModeDeploymentServiceImpl) getGitCommitConfig(installAppVersionR
 		FileName:       filename,
 		FileContent:    fileString,
 		ChartName:      installAppVersionRequest.AppName,
-		ChartLocation:  argocdAppName,
+		ChartLocation:  argoCdAppName,
 		ChartRepoName:  gitOpsRepoName,
+		TargetRevision: installAppVersionRequest.GetTargetRevision(),
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
 		UserEmailId:    userEmailId,
 		UserName:       userName,
@@ -363,7 +324,7 @@ func (impl *FullModeDeploymentServiceImpl) getValuesAndRequirementForGitConfig(i
 		}
 
 	}
-	values, err := impl.appStoreDeploymentCommonService.GetValuesString(appStoreAppVersion.AppStore.Name, installAppVersionRequest.ValuesOverrideYaml)
+	values, err := impl.appStoreDeploymentCommonService.GetValuesString(appStoreAppVersion, installAppVersionRequest.ValuesOverrideYaml)
 	if err != nil {
 		impl.Logger.Errorw("error in getting values fot installedAppVersionRequest", "err", err)
 		return nil, nil, err
@@ -386,12 +347,9 @@ func (impl *FullModeDeploymentServiceImpl) getValuesAndRequirementForGitConfig(i
 	return valuesConfig, RequirementConfig, nil
 }
 
-func (impl *FullModeDeploymentServiceImpl) ValidateCustomGitRepoURL(request validationBean.ValidateCustomGitRepoURLRequest) (string, bool, error) {
-	return impl.gitOpsValidationService.ValidateCustomGitRepoURL(request)
-}
-
-func (impl *FullModeDeploymentServiceImpl) GetGitRepoUrl(gitOpsRepoName string) (string, error) {
-	return impl.gitOperationService.GetRepoUrlByRepoName(gitOpsRepoName)
+func (impl *FullModeDeploymentServiceImpl) ValidateCustomGitOpsConfig(request validationBean.ValidateGitOpsRepoRequest) (string, bool, error) {
+	request.TargetRevision = globalUtil.GetDefaultTargetRevision()
+	return impl.gitOpsValidationService.ValidateCustomGitOpsConfig(request)
 }
 
 func (impl *FullModeDeploymentServiceImpl) CreateArgoRepoSecretIfNeeded(appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error {

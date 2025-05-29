@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	bean "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	mock "github.com/stretchr/testify/mock"
 

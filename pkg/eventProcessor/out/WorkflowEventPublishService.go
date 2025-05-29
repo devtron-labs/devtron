@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	appBean "github.com/devtron-labs/devtron/pkg/app/bean"
 	"github.com/devtron-labs/devtron/pkg/app/status"
+	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/celEvaluator"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
@@ -40,7 +41,7 @@ import (
 )
 
 type WorkflowEventPublishService interface {
-	TriggerBulkHibernateAsync(request bean.StopDeploymentGroupRequest) (interface{}, error)
+	TriggerBulkHibernateAsync(request bean.StopDeploymentGroupRequest, userMetadata *bean2.UserMetadata) (interface{}, error)
 	TriggerAsyncRelease(userDeploymentRequestId int, overrideRequest *apiBean.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, ctx context.Context, triggeredBy int32) (releaseNo int, manifestPushTemplate *appBean.ManifestPushTemplate, err error)
 	TriggerBulkDeploymentAsync(requests []*bean.BulkTriggerRequest, UserId int32) (interface{}, error)
 }
@@ -86,7 +87,7 @@ func NewWorkflowEventPublishServiceImpl(logger *zap.SugaredLogger,
 	return impl, nil
 }
 
-func (impl *WorkflowEventPublishServiceImpl) TriggerBulkHibernateAsync(request bean.StopDeploymentGroupRequest) (interface{}, error) {
+func (impl *WorkflowEventPublishServiceImpl) TriggerBulkHibernateAsync(request bean.StopDeploymentGroupRequest, userMetadata *bean2.UserMetadata) (interface{}, error) {
 	dg, err := impl.groupRepository.FindByIdWithApp(request.DeploymentGroupId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching dg", "err", err)
@@ -101,6 +102,7 @@ func (impl *WorkflowEventPublishServiceImpl) TriggerBulkHibernateAsync(request b
 			Active:            dg.Active,
 			UserId:            request.UserId,
 			RequestType:       request.RequestType,
+			UserMetadata:      userMetadata,
 		}
 
 		data, err := json.Marshal(deploymentGroupAppWithEnv)

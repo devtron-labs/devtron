@@ -47,6 +47,7 @@ const (
 )
 
 const (
+	PIPELINE_RELEASE_MODE_LINK   = "link"
 	PIPELINE_RELEASE_MODE_CREATE = "create"
 )
 
@@ -62,7 +63,7 @@ type ChartCreateResponse struct {
 }
 
 type ChartTemplateService interface {
-	FetchValuesFromReferenceChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string, userId int32, pipelineStrategyPath string) (*ChartValues, error)
+	FetchValuesFromReferenceChart(chartMetaData *chart.Metadata, refChartLocation string, pipelineStrategyPath string) (*ChartValues, error)
 	GetChartVersion(location string) (string, error)
 	BuildChart(ctx context.Context, chartMetaData *chart.Metadata, referenceTemplatePath string) (string, error)
 	BuildChartProxyForHelmApps(chartCreateRequest *ChartCreateRequest) (chartCreateResponse *ChartCreateResponse, err error)
@@ -115,7 +116,7 @@ func (impl ChartTemplateServiceImpl) GetChartVersion(location string) (string, e
 	return chartContent.Version, nil
 }
 
-func (impl ChartTemplateServiceImpl) FetchValuesFromReferenceChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string, userId int32, pipelineStrategyPath string) (*ChartValues, error) {
+func (impl ChartTemplateServiceImpl) FetchValuesFromReferenceChart(chartMetaData *chart.Metadata, refChartLocation string, pipelineStrategyPath string) (*ChartValues, error) {
 	chartMetaData.APIVersion = "v1" // ensure always v1
 	dir := impl.GetDir()
 	chartDir := filepath.Join(CHART_WORKING_DIR_PATH, dir)

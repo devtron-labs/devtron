@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 )
 
 type EnvironmentProperties struct {
@@ -41,6 +42,8 @@ type EnvironmentProperties struct {
 	Description       string                      `json:"description" validate:"max=40"`
 	ClusterId         int                         `json:"clusterId"`
 	MergeStrategy     models.MergeStrategy        `json:"mergeStrategy"`
+	MigratedFrom      *bean.ExternalReleaseType   `json:"migratedFrom,omitempty"`
+	AppId             int                         `json:"appId"`
 }
 
 type EnvironmentOverrideCreateInternalDTO struct {
@@ -65,4 +68,10 @@ type EnvironmentPropertiesResponse struct {
 	Namespace         string                `json:"namespace" validate:"name-space-component"`
 	Schema            json.RawMessage       `json:"schema"`
 	Readme            string                `json:"readme"`
+}
+
+type DeploymentConfigMetadata struct {
+	AppId        int
+	EnvId        int
+	ResourceName string // if base then BaseDeploymentTemplate or if at env level{envName-DeploymentTemplateOverride}
 }

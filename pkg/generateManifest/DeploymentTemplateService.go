@@ -21,9 +21,8 @@ import (
 	"fmt"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/utils/k8s"
-	"github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
-	read2 "github.com/devtron-labs/devtron/api/helm-app/service/read"
+	read3 "github.com/devtron-labs/devtron/api/helm-app/service/read"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -32,8 +31,11 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	read2 "github.com/devtron-labs/devtron/pkg/chart/read"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	cdConfigRead "github.com/devtron-labs/devtron/pkg/deployment/common/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
@@ -67,12 +69,14 @@ type DeploymentTemplateService interface {
 	GetDeploymentTemplateWithResolvedData(ctx context.Context, request DeploymentTemplateRequest) (DeploymentTemplateResponse, error)
 	ResolveTemplateVariables(ctx context.Context, values string, request DeploymentTemplateRequest) (string, map[string]string, error)
 }
+
 type DeploymentTemplateServiceImpl struct {
 	Logger                               *zap.SugaredLogger
 	chartService                         chart.ChartService
+	chartReadService                     read2.ChartReadService
 	appListingService                    app.AppListingService
 	deploymentTemplateRepository         repository.DeploymentTemplateRepository
-	helmAppReadService                   read2.HelmAppReadService
+	helmAppReadService                   read3.HelmAppReadService
 	chartTemplateServiceImpl             util.ChartTemplateService
 	K8sUtil                              *k8s.K8sServiceImpl
 	helmAppClient                        gRPC.HelmAppClient
@@ -87,6 +91,7 @@ type DeploymentTemplateServiceImpl struct {
 	restartWorkloadConfig                *RestartWorkloadConfig
 	mergeUtil                            *util.MergeUtil
 	deploymentTemplateHistoryReadService read.DeploymentTemplateHistoryReadService
+	deploymentConfigReadService          cdConfigRead.DeploymentConfigReadService
 }
 
 func GetRestartWorkloadConfig() (*RestartWorkloadConfig, error) {
@@ -96,9 +101,10 @@ func GetRestartWorkloadConfig() (*RestartWorkloadConfig, error) {
 }
 
 func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService chart.ChartService,
+	chartReadService read2.ChartReadService,
 	appListingService app.AppListingService,
 	deploymentTemplateRepository repository.DeploymentTemplateRepository,
-	helmAppReadService read2.HelmAppReadService,
+	helmAppReadService read3.HelmAppReadService,
 	chartTemplateServiceImpl util.ChartTemplateService,
 	helmAppClient gRPC.HelmAppClient,
 	K8sUtil *k8s.K8sServiceImpl,
@@ -112,10 +118,12 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 	pipelineRepository pipelineConfig.PipelineRepository,
 	mergeUtil *util.MergeUtil,
 	deploymentTemplateHistoryReadService read.DeploymentTemplateHistoryReadService,
+	deploymentConfigReadService cdConfigRead.DeploymentConfigReadService,
 ) (*DeploymentTemplateServiceImpl, error) {
 	deploymentTemplateServiceImpl := &DeploymentTemplateServiceImpl{
 		Logger:                               Logger,
 		chartService:                         chartService,
+		chartReadService:                     chartReadService,
 		appListingService:                    appListingService,
 		deploymentTemplateRepository:         deploymentTemplateRepository,
 		helmAppReadService:                   helmAppReadService,
@@ -132,6 +140,7 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 		pipelineRepository:                   pipelineRepository,
 		mergeUtil:                            mergeUtil,
 		deploymentTemplateHistoryReadService: deploymentTemplateHistoryReadService,
+		deploymentConfigReadService:          deploymentConfigReadService,
 	}
 	cfg, err := GetRestartWorkloadConfig()
 	if err != nil {
@@ -319,6 +328,7 @@ func (impl DeploymentTemplateServiceImpl) setRequestMetadata(request *Deployment
 			// not returning the error as this will break the UX
 		}
 		request.PipelineName = cdPipeline.Name
+		request.DeploymentAppName = cdPipeline.DeploymentAppName
 	}
 
 	return *request
@@ -434,7 +444,14 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 		Name:    request.AppName,
 		Version: refChart.Version,
 	}
-
+	deploymentConfigMin, err := impl.deploymentConfigReadService.GetDeploymentConfigMinForAppAndEnv(request.AppId, request.EnvId)
+	if err != nil {
+		impl.Logger.Errorw("error in getting deployment config", "appId", request.AppId, "envId", request.EnvId, "err", err)
+		return nil, err
+	}
+	if deploymentConfigMin.IsLinkedRelease() {
+		chartMetaData.Name = refChart.Name
+	}
 	refChartPath, err := impl.chartRefService.GetChartLocation(refChart.Location, refChart.ChartData)
 	if err != nil {
 		impl.Logger.Errorw("error in getting chart location", "chartMetaData", chartMetaData, "refChartLocation", refChart.Location)
@@ -467,6 +484,10 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 		sanitizedK8sVersion = k8s2.StripPrereleaseFromK8sVersion(sanitizedK8sVersion)
 	}
 
+	releaseName := util2.BuildDeployedAppName(request.AppName, request.EnvName)
+	if len(request.DeploymentAppName) != 0 {
+		releaseName = request.DeploymentAppName
+	}
 	mergedValuesYaml := impl.patchReleaseAttributes(request, valuesYaml)
 	installReleaseRequest := &gRPC.InstallReleaseRequest{
 		AppName:         request.AppName,
@@ -476,14 +497,14 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 		K8SVersion:      sanitizedK8sVersion,
 		ChartRepository: ChartRepository,
 		ReleaseIdentifier: &gRPC.ReleaseIdentifier{
-			ReleaseName:      fmt.Sprintf("%s-%s", request.AppName, request.EnvName),
+			ReleaseName:      releaseName,
 			ReleaseNamespace: request.Namespace,
 		},
 		ChartContent: &gRPC.ChartContent{
 			Content: chartInBytes,
 		},
 	}
-	config, err := impl.helmAppReadService.GetClusterConf(bean.DEFAULT_CLUSTER_ID)
+	config, err := impl.helmAppReadService.GetClusterConf(clusterBean.DefaultClusterId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching cluster detail", "clusterId", 1, "err", err)
 		return nil, err
@@ -518,7 +539,7 @@ func (impl DeploymentTemplateServiceImpl) patchReleaseAttributes(request *Deploy
 		return
 	}
 
-	chartDto, err := impl.chartService.GetByAppIdAndChartRefId(request.AppId, request.ChartRefId)
+	chartDto, err := impl.chartReadService.GetByAppIdAndChartRefId(request.AppId, request.ChartRefId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting the chart using appId and chartRefId", "appId", request.AppId, "chartRefId", request.ChartRefId, "err", err)
 		return

@@ -19,38 +19,24 @@ package blob_storage
 import (
 	"bytes"
 	"context"
-	"fmt"
+	awsv2 "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	credentialsv2 "github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	"github.com/devtron-labs/common-lib/utils"
+	transport "github.com/aws/smithy-go/endpoints"
 	"log"
+	"net/url"
 	"os"
-	"os/exec"
 )
 
 type AwsS3Blob struct{}
-
-func (impl *AwsS3Blob) UploadBlob(request *BlobStorageRequest, err error) error {
-	s3BaseConfig := request.AwsS3BaseConfig
-	var cmdArgs []string
-	destinationFileString := fmt.Sprintf("s3://%s/%s", s3BaseConfig.BucketName, request.DestinationKey)
-	cmdArgs = append(cmdArgs, "s3", "cp", request.SourceKey, destinationFileString)
-	if s3BaseConfig.EndpointUrl != "" {
-		cmdArgs = append(cmdArgs, "--endpoint-url", s3BaseConfig.EndpointUrl)
-	}
-	if s3BaseConfig.Region != "" {
-		cmdArgs = append(cmdArgs, "--region", s3BaseConfig.Region)
-	}
-
-	command := exec.Command("aws", cmdArgs...)
-	setAWSEnvironmentVariables(s3BaseConfig, command)
-	err = utils.RunCommand(command)
-	return err
-}
 
 func (impl *AwsS3Blob) DownloadBlob(request *BlobStorageRequest, downloadSuccess bool, numBytes int64, err error, file *os.File) (bool, int64, error) {
 	s3BaseConfig := request.AwsS3BaseConfig
@@ -128,21 +114,6 @@ func downLoadFromS3(file *os.File, request *BlobStorageRequest, sess *session.Se
 	return true, numBytes, nil
 }
 
-func (impl *AwsS3Blob) DeleteObjectFromBlob(request *BlobStorageRequest) error {
-	s3BaseConfig := request.AwsS3BaseConfig
-	var cmdArgs []string
-	destinationFileString := fmt.Sprintf("s3://%s/%s", s3BaseConfig.BucketName, request.DestinationKey)
-	cmdArgs = append(cmdArgs, "s3", "rm", destinationFileString)
-	if s3BaseConfig.EndpointUrl != "" {
-		cmdArgs = append(cmdArgs, "--endpoint-url", s3BaseConfig.EndpointUrl)
-	}
-	if s3BaseConfig.Region != "" {
-		cmdArgs = append(cmdArgs, "--region", s3BaseConfig.Region)
-	}
-	command := exec.Command("aws", cmdArgs...)
-	err := utils.RunCommand(command)
-	return err
-}
 func (impl *AwsS3Blob) UploadWithSession(request *BlobStorageRequest) (*s3manager.UploadOutput, error) {
 
 	s3BaseConfig := request.AwsS3BaseConfig
@@ -177,4 +148,122 @@ func (impl *AwsS3Blob) UploadWithSession(request *BlobStorageRequest) (*s3manage
 	}
 	return output, err
 
+}
+
+// BucketBasics encapsulates the Amazon Simple Storage Service (Amazon S3) actions
+// It contains S3Client, an Amazon S3 service client that is used to perform bucket
+// and object actions using aws-sdk-v2.
+type BucketBasics struct {
+	S3Client *s3v2.Client
+}
+
+type Resolver struct {
+	URL *url.URL
+}
+
+func (r *Resolver) ResolveEndpoint(_ context.Context, params s3v2.EndpointParameters) (transport.Endpoint, error) {
+	u := *r.URL
+	u.Path += "/" + *params.Bucket
+	return transport.Endpoint{URI: u}, nil
+}
+
+func getS3DefaultSDKConfig(ctx context.Context, region, accessKey, secretKey, endpointUrl string) (s3Cfg awsv2.Config, err error) {
+	if len(endpointUrl) != 0 && len(region) == 0 {
+		// case handled for minio
+		region = "us-east-1"
+		s3Cfg = awsv2.Config{Region: region}
+		return s3Cfg, nil
+	}
+	var cfg awsv2.Config
+	if len(accessKey) == 0 || len(secretKey) == 0 {
+		// case handled for S3 IAM role
+		cfg, err = config.LoadDefaultConfig(ctx, config.WithRegion(region))
+		if err != nil {
+			return awsv2.Config{}, err
+		}
+	} else {
+		// case handled for S3 with access key and secret key
+		cfg, err = config.LoadDefaultConfig(ctx, config.WithCredentialsProvider(credentialsv2.NewStaticCredentialsProvider(accessKey, secretKey, "")))
+		if err != nil {
+			return awsv2.Config{}, err
+		}
+	}
+	s3Cfg = awsv2.Config{Region: region, Credentials: cfg.Credentials}
+	return s3Cfg, nil
+}
+
+func getS3Client(s3Cfg awsv2.Config, endpointUrl string) (s3Client *s3v2.Client, err error) {
+	if len(endpointUrl) > 0 {
+		parsedEndpointUrl, err := url.Parse(endpointUrl)
+		if err != nil {
+			return s3Client, err
+		}
+		return s3v2.NewFromConfig(s3Cfg, func(o *s3v2.Options) {
+			o.UsePathStyle = true
+			o.EndpointResolverV2 = &Resolver{URL: parsedEndpointUrl}
+		}), nil
+	} else {
+		return s3v2.NewFromConfig(s3Cfg), nil
+	}
+}
+
+func GetS3BucketBasicsClient(ctx context.Context, region, accessKey, secretKey, endpointUrl string) (BucketBasics, error) {
+	s3Cfg, err := getS3DefaultSDKConfig(ctx, region, accessKey, secretKey, endpointUrl)
+	if err != nil {
+		return BucketBasics{}, err
+	}
+	s3Client, err := getS3Client(s3Cfg, endpointUrl)
+	if err != nil {
+		return BucketBasics{}, err
+	}
+	bucketBasics := BucketBasics{S3Client: s3Client}
+	return bucketBasics, nil
+}
+
+// UploadFileV2 uses an upload manager to upload data to an object in a bucket using aws-sdk-v2.
+// The upload manager breaks large data into parts and uploads the parts concurrently.
+func (basics BucketBasics) UploadFileV2(ctx context.Context, request *BlobStorageRequest, err error) error {
+	file, err := os.Open(request.SourceKey)
+	if err != nil {
+		log.Println("error in reading source file", "sourceFile", request.SourceKey, "destinationKey", request.DestinationKey, "err", err)
+		return err
+	}
+	defer file.Close()
+	
+	uploader := manager.NewUploader(basics.S3Client, func(u *manager.Uploader) {
+		u.PartSize = request.AwsS3BaseConfig.PartSize
+		u.Concurrency = request.AwsS3BaseConfig.Concurrency
+	})
+	_, err = uploader.Upload(ctx, &s3v2.PutObjectInput{
+		Bucket: aws.String(request.AwsS3BaseConfig.BucketName),
+		Key:    aws.String(request.DestinationKey),
+		Body:   file,
+	})
+	if err != nil {
+		log.Printf("Couldn't upload large object to %v:%v. Here's why: %v\n",
+			request.AwsS3BaseConfig.BucketName, request.DestinationKey, err)
+		return err
+	}
+	return nil
+}
+
+// DownloadFileV2 uses a download manager to download an object from a bucket using aws-sdk-v2.
+// The download manager gets the data in parts and writes them to a buffer until all of
+// the data has been downloaded.
+func (basics BucketBasics) DownloadFileV2(ctx context.Context, request *BlobStorageRequest, downloadSuccess bool, numBytes int64, err error, file *os.File) (bool, int64, error) {
+	downloader := manager.NewDownloader(basics.S3Client, func(d *manager.Downloader) {
+		d.PartSize = request.AwsS3BaseConfig.PartSize
+		d.Concurrency = request.AwsS3BaseConfig.Concurrency
+	})
+
+	numBytes, err = downloader.Download(ctx, file, &s3v2.GetObjectInput{
+		Bucket: aws.String(request.AwsS3BaseConfig.BucketName),
+		Key:    aws.String(request.SourceKey),
+	})
+	if err != nil {
+		log.Printf("Couldn't download large object from %v:%v. Here's why: %v\n",
+			request.AwsS3BaseConfig.BucketName, request.SourceKey, err)
+		return false, 0, err
+	}
+	return true, numBytes, nil
 }

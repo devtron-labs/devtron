@@ -19,6 +19,7 @@ package appWorkflow
 import (
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	bean4 "github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -46,6 +47,7 @@ import (
 
 type AppWorkflowService interface {
 	CreateAppWorkflow(req bean4.AppWorkflowDto) (bean4.AppWorkflowDto, error)
+	FindAppWorkflowsListResolvedResp(appId int) (resp bean4.AppWorkflowListRespDto, appType helper.AppType, err error)
 	FindAppWorkflows(appId int) ([]bean4.AppWorkflowDto, error)
 	FindAppWorkflowById(Id int, appId int) (bean4.AppWorkflowDto, error)
 	DeleteAppWorkflow(appWorkflowId int, userId int32) error
@@ -79,6 +81,7 @@ type AppWorkflowServiceImpl struct {
 	userAuthService          user.UserAuthService
 	chartService             chart.ChartService
 	deploymentConfigService  common.DeploymentConfigService
+	pipelineBuilder          pipeline.PipelineBuilder
 }
 
 func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository appWorkflow.AppWorkflowRepository,
@@ -86,6 +89,7 @@ func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository 
 	pipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup2.ResourceGroupService,
 	appRepository appRepository.AppRepository, userAuthService user.UserAuthService, chartService chart.ChartService,
 	deploymentConfigService common.DeploymentConfigService,
+	pipelineBuilder pipeline.PipelineBuilder,
 ) *AppWorkflowServiceImpl {
 	return &AppWorkflowServiceImpl{
 		Logger:                   logger,
@@ -99,6 +103,7 @@ func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository 
 		userAuthService:          userAuthService,
 		chartService:             chartService,
 		deploymentConfigService:  deploymentConfigService,
+		pipelineBuilder:          pipelineBuilder,
 	}
 }
 
@@ -151,6 +156,34 @@ func (impl AppWorkflowServiceImpl) CreateAppWorkflow(req bean4.AppWorkflowDto) (
 	}
 	req.Id = savedAppWf.Id
 	return req, nil
+}
+
+func (impl AppWorkflowServiceImpl) FindAppWorkflowsListResolvedResp(appId int) (resp bean4.AppWorkflowListRespDto, appType helper.AppType, err error) {
+	app, err := impl.pipelineBuilder.GetApp(appId)
+	if err != nil {
+		impl.Logger.Errorw("error, GetApp", "appId", appId, "err", err)
+		return resp, appType, err
+	}
+	workflowsList, err := impl.FindAppWorkflows(appId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching workflows for app", "appId", appId, "err", err)
+		return resp, appType, err
+	}
+	isAppLevelGitOpsConfigured, err := impl.chartService.IsGitOpsRepoConfiguredForDevtronApp(appId)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.Logger.Errorw("service err, IsGitOpsRepoConfiguredForDevtronApp", "appId", appId, "err", err)
+		return resp, appType, err
+	}
+	resp.AppId = app.Id
+	resp.AppName = app.AppName
+	resp.Workflows = workflowsList
+	resp.IsGitOpsRepoNotConfigured = !isAppLevelGitOpsConfigured
+	if len(workflowsList) > 0 {
+		resp.Workflows = workflowsList
+	} else {
+		resp.Workflows = []bean4.AppWorkflowDto{}
+	}
+	return resp, app.AppType, nil
 }
 
 func (impl AppWorkflowServiceImpl) FindAppWorkflows(appId int) ([]bean4.AppWorkflowDto, error) {
@@ -787,13 +820,11 @@ func (impl AppWorkflowServiceImpl) FindCdPipelinesByAppId(appId int) (*bean.CdPi
 	}
 
 	for _, pipeline := range dbPipelines {
-
 		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, pipeline.EnvironmentId)
 		if err != nil {
 			impl.Logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", pipeline.EnvironmentId, "err", err)
 			return nil, err
 		}
-
 		cdPipelineConfigObj := &bean.CDPipelineConfigObject{
 			Id:                        pipeline.Id,
 			EnvironmentId:             pipeline.EnvironmentId,
@@ -802,9 +833,10 @@ func (impl AppWorkflowServiceImpl) FindCdPipelinesByAppId(appId int) (*bean.CdPi
 			TriggerType:               pipeline.TriggerType,
 			Name:                      pipeline.Name,
 			DeploymentAppType:         envDeploymentConfig.DeploymentAppType,
+			ReleaseMode:               envDeploymentConfig.ReleaseMode,
 			AppName:                   pipeline.DeploymentAppName,
 			AppId:                     pipeline.AppId,
-			IsGitOpsRepoNotConfigured: !isAppLevelGitOpsConfigured,
+			IsGitOpsRepoNotConfigured: !envDeploymentConfig.IsPipelineGitOpsRepoConfigured(isAppLevelGitOpsConfigured),
 		}
 		cdPipelines.Pipelines = append(cdPipelines.Pipelines, cdPipelineConfigObj)
 	}

@@ -23,6 +23,6 @@ import (
 
 var DevtronAppsDeployTriggerWireSet = wire.NewSet(
 	userDeploymentRequest.WireSet,
-	NewTriggerServiceImpl,
-	wire.Bind(new(TriggerService), new(*TriggerServiceImpl)),
+	NewHandlerServiceImpl,
+	wire.Bind(new(HandlerService), new(*HandlerServiceImpl)),
 )

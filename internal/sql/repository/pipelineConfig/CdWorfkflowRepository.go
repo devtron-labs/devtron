@@ -20,11 +20,11 @@ import (
 	"context"
 	"errors"
 	apiBean "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/constants"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
@@ -50,6 +50,7 @@ type CdWorkflowRepository interface {
 	FindWorkflowRunnerByCdWorkflowId(wfIds []int) ([]*CdWorkflowRunner, error)
 	FindPreviousCdWfRunnerByStatus(pipelineId int, currentWFRunnerId int, status []string) ([]*CdWorkflowRunner, error)
 	FindWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error)
+	FindPreOrPostCdWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error)
 	FindBasicWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error)
 	FindRetriedWorkflowCountByReferenceId(wfrId int) (int, error)
 	FindLatestWfrByAppIdAndEnvironmentId(appId int, environmentId int) (*CdWorkflowRunner, error)
@@ -105,27 +106,28 @@ type CdWorkflowRunnerWithExtraFields struct {
 }
 
 type CdWorkflowRunner struct {
-	tableName               struct{}                        `sql:"cd_workflow_runner" pg:",discard_unknown_columns"`
-	Id                      int                             `sql:"id,pk"`
-	Name                    string                          `sql:"name"`
-	WorkflowType            apiBean.WorkflowType            `sql:"workflow_type"` // pre,post,deploy
-	ExecutorType            cdWorkflow.WorkflowExecutorType `sql:"executor_type"` // awf, system
-	Status                  string                          `sql:"status"`
-	PodStatus               string                          `sql:"pod_status"`
-	Message                 string                          `sql:"message"`
-	StartedOn               time.Time                       `sql:"started_on"`
-	FinishedOn              time.Time                       `sql:"finished_on"`
-	Namespace               string                          `sql:"namespace"`
-	LogLocation             string                          `sql:"log_file_path"`
-	CdArtifactLocation      string                          `sql:"cd_artifact_location"`
-	IsArtifactUploaded      workflow.ArtifactUploadedType   `sql:"is_artifact_uploaded"`
-	TriggeredBy             int32                           `sql:"triggered_by"`
-	CdWorkflowId            int                             `sql:"cd_workflow_id"`
-	PodName                 string                          `sql:"pod_name"`
-	BlobStorageEnabled      bool                            `sql:"blob_storage_enabled,notnull"`
-	RefCdWorkflowRunnerId   int                             `sql:"ref_cd_workflow_runner_id,notnull"`
-	ImagePathReservationIds []int                           `sql:"image_path_reservation_ids" pg:",array,notnull"`
-	ReferenceId             *string                         `sql:"reference_id"`
+	tableName               struct{}                            `sql:"cd_workflow_runner" pg:",discard_unknown_columns"`
+	Id                      int                                 `sql:"id,pk"`
+	Name                    string                              `sql:"name"`
+	WorkflowType            apiBean.WorkflowType                `sql:"workflow_type"` // pre,post,deploy
+	ExecutorType            cdWorkflow.WorkflowExecutorType     `sql:"executor_type"` // awf, system
+	Status                  string                              `sql:"status"`
+	PodStatus               string                              `sql:"pod_status"`
+	Message                 string                              `sql:"message"`
+	StartedOn               time.Time                           `sql:"started_on"`
+	FinishedOn              time.Time                           `sql:"finished_on"`
+	Namespace               string                              `sql:"namespace"`
+	LogLocation             string                              `sql:"log_file_path"`
+	CdArtifactLocation      string                              `sql:"cd_artifact_location"`
+	IsArtifactUploaded      workflow.ArtifactUploadedType       `sql:"is_artifact_uploaded"`
+	TriggeredBy             int32                               `sql:"triggered_by"`
+	CdWorkflowId            int                                 `sql:"cd_workflow_id"`
+	PodName                 string                              `sql:"pod_name"`
+	BlobStorageEnabled      bool                                `sql:"blob_storage_enabled,notnull"`
+	RefCdWorkflowRunnerId   int                                 `sql:"ref_cd_workflow_runner_id,notnull"`
+	ImagePathReservationIds []int                               `sql:"image_path_reservation_ids" pg:",array,notnull"`
+	ReferenceId             *string                             `sql:"reference_id"`
+	ImageState              constants.ImageStateWhileDeployment `sql:"image_state"` // image_state currently not utilized in oss
 	CdWorkflow              *CdWorkflow
 	sql.AuditLog
 }
@@ -147,24 +149,6 @@ func (c *CdWorkflowRunner) IsExternalRun() bool {
 		isExtCluster = c.CdWorkflow.Pipeline.RunPostStageInEnv
 	}
 	return isExtCluster
-}
-
-type CiPipelineMaterialResponse struct {
-	Id              int                    `json:"id"`
-	GitMaterialId   int                    `json:"gitMaterialId"`
-	GitMaterialUrl  string                 `json:"gitMaterialUrl"`
-	GitMaterialName string                 `json:"gitMaterialName"`
-	Type            string                 `json:"type"`
-	Value           string                 `json:"value"`
-	Active          bool                   `json:"active"`
-	History         []*gitSensor.GitCommit `json:"history,omitempty"`
-	LastFetchTime   time.Time              `json:"lastFetchTime"`
-	IsRepoError     bool                   `json:"isRepoError"`
-	RepoErrorMsg    string                 `json:"repoErrorMsg"`
-	IsBranchError   bool                   `json:"isBranchError"`
-	BranchErrorMsg  string                 `json:"branchErrorMsg"`
-	Url             string                 `json:"url"`
-	Regex           string                 `json:"regex"`
 }
 
 type TriggerWorkflowStatus struct {
@@ -457,7 +441,6 @@ func (impl *CdWorkflowRepositoryImpl) SaveWorkFlowRunnerWithTx(wfr *CdWorkflowRu
 }
 
 func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunnerWithTx(wfr *CdWorkflowRunner, tx *pg.Tx) error {
-	wfr.Message = util.GetTruncatedMessage(wfr.Message, 1000)
 	err := tx.Update(wfr)
 	return err
 }
@@ -525,6 +508,16 @@ func (impl *CdWorkflowRepositoryImpl) FindWorkflowRunnerById(wfrId int) (*CdWork
 	wfr := &CdWorkflowRunner{}
 	err := impl.dbConnection.Model(wfr).Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact", "CdWorkflow.Pipeline.Environment").
 		Where("cd_workflow_runner.id = ?", wfrId).Select()
+	return wfr, err
+}
+
+func (impl *CdWorkflowRepositoryImpl) FindPreOrPostCdWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error) {
+	wfr := &CdWorkflowRunner{}
+	err := impl.dbConnection.Model(wfr).
+		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact", "CdWorkflow.Pipeline.Environment").
+		Where("cd_workflow_runner.id = ?", wfrId).
+		Where("cd_workflow_runner.workflow_type != ?", apiBean.CD_WORKFLOW_TYPE_DEPLOY).
+		Select()
 	return wfr, err
 }
 

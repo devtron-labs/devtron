@@ -31,6 +31,11 @@ const BITBUCKET_PROVIDER = "BITBUCKET_CLOUD"
 
 type GitOpsConfigurationStatus struct {
 	IsGitOpsConfigured    bool
+	IsArgoCdInstalled     bool
 	AllowCustomRepository bool
 	Provider              string
+}
+
+func (g *GitOpsConfigurationStatus) IsGitOpsConfiguredAndArgoCdInstalled() bool {
+	return g.IsGitOpsConfigured && g.IsArgoCdInstalled
 }

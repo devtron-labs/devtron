@@ -145,7 +145,7 @@ func (impl *EAModeDeploymentServiceImpl) InstallApp(installAppVersionRequest *ap
 		}
 	}
 	installReleaseRequest := &gRPC.InstallReleaseRequest{
-		ChartName:       appStoreAppVersion.Name,
+		ChartName:       appStoreDeploymentCommon.GetChartNameFromAppStoreApplicationVersion(appStoreAppVersion),
 		ChartVersion:    appStoreAppVersion.Version,
 		ValuesYaml:      installAppVersionRequest.ValuesOverrideYaml,
 		ChartRepository: chartRepository,
@@ -423,10 +423,10 @@ func (impl *EAModeDeploymentServiceImpl) UpdateInstalledAppAndPipelineStatusForF
 // TODO: Need to refactor this,refer below reason
 // This is being done as in ea mode wire argocd service is being binded to helmServiceImpl due to which we are restricted to implement this here.
 // RefreshAndUpdateACDApp this will update chart info in acd app if required in case of mono repo migration and will refresh argo app
-func (impl *EAModeDeploymentServiceImpl) UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *commonBean.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context, tx *pg.Tx) error {
+func (impl *EAModeDeploymentServiceImpl) UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttribute *commonBean.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context, tx *pg.Tx) error {
 	return errors.New("this is not implemented")
 }
-func (impl *EAModeDeploymentServiceImpl) ValidateCustomGitRepoURL(request validationBean.ValidateCustomGitRepoURLRequest) (string, bool, error) {
+func (impl *EAModeDeploymentServiceImpl) ValidateCustomGitOpsConfig(request validationBean.ValidateGitOpsRepoRequest) (string, bool, error) {
 	return "", false, errors.New("this is not implemented")
 }
 

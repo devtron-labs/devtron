@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/common-lib/async"
 	"github.com/devtron-labs/common-lib/utils"
+	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/common-lib/utils/workFlow"
 	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
@@ -35,8 +36,13 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow"
 	cdWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/app/status"
+	bean7 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts"
 	bean5 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	buildCommonBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
+	"github.com/devtron-labs/devtron/pkg/build/trigger"
+	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
+	repository5 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
@@ -44,6 +50,8 @@ import (
 	triggerBean "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/service"
 	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
+	"github.com/devtron-labs/devtron/pkg/executor"
+	k8sPkg "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
@@ -57,6 +65,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/workflow/dag/helper"
 	error2 "github.com/devtron-labs/devtron/util/error"
 	util2 "github.com/devtron-labs/devtron/util/event"
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/rest"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -82,6 +93,7 @@ import (
 )
 
 type WorkflowDagExecutor interface {
+	UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild int) error
 	UpdateCiWorkflowForCiSuccess(request *bean2.CiArtifactWebhookRequest) (err error)
 	HandleCiSuccessEvent(triggerContext triggerBean.TriggerContext, ciPipelineId int, request *bean2.CiArtifactWebhookRequest, imagePushedAt time.Time) (id int, err error)
 	HandlePreStageSuccessEvent(triggerContext triggerBean.TriggerContext, cdStageCompleteEvent eventProcessorBean.CdStageCompleteEvent) error
@@ -124,7 +136,7 @@ type WorkflowDagExecutorImpl struct {
 	helmAppService client2.HelmAppService
 
 	cdWorkflowCommonService      cd.CdWorkflowCommonService
-	cdTriggerService             devtronApps.TriggerService
+	cdHandlerService             devtronApps.HandlerService
 	userDeploymentRequestService service.UserDeploymentRequestService
 
 	manifestCreationService manifest.ManifestCreationService
@@ -133,6 +145,12 @@ type WorkflowDagExecutorImpl struct {
 	asyncRunnable           *async.Runnable
 	scanHistoryRepository   repository3.ImageScanHistoryRepository
 	imageScanService        imageScanning.ImageScanService
+
+	K8sUtil          *k8s.K8sServiceImpl
+	envRepository    repository5.EnvironmentRepository
+	k8sCommonService k8sPkg.K8sCommonService
+	workflowService  executor.WorkflowService
+	ciHandlerService trigger.HandlerService
 }
 
 func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -153,7 +171,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	ciService pipeline.CiService,
 	helmAppService client2.HelmAppService,
 	cdWorkflowCommonService cd.CdWorkflowCommonService,
-	cdTriggerService devtronApps.TriggerService,
+	cdHandlerService devtronApps.HandlerService,
 	userDeploymentRequestService service.UserDeploymentRequestService,
 	manifestCreationService manifest.ManifestCreationService,
 	commonArtifactService artifacts.CommonArtifactService,
@@ -161,6 +179,11 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	asyncRunnable *async.Runnable,
 	scanHistoryRepository repository3.ImageScanHistoryRepository,
 	imageScanService imageScanning.ImageScanService,
+	K8sUtil *k8s.K8sServiceImpl,
+	envRepository repository5.EnvironmentRepository,
+	k8sCommonService k8sPkg.K8sCommonService,
+	workflowService executor.WorkflowService,
+	ciHandlerService trigger.HandlerService,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
@@ -179,7 +202,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		pipelineStatusTimelineService: pipelineStatusTimelineService,
 		helmAppService:                helmAppService,
 		cdWorkflowCommonService:       cdWorkflowCommonService,
-		cdTriggerService:              cdTriggerService,
+		cdHandlerService:              cdHandlerService,
 		userDeploymentRequestService:  userDeploymentRequestService,
 		manifestCreationService:       manifestCreationService,
 		commonArtifactService:         commonArtifactService,
@@ -189,6 +212,11 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		imageScanService:              imageScanService,
 		cdWorkflowRunnerService:       cdWorkflowRunnerService,
 		ciService:                     ciService,
+		K8sUtil:                       K8sUtil,
+		envRepository:                 envRepository,
+		k8sCommonService:              k8sCommonService,
+		workflowService:               workflowService,
+		ciHandlerService:              ciHandlerService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -206,6 +234,130 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	}
 	wde.appServiceConfig = appServiceConfig
 	return wde
+}
+
+func (impl *WorkflowDagExecutorImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild int) error {
+	ciWorkflows, err := impl.ciWorkflowRepository.FindByStatusesIn([]string{constants2.Starting, constants2.Running})
+	if err != nil {
+		impl.logger.Errorw("error on fetching ci workflows", "err", err)
+		return err
+	}
+	client, err := impl.K8sUtil.GetClientForInCluster()
+	if err != nil {
+		impl.logger.Errorw("error while fetching k8s client", "error", err)
+		return err
+	}
+
+	for _, ciWorkflow := range ciWorkflows {
+		var isExt bool
+		var env *repository5.Environment
+		var restConfig *rest.Config
+		if ciWorkflow.Namespace != constants2.DefaultCiWorkflowNamespace {
+			isExt = true
+			env, err = impl.envRepository.FindById(ciWorkflow.EnvironmentId)
+			if err != nil {
+				impl.logger.Errorw("could not fetch stage env", "err", err)
+				return err
+			}
+			restConfig, err = impl.getRestConfig(ciWorkflow)
+			if err != nil {
+				return err
+			}
+		}
+
+		isEligibleToMarkFailed := false
+		isPodDeleted := false
+		if time.Since(ciWorkflow.StartedOn) > (time.Minute * time.Duration(timeoutForFailureCiBuild)) {
+
+			//check weather pod is exists or not, if exits check its status
+			wf, err := impl.workflowService.GetWorkflowStatus(ciWorkflow.ExecutorType, ciWorkflow.Name, ciWorkflow.Namespace, restConfig)
+			if err != nil {
+				impl.logger.Warnw("unable to fetch ci workflow", "err", err)
+				statusError, ok := err.(*errors2.StatusError)
+				if ok && statusError.Status().Code == http.StatusNotFound {
+					impl.logger.Warnw("ci workflow not found", "err", err)
+					isEligibleToMarkFailed = true
+				} else {
+					continue
+					// skip this and process for next ci workflow
+				}
+			}
+
+			//if ci workflow is exists, check its pod
+			if !isEligibleToMarkFailed {
+				ns := constants2.DefaultCiWorkflowNamespace
+				if isExt {
+					_, client, err = impl.k8sCommonService.GetCoreClientByClusterId(env.ClusterId)
+					if err != nil {
+						impl.logger.Warnw("error in getting core v1 client using GetCoreClientByClusterId", "err", err, "clusterId", env.Cluster.Id)
+						continue
+					}
+					ns = env.Namespace
+				}
+				_, err := impl.K8sUtil.GetPodByName(ns, ciWorkflow.PodName, client)
+				if err != nil {
+					impl.logger.Warnw("unable to fetch ci workflow - pod", "err", err)
+					statusError, ok := err.(*errors2.StatusError)
+					if ok && statusError.Status().Code == http.StatusNotFound {
+						impl.logger.Warnw("pod not found", "err", err)
+						isEligibleToMarkFailed = true
+					} else {
+						continue
+						// skip this and process for next ci workflow
+					}
+				}
+				if ciWorkflow.ExecutorType == cdWorkflow2.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
+					if wf.Status == string(v1alpha1.WorkflowFailed) {
+						isPodDeleted = true
+					}
+				} else {
+					// check workflow status,get the status
+					if wf.Status == string(v1alpha1.WorkflowFailed) && wf.Message == cdWorkflow2.POD_DELETED_MESSAGE {
+						isPodDeleted = true
+					}
+				}
+			}
+		}
+		if isEligibleToMarkFailed {
+			ciWorkflow.Status = "Failed"
+			ciWorkflow.PodStatus = "Failed"
+			if isPodDeleted {
+				ciWorkflow.Message = cdWorkflow2.POD_DELETED_MESSAGE
+				// error logging handled inside handlePodDeleted
+				impl.ciHandlerService.HandlePodDeleted(ciWorkflow)
+			} else {
+				ciWorkflow.Message = "marked failed by job"
+			}
+			err := impl.ciService.UpdateCiWorkflowWithStage(ciWorkflow)
+			if err != nil {
+				impl.logger.Errorw("unable to update ci workflow, its eligible to mark failed", "err", err)
+				// skip this and process for next ci workflow
+			}
+			err = impl.customTagService.DeactivateImagePathReservation(ciWorkflow.ImagePathReservationId)
+			if err != nil {
+				impl.logger.Errorw("unable to update ci workflow, its eligible to mark failed", "err", err)
+			}
+		}
+	}
+	return nil
+}
+
+func (impl *WorkflowDagExecutorImpl) getRestConfig(workflow *pipelineConfig.CiWorkflow) (*rest.Config, error) {
+	env, err := impl.envRepository.FindById(workflow.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("could not fetch stage env", "err", err)
+		return nil, err
+	}
+
+	clusterBean := adapter.GetClusterBean(*env.Cluster)
+
+	clusterConfig := clusterBean.GetClusterConfig()
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster id", "err", err)
+		return nil, err
+	}
+	return restConfig, nil
 }
 
 func (impl *WorkflowDagExecutorImpl) HandleCdStageReTrigger(runner *pipelineConfig.CdWorkflowRunner) error {
@@ -240,7 +392,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCdStageReTrigger(runner *pipelineConf
 		CdWf:                  runner.CdWorkflow,
 		Pipeline:              runner.CdWorkflow.Pipeline,
 		Artifact:              runner.CdWorkflow.CiArtifact,
-		TriggeredBy:           1,
+		TriggeredBy:           bean7.SYSTEM_USER_ID,
 		ApplyAuth:             false,
 		RefCdWorkflowRunnerId: runner.Id,
 		TriggerContext: triggerBean.TriggerContext{
@@ -249,13 +401,13 @@ func (impl *WorkflowDagExecutorImpl) HandleCdStageReTrigger(runner *pipelineConf
 	}
 
 	if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
-		_, err = impl.cdTriggerService.TriggerPreStage(triggerRequest)
+		_, err = impl.cdHandlerService.TriggerPreStage(triggerRequest)
 		if err != nil {
 			impl.logger.Errorw("error in TriggerPreStage ", "err", err, "cdWorkflowRunnerId", runner.Id)
 			return err
 		}
 	} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
-		_, err = impl.cdTriggerService.TriggerPostStage(triggerRequest)
+		_, err = impl.cdHandlerService.TriggerPostStage(triggerRequest)
 		if err != nil {
 			impl.logger.Errorw("error in TriggerPostStage ", "err", err, "cdWorkflowRunnerId", runner.Id)
 			return err
@@ -408,7 +560,7 @@ func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncInstallRequest(cdAsyncIn
 		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "err", err)
 		return err
 	}
-	releaseId, _, releaseErr := impl.cdTriggerService.TriggerRelease(overrideRequest, envDeploymentConfig, newCtx, cdAsyncInstallReq.TriggeredAt, cdAsyncInstallReq.TriggeredBy)
+	releaseId, _, releaseErr := impl.cdHandlerService.TriggerRelease(newCtx, overrideRequest, envDeploymentConfig, cdAsyncInstallReq.TriggeredAt, cdAsyncInstallReq.TriggeredBy)
 	if releaseErr != nil {
 		impl.logger.Errorw("error encountered in ProcessDevtronAsyncInstallRequest", "err", releaseErr, "cdWfrId", cdWfr.Id)
 		impl.handleAsyncTriggerReleaseError(newCtx, releaseErr, cdWfr, overrideRequest)
@@ -472,7 +624,8 @@ func (impl *WorkflowDagExecutorImpl) handleWebhookExternalCiEvent(artifact *repo
 			err = &util.ApiError{Code: "401", HttpStatusCode: 401, UserMessage: "Unauthorized"}
 			return hasAnyTriggered, err
 		}
-		if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_MANUAL {
+		isQualifiedForCdAutoTrigger := helper.IsCdQualifiedForAutoTriggerForWebhookCiEvent(pipeline)
+		if !isQualifiedForCdAutoTrigger {
 			impl.logger.Warnw("skipping deployment for manual trigger for webhook", "pipeline", pipeline)
 			continue
 		}
@@ -518,7 +671,6 @@ func (impl *WorkflowDagExecutorImpl) deleteCorruptedPipelineStage(pipelineStage 
 }
 
 func (impl *WorkflowDagExecutorImpl) triggerIfAutoStageCdPipeline(request triggerBean.TriggerRequest) error {
-
 	preStage, err := impl.getPipelineStage(request.Pipeline.Id, repository4.PIPELINE_STAGE_TYPE_PRE_CD)
 	if err != nil {
 		return err
@@ -532,17 +684,19 @@ func (impl *WorkflowDagExecutorImpl) triggerIfAutoStageCdPipeline(request trigge
 	}
 
 	request.TriggerContext.Context = context.Background()
+	//for auto stage setting triggeredBy to system user no matter where the request came from
+	request.TriggeredBy = bean7.SYSTEM_USER_ID
 	if len(request.Pipeline.PreStageConfig) > 0 || (preStage != nil && !deleted) {
 		// pre stage exists
 		if request.Pipeline.PreTriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
 			impl.logger.Debugw("trigger pre stage for pipeline", "artifactId", request.Artifact.Id, "pipelineId", request.Pipeline.Id)
-			_, err = impl.cdTriggerService.TriggerPreStage(request) // TODO handle error here
+			_, err = impl.cdHandlerService.TriggerPreStage(request) // TODO handle error here
 			return err
 		}
 	} else if request.Pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
 		// trigger deployment
 		impl.logger.Debugw("trigger cd for pipeline", "artifactId", request.Artifact.Id, "pipelineId", request.Pipeline.Id)
-		err = impl.cdTriggerService.TriggerAutomaticDeployment(request)
+		err = impl.cdHandlerService.TriggerAutomaticDeployment(request)
 		return err
 	}
 	return nil
@@ -612,7 +766,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(triggerContext t
 		} else {
 			ciArtifactId = cdStageCompleteEvent.CiArtifactDTO.Id
 		}
-		err = impl.cdTriggerService.TriggerAutoCDOnPreStageSuccess(triggerContext, cdStageCompleteEvent.CdPipelineId, ciArtifactId, cdStageCompleteEvent.WorkflowId, cdStageCompleteEvent.TriggeredBy)
+		err = impl.cdHandlerService.TriggerAutoCDOnPreStageSuccess(triggerContext, cdStageCompleteEvent.CdPipelineId, ciArtifactId, cdStageCompleteEvent.WorkflowId)
 		if err != nil {
 			impl.logger.Errorw("error in triggering cd on pre cd succcess", "err", err)
 			return err
@@ -636,11 +790,10 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(triggerContext
 		return err
 	}
 
-	var triggeredByUser int32 = 1
 	//handle corrupt data (https://github.com/devtron-labs/devtron/issues/3826)
-	err, deleted := impl.deleteCorruptedPipelineStage(postStage, triggeredByUser)
+	err, deleted := impl.deleteCorruptedPipelineStage(postStage, bean7.SYSTEM_USER_ID)
 	if err != nil {
-		impl.logger.Errorw("error in deleteCorruptedPipelineStage ", "err", err, "preStage", postStage, "triggeredBy", triggeredByUser)
+		impl.logger.Errorw("error in deleteCorruptedPipelineStage ", "err", err, "preStage", postStage)
 		return err
 	}
 
@@ -652,12 +805,12 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(triggerContext
 			triggerRequest := triggerBean.TriggerRequest{
 				CdWf:                  cdWorkflow,
 				Pipeline:              pipelineOverride.Pipeline,
-				TriggeredBy:           triggeredByUser,
+				TriggeredBy:           bean7.SYSTEM_USER_ID,
 				TriggerContext:        triggerContext,
 				RefCdWorkflowRunnerId: 0,
 			}
 			triggerRequest.TriggerContext.Context = context.Background()
-			_, err = impl.cdTriggerService.TriggerPostStage(triggerRequest)
+			_, err = impl.cdHandlerService.TriggerPostStage(triggerRequest)
 			if err != nil {
 				impl.logger.Errorw("error in triggering post stage after successful deployment event", "err", err, "cdWorkflow", cdWorkflow)
 				return err
@@ -804,7 +957,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 
 	// image scanning plugin can only be applied in Post-ci, scanning in pre-ci doesn't make sense
 	pipelineStage := repository4.PIPELINE_STAGE_TYPE_POST_CI
-	if pipelineModal.PipelineType == constants2.CI_JOB.ToString() {
+	if pipelineModal.PipelineType == buildCommonBean.CI_JOB.ToString() {
 		pipelineStage = repository4.PIPELINE_STAGE_TYPE_PRE_CI
 	}
 	// this flag comes from ci-runner when scanning is enabled from ciPipeline modal
@@ -828,7 +981,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 	var pluginArtifacts []*repository.CiArtifact
 	for registry, artifacts := range request.PluginRegistryArtifactDetails {
 		for _, image := range artifacts {
-			if pipelineModal.PipelineType == string(bean5.CI_JOB) && image == "" {
+			if pipelineModal.PipelineType == string(buildCommonBean.CI_JOB) && image == "" {
 				continue
 			}
 			pluginArtifact := &repository.CiArtifact{
@@ -992,7 +1145,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiStepFailedEvent(ciPipelineId int, r
 
 func (impl *WorkflowDagExecutorImpl) WriteCiStepFailedEvent(pipeline *pipelineConfig.CiPipeline, request *bean2.CiArtifactWebhookRequest, ciWorkflow *pipelineConfig.CiWorkflow) {
 	event, _ := impl.eventFactory.Build(util2.Fail, &pipeline.Id, pipeline.AppId, nil, util2.CI)
-	material := &client.MaterialTriggerInfo{}
+	material := &bean5.MaterialTriggerInfo{}
 	material.GitTriggers = ciWorkflow.GitTriggers
 	event.CiWorkflowRunnerId = ciWorkflow.Id
 	event.UserId = int(ciWorkflow.TriggeredBy)

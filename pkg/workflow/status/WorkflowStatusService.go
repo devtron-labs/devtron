@@ -225,16 +225,25 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 			return nil, isTimelineUpdated
 		}
 
-		if impl.acdConfig.IsManualSyncEnabled() {
+		// this should only be called when we have git-ops configured
+		// try fetching status from argo cd
+		dc, err := impl.deploymentConfigService.GetConfigForDevtronApps(pipeline.AppId, pipeline.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", pipeline.AppId, "environmentId", pipeline.EnvironmentId, "err", err)
+			return nil, isTimelineUpdated
+		}
+
+		if impl.acdConfig.IsManualSyncEnabled() && dc.IsArgoAppSyncAndRefreshSupported() {
 			// if manual sync check for application sync status
 			isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatus(cdWfr.Id)
 			if !isArgoAppSynced {
 				return nil, isTimelineUpdated
 			}
 		}
-		// this should only be called when we have git-ops configured
-		// try fetching status from argo cd
-		app, err := impl.argocdClientWrapperService.GetArgoAppByName(context.Background(), pipeline.DeploymentAppName)
+
+		applicationObjectClusterId := dc.GetApplicationObjectClusterId()
+		applicationObjectNamespace := dc.GetApplicationObjectNamespace()
+		app, err := impl.argocdClientWrapperService.GetArgoAppByNameWithK8sClient(context.Background(), applicationObjectClusterId, applicationObjectNamespace, pipeline.DeploymentAppName)
 		if err != nil {
 			impl.logger.Errorw("error in getting acd application", "err", err, "argoAppName", pipeline)
 			// updating cdWfr status
@@ -269,7 +278,7 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 				impl.logger.Errorw("found empty argo application object", "appName", pipeline.DeploymentAppName)
 				return fmt.Errorf("found empty argo application object"), isTimelineUpdated
 			}
-			isSucceeded, isTimelineUpdated, pipelineOverride, err = impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, time.Now(), isAppStore)
+			isSucceeded, isTimelineUpdated, pipelineOverride, err = impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, applicationObjectClusterId, time.Now(), isAppStore)
 			if err != nil {
 				impl.logger.Errorw("error in updating deployment status for gitOps cd pipelines", "app", app, "err", err)
 				return err, isTimelineUpdated
@@ -302,6 +311,13 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 			impl.logger.Errorw("error in getting latest installedAppVersionHistory by installedAppId", "err", err, "installedAppId", installedApp.Id)
 			return nil, isTimelineUpdated
 		}
+		dc, err := impl.deploymentConfigService.GetConfigForHelmApps(installedApp.AppId, installedApp.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", pipeline.AppId, "environmentId", pipeline.EnvironmentId, "err", err)
+			return nil, isTimelineUpdated
+		}
+		applicationObjectClusterId := dc.GetApplicationObjectClusterId()
+
 		impl.logger.Debugw("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "checkingDeploymentStatus", "installedApp", installedApp, "installedAppVersionHistory", installedAppVersionHistory)
 		if util3.IsTerminalRunnerStatus(installedAppVersionHistory.Status) {
 			// drop event
@@ -364,7 +380,7 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 				impl.logger.Errorw("found empty argo application object", "appName", acdAppName)
 				return fmt.Errorf("found empty argo application object"), isTimelineUpdated
 			}
-			isSucceeded, isTimelineUpdated, pipelineOverride, err = impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, time.Now(), isAppStore)
+			isSucceeded, isTimelineUpdated, pipelineOverride, err = impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, applicationObjectClusterId, time.Now(), isAppStore)
 			if err != nil {
 				impl.logger.Errorw("error in updating deployment status for gitOps cd pipelines", "app", app)
 				return err, isTimelineUpdated
@@ -439,7 +455,8 @@ func (impl *WorkflowStatusServiceImpl) CheckAndSendArgoPipelineStatusSyncEventIf
 	}
 
 	// pipelineId can be cdPipelineId or installedAppVersionId, using isAppStoreApplication flag to identify between them
-	if lastSyncTime.IsZero() || (!lastSyncTime.IsZero() && time.Since(lastSyncTime) > 5*time.Second) { // create new nats event
+	if lastSyncTime.IsZero() || (!lastSyncTime.IsZero() && time.Since(lastSyncTime) > 5*time.Second) {
+		// create new nats event
 		err = impl.cdPipelineEventPublishService.PublishArgoTypePipelineSyncEvent(pipelineId, installedAppVersionId, userId, isAppStoreApplication)
 		if err != nil {
 			impl.logger.Errorw("error, PublishArgoTypePipelineSyncEvent", "err", err)
@@ -536,7 +553,16 @@ func (impl *WorkflowStatusServiceImpl) syncACDHelmApps(deployedBeforeMinutes int
 		argoAppName := util3.BuildDeployedAppName(appDetails.AppName, envDetails.Name)
 		ctx := context.Background()
 		syncTime := time.Now()
-		syncErr := impl.argocdClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(ctx, argoAppName)
+		deploymentConfig, err := impl.deploymentConfigService.GetConfigForHelmApps(appDetails.Id, envDetails.Id)
+		if err != nil {
+			impl.logger.Errorw("error in getting deployment config db object by appId and envId", "appId", appDetails.Id, "envId", envDetails.Id, "err", err)
+			return err
+		}
+		if deploymentConfig.IsArgoAppSyncAndRefreshSupported() {
+			return nil
+		}
+		targetRevision := deploymentConfig.GetTargetRevision()
+		syncErr := impl.argocdClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(ctx, argoAppName, targetRevision)
 		if syncErr != nil {
 			impl.logger.Errorw("error in syncing argoCD app", "err", syncErr)
 			timelineObject := impl.pipelineStatusTimelineService.NewHelmAppDeploymentStatusTimelineDbObject(installedAppVersionHistoryId, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_FAILED, fmt.Sprintf("error occured in syncing argocd application. err: %s", syncErr.Error()), 1)

@@ -17,22 +17,29 @@
 package bean
 
 type EnvironmentBean struct {
-	Id                     int      `json:"id,omitempty" validate:"number"`
-	Environment            string   `json:"environment_name,omitempty" validate:"required,max=50"`
-	ClusterId              int      `json:"cluster_id,omitempty" validate:"number,required"`
-	ClusterName            string   `json:"cluster_name,omitempty"`
-	Active                 bool     `json:"active"`
-	Default                bool     `json:"default"`
-	PrometheusEndpoint     string   `json:"prometheus_endpoint,omitempty"`
-	Namespace              string   `json:"namespace,omitempty" validate:"name-space-component,max=50"`
-	CdArgoSetup            bool     `json:"isClusterCdActive"`
-	EnvironmentIdentifier  string   `json:"environmentIdentifier"`
-	Description            string   `json:"description" validate:"max=40"`
-	AppCount               int      `json:"appCount"`
-	IsVirtualEnvironment   bool     `json:"isVirtualEnvironment"`
-	AllowedDeploymentTypes []string `json:"allowedDeploymentTypes"`
-	ClusterServerUrl       string   `json:"-"`
-	ErrorInConnecting      string   `json:"-"`
+	Id                     int               `json:"id,omitempty" validate:"number"`
+	Environment            string            `json:"environment_name,omitempty" validate:"required,max=50"`
+	ClusterId              int               `json:"cluster_id,omitempty" validate:"number,required"`
+	ClusterName            string            `json:"cluster_name,omitempty"`
+	Active                 bool              `json:"active"`
+	Default                bool              `json:"default"`
+	PrometheusEndpoint     string            `json:"prometheus_endpoint,omitempty"`
+	Namespace              string            `json:"namespace,omitempty" validate:"name-space-component,max=50"`
+	CdArgoSetup            bool              `json:"isClusterCdActive"`
+	EnvironmentIdentifier  string            `json:"environmentIdentifier"`
+	Description            string            `json:"description" validate:"max=40"`
+	AppCount               int               `json:"appCount"`
+	IsVirtualEnvironment   bool              `json:"isVirtualEnvironment"`
+	AllowedDeploymentTypes []string          `json:"allowedDeploymentTypes"`
+	ClusterServerUrl       string            `json:"-"`
+	ErrorInConnecting      string            `json:"-"`
+	ClusterToken           string            `json:"-"`
+	InsecureSkipTlsVerify  bool              `json:"-"`
+	ClusterConfig          map[string]string `json:"-"`
+	ClusterCAData          string            `json:"-"`
+	ClusterKeyData         string            `json:"-"`
+	ClusterCertData        string            `json:"-"`
+	DataSourceId           int               `json:"-"`
 }
 
 type EnvDto struct {
@@ -60,3 +67,8 @@ const (
 	PIPELINE_DEPLOYMENT_TYPE_HELM = "helm"
 	PIPELINE_DEPLOYMENT_TYPE_ACD  = "argo_cd"
 )
+
+type DataSourceMetaData struct {
+	Id   int    `json:"id"`
+	Name string `json:"name"`
+}

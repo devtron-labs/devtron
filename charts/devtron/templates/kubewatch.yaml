@@ -30,6 +30,7 @@ rules:
     - persistentvolumes
     - events
     - workflows
+    - secrets
     verbs:
     - list
     - watch
@@ -187,13 +188,33 @@ spec:
             - name: app
               containerPort: 3000
               protocol: TCP
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: {{ $.Values.components.kubewatch.healthPort}}
+              scheme: HTTP
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: {{ $.Values.components.kubewatch.healthPort}}
+              scheme: HTTP
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
           env:
             - name: POD_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
             {{- if .dbconfig }}
-            - name: DB_PWD
+            - name: PG_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ .dbconfig.secretName }}
@@ -204,6 +225,8 @@ spec:
               name: kubewatch-cm
           - secretRef:
               name: kubewatch-secret
+          - configMapRef:
+              name: devtron-common-cm
           volumeMounts:
           - name: kubewatch-resources-config
             mountPath: /root/.kubewatch.yaml

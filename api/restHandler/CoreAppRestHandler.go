@@ -29,6 +29,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
 	pipelineBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	common2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
+	bean3 "github.com/devtron-labs/devtron/pkg/chart/bean"
+	read5 "github.com/devtron-labs/devtron/pkg/chart/read"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	read3 "github.com/devtron-labs/devtron/pkg/team/read"
 	"net/http"
@@ -101,6 +104,7 @@ type CoreAppRestHandlerImpl struct {
 	pipelineStageService    pipeline.PipelineStageService
 	ciPipelineRepository    pipelineConfig.CiPipelineRepository
 	teamReadService         read3.TeamReadService
+	chartReadService        read5.ChartReadService
 }
 
 func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
@@ -112,7 +116,8 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 	pipelineStageService pipeline.PipelineStageService, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	gitProviderReadService read.GitProviderReadService,
 	gitMaterialReadService read2.GitMaterialReadService,
-	teamReadService read3.TeamReadService) *CoreAppRestHandlerImpl {
+	teamReadService read3.TeamReadService,
+	chartReadService read5.ChartReadService) *CoreAppRestHandlerImpl {
 	handler := &CoreAppRestHandlerImpl{
 		logger:                  logger,
 		userAuthService:         userAuthService,
@@ -136,6 +141,7 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 		pipelineStageService:    pipelineStageService,
 		ciPipelineRepository:    ciPipelineRepository,
 		teamReadService:         teamReadService,
+		chartReadService:        chartReadService,
 	}
 	return handler
 }
@@ -551,7 +557,7 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentDeploymentTemplate(appI
 		return nil, err, http.StatusBadRequest
 	}
 
-	appDeploymentTemplate, err := handler.chartService.FindLatestChartForAppByAppId(appId)
+	appDeploymentTemplate, err := handler.chartReadService.FindLatestChartForAppByAppId(appId)
 	if err != nil {
 		if err != pg.ErrNoRows {
 			handler.logger.Errorw("service err, GetDeploymentTemplate in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
@@ -1365,7 +1371,7 @@ func (handler CoreAppRestHandlerImpl) createDockerConfig(appId int, dockerConfig
 func (handler CoreAppRestHandlerImpl) createDeploymentTemplate(ctx context.Context, appId int, deploymentTemplate *appBean.DeploymentTemplate, userId int32) (error, int) {
 	handler.logger.Infow("Create App - creating deployment template", "appId", appId, "DeploymentStrategy", deploymentTemplate)
 
-	createDeploymentTemplateRequest := chart.TemplateRequest{
+	createDeploymentTemplateRequest := bean3.TemplateRequest{
 		AppId:               appId,
 		ChartRefId:          deploymentTemplate.ChartRefId,
 		IsAppMetricsEnabled: deploymentTemplate.ShowAppMetrics,
@@ -1683,7 +1689,7 @@ func (handler CoreAppRestHandlerImpl) createCiPipeline(appId int, userId int32, 
 			ParentCiPipeline:         ciPipelineData.ParentCiPipeline,
 			ParentAppId:              ciPipelineData.ParentAppId,
 			LinkedCount:              ciPipelineData.LinkedCount,
-			PipelineType:             pipelineBean.PipelineType(ciPipelineData.PipelineType),
+			PipelineType:             common2.PipelineType(ciPipelineData.PipelineType),
 		},
 	}
 
@@ -1839,14 +1845,14 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 	chartEntry, err := handler.chartRepo.FindChartByAppIdAndRefId(appId, chartRefId)
 	if err != nil {
 		if pg.ErrNoRows == err {
-			templateRequest := chart.TemplateRequest{
+			templateRequest := bean3.TemplateRequest{
 				AppId:               appId,
 				ChartRefId:          chartRefId,
-				ValuesOverride:      []byte("{}"),
+				ValuesOverride:      util.GetEmptyJSON(),
 				UserId:              userId,
 				IsAppMetricsEnabled: deploymentTemplateOverride.ShowAppMetrics,
 			}
-			newChartEntry, err := handler.chartService.CreateChartFromEnvOverride(templateRequest, context.Background())
+			newChartEntry, err := handler.chartService.CreateChartFromEnvOverride(context.Background(), templateRequest)
 			if err != nil {
 				handler.logger.Errorw("service err, CreateChartFromEnvOverride", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
 				return err

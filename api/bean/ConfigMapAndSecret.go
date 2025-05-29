@@ -57,14 +57,19 @@ type ConfigSecretMap struct {
 	SubPath        bool            `json:"subPath"`
 	ESOSubPath     []string        `json:"esoSubPath"`
 	FilePermission string          `json:"filePermission"`
+	ConfigSecretMapEnt
 }
 
-func (configSecret ConfigSecretMap) GetDataMap() (map[string]string, error) {
-	var datamap map[string]string
-	err := json.Unmarshal(configSecret.Data, &datamap)
-	return datamap, err
+func (configSecret *ConfigSecretMap) GetDataMap() (map[string]string, error) {
+	if len(configSecret.Data) == 0 {
+		return make(map[string]string), nil
+	}
+	var dataMap map[string]string
+	err := json.Unmarshal(configSecret.Data, &dataMap)
+	return dataMap, err
 }
-func (configSecretJson ConfigSecretJson) GetDereferencedSecrets() []ConfigSecretMap {
+
+func (configSecretJson *ConfigSecretJson) GetDereferencedSecrets() []ConfigSecretMap {
 	return sliceUtil.GetDeReferencedSlice(configSecretJson.Secrets)
 }
 
@@ -80,6 +85,9 @@ func GetTransformedDataForSecretRootJsonData(data string, mode util.SecretTransf
 	}
 
 	for _, configData := range secretsJson.ConfigSecretJson.Secrets {
+		if configData.Data == nil || configData.External {
+			continue
+		}
 		configData.Data, err = util.GetDecodedAndEncodedData(configData.Data, mode)
 		if err != nil {
 			return "", err
@@ -92,3 +100,14 @@ func GetTransformedDataForSecretRootJsonData(data string, mode util.SecretTransf
 	}
 	return string(marshal), nil
 }
+
+type ConfigType string
+
+func (c ConfigType) String() string {
+	return string(c)
+}
+
+const (
+	ConfigMap ConfigType = "cm"
+	Secret    ConfigType = "cs"
+)

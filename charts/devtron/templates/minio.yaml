@@ -129,6 +129,12 @@ data:
     createBucket devtron-ci-log none false true
     createBucket devtron-ci-cache none false true
     {{- end }}
+    {{- if ne ($.Values.minio.retention | int) 0 }}
+    ${MC} ilm add myminio/devtron-ci-cache --expiry-days {{ $.Values.minio.retention }}
+    ${MC} ilm ls myminio/devtron-ci-cache
+    {{- else }}
+    echo "No Lifecycle Policy Specified"
+    {{- end }}
     {{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -294,6 +300,9 @@ spec:
                 secretKeyRef:
                   name: devtron-minio
                   key: secretkey
+          envFrom:
+          - configMapRef:
+              name: devtron-common-cm
           resources: {}
       volumes:
         - name: minio-user
@@ -304,6 +313,7 @@ spec:
         name: export
       spec:
         accessModes: [ "ReadWriteOnce" ]
+        {{- include "common.storageclass" $ | indent 8 }}
         resources:
           requests:
             storage: {{ $.Values.minio.persistence.storage }}
@@ -350,6 +360,9 @@ spec:
               value: devtron-minio
             - name: MINIO_PORT
               value: "9000"
+          envFrom:
+          - configMapRef:
+              name: devtron-common-cm
           volumeMounts:
             - name: minio-configuration
               mountPath: /config
@@ -410,6 +423,9 @@ spec:
                 secretKeyRef:
                   name: devtron-minio
                   key: secretkey
+          envFrom:
+          - configMapRef:
+              name: devtron-common-cm
       volumes:
         - name: minio-user
           secret:

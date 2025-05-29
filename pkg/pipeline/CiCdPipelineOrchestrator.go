@@ -27,16 +27,21 @@ import (
 	"fmt"
 	constants2 "github.com/devtron-labs/devtron/internal/sql/constants"
 	attributesBean "github.com/devtron-labs/devtron/pkg/attributes/bean"
+	adapter2 "github.com/devtron-labs/devtron/pkg/bean/adapter"
 	common2 "github.com/devtron-labs/devtron/pkg/bean/common"
 	repository6 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	buildCommonBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
+	read2 "github.com/devtron-labs/devtron/pkg/chart/read"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	"github.com/devtron-labs/devtron/pkg/deployment/common/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
-	constants3 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	util4 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"github.com/devtron-labs/devtron/pkg/plugin"
+	"github.com/devtron-labs/devtron/util/beHelper"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"golang.org/x/exp/slices"
 	"net/http"
 	"path"
@@ -146,7 +151,9 @@ type CiCdPipelineOrchestratorImpl struct {
 	transactionManager            sql.TransactionWrapper
 	gitOpsConfigReadService       config.GitOpsConfigReadService
 	deploymentConfigService       common.DeploymentConfigService
+	deploymentConfigReadService   read.DeploymentConfigReadService
 	workflowCacheConfig           types.WorkflowCacheConfig
+	chartReadService              read2.ChartReadService
 }
 
 func NewCiCdPipelineOrchestrator(
@@ -176,7 +183,9 @@ func NewCiCdPipelineOrchestrator(
 	genericNoteService genericNotes.GenericNoteService,
 	chartService chart.ChartService, transactionManager sql.TransactionWrapper,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	deploymentConfigService common.DeploymentConfigService) *CiCdPipelineOrchestratorImpl {
+	deploymentConfigService common.DeploymentConfigService,
+	deploymentConfigReadService read.DeploymentConfigReadService,
+	chartReadService read2.ChartReadService) *CiCdPipelineOrchestratorImpl {
 	_, workflowCacheConfig, err := types.GetCiConfigWithWorkflowCacheConfig()
 	if err != nil {
 		logger.Errorw("Error in getting workflow cache config, continuing with default values", "err", err)
@@ -211,12 +220,11 @@ func NewCiCdPipelineOrchestrator(
 		transactionManager:            transactionManager,
 		gitOpsConfigReadService:       gitOpsConfigReadService,
 		deploymentConfigService:       deploymentConfigService,
+		deploymentConfigReadService:   deploymentConfigReadService,
 		workflowCacheConfig:           workflowCacheConfig,
+		chartReadService:              chartReadService,
 	}
 }
-
-const BEFORE_DOCKER_BUILD string = "BEFORE_DOCKER_BUILD"
-const AFTER_DOCKER_BUILD string = "AFTER_DOCKER_BUILD"
 
 func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSource(patchRequest *bean.CiMaterialPatchRequest, userId int32) (*bean.CiMaterialPatchRequest, error) {
 	pipeline, err := impl.findUniquePipelineForAppIdAndEnvironmentId(patchRequest.AppId, patchRequest.EnvironmentId)
@@ -318,7 +326,7 @@ func (impl CiCdPipelineOrchestratorImpl) validateCiPipelineMaterial(ciPipelineMa
 
 func (impl CiCdPipelineOrchestratorImpl) getSkipMessage(ciPipeline *pipelineConfig.CiPipeline) string {
 	switch ciPipeline.PipelineType {
-	case string(bean2.LINKED_CD):
+	case string(buildCommonBean.LINKED_CD):
 		return "“Sync with Environment”"
 	default:
 		return "“Linked Build Pipeline”"
@@ -999,7 +1007,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 
 		var pipelineMaterials []*pipelineConfig.CiPipelineMaterial
 		for _, r := range ciPipeline.CiMaterial {
-			if ciPipeline.PipelineType == bean2.LINKED_CD {
+			if ciPipeline.PipelineType == buildCommonBean.LINKED_CD {
 				continue
 			}
 			material := &pipelineConfig.CiPipelineMaterial{
@@ -1111,9 +1119,9 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			}
 			if !ciPipeline.IsExternal { //pipeline is not [linked, webhook] and overridden, then create template override
 				err = impl.createDockerRepoIfNeeded(ciPipeline.DockerConfigOverride.DockerRegistry, ciPipeline.DockerConfigOverride.DockerRepository)
+				// silently ignoring the error, since we don't want to fail the pipeline creation
 				if err != nil {
-					impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", ciPipeline.DockerConfigOverride.DockerRegistry, "dockerRegistry", ciPipeline.DockerConfigOverride.DockerRepository)
-					return nil, err
+					impl.logger.Warnw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", ciPipeline.DockerConfigOverride.DockerRegistry, "dockerRegistry", ciPipeline.DockerConfigOverride.DockerRepository)
 				}
 				err := impl.ciTemplateService.Save(ciTemplateBean)
 				if err != nil {
@@ -1341,7 +1349,7 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) erro
 
 	impl.logger.Debug("deleting materials in git_sensor")
 	for _, m := range materials {
-		err = impl.updateRepositoryToGitSensor(m, "")
+		err = impl.updateRepositoryToGitSensor(m, "", false)
 		if err != nil {
 			impl.logger.Errorw("error in updating to git-sensor", "err", err)
 			return err
@@ -1374,6 +1382,18 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) erro
 	if err != nil {
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
 		return err
+	}
+	appDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(appId, 0)
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
+		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "err", err)
+		return err
+	} else if err == nil && appDeploymentConfig != nil {
+		appDeploymentConfig.Active = false
+		appDeploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(tx, appDeploymentConfig, userId)
+		if err != nil {
+			impl.logger.Errorw("error in deleting deployment config for pipeline", "appId", appId, "err", err)
+			return err
+		}
 	}
 	err = tx.Commit()
 	if err != nil {
@@ -1419,14 +1439,16 @@ func (impl CiCdPipelineOrchestratorImpl) CreateMaterials(createMaterialRequest *
 		}
 		materials = append(materials, inputMaterial)
 	}
-	err = impl.addRepositoryToGitSensor(materials, "")
-	if err != nil {
-		impl.logger.Errorw("error in updating to sensor", "err", err)
-		return nil, err
-	}
+	// moving transaction before addRepositoryToGitSensor as commiting transaction after addRepositoryToGitSensor was causing problems
+	// in case request was cancelled data was getting saved in git sensor but not getting saved in orchestrator db. Same is done in update flow.
 	err = impl.transactionManager.CommitTx(tx)
 	if err != nil {
 		impl.logger.Errorw("error in committing tx Create material", "err", err, "materials", materials)
+		return nil, err
+	}
+	err = impl.addRepositoryToGitSensor(materials, "")
+	if err != nil {
+		impl.logger.Errorw("error in updating to sensor", "err", err)
 		return nil, err
 	}
 	impl.logger.Debugw("all materials are ", "materials", materials)
@@ -1444,21 +1466,23 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateMaterial(updateMaterialDTO *bean.
 		impl.logger.Errorw("err", "err", err)
 		return nil, err
 	}
-
-	err = impl.updateRepositoryToGitSensor(updatedMaterial, "")
-	if err != nil {
-		impl.logger.Errorw("error in updating to git-sensor", "err", err)
-		return nil, err
-	}
 	err = impl.transactionManager.CommitTx(tx)
 	if err != nil {
-		impl.logger.Errorw("error in committing tx Update material", "err", err)
+		impl.logger.Errorw("error in committing tx Create material", "err", err)
+		return nil, err
+	}
+
+	err = impl.updateRepositoryToGitSensor(updatedMaterial, "",
+		updateMaterialDTO.Material.CreateBackup)
+	if err != nil {
+		impl.logger.Errorw("error in updating to git-sensor", "err", err)
 		return nil, err
 	}
 	return updateMaterialDTO, nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *repository6.GitMaterial, cloningMode string) error {
+func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *repository6.GitMaterial,
+	cloningMode string, createBackup bool) error {
 	sensorMaterial := &gitSensor.GitMaterial{
 		Name:             material.Name,
 		Url:              material.Url,
@@ -1469,8 +1493,16 @@ func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *r
 		FetchSubmodules:  material.FetchSubmodules,
 		FilterPattern:    material.FilterPattern,
 		CloningMode:      cloningMode,
+		CreateBackup:     createBackup,
 	}
-	return impl.GitSensorClient.UpdateRepo(context.Background(), sensorMaterial)
+	timeout := 10 * time.Minute
+	if createBackup {
+		// additional time may be required for dir snapshot
+		timeout = 15 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return impl.GitSensorClient.UpdateRepo(ctx, sensorMaterial)
 }
 
 func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*bean.GitMaterial, cloningMode string) error {
@@ -1488,7 +1520,9 @@ func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*b
 		}
 		sensorMaterials = append(sensorMaterials, sensorMaterial)
 	}
-	return impl.GitSensorClient.AddRepo(context.Background(), sensorMaterials)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	return impl.GitSensorClient.AddRepo(ctx, sensorMaterials)
 }
 
 // FIXME: not thread safe
@@ -1726,6 +1760,23 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCDPipelines(pipelineRequest *bean
 		DeploymentAppName:             fmt.Sprintf("%s-%s", appName, env.Name),
 		AuditLog:                      sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
+
+	if pipelineRequest.IsLinkedRelease() {
+		if len(pipelineRequest.DeploymentAppName) == 0 {
+			return 0, util.DefaultApiError().
+				WithHttpStatusCode(http.StatusUnprocessableEntity).
+				WithInternalMessage("deploymentAppName is required for releaseMode: link").
+				WithUserMessage("deploymentAppName is required for releaseMode: link")
+		}
+		//Here we are linking an external helm release so deployment_app_name = <external-release-name> and deployment_app_created = true as release already exist
+		// external release name is sent from FE in pipelineRequest.DeploymentAppName field
+		pipeline.DeploymentAppName = pipelineRequest.DeploymentAppName
+		pipeline.DeploymentAppCreated = true
+	}
+	if len(pipeline.DeploymentAppName) == 0 {
+		pipeline.DeploymentAppName = util2.BuildDeployedAppName(appName, env.Name)
+	}
+
 	err = impl.pipelineRepository.Save([]*pipelineConfig.Pipeline{pipeline}, tx)
 	if err != nil {
 		impl.logger.Errorw("error in saving cd pipeline", "err", err, "pipeline", pipeline)
@@ -1940,10 +1991,11 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			PreStageConfigMapSecretNames:  preStageConfigmapSecrets,
 			PostStageConfigMapSecretNames: postStageConfigmapSecrets,
 			DeploymentAppType:             envDeploymentConfig.DeploymentAppType,
+			ReleaseMode:                   envDeploymentConfig.ReleaseMode,
 			DeploymentAppCreated:          dbPipeline.DeploymentAppCreated,
 			DeploymentAppDeleteRequest:    dbPipeline.DeploymentAppDeleteRequest,
 			IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
-			IsGitOpsRepoNotConfigured:     !isAppLevelGitOpsConfigured,
+			IsGitOpsRepoNotConfigured:     !envDeploymentConfig.IsPipelineGitOpsRepoConfigured(isAppLevelGitOpsConfigured),
 		}
 		if pipelineStages, ok := pipelineIdAndPrePostStageMapping[dbPipeline.Id]; ok {
 			pipeline.PreDeployStage = pipelineStages[0]
@@ -1992,18 +2044,32 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 		impl.logger.Errorw("error in fetching pipelineIdAndPrePostStageMapping", "err", err)
 		return nil, err
 	}
-	appIdAppLevelGitOpsConfiguredMap, err := impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(appIds)
+	appIdToGitOpsConfiguredMap, err := impl.chartReadService.IsGitOpsRepoConfiguredForDevtronApps(appIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching latest chart details for app by appId")
 		return nil, err
 	}
 	pipelines := make([]*bean.CDPipelineConfigObject, 0, len(dbPipelines))
-	pipelineIdDeploymentTypeMap, err := impl.deploymentConfigService.GetDeploymentAppTypeForCDInBulk(dbPipelines)
+	cdPipelineMinObjs := sliceUtil.NewSliceFromFuncExec(dbPipelines, func(dbPipeline *pipelineConfig.Pipeline) *bean.CDPipelineMinConfig {
+		return adapter2.NewCDPipelineMinConfigFromModel(dbPipeline)
+	})
+	pipelineIdDeploymentTypeMap, err := impl.deploymentConfigReadService.GetDeploymentAppTypeForCDInBulk(cdPipelineMinObjs, appIdToGitOpsConfiguredMap)
 	if err != nil {
 		impl.logger.Errorw("error, GetDeploymentAppTypeForCDInBulk", "pipelines", dbPipelines, "err", err)
 		return nil, err
 	}
 	for _, dbPipeline := range dbPipelines {
+		var deploymentAppType, releaseMode string
+		var isGitOpsRepoNotConfigured bool
+		if envDeploymentConfigMin, ok := pipelineIdDeploymentTypeMap[dbPipeline.Id]; ok {
+			deploymentAppType = envDeploymentConfigMin.DeploymentAppType
+			releaseMode = envDeploymentConfigMin.ReleaseMode
+			isGitOpsRepoNotConfigured = !envDeploymentConfigMin.IsGitOpsRepoConfigured
+		} else {
+			// error handling if data is not found; as it is a required field
+			impl.logger.Errorw("error in fetching deploymentAppType and release mode for pipeline", "pipelineId", dbPipeline.Id, "pipelineIdDeploymentTypeMap", pipelineIdDeploymentTypeMap)
+			return nil, fmt.Errorf("error in fetching deploymentAppType and release mode for pipeline")
+		}
 		pipeline := &bean.CDPipelineConfigObject{
 			Id:                        dbPipeline.Id,
 			Name:                      dbPipeline.Name,
@@ -2013,13 +2079,14 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 			TriggerType:               dbPipeline.TriggerType,
 			RunPreStageInEnv:          dbPipeline.RunPreStageInEnv,
 			RunPostStageInEnv:         dbPipeline.RunPostStageInEnv,
-			DeploymentAppType:         pipelineIdDeploymentTypeMap[dbPipeline.Id],
+			DeploymentAppType:         deploymentAppType,
+			ReleaseMode:               releaseMode,
 			AppName:                   dbPipeline.App.AppName,
 			AppId:                     dbPipeline.AppId,
 			TeamId:                    dbPipeline.App.TeamId,
 			EnvironmentIdentifier:     dbPipeline.Environment.EnvironmentIdentifier,
 			IsVirtualEnvironment:      dbPipeline.Environment.IsVirtualEnvironment,
-			IsGitOpsRepoNotConfigured: !appIdAppLevelGitOpsConfiguredMap[dbPipeline.AppId],
+			IsGitOpsRepoNotConfigured: isGitOpsRepoNotConfigured,
 		}
 		if len(dbPipeline.PreStageConfig) > 0 {
 			preStage := bean.CdStage{}
@@ -2124,6 +2191,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 			impl.logger.Errorw("error in fetching latest chart details for app by appId")
 			return nil, err
 		}
+		// TODO Asutosh: why not getting deployment config ??
 		pipeline := &bean.CDPipelineConfigObject{
 			Id:                            dbPipeline.Id,
 			Name:                          dbPipeline.Name,
@@ -2220,7 +2288,7 @@ func (impl CiCdPipelineOrchestratorImpl) AddPipelineToTemplate(createRequest *be
 	if createRequest.AppWorkflowId == 0 {
 		// create workflow
 		wf := &appWorkflow.AppWorkflow{
-			Name:   fmt.Sprintf("wf-%d-%s", createRequest.AppId, util2.Generate(4)),
+			Name:   beHelper.GetAppWorkflowName(createRequest.AppId),
 			AppId:  createRequest.AppId,
 			Active: true,
 			AuditLog: sql.AuditLog{
@@ -2434,7 +2502,7 @@ func (impl *CiCdPipelineOrchestratorImpl) GetWorkflowCacheConfig(appType helper.
 	if appType == helper.Job {
 		return util4.GetWorkflowCacheConfig(pipelineWorkflowCacheConfig, impl.workflowCacheConfig.IgnoreJob)
 	} else {
-		if pipelineType == string(constants3.CI_JOB) {
+		if pipelineType == string(buildCommonBean.CI_JOB) {
 			return util4.GetWorkflowCacheConfigWithBackwardCompatibility(pipelineWorkflowCacheConfig, impl.ciConfig.WorkflowCacheConfig, impl.workflowCacheConfig.IgnoreCIJob, impl.ciConfig.SkipCiJobBuildCachePushPull)
 		} else {
 			return util4.GetWorkflowCacheConfigWithBackwardCompatibility(pipelineWorkflowCacheConfig, impl.ciConfig.WorkflowCacheConfig, impl.workflowCacheConfig.IgnoreCI, impl.ciConfig.IgnoreDockerCacheForCI)

@@ -35,6 +35,7 @@ func ParseChartGitPushRequest(installAppRequestDTO *appStoreBean.InstallAppVersi
 		EnvName:           installAppRequestDTO.EnvironmentName,
 		ChartAppStoreName: installAppRequestDTO.AppStoreName,
 		RepoURL:           installAppRequestDTO.GitOpsRepoURL,
+		TargetRevision:    installAppRequestDTO.GetTargetRevision(),
 		TempChartRefDir:   tempRefChart,
 		UserId:            installAppRequestDTO.UserId,
 	}
@@ -45,7 +46,7 @@ func ParseChartCreateRequest(appName string, includePackageChart bool) *util.Cha
 	return &util.ChartCreateRequest{
 		ChartMetaData: &chart.Metadata{
 			Name:    appName,
-			Version: "1.0.1",
+			Version: "1.0.1", // TODO Asutoh: Why not the actual version?
 		},
 		ChartPath:           chartPath,
 		IncludePackageChart: includePackageChart,

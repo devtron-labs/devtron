@@ -38,7 +38,7 @@ type CDPipelineEventProcessorImpl struct {
 	pubSubClient            *pubsub.PubSubClientServiceImpl
 	cdWorkflowCommonService cd.CdWorkflowCommonService
 	workflowStatusService   status.WorkflowStatusService
-	cdTriggerService        devtronApps.TriggerService
+	cdHandlerService        devtronApps.HandlerService
 	pipelineRepository      pipelineConfig.PipelineRepository
 	installedAppReadService installedAppReader.InstalledAppReadService
 }
@@ -47,7 +47,7 @@ func NewCDPipelineEventProcessorImpl(logger *zap.SugaredLogger,
 	pubSubClient *pubsub.PubSubClientServiceImpl,
 	cdWorkflowCommonService cd.CdWorkflowCommonService,
 	workflowStatusService status.WorkflowStatusService,
-	cdTriggerService devtronApps.TriggerService,
+	cdHandlerService devtronApps.HandlerService,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	installedAppReadService installedAppReader.InstalledAppReadService) *CDPipelineEventProcessorImpl {
 	cdPipelineEventProcessorImpl := &CDPipelineEventProcessorImpl{
@@ -55,7 +55,7 @@ func NewCDPipelineEventProcessorImpl(logger *zap.SugaredLogger,
 		pubSubClient:            pubSubClient,
 		cdWorkflowCommonService: cdWorkflowCommonService,
 		workflowStatusService:   workflowStatusService,
-		cdTriggerService:        cdTriggerService,
+		cdHandlerService:        cdHandlerService,
 		pipelineRepository:      pipelineRepository,
 		installedAppReadService: installedAppReadService,
 	}
@@ -78,7 +78,7 @@ func (impl *CDPipelineEventProcessorImpl) SubscribeCDBulkTriggerTopic() error {
 			ReferenceId: pointer.String(msg.MsgId),
 			Context:     context2.Background(),
 		}
-		_, _, _, err = impl.cdTriggerService.ManualCdTrigger(triggerContext, event.ValuesOverrideRequest)
+		_, _, _, err = impl.cdHandlerService.ManualCdTrigger(triggerContext, event.ValuesOverrideRequest, event.UserMetadata)
 		if err != nil {
 			impl.logger.Errorw("Error triggering CD", "topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC, "msg", msg.Data, "err", err)
 		}

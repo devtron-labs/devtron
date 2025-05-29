@@ -4,6 +4,7 @@ package mocks
 
 import (
 	chart "github.com/devtron-labs/devtron/pkg/chart"
+	bean2 "github.com/devtron-labs/devtron/pkg/chart/bean"
 	bean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 
 	context "context"
@@ -69,23 +70,23 @@ func (_m *ChartService) CheckIfChartRefUserUploadedByAppId(id int) (bool, error)
 }
 
 // Create provides a mock function with given fields: templateRequest, ctx
-func (_m *ChartService) Create(templateRequest chart.TemplateRequest, ctx context.Context) (*chart.TemplateRequest, error) {
+func (_m *ChartService) Create(templateRequest bean2.TemplateRequest, ctx context.Context) (*bean2.TemplateRequest, error) {
 	ret := _m.Called(templateRequest, ctx)
 
-	var r0 *chart.TemplateRequest
+	var r0 *bean2.TemplateRequest
 	var r1 error
-	if rf, ok := ret.Get(0).(func(chart.TemplateRequest, context.Context) (*chart.TemplateRequest, error)); ok {
+	if rf, ok := ret.Get(0).(func(bean2.TemplateRequest, context.Context) (*bean2.TemplateRequest, error)); ok {
 		return rf(templateRequest, ctx)
 	}
-	if rf, ok := ret.Get(0).(func(chart.TemplateRequest, context.Context) *chart.TemplateRequest); ok {
+	if rf, ok := ret.Get(0).(func(bean2.TemplateRequest, context.Context) *bean2.TemplateRequest); ok {
 		r0 = rf(templateRequest, ctx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*chart.TemplateRequest)
+			r0 = ret.Get(0).(*bean2.TemplateRequest)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(chart.TemplateRequest, context.Context) error); ok {
+	if rf, ok := ret.Get(1).(func(bean2.TemplateRequest, context.Context) error); ok {
 		r1 = rf(templateRequest, ctx)
 	} else {
 		r1 = ret.Error(1)
@@ -95,23 +96,23 @@ func (_m *ChartService) Create(templateRequest chart.TemplateRequest, ctx contex
 }
 
 // CreateChartFromEnvOverride provides a mock function with given fields: templateRequest, ctx
-func (_m *ChartService) CreateChartFromEnvOverride(templateRequest chart.TemplateRequest, ctx context.Context) (*chart.TemplateRequest, error) {
+func (_m *ChartService) CreateChartFromEnvOverride(templateRequest bean2.TemplateRequest, ctx context.Context) (*bean2.TemplateRequest, error) {
 	ret := _m.Called(templateRequest, ctx)
 
-	var r0 *chart.TemplateRequest
+	var r0 *bean2.TemplateRequest
 	var r1 error
-	if rf, ok := ret.Get(0).(func(chart.TemplateRequest, context.Context) (*chart.TemplateRequest, error)); ok {
+	if rf, ok := ret.Get(0).(func(bean2.TemplateRequest, context.Context) (*bean2.TemplateRequest, error)); ok {
 		return rf(templateRequest, ctx)
 	}
-	if rf, ok := ret.Get(0).(func(chart.TemplateRequest, context.Context) *chart.TemplateRequest); ok {
+	if rf, ok := ret.Get(0).(func(bean2.TemplateRequest, context.Context) *bean2.TemplateRequest); ok {
 		r0 = rf(templateRequest, ctx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*chart.TemplateRequest)
+			r0 = ret.Get(0).(*bean2.TemplateRequest)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(chart.TemplateRequest, context.Context) error); ok {
+	if rf, ok := ret.Get(1).(func(bean2.TemplateRequest, context.Context) error); ok {
 		r1 = rf(templateRequest, ctx)
 	} else {
 		r1 = ret.Error(1)
@@ -121,19 +122,19 @@ func (_m *ChartService) CreateChartFromEnvOverride(templateRequest chart.Templat
 }
 
 // FindLatestChartForAppByAppId provides a mock function with given fields: appId
-func (_m *ChartService) FindLatestChartForAppByAppId(appId int) (*chart.TemplateRequest, error) {
+func (_m *ChartService) FindLatestChartForAppByAppId(appId int) (*bean2.TemplateRequest, error) {
 	ret := _m.Called(appId)
 
-	var r0 *chart.TemplateRequest
+	var r0 *bean2.TemplateRequest
 	var r1 error
-	if rf, ok := ret.Get(0).(func(int) (*chart.TemplateRequest, error)); ok {
+	if rf, ok := ret.Get(0).(func(int) (*bean2.TemplateRequest, error)); ok {
 		return rf(appId)
 	}
-	if rf, ok := ret.Get(0).(func(int) *chart.TemplateRequest); ok {
+	if rf, ok := ret.Get(0).(func(int) *bean2.TemplateRequest); ok {
 		r0 = rf(appId)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*chart.TemplateRequest)
+			r0 = ret.Get(0).(*bean2.TemplateRequest)
 		}
 	}
 
@@ -147,19 +148,19 @@ func (_m *ChartService) FindLatestChartForAppByAppId(appId int) (*chart.Template
 }
 
 // FindPreviousChartByAppId provides a mock function with given fields: appId
-func (_m *ChartService) FindPreviousChartByAppId(appId int) (*chart.TemplateRequest, error) {
+func (_m *ChartService) FindPreviousChartByAppId(appId int) (*bean2.TemplateRequest, error) {
 	ret := _m.Called(appId)
 
-	var r0 *chart.TemplateRequest
+	var r0 *bean2.TemplateRequest
 	var r1 error
-	if rf, ok := ret.Get(0).(func(int) (*chart.TemplateRequest, error)); ok {
+	if rf, ok := ret.Get(0).(func(int) (*bean2.TemplateRequest, error)); ok {
 		return rf(appId)
 	}
-	if rf, ok := ret.Get(0).(func(int) *chart.TemplateRequest); ok {
+	if rf, ok := ret.Get(0).(func(int) *bean2.TemplateRequest); ok {
 		r0 = rf(appId)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*chart.TemplateRequest)
+			r0 = ret.Get(0).(*bean2.TemplateRequest)
 		}
 	}
 
@@ -173,19 +174,19 @@ func (_m *ChartService) FindPreviousChartByAppId(appId int) (*chart.TemplateRequ
 }
 
 // GetByAppIdAndChartRefId provides a mock function with given fields: appId, chartRefId
-func (_m *ChartService) GetByAppIdAndChartRefId(appId int, chartRefId int) (*chart.TemplateRequest, error) {
+func (_m *ChartService) GetByAppIdAndChartRefId(appId int, chartRefId int) (*bean2.TemplateRequest, error) {
 	ret := _m.Called(appId, chartRefId)
 
-	var r0 *chart.TemplateRequest
+	var r0 *bean2.TemplateRequest
 	var r1 error
-	if rf, ok := ret.Get(0).(func(int, int) (*chart.TemplateRequest, error)); ok {
+	if rf, ok := ret.Get(0).(func(int, int) (*bean2.TemplateRequest, error)); ok {
 		return rf(appId, chartRefId)
 	}
-	if rf, ok := ret.Get(0).(func(int, int) *chart.TemplateRequest); ok {
+	if rf, ok := ret.Get(0).(func(int, int) *bean2.TemplateRequest); ok {
 		r0 = rf(appId, chartRefId)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*chart.TemplateRequest)
+			r0 = ret.Get(0).(*bean2.TemplateRequest)
 		}
 	}
 
@@ -297,23 +298,23 @@ func (_m *ChartService) PatchEnvOverrides(values json.RawMessage, oldChartType s
 }
 
 // UpdateAppOverride provides a mock function with given fields: ctx, templateRequest
-func (_m *ChartService) UpdateAppOverride(ctx context.Context, templateRequest *chart.TemplateRequest) (*chart.TemplateRequest, error) {
+func (_m *ChartService) UpdateAppOverride(ctx context.Context, templateRequest *bean2.TemplateRequest) (*bean2.TemplateRequest, error) {
 	ret := _m.Called(ctx, templateRequest)
 
-	var r0 *chart.TemplateRequest
+	var r0 *bean2.TemplateRequest
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *chart.TemplateRequest) (*chart.TemplateRequest, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *bean2.TemplateRequest) (*bean2.TemplateRequest, error)); ok {
 		return rf(ctx, templateRequest)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *chart.TemplateRequest) *chart.TemplateRequest); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *bean2.TemplateRequest) *bean2.TemplateRequest); ok {
 		r0 = rf(ctx, templateRequest)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*chart.TemplateRequest)
+			r0 = ret.Get(0).(*bean2.TemplateRequest)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *chart.TemplateRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *bean2.TemplateRequest) error); ok {
 		r1 = rf(ctx, templateRequest)
 	} else {
 		r1 = ret.Error(1)

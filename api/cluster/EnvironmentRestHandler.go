@@ -23,6 +23,7 @@ import (
 	request "github.com/devtron-labs/devtron/pkg/cluster/environment"
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/read"
+	"github.com/devtron-labs/devtron/util/commonEnforcementFunctionsUtil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -50,6 +51,7 @@ const ENV_DELETE_SUCCESS_RESP = "Environment deleted successfully."
 type EnvironmentRestHandler interface {
 	Create(w http.ResponseWriter, r *http.Request)
 	Get(w http.ResponseWriter, r *http.Request)
+	GetDataSourceName(w http.ResponseWriter, r *http.Request)
 	GetAll(w http.ResponseWriter, r *http.Request)
 	GetAllActive(w http.ResponseWriter, r *http.Request)
 	Update(w http.ResponseWriter, r *http.Request)
@@ -72,6 +74,7 @@ type EnvironmentRestHandlerImpl struct {
 	deleteService                     delete2.DeleteService
 	k8sUtil                           *k8s2.K8sServiceImpl
 	cfg                               *bean.Config
+	rbacEnforcementUtil               commonEnforcementFunctionsUtil.CommonEnforcementUtil
 }
 
 type ClusterReachableResponse struct {
@@ -79,7 +82,8 @@ type ClusterReachableResponse struct {
 	ClusterName      string `json:"clusterName"`
 }
 
-func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, environmentReadService read.EnvironmentReadService, logger *zap.SugaredLogger, userService user.UserService, validator *validator.Validate, enforcer casbin.Enforcer, deleteService delete2.DeleteService, k8sUtil *k8s2.K8sServiceImpl, k8sCommonService k8s.K8sCommonService) *EnvironmentRestHandlerImpl {
+func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, environmentReadService read.EnvironmentReadService, logger *zap.SugaredLogger, userService user.UserService, validator *validator.Validate, enforcer casbin.Enforcer, deleteService delete2.DeleteService, k8sUtil *k8s2.K8sServiceImpl, k8sCommonService k8s.K8sCommonService,
+	rbacEnforcementUtil commonEnforcementFunctionsUtil.CommonEnforcementUtil) *EnvironmentRestHandlerImpl {
 	cfg := &bean.Config{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -98,6 +102,7 @@ func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, environmentRe
 		cfg:                               cfg,
 		k8sUtil:                           k8sUtil,
 		k8sCommonService:                  k8sCommonService,
+		rbacEnforcementUtil:               rbacEnforcementUtil,
 	}
 }
 
@@ -161,6 +166,34 @@ func (impl EnvironmentRestHandlerImpl) Get(w http.ResponseWriter, r *http.Reques
 	//RBAC enforcer Ends
 
 	common.WriteJsonResp(w, err, bean, http.StatusOK)
+}
+
+func (impl EnvironmentRestHandlerImpl) GetDataSourceName(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	environmentName := vars["environmentName"]
+
+	bean, err := impl.environmentClusterMappingsService.FindOne(environmentName)
+	if err != nil {
+		impl.logger.Errorw("service err, Get", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, bean.EnvironmentIdentifier); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+
+	resp, err := impl.environmentClusterMappingsService.GetDataSourceName(bean)
+	if err != nil {
+		impl.logger.Errorw("service err, Get", "err", err, "env", environmentName)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
 func (impl EnvironmentRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request) {
@@ -318,29 +351,7 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 	var grantedEnvironment = environments
 	start = time.Now()
 	if !impl.cfg.IgnoreAuthCheck {
-		grantedEnvironment = make([]bean2.EnvironmentBean, 0)
-		// RBAC enforcer applying
-		var envIdentifierList []string
-		for _, item := range environments {
-			envIdentifierList = append(envIdentifierList, strings.ToLower(item.EnvironmentIdentifier))
-		}
-
-		result := impl.enforcer.EnforceInBatch(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
-		for _, item := range environments {
-
-			var hasAccess bool
-			EnvironmentIdentifier := item.ClusterName + "__" + item.Namespace
-			if item.EnvironmentIdentifier != EnvironmentIdentifier {
-				// fix for futuristic case
-				hasAccess = result[strings.ToLower(EnvironmentIdentifier)] || result[strings.ToLower(item.EnvironmentIdentifier)]
-			} else {
-				hasAccess = result[strings.ToLower(item.EnvironmentIdentifier)]
-			}
-			if hasAccess {
-				grantedEnvironment = append(grantedEnvironment, item)
-			}
-		}
-		//RBAC enforcer Ends
+		grantedEnvironment = impl.rbacEnforcementUtil.CheckAuthorisationForEnvs(token, environments)
 	}
 	elapsedTime := time.Since(start)
 	impl.logger.Infow("Env elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime",
@@ -358,7 +369,7 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDown(w h
 	token := r.Header.Get("token")
 	isActionUserSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 
-	clusters, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDown(token, isActionUserSuperAdmin, impl.CheckAuthorizationByEmailInBatchForGlobalEnvironment)
+	clusters, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDown(token, isActionUserSuperAdmin, impl.rbacEnforcementUtil.CheckAuthorizationByEmailInBatchForGlobalEnvironment)
 	if err != nil {
 		impl.logger.Errorw("service err, GetCombinedEnvironmentListForDropDown", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -368,21 +379,6 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDown(w h
 		clusters = make([]*bean2.ClusterEnvDto, 0)
 	}
 	common.WriteJsonResp(w, err, clusters, http.StatusOK)
-}
-
-func (handler EnvironmentRestHandlerImpl) CheckAuthorizationByEmailInBatchForGlobalEnvironment(token string, object []string) map[string]bool {
-	var objectResult map[string]bool
-	if len(object) > 0 {
-		objectResult = handler.enforcer.EnforceInBatch(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, object)
-	}
-	return objectResult
-}
-
-func (handler EnvironmentRestHandlerImpl) CheckAuthorizationForGlobalEnvironment(token string, object string) bool {
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, object); !ok {
-		return false
-	}
-	return true
 }
 
 func (impl EnvironmentRestHandlerImpl) DeleteEnvironment(w http.ResponseWriter, r *http.Request) {
@@ -446,7 +442,7 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDownByCl
 		}
 	}
 	token := r.Header.Get("token")
-	clusters, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDownByClusterIds(token, clusterIds, impl.CheckAuthorizationForGlobalEnvironment)
+	clusters, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDownByClusterIds(token, clusterIds, impl.rbacEnforcementUtil.CheckAuthorizationForGlobalEnvironment)
 	if err != nil {
 		impl.logger.Errorw("service err, GetCombinedEnvironmentListForDropDown", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

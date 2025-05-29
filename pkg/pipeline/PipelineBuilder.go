@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
+	chartRefBean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"net/url"
 	"strings"
 	"time"
@@ -40,7 +41,7 @@ const SECURITY_SCANNING = "FORCE_SECURITY_SCANNING"
 var DefaultPipelineValue = []byte(`{"ConfigMaps":{"enabled":false},"ConfigSecrets":{"enabled":false},"ContainerPort":[],"EnvVariables":[],"GracePeriod":30,"LivenessProbe":{},"MaxSurge":1,"MaxUnavailable":0,"MinReadySeconds":60,"ReadinessProbe":{},"Spec":{"Affinity":{"Values":"nodes","key":""}},"app":"13","appMetrics":false,"args":{},"autoscaling":{},"command":{"enabled":false,"value":[]},"containers":[],"dbMigrationConfig":{"enabled":false},"deployment":{"strategy":{"rolling":{"maxSurge":"25%","maxUnavailable":1}}},"deploymentType":"ROLLING","env":"1","envoyproxy":{"configMapName":"","image":"","resources":{"limits":{"cpu":"50m","memory":"50Mi"},"requests":{"cpu":"50m","memory":"50Mi"}}},"image":{"pullPolicy":"IfNotPresent"},"ingress":{},"ingressInternal":{"annotations":{},"enabled":false,"host":"","path":"","tls":[]},"initContainers":[],"pauseForSecondsBeforeSwitchActive":30,"pipelineName":"","prometheus":{"release":"monitoring"},"rawYaml":[],"releaseVersion":"1","replicaCount":1,"resources":{"limits":{"cpu":"0.05","memory":"50Mi"},"requests":{"cpu":"0.01","memory":"10Mi"}},"secret":{"data":{},"enabled":false},"server":{"deployment":{"image":"","image_tag":""}},"service":{"annotations":{},"type":"ClusterIP"},"servicemonitor":{"additionalLabels":{}},"tolerations":[],"volumeMounts":[],"volumes":[],"waitForSecondsBeforeScalingDown":30}`)
 
 type EcrConfig struct {
-	EcrPrefix string `env:"ECR_REPO_NAME_PREFIX" envDefault:"test/"`
+	EcrPrefix string `env:"ECR_REPO_NAME_PREFIX" envDefault:"test/" description:"Prefix for ECR repo to be created in does not exist"`
 }
 
 func GetEcrConfig() (*EcrConfig, error) {
@@ -52,7 +53,7 @@ func GetEcrConfig() (*EcrConfig, error) {
 type SecurityConfig struct {
 	//FORCE_SECURITY_SCANNING flag is being maintained in both dashboard and orchestrator CM's
 	//TODO: rishabh will remove FORCE_SECURITY_SCANNING from dashboard's CM.
-	ForceSecurityScanning bool `env:"FORCE_SECURITY_SCANNING" envDefault:"false"`
+	ForceSecurityScanning bool `env:"FORCE_SECURITY_SCANNING" envDefault:"false" description:"By enabling this no one can disable image scaning on ci-pipeline from UI"`
 }
 
 type PipelineBuilder interface {
@@ -202,14 +203,6 @@ func getPatchMessage(err error) string {
 	return ""
 }
 
-type DeploymentType struct {
-	Deployment Deployment `json:"deployment"`
-}
-
-type Deployment struct {
-	Strategy map[string]interface{} `json:"strategy"`
-}
-
 type ConfigMapSecretsResponse struct {
 	Maps    []bean2.ConfigSecretMap `json:"maps"`
 	Secrets []bean2.ConfigSecretMap `json:"secrets"`
@@ -277,12 +270,7 @@ type AppBean struct {
 }
 
 type PipelineStrategiesResponse struct {
-	PipelineStrategy []PipelineStrategy `json:"pipelineStrategy"`
-}
-type PipelineStrategy struct {
-	DeploymentTemplate chartRepoRepository.DeploymentStrategy `json:"deploymentTemplate,omitempty"` //
-	Config             json.RawMessage                        `json:"config"`
-	Default            bool                                   `json:"default"`
+	PipelineStrategy []chartRefBean.PipelineStrategy `json:"pipelineStrategy"`
 }
 
 func CheckAppReleaseNotExist(err error) bool {

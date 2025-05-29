@@ -17,8 +17,10 @@
 package telemetry
 
 import (
+	"context"
 	"encoding/json"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
+	posthogTelemetry "github.com/devtron-labs/common-lib/telemetry"
 	util2 "github.com/devtron-labs/common-lib/utils/k8s"
 	client "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
@@ -33,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
+	ucidService "github.com/devtron-labs/devtron/pkg/ucid"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	cron3 "github.com/devtron-labs/devtron/util/cron"
 	"net/http"
@@ -49,8 +52,6 @@ import (
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 )
-
-const AppsCount int = 50
 
 type TelemetryEventClientImplExtended struct {
 	environmentService            environment.EnvironmentService
@@ -73,7 +74,7 @@ type TelemetryEventClientImplExtended struct {
 func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
 	K8sUtil *util2.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig,
 	environmentService environment.EnvironmentService, userService user2.UserService,
-	appListingRepository repository.AppListingRepository, PosthogClient *PosthogClient,
+	appListingRepository repository.AppListingRepository, posthog *posthogTelemetry.PosthogClient, ucid ucidService.Service,
 	ciPipelineConfigReadService ciConfig.CiPipelineConfigReadService, pipelineRepository pipelineConfig.PipelineRepository,
 	gitProviderRepository repository3.GitProviderRepository, attributeRepo repository.AttributesRepository,
 	ssoLoginService sso.SSOLoginService, appRepository app.AppRepository,
@@ -84,7 +85,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	ciBuildConfigService pipeline.CiBuildConfigService, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore,
 	helmAppClient client.HelmAppClient, installedAppReadService installedAppReader.InstalledAppReadService, userAttributesRepository repository.UserAttributesRepository,
 	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService, cronLogger *cron3.CronLoggerImpl,
-	gitOpsConfigReadService config.GitOpsConfigReadService) (*TelemetryEventClientImplExtended, error) {
+	gitOpsConfigReadService config.GitOpsConfigReadService, envVariables *util.EnvironmentVariables) (*TelemetryEventClientImplExtended, error) {
 
 	cron := cron.New(
 		cron.WithChain(cron.Recover(cronLogger)))
@@ -114,7 +115,8 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 			userService:                    userService,
 			attributeRepo:                  attributeRepo,
 			ssoLoginService:                ssoLoginService,
-			PosthogClient:                  PosthogClient,
+			posthogClient:                  posthog,
+			ucid:                           ucid,
 			moduleRepository:               moduleRepository,
 			serverDataStore:                serverDataStore,
 			userAuditService:               userAuditService,
@@ -123,81 +125,23 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 			userAttributesRepository:       userAttributesRepository,
 			cloudProviderIdentifierService: cloudProviderIdentifierService,
 			telemetryConfig:                TelemetryConfig{},
+			globalEnvVariables:             envVariables.GlobalEnvVariables,
 		},
 	}
 
 	watcher.HeartbeatEventForTelemetry()
-	_, err := cron.AddFunc(SummaryCronExpr, watcher.SummaryEventForTelemetry)
+	_, err := cron.AddFunc(posthogTelemetry.SummaryCronExpr, watcher.SummaryEventForTelemetry)
 	if err != nil {
 		logger.Errorw("error in starting summery event", "err", err)
 		return nil, err
 	}
 
-	_, err = cron.AddFunc(HeartbeatCronExpr, watcher.HeartbeatEventForTelemetry)
+	_, err = cron.AddFunc(posthogTelemetry.HeartbeatCronExpr, watcher.HeartbeatEventForTelemetry)
 	if err != nil {
 		logger.Errorw("error in starting heartbeat event", "err", err)
 		return nil, err
 	}
 	return watcher, err
-}
-
-type TelemetryEventDto struct {
-	UCID                                 string             `json:"ucid"` //unique client id
-	Timestamp                            time.Time          `json:"timestamp"`
-	EventMessage                         string             `json:"eventMessage,omitempty"`
-	EventType                            TelemetryEventType `json:"eventType"`
-	ProdAppCount                         int                `json:"prodAppCount,omitempty"`
-	NonProdAppCount                      int                `json:"nonProdAppCount,omitempty"`
-	UserCount                            int                `json:"userCount,omitempty"`
-	EnvironmentCount                     int                `json:"environmentCount,omitempty"`
-	ClusterCount                         int                `json:"clusterCount,omitempty"`
-	CiCreatedPerDay                      int                `json:"ciCreatedPerDay"`
-	CdCreatedPerDay                      int                `json:"cdCreatedPerDay"`
-	CiDeletedPerDay                      int                `json:"ciDeletedPerDay"`
-	CdDeletedPerDay                      int                `json:"cdDeletedPerDay"`
-	CiTriggeredPerDay                    int                `json:"ciTriggeredPerDay"`
-	CdTriggeredPerDay                    int                `json:"cdTriggeredPerDay"`
-	HelmChartCount                       int                `json:"helmChartCount,omitempty"`
-	SecurityScanCountPerDay              int                `json:"securityScanCountPerDay,omitempty"`
-	GitAccountsCount                     int                `json:"gitAccountsCount,omitempty"`
-	GitOpsCount                          int                `json:"gitOpsCount,omitempty"`
-	RegistryCount                        int                `json:"registryCount,omitempty"`
-	HostURL                              bool               `json:"hostURL,omitempty"`
-	SSOLogin                             bool               `json:"ssoLogin,omitempty"`
-	AppCount                             int                `json:"appCount,omitempty"`
-	AppsWithGitRepoConfigured            int                `json:"appsWithGitRepoConfigured,omitempty"`
-	AppsWithDockerConfigured             int                `json:"appsWithDockerConfigured,omitempty"`
-	AppsWithDeploymentTemplateConfigured int                `json:"appsWithDeploymentTemplateConfigured,omitempty"`
-	AppsWithCiPipelineConfigured         int                `json:"appsWithCiPipelineConfigured,omitempty"`
-	AppsWithCdPipelineConfigured         int                `json:"appsWithCdPipelineConfigured,omitempty"`
-	Build                                bool               `json:"build,omitempty"`
-	Deployment                           bool               `json:"deployment,omitempty"`
-	ServerVersion                        string             `json:"serverVersion,omitempty"`
-	DevtronGitVersion                    string             `json:"devtronGitVersion,omitempty"`
-	DevtronVersion                       string             `json:"devtronVersion,omitempty"`
-	DevtronMode                          string             `json:"devtronMode,omitempty"`
-	InstalledIntegrations                []string           `json:"installedIntegrations,omitempty"`
-	InstallFailedIntegrations            []string           `json:"installFailedIntegrations,omitempty"`
-	InstallTimedOutIntegrations          []string           `json:"installTimedOutIntegrations,omitempty"`
-	InstallingIntegrations               []string           `json:"installingIntegrations,omitempty"`
-	DevtronReleaseVersion                string             `json:"devtronReleaseVersion,omitempty"`
-	LastLoginTime                        time.Time          `json:"LastLoginTime,omitempty"`
-	SelfDockerfileCount                  int                `json:"selfDockerfileCount"`
-	ManagedDockerfileCount               int                `json:"managedDockerfileCount"`
-	BuildPackCount                       int                `json:"buildPackCount"`
-	SelfDockerfileSuccessCount           int                `json:"selfDockerfileSuccessCount"`
-	SelfDockerfileFailureCount           int                `json:"selfDockerfileFailureCount"`
-	ManagedDockerfileSuccessCount        int                `json:"managedDockerfileSuccessCount"`
-	ManagedDockerfileFailureCount        int                `json:"managedDockerfileFailureCount"`
-	BuildPackSuccessCount                int                `json:"buildPackSuccessCount"`
-	BuildPackFailureCount                int                `json:"buildPackFailureCount"`
-	HelmAppAccessCounter                 string             `json:"HelmAppAccessCounter,omitempty"`
-	ChartStoreVisitCount                 string             `json:"ChartStoreVisitCount,omitempty"`
-	SkippedOnboarding                    bool               `json:"SkippedOnboarding"`
-	HelmAppUpdateCounter                 string             `json:"HelmAppUpdateCounter,omitempty"`
-	HelmChartSuccessfulDeploymentCount   int                `json:"helmChartSuccessfulDeploymentCount,omitempty"`
-	ExternalHelmAppClusterCount          map[int32]int      `json:"ExternalHelmAppClusterCount"`
-	ClusterProvider                      string             `json:"clusterProvider,omitempty"`
 }
 
 func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
@@ -209,13 +153,13 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 
 func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string) error {
 	impl.logger.Infow("sending summary event", "eventType", eventType)
-	ucid, err := impl.getUCID()
+	ucid, err := impl.getUCIDAndCheckIsOptedOut(context.Background())
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry summary event while retrieving ucid", "err", err)
 		return err
 	}
 
-	if IsOptOut {
+	if posthogTelemetry.IsOptOut {
 		impl.logger.Warnw("client is opt-out for telemetry, there will be no events capture", "ucid", ucid)
 		return err
 	}

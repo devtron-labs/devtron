@@ -26,13 +26,19 @@ import (
 	read2 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
 	gitProviderRead "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
 	bean3 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/build/trigger"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
+	read5 "github.com/devtron-labs/devtron/pkg/chart/read"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
-	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	validator2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/validator"
+	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
+	"github.com/devtron-labs/devtron/pkg/pipeline/draftAwareConfigService"
 	security2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/read"
 	read3 "github.com/devtron-labs/devtron/pkg/team/read"
+	"github.com/devtron-labs/devtron/util/beHelper"
 	"io"
 	"net/http"
 	"strconv"
@@ -58,7 +64,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
-	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -66,7 +71,7 @@ import (
 )
 
 type PipelineRestHandlerEnvConfig struct {
-	UseArtifactListApiV2 bool `env:"USE_ARTIFACT_LISTING_API_V2" envDefault:"true"` //deprecated
+	UseArtifactListApiV2 bool `env:"USE_ARTIFACT_LISTING_API_V2" envDefault:"true" description:"To use the V2 API for listing artifacts in Listing the images in pipeline"` //deprecated
 }
 
 type DevtronAppRestHandler interface {
@@ -106,7 +111,7 @@ type PipelineConfigRestHandlerImpl struct {
 	ciPipelineMaterialRepository        pipelineConfig.CiPipelineMaterialRepository
 	ciHandler                           pipeline.CiHandler
 	Logger                              *zap.SugaredLogger
-	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService
+	deploymentTemplateValidationService validator2.DeploymentTemplateValidationService
 	chartService                        chart.ChartService
 	devtronAppGitOpConfigService        gitOpsConfig.DevtronAppGitOpConfigService
 	propertiesConfigService             pipeline.PropertiesConfigService
@@ -134,10 +139,15 @@ type PipelineConfigRestHandlerImpl struct {
 	chartRefService                     chartRef.ChartRefService
 	ciCdPipelineOrchestrator            pipeline.CiCdPipelineOrchestrator
 	teamReadService                     read3.TeamReadService
+	environmentRepository               repository2.EnvironmentRepository
+	chartReadService                    read5.ChartReadService
+	draftAwareResourceService           draftAwareConfigService.DraftAwareConfigService
+	ciHandlerService                    trigger.HandlerService
+	cdHandlerService                    devtronApps.HandlerService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
-	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService,
+	deploymentTemplateValidationService validator2.DeploymentTemplateValidationService,
 	chartService chart.ChartService,
 	devtronAppGitOpConfigService gitOpsConfig.DevtronAppGitOpConfigService,
 	propertiesConfigService pipeline.PropertiesConfigService,
@@ -165,7 +175,13 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	chartRefService chartRef.ChartRefService,
 	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator,
 	gitProviderReadService gitProviderRead.GitProviderReadService,
-	teamReadService read3.TeamReadService) *PipelineConfigRestHandlerImpl {
+	teamReadService read3.TeamReadService,
+	EnvironmentRepository repository2.EnvironmentRepository,
+	chartReadService read5.ChartReadService,
+	draftAwareResourceService draftAwareConfigService.DraftAwareConfigService,
+	ciHandlerService trigger.HandlerService,
+	cdHandlerService devtronApps.HandlerService,
+) *PipelineConfigRestHandlerImpl {
 	envConfig := &PipelineRestHandlerEnvConfig{}
 	err := env.Parse(envConfig)
 	if err != nil {
@@ -205,6 +221,11 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		ciCdPipelineOrchestrator:            ciCdPipelineOrchestrator,
 		gitProviderReadService:              gitProviderReadService,
 		teamReadService:                     teamReadService,
+		environmentRepository:               EnvironmentRepository,
+		chartReadService:                    chartReadService,
+		draftAwareResourceService:           draftAwareResourceService,
+		ciHandlerService:                    ciHandlerService,
+		cdHandlerService:                    cdHandlerService,
 	}
 }
 
@@ -212,6 +233,7 @@ const (
 	devtron             = "DEVTRON"
 	SSH_URL_PREFIX      = "git@"
 	HTTPS_URL_PREFIX    = "https://"
+	HTTP_URL_PREFIX     = "http://"
 	argoWFLogIdentifier = "argo=true"
 )
 
@@ -655,7 +677,7 @@ func (handler *PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.Resp
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	suggestedName := fmt.Sprintf("%s-%d-%s", pType, appId, util2.Generate(4))
+	suggestedName := beHelper.GetPipelineNameByPipelineType(pType, appId)
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceName, casbin.ActionGet)
 	if !ok {

@@ -75,8 +75,8 @@ func TestExecuteWorkflow(t *testing.T) {
 		secretKeySecret := s3Artifact.SecretKeySecret
 		assert.NotNil(t, accessKeySecret)
 		assert.NotNil(t, secretKeySecret)
-		assert.True(t, reflect.DeepEqual(accessKeySecret, executors.ACCESS_KEY_SELECTOR))
-		assert.True(t, reflect.DeepEqual(secretKeySecret, executors.SECRET_KEY_SELECTOR))
+		assert.True(t, reflect.DeepEqual(accessKeySecret, executors.AccessKeySelector))
+		assert.True(t, reflect.DeepEqual(secretKeySecret, executors.SecretKeySelector))
 	})
 
 	t.Run("validate s3 blob storage with endpoint", func(t *testing.T) {
@@ -105,7 +105,7 @@ func TestExecuteWorkflow(t *testing.T) {
 		assert.Equal(t, gcpBlobStorage.LogBucketName, gcsArtifact.Bucket)
 		secretKeySecret := gcsArtifact.ServiceAccountKeySecret
 		assert.NotNil(t, secretKeySecret)
-		assert.True(t, reflect.DeepEqual(secretKeySecret, executors.SECRET_KEY_SELECTOR))
+		assert.True(t, reflect.DeepEqual(secretKeySecret, executors.SecretKeySelector))
 	})
 	t.Run("validate env specific cm and secret", func(t *testing.T) {
 		workflowTemplate := getBaseWorkflowTemplate(cdConfig)

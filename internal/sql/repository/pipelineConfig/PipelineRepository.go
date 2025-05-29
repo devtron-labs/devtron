@@ -18,6 +18,8 @@ package pipelineConfig
 
 import (
 	"context"
+	"time"
+
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -33,7 +35,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
-	"time"
 )
 
 type PipelineType string
@@ -41,6 +42,14 @@ type TriggerType string // HOW pipeline should be triggered
 
 func (t TriggerType) ToString() string {
 	return string(t)
+}
+
+func (t TriggerType) IsManual() bool {
+	return t == TRIGGER_TYPE_MANUAL
+}
+
+func (t TriggerType) IsAuto() bool {
+	return t == TRIGGER_TYPE_AUTOMATIC
 }
 
 const TRIGGER_TYPE_AUTOMATIC TriggerType = "AUTOMATIC"
@@ -58,8 +67,8 @@ type Pipeline struct {
 	Deleted                       bool        `sql:"deleted,notnull"`
 	PreStageConfig                string      `sql:"pre_stage_config_yaml"`
 	PostStageConfig               string      `sql:"post_stage_config_yaml"`
-	PreTriggerType                TriggerType `sql:"pre_trigger_type"`                   // automatic, manual
-	PostTriggerType               TriggerType `sql:"post_trigger_type"`                  // automatic, manual
+	PreTriggerType                TriggerType `sql:"pre_trigger_type"`                   // automatic, manual; when a pre-cd task doesn't exist/removed in a cd then this field is updated as null
+	PostTriggerType               TriggerType `sql:"post_trigger_type"`                  // automatic, manual; when a post-cd task doesn't exist/removed in a cd then this field is updated as null
 	PreStageConfigMapSecretNames  string      `sql:"pre_stage_config_map_secret_names"`  // configmap names
 	PostStageConfigMapSecretNames string      `sql:"post_stage_config_map_secret_names"` // secret names
 	RunPreStageInEnv              bool        `sql:"run_pre_stage_in_env"`               // secret names
@@ -92,6 +101,7 @@ type PipelineRepository interface {
 	GetByEnvOverrideId(envOverrideId int) ([]Pipeline, error)
 	GetByEnvOverrideIdAndEnvId(envOverrideId, envId int) (Pipeline, error)
 	FindActiveByAppIdAndEnvironmentId(appId int, environmentId int) (pipelines []*Pipeline, err error)
+	FindOneByAppIdAndEnvId(appId int, envId int) (*Pipeline, error)
 	UniqueAppEnvironmentPipelines() ([]*Pipeline, error)
 	FindByCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error)
 	FindByParentCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error)
@@ -121,7 +131,7 @@ type PipelineRepository interface {
 	FindIdsByAppIdsAndEnvironmentIds(appIds, environmentIds []int) (ids []int, err error)
 	FindIdsByProjectIdsAndEnvironmentIds(projectIds, environmentIds []int) ([]int, error)
 
-	GetArgoPipelineByArgoAppName(argoAppName string) (Pipeline, error)
+	GetArgoPipelineByArgoAppName(argoAppName string) ([]Pipeline, error)
 	FindActiveByAppIds(appIds []int) (pipelines []*Pipeline, err error)
 	FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*Pipeline, err error)
 	FilterDeploymentDeleteRequestedPipelineIds(cdPipelineIds []int) (map[int]bool, error)
@@ -133,6 +143,9 @@ type PipelineRepository interface {
 	FindDeploymentAppTypeByAppIdAndEnvId(appId, envId int) (string, error)
 	FindByAppIdToEnvIdsMapping(appIdToEnvIds map[int][]int) ([]*Pipeline, error)
 	FindDeploymentAppTypeByIds(ids []int) (pipelines []*Pipeline, err error)
+	GetAllAppsByClusterAndDeploymentAppType(clusterIds []int, deploymentAppName string) ([]*PipelineDeploymentConfigObj, error)
+	GetAllArgoAppInfoByDeploymentAppNames(deploymentAppNames []string) ([]*PipelineDeploymentConfigObj, error)
+	FindEnvIdsByIdsInIncludingDeleted(ids []int) ([]int, error)
 }
 
 type CiArtifactDTO struct {
@@ -151,6 +164,14 @@ type DeploymentObject struct {
 	Status         string                `sql:"status"`
 }
 
+type PipelineDeploymentConfigObj struct {
+	DeploymentAppName string `json:"deployment_app_name"`
+	AppId             int    `json:"app_id"`
+	ClusterId         int    `json:"cluster_id"`
+	EnvironmentId     int    `json:"environment_id"`
+	Namespace         string `json:"namespace"`
+}
+
 type PipelineRepositoryImpl struct {
 	dbConnection *pg.DB
 	logger       *zap.SugaredLogger
@@ -160,11 +181,11 @@ func NewPipelineRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *
 	return &PipelineRepositoryImpl{dbConnection: dbConnection, logger: logger}
 }
 
-func (impl PipelineRepositoryImpl) GetConnection() *pg.DB {
+func (impl *PipelineRepositoryImpl) GetConnection() *pg.DB {
 	return impl.dbConnection
 }
 
-func (impl PipelineRepositoryImpl) FindByIdsIn(ids []int) ([]*Pipeline, error) {
+func (impl *PipelineRepositoryImpl) FindByIdsIn(ids []int) ([]*Pipeline, error) {
 	var pipelines []*Pipeline
 	err := impl.dbConnection.Model(&pipelines).
 		Column("pipeline.*", "App", "Environment", "Environment.Cluster").
@@ -180,7 +201,7 @@ func (impl PipelineRepositoryImpl) FindByIdsIn(ids []int) ([]*Pipeline, error) {
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) FindByIdsInAndEnvironment(ids []int, environmentId int) ([]*Pipeline, error) {
+func (impl *PipelineRepositoryImpl) FindByIdsInAndEnvironment(ids []int, environmentId int) ([]*Pipeline, error) {
 	var pipelines []*Pipeline
 	err := impl.dbConnection.Model(&pipelines).
 		Where("id in (?)", pg.In(ids)).
@@ -188,7 +209,8 @@ func (impl PipelineRepositoryImpl) FindByIdsInAndEnvironment(ids []int, environm
 		Select()
 	return pipelines, err
 }
-func (impl PipelineRepositoryImpl) FindByCiPipelineIdsIn(ciPipelineIds []int) ([]*Pipeline, error) {
+
+func (impl *PipelineRepositoryImpl) FindByCiPipelineIdsIn(ciPipelineIds []int) ([]*Pipeline, error) {
 	var pipelines []*Pipeline
 	err := impl.dbConnection.Model(&pipelines).
 		Where("ci_pipeline_id in (?)", pg.In(ciPipelineIds)).
@@ -196,7 +218,7 @@ func (impl PipelineRepositoryImpl) FindByCiPipelineIdsIn(ciPipelineIds []int) ([
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) Save(pipeline []*Pipeline, tx *pg.Tx) error {
+func (impl *PipelineRepositoryImpl) Save(pipeline []*Pipeline, tx *pg.Tx) error {
 	var v []interface{}
 	for _, i := range pipeline {
 		v = append(v, i)
@@ -205,12 +227,12 @@ func (impl PipelineRepositoryImpl) Save(pipeline []*Pipeline, tx *pg.Tx) error {
 	return err
 }
 
-func (impl PipelineRepositoryImpl) Update(pipeline *Pipeline, tx *pg.Tx) error {
+func (impl *PipelineRepositoryImpl) Update(pipeline *Pipeline, tx *pg.Tx) error {
 	err := tx.Update(pipeline)
 	return err
 }
 
-func (impl PipelineRepositoryImpl) FindAutomaticByCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error) {
+func (impl *PipelineRepositoryImpl) FindAutomaticByCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
 		Where("ci_pipeline_id =?", ciPipelineId).
 		Where("trigger_type =?", TRIGGER_TYPE_AUTOMATIC).
@@ -224,7 +246,7 @@ func (impl PipelineRepositoryImpl) FindAutomaticByCiPipelineId(ciPipelineId int)
 	return pipelines, nil
 }
 
-func (impl PipelineRepositoryImpl) FindByCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error) {
+func (impl *PipelineRepositoryImpl) FindByCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
 		Where("ci_pipeline_id =?", ciPipelineId).
 		Where("deleted =?", false).
@@ -236,7 +258,8 @@ func (impl PipelineRepositoryImpl) FindByCiPipelineId(ciPipelineId int) (pipelin
 	}
 	return pipelines, nil
 }
-func (impl PipelineRepositoryImpl) FindByParentCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error) {
+
+func (impl *PipelineRepositoryImpl) FindByParentCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
 		Column("pipeline.*").
 		Join("INNER JOIN app_workflow_mapping awm on awm.component_id = pipeline.id").
@@ -252,7 +275,7 @@ func (impl PipelineRepositoryImpl) FindByParentCiPipelineId(ciPipelineId int) (p
 	return pipelines, nil
 }
 
-func (impl PipelineRepositoryImpl) FindActiveByAppId(appId int) (pipelines []*Pipeline, err error) {
+func (impl *PipelineRepositoryImpl) FindActiveByAppId(appId int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
 		Column("pipeline.*", "Environment").
 		Where("app_id = ?", appId).
@@ -261,7 +284,7 @@ func (impl PipelineRepositoryImpl) FindActiveByAppId(appId int) (pipelines []*Pi
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) FindActiveByAppIdAndEnvironmentId(appId int, environmentId int) (pipelines []*Pipeline, err error) {
+func (impl *PipelineRepositoryImpl) FindActiveByAppIdAndEnvironmentId(appId int, environmentId int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
 		Column("pipeline.*", "Environment", "App").
 		Where("app_id = ?", appId).
@@ -271,14 +294,25 @@ func (impl PipelineRepositoryImpl) FindActiveByAppIdAndEnvironmentId(appId int, 
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) FindActiveByAppIdAndEnvironmentIdV2() (pipelines []*Pipeline, err error) {
+func (impl *PipelineRepositoryImpl) FindOneByAppIdAndEnvId(appId int, envId int) (*Pipeline, error) {
+	pipeline := Pipeline{}
+	err := impl.dbConnection.Model(&pipeline).
+		Column("pipeline.*").
+		Where("app_id = ?", appId).
+		Where("deleted = ?", false).
+		Where("environment_id = ? ", envId).
+		Select()
+	return &pipeline, err
+}
+
+func (impl *PipelineRepositoryImpl) FindActiveByAppIdAndEnvironmentIdV2() (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
 		Where("deleted = ?", false).
 		Select()
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) Delete(id int, userId int32, tx *pg.Tx) error {
+func (impl *PipelineRepositoryImpl) Delete(id int, userId int32, tx *pg.Tx) error {
 	pipeline := &Pipeline{}
 	r, err := tx.Model(pipeline).Set("deleted =?", true).Set("deployment_app_created =?", false).
 		Set("updated_on = ?", time.Now()).Set("updated_by = ?", userId).Where("id =?", id).Update()
@@ -286,7 +320,7 @@ func (impl PipelineRepositoryImpl) Delete(id int, userId int32, tx *pg.Tx) error
 	return err
 }
 
-func (impl PipelineRepositoryImpl) MarkPartiallyDeleted(id int, userId int32, tx *pg.Tx) error {
+func (impl *PipelineRepositoryImpl) MarkPartiallyDeleted(id int, userId int32, tx *pg.Tx) error {
 	pipeline := &Pipeline{}
 	_, err := tx.Model(pipeline).
 		Set("deployment_app_delete_request = ?", true).
@@ -298,7 +332,7 @@ func (impl PipelineRepositoryImpl) MarkPartiallyDeleted(id int, userId int32, tx
 	return err
 }
 
-func (impl PipelineRepositoryImpl) FindByName(pipelineName string) (pipeline *Pipeline, err error) {
+func (impl *PipelineRepositoryImpl) FindByName(pipelineName string) (pipeline *Pipeline, err error) {
 	pipeline = &Pipeline{}
 	err = impl.dbConnection.Model(pipeline).
 		Where("pipeline_name = ?", pipelineName).
@@ -306,7 +340,7 @@ func (impl PipelineRepositoryImpl) FindByName(pipelineName string) (pipeline *Pi
 	return pipeline, err
 }
 
-func (impl PipelineRepositoryImpl) PipelineExists(pipelineName string) (bool, error) {
+func (impl *PipelineRepositoryImpl) PipelineExists(pipelineName string) (bool, error) {
 	pipeline := &Pipeline{}
 	exists, err := impl.dbConnection.Model(pipeline).
 		Where("pipeline_name = ?", pipelineName).
@@ -315,7 +349,7 @@ func (impl PipelineRepositoryImpl) PipelineExists(pipelineName string) (bool, er
 	return exists, err
 }
 
-func (impl PipelineRepositoryImpl) FindById(id int) (pipeline *Pipeline, err error) {
+func (impl *PipelineRepositoryImpl) FindById(id int) (pipeline *Pipeline, err error) {
 	pipeline = &Pipeline{}
 	err = impl.dbConnection.
 		Model(pipeline).
@@ -327,7 +361,7 @@ func (impl PipelineRepositoryImpl) FindById(id int) (pipeline *Pipeline, err err
 	return pipeline, err
 }
 
-func (impl PipelineRepositoryImpl) FindByIdEvenIfInactive(id int) (pipeline *Pipeline, err error) {
+func (impl *PipelineRepositoryImpl) FindByIdEvenIfInactive(id int) (pipeline *Pipeline, err error) {
 	pipeline = &Pipeline{}
 	err = impl.dbConnection.
 		Model(pipeline).
@@ -338,7 +372,7 @@ func (impl PipelineRepositoryImpl) FindByIdEvenIfInactive(id int) (pipeline *Pip
 	return pipeline, err
 }
 
-func (impl PipelineRepositoryImpl) GetPostStageConfigById(id int) (pipeline *Pipeline, err error) {
+func (impl *PipelineRepositoryImpl) GetPostStageConfigById(id int) (pipeline *Pipeline, err error) {
 	pipeline = &Pipeline{}
 	err = impl.dbConnection.
 		Model(pipeline).
@@ -349,7 +383,7 @@ func (impl PipelineRepositoryImpl) GetPostStageConfigById(id int) (pipeline *Pip
 	return pipeline, err
 }
 
-func (impl PipelineRepositoryImpl) FindAppAndEnvDetailsByPipelineId(id int) (pipeline *Pipeline, err error) {
+func (impl *PipelineRepositoryImpl) FindAppAndEnvDetailsByPipelineId(id int) (pipeline *Pipeline, err error) {
 	pipeline = &Pipeline{}
 	err = impl.dbConnection.
 		Model(pipeline).
@@ -364,7 +398,7 @@ func (impl PipelineRepositoryImpl) FindAppAndEnvDetailsByPipelineId(id int) (pip
 
 // FindActiveByEnvIdAndDeploymentType takes in environment id and current deployment app type
 // and fetches and returns a list of pipelines matching the same excluding given app ids.
-func (impl PipelineRepositoryImpl) FindActiveByEnvIdAndDeploymentType(environmentId int,
+func (impl *PipelineRepositoryImpl) FindActiveByEnvIdAndDeploymentType(environmentId int,
 	deploymentAppType string, exclusionList []int, includeApps []int) ([]*Pipeline, error) {
 
 	// NOTE: PG query throws error with slice of integer
@@ -396,7 +430,7 @@ func (impl PipelineRepositoryImpl) FindActiveByEnvIdAndDeploymentType(environmen
 }
 
 // Deprecated:
-func (impl PipelineRepositoryImpl) FindByEnvOverrideId(envOverrideId int) (pipeline []Pipeline, err error) {
+func (impl *PipelineRepositoryImpl) FindByEnvOverrideId(envOverrideId int) (pipeline []Pipeline, err error) {
 	var pipelines []Pipeline
 	err = impl.dbConnection.
 		Model(&pipelines).
@@ -407,7 +441,7 @@ func (impl PipelineRepositoryImpl) FindByEnvOverrideId(envOverrideId int) (pipel
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) GetByEnvOverrideId(envOverrideId int) ([]Pipeline, error) {
+func (impl *PipelineRepositoryImpl) GetByEnvOverrideId(envOverrideId int) ([]Pipeline, error) {
 	var pipelines []Pipeline
 	query := "" +
 		" SELECT p.*" +
@@ -425,7 +459,7 @@ func (impl PipelineRepositoryImpl) GetByEnvOverrideId(envOverrideId int) ([]Pipe
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) GetByEnvOverrideIdAndEnvId(envOverrideId, envId int) (Pipeline, error) {
+func (impl *PipelineRepositoryImpl) GetByEnvOverrideIdAndEnvId(envOverrideId, envId int) (Pipeline, error) {
 	var pipeline Pipeline
 	query := "" +
 		" SELECT p.*" +
@@ -443,7 +477,7 @@ func (impl PipelineRepositoryImpl) GetByEnvOverrideIdAndEnvId(envOverrideId, env
 	return pipeline, err
 }
 
-func (impl PipelineRepositoryImpl) UniqueAppEnvironmentPipelines() ([]*Pipeline, error) {
+func (impl *PipelineRepositoryImpl) UniqueAppEnvironmentPipelines() ([]*Pipeline, error) {
 	var pipelines []*Pipeline
 
 	err := impl.dbConnection.
@@ -457,7 +491,7 @@ func (impl PipelineRepositoryImpl) UniqueAppEnvironmentPipelines() ([]*Pipeline,
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) FindByPipelineTriggerGitHash(gitHash string) (pipeline *Pipeline, err error) {
+func (impl *PipelineRepositoryImpl) FindByPipelineTriggerGitHash(gitHash string) (pipeline *Pipeline, err error) {
 	var pipelines *Pipeline
 	err = impl.dbConnection.
 		Model(&pipelines).
@@ -468,19 +502,21 @@ func (impl PipelineRepositoryImpl) FindByPipelineTriggerGitHash(gitHash string) 
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) FindAllPipelineCreatedCountInLast24Hour() (pipelineCount int, err error) {
+func (impl *PipelineRepositoryImpl) FindAllPipelineCreatedCountInLast24Hour() (pipelineCount int, err error) {
 	pipelineCount, err = impl.dbConnection.Model(&Pipeline{}).
 		Where("created_on > ?", time.Now().AddDate(0, 0, -1)).
 		Count()
 	return pipelineCount, err
 }
-func (impl PipelineRepositoryImpl) FindAllDeletedPipelineCountInLast24Hour() (pipelineCount int, err error) {
+
+func (impl *PipelineRepositoryImpl) FindAllDeletedPipelineCountInLast24Hour() (pipelineCount int, err error) {
 	pipelineCount, err = impl.dbConnection.Model(&Pipeline{}).
 		Where("created_on > ? and deleted=?", time.Now().AddDate(0, 0, -1), true).
 		Count()
 	return pipelineCount, err
 }
-func (impl PipelineRepositoryImpl) FindActiveByEnvId(envId int) (pipelines []*Pipeline, err error) {
+
+func (impl *PipelineRepositoryImpl) FindActiveByEnvId(envId int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).Column("pipeline.*", "App", "Environment").
 		Where("environment_id = ?", envId).
 		Where("deleted = ?", false).
@@ -488,7 +524,7 @@ func (impl PipelineRepositoryImpl) FindActiveByEnvId(envId int) (pipelines []*Pi
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) FindActivePipelineAppIdsByEnvId(envId int) ([]int, error) {
+func (impl *PipelineRepositoryImpl) FindActivePipelineAppIdsByEnvId(envId int) ([]int, error) {
 	var appIds []int
 	err := impl.dbConnection.Model((*Pipeline)(nil)).Column("app_id").
 		Where("environment_id = ?", envId).
@@ -497,7 +533,7 @@ func (impl PipelineRepositoryImpl) FindActivePipelineAppIdsByEnvId(envId int) ([
 	return appIds, err
 }
 
-func (impl PipelineRepositoryImpl) FindActivePipelineByEnvId(envId int) (pipelines []*Pipeline, err error) {
+func (impl *PipelineRepositoryImpl) FindActivePipelineByEnvId(envId int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).Column("pipeline.*", "App", "Environment").
 		Where("environment_id = ?", envId).
 		Where("deleted = ?", false).
@@ -506,7 +542,7 @@ func (impl PipelineRepositoryImpl) FindActivePipelineByEnvId(envId int) (pipelin
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) FindActiveByEnvIds(envIds []int) (pipelines []*Pipeline, err error) {
+func (impl *PipelineRepositoryImpl) FindActiveByEnvIds(envIds []int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).Column("pipeline.*").
 		Where("environment_id in (?)", pg.In(envIds)).
 		Where("deleted = ?", false).
@@ -514,7 +550,7 @@ func (impl PipelineRepositoryImpl) FindActiveByEnvIds(envIds []int) (pipelines [
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) FindActiveByInFilter(envId int, appIdIncludes []int) (pipelines []*Pipeline, err error) {
+func (impl *PipelineRepositoryImpl) FindActiveByInFilter(envId int, appIdIncludes []int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).Column("pipeline.*", "App", "Environment").
 		Where("environment_id = ?", envId).
 		Where("app_id in (?)", pg.In(appIdIncludes)).
@@ -523,7 +559,7 @@ func (impl PipelineRepositoryImpl) FindActiveByInFilter(envId int, appIdIncludes
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) FindActivePipelineAppIdsByInFilter(envId int, appIdIncludes []int) ([]int, error) {
+func (impl *PipelineRepositoryImpl) FindActivePipelineAppIdsByInFilter(envId int, appIdIncludes []int) ([]int, error) {
 	var appIds []int
 	err := impl.dbConnection.Model((*Pipeline)(nil)).Column("app_id").
 		Where("environment_id = ?", envId).
@@ -532,7 +568,7 @@ func (impl PipelineRepositoryImpl) FindActivePipelineAppIdsByInFilter(envId int,
 	return appIds, err
 }
 
-func (impl PipelineRepositoryImpl) FindActiveByNotFilter(envId int, appIdExcludes []int) (pipelines []*Pipeline, err error) {
+func (impl *PipelineRepositoryImpl) FindActiveByNotFilter(envId int, appIdExcludes []int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).Column("pipeline.*", "App", "Environment").
 		Where("environment_id = ?", envId).
 		Where("app_id not in (?)", pg.In(appIdExcludes)).
@@ -541,7 +577,7 @@ func (impl PipelineRepositoryImpl) FindActiveByNotFilter(envId int, appIdExclude
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) FindAllPipelinesByChartsOverrideAndAppIdAndChartId(hasConfigOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error) {
+func (impl *PipelineRepositoryImpl) FindAllPipelinesByChartsOverrideAndAppIdAndChartId(hasConfigOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
 		Column("pipeline.*").
 		Join("inner join charts on pipeline.app_id = charts.app_id").
@@ -556,7 +592,7 @@ func (impl PipelineRepositoryImpl) FindAllPipelinesByChartsOverrideAndAppIdAndCh
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) FindActiveByAppIdAndPipelineId(appId int, pipelineId int) ([]*Pipeline, error) {
+func (impl *PipelineRepositoryImpl) FindActiveByAppIdAndPipelineId(appId int, pipelineId int) ([]*Pipeline, error) {
 	var pipelines []*Pipeline
 	err := impl.dbConnection.Model(&pipelines).
 		Where("app_id = ?", appId).
@@ -566,7 +602,7 @@ func (impl PipelineRepositoryImpl) FindActiveByAppIdAndPipelineId(appId int, pip
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) FindActiveByAppIdAndEnvId(appId int, envId int) (*Pipeline, error) {
+func (impl *PipelineRepositoryImpl) FindActiveByAppIdAndEnvId(appId int, envId int) (*Pipeline, error) {
 	var pipeline Pipeline
 	err := impl.dbConnection.Model(&pipeline).
 		Where("app_id = ?", appId).
@@ -576,7 +612,7 @@ func (impl PipelineRepositoryImpl) FindActiveByAppIdAndEnvId(appId int, envId in
 	return &pipeline, err
 }
 
-func (impl PipelineRepositoryImpl) SetDeploymentAppCreatedInPipeline(deploymentAppCreated bool, pipelineId int, userId int32) error {
+func (impl *PipelineRepositoryImpl) SetDeploymentAppCreatedInPipeline(deploymentAppCreated bool, pipelineId int, userId int32) error {
 	query := "update pipeline set deployment_app_created=?, updated_on=?, updated_by=? where id=?;"
 	var pipeline *Pipeline
 	_, err := impl.dbConnection.Query(pipeline, query, deploymentAppCreated, time.Now(), userId, pipelineId)
@@ -585,7 +621,7 @@ func (impl PipelineRepositoryImpl) SetDeploymentAppCreatedInPipeline(deploymentA
 
 // UpdateCdPipelineDeploymentAppInFilter takes in deployment app type and list of cd pipeline ids and
 // updates the deploymentAppType and sets deployment_app_created to false in the table for given ids.
-func (impl PipelineRepositoryImpl) UpdateCdPipelineDeploymentAppInFilter(deploymentAppType string,
+func (impl *PipelineRepositoryImpl) UpdateCdPipelineDeploymentAppInFilter(deploymentAppType string,
 	cdPipelineIdIncludes []int, userId int32, deploymentAppCreated bool, isDeleted bool) error {
 	query := "update pipeline set deployment_app_created = ?, deployment_app_type = ?, " +
 		"updated_by = ?, updated_on = ?, deployment_app_delete_request = ? where id in (?);"
@@ -595,7 +631,7 @@ func (impl PipelineRepositoryImpl) UpdateCdPipelineDeploymentAppInFilter(deploym
 	return err
 }
 
-func (impl PipelineRepositoryImpl) UpdateCdPipelineAfterDeployment(deploymentAppType string,
+func (impl *PipelineRepositoryImpl) UpdateCdPipelineAfterDeployment(deploymentAppType string,
 	cdPipelineIdIncludes []int, userId int32, isDeleted bool) error {
 	query := "update pipeline set deployment_app_type = ?, " +
 		"updated_by = ?, updated_on = ?, deployment_app_delete_request = ? where id in (?);"
@@ -605,7 +641,7 @@ func (impl PipelineRepositoryImpl) UpdateCdPipelineAfterDeployment(deploymentApp
 	return err
 }
 
-func (impl PipelineRepositoryImpl) FindNumberOfAppsWithCdPipeline(appIds []int) (count int, err error) {
+func (impl *PipelineRepositoryImpl) FindNumberOfAppsWithCdPipeline(appIds []int) (count int, err error) {
 	var pipelines []*Pipeline
 	count, err = impl.dbConnection.
 		Model(&pipelines).
@@ -618,11 +654,11 @@ func (impl PipelineRepositoryImpl) FindNumberOfAppsWithCdPipeline(appIds []int) 
 	return count, nil
 }
 
-func (impl PipelineRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypePipeline(deploymentAppType string, clusterIds []int) ([]*Pipeline, error) {
+func (impl *PipelineRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypePipeline(deploymentAppType string, clusterIds []int) ([]*Pipeline, error) {
 	var pipelines []*Pipeline
 	err := impl.dbConnection.
 		Model(&pipelines).
-		Column("pipeline.id", "App.app_name", "Environment.cluster_id", "Environment.namespace", "Environment.environment_name").
+		Column("pipeline.id", "App.app_name", "pipeline.deployment_app_name", "Environment.cluster_id", "Environment.namespace", "Environment.environment_name").
 		Join("inner join app a on pipeline.app_id = a.id").
 		Join("inner join environment e on pipeline.environment_id = e.id").
 		Join("LEFT JOIN deployment_config dc on dc.active=true and dc.app_id = pipeline.app_id and dc.environment_id=pipeline.environment_id").
@@ -634,7 +670,7 @@ func (impl PipelineRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypePipeli
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelines(pendingSinceSeconds int, timeForDegradation int) ([]*Pipeline, error) {
+func (impl *PipelineRepositoryImpl) GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelines(pendingSinceSeconds int, timeForDegradation int) ([]*Pipeline, error) {
 	var pipelines []*Pipeline
 	queryString := `select p.* from pipeline p inner join cd_workflow cw on cw.pipeline_id = p.id  
     inner join cd_workflow_runner cwr on cwr.cd_workflow_id=cw.id  
@@ -656,7 +692,7 @@ func (impl PipelineRepositoryImpl) GetArgoPipelinesHavingTriggersStuckInLastPoss
 	return pipelines, nil
 }
 
-func (impl PipelineRepositoryImpl) GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) ([]*Pipeline, error) {
+func (impl *PipelineRepositoryImpl) GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) ([]*Pipeline, error) {
 	var pipelines []*Pipeline
 	queryString := `select p.id from pipeline p inner join cd_workflow cw on cw.pipeline_id = p.id  
     inner join cd_workflow_runner cwr on cwr.cd_workflow_id=cw.id  
@@ -676,7 +712,7 @@ func (impl PipelineRepositoryImpl) GetArgoPipelinesHavingLatestTriggerStuckInNon
 	return pipelines, nil
 }
 
-func (impl PipelineRepositoryImpl) FindIdsByAppIdsAndEnvironmentIds(appIds, environmentIds []int) ([]int, error) {
+func (impl *PipelineRepositoryImpl) FindIdsByAppIdsAndEnvironmentIds(appIds, environmentIds []int) ([]int, error) {
 	var pipelineIds []int
 	query := "select id from pipeline where app_id in (?) and environment_id in (?) and deleted = ?;"
 	_, err := impl.dbConnection.Query(&pipelineIds, query, pg.In(appIds), pg.In(environmentIds), false)
@@ -687,7 +723,7 @@ func (impl PipelineRepositoryImpl) FindIdsByAppIdsAndEnvironmentIds(appIds, envi
 	return pipelineIds, err
 }
 
-func (impl PipelineRepositoryImpl) FindIdsByProjectIdsAndEnvironmentIds(projectIds, environmentIds []int) ([]int, error) {
+func (impl *PipelineRepositoryImpl) FindIdsByProjectIdsAndEnvironmentIds(projectIds, environmentIds []int) ([]int, error) {
 	var pipelineIds []int
 	query := "select p.id from pipeline p inner join app a on a.id=p.app_id where a.team_id in (?) and p.environment_id in (?) and p.deleted = ? and a.active = ?;"
 	_, err := impl.dbConnection.Query(&pipelineIds, query, pg.In(projectIds), pg.In(environmentIds), false, true)
@@ -698,8 +734,8 @@ func (impl PipelineRepositoryImpl) FindIdsByProjectIdsAndEnvironmentIds(projectI
 	return pipelineIds, err
 }
 
-func (impl PipelineRepositoryImpl) GetArgoPipelineByArgoAppName(argoAppName string) (Pipeline, error) {
-	var pipeline Pipeline
+func (impl *PipelineRepositoryImpl) GetArgoPipelineByArgoAppName(argoAppName string) ([]Pipeline, error) {
+	var pipeline []Pipeline
 	err := impl.dbConnection.Model(&pipeline).
 		Join("LEFT JOIN deployment_config dc on dc.app_id = pipeline.app_id and dc.environment_id=pipeline.environment_id and dc.active=true").
 		Column("pipeline.*", "Environment").
@@ -714,7 +750,7 @@ func (impl PipelineRepositoryImpl) GetArgoPipelineByArgoAppName(argoAppName stri
 	return pipeline, nil
 }
 
-func (impl PipelineRepositoryImpl) FindActiveByAppIds(appIds []int) (pipelines []*Pipeline, err error) {
+func (impl *PipelineRepositoryImpl) FindActiveByAppIds(appIds []int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
 		Column("pipeline.*", "App", "Environment").
 		Where("app_id in(?)", pg.In(appIds)).
@@ -723,7 +759,10 @@ func (impl PipelineRepositoryImpl) FindActiveByAppIds(appIds []int) (pipelines [
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*Pipeline, err error) {
+func (impl *PipelineRepositoryImpl) FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*Pipeline, err error) {
+	if len(pipelineIds) == 0 {
+		return pipelines, nil
+	}
 	err = impl.dbConnection.Model(&pipelines).Column("pipeline.*", "App", "Environment", "App.Team").
 		Where("pipeline.id in(?)", pg.In(pipelineIds)).
 		Where("pipeline.deleted = ?", false).
@@ -731,7 +770,7 @@ func (impl PipelineRepositoryImpl) FindAppAndEnvironmentAndProjectByPipelineIds(
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) FilterDeploymentDeleteRequestedPipelineIds(cdPipelineIds []int) (map[int]bool, error) {
+func (impl *PipelineRepositoryImpl) FilterDeploymentDeleteRequestedPipelineIds(cdPipelineIds []int) (map[int]bool, error) {
 	var pipelineIds []int
 	pipelineIdsMap := make(map[int]bool)
 	query := "select pipeline.id from pipeline where pipeline.id in (?) and pipeline.deployment_app_delete_request = ?;"
@@ -745,7 +784,7 @@ func (impl PipelineRepositoryImpl) FilterDeploymentDeleteRequestedPipelineIds(cd
 	return pipelineIdsMap, nil
 }
 
-func (impl PipelineRepositoryImpl) FindDeploymentTypeByPipelineIds(cdPipelineIds []int) (map[int]DeploymentObject, error) {
+func (impl *PipelineRepositoryImpl) FindDeploymentTypeByPipelineIds(cdPipelineIds []int) (map[int]DeploymentObject, error) {
 
 	pipelineIdsMap := make(map[int]DeploymentObject)
 
@@ -776,7 +815,7 @@ func (impl PipelineRepositoryImpl) FindDeploymentTypeByPipelineIds(cdPipelineIds
 	return pipelineIdsMap, nil
 }
 
-func (impl PipelineRepositoryImpl) UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg.Tx, oldCiPipelineId, newCiPipelineId int) error {
+func (impl *PipelineRepositoryImpl) UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg.Tx, oldCiPipelineId, newCiPipelineId int) error {
 	newCiPipId := pointer.Int(newCiPipelineId)
 	if newCiPipelineId == 0 {
 		newCiPipId = nil
@@ -787,7 +826,7 @@ func (impl PipelineRepositoryImpl) UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg
 	return err
 }
 
-func (impl PipelineRepositoryImpl) UpdateCiPipelineId(tx *pg.Tx, pipelineIds []int, ciPipelineId int) error {
+func (impl *PipelineRepositoryImpl) UpdateCiPipelineId(tx *pg.Tx, pipelineIds []int, ciPipelineId int) error {
 	if len(pipelineIds) == 0 {
 		return nil
 	}
@@ -797,7 +836,7 @@ func (impl PipelineRepositoryImpl) UpdateCiPipelineId(tx *pg.Tx, pipelineIds []i
 	return err
 }
 
-func (impl PipelineRepositoryImpl) FindWithEnvironmentByCiIds(ctx context.Context, cIPipelineIds []int) ([]*Pipeline, error) {
+func (impl *PipelineRepositoryImpl) FindWithEnvironmentByCiIds(ctx context.Context, cIPipelineIds []int) ([]*Pipeline, error) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "FindWithEnvironmentByCiIds")
 	defer span.End()
 	var cDPipelines []*Pipeline
@@ -811,7 +850,7 @@ func (impl PipelineRepositoryImpl) FindWithEnvironmentByCiIds(ctx context.Contex
 	return cDPipelines, nil
 }
 
-func (impl PipelineRepositoryImpl) FindDeploymentAppTypeByAppIdAndEnvId(appId, envId int) (string, error) {
+func (impl *PipelineRepositoryImpl) FindDeploymentAppTypeByAppIdAndEnvId(appId, envId int) (string, error) {
 	var deploymentAppType string
 	err := impl.dbConnection.Model((*Pipeline)(nil)).
 		Column("deployment_app_type").
@@ -820,7 +859,7 @@ func (impl PipelineRepositoryImpl) FindDeploymentAppTypeByAppIdAndEnvId(appId, e
 	return deploymentAppType, err
 }
 
-func (impl PipelineRepositoryImpl) FindByAppIdToEnvIdsMapping(appIdToEnvIds map[int][]int) ([]*Pipeline, error) {
+func (impl *PipelineRepositoryImpl) FindByAppIdToEnvIdsMapping(appIdToEnvIds map[int][]int) ([]*Pipeline, error) {
 	var pipelines []*Pipeline
 	err := impl.dbConnection.Model(&pipelines).
 		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
@@ -836,8 +875,95 @@ func (impl PipelineRepositoryImpl) FindByAppIdToEnvIdsMapping(appIdToEnvIds map[
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) FindDeploymentAppTypeByIds(ids []int) (pipelines []*Pipeline, err error) {
+func (impl *PipelineRepositoryImpl) FindDeploymentAppTypeByIds(ids []int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).Column("id", "app_id", "env_id", "deployment_app_type").
 		Where("id in (?)", pg.In(ids)).Where("deleted = ?", false).Select()
 	return pipelines, err
+}
+
+func (impl *PipelineRepositoryImpl) GetAllAppsByClusterAndDeploymentAppType(clusterIds []int, deploymentAppName string) ([]*PipelineDeploymentConfigObj, error) {
+	result := make([]*PipelineDeploymentConfigObj, 0)
+	if len(clusterIds) == 0 {
+		return result, nil
+	}
+	err := impl.dbConnection.Model().
+		Table("pipeline").
+		ColumnExpr("pipeline.deployment_app_name AS deployment_app_name").
+		ColumnExpr("pipeline.app_id AS app_id").
+		ColumnExpr("pipeline.environment_id AS environment_id").
+		ColumnExpr("environment.cluster_id AS cluster_id").
+		ColumnExpr("environment.namespace AS namespace").
+		// inner join with app
+		Join("INNER JOIN app").
+		JoinOn("pipeline.app_id = app.id").
+		// inner join with environment
+		Join("INNER JOIN environment").
+		JoinOn("pipeline.environment_id = environment.id").
+		// left join with deployment_config
+		Join("LEFT JOIN deployment_config").
+		JoinOn("pipeline.app_id = deployment_config.app_id").
+		JoinOn("pipeline.environment_id = deployment_config.environment_id").
+		JoinOn("deployment_config.active = ?", true).
+		// where conditions
+		Where("environment.cluster_id in (?)", pg.In(clusterIds)).
+		Where("pipeline.deleted = ?", false).
+		Where("app.active = ?", true).
+		Where("environment.active = ?", true).
+		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
+			return query.WhereOr("pipeline.deployment_app_type = ?", deploymentAppName).
+				WhereOr("deployment_config.deployment_app_type = ?", deploymentAppName), nil
+		}).
+		Select(&result)
+	return result, err
+}
+
+func (impl *PipelineRepositoryImpl) GetAllArgoAppInfoByDeploymentAppNames(deploymentAppNames []string) ([]*PipelineDeploymentConfigObj, error) {
+	result := make([]*PipelineDeploymentConfigObj, 0)
+	if len(deploymentAppNames) == 0 {
+		return result, nil
+	}
+	err := impl.dbConnection.Model().
+		Table("pipeline").
+		ColumnExpr("pipeline.deployment_app_name AS deployment_app_name").
+		ColumnExpr("pipeline.app_id AS app_id").
+		ColumnExpr("pipeline.environment_id AS environment_id").
+		ColumnExpr("environment.cluster_id AS cluster_id").
+		ColumnExpr("environment.namespace AS namespace").
+		// inner join with app
+		Join("INNER JOIN app").
+		JoinOn("pipeline.app_id = app.id").
+		// inner join with environment
+		Join("INNER JOIN environment").
+		JoinOn("pipeline.environment_id = environment.id").
+		// left join with deployment_config
+		Join("LEFT JOIN deployment_config").
+		JoinOn("pipeline.app_id = deployment_config.app_id").
+		JoinOn("pipeline.environment_id = deployment_config.environment_id").
+		JoinOn("deployment_config.active = ?", true).
+		// where conditions
+		Where("pipeline.deployment_app_name in (?)", pg.In(deploymentAppNames)).
+		Where("pipeline.deleted = ?", false).
+		Where("app.active = ?", true).
+		Where("environment.active = ?", true).
+		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
+			return query.WhereOr("pipeline.deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_ACD).
+				WhereOr("deployment_config.deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_ACD), nil
+		}).
+		Select(&result)
+	return result, err
+}
+
+func (impl *PipelineRepositoryImpl) FindEnvIdsByIdsInIncludingDeleted(ids []int) ([]int, error) {
+	var envIds []int
+	if len(ids) == 0 {
+		return envIds, nil
+	}
+	err := impl.dbConnection.Model(&Pipeline{}).
+		Column("pipeline.environment_id").
+		Where("pipeline.id in (?)", pg.In(ids)).
+		Select(&envIds)
+	if err != nil {
+		impl.logger.Errorw("error on fetching pipelines", "ids", ids, "err", err)
+	}
+	return envIds, err
 }

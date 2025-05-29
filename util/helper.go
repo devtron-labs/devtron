@@ -19,12 +19,14 @@ package util
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"encoding/json"
+	errors2 "errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/juju/errors"
+	"go.opentelemetry.io/otel"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"os"
@@ -137,8 +139,10 @@ func GenerateNewWorkflowName(name string) string {
 	return fmt.Sprintf("%s-clone-%s", name, Generate(4))
 }
 
-func HttpRequest(url string) (map[string]interface{}, error) {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+func HttpRequest(ctx context.Context, url string) (map[string]interface{}, error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "util.HttpRequest")
+	defer span.End()
+	req, err := http.NewRequestWithContext(newCtx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +153,7 @@ func HttpRequest(url string) (map[string]interface{}, error) {
 		return nil, err
 	}
 	if res.StatusCode >= 200 && res.StatusCode <= 299 {
-		resBody, err := ioutil.ReadAll(res.Body)
+		resBody, err := io.ReadAll(res.Body)
 		if err != nil {
 			return nil, err
 		}
@@ -270,7 +274,10 @@ func TriggerCIMetrics(Metrics CIMetrics, exposeCIMetrics bool, PipelineName stri
 
 func TriggerGitOpsMetrics(operation string, method string, startTime time.Time, err error) {
 	status := "Success"
-	if err != nil {
+
+	if err != nil && errors2.Is(err, context.Canceled) {
+		status = "Failed: context canceled"
+	} else if err != nil {
 		status = "Failed"
 	}
 	middleware.GitOpsDuration.WithLabelValues(operation, method, status).Observe(time.Since(startTime).Seconds())

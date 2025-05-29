@@ -73,6 +73,11 @@ type EnvConfigOverrideRepository interface {
 	UpdateWithTxn(envConfigOverride *EnvConfigOverride, tx *pg.Tx) (*EnvConfigOverride, error)
 
 	GetByAppIdEnvIdAndChartRefId(appId, envId int, chartRefId int) (*EnvConfigOverride, error)
+	// GetAllOverridesForApp will return all overrides []*EnvConfigOverride for an app by appId
+	// Note:
+	// EnvConfigOverride.Chart is not populated,
+	// as the chartRepoRepository.Chart contains the reference chart(in bytes).
+	GetAllOverridesForApp(appId int) ([]*EnvConfigOverride, error)
 }
 
 type EnvConfigOverrideRepositoryImpl struct {
@@ -355,6 +360,23 @@ func (r EnvConfigOverrideRepositoryImpl) GetByAppIdEnvIdAndChartRefId(appId, env
 		Where("Chart.app_id =? ", appId).
 		Where("Chart.chart_ref_id =? ", chartRefId).
 		Column("env_config_override.*", "Chart").
+		Select()
+	return eco, err
+}
+
+// GetAllOverridesForApp will return all overrides EnvConfigOverride for an app by appId
+// Note:
+// EnvConfigOverride.Chart is not populated,
+// as the chartRepoRepository.Chart contains the reference chart(in bytes).
+func (r EnvConfigOverrideRepositoryImpl) GetAllOverridesForApp(appId int) ([]*EnvConfigOverride, error) {
+	var eco []*EnvConfigOverride
+	err := r.dbConnection.
+		Model(&eco).
+		Column("env_config_override.*").
+		Join("INNER JOIN charts").
+		JoinOn("charts.id = env_config_override.chart_id").
+		Where("env_config_override.active = ?", true).
+		Where("charts.app_id = ?", appId).
 		Select()
 	return eco, err
 }

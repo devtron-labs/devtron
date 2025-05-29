@@ -24,8 +24,8 @@ import (
 type GitCommandManager interface {
 	GitCommandManagerBase
 	AddRepo(ctx GitContext, rootDir string, remoteUrl string, isBare bool) error
-	CommitAndPush(ctx GitContext, repoRoot, commitMsg, name, emailId string) (string, error)
-	Pull(ctx GitContext, repoRoot string) (err error)
+	CommitAndPush(ctx GitContext, repoRoot, targetRevision, commitMsg, name, emailId string) (string, error)
+	Pull(ctx GitContext, targetRevision string, repoRoot string) (err error)
 }
 
 func NewGitCommandManager(logger *zap.SugaredLogger) GitCommandManager {
@@ -45,8 +45,8 @@ func NewGitCommandManager(logger *zap.SugaredLogger) GitCommandManager {
 }
 
 type configuration struct {
-	UseGitCli           bool `env:"USE_GIT_CLI" envDefault:"false"`
-	CliCmdTimeoutGlobal int  `env:"CLI_CMD_TIMEOUT_GLOBAL_SECONDS" envDefault:"0"`
+	UseGitCli           bool `env:"USE_GIT_CLI" envDefault:"false" description:"To enable git cli"`
+	CliCmdTimeoutGlobal int  `env:"CLI_CMD_TIMEOUT_GLOBAL_SECONDS" envDefault:"0" description:"Used in git cli opeartion timeout"`
 }
 
 func ParseConfiguration() (*configuration, error) {
@@ -56,6 +56,3 @@ func ParseConfiguration() (*configuration, error) {
 }
 
 const GIT_ASK_PASS = "/git-ask-pass.sh"
-
-const Branch_Master = "master"
-const ORIGIN_MASTER = "origin/master"

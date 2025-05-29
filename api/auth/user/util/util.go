@@ -17,7 +17,7 @@
 package util
 
 import (
-	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/helper"
 )
 

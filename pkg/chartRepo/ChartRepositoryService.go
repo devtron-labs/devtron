@@ -501,7 +501,7 @@ func (impl *ChartRepositoryServiceImpl) ValidateAndUpdateChartRepo(request *Char
 }
 
 func (impl *ChartRepositoryServiceImpl) TriggerChartSyncManual(chartProviderConfig *ChartProviderConfig) error {
-	defaultClusterBean, err := impl.clusterReadService.FindOne(bean2.DEFAULT_CLUSTER)
+	defaultClusterBean, err := impl.clusterReadService.FindOne(bean2.DefaultCluster)
 	if err != nil {
 		impl.logger.Errorw("defaultClusterBean err, TriggerChartSyncManual", "err", err)
 		return err
@@ -509,7 +509,7 @@ func (impl *ChartRepositoryServiceImpl) TriggerChartSyncManual(chartProviderConf
 
 	defaultClusterConfig := defaultClusterBean.GetClusterConfig()
 
-	manualAppSyncJobByteArr := manualAppSyncJobByteArr(impl.serverEnvConfig.AppSyncImage, impl.serverEnvConfig.AppSyncJobResourcesObj, impl.serverEnvConfig.AppSyncServiceAccount, chartProviderConfig, impl.serverEnvConfig.ParallelismLimitForTagProcessing)
+	manualAppSyncJobByteArr := manualAppSyncJobByteArr(impl.serverEnvConfig.AppSyncImage, impl.serverEnvConfig.AppSyncJobResourcesObj, impl.serverEnvConfig.AppSyncServiceAccount, chartProviderConfig, impl.serverEnvConfig.ParallelismLimitForTagProcessing, impl.serverEnvConfig.AppSyncJobShutDownWaitDuration)
 	err = impl.K8sUtil.DeleteAndCreateJob(manualAppSyncJobByteArr, impl.aCDAuthConfig.ACDConfigMapNamespace, defaultClusterConfig)
 	if err != nil {
 		impl.logger.Errorw("DeleteAndCreateJob err, TriggerChartSyncManual", "err", err)

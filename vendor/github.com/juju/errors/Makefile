@@ -17,7 +17,7 @@ check-go:
 		echo go fmt is sad: $(GOFMT); \
 		exit 1; \
 	fi )
-	@(go tool vet -all -composites=false -copylocks=false .)
+	@(go vet -all -composites=false -copylocks=false .)
 
 docs:
 	godoc2md github.com/juju/errors > README.md

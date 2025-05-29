@@ -20,8 +20,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
-	application3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	k8sUtil "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -35,6 +35,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	deploymentBean "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
@@ -66,11 +67,10 @@ import (
 )
 
 type ManifestCreationService interface {
-	BuildManifestForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time,
-		ctx context.Context) (valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string, err error)
+	BuildManifestForTrigger(ctx context.Context, overrideRequest *bean.ValuesOverrideRequest, envDeploymentConfig *deploymentBean.DeploymentConfig, triggeredAt time.Time) (valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string, err error)
 
 	//TODO: remove below method
-	GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*app.ValuesOverrideResponse, error)
+	GetValuesOverrideForTrigger(ctx context.Context, overrideRequest *bean.ValuesOverrideRequest, envDeploymentConfig *deploymentBean.DeploymentConfig, triggeredAt time.Time) (*app.ValuesOverrideResponse, error)
 }
 
 type ManifestCreationServiceImpl struct {
@@ -154,15 +154,15 @@ func NewManifestCreationServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *ManifestCreationServiceImpl) BuildManifestForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time,
-	ctx context.Context) (valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string, err error) {
-	valuesOverrideResponse = &app.ValuesOverrideResponse{}
-	valuesOverrideResponse, err = impl.GetValuesOverrideForTrigger(overrideRequest, triggeredAt, ctx)
+func (impl *ManifestCreationServiceImpl) BuildManifestForTrigger(ctx context.Context, overrideRequest *bean.ValuesOverrideRequest,
+	envDeploymentConfig *deploymentBean.DeploymentConfig, triggeredAt time.Time) (valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string, err error) {
+	valuesOverrideResponse, err = impl.GetValuesOverrideForTrigger(ctx, overrideRequest, envDeploymentConfig, triggeredAt)
 	if err != nil {
 		impl.logger.Errorw("error in fetching values for trigger", "err", err)
 		return valuesOverrideResponse, "", err
 	}
-	builtChartPath, err = impl.deploymentTemplateService.BuildChartAndGetPath(overrideRequest.AppName, valuesOverrideResponse.EnvOverride, ctx)
+	valuesOverrideResponse.DeploymentConfig = envDeploymentConfig
+	builtChartPath, err = impl.deploymentTemplateService.BuildChartAndGetPath(overrideRequest.AppName, valuesOverrideResponse.EnvOverride, envDeploymentConfig, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in parsing reference chart", "err", err)
 		return valuesOverrideResponse, "", err
@@ -170,7 +170,8 @@ func (impl *ManifestCreationServiceImpl) BuildManifestForTrigger(overrideRequest
 	return valuesOverrideResponse, builtChartPath, err
 }
 
-func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*app.ValuesOverrideResponse, error) {
+func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(ctx context.Context, overrideRequest *bean.ValuesOverrideRequest,
+	envDeploymentConfig *deploymentBean.DeploymentConfig, triggeredAt time.Time) (*app.ValuesOverrideResponse, error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.GetValuesOverrideForTrigger")
 	defer span.End()
 	helper.ResolveDeploymentTypeAndUpdate(overrideRequest)
@@ -283,7 +284,7 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 				// error is not returned as it's not blocking for deployment process
 				// blocking deployments based on this use case can vary for user to user
 			}
-			mergedValues, err = impl.autoscalingCheckBeforeTrigger(newCtx, appName, envOverride.Namespace, mergedValues, overrideRequest)
+			mergedValues, err = impl.autoscalingCheckBeforeTrigger(newCtx, appName, envOverride.Namespace, mergedValues, overrideRequest, envDeploymentConfig)
 			if err != nil {
 				impl.logger.Errorw("error in autoscaling check before trigger", "pipelineId", overrideRequest.PipelineId, "err", err)
 				return valuesOverrideResponse, err
@@ -316,9 +317,12 @@ func (impl *ManifestCreationServiceImpl) getDeploymentStrategyByTriggerType(over
 	var err error
 	if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
 		strategyHistory, err := impl.strategyHistoryRepository.GetHistoryByPipelineIdAndWfrId(newCtx, overrideRequest.PipelineId, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
-		if err != nil {
+		if err != nil && !errors.Is(err, pg.ErrNoRows) {
 			impl.logger.Errorw("error in getting deployed strategy history by pipelineId and wfrId", "err", err, "pipelineId", overrideRequest.PipelineId, "wfrId", overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
 			return nil, err
+		}
+		if errors.Is(err, pg.ErrNoRows) {
+			return nil, nil //making this to prevent the strategy value in audit in history marking for the sake of chart with no strategy
 		}
 		strategy.Strategy = strategyHistory.Strategy
 		strategy.Config = strategyHistory.Config
@@ -375,9 +379,6 @@ func (impl *ManifestCreationServiceImpl) GetEnvOverrideForSpecificConfigTrigger(
 	}
 	templateName := deploymentTemplateHistory.TemplateName
 	templateVersion := deploymentTemplateHistory.TemplateVersion
-	if templateName == "Rollout Deployment" {
-		templateName = ""
-	}
 	//getting chart_ref by id
 	_, span = otel.Tracer("orchestrator").Start(ctx, "chartRefRepository.FindByVersionAndName")
 	chartRefDto, err := impl.chartRefService.FindByVersionAndName(templateVersion, templateName)
@@ -552,7 +553,7 @@ func (impl *ManifestCreationServiceImpl) mergeOverrideValues(envOverride *bean2.
 	} else {
 		templateOverrideValuesByte = []byte(envOverride.ResolvedEnvOverrideValues)
 	}
-	merged, err = impl.mergeUtil.JsonPatch([]byte("{}"), templateOverrideValuesByte)
+	merged, err = impl.mergeUtil.JsonPatch(globalUtil.GetEmptyJSON(), templateOverrideValuesByte)
 	if err != nil {
 		impl.logger.Errorw("error in merging deployment template override values", "err", err, "overrideValues", templateOverrideValuesByte)
 		return nil, err
@@ -876,51 +877,6 @@ func (impl *ManifestCreationServiceImpl) getK8sHPAResourceManifest(ctx context.C
 	return k8sResource.ManifestResponse.Manifest.Object, err
 }
 
-func (impl *ManifestCreationServiceImpl) getArgoCdHPAResourceManifest(ctx context.Context, appName, namespace string, hpaResourceRequest *globalUtil.HpaResourceRequest) (map[string]interface{}, error) {
-	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.getArgoCdHPAResourceManifest")
-	defer span.End()
-	resourceManifest := make(map[string]interface{})
-	query := &application3.ApplicationResourceRequest{
-		Name:         &appName,
-		Version:      &hpaResourceRequest.Version,
-		Group:        &hpaResourceRequest.Group,
-		Kind:         &hpaResourceRequest.Kind,
-		ResourceName: &hpaResourceRequest.ResourceName,
-		Namespace:    &namespace,
-	}
-
-	recv, argoErr := impl.acdClientWrapper.GetApplicationResource(newCtx, query)
-	if argoErr != nil {
-		grpcCode, errMsg := util.GetClientDetailedError(argoErr)
-		if grpcCode.IsInvalidArgumentCode() || grpcCode.IsNotFoundCode() {
-			// this is a valid case for hibernated applications, so returning nil
-			// for hibernated applications, we don't have any hpa resource manifest
-			return resourceManifest, nil
-		} else if grpcCode.IsUnavailableCode() {
-			impl.logger.Errorw("ArgoCd server unavailable", "resourceName", hpaResourceRequest.ResourceName, "err", errMsg)
-			return resourceManifest, fmt.Errorf("ArgoCd server error: %s", errMsg)
-		} else if grpcCode.IsDeadlineExceededCode() {
-			impl.logger.Errorw("ArgoCd resource request timeout", "resourceName", hpaResourceRequest.ResourceName, "err", errMsg)
-			return resourceManifest, util.DefaultApiError().
-				WithHttpStatusCode(http.StatusRequestTimeout).
-				WithInternalMessage(errMsg).
-				WithUserDetailMessage("ArgoCd server is not responding, please try again later")
-		}
-		impl.logger.Errorw("ArgoCd Get Resource API Failed", "resourceName", hpaResourceRequest.ResourceName, "err", errMsg)
-		return resourceManifest, fmt.Errorf("ArgoCd client error: %s", errMsg)
-	}
-	if recv != nil && len(*recv.Manifest) > 0 {
-		err := json.Unmarshal([]byte(*recv.Manifest), &resourceManifest)
-		if err != nil {
-			impl.logger.Errorw("failed to unmarshal hpa resource manifest", "manifest", recv.Manifest, "err", err)
-			return resourceManifest, err
-		}
-	} else {
-		impl.logger.Debugw("invalid resource manifest received from ArgoCd", "response", recv)
-	}
-	return resourceManifest, nil
-}
-
 // updateHashToMergedValues
 //   - Generates hash from the given configOrSecretData
 //   - And updates the hash in bean.JsonPath (JSON path) for the merged values
@@ -1010,12 +966,12 @@ func (impl *ManifestCreationServiceImpl) updatedExternalCmCsHashForTrigger(ctx c
 	return merged, nil
 }
 
-func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, appName string, namespace string, merged []byte, overrideRequest *bean.ValuesOverrideRequest) ([]byte, error) {
+func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, appName string, namespace string, merged []byte,
+	overrideRequest *bean.ValuesOverrideRequest, envDeploymentConfig *deploymentBean.DeploymentConfig) ([]byte, error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.autoscalingCheckBeforeTrigger")
 	defer span.End()
 	pipelineId := overrideRequest.PipelineId
-	var appDeploymentType = overrideRequest.DeploymentAppType
-	var clusterId = overrideRequest.ClusterId
+	clusterId := overrideRequest.ClusterId
 	deploymentType := overrideRequest.DeploymentType
 	templateMap := make(map[string]interface{})
 	err := json.Unmarshal(merged, &templateMap)
@@ -1028,17 +984,12 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 	impl.logger.Debugw("autoscalingCheckBeforeTrigger", "pipelineId", pipelineId, "hpaResourceRequest", hpaResourceRequest)
 	if hpaResourceRequest.IsEnable {
 		var resourceManifest map[string]interface{}
-		if util.IsAcdApp(appDeploymentType) {
-			resourceManifest, err = impl.getArgoCdHPAResourceManifest(newCtx, appName, namespace, hpaResourceRequest)
-			if err != nil {
-				return merged, err
-			}
-		} else {
-			resourceManifest, err = impl.getK8sHPAResourceManifest(newCtx, clusterId, namespace, hpaResourceRequest)
-			if err != nil {
-				return merged, err
-			}
+
+		resourceManifest, err = impl.getK8sHPAResourceManifest(newCtx, clusterId, namespace, hpaResourceRequest)
+		if err != nil {
+			return merged, err
 		}
+
 		if len(resourceManifest) > 0 {
 			statusMap := resourceManifest["status"].(map[string]interface{})
 			currentReplicaVal := statusMap["currentReplicas"]
