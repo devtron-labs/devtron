@@ -24,8 +24,10 @@ FROM alpine:3.20
 # Install CA certificates (for HTTPS calls)
 RUN apk --no-cache add ca-certificates
 
-# Create a non-root user and switch to it
-RUN adduser -D -g '' nonroot
+# Create a non-root user with UID/GID 2002
+RUN addgroup -g 2002 nonroot && adduser -u 2002 -G nonroot -S nonroot
+
+# Switch to the non-root user
 USER nonroot
 
 # Set working directory
@@ -34,8 +36,8 @@ WORKDIR /home/nonroot
 # Copy the compiled binary from the builder stage
 COPY --from=builder /app/main .
 
-# Expose port if your app serves over a specific port (optional)
-# EXPOSE 8080
+# Expose port 8080 for the application
+EXPOSE 8080
 
 # Start the application
 CMD ["./main"]
