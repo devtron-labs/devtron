@@ -1,44 +1,32 @@
-# Use specific Alpine version (3.21) for stability and reproducibility
-FROM alpine:3.21
+# --- Build stage ---
+FROM gradle:8.13.0-jdk21-alpine AS builder
 
-# Metadata args for build info (optional)
-ARG VCS_REF
-ARG BUILD_DATE
+WORKDIR /src
 
-# Setting resource quota args (optional, for your usage)
-ARG MIN_MEM=2G
-ARG MAX_MEM=2G
+# Copy Gradle build files
+COPY build.gradle.kts .
+COPY settings.gradle.kts .
 
-# Install required packages: bash, openjdk8, unzip, build-base, wget
-RUN apk add --no-cache bash openjdk8 unzip build-base wget
+# Create directory structure and copy source code
+RUN mkdir -p src/main/kotlin
+COPY app.kt src/main/kotlin/App.kt
 
-# Download and install Kotlin compiler
-RUN cd /usr/lib && \
-    wget https://github.com/JetBrains/kotlin/releases/download/v1.3.72/kotlin-compiler-1.3.72.zip && \
-    unzip kotlin-compiler-1.3.72.zip && \
-    rm kotlin-compiler-1.3.72.zip && \
-    rm -f kotlinc/bin/*.bat
+# Build the Kotlin JAR
+RUN gradle installDist --no-daemon --parallel
 
-# Add Kotlin compiler to PATH
-ENV PATH="/usr/lib/kotlinc/bin:${PATH}"
+# --- Final stage ---
+FROM eclipse-temurin:21-jre-jammy
 
-# Create app directory and set permissions
-RUN mkdir /app
+# Add a non-root user for security
+RUN addgroup --gid 2002 nonroot && adduser --gid 2002 --uid 2002 nonroot --disabled-password --gecos ""
 
-# Copy source code into container
-COPY app/app.kt /app/
+WORKDIR /home/nonroot
 
-# Set working directory
-WORKDIR /app
+# Copy the built distribution from the builder stage
+COPY --from=builder /src/build/install/app ./
 
-# Create a non-root user 'nonroot' and assign ownership of /app to it
-RUN adduser -D nonroot && chown -R nonroot:nonroot /app
-
-# Switch to non-root user
 USER nonroot
+EXPOSE 8080
 
-# Compile Kotlin source to jar
-RUN kotlinc app.kt -include-runtime -d app.jar
-
-# Run the compiled jar
-CMD ["java", "-jar", "./app.jar"]
+# Run the application
+CMD ["bin/app"]

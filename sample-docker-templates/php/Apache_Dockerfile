@@ -1,11 +1,12 @@
-# Using latest stable PHP with Apache (8.2)
-FROM php:8.2-apache
+# Using latest stable PHP with Apache (8.3)
+FROM php:8.3-apache
 
 # Enable apache mod_rewrite
 RUN a2enmod rewrite
 
-# Give ownership of /var/www/html to non-root user
-RUN useradd -m nonroot && chown -R nonroot:www-data /var/www/html
+# Create non-root user with UID/GID 2002 and set ownership
+RUN groupadd -g 2002 nonroot && useradd -u 2002 -g nonroot -m nonroot && \
+    chown -R nonroot:www-data /var/www/html
 
 # Copy application source code
 COPY --chown=nonroot:www-data . /var/www/html/

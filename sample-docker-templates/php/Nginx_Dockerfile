@@ -1,15 +1,24 @@
 # Use Ubuntu 24.04 LTS as base image for latest stable environment
 FROM ubuntu:24.04
 
+ENV DEBIAN_FRONTEND=noninteractive
+
 RUN apt-get update && apt-get upgrade -y && \
-    apt-get install -y php8.2 php8.2-cli php8.2-fpm nginx && \
+    apt-get install -y --no-install-recommends \
+        php8.3 php8.3-cli php8.3-fpm nginx && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Copy configs, code, etc.
+# Create non-root user and set permissions
+RUN groupadd -g 2002 nonroot && useradd -u 2002 -g nonroot -s /bin/bash -m nonroot && \
+    mkdir -p /run/php && chown -R nonroot:nonroot /var/www/html /run/php
+
 COPY nginx-site.conf /etc/nginx/sites-available/default
+
 WORKDIR /var/www/html/
 COPY . /var/www/html
 
 EXPOSE 80
 
-CMD ["/bin/bash", "-c", "service php8.2-fpm start && nginx -g 'daemon off;'"]
+USER nonroot
+
+CMD ["/bin/bash", "-c", "php-fpm8.3 --daemonize && nginx -g 'daemon off;'"]

@@ -2,25 +2,24 @@ FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get -y upgrade && \
+RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-      php8.2 \
-      php8.2-cli \
-      php8.2-fpm \
-      php8.2-mysql \
-      php8.2-curl \
-      net-tools \
+      php8.3-cli \
+      php8.3-fpm \
       nginx && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd -g 2002 nonroot && useradd -u 2002 -g nonroot -s /bin/bash -m nonroot && \
+    mkdir -p /run/php && chown -R nonroot:nonroot /var/www/html /run/php
 
 ADD nginx-site.conf /etc/nginx/sites-available/default
 
 WORKDIR /var/www/html/
 
-RUN mkdir -p /run/php
-
 COPY . /var/www/html
 
 EXPOSE 80
 
-CMD ["/bin/bash", "-c", "service php8.2-fpm start && nginx -g 'daemon off;'"]
+USER nonroot
+
+CMD ["/bin/bash", "-c", "php-fpm8.3 --daemonize && nginx -g 'daemon off;'"]
