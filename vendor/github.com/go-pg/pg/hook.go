@@ -1,39 +1,36 @@
 package pg
 
 import (
+	"context"
 	"fmt"
-	"runtime"
-	"strings"
-	"time"
 
 	"github.com/go-pg/pg/orm"
 )
 
-type dummyDB struct {
-	orm.DB
+type dummyFormatter struct{}
+
+func (dummyFormatter) FormatQuery(b []byte, query string, params ...interface{}) []byte {
+	return append(b, query...)
 }
 
-var _ orm.DB = dummyDB{}
-
-func (dummyDB) FormatQuery(dst []byte, query string, params ...interface{}) []byte {
-	return append(dst, query...)
-}
-
-type QueryProcessedEvent struct {
-	StartTime time.Time
-	Func      string
-	File      string
-	Line      int
-
+type QueryEvent struct {
+	Ctx     context.Context
 	DB      orm.DB
 	Query   interface{}
 	Params  []interface{}
 	Attempt int
-	Result  orm.Result
+	Result  Result
 	Error   error
+
+	Data map[interface{}]interface{}
 }
 
-func (ev *QueryProcessedEvent) UnformattedQuery() (string, error) {
+type QueryHook interface {
+	BeforeQuery(*QueryEvent)
+	AfterQuery(*QueryEvent)
+}
+
+func (ev *QueryEvent) UnformattedQuery() (string, error) {
 	b, err := queryString(ev.Query)
 	if err != nil {
 		return "", err
@@ -41,7 +38,7 @@ func (ev *QueryProcessedEvent) UnformattedQuery() (string, error) {
 	return string(b), nil
 }
 
-func (ev *QueryProcessedEvent) FormattedQuery() (string, error) {
+func (ev *QueryEvent) FormattedQuery() (string, error) {
 	b, err := appendQuery(nil, ev.DB, ev.Query, ev.Params...)
 	if err != nil {
 		return "", err
@@ -51,95 +48,61 @@ func (ev *QueryProcessedEvent) FormattedQuery() (string, error) {
 
 func queryString(query interface{}) ([]byte, error) {
 	switch query := query.(type) {
-	case orm.QueryAppender:
-		query = query.Copy()
-		query.Query().DB(dummyDB{})
-		return query.AppendQuery(nil)
+	case orm.TemplateAppender:
+		return query.AppendTemplate(nil)
 	case string:
-		return dummyDB{}.FormatQuery(nil, query), nil
+		return dummyFormatter{}.FormatQuery(nil, query), nil
 	default:
 		return nil, fmt.Errorf("pg: can't append %T", query)
 	}
 }
 
-type queryProcessedHook func(*QueryProcessedEvent)
-
-// OnQueryProcessed calls the fn with QueryProcessedEvent
-// when query is processed.
-func (db *DB) OnQueryProcessed(fn func(*QueryProcessedEvent)) {
-	db.queryProcessedHooks = append(db.queryProcessedHooks, fn)
+// AddQueryHook adds a hook into query processing.
+func (db *baseDB) AddQueryHook(hook QueryHook) {
+	db.queryHooks = append(db.queryHooks, hook)
 }
 
-func (db *DB) queryProcessed(
+func (db *baseDB) queryStarted(
+	c context.Context,
 	ormDB orm.DB,
-	start time.Time,
 	query interface{},
 	params []interface{},
 	attempt int,
-	res orm.Result,
-	err error,
-) {
-	if len(db.queryProcessedHooks) == 0 {
-		return
+) *QueryEvent {
+	if len(db.queryHooks) == 0 {
+		return nil
 	}
 
-	funcName, file, line := fileLine(2)
-	event := &QueryProcessedEvent{
-		StartTime: start,
-		Func:      funcName,
-		File:      file,
-		Line:      line,
-
+	event := &QueryEvent{
+		Ctx:     c,
 		DB:      ormDB,
 		Query:   query,
 		Params:  params,
 		Attempt: attempt,
-		Result:  res,
-		Error:   err,
+		Data:    make(map[interface{}]interface{}),
 	}
-	for _, hook := range db.queryProcessedHooks {
-		hook(event)
+	for _, hook := range db.queryHooks {
+		hook.BeforeQuery(event)
+	}
+	return event
+}
+
+func (db *baseDB) queryProcessed(
+	res Result,
+	err error,
+	event *QueryEvent,
+) {
+	if event == nil {
+		return
+	}
+
+	event.Error = err
+	event.Result = res
+	for _, hook := range db.queryHooks {
+		hook.AfterQuery(event)
 	}
 }
 
-const packageName = "github.com/go-pg/pg"
-
-func fileLine(depth int) (string, string, int) {
-	for i := depth; ; i++ {
-		pc, file, line, ok := runtime.Caller(i)
-		if !ok {
-			break
-		}
-		if strings.Contains(file, packageName) {
-			continue
-		}
-		_, funcName := packageFuncName(pc)
-		return funcName, file, line
-	}
-	return "", "", 0
-}
-
-func packageFuncName(pc uintptr) (string, string) {
-	f := runtime.FuncForPC(pc)
-	if f == nil {
-		return "", ""
-	}
-
-	packageName := ""
-	funcName := f.Name()
-
-	if ind := strings.LastIndex(funcName, "/"); ind > 0 {
-		packageName += funcName[:ind+1]
-		funcName = funcName[ind+1:]
-	}
-	if ind := strings.Index(funcName, "."); ind > 0 {
-		packageName += funcName[:ind]
-		funcName = funcName[ind+1:]
-	}
-
-	return packageName, funcName
-}
-
-func copyQueryProcessedHooks(s []queryProcessedHook) []queryProcessedHook {
+func copyQueryHooks(s []QueryHook) []QueryHook {
 	return s[:len(s):len(s)]
 }

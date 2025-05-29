@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"sync/atomic"
 	"time"
+
+	"github.com/go-pg/pg/internal"
 )
 
 var noDeadline = time.Time{}
@@ -12,14 +14,14 @@ var noDeadline = time.Time{}
 type Conn struct {
 	netConn net.Conn
 
-	buf      []byte
-	rd       *Reader
-	rdLocked bool
-	wb       *WriteBuffer
+	buf []byte
+	rd  *internal.BufReader
+	wb  *WriteBuffer
 
-	InitedAt time.Time
-	pooled   bool
-	usedAt   atomic.Value
+	Inited    bool
+	pooled    bool
+	createdAt time.Time
+	usedAt    atomic.Value
 
 	ProcessId int32
 	SecretKey int32
@@ -30,8 +32,10 @@ type Conn struct {
 func NewConn(netConn net.Conn) *Conn {
 	cn := &Conn{
 		buf: makeBuffer(),
-		rd:  NewReader(NewElasticBufReader(netConn)),
+		rd:  internal.NewBufReader(netConn),
 		wb:  NewWriteBuffer(),
+
+		createdAt: time.Now(),
 	}
 	cn.SetNetConn(netConn)
 	cn.SetUsedAt(time.Now())
@@ -82,23 +86,10 @@ func (cn *Conn) setWriteTimeout(timeout time.Duration) error {
 	return cn.netConn.SetWriteDeadline(noDeadline)
 }
 
-func (cn *Conn) LockReaderBuffer() {
-	cn.rdLocked = true
-	cn.rd.ResetBuffer(makeBuffer())
-}
-
-func (cn *Conn) WithReader(timeout time.Duration, fn func(rd *Reader) error) error {
+func (cn *Conn) WithReader(timeout time.Duration, fn func(rd *internal.BufReader) error) error {
 	_ = cn.setReadTimeout(timeout)
 
-	if !cn.rdLocked {
-		cn.rd.ResetBuffer(cn.buf)
-	}
-
 	err := fn(cn.rd)
-
-	if !cn.rdLocked {
-		cn.buf = cn.rd.Buffer()
-	}
 
 	return err
 }

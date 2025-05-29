@@ -58,7 +58,8 @@ func (q *Query) CountEstimate(threshold int) (int, error) {
 
 	for i := 0; i < 3; i++ {
 		var count int
-		_, err = q.db.QueryOne(
+		_, err = q.db.QueryOneContext(
+			q.ctx,
 			Scan(&count),
 			"SELECT _go_pg_count_estimate_v2(?, ?)",
 			string(query), threshold,
@@ -68,7 +69,10 @@ func (q *Query) CountEstimate(threshold int) (int, error) {
 				// undefined_function
 				err = q.createCountEstimateFunc()
 				if err != nil {
-					return 0, err
+					pgerr, ok := err.(internal.PGError)
+					if !ok || !pgerr.IntegrityViolation() {
+						return 0, err
+					}
 				}
 				continue
 			}
@@ -80,6 +84,6 @@ func (q *Query) CountEstimate(threshold int) (int, error) {
 }
 
 func (q *Query) createCountEstimateFunc() error {
-	_, err := q.db.Exec(pgCountEstimateFunc)
+	_, err := q.db.ExecContext(q.ctx, pgCountEstimateFunc)
 	return err
 }

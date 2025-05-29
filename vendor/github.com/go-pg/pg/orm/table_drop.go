@@ -1,7 +1,5 @@
 package orm
 
-import "errors"
-
 type DropTableOptions struct {
 	IfExists bool
 	Cascade  bool
@@ -16,20 +14,29 @@ type dropTableQuery struct {
 	opt *DropTableOptions
 }
 
-func (q dropTableQuery) Copy() QueryAppender {
-	return q
+func (q *dropTableQuery) Copy() *dropTableQuery {
+	return &dropTableQuery{
+		q:   q.q.Copy(),
+		opt: q.opt,
+	}
 }
 
-func (q dropTableQuery) Query() *Query {
+func (q *dropTableQuery) Query() *Query {
 	return q.q
 }
 
-func (q dropTableQuery) AppendQuery(b []byte) ([]byte, error) {
+func (q *dropTableQuery) AppendTemplate(b []byte) ([]byte, error) {
+	cp := q.Copy()
+	cp.q = cp.q.Formatter(dummyFormatter{})
+	return cp.AppendQuery(b)
+}
+
+func (q *dropTableQuery) AppendQuery(b []byte) ([]byte, error) {
 	if q.q.stickyErr != nil {
 		return nil, q.q.stickyErr
 	}
 	if q.q.model == nil {
-		return nil, errors.New("pg: Model(nil)")
+		return nil, errModelNil
 	}
 
 	b = append(b, "DROP TABLE "...)
@@ -41,5 +48,5 @@ func (q dropTableQuery) AppendQuery(b []byte) ([]byte, error) {
 		b = append(b, " CASCADE"...)
 	}
 
-	return b, nil
+	return b, q.q.stickyErr
 }

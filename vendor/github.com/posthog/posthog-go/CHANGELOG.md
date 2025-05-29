@@ -1,3 +1,75 @@
+## 1.5.9
+
+* [Full Changelog](https://github.com/PostHog/posthog-go/compare/v1.5.8...v1.5.9)
+
+## 1.5.8
+
+* [Full Changelog](https://github.com/PostHog/posthog-go/compare/v1.5.7...v1.5.8)
+
+## 1.5.7
+
+* [Full Changelog](https://github.com/PostHog/posthog-go/compare/v1.5.6...v1.5.7)
+
+## 1.5.6
+
+* [Full Changelog](https://github.com/PostHog/posthog-go/compare/v1.5.5...v1.5.6)
+
+## 1.5.5
+
+* [Full Changelog](https://github.com/PostHog/posthog-go/compare/v1.5.4...v1.5.5)
+
+## 1.5.4
+
+* [Full Changelog](https://github.com/PostHog/posthog-go/compare/v1.5.3...v1.5.4)
+
+## 1.5.3
+
+* [Full Changelog](https://github.com/PostHog/posthog-go/compare/v1.5.2...v1.5.3)
+
+## 1.5.2
+
+* [Full Changelog](https://github.com/PostHog/posthog-go/compare/v1.5.1...v1.5.2)
+
+## 1.5.1
+
+* [Full Changelog](https://github.com/PostHog/posthog-go/compare/v1.5.0...v1.5.1)
+
+## 1.4.10
+
+* [Full Changelog](https://github.com/PostHog/posthog-go/compare/v1.4.9...v1.4.10)
+
+## 1.4.9
+
+* [Full Changelog](https://github.com/PostHog/posthog-go/compare/v1.4.8...v1.4.9)
+
+## 1.4.8
+
+* [Full Changelog](https://github.com/PostHog/posthog-go/compare/v1.4.7...v1.4.8)
+
+## 1.4.7
+
+* [Full Changelog](https://github.com/PostHog/posthog-go/compare/v1.4.6...v1.4.7)
+
+## 1.4.6
+
+* [Full Changelog](https://github.com/PostHog/posthog-go/compare/v1.4.5...v1.4.6)
+
+## 1.4.5
+
+* [Full Changelog](https://github.com/PostHog/posthog-go/compare/v1.4.4...v1.4.5)
+
+## 1.4.4
+
+* [Full Changelog](https://github.com/PostHog/posthog-go/compare/v1.4.3...v1.4.4)
+
+## 1.4.3
+
+* [Full Changelog](https://github.com/PostHog/posthog-go/compare/v1.4.2...v1.4.3)
+
+## 1.4.2
+
+* [Full Changelog](https://github.com/PostHog/posthog-go/compare/v1.4.1...v1.4.2)
+
 ## 1.4.1
 
 * [Full Changelog](https://github.com/PostHog/posthog-go/compare/v1.4.0...v1.4.1)
