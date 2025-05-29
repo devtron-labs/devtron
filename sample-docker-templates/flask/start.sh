@@ -1,8 +1,7 @@
-#!/bin/bash
-set -e
+#!/bin/sh
 
-# Start nginx in the background
-nginx
+# Start uWSGI in the background
+uwsgi --ini /app/uwsgi.ini &
 
-# Start uwsgi with provided ini config
-exec uwsgi --ini uwsgi.ini
+# Start Nginx in the foreground
+nginx -g "daemon off;"

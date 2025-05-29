@@ -16,7 +16,8 @@ RUN gradle build --no-daemon
 FROM eclipse-temurin:21-jdk-jammy
 
 # Create a non-root user to run the app securely
-RUN addgroup -g 2002 nonroot && adduser -u 2002 -G nonroot -S nonroot
+RUN addgroup --gid 2002 nonroot && adduser --gid 2002 --uid 2002 nonroot --disabled-password --gecos ""
+
 
 # Set the working directory
 WORKDIR /app

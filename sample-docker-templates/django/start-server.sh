@@ -1,15 +1,13 @@
 #!/bin/sh
 
 # Apply DB migrations
-python manage.py migrate
+python /app/manage.py migrate
 
-# Create superuser if details provided (non-interactive)
-if [ -n "$DJANGO_SUPERUSER_USERNAME" ] && [ -n "$DJANGO_SUPERUSER_PASSWORD" ] && [ -n "$DJANGO_SUPERUSER_EMAIL" ]; then
-    python manage.py createsuperuser --no-input || true
-fi
+# create superuser
+python /app/manage.py createsuperuser --no-input
 
-# Start gunicorn as non-root user binding on all interfaces port 8000, 3 workers
-gunicorn DjangoApp.wsgi --user nonroot --bind 0.0.0.0:8000 --workers 3 &
+# Start gunicorn as non-root user binding on port 8000
+gunicorn demo-project.wsgi:application --user nonroot --bind 0.0.0.0:8000 --workers 3 &
 
-# Start nginx in foreground
+# Start nginx (already configured to run without root)
 nginx -g "daemon off;"

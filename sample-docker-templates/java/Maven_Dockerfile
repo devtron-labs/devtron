@@ -24,7 +24,7 @@ RUN mvn clean package
 FROM eclipse-temurin:21-jdk-jammy
 
 # Create a non-root user 'nonroot' for security best practices
-RUN addgroup -g 2002 nonroot && adduser -u 2002 -G nonroot -S nonroot
+RUN addgroup --gid 2002 nonroot && adduser --gid 2002 --uid 2002 nonroot --disabled-password --gecos ""
 
 # Set working directory
 WORKDIR /app

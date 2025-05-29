@@ -1,55 +1,44 @@
-# Base Image
-# Using official python 3.13-slim for smaller footprint and latest stable version
+# Base Image - slim Python
 FROM python:3.13-slim
 
-# Set environment variables for Python behavior
-ENV PYTHONUNBUFFERED=1
-ENV LANG=C.UTF-8
+# Environment settings
+ENV PYTHONUNBUFFERED=1 LANG=C.UTF-8
 
-# Accept build arguments for Django superuser creation
+# Django superuser build args
 ARG DJANGO_SUPERUSER_USERNAME
-ENV DJANGO_SUPERUSER_USERNAME=${DJANGO_SUPERUSER_USERNAME}
-
 ARG DJANGO_SUPERUSER_PASSWORD
-ENV DJANGO_SUPERUSER_PASSWORD=${DJANGO_SUPERUSER_PASSWORD}
-
 ARG DJANGO_SUPERUSER_EMAIL
+ENV DJANGO_SUPERUSER_USERNAME=${DJANGO_SUPERUSER_USERNAME}
+ENV DJANGO_SUPERUSER_PASSWORD=${DJANGO_SUPERUSER_PASSWORD}
 ENV DJANGO_SUPERUSER_EMAIL=${DJANGO_SUPERUSER_EMAIL}
 
-# Create app directory and assign ownership later to non-root user
-RUN mkdir /app
-
+# Set workdir
 WORKDIR /app
 
-# Install system dependencies and nginx with minimal packages, no recommends
+# Install system dependencies and nginx, then install Python deps
+COPY requirements.txt .
 RUN apt-get update && apt-get install -y --no-install-recommends nginx vim && \
+    pip install --no-cache-dir -r requirements.txt && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy app source code
-COPY . /app/
+# Copy app code, nginx.conf, and start script
+COPY app/ ./
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY start-server.sh ./
+RUN chmod +x start-server.sh
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Create non-root user and set permissions
+RUN groupadd -g 2002 nonroot && useradd -u 2002 -g nonroot -s /bin/bash -m nonroot && \
+    mkdir -p /tmp/nginx-logs && chown -R nonroot:nonroot /app /tmp/nginx-logs
 
-# Create a non-root user 'nonroot' and group, change ownership of /app and nginx logs
-RUN groupadd -r nonroot && useradd -r -g nonroot nonroot && \
-    chown -R nonroot:nonroot /app /var/log/nginx
+# Expose port 8080
+EXPOSE 8080
 
-# Copy nginx config file
-COPY nginx.default /etc/nginx/sites-available/default
-
-# Symlink nginx logs to stdout/stderr for container logging
-RUN ln -sf /dev/stdout /var/log/nginx/access.log && \
-    ln -sf /dev/stderr /var/log/nginx/error.log
-
-# Expose port 8000 for Django/gunicorn and nginx
-EXPOSE 8000
-
-# Use non-root user for better security
+# Switch to non-root
 USER nonroot
 
-# Set stop signal for graceful shutdown
+# Stop signal for graceful shutdown
 STOPSIGNAL SIGTERM
 
-# Start server script (migrations, superuser creation, gunicorn & nginx)
+# Start server (migrations, superuser, gunicorn, nginx)
 CMD ["/app/start-server.sh"]
