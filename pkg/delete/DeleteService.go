@@ -19,6 +19,7 @@ package delete
 import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s"
+	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
@@ -58,6 +59,7 @@ type DeleteServiceImpl struct {
 	dockerRegistryRepository dockerRegistryRepository.DockerArtifactStoreRepository
 	K8sUtil                  k8s.K8sService
 	k8sInformerFactory       informer.K8sInformerFactory
+	appRepository            appRepository.AppRepository
 }
 
 func NewDeleteServiceImpl(logger *zap.SugaredLogger,
@@ -70,6 +72,7 @@ func NewDeleteServiceImpl(logger *zap.SugaredLogger,
 	dockerRegistryRepository dockerRegistryRepository.DockerArtifactStoreRepository,
 	k8sInformerFactory informer.K8sInformerFactory,
 	K8sUtil k8s.K8sService,
+	appRepository appRepository.AppRepository,
 ) *DeleteServiceImpl {
 	return &DeleteServiceImpl{
 		logger:                   logger,
@@ -82,6 +85,7 @@ func NewDeleteServiceImpl(logger *zap.SugaredLogger,
 		dockerRegistryRepository: dockerRegistryRepository,
 		K8sUtil:                  K8sUtil,
 		k8sInformerFactory:       k8sInformerFactory,
+		appRepository:            appRepository,
 	}
 }
 
@@ -121,7 +125,17 @@ func (impl DeleteServiceImpl) DeleteEnvironment(deleteRequest *bean.EnvironmentB
 	return nil
 }
 func (impl DeleteServiceImpl) DeleteTeam(deleteRequest *bean3.TeamRequest) error {
-	err := impl.teamService.Delete(deleteRequest)
+	//finding if this project is used in some app; if yes, will not perform delete operation
+	apps, err := impl.appRepository.FindAppsByTeamId(deleteRequest.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("err in deleting team", "teamId", deleteRequest.Id, "err", err)
+		return err
+	}
+	if len(apps) > 0 {
+		impl.logger.Errorw("err in deleting team, found apps in team", "teamName", deleteRequest.Name, "err", err)
+		return fmt.Errorf(" Please delete all apps in this project before deleting this project")
+	}
+	err = impl.teamService.Delete(deleteRequest)
 	if err != nil {
 		impl.logger.Errorw("error in deleting team", "err", err, "deleteRequest", deleteRequest)
 		return err
