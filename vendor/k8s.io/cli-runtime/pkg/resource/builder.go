@@ -1030,7 +1030,7 @@ func (b *Builder) visitByResource() *Result {
 				if b.allNamespace {
 					errMsg = "a resource cannot be retrieved by name across all namespaces"
 				}
-				return result.withError(fmt.Errorf(errMsg))
+				return result.withError(errors.New(errMsg))
 			}
 		}
 
@@ -1093,7 +1093,7 @@ func (b *Builder) visitByName() *Result {
 			if b.allNamespace {
 				errMsg = "a resource cannot be retrieved by name across all namespaces"
 			}
-			return result.withError(fmt.Errorf(errMsg))
+			return result.withError(errors.New(errMsg))
 		}
 	}
 
@@ -1198,7 +1198,7 @@ func (b *Builder) Do() *Result {
 // strings in the original order.
 func SplitResourceArgument(arg string) []string {
 	out := []string{}
-	set := sets.NewString()
+	set := sets.New[string]()
 	for _, s := range strings.Split(arg, ",") {
 		if set.Has(s) {
 			continue
