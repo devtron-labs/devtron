@@ -89,14 +89,14 @@ func (impl UserAuditRepositoryImpl) GetLatestUser() (*UserAudit, error) {
 }
 
 func (impl UserAuditRepositoryImpl) GetActiveUsersCountInLast30Days() (int, error) {
-	var count int
-	// Calculate the date 30 days ago from now
+	// Calculated the date 30 days ago from now
 	thirtyDaysAgo := time.Now().AddDate(0, 0, -30)
 
-	// Count distinct users who have been active (have updated_on) in the last 30 days
-	_, err := impl.dbConnection.Query(&count,
-		"SELECT COUNT(DISTINCT user_id) FROM user_audit WHERE updated_on >= ?",
-		thirtyDaysAgo)
+	count, err := impl.dbConnection.Model().
+		Table("user_audit").
+		ColumnExpr("COUNT(DISTINCT user_id)").
+		Where("updated_on >= ?", thirtyDaysAgo).
+		Count()
 
 	return count, err
 }

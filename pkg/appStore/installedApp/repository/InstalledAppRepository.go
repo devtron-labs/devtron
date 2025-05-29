@@ -1090,8 +1090,10 @@ func (impl *InstalledAppRepositoryImpl) GetAllArgoAppsByDeploymentAppNames(deplo
 
 func (impl *InstalledAppRepositoryImpl) GetActiveInstalledAppCount() (int, error) {
 	var count int
-	countQuery := "SELECT COUNT(*) FROM installed_apps WHERE active = true;"
-	_, err := impl.dbConnection.Query(&count, countQuery)
+	count, err := impl.dbConnection.Model().
+		Table("installed_apps").
+		Where("active = ?", true).
+		Count()
 	if err != nil {
 		impl.Logger.Errorw("error in getting active installed app count", "err", err)
 		return 0, err
