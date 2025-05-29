@@ -79,9 +79,20 @@ ContainerPort:
     useHTTP2: false
     supportStreaming: false
     idleTimeout: 1800s
+    # vmservicescrape:
+    #   enabled: true
+    #   path: /abcde
+    #   scheme: 'http'
+    #   interval: 30s
+    #   scrapeTimeout: 20s
+    #   metricRelabelings:
+    #     - sourceLabels: [namespace]
+    #       regex: '(.*)'
+    #       replacement: myapp
+    #       targetLabel: target_namespace
     servicemonitor:
       enabled: true
-      path: /abc
+      path: /abcd
       scheme: 'http'
       interval: 30s
       scrapeTimeout: 20s
@@ -90,6 +101,7 @@ ContainerPort:
           regex: '(.*)'
           replacement: myapp
           targetLabel: target_namespace
+
 
   - name: app1
     port: 8090
@@ -204,7 +216,7 @@ istio:
       #       host: service2
 
 flaggerCanary:
-  enabled: false
+  enabled: true
   labels: {}
   annotations: {}
   createIstioGateway:
@@ -259,6 +271,7 @@ flaggerCanary:
     # allowHeaders:
     #   - x-some-header
     # maxAge: 24h
+  
   analysis:
     # schedule interval (default 60s)
     interval: 5s
@@ -270,6 +283,11 @@ flaggerCanary:
     # canary increment step
     # percentage (0-100)
     stepWeight: 5
+    metrics: 
+    - name: test
+      interval: 10s
+      threshold: 10
+    webhooks: []
   thresholds:
     # minimum req success rate (non 5xx responses)
     # percentage (0-100)
@@ -659,6 +677,27 @@ containers:
     volumeMounts:
       - mountPath: /usr/local/airflow/logs
         name: logs-data
+    ports:
+    - name: test
+      port: 8080
+      servicePort: 80
+      envoyTimeout: 15
+      targetPort: 8080
+      envoyPort: 8799
+      useHTTP2: false
+      supportStreaming: false
+      idleTimeout: 1800s
+      vmservicescrape:
+        enabled: true
+        path: /abcde
+        scheme: 'http'
+        interval: 30s
+        scrapeTimeout: 20s
+        metricRelabelings:
+          - sourceLabels: [namespace]
+            regex: '(.*)'
+            replacement: myapp
+            targetLabel: target_namespace
 
 
 rawYaml:
@@ -780,3 +819,17 @@ secondaryWorkload:
     MaxReplicas: 2
     TargetCPUUtilizationPercentage: 90
     TargetMemoryUtilizationPercentage: 80
+
+
+vmservicescrape:
+  name: test
+
+vmrule:
+  name: test-vmr
+  rules:
+  -  name: kubelet.rules
+     record: dksjndksnd
+  - name: kznjdk
+    record: kdjskjdnks   
+
+MetricsScraper: Victoria
