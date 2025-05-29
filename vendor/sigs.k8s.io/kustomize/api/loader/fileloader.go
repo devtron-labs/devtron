@@ -25,7 +25,7 @@ func IsRemoteFile(path string) bool {
 	return err == nil && (u.Scheme == "http" || u.Scheme == "https")
 }
 
-// FileLoader is a kustomization's interface to files.
+// fileLoader is a kustomization's interface to files.
 //
 // The directory in which a kustomization file sits
 // is referred to below as the kustomization's _root_.
@@ -38,48 +38,49 @@ func IsRemoteFile(path string) bool {
 //
 // * supplemental data paths
 //
-//	`Load` is used to visit these paths.
+//   `Load` is used to visit these paths.
 //
-//	These paths refer to resources, patches,
-//	data for ConfigMaps and Secrets, etc.
+//   These paths refer to resources, patches,
+//   data for ConfigMaps and Secrets, etc.
 //
-//	The loadRestrictor may disallow certain paths
-//	or classes of paths.
+//   The loadRestrictor may disallow certain paths
+//   or classes of paths.
 //
 // * bases (other kustomizations)
 //
-//	`New` is used to load bases.
+//   `New` is used to load bases.
 //
-//	A base can be either a remote git repo URL, or
-//	a directory specified relative to the current
-//	root. In the former case, the repo is locally
-//	cloned, and the new loader is rooted on a path
-//	in that clone.
+//   A base can be either a remote git repo URL, or
+//   a directory specified relative to the current
+//   root. In the former case, the repo is locally
+//   cloned, and the new loader is rooted on a path
+//   in that clone.
 //
-//	As loaders create new loaders, a root history
-//	is established, and used to disallow:
+//   As loaders create new loaders, a root history
+//   is established, and used to disallow:
 //
-//	- A base that is a repository that, in turn,
-//	  specifies a base repository seen previously
-//	  in the loading stack (a cycle).
+//   - A base that is a repository that, in turn,
+//     specifies a base repository seen previously
+//     in the loading stack (a cycle).
 //
-//	- An overlay depending on a base positioned at
-//	  or above it.  I.e. '../foo' is OK, but '.',
-//	  '..', '../..', etc. are disallowed.  Allowing
-//	  such a base has no advantages and encourages
-//	  cycles, particularly if some future change
-//	  were to introduce globbing to file
-//	  specifications in the kustomization file.
+//   - An overlay depending on a base positioned at
+//     or above it.  I.e. '../foo' is OK, but '.',
+//     '..', '../..', etc. are disallowed.  Allowing
+//     such a base has no advantages and encourages
+//     cycles, particularly if some future change
+//     were to introduce globbing to file
+//     specifications in the kustomization file.
 //
 // These restrictions assure that kustomizations
 // are self-contained and relocatable, and impose
 // some safety when relying on remote kustomizations,
 // e.g. a remotely loaded ConfigMap generator specified
 // to read from /etc/passwd will fail.
-type FileLoader struct {
+//
+type fileLoader struct {
 	// Loader that spawned this loader.
 	// Used to avoid cycles.
-	referrer *FileLoader
+	referrer *fileLoader
 
 	// An absolute, cleaned path to a directory.
 	// The Load function will read non-absolute
@@ -106,9 +107,23 @@ type FileLoader struct {
 	cleaner func() error
 }
 
+// NewFileLoaderAtCwd returns a loader that loads from PWD.
+// A convenience for kustomize edit commands.
+func NewFileLoaderAtCwd(fSys filesys.FileSystem) *fileLoader {
+	return newLoaderOrDie(
+		RestrictionRootOnly, fSys, filesys.SelfDir)
+}
+
+// NewFileLoaderAtRoot returns a loader that loads from "/".
+// A convenience for tests.
+func NewFileLoaderAtRoot(fSys filesys.FileSystem) *fileLoader {
+	return newLoaderOrDie(
+		RestrictionRootOnly, fSys, filesys.Separator)
+}
+
 // Repo returns the absolute path to the repo that contains Root if this fileLoader was created from a url
 // or the empty string otherwise.
-func (fl *FileLoader) Repo() string {
+func (fl *fileLoader) Repo() string {
 	if fl.repoSpec != nil {
 		return fl.repoSpec.Dir.String()
 	}
@@ -117,13 +132,13 @@ func (fl *FileLoader) Repo() string {
 
 // Root returns the absolute path that is prepended to any
 // relative paths used in Load.
-func (fl *FileLoader) Root() string {
+func (fl *fileLoader) Root() string {
 	return fl.root.String()
 }
 
-func NewLoaderOrDie(
+func newLoaderOrDie(
 	lr LoadRestrictorFunc,
-	fSys filesys.FileSystem, path string) *FileLoader {
+	fSys filesys.FileSystem, path string) *fileLoader {
 	root, err := filesys.ConfirmDir(fSys, path)
 	if err != nil {
 		log.Fatalf("unable to make loader at '%s'; %v", path, err)
@@ -132,12 +147,12 @@ func NewLoaderOrDie(
 		lr, root, fSys, nil, git.ClonerUsingGitExec)
 }
 
-// newLoaderAtConfirmedDir returns a new FileLoader with given root.
+// newLoaderAtConfirmedDir returns a new fileLoader with given root.
 func newLoaderAtConfirmedDir(
 	lr LoadRestrictorFunc,
 	root filesys.ConfirmedDir, fSys filesys.FileSystem,
-	referrer *FileLoader, cloner git.Cloner) *FileLoader {
-	return &FileLoader{
+	referrer *fileLoader, cloner git.Cloner) *fileLoader {
+	return &fileLoader{
 		loadRestrictor: lr,
 		root:           root,
 		referrer:       referrer,
@@ -149,7 +164,7 @@ func newLoaderAtConfirmedDir(
 
 // New returns a new Loader, rooted relative to current loader,
 // or rooted in a temp directory holding a git repo clone.
-func (fl *FileLoader) New(path string) (ifc.Loader, error) {
+func (fl *fileLoader) New(path string) (ifc.Loader, error) {
 	if path == "" {
 		return nil, errors.Errorf("new root cannot be empty")
 	}
@@ -185,7 +200,7 @@ func (fl *FileLoader) New(path string) (ifc.Loader, error) {
 // directory holding a cloned git repo.
 func newLoaderAtGitClone(
 	repoSpec *git.RepoSpec, fSys filesys.FileSystem,
-	referrer *FileLoader, cloner git.Cloner) (ifc.Loader, error) {
+	referrer *fileLoader, cloner git.Cloner) (ifc.Loader, error) {
 	cleaner := repoSpec.Cleaner(fSys)
 	err := cloner(repoSpec)
 	if err != nil {
@@ -214,7 +229,7 @@ func newLoaderAtGitClone(
 		return nil, fmt.Errorf("%q refers to directory outside of repo %q", repoSpec.AbsPath(),
 			repoSpec.CloneDir())
 	}
-	return &FileLoader{
+	return &fileLoader{
 		// Clones never allowed to escape root.
 		loadRestrictor: RestrictionRootOnly,
 		root:           root,
@@ -226,7 +241,7 @@ func newLoaderAtGitClone(
 	}, nil
 }
 
-func (fl *FileLoader) errIfGitContainmentViolation(
+func (fl *fileLoader) errIfGitContainmentViolation(
 	base filesys.ConfirmedDir) error {
 	containingRepo := fl.containingRepo()
 	if containingRepo == nil {
@@ -244,7 +259,7 @@ func (fl *FileLoader) errIfGitContainmentViolation(
 
 // Looks back through referrers for a git repo, returning nil
 // if none found.
-func (fl *FileLoader) containingRepo() *git.RepoSpec {
+func (fl *fileLoader) containingRepo() *git.RepoSpec {
 	if fl.repoSpec != nil {
 		return fl.repoSpec
 	}
@@ -256,7 +271,7 @@ func (fl *FileLoader) containingRepo() *git.RepoSpec {
 
 // errIfArgEqualOrHigher tests whether the argument,
 // is equal to or above the root of any ancestor.
-func (fl *FileLoader) errIfArgEqualOrHigher(
+func (fl *fileLoader) errIfArgEqualOrHigher(
 	candidateRoot filesys.ConfirmedDir) error {
 	if fl.root.HasPrefix(candidateRoot) {
 		return fmt.Errorf(
@@ -273,7 +288,7 @@ func (fl *FileLoader) errIfArgEqualOrHigher(
 // I.e. Allow a distinction between git URI with
 // path foo and tag bar and a git URI with the same
 // path but a different tag?
-func (fl *FileLoader) errIfRepoCycle(newRepoSpec *git.RepoSpec) error {
+func (fl *fileLoader) errIfRepoCycle(newRepoSpec *git.RepoSpec) error {
 	// TODO(monopole): Use parsed data instead of Raw().
 	if fl.repoSpec != nil &&
 		strings.HasPrefix(fl.repoSpec.Raw(), newRepoSpec.Raw()) {
@@ -290,7 +305,7 @@ func (fl *FileLoader) errIfRepoCycle(newRepoSpec *git.RepoSpec) error {
 // Load returns the content of file at the given path,
 // else an error. Relative paths are taken relative
 // to the root.
-func (fl *FileLoader) Load(path string) ([]byte, error) {
+func (fl *fileLoader) Load(path string) ([]byte, error) {
 	if IsRemoteFile(path) {
 		return fl.httpClientGetContent(path)
 	}
@@ -304,7 +319,7 @@ func (fl *FileLoader) Load(path string) ([]byte, error) {
 	return fl.fSys.ReadFile(path)
 }
 
-func (fl *FileLoader) httpClientGetContent(path string) ([]byte, error) {
+func (fl *fileLoader) httpClientGetContent(path string) ([]byte, error) {
 	var hc *http.Client
 	if fl.http != nil {
 		hc = fl.http
@@ -329,6 +344,6 @@ func (fl *FileLoader) httpClientGetContent(path string) ([]byte, error) {
 }
 
 // Cleanup runs the cleaner.
-func (fl *FileLoader) Cleanup() error {
+func (fl *fileLoader) Cleanup() error {
 	return fl.cleaner()
 }

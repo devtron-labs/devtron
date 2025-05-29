@@ -6,7 +6,6 @@ package execplugin
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"runtime"
@@ -22,7 +21,6 @@ import (
 
 const (
 	tmpConfigFilePrefix = "kust-plugin-config-"
-	maxArgStringLength  = 131071
 )
 
 // ExecPlugin record the name and args of an executable
@@ -171,35 +169,23 @@ func (p *ExecPlugin) invokePlugin(input []byte) ([]byte, error) {
 		p.path, append([]string{f.Name()}, p.args...)...)
 	cmd.Env = p.getEnv()
 	cmd.Stdin = bytes.NewReader(input)
-	var stdErr bytes.Buffer
-	cmd.Stderr = &stdErr
+	cmd.Stderr = os.Stderr
 	if _, err := os.Stat(p.h.Loader().Root()); err == nil {
 		cmd.Dir = p.h.Loader().Root()
 	}
 	result, err := cmd.Output()
 	if err != nil {
 		return nil, errors.WrapPrefixf(
-			fmt.Errorf("failure in plugin configured via %s; %w",
-				f.Name(), err), stdErr.String())
+			err, "failure in plugin configured via %s; %v",
+			f.Name(), err.Error())
 	}
 	return result, os.Remove(f.Name())
 }
 
 func (p *ExecPlugin) getEnv() []string {
 	env := os.Environ()
-	pluginConfigString := "KUSTOMIZE_PLUGIN_CONFIG_STRING=" + string(p.cfg)
-	if len(pluginConfigString) <= maxArgStringLength {
-		env = append(env, pluginConfigString)
-	} else {
-		log.Printf("KUSTOMIZE_PLUGIN_CONFIG_STRING exceeds hard limit of %d characters, the environment variable "+
-			"will be omitted", maxArgStringLength)
-	}
-	pluginConfigRoot := "KUSTOMIZE_PLUGIN_CONFIG_ROOT=" + p.h.Loader().Root()
-	if len(pluginConfigRoot) <= maxArgStringLength {
-		env = append(env, pluginConfigRoot)
-	} else {
-		log.Printf("KUSTOMIZE_PLUGIN_CONFIG_ROOT exceeds hard limit of %d characters, the environment variable "+
-			"will be omitted", maxArgStringLength)
-	}
+	env = append(env,
+		"KUSTOMIZE_PLUGIN_CONFIG_STRING="+string(p.cfg),
+		"KUSTOMIZE_PLUGIN_CONFIG_ROOT="+p.h.Loader().Root())
 	return env
 }

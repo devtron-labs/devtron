@@ -41,36 +41,30 @@ func (rf *Factory) Hasher() ifc.KustHasher {
 }
 
 // FromMap returns a new instance of Resource.
-func (rf *Factory) FromMap(m map[string]interface{}) (*Resource, error) {
-	res, err := rf.FromMapAndOption(m, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create resource from map: %w", err)
-	}
-	return res, nil
+func (rf *Factory) FromMap(m map[string]interface{}) *Resource {
+	return rf.FromMapAndOption(m, nil)
 }
 
 // FromMapWithName returns a new instance with the given "original" name.
-func (rf *Factory) FromMapWithName(n string, m map[string]interface{}) (*Resource, error) {
+func (rf *Factory) FromMapWithName(n string, m map[string]interface{}) *Resource {
 	return rf.FromMapWithNamespaceAndName(resid.DefaultNamespace, n, m)
 }
 
 // FromMapWithNamespaceAndName returns a new instance with the given "original" namespace.
-func (rf *Factory) FromMapWithNamespaceAndName(ns string, n string, m map[string]interface{}) (*Resource, error) {
-	r, err := rf.FromMapAndOption(m, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create resource from map: %w", err)
-	}
-	return r.setPreviousId(ns, n, r.GetKind()), nil
+func (rf *Factory) FromMapWithNamespaceAndName(ns string, n string, m map[string]interface{}) *Resource {
+	r := rf.FromMapAndOption(m, nil)
+	return r.setPreviousId(ns, n, r.GetKind())
 }
 
 // FromMapAndOption returns a new instance of Resource with given options.
 func (rf *Factory) FromMapAndOption(
-	m map[string]interface{}, args *types.GeneratorArgs) (*Resource, error) {
+	m map[string]interface{}, args *types.GeneratorArgs) *Resource {
 	n, err := yaml.FromMap(m)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert map to YAML node: %w", err)
+		// TODO: return err instead of log.
+		log.Fatal(err)
 	}
-	return rf.makeOne(n, args), nil
+	return rf.makeOne(n, args)
 }
 
 // makeOne returns a new instance of Resource.

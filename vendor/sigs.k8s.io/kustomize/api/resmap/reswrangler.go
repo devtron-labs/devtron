@@ -696,7 +696,8 @@ func (m *resWrangler) DeAnchor() (err error) {
 }
 
 // ApplySmPatch applies the patch, and errors on Id collisions.
-func (m *resWrangler) ApplySmPatch(selectedSet *resource.IdSet, patch *resource.Resource) error {
+func (m *resWrangler) ApplySmPatch(
+	selectedSet *resource.IdSet, patch *resource.Resource) error {
 	var list []*resource.Resource
 	for _, res := range m.rList {
 		if selectedSet.Contains(res.CurId()) {

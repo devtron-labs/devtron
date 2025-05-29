@@ -74,16 +74,34 @@ func (p *SortOrderTransformerPlugin) Transform(m resmap.ResMap) (err error) {
 
 	// Sort
 	if p.SortOptions.Order == types.LegacySortOrder {
-		s := newLegacyIDSorter(m.Resources(), p.SortOptions.LegacySortOptions)
+		s := newLegacyIDSorter(m.AllIds(), p.SortOptions.LegacySortOptions)
 		sort.Sort(s)
+		err = applyOrdering(m, s.resids)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
-		// Clear the map and re-add the resources in the sorted order.
-		m.Clear()
-		for _, r := range s.resources {
-			err := m.Append(r)
-			if err != nil {
-				return errors.WrapPrefixf(err, "SortOrderTransformer: Failed to append to resources")
-			}
+// applyOrdering takes resources (given in ResMap) and a desired ordering given
+// as a sequence of ResIds, and updates the ResMap's resources to match the
+// ordering.
+func applyOrdering(m resmap.ResMap, ordering []resid.ResId) error {
+	var err error
+	resources := make([]*resource.Resource, m.Size())
+	// Clear and refill with the correct order
+	for i, id := range ordering {
+		resources[i], err = m.GetByCurrentId(id)
+		if err != nil {
+			return errors.WrapPrefixf(err, "expected match for sorting")
+		}
+	}
+	m.Clear()
+	for _, r := range resources {
+		err = m.Append(r)
+		if err != nil {
+			return errors.WrapPrefixf(err, "SortOrderTransformer: Failed to append to resources")
 		}
 	}
 	return nil
@@ -99,17 +117,12 @@ func (p *SortOrderTransformerPlugin) Transform(m resmap.ResMap) (err error) {
 type legacyIDSorter struct {
 	// resids only stores the metadata of the object. This is an optimization as
 	// it's expensive to compute these again and again during ordering.
-	resids []resid.ResId
-	// Initially, we sorted the metadata (ResId) of each object and then called GetByCurrentId on each to construct the final list.
-	// The problem is that GetByCurrentId is inefficient and does a linear scan in a list every time we do that.
-	// So instead, we sort resources alongside the ResIds.
-	resources []*resource.Resource
-
+	resids     []resid.ResId
 	typeOrders map[string]int
 }
 
 func newLegacyIDSorter(
-	resources []*resource.Resource,
+	resids []resid.ResId,
 	options *types.LegacySortOptions) *legacyIDSorter {
 	// Precalculate a resource ranking based on the priority lists.
 	var typeOrders = func() map[string]int {
@@ -122,13 +135,10 @@ func newLegacyIDSorter(
 		}
 		return m
 	}()
-
-	ret := &legacyIDSorter{typeOrders: typeOrders}
-	for _, res := range resources {
-		ret.resids = append(ret.resids, res.CurId())
-		ret.resources = append(ret.resources, res)
+	return &legacyIDSorter{
+		resids:     resids,
+		typeOrders: typeOrders,
 	}
-	return ret
 }
 
 var _ sort.Interface = legacyIDSorter{}
@@ -136,7 +146,6 @@ var _ sort.Interface = legacyIDSorter{}
 func (a legacyIDSorter) Len() int { return len(a.resids) }
 func (a legacyIDSorter) Swap(i, j int) {
 	a.resids[i], a.resids[j] = a.resids[j], a.resids[i]
-	a.resources[i], a.resources[j] = a.resources[j], a.resources[i]
 }
 func (a legacyIDSorter) Less(i, j int) bool {
 	if !a.resids[i].Gvk.Equals(a.resids[j].Gvk) {
