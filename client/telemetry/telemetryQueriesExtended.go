@@ -82,7 +82,7 @@ func (impl *TelemetryEventClientImplExtended) getPolicyCount() int {
 	globalPolicies, err := impl.cvePolicyRepository.GetGlobalPolicies()
 	if err != nil {
 		impl.logger.Errorw("error getting global CVE policies", "err", err)
-		return 0
+		return -1
 	}
 	return len(globalPolicies)
 }
@@ -128,10 +128,10 @@ func (impl *TelemetryEventClientImplExtended) helmPipelineCount() int {
 
 // getJobPipelineCount returns 0 for now as implementation is not yet available
 func (impl *TelemetryEventClientImplExtended) getJobPipelineCount() int {
-	return 0
+	return -1
 }
 
 // getAppliedPolicyRowCount returns 0 for now as implementation is not yet available
 func (impl *TelemetryEventClientImplExtended) getAppliedPolicyRowCount() int {
-	return 0
+	return -1
 }

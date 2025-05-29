@@ -76,20 +76,10 @@ type TelemetryEventEA struct {
 	ExternalHelmAppClusterCount        map[int32]int      `json:"ExternalHelmAppClusterCount,omitempty"`
 	ClusterProvider                    string             `json:"clusterProvider,omitempty"`
 	// New telemetry fields
-	HelmAppCount                int `json:"helmAppCount,omitempty"`
-	DevtronAppCount             int `json:"devtronAppCount,omitempty"`
-	JobCount                    int `json:"jobCount,omitempty"`
-	JobPipelineCount            int `json:"jobPipelineCount,omitempty"`
-	JobPipelineTriggeredLast24h int `json:"jobPipelineTriggeredLast24h,omitempty"`
-	JobPipelineSucceededLast24h int `json:"jobPipelineSucceededLast24h,omitempty"`
-	UserCreatedPluginCount      int `json:"userCreatedPluginCount,omitempty"`
-	PolicyCount                 int `json:"policyCount,omitempty"`
-	AppliedPolicyRowCount       int `json:"appliedPolicyRowCount,omitempty"`
-	PhysicalClusterCount        int `json:"physicalClusterCount,omitempty"`
-	IsolatedClusterCount        int `json:"isolatedClusterCount,omitempty"`
-	ActiveUsersLast30Days       int `json:"activeUsersLast30Days,omitempty"`
-	GitOpsPipelineCount         int `json:"gitOpsPipelineCount,omitempty"`
-	NoGitOpsPipelineCount       int `json:"noGitOpsPipelineCount,omitempty"`
+	HelmAppCount          int `json:"helmAppCount,omitempty"`
+	PhysicalClusterCount  int `json:"physicalClusterCount,omitempty"`
+	IsolatedClusterCount  int `json:"isolatedClusterCount,omitempty"`
+	ActiveUsersLast30Days int `json:"activeUsersLast30Days,omitempty"`
 }
 
 const AppsCount int = 50

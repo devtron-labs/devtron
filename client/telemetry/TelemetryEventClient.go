@@ -317,18 +317,6 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 	payload.PhysicalClusterCount, payload.IsolatedClusterCount = impl.getClusterCounts()
 	payload.ActiveUsersLast30Days = impl.getActiveUsersLast30Days()
 
-	// Set FULL-mode only metrics to 0 for EA mode
-	payload.DevtronAppCount = 0
-	payload.JobCount = 0
-	payload.JobPipelineCount = 0
-	payload.JobPipelineTriggeredLast24h = 0
-	payload.JobPipelineSucceededLast24h = 0
-	payload.UserCreatedPluginCount = 0
-	payload.PolicyCount = 0
-	payload.AppliedPolicyRowCount = 0
-	payload.GitOpsPipelineCount = 0
-	payload.NoGitOpsPipelineCount = 0
-
 	payload.ClusterProvider, err = impl.GetCloudProvider()
 	if err != nil {
 		impl.logger.Errorw("error while getting cluster provider", "error", err)
