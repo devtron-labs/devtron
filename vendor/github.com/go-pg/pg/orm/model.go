@@ -1,7 +1,6 @@
 package orm
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -9,8 +8,6 @@ import (
 
 	"github.com/go-pg/pg/types"
 )
-
-var errModelNil = errors.New("pg: Model(nil)")
 
 type useQueryOne interface {
 	useQueryOne() bool
@@ -28,24 +25,26 @@ type HooklessModel interface {
 
 	// AddModel adds ColumnScanner created by NewModel to the Collection.
 	AddModel(ColumnScanner) error
+
+	ColumnScanner
 }
 
 type Model interface {
 	HooklessModel
 
-	AfterQuery(context.Context, DB) error
+	AfterQuery(DB) error
 
-	BeforeSelectQuery(context.Context, DB, *Query) (*Query, error)
-	AfterSelect(context.Context, DB) error
+	BeforeSelectQuery(DB, *Query) (*Query, error)
+	AfterSelect(DB) error
 
-	BeforeInsert(context.Context, DB) error
-	AfterInsert(context.Context, DB) error
+	BeforeInsert(DB) error
+	AfterInsert(DB) error
 
-	BeforeUpdate(context.Context, DB) error
-	AfterUpdate(context.Context, DB) error
+	BeforeUpdate(DB) error
+	AfterUpdate(DB) error
 
-	BeforeDelete(context.Context, DB) error
-	AfterDelete(context.Context, DB) error
+	BeforeDelete(DB) error
+	AfterDelete(DB) error
 }
 
 func NewModel(values ...interface{}) (Model, error) {
@@ -59,13 +58,13 @@ func NewModel(values ...interface{}) (Model, error) {
 		return v0, nil
 	case HooklessModel:
 		return newModelWithHookStubs(v0), nil
-	case types.ValueScanner, sql.Scanner:
+	case sql.Scanner:
 		return Scan(v0), nil
 	}
 
 	v := reflect.ValueOf(v0)
 	if !v.IsValid() {
-		return nil, errModelNil
+		return nil, errors.New("pg: Model(nil)")
 	}
 	if v.Kind() != reflect.Ptr {
 		return nil, fmt.Errorf("pg: Model(non-pointer %T)", v0)
@@ -74,16 +73,25 @@ func NewModel(values ...interface{}) (Model, error) {
 
 	switch v.Kind() {
 	case reflect.Struct:
-		if v.Type() != timeType {
-			return newStructTableModelValue(v), nil
-		}
+		return newStructTableModelValue(v), nil
 	case reflect.Slice:
 		typ := v.Type()
-		elemType := indirectType(typ.Elem())
-		if elemType.Kind() == reflect.Struct && elemType != timeType {
-			return newSliceTableModel(v, elemType), nil
+		structType := indirectType(typ.Elem())
+		if structType.Kind() == reflect.Struct && structType != timeType {
+			m := sliceTableModel{
+				structTableModel: structTableModel{
+					table: GetTable(structType),
+					root:  v,
+				},
+				slice: v,
+			}
+			m.init(typ)
+			return &m, nil
 		} else {
-			return newSliceModel(v, elemType), nil
+			return &sliceModel{
+				slice: v,
+				scan:  types.Scanner(structType),
+			}, nil
 		}
 	}
 

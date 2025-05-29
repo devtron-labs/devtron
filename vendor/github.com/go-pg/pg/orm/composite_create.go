@@ -1,6 +1,7 @@
 package orm
 
 import (
+	"errors"
 	"strconv"
 )
 
@@ -10,7 +11,7 @@ type CreateCompositeOptions struct {
 
 func CreateComposite(db DB, model interface{}, opt *CreateCompositeOptions) error {
 	q := NewQuery(db, model)
-	_, err := q.db.Exec(&createCompositeQuery{
+	_, err := q.db.Exec(createCompositeQuery{
 		q:   q,
 		opt: opt,
 	})
@@ -22,29 +23,20 @@ type createCompositeQuery struct {
 	opt *CreateCompositeOptions
 }
 
-func (q *createCompositeQuery) Copy() *createCompositeQuery {
-	return &createCompositeQuery{
-		q:   q.q.Copy(),
-		opt: q.opt,
-	}
+func (q createCompositeQuery) Copy() QueryAppender {
+	return q
 }
 
-func (q *createCompositeQuery) Query() *Query {
+func (q createCompositeQuery) Query() *Query {
 	return q.q
 }
 
-func (q *createCompositeQuery) AppendTemplate(b []byte) ([]byte, error) {
-	cp := q.Copy()
-	cp.q = cp.q.Formatter(dummyFormatter{})
-	return cp.AppendQuery(b)
-}
-
-func (q *createCompositeQuery) AppendQuery(b []byte) ([]byte, error) {
+func (q createCompositeQuery) AppendQuery(b []byte) ([]byte, error) {
 	if q.q.stickyErr != nil {
 		return nil, q.q.stickyErr
 	}
 	if q.q.model == nil {
-		return nil, errModelNil
+		return nil, errors.New("pg: Model(nil)")
 	}
 
 	table := q.q.model.Table()
@@ -72,5 +64,5 @@ func (q *createCompositeQuery) AppendQuery(b []byte) ([]byte, error) {
 
 	b = append(b, ")"...)
 
-	return b, q.q.stickyErr
+	return b, nil
 }

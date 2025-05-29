@@ -1,10 +1,12 @@
-package types
+package pg
 
 import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
 	"time"
+
+	"github.com/go-pg/pg/types"
 )
 
 var jsonNull = []byte("null")
@@ -18,7 +20,7 @@ type NullTime struct {
 var _ json.Marshaler = (*NullTime)(nil)
 var _ json.Unmarshaler = (*NullTime)(nil)
 var _ sql.Scanner = (*NullTime)(nil)
-var _ ValueAppender = (*NullTime)(nil)
+var _ types.ValueAppender = (*NullTime)(nil)
 
 func (tm NullTime) MarshalJSON() ([]byte, error) {
 	if tm.IsZero() {
@@ -37,9 +39,9 @@ func (tm *NullTime) UnmarshalJSON(b []byte) error {
 
 func (tm NullTime) AppendValue(b []byte, quote int) []byte {
 	if tm.IsZero() {
-		return AppendNull(b, quote)
+		return types.AppendNull(b, quote)
 	}
-	return AppendTime(b, tm.Time, quote)
+	return types.AppendTime(b, tm.Time, quote)
 }
 
 func (tm *NullTime) Scan(b interface{}) error {
@@ -47,7 +49,7 @@ func (tm *NullTime) Scan(b interface{}) error {
 		tm.Time = time.Time{}
 		return nil
 	}
-	newtm, err := ParseTime(b.([]byte))
+	newtm, err := types.ParseTime(b.([]byte))
 	if err != nil {
 		return err
 	}

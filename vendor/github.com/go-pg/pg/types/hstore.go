@@ -1,6 +1,7 @@
 package types
 
 import (
+	"database/sql"
 	"fmt"
 	"reflect"
 )
@@ -13,7 +14,7 @@ type Hstore struct {
 }
 
 var _ ValueAppender = (*Hstore)(nil)
-var _ ValueScanner = (*Hstore)(nil)
+var _ sql.Scanner = (*Hstore)(nil)
 
 func NewHstore(vi interface{}) *Hstore {
 	v := reflect.ValueOf(vi)
@@ -43,6 +44,9 @@ func (h *Hstore) AppendValue(b []byte, quote int) []byte {
 	return h.append(b, h.v, quote)
 }
 
-func (h *Hstore) ScanValue(rd Reader, n int) error {
-	return h.scan(h.v, rd, n)
+func (h *Hstore) Scan(b interface{}) error {
+	if b == nil {
+		return h.scan(h.v, nil)
+	}
+	return h.scan(h.v, b.([]byte))
 }

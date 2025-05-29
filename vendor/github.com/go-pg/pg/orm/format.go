@@ -12,7 +12,7 @@ import (
 	"github.com/go-pg/pg/types"
 )
 
-var defaultFmter Formatter
+var formatter Formatter
 
 type FormatAppender interface {
 	AppendFormat([]byte, QueryFormatter) []byte
@@ -37,12 +37,12 @@ func Q(query string, params ...interface{}) *queryParamsAppender {
 	return &queryParamsAppender{query, params}
 }
 
-func (q *queryParamsAppender) AppendFormat(b []byte, fmter QueryFormatter) []byte {
-	return fmter.FormatQuery(b, q.query, q.params...)
+func (q *queryParamsAppender) AppendFormat(b []byte, f QueryFormatter) []byte {
+	return f.FormatQuery(b, q.query, q.params...)
 }
 
 func (q *queryParamsAppender) AppendValue(b []byte, quote int) []byte {
-	return q.AppendFormat(b, defaultFmter)
+	return q.AppendFormat(b, formatter)
 }
 
 func (q *queryParamsAppender) Value() types.Q {
@@ -64,13 +64,13 @@ func (q *condGroupAppender) AppendSep(b []byte) []byte {
 	return append(b, q.sep...)
 }
 
-func (q *condGroupAppender) AppendFormat(b []byte, fmter QueryFormatter) []byte {
+func (q *condGroupAppender) AppendFormat(b []byte, f QueryFormatter) []byte {
 	b = append(b, '(')
 	for i, app := range q.cond {
 		if i > 0 {
 			b = app.AppendSep(b)
 		}
-		b = app.AppendFormat(b, fmter)
+		b = app.AppendFormat(b, f)
 	}
 	b = append(b, ')')
 	return b
@@ -91,9 +91,9 @@ func (q *condAppender) AppendSep(b []byte) []byte {
 	return append(b, q.sep...)
 }
 
-func (q *condAppender) AppendFormat(b []byte, fmter QueryFormatter) []byte {
+func (q *condAppender) AppendFormat(b []byte, f QueryFormatter) []byte {
 	b = append(b, '(')
-	b = fmter.FormatQuery(b, q.cond, q.params...)
+	b = f.FormatQuery(b, q.cond, q.params...)
 	b = append(b, ')')
 	return b
 }
@@ -106,24 +106,8 @@ type fieldAppender struct {
 
 var _ FormatAppender = (*fieldAppender)(nil)
 
-func (a fieldAppender) AppendFormat(b []byte, fmter QueryFormatter) []byte {
+func (a fieldAppender) AppendFormat(b []byte, f QueryFormatter) []byte {
 	return types.AppendField(b, a.field, 1)
-}
-
-//------------------------------------------------------------------------------
-
-type dummyFormatter struct{}
-
-func (f dummyFormatter) FormatQuery(b []byte, query string, params ...interface{}) []byte {
-	return append(b, query...)
-}
-
-func isPlaceholderFormatter(fmter QueryFormatter) bool {
-	if fmter == nil {
-		return false
-	}
-	b := fmter.FormatQuery(nil, "?", 0)
-	return bytes.Equal(b, []byte("?"))
 }
 
 //------------------------------------------------------------------------------
@@ -150,7 +134,7 @@ func (f Formatter) String() string {
 	return " " + strings.Join(ss, " ")
 }
 
-func (f Formatter) clone() Formatter {
+func (f Formatter) copy() Formatter {
 	var cp Formatter
 	for param, value := range f.namedParams {
 		cp.SetParam(param, value)
@@ -165,8 +149,8 @@ func (f *Formatter) SetParam(param string, value interface{}) {
 	f.namedParams[param] = value
 }
 
-func (f Formatter) WithParam(param string, value interface{}) Formatter {
-	cp := f.clone()
+func (f *Formatter) WithParam(param string, value interface{}) Formatter {
+	cp := f.copy()
 	cp.SetParam(param, value)
 	return cp
 }
@@ -197,11 +181,11 @@ func (f Formatter) append(dst []byte, p *parser.Parser, params []interface{}) []
 	var paramsIndex int
 	var namedParamsOnce bool
 	var tableParams *tableParams
-	var model TableModel
+	var model tableModel
 
 	if len(params) > 0 {
 		var ok bool
-		model, ok = params[len(params)-1].(TableModel)
+		model, ok = params[len(params)-1].(tableModel)
 		if ok {
 			params = params[:len(params)-1]
 		}
@@ -220,8 +204,7 @@ func (f Formatter) append(dst []byte, p *parser.Parser, params []interface{}) []
 		}
 		dst = append(dst, b...)
 
-		id, numeric := p.ReadIdentifier()
-		if id != "" {
+		if id, numeric := p.ReadIdentifier(); id != "" {
 			if numeric {
 				idx, err := strconv.Atoi(id)
 				if err != nil {

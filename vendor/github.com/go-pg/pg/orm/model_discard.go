@@ -1,9 +1,5 @@
 package orm
 
-import (
-	"github.com/go-pg/pg/types"
-)
-
 type Discard struct {
 	hookStubs
 }
@@ -22,6 +18,6 @@ func (m Discard) AddModel(ColumnScanner) error {
 	return nil
 }
 
-func (m Discard) ScanColumn(colIdx int, colName string, rd types.Reader, n int) error {
+func (m Discard) ScanColumn(colIdx int, colName string, b []byte) error {
 	return nil
 }

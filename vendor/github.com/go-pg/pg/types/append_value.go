@@ -36,7 +36,7 @@ func init() {
 		reflect.Float64:       appendFloatValue,
 		reflect.Complex64:     nil,
 		reflect.Complex128:    nil,
-		reflect.Array:         appendJSONValue,
+		reflect.Array:         nil,
 		reflect.Chan:          nil,
 		reflect.Func:          nil,
 		reflect.Interface:     appendIfaceValue,

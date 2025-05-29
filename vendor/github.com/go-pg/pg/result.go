@@ -8,8 +8,6 @@ import (
 	"github.com/go-pg/pg/orm"
 )
 
-type Result = orm.Result
-
 // A result summarizes an executed SQL command.
 type result struct {
 	model orm.Model
@@ -18,7 +16,7 @@ type result struct {
 	returned int
 }
 
-var _ Result = (*result)(nil)
+var _ orm.Result = (*result)(nil)
 
 func (res *result) parse(b []byte) error {
 	res.affected = -1

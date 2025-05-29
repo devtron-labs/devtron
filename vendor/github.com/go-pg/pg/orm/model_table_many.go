@@ -1,7 +1,6 @@
 package orm
 
 import (
-	"context"
 	"fmt"
 	"reflect"
 )
@@ -15,7 +14,7 @@ type manyModel struct {
 	dstValues map[string][]reflect.Value
 }
 
-var _ TableModel = (*manyModel)(nil)
+var _ tableModel = (*manyModel)(nil)
 
 func newManyModel(j *join) *manyModel {
 	baseTable := j.BaseModel.Table()
@@ -68,47 +67,47 @@ func (m *manyModel) AddModel(model ColumnScanner) error {
 	return nil
 }
 
-func (m *manyModel) AfterQuery(c context.Context, db DB) error {
-	if m.rel.JoinTable.HasFlag(AfterQueryHookFlag) {
-		var firstErrr error
-		for _, slices := range m.dstValues {
-			for _, slice := range slices {
-				err := callAfterQueryHookSlice(slice, m.sliceOfPtr, c, db)
-				if err != nil && firstErrr == nil {
-					firstErrr = err
-				}
-			}
-		}
-		return firstErrr
+func (m *manyModel) AfterQuery(db DB) error {
+	if !m.rel.JoinTable.HasFlag(AfterQueryHookFlag) {
+		return nil
 	}
 
+	var retErr error
+	for _, slices := range m.dstValues {
+		for _, slice := range slices {
+			err := callAfterQueryHookSlice(slice, m.sliceOfPtr, db)
+			if err != nil && retErr == nil {
+				retErr = err
+			}
+		}
+	}
+	return retErr
+}
+
+func (m *manyModel) AfterSelect(db DB) error {
 	return nil
 }
 
-func (m *manyModel) AfterSelect(c context.Context, db DB) error {
+func (m *manyModel) BeforeInsert(db DB) error {
 	return nil
 }
 
-func (m *manyModel) BeforeInsert(c context.Context, db DB) error {
+func (m *manyModel) AfterInsert(db DB) error {
 	return nil
 }
 
-func (m *manyModel) AfterInsert(c context.Context, db DB) error {
+func (m *manyModel) BeforeUpdate(db DB) error {
 	return nil
 }
 
-func (m *manyModel) BeforeUpdate(c context.Context, db DB) error {
+func (m *manyModel) AfterUpdate(db DB) error {
 	return nil
 }
 
-func (m *manyModel) AfterUpdate(c context.Context, db DB) error {
+func (m *manyModel) BeforeDelete(db DB) error {
 	return nil
 }
 
-func (m *manyModel) BeforeDelete(c context.Context, db DB) error {
-	return nil
-}
-
-func (m *manyModel) AfterDelete(c context.Context, db DB) error {
+func (m *manyModel) AfterDelete(db DB) error {
 	return nil
 }

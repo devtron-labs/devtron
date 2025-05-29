@@ -1,16 +1,14 @@
 package orm
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
-
-	"github.com/go-pg/pg/types"
 )
 
-type TableModel interface {
+type tableModel interface {
 	Model
 
-	IsNil() bool
 	Table() *Table
 	Relation() *Relation
 	AppendParam([]byte, QueryFormatter, string) ([]byte, bool)
@@ -27,18 +25,18 @@ type TableModel interface {
 	Kind() reflect.Kind
 	Value() reflect.Value
 
-	setSoftDeleteField()
-	scanColumn(int, string, types.Reader, int) (bool, error)
+	setDeletedAt()
+	scanColumn(int, string, []byte) (bool, error)
 }
 
-func newTableModel(value interface{}) (TableModel, error) {
-	if value, ok := value.(TableModel); ok {
+func newTableModel(value interface{}) (tableModel, error) {
+	if value, ok := value.(tableModel); ok {
 		return value, nil
 	}
 
 	v := reflect.ValueOf(value)
 	if !v.IsValid() {
-		return nil, errModelNil
+		return nil, errors.New("pg: Model(nil)")
 	}
 	if v.Kind() != reflect.Ptr {
 		return nil, fmt.Errorf("pg: Model(non-pointer %T)", value)
@@ -47,29 +45,37 @@ func newTableModel(value interface{}) (TableModel, error) {
 	if v.IsNil() {
 		typ := v.Type().Elem()
 		if typ.Kind() == reflect.Struct {
-			return newStructTableModel(GetTable(typ)), nil
+			return newStructTableModelType(typ), nil
 		}
-		return nil, errModelNil
+		return nil, errors.New("pg: Model(nil)")
 	}
 
 	return newTableModelValue(v.Elem())
 }
 
-func newTableModelValue(v reflect.Value) (TableModel, error) {
+func newTableModelValue(v reflect.Value) (tableModel, error) {
 	switch v.Kind() {
 	case reflect.Struct:
 		return newStructTableModelValue(v), nil
 	case reflect.Slice:
-		elemType := sliceElemType(v)
-		if elemType.Kind() == reflect.Struct {
-			return newSliceTableModel(v, elemType), nil
+		structType := sliceElemType(v)
+		if structType.Kind() == reflect.Struct {
+			m := sliceTableModel{
+				structTableModel: structTableModel{
+					table: GetTable(structType),
+					root:  v,
+				},
+				slice: v,
+			}
+			m.init(v.Type())
+			return &m, nil
 		}
 	}
 
 	return nil, fmt.Errorf("pg: Model(unsupported %s)", v.Type())
 }
 
-func newTableModelIndex(root reflect.Value, index []int, rel *Relation) (TableModel, error) {
+func newTableModelIndex(root reflect.Value, index []int, rel *Relation) (tableModel, error) {
 	typ := typeByIndex(root.Type(), index)
 
 	if typ.Kind() == reflect.Struct {
