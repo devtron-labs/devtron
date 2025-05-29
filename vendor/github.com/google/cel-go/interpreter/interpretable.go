@@ -16,6 +16,7 @@ package interpreter
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/google/cel-go/common/functions"
 	"github.com/google/cel-go/common/operators"
@@ -96,7 +97,7 @@ type InterpretableCall interface {
 	Args() []Interpretable
 }
 
-// InterpretableConstructor interface for inspecting  Interpretable instructions that initialize a list, map
+// InterpretableConstructor interface for inspecting Interpretable instructions that initialize a list, map
 // or struct.
 type InterpretableConstructor interface {
 	Interpretable
@@ -125,7 +126,7 @@ func (test *evalTestOnly) Eval(ctx Activation) ref.Val {
 	val, err := test.Resolve(ctx)
 	// Return an error if the resolve step fails
 	if err != nil {
-		return types.WrapErr(err)
+		return types.LabelErrNode(test.id, types.WrapErr(err))
 	}
 	if optVal, isOpt := val.(*types.Optional); isOpt {
 		return types.Bool(optVal.HasValue())
@@ -231,6 +232,7 @@ func (or *evalOr) Eval(ctx Activation) ref.Val {
 				} else {
 					err = types.MaybeNoSuchOverloadErr(val)
 				}
+				err = types.LabelErrNode(or.id, err)
 			}
 		}
 	}
@@ -273,6 +275,7 @@ func (and *evalAnd) Eval(ctx Activation) ref.Val {
 				} else {
 					err = types.MaybeNoSuchOverloadErr(val)
 				}
+				err = types.LabelErrNode(and.id, err)
 			}
 		}
 	}
@@ -377,7 +380,7 @@ func (zero *evalZeroArity) ID() int64 {
 
 // Eval implements the Interpretable interface method.
 func (zero *evalZeroArity) Eval(ctx Activation) ref.Val {
-	return zero.impl()
+	return types.LabelErrNode(zero.id, zero.impl())
 }
 
 // Function implements the InterpretableCall interface method.
@@ -421,14 +424,14 @@ func (un *evalUnary) Eval(ctx Activation) ref.Val {
 	// If the implementation is bound and the argument value has the right traits required to
 	// invoke it, then call the implementation.
 	if un.impl != nil && (un.trait == 0 || (!strict && types.IsUnknownOrError(argVal)) || argVal.Type().HasTrait(un.trait)) {
-		return un.impl(argVal)
+		return types.LabelErrNode(un.id, un.impl(argVal))
 	}
 	// Otherwise, if the argument is a ReceiverType attempt to invoke the receiver method on the
 	// operand (arg0).
 	if argVal.Type().HasTrait(traits.ReceiverType) {
-		return argVal.(traits.Receiver).Receive(un.function, un.overload, []ref.Val{})
+		return types.LabelErrNode(un.id, argVal.(traits.Receiver).Receive(un.function, un.overload, []ref.Val{}))
 	}
-	return types.NewErr("no such overload: %s", un.function)
+	return types.NewErrWithNodeID(un.id, "no such overload: %s", un.function)
 }
 
 // Function implements the InterpretableCall interface method.
@@ -479,14 +482,14 @@ func (bin *evalBinary) Eval(ctx Activation) ref.Val {
 	// If the implementation is bound and the argument value has the right traits required to
 	// invoke it, then call the implementation.
 	if bin.impl != nil && (bin.trait == 0 || (!strict && types.IsUnknownOrError(lVal)) || lVal.Type().HasTrait(bin.trait)) {
-		return bin.impl(lVal, rVal)
+		return types.LabelErrNode(bin.id, bin.impl(lVal, rVal))
 	}
 	// Otherwise, if the argument is a ReceiverType attempt to invoke the receiver method on the
 	// operand (arg0).
 	if lVal.Type().HasTrait(traits.ReceiverType) {
-		return lVal.(traits.Receiver).Receive(bin.function, bin.overload, []ref.Val{rVal})
+		return types.LabelErrNode(bin.id, lVal.(traits.Receiver).Receive(bin.function, bin.overload, []ref.Val{rVal}))
 	}
-	return types.NewErr("no such overload: %s", bin.function)
+	return types.NewErrWithNodeID(bin.id, "no such overload: %s", bin.function)
 }
 
 // Function implements the InterpretableCall interface method.
@@ -545,14 +548,14 @@ func (fn *evalVarArgs) Eval(ctx Activation) ref.Val {
 	// invoke it, then call the implementation.
 	arg0 := argVals[0]
 	if fn.impl != nil && (fn.trait == 0 || (!strict && types.IsUnknownOrError(arg0)) || arg0.Type().HasTrait(fn.trait)) {
-		return fn.impl(argVals...)
+		return types.LabelErrNode(fn.id, fn.impl(argVals...))
 	}
 	// Otherwise, if the argument is a ReceiverType attempt to invoke the receiver method on the
 	// operand (arg0).
 	if arg0.Type().HasTrait(traits.ReceiverType) {
-		return arg0.(traits.Receiver).Receive(fn.function, fn.overload, argVals[1:])
+		return types.LabelErrNode(fn.id, arg0.(traits.Receiver).Receive(fn.function, fn.overload, argVals[1:]))
 	}
-	return types.NewErr("no such overload: %s", fn.function)
+	return types.NewErrWithNodeID(fn.id, "no such overload: %s %d", fn.function, fn.id)
 }
 
 // Function implements the InterpretableCall interface method.
@@ -595,7 +598,7 @@ func (l *evalList) Eval(ctx Activation) ref.Val {
 		if l.hasOptionals && l.optionals[i] {
 			optVal, ok := elemVal.(*types.Optional)
 			if !ok {
-				return invalidOptionalElementInit(elemVal)
+				return types.LabelErrNode(l.id, invalidOptionalElementInit(elemVal))
 			}
 			if !optVal.HasValue() {
 				continue
@@ -645,7 +648,7 @@ func (m *evalMap) Eval(ctx Activation) ref.Val {
 		if m.hasOptionals && m.optionals[i] {
 			optVal, ok := valVal.(*types.Optional)
 			if !ok {
-				return invalidOptionalEntryInit(keyVal, valVal)
+				return types.LabelErrNode(m.id, invalidOptionalEntryInit(keyVal, valVal))
 			}
 			if !optVal.HasValue() {
 				delete(entries, keyVal)
@@ -705,7 +708,7 @@ func (o *evalObj) Eval(ctx Activation) ref.Val {
 		if o.hasOptionals && o.optionals[i] {
 			optVal, ok := val.(*types.Optional)
 			if !ok {
-				return invalidOptionalEntryInit(field, val)
+				return types.LabelErrNode(o.id, invalidOptionalEntryInit(field, val))
 			}
 			if !optVal.HasValue() {
 				delete(fieldVals, field)
@@ -715,27 +718,34 @@ func (o *evalObj) Eval(ctx Activation) ref.Val {
 		}
 		fieldVals[field] = val
 	}
-	return o.provider.NewValue(o.typeName, fieldVals)
+	return types.LabelErrNode(o.id, o.provider.NewValue(o.typeName, fieldVals))
 }
 
+// InitVals implements the InterpretableConstructor interface method.
 func (o *evalObj) InitVals() []Interpretable {
 	return o.vals
 }
 
+// Type implements the InterpretableConstructor interface method.
 func (o *evalObj) Type() ref.Type {
-	return types.NewObjectTypeValue(o.typeName)
+	return types.NewObjectType(o.typeName)
 }
 
 type evalFold struct {
-	id            int64
-	accuVar       string
-	iterVar       string
-	iterRange     Interpretable
-	accu          Interpretable
-	cond          Interpretable
-	step          Interpretable
-	result        Interpretable
-	adapter       types.Adapter
+	id        int64
+	accuVar   string
+	iterVar   string
+	iterVar2  string
+	iterRange Interpretable
+	accu      Interpretable
+	cond      Interpretable
+	step      Interpretable
+	result    Interpretable
+	adapter   types.Adapter
+
+	// note an exhaustive fold will ensure that all branches are evaluated
+	// when using mutable values, these branches will mutate the final result
+	// rather than make a throw-away computation.
 	exhaustive    bool
 	interruptable bool
 }
@@ -747,64 +757,33 @@ func (fold *evalFold) ID() int64 {
 
 // Eval implements the Interpretable interface method.
 func (fold *evalFold) Eval(ctx Activation) ref.Val {
+	// Initialize the folder interface
+	f := newFolder(fold, ctx)
+	defer releaseFolder(f)
+
 	foldRange := fold.iterRange.Eval(ctx)
+	if types.IsUnknownOrError(foldRange) {
+		return foldRange
+	}
+	if fold.iterVar2 != "" {
+		var foldable traits.Foldable
+		switch r := foldRange.(type) {
+		case traits.Mapper:
+			foldable = types.ToFoldableMap(r)
+		case traits.Lister:
+			foldable = types.ToFoldableList(r)
+		default:
+			return types.NewErrWithNodeID(fold.ID(), "unsupported comprehension range type: %T", foldRange)
+		}
+		foldable.Fold(f)
+		return f.evalResult()
+	}
+
 	if !foldRange.Type().HasTrait(traits.IterableType) {
 		return types.ValOrErr(foldRange, "got '%T', expected iterable type", foldRange)
 	}
-	// Configure the fold activation with the accumulator initial value.
-	accuCtx := varActivationPool.Get().(*varActivation)
-	accuCtx.parent = ctx
-	accuCtx.name = fold.accuVar
-	accuCtx.val = fold.accu.Eval(ctx)
-	// If the accumulator starts as an empty list, then the comprehension will build a list
-	// so create a mutable list to optimize the cost of the inner loop.
-	l, ok := accuCtx.val.(traits.Lister)
-	buildingList := false
-	if !fold.exhaustive && ok && l.Size() == types.IntZero {
-		buildingList = true
-		accuCtx.val = types.NewMutableList(fold.adapter)
-	}
-	iterCtx := varActivationPool.Get().(*varActivation)
-	iterCtx.parent = accuCtx
-	iterCtx.name = fold.iterVar
-
-	interrupted := false
-	it := foldRange.(traits.Iterable).Iterator()
-	for it.HasNext() == types.True {
-		// Modify the iter var in the fold activation.
-		iterCtx.val = it.Next()
-
-		// Evaluate the condition, terminate the loop if false.
-		cond := fold.cond.Eval(iterCtx)
-		condBool, ok := cond.(types.Bool)
-		if !fold.exhaustive && ok && condBool != types.True {
-			break
-		}
-		// Evaluate the evaluation step into accu var.
-		accuCtx.val = fold.step.Eval(iterCtx)
-		if fold.interruptable {
-			if stop, found := ctx.ResolveName("#interrupted"); found && stop == true {
-				interrupted = true
-				break
-			}
-		}
-	}
-	varActivationPool.Put(iterCtx)
-	if interrupted {
-		varActivationPool.Put(accuCtx)
-		return types.NewErr("operation interrupted")
-	}
-
-	// Compute the result.
-	res := fold.result.Eval(accuCtx)
-	varActivationPool.Put(accuCtx)
-	// Convert a mutable list to an immutable one, if the comprehension has generated a list as a result.
-	if !types.IsUnknownOrError(res) && buildingList {
-		if _, ok := res.(traits.MutableLister); ok {
-			res = res.(traits.MutableLister).ToImmutableList()
-		}
-	}
-	return res
+	iterable := foldRange.(traits.Iterable)
+	return f.foldIterable(iterable)
 }
 
 // Optional Interpretable implementations that specialize, subsume, or extend the core evaluation
@@ -921,7 +900,7 @@ func (e *evalWatchConstQual) Qualify(vars Activation, obj any) (any, error) {
 	out, err := e.ConstantQualifier.Qualify(vars, obj)
 	var val ref.Val
 	if err != nil {
-		val = types.WrapErr(err)
+		val = types.LabelErrNode(e.ID(), types.WrapErr(err))
 	} else {
 		val = e.adapter.NativeToValue(out)
 	}
@@ -934,7 +913,7 @@ func (e *evalWatchConstQual) QualifyIfPresent(vars Activation, obj any, presence
 	out, present, err := e.ConstantQualifier.QualifyIfPresent(vars, obj, presenceOnly)
 	var val ref.Val
 	if err != nil {
-		val = types.WrapErr(err)
+		val = types.LabelErrNode(e.ID(), types.WrapErr(err))
 	} else if out != nil {
 		val = e.adapter.NativeToValue(out)
 	} else if presenceOnly {
@@ -964,7 +943,7 @@ func (e *evalWatchAttrQual) Qualify(vars Activation, obj any) (any, error) {
 	out, err := e.Attribute.Qualify(vars, obj)
 	var val ref.Val
 	if err != nil {
-		val = types.WrapErr(err)
+		val = types.LabelErrNode(e.ID(), types.WrapErr(err))
 	} else {
 		val = e.adapter.NativeToValue(out)
 	}
@@ -977,7 +956,7 @@ func (e *evalWatchAttrQual) QualifyIfPresent(vars Activation, obj any, presenceO
 	out, present, err := e.Attribute.QualifyIfPresent(vars, obj, presenceOnly)
 	var val ref.Val
 	if err != nil {
-		val = types.WrapErr(err)
+		val = types.LabelErrNode(e.ID(), types.WrapErr(err))
 	} else if out != nil {
 		val = e.adapter.NativeToValue(out)
 	} else if presenceOnly {
@@ -1001,7 +980,7 @@ func (e *evalWatchQual) Qualify(vars Activation, obj any) (any, error) {
 	out, err := e.Qualifier.Qualify(vars, obj)
 	var val ref.Val
 	if err != nil {
-		val = types.WrapErr(err)
+		val = types.LabelErrNode(e.ID(), types.WrapErr(err))
 	} else {
 		val = e.adapter.NativeToValue(out)
 	}
@@ -1014,7 +993,7 @@ func (e *evalWatchQual) QualifyIfPresent(vars Activation, obj any, presenceOnly 
 	out, present, err := e.Qualifier.QualifyIfPresent(vars, obj, presenceOnly)
 	var val ref.Val
 	if err != nil {
-		val = types.WrapErr(err)
+		val = types.LabelErrNode(e.ID(), types.WrapErr(err))
 	} else if out != nil {
 		val = e.adapter.NativeToValue(out)
 	} else if presenceOnly {
@@ -1157,12 +1136,12 @@ func (cond *evalExhaustiveConditional) Eval(ctx Activation) ref.Val {
 	}
 	if cBool {
 		if tErr != nil {
-			return types.WrapErr(tErr)
+			return types.LabelErrNode(cond.id, types.WrapErr(tErr))
 		}
 		return cond.adapter.NativeToValue(tVal)
 	}
 	if fErr != nil {
-		return types.WrapErr(fErr)
+		return types.LabelErrNode(cond.id, types.WrapErr(fErr))
 	}
 	return cond.adapter.NativeToValue(fVal)
 }
@@ -1202,7 +1181,7 @@ func (a *evalAttr) Adapter() types.Adapter {
 func (a *evalAttr) Eval(ctx Activation) ref.Val {
 	v, err := a.attr.Resolve(ctx)
 	if err != nil {
-		return types.WrapErr(err)
+		return types.LabelErrNode(a.ID(), types.WrapErr(err))
 	}
 	return a.adapter.NativeToValue(v)
 }
@@ -1260,3 +1239,197 @@ func invalidOptionalEntryInit(field any, value ref.Val) ref.Val {
 func invalidOptionalElementInit(value ref.Val) ref.Val {
 	return types.NewErr("cannot initialize optional list element from non-optional value %v", value)
 }
+
+// newFolder creates or initializes a pooled folder instance.
+func newFolder(eval *evalFold, ctx Activation) *folder {
+	f := folderPool.Get().(*folder)
+	f.evalFold = eval
+	f.activation = ctx
+	return f
+}
+
+// releaseFolder resets and releases a pooled folder instance.
+func releaseFolder(f *folder) {
+	f.reset()
+	folderPool.Put(f)
+}
+
+// folder tracks the state associated with folding a list or map with a comprehension v2 style macro.
+//
+// The folder embeds an interpreter.Activation and Interpretable evalFold value as well as implements
+// the traits.Folder interface methods.
+//
+// Instances of a folder are intended to be pooled to minimize allocation overhead with this temporary
+// bookkeeping object which supports lazy evaluation of the accumulator init expression which is useful
+// in preserving evaluation order semantics which might otherwise be disrupted through the use of
+// cel.bind or cel.@block.
+type folder struct {
+	*evalFold
+	activation Activation
+
+	// fold state objects.
+	accuVal     ref.Val
+	iterVar1Val any
+	iterVar2Val any
+
+	// bookkeeping flags to modify Activation and fold behaviors.
+	initialized   bool
+	mutableValue  bool
+	interrupted   bool
+	computeResult bool
+}
+
+func (f *folder) foldIterable(iterable traits.Iterable) ref.Val {
+	it := iterable.Iterator()
+	for it.HasNext() == types.True {
+		f.iterVar1Val = it.Next()
+
+		cond := f.cond.Eval(f)
+		condBool, ok := cond.(types.Bool)
+		if f.interrupted || (!f.exhaustive && ok && condBool != types.True) {
+			return f.evalResult()
+		}
+
+		// Update the accumulation value and check for eval interuption.
+		f.accuVal = f.step.Eval(f)
+		f.initialized = true
+		if f.interruptable && checkInterrupt(f.activation) {
+			f.interrupted = true
+			return f.evalResult()
+		}
+	}
+	return f.evalResult()
+}
+
+// FoldEntry will either fold comprehension v1 style macros if iterVar2 is unset, or comprehension v2 style
+// macros if both the iterVar and iterVar2 are set to non-empty strings.
+func (f *folder) FoldEntry(key, val any) bool {
+	// Default to referencing both values.
+	f.iterVar1Val = key
+	f.iterVar2Val = val
+
+	// Terminate evaluation if evaluation is interrupted or the condition is not true and exhaustive
+	// eval is not enabled.
+	cond := f.cond.Eval(f)
+	condBool, ok := cond.(types.Bool)
+	if f.interrupted || (!f.exhaustive && ok && condBool != types.True) {
+		return false
+	}
+
+	// Update the accumulation value and check for eval interuption.
+	f.accuVal = f.step.Eval(f)
+	f.initialized = true
+	if f.interruptable && checkInterrupt(f.activation) {
+		f.interrupted = true
+		return false
+	}
+	return true
+}
+
+// ResolveName overrides the default Activation lookup to perform lazy initialization of the accumulator
+// and specialized lookups of iteration values with consideration for whether the final result is being
+// computed and the iteration variables should be ignored.
+func (f *folder) ResolveName(name string) (any, bool) {
+	if name == f.accuVar {
+		if !f.initialized {
+			f.initialized = true
+			initVal := f.accu.Eval(f.activation)
+			if !f.exhaustive {
+				if l, isList := initVal.(traits.Lister); isList && l.Size() == types.IntZero {
+					initVal = types.NewMutableList(f.adapter)
+					f.mutableValue = true
+				}
+				if m, isMap := initVal.(traits.Mapper); isMap && m.Size() == types.IntZero {
+					initVal = types.NewMutableMap(f.adapter, map[ref.Val]ref.Val{})
+					f.mutableValue = true
+				}
+			}
+			f.accuVal = initVal
+		}
+		return f.accuVal, true
+	}
+	if !f.computeResult {
+		if name == f.iterVar {
+			f.iterVar1Val = f.adapter.NativeToValue(f.iterVar1Val)
+			return f.iterVar1Val, true
+		}
+		if name == f.iterVar2 {
+			f.iterVar2Val = f.adapter.NativeToValue(f.iterVar2Val)
+			return f.iterVar2Val, true
+		}
+	}
+	return f.activation.ResolveName(name)
+}
+
+// Parent returns the activation embedded into the folder.
+func (f *folder) Parent() Activation {
+	return f.activation
+}
+
+// UnknownAttributePatterns implements the PartialActivation interface returning the unknown patterns
+// if they were provided to the input activation, or an empty set if the proxied activation is not partial.
+func (f *folder) UnknownAttributePatterns() []*AttributePattern {
+	if pv, ok := f.activation.(partialActivationConverter); ok {
+		if partial, isPartial := pv.asPartialActivation(); isPartial {
+			return partial.UnknownAttributePatterns()
+		}
+	}
+	return []*AttributePattern{}
+}
+
+func (f *folder) asPartialActivation() (PartialActivation, bool) {
+	if pv, ok := f.activation.(partialActivationConverter); ok {
+		if _, isPartial := pv.asPartialActivation(); isPartial {
+			return f, true
+		}
+	}
+	return nil, false
+}
+
+// evalResult computes the final result of the fold after all entries have been folded and accumulated.
+func (f *folder) evalResult() ref.Val {
+	f.computeResult = true
+	if f.interrupted {
+		return types.NewErr("operation interrupted")
+	}
+	res := f.result.Eval(f)
+	// Convert a mutable list or map to an immutable one if the comprehension has generated a list or
+	// map as a result.
+	if !types.IsUnknownOrError(res) && f.mutableValue {
+		if _, ok := res.(traits.MutableLister); ok {
+			res = res.(traits.MutableLister).ToImmutableList()
+		}
+		if _, ok := res.(traits.MutableMapper); ok {
+			res = res.(traits.MutableMapper).ToImmutableMap()
+		}
+	}
+	return res
+}
+
+// reset clears any state associated with folder evaluation.
+func (f *folder) reset() {
+	f.evalFold = nil
+	f.activation = nil
+	f.accuVal = nil
+	f.iterVar1Val = nil
+	f.iterVar2Val = nil
+
+	f.initialized = false
+	f.mutableValue = false
+	f.interrupted = false
+	f.computeResult = false
+}
+
+func checkInterrupt(a Activation) bool {
+	stop, found := a.ResolveName("#interrupted")
+	return found && stop == true
+}
+
+var (
+	// pool of var folders to reduce allocations during folds.
+	folderPool = &sync.Pool{
+		New: func() any {
+			return &folder{}
+		},
+	}
+)

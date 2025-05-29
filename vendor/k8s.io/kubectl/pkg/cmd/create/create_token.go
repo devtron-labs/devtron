@@ -19,7 +19,6 @@ package create
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -39,7 +38,7 @@ import (
 	"k8s.io/kubectl/pkg/util/completion"
 	"k8s.io/kubectl/pkg/util/templates"
 	"k8s.io/kubectl/pkg/util/term"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 // TokenOptions is the data required to perform a token request operation.
@@ -99,15 +98,10 @@ var (
 `)
 )
 
-func boundObjectKindToAPIVersions() map[string]string {
-	kinds := map[string]string{
-		"Pod":    "v1",
-		"Secret": "v1",
-	}
-	if os.Getenv("KUBECTL_NODE_BOUND_TOKENS") == "true" {
-		kinds["Node"] = "v1"
-	}
-	return kinds
+var boundObjectKinds = map[string]string{
+	"Pod":    "v1",
+	"Secret": "v1",
+	"Node":   "v1",
 }
 
 func NewTokenOpts(ioStreams genericiooptions.IOStreams) *TokenOptions {
@@ -148,10 +142,10 @@ func NewCmdCreateToken(f cmdutil.Factory, ioStreams genericiooptions.IOStreams) 
 
 	cmd.Flags().StringArrayVar(&o.Audiences, "audience", o.Audiences, "Audience of the requested token. If unset, defaults to requesting a token for use with the Kubernetes API server. May be repeated to request a token valid for multiple audiences.")
 
-	cmd.Flags().DurationVar(&o.Duration, "duration", o.Duration, "Requested lifetime of the issued token. If not set, the lifetime will be determined by the server automatically. The server may return a token with a longer or shorter lifetime.")
+	cmd.Flags().DurationVar(&o.Duration, "duration", o.Duration, "Requested lifetime of the issued token. If not set or if set to 0, the lifetime will be determined by the server automatically. The server may return a token with a longer or shorter lifetime.")
 
 	cmd.Flags().StringVar(&o.BoundObjectKind, "bound-object-kind", o.BoundObjectKind, "Kind of an object to bind the token to. "+
-		"Supported kinds are "+strings.Join(sets.StringKeySet(boundObjectKindToAPIVersions()).List(), ", ")+". "+
+		"Supported kinds are "+strings.Join(sets.List(sets.KeySet(boundObjectKinds)), ", ")+". "+
 		"If set, --bound-object-name must be provided.")
 	cmd.Flags().StringVar(&o.BoundObjectName, "bound-object-name", o.BoundObjectName, "Name of an object to bind the token to. "+
 		"The token will expire when the object is deleted. "+
@@ -208,8 +202,8 @@ func (o *TokenOptions) Validate() error {
 	if len(o.Namespace) == 0 {
 		return fmt.Errorf("--namespace is required")
 	}
-	if o.Duration < 0 || (o.Duration == 0 && o.Flags.Changed("duration")) {
-		return fmt.Errorf("--duration must be positive")
+	if o.Duration < 0 {
+		return fmt.Errorf("--duration must be greater than or equal to 0")
 	}
 	if o.Duration%time.Second != 0 {
 		return fmt.Errorf("--duration cannot be expressed in units less than seconds")
@@ -228,8 +222,8 @@ func (o *TokenOptions) Validate() error {
 			return fmt.Errorf("--bound-object-uid can only be set if --bound-object-kind is provided")
 		}
 	} else {
-		if _, ok := boundObjectKindToAPIVersions()[o.BoundObjectKind]; !ok {
-			return fmt.Errorf("supported --bound-object-kind values are %s", strings.Join(sets.StringKeySet(boundObjectKindToAPIVersions()).List(), ", "))
+		if _, ok := boundObjectKinds[o.BoundObjectKind]; !ok {
+			return fmt.Errorf("supported --bound-object-kind values are %s", strings.Join(sets.List(sets.KeySet(boundObjectKinds)), ", "))
 		}
 		if len(o.BoundObjectName) == 0 {
 			return fmt.Errorf("--bound-object-name is required if --bound-object-kind is provided")
@@ -247,12 +241,12 @@ func (o *TokenOptions) Run() error {
 		},
 	}
 	if o.Duration > 0 {
-		request.Spec.ExpirationSeconds = pointer.Int64(int64(o.Duration / time.Second))
+		request.Spec.ExpirationSeconds = ptr.To(int64(o.Duration / time.Second))
 	}
 	if len(o.BoundObjectKind) > 0 {
 		request.Spec.BoundObjectRef = &authenticationv1.BoundObjectReference{
 			Kind:       o.BoundObjectKind,
-			APIVersion: boundObjectKindToAPIVersions()[o.BoundObjectKind],
+			APIVersion: boundObjectKinds[o.BoundObjectKind],
 			Name:       o.BoundObjectName,
 			UID:        types.UID(o.BoundObjectUID),
 		}

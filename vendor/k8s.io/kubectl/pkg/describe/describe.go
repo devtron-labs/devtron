@@ -45,13 +45,13 @@ import (
 	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	networkingv1 "k8s.io/api/networking/v1"
-	networkingv1alpha1 "k8s.io/api/networking/v1alpha1"
 	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	policyv1 "k8s.io/api/policy/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	storagev1beta1 "k8s.io/api/storage/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -97,7 +97,7 @@ const (
 
 var (
 	// globally skipped annotations
-	skipAnnotations = sets.NewString(corev1.LastAppliedConfigAnnotation)
+	skipAnnotations = sets.New[string](corev1.LastAppliedConfigAnnotation)
 
 	// DescriberFn gives a way to easily override the function for unit testing if needed
 	DescriberFn DescriberFunc = Describer
@@ -215,8 +215,10 @@ func describerMap(clientConfig *rest.Config) (map[schema.GroupKind]ResourceDescr
 		{Group: networkingv1beta1.GroupName, Kind: "IngressClass"}:                &IngressClassDescriber{c},
 		{Group: networkingv1.GroupName, Kind: "Ingress"}:                          &IngressDescriber{c},
 		{Group: networkingv1.GroupName, Kind: "IngressClass"}:                     &IngressClassDescriber{c},
-		{Group: networkingv1alpha1.GroupName, Kind: "ServiceCIDR"}:                &ServiceCIDRDescriber{c},
-		{Group: networkingv1alpha1.GroupName, Kind: "IPAddress"}:                  &IPAddressDescriber{c},
+		{Group: networkingv1beta1.GroupName, Kind: "ServiceCIDR"}:                 &ServiceCIDRDescriber{c},
+		{Group: networkingv1beta1.GroupName, Kind: "IPAddress"}:                   &IPAddressDescriber{c},
+		{Group: networkingv1.GroupName, Kind: "ServiceCIDR"}:                      &ServiceCIDRDescriber{c},
+		{Group: networkingv1.GroupName, Kind: "IPAddress"}:                        &IPAddressDescriber{c},
 		{Group: batchv1.GroupName, Kind: "Job"}:                                   &JobDescriber{c},
 		{Group: batchv1.GroupName, Kind: "CronJob"}:                               &CronJobDescriber{c},
 		{Group: batchv1beta1.GroupName, Kind: "CronJob"}:                          &CronJobDescriber{c},
@@ -227,6 +229,7 @@ func describerMap(clientConfig *rest.Config) (map[schema.GroupKind]ResourceDescr
 		{Group: certificatesv1beta1.GroupName, Kind: "CertificateSigningRequest"}: &CertificateSigningRequestDescriber{c},
 		{Group: storagev1.GroupName, Kind: "StorageClass"}:                        &StorageClassDescriber{c},
 		{Group: storagev1.GroupName, Kind: "CSINode"}:                             &CSINodeDescriber{c},
+		{Group: storagev1beta1.GroupName, Kind: "VolumeAttributesClass"}:          &VolumeAttributesClassDescriber{c},
 		{Group: policyv1beta1.GroupName, Kind: "PodDisruptionBudget"}:             &PodDisruptionBudgetDescriber{c},
 		{Group: policyv1.GroupName, Kind: "PodDisruptionBudget"}:                  &PodDisruptionBudgetDescriber{c},
 		{Group: rbacv1.GroupName, Kind: "Role"}:                                   &RoleDescriber{c},
@@ -316,7 +319,7 @@ func printUnstructuredContent(w PrefixWriter, level int, content map[string]inte
 		switch typedValue := value.(type) {
 		case map[string]interface{}:
 			skipExpr := fmt.Sprintf("%s.%s", skipPrefix, field)
-			if slice.ContainsString(skip, skipExpr, nil) {
+			if slice.Contains[string](skip, skipExpr, nil) {
 				continue
 			}
 			w.Write(level, "%s:\n", smartLabelFor(field))
@@ -324,7 +327,7 @@ func printUnstructuredContent(w PrefixWriter, level int, content map[string]inte
 
 		case []interface{}:
 			skipExpr := fmt.Sprintf("%s.%s", skipPrefix, field)
-			if slice.ContainsString(skip, skipExpr, nil) {
+			if slice.Contains[string](skip, skipExpr, nil) {
 				continue
 			}
 			w.Write(level, "%s:\n", smartLabelFor(field))
@@ -339,7 +342,7 @@ func printUnstructuredContent(w PrefixWriter, level int, content map[string]inte
 
 		default:
 			skipExpr := fmt.Sprintf("%s.%s", skipPrefix, field)
-			if slice.ContainsString(skip, skipExpr, nil) {
+			if slice.Contains[string](skip, skipExpr, nil) {
 				continue
 			}
 			w.Write(level, "%s:\t%v\n", smartLabelFor(field), typedValue)
@@ -364,7 +367,7 @@ func smartLabelFor(field string) string {
 			continue
 		}
 
-		if slice.ContainsString(commonAcronyms, strings.ToUpper(part), nil) {
+		if slice.Contains[string](commonAcronyms, strings.ToUpper(part), nil) {
 			part = strings.ToUpper(part)
 		} else {
 			part = strings.Title(part)
@@ -410,6 +413,7 @@ func init() {
 		describeServiceAccount,
 		describeStatefulSet,
 		describeStorageClass,
+		describeVolumeAttributesClass,
 	)
 	if err != nil {
 		klog.Fatalf("Cannot register describers: %v", err)
@@ -808,7 +812,7 @@ func describePod(pod *corev1.Pod, events *corev1.EventList) (string, error) {
 		}
 		printLabelsMultiline(w, "Labels", pod.Labels)
 		printAnnotationsMultiline(w, "Annotations", pod.Annotations)
-		if pod.DeletionTimestamp != nil {
+		if pod.DeletionTimestamp != nil && pod.Status.Phase != corev1.PodFailed && pod.Status.Phase != corev1.PodSucceeded {
 			w.Write(LEVEL_0, "Status:\tTerminating (lasts %s)\n", translateTimestampSince(*pod.DeletionTimestamp))
 			w.Write(LEVEL_0, "Termination Grace Period:\t%ds\n", *pod.DeletionGracePeriodSeconds)
 		} else {
@@ -826,7 +830,7 @@ func describePod(pod *corev1.Pod, events *corev1.EventList) (string, error) {
 				w.Write(LEVEL_0, "LocalhostProfile:\t%s\n", *pod.Spec.SecurityContext.SeccompProfile.LocalhostProfile)
 			}
 		}
-		// remove when .IP field is depreciated
+		// remove when .IP field is deprecated
 		w.Write(LEVEL_0, "IP:\t%s\n", pod.Status.PodIP)
 		describePodIPs(pod, w, "")
 		if controlledBy := printController(pod); len(controlledBy) > 0 {
@@ -834,6 +838,11 @@ func describePod(pod *corev1.Pod, events *corev1.EventList) (string, error) {
 		}
 		if len(pod.Status.NominatedNodeName) > 0 {
 			w.Write(LEVEL_0, "NominatedNodeName:\t%s\n", pod.Status.NominatedNodeName)
+		}
+
+		if pod.Spec.Resources != nil {
+			w.Write(LEVEL_0, "Resources:\n")
+			describeResources(pod.Spec.Resources, w, LEVEL_1)
 		}
 
 		if len(pod.Spec.InitContainers) > 0 {
@@ -998,6 +1007,8 @@ func describeVolumes(volumes []corev1.Volume, w PrefixWriter, space string) {
 			printProjectedVolumeSource(volume.VolumeSource.Projected, w)
 		case volume.VolumeSource.CSI != nil:
 			printCSIVolumeSource(volume.VolumeSource.CSI, w)
+		case volume.VolumeSource.Image != nil:
+			printImageVolumeSource(volume.VolumeSource.Image, w)
 		default:
 			w.Write(LEVEL_1, "<unknown>\n")
 		}
@@ -1073,15 +1084,17 @@ func printProjectedVolumeSource(projected *corev1.ProjectedVolumeSource, w Prefi
 	w.Write(LEVEL_2, "Type:\tProjected (a volume that contains injected data from multiple sources)\n")
 	for _, source := range projected.Sources {
 		if source.Secret != nil {
+			optional := source.Secret.Optional != nil && *source.Secret.Optional
 			w.Write(LEVEL_2, "SecretName:\t%v\n"+
-				"    SecretOptionalName:\t%v\n",
-				source.Secret.Name, source.Secret.Optional)
+				"    Optional:\t%v\n",
+				source.Secret.Name, optional)
 		} else if source.DownwardAPI != nil {
 			w.Write(LEVEL_2, "DownwardAPI:\ttrue\n")
 		} else if source.ConfigMap != nil {
+			optional := source.ConfigMap.Optional != nil && *source.ConfigMap.Optional
 			w.Write(LEVEL_2, "ConfigMapName:\t%v\n"+
-				"    ConfigMapOptional:\t%v\n",
-				source.ConfigMap.Name, source.ConfigMap.Optional)
+				"    Optional:\t%v\n",
+				source.ConfigMap.Name, optional)
 		} else if source.ServiceAccountToken != nil {
 			w.Write(LEVEL_2, "TokenExpirationSeconds:\t%d\n",
 				*source.ServiceAccountToken.ExpirationSeconds)
@@ -1440,10 +1453,10 @@ func printCSIPersistentVolumeSource(csi *corev1.CSIPersistentVolumeSource, w Pre
 }
 
 func printCSIPersistentVolumeAttributesMultiline(w PrefixWriter, title string, annotations map[string]string) {
-	printCSIPersistentVolumeAttributesMultilineIndent(w, "", title, "\t", annotations, sets.NewString())
+	printCSIPersistentVolumeAttributesMultilineIndent(w, "", title, "\t", annotations, sets.New[string]())
 }
 
-func printCSIPersistentVolumeAttributesMultilineIndent(w PrefixWriter, initialIndent, title, innerIndent string, attributes map[string]string, skip sets.String) {
+func printCSIPersistentVolumeAttributesMultilineIndent(w PrefixWriter, initialIndent, title, innerIndent string, attributes map[string]string, skip sets.Set[string]) {
 	w.Write(LEVEL_2, "%s%s:%s", initialIndent, title, innerIndent)
 
 	if len(attributes) == 0 {
@@ -1477,6 +1490,13 @@ func printCSIPersistentVolumeAttributesMultilineIndent(w PrefixWriter, initialIn
 			w.Write(LEVEL_2, "%s\n", line)
 		}
 	}
+}
+
+func printImageVolumeSource(image *corev1.ImageVolumeSource, w PrefixWriter) {
+	w.Write(LEVEL_2, "Type:\tImage (a container image or OCI artifact)\n"+
+		"    Reference:\t%v\n"+
+		"    PullPolicy:\t%v\n",
+		image.Reference, image.PullPolicy)
 }
 
 type PersistentVolumeDescriber struct {
@@ -1789,7 +1809,7 @@ func describeContainers(label string, containers []corev1.Container, containerSt
 		if ok {
 			describeContainerState(status, w)
 		}
-		describeContainerResource(container, w)
+		describeResources(&container.Resources, w, LEVEL_2)
 		describeContainerProbe(container, w)
 		if len(container.EnvFrom) > 0 {
 			describeContainerEnvFrom(container, resolverFn, w)
@@ -1875,22 +1895,25 @@ func describeContainerCommand(container corev1.Container, w PrefixWriter) {
 	}
 }
 
-func describeContainerResource(container corev1.Container, w PrefixWriter) {
-	resources := container.Resources
+func describeResources(resources *corev1.ResourceRequirements, w PrefixWriter, level int) {
+	if resources == nil {
+		return
+	}
+
 	if len(resources.Limits) > 0 {
-		w.Write(LEVEL_2, "Limits:\n")
+		w.Write(level, "Limits:\n")
 	}
 	for _, name := range SortedResourceNames(resources.Limits) {
 		quantity := resources.Limits[name]
-		w.Write(LEVEL_3, "%s:\t%s\n", name, quantity.String())
+		w.Write(level+1, "%s:\t%s\n", name, quantity.String())
 	}
 
 	if len(resources.Requests) > 0 {
-		w.Write(LEVEL_2, "Requests:\n")
+		w.Write(level, "Requests:\n")
 	}
 	for _, name := range SortedResourceNames(resources.Requests) {
 		quantity := resources.Requests[name]
-		w.Write(LEVEL_3, "%s:\t%s\n", name, quantity.String())
+		w.Write(level+1, "%s:\t%s\n", name, quantity.String())
 	}
 }
 
@@ -2109,8 +2132,8 @@ func describeVolumeClaimTemplates(templates []corev1.PersistentVolumeClaim, w Pr
 	for _, pvc := range templates {
 		w.Write(LEVEL_1, "Name:\t%s\n", pvc.Name)
 		w.Write(LEVEL_1, "StorageClass:\t%s\n", storageutil.GetPersistentVolumeClaimClass(&pvc))
-		printLabelsMultilineWithIndent(w, "  ", "Labels", "\t", pvc.Labels, sets.NewString())
-		printLabelsMultilineWithIndent(w, "  ", "Annotations", "\t", pvc.Annotations, sets.NewString())
+		printLabelsMultilineWithIndent(w, "  ", "Labels", "\t", pvc.Labels, sets.New[string]())
+		printLabelsMultilineWithIndent(w, "  ", "Annotations", "\t", pvc.Annotations, sets.New[string]())
 		if capacity, ok := pvc.Spec.Resources.Requests[corev1.ResourceStorage]; ok {
 			w.Write(LEVEL_1, "Capacity:\t%s\n", capacity.String())
 		} else {
@@ -2212,6 +2235,8 @@ func DescribePodTemplate(template *corev1.PodTemplateSpec, w PrefixWriter) {
 	if len(template.Spec.PriorityClassName) > 0 {
 		w.Write(LEVEL_1, "Priority Class Name:\t%s\n", template.Spec.PriorityClassName)
 	}
+	printLabelsMultiline(w, "  Node-Selectors", template.Spec.NodeSelector)
+	printPodTolerationsMultiline(w, "  Tolerations", template.Spec.Tolerations)
 }
 
 // ReplicaSetDescriber generates information about a ReplicaSet and the pods it has created.
@@ -2320,6 +2345,15 @@ func describeJob(job *batchv1.Job, events *corev1.EventList) (string, error) {
 		}
 		if job.Spec.CompletionMode != nil {
 			w.Write(LEVEL_0, "Completion Mode:\t%s\n", *job.Spec.CompletionMode)
+		}
+		if job.Spec.Suspend != nil {
+			w.Write(LEVEL_0, "Suspend:\t%v\n", *job.Spec.Suspend)
+		}
+		if job.Spec.BackoffLimit != nil {
+			w.Write(LEVEL_0, "Backoff Limit:\t%v\n", *job.Spec.BackoffLimit)
+		}
+		if job.Spec.TTLSecondsAfterFinished != nil {
+			w.Write(LEVEL_0, "TTL Seconds After Finished:\t%v\n", *job.Spec.TTLSecondsAfterFinished)
 		}
 		if job.Status.StartTime != nil {
 			w.Write(LEVEL_0, "Start Time:\t%s\n", job.Status.StartTime.Time.Format(time.RFC1123Z))
@@ -2493,18 +2527,14 @@ func (d *DaemonSetDescriber) Describe(namespace, name string, describerSettings 
 		events, _ = searchEvents(d.CoreV1(), daemon, describerSettings.ChunkSize)
 	}
 
-	return describeDaemonSet(daemon, events, running, waiting, succeeded, failed)
+	return describeDaemonSet(daemon, selector, events, running, waiting, succeeded, failed)
 }
 
-func describeDaemonSet(daemon *appsv1.DaemonSet, events *corev1.EventList, running, waiting, succeeded, failed int) (string, error) {
+func describeDaemonSet(daemon *appsv1.DaemonSet, selector labels.Selector, events *corev1.EventList, running, waiting, succeeded, failed int) (string, error) {
 	return tabbedString(func(out io.Writer) error {
 		w := NewPrefixWriter(out)
 		w.Write(LEVEL_0, "Name:\t%s\n", daemon.Name)
-		selector, err := metav1.LabelSelectorAsSelector(daemon.Spec.Selector)
-		if err != nil {
-			// this shouldn't happen if LabelSelector passed validation
-			return err
-		}
+		w.Write(LEVEL_0, "Namespace:\t%s\n", daemon.Namespace)
 		w.Write(LEVEL_0, "Selector:\t%s\n", selector)
 		w.Write(LEVEL_0, "Node-Selector:\t%s\n", labels.FormatLabels(daemon.Spec.Template.Spec.NodeSelector))
 		printLabelsMultiline(w, "Labels", daemon.Labels)
@@ -2589,7 +2619,9 @@ func (i *IngressDescriber) Describe(namespace, name string, describerSettings De
 }
 
 func (i *IngressDescriber) describeBackendV1beta1(ns string, backend *networkingv1beta1.IngressBackend) string {
-	endpoints, err := i.client.CoreV1().Endpoints(ns).Get(context.TODO(), backend.ServiceName, metav1.GetOptions{})
+	endpointSliceList, err := i.client.DiscoveryV1().EndpointSlices(ns).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", discoveryv1.LabelServiceName, backend.ServiceName),
+	})
 	if err != nil {
 		return fmt.Sprintf("<error: %v>", err)
 	}
@@ -2611,20 +2643,22 @@ func (i *IngressDescriber) describeBackendV1beta1(ns string, backend *networking
 			}
 		}
 	}
-	return formatEndpoints(endpoints, sets.NewString(spName))
+	return formatEndpointSlices(endpointSliceList.Items, sets.New(spName))
 }
 
 func (i *IngressDescriber) describeBackendV1(ns string, backend *networkingv1.IngressBackend) string {
 
 	if backend.Service != nil {
 		sb := serviceBackendStringer(backend.Service)
-		endpoints, err := i.client.CoreV1().Endpoints(ns).Get(context.TODO(), backend.Service.Name, metav1.GetOptions{})
+		endpointSliceList, err := i.client.DiscoveryV1().EndpointSlices(ns).List(context.TODO(), metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s", discoveryv1.LabelServiceName, backend.Service.Name),
+		})
 		if err != nil {
 			return fmt.Sprintf("%v (<error: %v>)", sb, err)
 		}
 		service, err := i.client.CoreV1().Services(ns).Get(context.TODO(), backend.Service.Name, metav1.GetOptions{})
 		if err != nil {
-			return fmt.Sprintf("%v(<error: %v>)", sb, err)
+			return fmt.Sprintf("%v (<error: %v>)", sb, err)
 		}
 		spName := ""
 		for i := range service.Spec.Ports {
@@ -2635,7 +2669,7 @@ func (i *IngressDescriber) describeBackendV1(ns string, backend *networkingv1.In
 				spName = sp.Name
 			}
 		}
-		ep := formatEndpoints(endpoints, sets.NewString(spName))
+		ep := formatEndpointSlices(endpointSliceList.Items, sets.New(spName))
 		return fmt.Sprintf("%s (%s)", sb, ep)
 	}
 	if backend.Resource != nil {
@@ -2853,17 +2887,56 @@ type ServiceCIDRDescriber struct {
 func (c *ServiceCIDRDescriber) Describe(namespace, name string, describerSettings DescriberSettings) (string, error) {
 	var events *corev1.EventList
 
-	svcV1alpha1, err := c.client.NetworkingV1alpha1().ServiceCIDRs().Get(context.TODO(), name, metav1.GetOptions{})
+	svcV1, err := c.client.NetworkingV1().ServiceCIDRs().Get(context.TODO(), name, metav1.GetOptions{})
 	if err == nil {
 		if describerSettings.ShowEvents {
-			events, _ = searchEvents(c.client.CoreV1(), svcV1alpha1, describerSettings.ChunkSize)
+			events, _ = searchEvents(c.client.CoreV1(), svcV1, describerSettings.ChunkSize)
 		}
-		return c.describeServiceCIDRV1alpha1(svcV1alpha1, events)
+		return c.describeServiceCIDRV1(svcV1, events)
+	}
+
+	svcV1beta1, err := c.client.NetworkingV1beta1().ServiceCIDRs().Get(context.TODO(), name, metav1.GetOptions{})
+	if err == nil {
+		if describerSettings.ShowEvents {
+			events, _ = searchEvents(c.client.CoreV1(), svcV1beta1, describerSettings.ChunkSize)
+		}
+		return c.describeServiceCIDRV1beta1(svcV1beta1, events)
 	}
 	return "", err
 }
 
-func (c *ServiceCIDRDescriber) describeServiceCIDRV1alpha1(svc *networkingv1alpha1.ServiceCIDR, events *corev1.EventList) (string, error) {
+func (c *ServiceCIDRDescriber) describeServiceCIDRV1(svc *networkingv1.ServiceCIDR, events *corev1.EventList) (string, error) {
+	return tabbedString(func(out io.Writer) error {
+		w := NewPrefixWriter(out)
+		w.Write(LEVEL_0, "Name:\t%v\n", svc.Name)
+		printLabelsMultiline(w, "Labels", svc.Labels)
+		printAnnotationsMultiline(w, "Annotations", svc.Annotations)
+
+		w.Write(LEVEL_0, "CIDRs:\t%v\n", strings.Join(svc.Spec.CIDRs, ", "))
+
+		if len(svc.Status.Conditions) > 0 {
+			w.Write(LEVEL_0, "Status:\n")
+			w.Write(LEVEL_0, "Conditions:\n")
+			w.Write(LEVEL_1, "Type\tStatus\tLastTransitionTime\tReason\tMessage\n")
+			w.Write(LEVEL_1, "----\t------\t------------------\t------\t-------\n")
+			for _, c := range svc.Status.Conditions {
+				w.Write(LEVEL_1, "%v\t%v\t%s\t%v\t%v\n",
+					c.Type,
+					c.Status,
+					c.LastTransitionTime.Time.Format(time.RFC1123Z),
+					c.Reason,
+					c.Message)
+			}
+		}
+
+		if events != nil {
+			DescribeEvents(events, w)
+		}
+		return nil
+	})
+}
+
+func (c *ServiceCIDRDescriber) describeServiceCIDRV1beta1(svc *networkingv1beta1.ServiceCIDR, events *corev1.EventList) (string, error) {
 	return tabbedString(func(out io.Writer) error {
 		w := NewPrefixWriter(out)
 		w.Write(LEVEL_0, "Name:\t%v\n", svc.Name)
@@ -2902,17 +2975,47 @@ type IPAddressDescriber struct {
 func (c *IPAddressDescriber) Describe(namespace, name string, describerSettings DescriberSettings) (string, error) {
 	var events *corev1.EventList
 
-	ipV1alpha1, err := c.client.NetworkingV1alpha1().IPAddresses().Get(context.TODO(), name, metav1.GetOptions{})
+	ipV1, err := c.client.NetworkingV1().IPAddresses().Get(context.TODO(), name, metav1.GetOptions{})
 	if err == nil {
 		if describerSettings.ShowEvents {
-			events, _ = searchEvents(c.client.CoreV1(), ipV1alpha1, describerSettings.ChunkSize)
+			events, _ = searchEvents(c.client.CoreV1(), ipV1, describerSettings.ChunkSize)
 		}
-		return c.describeIPAddressV1alpha1(ipV1alpha1, events)
+		return c.describeIPAddressV1(ipV1, events)
+	}
+
+	ipV1beta1, err := c.client.NetworkingV1beta1().IPAddresses().Get(context.TODO(), name, metav1.GetOptions{})
+	if err == nil {
+		if describerSettings.ShowEvents {
+			events, _ = searchEvents(c.client.CoreV1(), ipV1beta1, describerSettings.ChunkSize)
+		}
+		return c.describeIPAddressV1beta1(ipV1beta1, events)
 	}
 	return "", err
 }
 
-func (c *IPAddressDescriber) describeIPAddressV1alpha1(ip *networkingv1alpha1.IPAddress, events *corev1.EventList) (string, error) {
+func (c *IPAddressDescriber) describeIPAddressV1(ip *networkingv1.IPAddress, events *corev1.EventList) (string, error) {
+	return tabbedString(func(out io.Writer) error {
+		w := NewPrefixWriter(out)
+		w.Write(LEVEL_0, "Name:\t%v\n", ip.Name)
+		printLabelsMultiline(w, "Labels", ip.Labels)
+		printAnnotationsMultiline(w, "Annotations", ip.Annotations)
+
+		if ip.Spec.ParentRef != nil {
+			w.Write(LEVEL_0, "Parent Reference:\n")
+			w.Write(LEVEL_1, "Group:\t%v\n", ip.Spec.ParentRef.Group)
+			w.Write(LEVEL_1, "Resource:\t%v\n", ip.Spec.ParentRef.Resource)
+			w.Write(LEVEL_1, "Namespace:\t%v\n", ip.Spec.ParentRef.Namespace)
+			w.Write(LEVEL_1, "Name:\t%v\n", ip.Spec.ParentRef.Name)
+		}
+
+		if events != nil {
+			DescribeEvents(events, w)
+		}
+		return nil
+	})
+}
+
+func (c *IPAddressDescriber) describeIPAddressV1beta1(ip *networkingv1beta1.IPAddress, events *corev1.EventList) (string, error) {
 	return tabbedString(func(out io.Writer) error {
 		w := NewPrefixWriter(out)
 		w.Write(LEVEL_0, "Name:\t%v\n", ip.Name)
@@ -2947,12 +3050,14 @@ func (d *ServiceDescriber) Describe(namespace, name string, describerSettings De
 		return "", err
 	}
 
-	endpoints, _ := d.CoreV1().Endpoints(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	endpointSliceList, _ := d.DiscoveryV1().EndpointSlices(namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", discoveryv1.LabelServiceName, name),
+	})
 	var events *corev1.EventList
 	if describerSettings.ShowEvents {
 		events, _ = searchEvents(d.CoreV1(), service, describerSettings.ChunkSize)
 	}
-	return describeService(service, endpoints, events)
+	return describeService(service, endpointSliceList.Items, events)
 }
 
 func buildIngressString(ingress []corev1.LoadBalancerIngress) string {
@@ -2964,6 +3069,9 @@ func buildIngressString(ingress []corev1.LoadBalancerIngress) string {
 		}
 		if ingress[i].IP != "" {
 			buffer.WriteString(ingress[i].IP)
+			if ingress[i].IPMode != nil {
+				buffer.WriteString(fmt.Sprintf(" (%s)", *ingress[i].IPMode))
+			}
 		} else {
 			buffer.WriteString(ingress[i].Hostname)
 		}
@@ -2971,10 +3079,7 @@ func buildIngressString(ingress []corev1.LoadBalancerIngress) string {
 	return buffer.String()
 }
 
-func describeService(service *corev1.Service, endpoints *corev1.Endpoints, events *corev1.EventList) (string, error) {
-	if endpoints == nil {
-		endpoints = &corev1.Endpoints{}
-	}
+func describeService(service *corev1.Service, endpointSlices []discoveryv1.EndpointSlice, events *corev1.EventList) (string, error) {
 	return tabbedString(func(out io.Writer) error {
 		w := NewPrefixWriter(out)
 		w.Write(LEVEL_0, "Name:\t%s\n", service.Name)
@@ -3010,7 +3115,7 @@ func describeService(service *corev1.Service, endpoints *corev1.Endpoints, event
 			w.Write(LEVEL_0, "External IPs:\t%v\n", strings.Join(service.Spec.ExternalIPs, ","))
 		}
 		if service.Spec.LoadBalancerIP != "" {
-			w.Write(LEVEL_0, "IP:\t%s\n", service.Spec.LoadBalancerIP)
+			w.Write(LEVEL_0, "Desired LoadBalancer IP:\t%s\n", service.Spec.LoadBalancerIP)
 		}
 		if service.Spec.ExternalName != "" {
 			w.Write(LEVEL_0, "External Name:\t%s\n", service.Spec.ExternalName)
@@ -3035,11 +3140,14 @@ func describeService(service *corev1.Service, endpoints *corev1.Endpoints, event
 			if sp.NodePort != 0 {
 				w.Write(LEVEL_0, "NodePort:\t%s\t%d/%s\n", name, sp.NodePort, sp.Protocol)
 			}
-			w.Write(LEVEL_0, "Endpoints:\t%s\n", formatEndpoints(endpoints, sets.NewString(sp.Name)))
+			w.Write(LEVEL_0, "Endpoints:\t%s\n", formatEndpointSlices(endpointSlices, sets.New(sp.Name)))
 		}
 		w.Write(LEVEL_0, "Session Affinity:\t%s\n", service.Spec.SessionAffinity)
 		if service.Spec.ExternalTrafficPolicy != "" {
 			w.Write(LEVEL_0, "External Traffic Policy:\t%s\n", service.Spec.ExternalTrafficPolicy)
+		}
+		if service.Spec.InternalTrafficPolicy != nil {
+			w.Write(LEVEL_0, "Internal Traffic Policy:\t%s\n", *service.Spec.InternalTrafficPolicy)
 		}
 		if service.Spec.HealthCheckNodePort != 0 {
 			w.Write(LEVEL_0, "HealthCheck NodePort:\t%d\n", service.Spec.HealthCheckNodePort)
@@ -3301,7 +3409,7 @@ func describeEndpointSliceV1beta1(eps *discoveryv1beta1.EndpointSlice, events *c
 					w.Write(LEVEL_2, "TargetRef:\t%s/%s\n", endpoint.TargetRef.Kind, endpoint.TargetRef.Name)
 				}
 
-				printLabelsMultilineWithIndent(w, "    ", "Topology", "\t", endpoint.Topology, sets.NewString())
+				printLabelsMultilineWithIndent(w, "    ", "Topology", "\t", endpoint.Topology, sets.New[string]())
 			}
 		}
 
@@ -3329,7 +3437,7 @@ func (d *ServiceAccountDescriber) Describe(namespace, name string, describerSett
 
 	// missingSecrets is the set of all secrets present in the
 	// serviceAccount but not present in the set of existing secrets.
-	missingSecrets := sets.NewString()
+	missingSecrets := sets.New[string]()
 	secrets := corev1.SecretList{}
 	err = runtimeresource.FollowContinue(&metav1.ListOptions{Limit: describerSettings.ChunkSize},
 		func(options metav1.ListOptions) (runtime.Object, error) {
@@ -3346,7 +3454,7 @@ func (d *ServiceAccountDescriber) Describe(namespace, name string, describerSett
 	if err == nil {
 		// existingSecrets is the set of all secrets remaining on a
 		// service account that are not present in the "tokens" slice.
-		existingSecrets := sets.NewString()
+		existingSecrets := sets.New[string]()
 
 		for _, s := range secrets.Items {
 			if s.Type == corev1.SecretTypeServiceAccountToken {
@@ -3379,7 +3487,7 @@ func (d *ServiceAccountDescriber) Describe(namespace, name string, describerSett
 	return describeServiceAccount(serviceAccount, tokens, missingSecrets, events)
 }
 
-func describeServiceAccount(serviceAccount *corev1.ServiceAccount, tokens []corev1.Secret, missingSecrets sets.String, events *corev1.EventList) (string, error) {
+func describeServiceAccount(serviceAccount *corev1.ServiceAccount, tokens []corev1.Secret, missingSecrets sets.Set[string], events *corev1.EventList) (string, error) {
 	return tabbedString(func(out io.Writer) error {
 		w := NewPrefixWriter(out)
 		w.Write(LEVEL_0, "Name:\t%s\n", serviceAccount.Name)
@@ -3413,7 +3521,7 @@ func describeServiceAccount(serviceAccount *corev1.ServiceAccount, tokens []core
 			mountHeader: mountSecretNames,
 			tokenHeader: tokenSecretNames,
 		}
-		for _, header := range sets.StringKeySet(types).List() {
+		for _, header := range sets.List(sets.KeySet(types)) {
 			names := types[header]
 			if len(names) == 0 {
 				w.Write(LEVEL_0, "%s\t<none>\n", header)
@@ -3609,10 +3717,11 @@ func (d *NodeDescriber) Describe(namespace, name string, describerSettings Descr
 		return "", err
 	}
 
-	fieldSelector, err := fields.ParseSelector("spec.nodeName=" + name + ",status.phase!=" + string(corev1.PodSucceeded) + ",status.phase!=" + string(corev1.PodFailed))
-	if err != nil {
-		return "", err
-	}
+	fieldSelector := fields.AndSelectors(
+		fields.OneTermEqualSelector("spec.nodeName", name),
+		fields.OneTermNotEqualSelector("status.phase", string(corev1.PodSucceeded)),
+		fields.OneTermNotEqualSelector("status.phase", string(corev1.PodFailed)),
+	)
 	// in a policy aware setting, users may have access to a node, but not all pods
 	// in that case, we note that the user does not have access to the pods
 	canViewPods := true
@@ -3731,7 +3840,7 @@ func describeNode(node *corev1.Node, nodeNonTerminatedPodsList *corev1.PodList, 
 		w.Write(LEVEL_0, "  Kubelet Version:\t%s\n", node.Status.NodeInfo.KubeletVersion)
 		w.Write(LEVEL_0, "  Kube-Proxy Version:\t%s\n", node.Status.NodeInfo.KubeProxyVersion)
 
-		// remove when .PodCIDR is depreciated
+		// remove when .PodCIDR is deprecated
 		if len(node.Spec.PodCIDR) > 0 {
 			w.Write(LEVEL_0, "PodCIDR:\t%s\n", node.Spec.PodCIDR)
 		}
@@ -4457,6 +4566,7 @@ func (d *ConfigMapDescriber) Describe(namespace, name string, describerSettings 
 		for k, v := range configMap.Data {
 			w.Write(LEVEL_0, "%s:\n----\n", k)
 			w.Write(LEVEL_0, "%s\n", string(v))
+			w.Write(LEVEL_0, "\n")
 		}
 		w.Write(LEVEL_0, "\nBinaryData\n====\n")
 		for k, v := range configMap.BinaryData {
@@ -4562,7 +4672,11 @@ func printNetworkPolicySpecIngressFrom(npirs []networkingv1.NetworkPolicyIngress
 				} else {
 					proto = corev1.ProtocolTCP
 				}
-				w.Write(LEVEL_0, "%s%s: %s/%s\n", initialIndent, "To Port", port.Port, proto)
+				if port.EndPort == nil {
+					w.Write(LEVEL_0, "%s%s: %s/%s\n", initialIndent, "To Port", port.Port, proto)
+				} else {
+					w.Write(LEVEL_0, "%s%s: %s-%d/%s\n", initialIndent, "To Port Range", port.Port, *port.EndPort, proto)
+				}
 			}
 		}
 		if len(npir.From) == 0 {
@@ -4606,7 +4720,11 @@ func printNetworkPolicySpecEgressTo(npers []networkingv1.NetworkPolicyEgressRule
 				} else {
 					proto = corev1.ProtocolTCP
 				}
-				w.Write(LEVEL_0, "%s%s: %s/%s\n", initialIndent, "To Port", port.Port, proto)
+				if port.EndPort == nil {
+					w.Write(LEVEL_0, "%s%s: %s/%s\n", initialIndent, "To Port", port.Port, proto)
+				} else {
+					w.Write(LEVEL_0, "%s%s: %s-%d/%s\n", initialIndent, "To Port Range", port.Port, *port.EndPort, proto)
+				}
 			}
 		}
 		if len(nper.To) == 0 {
@@ -4678,6 +4796,40 @@ func describeStorageClass(sc *storagev1.StorageClass, events *corev1.EventList) 
 		if sc.AllowedTopologies != nil {
 			printAllowedTopologies(w, sc.AllowedTopologies)
 		}
+		if events != nil {
+			DescribeEvents(events, w)
+		}
+
+		return nil
+	})
+}
+
+type VolumeAttributesClassDescriber struct {
+	clientset.Interface
+}
+
+func (d *VolumeAttributesClassDescriber) Describe(namespace, name string, describerSettings DescriberSettings) (string, error) {
+	vac, err := d.StorageV1beta1().VolumeAttributesClasses().Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+
+	var events *corev1.EventList
+	if describerSettings.ShowEvents {
+		events, _ = searchEvents(d.CoreV1(), vac, describerSettings.ChunkSize)
+	}
+
+	return describeVolumeAttributesClass(vac, events)
+}
+
+func describeVolumeAttributesClass(vac *storagev1beta1.VolumeAttributesClass, events *corev1.EventList) (string, error) {
+	return tabbedString(func(out io.Writer) error {
+		w := NewPrefixWriter(out)
+		w.Write(LEVEL_0, "Name:\t%s\n", vac.Name)
+		w.Write(LEVEL_0, "Annotations:\t%s\n", labels.FormatLabels(vac.Annotations))
+		w.Write(LEVEL_0, "DriverName:\t%s\n", vac.DriverName)
+		w.Write(LEVEL_0, "Parameters:\t%s\n", labels.FormatLabels(vac.Parameters))
+
 		if events != nil {
 			DescribeEvents(events, w)
 		}
@@ -5067,11 +5219,11 @@ func (fn typeFunc) Describe(exact interface{}, extra ...interface{}) (string, er
 
 // printLabelsMultiline prints multiple labels with a proper alignment.
 func printLabelsMultiline(w PrefixWriter, title string, labels map[string]string) {
-	printLabelsMultilineWithIndent(w, "", title, "\t", labels, sets.NewString())
+	printLabelsMultilineWithIndent(w, "", title, "\t", labels, sets.New[string]())
 }
 
 // printLabelsMultiline prints multiple labels with a user-defined alignment.
-func printLabelsMultilineWithIndent(w PrefixWriter, initialIndent, title, innerIndent string, labels map[string]string, skip sets.String) {
+func printLabelsMultilineWithIndent(w PrefixWriter, initialIndent, title, innerIndent string, labels map[string]string, skip sets.Set[string]) {
 	w.Write(LEVEL_0, "%s%s:%s", initialIndent, title, innerIndent)
 
 	if len(labels) == 0 {
@@ -5362,39 +5514,56 @@ func translateTimestampSince(timestamp metav1.Time) string {
 }
 
 // Pass ports=nil for all ports.
-func formatEndpoints(endpoints *corev1.Endpoints, ports sets.String) string {
-	if len(endpoints.Subsets) == 0 {
+func formatEndpointSlices(endpointSlices []discoveryv1.EndpointSlice, ports sets.Set[string]) string {
+	if len(endpointSlices) == 0 {
 		return "<none>"
 	}
-	list := []string{}
+	var list []string
 	max := 3
 	more := false
 	count := 0
-	for i := range endpoints.Subsets {
-		ss := &endpoints.Subsets[i]
-		if len(ss.Ports) == 0 {
+	for i := range endpointSlices {
+		if len(endpointSlices[i].Ports) == 0 {
 			// It's possible to have headless services with no ports.
-			for i := range ss.Addresses {
+			for j := range endpointSlices[i].Endpoints {
 				if len(list) == max {
 					more = true
 				}
+				isReady := endpointSlices[i].Endpoints[j].Conditions.Ready == nil || *endpointSlices[i].Endpoints[j].Conditions.Ready
+				if !isReady {
+					// ready indicates that this endpoint is prepared to receive traffic,
+					// according to whatever system is managing the endpoint. A nil value
+					// indicates an unknown state. In most cases consumers should interpret this
+					// unknown state as ready.
+					// More info: vendor/k8s.io/api/discovery/v1/types.go
+					continue
+				}
 				if !more {
-					list = append(list, ss.Addresses[i].IP)
+					list = append(list, endpointSlices[i].Endpoints[j].Addresses[0])
 				}
 				count++
 			}
 		} else {
 			// "Normal" services with ports defined.
-			for i := range ss.Ports {
-				port := &ss.Ports[i]
-				if ports == nil || ports.Has(port.Name) {
-					for i := range ss.Addresses {
+			for j := range endpointSlices[i].Ports {
+				port := endpointSlices[i].Ports[j]
+				if ports == nil || ports.Has(*port.Name) {
+					for k := range endpointSlices[i].Endpoints {
 						if len(list) == max {
 							more = true
 						}
-						addr := &ss.Addresses[i]
+						addr := endpointSlices[i].Endpoints[k].Addresses[0]
+						isReady := endpointSlices[i].Endpoints[k].Conditions.Ready == nil || *endpointSlices[i].Endpoints[k].Conditions.Ready
+						if !isReady {
+							// ready indicates that this endpoint is prepared to receive traffic,
+							// according to whatever system is managing the endpoint. A nil value
+							// indicates an unknown state. In most cases consumers should interpret this
+							// unknown state as ready.
+							// More info: vendor/k8s.io/api/discovery/v1/types.go
+							continue
+						}
 						if !more {
-							hostPort := net.JoinHostPort(addr.IP, strconv.Itoa(int(port.Port)))
+							hostPort := net.JoinHostPort(addr, strconv.Itoa(int(*port.Port)))
 							list = append(list, hostPort)
 						}
 						count++
@@ -5468,7 +5637,7 @@ func backendStringer(backend *networkingv1beta1.IngressBackend) string {
 // * a node-role.kubernetes.io/<role>="" label
 // * a kubernetes.io/role="<role>" label
 func findNodeRoles(node *corev1.Node) []string {
-	roles := sets.NewString()
+	roles := sets.New[string]()
 	for k, v := range node.Labels {
 		switch {
 		case strings.HasPrefix(k, LabelNodeRolePrefix):
@@ -5480,14 +5649,14 @@ func findNodeRoles(node *corev1.Node) []string {
 			roles.Insert(v)
 		}
 	}
-	return roles.List()
+	return sets.List(roles)
 }
 
 // ingressLoadBalancerStatusStringerV1 behaves mostly like a string interface and converts the given status to a string.
 // `wide` indicates whether the returned value is meant for --o=wide output. If not, it's clipped to 16 bytes.
 func ingressLoadBalancerStatusStringerV1(s networkingv1.IngressLoadBalancerStatus, wide bool) string {
 	ingress := s.Ingress
-	result := sets.NewString()
+	result := sets.New[string]()
 	for i := range ingress {
 		if ingress[i].IP != "" {
 			result.Insert(ingress[i].IP)
@@ -5496,7 +5665,7 @@ func ingressLoadBalancerStatusStringerV1(s networkingv1.IngressLoadBalancerStatu
 		}
 	}
 
-	r := strings.Join(result.List(), ",")
+	r := strings.Join(sets.List(result), ",")
 	if !wide && len(r) > LoadBalancerWidth {
 		r = r[0:(LoadBalancerWidth-3)] + "..."
 	}
@@ -5507,7 +5676,7 @@ func ingressLoadBalancerStatusStringerV1(s networkingv1.IngressLoadBalancerStatu
 // `wide` indicates whether the returned value is meant for --o=wide output. If not, it's clipped to 16 bytes.
 func ingressLoadBalancerStatusStringerV1beta1(s networkingv1beta1.IngressLoadBalancerStatus, wide bool) string {
 	ingress := s.Ingress
-	result := sets.NewString()
+	result := sets.New[string]()
 	for i := range ingress {
 		if ingress[i].IP != "" {
 			result.Insert(ingress[i].IP)
@@ -5516,7 +5685,7 @@ func ingressLoadBalancerStatusStringerV1beta1(s networkingv1beta1.IngressLoadBal
 		}
 	}
 
-	r := strings.Join(result.List(), ",")
+	r := strings.Join(sets.List(result), ",")
 	if !wide && len(r) > LoadBalancerWidth {
 		r = r[0:(LoadBalancerWidth-3)] + "..."
 	}

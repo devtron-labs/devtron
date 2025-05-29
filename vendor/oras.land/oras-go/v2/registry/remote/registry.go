@@ -94,7 +94,7 @@ func (r *Registry) do(req *http.Request) (*http.Response, error) {
 //
 // References:
 //   - https://docs.docker.com/registry/spec/api/#base
-//   - https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc3/spec.md#api
+//   - https://github.com/opencontainers/distribution-spec/blob/v1.1.0/spec.md#api
 func (r *Registry) Ping(ctx context.Context) error {
 	url := buildRegistryBaseURL(r.PlainHTTP, r.Reference)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -127,7 +127,7 @@ func (r *Registry) Ping(ctx context.Context) error {
 //
 // Reference: https://docs.docker.com/registry/spec/api/#catalog
 func (r *Registry) Repositories(ctx context.Context, last string, fn func(repos []string) error) error {
-	ctx = auth.AppendScopes(ctx, auth.ScopeRegistryCatalog)
+	ctx = auth.AppendScopesForHost(ctx, r.Reference.Host(), auth.ScopeRegistryCatalog)
 	url := buildRegistryCatalogURL(r.PlainHTTP, r.Reference)
 	var err error
 	for err == nil {
