@@ -1,5 +1,16 @@
 // Copyright The OpenTelemetry Authors
-// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package otelgrpc // import "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 
@@ -9,33 +20,30 @@ import (
 	"time"
 
 	grpc_codes "google.golang.org/grpc/codes"
-	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/stats"
 	"google.golang.org/grpc/status"
 
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc/internal"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.opentelemetry.io/otel/trace"
-
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc/internal"
 )
 
 type gRPCContextKey struct{}
 
 type gRPCContext struct {
-	inMessages  int64
-	outMessages int64
-	metricAttrs []attribute.KeyValue
-	record      bool
+	messagesReceived int64
+	messagesSent     int64
+	metricAttrs      []attribute.KeyValue
 }
 
 type serverHandler struct {
 	*config
 }
 
-// NewServerHandler creates a stats.Handler for a gRPC server.
+// NewServerHandler creates a stats.Handler for gRPC server.
 func NewServerHandler(opts ...Option) stats.Handler {
 	h := &serverHandler{
 		config: newConfig(opts, "server"),
@@ -46,6 +54,9 @@ func NewServerHandler(opts ...Option) stats.Handler {
 
 // TagConn can attach some information to the given context.
 func (h *serverHandler) TagConn(ctx context.Context, info *stats.ConnTagInfo) context.Context {
+	span := trace.SpanFromContext(ctx)
+	attrs := peerAttr(peerFromCtx(ctx))
+	span.SetAttributes(attrs...)
 	return ctx
 }
 
@@ -63,30 +74,25 @@ func (h *serverHandler) TagRPC(ctx context.Context, info *stats.RPCTagInfo) cont
 		trace.ContextWithRemoteSpanContext(ctx, trace.SpanContextFromContext(ctx)),
 		name,
 		trace.WithSpanKind(trace.SpanKindServer),
-		trace.WithAttributes(append(attrs, h.config.SpanAttributes...)...),
+		trace.WithAttributes(attrs...),
 	)
 
 	gctx := gRPCContext{
-		metricAttrs: append(attrs, h.config.MetricAttributes...),
-		record:      true,
-	}
-	if h.config.Filter != nil {
-		gctx.record = h.config.Filter(info)
+		metricAttrs: attrs,
 	}
 	return context.WithValue(ctx, gRPCContextKey{}, &gctx)
 }
 
 // HandleRPC processes the RPC stats.
 func (h *serverHandler) HandleRPC(ctx context.Context, rs stats.RPCStats) {
-	isServer := true
-	h.handleRPC(ctx, rs, isServer)
+	h.handleRPC(ctx, rs)
 }
 
 type clientHandler struct {
 	*config
 }
 
-// NewClientHandler creates a stats.Handler for a gRPC client.
+// NewClientHandler creates a stats.Handler for gRPC client.
 func NewClientHandler(opts ...Option) stats.Handler {
 	h := &clientHandler{
 		config: newConfig(opts, "client"),
@@ -103,15 +109,11 @@ func (h *clientHandler) TagRPC(ctx context.Context, info *stats.RPCTagInfo) cont
 		ctx,
 		name,
 		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(append(attrs, h.config.SpanAttributes...)...),
+		trace.WithAttributes(attrs...),
 	)
 
 	gctx := gRPCContext{
-		metricAttrs: append(attrs, h.config.MetricAttributes...),
-		record:      true,
-	}
-	if h.config.Filter != nil {
-		gctx.record = h.config.Filter(info)
+		metricAttrs: attrs,
 	}
 
 	return inject(context.WithValue(ctx, gRPCContextKey{}, &gctx), h.config.Propagators)
@@ -119,12 +121,14 @@ func (h *clientHandler) TagRPC(ctx context.Context, info *stats.RPCTagInfo) cont
 
 // HandleRPC processes the RPC stats.
 func (h *clientHandler) HandleRPC(ctx context.Context, rs stats.RPCStats) {
-	isServer := false
-	h.handleRPC(ctx, rs, isServer)
+	h.handleRPC(ctx, rs)
 }
 
 // TagConn can attach some information to the given context.
-func (h *clientHandler) TagConn(ctx context.Context, info *stats.ConnTagInfo) context.Context {
+func (h *clientHandler) TagConn(ctx context.Context, cti *stats.ConnTagInfo) context.Context {
+	span := trace.SpanFromContext(ctx)
+	attrs := peerAttr(cti.RemoteAddr.String())
+	span.SetAttributes(attrs...)
 	return ctx
 }
 
@@ -133,26 +137,20 @@ func (h *clientHandler) HandleConn(context.Context, stats.ConnStats) {
 	// no-op
 }
 
-func (c *config) handleRPC(ctx context.Context, rs stats.RPCStats, isServer bool) { // nolint: revive  // isServer is not a control flag.
+func (c *config) handleRPC(ctx context.Context, rs stats.RPCStats) {
 	span := trace.SpanFromContext(ctx)
-	var metricAttrs []attribute.KeyValue
-	var messageId int64
-
 	gctx, _ := ctx.Value(gRPCContextKey{}).(*gRPCContext)
-	if gctx != nil {
-		if !gctx.record {
-			return
-		}
-		metricAttrs = make([]attribute.KeyValue, 0, len(gctx.metricAttrs)+1)
-		metricAttrs = append(metricAttrs, gctx.metricAttrs...)
-	}
+	var messageId int64
+	metricAttrs := make([]attribute.KeyValue, 0, len(gctx.metricAttrs)+1)
+	metricAttrs = append(metricAttrs, gctx.metricAttrs...)
+	wctx := withoutCancel(ctx)
 
 	switch rs := rs.(type) {
 	case *stats.Begin:
 	case *stats.InPayload:
 		if gctx != nil {
-			messageId = atomic.AddInt64(&gctx.inMessages, 1)
-			c.rpcInBytes.Record(ctx, int64(rs.Length), metric.WithAttributeSet(attribute.NewSet(metricAttrs...)))
+			messageId = atomic.AddInt64(&gctx.messagesReceived, 1)
+			c.rpcRequestSize.Record(wctx, int64(rs.Length), metric.WithAttributes(metricAttrs...))
 		}
 
 		if c.ReceivedEvent {
@@ -167,8 +165,8 @@ func (c *config) handleRPC(ctx context.Context, rs stats.RPCStats, isServer bool
 		}
 	case *stats.OutPayload:
 		if gctx != nil {
-			messageId = atomic.AddInt64(&gctx.outMessages, 1)
-			c.rpcOutBytes.Record(ctx, int64(rs.Length), metric.WithAttributeSet(attribute.NewSet(metricAttrs...)))
+			messageId = atomic.AddInt64(&gctx.messagesSent, 1)
+			c.rpcResponseSize.Record(wctx, int64(rs.Length), metric.WithAttributes(metricAttrs...))
 		}
 
 		if c.SentEvent {
@@ -182,21 +180,12 @@ func (c *config) handleRPC(ctx context.Context, rs stats.RPCStats, isServer bool
 			)
 		}
 	case *stats.OutTrailer:
-	case *stats.OutHeader:
-		if p, ok := peer.FromContext(ctx); ok {
-			span.SetAttributes(peerAttr(p.Addr.String())...)
-		}
 	case *stats.End:
 		var rpcStatusAttr attribute.KeyValue
 
 		if rs.Error != nil {
 			s, _ := status.FromError(rs.Error)
-			if isServer {
-				statusCode, msg := serverStatus(s)
-				span.SetStatus(statusCode, msg)
-			} else {
-				span.SetStatus(codes.Error, s.Message())
-			}
+			span.SetStatus(codes.Error, s.Message())
 			rpcStatusAttr = semconv.RPCGRPCStatusCodeKey.Int(int(s.Code()))
 		} else {
 			rpcStatusAttr = semconv.RPCGRPCStatusCodeKey.Int(int(grpc_codes.OK))
@@ -205,19 +194,45 @@ func (c *config) handleRPC(ctx context.Context, rs stats.RPCStats, isServer bool
 		span.End()
 
 		metricAttrs = append(metricAttrs, rpcStatusAttr)
-		// Allocate vararg slice once.
-		recordOpts := []metric.RecordOption{metric.WithAttributeSet(attribute.NewSet(metricAttrs...))}
 
 		// Use floating point division here for higher precision (instead of Millisecond method).
-		// Measure right before calling Record() to capture as much elapsed time as possible.
 		elapsedTime := float64(rs.EndTime.Sub(rs.BeginTime)) / float64(time.Millisecond)
 
-		c.rpcDuration.Record(ctx, elapsedTime, recordOpts...)
-		if gctx != nil {
-			c.rpcInMessages.Record(ctx, atomic.LoadInt64(&gctx.inMessages), recordOpts...)
-			c.rpcOutMessages.Record(ctx, atomic.LoadInt64(&gctx.outMessages), recordOpts...)
-		}
+		c.rpcDuration.Record(wctx, elapsedTime, metric.WithAttributes(metricAttrs...))
+		c.rpcRequestsPerRPC.Record(wctx, atomic.LoadInt64(&gctx.messagesReceived), metric.WithAttributes(metricAttrs...))
+		c.rpcResponsesPerRPC.Record(wctx, atomic.LoadInt64(&gctx.messagesSent), metric.WithAttributes(metricAttrs...))
 	default:
 		return
 	}
+}
+
+func withoutCancel(parent context.Context) context.Context {
+	if parent == nil {
+		panic("cannot create context from nil parent")
+	}
+	return withoutCancelCtx{parent}
+}
+
+type withoutCancelCtx struct {
+	c context.Context
+}
+
+func (withoutCancelCtx) Deadline() (deadline time.Time, ok bool) {
+	return
+}
+
+func (withoutCancelCtx) Done() <-chan struct{} {
+	return nil
+}
+
+func (withoutCancelCtx) Err() error {
+	return nil
+}
+
+func (w withoutCancelCtx) Value(key any) any {
+	return w.c.Value(key)
+}
+
+func (w withoutCancelCtx) String() string {
+	return "withoutCancel"
 }
