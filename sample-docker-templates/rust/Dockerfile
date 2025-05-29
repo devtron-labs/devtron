@@ -1,34 +1,30 @@
-# Use a specific Alpine version for stability instead of 'latest'
-FROM alpine:3.21
+# --- Build Stage ---
+FROM rust:1.77-alpine AS builder
 
-# Build args for metadata (optional, can be used for labels)
-ARG VCS_REF
-ARG BUILD_DATE
-
-# Set resource quota as environment variables (optional usage)
-ARG MIN_MEM=2G
-ARG MAX_MEM=2G
-
-# Install rust compiler and related tools, and create working dir
-RUN apk add --no-cache rust && mkdir /src
-
-# Copy source code into container
-COPY src/main.rs /src
-
-# Set working directory
 WORKDIR /src
 
-# Compile Rust source to binary 'main'
-RUN rustc main.rs
+# Copy your Rust source code
+COPY src/main.rs .
 
-# Create non-root user for security
-RUN addgroup -S nonroot && adduser -S nonroot -G nonroot
+# Build the Rust binary
+RUN rustc main.rs -o app
 
-# Change ownership of the compiled binary
-RUN chown nonroot:nonroot /src/main
+# --- Final Stage ---
+FROM alpine:3.21
+
+# Create a non-root user for security
+RUN addgroup -g 2002 nonroot && adduser -u 2002 -G nonroot -S nonroot
+
+WORKDIR /app
+
+# Copy the compiled Rust binary from the builder stage
+COPY --from=builder /src/app .
+
+# Expose the port your Rust app uses (adjust as needed)
+EXPOSE 8080
 
 # Switch to non-root user
 USER nonroot
 
-# Run the compiled binary
-CMD ["./main"]
+# Command to run the app
+CMD ["./app"]
