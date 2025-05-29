@@ -1,41 +1,32 @@
-# Using Base image
-FROM alpine:latest
+# --- Build stage ---
+FROM gradle:8.13.0-jdk21-alpine AS builder
 
-# Build args
-ARG VCS_REF
-ARG BUILD_DATE
+WORKDIR /src
 
-# Setting resource quota
-ARG MIN_MEM=2G
-ARG MAX_MEM=2G
+# Copy Gradle build files
+COPY build.gradle.kts .
+COPY settings.gradle.kts .
 
-RUN apk add --update bash && \
-  apk fetch openjdk8 && \
-  apk add --no-cache openjdk8;
+# Create directory structure and copy source code
+RUN mkdir -p src/main/kotlin
+COPY app.kt src/main/kotlin/App.kt
 
-RUN apk add --no-cache build-base wget && \
-  cd /usr/lib && \
-  # Installing Kotlin compiler in zip file
-  wget 'https://github.com/JetBrains/kotlin/releases/download/v1.3.72/kotlin-compiler-1.3.72.zip' && \
-  # Unzipping the downloaded zip file
-  unzip kotlin-compiler-*.zip && \
-  rm kotlin-compiler-*.zip && \
-  rm -f kotlinc/bin/*.bat;
+# Build the Kotlin JAR
+RUN gradle installDist --no-daemon --parallel
 
-# Setting up environmental variable path
-ENV PATH $PATH:/usr/lib/kotlinc/bin
+# --- Final stage ---
+FROM eclipse-temurin:21-jre-jammy
 
-# Making a directory named 'app' in the container
-RUN mkdir app
+# Add a non-root user for security
+RUN addgroup --gid 2002 nonroot && adduser --gid 2002 --uid 2002 nonroot --disabled-password --gecos ""
 
-# Copying 'app.kt' from 'app' folder on host to recently created 'app' folder in container
-COPY app/app.kt /app
+WORKDIR /home/nonroot
 
-# Set working directory
-WORKDIR /app
+# Copy the built distribution from the builder stage
+COPY --from=builder /src/build/install/app ./
 
-# Compiling source
-RUN kotlinc app.kt -include-runtime -d app.jar
+USER nonroot
+EXPOSE 8080
 
-# Execution
-CMD ["java","-jar","./app.jar"]
+# Run the application
+CMD ["bin/app"]
