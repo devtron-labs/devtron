@@ -514,7 +514,7 @@ github.com/cncf/xds/go/xds/type/v3
 # github.com/coreos/go-oidc/v3 v3.11.0
 ## explicit; go 1.21
 github.com/coreos/go-oidc/v3/oidc
-# github.com/cyphar/filepath-securejoin v0.4.1
+# github.com/cyphar/filepath-securejoin v0.4.1 => github.com/cyphar/filepath-securejoin v0.3.6
 ## explicit; go 1.18
 github.com/cyphar/filepath-securejoin
 # github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
