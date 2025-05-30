@@ -25,13 +25,22 @@ spec:
           - name: DB_TYPE
             value: postgres
           - name: PG_USER
-            value: postgres
+            valueFrom:
+              configMapKeyRef:
+                name: devtron-cm
+                key: PG_USER
           - name: PG_ADDR
-            value: {{ .configs.PG_ADDR | default "postgresql-postgresql.devtroncd" }}
+            valueFrom:
+              configMapKeyRef:
+                name: devtron-cm
+                key: PG_ADDR
           - name: DB_PORT
-            value: "5432"
+            valueFrom:
+              configMapKeyRef:
+                name: devtron-cm
+                key: PG_PORT
           - name: PG_DATABASE
-            value: orchestrator
+            value: {{ .envVars.devtron.DB_NAME }}
           envFrom:
             - secretRef:
                 name: devtron-secret
@@ -78,11 +87,20 @@ spec:
             - name: DB_TYPE
               value: postgres
             - name: DB_USER_NAME
-              value: postgres
+              valueFrom:
+                configMapKeyRef:
+                  name: devtron-cm
+                  key: PG_USER
             - name: DB_HOST
-              value: {{ .configs.PG_ADDR | default "postgresql-postgresql.devtroncd" }}
+              valueFrom:
+                configMapKeyRef:
+                  name: devtron-cm
+                  key: PG_ADDR
             - name: DB_PORT
-              value: "5432"
+              valueFrom:
+                configMapKeyRef:
+                  name: devtron-cm
+                  key: PG_PORT
             - name: DB_NAME
               value: {{ .envVars.devtron.DB_NAME }}
             - name: MIGRATE_TO_VERSION
@@ -184,11 +202,20 @@ spec:
             - name: DB_TYPE
               value: postgres
             - name: DB_USER_NAME
-              value: postgres
+              valueFrom:
+                configMapKeyRef:
+                  name: devtron-cm
+                  key: PG_USER
             - name: DB_HOST
-              value: {{ .configs.PG_ADDR | default "postgresql-postgresql.devtroncd" }}
+              valueFrom:
+                configMapKeyRef:
+                  name: devtron-cm
+                  key: PG_ADDR
             - name: DB_PORT
-              value: "5432"
+              valueFrom:
+                configMapKeyRef:
+                  name: devtron-cm
+                  key: PG_PORT
             - name: DB_NAME
               value: {{ .envVars.casbin.DB_NAME }}
             - name: MIGRATE_TO_VERSION
@@ -271,11 +298,20 @@ spec:
             - name: DB_TYPE
               value: postgres
             - name: DB_USER_NAME
-              value: postgres
+              valueFrom:
+                configMapKeyRef:
+                  name: git-sensor-cm
+                  key: PG_USER
             - name: DB_HOST
-              value: {{ .configs.PG_ADDR | default "postgresql-postgresql.devtroncd" }}
+              valueFrom:
+                configMapKeyRef:
+                  name: git-sensor-cm
+                  key: PG_ADDR
             - name: DB_PORT
-              value: "5432"
+              valueFrom:
+                configMapKeyRef:
+                  name: git-sensor-cm
+                  key: PG_PORT
             - name: DB_NAME
               value: {{ .envVars.gitsensor.DB_NAME }}
             - name: MIGRATE_TO_VERSION
@@ -353,13 +389,22 @@ spec:
             - name: DATABASE_MIGRATIONS_FOLDER
               value: /shared/sql-ent/
             - name: DB_USER_NAME
-              value: postgres
+              valueFrom:
+                configMapKeyRef:
+                  name: devtron-cm
+                  key: PG_USER
             - name: DB_HOST
-              value: {{ .configs.PG_ADDR | default "postgresql-postgresql.devtroncd" }}
+              valueFrom:
+                configMapKeyRef:
+                  name: devtron-cm
+                  key: PG_ADDR
             - name: DB_PORT
-              value: "5432"
+              valueFrom:
+                configMapKeyRef:
+                  name: devtron-cm
+                  key: PG_PORT
             - name: DB_NAME
-              value: orchestrator
+              value: {{ .envVars.devtron.DB_NAME }}
             - name: MIGRATE_TO_VERSION
               value: "0"
             - name: DATABASE_MIGRATIONS_TABLE
@@ -428,11 +473,20 @@ spec:
             - name: DB_TYPE
               value: postgres
             - name: DB_USER_NAME
-              value: postgres
+              valueFrom:
+                configMapKeyRef:
+                  name: lens-cm
+                  key: PG_USER
             - name: DB_HOST
-              value: {{ .configs.PG_ADDR | default "postgresql-postgresql.devtroncd" }}
+              valueFrom:
+                configMapKeyRef:
+                  name: lens-cm
+                  key: PG_ADDR
             - name: DB_PORT
-              value: "5432"
+              valueFrom:
+                configMapKeyRef:
+                  name: lens-cm
+                  key: PG_PORT
             - name: DB_NAME
               value: {{ .envVars.lens.DB_NAME }}
             - name: MIGRATE_TO_VERSION

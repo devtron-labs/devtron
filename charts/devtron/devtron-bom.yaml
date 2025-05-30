@@ -8,6 +8,11 @@ global:
     runAsUser: 1000
     runAsNonRoot: true
   containerRegistry: "quay.io/devtron"
+  dbConfig:
+    PG_ADDR: postgresql-postgresql.devtroncd
+    PG_PORT: "5432"
+    PG_USER: postgres
+    PG_DATABASE: orchestrator
 extraManifests: []
 installer:
   release: "v1.6.0"
@@ -72,11 +77,7 @@ components:
       MANIFEST_FETCH_BATCH_SIZE: "2"
       NATS_MSG_PROCESSING_BATCH_SIZE: "1"
       NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
-      PG_ADDR: postgresql-postgresql.devtroncd
-      PG_DATABASE: orchestrator
       PG_LOG_QUERY: "true"
-      PG_PORT: "5432"
-      PG_USER: postgres
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
@@ -101,11 +102,7 @@ components:
       ACD_NAMESPACE: "devtroncd"
       ACD_INFORMER: "true"
       NATS_STREAM_MAX_AGE: "10800"
-      PG_ADDR: postgresql-postgresql.devtroncd
-      PG_DATABASE: orchestrator
       PG_LOG_QUERY: "true"
-      PG_PORT: "5432"
-      PG_USER: postgres
       CLUSTER_ARGO_CD_TYPE: "ALL_CLUSTER"
     dbconfig:
       secretName: postgresql-postgresql
@@ -126,8 +123,7 @@ components:
     persistence:
       volumeSize: 2Gi
     configs:
-      PG_ADDR: postgresql-postgresql.devtroncd
-      PG_USER: postgres
+      PG_DATABASE: git_sensor
       COMMIT_STATS_TIMEOUT_IN_SEC: "2"
       ENABLE_FILE_STATS: "true"
       USE_GIT_CLI: "true"
@@ -144,9 +140,6 @@ components:
       GIT_SENSOR_PROTOCOL: GRPC
       GIT_SENSOR_URL: git-sensor-service.devtroncd:90
       NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
-      PG_ADDR: postgresql-postgresql.devtroncd
-      PG_PORT: "5432"
-      PG_USER: postgres
       PG_DATABASE: lens
     dbconfig:
       secretName: postgresql-postgresql
@@ -189,8 +182,6 @@ components:
     registry: ""
     image: chart-sync:da156379-836-32914
     schedule: "0 19 * * *"
-    extraConfigs:
-      PG_ADDR: postgresql-postgresql.devtroncd
     podSecurityContext:
       fsGroup: 1001
       runAsGroup: 1001
@@ -256,10 +247,7 @@ devtronEnterprise:
     image: "casbin:f6ff5f74-064b67e5-462-30822"
     imagePullPolicy: IfNotPresent
     configs:
-      PG_ADDR: postgresql-postgresql.devtroncd
       PG_DATABASE: casbin
-      PG_PORT: "5432"
-      PG_USER: postgres
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
