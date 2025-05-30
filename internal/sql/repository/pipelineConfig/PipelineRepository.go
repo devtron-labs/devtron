@@ -145,6 +145,8 @@ type PipelineRepository interface {
 	FindDeploymentAppTypeByIds(ids []int) (pipelines []*Pipeline, err error)
 	GetAllAppsByClusterAndDeploymentAppType(clusterIds []int, deploymentAppName string) ([]*PipelineDeploymentConfigObj, error)
 	GetAllArgoAppInfoByDeploymentAppNames(deploymentAppNames []string) ([]*PipelineDeploymentConfigObj, error)
+	FindEnvIdsByIdsInIncludingDeleted(ids []int) ([]int, error)
+	GetPipelineCountByDeploymentType(deploymentType string) (int, error)
 }
 
 type CiArtifactDTO struct {
@@ -671,14 +673,14 @@ func (impl *PipelineRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypePipel
 
 func (impl *PipelineRepositoryImpl) GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelines(pendingSinceSeconds int, timeForDegradation int) ([]*Pipeline, error) {
 	var pipelines []*Pipeline
-	queryString := `select p.* from pipeline p inner join cd_workflow cw on cw.pipeline_id = p.id  
-    inner join cd_workflow_runner cwr on cwr.cd_workflow_id=cw.id  
+	queryString := `select p.* from pipeline p inner join cd_workflow cw on cw.pipeline_id = p.id
+    inner join cd_workflow_runner cwr on cwr.cd_workflow_id=cw.id
     left join deployment_config dc on dc.active=true and dc.app_id = p.app_id and dc.environment_id=p.environment_id
-    where cwr.id in (select cd_workflow_runner_id from pipeline_status_timeline  
-					where id in  
-						(select DISTINCT ON (cd_workflow_runner_id) max(id) as id from pipeline_status_timeline 
-							group by cd_workflow_runner_id, id order by cd_workflow_runner_id,id desc)  
-					and status in (?) and status_time < NOW() - INTERVAL '? seconds')  
+    where cwr.id in (select cd_workflow_runner_id from pipeline_status_timeline
+					where id in
+						(select DISTINCT ON (cd_workflow_runner_id) max(id) as id from pipeline_status_timeline
+							group by cd_workflow_runner_id, id order by cd_workflow_runner_id,id desc)
+					and status in (?) and status_time < NOW() - INTERVAL '? seconds')
     and cwr.started_on > NOW() - INTERVAL '? minutes' and (p.deployment_app_type=? or dc.deployment_app_type=?) and p.deleted=?;`
 	_, err := impl.dbConnection.Query(&pipelines, queryString,
 		pg.In([]timelineStatus.TimelineStatus{timelineStatus.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED,
@@ -693,11 +695,11 @@ func (impl *PipelineRepositoryImpl) GetArgoPipelinesHavingTriggersStuckInLastPos
 
 func (impl *PipelineRepositoryImpl) GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) ([]*Pipeline, error) {
 	var pipelines []*Pipeline
-	queryString := `select p.id from pipeline p inner join cd_workflow cw on cw.pipeline_id = p.id  
-    inner join cd_workflow_runner cwr on cwr.cd_workflow_id=cw.id  
+	queryString := `select p.id from pipeline p inner join cd_workflow cw on cw.pipeline_id = p.id
+    inner join cd_workflow_runner cwr on cwr.cd_workflow_id=cw.id
     left join deployment_config dc on dc.active=true and dc.app_id = p.app_id and dc.environment_id=p.environment_id
-    where cwr.id in (select id from cd_workflow_runner 
-                     	where started_on < NOW() - INTERVAL '? minutes' and started_on > NOW() - INTERVAL '? hours' and status not in (?) 
+    where cwr.id in (select id from cd_workflow_runner
+                     	where started_on < NOW() - INTERVAL '? minutes' and started_on > NOW() - INTERVAL '? hours' and status not in (?)
                      	and workflow_type=? and cd_workflow_id in (select DISTINCT ON (pipeline_id) max(id) as id from cd_workflow
                      	  group by pipeline_id, id order by pipeline_id, id desc))
     and (p.deployment_app_type=? or dc.deployment_app_type=?) and p.deleted=?;`
@@ -950,4 +952,40 @@ func (impl *PipelineRepositoryImpl) GetAllArgoAppInfoByDeploymentAppNames(deploy
 		}).
 		Select(&result)
 	return result, err
+}
+
+func (impl *PipelineRepositoryImpl) FindEnvIdsByIdsInIncludingDeleted(ids []int) ([]int, error) {
+	var envIds []int
+	if len(ids) == 0 {
+		return envIds, nil
+	}
+	err := impl.dbConnection.Model(&Pipeline{}).
+		Column("pipeline.environment_id").
+		Where("pipeline.id in (?)", pg.In(ids)).
+		Select(&envIds)
+	if err != nil {
+		impl.logger.Errorw("error on fetching pipelines", "ids", ids, "err", err)
+	}
+	return envIds, err
+}
+
+func (impl *PipelineRepositoryImpl) GetPipelineCountByDeploymentType(deploymentType string) (int, error) {
+	var count int
+	// Count pipelines by deployment type, considering both pipeline table and deployment_config table
+	// The deployment_config table can override the deployment type from the pipeline table
+	query := `
+		SELECT COUNT(DISTINCT p.id)
+		FROM pipeline p
+		LEFT JOIN deployment_config dc ON dc.active = true
+			AND dc.app_id = p.app_id
+			AND dc.environment_id = p.environment_id
+		WHERE p.deleted = false
+			AND (p.deployment_app_type = ? OR dc.deployment_app_type = ?)
+	`
+	_, err := impl.dbConnection.Query(&count, query, deploymentType, deploymentType)
+	if err != nil {
+		impl.logger.Errorw("error getting pipeline count by deployment type", "deploymentType", deploymentType, "err", err)
+		return 0, err
+	}
+	return count, nil
 }

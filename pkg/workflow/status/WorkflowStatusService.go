@@ -19,6 +19,9 @@ package status
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/common-lib/async"
+	"time"
+
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -46,7 +49,6 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"k8s.io/utils/strings/slices"
-	"time"
 )
 
 type WorkflowStatusService interface {
@@ -88,6 +90,7 @@ type WorkflowStatusServiceImpl struct {
 	appListingService                    app.AppListingService
 	deploymentConfigService              common2.DeploymentConfigService
 	cdWorkflowRunnerService              cd.CdWorkflowRunnerService
+	asyncRunnable                        *async.Runnable
 }
 
 func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
@@ -110,6 +113,7 @@ func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
 	appListingService app.AppListingService,
 	deploymentConfigService common2.DeploymentConfigService,
 	cdWorkflowRunnerService cd.CdWorkflowRunnerService,
+	asyncRunnable *async.Runnable,
 ) (*WorkflowStatusServiceImpl, error) {
 	impl := &WorkflowStatusServiceImpl{
 		logger:                               logger,
@@ -134,6 +138,7 @@ func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
 		appListingService:                    appListingService,
 		deploymentConfigService:              deploymentConfigService,
 		cdWorkflowRunnerService:              cdWorkflowRunnerService,
+		asyncRunnable:                        asyncRunnable,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -196,7 +201,9 @@ func (impl *WorkflowStatusServiceImpl) CheckHelmAppStatusPeriodicallyAndUpdateIn
 				impl.logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", wfr.CdWorkflowId)
 				return err
 			}
-			go impl.appService.WriteCDSuccessEvent(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride)
+			impl.asyncRunnable.Execute(func() {
+				impl.appService.WriteCDSuccessEvent(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride)
+			})
 			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(bean3.TriggerContext{}, pipelineOverride)
 			if err != nil {
 				impl.logger.Errorw("error on handling deployment success event", "wfr", wfr, "err", err)
@@ -313,7 +320,7 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 		}
 		dc, err := impl.deploymentConfigService.GetConfigForHelmApps(installedApp.AppId, installedApp.EnvironmentId)
 		if err != nil {
-			impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", pipeline.AppId, "environmentId", pipeline.EnvironmentId, "err", err)
+			impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", installedApp.AppId, "environmentId", installedApp.EnvironmentId, "err", err)
 			return nil, isTimelineUpdated
 		}
 		applicationObjectClusterId := dc.GetApplicationObjectClusterId()
@@ -455,7 +462,8 @@ func (impl *WorkflowStatusServiceImpl) CheckAndSendArgoPipelineStatusSyncEventIf
 	}
 
 	// pipelineId can be cdPipelineId or installedAppVersionId, using isAppStoreApplication flag to identify between them
-	if lastSyncTime.IsZero() || (!lastSyncTime.IsZero() && time.Since(lastSyncTime) > 5*time.Second) { // create new nats event
+	if lastSyncTime.IsZero() || (!lastSyncTime.IsZero() && time.Since(lastSyncTime) > 5*time.Second) {
+		// create new nats event
 		err = impl.cdPipelineEventPublishService.PublishArgoTypePipelineSyncEvent(pipelineId, installedAppVersionId, userId, isAppStoreApplication)
 		if err != nil {
 			impl.logger.Errorw("error, PublishArgoTypePipelineSyncEvent", "err", err)

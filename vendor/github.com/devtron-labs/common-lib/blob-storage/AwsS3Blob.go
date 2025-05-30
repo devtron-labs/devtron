@@ -19,7 +19,6 @@ package blob_storage
 import (
 	"bytes"
 	"context"
-	"fmt"
 	awsv2 "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	credentialsv2 "github.com/aws/aws-sdk-go-v2/credentials"
@@ -32,32 +31,12 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	transport "github.com/aws/smithy-go/endpoints"
-	"github.com/devtron-labs/common-lib/utils"
 	"log"
 	"net/url"
 	"os"
-	"os/exec"
 )
 
 type AwsS3Blob struct{}
-
-func (impl *AwsS3Blob) UploadBlob(request *BlobStorageRequest, err error) error {
-	s3BaseConfig := request.AwsS3BaseConfig
-	var cmdArgs []string
-	destinationFileString := fmt.Sprintf("s3://%s/%s", s3BaseConfig.BucketName, request.DestinationKey)
-	cmdArgs = append(cmdArgs, "s3", "cp", request.SourceKey, destinationFileString)
-	if s3BaseConfig.EndpointUrl != "" {
-		cmdArgs = append(cmdArgs, "--endpoint-url", s3BaseConfig.EndpointUrl)
-	}
-	if s3BaseConfig.Region != "" {
-		cmdArgs = append(cmdArgs, "--region", s3BaseConfig.Region)
-	}
-
-	command := exec.Command("aws", cmdArgs...)
-	setAWSEnvironmentVariables(s3BaseConfig, command)
-	err = utils.RunCommand(command)
-	return err
-}
 
 func (impl *AwsS3Blob) DownloadBlob(request *BlobStorageRequest, downloadSuccess bool, numBytes int64, err error, file *os.File) (bool, int64, error) {
 	s3BaseConfig := request.AwsS3BaseConfig
@@ -135,21 +114,6 @@ func downLoadFromS3(file *os.File, request *BlobStorageRequest, sess *session.Se
 	return true, numBytes, nil
 }
 
-func (impl *AwsS3Blob) DeleteObjectFromBlob(request *BlobStorageRequest) error {
-	s3BaseConfig := request.AwsS3BaseConfig
-	var cmdArgs []string
-	destinationFileString := fmt.Sprintf("s3://%s/%s", s3BaseConfig.BucketName, request.DestinationKey)
-	cmdArgs = append(cmdArgs, "s3", "rm", destinationFileString)
-	if s3BaseConfig.EndpointUrl != "" {
-		cmdArgs = append(cmdArgs, "--endpoint-url", s3BaseConfig.EndpointUrl)
-	}
-	if s3BaseConfig.Region != "" {
-		cmdArgs = append(cmdArgs, "--region", s3BaseConfig.Region)
-	}
-	command := exec.Command("aws", cmdArgs...)
-	err := utils.RunCommand(command)
-	return err
-}
 func (impl *AwsS3Blob) UploadWithSession(request *BlobStorageRequest) (*s3manager.UploadOutput, error) {
 
 	s3BaseConfig := request.AwsS3BaseConfig
@@ -265,6 +229,7 @@ func (basics BucketBasics) UploadFileV2(ctx context.Context, request *BlobStorag
 		return err
 	}
 	defer file.Close()
+	
 	uploader := manager.NewUploader(basics.S3Client, func(u *manager.Uploader) {
 		u.PartSize = request.AwsS3BaseConfig.PartSize
 		u.Concurrency = request.AwsS3BaseConfig.Concurrency

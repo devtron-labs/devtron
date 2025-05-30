@@ -20,6 +20,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"path"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
@@ -57,12 +64,6 @@ import (
 	"google.golang.org/grpc/codes"
 	status2 "google.golang.org/grpc/status"
 	"helm.sh/helm/v3/pkg/chart"
-	"net/http"
-	"path"
-	"regexp"
-	"strconv"
-	"strings"
-	"time"
 )
 
 func (impl *HandlerServiceImpl) TriggerStageForBulk(triggerRequest bean.TriggerRequest) error {
@@ -741,7 +742,9 @@ func (impl *HandlerServiceImpl) triggerPipeline(overrideRequest *bean3.ValuesOve
 		}
 	}
 
-	go impl.writeCDTriggerEvent(overrideRequest, valuesOverrideResponse.Artifact, valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, valuesOverrideResponse.PipelineOverride.Id, overrideRequest.WfrId)
+	impl.asyncRunnable.Execute(func() {
+		impl.writeCDTriggerEvent(overrideRequest, valuesOverrideResponse.Artifact, valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, valuesOverrideResponse.PipelineOverride.Id, overrideRequest.WfrId)
+	})
 
 	_ = impl.markImageScanDeployed(newCtx, overrideRequest.AppId, overrideRequest.EnvId, overrideRequest.ClusterId,
 		valuesOverrideResponse.Artifact.ImageDigest, valuesOverrideResponse.Artifact.ScanEnabled, valuesOverrideResponse.Artifact.Image)
