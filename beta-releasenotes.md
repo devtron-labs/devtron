@@ -1,4 +1,5 @@
 ## Enhancements
+- feat: manual canary (#6627)
 - feat: Posthog events (#6618)
 - feat: wf logs (#6606)
 - feat: Enable selection of all CI pipelines at once when the Environment filter is applied in Notifications (#6526)
