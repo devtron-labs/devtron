@@ -12,7 +12,7 @@ info:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
 servers:
-  - url: http://localhost:8080/orchestrator
+  - url: http://localhost:8080
 paths:
   /deployment/template/validate:
     post:
@@ -119,30 +119,57 @@ components:
       properties:
         fileId:
           type: string
+          description: ID of the uploaded file
         action:
           type: string
+          description: Action to perform (e.g. "upload", "validate")
     UploadTemplateResponse:
       type: object
       properties:
         chartName:
           type: string
+          description: Name of the chart
         description:
           type: string
+          description: Chart description
         fileId:
           type: string
+          description: ID of the uploaded file
         action:
           type: string
+          description: Action performed
         message:
           type: string
+          description: Response message
     Chart:
       type: object
       properties:
         name:
           type: string
+          description: Chart name
         description:
           type: string
+          description: Chart description
         count:
           type: integer
+          description: Number of deployments using this chart
+        version:
+          type: string
+          description: Chart version
+        createdOn:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        createdBy:
+          type: string
+          description: Creator's name
+        updatedOn:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        updatedBy:
+          type: string
+          description: Last updater's name
     ErrorResponse:
       required:
         - code

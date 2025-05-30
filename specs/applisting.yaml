@@ -3,7 +3,7 @@ info:
   version: 1.0.0
   title: Devtron Labs
 paths:
-  /orchestrator/app/autocomplete:
+  /app/autocomplete:
     get:
       description: list of namespaces group by clusters
       parameters:
@@ -60,6 +60,69 @@ components:
         name:
           type: string
           description: app name
+        teamId:
+          type: integer
+          description: project id
+        teamName:
+          type: string
+          description: project name
+        active:
+          type: boolean
+          description: whether app is active
+        createdOn:
+          type: string
+          format: date-time
+          description: creation timestamp
+        createdBy:
+          type: string
+          description: creator's name
+        updatedOn:
+          type: string
+          format: date-time
+          description: last update timestamp
+        material:
+          type: array
+          description: git materials
+          items:
+            $ref: '#/components/schemas/GitMaterial'
+        labels:
+          type: array
+          description: app labels
+          items:
+            $ref: '#/components/schemas/AppLabel'
+    AppLabel:
+      type: object
+      properties:
+        key:
+          type: string
+          description: label key
+        value:
+          type: string
+          description: label value
+        propagate:
+          type: boolean
+          description: whether to propagate to kubernetes resources
+    GitMaterial:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: material id
+        gitProviderId:
+          type: integer
+          description: git provider id
+        gitProviderUrl:
+          type: string
+          description: git provider url
+        gitRepoUrl:
+          type: string
+          description: git repository url
+        checkoutPath:
+          type: string
+          description: checkout path
+        fetchSubmodules:
+          type: boolean
+          description: whether to fetch submodules
     ErrorResponse:
       required:
         - code

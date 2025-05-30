@@ -12,7 +12,7 @@ info:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
 servers:
-  - url: http://localhost:8080/orchestrator
+  - url: http://localhost:8080
 paths:
   /cluster:
     put:
@@ -155,6 +155,25 @@ components:
         agentInstallationStage:
           type: integer
           description: agent installation stage
+        createdOn:
+          type: string
+          format: date-time
+          description: creation timestamp
+        updatedOn:
+          type: string
+          format: date-time
+          description: last update timestamp
+        createdBy:
+          type: string
+          description: creator's name
+        updatedBy:
+          type: string
+          description: last updater's name
+        defaultClusterComponent:
+          type: array
+          description: default cluster components
+          items:
+            $ref: '#/components/schemas/DefaultClusterComponent'
     PrometheusAuth:
       type: object
       properties:
@@ -196,6 +215,26 @@ components:
         errorInConnecting:
           type: string
           description: error message if cluster failed to connect
+        isVirtualCluster:
+          type: boolean
+          description: whether cluster is virtual
+        serverUrl:
+          type: string
+          description: cluster server URL
+        config:
+          type: object
+          description: cluster configuration
+          properties:
+            bearerToken:
+              type: string
+              description: bearer token for cluster access
+            tlsConfig:
+              type: object
+              description: TLS configuration
+              properties:
+                insecureSkipTLSVerify:
+                  type: boolean
+                  description: whether to skip TLS verification
 
     ErrorResponse:
       required:
