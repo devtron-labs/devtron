@@ -11,10 +11,10 @@ paths:
           name: ids
           example: "1,2"
           description: cluster ids
-          required: true
-          allowEmptyValue: false
+          required: false
+          allowEmptyValue: true
           schema:
-            type: integer
+            type: string
       responses:
         '200':
           description: list response
@@ -32,7 +32,7 @@ paths:
                     type: array
                     description: namespace list group by cluster
                     items:
-                      $ref: '#/components/schemas/Cluster'
+                      $ref: '#/components/schemas/ClusterEnvDto'
         default:
           description: unexpected error
           content:
@@ -43,11 +43,8 @@ paths:
 # components mentioned below
 components:
   schemas:
-    Cluster:
+    ClusterEnvDto:
       type: object
-      required:
-        - key
-        - value
       properties:
         clusterId:
           type: integer
@@ -58,22 +55,34 @@ components:
         environments:
           type: array
           items:
-            $ref: '#/components/schemas/Environment'
-    Environment:
+            $ref: '#/components/schemas/EnvDto'
+        isVirtualCluster:
+          type: boolean
+          description: whether cluster is virtual or not
+    EnvDto:
       type: object
       properties:
         environmentId:
           type: integer
-          description: cluster id
+          description: environment id
         environmentName:
           type: string
-          description: cluster name
-        environmentIdentifier:
-          type: string
-          description: environment identifier
+          description: environment name
         namespace:
           type: string
           description: namespace
+        environmentIdentifier:
+          type: string
+          description: environment identifier
+        description:
+          type: string
+          description: environment description
+        isVirtualEnvironment:
+          type: boolean
+          description: whether environment is virtual or not
+        default:
+          type: boolean
+          description: whether environment is default or not
 
     ErrorResponse:
       required:

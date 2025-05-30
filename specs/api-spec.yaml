@@ -90,6 +90,10 @@ components:
           type: string
           description: Values yaml
           example: "some values yaml"
+        chartData:
+          type: string
+          format: byte
+          description: Chart Data in case of base deployment template
     TemplateChartResponse:
       type: object
       properties:
@@ -97,3 +101,7 @@ components:
           type: string
           description: helm generated manifest
           example: "some manifest"
+        chartBytes:
+          type: string
+          format: byte
+          description: Chart bytes data

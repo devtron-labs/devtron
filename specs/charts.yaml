@@ -7,22 +7,24 @@ paths:
     get:
       description: deployed chart listing, with search filters
       parameters:
-        - name: envs
+        - name: envIds
           in: query
           description: environment ids
           required: false
           schema:
-            type: array
-            items:
-              type: string
+            type: string
+        - name: clusterIds
+          in: query
+          description: cluster ids
+          required: false
+          schema:
+            type: string
         - name: chartRepoId
           in: query
           description: chart repo ids
           required: false
           schema:
-            type: array
-            items:
-              type: string
+            type: string
         - name: appStoreName
           in: query
           description: chart name
@@ -53,6 +55,12 @@ paths:
           required: false
           schema:
             type: integer
+        - name: appStatuses
+          in: query
+          description: app statuses filter
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           description: deployed chart listing, with search filters
@@ -67,30 +75,29 @@ paths:
                     type: string
                     description: status
                   result:
-                    type: array
-                    description: deployed chart listing, with search filters
-                    items:
-                      $ref: '#/components/schemas/ChartInfo'
+                    $ref: '#/components/schemas/AppListDetail'
         default:
           description: unexpected error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /orchestrator/app-store/installed-app/notes:
+  /orchestrator/app-store/installed-app/notes/{installed-app-id}/{env-id}:
     get:
       description: Used to fetch notes.txt for helm charts deployed via gitOps
       parameters:
         - name: env-id
-          in: query
+          in: path
           description: it is an environment id of app
           required: true
-          type: integer
+          schema:
+            type: integer
         - name: installed-app-id
-          in: query
+          in: path
           description: it is a installed application id
           required: true
-          type: integer
+          schema:
+            type: integer
       responses:
         '200':
           description: if it is able to fetch the notes.txt then status will be ok
@@ -98,9 +105,14 @@ paths:
             application/json:
               schema:
                 properties:
-                  notes:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
                     type: string
-                    description: it will provide notes
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/Notes'
         '500':
           description: error while fetching notes.txt
 
@@ -109,64 +121,88 @@ paths:
 # components mentioned below
 components:
   schemas:
-    ChartInfo:
+    AppListDetail:
       type: object
-      required:
-        - installedAppId
-        - environmentId
-        - installedAppVersionId
-        - appStoreApplicationVersionId
-        - appStoreApplicationName
-        - status
-        - appName
-        - environmentName
-        - deployedAt
-        - deployedBy
-        - readme
-        - deprecated
       properties:
-        installedAppId:
-          type: integer
-          description: installed chart id
-        environmentId:
-          type: integer
-          description: environment id
-        installedAppVersionId:
-          type: integer
-          description: installed chart version id
-        appStoreApplicationVersionId:
-          type: integer
-          description: team/project id
-        appStoreApplicationName:
+        clusterIds:
+          type: array
+          description: clusters to which result corresponds
+          items:
+            type: integer
+        applicationType:
           type: string
-          description: chart name externally
-        chartName:
+          description: application type inside the array
+          enum: [DEVTRON-CHART-STORE, DEVTRON-APP, HELM-APP]
+        errored:
+          type: boolean
+          description: if data fetch for that cluster produced error
+        errorMsg:
           type: string
-          description: chart repo name
-        icon:
+          description: error msg if client failed to fetch
+        helmApps:
+          type: array
+          description: all helm app list
+          items:
+            $ref: '#/components/schemas/HelmAppDetails'
+        devtronApps:
+          type: array
+          description: all devtron app list
+          items:
+            type: object
+
+    HelmAppDetails:
+      type: object
+      properties:
+        lastDeployedAt:
           type: string
-          description: image
-        status:
-          type: string
-          description: status of deployed chart
+          format: date-time
+          description: time when this application was last deployed/updated
         appName:
           type: string
-          description: chart name is app name for devtron
-        environmentName:
+          description: name of the helm application/helm release name
+        appId:
           type: string
-          description: env name
-        deployedAt:
+          description: unique identifier for app
+        chartName:
           type: string
-          description: deployement time
-        deployedBy:
+          description: name of the chart
+        chartAvatar:
           type: string
-          description: user
-        readme:
+          description: url/location of the chart icon
+        projectId:
+          type: integer
+          description: unique identifier for the project, APP with no project will have id 0
+        chartVersion:
           type: string
-          description: readme
-        deprecated:
+          description: chart version
+        environmentDetail:
+          $ref: '#/components/schemas/EnvironmentDetails'
+        appStatus:
+          type: string
+          description: application status
+
+    EnvironmentDetails:
+      type: object
+      properties:
+        clusterName:
+          type: string
+          description: cluster corresponding to the environment where application is deployed
+        clusterId:
+          type: integer
+          description: clusterId corresponding to the environment where application is deployed
+        namespace:
+          type: string
+          description: namespace where application is deployed
+        isVirtualEnvironment:
           type: boolean
-          description: is deprecated or not
+          description: whether environment is virtual or not
+
+    Notes:
+      type: object
+      properties:
+        gitOpsNotes:
+          type: string
+          description: notes content
 
     ErrorResponse:
       required:
