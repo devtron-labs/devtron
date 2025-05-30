@@ -1,0 +1,411 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+  description: Devtron API for batch and bulk operations
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Labs
+    email: support@devtron.ai
+    url: https://devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: http://localhost:8080/orchestrator
+paths:
+  /operate:
+    post:
+      description: Execute batch operations on applications and workflows
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchOperationRequest'
+      responses:
+        '200':
+          description: Batch operation response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: string
+                    description: operation result
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /bulk/v1beta1/application/dryrun:
+    post:
+      description: Get impacted apps for bulk update (dry run)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkUpdatePayload'
+      responses:
+        '200':
+          description: Impacted apps response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/ImpactedObjectsResponse'
+
+  /bulk/v1beta1/application:
+    post:
+      description: Execute bulk update on applications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkUpdateScript'
+      responses:
+        '200':
+          description: Bulk update response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/BulkUpdateResponse'
+
+components:
+  schemas:
+    BatchOperationRequest:
+      type: object
+      properties:
+        apiVersion:
+          type: string
+          description: API version
+        pipelines:
+          type: array
+          description: List of pipelines to operate on
+          items:
+            $ref: '#/components/schemas/Pipeline'
+
+    BulkUpdateScript:
+      type: object
+      properties:
+        apiVersion:
+          type: string
+          description: API version
+        kind:
+          type: string
+          description: Resource kind
+        spec:
+          $ref: '#/components/schemas/BulkUpdatePayload'
+
+    BulkUpdatePayload:
+      type: object
+      properties:
+        includes:
+          type: array
+          description: Apps to include
+          items:
+            type: string
+        excludes:
+          type: array
+          description: Apps to exclude
+          items:
+            type: string
+        envIds:
+          type: array
+          description: Environment IDs
+          items:
+            type: integer
+        global:
+          type: boolean
+          description: Apply globally
+        deploymentTemplate:
+          $ref: '#/components/schemas/DeploymentTemplateSpec'
+        configMap:
+          $ref: '#/components/schemas/ConfigMapSpec'
+        secret:
+          $ref: '#/components/schemas/SecretSpec'
+
+    Pipeline:
+      type: object
+      properties:
+        build:
+          $ref: '#/components/schemas/Build'
+        deployment:
+          $ref: '#/components/schemas/Deployment'
+
+    Build:
+      type: object
+      properties:
+        apiVersion:
+          type: string
+        operation:
+          $ref: '#/components/schemas/Operation'
+        dockerArguments:
+          type: object
+        trigger:
+          $ref: '#/components/schemas/Trigger'
+        buildMaterials:
+          type: array
+          items:
+            $ref: '#/components/schemas/BuildMaterial'
+
+    BuildMaterial:
+      type: object
+      required:
+        - source
+        - gitMaterialUrl
+      properties:
+        source:
+          type: object
+          required:
+            - type
+            - value
+          properties:
+            type:
+              type: string
+            value:
+              type: string
+              enum:
+                - BranchFixed
+                - BranchRegex
+                - TagAny
+                - TagRegex
+        gitMaterialUrl:
+          type: string
+
+    Deployment:
+      type: object
+      properties:
+        apiVersion:
+          type: string
+        operation:
+          $ref: '#/components/schemas/Operation'
+        trigger:
+          $ref: '#/components/schemas/Trigger'
+        strategy:
+          $ref: '#/components/schemas/DeploymentStrategy'
+        configMaps:
+          type: array
+          items:
+            $ref: '#/components/schemas/DataHolder'
+        secrets:
+          type: array
+          items:
+            $ref: '#/components/schemas/DataHolder'
+
+    Operation:
+      type: string
+      description: Action to be taken on the component
+      enum:
+        - create
+        - delete
+        - update
+        - append
+        - clone
+
+    Trigger:
+      type: string
+      description: How will this action be initiated
+      enum:
+        - manual
+        - automatic
+
+    DeploymentStrategy:
+      type: object
+      properties:
+        blueGreen:
+          $ref: '#/components/schemas/BlueGreenStrategy'
+        canary:
+          $ref: '#/components/schemas/CanaryStrategy'
+        rolling:
+          $ref: '#/components/schemas/RollingStrategy'
+        recreate:
+          $ref: '#/components/schemas/RecreateStrategy'
+        default:
+          type: string
+          enum:
+            - BLUE-GREEN
+            - ROLLING
+            - CANARY
+            - RECREATE
+
+    BlueGreenStrategy:
+      type: object
+      properties:
+        autoPromotionSeconds:
+          type: integer
+          format: int32
+        scaleDownDelaySeconds:
+          type: integer
+          format: int32
+        previewReplicaCount:
+          type: integer
+          format: int32
+        autoPromotionEnabled:
+          type: boolean
+
+    CanaryStrategy:
+      type: object
+      properties:
+        maxSurge:
+          type: string
+        maxUnavailable:
+          type: integer
+          format: int32
+        steps:
+          type: array
+          items:
+            type: object
+            properties:
+              setWeight:
+                type: integer
+                format: int32
+              pause:
+                type: object
+                properties:
+                  duration:
+                    type: integer
+                    format: int32
+
+    RecreateStrategy:
+      type: object
+
+    RollingStrategy:
+      type: object
+      properties:
+        maxSurge:
+          type: string
+        maxUnavailable:
+          type: integer
+          format: int32
+
+    DataHolder:
+      type: object
+      properties:
+        apiVersion:
+          type: string
+        operation:
+          $ref: '#/components/schemas/Operation'
+        type:
+          type: string
+        external:
+          type: boolean
+        mountPath:
+          type: string
+        global:
+          type: boolean
+        externalType:
+          type: string
+        data:
+          type: object
+
+    DeploymentTemplateSpec:
+      type: object
+      properties:
+        patchJson:
+          type: string
+          description: JSON patch to apply
+
+    ConfigMapSpec:
+      type: object
+      properties:
+        patchJson:
+          type: string
+          description: JSON patch to apply
+
+    SecretSpec:
+      type: object
+      properties:
+        patchJson:
+          type: string
+          description: JSON patch to apply
+
+    ImpactedObjectsResponse:
+      type: object
+      properties:
+        deploymentTemplate:
+          type: array
+          items:
+            type: string
+        configMap:
+          type: array
+          items:
+            type: string
+        secret:
+          type: array
+          items:
+            type: string
+
+    BulkUpdateResponse:
+      type: object
+      properties:
+        deploymentTemplate:
+          $ref: '#/components/schemas/DeploymentTemplateBulkUpdateResponse'
+        configMap:
+          $ref: '#/components/schemas/CmAndSecretBulkUpdateResponse'
+        secret:
+          $ref: '#/components/schemas/CmAndSecretBulkUpdateResponse'
+
+    DeploymentTemplateBulkUpdateResponse:
+      type: object
+      properties:
+        message:
+          type: array
+          items:
+            type: string
+        failure:
+          type: array
+          items:
+            type: string
+
+    CmAndSecretBulkUpdateResponse:
+      type: object
+      properties:
+        message:
+          type: array
+          items:
+            type: string
+        failure:
+          type: array
+          items:
+            type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+        status:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+
+
+

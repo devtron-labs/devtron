@@ -1,0 +1,193 @@
+openapi: 3.0.0
+info:
+  title: Orchestrator K8s API
+  version: 1.0.0
+paths:
+  /orchestrator/k8s/resources/ephemeralContainers:
+    post:
+      summary: Create Ephemeral Container
+      parameters:
+        - name: identifier
+          in: query
+          required: true
+          schema:
+            type: string
+            description: Unique identifier for the request
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EphemeralContainerRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    description: HTTP status code
+                  status:
+                    type: string
+                    description: Status message
+                  result:
+                    $ref: "#/components/schemas/PodContainerList"
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      summary: Delete Ephemeral Container
+      parameters:
+        - name: identifier
+          in: query
+          required: true
+          schema:
+            type: string
+            description: Unique identifier for the request
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EphemeralContainerRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    description: HTTP status code
+                  status:
+                    type: string
+                    description: Status message
+                  result:
+                    type: boolean
+                    description: Whether the ephemeral container was successfully terminated
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  schemas:
+    EphemeralContainerRequest:
+      type: object
+      properties:
+        basicData:
+          $ref: "#/components/schemas/EphemeralContainerBasicData"
+        advancedData:
+          $ref: "#/components/schemas/EphemeralContainerAdvancedData"
+        namespace:
+          type: string
+          description: Kubernetes namespace
+        clusterId:
+          type: integer
+          description: Cluster ID
+          minimum: 1
+        podName:
+          type: string
+          description: Name of the pod
+        userId:
+          type: integer
+          description: User ID
+        externalArgoApplicationName:
+          type: string
+          description: Name of the external Argo application (if applicable)
+      required:
+        - namespace
+        - clusterId
+        - podName
+    EphemeralContainerBasicData:
+      type: object
+      properties:
+        containerName:
+          type: string
+          description: Name of the ephemeral container
+        targetContainerName:
+          type: string
+          description: Name of the target container to attach to
+        image:
+          type: string
+          description: Container image to use
+      required:
+        - containerName
+        - targetContainerName
+        - image
+    EphemeralContainerAdvancedData:
+      type: object
+      properties:
+        manifest:
+          type: string
+          description: Kubernetes manifest for the ephemeral container
+    PodContainerList:
+      type: object
+      properties:
+        containers:
+          type: array
+          items:
+            type: string
+          description: List of regular containers
+        initContainers:
+          type: array
+          items:
+            type: string
+          description: List of init containers
+        ephemeralContainers:
+          type: array
+          items:
+            type: string
+          description: List of running ephemeral containers
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Error code
+          example: E100
+        message:
+          type: string
+          description: Error message
+          example: User is not authenticated
+        internalMessage:
+          type: string
+          description: Internal error message for debugging
+        userMessage:
+          type: string
+          description: User-friendly error message

@@ -1,0 +1,792 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+  description: Devtron API for chart provider management including chart repositories, chart groups, and chart provider configuration
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Labs
+    email: support@devtron.ai
+    url: https://devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: http://localhost:8080
+
+paths:
+  # Chart Provider APIs
+  /chart-provider/list:
+    get:
+      description: Get list of all chart providers
+      operationId: GetChartProviderList
+      responses:
+        '200':
+          description: List of chart providers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChartProviderResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /chart-provider/update:
+    post:
+      description: Toggle chart provider status
+      operationId: ToggleChartProvider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChartProviderRequest'
+      responses:
+        '200':
+          description: Chart provider updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Success status
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /chart-provider/sync-chart:
+    post:
+      description: Sync chart provider
+      operationId: SyncChartProvider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChartProviderRequest'
+      responses:
+        '200':
+          description: Chart provider synced successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Success status
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Chart Repository APIs
+  /chart-repo/{id}:
+    get:
+      description: Get chart repository by ID
+      operationId: GetChartRepoById
+      parameters:
+        - name: id
+          in: path
+          description: Chart repository ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Chart repository details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChartRepository'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /chart-repo/list:
+    get:
+      description: Get list of all chart repositories
+      operationId: GetChartRepoList
+      responses:
+        '200':
+          description: List of chart repositories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChartRepository'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /chart-repo:
+    post:
+      description: Create a new chart repository
+      operationId: CreateChartRepo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChartRepositoryRequest'
+      responses:
+        '200':
+          description: Chart repository created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChartRepository'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      description: Update an existing chart repository
+      operationId: UpdateChartRepo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChartRepositoryRequest'
+      responses:
+        '200':
+          description: Chart repository updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChartRepository'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /chart-repo/validate:
+    post:
+      description: Validate chart repository configuration
+      operationId: ValidateChartRepo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChartRepositoryRequest'
+      responses:
+        '200':
+          description: Chart repository configuration is valid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Success status
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /chart-repo/sync:
+    post:
+      description: Trigger manual chart repository sync
+      operationId: TriggerChartSyncManual
+      responses:
+        '200':
+          description: Chart repository sync triggered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: Sync status
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Chart Group APIs
+  /chart-group:
+    post:
+      description: Create a new chart group
+      operationId: CreateChartGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChartGroup'
+      responses:
+        '200':
+          description: Chart group created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChartGroup'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      description: Update an existing chart group
+      operationId: UpdateChartGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChartGroup'
+      responses:
+        '200':
+          description: Chart group updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChartGroup'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /chart-group/entries:
+    post:
+      description: Save chart group entries
+      operationId: SaveChartGroupEntries
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChartGroupEntries'
+      responses:
+        '200':
+          description: Chart group entries saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Success status
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /chart-group/list:
+    get:
+      description: Get list of all chart groups
+      operationId: GetChartGroupList
+      responses:
+        '200':
+          description: List of chart groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChartGroup'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /chart-group/{id}:
+    delete:
+      description: Delete a chart group
+      operationId: DeleteChartGroup
+      parameters:
+        - name: id
+          in: path
+          description: Chart group ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Chart group deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Success status
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    ChartProviderResponse:
+      type: object
+      required:
+        - id
+        - name
+        - active
+      properties:
+        id:
+          type: string
+          description: Unique identifier of the chart provider
+        name:
+          type: string
+          description: Name of the chart provider
+        active:
+          type: boolean
+          description: Whether the chart provider is active
+        isEditable:
+          type: boolean
+          description: Whether the chart provider is editable
+        isOCIRegistry:
+          type: boolean
+          description: Whether the chart provider is an OCI registry
+        registryProvider:
+          type: string
+          description: Type of registry provider
+          enum: [DOCKER_HUB, ECR, GCR, ACR, OTHER]
+
+    ChartProviderRequest:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          description: Unique identifier of the chart provider
+        isOCIRegistry:
+          type: boolean
+          description: Whether the chart provider is an OCI registry
+        active:
+          type: boolean
+          description: Whether to activate the chart provider
+
+    ChartRepository:
+      type: object
+      required:
+        - name
+        - url
+      properties:
+        id:
+          type: integer
+          description: Unique identifier of the chart repository
+        name:
+          type: string
+          description: Name of the chart repository
+        url:
+          type: string
+          description: URL of the chart repository
+        username:
+          type: string
+          description: Username for authentication
+        password:
+          type: string
+          description: Password for authentication
+        isOCIRegistry:
+          type: boolean
+          description: Whether the repository is an OCI registry
+        active:
+          type: boolean
+          description: Whether the repository is active
+        default:
+          type: boolean
+          description: Whether this is the default repository
+        authMode:
+          type: string
+          description: Authentication mode
+          enum: [ANONYMOUS, USERNAME_PASSWORD, ACCESS_TOKEN]
+
+    ChartRepositoryRequest:
+      type: object
+      required:
+        - name
+        - url
+      properties:
+        name:
+          type: string
+          description: Name of the chart repository
+        url:
+          type: string
+          description: URL of the chart repository
+        username:
+          type: string
+          description: Username for authentication
+        password:
+          type: string
+          description: Password for authentication
+        isOCIRegistry:
+          type: boolean
+          description: Whether the repository is an OCI registry
+        active:
+          type: boolean
+          description: Whether to activate the repository
+        default:
+          type: boolean
+          description: Whether to set as default repository
+        authMode:
+          type: string
+          description: Authentication mode
+          enum: [ANONYMOUS, USERNAME_PASSWORD, ACCESS_TOKEN]
+
+    ChartGroup:
+      type: object
+      required:
+        - name
+      properties:
+        id:
+          type: integer
+          description: Unique identifier of the chart group
+        name:
+          type: string
+          description: Name of the chart group
+        description:
+          type: string
+          description: Description of the chart group
+        userId:
+          type: integer
+          description: ID of the user who created the group
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChartGroupEntry'
+          description: List of chart entries in the group
+
+    ChartGroupEntry:
+      type: object
+      required:
+        - chartId
+      properties:
+        chartId:
+          type: integer
+          description: ID of the chart
+        chartName:
+          type: string
+          description: Name of the chart
+        chartVersion:
+          type: string
+          description: Version of the chart
+        chartRepoId:
+          type: integer
+          description: ID of the chart repository
+        chartRepoName:
+          type: string
+          description: Name of the chart repository
+
+    ChartGroupEntries:
+      type: object
+      required:
+        - groupId
+        - entries
+      properties:
+        groupId:
+          type: integer
+          description: ID of the chart group
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChartGroupEntry'
+          description: List of chart entries to save
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        message:
+          type: string
+          description: Error message
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error'
+          description: List of errors
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        message:
+          type: string
+          description: Error message 

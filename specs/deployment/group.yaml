@@ -1,0 +1,301 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+  description: Devtron API for deployment group management
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Labs
+    email: support@devtron.ai
+    url: https://devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: http://localhost:8080
+paths:
+  /deployment-group/create:
+    post:
+      description: Create a new deployment group
+      requestBody:
+        description: Deployment group details
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeploymentGroupRequest'
+      responses:
+        '200':
+          description: Deployment group created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeploymentGroupResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /deployment-group/update:
+    put:
+      description: Update an existing deployment group
+      requestBody:
+        description: Updated deployment group details
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeploymentGroupRequest'
+      responses:
+        '200':
+          description: Deployment group updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeploymentGroupResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /deployment-group/delete:
+    delete:
+      description: Delete a deployment group
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: integer
+            description: Deployment group ID
+      responses:
+        '200':
+          description: Deployment group deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeploymentGroupResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /deployment-group/trigger:
+    post:
+      description: Trigger deployment for a group
+      requestBody:
+        description: Deployment trigger details
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeploymentGroupTrigger'
+      responses:
+        '200':
+          description: Deployment triggered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeploymentGroupTriggerResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    DeploymentGroupRequest:
+      type: object
+      required:
+        - name
+        - appIds
+      properties:
+        name:
+          type: string
+          description: Name of the deployment group
+        description:
+          type: string
+          description: Description of the deployment group
+        appIds:
+          type: array
+          items:
+            type: integer
+          description: List of application IDs in the group
+        envId:
+          type: integer
+          description: Environment ID
+        userId:
+          type: integer
+          description: User ID who created/updated the group
+
+    DeploymentGroupResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Status code
+        status:
+          type: string
+          description: Status message
+        result:
+          type: object
+          properties:
+            groupId:
+              type: integer
+              description: ID of the deployment group
+            name:
+              type: string
+              description: Name of the deployment group
+            description:
+              type: string
+              description: Description of the deployment group
+            appIds:
+              type: array
+              items:
+                type: integer
+              description: List of application IDs in the group
+            envId:
+              type: integer
+              description: Environment ID
+            createdOn:
+              type: string
+              format: date-time
+              description: Creation timestamp
+            createdBy:
+              type: string
+              description: Creator's name
+            updatedOn:
+              type: string
+              format: date-time
+              description: Last update timestamp
+            updatedBy:
+              type: string
+              description: Last updater's name
+
+    DeploymentGroupTrigger:
+      type: object
+      required:
+        - groupId
+      properties:
+        groupId:
+          type: integer
+          description: Deployment group ID
+        artifactId:
+          type: integer
+          description: Artifact ID to deploy
+        triggeredBy:
+          type: integer
+          description: User ID who triggered the deployment
+
+    DeploymentGroupTriggerResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Status code
+        status:
+          type: string
+          description: Status message
+        result:
+          type: object
+          properties:
+            groupId:
+              type: integer
+              description: Deployment group ID
+            workflowIds:
+              type: array
+              items:
+                type: integer
+              description: List of workflow IDs
+
+    ErrorResponse:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message 

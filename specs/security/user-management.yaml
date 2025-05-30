@@ -2,7 +2,7 @@ openapi: "3.0.0"
 info:
   version: 1.0.0
   title: Devtron Labs
-  description: Devtron API for app store management
+  description: Devtron API for user management
   termsOfService: https://devtron.ai/terms/
   contact:
     name: Devtron Labs
@@ -14,59 +14,55 @@ info:
 servers:
   - url: http://localhost:8080
 paths:
-  /app-store/discover:
+  /user/v2:
     get:
-      description: Get all charts from chart repositories
+      description: Get all users with filters
       parameters:
-        - name: includeDeprecated
+        - name: searchKey
           in: query
-          description: Include deprecated charts
-          required: false
-          schema:
-            type: boolean
-        - name: chartRepoId
-          in: query
-          description: Chart repository IDs (comma separated)
+          description: Search key for user listing
           required: false
           schema:
             type: string
-        - name: registryId
+        - name: sortOrder
           in: query
-          description: Registry IDs (comma separated)
+          description: Sorting order (ASC or DESC)
           required: false
           schema:
             type: string
-        - name: appStoreName
+            enum: [ASC, DESC]
+        - name: sortBy
           in: query
-          description: App store name filter
+          description: Sorting by email_id or last_login
           required: false
           schema:
             type: string
+            enum: [email_id, last_login]
         - name: offset
           in: query
-          description: Offset for pagination
+          description: Offset for paginating the results
           required: false
           schema:
             type: integer
         - name: size
           in: query
-          description: Size for pagination
+          description: Size of the result set
           required: false
           schema:
             type: integer
-        - name: chartCategoryId
+        - name: showAll
           in: query
-          description: Chart category IDs (comma separated)
+          description: Show all users (boolean)
           required: false
           schema:
-            type: string
+            type: boolean
       responses:
         '200':
-          description: List of app store applications with versions
+          description: List of users
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AppStoreListingResponse'
+                $ref: '#/components/schemas/UserListingResponse'
         '401':
           description: Unauthorized
           content:
@@ -86,23 +82,105 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /app-store/discover/application/{id}:
+  /user:
+    post:
+      description: Create a new user
+      requestBody:
+        description: User details
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '200':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      description: Update an existing user
+      requestBody:
+        description: Updated user details
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /user/{id}:
     get:
-      description: Get chart details for a specific version
+      description: Get user details by ID
       parameters:
         - name: id
           in: path
           required: true
           schema:
             type: integer
-            description: App store application version ID
+            description: User ID
       responses:
         '200':
-          description: Chart details
+          description: User details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AppStoreApplicationVersion'
+                $ref: '#/components/schemas/User'
         '400':
           description: Bad Request
           content:
@@ -127,26 +205,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
-  /app-store/discover/application/{appStoreId}/version/autocomplete:
-    get:
-      description: Get chart versions for an app store application
+    delete:
+      description: Delete a user
       parameters:
-        - name: appStoreId
+        - name: id
           in: path
           required: true
           schema:
             type: integer
-            description: App store application ID
+            description: User ID
       responses:
         '200':
-          description: List of chart versions
+          description: User deleted successfully
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/AppStoreApplicationVersion'
+                $ref: '#/components/schemas/User'
         '400':
           description: Bad Request
           content:
@@ -172,67 +246,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /app-store/discover/application/chartInfo/{appStoreApplicationVersionId}:
-    get:
-      description: Get chart information for a specific version
-      parameters:
-        - name: appStoreApplicationVersionId
-          in: path
-          required: true
-          schema:
-            type: integer
-            description: App store application version ID
+  /user/bulk:
+    delete:
+      description: Delete multiple users in bulk
+      requestBody:
+        description: List of user IDs to delete
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkDeleteRequest'
       responses:
         '200':
-          description: Chart information
+          description: Users deleted successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ChartInfo'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /app-store/discover/search:
-    get:
-      description: Search app store charts by name
-      parameters:
-        - name: chartName
-          in: query
-          required: true
-          schema:
-            type: string
-            description: Chart name to search for
-      responses:
-        '200':
-          description: List of matching charts
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/AppStoreApplication'
+                type: boolean
         '400':
           description: Bad Request
           content:
@@ -260,177 +290,127 @@ paths:
 
 components:
   schemas:
-    AppStoreApplication:
+    User:
       type: object
+      required:
+        - email_id
       properties:
         id:
           type: integer
-          description: App store application ID
-        name:
+          description: Unique ID of user
+        email_id:
           type: string
-          description: App store application name
-        chartRepoId:
-          type: integer
-          description: Chart repository ID
-        active:
-          type: boolean
-          description: Whether the application is active
-        chartGitLocation:
-          type: string
-          description: Chart Git repository location
+          description: Unique valid email ID of user
+        userRoleGroups:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserRoleGroup'
+        roleFilters:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleFilter'
+          description: Role filters objects
         createdOn:
           type: string
           format: date-time
           description: Creation timestamp
+        createdBy:
+          type: string
+          description: Creator's name
         updatedOn:
           type: string
           format: date-time
           description: Last update timestamp
-        appStoreApplicationVersions:
-          type: array
-          items:
-            $ref: '#/components/schemas/AppStoreApplicationVersion'
-          description: List of application versions
+        updatedBy:
+          type: string
+          description: Last updater's name
 
-    AppStoreApplicationVersion:
+    UserRoleGroup:
       type: object
       properties:
         id:
           type: integer
-          description: Version ID
-        version:
-          type: string
-          description: Version number
-        appVersion:
-          type: string
-          description: Application version
-        created:
-          type: string
-          format: date-time
-          description: Creation timestamp
-        deprecated:
-          type: boolean
-          description: Whether the version is deprecated
-        description:
-          type: string
-          description: Version description
-        digest:
-          type: string
-          description: Chart digest
-        icon:
-          type: string
-          description: Icon URL
+          description: Role group ID
         name:
           type: string
-          description: Chart name
-        chartName:
+          description: Role group name
+        description:
           type: string
-          description: Chart name
-        appStoreApplicationName:
-          type: string
-          description: App store application name
-        home:
-          type: string
-          description: Home URL
-        source:
-          type: string
-          description: Source URL
-        valuesYaml:
-          type: string
-          description: Values YAML
-        chartYaml:
-          type: string
-          description: Chart YAML
-        appStoreId:
-          type: integer
-          description: App store ID
-        latest:
-          type: boolean
-          description: Whether this is the latest version
+          description: Role group description
         createdOn:
           type: string
           format: date-time
           description: Creation timestamp
-        rawValues:
+        createdBy:
           type: string
-          description: Raw values
-        readme:
+          description: Creator's name
+        updatedOn:
           type: string
-          description: README content
-        valuesSchemaJson:
+          format: date-time
+          description: Last update timestamp
+        updatedBy:
           type: string
-          description: Values schema in JSON format
-        notes:
-          type: string
-          description: Release notes
+          description: Last updater's name
 
-    ChartInfo:
+    RoleFilter:
       type: object
       properties:
-        chartName:
+        entity:
           type: string
-          description: Chart name
-        chartVersion:
+          description: Entity type (e.g. app, env, cluster)
+        entityName:
           type: string
-          description: Chart version
-        valuesYaml:
+          description: Entity name
+        action:
           type: string
-          description: Values YAML
-        chartYaml:
+          description: Action type (e.g. create, update, delete)
+        accessType:
           type: string
-          description: Chart YAML
-        readme:
+          description: Access type (e.g. admin, manager, viewer)
+        team:
           type: string
-          description: README content
-        notes:
+          description: Team name
+        environment:
           type: string
-          description: Release notes
+          description: Environment name
+        cluster:
+          type: string
+          description: Cluster name
 
-    AppStoreListingResponse:
+    UserListingResponse:
       type: object
       properties:
-        code:
-          type: integer
-          description: Status code
-        status:
-          type: string
-          description: Status message
-        result:
+        users:
           type: array
           items:
-            $ref: '#/components/schemas/AppStoreApplication'
-          description: List of app store applications
+            $ref: '#/components/schemas/User'
+          description: List of users
+        totalCount:
+          type: integer
+          description: Total number of users
+
+    BulkDeleteRequest:
+      type: object
+      required:
+        - ids
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+          description: List of user IDs to delete
+        loggedInUserId:
+          type: integer
+          description: ID of the user performing the deletion
 
     ErrorResponse:
       required:
         - code
-        - status
+        - message
       properties:
         code:
           type: integer
-          format: int32
           description: Error code
-        status:
+        message:
           type: string
-          description: Error message
-        errors:
-          type: array
-          description: List of errors
-          items:
-            $ref: '#/components/schemas/Error'
-
-    Error:
-      required:
-        - code
-        - status
-      properties:
-        code:
-          type: integer
-          format: int32
-          description: Error internal code
-        internalMessage:
-          type: string
-          description: Error internal message
-        userMessage:
-          type: string
-          description: Error user message
+          description: Error message 

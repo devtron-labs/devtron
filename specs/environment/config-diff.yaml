@@ -1,0 +1,398 @@
+openapi: 3.0.0
+info:
+  title: Configuration Diff View API
+  version: 1.0.0
+  description: API for managing configuration differences and comparisons
+
+paths:
+  /orchestrator/config/autocomplete:
+    get:
+      summary: Get configuration autocomplete data
+      operationId: ConfigAutoComplete
+      parameters:
+        - name: appId
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: The application ID
+        - name: envId
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: The environment ID
+      responses:
+        '200':
+          description: Successfully retrieved configuration autocomplete data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConfigProperty'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/config/data:
+    get:
+      summary: Get configuration data
+      operationId: GetConfigData
+      parameters:
+        - name: appName
+          in: query
+          required: true
+          schema:
+            type: string
+          description: The application name
+        - name: envName
+          in: query
+          required: false
+          schema:
+            type: string
+          description: The environment name
+        - name: configType
+          in: query
+          required: true
+          schema:
+            type: string
+          description: The configuration type
+        - name: identifierId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: The identifier ID
+        - name: pipelineId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: The pipeline ID
+        - name: resourceName
+          in: query
+          required: false
+          schema:
+            type: string
+          description: The resource name
+        - name: resourceType
+          in: query
+          required: false
+          schema:
+            type: string
+          description: The resource type
+        - name: resourceId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: The resource ID
+        - name: wfrId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: The workflow run ID
+        - name: configArea
+          in: query
+          required: false
+          schema:
+            type: string
+          description: The configuration area
+      responses:
+        '200':
+          description: Successfully retrieved configuration data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigDataResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/config/compare/{resource}:
+    get:
+      summary: Compare configuration data
+      operationId: CompareCategoryWiseConfigData
+      parameters:
+        - name: resource
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [ConfigMap, Secret, Deployment Template, Pipeline Strategy]
+          description: The resource type to compare
+        - name: compareConfig
+          in: query
+          required: true
+          schema:
+            type: string
+          description: JSON string containing comparison configuration
+      responses:
+        '200':
+          description: Successfully compared configuration data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComparisonResponseDto'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/config/manifest:
+    post:
+      summary: Get manifest for configuration
+      operationId: GetManifest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManifestRequest'
+      responses:
+        '200':
+          description: Successfully retrieved manifest
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManifestResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    ConfigProperty:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the configuration
+          example: cm-1
+          nullable: true
+        configState:
+          $ref: '#/components/schemas/ConfigStateEnum'
+        type:
+          $ref: '#/components/schemas/ResourceTypeEnum'
+
+    ConfigStateEnum:
+      type: integer
+      enum: [1, 2, 3]
+      description: State of configuration (1 = draft, 2 = approval pending, 3 = published)
+
+    ResourceTypeEnum:
+      type: string
+      enum: [ConfigMap, Secret, Deployment Template]
+      description: Type of resource
+
+    ConfigDataResponse:
+      type: object
+      properties:
+        resourceConfig:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfigProperty'
+        isAppAdmin:
+          type: boolean
+          description: Whether the user has admin access to the application
+
+    ComparisonRequestDto:
+      type: object
+      properties:
+        comparisonItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComparisonItemRequestDto'
+
+    ComparisonItemRequestDto:
+      type: object
+      properties:
+        index:
+          type: integer
+          description: Index of the comparison item
+        appName:
+          type: string
+          description: Name of the application
+        envName:
+          type: string
+          description: Name of the environment
+        configType:
+          type: string
+          description: Type of configuration
+        identifierId:
+          type: integer
+          description: Identifier ID
+        pipelineId:
+          type: integer
+          description: Pipeline ID
+        resourceName:
+          type: string
+          description: Resource name
+        resourceType:
+          type: string
+          description: Resource type
+        resourceId:
+          type: integer
+          description: Resource ID
+        wfrId:
+          type: integer
+          description: Workflow run ID
+        configArea:
+          type: string
+          description: Configuration area
+
+    ComparisonResponseDto:
+      type: object
+      properties:
+        comparisonItemResponse:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeploymentAndCmCsConfigDto'
+
+    DeploymentAndCmCsConfigDto:
+      type: object
+      properties:
+        configData:
+          type: object
+          description: Configuration data
+        deploymentTemplate:
+          type: object
+          description: Deployment template data
+        pipelineStrategy:
+          type: object
+          description: Pipeline strategy data
+
+    ManifestRequest:
+      type: object
+      required:
+        - values
+        - resourceType
+        - appId
+      properties:
+        values:
+          type: object
+          description: Configuration values
+        mergeStrategy:
+          type: string
+          description: Strategy for merging configurations
+        resourceType:
+          type: string
+          description: Type of resource
+        resourceId:
+          type: integer
+          description: Resource ID
+        resourceName:
+          type: string
+          description: Resource name
+        appId:
+          type: integer
+          description: Application ID
+        environmentId:
+          type: integer
+          description: Environment ID
+
+    ManifestResponse:
+      type: object
+      properties:
+        manifest:
+          type: string
+          description: Generated manifest
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message
+
