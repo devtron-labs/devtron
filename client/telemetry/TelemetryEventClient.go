@@ -263,6 +263,8 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []be
 	return clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter, helmChartSuccessfulDeploymentCount, ExternalHelmAppClusterCount
 }
 
+// New methods for collecting additional telemetry metrics
+
 func (impl *TelemetryEventClientImpl) SummaryEventForTelemetryEA() {
 	err := impl.SendSummaryEvent(string(Summary))
 	if err != nil {
@@ -309,6 +311,11 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 	payload.HelmAppUpdateCounter = HelmAppUpdateCounter
 	payload.HelmChartSuccessfulDeploymentCount = helmChartSuccessfulDeploymentCount
 	payload.ExternalHelmAppClusterCount = ExternalHelmAppClusterCount
+
+	// Collect EA-mode compatible telemetry metrics
+	payload.HelmAppCount = impl.getHelmAppCount()
+	payload.PhysicalClusterCount, payload.IsolatedClusterCount = impl.getClusterCounts()
+	payload.ActiveUsersLast30Days = impl.getActiveUsersLast30Days()
 
 	payload.ClusterProvider, err = impl.GetCloudProvider()
 	if err != nil {
