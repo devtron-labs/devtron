@@ -21,7 +21,6 @@ import (
 	"fmt"
 	pb "github.com/devtron-labs/protos/gitSensor"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -87,7 +86,7 @@ func (client *GrpcApiClientImpl) getConnection() (*grpc.ClientConn, error) {
 	// Configure gRPC dial options
 	var opts []grpc.DialOption
 	opts = append(opts,
-		grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor, otelgrpc.UnaryClientInterceptor()),
+		grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
 		grpc.WithBlock(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultServiceConfig(client.config.ServiceConfig),
