@@ -2,8 +2,19 @@ openapi: "3.0.0"
 info:
   version: 1.0.0
   title: Devtron Labs
+  description: Devtron API for deployment template management
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Labs
+    email: support@devtron.ai
+    url: https://devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: http://localhost:8080/orchestrator
 paths:
-  /orchestrator/deployment/template/validate:
+  /deployment/template/validate:
     post:
       description: upload template file from this api to validate.
       requestBody:
@@ -14,7 +25,8 @@ paths:
             schema:
               properties:
                 binaryFile:
-                  type: object
+                  type: string
+                  format: binary
                   description: zipped chart template file
       responses:
         '200':
@@ -26,7 +38,10 @@ paths:
                   code:
                     type: integer
                     description: status code
-                  schema:
+                  status:
+                    type: string
+                    description: status
+                  result:
                     $ref: '#/components/schemas/UploadTemplateResponse'
         default:
           description: unexpected error
@@ -35,17 +50,16 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /orchestrator/deployment/template/upload:
+  /deployment/template/upload:
     put:
       description: upload template file from this api.
       requestBody:
-        description: form-data as request body
+        description: json as request body
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/UploadTemplateRequest'
-
       responses:
         '200':
           description: template file upload response
@@ -69,7 +83,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /orchestrator/deployment/template/fetch:
+  /deployment/template/fetch:
     get:
       summary: Returns all charts
       description: all the chart template uploaded by user
@@ -79,7 +93,18 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Chart'
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    description: list of charts
+                    items:
+                      $ref: '#/components/schemas/Chart'
         default:
           description: unexpected error
           content:
