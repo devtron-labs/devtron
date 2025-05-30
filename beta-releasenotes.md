@@ -1,4 +1,5 @@
 ## Enhancements
+- feat: Enhancement clone UI support new (#6628)
 - feat: manual canary (#6627)
 - feat: Posthog events (#6618)
 - feat: wf logs (#6606)
