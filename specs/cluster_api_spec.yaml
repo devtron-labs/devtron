@@ -2,8 +2,19 @@ openapi: "3.0.0"
 info:
   version: 1.0.0
   title: Devtron Labs
+  description: Devtron API for cluster management
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Labs
+    email: support@devtron.ai
+    url: https://devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: http://localhost:8080/orchestrator
 paths:
-  /orchestrator/cluster:
+  /cluster:
     put:
       description: Update Cluster
       operationId: UpdateCluster
@@ -74,7 +85,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/cluster/auth-list:
+  /cluster/auth-list:
     get:
       description: list of accessible cluster
       responses:
@@ -109,22 +120,41 @@ components:
       properties:
         id:
           type: integer
+          description: cluster id
         cluster_name:
           type: string
+          description: cluster name
+        description:
+          type: string
+          description: cluster description
         server_url:
           type: string
+          description: server url
         prometheus_url:
           type: string
+          description: prometheus url
         active:
           type: boolean
+          description: whether cluster is active
         config:
           type: object
-          properties:
-            bearer_token:
-              type: string
-              description: it will be empty while fetching, and if no change while updating
-        k8sversion:
+          additionalProperties:
+            type: string
+          description: cluster config
+        prometheusAuth:
+          $ref: '#/components/schemas/PrometheusAuth'
+        k8sVersion:
           type: string
+          description: kubernetes version
+        errorInConnecting:
+          type: string
+          description: error message if cluster failed to connect
+        isVirtualCluster:
+          type: boolean
+          description: whether cluster is virtual
+        agentInstallationStage:
+          type: integer
+          description: agent installation stage
     PrometheusAuth:
       type: object
       properties:

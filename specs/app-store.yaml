@@ -2,11 +2,64 @@ openapi: "3.0.0"
 info:
   version: 1.0.0
   title: Devtron Labs
+  description: Devtron API for app store management
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Labs
+    email: support@devtron.ai
+    url: https://devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: http://localhost:8080/orchestrator
 paths:
-  /orchestrator/app-store/discover/:
+  /app-store/discover:
     get:
       description: this api will return all the charts from charts repos.
-      parameters: [ ]
+      parameters:
+        - name: includeDeprecated
+          in: query
+          description: include deprecated charts
+          required: false
+          schema:
+            type: boolean
+        - name: chartRepoId
+          in: query
+          description: chart repository ids (comma separated)
+          required: false
+          schema:
+            type: string
+        - name: registryId
+          in: query
+          description: registry ids (comma separated)
+          required: false
+          schema:
+            type: string
+        - name: appStoreName
+          in: query
+          description: app store name filter
+          required: false
+          schema:
+            type: string
+        - name: offset
+          in: query
+          description: offset for pagination
+          required: false
+          schema:
+            type: integer
+        - name: size
+          in: query
+          description: size for pagination
+          required: false
+          schema:
+            type: integer
+        - name: chartCategoryId
+          in: query
+          description: chart category ids (comma separated)
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           description: list response
@@ -21,15 +74,10 @@ paths:
                     type: string
                     description: status
                   result:
-                    allOf:
-                      - type: object
-                        properties:
-                          appId:
-                            type: integer
-                            description: unique application id
-                        required:
-                          - appId
-                      - $ref: '#/components/schemas/AppStore'
+                    type: array
+                    description: app store applications with versions
+                    items:
+                      $ref: '#/components/schemas/AppStoreWithVersion'
         default:
           description: unexpected error
           content:
@@ -45,11 +93,8 @@ paths:
 # components mentioned below
 components:
   schemas:
-    AppStore:
+    AppStoreWithVersion:
       type: object
-      required:
-        - id
-        - name
       properties:
         id:
           type: integer
@@ -60,13 +105,13 @@ components:
         appStoreApplicationVersionId:
           type: integer
           description: app store version id
-        chart_git_location:
+        chartGitLocation:
           type: string
           description: chart git repo location
-        chart_name:
+        chartName:
           type: string
           description: chart name
-        chart_repo_id:
+        chartRepoId:
           type: integer
           description: app store and chart repo link id
         deprecated:
@@ -78,11 +123,13 @@ components:
         icon:
           type: string
           description: app store icon link
-        created_on:
+        createdOn:
           type: string
+          format: date-time
           description: created on
-        updated_on:
+        updatedOn:
           type: string
+          format: date-time
           description: modification date
         version:
           type: string
@@ -90,6 +137,12 @@ components:
         active:
           type: boolean
           description: active app store
+        chartRepoName:
+          type: string
+          description: chart repository name
+        isChartRepoActive:
+          type: boolean
+          description: whether chart repository is active
 
     ErrorResponse:
       required:

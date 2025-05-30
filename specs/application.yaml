@@ -2,8 +2,19 @@ openapi: "3.0.0"
 info:
   version: 1.0.0
   title: Devtron Labs
+  description: Devtron API for application management
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Labs
+    email: support@devtron.ai
+    url: https://devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: http://localhost:8080/orchestrator
 paths:
-  /orchestrator/app:
+  /core/v1beta1/application:
     post:
       description: create new application
       requestBody:
@@ -12,7 +23,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/App'
+              $ref: '#/components/schemas/CreateAppRequest'
       responses:
         '200':
           description: App create response
@@ -27,24 +38,15 @@ paths:
                     type: string
                     description: status
                   result:
-                    type: object
-                    description: string
-                    allOf:
-                      - type: object
-                        properties:
-                          id:
-                            type: integer
-                            description: unique application id
-                        required:
-                          - id
-                      - $ref: '#/components/schemas/App'
+                    type: string
+                    description: success message
         default:
           description: unexpected error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /orchestrator/app/edit:
+  /app/edit:
     post:
       description: update application projects and labels
       requestBody:
@@ -86,7 +88,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /orchestrator/app/list:
+  /app/list:
     post:
       description: app listing, collection of deployed applications or undeployed or incomplete configured apps.
       requestBody:
@@ -136,7 +138,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /orchestrator/app/edit/projects:
+  /app/edit/projects:
     post:
       description: update project for app
       requestBody:
@@ -188,6 +190,24 @@ components:
         propagate:
           type: boolean
           description: Whether to propagate to kubernetes resources
+
+    CreateAppRequest:
+      type: object
+      required:
+        - metadata
+      properties:
+        metadata:
+          $ref: '#/components/schemas/App'
+        appWorkflows:
+          type: array
+          description: app workflows
+          items:
+            type: object
+        environmentOverrides:
+          type: array
+          description: environment overrides
+          items:
+            type: object
 
     App:
       type: object
