@@ -160,7 +160,10 @@
  | DEVTRON_HELM_REPO_NAME | string |devtron | Is used to install modules (stack manager) |  | false |
  | DEVTRON_HELM_REPO_URL | string |https://helm.devtron.ai | Is used to install modules (stack manager) |  | false |
  | DEVTRON_INSTALLATION_TYPE | string | | Devtron Installation type(EA/Full) |  | false |
+ | DEVTRON_INSTALLER_MODULES_PATH | string |installer.modules | Path to devtron installer modules, used to find the helm charts and values files |  | false |
+ | DEVTRON_INSTALLER_RELEASE_PATH | string |installer.release | Path to devtron installer release, used to find the helm charts and values files |  | false |
  | DEVTRON_MODULES_IDENTIFIER_IN_HELM_VALUES | string |installer.modules |  |  | false |
+ | DEVTRON_OPERATOR_BASE_PATH | string | | Base path for devtron operator, used to find the helm charts and values files |  | false |
  | DEVTRON_SECRET_NAME | string |devtron-secret |  |  | false |
  | DEVTRON_VERSION_IDENTIFIER_IN_HELM_VALUES | string |installer.release | devtron operator version identifier in helm values yaml |  | false |
  | DEX_CID | string |example-app | dex client id  |  | false |
