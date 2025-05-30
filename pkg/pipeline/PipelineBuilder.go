@@ -264,9 +264,11 @@ type TeamAppBean struct {
 }
 
 type AppBean struct {
-	Id     int    `json:"id"`
-	Name   string `json:"name,notnull"`
-	TeamId int    `json:"teamId,omitempty"`
+	Id          int    `json:"id"`
+	Name        string `json:"name,notnull"`
+	TeamId      int    `json:"teamId,omitempty"`
+	CreatedBy   string `json:"createdBy"`
+	Description string `json:"description"`
 }
 
 type PipelineStrategiesResponse struct {
