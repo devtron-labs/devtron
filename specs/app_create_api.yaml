@@ -3,7 +3,7 @@ info:
   version: 1.0.0
   title: Create App Api
 paths:
-  /orchestrator/core/v1beta1/application/{appId}:
+  /core/v1beta1/application/{appId}:
     get:
       description: Get all details of an app by appId. These details include - metadata(appName, projectNamr, labels), gitMaterials, docker config, templates, workflows, configMaps, secrets, environment override configurations.
       operationId: GetAppAllDetail
@@ -108,7 +108,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/core/v1beta1/application:
+  /core/v1beta1/application:
     post:
       description: Creates a new app for the configurations provided. The input json object is the same we get in response of GET method for fetching all details of an app
       operationId: CreateApp
@@ -121,11 +121,21 @@ paths:
               $ref: '#/components/schemas/AppDetail'
       responses:
         '200':
-          description: Successfully return a message stating the operation is successful.
+          description: Successfully created the application
           content:
             application/json:
               schema:
-                type: string
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    description: HTTP status code
+                  status:
+                    type: string
+                    description: Status message
+                  result:
+                    type: string
+                    description: Success message
         '400':
           description: Bad Request. Validation error/wrong request body.
           content:

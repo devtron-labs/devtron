@@ -3,7 +3,7 @@ info:
   version: 1.0.0
   title: Devtron Labs
 paths:
-  /orchestrator/env/namespace/autocomplete:
+  /env/namespace/autocomplete:
     get:
       description: list of namespaces group by clusters
       parameters:
@@ -11,10 +11,10 @@ paths:
           name: ids
           example: "1,2"
           description: cluster ids
-          required: true
-          allowEmptyValue: false
+          required: false
+          allowEmptyValue: true
           schema:
-            type: integer
+            type: string
       responses:
         '200':
           description: list response
@@ -32,7 +32,7 @@ paths:
                     type: array
                     description: namespace list group by cluster
                     items:
-                      $ref: '#/components/schemas/Cluster'
+                      $ref: '#/components/schemas/ClusterEnvDto'
         default:
           description: unexpected error
           content:
@@ -43,11 +43,8 @@ paths:
 # components mentioned below
 components:
   schemas:
-    Cluster:
+    ClusterEnvDto:
       type: object
-      required:
-        - key
-        - value
       properties:
         clusterId:
           type: integer
@@ -58,22 +55,74 @@ components:
         environments:
           type: array
           items:
-            $ref: '#/components/schemas/Environment'
-    Environment:
+            $ref: '#/components/schemas/EnvDto'
+        isVirtualCluster:
+          type: boolean
+          description: whether cluster is virtual or not
+        clusterServerUrl:
+          type: string
+          description: cluster server URL
+        clusterConfig:
+          type: object
+          description: cluster configuration
+          properties:
+            bearerToken:
+              type: string
+              description: bearer token for cluster access
+            tlsConfig:
+              type: object
+              description: TLS configuration
+              properties:
+                insecureSkipTLSVerify:
+                  type: boolean
+                  description: whether to skip TLS verification
+    EnvDto:
       type: object
       properties:
         environmentId:
           type: integer
-          description: cluster id
+          description: environment id
         environmentName:
           type: string
-          description: cluster name
-        environmentIdentifier:
-          type: string
-          description: environment identifier
+          description: environment name
         namespace:
           type: string
           description: namespace
+        environmentIdentifier:
+          type: string
+          description: environment identifier
+        description:
+          type: string
+          description: environment description
+        isVirtualEnvironment:
+          type: boolean
+          description: whether environment is virtual or not
+        default:
+          type: boolean
+          description: whether environment is default or not
+        clusterId:
+          type: integer
+          description: cluster id
+        clusterName:
+          type: string
+          description: cluster name
+        active:
+          type: boolean
+          description: whether environment is active
+        createdOn:
+          type: string
+          format: date-time
+          description: creation timestamp
+        updatedOn:
+          type: string
+          format: date-time
+          description: last update timestamp
+        createdBy:
+          type: string
+          description: creator's name
+        updatedBy:
+          type: string
+          description: last updater's name
 
     ErrorResponse:
       required:

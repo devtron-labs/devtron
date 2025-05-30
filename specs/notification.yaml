@@ -1,18 +1,18 @@
 openapi: "3.0.0"
 info:
   version: 1.0.0
-  title: Swagger Petstore
-  description: A sample API that uses a petstore as an example to demonstrate features in the OpenAPI 3.0 specification
-  termsOfService: http://swagger.io/terms/
+  title: Devtron Labs
+  description: Devtron API for notification management
+  termsOfService: https://devtron.ai/terms/
   contact:
-    name: Swagger API Team
-    email: apiteam@swagger.io
-    url: http://swagger.io
+    name: Devtron Labs
+    email: support@devtron.ai
+    url: https://devtron.ai
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
 servers:
-  - url: http://petstore.swagger.io/api
+  - url: http://localhost:8080/orchestrator
 paths:
   /notification:
     get:
