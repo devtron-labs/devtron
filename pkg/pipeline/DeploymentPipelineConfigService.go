@@ -494,6 +494,10 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 	}
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
+		// skip creation of pipeline if envId is not set
+		if pipeline.EnvironmentId <= 0 || pipeline.IsSwitchCiPipelineRequest() {
+			continue
+		}
 		env, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching env by id", "envId", pipeline.EnvironmentId, "err", err)
