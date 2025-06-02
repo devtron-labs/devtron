@@ -18,6 +18,7 @@
 - fix: anomalies in deployment status timeline (#6569)
 - fix: scoped var complex type resolution not working in patch type overrides (#6572)
 ## Others
+- misc: added missing dependency (#6634)
 - sync: Develop main sync  (#6631)
 - misc: notification for failed Deployment (#6611)
 - misc: wire in EA (#6616)
