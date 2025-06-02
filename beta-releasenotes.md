@@ -17,6 +17,7 @@
 - fix: anomalies in deployment status timeline (#6569)
 - fix: scoped var complex type resolution not working in patch type overrides (#6572)
 ## Others
+- misc: notification for failed Deployment (#6611)
 - misc: wire in EA (#6616)
 - chore: removed multi-arch section from readme (#6613)
 - chore: git sensor grpc lb policy change (#6610)
