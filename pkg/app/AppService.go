@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"strconv"
 	"time"
 
@@ -47,7 +46,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/common-lib/async"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -126,7 +124,7 @@ type AppServiceImpl struct {
 	deploymentConfigService                common2.DeploymentConfigService
 	envConfigOverrideReadService           read.EnvConfigOverrideService
 	cdWorkflowRunnerService                cd.CdWorkflowRunnerService
-	asyncRunnable                          *async.Runnable
+	deploymentEventHandler                 DeploymentEventHandler
 }
 
 type AppService interface {
@@ -135,7 +133,6 @@ type AppService interface {
 	GetConfigMapAndSecretJson(appId int, envId int) ([]byte, error)
 	UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Application, cdWfrId int, updateTimedOutStatus bool) error
 	UpdateDeploymentStatusForGitOpsPipelines(app *v1alpha1.Application, applicationClusterId int, statusTime time.Time, isAppStore bool) (bool, bool, *chartConfig.PipelineOverride, error)
-	WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride)
 	CreateGitOpsRepo(app *app.App, targetRevision string, userId int32) (gitopsRepoName string, chartGitAttr *commonBean.ChartGitAttribute, err error)
 
 	// TODO: move inside reader service
@@ -168,7 +165,7 @@ func NewAppService(
 	deploymentConfigService common2.DeploymentConfigService,
 	envConfigOverrideReadService read.EnvConfigOverrideService,
 	cdWorkflowRunnerService cd.CdWorkflowRunnerService,
-	asyncRunnable *async.Runnable) *AppServiceImpl {
+	deploymentEventHandler DeploymentEventHandler) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		mergeUtil:                              mergeUtil,
 		pipelineOverrideRepository:             pipelineOverrideRepository,
@@ -199,7 +196,7 @@ func NewAppService(
 		deploymentConfigService:                deploymentConfigService,
 		envConfigOverrideReadService:           envConfigOverrideReadService,
 		cdWorkflowRunnerService:                cdWorkflowRunnerService,
-		asyncRunnable:                          asyncRunnable,
+		deploymentEventHandler:                 deploymentEventHandler,
 	}
 	return appServiceImpl
 }
@@ -309,6 +306,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 				impl.logger.Errorw("error on update cd workflow runner", "CdWorkflowId", pipelineOverride.CdWorkflowId, "status", cdWorkflow2.WorkflowTimedOut, "err", err)
 				return isSucceeded, isTimelineUpdated, pipelineOverride, err
 			}
+			impl.deploymentEventHandler.WriteCDNotificationEventAsync(cdPipeline.AppId, cdPipeline.EnvironmentId, pipelineOverride, eventUtil.Fail)
 			return isSucceeded, isTimelineUpdated, pipelineOverride, nil
 		}
 		if reconciledAt.IsZero() || (kubectlSyncedTimeline != nil && kubectlSyncedTimeline.Id > 0 && reconciledAt.After(kubectlSyncedTimeline.StatusTime)) {
@@ -325,7 +323,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 				}
 				if isSucceeded {
 					impl.logger.Infow("writing cd success event", "gitHash", gitHash, "pipelineOverride", pipelineOverride)
-					impl.asyncRunnable.Execute(func() { impl.WriteCDSuccessEvent(cdPipeline.AppId, cdPipeline.EnvironmentId, pipelineOverride) })
+					impl.deploymentEventHandler.WriteCDNotificationEventAsync(cdPipeline.AppId, cdPipeline.EnvironmentId, pipelineOverride, eventUtil.Success)
 				}
 			} else {
 				impl.logger.Debugw("event received for older triggered revision", "gitHash", gitHash)
@@ -773,23 +771,6 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 	return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, nil
 }
 
-func (impl *AppServiceImpl) WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride) {
-	event, _ := impl.eventFactory.Build(eventUtil.Success, &override.PipelineId, appId, &envId, eventUtil.CD)
-	impl.logger.Debugw("event WriteCDSuccessEvent", "event", event, "override", override)
-	event = impl.eventFactory.BuildExtraCDData(event, nil, override.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
-	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
-	if evtErr != nil {
-		impl.logger.Errorw("error in writing event", "event", event, "err", evtErr)
-	}
-}
-
-func (impl *AppServiceImpl) BuildCDSuccessPayload(appName string, environmentName string) *client.Payload {
-	payload := &client.Payload{}
-	payload.AppName = appName
-	payload.EnvName = environmentName
-	return payload
-}
-
 type ValuesOverrideResponse struct {
 	MergedValues         string
 	ReleaseOverrideJSON  string
@@ -885,29 +866,6 @@ type DeploymentEvent struct {
 type PipelineMaterialInfo struct {
 	PipelineMaterialId int
 	CommitHash         string
-}
-
-func buildCDTriggerEvent(impl *AppServiceImpl, overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline,
-	envOverride *chartConfig.EnvConfigOverride, materialInfo map[string]string, artifact *repository.CiArtifact) client.Event {
-	event, _ := impl.eventFactory.Build(eventUtil.Trigger, &pipeline.Id, pipeline.AppId, &pipeline.EnvironmentId, eventUtil.CD)
-	return event
-}
-
-func (impl *AppServiceImpl) BuildPayload(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline,
-	envOverride *chartConfig.EnvConfigOverride, materialInfo map[string]string, artifact *repository.CiArtifact) *client.Payload {
-	payload := &client.Payload{}
-	payload.AppName = pipeline.App.AppName
-	payload.PipelineName = pipeline.Name
-	payload.EnvName = envOverride.Environment.Name
-
-	var revision string
-	for _, v := range materialInfo {
-		revision = v
-		break
-	}
-	payload.Source = url.PathEscape(revision)
-	payload.DockerImageUrl = artifact.Image
-	return payload
 }
 
 type ReleaseAttributes struct {
