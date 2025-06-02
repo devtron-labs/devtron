@@ -19,6 +19,7 @@ package devtronApps
 import (
 	"bufio"
 	"context"
+	"github.com/devtron-labs/common-lib/async"
 	"os"
 	"time"
 
@@ -168,6 +169,7 @@ type HandlerServiceImpl struct {
 	workflowService                     executor.WorkflowService
 	blobConfigStorageService            pipeline.BlobStorageConfigService
 	deploymentEventHandler              app.DeploymentEventHandler
+	asyncRunnable                       *async.Runnable
 }
 
 func NewHandlerServiceImpl(logger *zap.SugaredLogger,
@@ -229,7 +231,8 @@ func NewHandlerServiceImpl(logger *zap.SugaredLogger,
 	ciLogService pipeline.CiLogService,
 	workflowService executor.WorkflowService,
 	blobConfigStorageService pipeline.BlobStorageConfigService,
-	deploymentEventHandler app.DeploymentEventHandler) (*HandlerServiceImpl, error) {
+	deploymentEventHandler app.DeploymentEventHandler,
+	asyncRunnable *async.Runnable) (*HandlerServiceImpl, error) {
 	impl := &HandlerServiceImpl{
 		logger:                              logger,
 		cdWorkflowCommonService:             cdWorkflowCommonService,
@@ -296,6 +299,7 @@ func NewHandlerServiceImpl(logger *zap.SugaredLogger,
 		workflowService:          workflowService,
 		blobConfigStorageService: blobConfigStorageService,
 		deploymentEventHandler:   deploymentEventHandler,
+		asyncRunnable:            asyncRunnable,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
