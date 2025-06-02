@@ -1,15 +1,20 @@
 package bean
 
-import "github.com/devtron-labs/devtron/pkg/cluster/repository"
+import (
+	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+)
 
 type EphemeralContainerRequest struct {
-	BasicData                   *EphemeralContainerBasicData    `json:"basicData"`
-	AdvancedData                *EphemeralContainerAdvancedData `json:"advancedData"`
-	Namespace                   string                          `json:"namespace" validate:"required"`
-	ClusterId                   int                             `json:"clusterId" validate:"gt=0"`
-	PodName                     string                          `json:"podName"   validate:"required"`
-	ExternalArgoApplicationName string                          `json:"externalArgoApplicationName,omitempty"`
-	UserId                      int32                           `json:"-"`
+	BasicData                        *EphemeralContainerBasicData    `json:"basicData"`
+	AdvancedData                     *EphemeralContainerAdvancedData `json:"advancedData"`
+	Namespace                        string                          `json:"namespace" validate:"required"`
+	ClusterId                        int                             `json:"clusterId" validate:"gt=0"`
+	PodName                          string                          `json:"podName"   validate:"required"`
+	ExternalArgoApplicationName      string                          `json:"externalArgoApplicationName,omitempty"`
+	ExternalArgoApplicationNamespace string                          `json:"externalArgoApplicationNamespace,omitempty"`
+	ExternalArgoAppIdentifier        *bean.ArgoAppIdentifier         `json:"externalArgoAppIdentifier"`
+	UserId                           int32                           `json:"-"`
 }
 
 type EphemeralContainerAdvancedData struct {
