@@ -47,6 +47,8 @@ const (
 	// ApiTokenClaimIssuer is the issuer who generated api-token for APIs
 	ApiTokenClaimIssuer = "apiTokenIssuer"
 
+	LicenseManagerClaimIssuer = "licenseManagerIssuer"
+
 	// invalidLoginError, for security purposes, doesn't say whether the username or password was invalid.  This does not mitigate the potential for timing attacks to determine which is which.
 	invalidLoginError         = "Invalid username or password"
 	blankPasswordError        = "Blank passwords are not allowed"
@@ -220,6 +222,8 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, error) {
 		// Argo CD signed token
 		return mgr.Parse(tokenString)
 	case ApiTokenClaimIssuer:
+		return mgr.ParseApiToken(tokenString)
+	case LicenseManagerClaimIssuer:
 		return mgr.ParseApiToken(tokenString)
 	default:
 		// IDP signed token
