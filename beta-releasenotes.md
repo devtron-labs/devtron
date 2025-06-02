@@ -5,6 +5,7 @@
 - feat: wf logs (#6606)
 - feat: Enable selection of all CI pipelines at once when the Environment filter is applied in Notifications (#6526)
 ## Bugs
+- fix: Unable to fetch manifest in case of ACD external listing (#6598)
 - fix: ea mode fixes (#6624)
 - fix: stack Manager issues (#6619)
 - fix: Change ci to webhook fix (#6626)
