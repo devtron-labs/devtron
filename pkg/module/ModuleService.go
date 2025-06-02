@@ -251,7 +251,7 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (bea
 
 		// if check non-cicd module status
 		if moduleName != bean.ModuleNameCiCd {
-			isEnabled := gjson.Get(releaseValues, moduleUtil.BuildModuleEnableKey(moduleName)).Bool()
+			isEnabled := gjson.Get(releaseValues, moduleUtil.BuildModuleEnableKey(impl.serverEnvConfig.DevtronOperatorBasePath, moduleName)).Bool()
 			if isEnabled {
 				status, err := impl.saveModuleAsInstalled(moduleName, moduleType, flagForEnablingState)
 				return status, moduleType, flagForActiveTool, err
@@ -259,7 +259,7 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (bea
 		} else if util2.IsBaseStack() {
 			// check if cicd is in installing state
 			// if devtron is installed with cicd module, then cicd module should be shown as installing
-			installerModulesIface := gjson.Get(releaseValues, bean.INSTALLER_MODULES_HELM_KEY).Value()
+			installerModulesIface := gjson.Get(releaseValues, impl.serverEnvConfig.DevtronInstallerModulesPath).Value()
 			if installerModulesIface != nil {
 				installerModulesIfaceKind := reflect.TypeOf(installerModulesIface).Kind()
 				if installerModulesIfaceKind == reflect.Slice {
@@ -410,20 +410,20 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 	}
 
 	extraValues := make(map[string]interface{})
-	extraValues["installer.release"] = moduleActionRequest.Version
-	extraValues[bean.INSTALLER_MODULES_HELM_KEY] = []interface{}{moduleName}
+	extraValues[impl.serverEnvConfig.DevtronInstallerReleasePath] = moduleActionRequest.Version
+	extraValues[impl.serverEnvConfig.DevtronInstallerModulesPath] = []interface{}{moduleName}
 	alreadyInstalledModuleNames, err := impl.moduleRepository.GetInstalledModuleNames()
 	if err != nil {
 		impl.logger.Errorw("error in getting modules with installed status ", "err", err)
 		return nil, err
 	}
-	moduleEnableKeys := moduleUtil.BuildAllModuleEnableKeys(moduleName)
+	moduleEnableKeys := moduleUtil.BuildAllModuleEnableKeys(impl.serverEnvConfig.DevtronOperatorBasePath, moduleName)
 	for _, moduleEnableKey := range moduleEnableKeys {
 		extraValues[moduleEnableKey] = true
 	}
 	for _, alreadyInstalledModuleName := range alreadyInstalledModuleNames {
 		if alreadyInstalledModuleName != moduleName {
-			alreadyInstalledModuleEnableKeys := moduleUtil.BuildAllModuleEnableKeys(alreadyInstalledModuleName)
+			alreadyInstalledModuleEnableKeys := moduleUtil.BuildAllModuleEnableKeys(impl.serverEnvConfig.DevtronOperatorBasePath, alreadyInstalledModuleName)
 			for _, alreadyInstalledModuleEnableKey := range alreadyInstalledModuleEnableKeys {
 				extraValues[alreadyInstalledModuleEnableKey] = true
 			}

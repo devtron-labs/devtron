@@ -19,7 +19,7 @@ package status
 import (
 	"context"
 	"fmt"
-	"github.com/devtron-labs/common-lib/async"
+	util "github.com/devtron-labs/devtron/util/event"
 	"time"
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
@@ -90,7 +90,7 @@ type WorkflowStatusServiceImpl struct {
 	appListingService                    app.AppListingService
 	deploymentConfigService              common2.DeploymentConfigService
 	cdWorkflowRunnerService              cd.CdWorkflowRunnerService
-	asyncRunnable                        *async.Runnable
+	deploymentEventHandler               app.DeploymentEventHandler
 }
 
 func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
@@ -113,8 +113,7 @@ func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
 	appListingService app.AppListingService,
 	deploymentConfigService common2.DeploymentConfigService,
 	cdWorkflowRunnerService cd.CdWorkflowRunnerService,
-	asyncRunnable *async.Runnable,
-) (*WorkflowStatusServiceImpl, error) {
+	deploymentEventHandler app.DeploymentEventHandler) (*WorkflowStatusServiceImpl, error) {
 	impl := &WorkflowStatusServiceImpl{
 		logger:                               logger,
 		workflowDagExecutor:                  workflowDagExecutor,
@@ -138,7 +137,7 @@ func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
 		appListingService:                    appListingService,
 		deploymentConfigService:              deploymentConfigService,
 		cdWorkflowRunnerService:              cdWorkflowRunnerService,
-		asyncRunnable:                        asyncRunnable,
+		deploymentEventHandler:               deploymentEventHandler,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -171,12 +170,20 @@ func (impl *WorkflowStatusServiceImpl) CheckHelmAppStatusPeriodicallyAndUpdateIn
 		}
 		wfr.UpdatedBy = 1
 		wfr.UpdatedOn = time.Now()
+
+		pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(wfr.CdWorkflowId)
+		if err != nil {
+			impl.logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", wfr.CdWorkflowId)
+			return err
+		}
+
 		if wfr.Status == cdWorkflow2.WorkflowFailed {
 			err = impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineSuperseded(wfr.RefCdWorkflowRunnerId)
 			if err != nil {
 				impl.logger.Errorw("error updating CdPipelineStatusTimeline", "err", err)
 				return err
 			}
+			impl.deploymentEventHandler.WriteCDNotificationEventAsync(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride, util.Fail)
 		}
 		err = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(wfr)
 		if err != nil {
@@ -196,19 +203,14 @@ func (impl *WorkflowStatusServiceImpl) CheckHelmAppStatusPeriodicallyAndUpdateIn
 
 		impl.logger.Infow("updated workflow runner status for helm app", "wfr", wfr)
 		if wfr.Status == cdWorkflow2.WorkflowSucceeded {
-			pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(wfr.CdWorkflowId)
-			if err != nil {
-				impl.logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", wfr.CdWorkflowId)
-				return err
-			}
-			impl.asyncRunnable.Execute(func() {
-				impl.appService.WriteCDSuccessEvent(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride)
-			})
+			impl.deploymentEventHandler.WriteCDNotificationEventAsync(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride, util.Success)
 			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(bean3.TriggerContext{}, pipelineOverride)
 			if err != nil {
 				impl.logger.Errorw("error on handling deployment success event", "wfr", wfr, "err", err)
 				return err
 			}
+		} else if wfr.Status == cdWorkflow2.WorkflowTimedOut {
+			impl.deploymentEventHandler.WriteCDNotificationEventAsync(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride, util.Fail)
 		}
 	}
 	return nil
@@ -320,7 +322,7 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 		}
 		dc, err := impl.deploymentConfigService.GetConfigForHelmApps(installedApp.AppId, installedApp.EnvironmentId)
 		if err != nil {
-			impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", pipeline.AppId, "environmentId", pipeline.EnvironmentId, "err", err)
+			impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", installedApp.AppId, "environmentId", installedApp.EnvironmentId, "err", err)
 			return nil, isTimelineUpdated
 		}
 		applicationObjectClusterId := dc.GetApplicationObjectClusterId()

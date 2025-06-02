@@ -99,7 +99,8 @@ func (impl DeleteServiceExtendedImpl) DeleteCluster(deleteRequest *bean2.Cluster
 	err = impl.DeleteClusterSecret(deleteRequest, err)
 	if err != nil {
 		impl.logger.Errorw("error in deleting cluster secret", "clusterId", deleteRequest.Id, "error", err)
-		return err
+		// We are not returning error as it is not a blocking call as cluster can be unreachable at that time, and we have already deleted cluster from db.
+		//return err
 	}
 	impl.k8sInformerFactory.DeleteClusterFromCache(clusterName)
 	return nil
