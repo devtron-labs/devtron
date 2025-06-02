@@ -5,6 +5,7 @@
 - feat: wf logs (#6606)
 - feat: Enable selection of all CI pipelines at once when the Environment filter is applied in Notifications (#6526)
 ## Bugs
+- fix: ea mode fixes (#6624)
 - fix: stack Manager issues (#6619)
 - fix: Change ci to webhook fix (#6626)
 - fix: oci chart deployment values.yaml and requirement.yaml not compatible (#6620)
