@@ -47,7 +47,7 @@ import (
 
 type AppStoreDeploymentCommonService interface {
 	// GetValuesString will return values string from the given valuesOverrideYaml
-	GetValuesString(chartName, valuesOverrideYaml string) (string, error)
+	GetValuesString(appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion, valuesOverrideYaml string) (string, error)
 	// GetRequirementsString will return requirement dependencies for the given appStoreVersionId
 	GetRequirementsString(appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) (string, error)
 	// CreateChartProxyAndGetPath parse chart in local directory and returns path of local dir and values.yaml
@@ -169,7 +169,7 @@ func (impl *AppStoreDeploymentCommonServiceImpl) GetDeploymentHistoryInfoFromDB(
 	return values, err
 }
 
-func (impl AppStoreDeploymentCommonServiceImpl) GetValuesString(chartName, valuesOverrideYaml string) (string, error) {
+func (impl AppStoreDeploymentCommonServiceImpl) GetValuesString(appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion, valuesOverrideYaml string) (string, error) {
 
 	ValuesOverrideByte, err := yaml.YAMLToJSON([]byte(valuesOverrideYaml))
 	if err != nil {
@@ -184,7 +184,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetValuesString(chartName, value
 	}
 
 	valuesMap := make(map[string]map[string]interface{})
-	valuesMap[chartName] = dat
+	valuesMap[GetChartNameFromAppStoreApplicationVersion(appStoreApplicationVersion)] = dat
 	valuesByte, err := json.Marshal(valuesMap)
 	if err != nil {
 		impl.logger.Errorw("error in marshaling", "err", err)
@@ -193,23 +193,29 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetValuesString(chartName, value
 	return string(valuesByte), nil
 }
 
+func GetChartNameFromAppStoreApplicationVersion(appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) string {
+	if len(appStoreApplicationVersion.Name) > 0 {
+		return appStoreApplicationVersion.Name //we get this from chartMetadata in app sync job, so more reliable
+	} else {
+		return appStoreApplicationVersion.AppStore.Name
+	}
+}
+
 func (impl AppStoreDeploymentCommonServiceImpl) GetRequirementsString(appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) (string, error) {
 
 	dependency := appStoreBean.Dependency{
-		Name:    appStoreAppVersion.AppStore.Name,
+		Name:    GetChartNameFromAppStoreApplicationVersion(appStoreAppVersion),
 		Version: appStoreAppVersion.Version,
 	}
 	if appStoreAppVersion.AppStore.ChartRepo != nil {
 		dependency.Repository = appStoreAppVersion.AppStore.ChartRepo.Url
 	} else if appStoreAppVersion.AppStore.DockerArtifactStore != nil {
-		dependency.Repository = appStoreAppVersion.AppStore.DockerArtifactStore.RegistryURL
-		repositoryURL, repositoryName, err := sanitizeRepoNameAndURLForOCIRepo(dependency.Repository, dependency.Name)
+		repositoryURL, repositoryName, err := sanitizeRepoNameAndURLForOCIRepo(appStoreAppVersion.AppStore.DockerArtifactStore.RegistryURL, appStoreAppVersion.AppStore.Name)
 		if err != nil {
 			impl.logger.Errorw("error in getting sanitized repository name and url", "repositoryURL", repositoryURL, "repositoryName", repositoryName, "err", err)
 			return "", err
 		}
 		dependency.Repository = repositoryURL
-		dependency.Name = repositoryName
 	}
 
 	var dependencies []appStoreBean.Dependency
