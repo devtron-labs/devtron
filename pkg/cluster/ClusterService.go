@@ -771,7 +771,8 @@ func (impl *ClusterServiceImpl) updateConnectionStatusForVirtualCluster(respMap 
 func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*bean.ClusterBean, clusterExistInDb bool) {
 	var wg sync.WaitGroup
 	respMap := &sync.Map{}
-	for idx, cluster := range clusters {
+	for idx := range clusters {
+		cluster := clusters[idx]
 		if cluster.IsVirtualCluster {
 			impl.updateConnectionStatusForVirtualCluster(respMap, cluster.Id, cluster.ClusterName)
 			continue

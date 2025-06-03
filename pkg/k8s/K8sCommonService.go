@@ -404,17 +404,18 @@ func (impl *K8sCommonServiceImpl) getManifestsByBatch(ctx context.Context, reque
 		var wg sync.WaitGroup
 		for j := 0; j < batchSize; j++ {
 			wg.Add(1)
-			runnableFunc := func(j int) {
+			runnableFunc := func(index int) {
 				resp := bean5.BatchResourceResponse{}
-				response, err := impl.GetResource(ctx, &requests[i+j])
+				response, err := impl.GetResource(ctx, &requests[index])
 				if response != nil {
 					resp.ManifestResponse = response.ManifestResponse
 				}
 				resp.Err = err
-				res[i+j] = resp
+				res[index] = resp
 				wg.Done()
 			}
-			impl.asyncRunnable.Execute(func() { runnableFunc(j) })
+			index := i + j
+			impl.asyncRunnable.Execute(func() { runnableFunc(index) })
 		}
 		wg.Wait()
 		i += batchSize
