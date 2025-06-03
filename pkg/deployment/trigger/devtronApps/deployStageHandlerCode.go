@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	util2 "github.com/devtron-labs/devtron/util/event"
 	"net/http"
 	"path"
 	"regexp"
@@ -317,6 +318,12 @@ func (impl *HandlerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			if err != nil {
 				impl.logger.Errorw("error while updating current runner status to failed", "cdWfr", runner.Id, "err", err)
 			}
+			pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(runner.CdWorkflowId)
+			if err != nil {
+				impl.logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", runner.CdWorkflowId)
+				return 0, "", nil, err
+			}
+			impl.deploymentEventHandler.WriteCDNotificationEventAsync(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride, util2.Fail)
 			return 0, "", nil, releaseErr
 		}
 
