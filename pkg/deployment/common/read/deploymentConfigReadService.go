@@ -18,6 +18,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/helper"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
 	"path/filepath"
@@ -27,8 +28,8 @@ type DeploymentConfigReadService interface {
 	GetDeploymentConfigMinForAppAndEnv(appId, envId int) (*bean.DeploymentConfigMin, error)
 	GetDeploymentAppTypeForCDInBulk(pipelines []*serviceBean.CDPipelineMinConfig, appIdToGitOpsConfiguredMap map[int]bool) (map[int]*bean.DeploymentConfigMin, error)
 
-	GetDeploymentConfigForApp(appId int) (*bean.DeploymentConfig, bool, error)
-	GetDeploymentConfigForAppAndEnv(appLevelConfig *bean.DeploymentConfig, appId, envId int) (*bean.DeploymentConfig, bool, error)
+	GetDeploymentConfigForApp(tx *pg.Tx, appId int) (*bean.DeploymentConfig, bool, error)
+	GetDeploymentConfigForAppAndEnv(tx *pg.Tx, appLevelConfig *bean.DeploymentConfig, appId, envId int) (*bean.DeploymentConfig, bool, error)
 	ParseEnvLevelReleaseConfigForDevtronApp(config *bean.DeploymentConfig, appId int, envId int) (*bean.ReleaseConfiguration, error)
 }
 
@@ -118,12 +119,12 @@ func (impl *DeploymentConfigReadServiceImpl) GetDeploymentAppTypeForCDInBulk(pip
 	return resp, nil
 }
 
-func (impl *DeploymentConfigReadServiceImpl) GetDeploymentConfigForApp(appId int) (*bean.DeploymentConfig, bool, error) {
+func (impl *DeploymentConfigReadServiceImpl) GetDeploymentConfigForApp(tx *pg.Tx, appId int) (*bean.DeploymentConfig, bool, error) {
 	var (
 		appLevelConfig    *bean.DeploymentConfig
 		isMigrationNeeded bool
 	)
-	appLevelConfigDbObj, err := impl.deploymentConfigRepository.GetAppLevelConfigForDevtronApps(nil, appId)
+	appLevelConfigDbObj, err := impl.deploymentConfigRepository.GetAppLevelConfigForDevtronApps(tx, appId)
 	if err != nil && !interalUtil.IsErrNoRows(err) {
 		impl.logger.Errorw("error in getting deployment config db object by appId", "appId", appId, "err", err)
 		return appLevelConfig, isMigrationNeeded, err
@@ -153,12 +154,12 @@ func (impl *DeploymentConfigReadServiceImpl) GetDeploymentConfigForApp(appId int
 	return appLevelConfig, isMigrationNeeded, nil
 }
 
-func (impl *DeploymentConfigReadServiceImpl) GetDeploymentConfigForAppAndEnv(appLevelConfig *bean.DeploymentConfig, appId, envId int) (*bean.DeploymentConfig, bool, error) {
+func (impl *DeploymentConfigReadServiceImpl) GetDeploymentConfigForAppAndEnv(tx *pg.Tx, appLevelConfig *bean.DeploymentConfig, appId, envId int) (*bean.DeploymentConfig, bool, error) {
 	var (
 		envLevelConfig    *bean.DeploymentConfig
 		isMigrationNeeded bool
 	)
-	appAndEnvLevelConfigDBObj, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(nil, appId, envId)
+	appAndEnvLevelConfigDBObj, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(tx, appId, envId)
 	if err != nil && !interalUtil.IsErrNoRows(err) {
 		impl.logger.Errorw("error in getting deployment config db object by appId and envId", "appId", appId, "envId", envId, "err", err)
 		return envLevelConfig, isMigrationNeeded, err
@@ -220,7 +221,7 @@ func (impl *DeploymentConfigReadServiceImpl) getDeploymentConfigMinForAppAndEnv(
 }
 
 func (impl *DeploymentConfigReadServiceImpl) getAppLevelConfigForDevtronApps(appId int) (*bean.DeploymentConfig, error) {
-	appLevelConfig, _, err := impl.GetDeploymentConfigForApp(appId)
+	appLevelConfig, _, err := impl.GetDeploymentConfigForApp(nil, appId)
 	if err != nil {
 		impl.logger.Errorw("error in getting app level Config for devtron apps", "appId", appId, "err", err)
 		return nil, err
@@ -229,7 +230,7 @@ func (impl *DeploymentConfigReadServiceImpl) getAppLevelConfigForDevtronApps(app
 }
 
 func (impl *DeploymentConfigReadServiceImpl) getEnvLevelDataForDevtronApps(appId, envId int, appLevelConfig *bean.DeploymentConfig) (*bean.DeploymentConfig, error) {
-	envLevelConfig, _, err := impl.GetDeploymentConfigForAppAndEnv(appLevelConfig, appId, envId)
+	envLevelConfig, _, err := impl.GetDeploymentConfigForAppAndEnv(nil, appLevelConfig, appId, envId)
 	if err != nil {
 		impl.logger.Errorw("error in getting env level data for devtron apps", "appId", appId, "envId", envId, "appLevelConfig", appLevelConfig, "err", err)
 		return nil, err

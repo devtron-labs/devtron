@@ -488,7 +488,7 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValid(app *v1alpha1.Appl
 		// drop event
 		return isValid, pipeline, cdWfr, pipelineOverride, nil
 	}
-	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(pipeline.AppId, pipeline.EnvironmentId)
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(nil, pipeline.AppId, pipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in getting deployment config by appId and environmentId", "appId", pipeline.AppId, "environmentId", pipeline.EnvironmentId, "err", err)
 		return isValid, pipeline, cdWfr, pipelineOverride, err
@@ -804,7 +804,7 @@ type ValuesOverrideResponse struct {
 
 func (impl *AppServiceImpl) CreateGitOpsRepo(app *app.App, targetRevision string, userId int32) (gitOpsRepoName string, chartGitAttr *commonBean.ChartGitAttribute, err error) {
 
-	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(app.Id, 0)
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(nil, app.Id, 0)
 	if err != nil {
 		impl.logger.Errorw("error in getting deployment config for devtron apps", "appId", app.Id, "err", err)
 		return "", nil, err
@@ -991,7 +991,7 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 	}
 	appId := wfr.CdWorkflow.Pipeline.AppId
 	envId := wfr.CdWorkflow.Pipeline.EnvironmentId
-	envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
+	envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(nil, appId, envId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
 		return err

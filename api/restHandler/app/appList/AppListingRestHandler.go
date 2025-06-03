@@ -567,7 +567,7 @@ func (handler AppListingRestHandlerImpl) FetchResourceTree(w http.ResponseWriter
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
-	envDeploymentConfig, err := handler.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
+	envDeploymentConfig, err := handler.deploymentConfigService.GetConfigForDevtronApps(nil, appId, envId)
 	if err != nil {
 		handler.logger.Errorw("error in fetching deployment config", "appId", appId, "envId", envId, "err", err)
 		common.WriteJsonResp(w, fmt.Errorf("error in getting deployment config for env"), nil, http.StatusInternalServerError)
@@ -887,7 +887,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		}
 
 		cdPipeline := pipelines[0]
-		envDeploymentConfig, err := handler.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
+		envDeploymentConfig, err := handler.deploymentConfigService.GetConfigForDevtronApps(nil, appId, envId)
 		if err != nil {
 			handler.logger.Errorw("error in fetching deployment config", "appId", appId, "envId", envId, "err", err)
 			common.WriteJsonResp(w, fmt.Errorf("error in getting deployment config for env"), nil, http.StatusInternalServerError)

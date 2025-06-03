@@ -172,7 +172,7 @@ func (impl *HandlerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		}
 		return 0, "", nil, err
 	}
-	envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(cdPipeline.AppId, cdPipeline.EnvironmentId)
+	envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(nil, cdPipeline.AppId, cdPipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", cdPipeline.AppId, "envId", cdPipeline.EnvironmentId, "err", err)
 		return 0, "", nil, err
@@ -431,7 +431,7 @@ func (impl *HandlerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 	if err != nil {
 		impl.logger.Errorw("error in creating timeline status for deployment initiation", "err", err, "timeline", timeline)
 	}
-	envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(pipeline.AppId, pipeline.EnvironmentId)
+	envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(nil, pipeline.AppId, pipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
 		return err
@@ -574,7 +574,7 @@ func (impl *HandlerServiceImpl) handleCDTriggerRelease(ctx context.Context, over
 		return userDeploymentRequestId, manifestPushTemplate, err
 	}
 	if envDeploymentConfig.IsEmpty() {
-		deploymentConfig, dbErr := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(overrideRequest.AppId, overrideRequest.EnvId)
+		deploymentConfig, dbErr := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(nil, overrideRequest.AppId, overrideRequest.EnvId)
 		if dbErr != nil {
 			impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "err", dbErr)
 			return releaseNo, manifestPushTemplate, dbErr
@@ -1339,7 +1339,7 @@ func (impl *HandlerServiceImpl) getReferenceChartByteForHelmTypeApp(envOverride 
 		ch.ReferenceChart = refChartByte
 		ch.UpdatedOn = time.Now()
 		ch.UpdatedBy = overrideRequest.UserId
-		err = impl.chartRepository.Update(ch)
+		err = impl.chartRepository.Update(nil, ch)
 		if err != nil {
 			impl.logger.Errorw("chart update error", "err", err, "req", overrideRequest)
 			return nil, err

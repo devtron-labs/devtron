@@ -20,6 +20,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 )
 
 type Chart struct {
@@ -55,12 +56,12 @@ type Chart struct {
 type ChartRepository interface {
 	//ChartReleasedToProduction(chartRepo, appName, chartVersion string) (bool, error)
 	FindOne(chartRepo, appName, chartVersion string) (*Chart, error)
-	Save(*Chart) error
+	Save(tx *pg.Tx, chart *Chart) error
 	FindCurrentChartVersion(chartRepo, chartName, chartVersionPattern string) (string, error)
 	FindActiveChart(appId int) (chart *Chart, err error)
 	FindLatestByAppId(appId int) (chart *Chart, err error)
 	FindById(id int) (chart *Chart, err error)
-	Update(chart *Chart) error
+	Update(tx *pg.Tx, chart *Chart) error
 	UpdateAllInTx(tx *pg.Tx, charts []*Chart) error
 
 	FindActiveChartsByAppId(appId int) (charts []*Chart, err error)
@@ -214,12 +215,23 @@ func (repositoryImpl ChartRepositoryImpl) FindPreviousChartByAppId(appId int) (c
 	return chart, err
 }
 
-func (repositoryImpl ChartRepositoryImpl) Save(chart *Chart) error {
-	return repositoryImpl.dbConnection.Insert(chart)
+func (repositoryImpl ChartRepositoryImpl) Save(tx *pg.Tx, chart *Chart) error {
+	if tx == nil {
+		return repositoryImpl.dbConnection.Insert(chart)
+	} else {
+		_, err := tx.Model(&chart).Insert()
+		return err
+	}
 }
 
-func (repositoryImpl ChartRepositoryImpl) Update(chart *Chart) error {
-	_, err := repositoryImpl.dbConnection.Model(chart).WherePK().UpdateNotNull()
+func (repositoryImpl ChartRepositoryImpl) Update(tx *pg.Tx, chart *Chart) error {
+	var query *orm.Query
+	if tx == nil {
+		query = tx.Model(chart)
+	} else {
+		query = repositoryImpl.dbConnection.Model(chart)
+	}
+	_, err := query.WherePK().UpdateNotNull()
 	return err
 }
 

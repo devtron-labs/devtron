@@ -811,7 +811,7 @@ func (impl AppWorkflowServiceImpl) FindCdPipelinesByAppId(appId int) (*bean.CdPi
 	}
 
 	for _, pipeline := range dbPipelines {
-		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, pipeline.EnvironmentId)
+		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(nil, appId, pipeline.EnvironmentId)
 		if err != nil {
 			impl.Logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", pipeline.EnvironmentId, "err", err)
 			return nil, err

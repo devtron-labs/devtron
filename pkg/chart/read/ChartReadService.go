@@ -57,7 +57,7 @@ func (impl *ChartReadServiceImpl) GetByAppIdAndChartRefId(appId int, chartRefId 
 		impl.logger.Errorw("error in fetching app-metrics", "appId", appId, "err", err)
 		return nil, err
 	}
-	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, 0)
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(nil, appId, 0)
 	if err != nil {
 		impl.logger.Errorw("error in fetching deployment config by appId", "appId", appId, "err", err)
 		return nil, err
@@ -97,7 +97,7 @@ func (impl *ChartReadServiceImpl) FindLatestChartForAppByAppId(appId int) (chart
 		return nil, err
 	}
 
-	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, 0)
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(nil, appId, 0)
 	if err != nil {
 		impl.logger.Errorw("error in fetching deployment config by appId", "appId", appId, "err", err)
 		return nil, err
