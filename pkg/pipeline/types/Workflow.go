@@ -497,7 +497,16 @@ func (workflowRequest *WorkflowRequest) getWorkflowImage() string {
 }
 
 func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdConfig, infraConfigurations *infraBean.InfraConfig, workflowJson []byte, workflowTemplate *bean.WorkflowTemplate, workflowConfigMaps []apiBean.ConfigSecretMap, workflowSecrets []apiBean.ConfigSecretMap) (v1.Container, error) {
-	privileged := false
+	// privileged := false
+	capabilities := &v1.Capabilities{
+		Add: []v1.Capability{
+			"NET_ADMIN",
+			"SYS_ADMIN",
+			"SYS_PTRACE",
+		},
+	}
+
+	allowPrivilegeEscalation := false
 	pvc := workflowRequest.getPVCForWorkflowRequest()
 	containerEnvVariables := workflowRequest.getContainerEnvVariables(config, workflowJson)
 	workflowMainContainer := v1.Container{
@@ -505,8 +514,9 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 		Name:  common.MainContainerName,
 		Image: workflowRequest.getWorkflowImage(),
 		SecurityContext: &v1.SecurityContext{
-			Privileged: &privileged,
-		},
+        Capabilities:             capabilities,
+        AllowPrivilegeEscalation: &allowPrivilegeEscalation,
+    },
 		TerminationMessagePath: workFlow.GetTerminalLogFilePath(),
 		Resources:              workflowRequest.GetLimitReqCpuMem(config, infraConfigurations),
 	}
