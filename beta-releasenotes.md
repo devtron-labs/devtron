@@ -5,6 +5,7 @@
 - feat: wf logs (#6606)
 - feat: Enable selection of all CI pipelines at once when the Environment filter is applied in Notifications (#6526)
 ## Bugs
+- fix: overriden pipeline ids filtering in case of material deletion (#6636)
 - fix: prevent deletion of git material used in overridden CI templates (#6633)
 - fix: Unable to fetch manifest in case of ACD external listing (#6598)
 - fix: ea mode fixes (#6624)
