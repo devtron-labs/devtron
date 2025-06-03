@@ -369,6 +369,20 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload.AppsWithIncludeExcludeFilesCount = impl.getAppsWithIncludeExcludeFilesCount()
 	payload.AppsWithCreateDockerfileCount = impl.getAppsWithCreateDockerfileCount()
 
+	// Collect additional PostHog metrics for build and deployment analytics
+	payload.DockerfileLanguagesList = impl.getDockerfileLanguagesList()
+	payload.AppsWithDockerfileCount = impl.getAppsWithDockerfileCount()
+	payload.AppsWithBuildpacksCount = impl.getAppsWithBuildpacksCount()
+	payload.BuildpackLanguagesList = impl.getBuildpackLanguagesList()
+	payload.AppsWithDeploymentChartCount = impl.getAppsWithDeploymentChartCount()
+	payload.AppsWithRolloutChartCount = impl.getAppsWithRolloutChartCount()
+	payload.AppsWithStatefulsetCount = impl.getAppsWithStatefulsetCount()
+	payload.AppsWithJobsCronjobsCount = impl.getAppsWithJobsCronjobsCount()
+	payload.EnvironmentsWithPatchStrategyCount = impl.getEnvironmentsWithPatchStrategyCount()
+	payload.EnvironmentsWithReplaceStrategyCount = impl.getEnvironmentsWithReplaceStrategyCount()
+	payload.ExternalConfigMapCount = impl.getExternalConfigMapCount()
+	payload.InternalConfigMapCount = impl.getInternalConfigMapCount()
+
 	payload.ClusterProvider, err = impl.GetCloudProvider()
 	if err != nil {
 		impl.logger.Errorw("error while getting cluster provider", "error", err)

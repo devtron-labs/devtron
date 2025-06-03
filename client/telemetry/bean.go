@@ -171,4 +171,17 @@ type TelemetryEventDto struct {
 	HighestGitRepoCountInApp          int `json:"highestGitRepoCountInApp,omitempty"`
 	AppsWithIncludeExcludeFilesCount  int `json:"appsWithIncludeExcludeFilesCount,omitempty"`
 	AppsWithCreateDockerfileCount     int `json:"appsWithCreateDockerfileCount,omitempty"`
+	// Additional PostHog metrics for build and deployment analytics
+	DockerfileLanguagesList              []string `json:"dockerfileLanguagesList,omitempty"`
+	AppsWithDockerfileCount              int      `json:"appsWithDockerfileCount,omitempty"`
+	AppsWithBuildpacksCount              int      `json:"appsWithBuildpacksCount,omitempty"`
+	BuildpackLanguagesList               []string `json:"buildpackLanguagesList,omitempty"`
+	AppsWithDeploymentChartCount         int      `json:"appsWithDeploymentChartCount,omitempty"`
+	AppsWithRolloutChartCount            int      `json:"appsWithRolloutChartCount,omitempty"`
+	AppsWithStatefulsetCount             int      `json:"appsWithStatefulsetCount,omitempty"`
+	AppsWithJobsCronjobsCount            int      `json:"appsWithJobsCronjobsCount,omitempty"`
+	EnvironmentsWithPatchStrategyCount   int      `json:"environmentsWithPatchStrategyCount,omitempty"`
+	EnvironmentsWithReplaceStrategyCount int      `json:"environmentsWithReplaceStrategyCount,omitempty"`
+	ExternalConfigMapCount               int      `json:"externalConfigMapCount,omitempty"`
+	InternalConfigMapCount               int      `json:"internalConfigMapCount,omitempty"`
 }

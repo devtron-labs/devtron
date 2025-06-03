@@ -447,3 +447,323 @@ func (impl *TelemetryEventClientImplExtended) getAppsWithCreateDockerfileCount()
 	impl.logger.Debugw("counted apps with create dockerfile", "count", count)
 	return count
 }
+
+// getDockerfileLanguagesList returns a list of languages being used in create dockerfile configurations
+func (impl *TelemetryEventClientImplExtended) getDockerfileLanguagesList() []string {
+	var languages []string
+	query := `
+		SELECT DISTINCT
+			CASE
+				WHEN cbc.build_metadata::jsonb->>'language' IS NOT NULL
+				THEN cbc.build_metadata::jsonb->>'language'
+				ELSE 'unknown'
+			END as language
+		FROM ci_build_config cbc
+		INNER JOIN ci_template ct ON cbc.id = ct.ci_build_config_id
+		INNER JOIN app a ON ct.app_id = a.id
+		WHERE cbc.type = 'MANAGED_DOCKERFILE_BUILD_TYPE'
+		AND ct.active = true
+		AND a.active = true
+		AND cbc.build_metadata IS NOT NULL
+		ORDER BY language
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&languages, query)
+	if err != nil {
+		impl.logger.Errorw("error getting dockerfile languages list", "err", err)
+		return []string{}
+	}
+
+	impl.logger.Debugw("retrieved dockerfile languages list", "languages", languages)
+	return languages
+}
+
+// getAppsWithDockerfileCount returns the number of applications that have a dockerfile configured
+func (impl *TelemetryEventClientImplExtended) getAppsWithDockerfileCount() int {
+	var count int
+	query := `
+		SELECT COUNT(DISTINCT ct.app_id)
+		FROM ci_template ct
+		INNER JOIN app a ON ct.app_id = a.id
+		WHERE ct.active = true
+		AND a.active = true
+		AND ct.dockerfile_path IS NOT NULL
+		AND TRIM(ct.dockerfile_path) != ''
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query)
+	if err != nil {
+		impl.logger.Errorw("error getting apps with dockerfile count", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted apps with dockerfile", "count", count)
+	return count
+}
+
+// getAppsWithBuildpacksCount returns the number of applications that use buildpacks
+func (impl *TelemetryEventClientImplExtended) getAppsWithBuildpacksCount() int {
+	var count int
+	query := `
+		SELECT COUNT(DISTINCT ct.app_id)
+		FROM ci_template ct
+		INNER JOIN app a ON ct.app_id = a.id
+		INNER JOIN ci_build_config cbc ON ct.ci_build_config_id = cbc.id
+		WHERE ct.active = true
+		AND a.active = true
+		AND cbc.type = 'BUILDPACK_BUILD_TYPE'
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query)
+	if err != nil {
+		impl.logger.Errorw("error getting apps with buildpacks count", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted apps with buildpacks", "count", count)
+	return count
+}
+
+// getBuildpackLanguagesList returns a list of languages being used in buildpack configurations
+func (impl *TelemetryEventClientImplExtended) getBuildpackLanguagesList() []string {
+	var languages []string
+	query := `
+		SELECT DISTINCT
+			CASE
+				WHEN cbc.build_metadata::jsonb->>'language' IS NOT NULL
+				THEN cbc.build_metadata::jsonb->>'language'
+				ELSE 'unknown'
+			END as language
+		FROM ci_build_config cbc
+		INNER JOIN ci_template ct ON cbc.id = ct.ci_build_config_id
+		INNER JOIN app a ON ct.app_id = a.id
+		WHERE cbc.type = 'BUILDPACK_BUILD_TYPE'
+		AND ct.active = true
+		AND a.active = true
+		AND cbc.build_metadata IS NOT NULL
+		ORDER BY language
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&languages, query)
+	if err != nil {
+		impl.logger.Errorw("error getting buildpack languages list", "err", err)
+		return []string{}
+	}
+
+	impl.logger.Debugw("retrieved buildpack languages list", "languages", languages)
+	return languages
+}
+
+// getAppsWithDeploymentChartCount returns the number of applications using deployment chart
+func (impl *TelemetryEventClientImplExtended) getAppsWithDeploymentChartCount() int {
+	var count int
+	query := `
+		SELECT COUNT(DISTINCT c.app_id)
+		FROM charts c
+		INNER JOIN chart_ref cr ON c.chart_repo_id = cr.id
+		INNER JOIN app a ON c.app_id = a.id
+		WHERE c.active = true
+		AND a.active = true
+		AND cr.active = true
+		AND cr.name = 'Deployment'
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query)
+	if err != nil {
+		impl.logger.Errorw("error getting apps with deployment chart count", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted apps with deployment chart", "count", count)
+	return count
+}
+
+// getAppsWithRolloutChartCount returns the number of applications using rollout chart
+func (impl *TelemetryEventClientImplExtended) getAppsWithRolloutChartCount() int {
+	var count int
+	query := `
+		SELECT COUNT(DISTINCT c.app_id)
+		FROM charts c
+		INNER JOIN chart_ref cr ON c.chart_repo_id = cr.id
+		INNER JOIN app a ON c.app_id = a.id
+		WHERE c.active = true
+		AND a.active = true
+		AND cr.active = true
+		AND cr.location LIKE 'reference-chart_%'
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query)
+	if err != nil {
+		impl.logger.Errorw("error getting apps with rollout chart count", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted apps with rollout chart", "count", count)
+	return count
+}
+
+// getAppsWithStatefulsetCount returns the number of applications using statefulset chart
+func (impl *TelemetryEventClientImplExtended) getAppsWithStatefulsetCount() int {
+	var count int
+	query := `
+		SELECT COUNT(DISTINCT c.app_id)
+		FROM charts c
+		INNER JOIN chart_ref cr ON c.chart_repo_id = cr.id
+		INNER JOIN app a ON c.app_id = a.id
+		WHERE c.active = true
+		AND a.active = true
+		AND cr.active = true
+		AND cr.name = 'StatefulSet'
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query)
+	if err != nil {
+		impl.logger.Errorw("error getting apps with statefulset count", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted apps with statefulset", "count", count)
+	return count
+}
+
+// getAppsWithJobsCronjobsCount returns the number of applications using jobs & cronjobs chart
+func (impl *TelemetryEventClientImplExtended) getAppsWithJobsCronjobsCount() int {
+	var count int
+	query := `
+		SELECT COUNT(DISTINCT c.app_id)
+		FROM charts c
+		INNER JOIN chart_ref cr ON c.chart_repo_id = cr.id
+		INNER JOIN app a ON c.app_id = a.id
+		WHERE c.active = true
+		AND a.active = true
+		AND cr.active = true
+		AND (cr.name = 'Cron Job & Job' OR cr.location LIKE 'cronjob-chart_%')
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query)
+	if err != nil {
+		impl.logger.Errorw("error getting apps with jobs/cronjobs count", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted apps with jobs/cronjobs", "count", count)
+	return count
+}
+
+// getEnvironmentsWithPatchStrategyCount returns the number of environments using patch strategy
+func (impl *TelemetryEventClientImplExtended) getEnvironmentsWithPatchStrategyCount() int {
+	var count int
+	query := `
+		SELECT COUNT(DISTINCT ceco.environment_id)
+		FROM chart_env_config_override ceco
+		INNER JOIN environment e ON ceco.environment_id = e.id
+		WHERE ceco.active = true
+		AND e.active = true
+		AND ceco.merge_strategy = 'patch'
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query)
+	if err != nil {
+		impl.logger.Errorw("error getting environments with patch strategy count", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted environments with patch strategy", "count", count)
+	return count
+}
+
+// getEnvironmentsWithReplaceStrategyCount returns the number of environments using replace strategy
+func (impl *TelemetryEventClientImplExtended) getEnvironmentsWithReplaceStrategyCount() int {
+	var count int
+	query := `
+		SELECT COUNT(DISTINCT ceco.environment_id)
+		FROM chart_env_config_override ceco
+		INNER JOIN environment e ON ceco.environment_id = e.id
+		WHERE ceco.active = true
+		AND e.active = true
+		AND ceco.merge_strategy = 'replace'
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query)
+	if err != nil {
+		impl.logger.Errorw("error getting environments with replace strategy count", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted environments with replace strategy", "count", count)
+	return count
+}
+
+// getExternalConfigMapCount returns the number of external configmaps
+func (impl *TelemetryEventClientImplExtended) getExternalConfigMapCount() int {
+	var count int
+	query := `
+		SELECT COUNT(*)
+		FROM (
+			SELECT COUNT(*) as cm_count
+			FROM config_map_env_level cmel
+			INNER JOIN environment e ON cmel.environment_id = e.id
+			WHERE cmel.deleted = false
+			AND e.active = true
+			AND cmel.config_map_data::jsonb->'ConfigMaps'->>'enabled' = 'true'
+			AND EXISTS (
+				SELECT 1
+				FROM jsonb_array_elements(cmel.config_map_data::jsonb->'ConfigMaps'->'maps') as cm
+				WHERE cm->>'external' = 'true'
+			)
+			GROUP BY cmel.environment_id, cmel.app_id
+		) external_cms
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query)
+	if err != nil {
+		impl.logger.Errorw("error getting external configmap count", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted external configmaps", "count", count)
+	return count
+}
+
+// getInternalConfigMapCount returns the number of internal configmaps
+func (impl *TelemetryEventClientImplExtended) getInternalConfigMapCount() int {
+	var count int
+	query := `
+		SELECT COUNT(*)
+		FROM (
+			SELECT COUNT(*) as cm_count
+			FROM config_map_env_level cmel
+			INNER JOIN environment e ON cmel.environment_id = e.id
+			WHERE cmel.deleted = false
+			AND e.active = true
+			AND cmel.config_map_data::jsonb->'ConfigMaps'->>'enabled' = 'true'
+			AND EXISTS (
+				SELECT 1
+				FROM jsonb_array_elements(cmel.config_map_data::jsonb->'ConfigMaps'->'maps') as cm
+				WHERE cm->>'external' = 'false'
+			)
+			GROUP BY cmel.environment_id, cmel.app_id
+		) internal_cms
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query)
+	if err != nil {
+		impl.logger.Errorw("error getting internal configmap count", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted internal configmaps", "count", count)
+	return count
+}
