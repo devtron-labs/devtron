@@ -360,6 +360,15 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload.AppsWithCatalogDataCount = impl.getAppsWithCatalogDataCount()
 	payload.AppsWithReadmeDataCount = impl.getAppsWithReadmeDataCount()
 
+	// Collect additional PostHog metrics for app analytics
+	payload.HighestEnvironmentCountInApp = impl.getHighestEnvironmentCountInApp()
+	payload.HighestAppCountInEnvironment = impl.getHighestAppCountInEnvironment()
+	payload.HighestWorkflowCountInApp = impl.getHighestWorkflowCountInApp()
+	payload.HighestEnvironmentCountInWorkflow = impl.getHighestEnvironmentCountInWorkflow()
+	payload.HighestGitRepoCountInApp = impl.getHighestGitRepoCountInApp()
+	payload.AppsWithIncludeExcludeFilesCount = impl.getAppsWithIncludeExcludeFilesCount()
+	payload.AppsWithCreateDockerfileCount = impl.getAppsWithCreateDockerfileCount()
+
 	payload.ClusterProvider, err = impl.GetCloudProvider()
 	if err != nil {
 		impl.logger.Errorw("error while getting cluster provider", "error", err)

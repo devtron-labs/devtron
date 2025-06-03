@@ -163,4 +163,12 @@ type TelemetryEventDto struct {
 	AppsWithDescriptionCount        int `json:"appsWithDescriptionCount,omitempty"`
 	AppsWithCatalogDataCount        int `json:"appsWithCatalogDataCount,omitempty"`
 	AppsWithReadmeDataCount         int `json:"appsWithReadmeDataCount,omitempty"`
+	// Additional PostHog metrics for app analytics
+	HighestEnvironmentCountInApp      int `json:"highestEnvironmentCountInApp,omitempty"`
+	HighestAppCountInEnvironment      int `json:"highestAppCountInEnvironment,omitempty"`
+	HighestWorkflowCountInApp         int `json:"highestWorkflowCountInApp,omitempty"`
+	HighestEnvironmentCountInWorkflow int `json:"highestEnvironmentCountInWorkflow,omitempty"`
+	HighestGitRepoCountInApp          int `json:"highestGitRepoCountInApp,omitempty"`
+	AppsWithIncludeExcludeFilesCount  int `json:"appsWithIncludeExcludeFilesCount,omitempty"`
+	AppsWithCreateDockerfileCount     int `json:"appsWithCreateDockerfileCount,omitempty"`
 }

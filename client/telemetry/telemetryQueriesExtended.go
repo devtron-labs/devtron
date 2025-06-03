@@ -270,3 +270,180 @@ func (impl *TelemetryEventClientImplExtended) getAppsWithReadmeDataCount() int {
 	impl.logger.Debugw("counted apps with readme data", "count", count)
 	return count
 }
+
+// getHighestEnvironmentCountInApp returns the highest number of environments configured in a single application
+func (impl *TelemetryEventClientImplExtended) getHighestEnvironmentCountInApp() int {
+	var maxCount int
+	query := `
+		SELECT COALESCE(MAX(env_count), 0) as max_env_count
+		FROM (
+			SELECT COUNT(DISTINCT p.environment_id) as env_count
+			FROM pipeline p
+			INNER JOIN app a ON p.app_id = a.id
+			WHERE p.deleted = false AND a.active = true
+			GROUP BY p.app_id
+		) app_env_counts
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&maxCount, query)
+	if err != nil {
+		impl.logger.Errorw("error getting highest environment count in app", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted highest environment count in app", "count", maxCount)
+	return maxCount
+}
+
+// getHighestAppCountInEnvironment returns the highest number of applications deployed in a single environment
+func (impl *TelemetryEventClientImplExtended) getHighestAppCountInEnvironment() int {
+	var maxCount int
+	query := `
+		SELECT COALESCE(MAX(app_count), 0) as max_app_count
+		FROM (
+			SELECT COUNT(DISTINCT p.app_id) as app_count
+			FROM pipeline p
+			INNER JOIN app a ON p.app_id = a.id
+			WHERE p.deleted = false AND a.active = true
+			GROUP BY p.environment_id
+		) env_app_counts
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&maxCount, query)
+	if err != nil {
+		impl.logger.Errorw("error getting highest app count in environment", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted highest app count in environment", "count", maxCount)
+	return maxCount
+}
+
+// getHighestWorkflowCountInApp returns the highest number of workflows in a single application
+func (impl *TelemetryEventClientImplExtended) getHighestWorkflowCountInApp() int {
+	var maxCount int
+	query := `
+		SELECT COALESCE(MAX(workflow_count), 0) as max_workflow_count
+		FROM (
+			SELECT COUNT(*) as workflow_count
+			FROM app_workflow aw
+			INNER JOIN app a ON aw.app_id = a.id
+			WHERE aw.active = true AND a.active = true
+			GROUP BY aw.app_id
+		) app_workflow_counts
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&maxCount, query)
+	if err != nil {
+		impl.logger.Errorw("error getting highest workflow count in app", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted highest workflow count in app", "count", maxCount)
+	return maxCount
+}
+
+// getHighestEnvironmentCountInWorkflow returns the highest number of environments in a single workflow
+func (impl *TelemetryEventClientImplExtended) getHighestEnvironmentCountInWorkflow() int {
+	var maxCount int
+	query := `
+		SELECT COALESCE(MAX(env_count), 0) as max_env_count
+		FROM (
+			SELECT COUNT(DISTINCT p.environment_id) as env_count
+			FROM app_workflow_mapping awm
+			INNER JOIN pipeline p ON awm.component_id = p.id
+			INNER JOIN app_workflow aw ON awm.app_workflow_id = aw.id
+			WHERE awm.type = 'CD_PIPELINE'
+			AND awm.active = true
+			AND aw.active = true
+			AND p.deleted = false
+			GROUP BY awm.app_workflow_id
+		) workflow_env_counts
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&maxCount, query)
+	if err != nil {
+		impl.logger.Errorw("error getting highest environment count in workflow", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted highest environment count in workflow", "count", maxCount)
+	return maxCount
+}
+
+// getHighestGitRepoCountInApp returns the highest number of git repositories in a single application
+func (impl *TelemetryEventClientImplExtended) getHighestGitRepoCountInApp() int {
+	var maxCount int
+	query := `
+		SELECT COALESCE(MAX(git_repo_count), 0) as max_git_repo_count
+		FROM (
+			SELECT COUNT(*) as git_repo_count
+			FROM git_material gm
+			INNER JOIN app a ON gm.app_id = a.id
+			WHERE gm.active = true AND a.active = true
+			GROUP BY gm.app_id
+		) app_git_counts
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&maxCount, query)
+	if err != nil {
+		impl.logger.Errorw("error getting highest git repo count in app", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted highest git repo count in app", "count", maxCount)
+	return maxCount
+}
+
+// getAppsWithIncludeExcludeFilesCount returns the number of applications that have include/exclude file patterns defined
+func (impl *TelemetryEventClientImplExtended) getAppsWithIncludeExcludeFilesCount() int {
+	var count int
+	query := `
+		SELECT COUNT(DISTINCT gm.app_id)
+		FROM git_material gm
+		INNER JOIN app a ON gm.app_id = a.id
+		WHERE gm.active = true
+		AND a.active = true
+		AND gm.filter_pattern IS NOT NULL
+		AND array_length(gm.filter_pattern, 1) > 0
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query)
+	if err != nil {
+		impl.logger.Errorw("error getting apps with include/exclude files count", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted apps with include/exclude files", "count", count)
+	return count
+}
+
+// getAppsWithCreateDockerfileCount returns the number of applications that have dockerfile creation configured
+func (impl *TelemetryEventClientImplExtended) getAppsWithCreateDockerfileCount() int {
+	var count int
+	query := `
+		SELECT COUNT(DISTINCT ct.app_id)
+		FROM ci_template ct
+		INNER JOIN app a ON ct.app_id = a.id
+		INNER JOIN ci_build_config cbc ON ct.ci_build_config_id = cbc.id
+		WHERE ct.active = true
+		AND a.active = true
+		AND cbc.type = 'MANAGED_DOCKERFILE_BUILD_TYPE'
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query)
+	if err != nil {
+		impl.logger.Errorw("error getting apps with create dockerfile count", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted apps with create dockerfile", "count", count)
+	return count
+}
