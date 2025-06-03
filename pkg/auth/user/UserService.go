@@ -86,6 +86,7 @@ type UserService interface {
 	GetRoleFiltersByUserRoleGroups(userRoleGroups []userBean.UserRoleGroup) ([]userBean.RoleFilter, error)
 	SaveLoginAudit(emailId, clientIp string, id int32)
 	CheckIfTokenIsValid(email string, version string) error
+	CheckUserStatusAndUpdateLoginAudit(token string) (bool, int32, string, error)
 }
 
 type UserServiceImpl struct {
@@ -1825,4 +1826,35 @@ func (impl *UserServiceImpl) GetUserBasicDataByEmailId(emailId string) (*userBea
 		UserType: model.UserType,
 	}
 	return response, nil
+}
+
+func (impl *UserServiceImpl) CheckUserStatusAndUpdateLoginAudit(token string) (bool, int32, string, error) {
+	emailId, version, err := impl.GetEmailAndVersionFromToken(token)
+	if err != nil {
+		impl.logger.Error("unable to fetch user by token")
+		err = &util.ApiError{HttpStatusCode: 401, UserMessage: "Invalid User", InternalMessage: "unable to fetch user by token"}
+		return false, 0, "", err
+	}
+	userId, isInactive, err := impl.nctiogetUserWithTimeoutWindowConfiguration(emailId)
+	if err != nil {
+		err = &util.ApiError{HttpStatusCode: 401, UserMessage: "Invalid User", InternalMessage: err.Error()}
+		impl.logger.Errorw("unable to fetch user by email, %s", token)
+		return isInactive, userId, "", err
+	}
+	//if user is inactive, no need to store audit log
+	if !isInactive {
+		impl.SaveLoginAudit(emailId, "localhost", userId)
+	}
+	// checking length of version, to ensure backward compatibility as earlier we did not
+	// have version for api-tokens
+	// therefore, for tokens without version we will skip the below part
+	if strings.HasPrefix(emailId, userBean.API_TOKEN_USER_EMAIL_PREFIX) && len(version) > 0 {
+		err := impl.CheckIfTokenIsValid(emailId, version)
+		if err != nil {
+			impl.logger.Errorw("token is not valid", "error", err, "token", token)
+			return isInactive, userId, "", err
+		}
+	}
+
+	return isInactive, userId, emailId, nil
 }
