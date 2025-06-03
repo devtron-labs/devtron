@@ -80,7 +80,6 @@ type ModuleStatus = string
 type ModuleName = string
 
 const BlobStorage = "blob-storage"
-const INSTALLER_MODULES_HELM_KEY = "installer.modules"
 const (
 	CLAIR_V4 = "V4"
 	CLAIR_V2 = "V2"
