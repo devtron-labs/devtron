@@ -27,7 +27,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
@@ -126,12 +125,15 @@ func (impl *CiMaterialConfigServiceImpl) DeleteMaterial(request *bean.UpdateMate
 				return fmt.Errorf("cannot delete git material, is being used in docker config")
 			}
 		}
-		pipelineIds := sliceUtil.NewSliceFromFuncExec(pipelines, func(dbPipeline *pipelineConfig.CiPipeline) int {
-			return dbPipeline.Id
-		})
-		exist, err := impl.ciTemplateService.CheckIfTemplateOverrideExists(pipelineIds, request.Material.Id)
+		overriddenPipelineIds := make([]int, 0, len(pipelines))
+		for _, dbPipeline := range pipelines {
+			if dbPipeline.IsDockerConfigOverridden {
+				overriddenPipelineIds = append(overriddenPipelineIds, dbPipeline.Id)
+			}
+		}
+		exist, err := impl.ciTemplateService.CheckIfTemplateOverrideExists(overriddenPipelineIds, request.Material.Id)
 		if err != nil {
-			impl.logger.Errorw("error in checking if template override exists", "pipelineIds", pipelineIds, "gitMaterialId", request.Material.Id, "err", err)
+			impl.logger.Errorw("error in checking if template override exists", "pipelineIds", overriddenPipelineIds, "gitMaterialId", request.Material.Id, "err", err)
 			return err
 		}
 		if exist {

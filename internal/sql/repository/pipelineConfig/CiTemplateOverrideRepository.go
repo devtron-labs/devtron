@@ -129,6 +129,9 @@ func (repo *CiTemplateOverrideRepositoryImpl) FindByCiPipelineId(ciPipelineId in
 }
 
 func (repo *CiTemplateOverrideRepositoryImpl) FindIfTemplateOverrideExistsByCiPipelineIdsAndGitMaterialId(ciPipelineIds []int, gitMaterialId int) (bool, error) {
+	if len(ciPipelineIds) == 0 {
+		return false, nil
+	}
 	count, err := repo.dbConnection.Model((*CiTemplateOverride)(nil)).
 		Where("ci_pipeline_id in (?)", pg.In(ciPipelineIds)).
 		WhereGroup(func(q *orm.Query) (*orm.Query, error) {
