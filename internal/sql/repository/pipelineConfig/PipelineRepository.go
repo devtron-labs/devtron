@@ -118,7 +118,7 @@ type PipelineRepository interface {
 	FindActiveByInFilter(envId int, appIdIncludes []int) (pipelines []*Pipeline, err error)
 	FindActivePipelineAppIdsByInFilter(envId int, appIdIncludes []int) ([]int, error)
 	FindActiveByNotFilter(envId int, appIdExcludes []int) (pipelines []*Pipeline, err error)
-	FindAllPipelinesByChartsOverrideAndAppIdAndChartId(chartOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error)
+	FindAllPipelinesWithoutOverriddenCharts(appId int) (pipelineIds []int, err error)
 	FindActiveByAppIdAndPipelineId(appId int, pipelineId int) ([]*Pipeline, error)
 	FindActiveByAppIdAndEnvId(appId int, envId int) (*Pipeline, error)
 	SetDeploymentAppCreatedInPipeline(deploymentAppCreated bool, pipelineId int, userId int32) error
@@ -577,19 +577,16 @@ func (impl *PipelineRepositoryImpl) FindActiveByNotFilter(envId int, appIdExclud
 	return pipelines, err
 }
 
-func (impl *PipelineRepositoryImpl) FindAllPipelinesByChartsOverrideAndAppIdAndChartId(hasConfigOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error) {
-	err = impl.dbConnection.Model(&pipelines).
-		Column("pipeline.*").
-		Join("inner join charts on pipeline.app_id = charts.app_id").
-		Join("inner join chart_env_config_override ceco on charts.id = ceco.chart_id").
-		Where("pipeline.app_id = ?", appId).
-		Where("charts.id = ?", chartId).
-		Where("ceco.is_override = ?", hasConfigOverridden).
-		Where("pipeline.deleted = ?", false).
-		Where("ceco.active = ?", true).
-		Where("charts.active = ?", true).
-		Select()
-	return pipelines, err
+func (impl *PipelineRepositoryImpl) FindAllPipelinesWithoutOverriddenCharts(appId int) (pipelineIds []int, err error) {
+	err = impl.dbConnection.Model().Table("pipeline").Column("pipeline.id").
+		Where("pipeline.deleted = ?", false).Where("pipeline.app_id = ?", appId).
+		Where(`pipeline.environment_id NOT IN (
+				SELECT ceco.target_environment FROM chart_env_config_override ceco 
+				INNER JOIN charts ON charts.id = ceco.chart_id
+				WHERE charts.app_id = ? AND charts.active = ? AND ceco.is_override = ?
+				AND ceco.active = ? AND ceco.latest = ?)`, appId, true, true, true, true).
+		Select(&pipelineIds)
+	return pipelineIds, err
 }
 
 func (impl *PipelineRepositoryImpl) FindActiveByAppIdAndPipelineId(appId int, pipelineId int) ([]*Pipeline, error) {
