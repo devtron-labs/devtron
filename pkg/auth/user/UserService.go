@@ -1835,7 +1835,7 @@ func (impl *UserServiceImpl) CheckUserStatusAndUpdateLoginAudit(token string) (b
 		err = &util.ApiError{HttpStatusCode: 401, UserMessage: "Invalid User", InternalMessage: "unable to fetch user by token"}
 		return false, 0, "", err
 	}
-	userId, isInactive, err := impl.nctiogetUserWithTimeoutWindowConfiguration(emailId)
+	userId, isInactive, err := impl.getUserWithTimeoutWindowConfiguration(emailId)
 	if err != nil {
 		err = &util.ApiError{HttpStatusCode: 401, UserMessage: "Invalid User", InternalMessage: err.Error()}
 		impl.logger.Errorw("unable to fetch user by email, %s", token)
