@@ -112,34 +112,6 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 		impl.logger.Errorw("err in creating history entry for deployment template", "err", err, "history", historyModel)
 		return err
 	}
-	for _, pipeline := range pipelines {
-		historyModel := &repository.DeploymentTemplateHistory{
-			AppId:                   chart.AppId,
-			PipelineId:              pipeline.Id,
-			ImageDescriptorTemplate: chart.ImageDescriptorTemplate,
-			Template:                chart.GlobalOverride,
-			Deployed:                false,
-			TemplateName:            chartRefDto.Name,
-			TemplateVersion:         chartRefDto.Version,
-			IsAppMetricsEnabled:     IsAppMetricsEnabled,
-			AuditLog: sql.AuditLog{
-				CreatedOn: chart.CreatedOn,
-				CreatedBy: chart.CreatedBy,
-				UpdatedOn: chart.UpdatedOn,
-				UpdatedBy: chart.UpdatedBy,
-			},
-		}
-		//creating new entry
-		if tx != nil {
-			_, err = impl.deploymentTemplateHistoryRepository.CreateHistoryWithTxn(historyModel, tx)
-		} else {
-			_, err = impl.deploymentTemplateHistoryRepository.CreateHistory(historyModel)
-		}
-		if err != nil {
-			impl.logger.Errorw("err in creating history entry for deployment template", "err", err, "history", historyModel)
-			return err
-		}
-	}
 	return err
 }
 
