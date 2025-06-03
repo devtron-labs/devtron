@@ -216,22 +216,23 @@ func (repositoryImpl ChartRepositoryImpl) FindPreviousChartByAppId(appId int) (c
 }
 
 func (repositoryImpl ChartRepositoryImpl) Save(tx *pg.Tx, chart *Chart) error {
+	var connection orm.DB
+	connection = tx
 	if tx == nil {
-		return repositoryImpl.dbConnection.Insert(chart)
-	} else {
-		_, err := tx.Model(&chart).Insert()
-		return err
+		connection = repositoryImpl.dbConnection
 	}
+	_, err := connection.Model(&chart).Insert()
+	return err
+
 }
 
 func (repositoryImpl ChartRepositoryImpl) Update(tx *pg.Tx, chart *Chart) error {
-	var query *orm.Query
+	var connection orm.DB
+	connection = tx
 	if tx == nil {
-		query = tx.Model(chart)
-	} else {
-		query = repositoryImpl.dbConnection.Model(chart)
+		connection = repositoryImpl.dbConnection
 	}
-	_, err := query.WherePK().UpdateNotNull()
+	_, err := connection.Model(chart).WherePK().UpdateNotNull()
 	return err
 }
 
