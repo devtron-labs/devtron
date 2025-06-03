@@ -182,7 +182,7 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 		return err
 	}
 
-	clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter, HelmChartSuccessfulDeploymentCount, ExternalHelmAppClusterCount := impl.SummaryDetailsForTelemetry()
+	clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter, HelmChartSuccessfulDeploymentCount, ExternalHelmAppClusterCount := impl.GetSummaryDetailsForTelemetry()
 	payload := &TelemetryEventDto{UCID: ucid, Timestamp: time.Now(), EventType: TelemetryEventType(eventType), DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()
 
