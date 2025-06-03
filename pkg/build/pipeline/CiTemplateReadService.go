@@ -18,6 +18,7 @@ type CiTemplateReadService interface {
 	GetAppliedDockerConfigForCiPipeline(ciPipelineId, appId int, isOverridden bool) (*types.DockerArtifactStoreBean, error)
 	GetBaseDockerConfigForCiPipeline(appId int) (*types.DockerArtifactStoreBean, error)
 	FindByAppIds(appIds []int) (map[int]*bean.CiTemplateBean, error)
+	CheckIfTemplateOverrideExists(ciPipelineIds []int, gitMaterialId int) (bool, error)
 }
 
 type CiTemplateReadServiceImpl struct {
@@ -180,4 +181,8 @@ func (impl *CiTemplateReadServiceImpl) FindByAppIds(appIds []int) (map[int]*bean
 		ciTemplateMap[ciTemplate.AppId] = ciTemplateBean
 	}
 	return ciTemplateMap, nil
+}
+
+func (impl *CiTemplateReadServiceImpl) CheckIfTemplateOverrideExists(ciPipelineIds []int, gitMaterialId int) (bool, error) {
+	return impl.CiTemplateOverrideRepository.FindIfTemplateOverrideExistsByCiPipelineIdsAndGitMaterialId(ciPipelineIds, gitMaterialId)
 }
