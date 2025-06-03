@@ -126,14 +126,70 @@ func (impl *TelemetryEventClientImplExtended) helmPipelineCount() int {
 	return count
 }
 
-// getJobPipelineCount returns 0 for now as implementation is not yet available
+// getJobPipelineCount returns the number of CI pipelines configured as job pipelines
 func (impl *TelemetryEventClientImplExtended) getJobPipelineCount() int {
-	return -1
+	var count int
+	query := `
+		SELECT COUNT(*)
+		FROM ci_pipeline cp
+		INNER JOIN app a ON cp.app_id = a.id
+		WHERE cp.active = true
+		AND cp.deleted = false
+		AND a.active = true
+		AND cp.ci_pipeline_type = 'CI_JOB'
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query)
+	if err != nil {
+		impl.logger.Errorw("error getting job pipeline count", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted job pipelines", "count", count)
+	return count
 }
 
-// getAppliedPolicyRowCount returns 0 for now as implementation is not yet available
+// getAppliedPolicyRowCount returns the total number of applied policies in the system
 func (impl *TelemetryEventClientImplExtended) getAppliedPolicyRowCount() int {
-	return -1
+	var totalCount int
+
+	// Count CVE/Security policies
+	var cvePolicyCount int
+	cvePolicyQuery := `
+		SELECT COUNT(*)
+		FROM cve_policy_control cpc
+		WHERE cpc.deleted = false
+	`
+
+	// Count RBAC policies
+	var rbacPolicyCount int
+	rbacPolicyQuery := `
+		SELECT COUNT(*)
+		FROM rbac_policy_data rpd
+		WHERE rpd.deleted = false
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+
+	// Get CVE policy count
+	_, err := dbConnection.Query(&cvePolicyCount, cvePolicyQuery)
+	if err != nil {
+		impl.logger.Errorw("error getting CVE policy count", "err", err)
+		return -1
+	}
+
+	// Get RBAC policy count
+	_, err = dbConnection.Query(&rbacPolicyCount, rbacPolicyQuery)
+	if err != nil {
+		impl.logger.Errorw("error getting RBAC policy count", "err", err)
+		return -1
+	}
+
+	totalCount = cvePolicyCount + rbacPolicyCount
+
+	impl.logger.Debugw("counted applied policies", "cvePolicyCount", cvePolicyCount, "rbacPolicyCount", rbacPolicyCount, "totalCount", totalCount)
+	return totalCount
 }
 
 // getProjectsWithZeroAppsCount returns the number of projects (teams) that have no applications
