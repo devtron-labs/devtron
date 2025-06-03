@@ -70,11 +70,16 @@ func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deployme
 
 func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistoryFromGlobalTemplate(chart *chartRepoRepository.Chart, tx *pg.Tx, IsAppMetricsEnabled bool) (err error) {
 	//getting all pipelines without overridden charts
-	pipelines, err := impl.pipelineRepository.FindAllPipelinesByChartsOverrideAndAppIdAndChartId(false, chart.AppId, chart.Id)
+	pipelineIds, err := impl.pipelineRepository.FindAllPipelinesWithoutOverriddenCharts(chart.AppId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("err in getting pipelines, CreateDeploymentTemplateHistoryFromGlobalTemplate", "err", err, "chart", chart)
 		return err
 	}
+	/*
+		When creating base template entry, we also create entries for all pipeline whose env template is not overridden;
+		as the change in base template will also impact them. Earlier we used to create individual entries for all pipelines
+		but due to performance impact we are now saving the impacted pipelineIds in the base template entry itself (column pipeline_ids).
+	*/
 	chartRefDto, err := impl.chartRefService.FindById(chart.ChartRefId)
 	if err != nil {
 		impl.logger.Errorw("err in getting chartRef, CreateDeploymentTemplateHistoryFromGlobalTemplate", "err", err, "chart", chart)
@@ -89,6 +94,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 		TemplateName:            chartRefDto.Name,
 		TemplateVersion:         chartRefDto.Version,
 		IsAppMetricsEnabled:     IsAppMetricsEnabled,
+		PipelineIds:             pipelineIds,
 		AuditLog: sql.AuditLog{
 			CreatedOn: chart.CreatedOn,
 			CreatedBy: chart.CreatedBy,
