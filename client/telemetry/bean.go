@@ -156,4 +156,11 @@ type TelemetryEventDto struct {
 	ActiveUsersLast30Days       int `json:"activeUsersLast30Days,omitempty"`
 	GitOpsPipelineCount         int `json:"gitOpsPipelineCount,omitempty"`
 	HelmPipelineCount           int `json:"helmPipelineCount,omitempty"`
+	// New PostHog metrics for app analytics
+	ProjectsWithZeroAppsCount       int `json:"projectsWithZeroAppsCount,omitempty"`
+	AppsWithPropagationTagsCount    int `json:"appsWithPropagationTagsCount,omitempty"`
+	AppsWithNonPropagationTagsCount int `json:"appsWithNonPropagationTagsCount,omitempty"`
+	AppsWithDescriptionCount        int `json:"appsWithDescriptionCount,omitempty"`
+	AppsWithCatalogDataCount        int `json:"appsWithCatalogDataCount,omitempty"`
+	AppsWithReadmeDataCount         int `json:"appsWithReadmeDataCount,omitempty"`
 }

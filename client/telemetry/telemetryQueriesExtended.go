@@ -135,3 +135,138 @@ func (impl *TelemetryEventClientImplExtended) getJobPipelineCount() int {
 func (impl *TelemetryEventClientImplExtended) getAppliedPolicyRowCount() int {
 	return -1
 }
+
+// getProjectsWithZeroAppsCount returns the number of projects (teams) that have no applications
+func (impl *TelemetryEventClientImplExtended) getProjectsWithZeroAppsCount() int {
+	var count int
+	query := `
+		SELECT COUNT(*)
+		FROM team t
+		WHERE t.active = true
+		AND NOT EXISTS (
+			SELECT 1 FROM app a
+			WHERE a.team_id = t.id AND a.active = true
+		)
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query)
+	if err != nil {
+		impl.logger.Errorw("error getting projects with zero apps count", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted projects with zero apps", "count", count)
+	return count
+}
+
+// getAppsWithPropagationTagsCount returns the number of apps that have at least one propagation tag
+func (impl *TelemetryEventClientImplExtended) getAppsWithPropagationTagsCount() int {
+	var count int
+	query := `
+		SELECT COUNT(DISTINCT al.app_id)
+		FROM app_label al
+		INNER JOIN app a ON al.app_id = a.id
+		WHERE al.propagate = true AND a.active = true
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query)
+	if err != nil {
+		impl.logger.Errorw("error getting apps with propagation tags count", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted apps with propagation tags", "count", count)
+	return count
+}
+
+// getAppsWithNonPropagationTagsCount returns the number of apps that have at least one non-propagation tag
+func (impl *TelemetryEventClientImplExtended) getAppsWithNonPropagationTagsCount() int {
+	var count int
+	query := `
+		SELECT COUNT(DISTINCT al.app_id)
+		FROM app_label al
+		INNER JOIN app a ON al.app_id = a.id
+		WHERE al.propagate = false AND a.active = true
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query)
+	if err != nil {
+		impl.logger.Errorw("error getting apps with non-propagation tags count", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted apps with non-propagation tags", "count", count)
+	return count
+}
+
+// getAppsWithDescriptionCount returns the number of apps that have a description defined
+func (impl *TelemetryEventClientImplExtended) getAppsWithDescriptionCount() int {
+	var count int
+	query := `
+		SELECT COUNT(*)
+		FROM app a
+		WHERE a.active = true
+		AND a.description IS NOT NULL
+		AND TRIM(a.description) != ''
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query)
+	if err != nil {
+		impl.logger.Errorw("error getting apps with description count", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted apps with description", "count", count)
+	return count
+}
+
+// getAppsWithCatalogDataCount returns the number of apps that have catalog data (app store applications)
+func (impl *TelemetryEventClientImplExtended) getAppsWithCatalogDataCount() int {
+	var count int
+	query := `
+		SELECT COUNT(DISTINCT ia.id)
+		FROM installed_apps ia
+		INNER JOIN installed_app_versions iav ON ia.id = iav.installed_app_id
+		INNER JOIN app_store_application_version asav ON iav.app_store_application_version_id = asav.id
+		WHERE ia.active = true AND iav.active = true
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query)
+	if err != nil {
+		impl.logger.Errorw("error getting apps with catalog data count", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted apps with catalog data", "count", count)
+	return count
+}
+
+// getAppsWithReadmeDataCount returns the number of apps that have readme data
+func (impl *TelemetryEventClientImplExtended) getAppsWithReadmeDataCount() int {
+	var count int
+	query := `
+		SELECT COUNT(DISTINCT ia.id)
+		FROM installed_apps ia
+		INNER JOIN installed_app_versions iav ON ia.id = iav.installed_app_id
+		INNER JOIN app_store_application_version asav ON iav.app_store_application_version_id = asav.id
+		WHERE ia.active = true
+		AND iav.active = true
+		AND asav.readme IS NOT NULL
+		AND TRIM(asav.readme) != ''
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query)
+	if err != nil {
+		impl.logger.Errorw("error getting apps with readme data count", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted apps with readme data", "count", count)
+	return count
+}

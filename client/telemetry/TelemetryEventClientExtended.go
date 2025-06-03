@@ -352,6 +352,14 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload.GitOpsPipelineCount = impl.getGitOpsPipelineCount()
 	payload.HelmPipelineCount = impl.helmPipelineCount()
 
+	// Collect new PostHog metrics for app analytics
+	payload.ProjectsWithZeroAppsCount = impl.getProjectsWithZeroAppsCount()
+	payload.AppsWithPropagationTagsCount = impl.getAppsWithPropagationTagsCount()
+	payload.AppsWithNonPropagationTagsCount = impl.getAppsWithNonPropagationTagsCount()
+	payload.AppsWithDescriptionCount = impl.getAppsWithDescriptionCount()
+	payload.AppsWithCatalogDataCount = impl.getAppsWithCatalogDataCount()
+	payload.AppsWithReadmeDataCount = impl.getAppsWithReadmeDataCount()
+
 	payload.ClusterProvider, err = impl.GetCloudProvider()
 	if err != nil {
 		impl.logger.Errorw("error while getting cluster provider", "error", err)

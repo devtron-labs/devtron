@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"context"
+	"errors"
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	bean3 "github.com/devtron-labs/devtron/pkg/attributes/bean"
@@ -85,14 +86,14 @@ func (impl *TelemetryEventClientImpl) GetSummaryDetailsForTelemetry() (cluster [
 	}
 
 	users, err := impl.userService.GetAll()
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("exception caught inside telemetry summery event", "err", err)
 		return
 	}
 
 	clusters, err := impl.clusterService.FindAllActive()
 
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return
 	}
