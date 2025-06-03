@@ -17,15 +17,15 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy app code, configs, and start script
-COPY app.py ./
-COPY uwsgi.ini ./
 COPY nginx.conf /etc/nginx/nginx.conf
-COPY start.sh ./
+COPY app.py uwsgi.ini start.sh ./
 RUN chmod +x start.sh
 
 # Create non-root user and set permissions
-RUN groupadd -g 2002 nonroot && useradd -u 2002 -g nonroot -s /bin/bash -m nonroot && \
-    mkdir -p /tmp/nginx-logs && chown -R nonroot:nonroot /app /tmp/nginx-logs
+RUN groupadd -g 2002 nonroot && \
+    useradd -u 2002 -g nonroot -s /bin/bash -m nonroot && \
+    mkdir -p /tmp/nginx-logs && \
+    chown -R nonroot:nonroot /app /tmp/nginx-logs
 
 # Expose port 8080
 EXPOSE 8080

@@ -25,7 +25,8 @@ FROM alpine:3.20
 RUN apk --no-cache add ca-certificates
 
 # Create a non-root user with UID/GID 2002
-RUN addgroup -g 2002 nonroot && adduser -u 2002 -G nonroot -S nonroot
+RUN addgroup -g 2002 nonroot && \
+    adduser -u 2002 -G nonroot -S nonroot
 
 # Switch to the non-root user
 USER nonroot

@@ -13,7 +13,8 @@ RUN rustc main.rs -o app
 FROM alpine:3.21
 
 # Create a non-root user for security
-RUN addgroup -g 2002 nonroot && adduser -u 2002 -G nonroot -S nonroot
+RUN addgroup -g 2002 nonroot && \
+    adduser -u 2002 -G nonroot -S nonroot
 
 WORKDIR /app
 

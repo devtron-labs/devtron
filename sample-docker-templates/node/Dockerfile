@@ -10,7 +10,15 @@ RUN apk update && apk add --no-cache nginx
 # Set working directory
 WORKDIR /app
 
-# Copy application code
+# Copy only package files first to install dependencies
+COPY package*.json ./
+
+
+# Install production dependencies
+RUN npm install --prefer-offline --no-audit && \
+    npm i -g pm2
+
+# Now copy the rest of the source
 COPY . .
 
 # Main global config
@@ -18,10 +26,6 @@ COPY nginx.conf /etc/nginx/nginx.conf
 
 # Default server/site config
 COPY nginx-default.conf /etc/nginx/http.d/default.conf
-
-# Install production dependencies
-RUN npm install --production --prefer-offline --no-audit && \
-    npm i -g pm2
 
 # Create non-root user and set permissions
 RUN addgroup -g 2002 nonroot && \

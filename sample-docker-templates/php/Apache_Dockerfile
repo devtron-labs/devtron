@@ -5,7 +5,8 @@ FROM php:8.3-apache
 RUN a2enmod rewrite
 
 # Create non-root user with UID/GID 2002 and set ownership
-RUN groupadd -g 2002 nonroot && useradd -u 2002 -g nonroot -m nonroot && \
+RUN groupadd -g 2002 nonroot && \
+    useradd -u 2002 -g nonroot -m nonroot && \
     chown -R nonroot:www-data /var/www/html
 
 # Copy application source code

@@ -7,10 +7,13 @@ RUN apt-get update && \
       php8.3-cli \
       php8.3-fpm \
       nginx && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-RUN groupadd -g 2002 nonroot && useradd -u 2002 -g nonroot -s /bin/bash -m nonroot && \
-    mkdir -p /run/php && chown -R nonroot:nonroot /var/www/html /run/php
+RUN groupadd -g 2002 nonroot && \
+    useradd -u 2002 -g nonroot -s /bin/bash -m nonroot && \
+    mkdir -p /run/php && \
+    chown -R nonroot:nonroot /var/www/html /run/php
 
 ADD nginx-site.conf /etc/nginx/sites-available/default
 

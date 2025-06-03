@@ -24,12 +24,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends nginx vim && \
 # Copy app code, nginx.conf, and start script
 COPY app/ ./
 COPY nginx.conf /etc/nginx/nginx.conf
-COPY start-server.sh ./
 RUN chmod +x start-server.sh
 
 # Create non-root user and set permissions
-RUN groupadd -g 2002 nonroot && useradd -u 2002 -g nonroot -s /bin/bash -m nonroot && \
-    mkdir -p /tmp/nginx-logs && chown -R nonroot:nonroot /app /tmp/nginx-logs
+RUN groupadd -g 2002 nonroot && \
+    useradd -u 2002 -g nonroot -s /bin/bash -m nonroot && \
+    mkdir -p /tmp/nginx-logs && \
+    chown -R nonroot:nonroot /app /tmp/nginx-logs
 
 # Expose port 8080
 EXPOSE 8080
@@ -38,6 +39,7 @@ EXPOSE 8080
 USER nonroot
 
 # Stop signal for graceful shutdown
+# https://docs.docker.com/reference/dockerfile/#stopsignal
 STOPSIGNAL SIGTERM
 
 # Start server (migrations, superuser, gunicorn, nginx)

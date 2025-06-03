@@ -1,48 +1,55 @@
 ###### BUILD ENVIRONMENT ######
 
-# Use official Node.js LTS base image for building React app
-FROM node:22.14.0 as build
+# Use official Node.js LTS base image for building the React app
+FROM node:22.14.0 AS build
+
+# Set NODE_ENV for the build stage
+ENV NODE_ENV=production
 
 # Set working directory
 WORKDIR /app
 
-# Copy all source files to container
-COPY . /app/
+# Copy only package files first to leverage Docker layer caching
+COPY package*.json ./
+
 
 # Install dependencies
 RUN npm install
 
-# Create production build of React app
+# Copy the rest of the application source
+COPY . .
+
+# Create production build
 RUN npm run build
 
 
 ###### PRODUCTION ENVIRONMENT ######
 
-# Use official stable nginx Alpine image (small and secure)
+# Use stable NGINX Alpine image for serving static files
 FROM nginx:stable-alpine
 
-# Create non-root user and group
-RUN addgroup -g 2002 nonroot && adduser -u 2002 -G nonroot -S nonroot
+# Create a non-root user
+RUN addgroup -g 2002 nonroot && \
+    adduser -u 2002 -G nonroot -S nonroot
 
-# Copy React build files from build stage to nginx html folder
+# Copy the React build output from the build stage
 COPY --from=build /app/build /usr/share/nginx/html
 
-# Give permissions to nonroot user for required nginx folders
-RUN chown -R nonroot:nonroot /usr/share/nginx/html /var/cache/nginx /var/log/nginx/ 
+# Set permissions for non-root user
+RUN chown -R nonroot:nonroot /usr/share/nginx/html /var/cache/nginx /var/log/nginx
 
-# Copy custom NGINX config file
+# Copy custom NGINX config
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# Link logs to stdout/stderr
+# Redirect logs to Docker's logging system
 RUN ln -sf /dev/stdout /var/log/nginx/access.log && \
     ln -sf /dev/stderr /var/log/nginx/error.log
 
-
-# Switch to non-root user
+# Run as non-root user
 USER nonroot
 
-# Expose port 8080 (non-root)
+# Expose port (non-privileged)
 EXPOSE 8080
 
-# Run nginx in foreground
+# Start NGINX in foreground
 CMD ["nginx", "-g", "daemon off;"]

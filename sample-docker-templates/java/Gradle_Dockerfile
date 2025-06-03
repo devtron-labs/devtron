@@ -5,6 +5,7 @@ FROM gradle:8.13.0-jdk21-alpine AS build
 
 # Set working directory and ensure proper permissions
 COPY --chown=gradle:gradle . /home/gradle/src
+
 WORKDIR /home/gradle/src
 
 # Build the application without using the Gradle daemon
@@ -16,8 +17,8 @@ RUN gradle build --no-daemon
 FROM eclipse-temurin:21-jdk-jammy
 
 # Create a non-root user to run the app securely
-RUN addgroup --gid 2002 nonroot && adduser --gid 2002 --uid 2002 nonroot --disabled-password --gecos ""
-
+RUN addgroup --gid 2002 nonroot && \
+    adduser --gid 2002 --uid 2002 nonroot --disabled-password --gecos ""
 
 # Set the working directory
 WORKDIR /app
