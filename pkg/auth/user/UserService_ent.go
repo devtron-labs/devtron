@@ -8,6 +8,7 @@ import (
 	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	userrepo "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/go-pg/pg"
+	"github.com/juju/errors"
 	"strings"
 )
 
@@ -203,4 +204,15 @@ func (impl *UserServiceImpl) checkValidationAndPerformOperationsForUpdate(token 
 		return false, isUserSuperAdmin, err
 	}
 	return false, isUserSuperAdmin, nil
+}
+
+func (impl *UserServiceImpl) getUserWithTimeoutWindowConfiguration(emailId string) (int32, bool, error) {
+	user, err := impl.userRepository.FetchActiveUserByEmail(emailId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		errMsg := fmt.Sprintf("failed to fetch user by email id, err: %s", err.Error())
+		return 0, false, errors.New(errMsg)
+	}
+	// here false is always returned to match signature of authoriser function.
+	return user.Id, false, nil
 }
