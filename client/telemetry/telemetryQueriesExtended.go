@@ -466,7 +466,7 @@ func (impl *TelemetryEventClientImplExtended) getAppsWithIncludeExcludeFilesCoun
 		WHERE gm.active = true
 		AND a.active = true
 		AND gm.filter_pattern IS NOT NULL
-		AND array_length(gm.filter_pattern, 1) > 0
+		AND jsonb_array_length(gm.filter_pattern::jsonb) > 0
 	`
 
 	dbConnection := impl.appRepository.GetConnection()
@@ -718,9 +718,9 @@ func (impl *TelemetryEventClientImplExtended) getAppsWithJobsCronjobsCount() int
 func (impl *TelemetryEventClientImplExtended) getEnvironmentsWithPatchStrategyCount() int {
 	var count int
 	query := `
-		SELECT COUNT(DISTINCT ceco.environment_id)
+		SELECT COUNT(DISTINCT ceco.target_environment)
 		FROM chart_env_config_override ceco
-		INNER JOIN environment e ON ceco.environment_id = e.id
+		INNER JOIN environment e ON ceco.target_environment = e.id
 		WHERE ceco.active = true
 		AND e.active = true
 		AND ceco.merge_strategy = 'patch'
@@ -741,9 +741,9 @@ func (impl *TelemetryEventClientImplExtended) getEnvironmentsWithPatchStrategyCo
 func (impl *TelemetryEventClientImplExtended) getEnvironmentsWithReplaceStrategyCount() int {
 	var count int
 	query := `
-		SELECT COUNT(DISTINCT ceco.environment_id)
+		SELECT COUNT(DISTINCT ceco.target_environment)
 		FROM chart_env_config_override ceco
-		INNER JOIN environment e ON ceco.environment_id = e.id
+		INNER JOIN environment e ON ceco.target_environment = e.id
 		WHERE ceco.active = true
 		AND e.active = true
 		AND ceco.merge_strategy = 'replace'
