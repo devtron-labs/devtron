@@ -372,7 +372,7 @@ func (impl *ChartServiceImpl) updateChartLocationForEnvironmentConfigs(ctx conte
 	}
 	uniqueEnvMap := make(map[int]bool)
 	for _, override := range envOverrides {
-		if _, ok := uniqueEnvMap[override.TargetEnvironment]; !ok && !override.IsOverride {
+		if _, ok := uniqueEnvMap[override.TargetEnvironment]; !ok && !override.IsOverride && override.Latest {
 			uniqueEnvMap[override.TargetEnvironment] = true
 			err := impl.deploymentConfigService.UpdateChartLocationInDeploymentConfig(tx, appId, override.TargetEnvironment, chartRefId, userId, version)
 			if err != nil {
