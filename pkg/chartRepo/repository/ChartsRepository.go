@@ -221,7 +221,7 @@ func (repositoryImpl ChartRepositoryImpl) Save(tx *pg.Tx, chart *Chart) error {
 	if tx == nil {
 		connection = repositoryImpl.dbConnection
 	}
-	_, err := connection.Model(&chart).Insert()
+	_, err := connection.Model(chart).Insert()
 	return err
 
 }
