@@ -77,14 +77,126 @@ func (impl *TelemetryEventClientImplExtended) getUserCreatedPluginCount() int {
 	return len(plugins)
 }
 
-func (impl *TelemetryEventClientImplExtended) getPolicyCount() int {
-	// Get global policies
-	globalPolicies, err := impl.cvePolicyRepository.GetGlobalPolicies()
+// getDeploymentWindowPolicyCount returns the count of deployment window policies
+func (impl *TelemetryEventClientImplExtended) getDeploymentWindowPolicyCount() int {
+	// TODO: Implement when deployment window policy repository is available
+	// For now, return 0 as placeholder
+	var count int
+	query := `
+		SELECT COUNT(*)
+		FROM deployment_window_policy dwp
+		WHERE dwp.deleted = false
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query)
 	if err != nil {
-		impl.logger.Errorw("error getting global CVE policies", "err", err)
+		impl.logger.Debugw("deployment window policy table not found or query failed", "err", err)
+		return 0
+	}
+
+	impl.logger.Debugw("counted deployment window policies", "count", count)
+	return count
+}
+
+// getApprovalPolicyCount returns the count of approval policies
+func (impl *TelemetryEventClientImplExtended) getApprovalPolicyCount() int {
+	// TODO: Implement when approval policy repository is available
+	// For now, return 0 as placeholder
+	var count int
+	query := `
+		SELECT COUNT(*)
+		FROM approval_policy ap
+		WHERE ap.deleted = false
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query)
+	if err != nil {
+		impl.logger.Debugw("approval policy table not found or query failed", "err", err)
+		return 0
+	}
+
+	impl.logger.Debugw("counted approval policies", "count", count)
+	return count
+}
+
+// getPluginPolicyCount returns the count of plugin policies
+func (impl *TelemetryEventClientImplExtended) getPluginPolicyCount() int {
+	// Count plugin-related policies using available plugin repository
+	plugins, err := impl.pluginRepository.GetMetaDataForAllPlugins(false)
+	if err != nil {
+		impl.logger.Errorw("error getting plugin policies", "err", err)
 		return -1
 	}
-	return len(globalPolicies)
+
+	// Count plugins that have specific policy configurations
+	policyCount := 0
+	for _, plugin := range plugins {
+		if plugin != nil && plugin.IsExposed {
+			policyCount++
+		}
+	}
+
+	impl.logger.Debugw("counted plugin policies", "count", policyCount)
+	return policyCount
+}
+
+// getTagsPolicyCount returns the count of tags policies
+func (impl *TelemetryEventClientImplExtended) getTagsPolicyCount() int {
+	// Count tag-related policies using available plugin tag repository
+	tags, err := impl.pluginRepository.GetAllPluginTags()
+	if err != nil {
+		impl.logger.Errorw("error getting tags policies", "err", err)
+		return -1
+	}
+
+	impl.logger.Debugw("counted tags policies", "count", len(tags))
+	return len(tags)
+}
+
+// getFilterConditionPolicyCount returns the count of filter condition policies
+func (impl *TelemetryEventClientImplExtended) getFilterConditionPolicyCount() int {
+	// TODO: Implement when filter condition policy repository is available
+	// For now, return 0 as placeholder
+	var count int
+	query := `
+		SELECT COUNT(*)
+		FROM filter_condition_policy fcp
+		WHERE fcp.deleted = false
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query)
+	if err != nil {
+		impl.logger.Debugw("filter condition policy table not found or query failed", "err", err)
+		return 0
+	}
+
+	impl.logger.Debugw("counted filter condition policies", "count", count)
+	return count
+}
+
+// getLockDeploymentConfigurationPolicyCount returns the count of lock deployment configuration policies
+func (impl *TelemetryEventClientImplExtended) getLockDeploymentConfigurationPolicyCount() int {
+	// TODO: Implement when lock deployment configuration policy repository is available
+	// For now, return 0 as placeholder
+	var count int
+	query := `
+		SELECT COUNT(*)
+		FROM lock_deployment_config_policy ldcp
+		WHERE ldcp.deleted = false
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query)
+	if err != nil {
+		impl.logger.Debugw("lock deployment configuration policy table not found or query failed", "err", err)
+		return 0
+	}
+
+	impl.logger.Debugw("counted lock deployment configuration policies", "count", count)
+	return count
 }
 
 func (impl *TelemetryEventClientImplExtended) getGitOpsPipelineCount() int {

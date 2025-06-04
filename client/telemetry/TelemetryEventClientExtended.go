@@ -345,7 +345,15 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload.JobPipelineTriggeredLast24h = impl.getJobPipelineTriggeredLast24h()
 	payload.JobPipelineSucceededLast24h = impl.getJobPipelineSucceededLast24h()
 	payload.UserCreatedPluginCount = impl.getUserCreatedPluginCount()
-	payload.PolicyCount = impl.getPolicyCount()
+
+	// Collect policy metrics for PostHog
+	payload.DeploymentWindowPolicyCount = impl.getDeploymentWindowPolicyCount()
+	payload.ApprovalPolicyCount = impl.getApprovalPolicyCount()
+	payload.PluginPolicyCount = impl.getPluginPolicyCount()
+	payload.TagsPolicyCount = impl.getTagsPolicyCount()
+	payload.FilterConditionPolicyCount = impl.getFilterConditionPolicyCount()
+	payload.LockDeploymentConfigurationPolicyCount = impl.getLockDeploymentConfigurationPolicyCount()
+
 	payload.AppliedPolicyRowCount = impl.getAppliedPolicyRowCount()
 	payload.PhysicalClusterCount, payload.IsolatedClusterCount = impl.getClusterCounts()
 	payload.ActiveUsersLast30Days = impl.getActiveUsersLast30Days()
