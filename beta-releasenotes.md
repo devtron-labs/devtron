@@ -5,6 +5,7 @@
 - feat: wf logs (#6606)
 - feat: Enable selection of all CI pipelines at once when the Environment filter is applied in Notifications (#6526)
 ## Bugs
+- fix: incorrect data for git trigger history at app detail page (#6639)
 - fix: duplicate entries in deployment history without override (#6637)
 - fix: overriden pipeline ids filtering in case of material deletion (#6636)
 - fix: prevent deletion of git material used in overridden CI templates (#6633)
