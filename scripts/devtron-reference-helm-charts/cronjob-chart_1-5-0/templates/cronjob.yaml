@@ -15,7 +15,7 @@ metadata:
 spec:
   {{- if $.Values.cronjobConfigs }}
   {{- if $.Values.cronjobConfigs.timeZone }}
-  timeZone: {{ $.Values.cronjobConfigs.timezone | default "UTC" }}
+  timeZone: {{ $.Values.cronjobConfigs.timeZone }}
   {{- end }}
   {{- if $.Values.cronjobConfigs.schedule }}
   schedule: {{ $.Values.cronjobConfigs.schedule | quote }}

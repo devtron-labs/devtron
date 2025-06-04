@@ -16,7 +16,7 @@ cronjobConfigs:
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 1
   restartPolicy: OnFailure
-  timeZone: ""
+  timeZone: "UTC"
 
 kedaAutoscaling:
   envSourceContainerName: "" 
