@@ -45,7 +45,7 @@ type CiWorkflowRepository interface {
 	FindLastTriggeredWorkflowGitTriggersByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error)
 	FindLastTriggeredWorkflowGitTriggersByArtifactIds(ciArtifactIds []int) ([]*WorkflowWithArtifact, error)
 	ExistsByStatus(status string) (bool, error)
-	FindBuildTypeAndStatusDataOfLast1Day() []*BuildTypeCount
+	FindBuildTypeAndStatusDataOfLast1Day() ([]*BuildTypeCount, error)
 	FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error)
 
 	MigrateIsArtifactUploaded(wfId int, isArtifactUploaded bool)
@@ -347,14 +347,15 @@ func (impl *CiWorkflowRepositoryImpl) ExistsByStatus(status string) (bool, error
 	return exists, err
 }
 
-func (impl *CiWorkflowRepositoryImpl) FindBuildTypeAndStatusDataOfLast1Day() []*BuildTypeCount {
+func (impl *CiWorkflowRepositoryImpl) FindBuildTypeAndStatusDataOfLast1Day() ([]*BuildTypeCount, error) {
 	var buildTypeCounts []*BuildTypeCount
 	query := "select status,ci_build_type as type, count(*) from ci_workflow where status in ('Succeeded','Failed') and started_on > ? group by (ci_build_type, status)"
 	_, err := impl.dbConnection.Query(&buildTypeCounts, query, time.Now().AddDate(0, 0, -1))
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching build type vs status vs count data", "err", err)
+		return nil, err
 	}
-	return buildTypeCounts
+	return buildTypeCounts, nil
 }
 
 func (impl *CiWorkflowRepositoryImpl) FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error) {
@@ -372,6 +373,7 @@ func (impl *CiWorkflowRepositoryImpl) FIndCiWorkflowStatusesByAppId(appId int) (
 	_, err := impl.dbConnection.Query(&ciworkflowStatuses, query, appId) //, pg.In(ciPipelineIds))
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching build type vs status vs count data", "err", err)
+		return ciworkflowStatuses, err
 	}
 	return ciworkflowStatuses, err
 }

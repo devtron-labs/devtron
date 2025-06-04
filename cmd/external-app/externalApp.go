@@ -42,6 +42,7 @@ type App struct {
 	server         *http.Server
 	telemetry      telemetry.TelemetryEventClient
 	posthogClient  *posthogTelemetry.PosthogClient
+	userService    user.UserService
 }
 
 func NewApp(db *pg.DB,
@@ -49,7 +50,8 @@ func NewApp(db *pg.DB,
 	MuxRouter *MuxRouter,
 	telemetry telemetry.TelemetryEventClient,
 	posthogClient *posthogTelemetry.PosthogClient,
-	Logger *zap.SugaredLogger) *App {
+	Logger *zap.SugaredLogger,
+	userService user.UserService) *App {
 	return &App{
 		db:             db,
 		sessionManager: sessionManager,
@@ -57,6 +59,7 @@ func NewApp(db *pg.DB,
 		Logger:         Logger,
 		telemetry:      telemetry,
 		posthogClient:  posthogClient,
+		userService:    userService,
 	}
 }
 func (app *App) Start() {
@@ -73,7 +76,7 @@ func (app *App) Start() {
 	if err != nil {
 		app.Logger.Warnw("telemetry installation success event failed", "err", err)
 	}
-	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: authMiddleware.Authorizer(app.sessionManager, user.WhitelistChecker, nil)(app.MuxRouter.Router)}
+	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: authMiddleware.Authorizer(app.sessionManager, user.WhitelistChecker, app.userService.CheckUserStatusAndUpdateLoginAudit)(app.MuxRouter.Router)}
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
 	app.MuxRouter.Router.Use(middlewares.Recovery)
 	app.server = server

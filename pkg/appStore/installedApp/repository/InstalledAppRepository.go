@@ -170,6 +170,8 @@ type InstalledAppRepository interface {
 	GetInstalledAppsMinByAppId(appId int) (*InstalledApps, error)
 	GetAllArgoAppsByDeploymentAppNames(deploymentAppNames []string) ([]string, error)
 	GetAllAppsByClusterAndDeploymentAppType(clusterIds []int, deploymentAppType string) ([]bean.DeployedInstalledAppInfo, error)
+	// GetActiveInstalledAppCount returns the count of all active installed apps
+	GetActiveInstalledAppCount() (int, error)
 }
 
 type InstalledAppRepositoryImpl struct {
@@ -1084,4 +1086,17 @@ func (impl *InstalledAppRepositoryImpl) GetAllArgoAppsByDeploymentAppNames(deplo
 		}).
 		Select(&result)
 	return result, err
+}
+
+func (impl *InstalledAppRepositoryImpl) GetActiveInstalledAppCount() (int, error) {
+	var count int
+	count, err := impl.dbConnection.Model().
+		Table("installed_apps").
+		Where("active = ?", true).
+		Count()
+	if err != nil {
+		impl.Logger.Errorw("error in getting active installed app count", "err", err)
+		return 0, err
+	}
+	return count, nil
 }
