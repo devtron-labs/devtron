@@ -982,11 +982,6 @@ func (impl *ChartServiceImpl) ConfigureGitOpsRepoUrlForApp(appId int, repoUrl, c
 	if err != nil {
 		return nil, err
 	}
-	err = impl.chartRepository.CommitTx(tx)
-	if err != nil {
-		impl.logger.Errorw("error in committing transaction to update charts", "error", err)
-		return nil, err
-	}
 
 	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(tx, appId, 0)
 	if err != nil {
@@ -999,6 +994,12 @@ func (impl *ChartServiceImpl) ConfigureGitOpsRepoUrlForApp(appId int, repoUrl, c
 	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(tx, deploymentConfig, userId)
 	if err != nil {
 		impl.logger.Errorw("error in saving deployment config for app", "appId", appId, "err", err)
+		return nil, err
+	}
+
+	err = impl.chartRepository.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction to update charts", "error", err)
 		return nil, err
 	}
 
