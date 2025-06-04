@@ -21,16 +21,19 @@ import (
 	"strings"
 )
 
-func BuildAllModuleEnableKeys(moduleName string) []string {
+func BuildAllModuleEnableKeys(basePath string, moduleName string) []string {
 	var keys []string
-	keys = append(keys, BuildModuleEnableKey(moduleName))
+	keys = append(keys, BuildModuleEnableKey(basePath, moduleName))
 	if strings.Contains(moduleName, ".") {
 		parent := strings.Split(moduleName, ".")[0]
-		keys = append(keys, BuildModuleEnableKey(parent))
+		keys = append(keys, BuildModuleEnableKey(basePath, parent))
 	}
 	return keys
 }
 
-func BuildModuleEnableKey(moduleName string) string {
+func BuildModuleEnableKey(basePath string, moduleName string) string {
+	if len(basePath) > 0 {
+		return fmt.Sprintf("%s.%s.%s", basePath, moduleName, "enabled")
+	}
 	return fmt.Sprintf("%s.%s", moduleName, "enabled")
 }

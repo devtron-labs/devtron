@@ -19,10 +19,10 @@ package devtronApps
 import (
 	"bufio"
 	"context"
+	"github.com/devtron-labs/common-lib/async"
 	"os"
 	"time"
 
-	"github.com/devtron-labs/common-lib/async"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	util5 "github.com/devtron-labs/common-lib/utils/k8s"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
@@ -168,6 +168,7 @@ type HandlerServiceImpl struct {
 	ciLogService                        pipeline.CiLogService
 	workflowService                     executor.WorkflowService
 	blobConfigStorageService            pipeline.BlobStorageConfigService
+	deploymentEventHandler              app.DeploymentEventHandler
 	asyncRunnable                       *async.Runnable
 }
 
@@ -230,6 +231,7 @@ func NewHandlerServiceImpl(logger *zap.SugaredLogger,
 	ciLogService pipeline.CiLogService,
 	workflowService executor.WorkflowService,
 	blobConfigStorageService pipeline.BlobStorageConfigService,
+	deploymentEventHandler app.DeploymentEventHandler,
 	asyncRunnable *async.Runnable) (*HandlerServiceImpl, error) {
 	impl := &HandlerServiceImpl{
 		logger:                              logger,
@@ -296,6 +298,7 @@ func NewHandlerServiceImpl(logger *zap.SugaredLogger,
 		ciLogService:             ciLogService,
 		workflowService:          workflowService,
 		blobConfigStorageService: blobConfigStorageService,
+		deploymentEventHandler:   deploymentEventHandler,
 		asyncRunnable:            asyncRunnable,
 	}
 	config, err := types.GetCdConfig()

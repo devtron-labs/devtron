@@ -160,7 +160,10 @@
  | DEVTRON_HELM_REPO_NAME | string |devtron | Is used to install modules (stack manager) |  | false |
  | DEVTRON_HELM_REPO_URL | string |https://helm.devtron.ai | Is used to install modules (stack manager) |  | false |
  | DEVTRON_INSTALLATION_TYPE | string | | Devtron Installation type(EA/Full) |  | false |
+ | DEVTRON_INSTALLER_MODULES_PATH | string |installer.modules | Path to devtron installer modules, used to find the helm charts and values files |  | false |
+ | DEVTRON_INSTALLER_RELEASE_PATH | string |installer.release | Path to devtron installer release, used to find the helm charts and values files |  | false |
  | DEVTRON_MODULES_IDENTIFIER_IN_HELM_VALUES | string |installer.modules |  |  | false |
+ | DEVTRON_OPERATOR_BASE_PATH | string | | Base path for devtron operator, used to find the helm charts and values files |  | false |
  | DEVTRON_SECRET_NAME | string |devtron-secret |  |  | false |
  | DEVTRON_VERSION_IDENTIFIER_IN_HELM_VALUES | string |installer.release | devtron operator version identifier in helm values yaml |  | false |
  | DEX_CID | string |example-app | dex client id  |  | false |
@@ -182,6 +185,9 @@
  | FEATURE_RESTART_WORKLOAD_BATCH_SIZE | int |1 | restart workload retrieval batch size  |  | false |
  | FEATURE_RESTART_WORKLOAD_WORKER_POOL_SIZE | int |5 | restart workload retrieval pool size |  | false |
  | FORCE_SECURITY_SCANNING | bool |false | By enabling this no one can disable image scaning on ci-pipeline from UI |  | false |
+ | GITHUB_ORG_NAME | string | |  |  | false |
+ | GITHUB_TOKEN | string | |  |  | false |
+ | GITHUB_USERNAME | string | |  |  | false |
  | GITOPS_REPO_PREFIX | string | | Prefix for Gitops repo being creation for argocd application |  | false |
  | GO_RUNTIME_ENV | string |production |  |  | false |
  | GRAFANA_HOST | string |localhost | Host URL for the grafana dashboard |  | false |

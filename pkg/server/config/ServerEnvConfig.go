@@ -41,6 +41,9 @@ type ServerEnvConfig struct {
 	ModuleMetaDataApiUrl                        string `env:"MODULE_METADATA_API_URL" envDefault:"https://api.devtron.ai/module?name=%s" description:"Modules list and meta info will be fetched from this server, that is central api server of devtron."`
 	ParallelismLimitForTagProcessing            int    `env:"PARALLELISM_LIMIT_FOR_TAG_PROCESSING" description:"App manual sync job parallel tag processing count."`
 	AppSyncJobShutDownWaitDuration              int    `env:"APP_SYNC_SHUTDOWN_WAIT_DURATION" envDefault:"120"`
+	DevtronOperatorBasePath                     string `env:"DEVTRON_OPERATOR_BASE_PATH" envDefault:"" description:"Base path for devtron operator, used to find the helm charts and values files"`
+	DevtronInstallerModulesPath                 string `env:"DEVTRON_INSTALLER_MODULES_PATH" envDefault:"installer.modules" description:"Path to devtron installer modules, used to find the helm charts and values files"`
+	DevtronInstallerReleasePath                 string `env:"DEVTRON_INSTALLER_RELEASE_PATH" envDefault:"installer.release" description:"Path to devtron installer release, used to find the helm charts and values files"`
 	ErrorEncounteredOnGettingDevtronHelmRelease error
 }
 

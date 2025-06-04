@@ -606,15 +606,6 @@ func (impl *ClusterServiceImpl) DeleteFromDb(bean *bean.ClusterBean, userId int3
 		impl.logger.Errorw("error in deleting cluster", "id", bean.Id, "err", err)
 		return "", err
 	}
-	k8sClient, err := impl.K8sUtil.GetCoreV1ClientInCluster()
-	if err != nil {
-		impl.logger.Errorw("error in getting in cluster k8s client", "err", err, "clusterName", bean.ClusterName)
-		return "", nil
-	}
-	// TODO Asutosh: why we maintain this duplicate code ??
-	secretName := ParseSecretNameForKubelinkInformer(bean.Id)
-	err = impl.K8sUtil.DeleteSecret(clusterBean.DefaultNamespace, secretName, k8sClient)
-	impl.logger.Errorw("error in deleting secret", "error", err)
 	return existingCluster.ClusterName, nil
 }
 

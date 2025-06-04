@@ -92,6 +92,8 @@ type AppRepository interface {
 	FindAppAndProjectByIdsIn(ids []int) ([]*App, error)
 	FetchAppIdsByDisplayNamesForJobs(names []string) (map[int]string, []int, error)
 	GetActiveCiCdAppsCount() (int, error)
+	FindDevtronAppCount() (int, error)
+	FindJobCount() (int, error)
 
 	UpdateAppOfferingModeForAppIds(successAppIds []*int, appOfferingMode string, userId int32) error
 }
@@ -517,6 +519,20 @@ func (repo AppRepositoryImpl) GetActiveCiCdAppsCount() (int, error) {
 	return repo.dbConnection.Model(&App{}).
 		Where("active=?", true).
 		Where("app_type=?", helper.CustomApp).
+		Count()
+}
+
+func (repo AppRepositoryImpl) FindDevtronAppCount() (int, error) {
+	return repo.dbConnection.Model(&App{}).
+		Where("active=?", true).
+		Where("app_type=?", helper.CustomApp).
+		Count()
+}
+
+func (repo AppRepositoryImpl) FindJobCount() (int, error) {
+	return repo.dbConnection.Model(&App{}).
+		Where("active=?", true).
+		Where("app_type=?", helper.Job).
 		Count()
 }
 
