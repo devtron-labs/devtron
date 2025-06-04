@@ -12,6 +12,12 @@
 {{- end }}
 {{- end }}
 
+{{- $hasPVCExists := false -}}
+{{- if .Values.persistentVolumeClaim.name }}
+{{- $hasPVCExists = true }}
+{{- end }}
+
+
 {{- $hasSecretEnvExists := false -}}
 {{- $hasSecretVolumeExists := false -}}
 {{- if .Values.ConfigSecrets.enabled }}
@@ -225,6 +231,10 @@ containers:
 {{- with .Values.volumeMounts }}
 {{ toYaml . | trim | indent 6 }}
 {{- end }}
+{{- if  $.Values.persistentVolumeClaim.name }}
+      - name: {{ $.Values.persistentVolumeClaim.name }}-vol
+        mountPath: {{ $.Values.persistentVolumeClaim.mountPath | default "/tmp" }}
+{{- end}}
     {{- if .Values.ConfigMaps.enabled }}
     {{- range .Values.ConfigMaps.maps }}
     {{- if eq .type "volume"}}
@@ -233,6 +243,7 @@ containers:
     {{- if eq .subPath false }}
       - name: {{ $cmName | replace "." "-"}}-vol
         mountPath: {{ $cmMountPath }}
+
     {{- else }}
     {{- range $k, $v := .data }}
       - name: {{ $cmName | replace "." "-"}}-vol
@@ -243,33 +254,44 @@ containers:
     {{- end }}
     {{- end }}
     {{- end }}
+
     {{- if .Values.ConfigSecrets.enabled }}
     {{- range .Values.ConfigSecrets.secrets }}
-    {{- if eq .type "volume" }}
+    {{- if eq .type "volume"}}
     {{- $cmName := .name -}}
     {{- $cmMountPath := .mountPath -}}
     {{- if eq .subPath false }}
       - name: {{ $cmName | replace "." "-"}}-vol
         mountPath: {{ $cmMountPath }}
-    {{- else if and (eq (.subPath) true) (eq (.externalType) "KubernetesSecret") }}
-    {{- else if and (eq (.subPath) true) (eq (.external) true) }}
-    {{- range .secretData }}
+  
+    {{- else }}
+    {{if (or (eq .externalType "ESO_GoogleSecretsManager") (eq .externalType "ESO_AWSSecretsManager") (eq .externalType "ESO_HashiCorpVault") (eq .externalType "ESO_AzureSecretsManager"))}}
+    {{- if and (.esoSubPath) (ne (len .esoSubPath) 0) }}
+    {{- range .esoSubPath }}
       - name: {{ $cmName | replace "." "-"}}-vol
-        mountPath: {{ $cmMountPath}}/{{ .name }}
-        subPath: {{ .name }}
+        mountPath: {{ $cmMountPath}}/{{ . }}
+        subPath: {{ . }}  
     {{- end }}
     {{- else }}
-    {{- range $k, $v := .data }}
+    {{- range .esoSecretData.esoData }}
+      - name: {{ $cmName | replace "." "-"}}-vol
+        mountPath: {{ $cmMountPath}}/{{ .secretKey }}
+        subPath: {{ .secretKey }}  
+    {{- end }}
+    {{- end }}
+    {{- else }}            
+    {{- range $k, $v := .data }} # for others secrets the mount path will be .data[i].secretKey
       - name: {{ $cmName | replace "." "-"}}-vol
         mountPath: {{ $cmMountPath}}/{{ $k}}
         subPath: {{ $k}}
     {{- end }}
+    {{- end }}          
     {{- end }}
     {{- end }}
     {{- end }}
     {{- end }}
-    {{- if and (eq (len .Values.volumes) 0) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) }} []{{- end }}
-    {{- if and (eq (len .Values.volumeMounts) 0) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) }} []{{- end }}
+    {{- if and (eq (len .Values.volumes) 0) (eq ($hasPVCExists) false) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) }} []{{- end }}
+    {{- if and (eq (len .Values.volumeMounts) 0) (eq ($hasPVCExists) false) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) }} [] {{- end }}
 volumes:
 {{- if $.Values.appMetrics }}
   - name: envoy-config-volume
