@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/common-lib/async"
 	informerBean "github.com/devtron-labs/common-lib/informer"
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
@@ -97,6 +98,7 @@ type ClusterServiceImpl struct {
 	userRepository      repository3.UserRepository
 	roleGroupRepository repository3.RoleGroupRepository
 	clusterReadService  read.ClusterReadService
+	asyncRunnable       *async.Runnable
 }
 
 func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.SugaredLogger,
@@ -105,7 +107,8 @@ func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.
 	roleGroupRepository repository3.RoleGroupRepository,
 	envVariables *globalUtil.EnvironmentVariables,
 	cronLogger *cronUtil.CronLoggerImpl,
-	clusterReadService read.ClusterReadService) (*ClusterServiceImpl, error) {
+	clusterReadService read.ClusterReadService,
+	asyncRunnable *async.Runnable) (*ClusterServiceImpl, error) {
 	clusterService := &ClusterServiceImpl{
 		clusterRepository:   repository,
 		logger:              logger,
@@ -115,6 +118,7 @@ func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.
 		userRepository:      userRepository,
 		roleGroupRepository: roleGroupRepository,
 		clusterReadService:  clusterReadService,
+		asyncRunnable:       asyncRunnable,
 	}
 	// initialise cron
 	newCron := cron.New(cron.WithChain(cron.Recover(cronLogger)))
@@ -767,13 +771,14 @@ func (impl *ClusterServiceImpl) updateConnectionStatusForVirtualCluster(respMap 
 func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*bean.ClusterBean, clusterExistInDb bool) {
 	var wg sync.WaitGroup
 	respMap := &sync.Map{}
-	for idx, cluster := range clusters {
+	for idx := range clusters {
+		cluster := clusters[idx]
 		if cluster.IsVirtualCluster {
 			impl.updateConnectionStatusForVirtualCluster(respMap, cluster.Id, cluster.ClusterName)
 			continue
 		}
 		wg.Add(1)
-		go func(idx int, cluster *bean.ClusterBean) {
+		runnableFunc := func(idx int, cluster *bean.ClusterBean) {
 			defer wg.Done()
 			clusterConfig := cluster.GetClusterConfig()
 			_, _, k8sClientSet, err := impl.K8sUtil.GetK8sConfigAndClients(clusterConfig)
@@ -787,7 +792,8 @@ func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*bean.ClusterB
 				id = idx
 			}
 			impl.GetAndUpdateConnectionStatusForOneCluster(k8sClientSet, id, respMap)
-		}(idx, cluster)
+		}
+		impl.asyncRunnable.Execute(func() { runnableFunc(idx, cluster) })
 	}
 
 	wg.Wait()

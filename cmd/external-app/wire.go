@@ -74,6 +74,7 @@ import (
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
 	deployment2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
+	"github.com/devtron-labs/devtron/pkg/asyncProvider"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial"
 	"github.com/devtron-labs/devtron/pkg/commonService"
@@ -152,6 +153,7 @@ func InitializeApp() (*App, error) {
 		grafana.GetGrafanaClientConfig,
 		grafana.NewGrafanaClientImpl,
 		wire.Bind(new(grafana.GrafanaClient), new(*grafana.GrafanaClientImpl)),
+		asyncProvider.WireSet,
 
 		commonEnforcementFunctionsUtil.NewCommonEnforcementUtilImpl,
 		wire.Bind(new(commonEnforcementFunctionsUtil.CommonEnforcementUtil), new(*commonEnforcementFunctionsUtil.CommonEnforcementUtilImpl)),

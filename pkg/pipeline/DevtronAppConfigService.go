@@ -20,6 +20,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -79,6 +80,7 @@ type DevtronAppConfigServiceImpl struct {
 	enforcerUtil             rbac.EnforcerUtil
 
 	ciMaterialConfigService CiMaterialConfigService
+	userRepository          repository.UserRepository
 }
 
 func NewDevtronAppConfigServiceImpl(
@@ -88,7 +90,8 @@ func NewDevtronAppConfigServiceImpl(
 	pipelineRepository pipelineConfig.PipelineRepository,
 	resourceGroupService resourceGroup.ResourceGroupService,
 	enforcerUtil rbac.EnforcerUtil,
-	ciMaterialConfigService CiMaterialConfigService) *DevtronAppConfigServiceImpl {
+	ciMaterialConfigService CiMaterialConfigService,
+	userRepository repository.UserRepository) *DevtronAppConfigServiceImpl {
 	return &DevtronAppConfigServiceImpl{
 		logger:                   logger,
 		ciCdPipelineOrchestrator: ciCdPipelineOrchestrator,
@@ -97,6 +100,7 @@ func NewDevtronAppConfigServiceImpl(
 		resourceGroupService:     resourceGroupService,
 		enforcerUtil:             enforcerUtil,
 		ciMaterialConfigService:  ciMaterialConfigService,
+		userRepository:           userRepository,
 	}
 }
 
@@ -179,12 +183,17 @@ func (impl *DevtronAppConfigServiceImpl) FindAllMatchesByAppName(appName string,
 		impl.logger.Errorw("error while fetching app", "err", err)
 		return nil, err
 	}
+	userEmailMap, err := impl.getUserEmailFromApps(apps)
+	if err != nil {
+		impl.logger.Errorw("Error in getUserEmailFromApps", "apps", apps, "err", err)
+		return nil, err
+	}
 	for _, app := range apps {
 		name := app.AppName
 		if appType == helper.Job {
 			name = app.DisplayName
 		}
-		appsRes = append(appsRes, &AppBean{Id: app.Id, Name: name})
+		appsRes = append(appsRes, &AppBean{Id: app.Id, Name: name, Description: app.Description, CreatedBy: userEmailMap[app.CreatedBy]})
 	}
 	return appsRes, err
 }
@@ -244,8 +253,13 @@ func (impl *DevtronAppConfigServiceImpl) FindAppsByTeamId(teamId int) ([]*AppBea
 		impl.logger.Errorw("error while fetching app", "err", err)
 		return nil, err
 	}
+	userEmailMap, err := impl.getUserEmailFromApps(apps)
+	if err != nil {
+		impl.logger.Errorw("Error in getUserEmailFromApps", "apps", apps, "err", err)
+		return nil, err
+	}
 	for _, app := range apps {
-		appsRes = append(appsRes, &AppBean{Id: app.Id, Name: app.AppName})
+		appsRes = append(appsRes, &AppBean{Id: app.Id, Name: app.AppName, Description: app.Description, CreatedBy: userEmailMap[app.CreatedBy]})
 	}
 	return appsRes, err
 }
@@ -261,4 +275,25 @@ func (impl *DevtronAppConfigServiceImpl) FindAppsByTeamName(teamName string) ([]
 		appsRes = append(appsRes, AppBean{Id: app.Id, Name: app.AppName})
 	}
 	return appsRes, err
+}
+
+func (impl *DevtronAppConfigServiceImpl) getUserEmailFromApps(apps []*app.App) (map[int32]string, error) {
+	var userIds []int32
+	userEmailMap := make(map[int32]string)
+	for _, app := range apps {
+		if app.CreatedBy != 0 {
+			userIds = append(userIds, app.CreatedBy)
+		}
+	}
+	if len(userIds) > 0 {
+		users, err := impl.userRepository.GetByIds(userIds)
+		if err != nil {
+			impl.logger.Errorw("Error in getting users", "userIds", userIds, "err", err)
+			return userEmailMap, err
+		}
+		for _, user := range users {
+			userEmailMap[user.Id] = user.EmailId
+		}
+	}
+	return userEmailMap, nil
 }

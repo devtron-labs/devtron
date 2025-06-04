@@ -158,14 +158,14 @@ func (impl ServerServiceImpl) HandleServerAction(userId int32, serverActionReque
 	}
 
 	extraValues := make(map[string]interface{})
-	extraValues["installer.release"] = serverActionRequest.Version
+	extraValues[impl.serverEnvConfig.DevtronInstallerReleasePath] = serverActionRequest.Version
 	alreadyInstalledModuleNames, err := impl.moduleRepository.GetInstalledModuleNames()
 	if err != nil {
 		impl.logger.Errorw("error in getting modules with installed status ", "err", err)
 		return nil, err
 	}
 	for _, alreadyInstalledModuleName := range alreadyInstalledModuleNames {
-		alreadyInstalledModuleEnableKeys := moduleUtil.BuildAllModuleEnableKeys(alreadyInstalledModuleName)
+		alreadyInstalledModuleEnableKeys := moduleUtil.BuildAllModuleEnableKeys(impl.serverEnvConfig.DevtronOperatorBasePath, alreadyInstalledModuleName)
 		for _, alreadyInstalledModuleEnableKey := range alreadyInstalledModuleEnableKeys {
 			extraValues[alreadyInstalledModuleEnableKey] = true
 		}

@@ -270,19 +270,10 @@ func (impl AppWorkflowServiceImpl) DeleteAppWorkflow(appWorkflowId int, userId i
 	defer tx.Rollback()
 
 	// Deleting workflow
-	err = impl.appWorkflowRepository.DeleteAppWorkflow(wf, tx)
+	err = impl.appWorkflowRepository.DeleteAppWorkflowAndAllMappings(wf, tx)
 	if err != nil {
 		impl.Logger.Errorw("err", err)
 		return err
-	}
-	// Delete app workflow mapping
-	mapping, err := impl.appWorkflowRepository.FindWFAllMappingByWorkflowId(wf.Id)
-	for _, item := range mapping {
-		err := impl.appWorkflowRepository.DeleteAppWorkflowMapping(item, tx)
-		if err != nil {
-			impl.Logger.Errorw("error in deleting workflow mapping", "err", err)
-			return err
-		}
 	}
 	err = impl.userAuthService.DeleteRoles(bean3.WorkflowType, app.AppName, tx, "", wf.Name)
 	if err != nil {
