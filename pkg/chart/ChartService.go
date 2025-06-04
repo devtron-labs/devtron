@@ -730,6 +730,12 @@ func (impl *ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateReq
 		return nil, err
 	}
 
+	err = impl.chartRepository.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction to update charts", "appId", templateRequest.AppId, "error", err)
+		return nil, err
+	}
+
 	//VARIABLE_MAPPING_UPDATE
 	err = impl.scopedVariableManager.ExtractAndMapVariables(template.GlobalOverride, template.Id, variablesRepository.EntityTypeDeploymentTemplateAppLevel, template.CreatedBy, nil)
 	if err != nil {
