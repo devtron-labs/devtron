@@ -1,5 +1,5 @@
 # Mandatory configs
-kind: Job
+kind: CronJob
 
 jobConfigs:
   backoffLimit: 5
@@ -16,7 +16,7 @@ cronjobConfigs:
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 1
   restartPolicy: OnFailure
-  timeZone: ""
+  timeZone: "Asia/Kolkata"
 
 kedaAutoscaling:
   envSourceContainerName: "" 
