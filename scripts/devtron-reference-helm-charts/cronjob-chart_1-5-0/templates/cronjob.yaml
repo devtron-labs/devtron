@@ -14,6 +14,9 @@ metadata:
     releaseVersion: {{ $.Values.releaseVersion | quote }}
 spec:
   {{- if $.Values.cronjobConfigs }}
+  {{- if $.Values.cronjobConfigs.timeZone }}
+  timeZone: {{ $.Values.cronjobConfigs.timezone | default "UTC" }}
+  {{- end }}
   {{- if $.Values.cronjobConfigs.schedule }}
   schedule: {{ $.Values.cronjobConfigs.schedule | quote }}
   {{- end }}

@@ -19,6 +19,7 @@ cronjobConfigs:
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 1
   restartPolicy: OnFailure
+  timezone: "UTC"
 
 imagePullSecrets:
   - test1
@@ -366,6 +367,14 @@ rawYaml: []
 #     app: sample-metrics-app
 #    sessionAffinity: None
 #    type: ClusterIP
+
+# If you need to provide some extra specs for main container which are not included by default in deployment template
+# then provide them here
+containerExtraSpecs: {}
+
+# If you need to provide some extra specs for pod which are not included by default in deployment template
+# then provide them here
+podExtraSpecs: {}
 
 podDisruptionBudget: {}
   #  minAvailable: 1

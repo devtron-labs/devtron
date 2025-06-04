@@ -62,6 +62,7 @@ Spec:
 #  Key: kops.k8s.io/instancegroup 
   Values:
 
+restartPolicy: OnFailure
 
 image:
   pullPolicy: IfNotPresent
@@ -233,6 +234,9 @@ containers: []
   #    - mountPath: /usr/local/airflow/logs
   #      name: logs-data
 
+podExtraSpecs: {}
+containerExtraSpecs: {}
+
 kedaAutoscaling: {}
   # envSourceContainerName: "" 
   # minReplicaCount: 1 
@@ -317,3 +321,5 @@ tolerations: []
 imagePullSecrets: []
   # - test1
   # - test2
+
+persistentVolumeClaim: {}
