@@ -223,6 +223,7 @@ func (impl *DevtronAppConfigServiceImpl) GetAppListForEnvironment(request resour
 	appResults, envResults := request.CheckAuthBatch(token, appObjectArr, envObjectArr)
 	for _, pipeline := range cdPipelines {
 		if _, ok := objects[pipeline.Id]; !ok {
+			impl.logger.Warnw("skipping pipeline as no app and env object found", "pipelineId", pipeline.Id)
 			continue
 		}
 		appObject := objects[pipeline.Id][0]

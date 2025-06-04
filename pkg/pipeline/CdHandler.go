@@ -736,6 +736,7 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(re
 	appResults, _ := request.CheckAuthBatch(token, appObjectArr, envObjectArr)
 	for _, pipeline := range pipelines {
 		if _, ok := objects[pipeline.Id]; !ok {
+			impl.Logger.Warnw("skipping pipeline as no object found for it", "pipelineId", pipeline.Id)
 			continue
 		}
 		appObject := objects[pipeline.Id][0]
@@ -881,6 +882,7 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(request resou
 	appResults, envResults := request.CheckAuthBatch(token, appObjectArr, envObjectArr)
 	for _, pipeline := range cdPipelines {
 		if _, ok := objects[pipeline.Id]; !ok {
+			impl.Logger.Warnw("skipping pipeline as no object found for it", "pipelineId", pipeline.Id)
 			continue
 		}
 		appObject := objects[pipeline.Id][0]

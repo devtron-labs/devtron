@@ -617,6 +617,7 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(request resou
 	appResults, envResults := request.CheckAuthBatch(token, appObjectArr, envObjectArr)
 	for _, pipeline := range pipelines {
 		if _, ok := objects[pipeline.Id]; !ok {
+			impl.Logger.Warnw("pipeline not found in objects map", "pipelineId", pipeline.Id)
 			continue
 		}
 		appObject := objects[pipeline.Id][0]
