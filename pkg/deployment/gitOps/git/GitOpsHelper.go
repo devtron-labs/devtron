@@ -108,15 +108,17 @@ func (impl *GitOpsHelper) cloneAndFetch(url, targetDir string) (ctx git.GitConte
 }
 
 func (impl *GitOpsHelper) pullFromTargetRevision(ctx git.GitContext, clonedDir, targetRevision string) (err error) {
-	branch, err := impl.getSanitisedTargetRevision(ctx, clonedDir, targetRevision)
+	branch, isEmptyRepo, err := impl.getSanitisedTargetRevision(ctx, clonedDir, targetRevision)
 	if err != nil {
 		impl.logger.Errorw("no branch found in git repo", "clonedDir", clonedDir, "targetRevision", targetRevision, "err", err)
 		return err
 	}
-	_, errMsg, err := impl.pullFromBranch(ctx, clonedDir, branch)
-	if err != nil {
-		impl.logger.Errorw("error on git pull", "clonedDir", clonedDir, "branch", branch, "errMsg", errMsg, "err", err)
-		return err
+	if !isEmptyRepo {
+		_, errMsg, err := impl.pullFromBranch(ctx, clonedDir, branch)
+		if err != nil {
+			impl.logger.Errorw("error on git pull", "clonedDir", clonedDir, "branch", branch, "errMsg", errMsg, "err", err)
+			return err
+		}
 	}
 	return nil
 }
@@ -199,21 +201,21 @@ func (impl *GitOpsHelper) getRemoteBranchList(ctx git.GitContext, rootDir string
 	return validBranches, nil
 }
 
-func (impl *GitOpsHelper) getSanitisedTargetRevision(ctx git.GitContext, rootDir, targetRevision string) (string, error) {
+func (impl *GitOpsHelper) getSanitisedTargetRevision(ctx git.GitContext, rootDir, targetRevision string) (string, bool, error) {
 	validBranches, err := impl.getRemoteBranchList(ctx, rootDir)
 	if err != nil {
 		impl.logger.Errorw("error in getting remote branch list", "rootDir", rootDir, "targetRevision", targetRevision, "err", err)
-		return "", err
+		return "", false, err
 	}
-	branch, err := impl.getTargetRevision(ctx, rootDir, validBranches, targetRevision)
+	branch, isEmptyRepo, err := impl.getTargetRevision(ctx, rootDir, validBranches, targetRevision)
 	if err != nil {
 		impl.logger.Errorw("error in getting default branch", "branches", validBranches, "targetRevision", targetRevision, "err", err)
-		return "", err
+		return "", isEmptyRepo, err
 	}
 	if strings.HasPrefix(branch, "origin/") {
 		branch = strings.TrimPrefix(branch, "origin/")
 	}
-	return branch, nil
+	return branch, isEmptyRepo, nil
 }
 
 // getDefaultBranch returns the default branch of the git repository.
@@ -248,21 +250,21 @@ func (impl *GitOpsHelper) getDefaultBranch(ctx git.GitContext, rootDir string, b
 	return branch, isEmptyRepo, err
 }
 
-func (impl *GitOpsHelper) getTargetRevision(ctx git.GitContext, rootDir string, branches []string, targetRevision string) (branch string, err error) {
+func (impl *GitOpsHelper) getTargetRevision(ctx git.GitContext, rootDir string, branches []string, targetRevision string) (branch string, isEmptyRepo bool, err error) {
 	// the preferred branch is bean.TargetRevisionMaster
 	for _, item := range branches {
 		if len(targetRevision) != 0 && item == targetRevision {
-			return targetRevision, nil
+			return targetRevision, isEmptyRepo, nil
 		} else if util.IsDefaultTargetRevision(item) {
-			return util.GetDefaultTargetRevision(), nil
+			return util.GetDefaultTargetRevision(), isEmptyRepo, nil
 		}
 	}
-	branch, _, err = impl.getDefaultBranch(ctx, rootDir, branches)
+	branch, isEmptyRepo, err = impl.getDefaultBranch(ctx, rootDir, branches)
 	if err != nil {
 		impl.logger.Errorw("error in getting default branch", "branches", branches, "targetRevision", targetRevision, "err", err)
-		return "", err
+		return "", isEmptyRepo, err
 	}
-	return branch, err
+	return branch, isEmptyRepo, err
 }
 
 /*

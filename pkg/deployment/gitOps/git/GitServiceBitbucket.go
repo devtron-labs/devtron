@@ -37,12 +37,11 @@ import (
 )
 
 const (
-	HTTP_URL_PROTOCOL              = "http://"
-	HTTPS_URL_PROTOCOL             = "https://"
-	BITBUCKET_CLONE_BASE_URL       = "https://bitbucket.org/"
-	BITBUCKET_GITOPS_DIR           = "bitbucketGitOps"
-	BITBUCKET_REPO_NOT_FOUND_ERROR = "404 Not Found"
-	BITBUCKET_COMMIT_TIME_LAYOUT   = "2001-01-01T10:00:00+00:00"
+	HTTP_URL_PROTOCOL            = "http://"
+	HTTPS_URL_PROTOCOL           = "https://"
+	BITBUCKET_CLONE_BASE_URL     = "https://bitbucket.org/"
+	BITBUCKET_GITOPS_DIR         = "bitbucketGitOps"
+	BITBUCKET_COMMIT_TIME_LAYOUT = "2001-01-01T10:00:00+00:00"
 )
 
 type GitBitbucketClient struct {
@@ -199,15 +198,15 @@ func (impl GitBitbucketClient) repoExists(repoOptions *bitbucket.RepositoryOptio
 	}()
 
 	repo, err := impl.client.Repositories.Repository.Get(repoOptions)
-	if repo == nil && err.Error() == BITBUCKET_REPO_NOT_FOUND_ERROR {
+	if repo == nil && strings.Contains(err.Error(), BitbucketRepoNotFoundError.Error()) {
 		return "", false, nil
-	}
-	if err != nil {
+	} else if err != nil {
 		return "", false, err
 	}
 	repoUrl = fmt.Sprintf(BITBUCKET_CLONE_BASE_URL+"%s/%s.git", repoOptions.Owner, repoOptions.RepoSlug)
 	return repoUrl, true, nil
 }
+
 func (impl GitBitbucketClient) ensureProjectAvailabilityOnHttp(repoOptions *bitbucket.RepositoryOptions) (bool, error) {
 	for count := 0; count < 5; count++ {
 		_, exists, err := impl.repoExists(repoOptions)

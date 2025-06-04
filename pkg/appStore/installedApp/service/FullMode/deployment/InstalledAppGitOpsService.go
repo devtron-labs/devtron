@@ -34,10 +34,9 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/xanzy/go-gitlab"
-	"strconv"
-
-	//"github.com/xanzy/go-gitlab"
 	"net/http"
+	"strconv"
+	"strings"
 )
 
 type InstalledAppGitOpsService interface {
@@ -178,7 +177,7 @@ func (impl *FullModeDeploymentServiceImpl) parseGitRepoErrorResponse(err error) 
 			impl.Logger.Errorw("no content found while updating git repo gitlab, do auto fix", "error", err)
 			noTargetFound = true
 		}
-		if err.Error() == git.BITBUCKET_REPO_NOT_FOUND_ERROR {
+		if strings.Contains(err.Error(), git.BitbucketRepoNotFoundError.Error()) {
 			impl.Logger.Errorw("no content found while updating git repo bitbucket, do auto fix", "error", err)
 			noTargetFound = true
 		}

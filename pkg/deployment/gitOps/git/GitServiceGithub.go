@@ -78,6 +78,10 @@ func NewGithubClient(host string, token string, org string, logger *zap.SugaredL
 	}, err
 }
 
+func (impl GitHubClient) getClient() *github.Client {
+	return impl.client
+}
+
 func (impl GitHubClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
 	var err error
 	start := time.Now()
