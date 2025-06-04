@@ -39,6 +39,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/adapter"
+	bean4 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	chartRefBean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
@@ -370,18 +371,28 @@ func (impl *ChartServiceImpl) updateChartLocationForEnvironmentConfigs(ctx conte
 		impl.logger.Errorw("error in getting all overrides for app", "appId", appId, "err", err)
 		return err
 	}
-	uniqueEnvMap := make(map[int]bool)
-	for _, override := range envOverrides {
-		if _, ok := uniqueEnvMap[override.TargetEnvironment]; !ok && !override.IsOverride && override.Latest {
-			uniqueEnvMap[override.TargetEnvironment] = true
-			err := impl.deploymentConfigService.UpdateChartLocationInDeploymentConfig(tx, appId, override.TargetEnvironment, chartRefId, userId, version)
+
+	envOverriddenMap := impl.getEnvOverriddenMap(envOverrides)
+	for envId, override := range envOverriddenMap {
+		if !override {
+			err := impl.deploymentConfigService.UpdateChartLocationInDeploymentConfig(tx, appId, envId, chartRefId, userId, version)
 			if err != nil {
-				impl.logger.Errorw("error in updating chart location for env level deployment configs", "appId", appId, "envId", override.TargetEnvironment, "err", err)
+				impl.logger.Errorw("error in updating chart location for env level deployment configs", "appId", appId, "envId", envId, "err", err)
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+func (impl *ChartServiceImpl) getEnvOverriddenMap(overrides []*bean4.EnvConfigOverride) map[int]bool {
+	envMap := make(map[int]bool)
+	for _, override := range overrides {
+		if override.IsOverride && override.Latest {
+			envMap[override.TargetEnvironment] = true
+		}
+	}
+	return envMap
 }
 
 func (impl *ChartServiceImpl) CreateChartFromEnvOverride(ctx context.Context, templateRequest bean3.TemplateRequest) (*bean3.TemplateRequest, error) {
