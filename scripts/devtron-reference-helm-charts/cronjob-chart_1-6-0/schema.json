@@ -336,6 +336,10 @@
           "suspend":{
             "type":"boolean",
             "description": "This flag tells the controller to suspend subsequent executions, it does not apply to already started executions.  Defaults is false."
+          },
+          "timeZone":{
+            "type":"string",
+            "description": "You can specify a time zone for a CronJob by setting timeZone to the name of a valid time zone, see https://en.wikipedia.org/wiki/List_of_tz_database_time_zones "
           }
         }
       },

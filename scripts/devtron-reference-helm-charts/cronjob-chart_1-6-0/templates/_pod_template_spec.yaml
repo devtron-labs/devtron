@@ -86,7 +86,7 @@ ephemeralContainers:
 dnsConfig:
 {{- toYaml $.Values.dnsConfig }}
 {{- end }}
-restartPolicy: {{ $.Values.restartPolicy }}
+restartPolicy: {{ $.Values.restartPolicy | default "OnFailure" }}
 {{- if and $.Values.Spec.Affinity.Key $.Values.Spec.Affinity.Values }}
 affinity:
   nodeAffinity:
