@@ -1336,6 +1336,13 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *bean4.BulkApplicationForEn
 			pResponse[pipelineKey] = false
 			response[appKey] = pResponse
 		}
+		if _, ok := objects[pipeline.Id]; !ok {
+			//if user unauthorized, skip items
+			pipelineResponse := response[appKey]
+			pipelineResponse[pipelineKey] = false
+			response[appKey] = pipelineResponse
+			continue
+		}
 		appObject := objects[pipeline.Id][0]
 		envObject := objects[pipeline.Id][1]
 		if !(appResults[appObject] && envResults[envObject]) {

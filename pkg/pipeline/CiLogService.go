@@ -30,7 +30,7 @@ import (
 )
 
 type CiLogService interface {
-	FetchRunningWorkflowLogs(ciLogRequest types.BuildLogRequest, clusterConfig *k8s.ClusterConfig, isExt bool) (io.ReadCloser, func() error, error)
+	FetchRunningWorkflowLogs(ciLogRequest types.BuildLogRequest, clusterConfig *k8s.ClusterConfig, isExt bool, followLogs bool) (io.ReadCloser, func() error, error)
 	FetchLogs(baseLogLocationPathConfig string, ciLogRequest types.BuildLogRequest) (*os.File, func() error, error)
 }
 
@@ -53,7 +53,7 @@ func NewCiLogServiceImpl(logger *zap.SugaredLogger, k8sUtil *k8s.K8sServiceImpl)
 	}, nil
 }
 
-func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest types.BuildLogRequest, clusterConfig *k8s.ClusterConfig, isExt bool) (io.ReadCloser, func() error, error) {
+func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest types.BuildLogRequest, clusterConfig *k8s.ClusterConfig, isExt bool, followLogs bool) (io.ReadCloser, func() error, error) {
 	var kubeClient *kubernetes.Clientset
 	kubeClient = impl.kubeClient
 	var err error
@@ -64,7 +64,7 @@ func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest types.BuildL
 			return nil, nil, err
 		}
 	}
-	req := impl.k8sUtil.GetLogsForAPod(kubeClient, ciLogRequest.Namespace, ciLogRequest.PodName, bean.Main, true)
+	req := impl.k8sUtil.GetLogsForAPod(kubeClient, ciLogRequest.Namespace, ciLogRequest.PodName, bean.Main, followLogs)
 	podLogs, err := req.Stream(context.Background())
 	if err != nil {
 		impl.logger.Errorw("error in opening stream", "name", ciLogRequest.PodName, "err", err)

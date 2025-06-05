@@ -57,6 +57,7 @@ type DeploymentTemplateHistory struct {
 	DeployedOn              time.Time `sql:"deployed_on"`
 	DeployedBy              int32     `sql:"deployed_by"`
 	MergeStrategy           string    `sql:"merge_strategy"`
+	PipelineIds             []int     `sql:"pipeline_ids,array"`
 	sql.AuditLog
 	//getting below data from cd_workflow_runner and users join
 	DeploymentStatus  string `sql:"-"`

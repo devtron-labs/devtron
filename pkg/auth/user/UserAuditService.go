@@ -36,6 +36,7 @@ type UserAuditService interface {
 	GetLatestByUserId(userId int32) (*UserAudit, error)
 	GetLatestUser() (*UserAudit, error)
 	Update(userAudit *UserAudit) error
+	GetActiveUsersCountInLast30Days() (int, error)
 }
 
 type UserAuditServiceImpl struct {
@@ -122,4 +123,14 @@ func (impl UserAuditServiceImpl) GetLatestUser() (*UserAudit, error) {
 		CreatedOn: userAuditDb.CreatedOn,
 		UpdatedOn: userAuditDb.UpdatedOn,
 	}, nil
+}
+
+func (impl UserAuditServiceImpl) GetActiveUsersCountInLast30Days() (int, error) {
+	impl.logger.Info("Getting active users count in last 30 days")
+	count, err := impl.userAuditRepository.GetActiveUsersCountInLast30Days()
+	if err != nil {
+		impl.logger.Errorw("error while getting active users count in last 30 days", "err", err)
+		return 0, err
+	}
+	return count, nil
 }
