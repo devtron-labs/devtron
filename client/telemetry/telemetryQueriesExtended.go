@@ -908,7 +908,7 @@ func (impl *TelemetryEventClientImplExtended) getExternalConfigMapCount() int {
 func (impl *TelemetryEventClientImplExtended) getInternalConfigMapCount() int {
 	var count int
 	query := `
-		SELECT COUNT(*)
+		SELECT COALESCE(SUM(cm_count), 0)
 		FROM (
 			SELECT COUNT(*) as cm_count
 			FROM config_map_env_level cmel
