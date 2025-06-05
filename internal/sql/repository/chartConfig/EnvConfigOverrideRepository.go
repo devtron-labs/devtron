@@ -334,7 +334,7 @@ func (r EnvConfigOverrideRepositoryImpl) Update(tx *pg.Tx, envConfigOverride *En
 	if tx == nil {
 		connection = r.dbConnection
 	}
-	_, err := connection.Model(envConfigOverride).Update(envConfigOverride)
+	err := connection.Update(envConfigOverride)
 	return envConfigOverride, err
 }
 
