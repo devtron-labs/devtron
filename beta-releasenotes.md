@@ -5,6 +5,7 @@
 - feat: wf logs (#6606)
 - feat: Enable selection of all CI pipelines at once when the Environment filter is applied in Notifications (#6526)
 ## Bugs
+- fix: waiting to start status in deployment status (#6649)
 - fix: panic fix on concurrent deletion request (#6644)
 - fix: incorrect data for git trigger history at app detail page (#6639)
 - fix: duplicate entries in deployment history without override (#6637)
