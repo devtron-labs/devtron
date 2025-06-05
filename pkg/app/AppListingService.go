@@ -360,9 +360,14 @@ func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListi
 		impl.Logger.Errorw("error in fetching job list", "error", err, jobListingFilter)
 		return []*AppView.JobContainer{}, err
 	}
+	userEmailMap, err := impl.extractEmailIdFromUserId(jobListingContainers)
+	if err != nil {
+		impl.Logger.Errorw("Error in extractEmailIdFromUserId", "jobContainers", jobListingContainers, "err", err)
+		return nil, err
+	}
 	CiPipelineIDs := GetCIPipelineIDs(jobListingContainers)
 	JobsLastSucceededOnTime, err := impl.appListingRepository.FetchJobsLastSucceededOn(CiPipelineIDs)
-	jobContainers := BuildJobListingResponse(jobListingContainers, JobsLastSucceededOnTime)
+	jobContainers := BuildJobListingResponse(jobListingContainers, JobsLastSucceededOnTime, userEmailMap)
 	return jobContainers, nil
 }
 
@@ -553,7 +558,7 @@ func GetCIPipelineIDs(jobContainers []*AppView.JobListingContainer) []int {
 	}
 	return ciPipelineIDs
 }
-func BuildJobListingResponse(jobContainers []*AppView.JobListingContainer, JobsLastSucceededOnTime []*AppView.CiPipelineLastSucceededTime) []*AppView.JobContainer {
+func BuildJobListingResponse(jobContainers []*AppView.JobListingContainer, JobsLastSucceededOnTime []*AppView.CiPipelineLastSucceededTime, userEmailMap map[int32]string) []*AppView.JobContainer {
 	jobContainersMapping := make(map[int]AppView.JobContainer)
 	var appIds []int
 
@@ -572,6 +577,7 @@ func BuildJobListingResponse(jobContainers []*AppView.JobListingContainer, JobsL
 			val.JobName = jobContainer.JobName
 			val.JobActualName = jobContainer.JobActualName
 			val.ProjectId = jobContainer.ProjectId
+			val.Description = AppView.GenericNoteResponseBean{Description: jobContainer.Description, CreatedBy: userEmailMap[jobContainer.CreatedBy]}
 		}
 
 		if len(val.JobCiPipelines) == 0 {
@@ -880,4 +886,25 @@ func (impl AppListingServiceImpl) RedirectToLinkouts(Id int, appId int, envId in
 	}
 
 	return link, nil
+}
+
+func (impl AppListingServiceImpl) extractEmailIdFromUserId(jobContainers []*AppView.JobListingContainer) (map[int32]string, error) {
+	var userIds []int32
+	userEmailMap := make(map[int32]string)
+	for _, job := range jobContainers {
+		if job.CreatedBy != 0 {
+			userIds = append(userIds, job.CreatedBy)
+		}
+	}
+	if len(userIds) > 0 {
+		users, err := impl.userRepository.GetByIds(userIds)
+		if err != nil {
+			impl.Logger.Errorw("Error in getting users", "userIds", userIds, "err", err)
+			return userEmailMap, err
+		}
+		for _, user := range users {
+			userEmailMap[user.Id] = user.EmailId
+		}
+	}
+	return userEmailMap, nil
 }
