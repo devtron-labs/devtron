@@ -25,6 +25,7 @@
 - fix: anomalies in deployment status timeline (#6569)
 - fix: scoped var complex type resolution not working in patch type overrides (#6572)
 ## Others
+- chore: Gpu workload chart (#6608)
 - misc: update sample dockerfiles use non-root user (UID 2002) and base images (#6512)
 - sync: Develop main sync  (#6648)
 - sync: Release candidate v0.37.0 (#6645)
