@@ -72,6 +72,13 @@ type serviceEvent struct {
 	ObjectKind string `json:"object_kind"`
 }
 
+const eventTokenHeader = "X-Gitlab-Token"
+
+// HookEventToken returns the token for the given request.
+func HookEventToken(r *http.Request) string {
+	return r.Header.Get(eventTokenHeader)
+}
+
 const eventTypeHeader = "X-Gitlab-Event"
 
 // HookEventType returns the event type for the given request.

@@ -33,9 +33,10 @@ type Metadata struct {
 	Version  string `json:"version"`
 	Revision string `json:"revision"`
 	KAS      struct {
-		Enabled     bool   `json:"enabled"`
-		ExternalURL string `json:"externalUrl"`
-		Version     string `json:"version"`
+		Enabled             bool   `json:"enabled"`
+		ExternalURL         string `json:"externalUrl"`
+		ExternalK8SProxyURL string `json:"externalK8sProxyUrl"`
+		Version             string `json:"version"`
 	} `json:"kas"`
 	Enterprise bool `json:"enterprise"`
 }

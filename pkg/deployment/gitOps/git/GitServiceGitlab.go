@@ -213,7 +213,7 @@ func (impl GitLabClient) DeleteProject(projectName string) (err error) {
 	}()
 
 	impl.logger.Infow("deleting project ", "gitlab project name", projectName)
-	_, err = impl.client.Projects.DeleteProject(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, projectName))
+	_, err = impl.client.Projects.DeleteProject(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, projectName), nil)
 	return err
 }
 func (impl GitLabClient) createProject(name, description string) (url string, err error) {
