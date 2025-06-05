@@ -219,8 +219,6 @@ ConfigMaps:
   #   external: true
   #   mountPath: /etc/config/4
   #   data: []
-
-
 ConfigSecrets:
   enabled: true
   secrets:
@@ -372,11 +370,15 @@ rawYaml: []
 
 # If you need to provide some extra specs for main container which are not included by default in deployment template
 # then provide them here
-containerExtraSpecs: {}
+containerExtraSpecs: 
+  container: "extraspec"
+  demokey: "demovalue"
 
 # If you need to provide some extra specs for pod which are not included by default in deployment template
 # then provide them here
-podExtraSpecs: {}
+podExtraSpecs: 
+  pod: "extraspec"
+  demokey: "demovalue"
 
 podDisruptionBudget: {}
   #  minAvailable: 1
