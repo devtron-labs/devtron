@@ -20,6 +20,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	util2 "github.com/devtron-labs/devtron/util/event"
+	"net/http"
+	"path"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
@@ -57,12 +65,6 @@ import (
 	"google.golang.org/grpc/codes"
 	status2 "google.golang.org/grpc/status"
 	"helm.sh/helm/v3/pkg/chart"
-	"net/http"
-	"path"
-	"regexp"
-	"strconv"
-	"strings"
-	"time"
 )
 
 func (impl *HandlerServiceImpl) TriggerStageForBulk(triggerRequest bean.TriggerRequest) error {
@@ -316,6 +318,12 @@ func (impl *HandlerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			if err != nil {
 				impl.logger.Errorw("error while updating current runner status to failed", "cdWfr", runner.Id, "err", err)
 			}
+			pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(runner.CdWorkflowId)
+			if err != nil {
+				impl.logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", runner.CdWorkflowId)
+				return 0, "", nil, err
+			}
+			impl.deploymentEventHandler.WriteCDNotificationEventAsync(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride, util2.Fail)
 			return 0, "", nil, releaseErr
 		}
 
@@ -741,7 +749,9 @@ func (impl *HandlerServiceImpl) triggerPipeline(overrideRequest *bean3.ValuesOve
 		}
 	}
 
-	go impl.writeCDTriggerEvent(overrideRequest, valuesOverrideResponse.Artifact, valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, valuesOverrideResponse.PipelineOverride.Id, overrideRequest.WfrId)
+	impl.asyncRunnable.Execute(func() {
+		impl.writeCDTriggerEvent(overrideRequest, valuesOverrideResponse.Artifact, valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, valuesOverrideResponse.PipelineOverride.Id, overrideRequest.WfrId)
+	})
 
 	_ = impl.markImageScanDeployed(newCtx, overrideRequest.AppId, overrideRequest.EnvId, overrideRequest.ClusterId,
 		valuesOverrideResponse.Artifact.ImageDigest, valuesOverrideResponse.Artifact.ScanEnabled, valuesOverrideResponse.Artifact.Image)
