@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// Instances of this type carry the different configuration options that may
+// Config carries the different configuration options that may
 // be set when instantiating a client.
 //
 // Each field's zero-value is either meaningful or interpreted as using the
@@ -22,6 +22,9 @@ type Config struct {
 	// methods will still work.
 	// Information on how to get a personal API key: https://posthog.com/docs/api/overview
 	PersonalApiKey string
+
+	// DisableGeoIP will disable GeoIP lookup for events and when fetching feature flags
+	DisableGeoIP *bool
 
 	// The flushing interval of the client. Messages will be sent when they've
 	// been queued up to the maximum batch size or when the flushing interval
@@ -92,25 +95,33 @@ type Config struct {
 	maxConcurrentRequests int
 }
 
-const SdkName = "posthog-go"
+// GetDisableGeoIP instructs the client to set $geoip_disable on event properties or feature flag requests.
+// It is on by default as Go is mainly used on server side and to be compatible with posthog-python.
+func (c Config) GetDisableGeoIP() bool {
+	return c.DisableGeoIP == nil || *c.DisableGeoIP
+}
 
-// This constant sets the default endpoint to which client instances send
-// messages if none was explictly set.
-const DefaultEndpoint = "https://app.posthog.com"
+const (
+	SDKName = "posthog-go"
 
-// This constant sets the default flush interval used by client instances if
-// none was explicitly set.
-const DefaultInterval = 5 * time.Second
+	// DefaultEndpoint constant sets the default endpoint to which client instances send
+	// messages if none was explicitly set.
+	DefaultEndpoint = "https://app.posthog.com"
 
-// Specifies the default interval at which to fetch new feature flags
-const DefaultFeatureFlagsPollingInterval = 5 * time.Minute
+	// DefaultInterval constant sets the default flush interval used by client instances if
+	// none was explicitly set.
+	DefaultInterval = 5 * time.Second
 
-// Specifies the default timeout for fetching feature flags
-const DefaultFeatureFlagRequestTimeout = 3 * time.Second
+	// DefaultFeatureFlagsPollingInterval the default interval at which to fetch new feature flags
+	DefaultFeatureFlagsPollingInterval = 5 * time.Minute
 
-// This constant sets the default batch size used by client instances if none
-// was explicitly set.
-const DefaultBatchSize = 250
+	// DefaultFeatureFlagRequestTimeout the default timeout for fetching feature flags
+	DefaultFeatureFlagRequestTimeout = 3 * time.Second
+
+	// DefaultBatchSize sets the default batch size used by client instances if none
+	// was explicitly set.
+	DefaultBatchSize = 250
+)
 
 // Verifies that fields that don't have zero-values are set to valid values,
 // returns an error describing the problem if a field was invalid.
@@ -175,6 +186,13 @@ func makeConfig(c Config) Config {
 
 	if c.maxConcurrentRequests == 0 {
 		c.maxConcurrentRequests = 1000
+	}
+
+	if c.GetDisableGeoIP() {
+		if c.DefaultEventProperties == nil {
+			c.DefaultEventProperties = NewProperties()
+		}
+		c.DefaultEventProperties.Set(propertyGeoipDisable, true)
 	}
 
 	return c
