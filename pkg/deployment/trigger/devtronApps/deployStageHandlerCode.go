@@ -282,7 +282,7 @@ func (impl *HandlerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
 			ReferenceId:  triggerContext.ReferenceId,
 		}
-		savedWfr, err := impl.cdWorkflowRunnerService.SaveCDWorkflowRunnerWithStage(runner)
+		err = impl.cdWorkflowRunnerService.SaveWfr(nil, runner)
 		if err != nil {
 			impl.logger.Errorw("err in creating cdWorkflowRunner, ManualCdTrigger", "cdWorkflowId", cdWorkflowId, "err", err)
 			return 0, "", nil, err
@@ -290,7 +290,7 @@ func (impl *HandlerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		runner.CdWorkflow = &pipelineConfig.CdWorkflow{
 			Pipeline: cdPipeline,
 		}
-		overrideRequest.WfrId = savedWfr.Id
+		overrideRequest.WfrId = runner.Id
 		overrideRequest.CdWorkflowId = cdWorkflowId
 		// creating cd pipeline status timeline for deployment initialisation
 		timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(runner.Id, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_INITIATED, timelineStatus.TIMELINE_DESCRIPTION_DEPLOYMENT_INITIATED, overrideRequest.UserId)
@@ -419,7 +419,7 @@ func (impl *HandlerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 		AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggeredAt, UpdatedBy: triggeredBy},
 		ReferenceId:  request.TriggerContext.ReferenceId,
 	}
-	savedWfr, err := impl.cdWorkflowRunnerService.SaveCDWorkflowRunnerWithStage(runner)
+	err := impl.cdWorkflowRunnerService.SaveWfr(nil, runner)
 	if err != nil {
 		return err
 	}
@@ -448,7 +448,7 @@ func (impl *HandlerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 		impl.logger.Errorw("validation error deployment request", "cdWfr", runner.Id, "err", validationErr)
 		return validationErr
 	}
-	releaseErr := impl.TriggerCD(ctx, artifact, cdWf.Id, savedWfr.Id, pipeline, envDeploymentConfig, triggeredAt, triggeredBy)
+	releaseErr := impl.TriggerCD(ctx, artifact, cdWf.Id, runner.Id, pipeline, envDeploymentConfig, triggeredAt, triggeredBy)
 	// if releaseErr found, then the mark current deployment Failed and return
 	if releaseErr != nil {
 		err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, releaseErr, triggeredBy)
