@@ -182,7 +182,7 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 		return err
 	}
 
-	clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter, HelmChartSuccessfulDeploymentCount, ExternalHelmAppClusterCount := impl.SummaryDetailsForTelemetry()
+	clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter, HelmChartSuccessfulDeploymentCount, ExternalHelmAppClusterCount := impl.GetSummaryDetailsForTelemetry()
 	payload := &TelemetryEventDto{UCID: ucid, Timestamp: time.Now(), EventType: TelemetryEventType(eventType), DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()
 
@@ -345,12 +345,51 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload.JobPipelineTriggeredLast24h = impl.getJobPipelineTriggeredLast24h()
 	payload.JobPipelineSucceededLast24h = impl.getJobPipelineSucceededLast24h()
 	payload.UserCreatedPluginCount = impl.getUserCreatedPluginCount()
-	payload.PolicyCount = impl.getPolicyCount()
+
+	// Collect policy metrics for PostHog
+	payload.DeploymentWindowPolicyCount = impl.getDeploymentWindowPolicyCount()
+	payload.ApprovalPolicyCount = impl.getApprovalPolicyCount()
+	payload.PluginPolicyCount = impl.getPluginPolicyCount()
+	payload.TagsPolicyCount = impl.getTagsPolicyCount()
+	payload.FilterConditionPolicyCount = impl.getFilterConditionPolicyCount()
+	payload.LockDeploymentConfigurationPolicyCount = impl.getLockDeploymentConfigurationPolicyCount()
+
 	payload.AppliedPolicyRowCount = impl.getAppliedPolicyRowCount()
 	payload.PhysicalClusterCount, payload.IsolatedClusterCount = impl.getClusterCounts()
 	payload.ActiveUsersLast30Days = impl.getActiveUsersLast30Days()
 	payload.GitOpsPipelineCount = impl.getGitOpsPipelineCount()
 	payload.HelmPipelineCount = impl.helmPipelineCount()
+
+	// Collect new PostHog metrics for app analytics
+	payload.ProjectsWithZeroAppsCount = impl.getProjectsWithZeroAppsCount()
+	payload.AppsWithPropagationTagsCount = impl.getAppsWithPropagationTagsCount()
+	payload.AppsWithNonPropagationTagsCount = impl.getAppsWithNonPropagationTagsCount()
+	payload.AppsWithDescriptionCount = impl.getAppsWithDescriptionCount()
+	payload.AppsWithCatalogDataCount = impl.getAppsWithCatalogDataCount()
+	payload.AppsWithReadmeDataCount = impl.getAppsWithReadmeDataCount()
+
+	// Collect additional PostHog metrics for app analytics
+	payload.HighestEnvironmentCountInApp = impl.getHighestEnvironmentCountInApp()
+	payload.HighestAppCountInEnvironment = impl.getHighestAppCountInEnvironment()
+	payload.HighestWorkflowCountInApp = impl.getHighestWorkflowCountInApp()
+	payload.HighestEnvironmentCountInWorkflow = impl.getHighestEnvironmentCountInWorkflow()
+	payload.HighestGitRepoCountInApp = impl.getHighestGitRepoCountInApp()
+	payload.AppsWithIncludeExcludeFilesCount = impl.getAppsWithIncludeExcludeFilesCount()
+	payload.AppsWithCreateDockerfileCount = impl.getAppsWithCreateDockerfileCount()
+
+	// Collect additional PostHog metrics for build and deployment analytics
+	payload.DockerfileLanguagesList = impl.getDockerfileLanguagesList()
+	payload.AppsWithDockerfileCount = impl.getAppsWithDockerfileCount()
+	payload.AppsWithBuildpacksCount = impl.getAppsWithBuildpacksCount()
+	payload.BuildpackLanguagesList = impl.getBuildpackLanguagesList()
+	payload.AppsWithDeploymentChartCount = impl.getAppsWithDeploymentChartCount()
+	payload.AppsWithRolloutChartCount = impl.getAppsWithRolloutChartCount()
+	payload.AppsWithStatefulsetCount = impl.getAppsWithStatefulsetCount()
+	payload.AppsWithJobsCronjobsCount = impl.getAppsWithJobsCronjobsCount()
+	payload.EnvironmentsWithPatchStrategyCount = impl.getEnvironmentsWithPatchStrategyCount()
+	payload.EnvironmentsWithReplaceStrategyCount = impl.getEnvironmentsWithReplaceStrategyCount()
+	payload.ExternalConfigMapCount = impl.getExternalConfigMapCount()
+	payload.InternalConfigMapCount = impl.getInternalConfigMapCount()
 
 	payload.ClusterProvider, err = impl.GetCloudProvider()
 	if err != nil {

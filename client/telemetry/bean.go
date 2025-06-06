@@ -149,11 +149,45 @@ type TelemetryEventDto struct {
 	JobPipelineTriggeredLast24h int `json:"jobPipelineTriggeredLast24h,omitempty"`
 	JobPipelineSucceededLast24h int `json:"jobPipelineSucceededLast24h,omitempty"`
 	UserCreatedPluginCount      int `json:"userCreatedPluginCount,omitempty"`
-	PolicyCount                 int `json:"policyCount,omitempty"`
-	AppliedPolicyRowCount       int `json:"appliedPolicyRowCount,omitempty"`
-	PhysicalClusterCount        int `json:"physicalClusterCount,omitempty"`
-	IsolatedClusterCount        int `json:"isolatedClusterCount,omitempty"`
-	ActiveUsersLast30Days       int `json:"activeUsersLast30Days,omitempty"`
-	GitOpsPipelineCount         int `json:"gitOpsPipelineCount,omitempty"`
-	HelmPipelineCount           int `json:"helmPipelineCount,omitempty"`
+	// Individual policy counts for PostHog metrics
+	DeploymentWindowPolicyCount            int `json:"deploymentWindowPolicyCount,omitempty"`
+	ApprovalPolicyCount                    int `json:"approvalPolicyCount,omitempty"`
+	PluginPolicyCount                      int `json:"pluginPolicyCount,omitempty"`
+	TagsPolicyCount                        int `json:"tagsPolicyCount,omitempty"`
+	FilterConditionPolicyCount             int `json:"filterConditionPolicyCount,omitempty"`
+	LockDeploymentConfigurationPolicyCount int `json:"lockDeploymentConfigurationPolicyCount,omitempty"`
+	AppliedPolicyRowCount                  int `json:"appliedPolicyRowCount,omitempty"`
+	PhysicalClusterCount                   int `json:"physicalClusterCount,omitempty"`
+	IsolatedClusterCount                   int `json:"isolatedClusterCount,omitempty"`
+	ActiveUsersLast30Days                  int `json:"activeUsersLast30Days,omitempty"`
+	GitOpsPipelineCount                    int `json:"gitOpsPipelineCount,omitempty"`
+	HelmPipelineCount                      int `json:"helmPipelineCount,omitempty"`
+	// New PostHog metrics for app analytics
+	ProjectsWithZeroAppsCount       int `json:"projectsWithZeroAppsCount,omitempty"`
+	AppsWithPropagationTagsCount    int `json:"appsWithPropagationTagsCount,omitempty"`
+	AppsWithNonPropagationTagsCount int `json:"appsWithNonPropagationTagsCount,omitempty"`
+	AppsWithDescriptionCount        int `json:"appsWithDescriptionCount,omitempty"`
+	AppsWithCatalogDataCount        int `json:"appsWithCatalogDataCount,omitempty"`
+	AppsWithReadmeDataCount         int `json:"appsWithReadmeDataCount,omitempty"`
+	// Additional PostHog metrics for app analytics
+	HighestEnvironmentCountInApp      int `json:"highestEnvironmentCountInApp,omitempty"`
+	HighestAppCountInEnvironment      int `json:"highestAppCountInEnvironment,omitempty"`
+	HighestWorkflowCountInApp         int `json:"highestWorkflowCountInApp,omitempty"`
+	HighestEnvironmentCountInWorkflow int `json:"highestEnvironmentCountInWorkflow,omitempty"`
+	HighestGitRepoCountInApp          int `json:"highestGitRepoCountInApp,omitempty"`
+	AppsWithIncludeExcludeFilesCount  int `json:"appsWithIncludeExcludeFilesCount,omitempty"`
+	AppsWithCreateDockerfileCount     int `json:"appsWithCreateDockerfileCount,omitempty"`
+	// Additional PostHog metrics for build and deployment analytics
+	DockerfileLanguagesList              []string `json:"dockerfileLanguagesList,omitempty"`
+	AppsWithDockerfileCount              int      `json:"appsWithDockerfileCount,omitempty"`
+	AppsWithBuildpacksCount              int      `json:"appsWithBuildpacksCount,omitempty"`
+	BuildpackLanguagesList               []string `json:"buildpackLanguagesList,omitempty"`
+	AppsWithDeploymentChartCount         int      `json:"appsWithDeploymentChartCount,omitempty"`
+	AppsWithRolloutChartCount            int      `json:"appsWithRolloutChartCount,omitempty"`
+	AppsWithStatefulsetCount             int      `json:"appsWithStatefulsetCount,omitempty"`
+	AppsWithJobsCronjobsCount            int      `json:"appsWithJobsCronjobsCount,omitempty"`
+	EnvironmentsWithPatchStrategyCount   int      `json:"environmentsWithPatchStrategyCount,omitempty"`
+	EnvironmentsWithReplaceStrategyCount int      `json:"environmentsWithReplaceStrategyCount,omitempty"`
+	ExternalConfigMapCount               int      `json:"externalConfigMapCount,omitempty"`
+	InternalConfigMapCount               int      `json:"internalConfigMapCount,omitempty"`
 }
