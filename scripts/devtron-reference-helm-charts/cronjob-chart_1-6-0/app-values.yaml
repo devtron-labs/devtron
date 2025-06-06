@@ -8,7 +8,6 @@ jobConfigs:
   completions: 2
   suspend: false
  # ttlSecondsAfterFinished: 100
-
 cronjobConfigs:
   schedule: "* * * * *"
   startingDeadlineSeconds: 100
@@ -17,6 +16,7 @@ cronjobConfigs:
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 1
   restartPolicy: OnFailure
+  timeZone: "UTC"
 
 kedaAutoscaling:
   envSourceContainerName: "" 
