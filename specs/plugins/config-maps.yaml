@@ -1,0 +1,565 @@
+openapi: "3.0.0"
+info:
+  title: Global ConfigMap and Secret Management
+  description: API for managing global ConfigMaps and Secrets
+  version: "1.0"
+
+paths:
+  /orchestrator/configmap/global:
+    post:
+      description: Create or update a global ConfigMap
+      operationId: CMGlobalAddUpdate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigDataRequest'
+      responses:
+        '200':
+          description: Successfully created/updated ConfigMap
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigDataRequest'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/configmap/environment:
+    post:
+      description: Create or update an environment-specific ConfigMap
+      operationId: CMEnvironmentAddUpdate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigDataRequest'
+      responses:
+        '200':
+          description: Successfully created/updated ConfigMap
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigDataRequest'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/configmap/global/{appId}:
+    get:
+      description: Get all global ConfigMaps for an application
+      operationId: CMGlobalFetch
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully retrieved ConfigMaps
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigDataRequest'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/configmap/environment/{appId}/{envId}:
+    get:
+      description: Get all environment-specific ConfigMaps for an application
+      operationId: CMEnvironmentFetch
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: envId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully retrieved ConfigMaps
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigDataRequest'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/configmap/global/edit/{appId}/{id}:
+    get:
+      description: Get a global ConfigMap for editing
+      operationId: CMGlobalFetchForEdit
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved ConfigMap
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigDataRequest'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/configmap/environment/edit/{appId}/{envId}/{id}:
+    get:
+      description: Get an environment-specific ConfigMap for editing
+      operationId: CMEnvironmentFetchForEdit
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: envId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved ConfigMap
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigDataRequest'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/configmap/global/{appId}/{id}:
+    delete:
+      description: Delete a global ConfigMap
+      operationId: CMGlobalDelete
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully deleted ConfigMap
+          content:
+            application/json:
+              schema:
+                type: boolean
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/configmap/environment/{appId}/{envId}/{id}:
+    delete:
+      description: Delete an environment-specific ConfigMap
+      operationId: CMEnvironmentDelete
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: envId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully deleted ConfigMap
+          content:
+            application/json:
+              schema:
+                type: boolean
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/configmap/bulk/patch:
+    post:
+      description: Bulk patch ConfigMaps and Secrets
+      operationId: ConfigSecretBulkPatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkPatchRequest'
+      responses:
+        '200':
+          description: Successfully patched ConfigMaps and Secrets
+          content:
+            application/json:
+              schema:
+                type: boolean
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    ConfigDataRequest:
+      type: object
+      required:
+        - appId
+        - userId
+        - configData
+      properties:
+        id:
+          type: integer
+          description: ID of the ConfigMap/Secret
+        appId:
+          type: integer
+          description: ID of the application
+        userId:
+          type: integer
+          description: ID of the user making the request
+        environmentId:
+          type: integer
+          description: ID of the environment (for environment-specific ConfigMaps/Secrets)
+        configData:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfigData'
+
+    ConfigData:
+      type: object
+      required:
+        - name
+        - type
+      properties:
+        id:
+          type: integer
+          description: ID of the ConfigMap/Secret
+        name:
+          type: string
+          description: Name of the ConfigMap/Secret
+        type:
+          type: string
+          enum: [CONFIGMAP, SECRET]
+          description: Type of the configuration (ConfigMap or Secret)
+        external:
+          type: boolean
+          description: Whether this is an external ConfigMap/Secret
+        data:
+          type: object
+          additionalProperties:
+            type: string
+          description: Key-value pairs for the ConfigMap/Secret
+        mountPath:
+          type: string
+          description: Path where the ConfigMap/Secret should be mounted
+        subPath:
+          type: string
+          description: Subpath within the mount path
+        filePermission:
+          type: string
+          description: File permissions for the mounted ConfigMap/Secret
+        externalSecretType:
+          type: string
+          description: Type of external secret (for Secrets only)
+        roleARN:
+          type: string
+          description: ARN of the role to use for external secrets (for Secrets only)
+        externalSecret:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExternalSecret'
+          description: External secret configuration (for Secrets only)
+
+    ExternalSecret:
+      type: object
+      required:
+        - name
+        - key
+      properties:
+        name:
+          type: string
+          description: Name of the external secret
+        key:
+          type: string
+          description: Key in the external secret store
+        property:
+          type: string
+          description: Property to extract from the external secret
+        isBinary:
+          type: boolean
+          description: Whether the secret value is binary
+
+    BulkPatchRequest:
+      type: object
+      required:
+        - userId
+        - global
+      properties:
+        userId:
+          type: integer
+          description: ID of the user making the request
+        global:
+          type: boolean
+          description: Whether to patch global or environment-specific ConfigMaps/Secrets
+        appId:
+          type: integer
+          description: ID of the application
+        environmentId:
+          type: integer
+          description: ID of the environment (for environment-specific patches)
+        configData:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfigData'
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message
