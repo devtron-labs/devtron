@@ -71,6 +71,9 @@ metadata:
 {{ toYaml .annotations | indent 4 }}
 {{- end }}
 spec:
+{{- if .provider }}
+  provider: {{ .provider }}
+{{- end }}  
   targetRef:
     apiVersion: apps/v1
     kind: Deployment
@@ -146,13 +149,31 @@ spec:
     maxWeight: {{ .analysis.maxWeight }}
     stepWeight: {{ .analysis.stepWeight }}
     metrics:
+{{- if  $.Values.flaggerCanary.analysis.metrics }}    
+{{- range  $.Values.flaggerCanary.analysis.metrics }}    
+    - name: {{ .name }}
+      threshold: {{ .successRate }}
+      interval: {{.interval }}
+{{- end }}     
+{{- end }}  
     - name: request-success-rate
       threshold: {{ .thresholds.successRate }}
       interval: 1m
     - name: request-duration
       threshold: {{ .thresholds.latency }}
-      interval: 1m
+      interval: 1m   
     webhooks:
+{{- if $.Values.flaggerCanary.analysis.webhooks }}    
+{{- range $.Values.flaggerCanary.analysis.webhooks }}
+      - name: {{ .name }}
+        url: {{ .url }}
+        timeout: {{ .timeout }}
+        metadata:
+        {{- range $key, $val := .metadata }}
+          {{ $key }}: {{ $val | quote }}
+        {{- end }}
+    {{- end }}    
+{{- end }}    
       {{- if .loadtest.enabled }}
       - name: load-test
         url: {{ .loadtest.url }}

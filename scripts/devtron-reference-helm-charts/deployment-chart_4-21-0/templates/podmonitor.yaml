@@ -1,0 +1,32 @@
+{{ $podMonitorEnabled := include "podMonitorEnabled" . }}
+{{- if eq "true" $podMonitorEnabled -}}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  {{- if .Values.podmonitor.name }}
+  name: {{ .Values.podmonitor.name }}
+  {{- else }}
+  name: {{ template ".Chart.Name .fullname" . }}-pm
+  {{- end }}
+spec:
+  jobLabel: {{ .Values.podmonitor.jobLabel }}
+  namespaceSelector:
+      matchNames:
+      - devtron-demo
+{{- if .Values.podmonitor.podMetricsEndpoints }}      
+  podMetricsEndpoints:
+  {{- toYaml .Values.podmonitor.podMetricsEndpoints | nindent 4}}
+{{- end }}  
+  podTargetLabels:
+  - appId
+  - envId
+  - devtron_app_hash
+  selector:
+    matchLabels:
+    {{- if .Values.podmonitor.matchLabels }}
+    {{- toYaml .Values.pod.matchLabels | nindent 6 }}
+    {{- else }}
+      app: {{ template ".Chart.Name .name" $ }}
+    {{- end }}  
+{{- end }}

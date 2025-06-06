@@ -1,6 +1,10 @@
 {{- with .Values.istio }}
 {{- if and .enable .destinationRule.enabled }}
+{{ if semverCompare ">=1.22-0" $.Capabilities.KubeVersion.GitVersion -}}
+apiVersion: networking.istio.io/v1
+{{ else }}
 apiVersion: networking.istio.io/v1beta1
+{{- end }}
 kind: DestinationRule
 metadata:
   {{- if .destinationRule.name }}
