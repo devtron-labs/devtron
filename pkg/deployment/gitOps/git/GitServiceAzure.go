@@ -185,6 +185,10 @@ func (impl GitAzureClient) CreateRepository(ctx context.Context, config *bean2.G
 	return *operationReference.WebUrl, true, isEmpty, detailedErrorGitOpsConfigActions
 }
 
+func (impl GitAzureClient) CreateFirstCommitOnHead(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
+	return impl.CreateReadme(ctx, config)
+}
+
 func (impl GitAzureClient) CreateReadme(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
 
 	var err error
@@ -302,7 +306,7 @@ func (impl GitAzureClient) CommitValues(ctx context.Context, config *ChartConfig
 		Project:      &impl.project,
 	})
 	if e := (azuredevops.WrappedError{}); errors.As(err, &e) && e.StatusCode != nil && *e.StatusCode == http2.StatusConflict {
-		impl.logger.Warn("conflict found in commit azure", "err", err, "config", config)
+		impl.logger.Warnw("conflict found in commit azure", "config", config, "err", err)
 		if publishStatusConflictError {
 			globalUtil.TriggerGitOpsMetrics("CommitValues", "GitAzureClient", start, err)
 		}
