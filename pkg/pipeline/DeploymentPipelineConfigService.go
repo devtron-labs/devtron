@@ -1901,6 +1901,10 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironmentMin(request 
 	//authorization block ends here
 	span.End()
 	for _, dbPipeline := range pipelines {
+		if _, ok := objects[dbPipeline.Id]; !ok {
+			impl.logger.Warnw("no objects found for pipeline", "pipelineId", dbPipeline.Id)
+			continue
+		}
 		appObject := objects[dbPipeline.Id][0]
 		envObject := objects[dbPipeline.Id][1]
 		if !(appResults[appObject] && envResults[envObject]) {
@@ -2137,6 +2141,10 @@ func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter
 
 	pipelinesMap := make(map[int][]*pipelineConfig.Pipeline)
 	for _, pipeline := range cdPipelines {
+		if _, ok := objects[pipeline.Id]; !ok {
+			impl.logger.Warnw("skipping pipeline as no object found for it", "pipelineId", pipeline.Id)
+			continue
+		}
 		appObject := objects[pipeline.Id][0]
 		envObject := objects[pipeline.Id][1]
 		if !(appResults[appObject] && envResults[envObject]) {

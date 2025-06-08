@@ -41,8 +41,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
-//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=Client
-
 var ErrInvalidRepoURL = fmt.Errorf("repo URL is invalid")
 
 type RevisionMetadata struct {
@@ -71,7 +69,7 @@ type Client interface {
 	Init() error
 	Fetch(revision string) error
 	Submodule() error
-	Checkout(revision string, submoduleEnabled bool) error
+	Checkout(revision string, submoduleEnabled bool) (string, error)
 	LsRefs() (*Refs, error)
 	LsRemote(revision string) (string, error)
 	LsFiles(path string, enableNewGitFileGlobbing bool) ([]string, error)
@@ -82,11 +80,23 @@ type Client interface {
 	IsAnnotatedTag(string) bool
 	ChangedFiles(revision string, targetRevision string) ([]string, error)
 	IsRevisionPresent(revision string) bool
+	// SetAuthor sets the author name and email in the git configuration.
+	SetAuthor(name, email string) (string, error)
+	// CheckoutOrOrphan checks out the branch. If the branch does not exist, it creates an orphan branch.
+	CheckoutOrOrphan(branch string, submoduleEnabled bool) (string, error)
+	// CheckoutOrNew checks out the given branch. If the branch does not exist, it creates an empty branch based on
+	// the base branch.
+	CheckoutOrNew(branch, base string, submoduleEnabled bool) (string, error)
+	// RemoveContents removes all files from the git repository.
+	RemoveContents() (string, error)
+	// CommitAndPush commits and pushes changes to the target branch.
+	CommitAndPush(branch, message string) (string, error)
 }
 
 type EventHandlers struct {
 	OnLsRemote func(repo string) func()
 	OnFetch    func(repo string) func()
+	OnPush     func(repo string) func()
 }
 
 // nativeGitClient implements Client interface using git CLI
@@ -109,6 +119,8 @@ type nativeGitClient struct {
 	loadRefFromCache bool
 	// HTTP/HTTPS proxy used to access repository
 	proxy string
+	// list of targets that shouldn't use the proxy, applies only if the proxy is set
+	noProxy string
 }
 
 type runOpts struct {
@@ -154,7 +166,7 @@ func WithEventHandlers(handlers EventHandlers) ClientOpts {
 	}
 }
 
-func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, proxy string, opts ...ClientOpts) (Client, error) {
+func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...ClientOpts) (Client, error) {
 	r := regexp.MustCompile("(/|:)")
 	normalizedGitURL := NormalizeGitURL(rawRepoURL)
 	if normalizedGitURL == "" {
@@ -164,10 +176,10 @@ func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, pr
 	if root == os.TempDir() {
 		return nil, fmt.Errorf("repository %q cannot be initialized, because its root would be system temp at %s", rawRepoURL, root)
 	}
-	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, opts...)
+	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, noProxy, opts...)
 }
 
-func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool, proxy string, opts ...ClientOpts) (Client, error) {
+func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...ClientOpts) (Client, error) {
 	client := &nativeGitClient{
 		repoURL:   rawRepoURL,
 		root:      root,
@@ -175,6 +187,7 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 		insecure:  insecure,
 		enableLfs: enableLfs,
 		proxy:     proxy,
+		noProxy:   noProxy,
 	}
 	for i := range opts {
 		opts[i](client)
@@ -192,7 +205,7 @@ var gitClientTimeout = env.ParseDurationFromEnv("ARGOCD_GIT_REQUEST_TIMEOUT", 15
 //     a client with those certificates in the list of root CAs used to verify
 //     the server's certificate.
 //   - Otherwise (and on non-fatal errors), a default HTTP client is returned.
-func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL string) *http.Client {
+func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL string, noProxy string) *http.Client {
 	// Default HTTP client
 	customHTTPClient := &http.Client{
 		// 15 second timeout by default
@@ -203,7 +216,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 		},
 	}
 
-	proxyFunc := proxy.GetCallback(proxyURL)
+	proxyFunc := proxy.GetCallback(proxyURL, noProxy)
 
 	// Callback function to return any configured client certificate
 	// We never return err, but an empty cert instead.
@@ -458,43 +471,43 @@ func (m *nativeGitClient) Submodule() error {
 	return nil
 }
 
-// Checkout checkout specified revision
-func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) error {
+// Checkout checks out the specified revision
+func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) (string, error) {
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
 	}
-	if _, err := m.runCmd("checkout", "--force", revision); err != nil {
-		return err
+	if out, err := m.runCmd("checkout", "--force", revision); err != nil {
+		return out, fmt.Errorf("failed to checkout %s: %w", revision, err)
 	}
 	// We must populate LFS content by using lfs checkout, if we have at least
 	// one LFS reference in the current revision.
 	if m.IsLFSEnabled() {
 		if largeFiles, err := m.LsLargeFiles(); err == nil {
 			if len(largeFiles) > 0 {
-				if _, err := m.runCmd("lfs", "checkout"); err != nil {
-					return err
+				if out, err := m.runCmd("lfs", "checkout"); err != nil {
+					return out, fmt.Errorf("failed to checkout LFS files: %w", err)
 				}
 			}
 		} else {
-			return err
+			return "", fmt.Errorf("failed to list LFS files: %w", err)
 		}
 	}
 	if _, err := os.Stat(m.root + "/.gitmodules"); !os.IsNotExist(err) {
 		if submoduleEnabled {
 			if err := m.Submodule(); err != nil {
-				return err
+				return "", fmt.Errorf("failed to update submodules: %w", err)
 			}
 		}
 	}
 	// NOTE
 	// The double “f” in the arguments is not a typo: the first “f” tells
 	// `git clean` to delete untracked files and directories, and the second “f”
-	// tells it to clean untractked nested Git repositories (for example a
+	// tells it to clean untracked nested Git repositories (for example a
 	// submodule which has since been removed).
-	if _, err := m.runCmd("clean", "-ffdx"); err != nil {
-		return err
+	if out, err := m.runCmd("clean", "-ffdx"); err != nil {
+		return out, fmt.Errorf("failed to clean: %w", err)
 	}
-	return nil
+	return "", nil
 }
 
 func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
@@ -550,7 +563,7 @@ func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
 	if err != nil {
 		return nil, err
 	}
-	res, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds, m.proxy)
+	res, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds, m.proxy, m.noProxy)
 	if err == nil && m.gitRefCache != nil {
 		if err := m.gitRefCache.SetGitReferences(m.repoURL, res); err != nil {
 			log.Warnf("Failed to store git references to cache: %v", err)
@@ -623,7 +636,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 
 	refs, err := m.getRefs()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to list refs: %w", err)
 	}
 
 	if revision == "" {
@@ -745,11 +758,11 @@ func (m *nativeGitClient) CommitSHA() (string, error) {
 
 // returns the meta-data for the commit
 func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, error) {
-	out, err := m.runCmd("show", "-s", "--format=%an <%ae>|%at|%B", revision)
+	out, err := m.runCmd("show", "-s", "--format=%an <%ae>%n%at%n%B", revision)
 	if err != nil {
 		return nil, err
 	}
-	segments := strings.SplitN(out, "|", 3)
+	segments := strings.SplitN(out, "\n", 3)
 	if len(segments) != 3 {
 		return nil, fmt.Errorf("expected 3 segments, got %v", segments)
 	}
@@ -810,6 +823,123 @@ func (m *nativeGitClient) ChangedFiles(revision string, targetRevision string) (
 	return files, nil
 }
 
+// config runs a git config command.
+func (m *nativeGitClient) config(args ...string) (string, error) {
+	args = append([]string{"config"}, args...)
+	out, err := m.runCmd(args...)
+	if err != nil {
+		return out, fmt.Errorf("failed to run git config: %w", err)
+	}
+	return out, nil
+}
+
+// SetAuthor sets the author name and email in the git configuration.
+func (m *nativeGitClient) SetAuthor(name, email string) (string, error) {
+	if name != "" {
+		out, err := m.config("--local", "user.name", name)
+		if err != nil {
+			return out, err
+		}
+	}
+	if email != "" {
+		out, err := m.config("--local", "user.email", email)
+		if err != nil {
+			return out, err
+		}
+	}
+	return "", nil
+}
+
+// CheckoutOrOrphan checks out the branch. If the branch does not exist, it creates an orphan branch.
+func (m *nativeGitClient) CheckoutOrOrphan(branch string, submoduleEnabled bool) (string, error) {
+	out, err := m.Checkout(branch, submoduleEnabled)
+	if err != nil {
+		// If the branch doesn't exist, create it as an orphan branch.
+		if strings.Contains(err.Error(), "did not match any file(s) known to git") {
+			out, err = m.runCmd("switch", "--orphan", branch)
+			if err != nil {
+				return out, fmt.Errorf("failed to create orphan branch: %w", err)
+			}
+		} else {
+			return out, fmt.Errorf("failed to checkout branch: %w", err)
+		}
+
+		// Make an empty initial commit.
+		out, err = m.runCmd("commit", "--allow-empty", "-m", "Initial commit")
+		if err != nil {
+			return out, fmt.Errorf("failed to commit initial commit: %w", err)
+		}
+
+		// Push the commit.
+		err = m.runCredentialedCmd("push", "origin", branch)
+		if err != nil {
+			return "", fmt.Errorf("failed to push to branch: %w", err)
+		}
+	}
+	return "", nil
+}
+
+// CheckoutOrNew checks out the given branch. If the branch does not exist, it creates an empty branch based on
+// the base branch.
+func (m *nativeGitClient) CheckoutOrNew(branch, base string, submoduleEnabled bool) (string, error) {
+	out, err := m.Checkout(branch, submoduleEnabled)
+	if err != nil {
+		if strings.Contains(err.Error(), "did not match any file(s) known to git") {
+			// If the branch does not exist, create any empty branch based on the sync branch
+			// First, checkout the sync branch.
+			out, err = m.Checkout(base, submoduleEnabled)
+			if err != nil {
+				return out, fmt.Errorf("failed to checkout sync branch: %w", err)
+			}
+
+			out, err = m.runCmd("checkout", "-b", branch)
+			if err != nil {
+				return out, fmt.Errorf("failed to create branch: %w", err)
+			}
+		} else {
+			return out, fmt.Errorf("failed to checkout branch: %w", err)
+		}
+	}
+	return "", nil
+}
+
+// RemoveContents removes all files from the git repository.
+func (m *nativeGitClient) RemoveContents() (string, error) {
+	out, err := m.runCmd("rm", "-r", "--ignore-unmatch", ".")
+	if err != nil {
+		return out, fmt.Errorf("failed to clear repo contents: %w", err)
+	}
+	return "", nil
+}
+
+// CommitAndPush commits and pushes changes to the target branch.
+func (m *nativeGitClient) CommitAndPush(branch, message string) (string, error) {
+	out, err := m.runCmd("add", ".")
+	if err != nil {
+		return out, fmt.Errorf("failed to add files: %w", err)
+	}
+
+	out, err = m.runCmd("commit", "-m", message)
+	if err != nil {
+		if strings.Contains(out, "nothing to commit, working tree clean") {
+			return out, nil
+		}
+		return out, fmt.Errorf("failed to commit: %w", err)
+	}
+
+	if m.OnPush != nil {
+		done := m.OnPush(m.repoURL)
+		defer done()
+	}
+
+	err = m.runCredentialedCmd("push", "origin", branch)
+	if err != nil {
+		return "", fmt.Errorf("failed to push: %w", err)
+	}
+
+	return "", nil
+}
+
 // runWrapper runs a custom command with all the semantics of running the Git client
 func (m *nativeGitClient) runGnuPGWrapper(wrapper string, args ...string) (string, error) {
 	cmd := exec.Command(wrapper, args...)
@@ -849,7 +979,7 @@ func (m *nativeGitClient) runCredentialedCmd(args ...string) error {
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, error) {
 	cmd.Dir = m.root
 	cmd.Env = append(os.Environ(), cmd.Env...)
-	// Set $HOME to nowhere, so we can be execute Git regardless of any external
+	// Set $HOME to nowhere, so we can execute Git regardless of any external
 	// authentication keys (e.g. in ~/.ssh) -- this is especially important for
 	// running tests on local machines and/or CircleCI.
 	cmd.Env = append(cmd.Env, "HOME=/dev/null")
@@ -877,7 +1007,7 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 			}
 		}
 	}
-	cmd.Env = proxy.UpsertEnv(cmd, m.proxy)
+	cmd.Env = proxy.UpsertEnv(cmd, m.proxy, m.noProxy)
 	opts := executil.ExecRunOpts{
 		TimeoutBehavior: argoexec.TimeoutBehavior{
 			Signal:     syscall.SIGTERM,
