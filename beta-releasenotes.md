@@ -1,4 +1,5 @@
 ## Enhancements
+- feat: Added Cronjob chart 1-6-0 (#6650)
 - feat: Enhancement clone UI support new (#6628)
 - feat: manual canary (#6627)
 - feat: Posthog events (#6618)
