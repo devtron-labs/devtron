@@ -1821,6 +1821,11 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 	}
 
 	for _, dbPipeline := range authorizedPipelines {
+		if _, ok := pipelineWorkflowMapping[dbPipeline.Id]; !ok {
+			// can be due to concurrent deletion of pipeline, app workflow mapping
+			impl.logger.Warnw("pipeline workflow mapping not found for pipeline", "pipelineId", dbPipeline.Id)
+			continue
+		}
 		var customTag *bean.CustomTagData
 		var customTagStage repository5.PipelineStageType
 		customTagPreCD := customTagMapResponse.GetCustomTagForEntityKey(pipelineConfigBean.EntityTypePreCD, strconv.Itoa(dbPipeline.Id))
