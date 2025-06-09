@@ -139,6 +139,7 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 		impl.Logger.Errorw("error occurred while getting workflow json", "err", err)
 		return bean3.WorkflowTemplate{}, err
 	}
+	// saving workflowJson in history table
 	workflowTemplate := workflowRequest.GetWorkflowTemplate(workflowJson, impl.ciCdConfig)
 	workflowConfigMaps, workflowSecrets, err := impl.appendGlobalCMCS(workflowRequest)
 	if err != nil {
