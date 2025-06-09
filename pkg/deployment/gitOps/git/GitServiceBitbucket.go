@@ -347,9 +347,43 @@ func (impl GitBitbucketClient) CommitValues(ctx context.Context, config *ChartCo
 	}
 
 	//extracting the latest commit hash from the paginated api response of above method, reference of api & response - https://developer.atlassian.com/bitbucket/api/2/reference/resource/repositories/%7Bworkspace%7D/%7Brepo_slug%7D/commits
-	commitHash = commits.(map[string]interface{})["values"].([]interface{})[0].(map[string]interface{})["hash"].(string)
-	commitTimeString := commits.(map[string]interface{})["values"].([]interface{})[0].(map[string]interface{})["date"].(string)
-	commitTime, err = time.Parse(time.RFC3339, commitTimeString)
+	commitsMap, ok := commits.(map[string]interface{})
+	if !ok {
+		impl.logger.Errorw("unexpected response format from bitbucket", "commits", commits)
+		return "", time.Time{}, fmt.Errorf("unexpected response format from bitbucket")
+	}
+
+	values, ok := commitsMap["values"]
+	if !ok || values == nil {
+		impl.logger.Errorw("no values found in bitbucket response", "commits", commits, "commitsMap", commitsMap)
+		return "", time.Time{}, fmt.Errorf("no commits found in bitbucket response")
+	}
+
+	valuesArray, ok := values.([]interface{})
+	if !ok || len(valuesArray) == 0 {
+		impl.logger.Errorw("empty values array in bitbucket response", "commits", commits, "values", values)
+		return "", time.Time{}, fmt.Errorf("empty commits array in bitbucket response")
+	}
+
+	firstCommit, ok := valuesArray[0].(map[string]interface{})
+	if !ok {
+		impl.logger.Errorw("invalid commit format in bitbucket response", "commits", commits, "firstCommit", valuesArray[0])
+		return "", time.Time{}, fmt.Errorf("invalid commit format in bitbucket response")
+	}
+
+	commitHash, ok = firstCommit["hash"].(string)
+	if !ok || commitHash == "" {
+		impl.logger.Errorw("no hash found in commit", "commits", commits, "firstCommit", firstCommit)
+		return "", time.Time{}, fmt.Errorf("no hash found in commit")
+	}
+
+	dateStr, ok := firstCommit["date"].(string)
+	if !ok || dateStr == "" {
+		impl.logger.Errorw("no date found in commit", "firstCommit", firstCommit)
+		return "", time.Time{}, fmt.Errorf("no date found in commit response")
+	}
+
+	commitTime, err = time.Parse(time.RFC3339, dateStr)
 	if err != nil {
 		util.TriggerGitOpsMetrics("CommitValues", "GitBitbucketClient", start, err)
 		impl.logger.Errorw("error in getting commitTime", "err", err)

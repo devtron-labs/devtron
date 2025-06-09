@@ -10,9 +10,10 @@ type Alias struct {
 	// the application, its value is always overwritten by the library.
 	Type string
 
-	Alias      string
-	DistinctId string
-	Timestamp  time.Time
+	Alias        string
+	DistinctId   string
+	Timestamp    time.Time
+	DisableGeoIP bool
 }
 
 func (msg Alias) internal() {
@@ -40,10 +41,11 @@ func (msg Alias) Validate() error {
 }
 
 type AliasInApiProperties struct {
-	DistinctId string `json:"distinct_id"`
-	Alias      string `json:"alias"`
-	Lib        string `json:"$lib"`
-	LibVersion string `json:"$lib_version"`
+	DistinctId   string `json:"distinct_id"`
+	Alias        string `json:"alias"`
+	Lib          string `json:"$lib"`
+	LibVersion   string `json:"$lib_version"`
+	DisableGeoIP bool   `json:"$geoip_disable,omitempty"`
 }
 
 type AliasInApi struct {
@@ -58,20 +60,20 @@ type AliasInApi struct {
 }
 
 func (msg Alias) APIfy() APIMessage {
-	library := "posthog-go"
 	libraryVersion := getVersion()
 
 	apified := AliasInApi{
 		Type:           msg.Type,
 		Event:          "$create_alias",
-		Library:        library,
+		Library:        SDKName,
 		LibraryVersion: libraryVersion,
 		Timestamp:      msg.Timestamp,
 		Properties: AliasInApiProperties{
-			DistinctId: msg.DistinctId,
-			Alias:      msg.Alias,
-			Lib:        library,
-			LibVersion: libraryVersion,
+			DistinctId:   msg.DistinctId,
+			Alias:        msg.Alias,
+			Lib:          SDKName,
+			LibVersion:   libraryVersion,
+			DisableGeoIP: msg.DisableGeoIP,
 		},
 	}
 

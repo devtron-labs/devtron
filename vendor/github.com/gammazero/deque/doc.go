@@ -4,10 +4,10 @@ implementation.
 
 Deque generalizes a queue and a stack, to efficiently add and remove items at
 either end with O(1) performance. Queue (FIFO) operations are supported using
-PushBack() and PopFront(). Stack (LIFO) operations are supported using
-PushBack() and PopBack().
+PushBack and PopFront. Stack (LIFO) operations are supported using PushBack and
+PopBack.
 
-Ring-buffer Performance
+# Ring-buffer Performance
 
 The ring-buffer automatically resizes by powers of two, growing when additional
 capacity is needed and shrinking when only a quarter of the capacity is used,
@@ -20,7 +20,7 @@ and linked lists.
 For maximum speed, this deque implementation leaves concurrency safety up to
 the application to provide, however the application chooses, if needed at all.
 
-Reading Empty Deque
+# Reading Empty Deque
 
 Since it is OK for the deque to contain the zero-value of an item, it is
 necessary to either panic or return a second boolean value to indicate the
@@ -29,11 +29,10 @@ reading from an empty deque. This is a run-time check to help catch programming
 errors, which may be missed if a second return value is ignored. Simply check
 Deque.Len() before reading from the deque.
 
-Generics
+# Generics
 
 Deque uses generics to create a Deque that contains items of the type
 specified. To create a Deque that holds a specific type, provide a type
-argument to New or with the variable declaration.
-
+argument with the Deque variable declaration.
 */
 package deque
