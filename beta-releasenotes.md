@@ -6,6 +6,7 @@
 - feat: wf logs (#6606)
 - feat: Enable selection of all CI pipelines at once when the Environment filter is applied in Notifications (#6526)
 ## Bugs
+- fix: panic fixes on concurrent delete request (#6657)
 - fix: panic handling on cd trigger  (#6651)
 - fix: Dependency upgrades (#6622)
 - fix: waiting to start status in deployment status (#6649)
