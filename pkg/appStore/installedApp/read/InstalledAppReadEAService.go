@@ -36,6 +36,8 @@ type InstalledAppReadServiceEA interface {
 	GetAllArgoAppNamesByDeploymentAppNames(deploymentAppNames []string) ([]string, error)
 	// IsChartStoreAppManagedByArgoCd returns if a chart store app is deployed via argo-cd or not
 	IsChartStoreAppManagedByArgoCd(appId int) (bool, error)
+	// GetActiveInstalledAppCount returns the count of all active installed apps
+	GetActiveInstalledAppCount() (int, error)
 }
 
 type InstalledAppReadServiceEAImpl struct {
@@ -113,4 +115,13 @@ func (impl *InstalledAppReadServiceEAImpl) IsChartStoreAppManagedByArgoCd(appId 
 		return false, err
 	}
 	return util.IsAcdApp(installedAppModel.DeploymentAppType), nil
+}
+
+func (impl *InstalledAppReadServiceEAImpl) GetActiveInstalledAppCount() (int, error) {
+	count, err := impl.installedAppRepository.GetActiveInstalledAppCount()
+	if err != nil {
+		impl.logger.Errorw("error while getting active installed app count", "error", err)
+		return 0, err
+	}
+	return count, nil
 }

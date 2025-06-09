@@ -64,6 +64,7 @@ type GenericNoteResponseBean struct {
 	Description string    `json:"description"`
 	UpdatedBy   string    `json:"updatedBy"`
 	UpdatedOn   time.Time `json:"updatedOn"`
+	CreatedBy   string    `json:"createdBy"`
 }
 
 type JobContainer struct {
@@ -100,6 +101,7 @@ type JobListingContainer struct {
 	LastTriggeredEnvironmentName string    `sql:"last_triggered_environment_name" json:"lastTriggeredEnvironmentName"`
 	LastTriggeredEnvironmentId   int       `sql:"last_triggered_environment_id" json:"lastEnvironmentId"`
 	ProjectId                    int       `sql:"team_id" json:"projectId"`
+	CreatedBy                    int32     `sql:"created_by" json:"createdBy"`
 }
 
 type CiPipelineLastSucceededTime struct {

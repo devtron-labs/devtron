@@ -56,6 +56,7 @@ type App struct {
 	server        *http.Server
 	db            *pg.DB
 	posthogClient *posthogTelemetry.PosthogClient
+	userService   user.UserService
 	// eventProcessor.CentralEventProcessor is used to register event processors
 	centralEventProcessor *eventProcessor.CentralEventProcessor // do not remove this.
 	// used for local dev only
@@ -79,6 +80,7 @@ func NewApp(router *router.MuxRouter,
 	pubSubClient *pubsub.PubSubClientServiceImpl,
 	workflowEventProcessorImpl *in.WorkflowEventProcessorImpl,
 	enforcerV2 *casbinv2.SyncedEnforcer,
+	userService user.UserService,
 ) *App {
 	//check argo connection
 	//todo - check argo-cd version on acd integration installation
@@ -97,6 +99,7 @@ func NewApp(router *router.MuxRouter,
 		centralEventProcessor:      centralEventProcessor,
 		pubSubClient:               pubSubClient,
 		workflowEventProcessorImpl: workflowEventProcessorImpl,
+		userService:                userService,
 	}
 	return app
 }
@@ -112,7 +115,7 @@ func (app *App) Start() {
 	app.MuxRouter.Init()
 	//authEnforcer := casbin2.Create()
 
-	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: authMiddleware.Authorizer(app.sessionManager2, user.WhitelistChecker, nil)(app.MuxRouter.Router)}
+	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: authMiddleware.Authorizer(app.sessionManager2, user.WhitelistChecker, app.userService.CheckUserStatusAndUpdateLoginAudit)(app.MuxRouter.Router)}
 	app.MuxRouter.Router.Use(app.loggingMiddleware.LoggingMiddleware)
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
 	app.MuxRouter.Router.Use(middlewares.Recovery)

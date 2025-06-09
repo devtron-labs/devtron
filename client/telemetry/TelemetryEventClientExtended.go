@@ -26,6 +26,7 @@ import (
 	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
 	"github.com/devtron-labs/devtron/pkg/auth/sso"
 	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
+	authPolicyRepository "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
 	repository3 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
@@ -34,6 +35,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
+	pluginRepository "github.com/devtron-labs/devtron/pkg/plugin/repository"
+	cvePolicyRepository "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
 	ucidService "github.com/devtron-labs/devtron/pkg/ucid"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
@@ -68,6 +71,11 @@ type TelemetryEventClientImplExtended struct {
 	chartRepository               chartRepoRepository.ChartRepository
 	ciBuildConfigService          pipeline.CiBuildConfigService
 	gitOpsConfigReadService       config.GitOpsConfigReadService
+	// Additional repositories for FULL-mode telemetry metrics
+	pluginRepository            pluginRepository.GlobalPluginRepository
+	cvePolicyRepository         cvePolicyRepository.CvePolicyRepository
+	defaultAuthPolicyRepository authPolicyRepository.DefaultAuthPolicyRepository
+	rbacPolicyRepository        authPolicyRepository.RbacPolicyDataRepository
 	*TelemetryEventClientImpl
 }
 
@@ -85,7 +93,12 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	ciBuildConfigService pipeline.CiBuildConfigService, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore,
 	helmAppClient client.HelmAppClient, installedAppReadService installedAppReader.InstalledAppReadService, userAttributesRepository repository.UserAttributesRepository,
 	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService, cronLogger *cron3.CronLoggerImpl,
-	gitOpsConfigReadService config.GitOpsConfigReadService, envVariables *util.EnvironmentVariables) (*TelemetryEventClientImplExtended, error) {
+	gitOpsConfigReadService config.GitOpsConfigReadService, envVariables *util.EnvironmentVariables,
+	// Optional repositories for additional telemetry metrics
+	pluginRepository pluginRepository.GlobalPluginRepository,
+	cvePolicyRepository cvePolicyRepository.CvePolicyRepository,
+	defaultAuthPolicyRepository authPolicyRepository.DefaultAuthPolicyRepository,
+	rbacPolicyRepository authPolicyRepository.RbacPolicyDataRepository) (*TelemetryEventClientImplExtended, error) {
 
 	cron := cron.New(
 		cron.WithChain(cron.Recover(cronLogger)))
@@ -105,6 +118,11 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 		chartRepository:               chartRepository,
 		ciBuildConfigService:          ciBuildConfigService,
 		gitOpsConfigReadService:       gitOpsConfigReadService,
+		// Initialize FULL-mode specific repositories
+		pluginRepository:            pluginRepository,
+		cvePolicyRepository:         cvePolicyRepository,
+		defaultAuthPolicyRepository: defaultAuthPolicyRepository,
+		rbacPolicyRepository:        rbacPolicyRepository,
 		TelemetryEventClientImpl: &TelemetryEventClientImpl{
 			cron:                           cron,
 			logger:                         logger,
@@ -319,6 +337,21 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload.HelmChartSuccessfulDeploymentCount = HelmChartSuccessfulDeploymentCount
 	payload.ExternalHelmAppClusterCount = ExternalHelmAppClusterCount
 
+	// Collect new telemetry metrics
+	payload.HelmAppCount = impl.getHelmAppCount()
+	payload.DevtronAppCount = impl.getDevtronAppCount()
+	payload.JobCount = impl.getJobCount()
+	payload.JobPipelineCount = impl.getJobPipelineCount()
+	payload.JobPipelineTriggeredLast24h = impl.getJobPipelineTriggeredLast24h()
+	payload.JobPipelineSucceededLast24h = impl.getJobPipelineSucceededLast24h()
+	payload.UserCreatedPluginCount = impl.getUserCreatedPluginCount()
+	payload.PolicyCount = impl.getPolicyCount()
+	payload.AppliedPolicyRowCount = impl.getAppliedPolicyRowCount()
+	payload.PhysicalClusterCount, payload.IsolatedClusterCount = impl.getClusterCounts()
+	payload.ActiveUsersLast30Days = impl.getActiveUsersLast30Days()
+	payload.GitOpsPipelineCount = impl.getGitOpsPipelineCount()
+	payload.HelmPipelineCount = impl.helmPipelineCount()
+
 	payload.ClusterProvider, err = impl.GetCloudProvider()
 	if err != nil {
 		impl.logger.Errorw("error while getting cluster provider", "error", err)
@@ -374,7 +407,11 @@ func (impl *TelemetryEventClientImplExtended) getCiBuildTypeData() (int, int, in
 func (impl *TelemetryEventClientImplExtended) getCiBuildTypeVsStatusVsCount() (successCount map[bean.CiBuildType]int, failureCount map[bean.CiBuildType]int) {
 	successCount = make(map[bean.CiBuildType]int)
 	failureCount = make(map[bean.CiBuildType]int)
-	buildTypeAndStatusVsCount := impl.ciWorkflowRepository.FindBuildTypeAndStatusDataOfLast1Day()
+	buildTypeAndStatusVsCount, err := impl.ciWorkflowRepository.FindBuildTypeAndStatusDataOfLast1Day()
+	if err != nil {
+		impl.logger.Errorw("error getting build type vs status vs count data", "err", err)
+		return successCount, failureCount
+	}
 	for _, buildTypeCount := range buildTypeAndStatusVsCount {
 		if buildTypeCount == nil {
 			continue

@@ -145,7 +145,7 @@ func (impl *EAModeDeploymentServiceImpl) InstallApp(installAppVersionRequest *ap
 		}
 	}
 	installReleaseRequest := &gRPC.InstallReleaseRequest{
-		ChartName:       appStoreAppVersion.Name,
+		ChartName:       appStoreDeploymentCommon.GetChartNameFromAppStoreApplicationVersion(appStoreAppVersion),
 		ChartVersion:    appStoreAppVersion.Version,
 		ValuesYaml:      installAppVersionRequest.ValuesOverrideYaml,
 		ChartRepository: chartRepository,
