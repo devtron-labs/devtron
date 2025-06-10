@@ -1,39 +1,40 @@
-#Base Image
-FROM python:3.8
+# Base Image - slim Python
+FROM python:3.13-slim
 
-#Getting System Ready to install dependencies
-RUN apt-get clean \
-    && apt-get -y update
+# Environment settings
+ENV PYTHONUNBUFFERED=1 LANG=C.UTF-8
 
-#Installing nginx
-RUN apt-get -y install nginx \
-    && apt-get -y install python3-dev \
-    && apt-get -y install build-essential
-
-#Creating symbolic link for access and error log from nginx
-RUN ln -sf /dev/stdout /var/log/nginx/access.log \
-    && ln -sf /dev/stderr /var/log/nginx/error.log
-
-#Creating a dir in Container
-RUN mkdir /app
-
-#Moving into the directory created
+# Set workdir
 WORKDIR /app
 
-#Changing ownership of files in /app
-RUN chown -R www-data:www-data /app
+COPY requirements.txt requirements.txt
 
-#Adding the complete project in dir created
-ADD . /app/
+# Install system dependencies and nginx, then install Python deps
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends nginx gcc python3-dev musl-dev build-essential libexpat1 && \
+    pip install --no-cache-dir -r requirements.txt && \
+    apt-get purge -y --auto-remove gcc python3-dev musl-dev build-essential && \
+    rm -rf /var/lib/apt/lists/*
 
-#Installing dependencies
-RUN pip3 install -r requirements.txt
+# Copy app code, configs, and start script
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY app.py uwsgi.ini start.sh ./
+RUN chmod +x start.sh
 
-# Refer https://raw.githubusercontent.com/devtron-labs/devtron/main/sample-docker-templates/flask/nginx.default for sample nginx.default file
-COPY nginx.default /etc/nginx/sites-available/default
+# Create non-root user and set permissions
+RUN groupadd -g 2002 nonroot && \
+    useradd -u 2002 -g nonroot -s /bin/bash -m nonroot && \
+    mkdir -p /tmp/nginx-logs && \
+    chown -R nonroot:nonroot /app /tmp/nginx-logs
 
-#Refer https://raw.githubusercontent.com/devtron-labs/devtron/main/sample-docker-templates/flask/start.sh for sample start.sh file
-#Making start.sh executable
-RUN chmod +x ./start.sh
+# Expose port 8080
+EXPOSE 8080
 
-CMD ["./start.sh"]
+# Switch to non-root
+USER nonroot
+
+# Stop signal for graceful shutdown
+STOPSIGNAL SIGTERM
+
+# Start server (migrations, superuser, gunicorn, nginx)
+CMD ["/app/start.sh"]
