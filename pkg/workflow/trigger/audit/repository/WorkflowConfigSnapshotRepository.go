@@ -22,6 +22,36 @@ import (
 	"go.uber.org/zap"
 )
 
+type WorkflowType string
+
+const (
+	CI_WORKFLOW_TYPE      WorkflowType = "CI"
+	PRE_CD_WORKFLOW_TYPE  WorkflowType = "PRE_CD"
+	POST_CD_WORKFLOW_TYPE WorkflowType = "POST_CD"
+)
+
+type TriggerType string
+
+const (
+	MANUAL_TRIGGER  TriggerType = "MANUAL"
+	AUTO_TRIGGER    TriggerType = "AUTO"
+	WEBHOOK_TRIGGER TriggerType = "WEBHOOK"
+)
+
+type WorkflowConfigSnapshot struct {
+	tableName                    struct{}     `sql:"workflow_config_snapshot" pg:",discard_unknown_columns"`
+	Id                           int          `sql:"id,pk"`
+	WorkflowId                   int          `sql:"workflow_id,notnull"`
+	WorkflowType                 WorkflowType `sql:"workflow_type,notnull"`
+	PipelineId                   int          `sql:"pipeline_id,notnull"`
+	ArtifactId                   int          `sql:"artifact_id"`
+	TriggerType                  TriggerType  `sql:"trigger_type,notnull"`
+	TriggeredBy                  int32        `sql:"triggered_by,notnull"`
+	WorkflowRequestJson          string       `sql:"workflow_request_json,notnull"`
+	WorkflowRequestSchemaVersion string       `sql:"workflow_request_schema_version"`
+	sql.AuditLog
+}
+
 type WorkflowConfigSnapshotRepository interface {
 	Save(snapshot *WorkflowConfigSnapshot) (*WorkflowConfigSnapshot, error)
 	SaveWithTx(tx *pg.Tx, snapshot *WorkflowConfigSnapshot) (*WorkflowConfigSnapshot, error)
@@ -47,38 +77,6 @@ func NewWorkflowConfigSnapshotRepositoryImpl(dbConnection *pg.DB, logger *zap.Su
 		logger:              logger,
 		TransactionUtilImpl: transactionUtilImpl,
 	}
-}
-
-type WorkflowType string
-
-const (
-	CI_WORKFLOW_TYPE      WorkflowType = "CI"
-	PRE_CD_WORKFLOW_TYPE  WorkflowType = "PRE_CD"
-	POST_CD_WORKFLOW_TYPE WorkflowType = "POST_CD"
-)
-
-type TriggerType string
-
-const (
-	MANUAL_TRIGGER  TriggerType = "MANUAL"
-	AUTO_TRIGGER    TriggerType = "AUTO"
-	WEBHOOK_TRIGGER TriggerType = "WEBHOOK"
-)
-
-type WorkflowConfigSnapshot struct {
-	tableName                   struct{}     `sql:"workflow_config_snapshot" pg:",discard_unknown_columns"`
-	Id                          int          `sql:"id,pk"`
-	WorkflowId                  int          `sql:"workflow_id,notnull"`
-	WorkflowType                WorkflowType `sql:"workflow_type,notnull"`
-	PipelineId                  int          `sql:"pipeline_id,notnull"`
-	ArtifactId                  int          `sql:"artifact_id"`
-	TriggerType                 TriggerType  `sql:"trigger_type,notnull"`
-	TriggeredBy                 int32        `sql:"triggered_by,notnull"`
-	TriggerMetadata             string       `sql:"trigger_metadata"`
-	InfraConfigTriggerHistoryId int          `sql:"infra_config_trigger_history_id"`
-	WorkflowRequestJson         string       `sql:"workflow_request_json,notnull"`
-	WorkflowRequestVersion      string       `sql:"workflow_request_version"`
-	sql.AuditLog
 }
 
 func (impl *WorkflowConfigSnapshotRepositoryImpl) Save(snapshot *WorkflowConfigSnapshot) (*WorkflowConfigSnapshot, error) {

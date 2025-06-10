@@ -17,8 +17,6 @@
 package bean
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	repository4 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/repository"
 	"time"
@@ -26,24 +24,24 @@ import (
 
 // CiTriggerAuditRequest represents the request for CI trigger audit
 type CiTriggerAuditRequest struct {
-	WorkflowId int                        `json:"workflowId"`
-	Pipeline   *pipelineConfig.CiPipeline `json:"pipeline"`
+	WorkflowId int
+	PipelineId int
 	*CommonAuditRequest
 }
 
 // CdTriggerAuditRequest represents the request for CD trigger audit (Pre-CD, Post-CD)
 type CdTriggerAuditRequest struct {
-	WorkflowRunnerId int                      `json:"workflowRunnerId"`
-	Pipeline         *pipelineConfig.Pipeline `json:"pipeline"`
-	Environment      *repository4.Environment `json:"environment"`
+	WorkflowRunnerId int
+	PipelineId       int
+	EnvironmentId    int
+	WorkflowType     repository.WorkflowType
 	*CommonAuditRequest
 }
 type CommonAuditRequest struct {
-	WorkflowRequest             *types.WorkflowRequest `json:"workflowRequest"`
-	ArtifactId                  int                    `json:"artifactId"`
-	TriggerType                 string                 `json:"triggerType"` // MANUAL, AUTO, WEBHOOK
-	TriggeredBy                 int32                  `json:"triggeredBy"`
-	InfraConfigTriggerHistoryId int                    `json:"infraConfigTriggerHistoryId"`
+	WorkflowRequest *types.WorkflowRequest
+	ArtifactId      int
+	TriggerType     string
+	TriggeredBy     int32
 }
 
 // WorkflowTriggerAuditResponse represents the response for workflow trigger audit

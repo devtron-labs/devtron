@@ -17,9 +17,6 @@
 package hook
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	repository4 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
-	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/bean"
 	"github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/service"
 	"go.uber.org/zap"
@@ -28,19 +25,10 @@ import (
 // TriggerAuditHook provides common hooks for auditing workflow triggers
 type TriggerAuditHook interface {
 	// AuditCiTrigger audits CI trigger
-	AuditCiTrigger(workflowId int, pipeline *pipelineConfig.CiPipeline, workflowRequest *types.WorkflowRequest,
-		triggerType string, triggeredBy int32,
-		infraConfigTriggerHistoryId int) error
+	AuditCiTrigger(ciTriggerAuditRequest *bean.CiTriggerAuditRequest) error
 
-	// AuditPreCdTrigger audits Pre-CD trigger
-	AuditPreCdTrigger(workflowRunnerId int, pipeline *pipelineConfig.Pipeline, environment *repository4.Environment,
-		workflowRequest *types.WorkflowRequest,
-		triggerType string, triggeredBy int32, infraConfigTriggerHistoryId int) error
-
-	// AuditPostCdTrigger audits Post-CD trigger
-	AuditPostCdTrigger(workflowRunnerId int, pipeline *pipelineConfig.Pipeline, environment *repository4.Environment,
-		workflowRequest *types.WorkflowRequest,
-		triggerType string, triggeredBy int32, infraConfigTriggerHistoryId int) error
+	// AuditPrePostCdTrigger audits Pre-CD trigger
+	AuditPrePostCdTrigger(cdTriggerAuditRequest *bean.CdTriggerAuditRequest) error
 
 	// GetRetriggerConfig gets configuration for retrigger
 	//GetRetriggerConfig(auditId int) (*bean.RetriggerWorkflowConfig, error)
@@ -58,86 +46,54 @@ func NewTriggerAuditHookImpl(logger *zap.SugaredLogger, workflowTriggerAuditServ
 	}
 }
 
-func (impl *TriggerAuditHookImpl) AuditCiTrigger(workflowId int, pipeline *pipelineConfig.CiPipeline,
-	workflowRequest *types.WorkflowRequest, triggerType string, triggeredBy int32, infraConfigTriggerHistoryId int) error {
+func (impl *TriggerAuditHookImpl) AuditCiTrigger(ciTriggerAuditRequest *bean.CiTriggerAuditRequest) error {
 
-	impl.logger.Infow("auditing CI trigger", "workflowId", workflowId, "pipelineId", pipeline.Id, "triggeredBy", triggeredBy)
+	impl.logger.Infow("auditing CI trigger", "workflowId", ciTriggerAuditRequest.WorkflowId, "pipelineId", ciTriggerAuditRequest.PipelineId, "triggeredBy", ciTriggerAuditRequest.TriggeredBy)
 
-	request := &bean.CiTriggerAuditRequest{
-		WorkflowId: workflowId,
-		Pipeline:   pipeline,
-		CommonAuditRequest: &bean.CommonAuditRequest{
-			WorkflowRequest:             workflowRequest,
-			TriggerType:                 triggerType,
-			TriggeredBy:                 triggeredBy,
-			InfraConfigTriggerHistoryId: infraConfigTriggerHistoryId,
-		},
-	}
+	//request := &bean.CiTriggerAuditRequest{
+	//	WorkflowId: workflowId,
+	//	Pipeline:   pipeline,
+	//	CommonAuditRequest: &bean.CommonAuditRequest{
+	//		WorkflowRequest: workflowRequest,
+	//		TriggerType:     triggerType,
+	//		TriggeredBy:     triggeredBy,
+	//	},
+	//}
 
-	_, err := impl.workflowTriggerAuditService.SaveCiTriggerAudit(request)
+	_, err := impl.workflowTriggerAuditService.SaveCiTriggerAudit(ciTriggerAuditRequest)
 	if err != nil {
-		impl.logger.Errorw("error in auditing CI trigger", "err", err, "workflowId", workflowId)
-		// Don't fail the trigger if audit fails, just log the error
-		return nil
+		impl.logger.Errorw("error in auditing CI trigger", "workflowId", ciTriggerAuditRequest.WorkflowId, "err", err)
+		// Don't fail/return the trigger if audit fails, just log the error
 	}
 
-	impl.logger.Infow("successfully audited CI trigger", "workflowId", workflowId, "pipelineId", pipeline.Id)
+	impl.logger.Infow("successfully audited CI trigger", "workflowId", ciTriggerAuditRequest.WorkflowId, "pipelineId", ciTriggerAuditRequest.PipelineId)
 	return nil
 }
 
-func (impl *TriggerAuditHookImpl) AuditPreCdTrigger(workflowRunnerId int, pipeline *pipelineConfig.Pipeline,
-	environment *repository4.Environment, workflowRequest *types.WorkflowRequest, triggerType string, triggeredBy int32, infraConfigTriggerHistoryId int) error {
+func (impl *TriggerAuditHookImpl) AuditPrePostCdTrigger(cdTriggerAuditRequest *bean.CdTriggerAuditRequest) error {
 
-	impl.logger.Infow("auditing Pre-CD trigger", "workflowRunnerId", workflowRunnerId, "pipelineId", pipeline.Id, "triggeredBy", triggeredBy)
+	impl.logger.Infow("auditing Pre/Post-CD trigger", "workflowRunnerId", cdTriggerAuditRequest.WorkflowRunnerId, "pipelineId", cdTriggerAuditRequest.PipelineId, "workflowType", cdTriggerAuditRequest.WorkflowType, "triggeredBy", cdTriggerAuditRequest.TriggeredBy)
 
-	request := &bean.CdTriggerAuditRequest{
-		WorkflowRunnerId: workflowRunnerId,
-		Pipeline:         pipeline,
-		Environment:      environment,
-		CommonAuditRequest: &bean.CommonAuditRequest{
-			WorkflowRequest:             workflowRequest,
-			TriggerType:                 triggerType,
-			TriggeredBy:                 triggeredBy,
-			InfraConfigTriggerHistoryId: infraConfigTriggerHistoryId,
-		},
-	}
+	//request := &bean.CdTriggerAuditRequest{
+	//	WorkflowRunnerId: workflowRunnerId,
+	//	Pipeline:         pipeline,
+	//	Environment:      environment,
+	//	WorkflowType:     workflowType,
+	//	CommonAuditRequest: &bean.CommonAuditRequest{
+	//		WorkflowRequest: workflowRequest,
+	//		TriggerType:     triggerType,
+	//		TriggeredBy:     triggeredBy,
+	//	},
+	//}
 
-	_, err := impl.workflowTriggerAuditService.SavePreCdTriggerAudit(request)
+	_, err := impl.workflowTriggerAuditService.SaveCdTriggerAudit(cdTriggerAuditRequest)
 	if err != nil {
-		impl.logger.Errorw("error in auditing Pre-CD trigger", "err", err, "workflowRunnerId", workflowRunnerId)
-		// Don't fail the trigger if audit fails, just log the error
+		impl.logger.Errorw("error in auditing Pre/Post-CD trigger", "workflowRunnerId", cdTriggerAuditRequest.WorkflowRunnerId, "err", err)
+		// Don't fail/return the trigger if audit fails, just log the error
 		return nil
 	}
 
-	impl.logger.Infow("successfully audited Pre-CD trigger", "workflowRunnerId", workflowRunnerId, "pipelineId", pipeline.Id)
-	return nil
-}
-
-func (impl *TriggerAuditHookImpl) AuditPostCdTrigger(workflowRunnerId int, pipeline *pipelineConfig.Pipeline,
-	environment *repository4.Environment, workflowRequest *types.WorkflowRequest, triggerType string, triggeredBy int32, infraConfigTriggerHistoryId int) error {
-
-	impl.logger.Infow("auditing Post-CD trigger", "workflowRunnerId", workflowRunnerId, "pipelineId", pipeline.Id, "triggeredBy", triggeredBy)
-
-	request := &bean.CdTriggerAuditRequest{
-		WorkflowRunnerId: workflowRunnerId,
-		Pipeline:         pipeline,
-		Environment:      environment,
-		CommonAuditRequest: &bean.CommonAuditRequest{
-			WorkflowRequest:             workflowRequest,
-			TriggerType:                 triggerType,
-			TriggeredBy:                 triggeredBy,
-			InfraConfigTriggerHistoryId: infraConfigTriggerHistoryId,
-		},
-	}
-
-	_, err := impl.workflowTriggerAuditService.SavePostCdTriggerAudit(request)
-	if err != nil {
-		impl.logger.Errorw("error in auditing Post-CD trigger", "err", err, "workflowRunnerId", workflowRunnerId)
-		// Don't fail the trigger if audit fails, just log the error
-		return nil
-	}
-
-	impl.logger.Infow("successfully audited Post-CD trigger", "workflowRunnerId", workflowRunnerId, "pipelineId", pipeline.Id)
+	impl.logger.Infow("successfully audited Pre/Post-CD trigger", "workflowRunnerId", cdTriggerAuditRequest.WorkflowRunnerId, "pipelineId", cdTriggerAuditRequest.PipelineId)
 	return nil
 }
 

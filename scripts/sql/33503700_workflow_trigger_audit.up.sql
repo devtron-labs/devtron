@@ -13,7 +13,9 @@ CREATE TABLE IF NOT EXISTS "public"."workflow_config_snapshot" (
     "workflow_request_json" text            NOT NULL, -- complete WorkflowRequest JSON (contains everything)
     "workflow_request_schema_version"        varchar(20)             NOT NULL DEFAULT 'V1', -- for backward compatibility
     "created_on"            timestamptz     NOT NULL,
-    "created_by"            integer            NOT NULL,
+    "created_by"            int4            NOT NULL,
+    "updated_on"            timestamptz     NOT NULL,
+    "updated_by"            int4            NOT NULL,
     PRIMARY KEY ("id"),
     UNIQUE ("workflow_id", "workflow_type")
 );
