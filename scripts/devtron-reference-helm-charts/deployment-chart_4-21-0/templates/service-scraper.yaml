@@ -1,16 +1,21 @@
 {{ $scrapetype := include "scrapeType" . }}
-{{- if and ($scrapetype) (eq .Values.MetricsScraper "Victoria") -}}
 {{ $scraper := get (dict "servicemonitor" .Values.servicemonitor "vmservicescrape" .Values.vmservicescrape) $scrapetype }}  
+{{- if ($scrapetype) }}
+{{- if and ($scrapetype) (eq .Values.MetricsScraper "Victoria") -}}
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMServiceScrape
+{{- else }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+{{- end }}
 metadata:
-  {{- if .Values.vmservicescrape.name }}
-  name: {{ .Values.vmservicescrape.name }}
+  {{- if $scraper.name }}
+  name: {{ $scraper.name }}
   {{- else }}
   name: {{ template ".Chart.Name .fullname" . }}-vm
   {{- end }}
   labels:
-    kind: Victoria
+    kind: {{ $scrapetype }}
     app: {{ template ".Chart.Name .name" . }}
     appId: {{ $.Values.app | quote }}
     envId: {{ $.Values.env | quote }}
@@ -119,9 +124,8 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      {{- if $scraper.matchLabels }}
+      {{- if .Values.servicemonitor.matchLabels }}
       {{- toYaml $scraper.matchLabels | nindent 6 }}
       {{- end }}
       app: {{ template ".Chart.Name .name" $ }}
 {{- end }}
-

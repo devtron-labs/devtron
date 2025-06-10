@@ -193,12 +193,15 @@ Create chart name and version as used by the chart label.
   {{- $VmServiceScrapeEnabled := include "vmserviceScrapeEnabled" . -}}
   {{- $val1 := "vmservicescrape"}}
    {{- $val2 := "servicemonitor"}}
+   {{- $val3 := "" }}
   {{- if and (eq $VmServiceScrapeEnabled "true") (eq $ServiceMonitorEnabled "true")}}
     {{- $val1 }}
   {{- else if eq $ServiceMonitorEnabled "true" }}
     {{- $val2 }}  
   {{- else if eq $VmServiceScrapeEnabled "true" }}
-    {{- $val1 }}      
+    {{- $val1 }}  
+  {{- else }}
+    {{- $val3 }}      
   {{- end }}
 
 {{- end }}
