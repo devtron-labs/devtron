@@ -345,6 +345,7 @@ func (impl *ChartServiceImpl) UpdateExistingChartsToLatestFalse(tx *pg.Tx, templ
 		if noLatestChart.Id != templateRequest.Id {
 			noLatestChart.Latest = false // these are already false by d way
 			noLatestChart.Previous = false
+			noLatestChart.UpdateAuditLog(templateRequest.UserId)
 			updatedCharts = append(updatedCharts, noLatestChart)
 		}
 	}
@@ -356,6 +357,7 @@ func (impl *ChartServiceImpl) UpdateExistingChartsToLatestFalse(tx *pg.Tx, templ
 	// now finally update latest entry in db to false and previous true
 	currentLatestChart.Latest = false // these are already false by d way
 	currentLatestChart.Previous = true
+	currentLatestChart.UpdateAuditLog(templateRequest.UserId)
 	err = impl.chartRepository.Update(tx, currentLatestChart)
 	if err != nil {
 		return err
