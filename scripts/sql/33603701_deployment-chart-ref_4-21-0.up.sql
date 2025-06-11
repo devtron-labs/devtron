@@ -1,5 +1,7 @@
+UPDATE chart_ref SET is_default=false;
+
 INSERT INTO "public"."chart_ref" ("location", "version", "is_default", "active", "created_on", "created_by", "updated_on", "updated_by", "name", "deployment_strategy_path")
-SELECT 'deployment-chart_4-21-0', '4.21.0', 'f', 't', 'now()', 1, 'now()', 1, 'Deployment', 'pipeline-values.yaml'
+SELECT 'deployment-chart_4-21-0', '4.21.0', 't', 't', 'now()', 1, 'now()', 1, 'Deployment', 'pipeline-values.yaml'
 WHERE NOT EXISTS (
     SELECT 1 FROM "public"."chart_ref" WHERE "location" = 'deployment-chart_4-21-0'
 );
