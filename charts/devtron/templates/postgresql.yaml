@@ -361,8 +361,7 @@ data:
     fi
     echo "Initialization done."
 {{- end }}
-{{- else }} # agar .svc.cluster.local h toh service h add it as it is in externalName, agar ek dot hai aur alphabets hai toh dns h add it as it is in dns name.
----
+{{- else }} 
 apiVersion: v1
 kind: Service
 metadata:
