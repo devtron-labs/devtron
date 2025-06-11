@@ -182,6 +182,8 @@ spec:
               value: postgres
             - name: MIGRATE_TO_VERSION
               value: "0"
+            - name: PG_DATABASE
+              value: casbin
           envFrom:
             - secretRef:
                 name: postgresql-migrator
