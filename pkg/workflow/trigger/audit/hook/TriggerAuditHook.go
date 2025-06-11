@@ -27,11 +27,8 @@ type TriggerAuditHook interface {
 	// AuditCiTrigger audits CI trigger
 	AuditCiTrigger(workflowRequest *types.WorkflowRequest) error
 
-	// AuditPrePostCdTrigger audits Pre-CD trigger
+	// AuditPrePostCdTrigger audits Pre/Post-CD trigger
 	AuditPrePostCdTrigger(workflowRequest *types.WorkflowRequest) error
-
-	// GetRetriggerConfig gets configuration for retrigger
-	//GetRetriggerConfig(auditId int) (*bean.RetriggerWorkflowConfig, error)
 }
 
 type TriggerAuditHookImpl struct {
@@ -74,17 +71,3 @@ func (impl *TriggerAuditHookImpl) AuditPrePostCdTrigger(workflowRequest *types.W
 	impl.logger.Infow("successfully audited Pre/Post-CD trigger", "workflowRunnerId", workflowRequest.WorkflowRunnerId, "cdPipelineId", workflowRequest.CdPipelineId)
 	return nil
 }
-
-//
-//func (impl *TriggerAuditHookImpl) GetRetriggerConfig(auditId int) (*bean.RetriggerWorkflowConfig, error) {
-//	impl.logger.Infow("getting retrigger config", "auditId", auditId)
-//
-//	config, err := impl.workflowTriggerAuditService.GetWorkflowConfigForRetrigger(auditId)
-//	if err != nil {
-//		impl.logger.Errorw("error in getting retrigger config", "err", err, "auditId", auditId)
-//		return nil, err
-//	}
-//
-//	impl.logger.Infow("successfully retrieved retrigger config", "auditId", auditId, "workflowType", config.WorkflowType)
-//	return config, nil
-//}

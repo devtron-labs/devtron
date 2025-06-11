@@ -35,9 +35,7 @@ type WorkflowConfigSnapshot struct {
 }
 
 type WorkflowConfigSnapshotRepository interface {
-	Save(snapshot *WorkflowConfigSnapshot) (*WorkflowConfigSnapshot, error)
 	SaveWithTx(tx *pg.Tx, snapshot *WorkflowConfigSnapshot) (*WorkflowConfigSnapshot, error)
-	Update(snapshot *WorkflowConfigSnapshot) error
 	UpdateWithTx(tx *pg.Tx, snapshot *WorkflowConfigSnapshot) error
 	FindById(id int) (*WorkflowConfigSnapshot, error)
 	FindByWorkflowIdAndType(workflowId int, workflowType types.WorkflowType) (*WorkflowConfigSnapshot, error)
@@ -61,15 +59,6 @@ func NewWorkflowConfigSnapshotRepositoryImpl(dbConnection *pg.DB, logger *zap.Su
 	}
 }
 
-func (impl *WorkflowConfigSnapshotRepositoryImpl) Save(snapshot *WorkflowConfigSnapshot) (*WorkflowConfigSnapshot, error) {
-	err := impl.dbConnection.Insert(snapshot)
-	if err != nil {
-		impl.logger.Errorw("error in saving workflow config snapshot", "err", err, "snapshot", snapshot)
-		return snapshot, err
-	}
-	return snapshot, nil
-}
-
 func (impl *WorkflowConfigSnapshotRepositoryImpl) SaveWithTx(tx *pg.Tx, snapshot *WorkflowConfigSnapshot) (*WorkflowConfigSnapshot, error) {
 	err := tx.Insert(snapshot)
 	if err != nil {
@@ -77,15 +66,6 @@ func (impl *WorkflowConfigSnapshotRepositoryImpl) SaveWithTx(tx *pg.Tx, snapshot
 		return snapshot, err
 	}
 	return snapshot, nil
-}
-
-func (impl *WorkflowConfigSnapshotRepositoryImpl) Update(snapshot *WorkflowConfigSnapshot) error {
-	err := impl.dbConnection.Update(snapshot)
-	if err != nil {
-		impl.logger.Errorw("error in updating workflow config snapshot", "err", err, "snapshot", snapshot)
-		return err
-	}
-	return nil
 }
 
 func (impl *WorkflowConfigSnapshotRepositoryImpl) UpdateWithTx(tx *pg.Tx, snapshot *WorkflowConfigSnapshot) error {
