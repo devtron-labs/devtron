@@ -114,6 +114,8 @@ components:
       runAsUser: 1001
     serviceMonitor:
       enabled: false
+    # Add annotations for devtron serviceAccount. 
+    annotations: {}
     service:
       type: LoadBalancer
       port: 80
@@ -136,6 +138,8 @@ components:
   ciRunner:
     registry: ""
     image: "ci-runner:da156379-138-32911"
+    # Add annotations for ci-runner & cd-runner serviceAccount. 
+    annotations: {}
   argocdDexServer:
     registry: ""
     image: "dex:v2.30.2"
