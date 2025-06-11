@@ -40,6 +40,7 @@ import (
 
 const (
 	PIPELINE_DEPLOYMENT_TYPE_ACD               = "argo_cd"
+	PIPELINE_DEPLOYMENT_TYPE_FLUX              = "flux_cd"
 	PIPELINE_DEPLOYMENT_TYPE_HELM              = "helm"
 	PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD = "manifest_download"
 	PIPELINE_DEPLOYMENT_TYPE_MANIFEST_PUSH     = "manifest_push"
