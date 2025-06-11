@@ -17,12 +17,13 @@
 package pipelineConfig
 
 import (
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"time"
 )
 
 type CiWorkflowRepository interface {
@@ -349,7 +350,7 @@ func (impl *CiWorkflowRepositoryImpl) ExistsByStatus(status string) (bool, error
 
 func (impl *CiWorkflowRepositoryImpl) FindBuildTypeAndStatusDataOfLast1Day() ([]*BuildTypeCount, error) {
 	var buildTypeCounts []*BuildTypeCount
-	query := "select status,ci_build_type as type, count(*) from ci_workflow where status in ('Succeeded','Failed') and started_on > ? group by (ci_build_type, status)"
+	query := "select status,ci_build_type as type, count(*) from ci_workflow where started_on > ? group by (ci_build_type, status)"
 	_, err := impl.dbConnection.Query(&buildTypeCounts, query, time.Now().AddDate(0, 0, -1))
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching build type vs status vs count data", "err", err)

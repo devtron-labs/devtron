@@ -1,7 +1,8 @@
 package telemetry
 
 import (
-	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
+	buildBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	chartRefBean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	pluginRepository "github.com/devtron-labs/devtron/pkg/plugin/repository"
 )
 
@@ -34,10 +35,9 @@ func (impl *TelemetryEventClientImplExtended) getJobPipelineTriggeredLast24h() i
 	}
 
 	// Count job pipeline triggers
-	// Job pipelines have build type "CI_JOB"
 	jobTriggeredCount := 0
 	for _, data := range buildTypeStatusData {
-		if data.Type == string(common.CI_JOB) {
+		if data.Type == string(buildBean.SKIP_BUILD_TYPE) {
 			jobTriggeredCount += data.Count
 		}
 	}
@@ -54,10 +54,9 @@ func (impl *TelemetryEventClientImplExtended) getJobPipelineSucceededLast24h() i
 	}
 
 	// Count successful job pipeline runs
-	// Job pipelines have build type "CI_JOB"
 	successfulJobCount := 0
 	for _, data := range buildTypeStatusData {
-		if data.Type == "CI_JOB" && data.Status == "Succeeded" {
+		if data.Type == string(buildBean.SKIP_BUILD_TYPE) && data.Status == "Succeeded" {
 			successfulJobCount += data.Count
 		}
 	}
@@ -79,19 +78,17 @@ func (impl *TelemetryEventClientImplExtended) getUserCreatedPluginCount() int {
 
 // getDeploymentWindowPolicyCount returns the count of deployment window policies
 func (impl *TelemetryEventClientImplExtended) getDeploymentWindowPolicyCount() int {
-	// TODO: Implement when deployment window policy repository is available
-	// For now, return 0 as placeholder
 	var count int
 	query := `
 		SELECT COUNT(*)
-		FROM deployment_window_policy dwp
-		WHERE dwp.deleted = false
+		FROM global_policy gp
+		WHERE gp.policy_of = 'DEPLOYMENT_WINDOW' AND gp.deleted = false
 	`
 
 	dbConnection := impl.appRepository.GetConnection()
 	_, err := dbConnection.Query(&count, query)
 	if err != nil {
-		impl.logger.Debugw("deployment window policy table not found or query failed", "err", err)
+		impl.logger.Debugw("global_policy table not found or query failed for deployment window policies", "err", err)
 		return 0
 	}
 
@@ -101,19 +98,17 @@ func (impl *TelemetryEventClientImplExtended) getDeploymentWindowPolicyCount() i
 
 // getApprovalPolicyCount returns the count of approval policies
 func (impl *TelemetryEventClientImplExtended) getApprovalPolicyCount() int {
-	// TODO: Implement when approval policy repository is available
-	// For now, return 0 as placeholder
 	var count int
 	query := `
 		SELECT COUNT(*)
-		FROM approval_policy ap
-		WHERE ap.deleted = false
+		FROM global_policy gp
+		WHERE gp.policy_of = 'APPROVAL' AND gp.deleted = false
 	`
 
 	dbConnection := impl.appRepository.GetConnection()
 	_, err := dbConnection.Query(&count, query)
 	if err != nil {
-		impl.logger.Debugw("approval policy table not found or query failed", "err", err)
+		impl.logger.Debugw("global_policy table not found or query failed", "err", err)
 		return 0
 	}
 
@@ -123,23 +118,21 @@ func (impl *TelemetryEventClientImplExtended) getApprovalPolicyCount() int {
 
 // getPluginPolicyCount returns the count of plugin policies
 func (impl *TelemetryEventClientImplExtended) getPluginPolicyCount() int {
-	// Count plugin-related policies using available plugin repository
-	plugins, err := impl.pluginRepository.GetMetaDataForAllPlugins(false)
+	var count int
+	query := `
+		SELECT COUNT(*)
+		FROM global_policy gp
+		WHERE gp.policy_of = 'PLUGIN' AND gp.deleted = false
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query)
 	if err != nil {
-		impl.logger.Errorw("error getting plugin policies", "err", err)
-		return -1
+		impl.logger.Debugw("global_policy table not found or query failed", "err", err)
+		return 0
 	}
-
-	// Count plugins that have specific policy configurations
-	policyCount := 0
-	for _, plugin := range plugins {
-		if plugin != nil && plugin.IsExposed {
-			policyCount++
-		}
-	}
-
-	impl.logger.Debugw("counted plugin policies", "count", policyCount)
-	return policyCount
+	impl.logger.Debugw("counted plugin policies", "count", count)
+	return count
 }
 
 // getTagsPolicyCount returns the count of tags policies
@@ -162,8 +155,8 @@ func (impl *TelemetryEventClientImplExtended) getFilterConditionPolicyCount() in
 	var count int
 	query := `
 		SELECT COUNT(*)
-		FROM filter_condition_policy fcp
-		WHERE fcp.deleted = false
+		FROM resource_filter rf
+		WHERE rf.deleted = false
 	`
 
 	dbConnection := impl.appRepository.GetConnection()
@@ -179,13 +172,11 @@ func (impl *TelemetryEventClientImplExtended) getFilterConditionPolicyCount() in
 
 // getLockDeploymentConfigurationPolicyCount returns the count of lock deployment configuration policies
 func (impl *TelemetryEventClientImplExtended) getLockDeploymentConfigurationPolicyCount() int {
-	// TODO: Implement when lock deployment configuration policy repository is available
-	// For now, return 0 as placeholder
 	var count int
 	query := `
 		SELECT COUNT(*)
-		FROM lock_deployment_config_policy ldcp
-		WHERE ldcp.deleted = false
+		FROM global_policy gp
+		WHERE gp.policy_of = 'LOCK_CONFIGURATION' AND gp.deleted = false
 	`
 
 	dbConnection := impl.appRepository.GetConnection()
@@ -264,44 +255,35 @@ func (impl *TelemetryEventClientImplExtended) getJobPipelineCount() int {
 
 // getAppliedPolicyRowCount returns the total number of applied policies in the system
 func (impl *TelemetryEventClientImplExtended) getAppliedPolicyRowCount() int {
-	var totalCount int
-
-	// Count CVE/Security policies
-	var cvePolicyCount int
-	cvePolicyQuery := `
-		SELECT COUNT(*)
-		FROM cve_policy_control cpc
-		WHERE cpc.deleted = false
-	`
-
-	// Count RBAC policies
-	var rbacPolicyCount int
-	rbacPolicyQuery := `
-		SELECT COUNT(*)
-		FROM rbac_policy_data rpd
-		WHERE rpd.deleted = false
+	var count int
+	query := `
+		WITH policy_counts AS (
+			-- Count global policies
+			SELECT COUNT(*) as count
+			FROM global_policy gp
+			WHERE gp.deleted = false
+			UNION ALL
+			-- Count resource mapped policies
+			SELECT COUNT(DISTINCT rqm.resource_id)
+			FROM resource_qualifier_mapping rqm
+			INNER JOIN resource_qualifier_mapping_criteria rqmc ON rqm.id = rqmc.id
+			INNER JOIN global_policy gp ON rqmc.id = gp.id
+			WHERE rqm.active = true
+			AND gp.deleted = false
+		)
+		SELECT COALESCE(SUM(count), 0) as total_count
+		FROM policy_counts
 	`
 
 	dbConnection := impl.appRepository.GetConnection()
-
-	// Get CVE policy count
-	_, err := dbConnection.Query(&cvePolicyCount, cvePolicyQuery)
+	_, err := dbConnection.Query(&count, query)
 	if err != nil {
-		impl.logger.Errorw("error getting CVE policy count", "err", err)
+		impl.logger.Errorw("error getting applied policy count", "err", err)
 		return -1
 	}
 
-	// Get RBAC policy count
-	_, err = dbConnection.Query(&rbacPolicyCount, rbacPolicyQuery)
-	if err != nil {
-		impl.logger.Errorw("error getting RBAC policy count", "err", err)
-		return -1
-	}
-
-	totalCount = cvePolicyCount + rbacPolicyCount
-
-	impl.logger.Debugw("counted applied policies", "cvePolicyCount", cvePolicyCount, "rbacPolicyCount", rbacPolicyCount, "totalCount", totalCount)
-	return totalCount
+	impl.logger.Debugw("counted applied policies", "count", count)
+	return count
 }
 
 // getProjectsWithZeroAppsCount returns the number of projects (teams) that have no applications
@@ -375,10 +357,19 @@ func (impl *TelemetryEventClientImplExtended) getAppsWithDescriptionCount() int 
 	var count int
 	query := `
 		SELECT COUNT(*)
-		FROM app a
-		WHERE a.active = true
-		AND a.description IS NOT NULL
-		AND TRIM(a.description) != ''
+		FROM (
+			SELECT a.id
+			FROM app a
+			WHERE a.active = true
+			AND a.description IS NOT NULL
+			AND TRIM(COALESCE(a.description, '')) != ''
+			UNION
+			SELECT ia.id
+			FROM installed_apps ia
+			WHERE ia.active = true
+			AND ia.notes IS NOT NULL
+			AND TRIM(COALESCE(ia.notes, '')) != ''
+		) apps_with_description
 	`
 
 	dbConnection := impl.appRepository.GetConnection()
@@ -418,14 +409,13 @@ func (impl *TelemetryEventClientImplExtended) getAppsWithCatalogDataCount() int 
 func (impl *TelemetryEventClientImplExtended) getAppsWithReadmeDataCount() int {
 	var count int
 	query := `
-		SELECT COUNT(DISTINCT ia.id)
-		FROM installed_apps ia
-		INNER JOIN installed_app_versions iav ON ia.id = iav.installed_app_id
-		INNER JOIN app_store_application_version asav ON iav.app_store_application_version_id = asav.id
-		WHERE ia.active = true
-		AND iav.active = true
-		AND asav.readme IS NOT NULL
-		AND TRIM(asav.readme) != ''
+		SELECT COUNT(DISTINCT gn.identifier)
+		FROM generic_note gn
+		INNER JOIN app a ON gn.identifier = a.id
+		WHERE gn.identifier_type = 1 
+		AND a.active = true
+		AND gn.description IS NOT NULL
+		AND TRIM(gn.description) != ''
 	`
 
 	dbConnection := impl.appRepository.GetConnection()
@@ -681,7 +671,7 @@ func (impl *TelemetryEventClientImplExtended) getAppsWithBuildpacksCount() int {
 		INNER JOIN ci_build_config cbc ON ct.ci_build_config_id = cbc.id
 		WHERE ct.active = true
 		AND a.active = true
-		AND cbc.type = 'BUILDPACK_BUILD_TYPE'
+		AND cbc.type = 'buildpack-build'
 	`
 
 	dbConnection := impl.appRepository.GetConnection()
@@ -726,104 +716,49 @@ func (impl *TelemetryEventClientImplExtended) getBuildpackLanguagesList() []stri
 	return languages
 }
 
-// getAppsWithDeploymentChartCount returns the number of applications using deployment chart
-func (impl *TelemetryEventClientImplExtended) getAppsWithDeploymentChartCount() int {
+// getAppsWithChartTypeCount returns the number of applications using a specific chart type
+func (impl *TelemetryEventClientImplExtended) getAppsWithChartTypeCount(chartType string) int {
 	var count int
 	query := `
 		SELECT COUNT(DISTINCT c.app_id)
 		FROM charts c
-		INNER JOIN chart_ref cr ON c.chart_repo_id = cr.id
+		INNER JOIN chart_ref cr ON c.chart_ref_id = cr.id
 		INNER JOIN app a ON c.app_id = a.id
 		WHERE c.active = true
 		AND a.active = true
 		AND cr.active = true
-		AND cr.name = 'Deployment'
+		AND cr.name = ?
 	`
 
 	dbConnection := impl.appRepository.GetConnection()
-	_, err := dbConnection.Query(&count, query)
+	_, err := dbConnection.Query(&count, query, chartType)
 	if err != nil {
-		impl.logger.Errorw("error getting apps with deployment chart count", "err", err)
+		impl.logger.Errorw("error getting apps with chart type count", "chartType", chartType, "err", err)
 		return -1
 	}
 
-	impl.logger.Debugw("counted apps with deployment chart", "count", count)
+	impl.logger.Debugw("counted apps with chart type", "chartType", chartType, "count", count)
 	return count
+}
+
+// getAppsWithDeploymentChartCount returns the number of applications using deployment chart
+func (impl *TelemetryEventClientImplExtended) getAppsWithDeploymentChartCount() int {
+	return impl.getAppsWithChartTypeCount(chartRefBean.DeploymentChartType)
 }
 
 // getAppsWithRolloutChartCount returns the number of applications using rollout chart
 func (impl *TelemetryEventClientImplExtended) getAppsWithRolloutChartCount() int {
-	var count int
-	query := `
-		SELECT COUNT(DISTINCT c.app_id)
-		FROM charts c
-		INNER JOIN chart_ref cr ON c.chart_repo_id = cr.id
-		INNER JOIN app a ON c.app_id = a.id
-		WHERE c.active = true
-		AND a.active = true
-		AND cr.active = true
-		AND cr.location LIKE 'reference-chart_%'
-	`
-
-	dbConnection := impl.appRepository.GetConnection()
-	_, err := dbConnection.Query(&count, query)
-	if err != nil {
-		impl.logger.Errorw("error getting apps with rollout chart count", "err", err)
-		return -1
-	}
-
-	impl.logger.Debugw("counted apps with rollout chart", "count", count)
-	return count
+	return impl.getAppsWithChartTypeCount(chartRefBean.RolloutChartType)
 }
 
 // getAppsWithStatefulsetCount returns the number of applications using statefulset chart
 func (impl *TelemetryEventClientImplExtended) getAppsWithStatefulsetCount() int {
-	var count int
-	query := `
-		SELECT COUNT(DISTINCT c.app_id)
-		FROM charts c
-		INNER JOIN chart_ref cr ON c.chart_repo_id = cr.id
-		INNER JOIN app a ON c.app_id = a.id
-		WHERE c.active = true
-		AND a.active = true
-		AND cr.active = true
-		AND cr.name = 'StatefulSet'
-	`
-
-	dbConnection := impl.appRepository.GetConnection()
-	_, err := dbConnection.Query(&count, query)
-	if err != nil {
-		impl.logger.Errorw("error getting apps with statefulset count", "err", err)
-		return -1
-	}
-
-	impl.logger.Debugw("counted apps with statefulset", "count", count)
-	return count
+	return impl.getAppsWithChartTypeCount(chartRefBean.StatefulSetChartType)
 }
 
 // getAppsWithJobsCronjobsCount returns the number of applications using jobs & cronjobs chart
 func (impl *TelemetryEventClientImplExtended) getAppsWithJobsCronjobsCount() int {
-	var count int
-	query := `
-		SELECT COUNT(DISTINCT c.app_id)
-		FROM charts c
-		INNER JOIN chart_ref cr ON c.chart_repo_id = cr.id
-		INNER JOIN app a ON c.app_id = a.id
-		WHERE c.active = true
-		AND a.active = true
-		AND cr.active = true
-		AND (cr.name = 'Cron Job & Job' OR cr.location LIKE 'cronjob-chart_%')
-	`
-
-	dbConnection := impl.appRepository.GetConnection()
-	_, err := dbConnection.Query(&count, query)
-	if err != nil {
-		impl.logger.Errorw("error getting apps with jobs/cronjobs count", "err", err)
-		return -1
-	}
-
-	impl.logger.Debugw("counted apps with jobs/cronjobs", "count", count)
-	return count
+	return impl.getAppsWithChartTypeCount(chartRefBean.JobsCronjobsChartType)
 }
 
 // getEnvironmentsWithPatchStrategyCount returns the number of environments using patch strategy
@@ -876,17 +811,29 @@ func (impl *TelemetryEventClientImplExtended) getEnvironmentsWithReplaceStrategy
 func (impl *TelemetryEventClientImplExtended) getExternalConfigMapCount() int {
 	var count int
 	query := `
-		SELECT COUNT(*)
+		SELECT COALESCE(SUM(cm_count), 0)
 		FROM (
+			-- Count app-level configmaps
+			SELECT COUNT(*) as cm_count
+			FROM config_map_app_level cmal
+			INNER JOIN app a ON cmal.app_id = a.id
+			WHERE a.active = true
+			AND EXISTS (
+				SELECT 1
+				FROM jsonb_array_elements(cmal.config_map_data::jsonb->'maps') as cm
+				WHERE cm->>'external' = 'true'
+			)
+			GROUP BY cmal.app_id
+			UNION ALL
+			-- Count environment-level configmaps
 			SELECT COUNT(*) as cm_count
 			FROM config_map_env_level cmel
 			INNER JOIN environment e ON cmel.environment_id = e.id
 			WHERE cmel.deleted = false
 			AND e.active = true
-			AND cmel.config_map_data::jsonb->'ConfigMaps'->>'enabled' = 'true'
 			AND EXISTS (
 				SELECT 1
-				FROM jsonb_array_elements(cmel.config_map_data::jsonb->'ConfigMaps'->'maps') as cm
+				FROM jsonb_array_elements(cmel.config_map_data::jsonb->'maps') as cm
 				WHERE cm->>'external' = 'true'
 			)
 			GROUP BY cmel.environment_id, cmel.app_id
@@ -910,15 +857,27 @@ func (impl *TelemetryEventClientImplExtended) getInternalConfigMapCount() int {
 	query := `
 		SELECT COALESCE(SUM(cm_count), 0)
 		FROM (
+			-- Count app-level configmaps
+			SELECT COUNT(*) as cm_count
+			FROM config_map_app_level cmal
+			INNER JOIN app a ON cmal.app_id = a.id
+			WHERE a.active = true
+			AND EXISTS (
+				SELECT 1
+				FROM jsonb_array_elements(cmal.config_map_data::jsonb->'maps') as cm
+				WHERE cm->>'external' = 'false'
+			)
+			GROUP BY cmal.app_id
+			UNION ALL
+			-- Count environment-level configmaps
 			SELECT COUNT(*) as cm_count
 			FROM config_map_env_level cmel
 			INNER JOIN environment e ON cmel.environment_id = e.id
 			WHERE cmel.deleted = false
 			AND e.active = true
-			AND cmel.config_map_data::jsonb->'ConfigMaps'->>'enabled' = 'true'
 			AND EXISTS (
 				SELECT 1
-				FROM jsonb_array_elements(cmel.config_map_data::jsonb->'ConfigMaps'->'maps') as cm
+				FROM jsonb_array_elements(cmel.config_map_data::jsonb->'maps') as cm
 				WHERE cm->>'external' = 'false'
 			)
 			GROUP BY cmel.environment_id, cmel.app_id
