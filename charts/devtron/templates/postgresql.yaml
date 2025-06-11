@@ -361,7 +361,8 @@ data:
     fi
     echo "Initialization done."
 {{- end }}
-{{- else }} 
+{{- else }}
+---
 apiVersion: v1
 kind: Service
 metadata:
