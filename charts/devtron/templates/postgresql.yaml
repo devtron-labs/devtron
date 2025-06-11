@@ -1,3 +1,4 @@
+{{- if not $.Values.global.externalPostgres.enabled }}
 {{- with .Values.components.postgres }}
 ---
 apiVersion: v1
@@ -359,4 +360,15 @@ data:
       cat /extraconfigs/* >>/configs/postgresql.conf
     fi
     echo "Initialization done."
+{{- end }}
+{{- else }} # agar .svc.cluster.local h toh service h add it as it is in externalName, agar ek dot hai aur alphabets hai toh dns h add it as it is in dns name.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql-postgresql
+  namespace: devtroncd
+spec:
+  type: ExternalName
+  externalName: {{ $.Values.global.externalPostgres.PG_ADDR }}
 {{- end }}

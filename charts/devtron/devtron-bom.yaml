@@ -167,17 +167,6 @@ components:
     kubectlImage: "kubectl:latest"
     duplicateChartImage: devtron-utils:dup-chart-repo-v1.1.0
     entMigratorImage: "devtron-utils:geni-v1.1.4"
-    configs:
-      PG_ADDR: postgresql-postgresql.devtroncd
-    envVars:
-      devtron:
-        DB_NAME: "orchestrator"
-      casbin:
-        DB_NAME: "casbin"
-      gitsensor:
-        DB_NAME: "git_sensor"
-      lens:
-        DB_NAME: "lens"
   chartSync:
     registry: ""
     image: chart-sync:da156379-836-32914

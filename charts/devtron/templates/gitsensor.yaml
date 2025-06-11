@@ -25,7 +25,7 @@ metadata:
     release: devtron
 {{- if .configs }}
 data:
-{{- include "devtron.dbConfig" $ | indent 2 }}
+{{ toYaml $.Values.global.dbConfig | indent 2 }}
 {{ toYaml .configs | indent 2 }}
 {{- end }}
   

@@ -8,6 +8,13 @@ global:
     runAsUser: 1000
     runAsNonRoot: true
   containerRegistry: "quay.io/devtron"
+  # External Database Configurations
+  externalPostgres:
+    enabled: false
+    # Password for external database (ensure that username is postgres).
+    PG_PASSWORD: ""
+    # For external Database replace the PG_ADDR with the DNS endpoint of postgres.
+    PG_ADDR: ""
   dbConfig:
     PG_ADDR: postgresql-postgresql.devtroncd
     PG_PORT: "5432"
@@ -239,17 +246,6 @@ components:
     kubectlImage: "kubectl:latest"
     duplicateChartImage: devtron-utils:dup-chart-repo-v1.1.0
     entMigratorImage: "devtron-utils:geni-v1.1.4"
-    configs:
-      PG_ADDR: postgresql-postgresql.devtroncd
-    envVars:
-      devtron:
-        DB_NAME: "orchestrator"
-      casbin:
-        DB_NAME: "casbin"
-      gitsensor:
-        DB_NAME: "git_sensor"
-      lens:
-        DB_NAME: "lens"
   chartSync:
     registry: ""
     image: chart-sync:da156379-836-32914

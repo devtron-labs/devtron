@@ -100,7 +100,7 @@ metadata:
     app: app-sync-cronjob
     release: devtron
 data:
-{{- include "devtron.dbConfig" $ | indent 2 }}
+{{ toYaml $.Values.global.dbConfig | indent 2 }}
 {{- if $.Values.components.chartSync.extraConfigs }}
 {{ toYaml $.Values.components.chartSync.extraConfigs | indent 2 }}
 {{- end }}

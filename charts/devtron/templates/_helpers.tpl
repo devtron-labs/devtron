@@ -116,13 +116,3 @@ securityContext:
 {{ toYaml .global.containerSecurityContext | indent 2 }}
   {{- end }}
 {{- end }}
-
-{{/*
-Extract database configuration from global values
-Usage: {{ include "devtron.dbConfig" $ }}
-*/}}
-{{- define "devtron.dbConfig" -}}
-{{- range $key, $value := $.Values.global.dbConfig }}
-{{ $key }}: {{ $value }}
-{{- end }}
-{{- end -}}
