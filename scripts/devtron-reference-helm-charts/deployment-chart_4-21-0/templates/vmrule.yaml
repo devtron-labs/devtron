@@ -1,0 +1,29 @@
+{{- if .Values.vmrule.enabled -}}
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  {{- if .Values.vmrule.name }}
+  name: {{ .Values.vmrule.name }}
+  {{- else }}
+  name: {{ template ".Chart.Name .fullname" . }}-vmr
+  {{- end }}
+  namespace: 
+  labels:
+    kind: Victoria
+    app: {{ template ".Chart.Name .name" . }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    chart: {{ template ".Chart.Name .chart" . }}
+    release: {{ .Values.prometheus.release }}
+    {{- if .Values.vmrule.additionalLabels }}
+{{ toYaml .Values.vmrule.additionalLabels | indent 4 }}
+    {{- end }}
+    {{- if .Values.appLabels }}
+{{ toYaml .Values.appLabels | indent 4 }}
+    {{- end }}   
+spec:
+{{- if .Values.vmrule.rules }}
+  groups:
+{{ toYaml .Values.vmrule.rules | indent 4}}  
+{{- end }} 
+{{- end }}

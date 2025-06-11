@@ -1,6 +1,10 @@
 {{- with .Values.istio }}
 {{- if and .enable .virtualService.enabled }}
+{{ if semverCompare ">=1.22-0" $.Capabilities.KubeVersion.GitVersion -}}
+apiVersion: networking.istio.io/v1
+{{ else }}
 apiVersion: networking.istio.io/v1beta1
+{{- end }}
 kind: VirtualService
 metadata:
   {{- if .virtualService.name }}
@@ -25,6 +29,9 @@ metadata:
 {{ toYaml .virtualService.annotations | indent 4 }}
 {{- end }}
 spec:
+{{- if .virtualService.virtualServiceExtraSpec }}
+{{ toYaml .virtualService.virtualServiceExtraSpec | indent 2}}
+{{- end }}
 {{- if or .gateway.enabled .virtualService.gateways }}
   gateways:
   {{- if .gateway.enabled }}
