@@ -172,6 +172,10 @@ func (d *DeploymentConfig) IsAcdRelease() bool {
 	return d.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD
 }
 
+func (d *DeploymentConfig) IsFluxCDRelease() bool {
+	return d.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_FLUX
+}
+
 func (d *DeploymentConfig) IsLinkedRelease() bool {
 	return d.ReleaseMode == util.PIPELINE_RELEASE_MODE_LINK
 }
@@ -181,7 +185,7 @@ func (d *DeploymentConfig) IsArgoCdClientSupported() bool {
 }
 
 func (d *DeploymentConfig) IsArgoAppSyncAndRefreshSupported() bool {
-	return d.IsAcdRelease() && !d.IsLinkedRelease()
+	return d.IsAcdRelease() && d.IsFluxCDRelease() && !d.IsLinkedRelease()
 }
 
 func (d *DeploymentConfig) IsArgoAppPatchSupported() bool {
