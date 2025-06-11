@@ -826,6 +826,8 @@ func (impl *HandlerServiceImpl) deployApp(ctx context.Context, overrideRequest *
 			impl.logger.Errorw("error in deploying app on ArgoCd", "err", err)
 			return err
 		}
+	} else if util.IsFluxApp(overrideRequest.DeploymentAppType) {
+
 	} else if util.IsHelmApp(overrideRequest.DeploymentAppType) {
 		_, referenceChartByte, err = impl.createHelmAppForCdPipeline(newCtx, overrideRequest, valuesOverrideResponse)
 		if err != nil {
@@ -834,6 +836,11 @@ func (impl *HandlerServiceImpl) deployApp(ctx context.Context, overrideRequest *
 		}
 	}
 	impl.postDeployHook(overrideRequest, valuesOverrideResponse, referenceChartByte, err)
+	return nil
+}
+
+func (impl *HandlerServiceImpl) deployFluxCdApp(ctx context.Context, overrideRequest *bean3.ValuesOverrideRequest,
+	valuesOverrideResponse *app.ValuesOverrideResponse) error {
 	return nil
 }
 
