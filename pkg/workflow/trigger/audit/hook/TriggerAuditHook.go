@@ -49,7 +49,7 @@ func NewTriggerAuditHookImpl(logger *zap.SugaredLogger, workflowTriggerAuditServ
 func (impl *TriggerAuditHookImpl) AuditCiTrigger(workflowRequest *types.WorkflowRequest) error {
 
 	impl.logger.Infow("auditing CI trigger", "ciWorkflowId", workflowRequest.WorkflowId, "ciPipelineId", workflowRequest.PipelineId, "triggeredBy", workflowRequest.TriggeredBy)
-	_, err := impl.workflowTriggerAuditService.SaveCiTriggerAudit(workflowRequest)
+	_, err := impl.workflowTriggerAuditService.SaveTriggerAudit(workflowRequest)
 	if err != nil {
 		impl.logger.Errorw("error in auditing CI trigger", "workflowId", workflowRequest.WorkflowId, "err", err)
 		// Don't fail/return the trigger if audit fails, just log the error
@@ -64,7 +64,7 @@ func (impl *TriggerAuditHookImpl) AuditPrePostCdTrigger(workflowRequest *types.W
 
 	impl.logger.Infow("auditing Pre/Post-CD trigger", "workflowRunnerId", workflowRequest.WorkflowRunnerId, "cdPipelineId", workflowRequest.CdPipelineId, "stageType", workflowRequest.StageType, "triggeredBy", workflowRequest.TriggeredBy)
 
-	_, err := impl.workflowTriggerAuditService.SaveCdTriggerAudit(workflowRequest)
+	_, err := impl.workflowTriggerAuditService.SaveTriggerAudit(workflowRequest)
 	if err != nil {
 		impl.logger.Errorw("error in auditing Pre/Post-CD trigger", "workflowRunnerId", workflowRequest.WorkflowRunnerId, "err", err)
 		// Don't fail/return the trigger if audit fails, just log the error
