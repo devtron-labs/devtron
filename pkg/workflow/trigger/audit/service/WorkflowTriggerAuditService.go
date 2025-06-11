@@ -18,56 +18,51 @@ package service
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	//"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/bean"
-	"github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/helper"
+	//"github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/bean"
 	"github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/repository"
 	"go.uber.org/zap"
 )
 
 type WorkflowTriggerAuditService interface {
 	// SaveCiTriggerAudit saves audit data for CI trigger
-	SaveCiTriggerAudit(request *bean.CiTriggerAuditRequest) (*repository.WorkflowConfigSnapshot, error)
+	SaveCiTriggerAudit(workflowRequest *types.WorkflowRequest) (*repository.WorkflowConfigSnapshot, error)
 
 	// SaveCdTriggerAudit saves audit data for Pre-CD trigger
-	SaveCdTriggerAudit(request *bean.CdTriggerAuditRequest) (*repository.WorkflowConfigSnapshot, error)
+	SaveCdTriggerAudit(workflowRequest *types.WorkflowRequest) (*repository.WorkflowConfigSnapshot, error)
 
 	// GetTriggerAuditByWorkflowId retrieves audit data by workflow ID and type
-	GetTriggerAuditByWorkflowId(workflowId int, workflowType repository.WorkflowType) (*bean.WorkflowTriggerAuditResponse, error)
 
 	// GetTriggerAuditHistory retrieves trigger audit history for a pipeline
-	GetTriggerAuditHistory(pipelineId int, workflowType repository.WorkflowType, limit int, offset int) ([]*bean.WorkflowTriggerAuditResponse, error)
+	//GetTriggerAuditHistory(pipelineId int, workflowType types.WorkflowType, limit int, offset int) ([]*bean.WorkflowTriggerAuditResponse, error)
 
 	// GetWorkflowConfigForRetrigger retrieves workflow configuration for retrigger
 	//GetWorkflowConfigForRetrigger(auditId int) (*bean.RetriggerWorkflowConfig, error)
 
-	sql.TransactionWrapper
+	//sql.TransactionWrapper
 }
 
 type WorkflowTriggerAuditServiceImpl struct {
 	logger                           *zap.SugaredLogger
 	workflowConfigSnapshotRepository repository.WorkflowConfigSnapshotRepository
-	secretSanitizer                  helper.SecretSanitizer
 	*sql.TransactionUtilImpl
 }
 
 func NewWorkflowTriggerAuditServiceImpl(
 	logger *zap.SugaredLogger,
 	workflowConfigSnapshotRepository repository.WorkflowConfigSnapshotRepository,
-	secretSanitizer helper.SecretSanitizer,
 	transactionUtilImpl *sql.TransactionUtilImpl) *WorkflowTriggerAuditServiceImpl {
 
 	return &WorkflowTriggerAuditServiceImpl{
 		logger:                           logger,
 		workflowConfigSnapshotRepository: workflowConfigSnapshotRepository,
-		secretSanitizer:                  secretSanitizer,
 		TransactionUtilImpl:              transactionUtilImpl,
 	}
 }
 
-func (impl *WorkflowTriggerAuditServiceImpl) SaveCiTriggerAudit(request *bean.CiTriggerAuditRequest) (*repository.WorkflowConfigSnapshot, error) {
+func (impl *WorkflowTriggerAuditServiceImpl) SaveCiTriggerAudit(workflowRequest *types.WorkflowRequest) (*repository.WorkflowConfigSnapshot, error) {
 	tx, err := impl.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting transaction for CI trigger audit", "err", err)
@@ -76,7 +71,7 @@ func (impl *WorkflowTriggerAuditServiceImpl) SaveCiTriggerAudit(request *bean.Ci
 	defer impl.RollbackTx(tx)
 
 	// Create consolidated workflow config snapshot
-	configSnapshot, err := impl.createWorkflowConfigSnapshot(request.WorkflowRequest, repository.CI_WORKFLOW_TYPE, request.Pipeline, nil, request.WorkflowId, request.TriggerType, request.TriggeredBy, 0)
+	configSnapshot, err := impl.createWorkflowConfigSnapshot(workflowRequest)
 	if err != nil {
 		impl.logger.Errorw("error in creating workflow config snapshot for CI", "err", err)
 		return nil, err
@@ -97,182 +92,78 @@ func (impl *WorkflowTriggerAuditServiceImpl) SaveCiTriggerAudit(request *bean.Ci
 	return savedSnapshot, nil
 }
 
-func (impl *WorkflowTriggerAuditServiceImpl) SaveCdTriggerAudit(request *bean.CdTriggerAuditRequest) (*repository.WorkflowConfigSnapshot, error) {
+func (impl *WorkflowTriggerAuditServiceImpl) SaveCdTriggerAudit(workflowRequest *types.WorkflowRequest) (*repository.WorkflowConfigSnapshot, error) {
 	tx, err := impl.StartTx()
 	if err != nil {
-		impl.logger.Errorw("error in starting transaction for CD trigger audit", "err", err, "workflowType", request.WorkflowType)
+		impl.logger.Errorw("error in starting transaction for CD trigger audit", "workflowRunnerId", workflowRequest.WorkflowRunnerId, "stageType", workflowRequest.StageType, "err", err)
 		return nil, err
 	}
 	defer impl.RollbackTx(tx)
 
 	// Create consolidated workflow config snapshot
-	configSnapshot, err := impl.createWorkflowConfigSnapshot(request.WorkflowRequest, request.WorkflowType, request.Pipeline, request.WorkflowRunnerId, request.TriggerType, request.TriggeredBy, request.ArtifactId)
+	configSnapshot, err := impl.createWorkflowConfigSnapshot(workflowRequest)
 	if err != nil {
-		impl.logger.Errorw("error in creating workflow config snapshot for CD", "err", err, "workflowType", request.WorkflowType)
+		impl.logger.Errorw("error in creating workflow config snapshot for CD", "workflowRunnerId", workflowRequest.WorkflowRunnerId, "stageType", workflowRequest.StageType, "err", err)
 		return nil, err
 	}
 
 	savedSnapshot, err := impl.workflowConfigSnapshotRepository.SaveWithTx(tx, configSnapshot)
 	if err != nil {
-		impl.logger.Errorw("error in saving CD trigger audit", "err", err, "workflowType", request.WorkflowType)
+		impl.logger.Errorw("error in saving CD trigger audit", "workflowRunnerId", workflowRequest.WorkflowRunnerId, "stageType", workflowRequest.StageType, "err", err)
 		return nil, err
 	}
 
 	err = impl.CommitTx(tx)
 	if err != nil {
-		impl.logger.Errorw("error in committing transaction for CD trigger audit", "err", err, "workflowType", request.WorkflowType)
+		impl.logger.Errorw("error in committing transaction for CD trigger audit", "workflowRunnerId", workflowRequest.WorkflowRunnerId, "stageType", workflowRequest.StageType, "err", err)
 		return nil, err
 	}
 
 	return savedSnapshot, nil
 }
 
-func (impl *WorkflowTriggerAuditServiceImpl) createWorkflowConfigSnapshot(workflowRequest *types.WorkflowRequest, workflowType repository.WorkflowType, pipeline interface{}, workflowId int, triggerType string, triggeredBy int32, artifactId int) (*repository.WorkflowConfigSnapshot, error) {
-	// Sanitize secrets before storing
-	sanitizedWorkflowRequest, err := impl.secretSanitizer.SanitizeWorkflowRequest(workflowRequest)
-	if err != nil {
-		impl.logger.Errorw("error in sanitizing workflow request", "err", err)
-		return nil, err
+func (impl *WorkflowTriggerAuditServiceImpl) maskSecretsInWorkflowRequest(workflowRequest *types.WorkflowRequest) *types.WorkflowRequest {
+	if workflowRequest.BlobStorageS3Config != nil {
+		workflowRequest.BlobStorageS3Config.AccessKey = ""
+		workflowRequest.BlobStorageS3Config.Passkey = ""
 	}
+	if workflowRequest.AzureBlobConfig != nil {
+		workflowRequest.AzureBlobConfig.AccountKey = ""
+	}
+	if workflowRequest.GcpBlobConfig != nil {
+		workflowRequest.GcpBlobConfig.CredentialFileJsonData = ""
+	}
+	return workflowRequest
+}
 
-	// Marshal sanitized workflow request
+func (impl *WorkflowTriggerAuditServiceImpl) createWorkflowConfigSnapshot(workflowRequest *types.WorkflowRequest) (*repository.WorkflowConfigSnapshot, error) {
+	// sanitize secrets before storing
+	sanitizedWorkflowRequest := impl.maskSecretsInWorkflowRequest(workflowRequest)
 	workflowRequestJson, err := json.Marshal(sanitizedWorkflowRequest)
 	if err != nil {
 		impl.logger.Errorw("error in marshaling sanitized workflow request", "err", err)
 		return nil, err
 	}
 
-	var pipelineId, appId int
-	var environmentId int
-
-	if workflowType == repository.CI_WORKFLOW_TYPE {
-		ciPipeline := pipeline.(*pipelineConfig.CiPipeline)
-		pipelineId = ciPipeline.Id
-		appId = ciPipeline.AppId
+	workflowType, pipelineId, workflowId := types.PRE_CD_WORKFLOW_TYPE, workflowRequest.CdPipelineId, workflowRequest.WorkflowRunnerId
+	if workflowRequest.IsCdStageTypePost() {
+		workflowType = types.POST_CD_WORKFLOW_TYPE
 	} else {
-		cdPipeline := pipeline.(*pipelineConfig.Pipeline)
-		pipelineId = cdPipeline.Id
-		appId = cdPipeline.AppId
-		environmentId = cdPipeline.EnvironmentId
+		workflowType, pipelineId, workflowId = types.CI_WORKFLOW_TYPE, workflowRequest.PipelineId, workflowRequest.WorkflowId
 	}
 
 	configSnapshot := &repository.WorkflowConfigSnapshot{
-		WorkflowId:             workflowId,
-		WorkflowType:           workflowType,
-		PipelineId:             pipelineId,
-		AppId:                  appId,
-		EnvironmentId:          environmentId,
-		ArtifactId:             artifactId,
-		TriggerType:            impl.getTriggerType(triggerType),
-		TriggeredBy:            triggeredBy,
-		TriggerMetadata:        impl.marshalTriggerMetadata(triggerMetadata),
-		WorkflowRequestJson:    string(workflowRequestJson),
-		WorkflowRequestVersion: "V1", // for backward compatibility
-		AuditLog:               sql.NewDefaultAuditLog(triggeredBy),
+		WorkflowId:                   workflowId,
+		WorkflowType:                 workflowType,
+		PipelineId:                   pipelineId,
+		WorkflowRequestJson:          string(workflowRequestJson),
+		WorkflowRequestSchemaVersion: types.TriggerAuditSchemaVersionV1,
+		AuditLog:                     sql.NewDefaultAuditLog(workflowRequest.TriggeredBy),
 	}
 
 	return configSnapshot, nil
 }
 
-func (impl *WorkflowTriggerAuditServiceImpl) getTriggerType(triggerType string) repository.TriggerType {
-	switch triggerType {
-	case "MANUAL":
-		return repository.MANUAL_TRIGGER
-	case "AUTO":
-		return repository.AUTO_TRIGGER
-	case "WEBHOOK":
-		return repository.WEBHOOK_TRIGGER
-	default:
-		return repository.MANUAL_TRIGGER
-	}
-}
-
-func (impl *WorkflowTriggerAuditServiceImpl) marshalTriggerMetadata(metadata interface{}) string {
-	if metadata == nil {
-		return "{}"
-	}
-	metadataJson, err := json.Marshal(metadata)
-	if err != nil {
-		impl.logger.Errorw("error in marshaling trigger metadata", "err", err)
-		return "{}"
-	}
-	return string(metadataJson)
-}
-
-func (impl *WorkflowTriggerAuditServiceImpl) GetTriggerAuditByWorkflowId(workflowId int, workflowType repository.WorkflowType) (*bean.WorkflowTriggerAuditResponse, error) {
-	snapshot, err := impl.workflowConfigSnapshotRepository.FindByWorkflowIdAndType(workflowId, workflowType)
-	if err != nil {
-		impl.logger.Errorw("error in finding trigger audit by workflow id and type", "err", err, "workflowId", workflowId, "workflowType", workflowType)
-		return nil, err
-	}
-
-	return impl.buildAuditResponse(snapshot)
-}
-
-func (impl *WorkflowTriggerAuditServiceImpl) GetTriggerAuditHistory(pipelineId int, workflowType repository.WorkflowType, limit int, offset int) ([]*bean.WorkflowTriggerAuditResponse, error) {
-	snapshots, err := impl.workflowConfigSnapshotRepository.FindByPipelineId(pipelineId, limit, offset)
-	if err != nil {
-		impl.logger.Errorw("error in finding trigger audit history", "err", err, "pipelineId", pipelineId)
-		return nil, err
-	}
-
-	var responses []*bean.WorkflowTriggerAuditResponse
-	for _, snapshot := range snapshots {
-		if snapshot.WorkflowType == workflowType {
-			response, err := impl.buildAuditResponse(snapshot)
-			if err != nil {
-				impl.logger.Errorw("error in building audit response", "err", err, "snapshotId", snapshot.Id)
-				continue
-			}
-			responses = append(responses, response)
-		}
-	}
-
-	return responses, nil
-}
-
-func (impl *WorkflowTriggerAuditServiceImpl) buildAuditResponse(snapshot *repository.WorkflowConfigSnapshot) (*bean.WorkflowTriggerAuditResponse, error) {
-	response := &bean.WorkflowTriggerAuditResponse{
-		Id:              snapshot.Id,
-		WorkflowId:      snapshot.WorkflowId,
-		WorkflowType:    string(snapshot.WorkflowType),
-		PipelineId:      snapshot.PipelineId,
-		AppId:           snapshot.AppId,
-		EnvironmentId:   snapshot.EnvironmentId,
-		ArtifactId:      snapshot.ArtifactId,
-		TriggerType:     string(snapshot.TriggerType),
-		TriggeredBy:     snapshot.TriggeredBy,
-		TriggerMetadata: snapshot.TriggerMetadata,
-		Status:          "SAVED", // Always saved in simplified approach
-		CreatedOn:       snapshot.CreatedOn,
-		ConfigSnapshot:  snapshot,
-	}
-
-	return response, nil
-}
-
-//func (impl *WorkflowTriggerAuditServiceImpl) GetWorkflowConfigForRetrigger(auditId int) (*bean.RetriggerWorkflowConfig, error) {
-//	// Get config snapshot
-//	configSnapshot, err := impl.workflowConfigSnapshotRepository.FindById(auditId)
-//	if err != nil {
-//		impl.logger.Errorw("error in finding config snapshot for retrigger", "err", err, "auditId", auditId)
-//		return nil, err
-//	}
-//
-//	// Unmarshal sanitized workflow request
-//	var sanitizedWorkflowRequest interface{}
-//	err = json.Unmarshal([]byte(configSnapshot.WorkflowRequestJson), &sanitizedWorkflowRequest)
-//	if err != nil {
-//		impl.logger.Errorw("error in unmarshaling sanitized workflow request for retrigger", "err", err)
-//		return nil, err
-//	}
-//
-//	// Reconstruct secrets with current values from environment
-//	reconstructedWorkflowRequest, err := impl.secretSanitizer.ReconstructSecrets(sanitizedWorkflowRequest, configSnapshot.EnvironmentId, configSnapshot.AppId)
-//	if err != nil {
-//		impl.logger.Errorw("error in reconstructing secrets for retrigger", "err", err)
-//		return nil, err
-//	}
 //
 //	// Convert back to WorkflowRequest type
 //	reconstructedJson, err := json.Marshal(reconstructedWorkflowRequest)

@@ -156,6 +156,14 @@ type WorkflowRequest struct {
 	WorkflowRequestEnt
 }
 
+func (workflowRequest *WorkflowRequest) IsCdStageTypePre() bool {
+	return workflowRequest.StageType == PRE
+}
+
+func (workflowRequest *WorkflowRequest) IsCdStageTypePost() bool {
+	return workflowRequest.StageType == POST
+}
+
 func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {
 	pipeline := workflowRequest.Pipeline
 	env := workflowRequest.Env

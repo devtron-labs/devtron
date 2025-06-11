@@ -17,32 +17,9 @@
 package bean
 
 import (
-	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/repository"
 	"time"
 )
-
-// CiTriggerAuditRequest represents the request for CI trigger audit
-type CiTriggerAuditRequest struct {
-	WorkflowId int
-	PipelineId int
-	*CommonAuditRequest
-}
-
-// CdTriggerAuditRequest represents the request for CD trigger audit (Pre-CD, Post-CD)
-type CdTriggerAuditRequest struct {
-	WorkflowRunnerId int
-	PipelineId       int
-	EnvironmentId    int
-	WorkflowType     repository.WorkflowType
-	*CommonAuditRequest
-}
-type CommonAuditRequest struct {
-	WorkflowRequest *types.WorkflowRequest
-	ArtifactId      int
-	TriggerType     string
-	TriggeredBy     int32
-}
 
 // WorkflowTriggerAuditResponse represents the response for workflow trigger audit
 type WorkflowTriggerAuditResponse struct {

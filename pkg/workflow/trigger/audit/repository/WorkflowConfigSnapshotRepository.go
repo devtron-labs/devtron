@@ -17,38 +17,20 @@
 package repository
 
 import (
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
-type WorkflowType string
-
-const (
-	CI_WORKFLOW_TYPE      WorkflowType = "CI"
-	PRE_CD_WORKFLOW_TYPE  WorkflowType = "PRE_CD"
-	POST_CD_WORKFLOW_TYPE WorkflowType = "POST_CD"
-)
-
-type TriggerType string
-
-const (
-	MANUAL_TRIGGER  TriggerType = "MANUAL"
-	AUTO_TRIGGER    TriggerType = "AUTO"
-	WEBHOOK_TRIGGER TriggerType = "WEBHOOK"
-)
-
 type WorkflowConfigSnapshot struct {
-	tableName                    struct{}     `sql:"workflow_config_snapshot" pg:",discard_unknown_columns"`
-	Id                           int          `sql:"id,pk"`
-	WorkflowId                   int          `sql:"workflow_id,notnull"`
-	WorkflowType                 WorkflowType `sql:"workflow_type,notnull"`
-	PipelineId                   int          `sql:"pipeline_id,notnull"`
-	ArtifactId                   int          `sql:"artifact_id"`
-	TriggerType                  TriggerType  `sql:"trigger_type,notnull"`
-	TriggeredBy                  int32        `sql:"triggered_by,notnull"`
-	WorkflowRequestJson          string       `sql:"workflow_request_json,notnull"`
-	WorkflowRequestSchemaVersion string       `sql:"workflow_request_schema_version"`
+	tableName                    struct{}           `sql:"workflow_config_snapshot" pg:",discard_unknown_columns"`
+	Id                           int                `sql:"id,pk"`
+	WorkflowId                   int                `sql:"workflow_id,notnull"`
+	WorkflowType                 types.WorkflowType `sql:"workflow_type,notnull"`
+	PipelineId                   int                `sql:"pipeline_id,notnull"`
+	WorkflowRequestJson          string             `sql:"workflow_request_json,notnull"`
+	WorkflowRequestSchemaVersion string             `sql:"workflow_request_schema_version"`
 	sql.AuditLog
 }
 
@@ -58,10 +40,10 @@ type WorkflowConfigSnapshotRepository interface {
 	Update(snapshot *WorkflowConfigSnapshot) error
 	UpdateWithTx(tx *pg.Tx, snapshot *WorkflowConfigSnapshot) error
 	FindById(id int) (*WorkflowConfigSnapshot, error)
-	FindByWorkflowIdAndType(workflowId int, workflowType WorkflowType) (*WorkflowConfigSnapshot, error)
+	FindByWorkflowIdAndType(workflowId int, workflowType types.WorkflowType) (*WorkflowConfigSnapshot, error)
 	FindByPipelineId(pipelineId int, limit int, offset int) ([]*WorkflowConfigSnapshot, error)
 	FindByAppId(appId int, limit int, offset int) ([]*WorkflowConfigSnapshot, error)
-	FindLatestByPipelineIdAndType(pipelineId int, workflowType WorkflowType) (*WorkflowConfigSnapshot, error)
+	FindLatestByPipelineIdAndType(pipelineId int, workflowType types.WorkflowType) (*WorkflowConfigSnapshot, error)
 	sql.TransactionWrapper
 }
 
@@ -127,7 +109,7 @@ func (impl *WorkflowConfigSnapshotRepositoryImpl) FindById(id int) (*WorkflowCon
 	return snapshot, nil
 }
 
-func (impl *WorkflowConfigSnapshotRepositoryImpl) FindByWorkflowIdAndType(workflowId int, workflowType WorkflowType) (*WorkflowConfigSnapshot, error) {
+func (impl *WorkflowConfigSnapshotRepositoryImpl) FindByWorkflowIdAndType(workflowId int, workflowType types.WorkflowType) (*WorkflowConfigSnapshot, error) {
 	snapshot := &WorkflowConfigSnapshot{}
 	err := impl.dbConnection.Model(snapshot).
 		Where("workflow_id = ?", workflowId).
@@ -170,7 +152,7 @@ func (impl *WorkflowConfigSnapshotRepositoryImpl) FindByAppId(appId int, limit i
 	return snapshots, nil
 }
 
-func (impl *WorkflowConfigSnapshotRepositoryImpl) FindLatestByPipelineIdAndType(pipelineId int, workflowType WorkflowType) (*WorkflowConfigSnapshot, error) {
+func (impl *WorkflowConfigSnapshotRepositoryImpl) FindLatestByPipelineIdAndType(pipelineId int, workflowType types.WorkflowType) (*WorkflowConfigSnapshot, error) {
 	snapshot := &WorkflowConfigSnapshot{}
 	err := impl.dbConnection.Model(snapshot).
 		Where("pipeline_id = ?", pipelineId).
