@@ -33,7 +33,6 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"path"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"time"
 )
@@ -325,9 +324,4 @@ func (impl *HandlerServiceImpl) UpdateHelmRelease(ctx context.Context, fluxCdSpe
 		return nil, fmt.Errorf("failed to update HelmRelease: %w", err)
 	}
 	return existing, nil
-}
-
-func getValuesFileArr(chartLocation, valuesFilePath string) []string {
-	//order matters here, last file will override previous file
-	return []string{path.Join(chartLocation, "values.yaml"), path.Join(chartLocation, valuesFilePath)}
 }

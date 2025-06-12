@@ -54,6 +54,7 @@ import (
 	read2 "github.com/devtron-labs/devtron/pkg/cluster/read"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	adapter2 "github.com/devtron-labs/devtron/pkg/deployment/common/adapter"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	errors4 "github.com/devtron-labs/devtron/pkg/deployment/common/errors"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
@@ -91,6 +92,7 @@ import (
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -530,8 +532,9 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 		return nil, err
 	}
 
+	isGitopsConfiguredAndFluxCDRequest := gitOpsConfigurationStatus.IsGitOpsConfigured && pipelineCreateRequest.Pipelines[0].DeploymentAppType == clutserBean.PIPELINE_DEPLOYMENT_TYPE_FLUX
 	// TODO: creating git repo for all apps irrespective of acd or helm
-	if gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled() &&
+	if (gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled() || isGitopsConfiguredAndFluxCDRequest) &&
 		impl.IsGitOpsRequiredForCD(pipelineCreateRequest) { //TODO: ayush revisit
 
 		if gitOps.IsGitOpsRepoNotConfigured(appDeploymentConfig.GetRepoURL()) {
@@ -549,10 +552,12 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 				impl.logger.Errorw("error in creating git repo", "err", err)
 				return nil, fmt.Errorf("Create GitOps repository error: %s", err.Error())
 			}
-			err = impl.RegisterInACD(ctx, chartGitAttr, pipelineCreateRequest.UserId)
-			if err != nil {
-				impl.logger.Errorw("error in registering app in acd", "err", err)
-				return nil, err
+			if pipelineCreateRequest.Pipelines[0].IsAcdDeploymentAppType() {
+				err = impl.RegisterInACD(ctx, chartGitAttr, pipelineCreateRequest.UserId)
+				if err != nil {
+					impl.logger.Errorw("error in registering app in acd", "err", err)
+					return nil, err
+				}
 			}
 			// below function will update gitRepoUrl for charts if user has not already provided gitOps repoURL
 			appDeploymentConfig, err = impl.chartService.ConfigureGitOpsRepoUrlForApp(pipelineCreateRequest.AppId, chartGitAttr.RepoUrl, chartGitAttr.ChartLocation, false, pipelineCreateRequest.UserId)
@@ -581,6 +586,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 				Active:            true,
 			}
 			var releaseConfig *bean4.ReleaseConfiguration
+			//TODO: abstract below code into function for getting release config
 			if pipeline.IsExternalArgoAppLinkRequest() {
 				releaseConfig, err = impl.parseReleaseConfigForExternalAcdApp(pipeline.ApplicationObjectClusterId, pipeline.ApplicationObjectNamespace, pipeline.DeploymentAppName)
 				if err != nil {
@@ -592,6 +598,13 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 				releaseConfig, err = impl.parseReleaseConfigForACDApp(app, appDeploymentConfig, env)
 				if err != nil {
 					impl.logger.Errorw("error in parsing deployment config for acd app", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
+					return nil, err
+				}
+				envDeploymentConfig.ConfigType = appDeploymentConfig.ConfigType
+			} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_FLUX {
+				releaseConfig, err = impl.parseReleaseConfigForFluxApp(app, appDeploymentConfig, env)
+				if err != nil {
+					impl.logger.Errorw("error in parsing deployment config for helm app", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
 					return nil, err
 				}
 				envDeploymentConfig.ConfigType = appDeploymentConfig.ConfigType
@@ -684,6 +697,50 @@ func (impl *CdPipelineConfigServiceImpl) parseReleaseConfigForACDApp(app *app2.A
 			},
 		},
 	}, nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) parseReleaseConfigForFluxApp(app *app2.App, appDeploymentConfig *bean4.DeploymentConfig, env *repository6.Environment) (*bean4.ReleaseConfiguration, error) {
+
+	envOverride, err := impl.envConfigOverrideService.FindLatestChartForAppByAppIdAndEnvId(app.Id, env.Id)
+	if err != nil && !errors2.IsNotFound(err) {
+		impl.logger.Errorw("error in fetch")
+		return nil, err
+	}
+	var latestChart *chartRepoRepository.Chart
+	if !envOverride.IsOverridden() {
+		latestChart, err = impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		//if chart is overrides in env, it means it may have different version than app level.
+		latestChart = envOverride.Chart
+	}
+	chartRefId := latestChart.ChartRefId
+
+	chartRef, err := impl.chartRefReadService.FindById(chartRefId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching chart", "chartRefId", chartRefId, "err", err)
+		return nil, err
+	}
+
+	activeGitOpsConfig, err := impl.gitOpsConfigReadService.GetGitOpsConfigActive()
+	if err != nil {
+		impl.logger.Errorw("error in fetching active gitops config", "err", err)
+		return nil, err
+	}
+
+	chartLocation := filepath.Join(chartRef.Location, latestChart.ChartVersion)
+	deploymentAppName := fmt.Sprintf("%s-%s", app.AppName, env.Name)
+	secretName := fmt.Sprintf("devtron-flux-secret-%d", activeGitOpsConfig.Id)
+	valuesFileArr := getValuesFileArr(chartLocation, fmt.Sprintf("_%d-values.yaml", env.Id))
+
+	return adapter2.NewFluxSpecReleaseConfig(env.ClusterId, env.Namespace, deploymentAppName, deploymentAppName, secretName, chartLocation, latestChart.ChartVersion, globalUtil.GetDefaultTargetRevision(), appDeploymentConfig.GetRepoURL(), valuesFileArr), nil
+}
+
+func getValuesFileArr(chartLocation, valuesFilePath string) []string {
+	//order matters here, last file will override previous file
+	return []string{path.Join(chartLocation, "values.yaml"), path.Join(chartLocation, valuesFilePath)}
 }
 
 func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ExternalAppLinkValidationResponse {
@@ -2061,7 +2118,9 @@ func (impl *CdPipelineConfigServiceImpl) IsGitOpsRequiredForCD(pipelineCreateReq
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 		if pipeline.EnvironmentId > 0 &&
 			pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD &&
-			!pipeline.IsExternalArgoAppLinkRequest() {
+			!pipeline.IsExternalArgoAppLinkRequest() &&
+			pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_FLUX &&
+			!pipeline.IsExternalFluxAppLinkRequest() {
 			haveAtLeastOneGitOps = true
 		}
 	}
