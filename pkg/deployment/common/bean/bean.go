@@ -18,6 +18,14 @@ const (
 type ReleaseConfiguration struct {
 	Version    ReleaseConfigVersion `json:"version"`
 	ArgoCDSpec ArgoCDSpec           `json:"argoCDSpec"`
+	FluxCDSpec FluxCDSpec           `json:"fluxCDSpec"`
+}
+
+type FluxCDSpec struct {
+	Namespace         string `json:"namespace"`
+	GitRepositoryName string `json:"gitRepositoryName"`
+	HelmReleaseName   string `json:"helmReleaseName"`
+	GitOpsSecretName  string `json:"gitOpsSecretName"`
 }
 
 type ArgoCDSpec struct {
