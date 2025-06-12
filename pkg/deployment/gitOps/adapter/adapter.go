@@ -37,7 +37,7 @@ func GetGitOpsConfigBean(model *repository.GitOpsConfig) *apiGitOpsBean.GitOpsCo
 		BitBucketWorkspaceId:  model.BitBucketWorkspaceId,
 		BitBucketProjectKey:   model.BitBucketProjectKey,
 		AllowCustomRepository: model.AllowCustomRepository,
-		EnableTLSVerification: true,
+		EnableTLSVerification: model.EnableTLSVerification,
 		TLSConfig: &apiBean.TLSConfig{
 			CaData:      model.CaCert,
 			TLSCertData: model.TlsCert,

@@ -19,7 +19,6 @@ package config
 import (
 	"errors"
 	"fmt"
-	bean3 "github.com/devtron-labs/devtron/api/bean"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -27,6 +26,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config/bean"
+	gitAdapter "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/adapter"
+	gitBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	moduleBean "github.com/devtron-labs/devtron/pkg/module/bean"
 	moduleRead "github.com/devtron-labs/devtron/pkg/module/read"
 	moduleErr "github.com/devtron-labs/devtron/pkg/module/read/error"
@@ -49,6 +50,7 @@ type GitOpsConfigReadService interface {
 	GetConfiguredGitOpsCount() (int, error)
 	GetGitOpsProviderByRepoURL(gitRepoUrl string) (*bean2.GitOpsConfigDto, error)
 	GetGitOpsById(id int) (*bean2.GitOpsConfigDto, error)
+	GetGitConfig() (*gitBean.GitConfig, error)
 }
 
 type GitOpsConfigReadServiceImpl struct {
@@ -211,25 +213,14 @@ func (impl *GitOpsConfigReadServiceImpl) GetGitOpsById(id int) (*bean2.GitOpsCon
 		impl.logger.Errorw("error, GetGitOpsConfigById", "id", id, "err", err)
 		return nil, err
 	}
-	config := &bean2.GitOpsConfigDto{
-		Id:                    model.Id,
-		Provider:              model.Provider,
-		GitHubOrgId:           model.GitHubOrgId,
-		GitLabGroupId:         model.GitLabGroupId,
-		Active:                model.Active,
-		Token:                 model.Token,
-		Host:                  model.Host,
-		Username:              model.Username,
-		UserId:                model.CreatedBy,
-		AzureProjectName:      model.AzureProject,
-		BitBucketWorkspaceId:  model.BitBucketWorkspaceId,
-		BitBucketProjectKey:   model.BitBucketProjectKey,
-		AllowCustomRepository: model.AllowCustomRepository,
-		TLSConfig: &bean3.TLSConfig{
-			CaData:      model.CaCert,
-			TLSCertData: model.TlsCert,
-			TLSKeyData:  model.TlsKey,
-		},
+	return adapter.GetGitOpsConfigBean(model), err
+}
+
+func (impl *GitOpsConfigReadServiceImpl) GetGitConfig() (*gitBean.GitConfig, error) {
+	gitOpsConfig, err := impl.GetGitOpsConfigActive()
+	if err != nil {
+		impl.logger.Errorw("error while fetching gitops config", "err", err)
+		return nil, err
 	}
-	return config, err
+	return gitAdapter.ConvertGitOpsConfigToGitConfig(gitOpsConfig), err
 }

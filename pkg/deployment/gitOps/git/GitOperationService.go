@@ -43,7 +43,9 @@ import (
 
 type GitOperationService interface {
 	CreateGitRepositoryForDevtronApp(ctx context.Context, gitOpsRepoName string, targetRevision string, userId int32) (chartGitAttribute *commonBean.ChartGitAttribute, err error)
-	CreateReadmeInGitRepo(ctx context.Context, gitOpsRepoName string, targetRevision string, userId int32) error
+	// CreateFirstCommitOnHead - creates the first commit on the head of the git repository (mostly empty).
+	// To register the git repository in ArgoCD, there should be a commit HEAD on the default branch.
+	CreateFirstCommitOnHead(ctx context.Context, gitOpsRepoName string, userId int32) error
 	GitPull(clonedDir string, repoUrl string, targetRevision string) error
 
 	CommitValues(ctx context.Context, chartGitAttr *ChartConfig) (commitHash string, commitTime time.Time, err error)
@@ -210,7 +212,7 @@ func (impl *GitOperationServiceImpl) updateRepoAndPushAllChanges(ctx context.Con
 	return commit, nil
 }
 
-func (impl *GitOperationServiceImpl) CreateReadmeInGitRepo(ctx context.Context, gitOpsRepoName string, targetRevision string, userId int32) error {
+func (impl *GitOperationServiceImpl) CreateFirstCommitOnHead(ctx context.Context, gitOpsRepoName string, userId int32) error {
 	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(userId)
 	gitOpsConfig, err := impl.gitOpsConfigReadService.GetGitOpsConfigActive()
 	if err != nil {
@@ -222,11 +224,10 @@ func (impl *GitOperationServiceImpl) CreateReadmeInGitRepo(ctx context.Context, 
 		gitOpsConfig.UserEmailId = userEmailId
 		gitOpsConfig.Username = userName
 		gitOpsConfig.GitRepoName = gitOpsRepoName
-		gitOpsConfig.TargetRevision = targetRevision
 	}
-	_, err = impl.gitFactory.Client.CreateReadme(ctx, gitOpsConfig)
+	_, err = impl.gitFactory.Client.CreateFirstCommitOnHead(ctx, gitOpsConfig)
 	if err != nil {
-		impl.logger.Errorw("error in creating readme", "err", err, "gitOpsRepoName", gitOpsRepoName, "userId", userId)
+		impl.logger.Errorw("error in creating readme", "gitOpsRepoName", gitOpsRepoName, "userId", userId, "err", err)
 		return err
 	}
 	return nil
@@ -299,7 +300,7 @@ func (impl *GitOperationServiceImpl) CreateRepository(ctx context.Context, dto *
 	repoUrl, isNew, isEmpty, detailedError := impl.gitFactory.Client.CreateRepository(ctx, dto)
 	for _, err := range detailedError.StageErrorMap {
 		if err != nil {
-			impl.logger.Errorw("error in creating git project", "err", err, "req", dto)
+			impl.logger.Errorw("error in creating git project", "req", dto, "err", err)
 			return "", false, false, err
 		}
 	}
@@ -337,12 +338,12 @@ func (impl *GitOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(ctx context
 	}
 	err = impl.addConfigFileToChart(requirementsConfig, dir, clonedDir)
 	if err != nil {
-		impl.logger.Errorw("error in adding requirements.yaml to chart", "err", err, "appName", pushChartToGitRequest.AppName)
+		impl.logger.Errorw("error in adding requirements.yaml to chart", "appName", pushChartToGitRequest.AppName, "err", err)
 		return nil, "", err
 	}
 	err = impl.addConfigFileToChart(valuesConfig, dir, clonedDir)
 	if err != nil {
-		impl.logger.Errorw("error in adding values.yaml to chart", "err", err, "appName", pushChartToGitRequest.AppName)
+		impl.logger.Errorw("error in adding values.yaml to chart", "appName", pushChartToGitRequest.AppName, "err", err)
 		return nil, "", err
 	}
 	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(pushChartToGitRequest.UserId)
@@ -352,7 +353,7 @@ func (impl *GitOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(ctx context
 		impl.logger.Warn("re-trying, taking pull and then push again")
 		err = impl.GitPull(clonedDir, pushChartToGitRequest.RepoURL, pushChartToGitRequest.TargetRevision)
 		if err != nil {
-			impl.logger.Errorw("error in git pull", "err", err, "appName", gitOpsChartLocation)
+			impl.logger.Errorw("error in git pull", "appName", gitOpsChartLocation, "err", err)
 			return nil, "", err
 		}
 		err = dirCopy.Copy(pushChartToGitRequest.TempChartRefDir, dir)

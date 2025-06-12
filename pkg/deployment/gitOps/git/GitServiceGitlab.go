@@ -317,6 +317,10 @@ func (impl GitLabClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl stri
 	return "", isRepoEmpty, nil
 }
 
+func (impl GitLabClient) CreateFirstCommitOnHead(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
+	return impl.CreateReadme(ctx, config)
+}
+
 func (impl GitLabClient) CreateReadme(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
 	var err error
 	start := time.Now()
@@ -378,7 +382,7 @@ func (impl GitLabClient) CommitValues(ctx context.Context, config *ChartConfig, 
 	c, httpRes, err := impl.client.Commits.CreateCommit(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath,
 		config.ChartRepoName), actions, gitlab.WithContext(ctx))
 	if err != nil && httpRes != nil && httpRes.StatusCode == http.StatusBadRequest {
-		impl.logger.Warn("conflict found in commit gitlab", "err", err, "config", config)
+		impl.logger.Warnw("conflict found in commit gitlab", "config", config, "err", err)
 		if publishStatusConflictError {
 			util.TriggerGitOpsMetrics("CommitValues", "GitLabClient", start, err)
 		}
