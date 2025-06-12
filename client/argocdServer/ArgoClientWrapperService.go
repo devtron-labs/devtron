@@ -531,7 +531,8 @@ func (impl *ArgoClientWrapperServiceImpl) createRepoInArgoCd(ctx context.Context
 // isRetryableArgoRepoCreationError returns whether to retry or not, based on the error returned from callback func
 // In createRepoInArgoCd, we will retry only if the error matches to bean.ArgoRepoSyncDelayErr
 func (impl *ArgoClientWrapperServiceImpl) isRetryableArgoRepoCreationError(argoCdErr error) bool {
-	return strings.Contains(argoCdErr.Error(), bean.ArgoRepoSyncDelayErr)
+	return strings.Contains(argoCdErr.Error(), bean.ArgoRepoSyncDelayErr) ||
+		strings.Contains(argoCdErr.Error(), bean.ArgoRepoSyncDelayErrOld)
 }
 
 // handleArgoRepoCreationError - manages the error thrown while performing createRepoInArgoCd
