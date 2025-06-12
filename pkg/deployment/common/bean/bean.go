@@ -25,7 +25,13 @@ type FluxCDSpec struct {
 	Namespace         string `json:"namespace"`
 	GitRepositoryName string `json:"gitRepositoryName"`
 	HelmReleaseName   string `json:"helmReleaseName"`
-	GitOpsSecretName  string `json:"gitOpsSecretName"`
+	GitOpsSecretName  string `json:"gitOpsSecretName"` //fmt.Sprintf("devtron-flux-secret-%d", gitOpsConfig.Id)
+
+	ChartLocation  string   `json:"chartLocation"`
+	ChartVersion   string   `json:"chartVersion"`
+	RevisionTarget string   `json:"revisionTarget"`
+	RepoUrl        string   `json:"repoUrl"`
+	ValuesFiles    []string `json:"valuesFiles"` //getValuesFileArr
 }
 
 type ArgoCDSpec struct {
