@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/common-lib/async"
 	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/common-lib/utils/workFlow"
 	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
@@ -1321,7 +1322,9 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForFluxDeployment
 	wfr.Message = fluxAppDetail.FluxAppStatusDetail.Message
 	switch fluxAppDetail.FluxAppStatusDetail.Reason {
 	case bean8.InstallSucceededReason, bean8.UpgradeSucceededReason, bean8.TestSucceededReason, bean8.RollbackSucceededReason:
-		wfr.Status = cdWorkflow2.WorkflowSucceeded
+		if fluxAppDetail.AppHealthStatus == commonBean.HealthStatusHealthy {
+			wfr.Status = cdWorkflow2.WorkflowSucceeded
+		}
 	case bean8.UpgradeFailedReason,
 		bean8.TestFailedReason,
 		bean8.RollbackFailedReason,

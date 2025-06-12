@@ -631,8 +631,12 @@ func (impl *WorkflowStatusServiceImpl) CheckFluxAppStatusPeriodicallyAndUpdateIn
 			continue
 		}
 
-		wfr.UpdatedBy = 1
-		wfr.UpdatedOn = time.Now()
+		wfr.UpdateAuditLog(1)
+		err = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(wfr)
+		if err != nil {
+			impl.logger.Errorw("error on update cd workflow runner", "wfr", wfr, "err", err)
+			return err
+		}
 
 		if wfr.Status == cdWorkflow2.WorkflowFailed {
 			err = impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineFailed(wfr.RefCdWorkflowRunnerId, "Deployment failed")
@@ -642,11 +646,7 @@ func (impl *WorkflowStatusServiceImpl) CheckFluxAppStatusPeriodicallyAndUpdateIn
 			}
 			impl.deploymentEventHandler.WriteCDNotificationEventAsync(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride, util.Fail)
 		}
-		err = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(wfr)
-		if err != nil {
-			impl.logger.Errorw("error on update cd workflow runner", "wfr", wfr, "err", err)
-			return err
-		}
+
 		appId := wfr.CdWorkflow.Pipeline.AppId
 		envId := wfr.CdWorkflow.Pipeline.EnvironmentId
 		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
