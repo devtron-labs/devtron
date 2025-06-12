@@ -1,16 +1,19 @@
-# Base Image
-FROM php:7-apache
+# Using latest stable PHP with Apache (8.3)
+FROM php:8.3-apache
 
-# Enabling modules from /etc/apache2/mods-available to /etc/apache2/mods-enabled 
+# Enable apache mod_rewrite
 RUN a2enmod rewrite
 
-# Restarting apache2 server
-RUN /etc/init.d/apache2 restart
+# Create non-root user with UID/GID 2002 and set ownership
+RUN groupadd -g 2002 nonroot && \
+    useradd -u 2002 -g nonroot -m nonroot && \
+    chown -R nonroot:www-data /var/www/html
 
-# Giving ownship of html dir to www-data user
-RUN chown -R www-data:www-data /var/www/html
+# Copy application source code
+COPY --chown=nonroot:www-data . /var/www/html/
 
+# Switch to non-root user for security
+USER nonroot
 
-# Copy application source
-COPY . /var/www/html/
-
+# Apache runs as www-data internally, so no need to restart here
+# CMD is inherited from base image and will run apache2 in foreground by default

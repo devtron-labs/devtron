@@ -1,36 +1,47 @@
-# Base Image
-From node:12.18.1
+# Use a minimal Node.js base image
+FROM node:22-alpine
 
-# Seeting up env as production
+# Set environment for production
 ENV NODE_ENV=production
 
-#Getting System Ready to install dependencies
-RUN apt-get clean \
-    && apt-get -y update
-    
-# Installing nginx
-RUN apt-get -y install nginx \
-    && apt-get -y install python3-dev \
-    && apt-get -y install build-essential
+# Install necessary packages: nginx only
+RUN apk update && apk add --no-cache nginx
 
-# Creating symbolic link for access and error log from nginx
-RUN ln -sf /dev/stdout /var/log/nginx/access.log \
-    && ln -sf /dev/stderr /var/log/nginx/error.log
-
-
-# Making /app dir as working dir
+# Set working directory
 WORKDIR /app
 
-# Adding complete files and dirs in app dir in container
-ADD . /app/
+# Copy only package files first to install dependencies
+COPY package*.json ./
 
-# Refer https://raw.githubusercontent.com/devtron-labs/devtron/main/sample-docker-templates/node/nginx.default for sample nginx.default
-COPY nginx.default /etc/nginx/sites-available/default
 
-# Installing dependencies
-RUN npm install --production
-RUN npm i -g pm2
+# Install production dependencies
+RUN npm install --prefer-offline --no-audit && \
+    npm i -g pm2
 
-# Starting Server
-CMD ["sh", "-c", "service nginx start ; pm2-runtime src/index.js -i 0"]
+# Now copy the rest of the source
+COPY . .
 
+# Main global config
+COPY nginx.conf /etc/nginx/nginx.conf
+
+# Default server/site config
+COPY nginx-default.conf /etc/nginx/http.d/default.conf
+
+# Create non-root user and set permissions
+RUN addgroup -g 2002 nonroot && \
+    adduser -u 2002 -G nonroot -S nonroot && \
+    mkdir -p /var/lib/nginx/tmp/client_body && \
+    chown -R nonroot:nonroot /app /var/log/nginx /var/lib/nginx
+
+# Expose port 8080
+EXPOSE 8080
+
+# Switch to non-root user
+USER nonroot
+
+# Link logs to stdout/stderr
+RUN ln -sf /dev/stdout /var/log/nginx/access.log && \
+    ln -sf /dev/stderr /var/log/nginx/error.log
+
+# Start your app listening on port 8080 
+CMD ["sh", "-c", "nginx && pm2-runtime src/index.js -i 0 --port=8080"]
