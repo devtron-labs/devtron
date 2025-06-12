@@ -37,7 +37,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean/common"
 	buildCommonBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
-	bean5 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	adapter2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
@@ -61,7 +60,7 @@ import (
 	"time"
 )
 
-func (impl *HandlerServiceImpl) TriggerPreStage(request bean.TriggerRequest) (*bean6.ManifestPushTemplate, error) {
+func (impl *HandlerServiceImpl) TriggerPreStage(request bean.CdTriggerRequest) (*bean6.ManifestPushTemplate, error) {
 	request.WorkflowType = apiBean.CD_WORKFLOW_TYPE_PRE
 	// setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
@@ -123,30 +122,25 @@ func (impl *HandlerServiceImpl) TriggerPreStage(request bean.TriggerRequest) (*b
 		impl.logger.Errorw("error, checkVulnerabilityStatusAndFailWfIfNeeded", "err", err, "runner", runner)
 		return nil, err
 	}
-	_, span := otel.Tracer("orchestrator").Start(ctx, "buildWFRequest")
-	cdStageWorkflowRequest, err := impl.buildWFRequest(runner, cdWf, pipeline, envDeploymentConfig, triggeredBy)
-	span.End()
-	if err != nil {
-		return impl.buildWfRequestErrorHandler(runner, err, triggeredBy)
-	}
-	cdStageWorkflowRequest.StageType = types.PRE
-	// handling copyContainerImage plugin specific logic
-	imagePathReservationIds, err := impl.setCopyContainerImagePluginDataAndReserveImages(cdStageWorkflowRequest, pipeline.Id, types.PRE, artifact)
-	if err != nil {
-		runner.Status = cdWorkflow.WorkflowFailed
-		runner.Message = err.Error()
-		runner.FinishedOn = time.Now()
-		_ = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(runner)
-		return nil, err
-	} else {
-		runner.ImagePathReservationIds = imagePathReservationIds
-		_ = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(runner)
-	}
 
-	_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowService.SubmitWorkflow")
-	cdStageWorkflowRequest.Pipeline = pipeline
-	cdStageWorkflowRequest.Env = env
-	cdStageWorkflowRequest.Type = pipelineConfigBean.CD_WORKFLOW_PIPELINE_TYPE
+	var cdStageWorkflowRequest *types.WorkflowRequest
+	if request.IsRetrigger {
+		// Retrieve workflow request from snapshot
+		workflowRequest, err := impl.workflowTriggerAuditService.GetWorkflowRequestFromSnapshotForRetrigger(runner.Id, types.PRE_CD_WORKFLOW_TYPE)
+		if err != nil {
+			impl.logger.Errorw("error retrieving workflow request from snapshot for pre cd stage type", "cdWorkflowId", runner.CdWorkflow.Id, "err", err)
+			return nil, err
+		}
+		cdStageWorkflowRequest = workflowRequest
+		// Update dynamic fields in the workflow request for retrigger
+		impl.updateWorkflowRequestForCdRetrigger(cdStageWorkflowRequest, runner)
+	} else {
+		cdStageWorkflowRequest, err = impl.getPrePostCdStageWorkflowRequest(ctx, runner, cdWf, pipeline, env, artifact, types.PRE, triggeredBy)
+		if err != nil {
+			return impl.buildWfRequestErrorHandler(runner, err, triggeredBy)
+		}
+	}
+	_, span := otel.Tracer("orchestrator").Start(ctx, "cdWorkflowService.SubmitWorkflow")
 	_, jobHelmPackagePath, err := impl.workflowService.SubmitWorkflow(cdStageWorkflowRequest)
 	span.End()
 	if err != nil {
@@ -177,6 +171,45 @@ func (impl *HandlerServiceImpl) TriggerPreStage(request bean.TriggerRequest) (*b
 	return manifestPushTemplate, nil
 }
 
+// updateWorkflowRequestForCdRetrigger updates dynamic fields in workflow request for CD retrigger
+func (impl *HandlerServiceImpl) updateWorkflowRequestForCdRetrigger(workflowRequest *types.WorkflowRequest, newRunner *pipelineConfig.CdWorkflowRunner) {
+	// update workflow-specific dynamic fields
+	workflowRequest.WorkflowId = newRunner.CdWorkflowId
+	workflowRequest.WorkflowRunnerId = newRunner.Id
+	workflowRequest.WorkflowNamePrefix = fmt.Sprintf("%d-%s", newRunner.Id, newRunner.Name)
+	workflowRequest.TriggeredBy = bean7.SYSTEM_USER_ID
+}
+
+func (impl *HandlerServiceImpl) getPrePostCdStageWorkflowRequest(ctx context.Context, runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow,
+	pipeline *pipelineConfig.Pipeline, env *repository4.Environment, artifact *repository.CiArtifact, stageType string, triggeredBy int32) (*types.WorkflowRequest, error) {
+
+	_, span := otel.Tracer("orchestrator").Start(ctx, "buildWFRequest")
+	cdStageWorkflowRequest, err := impl.buildWFRequest(runner, cdWf, pipeline, triggeredBy)
+	span.End()
+	if err != nil {
+		impl.logger.Errorw("error in building workflow request for pre/post stage", "runner", runner, "err", err)
+		return nil, err
+	}
+	cdStageWorkflowRequest.StageType = stageType
+	// handling copyContainerImage plugin specific logic
+	imagePathReservationIds, err := impl.setCopyContainerImagePluginDataAndReserveImages(cdStageWorkflowRequest, pipeline.Id, stageType, artifact)
+	if err != nil {
+		runner.Status = cdWorkflow.WorkflowFailed
+		runner.Message = err.Error()
+		runner.FinishedOn = time.Now()
+		_ = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(runner)
+		return nil, err
+	} else {
+		runner.ImagePathReservationIds = imagePathReservationIds
+		_ = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(runner)
+	}
+
+	cdStageWorkflowRequest.Pipeline = pipeline
+	cdStageWorkflowRequest.Env = env
+	cdStageWorkflowRequest.Type = pipelineConfigBean.CD_WORKFLOW_PIPELINE_TYPE
+	return cdStageWorkflowRequest, nil
+}
+
 func (impl *HandlerServiceImpl) TriggerAutoCDOnPreStageSuccess(triggerContext bean.TriggerContext, cdPipelineId, ciArtifactId, workflowId int) error {
 	pipeline, err := impl.pipelineRepository.FindById(cdPipelineId)
 	if err != nil {
@@ -200,7 +233,7 @@ func (impl *HandlerServiceImpl) TriggerAutoCDOnPreStageSuccess(triggerContext be
 			return nil
 		}
 
-		triggerRequest := bean.TriggerRequest{
+		triggerRequest := bean.CdTriggerRequest{
 			CdWf:           cdWorkflow,
 			Pipeline:       pipeline,
 			Artifact:       ciArtifact,
@@ -228,7 +261,7 @@ func (impl *HandlerServiceImpl) checkDeploymentTriggeredAlready(wfId int) bool {
 	return deploymentTriggeredAlready
 }
 
-func (impl *HandlerServiceImpl) createStartingWfAndRunner(request bean.TriggerRequest, triggeredAt time.Time) (*pipelineConfig.CdWorkflow, *pipelineConfig.CdWorkflowRunner, error) {
+func (impl *HandlerServiceImpl) createStartingWfAndRunner(request bean.CdTriggerRequest, triggeredAt time.Time) (*pipelineConfig.CdWorkflow, *pipelineConfig.CdWorkflowRunner, error) {
 	triggeredBy := request.TriggeredBy
 	artifact := request.Artifact
 	pipeline := request.Pipeline
@@ -269,10 +302,13 @@ func (impl *HandlerServiceImpl) createStartingWfAndRunner(request bean.TriggerRe
 	if err != nil {
 		return nil, nil, err
 	}
+	runner.CdWorkflow = cdWf
+	runner.CdWorkflow.CiArtifact = artifact
+	runner.CdWorkflow.Pipeline = pipeline
 	return cdWf, runner, nil
 }
 
-func (impl *HandlerServiceImpl) getEnvAndNsIfRunStageInEnv(ctx context.Context, request bean.TriggerRequest) (*repository4.Environment, string, error) {
+func (impl *HandlerServiceImpl) getEnvAndNsIfRunStageInEnv(ctx context.Context, request bean.CdTriggerRequest) (*repository4.Environment, string, error) {
 	workflowStage := request.WorkflowType
 	pipeline := request.Pipeline
 	var env *repository4.Environment
@@ -442,7 +478,7 @@ func (impl *HandlerServiceImpl) getDockerTagAndCustomTagIdForPlugin(pipelineStag
 	return DockerImageTag, customTagId, nil
 }
 
-func (impl *HandlerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, envDeploymentConfig *bean5.DeploymentConfig, triggeredBy int32) (*types.WorkflowRequest, error) {
+func (impl *HandlerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) (*types.WorkflowRequest, error) {
 	if cdPipeline.App.Id == 0 {
 		appModel, err := impl.appRepository.FindById(cdPipeline.AppId)
 		if err != nil {

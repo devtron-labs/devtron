@@ -42,6 +42,9 @@ type WorkflowConfigSnapshotRepository interface {
 	FindByPipelineId(pipelineId int, limit int, offset int) ([]*WorkflowConfigSnapshot, error)
 	FindByAppId(appId int, limit int, offset int) ([]*WorkflowConfigSnapshot, error)
 	FindLatestByPipelineIdAndType(pipelineId int, workflowType types.WorkflowType) (*WorkflowConfigSnapshot, error)
+	// New methods for retrigger functionality
+	FindLatestByWorkflowIdAndType(workflowId int, workflowType types.WorkflowType) (*WorkflowConfigSnapshot, error)
+	FindLatestFailedWorkflowSnapshot(workflowId int, workflowType types.WorkflowType) (*WorkflowConfigSnapshot, error)
 	sql.TransactionWrapper
 }
 
@@ -142,6 +145,39 @@ func (impl *WorkflowConfigSnapshotRepositoryImpl) FindLatestByPipelineIdAndType(
 		Select()
 	if err != nil {
 		impl.logger.Errorw("error in finding latest workflow config snapshot by pipeline id and type", "err", err, "pipelineId", pipelineId, "workflowType", workflowType)
+		return snapshot, err
+	}
+	return snapshot, nil
+}
+
+// FindLatestByWorkflowIdAndType finds the latest workflow config snapshot by workflow ID and type
+func (impl *WorkflowConfigSnapshotRepositoryImpl) FindLatestByWorkflowIdAndType(workflowId int, workflowType types.WorkflowType) (*WorkflowConfigSnapshot, error) {
+	snapshot := &WorkflowConfigSnapshot{}
+	err := impl.dbConnection.Model(snapshot).
+		Where("workflow_id = ?", workflowId).
+		Where("workflow_type = ?", workflowType).
+		Order("created_on DESC").
+		Limit(1).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in finding latest workflow config snapshot by workflow id and type", "err", err, "workflowId", workflowId, "workflowType", workflowType)
+		return snapshot, err
+	}
+	return snapshot, nil
+}
+
+// FindLatestFailedWorkflowSnapshot finds the latest failed workflow snapshot for retrigger
+// This method looks for the original workflow that failed, not the retrigger attempts
+func (impl *WorkflowConfigSnapshotRepositoryImpl) FindLatestFailedWorkflowSnapshot(workflowId int, workflowType types.WorkflowType) (*WorkflowConfigSnapshot, error) {
+	snapshot := &WorkflowConfigSnapshot{}
+	err := impl.dbConnection.Model(snapshot).
+		Where("workflow_id = ?", workflowId).
+		Where("workflow_type = ?", workflowType).
+		//Order("created_on DESC").
+		//Limit(1).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in finding latest failed workflow config snapshot", "err", err, "workflowId", workflowId, "workflowType", workflowType)
 		return snapshot, err
 	}
 	return snapshot, nil

@@ -23,19 +23,19 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
-	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"time"
 )
 
-func (impl *HandlerServiceImpl) TriggerPostStage(request bean.TriggerRequest) (*bean4.ManifestPushTemplate, error) {
+func (impl *HandlerServiceImpl) TriggerPostStage(request bean.CdTriggerRequest) (*bean4.ManifestPushTemplate, error) {
 	request.WorkflowType = bean2.CD_WORKFLOW_TYPE_POST
 	// setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
 	triggeredBy := request.TriggeredBy
 	pipeline := request.Pipeline
+	artifact := request.Artifact
 	cdWf := request.CdWf
 	ctx := context.Background() //before there was only one context. To check why here we are not using ctx from request.TriggerContext
 	env, namespace, err := impl.getEnvAndNsIfRunStageInEnv(ctx, request)
@@ -104,25 +104,24 @@ func (impl *HandlerServiceImpl) TriggerPostStage(request bean.TriggerRequest) (*
 		impl.logger.Errorw("error, checkVulnerabilityStatusAndFailWfIfNeeded", "err", err, "runner", runner)
 		return nil, err
 	}
-	cdStageWorkflowRequest, err := impl.buildWFRequest(runner, cdWf, pipeline, envDevploymentConfig, triggeredBy)
-	if err != nil {
-		return impl.buildWfRequestErrorHandler(runner, err, triggeredBy)
-	}
-	cdStageWorkflowRequest.StageType = types.POST
-	cdStageWorkflowRequest.Pipeline = pipeline
-	cdStageWorkflowRequest.Env = env
-	cdStageWorkflowRequest.Type = bean3.CD_WORKFLOW_PIPELINE_TYPE
-	// handling plugin specific logic
 
-	pluginImagePathReservationIds, err := impl.setCopyContainerImagePluginDataAndReserveImages(cdStageWorkflowRequest, pipeline.Id, types.POST, cdWf.CiArtifact)
-	if err != nil {
-		runner.Status = cdWorkflow.WorkflowFailed
-		runner.Message = err.Error()
-		runner.FinishedOn = time.Now()
-		_ = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(runner)
-		return nil, err
+	var cdStageWorkflowRequest *types.WorkflowRequest
+	if request.IsRetrigger {
+		// Retrieve workflow request from snapshot
+		workflowRequest, err := impl.workflowTriggerAuditService.GetWorkflowRequestFromSnapshotForRetrigger(runner.Id, types.POST_CD_WORKFLOW_TYPE)
+		if err != nil {
+			impl.logger.Errorw("error retrieving workflow request from snapshot for post cd workflow type", "cdWorkflowId", runner.CdWorkflow.Id, "err", err)
+			return nil, err
+		}
+		cdStageWorkflowRequest = workflowRequest
+		// Update dynamic fields in the workflow request for retrigger
+		impl.updateWorkflowRequestForCdRetrigger(cdStageWorkflowRequest, runner)
+	} else {
+		cdStageWorkflowRequest, err = impl.getPrePostCdStageWorkflowRequest(ctx, runner, cdWf, pipeline, env, artifact, types.POST, triggeredBy)
+		if err != nil {
+			return impl.buildWfRequestErrorHandler(runner, err, triggeredBy)
+		}
 	}
-
 	_, jobHelmPackagePath, err := impl.workflowService.SubmitWorkflow(cdStageWorkflowRequest)
 	if err != nil {
 		impl.logger.Errorw("error in submitting workflow", "err", err, "workflowId", cdStageWorkflowRequest.WorkflowId, "pipeline", pipeline, "env", env)
@@ -137,20 +136,9 @@ func (impl *HandlerServiceImpl) TriggerPostStage(request bean.TriggerRequest) (*
 		impl.logger.Errorw("error in getting manifest push template", "err", err)
 		return nil, err
 	}
-	wfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(context.Background(), cdWf.Id, bean2.CD_WORKFLOW_TYPE_POST)
-	if err != nil {
-		impl.logger.Errorw("error in getting wfr by workflowId and runnerType", "err", err, "wfId", cdWf.Id)
-		return nil, err
-	}
-	wfr.ImagePathReservationIds = pluginImagePathReservationIds
-	err = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(&wfr)
-	if err != nil {
-		impl.logger.Error("error in updating image path reservation ids in cd workflow runner", "err", "err")
-	}
-
 	event, _ := impl.eventFactory.Build(util2.Trigger, &pipeline.Id, pipeline.AppId, &pipeline.EnvironmentId, util2.CD)
-	impl.logger.Debugw("event Cd Post Trigger", "event", event)
-	event = impl.eventFactory.BuildExtraCDData(event, &wfr, 0, bean2.CD_WORKFLOW_TYPE_POST)
+	impl.logger.Debugw("event Cd Post CiTriggerRequest", "event", event)
+	event = impl.eventFactory.BuildExtraCDData(event, runner, 0, bean2.CD_WORKFLOW_TYPE_POST)
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
 		impl.logger.Errorw("CD trigger event not sent", "error", evtErr)
