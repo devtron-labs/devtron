@@ -1,6 +1,7 @@
 package read
 
 import (
+	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	"github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -12,6 +13,7 @@ type ClusterReadService interface {
 	FindById(id int) (*bean.ClusterBean, error)
 	FindOne(clusterName string) (*bean.ClusterBean, error)
 	FindByClusterURL(clusterURL string) (*bean.ClusterBean, error)
+	GetClusterConfigByClusterId(clusterId int) (*k8s.ClusterConfig, error)
 }
 
 type ClusterReadServiceImpl struct {
@@ -25,6 +27,17 @@ func NewClusterReadServiceImpl(logger *zap.SugaredLogger,
 		logger:            logger,
 		clusterRepository: clusterRepository,
 	}
+}
+
+func (impl *ClusterReadServiceImpl) GetClusterConfigByClusterId(clusterId int) (*k8s.ClusterConfig, error) {
+	clusterBean, err := impl.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting clusterBean by cluster id", "err", err, "clusterId", clusterId)
+		return nil, err
+	}
+	rq := *clusterBean
+	clusterConfig := rq.GetClusterConfig()
+	return clusterConfig, nil
 }
 
 func (impl *ClusterReadServiceImpl) IsClusterReachable(clusterId int) (bool, error) {
