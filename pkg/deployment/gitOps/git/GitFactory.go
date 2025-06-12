@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/adapter"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
@@ -29,9 +30,14 @@ import (
 )
 
 type GitFactory struct {
-	Client       GitOpsClient
-	GitOpsHelper *GitOpsHelper
-	logger       *zap.SugaredLogger
+	Client          GitOpsClient
+	GitOpsHelper    *GitOpsHelper
+	logger          *zap.SugaredLogger
+	ClientHelperMap map[string]*ClientHelperObject
+}
+
+type ClientHelperObject struct {
+	Config *bean.GitConfig
 }
 
 func (factory *GitFactory) Reload(gitOpsConfigReadService config.GitOpsConfigReadService) error {
@@ -41,16 +47,34 @@ func (factory *GitFactory) Reload(gitOpsConfigReadService config.GitOpsConfigRea
 		util.TriggerGitOpsMetrics("Reload", "GitService", start, err)
 	}()
 	factory.logger.Infow("reloading gitops details")
-	cfg, err := GetGitConfig(gitOpsConfigReadService)
+	cfgs, err := GetGitConfigAll(gitOpsConfigReadService)
 	if err != nil {
 		return err
 	}
-	factory.GitOpsHelper.SetAuth(cfg.GetAuth())
-	client, err := NewGitOpsClient(cfg, factory.logger, factory.GitOpsHelper)
-	if err != nil {
-		return err
+	//bearer := getBearer(cfg)
+	//factory.GitOpsHelper.SetAuth(cfg.GetAuth(bearer))
+	//factory.GitOpsHelper.SetSShHost(cfg.SshHost)
+	//client, err := NewGitOpsClient(cfg, factory.logger, factory.GitOpsHelper)
+	//if err != nil {
+	//	return err
+	//}
+	clientHelperMap := make(map[string]*ClientHelperObject, len(cfgs))
+	for _, cfg := range cfgs {
+		gitOpsHelper := NewGitOpsHelperImpl(cfg.GetAuth(), factory.logger, cfg.GetTLSConfig(), cfg.EnableTLSVerification)
+		client, clientCreationError := NewGitOpsClient(cfg, factory.logger, gitOpsHelper)
+		if clientCreationError != nil && cfg.IsActiveConfig { // only passing error in case of active config
+			return err
+		}
+		host := cfg.GitHost
+		clientHelperMap[host] = &ClientHelperObject{
+			Config: cfg,
+		}
+		if cfg.IsActiveConfig { //also setting in old client and gitOps helper with active config
+			factory.Client = client
+			factory.GitOpsHelper = gitOpsHelper
+		}
 	}
-	factory.Client = client
+	factory.ClientHelperMap = clientHelperMap
 	factory.logger.Infow(" gitops details reload success")
 	return nil
 }
@@ -109,18 +133,28 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *gitOps.GitOpsCon
 }
 
 func NewGitFactory(logger *zap.SugaredLogger, gitOpsConfigReadService config.GitOpsConfigReadService) (*GitFactory, error) {
-	cfg, err := GetGitConfig(gitOpsConfigReadService)
+	//cfg, err := GetGitConfig(gitOpsConfigReadService)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//gitOpsHelper := NewGitOpsHelperImpl(cfg.GetAuth(), logger, cfg.GetTLSConfig(), cfg.EnableTLSVerification)
+	//client, err := NewGitOpsClient(cfg, logger, gitOpsHelper)
+	//if err != nil {
+	//	logger.Errorw("error in creating gitOps client", "err", err, "gitProvider", cfg.GitProvider)
+	//}
+	//return &GitFactory{
+	//	Client:       client,
+	//	logger:       logger,
+	//	GitOpsHelper: gitOpsHelper,
+	//}, nil
+
+	factory := &GitFactory{
+		logger: logger,
+	}
+	err := factory.Reload(gitOpsConfigReadService)
 	if err != nil {
+		logger.Errorw("error NewGitFactory", "err", err)
 		return nil, err
 	}
-	gitOpsHelper := NewGitOpsHelperImpl(cfg.GetAuth(), logger, cfg.GetTLSConfig(), cfg.EnableTLSVerification)
-	client, err := NewGitOpsClient(cfg, logger, gitOpsHelper)
-	if err != nil {
-		logger.Errorw("error in creating gitOps client", "err", err, "gitProvider", cfg.GitProvider)
-	}
-	return &GitFactory{
-		Client:       client,
-		logger:       logger,
-		GitOpsHelper: gitOpsHelper,
-	}, nil
+	return factory, nil
 }
