@@ -22,6 +22,7 @@ import (
 	errors3 "errors"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/devtron-labs/common-lib/utils/k8s"
 	commonBean2 "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
@@ -84,6 +85,8 @@ import (
 	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/beHelper"
 	"github.com/devtron-labs/devtron/util/rbac"
+	helmv2 "github.com/fluxcd/helm-controller/api/v2"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	"github.com/go-pg/pg"
 	errors2 "github.com/juju/errors"
 	"go.opentelemetry.io/otel"
@@ -91,9 +94,11 @@ import (
 	chart2 "helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"net/http"
 	"path"
 	"path/filepath"
+	controllerClient "sigs.k8s.io/controller-runtime/pkg/client"
 	"strconv"
 	"strings"
 	"time"
@@ -197,6 +202,7 @@ type CdPipelineConfigServiceImpl struct {
 	installedAppReadService           installedAppReader.InstalledAppReadService
 	chartReadService                  read3.ChartReadService
 	helmAppReadService                read4.HelmAppReadService
+	K8sUtil                           *k8s.K8sServiceImpl
 }
 
 func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -230,7 +236,8 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 	clusterReadService read2.ClusterReadService,
 	installedAppReadService installedAppReader.InstalledAppReadService,
 	chartReadService read3.ChartReadService,
-	helmAppReadService read4.HelmAppReadService) *CdPipelineConfigServiceImpl {
+	helmAppReadService read4.HelmAppReadService,
+	K8sUtil *k8s.K8sServiceImpl) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
 		logger:                            logger,
 		pipelineRepository:                pipelineRepository,
@@ -276,6 +283,7 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 		installedAppReadService:           installedAppReadService,
 		chartReadService:                  chartReadService,
 		helmAppReadService:                helmAppReadService,
+		K8sUtil:                           K8sUtil,
 	}
 }
 
@@ -1532,6 +1540,14 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 				}
 				impl.logger.Infow("app deleted from argocd", "id", pipeline.Id, "pipelineName", pipeline.Name, "app", deploymentAppName)
 			}
+		} else if util.IsFluxApp(envDeploymentConfig.DeploymentAppType) {
+			err = impl.DeleteFluxTypePipelineDeploymentApp(ctx, envDeploymentConfig)
+			if err != nil {
+				impl.logger.Errorw("error, DeleteFluxTypePipelineDeploymentApp", "err", err, "pipelineId", pipeline.Id)
+				if !forceDelete {
+					return deleteResponse, err
+				}
+			}
 		} else if util.IsHelmApp(envDeploymentConfig.DeploymentAppType) {
 			err = impl.DeleteHelmTypePipelineDeploymentApp(ctx, forceDelete, pipeline)
 			if err != nil {
@@ -1549,6 +1565,54 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 	deleteResponse.DeleteInitiated = true
 	impl.pipelineConfigEventPublishService.PublishCDPipelineDelete(pipeline.Id, userId)
 	return deleteResponse, nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) DeleteFluxTypePipelineDeploymentApp(ctx context.Context, envDeploymentConfig *bean4.DeploymentConfig) error {
+	fluxCdSpec := envDeploymentConfig.ReleaseConfiguration.FluxCDSpec
+	clusterId := fluxCdSpec.ClusterId
+	namespace := fluxCdSpec.Namespace
+	clusterConfig, err := impl.clusterReadService.GetClusterConfigByClusterId(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster", "clusterId", clusterId, "error", err)
+		return err
+	}
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config", "clusterId", clusterId, "err", err)
+		return err
+	}
+	apiClient, err := controllerClient.New(restConfig, controllerClient.Options{})
+	if err != nil {
+		impl.logger.Errorw("error in creating k8s client", "clusterId", clusterId, "err", err)
+		return err
+	}
+	name, namespace := fluxCdSpec.GitRepositoryName, fluxCdSpec.Namespace
+	key := types.NamespacedName{Name: name, Namespace: namespace}
+
+	existingHelmRelease := &helmv2.HelmRelease{}
+	err = apiClient.Get(ctx, key, existingHelmRelease)
+	if err != nil {
+		impl.logger.Errorw("error in getting helm release", "key", key, "err", err)
+		return err
+	}
+	err = apiClient.Delete(ctx, existingHelmRelease)
+	if err != nil {
+		impl.logger.Errorw("error in deleting helm release", "key", key, "err", err)
+		return err
+	}
+
+	existingGitRepository := &sourcev1.GitRepository{}
+	err = apiClient.Get(ctx, key, existingGitRepository)
+	if err != nil {
+		impl.logger.Errorw("error in getting git repository", "key", key, "err", err)
+		return err
+	}
+	err = apiClient.Delete(ctx, existingGitRepository)
+	if err != nil {
+		impl.logger.Errorw("error in deleting git repository", "name", name, "namespace", namespace, "err", err)
+		return err
+	}
+	return nil
 }
 
 func (impl *CdPipelineConfigServiceImpl) DeleteHelmTypePipelineDeploymentApp(ctx context.Context, forceDelete bool, pipeline *pipelineConfig.Pipeline) error {

@@ -68,13 +68,13 @@ func (impl *HandlerServiceImpl) deployFluxCdApp(ctx context.Context, overrideReq
 	}
 	//create/update gitOps secret
 	if valuesOverrideResponse.Pipeline == nil || !valuesOverrideResponse.Pipeline.DeploymentAppCreated {
-		err := impl.createFluxCdApp(newCtx, overrideRequest, valuesOverrideResponse, gitOpsSecret.GetName(), apiClient)
+		err := impl.createFluxCdApp(newCtx, valuesOverrideResponse, gitOpsSecret.GetName(), apiClient)
 		if err != nil {
 			impl.logger.Errorw("error in creating flux-cd application", "err", err)
 			return err
 		}
 	} else {
-		err := impl.updateFluxCdApp(newCtx, overrideRequest, valuesOverrideResponse, gitOpsSecret.GetName(), apiClient)
+		err := impl.updateFluxCdApp(newCtx, valuesOverrideResponse, gitOpsSecret.GetName(), apiClient)
 		if err != nil {
 			impl.logger.Errorw("error in updating flux-cd application", "err", err)
 			return err
@@ -152,26 +152,25 @@ func (impl *HandlerServiceImpl) upsertGitRepoSecret(ctx context.Context, repoUrl
 	return updatedSecret, nil
 }
 
-func (impl *HandlerServiceImpl) createFluxCdApp(ctx context.Context, overrideRequest *bean3.ValuesOverrideRequest,
-	valuesOverrideResponse *app.ValuesOverrideResponse, gitOpsSecretName string, apiClient client.Client) error {
+func (impl *HandlerServiceImpl) createFluxCdApp(ctx context.Context, valuesOverrideResponse *app.ValuesOverrideResponse,
+	gitOpsSecretName string, apiClient client.Client) error {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "HandlerServiceImpl.createFluxCdApp")
 	defer span.End()
-	deploymentAppName := valuesOverrideResponse.Pipeline.DeploymentAppName
 	manifestPushTemplate := valuesOverrideResponse.ManifestPushTemplate
-	_, err := impl.CreateGitRepository(newCtx, deploymentAppName, overrideRequest.Namespace, gitOpsSecretName,
-		manifestPushTemplate.RepoUrl, '', apiClient)
+	fluxCdSpec := valuesOverrideResponse.DeploymentConfig.ReleaseConfiguration.FluxCDSpec
+	_, err := impl.CreateGitRepository(newCtx, fluxCdSpec, gitOpsSecretName, manifestPushTemplate, apiClient)
 	if err != nil {
-		impl.logger.Errorw("error in creating git repository", "name", deploymentAppName, "namespace", overrideRequest.Namespace, "err", err)
+		impl.logger.Errorw("error in creating git repository", "fluxCdSpec", fluxCdSpec, "err", err)
 		return err
 	}
 
-	_, err = impl.CreateHelmRelease(newCtx, deploymentAppName, overrideRequest.Namespace, manifestPushTemplate, apiClient)
+	_, err = impl.CreateHelmRelease(newCtx, fluxCdSpec, manifestPushTemplate, apiClient)
 	if err != nil {
-		impl.logger.Errorw("error in creating helm release", "name", deploymentAppName, "namespace", overrideRequest.Namespace, "err", err)
+		impl.logger.Errorw("error in creating helm release", "fluxCdSpec", fluxCdSpec, "err", err)
 		return err
 	}
 
-	err = impl.updateReleaseSpecForDeploymentConfiguration(valuesOverrideResponse.DeploymentConfig, deploymentAppName, overrideRequest.Namespace,
+	err = impl.updateReleaseSpecForDeploymentConfiguration(valuesOverrideResponse.DeploymentConfig, deploymentAppName,,
 		gitOpsSecretName, overrideRequest.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in updating release spec", "deploymentConfig", valuesOverrideResponse.DeploymentConfig, "err", err)
@@ -191,13 +190,13 @@ func (impl *HandlerServiceImpl) updateReleaseSpecForDeploymentConfiguration(depl
 	return nil
 }
 
-func (impl *HandlerServiceImpl) updateFluxCdApp(ctx context.Context, overrideRequest *bean3.ValuesOverrideRequest,
-	valuesOverrideResponse *app.ValuesOverrideResponse, gitOpsSecretName string, apiClient client.Client) error {
+func (impl *HandlerServiceImpl) updateFluxCdApp(ctx context.Context, valuesOverrideResponse *app.ValuesOverrideResponse,
+	gitOpsSecretName string, apiClient client.Client) error {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "HandlerServiceImpl.updateFluxCdApp")
 	defer span.End()
 	manifestPushTemplate := valuesOverrideResponse.ManifestPushTemplate
 	fluxCdSpec := valuesOverrideResponse.DeploymentConfig.ReleaseConfiguration.FluxCDSpec
-	_, err := impl.UpdateGitRepository(newCtx, fluxCdSpec, manifestPushTemplate, gitOpsSecretName, '', apiClient)
+	_, err := impl.UpdateGitRepository(newCtx, fluxCdSpec, manifestPushTemplate, gitOpsSecretName, apiClient)
 	if err != nil {
 		impl.logger.Errorw("error in updating git repository", "fluxCdSpec", fluxCdSpec, "err", err)
 		return err
@@ -211,7 +210,8 @@ func (impl *HandlerServiceImpl) updateFluxCdApp(ctx context.Context, overrideReq
 	return nil
 }
 
-func (impl *HandlerServiceImpl) CreateGitRepository(ctx context.Context, name, namespace, secretName, repoURL, branchName string, apiClient client.Client) (*sourcev1.GitRepository, error) {
+func (impl *HandlerServiceImpl) CreateGitRepository(ctx context.Context, fluxCdSpec bean.FluxCDSpec, secretName string, manifestPushTemplate *bean2.ManifestPushTemplate,  apiClient client.Client) (*sourcev1.GitRepository, error) {
+	name, namespace := fluxCdSpec.GitRepositoryName, fluxCdSpec.Namespace
 	gitRepo := &sourcev1.GitRepository{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -219,12 +219,12 @@ func (impl *HandlerServiceImpl) CreateGitRepository(ctx context.Context, name, n
 		},
 		Spec: sourcev1.GitRepositorySpec{
 			Interval: metav1.Duration{Duration: gitRepositoryReconcileInterval},
-			URL:      repoURL,
+			URL:      manifestPushTemplate.RepoUrl,
 			SecretRef: &meta.LocalObjectReference{
 				Name: secretName,
 			},
 			Reference: &sourcev1.GitRepositoryRef{
-				Branch: branchName,
+				Branch: manifestPushTemplate.TargetRevision,
 			},
 		},
 	}
@@ -237,7 +237,7 @@ func (impl *HandlerServiceImpl) CreateGitRepository(ctx context.Context, name, n
 }
 
 func (impl *HandlerServiceImpl) UpdateGitRepository(ctx context.Context, fluxCdSpec bean.FluxCDSpec, manifestPushTemplate *bean2.ManifestPushTemplate,
-	secretName, branchName string, apiClient client.Client) (*sourcev1.GitRepository, error) {
+	secretName string, apiClient client.Client) (*sourcev1.GitRepository, error) {
 	name, namespace := fluxCdSpec.GitRepositoryName, fluxCdSpec.Namespace
 	key := types.NamespacedName{Name: name, Namespace: namespace}
 	existing := &sourcev1.GitRepository{}
@@ -250,7 +250,7 @@ func (impl *HandlerServiceImpl) UpdateGitRepository(ctx context.Context, fluxCdS
 	existing.Spec.URL = manifestPushTemplate.RepoUrl
 	existing.Spec.Interval = metav1.Duration{Duration: gitRepositoryReconcileInterval}
 	existing.Spec.SecretRef = &meta.LocalObjectReference{Name: secretName}
-	existing.Spec.Reference = &sourcev1.GitRepositoryRef{Branch: branchName}
+	existing.Spec.Reference = &sourcev1.GitRepositoryRef{Branch: manifestPushTemplate.TargetRevision}
 
 	err = apiClient.Update(ctx, existing)
 	if err != nil {
@@ -260,8 +260,9 @@ func (impl *HandlerServiceImpl) UpdateGitRepository(ctx context.Context, fluxCdS
 	return existing, nil
 }
 
-func (impl *HandlerServiceImpl) CreateHelmRelease(ctx context.Context, name, namespace string,
+func (impl *HandlerServiceImpl) CreateHelmRelease(ctx context.Context, fluxCdSpec bean.FluxCDSpec,
 	manifestPushTemplate *bean2.ManifestPushTemplate, apiClient client.Client) (*helmv2.HelmRelease, error) {
+	name, namespace := fluxCdSpec.GitRepositoryName, fluxCdSpec.Namespace
 	helmRelease := &helmv2.HelmRelease{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
