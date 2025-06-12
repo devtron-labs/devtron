@@ -87,6 +87,7 @@ message FluxAppDetail{
   FluxAppStatusDetail FluxAppStatusDetail = 2;
   ResourceTreeResponse resourceTreeResponse =3;
   string applicationStatus = 4;
+  string lastObservedGeneration = 5;
 }
 
 message FluxAppStatusDetail{
