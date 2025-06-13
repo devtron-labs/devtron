@@ -246,7 +246,11 @@ func (impl *ServiceImpl) FetchResourceTree(ctx context.Context, appId int, envId
 		}
 		resourceTree = util2.InterfaceToMapAdapter(detail.ResourceTreeResponse)
 		applicationStatus := detail.AppHealthStatus
-		resourceTree["status"] = applicationStatus
+		if detail != nil && detail.ResourceTreeResponse != nil && len(detail.ResourceTreeResponse.Nodes) == 0 {
+			resourceTree["status"] = k8sCommonBean.HealthStatusUnknown
+		} else {
+			resourceTree["status"] = applicationStatus
+		}
 	} else {
 		impl.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", cdPipeline.DeploymentAppName, "env", cdPipeline.Environment.Name)
 	}
