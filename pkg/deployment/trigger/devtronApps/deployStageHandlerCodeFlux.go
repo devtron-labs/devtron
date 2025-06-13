@@ -276,6 +276,9 @@ func (impl *HandlerServiceImpl) CreateHelmRelease(ctx context.Context, fluxCdSpe
 		},
 		Spec: helmv2.HelmReleaseSpec{
 			Interval: metav1.Duration{Duration: helmReleaseReconcileInterval}, //TODO
+			DriftDetection: &helmv2.DriftDetection{
+				Mode: helmv2.DriftDetectionEnabled,
+			},
 			Chart: &helmv2.HelmChartTemplate{
 				Spec: helmv2.HelmChartTemplateSpec{
 					ReconcileStrategy: "Revision",
@@ -309,6 +312,9 @@ func (impl *HandlerServiceImpl) UpdateHelmRelease(ctx context.Context, fluxCdSpe
 	if err != nil {
 		impl.logger.Errorw("error in getting helm release", "name", name, "namespace", namespace, "err", err)
 		return nil, fmt.Errorf("failed to get HelmRelease: %w", err)
+	}
+	existing.Spec.DriftDetection = &helmv2.DriftDetection{
+		Mode: helmv2.DriftDetectionEnabled,
 	}
 	existing.Spec.Interval = metav1.Duration{Duration: helmReleaseReconcileInterval}
 	existing.Spec.Chart = &helmv2.HelmChartTemplate{
