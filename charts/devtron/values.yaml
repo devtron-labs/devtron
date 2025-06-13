@@ -8,6 +8,18 @@ global:
     runAsUser: 1000
     runAsNonRoot: true
   containerRegistry: "quay.io/devtron"
+  # External Database Configurations
+  externalPostgres:
+    enabled: false
+    # Password for external database (ensure that username is postgres).
+    PG_PASSWORD: ""
+    # For external Database replace the PG_ADDR with the DNS endpoint of postgres.
+    PG_ADDR: ""
+  dbConfig:
+    PG_ADDR: postgresql-postgresql.devtroncd
+    PG_PORT: "5432"
+    PG_USER: postgres
+    PG_DATABASE: orchestrator
   # The below values can be specified both at global as well as component level
   # nodeSelector:
   #   key: value
@@ -102,6 +114,8 @@ components:
       runAsUser: 1001
     serviceMonitor:
       enabled: false
+    # Add annotations for devtron serviceAccount. 
+    annotations: {}
     service:
       type: LoadBalancer
       port: 80
@@ -124,6 +138,8 @@ components:
   ciRunner:
     registry: ""
     image: "ci-runner:da156379-138-32911"
+    # Add annotations for ci-runner & cd-runner serviceAccount. 
+    annotations: {}
   argocdDexServer:
     registry: ""
     image: "dex:v2.30.2"
@@ -149,11 +165,7 @@ components:
       USE_CUSTOM_HTTP_TRANSPORT: "true"
       NATS_MSG_PROCESSING_BATCH_SIZE: "1"
       NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
-      PG_ADDR: postgresql-postgresql.devtroncd
-      PG_DATABASE: orchestrator
       PG_LOG_QUERY: "true"
-      PG_PORT: "5432"
-      PG_USER: postgres
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
@@ -170,11 +182,7 @@ components:
       ACD_NAMESPACE: "devtroncd"
       ACD_INFORMER: "true"
       NATS_STREAM_MAX_AGE: "10800"
-      PG_ADDR: postgresql-postgresql.devtroncd
-      PG_DATABASE: orchestrator
       PG_LOG_QUERY: "true"
-      PG_PORT: "5432"
-      PG_USER: postgres
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
@@ -197,8 +205,7 @@ components:
       volumeSize: 2Gi
     healthPort: 8080
     configs:
-      PG_ADDR: postgresql-postgresql.devtroncd
-      PG_USER: postgres
+      PG_DATABASE: git_sensor
       COMMIT_STATS_TIMEOUT_IN_SEC: "2"
       ENABLE_FILE_STATS: "true"
       USE_GIT_CLI: "true"
@@ -217,9 +224,6 @@ components:
       GIT_SENSOR_PROTOCOL: GRPC
       GIT_SENSOR_URL: git-sensor-service.devtroncd:90
       NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
-      PG_ADDR: postgresql-postgresql.devtroncd
-      PG_PORT: "5432"
-      PG_USER: postgres
       PG_DATABASE: lens
     dbconfig:
       secretName: postgresql-postgresql
@@ -246,23 +250,11 @@ components:
     kubectlImage: "kubectl:latest"
     duplicateChartImage: devtron-utils:dup-chart-repo-v1.1.0
     entMigratorImage: "devtron-utils:geni-v1.1.4"
-    configs:
-      PG_ADDR: postgresql-postgresql.devtroncd
-    envVars:
-      devtron:
-        DB_NAME: "orchestrator"
-      casbin:
-        DB_NAME: "casbin"
-      gitsensor:
-        DB_NAME: "git_sensor"
-      lens:
-        DB_NAME: "lens"
   chartSync:
     registry: ""
     image: chart-sync:da156379-836-32914
     schedule: "0 19 * * *"
-    extraConfigs:
-      PG_ADDR: postgresql-postgresql.devtroncd
+    extraConfigs: {}
     podSecurityContext:
       fsGroup: 1001
       runAsGroup: 1001
@@ -436,10 +428,6 @@ notifier:
   image: "notifier:99e2f3cd-372-32893"
   configs:
     CD_ENVIRONMENT: PROD
-    DB: orchestrator
-    DB_HOST: postgresql-postgresql.devtroncd
-    DB_PORT: "5432"
-    DB_USER: postgres
   secrets: {}
   healthPort: 3000
   dbconfig:
@@ -495,10 +483,7 @@ devtronEnterprise:
     imagePullPolicy: IfNotPresent
     healthPort: 8080
     configs:
-      PG_ADDR: postgresql-postgresql.devtroncd
       PG_DATABASE: casbin
-      PG_PORT: "5432"
-      PG_USER: postgres
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password

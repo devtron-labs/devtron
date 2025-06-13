@@ -963,6 +963,10 @@ metadata:
   namespace: devtron-cd
   labels:
     release: devtron
+  {{- if $.Values.components.ciRunner.annotations }}
+  annotations:
+{{ toYaml $.Values.components.ciRunner.annotations | indent 4 }}
+    {{- end }}
 {{- if $.Values.components.ciRunner.imagePullSecrets }}
 imagePullSecrets:
 {{ toYaml .Values.components.ciRunner.imagePullSecrets | indent 2 }}
@@ -978,6 +982,10 @@ metadata:
   namespace: devtron-ci
   labels:
     release: devtron
+  {{- if $.Values.components.ciRunner.annotations }}
+  annotations:
+{{ toYaml $.Values.components.ciRunner.annotations | indent 4 }}
+    {{- end }}
 {{- if $.Values.components.ciRunner.imagePullSecrets }}
 imagePullSecrets:
 {{ toYaml .Values.components.ciRunner.imagePullSecrets | indent 2 }}
