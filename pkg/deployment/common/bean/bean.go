@@ -5,6 +5,7 @@ import (
 	apiGitOpsBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/util"
 	globalUtil "github.com/devtron-labs/devtron/util"
+	"path"
 	"strconv"
 	"strings"
 )
@@ -28,11 +29,18 @@ type FluxCDSpec struct {
 	HelmReleaseName   string `json:"helmReleaseName"`
 	GitOpsSecretName  string `json:"gitOpsSecretName"` //fmt.Sprintf("devtron-flux-secret-%d", gitOpsConfig.Id)
 
-	ChartLocation  string   `json:"chartLocation"`
-	ChartVersion   string   `json:"chartVersion"`
-	RevisionTarget string   `json:"revisionTarget"`
-	RepoUrl        string   `json:"repoUrl"`
-	ValuesFiles    []string `json:"valuesFiles"` //getValuesFileArr
+	ChartLocation          string   `json:"chartLocation"`
+	ChartVersion           string   `json:"chartVersion"`
+	RevisionTarget         string   `json:"revisionTarget"`
+	RepoUrl                string   `json:"repoUrl"`
+	DevtronValueFile       string   `json:"devtronValueFile"`
+	HelmReleaseValuesFiles []string `json:"helmReleaseValuesFiles"` //getValuesFileArr
+}
+
+func (f *FluxCDSpec) GetFinalValuesFilePathArray() []string {
+	//here our understanding is that devtron will always commit at chartLocation/devtronValueFile path
+	//and apart from this there might be some other value files too, that are required for the chart to function
+	return append(f.HelmReleaseValuesFiles, path.Join(f.ChartLocation, f.DevtronValueFile))
 }
 
 type ArgoCDSpec struct {
@@ -259,7 +267,7 @@ func (d *DeploymentConfig) GetTargetRevision() string {
 func (d *DeploymentConfig) GetValuesFilePathForCommit() string {
 	if d.IsFluxRelease() && d.ReleaseConfiguration != nil {
 		// We will commit values in last file of array
-		return d.ReleaseConfiguration.FluxCDSpec.ValuesFiles[len(d.ReleaseConfiguration.FluxCDSpec.ValuesFiles)-1]
+		return d.ReleaseConfiguration.FluxCDSpec.DevtronValueFile
 	}
 	if d.ReleaseConfiguration == nil || d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil {
 		return ""

@@ -84,6 +84,7 @@ func NewPipelineStatusTimelineServiceImpl(logger *zap.SugaredLogger,
 }
 
 type PipelineTimelineDetailDto struct {
+	DeploymentAppType          string                       `json:"deploymentAppType"`
 	DeploymentStartedOn        time.Time                    `json:"deploymentStartedOn"`
 	DeploymentFinishedOn       time.Time                    `json:"deploymentFinishedOn"`
 	TriggeredBy                string                       `json:"triggeredBy"`
@@ -242,7 +243,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 	var timelineDtos []*PipelineStatusTimelineDto
 	var statusLastFetchedAt time.Time
 	var statusFetchCount int
-	if util.IsAcdApp(deploymentAppType) && showTimeline {
+	if (util.IsAcdApp(deploymentAppType) || util.IsFluxApp(deploymentAppType)) && showTimeline {
 		timelines, err := impl.pipelineStatusTimelineRepository.FetchTimelinesByWfrId(wfrId)
 		if err != nil {
 			impl.logger.Errorw("error in getting timelines by wfrId", "err", err, "wfrId", wfrId)
@@ -255,10 +256,13 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 		if len(cdWorkflowRunnerIds) == 0 {
 			return nil, err
 		}
-		timelineResourceMap, err := impl.pipelineStatusTimelineResourcesService.GetTimelineResourcesForATimeline(cdWorkflowRunnerIds)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in getting timeline resources details", "err", err)
-			return nil, err
+		timelineResourceMap := make(map[int][]*SyncStageResourceDetailDto)
+		if util.IsAcdApp(deploymentAppType) {
+			timelineResourceMap, err = impl.pipelineStatusTimelineResourcesService.GetTimelineResourcesForATimeline(cdWorkflowRunnerIds)
+			if err != nil && err != pg.ErrNoRows {
+				impl.logger.Errorw("error in getting timeline resources details", "err", err)
+				return nil, err
+			}
 		}
 		for _, timeline := range timelines {
 			timelineResourceDetails := make([]*SyncStageResourceDetailDto, 0)
@@ -281,6 +285,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 		}
 	}
 	timelineDetail := &PipelineTimelineDetailDto{
+		DeploymentAppType:          deploymentAppType,
 		TriggeredBy:                triggeredByUserEmailId,
 		DeploymentStartedOn:        deploymentStartedOn,
 		DeploymentFinishedOn:       deploymentFinishedOn,

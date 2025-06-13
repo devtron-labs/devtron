@@ -31,7 +31,9 @@ import (
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"time"
 )
@@ -64,14 +66,14 @@ func (impl *HandlerServiceImpl) deployFluxCdApp(ctx context.Context, overrideReq
 		impl.logger.Errorw("error in getting rest config", "clusterId", overrideRequest.ClusterId, "err", err)
 		return err
 	}
-	apiClient, err := client.New(restConfig, client.Options{})
+	apiClient, err := getClient(restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in creating k8s client", "clusterId", overrideRequest.ClusterId, "err", err)
 		return err
 	}
 	//create/update gitOps secret
 	if valuesOverrideResponse.Pipeline == nil || !valuesOverrideResponse.Pipeline.DeploymentAppCreated {
-		err := impl.createFluxCdApp(newCtx, valuesOverrideResponse, gitOpsSecret.GetName(), apiClient)
+		err := impl.createFluxCdApp(newCtx, valuesOverrideResponse, gitOpsSecret.GetName(), apiClient, overrideRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in creating flux-cd application", "err", err)
 			return err
@@ -84,6 +86,16 @@ func (impl *HandlerServiceImpl) deployFluxCdApp(ctx context.Context, overrideReq
 		}
 	}
 	return nil
+}
+
+func getClient(config *rest.Config) (client.Client, error) {
+	scheme := runtime.NewScheme()
+	// Register core Kubernetes types
+	_ = v1.AddToScheme(scheme)
+	// Register Flux types
+	_ = sourcev1.AddToScheme(scheme)
+	_ = helmv2.AddToScheme(scheme)
+	return client.New(config, client.Options{Scheme: scheme})
 }
 
 func (impl *HandlerServiceImpl) upsertGitRepoSecret(ctx context.Context, secretName, repoUrl, namespace string, clusterConfig *k8s.ClusterConfig) (*v1.Secret, error) {
@@ -154,7 +166,7 @@ func (impl *HandlerServiceImpl) upsertGitRepoSecret(ctx context.Context, secretN
 }
 
 func (impl *HandlerServiceImpl) createFluxCdApp(ctx context.Context, valuesOverrideResponse *app.ValuesOverrideResponse,
-	gitOpsSecretName string, apiClient client.Client) error {
+	gitOpsSecretName string, apiClient client.Client, userId int32) error {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "HandlerServiceImpl.createFluxCdApp")
 	defer span.End()
 	manifestPushTemplate := valuesOverrideResponse.ManifestPushTemplate
@@ -168,6 +180,13 @@ func (impl *HandlerServiceImpl) createFluxCdApp(ctx context.Context, valuesOverr
 	_, err = impl.CreateHelmRelease(newCtx, fluxCdSpec, manifestPushTemplate, apiClient)
 	if err != nil {
 		impl.logger.Errorw("error in creating helm release", "fluxCdSpec", fluxCdSpec, "err", err)
+		return err
+	}
+
+	//setting deploymentAppCreated = true
+	_, err = impl.updatePipeline(valuesOverrideResponse.Pipeline, userId)
+	if err != nil {
+		impl.logger.Errorw("error in update cd pipeline for deployment app created or not", "err", err)
 		return err
 	}
 
@@ -259,14 +278,15 @@ func (impl *HandlerServiceImpl) CreateHelmRelease(ctx context.Context, fluxCdSpe
 			Interval: metav1.Duration{Duration: helmReleaseReconcileInterval}, //TODO
 			Chart: &helmv2.HelmChartTemplate{
 				Spec: helmv2.HelmChartTemplateSpec{
-					Chart:   manifestPushTemplate.ChartLocation,
-					Version: manifestPushTemplate.ChartVersion,
+					ReconcileStrategy: "Revision",
+					Chart:             manifestPushTemplate.ChartLocation,
+					Version:           manifestPushTemplate.ChartVersion,
 					SourceRef: helmv2.CrossNamespaceObjectReference{
 						Kind:      sourcev1.GitRepositoryKind,
 						Name:      name, //using same name for git repository and helm release which will be = deploymentAppName
 						Namespace: namespace,
 					},
-					ValuesFiles: fluxCdSpec.ValuesFiles,
+					ValuesFiles: fluxCdSpec.GetFinalValuesFilePathArray(),
 				},
 			},
 		},
@@ -293,14 +313,15 @@ func (impl *HandlerServiceImpl) UpdateHelmRelease(ctx context.Context, fluxCdSpe
 	existing.Spec.Interval = metav1.Duration{Duration: helmReleaseReconcileInterval}
 	existing.Spec.Chart = &helmv2.HelmChartTemplate{
 		Spec: helmv2.HelmChartTemplateSpec{
-			Chart:   manifestPushTemplate.ChartLocation,
-			Version: manifestPushTemplate.ChartVersion,
+			ReconcileStrategy: "Revision",
+			Chart:             manifestPushTemplate.ChartLocation,
+			Version:           manifestPushTemplate.ChartVersion,
 			SourceRef: helmv2.CrossNamespaceObjectReference{
 				Kind:      sourcev1.GitRepositoryKind,
 				Name:      name,
 				Namespace: namespace,
 			},
-			ValuesFiles: fluxCdSpec.ValuesFiles,
+			ValuesFiles: fluxCdSpec.GetFinalValuesFilePathArray(),
 		},
 	}
 	err = apiClient.Update(ctx, existing)
