@@ -93,7 +93,6 @@ type PipelineTimelineDetailDto struct {
 	StatusFetchCount           int                          `json:"statusFetchCount"`
 	WfrStatus                  string                       `json:"wfrStatus"`
 	DeploymentAppDeleteRequest bool                         `json:"deploymentAppDeleteRequest"`
-	DeploymentAppType          string                       `json:"deploymentAppType"`
 }
 
 type PipelineStatusTimelineDto struct {
@@ -294,7 +293,6 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 		StatusFetchCount:           statusFetchCount,
 		WfrStatus:                  wfrStatus,
 		DeploymentAppDeleteRequest: wfr.CdWorkflow.Pipeline.DeploymentAppDeleteRequest,
-		DeploymentAppType:          deploymentAppType,
 	}
 	return timelineDetail, nil
 }
