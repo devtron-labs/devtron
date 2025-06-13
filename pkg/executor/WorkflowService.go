@@ -121,7 +121,7 @@ const (
 )
 
 func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *types.WorkflowRequest) (*unstructured.UnstructuredList, string, error) {
-	workflowTemplate, err := impl.createWorkflowTemplate(workflowRequest)
+	workflowTemplate, err := impl.createWorkflowTemplateAndAuditTrigger(workflowRequest)
 	if err != nil {
 		return nil, "", err
 	}
@@ -154,7 +154,7 @@ func (impl *WorkflowServiceImpl) auditTrigger(workflowRequest *types.WorkflowReq
 	return nil
 }
 
-func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.WorkflowRequest) (bean3.WorkflowTemplate, error) {
+func (impl *WorkflowServiceImpl) createWorkflowTemplateAndAuditTrigger(workflowRequest *types.WorkflowRequest) (bean3.WorkflowTemplate, error) {
 	workflowJson, err := workflowRequest.GetWorkflowJson(impl.ciCdConfig)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while getting workflow json", "err", err)
