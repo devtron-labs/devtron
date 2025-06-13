@@ -31,7 +31,9 @@ import (
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"time"
 )
@@ -64,7 +66,7 @@ func (impl *HandlerServiceImpl) deployFluxCdApp(ctx context.Context, overrideReq
 		impl.logger.Errorw("error in getting rest config", "clusterId", overrideRequest.ClusterId, "err", err)
 		return err
 	}
-	apiClient, err := client.New(restConfig, client.Options{})
+	apiClient, err := getClient(restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in creating k8s client", "clusterId", overrideRequest.ClusterId, "err", err)
 		return err
@@ -84,6 +86,16 @@ func (impl *HandlerServiceImpl) deployFluxCdApp(ctx context.Context, overrideReq
 		}
 	}
 	return nil
+}
+
+func getClient(config *rest.Config) (client.Client, error) {
+	scheme := runtime.NewScheme()
+	// Register core Kubernetes types
+	_ = v1.AddToScheme(scheme)
+	// Register Flux types
+	_ = sourcev1.AddToScheme(scheme)
+	_ = helmv2.AddToScheme(scheme)
+	return client.New(config, client.Options{Scheme: scheme})
 }
 
 func (impl *HandlerServiceImpl) upsertGitRepoSecret(ctx context.Context, secretName, repoUrl, namespace string, clusterConfig *k8s.ClusterConfig) (*v1.Secret, error) {
