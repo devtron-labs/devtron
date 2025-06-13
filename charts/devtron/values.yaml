@@ -37,8 +37,6 @@ global:
   storageClass: ""
   # Add Proxy Configs to be propagated to all the Devtron Microservices.
   configs: {}
-nfs:
-  enabled: false
 extraManifests: []
 installer:
   repo: "devtron-labs/devtron"
