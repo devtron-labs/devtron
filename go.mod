@@ -1,6 +1,6 @@
 module github.com/devtron-labs/devtron
 
-go 1.24.0
+go 1.23.4
 
 toolchain go1.24.3
 
@@ -74,9 +74,9 @@ require (
 	go.opentelemetry.io/otel/sdk v1.33.0
 	go.opentelemetry.io/otel/trace v1.33.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/crypto v0.38.0
+	golang.org/x/crypto v0.36.0
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
-	golang.org/x/mod v0.24.0
+	golang.org/x/mod v0.21.0
 	golang.org/x/oauth2 v0.27.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20241209162323-e6fa225c2576
 	google.golang.org/grpc v1.68.1
@@ -92,7 +92,7 @@ require (
 	k8s.io/kubectl v0.29.7
 	k8s.io/kubernetes v1.29.10
 	k8s.io/metrics v0.29.7
-	k8s.io/utils v0.0.0-20250321185631-1f6e0b77f77e
+	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738
 	sigs.k8s.io/yaml v1.4.0
 )
 
@@ -223,7 +223,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/skeema/knownhosts v1.3.0 // indirect
 	github.com/spf13/cobra v1.8.1 // indirect
-	github.com/spf13/pflag v1.0.6 // indirect
+	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stoewer/go-strcase v1.3.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/syndtr/goleveldb v1.0.0 // indirect
@@ -242,13 +242,13 @@ require (
 	go.opentelemetry.io/proto/otlp v1.4.0 // indirect
 	go.starlark.net v0.0.0-20230525235612-a134d8f9ddca // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/net v0.40.0 // indirect
-	golang.org/x/sync v0.14.0 // indirect
-	golang.org/x/sys v0.33.0 // indirect
-	golang.org/x/term v0.32.0 // indirect
-	golang.org/x/text v0.25.0 // indirect
+	golang.org/x/net v0.38.0 // indirect
+	golang.org/x/sync v0.12.0 // indirect
+	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/term v0.30.0 // indirect
+	golang.org/x/text v0.23.0 // indirect
 	golang.org/x/time v0.9.0 // indirect
-	golang.org/x/tools v0.32.0 // indirect
+	golang.org/x/tools v0.26.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/api v0.132.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
@@ -267,10 +267,10 @@ require (
 	k8s.io/kube-openapi v0.0.0-20250318190949-c8a335a9a2ff // indirect
 	mellium.im/sasl v0.3.2 // indirect
 	oras.land/oras-go/v2 v2.3.0 // indirect
-	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
+	sigs.k8s.io/json v0.0.0-20241010143419-9aa6b5e7a4b3 // indirect
 	sigs.k8s.io/kustomize/api v0.13.5-0.20230601165947-6ce0bf390ce3 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.17.2 // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.7.0 // indirect
+	sigs.k8s.io/structured-merge-diff/v4 v4.6.0 // indirect
 	xorm.io/builder v0.3.7 // indirect
 	xorm.io/core v0.7.2 // indirect
 	xorm.io/xorm v1.0.3 // indirect
@@ -279,7 +279,7 @@ require (
 require (
 	github.com/docker/distribution v2.8.2+incompatible
 	github.com/fluxcd/helm-controller/api v1.3.0
-	github.com/fluxcd/pkg/apis/meta v1.12.0
+	github.com/fluxcd/pkg/apis/meta v1.13.0
 	github.com/fluxcd/source-controller/api v1.6.0
 	sigs.k8s.io/controller-runtime v0.21.0
 )
@@ -308,8 +308,8 @@ require (
 	github.com/aws/smithy-go v1.22.2 // indirect
 	github.com/dlclark/regexp2 v1.11.2 // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
-	github.com/fluxcd/pkg/apis/acl v0.7.0 // indirect
-	github.com/fluxcd/pkg/apis/kustomize v1.10.0 // indirect
+	github.com/fluxcd/pkg/apis/acl v0.6.0 // indirect
+	github.com/fluxcd/pkg/apis/kustomize v1.9.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
@@ -319,6 +319,9 @@ replace (
 	github.com/argoproj/argo-workflows/v3 v3.5.13 => github.com/devtron-labs/argo-workflows/v3 v3.5.13
 	github.com/devtron-labs/authenticator => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250604112749-a4fc904430f9
 	github.com/devtron-labs/common-lib => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250604112749-a4fc904430f9
+	github.com/fluxcd/helm-controller/api => github.com/fluxcd/helm-controller/api v1.2.0
+	github.com/fluxcd/pkg/apis/meta => github.com/fluxcd/pkg/apis/meta v1.10.0
+	github.com/fluxcd/source-controller/api => github.com/fluxcd/source-controller/api v1.5.0
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.5.5
 	k8s.io/api => k8s.io/api v0.29.7
@@ -347,7 +350,6 @@ replace (
 	k8s.io/mount-utils => k8s.io/mount-utils v0.29.7
 	k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.29.7
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.29.7
-	k8s.io/utils => k8s.io/utils v0.0.0-20250321185631-1f6e0b77f77e
-	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.20.0
+	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.20.4
 	sigs.k8s.io/kustomize/api => sigs.k8s.io/kustomize/api v0.17.3
 )

@@ -70,13 +70,3 @@ func (r *RingGrowing) WriteOne(data interface{}) {
 	r.data[(r.readable+r.beg)%r.n] = data
 	r.readable++
 }
-
-// Len returns the number of items in the buffer.
-func (r *RingGrowing) Len() int {
-	return r.readable
-}
-
-// Cap returns the capacity of the buffer.
-func (r *RingGrowing) Cap() int {
-	return r.n
-}

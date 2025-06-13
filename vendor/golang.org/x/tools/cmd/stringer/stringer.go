@@ -70,6 +70,9 @@
 //	PillAspirin // Aspirin
 //
 // to suppress it in the output.
+
+//go:debug gotypesalias=0
+
 package main // import "golang.org/x/tools/cmd/stringer"
 
 import (
@@ -244,10 +247,10 @@ type Generator struct {
 	buf bytes.Buffer // Accumulated output.
 	pkg *Package     // Package we are scanning.
 
-	logf func(format string, args ...any) // test logging hook; nil when not testing
+	logf func(format string, args ...interface{}) // test logging hook; nil when not testing
 }
 
-func (g *Generator) Printf(format string, args ...any) {
+func (g *Generator) Printf(format string, args ...interface{}) {
 	fmt.Fprintf(&g.buf, format, args...)
 }
 
@@ -279,7 +282,7 @@ type Package struct {
 func loadPackages(
 	patterns, tags []string,
 	trimPrefix string, lineComment bool,
-	logf func(format string, args ...any),
+	logf func(format string, args ...interface{}),
 ) []*Package {
 	cfg := &packages.Config{
 		Mode: packages.NeedName | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedSyntax | packages.NeedFiles,
