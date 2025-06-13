@@ -336,7 +336,7 @@ func (impl *DeploymentConfigServiceImpl) UpdateChartLocationInDeploymentConfig(a
 		impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", appId, "envId", envId, "err", err)
 		return err
 	}
-	if config.ReleaseMode == util2.PIPELINE_RELEASE_MODE_CREATE && config.DeploymentAppType == bean4.PIPELINE_DEPLOYMENT_TYPE_ACD {
+	if config.ReleaseMode == util2.PIPELINE_RELEASE_MODE_CREATE && (config.IsAcdRelease() || config.IsFluxRelease()) {
 		chartRef, err := impl.chartRefRepository.FindById(chartRefId)
 		if err != nil {
 			impl.logger.Errorw("error in chartRefRepository.FindById", "chartRefId", chartRefId, "err", err)

@@ -34,7 +34,6 @@ type TriggerEvent struct {
 	PerformChartPush           bool
 	PerformDeploymentOnCluster bool
 	DeployArgoCdApp            bool
-	DeployFluxCdApp            bool
 	DeploymentAppType          string
 	ManifestStorageType        string
 	TriggeredBy                int32

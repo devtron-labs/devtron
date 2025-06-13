@@ -70,6 +70,36 @@ func GetGitConfig(gitOpsConfigReadService config.GitOpsConfigReadService) (*bean
 	return cfg, err
 }
 
+func GetGitConfigAll(gitOpsConfigReadService config.GitOpsConfigReadService) ([]*bean.GitConfig, error) {
+	gitOpsConfigs, err := gitOpsConfigReadService.GetAllGitOpsConfig()
+	if err != nil && err != pg.ErrNoRows {
+		return nil, err
+	} else if err == pg.ErrNoRows {
+		return nil, nil
+	}
+	cfgs := make([]*bean.GitConfig, 0, len(gitOpsConfigs))
+	for _, gitOpsConfig := range gitOpsConfigs {
+		cfgs = append(cfgs, &bean.GitConfig{
+			GitlabGroupId:         gitOpsConfig.GitLabGroupId,
+			GitToken:              gitOpsConfig.Token,
+			GitUserName:           gitOpsConfig.Username,
+			GithubOrganization:    gitOpsConfig.GitHubOrgId,
+			GitProvider:           gitOpsConfig.Provider,
+			GitHost:               gitOpsConfig.Host,
+			AzureToken:            gitOpsConfig.Token,
+			AzureProject:          gitOpsConfig.AzureProjectName,
+			BitbucketWorkspaceId:  gitOpsConfig.BitBucketWorkspaceId,
+			BitbucketProjectKey:   gitOpsConfig.BitBucketProjectKey,
+			IsActiveConfig:        gitOpsConfig.Active,
+			CaCert:                gitOpsConfig.TLSConfig.CaData,
+			TLSCert:               gitOpsConfig.TLSConfig.TLSCertData,
+			TLSKey:                gitOpsConfig.TLSConfig.TLSKeyData,
+			EnableTLSVerification: gitOpsConfig.EnableTLSVerification,
+		})
+	}
+	return cfgs, nil
+}
+
 func NewGitOpsClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitOpsHelper *GitOpsHelper) (GitOpsClient, error) {
 
 	var tlsConfig *tls.Config
