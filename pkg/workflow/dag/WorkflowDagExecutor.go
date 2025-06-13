@@ -1310,12 +1310,7 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForFluxDeployment
 		wfr.FinishedOn = time.Now()
 		return true
 	}
-	lastObservedRevisionSplit := strings.Split(fluxAppDetail.LastObservedVersion, ":") //master@sha1:633dc4ce8dc7463a4297481fef9457a0b97e8e68
-	var lastObservedRevision string
-	if len(lastObservedRevisionSplit) > 1 {
-		lastObservedRevision = lastObservedRevisionSplit[1]
-	}
-	if hash == lastObservedRevision {
+	if matchShortHash(fluxAppDetail.LastObservedVersion, hash) {
 		return false
 	}
 	wfr.FinishedOn = time.Now()
@@ -1334,4 +1329,26 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForFluxDeployment
 		wfr.Status = cdWorkflow2.WorkflowFailed
 	}
 	return true
+}
+
+// matchShortHash compares the short Git hash embedded in the version string
+// with the beginning of the full Git commit hash.
+//
+// version: expected format like "4.22.1+<shortHash>.<buildNumber>"
+// fullHash: expected to be a full 40-character Git commit SHA
+//
+// Returns true if the short hash is a prefix of the full hash.
+func matchShortHash(version, fullHash string) bool {
+	// Split version string at '+' to extract metadata
+	parts := strings.Split(version, "+")
+	if len(parts) < 2 {
+		return false // No metadata found
+	}
+
+	// Metadata might look like "2b6c6b2.2" → short hash + build number
+	metaParts := strings.Split(parts[1], ".")
+	shortHash := metaParts[0] // Take only the short hash before the dot
+
+	// Compare short hash with prefix of full hash
+	return strings.HasPrefix(fullHash, shortHash)
 }
