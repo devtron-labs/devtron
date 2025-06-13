@@ -73,7 +73,7 @@ func (impl *HandlerServiceImpl) deployFluxCdApp(ctx context.Context, overrideReq
 	}
 	//create/update gitOps secret
 	if valuesOverrideResponse.Pipeline == nil || !valuesOverrideResponse.Pipeline.DeploymentAppCreated {
-		err := impl.createFluxCdApp(newCtx, valuesOverrideResponse, gitOpsSecret.GetName(), apiClient)
+		err := impl.createFluxCdApp(newCtx, valuesOverrideResponse, gitOpsSecret.GetName(), apiClient, overrideRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in creating flux-cd application", "err", err)
 			return err
@@ -166,7 +166,7 @@ func (impl *HandlerServiceImpl) upsertGitRepoSecret(ctx context.Context, secretN
 }
 
 func (impl *HandlerServiceImpl) createFluxCdApp(ctx context.Context, valuesOverrideResponse *app.ValuesOverrideResponse,
-	gitOpsSecretName string, apiClient client.Client) error {
+	gitOpsSecretName string, apiClient client.Client, userId int32) error {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "HandlerServiceImpl.createFluxCdApp")
 	defer span.End()
 	manifestPushTemplate := valuesOverrideResponse.ManifestPushTemplate
@@ -180,6 +180,13 @@ func (impl *HandlerServiceImpl) createFluxCdApp(ctx context.Context, valuesOverr
 	_, err = impl.CreateHelmRelease(newCtx, fluxCdSpec, manifestPushTemplate, apiClient)
 	if err != nil {
 		impl.logger.Errorw("error in creating helm release", "fluxCdSpec", fluxCdSpec, "err", err)
+		return err
+	}
+
+	//setting deploymentAppCreated = true
+	_, err = impl.updatePipeline(valuesOverrideResponse.Pipeline, userId)
+	if err != nil {
+		impl.logger.Errorw("error in update cd pipeline for deployment app created or not", "err", err)
 		return err
 	}
 
@@ -278,7 +285,7 @@ func (impl *HandlerServiceImpl) CreateHelmRelease(ctx context.Context, fluxCdSpe
 						Name:      name, //using same name for git repository and helm release which will be = deploymentAppName
 						Namespace: namespace,
 					},
-					ValuesFiles: fluxCdSpec.ValuesFiles,
+					ValuesFiles: fluxCdSpec.GetFinalValuesFilePathArray(),
 				},
 			},
 		},
@@ -312,7 +319,7 @@ func (impl *HandlerServiceImpl) UpdateHelmRelease(ctx context.Context, fluxCdSpe
 				Name:      name,
 				Namespace: namespace,
 			},
-			ValuesFiles: fluxCdSpec.ValuesFiles,
+			ValuesFiles: fluxCdSpec.GetFinalValuesFilePathArray(),
 		},
 	}
 	err = apiClient.Update(ctx, existing)

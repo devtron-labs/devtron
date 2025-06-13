@@ -741,14 +741,15 @@ func (impl *CdPipelineConfigServiceImpl) parseReleaseConfigForFluxApp(app *app2.
 	chartLocation := filepath.Join(chartRef.Location, latestChart.ChartVersion)
 	deploymentAppName := fmt.Sprintf("%s-%s", app.AppName, env.Name)
 	secretName := fmt.Sprintf("devtron-flux-secret-%d", activeGitOpsConfig.Id)
-	valuesFileArr := getValuesFileArr(chartLocation, fmt.Sprintf("_%d-values.yaml", env.Id))
-
-	return adapter2.NewFluxSpecReleaseConfig(env.ClusterId, env.Namespace, deploymentAppName, deploymentAppName, secretName, chartLocation, latestChart.ChartVersion, globalUtil.GetDefaultTargetRevision(), appDeploymentConfig.GetRepoURL(), valuesFileArr), nil
+	valueFileNameEnv := fmt.Sprintf("_%d-values.yaml", env.Id)
+	return adapter2.NewFluxSpecReleaseConfig(env.ClusterId, env.Namespace, deploymentAppName, deploymentAppName, secretName, chartLocation,
+		latestChart.ChartVersion, globalUtil.GetDefaultTargetRevision(), appDeploymentConfig.GetRepoURL(), valueFileNameEnv, getValuesFileArrForDevtronInlineApps(chartLocation)), nil
 }
 
-func getValuesFileArr(chartLocation, valuesFilePath string) []string {
+func getValuesFileArrForDevtronInlineApps(chartLocation string) []string {
 	//order matters here, last file will override previous file
-	return []string{path.Join(chartLocation, "values.yaml"), path.Join(chartLocation, valuesFilePath)}
+	//for external flux apps this array might have some other data and we will add our devtronValueFileName (format: _{envId}-values.yaml) along with this array
+	return []string{path.Join(chartLocation, "values.yaml")}
 }
 
 func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ExternalAppLinkValidationResponse {
