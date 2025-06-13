@@ -112,7 +112,7 @@ func (impl *GitOperationServiceImpl) CreateGitRepositoryForDevtronApp(ctx contex
 }
 
 func getChartDirPathFromCloneDir(cloneDirPath string) (string, error) {
-	return filepath.Rel(GIT_WORKING_DIR, cloneDirPath)
+	return filepath.Rel(bean.GIT_WORKING_DIR, cloneDirPath)
 }
 
 func (impl *GitOperationServiceImpl) PushChartToGitRepo(ctx context.Context, gitOpsRepoName, chartLocation, tempReferenceTemplateDir, repoUrl, targetRevision string, userId int32) (err error) {
@@ -402,14 +402,14 @@ func (impl *GitOperationServiceImpl) ReloadGitOpsProvider() error {
 
 func (impl *GitOperationServiceImpl) UpdateGitHostUrlByProvider(request *apiBean.GitOpsConfigDto) error {
 	switch strings.ToUpper(request.Provider) {
-	case GITHUB_PROVIDER:
+	case bean.GITHUB_PROVIDER:
 		orgUrl, err := buildGithubOrgUrl(request.Host, request.GitHubOrgId)
 		if err != nil {
 			return err
 		}
 		request.Host = orgUrl
 
-	case GITLAB_PROVIDER:
+	case bean.GITLAB_PROVIDER:
 
 		if request.EnableTLSVerification &&
 			(request.TLSConfig == nil ||
@@ -436,7 +436,7 @@ func (impl *GitOperationServiceImpl) UpdateGitHostUrlByProvider(request *apiBean
 		} else {
 			request.Host = fmt.Sprintf(request.Host+"/%s", groupName)
 		}
-	case BITBUCKET_PROVIDER:
+	case bean.BITBUCKET_PROVIDER:
 		request.Host = BITBUCKET_CLONE_BASE_URL + request.BitBucketWorkspaceId
 	}
 	return nil

@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	apiGitOpsBean "github.com/devtron-labs/devtron/api/bean/gitOps"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	git "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/commandManager"
 	"github.com/devtron-labs/devtron/util"
 	"go.opentelemetry.io/otel"
@@ -61,7 +62,7 @@ func (impl *GitOpsHelper) GetCloneDirectory(targetDir string) (clonedDir string)
 	defer func() {
 		util.TriggerGitOpsMetrics("GetCloneDirectory", "GitService", start, nil)
 	}()
-	clonedDir = filepath.Join(GIT_WORKING_DIR, targetDir)
+	clonedDir = filepath.Join(bean2.GIT_WORKING_DIR, targetDir)
 	return clonedDir
 }
 
@@ -71,7 +72,7 @@ func (impl *GitOpsHelper) Clone(url, targetDir, targetRevision string) (clonedDi
 		util.TriggerGitOpsMetrics("Clone", "GitService", start, err)
 	}()
 	impl.logger.Debugw("git checkout ", "url", url, "dir", targetDir)
-	clonedDir = filepath.Join(GIT_WORKING_DIR, targetDir)
+	clonedDir = filepath.Join(bean2.GIT_WORKING_DIR, targetDir)
 
 	ctx := git.BuildGitContext(context.Background()).WithCredentials(impl.Auth).
 		WithTLSData(impl.tlsConfig.CaData, impl.tlsConfig.TLSKeyData, impl.tlsConfig.TLSCertData, impl.isTlsEnabled)
@@ -208,10 +209,10 @@ Case AZURE_DEVOPS_PROVIDER:
 */
 func SanitiseCustomGitRepoURL(activeGitOpsConfig *apiGitOpsBean.GitOpsConfigDto, gitRepoURL string) (sanitisedGitRepoURL string) {
 	sanitisedGitRepoURL = gitRepoURL
-	if activeGitOpsConfig.Provider == BITBUCKET_PROVIDER && strings.Contains(gitRepoURL, fmt.Sprintf("://%s@%s", activeGitOpsConfig.Username, "bitbucket.org/")) {
+	if activeGitOpsConfig.Provider == bean2.BITBUCKET_PROVIDER && strings.Contains(gitRepoURL, fmt.Sprintf("://%s@%s", activeGitOpsConfig.Username, "bitbucket.org/")) {
 		sanitisedGitRepoURL = strings.ReplaceAll(gitRepoURL, fmt.Sprintf("://%s@%s", activeGitOpsConfig.Username, "bitbucket.org/"), "://bitbucket.org/")
 	}
-	if activeGitOpsConfig.Provider == AZURE_DEVOPS_PROVIDER {
+	if activeGitOpsConfig.Provider == bean2.AZURE_DEVOPS_PROVIDER {
 		azureDevopsOrgName := activeGitOpsConfig.Host[strings.LastIndex(activeGitOpsConfig.Host, "/")+1:]
 		invalidBaseUrlFormat := fmt.Sprintf("://%s@%s", azureDevopsOrgName, "dev.azure.com/")
 		if invalidBaseUrlFormat != "" && strings.Contains(gitRepoURL, invalidBaseUrlFormat) {

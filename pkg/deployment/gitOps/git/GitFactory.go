@@ -88,7 +88,7 @@ func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *gitOps.GitOpsConfigD
 
 	var tlsConfig *tls.Config
 	if gitOpsConfig.TLSConfig != nil {
-		tlsConfig, err = util.GetTlsConfig(gitOpsConfig.TLSConfig.TLSKeyData, gitOpsConfig.TLSConfig.TLSCertData, gitOpsConfig.TLSConfig.CaData, GIT_TLS_DIR)
+		tlsConfig, err = util.GetTlsConfig(gitOpsConfig.TLSConfig.TLSKeyData, gitOpsConfig.TLSConfig.TLSCertData, gitOpsConfig.TLSConfig.CaData, bean.GIT_TLS_DIR)
 		if err != nil {
 			factory.logger.Errorw("error in getting tls config", "err", err)
 			return "", err
