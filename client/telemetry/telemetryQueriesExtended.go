@@ -1,7 +1,6 @@
 package telemetry
 
 import (
-	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	buildBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
 	chartRefBean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	pluginRepository "github.com/devtron-labs/devtron/pkg/plugin/repository"
@@ -60,22 +59,33 @@ func (impl *TelemetryEventClientImplExtended) getJobCount() int {
 }
 
 func (impl *TelemetryEventClientImplExtended) getJobPipelineTriggeredLast24h() int {
-	// Get build type and status data for the last 24 hours
-	buildTypeStatusData, err := impl.ciWorkflowRepository.FindBuildTypeAndStatusDataOfLast1Day()
+	var count int
+	query := `
+		SELECT COUNT(DISTINCT cp.id)
+		FROM ci_pipeline cp
+		INNER JOIN app a ON cp.app_id = a.id
+		INNER JOIN ci_workflow cw ON cp.id = cw.ci_pipeline_id
+		WHERE cp.active = true
+		AND cp.deleted = false
+		AND a.active = true
+		AND cp.ci_pipeline_type = ?
+		AND cw.started_on >= NOW() - INTERVAL '24 hours'
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query, buildBean.CI_JOB)
 	if err != nil {
-		impl.logger.Warnw("no build type status data available for last 24 hours")
+		impl.logger.Errorw("error getting job pipeline triggered count",
+			"err", err,
+			"query", query,
+			"pipelineType", buildBean.CI_JOB)
 		return -1
 	}
 
-	// Count job pipeline triggers
-	jobTriggeredCount := 0
-	for _, data := range buildTypeStatusData {
-		if data.Type == string(bean.SKIP_BUILD_TYPE) {
-			jobTriggeredCount += data.Count
-		}
-	}
-
-	return jobTriggeredCount
+	impl.logger.Debugw("counted job pipelines triggered in last 24h",
+		"count", count,
+		"pipelineType", buildBean.CI_JOB)
+	return count
 }
 
 func (impl *TelemetryEventClientImplExtended) getJobPipelineSucceededLast24h() int {
@@ -90,17 +100,22 @@ func (impl *TelemetryEventClientImplExtended) getJobPipelineSucceededLast24h() i
 		AND a.active = true
 		AND cp.ci_pipeline_type = ?
 		AND cw.status = 'Succeeded'
-		AND cw.created_on >= NOW() - INTERVAL '24 hours'
+		AND cw.started_on >= NOW() - INTERVAL '24 hours'
 	`
 
 	dbConnection := impl.appRepository.GetConnection()
 	_, err := dbConnection.Query(&count, query, buildBean.CI_JOB)
 	if err != nil {
-		impl.logger.Errorw("error getting job pipeline succeeded count", "err", err)
+		impl.logger.Errorw("error getting job pipeline succeeded count",
+			"err", err,
+			"query", query,
+			"pipelineType", buildBean.CI_JOB)
 		return -1
 	}
 
-	impl.logger.Debugw("counted job pipelines succeeded in last 24h", "count", count)
+	impl.logger.Debugw("counted job pipelines succeeded in last 24h",
+		"count", count,
+		"pipelineType", buildBean.CI_JOB)
 	return count
 }
 
@@ -859,5 +874,33 @@ func (impl *TelemetryEventClientImplExtended) getInternalConfigMapCount() int {
 	}
 
 	impl.logger.Debugw("counted internal configmaps", "count", count)
+	return count
+}
+
+func (impl *TelemetryEventClientImplExtended) getTotalJobPipelineCount() int {
+	var count int
+	query := `
+		SELECT COUNT(DISTINCT cp.id)
+		FROM ci_pipeline cp
+		INNER JOIN app a ON cp.app_id = a.id
+		WHERE cp.active = true
+		AND cp.deleted = false
+		AND a.active = true
+		AND cp.ci_pipeline_type = ?
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query, buildBean.CI_JOB)
+	if err != nil {
+		impl.logger.Errorw("error getting total job pipeline count",
+			"err", err,
+			"query", query,
+			"pipelineType", buildBean.CI_JOB)
+		return -1
+	}
+
+	impl.logger.Debugw("counted total job pipelines",
+		"count", count,
+		"pipelineType", buildBean.CI_JOB)
 	return count
 }
