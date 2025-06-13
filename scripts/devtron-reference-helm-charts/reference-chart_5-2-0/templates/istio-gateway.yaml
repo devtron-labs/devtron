@@ -1,0 +1,73 @@
+{{- if and .Values.istio.enable .Values.istio.gateway.enabled -}}
+{{ if semverCompare ">=1.22-0" $.Capabilities.KubeVersion.GitVersion -}}
+apiVersion: networking.istio.io/v1
+{{ else }}
+apiVersion: networking.istio.io/v1beta1
+{{- end }}
+kind: Gateway
+metadata:
+  {{- if .Values.istio.gateway.name }}
+  name: {{ .Values.istio.gateway.name }}
+  {{- else }}
+  name: {{ template ".Chart.Name .fullname" $ }}-istio-gateway
+  {{- end }}
+  labels:
+    app: {{ template ".Chart.Name .name" $ }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
+{{- if $.Values.appLabels }}
+{{ toYaml $.Values.appLabels | indent 4 }}
+{{- end }}
+    {{- if $.Values.istio.gateway.labels }}
+{{ toYaml $.Values.istio.gateway.labels | indent 4 }}
+    {{- end }}
+{{- if $.Values.istio.gateway.annotations }}
+  annotations:
+{{ toYaml $.Values.istio.gateway.annotations | indent 4 }}
+{{- end }}
+spec:
+{{- if .Values.istio.gateway.gatewayExtraSpec }}
+{{ toYaml $.Values.istio.gateway.gatewayExtraSpec | indent 2}}
+{{- else}}
+{{- if .Values.istio.gateway.selector }}
+  selector:
+{{ toYaml $.Values.istio.gateway.selector | indent 4}}
+{{- end }}
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts: 
+{{- if .Values.istio.gateway.host }}    
+      - {{ .Values.istio.gateway.host | quote -}}
+{{- else if .Values.istio.gateway.hosts }}      
+{{- range .Values.istio.gateway.hosts }}
+      - {{ . | quote }}
+{{- end }}  
+{{- end }}    
+{{ with .Values.istio.gateway }}
+{{- if .tls.enabled }}
+    tls:
+      httpsRedirect: true
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    hosts:
+{{- if .host }}               
+      - {{ .host | quote }}
+{{- else if .hosts }}      
+{{- range .hosts }}
+      - {{ . | quote }}
+{{- end }}
+{{- end }}         
+    tls:
+      mode: SIMPLE
+      credentialName: {{ .tls.secretName }}  
+{{ end }}
+{{ end }}
+{{ end }}
+{{ end }}

@@ -620,14 +620,16 @@ func (impl *WorkflowStatusServiceImpl) CheckFluxAppStatusPeriodicallyAndUpdateIn
 			Name:           wfr.CdWorkflow.Pipeline.DeploymentAppName,
 			IsKustomizeApp: false,
 		}
+		pipeline := wfr.CdWorkflow.Pipeline
 
-		pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(wfr.CdWorkflowId)
+		// getting latest pipelineOverride for app (by appId and envId)
+		pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId, bean3.FluxCd)
 		if err != nil {
-			impl.logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", wfr.CdWorkflowId)
+			impl.logger.Errorw("error in getting latest pipelineOverride by appId and envId", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
 			return err
 		}
 
-		if isWfrUpdated := impl.workflowDagExecutor.UpdateWorkflowRunnerStatusForFluxDeployment(appIdentifier, wfr, pipelineOverride.GitHash); !isWfrUpdated {
+		if isWfrUpdated := impl.workflowDagExecutor.UpdateWorkflowRunnerStatusForFluxDeployment(appIdentifier, wfr, pipelineOverride); !isWfrUpdated {
 			continue
 		}
 
