@@ -23,7 +23,6 @@ import (
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/app"
 	bean2 "github.com/devtron-labs/devtron/pkg/app/bean"
-	"github.com/devtron-labs/devtron/pkg/deployment/common/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/pkg/apis/meta"
@@ -33,7 +32,6 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"path"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"time"
 )
@@ -52,7 +50,11 @@ func (impl *HandlerServiceImpl) deployFluxCdApp(ctx context.Context, overrideReq
 		impl.logger.Errorw("error in getting cluster", "clusterId", overrideRequest.ClusterId, "error", err)
 		return err
 	}
-	gitOpsSecret, err := impl.upsertGitRepoSecret(newCtx, valuesOverrideResponse.ManifestPushTemplate.RepoUrl, overrideRequest.Namespace, clusterConfig)
+	gitOpsSecret, err := impl.upsertGitRepoSecret(newCtx,
+		valuesOverrideResponse.DeploymentConfig.ReleaseConfiguration.FluxCDSpec.GitOpsSecretName,
+		valuesOverrideResponse.ManifestPushTemplate.RepoUrl,
+		overrideRequest.Namespace,
+		clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in creating git repo secret", "clusterId", overrideRequest.ClusterId, "err", err)
 		return err
@@ -84,7 +86,7 @@ func (impl *HandlerServiceImpl) deployFluxCdApp(ctx context.Context, overrideReq
 	return nil
 }
 
-func (impl *HandlerServiceImpl) upsertGitRepoSecret(ctx context.Context, repoUrl, namespace string, clusterConfig *k8s.ClusterConfig) (*v1.Secret, error) {
+func (impl *HandlerServiceImpl) upsertGitRepoSecret(ctx context.Context, secretName, repoUrl, namespace string, clusterConfig *k8s.ClusterConfig) (*v1.Secret, error) {
 	gitOpsConfig, err := impl.gitOpsConfigReadService.GetGitOpsProviderByRepoURL(repoUrl)
 	if err != nil {
 		impl.logger.Errorw("error fetching gitops config by repo url", "repoUrl", repoUrl, "err", err)
@@ -100,8 +102,6 @@ func (impl *HandlerServiceImpl) upsertGitRepoSecret(ctx context.Context, repoUrl
 		"managed-by": "devtron",
 		"providerId": gitOpsConfig.Provider,
 	}
-
-	secretName := fmt.Sprintf("devtron-flux-secret-%d", gitOpsConfig.Id)
 
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -171,23 +171,6 @@ func (impl *HandlerServiceImpl) createFluxCdApp(ctx context.Context, valuesOverr
 		return err
 	}
 
-	err = impl.updateReleaseSpecForDeploymentConfiguration(valuesOverrideResponse.DeploymentConfig, deploymentAppName,,
-		gitOpsSecretName, overrideRequest.UserId)
-	if err != nil {
-		impl.logger.Errorw("error in updating release spec", "deploymentConfig", valuesOverrideResponse.DeploymentConfig, "err", err)
-		return err
-	}
-	return nil
-}
-
-func (impl *HandlerServiceImpl) updateReleaseSpecForDeploymentConfiguration(deploymentConfig *bean.DeploymentConfig,
-	name, namespace, gitOpsSecretName string, userId int32) error {
-	deploymentConfig.ReleaseConfiguration = adapter.NewFluxSpecReleaseConfig(namespace, name, name, gitOpsSecretName)
-	_, err := impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, userId)
-	if err != nil {
-		impl.logger.Errorw("error in updating deployment configuration", "deploymentConfig", deploymentConfig, "err", err)
-		return err
-	}
 	return nil
 }
 
@@ -211,7 +194,7 @@ func (impl *HandlerServiceImpl) updateFluxCdApp(ctx context.Context, valuesOverr
 	return nil
 }
 
-func (impl *HandlerServiceImpl) CreateGitRepository(ctx context.Context, fluxCdSpec bean.FluxCDSpec, secretName string, manifestPushTemplate *bean2.ManifestPushTemplate,  apiClient client.Client) (*sourcev1.GitRepository, error) {
+func (impl *HandlerServiceImpl) CreateGitRepository(ctx context.Context, fluxCdSpec bean.FluxCDSpec, secretName string, manifestPushTemplate *bean2.ManifestPushTemplate, apiClient client.Client) (*sourcev1.GitRepository, error) {
 	name, namespace := fluxCdSpec.GitRepositoryName, fluxCdSpec.Namespace
 	gitRepo := &sourcev1.GitRepository{
 		ObjectMeta: metav1.ObjectMeta{
@@ -283,7 +266,7 @@ func (impl *HandlerServiceImpl) CreateHelmRelease(ctx context.Context, fluxCdSpe
 						Name:      name, //using same name for git repository and helm release which will be = deploymentAppName
 						Namespace: namespace,
 					},
-					ValuesFiles: getValuesFileArr(manifestPushTemplate.ChartLocation, manifestPushTemplate.ValuesFilePath),
+					ValuesFiles: fluxCdSpec.ValuesFiles,
 				},
 			},
 		},
@@ -317,7 +300,7 @@ func (impl *HandlerServiceImpl) UpdateHelmRelease(ctx context.Context, fluxCdSpe
 				Name:      name,
 				Namespace: namespace,
 			},
-			ValuesFiles: getValuesFileArr(manifestPushTemplate.ChartLocation, manifestPushTemplate.ValuesFilePath),
+			ValuesFiles: fluxCdSpec.ValuesFiles,
 		},
 	}
 	err = apiClient.Update(ctx, existing)
@@ -326,9 +309,4 @@ func (impl *HandlerServiceImpl) UpdateHelmRelease(ctx context.Context, fluxCdSpe
 		return nil, fmt.Errorf("failed to update HelmRelease: %w", err)
 	}
 	return existing, nil
-}
-
-func getValuesFileArr(chartLocation, valuesFilePath string) []string {
-	//order matters here, last file will override previous file
-	return []string{path.Join(chartLocation, "values.yaml"), path.Join(chartLocation, valuesFilePath)}
 }
