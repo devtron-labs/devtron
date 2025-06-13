@@ -252,9 +252,9 @@ func (d *DeploymentConfig) GetTargetRevision() string {
 	return d.ReleaseConfiguration.ArgoCDSpec.Spec.Source.TargetRevision
 }
 
-func (d *DeploymentConfig) GetValuesFilePath() string {
+func (d *DeploymentConfig) GetValuesFilePathForCommit() string {
 	if d.IsFluxRelease() && d.ReleaseConfiguration != nil {
-		// in an array of values we will read values from
+		// We will commit values in last file of array
 		return d.ReleaseConfiguration.FluxCDSpec.ValuesFiles[len(d.ReleaseConfiguration.FluxCDSpec.ValuesFiles)-1]
 	}
 	if d.ReleaseConfiguration == nil || d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil {

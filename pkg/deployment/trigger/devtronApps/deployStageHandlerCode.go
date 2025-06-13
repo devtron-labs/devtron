@@ -800,13 +800,14 @@ func (impl *HandlerServiceImpl) buildManifestPushTemplate(overrideRequest *bean3
 			}
 		}
 	} else {
+
 		manifestPushTemplate.ChartReferenceTemplate = valuesOverrideResponse.EnvOverride.Chart.ReferenceTemplate
 		manifestPushTemplate.ChartName = valuesOverrideResponse.EnvOverride.Chart.ChartName
 		manifestPushTemplate.ChartVersion = valuesOverrideResponse.EnvOverride.Chart.ChartVersion
 		manifestPushTemplate.ChartLocation = valuesOverrideResponse.DeploymentConfig.GetChartLocation()
 		manifestPushTemplate.RepoUrl = valuesOverrideResponse.DeploymentConfig.GetRepoURL()
 		manifestPushTemplate.TargetRevision = valuesOverrideResponse.DeploymentConfig.GetTargetRevision()
-		manifestPushTemplate.ValuesFilePath = valuesOverrideResponse.DeploymentConfig.GetValuesFilePath()
+		manifestPushTemplate.ValuesFilePath = valuesOverrideResponse.DeploymentConfig.GetValuesFilePathForCommit()
 		manifestPushTemplate.ReleaseMode = valuesOverrideResponse.DeploymentConfig.ReleaseMode
 		manifestPushTemplate.IsCustomGitRepository = common.IsCustomGitOpsRepo(valuesOverrideResponse.DeploymentConfig.ConfigType)
 		manifestPushTemplate.IsArgoSyncSupported = valuesOverrideResponse.DeploymentConfig.IsArgoAppSyncAndRefreshSupported()
@@ -1267,6 +1268,9 @@ func (impl *HandlerServiceImpl) isDevtronAsyncInstallModeEnabled(overrideRequest
 	} else if util.IsAcdApp(overrideRequest.DeploymentAppType) {
 		return impl.isDevtronAsyncArgoCdInstallModeEnabledForApp(overrideRequest.AppId,
 			overrideRequest.EnvId, overrideRequest.ForceSyncDeployment)
+	} else if util.IsFluxApp(overrideRequest.DeploymentAppType) {
+		// will need sanity and testing around flux cd
+		return false, nil
 	}
 	return false, nil
 }
