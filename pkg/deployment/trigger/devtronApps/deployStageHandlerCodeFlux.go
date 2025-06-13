@@ -278,8 +278,9 @@ func (impl *HandlerServiceImpl) CreateHelmRelease(ctx context.Context, fluxCdSpe
 			Interval: metav1.Duration{Duration: helmReleaseReconcileInterval}, //TODO
 			Chart: &helmv2.HelmChartTemplate{
 				Spec: helmv2.HelmChartTemplateSpec{
-					Chart:   manifestPushTemplate.ChartLocation,
-					Version: manifestPushTemplate.ChartVersion,
+					ReconcileStrategy: "Revision",
+					Chart:             manifestPushTemplate.ChartLocation,
+					Version:           manifestPushTemplate.ChartVersion,
 					SourceRef: helmv2.CrossNamespaceObjectReference{
 						Kind:      sourcev1.GitRepositoryKind,
 						Name:      name, //using same name for git repository and helm release which will be = deploymentAppName
@@ -312,8 +313,9 @@ func (impl *HandlerServiceImpl) UpdateHelmRelease(ctx context.Context, fluxCdSpe
 	existing.Spec.Interval = metav1.Duration{Duration: helmReleaseReconcileInterval}
 	existing.Spec.Chart = &helmv2.HelmChartTemplate{
 		Spec: helmv2.HelmChartTemplateSpec{
-			Chart:   manifestPushTemplate.ChartLocation,
-			Version: manifestPushTemplate.ChartVersion,
+			ReconcileStrategy: "Revision",
+			Chart:             manifestPushTemplate.ChartLocation,
+			Version:           manifestPushTemplate.ChartVersion,
 			SourceRef: helmv2.CrossNamespaceObjectReference{
 				Kind:      sourcev1.GitRepositoryKind,
 				Name:      name,
