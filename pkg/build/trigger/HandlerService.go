@@ -34,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	buildBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	buildCommonBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
+	"github.com/devtron-labs/devtron/pkg/build/trigger/adaptor"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	adapter2 "github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
@@ -55,6 +56,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository4 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	auditService "github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/service"
 	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -76,7 +78,7 @@ type HandlerService interface {
 	HandleCIManual(ciTriggerRequest bean.CiTriggerRequest) (int, error)
 	HandleCIWebhook(gitCiTriggerRequest bean.GitCiTriggerRequest) (int, error)
 
-	StartCiWorkflowAndPrepareWfRequest(trigger types.Trigger) (*pipelineConfig.CiPipeline, map[string]string, *pipelineConfig.CiWorkflow, *types.WorkflowRequest, error)
+	StartCiWorkflowAndPrepareWfRequest(trigger *types.CiTriggerRequest) (map[string]string, *pipelineConfig.CiWorkflow, *types.WorkflowRequest, error)
 
 	CancelBuild(workflowId int, forceAbort bool) (int, error)
 	GetRunningWorkflowLogs(workflowId int, followLogs bool) (*bufio.Reader, func() error, error)
@@ -118,6 +120,7 @@ type HandlerServiceImpl struct {
 	envService                   environment.EnvironmentService
 	K8sUtil                      *k8s.K8sServiceImpl
 	asyncRunnable                *async.Runnable
+	workflowTriggerAuditService  auditService.WorkflowTriggerAuditService
 }
 
 func NewHandlerServiceImpl(Logger *zap.SugaredLogger, workflowService executor.WorkflowService,
@@ -144,6 +147,7 @@ func NewHandlerServiceImpl(Logger *zap.SugaredLogger, workflowService executor.W
 	envService environment.EnvironmentService,
 	K8sUtil *k8s.K8sServiceImpl,
 	asyncRunnable *async.Runnable,
+	workflowTriggerAuditService auditService.WorkflowTriggerAuditService,
 ) *HandlerServiceImpl {
 	buildxCacheFlags := &BuildxCacheFlags{}
 	err := env.Parse(buildxCacheFlags)
@@ -178,6 +182,7 @@ func NewHandlerServiceImpl(Logger *zap.SugaredLogger, workflowService executor.W
 		envService:                   envService,
 		K8sUtil:                      K8sUtil,
 		asyncRunnable:                asyncRunnable,
+		workflowTriggerAuditService:  workflowTriggerAuditService,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -243,6 +248,34 @@ func (impl *HandlerServiceImpl) reTriggerCi(retryCount int, refCiWorkflow *pipel
 		return nil
 	}
 	impl.Logger.Infow("re-triggering ci for a ci workflow", "ReferenceCiWorkflowId", refCiWorkflow.Id)
+
+	// Try to use stored workflow config snapshot for retrigger
+	err := impl.reTriggerCiFromSnapshot(refCiWorkflow)
+	if err != nil {
+		impl.Logger.Errorw("failed to retrigger from snapshot", "ciWorkflowId", refCiWorkflow.Id, "err", err)
+		return err
+	}
+	return nil
+}
+
+// reTriggerCiFromSnapshot attempts to retrigger CI using a stored workflow config snapshot
+func (impl *HandlerServiceImpl) reTriggerCiFromSnapshot(refCiWorkflow *pipelineConfig.CiWorkflow) error {
+	impl.Logger.Infow("attempting to retrigger CI from stored snapshot", "refCiWorkflowId", refCiWorkflow.Id)
+
+	// Retrieve workflow request from snapshot
+	workflowRequest, err := impl.workflowTriggerAuditService.GetWorkflowRequestFromSnapshotForRetrigger(refCiWorkflow.Id, types.CI_WORKFLOW_TYPE)
+	if err != nil {
+		impl.Logger.Errorw("error retrieving workflow request from snapshot", "ciWorkflowId", refCiWorkflow.Id, "err", err)
+		return err
+	}
+	//create a new CI workflow entry for retrigger
+	newCiWorkflow, err := impl.createNewCiWorkflowForRetrigger(refCiWorkflow)
+	if err != nil {
+		impl.Logger.Errorw("error creating new CI workflow for retrigger", "refCiWorkflowId", refCiWorkflow.Id, "err", err)
+		return err
+	}
+
+	impl.updateWorkflowRequestForRetrigger(workflowRequest, newCiWorkflow)
 	ciPipelineMaterialIds := make([]int, 0, len(refCiWorkflow.GitTriggers))
 	for id, _ := range refCiWorkflow.GitTriggers {
 		ciPipelineMaterialIds = append(ciPipelineMaterialIds, id)
@@ -253,23 +286,38 @@ func (impl *HandlerServiceImpl) reTriggerCi(retryCount int, refCiWorkflow *pipel
 		return err
 	}
 
-	trigger := types.Trigger{}
+	trigger := &types.CiTriggerRequest{IsRetrigger: true, RetriggerWorkflowRequest: workflowRequest, RetriggerCiWorkflow: newCiWorkflow}
 	trigger.BuildTriggerObject(refCiWorkflow, ciMaterials, bean6.SYSTEM_USER_ID, true, nil, "")
 
-	// updating runtime params
-	trigger.RuntimeParameters, err = impl.updateRuntimeParamsForAutoCI(trigger.PipelineId, trigger.RuntimeParameters)
-	if err != nil {
-		impl.Logger.Errorw("err, updateRuntimeParamsForAutoCI", "ciPipelineId", trigger.PipelineId,
-			"runtimeParameters", trigger.RuntimeParameters, "err", err)
-		return err
-	}
 	_, err = impl.triggerCiPipeline(trigger)
-
 	if err != nil {
 		impl.Logger.Errorw("error occurred in re-triggering ciWorkflow", "triggerDetails", trigger, "err", err)
 		return err
 	}
+
+	impl.Logger.Infow("successfully retriggered CI from snapshot", "originalCiWorkflowId", refCiWorkflow.Id, "newCiWorkflowId", newCiWorkflow.Id)
 	return nil
+}
+
+// createNewCiWorkflowForRetrigger creates a new CI workflow entry for retrigger
+func (impl *HandlerServiceImpl) createNewCiWorkflowForRetrigger(refCiWorkflow *pipelineConfig.CiWorkflow) (*pipelineConfig.CiWorkflow, error) {
+	newCiWorkflow := adaptor.GetCiWorkflowFromRefCiWorkflow(refCiWorkflow, cdWorkflow.WorkflowStarting, bean6.SYSTEM_USER_ID)
+	err := impl.ciService.SaveCiWorkflowWithStage(newCiWorkflow)
+	if err != nil {
+		impl.Logger.Errorw("error saving new CI workflow for retrigger", "newCiWorkflow", newCiWorkflow, "err", err)
+		return nil, err
+	}
+	return newCiWorkflow, nil
+}
+
+// updateWorkflowRequestForRetrigger updates dynamic fields in workflow request for retrigger, like workflowId,WorkflowNamePrefix and triggeredBy
+func (impl *HandlerServiceImpl) updateWorkflowRequestForRetrigger(workflowRequest *types.WorkflowRequest, newCiWorkflow *pipelineConfig.CiWorkflow) {
+	// Update only the dynamic fields that need to change for retrigger
+	workflowRequest.WorkflowId = newCiWorkflow.Id
+	workflowRequest.WorkflowNamePrefix = fmt.Sprintf("%d-%s", newCiWorkflow.Id, newCiWorkflow.Name)
+	workflowRequest.TriggeredBy = bean6.SYSTEM_USER_ID
+	// Keep all other fields from snapshot (CI project details, build configs, etc.) unchanged
+	// This ensures we use the exact same configuration that was used during the original trigger
 }
 
 func (impl *HandlerServiceImpl) HandleCIManual(ciTriggerRequest bean.CiTriggerRequest) (int, error) {
@@ -290,7 +338,7 @@ func (impl *HandlerServiceImpl) HandleCIManual(ciTriggerRequest bean.CiTriggerRe
 		createdOn = ciArtifact.CreatedOn
 	}
 
-	trigger := types.Trigger{
+	trigger := &types.CiTriggerRequest{
 		PipelineId:          ciTriggerRequest.PipelineId,
 		CommitHashes:        commitHashes,
 		CiMaterials:         nil,
@@ -347,7 +395,7 @@ func (impl *HandlerServiceImpl) HandleCIWebhook(gitCiTriggerRequest bean.GitCiTr
 		return 0, err
 	}
 
-	trigger := types.Trigger{
+	trigger := &types.CiTriggerRequest{
 		PipelineId:        ciPipeline.Id,
 		CommitHashes:      commitHashes,
 		CiMaterials:       ciMaterials,
@@ -605,12 +653,45 @@ func SetGitCommitValuesForBuildingCommitHash(ciMaterial *pipelineConfig.CiPipeli
 	return newGitCommit
 }
 
-func (impl *HandlerServiceImpl) triggerCiPipeline(trigger types.Trigger) (int, error) {
-	pipeline, variableSnapshot, savedCiWf, workflowRequest, err := impl.StartCiWorkflowAndPrepareWfRequest(trigger)
-	if err != nil {
-		return 0, err
+func (impl *HandlerServiceImpl) fetchVariableSnapshotForCiRetrigger(trigger *types.CiTriggerRequest) (map[string]string, error) {
+	scope := resourceQualifiers.Scope{
+		AppId: trigger.RetriggerWorkflowRequest.AppId,
 	}
-	workflowRequest.CiPipelineType = trigger.PipelineType
+	request := pipelineConfigBean.NewBuildPrePostStepDataReq(trigger.RetriggerWorkflowRequest.PipelineId, pipelineConfigBean.CiStage, scope)
+	request = updateBuildPrePostStepDataReq(request, trigger)
+	prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(request)
+	if err != nil {
+		impl.Logger.Errorw("error in getting pre steps data for wf request", "ciPipelineId", trigger.RetriggerWorkflowRequest.PipelineId, "err", err)
+		dbErr := impl.markCurrentCiWorkflowFailed(trigger.RetriggerCiWorkflow, err)
+		if dbErr != nil {
+			impl.Logger.Errorw("saving workflow error", "err", dbErr)
+		}
+		return nil, err
+	}
+	return prePostAndRefPluginResponse.VariableSnapshot, nil
+}
+
+func (impl *HandlerServiceImpl) triggerCiPipeline(trigger *types.CiTriggerRequest) (int, error) {
+	var variableSnapshot map[string]string
+	var savedCiWf *pipelineConfig.CiWorkflow
+	var workflowRequest *types.WorkflowRequest
+	var err error
+	if trigger.IsRetrigger {
+		variableSnapshot, err = impl.fetchVariableSnapshotForCiRetrigger(trigger)
+		if err != nil {
+			impl.Logger.Errorw("error in fetchVariableSnapshotForCiRetrigger", "triggerRequest", trigger, "err", err)
+			return 0, err
+		}
+		savedCiWf, workflowRequest = trigger.RetriggerCiWorkflow, trigger.RetriggerWorkflowRequest
+	} else {
+		variableSnapshot, savedCiWf, workflowRequest, err = impl.StartCiWorkflowAndPrepareWfRequest(trigger)
+		if err != nil {
+			impl.Logger.Errorw("error in starting ci workflow and preparing wf request", "triggerRequest", trigger, "err", err)
+			return 0, err
+		}
+		workflowRequest.CiPipelineType = trigger.PipelineType
+	}
+
 	err = impl.executeCiPipeline(workflowRequest)
 	if err != nil {
 		impl.Logger.Errorw("error in executing ci pipeline", "err", err)
@@ -631,10 +712,10 @@ func (impl *HandlerServiceImpl) triggerCiPipeline(trigger types.Trigger) (int, e
 		}
 	}
 
-	middleware.CiTriggerCounter.WithLabelValues(pipeline.App.AppName, pipeline.Name).Inc()
+	middleware.CiTriggerCounter.WithLabelValues(workflowRequest.AppName, workflowRequest.PipelineName).Inc()
 
 	runnableFunc := func() {
-		impl.ciService.WriteCITriggerEvent(trigger, pipeline, workflowRequest)
+		impl.ciService.WriteCITriggerEvent(trigger, workflowRequest)
 	}
 	impl.asyncRunnable.Execute(runnableFunc)
 
@@ -655,16 +736,16 @@ func (impl *HandlerServiceImpl) GetCiMaterials(pipelineId int, ciMaterials []*pi
 	}
 }
 
-func (impl *HandlerServiceImpl) StartCiWorkflowAndPrepareWfRequest(trigger types.Trigger) (*pipelineConfig.CiPipeline, map[string]string, *pipelineConfig.CiWorkflow, *types.WorkflowRequest, error) {
+func (impl *HandlerServiceImpl) StartCiWorkflowAndPrepareWfRequest(trigger *types.CiTriggerRequest) (map[string]string, *pipelineConfig.CiWorkflow, *types.WorkflowRequest, error) {
 	impl.Logger.Debugw("ci pipeline manual trigger", "request", trigger)
 	ciMaterials, err := impl.GetCiMaterials(trigger.PipelineId, trigger.CiMaterials)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	ciPipelineScripts, err := impl.ciPipelineRepository.FindCiScriptsByCiPipelineId(trigger.PipelineId)
 	if err != nil && !util.IsErrNoRows(err) {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	var pipeline *pipelineConfig.CiPipeline
@@ -679,13 +760,13 @@ func (impl *HandlerServiceImpl) StartCiWorkflowAndPrepareWfRequest(trigger types
 	ciWorkflowConfigNamespace := impl.config.GetDefaultNamespace()
 	envModal, isJob, err := impl.getEnvironmentForJob(pipeline, trigger)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 	if isJob && envModal != nil {
 
 		err = impl.checkArgoSetupRequirement(envModal)
 		if err != nil {
-			return nil, nil, nil, nil, err
+			return nil, nil, nil, err
 		}
 
 		ciWorkflowConfigNamespace = envModal.Namespace
@@ -709,7 +790,7 @@ func (impl *HandlerServiceImpl) StartCiWorkflowAndPrepareWfRequest(trigger types
 	savedCiWf, err := impl.saveNewWorkflowForCITrigger(pipeline, ciWorkflowConfigNamespace, trigger.CommitHashes, trigger.TriggeredBy, ciMaterials, trigger.EnvironmentId, isJob, trigger.ReferenceCiWorkflowId)
 	if err != nil {
 		impl.Logger.Errorw("could not save new workflow", "err", err)
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 	// preCiSteps, postCiSteps, refPluginsData, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, ciEvent)
 	request := pipelineConfigBean.NewBuildPrePostStepDataReq(pipeline.Id, pipelineConfigBean.CiStage, scope)
@@ -721,7 +802,7 @@ func (impl *HandlerServiceImpl) StartCiWorkflowAndPrepareWfRequest(trigger types
 		if dbErr != nil {
 			impl.Logger.Errorw("saving workflow error", "err", dbErr)
 		}
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 	preCiSteps := prePostAndRefPluginResponse.PreStageSteps
 	postCiSteps := prePostAndRefPluginResponse.PostStageSteps
@@ -731,14 +812,14 @@ func (impl *HandlerServiceImpl) StartCiWorkflowAndPrepareWfRequest(trigger types
 	if len(preCiSteps) == 0 && isJob {
 		errMsg := fmt.Sprintf("No tasks are configured in this job pipeline")
 		validationErr := util.NewApiError(http.StatusNotFound, errMsg, errMsg)
-		return nil, nil, nil, nil, validationErr
+		return nil, nil, nil, validationErr
 	}
 
 	// get env variables of git trigger data and add it in the extraEnvVariables
 	gitTriggerEnvVariables, _, err := impl.ciCdPipelineOrchestrator.GetGitCommitEnvVarDataForCICDStage(savedCiWf.GitTriggers)
 	if err != nil {
 		impl.Logger.Errorw("error in getting gitTrigger env data for stage", "gitTriggers", savedCiWf.GitTriggers, "err", err)
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	for k, v := range gitTriggerEnvVariables {
@@ -748,7 +829,7 @@ func (impl *HandlerServiceImpl) StartCiWorkflowAndPrepareWfRequest(trigger types
 	workflowRequest, err := impl.buildWfRequestForCiPipeline(pipeline, trigger, ciMaterials, savedCiWf, ciWorkflowConfigNamespace, ciPipelineScripts, preCiSteps, postCiSteps, refPluginsData, isJob)
 	if err != nil {
 		impl.Logger.Errorw("make workflow req", "err", err)
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 	err = impl.handleRuntimeParamsValidations(trigger, ciMaterials, workflowRequest)
 	if err != nil {
@@ -758,7 +839,7 @@ func (impl *HandlerServiceImpl) StartCiWorkflowAndPrepareWfRequest(trigger types
 		if err1 != nil {
 			impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
 		}
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	workflowRequest.Scope = scope
@@ -772,24 +853,24 @@ func (impl *HandlerServiceImpl) StartCiWorkflowAndPrepareWfRequest(trigger types
 	workflowRequest, err = impl.updateWorkflowRequestWithBuildCacheData(workflowRequest, scope)
 	if err != nil {
 		impl.Logger.Errorw("error, updateWorkflowRequestWithBuildCacheData", "workflowRequest", workflowRequest, "err", err)
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 	if impl.canSetK8sDriverData(workflowRequest) {
 		err = impl.setBuildxK8sDriverData(workflowRequest)
 		if err != nil {
 			impl.Logger.Errorw("error in setBuildxK8sDriverData", "BUILDX_K8S_DRIVER_OPTIONS", impl.config.BuildxK8sDriverOptions, "err", err)
-			return nil, nil, nil, nil, err
+			return nil, nil, nil, err
 		}
 	}
 	savedCiWf.LogLocation = fmt.Sprintf("%s/%s/main.log", impl.config.GetDefaultBuildLogsKeyPrefix(), workflowRequest.WorkflowNamePrefix)
 	err = impl.updateCiWorkflow(workflowRequest, savedCiWf)
 	appLabels, err := impl.appCrudOperationService.GetLabelsByAppId(pipeline.AppId)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 	workflowRequest.AppLabels = appLabels
 	workflowRequest = impl.updateWorkflowRequestWithEntSupportData(workflowRequest)
-	return pipeline, variableSnapshot, savedCiWf, workflowRequest, nil
+	return variableSnapshot, savedCiWf, workflowRequest, nil
 }
 
 func (impl *HandlerServiceImpl) setBuildxK8sDriverData(workflowRequest *types.WorkflowRequest) error {
@@ -802,7 +883,7 @@ func (impl *HandlerServiceImpl) setBuildxK8sDriverData(workflowRequest *types.Wo
 	return nil
 }
 
-func (impl *HandlerServiceImpl) getEnvironmentForJob(pipeline *pipelineConfig.CiPipeline, trigger types.Trigger) (*repository6.Environment, bool, error) {
+func (impl *HandlerServiceImpl) getEnvironmentForJob(pipeline *pipelineConfig.CiPipeline, trigger *types.CiTriggerRequest) (*repository6.Environment, bool, error) {
 	app, err := impl.appRepository.FindById(pipeline.AppId)
 	if err != nil {
 		impl.Logger.Errorw("could not find app", "err", err)
@@ -826,7 +907,7 @@ func (impl *HandlerServiceImpl) getEnvironmentForJob(pipeline *pipelineConfig.Ci
 }
 
 // TODO: Send all trigger data
-func (impl *HandlerServiceImpl) BuildPayload(trigger types.Trigger, pipeline *pipelineConfig.CiPipeline) *client.Payload {
+func (impl *HandlerServiceImpl) BuildPayload(trigger types.CiTriggerRequest, pipeline *pipelineConfig.CiPipeline) *client.Payload {
 	payload := &client.Payload{}
 	payload.AppName = pipeline.App.AppName
 	payload.PipelineName = pipeline.Name
@@ -893,7 +974,7 @@ func (impl *HandlerServiceImpl) buildDefaultArtifactLocation(savedWf *pipelineCo
 	return ArtifactLocation
 }
 
-func (impl *HandlerServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.CiPipeline, trigger types.Trigger, ciMaterials []*pipelineConfig.CiPipelineMaterial, savedWf *pipelineConfig.CiWorkflow, ciWorkflowConfigNamespace string, ciPipelineScripts []*pipelineConfig.CiPipelineScript, preCiSteps []*pipelineConfigBean.StepObject, postCiSteps []*pipelineConfigBean.StepObject, refPluginsData []*pipelineConfigBean.RefPluginObject, isJob bool) (*types.WorkflowRequest, error) {
+func (impl *HandlerServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.CiPipeline, trigger *types.CiTriggerRequest, ciMaterials []*pipelineConfig.CiPipelineMaterial, savedWf *pipelineConfig.CiWorkflow, ciWorkflowConfigNamespace string, ciPipelineScripts []*pipelineConfig.CiPipelineScript, preCiSteps []*pipelineConfigBean.StepObject, postCiSteps []*pipelineConfigBean.StepObject, refPluginsData []*pipelineConfigBean.RefPluginObject, isJob bool) (*types.WorkflowRequest, error) {
 	var ciProjectDetails []pipelineConfigBean.CiProjectDetails
 	commitHashes := trigger.CommitHashes
 	for _, ciMaterial := range ciMaterials {
@@ -1457,7 +1538,7 @@ func (impl *HandlerServiceImpl) updateCiWorkflow(request *types.WorkflowRequest,
 	return impl.ciService.UpdateCiWorkflowWithStage(savedWf)
 }
 
-func (impl *HandlerServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger, ciMaterials []*pipelineConfig.CiPipelineMaterial, workflowRequest *types.WorkflowRequest) error {
+func (impl *HandlerServiceImpl) handleRuntimeParamsValidations(trigger *types.CiTriggerRequest, ciMaterials []*pipelineConfig.CiPipelineMaterial, workflowRequest *types.WorkflowRequest) error {
 	// externalCi artifact is meant only for CI_JOB
 	if trigger.PipelineType != string(buildCommonBean.CI_JOB) {
 		return nil

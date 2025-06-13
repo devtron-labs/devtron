@@ -32,7 +32,7 @@ import (
 )
 
 type CiService interface {
-	WriteCITriggerEvent(trigger types.Trigger, pipeline *pipelineConfig.CiPipeline, workflowRequest *types.WorkflowRequest)
+	WriteCITriggerEvent(trigger *types.CiTriggerRequest, workflowRequest *types.WorkflowRequest)
 	WriteCIFailEvent(ciWorkflow *pipelineConfig.CiWorkflow)
 	SaveCiWorkflowWithStage(wf *pipelineConfig.CiWorkflow) error
 	UpdateCiWorkflowWithStage(wf *pipelineConfig.CiWorkflow) error
@@ -70,8 +70,8 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger,
 	return cis
 }
 
-func (impl *CiServiceImpl) WriteCITriggerEvent(trigger types.Trigger, pipeline *pipelineConfig.CiPipeline, workflowRequest *types.WorkflowRequest) {
-	event, _ := impl.eventFactory.Build(util2.Trigger, &pipeline.Id, pipeline.AppId, nil, util2.CI)
+func (impl *CiServiceImpl) WriteCITriggerEvent(trigger *types.CiTriggerRequest, workflowRequest *types.WorkflowRequest) {
+	event, _ := impl.eventFactory.Build(util2.Trigger, &workflowRequest.PipelineId, workflowRequest.AppId, nil, util2.CI)
 	material := &buildBean.MaterialTriggerInfo{}
 
 	material.GitTriggers = trigger.CommitHashes

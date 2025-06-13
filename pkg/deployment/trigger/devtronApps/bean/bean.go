@@ -40,7 +40,7 @@ type TriggerEvent struct {
 	TriggeredAt                time.Time
 }
 
-type TriggerRequest struct {
+type CdTriggerRequest struct {
 	CdWf                   *pipelineConfig.CdWorkflow
 	Pipeline               *pipelineConfig.Pipeline
 	Artifact               *repository.CiArtifact
@@ -51,6 +51,8 @@ type TriggerRequest struct {
 	WorkflowType           bean.WorkflowType
 	CdWorkflowRunnerId     int
 	TriggerContext
+	// below fields used for retrigger flow
+	IsRetrigger bool
 }
 
 type TriggerContext struct {
@@ -82,7 +84,7 @@ const (
 )
 
 type TriggerRequirementRequestDto struct {
-	TriggerRequest TriggerRequest
+	TriggerRequest CdTriggerRequest
 }
 
 type VulnerabilityCheckRequest struct {

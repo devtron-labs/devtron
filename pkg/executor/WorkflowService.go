@@ -39,6 +39,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders/infraGetters"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/ucid"
+	"github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/hook"
 	"go.uber.org/zap"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -74,6 +75,7 @@ type WorkflowServiceImpl struct {
 	infraProvider          infraProviders.InfraProvider
 	ucid                   ucid.Service
 	k8sUtil                *k8s.K8sServiceImpl
+	triggerAuditHook       hook.TriggerAuditHook
 }
 
 // TODO: Move to bean
@@ -89,6 +91,7 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger,
 	infraProvider infraProviders.InfraProvider,
 	ucid ucid.Service,
 	k8sUtil *k8s.K8sServiceImpl,
+	triggerAuditHook hook.TriggerAuditHook,
 ) (*WorkflowServiceImpl, error) {
 	commonWorkflowService := &WorkflowServiceImpl{
 		Logger:                 Logger,
@@ -102,6 +105,7 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger,
 		k8sCommonService:       k8sCommonService,
 		infraProvider:          infraProvider,
 		ucid:                   ucid,
+		triggerAuditHook:       triggerAuditHook,
 	}
 	restConfig, err := k8sUtil.GetK8sInClusterRestConfig()
 	if err != nil {
@@ -117,7 +121,7 @@ const (
 )
 
 func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *types.WorkflowRequest) (*unstructured.UnstructuredList, string, error) {
-	workflowTemplate, err := impl.createWorkflowTemplate(workflowRequest)
+	workflowTemplate, err := impl.createWorkflowTemplateAndAuditTrigger(workflowRequest)
 	if err != nil {
 		return nil, "", err
 	}
@@ -133,10 +137,32 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *types.WorkflowR
 	return createdWf, jobHelmChartPath, err
 }
 
-func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.WorkflowRequest) (bean3.WorkflowTemplate, error) {
+func (impl *WorkflowServiceImpl) auditTrigger(workflowRequest *types.WorkflowRequest) error {
+	if workflowRequest.IsCdStageTypePre() || workflowRequest.IsCdStageTypePost() {
+		err := impl.triggerAuditHook.AuditPrePostCdTrigger(workflowRequest)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while auditing pre/post cd trigger", "stageType", workflowRequest.StageType, "workflowRunnerId", workflowRequest.WorkflowRunnerId, "err", err)
+			return err
+		}
+	} else {
+		err := impl.triggerAuditHook.AuditCiTrigger(workflowRequest)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while auditing ci trigger", "ciWorkflowId", workflowRequest.WorkflowId, "err", err)
+			return err
+		}
+	}
+	return nil
+}
+
+func (impl *WorkflowServiceImpl) createWorkflowTemplateAndAuditTrigger(workflowRequest *types.WorkflowRequest) (bean3.WorkflowTemplate, error) {
 	workflowJson, err := workflowRequest.GetWorkflowJson(impl.ciCdConfig)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while getting workflow json", "err", err)
+		return bean3.WorkflowTemplate{}, err
+	}
+	err = impl.auditTrigger(workflowRequest)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while auditing trigger", "err", err)
 		return bean3.WorkflowTemplate{}, err
 	}
 	workflowTemplate := workflowRequest.GetWorkflowTemplate(workflowJson, impl.ciCdConfig)
