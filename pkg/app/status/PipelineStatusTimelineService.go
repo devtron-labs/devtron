@@ -84,6 +84,7 @@ func NewPipelineStatusTimelineServiceImpl(logger *zap.SugaredLogger,
 }
 
 type PipelineTimelineDetailDto struct {
+	DeploymentAppType          string                       `json:"deploymentAppType"`
 	DeploymentStartedOn        time.Time                    `json:"deploymentStartedOn"`
 	DeploymentFinishedOn       time.Time                    `json:"deploymentFinishedOn"`
 	TriggeredBy                string                       `json:"triggeredBy"`
@@ -282,6 +283,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 		}
 	}
 	timelineDetail := &PipelineTimelineDetailDto{
+		DeploymentAppType:          deploymentAppType,
 		TriggeredBy:                triggeredByUserEmailId,
 		DeploymentStartedOn:        deploymentStartedOn,
 		DeploymentFinishedOn:       deploymentFinishedOn,
