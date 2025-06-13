@@ -1310,7 +1310,7 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForFluxDeployment
 		wfr.FinishedOn = time.Now()
 		return true
 	}
-	if matchShortHash(fluxAppDetail.LastObservedVersion, hash) {
+	if !matchShortHash(fluxAppDetail.LastObservedVersion, hash) {
 		return false
 	}
 	wfr.FinishedOn = time.Now()
