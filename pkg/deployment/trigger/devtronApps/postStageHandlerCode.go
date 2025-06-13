@@ -117,7 +117,7 @@ func (impl *HandlerServiceImpl) TriggerPostStage(request bean.CdTriggerRequest) 
 		// Update dynamic fields in the workflow request for retrigger
 		impl.updateWorkflowRequestForCdRetrigger(cdStageWorkflowRequest, runner)
 	} else {
-		cdStageWorkflowRequest, err = impl.getPrePostCdStageWorkflowRequest(ctx, runner, cdWf, pipeline, env, artifact, types.POST, triggeredBy)
+		cdStageWorkflowRequest, err = impl.getPrePostCdStageWorkflowRequest(ctx, runner, cdWf, pipeline, env, artifact, types.POST, envDevploymentConfig, triggeredBy)
 		if err != nil {
 			return impl.buildWfRequestErrorHandler(runner, err, triggeredBy)
 		}

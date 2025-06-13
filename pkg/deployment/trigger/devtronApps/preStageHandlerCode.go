@@ -37,6 +37,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean/common"
 	buildCommonBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	bean5 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	adapter2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
@@ -135,7 +136,7 @@ func (impl *HandlerServiceImpl) TriggerPreStage(request bean.CdTriggerRequest) (
 		// Update dynamic fields in the workflow request for retrigger
 		impl.updateWorkflowRequestForCdRetrigger(cdStageWorkflowRequest, runner)
 	} else {
-		cdStageWorkflowRequest, err = impl.getPrePostCdStageWorkflowRequest(ctx, runner, cdWf, pipeline, env, artifact, types.PRE, triggeredBy)
+		cdStageWorkflowRequest, err = impl.getPrePostCdStageWorkflowRequest(ctx, runner, cdWf, pipeline, env, artifact, types.PRE, envDeploymentConfig, triggeredBy)
 		if err != nil {
 			return impl.buildWfRequestErrorHandler(runner, err, triggeredBy)
 		}
@@ -181,10 +182,10 @@ func (impl *HandlerServiceImpl) updateWorkflowRequestForCdRetrigger(workflowRequ
 }
 
 func (impl *HandlerServiceImpl) getPrePostCdStageWorkflowRequest(ctx context.Context, runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow,
-	pipeline *pipelineConfig.Pipeline, env *repository4.Environment, artifact *repository.CiArtifact, stageType string, triggeredBy int32) (*types.WorkflowRequest, error) {
+	pipeline *pipelineConfig.Pipeline, env *repository4.Environment, artifact *repository.CiArtifact, stageType string, envDeploymentConfig *bean5.DeploymentConfig, triggeredBy int32) (*types.WorkflowRequest, error) {
 
 	_, span := otel.Tracer("orchestrator").Start(ctx, "buildWFRequest")
-	cdStageWorkflowRequest, err := impl.buildWFRequest(runner, cdWf, pipeline, triggeredBy)
+	cdStageWorkflowRequest, err := impl.buildWFRequest(runner, cdWf, pipeline, envDeploymentConfig, triggeredBy)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("error in building workflow request for pre/post stage", "runner", runner, "err", err)
@@ -478,7 +479,7 @@ func (impl *HandlerServiceImpl) getDockerTagAndCustomTagIdForPlugin(pipelineStag
 	return DockerImageTag, customTagId, nil
 }
 
-func (impl *HandlerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) (*types.WorkflowRequest, error) {
+func (impl *HandlerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, envDeploymentConfig *bean5.DeploymentConfig, triggeredBy int32) (*types.WorkflowRequest, error) {
 	if cdPipeline.App.Id == 0 {
 		appModel, err := impl.appRepository.FindById(cdPipeline.AppId)
 		if err != nil {
