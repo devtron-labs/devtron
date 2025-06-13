@@ -92,6 +92,7 @@ type PipelineTimelineDetailDto struct {
 	StatusFetchCount           int                          `json:"statusFetchCount"`
 	WfrStatus                  string                       `json:"wfrStatus"`
 	DeploymentAppDeleteRequest bool                         `json:"deploymentAppDeleteRequest"`
+	DeploymentAppType          string                       `json:"deploymentAppType"`
 }
 
 type PipelineStatusTimelineDto struct {
@@ -102,6 +103,7 @@ type PipelineStatusTimelineDto struct {
 	StatusDetail                 string                        `json:"statusDetail"`
 	StatusTime                   time.Time                     `json:"statusTime"`
 	ResourceDetails              []*SyncStageResourceDetailDto `json:"resourceDetails,omitempty"`
+	DeploymentAppType            string                        `json:"deploymentAppType"`
 }
 
 func (impl *PipelineStatusTimelineServiceImpl) SaveTimeline(timeline *pipelineConfig.PipelineStatusTimeline, tx *pg.Tx) error {
@@ -287,6 +289,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 		StatusFetchCount:           statusFetchCount,
 		WfrStatus:                  wfrStatus,
 		DeploymentAppDeleteRequest: wfr.CdWorkflow.Pipeline.DeploymentAppDeleteRequest,
+		DeploymentAppType:          deploymentAppType,
 	}
 	return timelineDetail, nil
 }
@@ -380,6 +383,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelinesForAppStore(install
 		StatusFetchCount:           statusFetchCount,
 		WfrStatus:                  installedAppVersionHistoryStatus,
 		DeploymentAppDeleteRequest: false,
+		DeploymentAppType:          deploymentAppType,
 	}
 	return timelineDetail, nil
 }
