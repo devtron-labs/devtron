@@ -2,7 +2,7 @@ module github.com/devtron-labs/devtron
 
 go 1.23.4
 
-toolchain go1.24.3
+toolchain go1.23.7
 
 require (
 	github.com/Masterminds/semver v1.5.0
