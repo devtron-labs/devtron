@@ -112,12 +112,13 @@ type WorkflowDagExecutor interface {
 	UpdateWorkflowRunnerStatusForDeployment(appIdentifier *helmBean.AppIdentifier, wfr *pipelineConfig.CdWorkflowRunner, skipReleaseNotFound bool) bool
 
 	BuildCiArtifactRequestForWebhook(event pipeline.ExternalCiWebhookDto) (*bean2.CiArtifactWebhookRequest, error)
-	UpdateWorkflowRunnerStatusForFluxDeployment(appIdentifier *bean8.FluxAppIdentifier, wfr *pipelineConfig.CdWorkflowRunner, hash string) bool
+	UpdateWorkflowRunnerStatusForFluxDeployment(appIdentifier *bean8.FluxAppIdentifier, wfr *pipelineConfig.CdWorkflowRunner, pipelineOverride *chartConfig.PipelineOverride) bool
 }
 
 type WorkflowDagExecutorImpl struct {
 	logger                        *zap.SugaredLogger
 	pipelineRepository            pipelineConfig.PipelineRepository
+	pipelineOverrideRepository    chartConfig.PipelineOverrideRepository
 	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
 	ciArtifactRepository          repository.CiArtifactRepository
 	enforcerUtil                  rbac.EnforcerUtil
@@ -159,6 +160,7 @@ type WorkflowDagExecutorImpl struct {
 }
 
 func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
+	pipelineOverrideRepository chartConfig.PipelineOverrideRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
 	enforcerUtil rbac.EnforcerUtil,
@@ -193,6 +195,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
+		pipelineOverrideRepository:    pipelineOverrideRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
 		ciArtifactRepository:          ciArtifactRepository,
 		enforcerUtil:                  enforcerUtil,
@@ -1299,7 +1302,8 @@ func (impl *WorkflowDagExecutorImpl) BuildCiArtifactRequestForWebhook(event pipe
 	return request, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForFluxDeployment(appIdentifier *bean8.FluxAppIdentifier, wfr *pipelineConfig.CdWorkflowRunner, hash string) bool {
+func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForFluxDeployment(appIdentifier *bean8.FluxAppIdentifier, wfr *pipelineConfig.CdWorkflowRunner,
+	pipelineOverride *chartConfig.PipelineOverride) bool {
 	fluxAppDetail, err := impl.fluxApplicationService.GetFluxAppDetail(context.Background(), appIdentifier)
 	if err != nil {
 		impl.logger.Errorw("error in getting helm app release status", "appIdentifier", appIdentifier, "err", err)
@@ -1310,7 +1314,7 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForFluxDeployment
 		wfr.FinishedOn = time.Now()
 		return true
 	}
-	if !matchShortHash(fluxAppDetail.LastObservedVersion, hash) {
+	if !impl.checkIfFluxPipelineEventIsValid(fluxAppDetail.LastObservedVersion, pipelineOverride) {
 		return false
 	}
 	wfr.FinishedOn = time.Now()
@@ -1331,18 +1335,33 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForFluxDeployment
 	return true
 }
 
-// matchShortHash compares the short Git hash embedded in the version string
+func (impl *WorkflowDagExecutorImpl) checkIfFluxPipelineEventIsValid(lastObservedVersion string, pipelineOverride *chartConfig.PipelineOverride) bool {
+	gitHash := getShortHash(lastObservedVersion)
+	if !strings.HasPrefix(pipelineOverride.GitHash, gitHash) {
+		pipelineOverrideByHash, err := impl.pipelineOverrideRepository.FindByPipelineLikeTriggerGitHash(gitHash)
+		if err != nil {
+			impl.logger.Errorw("error on update application status", "gitHash", gitHash, "err", err)
+			return false
+		}
+		if pipelineOverrideByHash == nil || pipelineOverrideByHash.CommitTime.Before(pipelineOverride.CommitTime) {
+			// we have received trigger hash which is committed before this apps actual gitHash stored by us
+			// this means that the hash stored by us will be synced later, so we will drop this event
+			return false
+		}
+	}
+	return true
+}
+
+// getShortHash gets the short Git hash embedded in the version string
 // with the beginning of the full Git commit hash.
 //
 // version: expected format like "4.22.1+<shortHash>.<buildNumber>"
 // fullHash: expected to be a full 40-character Git commit SHA
-//
-// Returns true if the short hash is a prefix of the full hash.
-func matchShortHash(version, fullHash string) bool {
+func getShortHash(version string) string {
 	// Split version string at '+' to extract metadata
 	parts := strings.Split(version, "+")
 	if len(parts) < 2 {
-		return false // No metadata found
+		return "" // No metadata found
 	}
 
 	// Metadata might look like "2b6c6b2.2" → short hash + build number
@@ -1350,5 +1369,5 @@ func matchShortHash(version, fullHash string) bool {
 	shortHash := metaParts[0] // Take only the short hash before the dot
 
 	// Compare short hash with prefix of full hash
-	return strings.HasPrefix(fullHash, shortHash)
+	return shortHash
 }
