@@ -279,6 +279,7 @@ require (
 require (
 	github.com/docker/distribution v2.8.2+incompatible
 	github.com/fluxcd/helm-controller/api v1.3.0
+	github.com/fluxcd/pkg/apis/meta v1.12.0
 	github.com/fluxcd/source-controller/api v1.6.0
 	sigs.k8s.io/controller-runtime v0.21.0
 )
@@ -309,7 +310,6 @@ require (
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/fluxcd/pkg/apis/acl v0.7.0 // indirect
 	github.com/fluxcd/pkg/apis/kustomize v1.10.0 // indirect
-	github.com/fluxcd/pkg/apis/meta v1.12.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
@@ -347,5 +347,7 @@ replace (
 	k8s.io/mount-utils => k8s.io/mount-utils v0.29.7
 	k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.29.7
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.29.7
+	k8s.io/utils => k8s.io/utils v0.0.0-20250321185631-1f6e0b77f77e
+	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.20.0
 	sigs.k8s.io/kustomize/api => sigs.k8s.io/kustomize/api v0.17.3
 )
