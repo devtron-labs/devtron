@@ -1,4 +1,4 @@
-{{- if and $.Values.global $.Values.global.externalPostgres $.Values.global.externalPostgres.enabled }}
+{{- if and $.Values.global.externalPostgres $.Values.global.externalPostgres.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
