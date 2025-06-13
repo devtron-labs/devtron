@@ -2181,10 +2181,9 @@ func (impl *CdPipelineConfigServiceImpl) IsGitOpsRequiredForCD(pipelineCreateReq
 	haveAtLeastOneGitOps := false
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 		if pipeline.EnvironmentId > 0 &&
-			pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD &&
-			!pipeline.IsExternalArgoAppLinkRequest() &&
-			pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_FLUX &&
-			!pipeline.IsExternalFluxAppLinkRequest() {
+			(pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD &&
+				!pipeline.IsExternalArgoAppLinkRequest()) || (pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_FLUX &&
+			!pipeline.IsExternalFluxAppLinkRequest()) {
 			haveAtLeastOneGitOps = true
 		}
 	}
