@@ -18,15 +18,18 @@ package bean
 
 import (
 	"encoding/json"
+
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 )
 
 const (
-	DeploymentChartType = "Deployment"
-	RolloutChartType    = "Rollout Deployment"
-	ReferenceChart      = "reference-chart"
-	RefChartDirPath     = "scripts/devtron-reference-helm-charts"
+	DeploymentChartType   = "Deployment"
+	RolloutChartType      = "Rollout Deployment"
+	StatefulSetChartType  = "StatefulSet"
+	JobsCronjobsChartType = "Cron Job & Job"
+	ReferenceChart        = "reference-chart"
+	RefChartDirPath       = "scripts/devtron-reference-helm-charts"
 
 	ChartAlreadyExistsInternalError = "Chart exists already, try uploading another chart"
 	ChartNameReservedInternalError  = "Change the name of the chart and try uploading again"
