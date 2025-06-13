@@ -1,9 +1,42 @@
 package telemetry
 
 import (
-	buildBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	buildBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
 	chartRefBean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	pluginRepository "github.com/devtron-labs/devtron/pkg/plugin/repository"
+)
+
+// Policy type constants
+const (
+	POLICY_TYPE_DEPLOYMENT_WINDOW  = "DEPLOYMENT_WINDOW"
+	POLICY_TYPE_APPROVAL           = "APPROVAL"
+	POLICY_TYPE_PLUGIN             = "PLUGIN"
+	POLICY_TYPE_LOCK_CONFIGURATION = "LOCK_CONFIGURATION"
+)
+
+// Deployment type constants
+const (
+	DEPLOYMENT_TYPE_ARGOCD = "argo_cd"
+	DEPLOYMENT_TYPE_HELM   = "helm"
+)
+
+// Build type constants
+const (
+	BUILD_TYPE_MANAGED_DOCKERFILE = "MANAGED_DOCKERFILE_BUILD_TYPE"
+	BUILD_TYPE_BUILDPACK          = "BUILDPACK_BUILD_TYPE"
+)
+
+// Merge strategy constants
+const (
+	MERGE_STRATEGY_PATCH   = "patch"
+	MERGE_STRATEGY_REPLACE = "replace"
+)
+
+// Config map type constants
+const (
+	CONFIG_MAP_TYPE_EXTERNAL = "true"
+	CONFIG_MAP_TYPE_INTERNAL = "false"
 )
 
 // FULL-mode specific telemetry methods for TelemetryEventClientImplExtended
@@ -37,7 +70,7 @@ func (impl *TelemetryEventClientImplExtended) getJobPipelineTriggeredLast24h() i
 	// Count job pipeline triggers
 	jobTriggeredCount := 0
 	for _, data := range buildTypeStatusData {
-		if data.Type == string(buildBean.SKIP_BUILD_TYPE) {
+		if data.Type == string(bean.SKIP_BUILD_TYPE) {
 			jobTriggeredCount += data.Count
 		}
 	}
@@ -46,23 +79,29 @@ func (impl *TelemetryEventClientImplExtended) getJobPipelineTriggeredLast24h() i
 }
 
 func (impl *TelemetryEventClientImplExtended) getJobPipelineSucceededLast24h() int {
-	// Get build type and status data for the last 24 hours
-	buildTypeStatusData, err := impl.ciWorkflowRepository.FindBuildTypeAndStatusDataOfLast1Day()
+	var count int
+	query := `
+		SELECT COUNT(DISTINCT cp.id)
+		FROM ci_pipeline cp
+		INNER JOIN app a ON cp.app_id = a.id
+		INNER JOIN ci_workflow cw ON cp.id = cw.ci_pipeline_id
+		WHERE cp.active = true
+		AND cp.deleted = false
+		AND a.active = true
+		AND cp.ci_pipeline_type = ?
+		AND cw.status = 'Succeeded'
+		AND cw.created_on >= NOW() - INTERVAL '24 hours'
+	`
+
+	dbConnection := impl.appRepository.GetConnection()
+	_, err := dbConnection.Query(&count, query, buildBean.CI_JOB)
 	if err != nil {
-		impl.logger.Warnw("no build type status data available for last 24 hours")
+		impl.logger.Errorw("error getting job pipeline succeeded count", "err", err)
 		return -1
 	}
 
-	// Count successful job pipeline runs
-	successfulJobCount := 0
-	for _, data := range buildTypeStatusData {
-		if data.Type == string(buildBean.SKIP_BUILD_TYPE) && data.Status == "Succeeded" {
-			successfulJobCount += data.Count
-		}
-	}
-
-	impl.logger.Debugw("counted successful job pipeline runs in last 24h", "count", successfulJobCount)
-	return successfulJobCount
+	impl.logger.Debugw("counted job pipelines succeeded in last 24h", "count", count)
+	return count
 }
 
 func (impl *TelemetryEventClientImplExtended) getUserCreatedPluginCount() int {
@@ -82,11 +121,11 @@ func (impl *TelemetryEventClientImplExtended) getDeploymentWindowPolicyCount() i
 	query := `
 		SELECT COUNT(*)
 		FROM global_policy gp
-		WHERE gp.policy_of = 'DEPLOYMENT_WINDOW' AND gp.deleted = false
+		WHERE gp.policy_of = ? AND gp.deleted = false
 	`
 
 	dbConnection := impl.appRepository.GetConnection()
-	_, err := dbConnection.Query(&count, query)
+	_, err := dbConnection.Query(&count, query, POLICY_TYPE_DEPLOYMENT_WINDOW)
 	if err != nil {
 		impl.logger.Debugw("global_policy table not found or query failed for deployment window policies", "err", err)
 		return 0
@@ -102,11 +141,11 @@ func (impl *TelemetryEventClientImplExtended) getApprovalPolicyCount() int {
 	query := `
 		SELECT COUNT(*)
 		FROM global_policy gp
-		WHERE gp.policy_of = 'APPROVAL' AND gp.deleted = false
+		WHERE gp.policy_of = ? AND gp.deleted = false
 	`
 
 	dbConnection := impl.appRepository.GetConnection()
-	_, err := dbConnection.Query(&count, query)
+	_, err := dbConnection.Query(&count, query, POLICY_TYPE_APPROVAL)
 	if err != nil {
 		impl.logger.Debugw("global_policy table not found or query failed", "err", err)
 		return 0
@@ -122,11 +161,11 @@ func (impl *TelemetryEventClientImplExtended) getPluginPolicyCount() int {
 	query := `
 		SELECT COUNT(*)
 		FROM global_policy gp
-		WHERE gp.policy_of = 'PLUGIN' AND gp.deleted = false
+		WHERE gp.policy_of = ? AND gp.deleted = false
 	`
 
 	dbConnection := impl.appRepository.GetConnection()
-	_, err := dbConnection.Query(&count, query)
+	_, err := dbConnection.Query(&count, query, POLICY_TYPE_PLUGIN)
 	if err != nil {
 		impl.logger.Debugw("global_policy table not found or query failed", "err", err)
 		return 0
@@ -176,11 +215,11 @@ func (impl *TelemetryEventClientImplExtended) getLockDeploymentConfigurationPoli
 	query := `
 		SELECT COUNT(*)
 		FROM global_policy gp
-		WHERE gp.policy_of = 'LOCK_CONFIGURATION' AND gp.deleted = false
+		WHERE gp.policy_of = ? AND gp.deleted = false
 	`
 
 	dbConnection := impl.appRepository.GetConnection()
-	_, err := dbConnection.Query(&count, query)
+	_, err := dbConnection.Query(&count, query, POLICY_TYPE_LOCK_CONFIGURATION)
 	if err != nil {
 		impl.logger.Debugw("lock deployment configuration policy table not found or query failed", "err", err)
 		return 0
@@ -195,11 +234,11 @@ func (impl *TelemetryEventClientImplExtended) getGitOpsPipelineCount() int {
 	query := `
 		SELECT COUNT(DISTINCT p.id)
 		FROM pipeline p
-		WHERE p.deleted = false AND p.deployment_app_type = 'argo_cd'
+		WHERE p.deleted = false AND p.deployment_app_type = ?
 	`
 
 	dbConnection := impl.cdWorkflowRepository.GetConnection()
-	_, err := dbConnection.Query(&count, query)
+	_, err := dbConnection.Query(&count, query, DEPLOYMENT_TYPE_ARGOCD)
 	if err != nil {
 		impl.logger.Errorw("error getting GitOps pipeline count", "err", err)
 		return -1
@@ -215,11 +254,11 @@ func (impl *TelemetryEventClientImplExtended) helmPipelineCount() int {
 	query := `
 		SELECT COUNT(DISTINCT p.id)
 		FROM pipeline p
-		WHERE p.deleted = false AND p.deployment_app_type = 'helm'
+		WHERE p.deleted = false AND p.deployment_app_type = ?
 	`
 
 	dbConnection := impl.cdWorkflowRepository.GetConnection()
-	_, err := dbConnection.Query(&count, query)
+	_, err := dbConnection.Query(&count, query, DEPLOYMENT_TYPE_HELM)
 	if err != nil {
 		impl.logger.Errorw("error getting No-GitOps pipeline count", "err", err)
 		return -1
@@ -239,11 +278,11 @@ func (impl *TelemetryEventClientImplExtended) getJobPipelineCount() int {
 		WHERE cp.active = true
 		AND cp.deleted = false
 		AND a.active = true
-		AND cp.ci_pipeline_type = 'CI_JOB'
+		AND cp.ci_pipeline_type = ?
 	`
 
 	dbConnection := impl.appRepository.GetConnection()
-	_, err := dbConnection.Query(&count, query)
+	_, err := dbConnection.Query(&count, query, buildBean.CI_JOB)
 	if err != nil {
 		impl.logger.Errorw("error getting job pipeline count", "err", err)
 		return -1
@@ -582,30 +621,6 @@ func (impl *TelemetryEventClientImplExtended) getAppsWithIncludeExcludeFilesCoun
 	return count
 }
 
-// getAppsWithCreateDockerfileCount returns the number of applications that have dockerfile creation configured
-func (impl *TelemetryEventClientImplExtended) getAppsWithCreateDockerfileCount() int {
-	var count int
-	query := `
-		SELECT COUNT(DISTINCT ct.app_id)
-		FROM ci_template ct
-		INNER JOIN app a ON ct.app_id = a.id
-		INNER JOIN ci_build_config cbc ON ct.ci_build_config_id = cbc.id
-		WHERE ct.active = true
-		AND a.active = true
-		AND cbc.type = 'MANAGED_DOCKERFILE_BUILD_TYPE'
-	`
-
-	dbConnection := impl.appRepository.GetConnection()
-	_, err := dbConnection.Query(&count, query)
-	if err != nil {
-		impl.logger.Errorw("error getting apps with create dockerfile count", "err", err)
-		return -1
-	}
-
-	impl.logger.Debugw("counted apps with create dockerfile", "count", count)
-	return count
-}
-
 // getDockerfileLanguagesList returns a list of languages being used in create dockerfile configurations
 func (impl *TelemetryEventClientImplExtended) getDockerfileLanguagesList() []string {
 	var languages []string
@@ -619,7 +634,7 @@ func (impl *TelemetryEventClientImplExtended) getDockerfileLanguagesList() []str
 		FROM ci_build_config cbc
 		INNER JOIN ci_template ct ON cbc.id = ct.ci_build_config_id
 		INNER JOIN app a ON ct.app_id = a.id
-		WHERE cbc.type = 'MANAGED_DOCKERFILE_BUILD_TYPE'
+		WHERE cbc.type = ?
 		AND ct.active = true
 		AND a.active = true
 		AND cbc.build_metadata IS NOT NULL
@@ -627,7 +642,7 @@ func (impl *TelemetryEventClientImplExtended) getDockerfileLanguagesList() []str
 	`
 
 	dbConnection := impl.appRepository.GetConnection()
-	_, err := dbConnection.Query(&languages, query)
+	_, err := dbConnection.Query(&languages, query, BUILD_TYPE_MANAGED_DOCKERFILE)
 	if err != nil {
 		impl.logger.Errorw("error getting dockerfile languages list", "err", err)
 		return []string{}
@@ -635,54 +650,6 @@ func (impl *TelemetryEventClientImplExtended) getDockerfileLanguagesList() []str
 
 	impl.logger.Debugw("retrieved dockerfile languages list", "languages", languages)
 	return languages
-}
-
-// getAppsWithDockerfileCount returns the number of applications that have a dockerfile configured
-func (impl *TelemetryEventClientImplExtended) getAppsWithDockerfileCount() int {
-	var count int
-	query := `
-		SELECT COUNT(DISTINCT ct.app_id)
-		FROM ci_template ct
-		INNER JOIN app a ON ct.app_id = a.id
-		WHERE ct.active = true
-		AND a.active = true
-		AND ct.dockerfile_path IS NOT NULL
-		AND TRIM(ct.dockerfile_path) != ''
-	`
-
-	dbConnection := impl.appRepository.GetConnection()
-	_, err := dbConnection.Query(&count, query)
-	if err != nil {
-		impl.logger.Errorw("error getting apps with dockerfile count", "err", err)
-		return -1
-	}
-
-	impl.logger.Debugw("counted apps with dockerfile", "count", count)
-	return count
-}
-
-// getAppsWithBuildpacksCount returns the number of applications that use buildpacks
-func (impl *TelemetryEventClientImplExtended) getAppsWithBuildpacksCount() int {
-	var count int
-	query := `
-		SELECT COUNT(DISTINCT ct.app_id)
-		FROM ci_template ct
-		INNER JOIN app a ON ct.app_id = a.id
-		INNER JOIN ci_build_config cbc ON ct.ci_build_config_id = cbc.id
-		WHERE ct.active = true
-		AND a.active = true
-		AND cbc.type = 'buildpack-build'
-	`
-
-	dbConnection := impl.appRepository.GetConnection()
-	_, err := dbConnection.Query(&count, query)
-	if err != nil {
-		impl.logger.Errorw("error getting apps with buildpacks count", "err", err)
-		return -1
-	}
-
-	impl.logger.Debugw("counted apps with buildpacks", "count", count)
-	return count
 }
 
 // getBuildpackLanguagesList returns a list of languages being used in buildpack configurations
@@ -698,7 +665,7 @@ func (impl *TelemetryEventClientImplExtended) getBuildpackLanguagesList() []stri
 		FROM ci_build_config cbc
 		INNER JOIN ci_template ct ON cbc.id = ct.ci_build_config_id
 		INNER JOIN app a ON ct.app_id = a.id
-		WHERE cbc.type = 'BUILDPACK_BUILD_TYPE'
+		WHERE cbc.type = ?
 		AND ct.active = true
 		AND a.active = true
 		AND cbc.build_metadata IS NOT NULL
@@ -706,7 +673,7 @@ func (impl *TelemetryEventClientImplExtended) getBuildpackLanguagesList() []stri
 	`
 
 	dbConnection := impl.appRepository.GetConnection()
-	_, err := dbConnection.Query(&languages, query)
+	_, err := dbConnection.Query(&languages, query, BUILD_TYPE_BUILDPACK)
 	if err != nil {
 		impl.logger.Errorw("error getting buildpack languages list", "err", err)
 		return []string{}
@@ -770,11 +737,11 @@ func (impl *TelemetryEventClientImplExtended) getEnvironmentsWithPatchStrategyCo
 		INNER JOIN environment e ON ceco.target_environment = e.id
 		WHERE ceco.active = true
 		AND e.active = true
-		AND ceco.merge_strategy = 'patch'
+		AND ceco.merge_strategy = ?
 	`
 
 	dbConnection := impl.appRepository.GetConnection()
-	_, err := dbConnection.Query(&count, query)
+	_, err := dbConnection.Query(&count, query, MERGE_STRATEGY_PATCH)
 	if err != nil {
 		impl.logger.Errorw("error getting environments with patch strategy count", "err", err)
 		return -1
@@ -793,11 +760,11 @@ func (impl *TelemetryEventClientImplExtended) getEnvironmentsWithReplaceStrategy
 		INNER JOIN environment e ON ceco.target_environment = e.id
 		WHERE ceco.active = true
 		AND e.active = true
-		AND ceco.merge_strategy = 'replace'
+		AND ceco.merge_strategy = ?
 	`
 
 	dbConnection := impl.appRepository.GetConnection()
-	_, err := dbConnection.Query(&count, query)
+	_, err := dbConnection.Query(&count, query, MERGE_STRATEGY_REPLACE)
 	if err != nil {
 		impl.logger.Errorw("error getting environments with replace strategy count", "err", err)
 		return -1
@@ -821,7 +788,7 @@ func (impl *TelemetryEventClientImplExtended) getExternalConfigMapCount() int {
 			AND EXISTS (
 				SELECT 1
 				FROM jsonb_array_elements(cmal.config_map_data::jsonb->'maps') as cm
-				WHERE cm->>'external' = 'true'
+				WHERE cm->>'external' = ?
 			)
 			GROUP BY cmal.app_id
 			UNION ALL
@@ -834,14 +801,14 @@ func (impl *TelemetryEventClientImplExtended) getExternalConfigMapCount() int {
 			AND EXISTS (
 				SELECT 1
 				FROM jsonb_array_elements(cmel.config_map_data::jsonb->'maps') as cm
-				WHERE cm->>'external' = 'true'
+				WHERE cm->>'external' = ?
 			)
 			GROUP BY cmel.environment_id, cmel.app_id
 		) external_cms
 	`
 
 	dbConnection := impl.appRepository.GetConnection()
-	_, err := dbConnection.Query(&count, query)
+	_, err := dbConnection.Query(&count, query, CONFIG_MAP_TYPE_EXTERNAL, CONFIG_MAP_TYPE_EXTERNAL)
 	if err != nil {
 		impl.logger.Errorw("error getting external configmap count", "err", err)
 		return -1
@@ -865,7 +832,7 @@ func (impl *TelemetryEventClientImplExtended) getInternalConfigMapCount() int {
 			AND EXISTS (
 				SELECT 1
 				FROM jsonb_array_elements(cmal.config_map_data::jsonb->'maps') as cm
-				WHERE cm->>'external' = 'false'
+				WHERE cm->>'external' = ?
 			)
 			GROUP BY cmal.app_id
 			UNION ALL
@@ -878,14 +845,14 @@ func (impl *TelemetryEventClientImplExtended) getInternalConfigMapCount() int {
 			AND EXISTS (
 				SELECT 1
 				FROM jsonb_array_elements(cmel.config_map_data::jsonb->'maps') as cm
-				WHERE cm->>'external' = 'false'
+				WHERE cm->>'external' = ?
 			)
 			GROUP BY cmel.environment_id, cmel.app_id
 		) internal_cms
 	`
 
 	dbConnection := impl.appRepository.GetConnection()
-	_, err := dbConnection.Query(&count, query)
+	_, err := dbConnection.Query(&count, query, CONFIG_MAP_TYPE_INTERNAL, CONFIG_MAP_TYPE_INTERNAL)
 	if err != nil {
 		impl.logger.Errorw("error getting internal configmap count", "err", err)
 		return -1
