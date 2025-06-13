@@ -810,7 +810,7 @@ func (impl *HandlerServiceImpl) buildManifestPushTemplate(overrideRequest *bean3
 		manifestPushTemplate.ValuesFilePath = valuesOverrideResponse.DeploymentConfig.GetValuesFilePathForCommit()
 		manifestPushTemplate.ReleaseMode = valuesOverrideResponse.DeploymentConfig.ReleaseMode
 		manifestPushTemplate.IsCustomGitRepository = common.IsCustomGitOpsRepo(valuesOverrideResponse.DeploymentConfig.ConfigType)
-		manifestPushTemplate.IsArgoSyncSupported = valuesOverrideResponse.DeploymentConfig.IsArgoAppSyncAndRefreshSupported()
+		manifestPushTemplate.ArgoSyncNeeded = valuesOverrideResponse.DeploymentConfig.IsArgoAppSyncAndRefreshSupported()
 	}
 	return manifestPushTemplate, nil
 }

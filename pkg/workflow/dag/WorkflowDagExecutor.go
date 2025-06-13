@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/common-lib/async"
 	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/common-lib/utils/workFlow"
 	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
@@ -51,6 +52,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/service"
 	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/executor"
+	"github.com/devtron-labs/devtron/pkg/fluxApplication"
+	bean8 "github.com/devtron-labs/devtron/pkg/fluxApplication/bean"
 	k8sPkg "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
@@ -109,6 +112,7 @@ type WorkflowDagExecutor interface {
 	UpdateWorkflowRunnerStatusForDeployment(appIdentifier *helmBean.AppIdentifier, wfr *pipelineConfig.CdWorkflowRunner, skipReleaseNotFound bool) bool
 
 	BuildCiArtifactRequestForWebhook(event pipeline.ExternalCiWebhookDto) (*bean2.CiArtifactWebhookRequest, error)
+	UpdateWorkflowRunnerStatusForFluxDeployment(appIdentifier *bean8.FluxAppIdentifier, wfr *pipelineConfig.CdWorkflowRunner, hash string) bool
 }
 
 type WorkflowDagExecutorImpl struct {
@@ -146,11 +150,12 @@ type WorkflowDagExecutorImpl struct {
 	scanHistoryRepository   repository3.ImageScanHistoryRepository
 	imageScanService        imageScanning.ImageScanService
 
-	K8sUtil          *k8s.K8sServiceImpl
-	envRepository    repository5.EnvironmentRepository
-	k8sCommonService k8sPkg.K8sCommonService
-	workflowService  executor.WorkflowService
-	ciHandlerService trigger.HandlerService
+	K8sUtil                *k8s.K8sServiceImpl
+	envRepository          repository5.EnvironmentRepository
+	k8sCommonService       k8sPkg.K8sCommonService
+	workflowService        executor.WorkflowService
+	ciHandlerService       trigger.HandlerService
+	fluxApplicationService fluxApplication.FluxApplicationService
 }
 
 func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -184,6 +189,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	k8sCommonService k8sPkg.K8sCommonService,
 	workflowService executor.WorkflowService,
 	ciHandlerService trigger.HandlerService,
+	fluxApplicationService fluxApplication.FluxApplicationService,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
@@ -217,6 +223,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		k8sCommonService:              k8sCommonService,
 		workflowService:               workflowService,
 		ciHandlerService:              ciHandlerService,
+		fluxApplicationService:        fluxApplicationService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -1290,4 +1297,41 @@ func (impl *WorkflowDagExecutorImpl) BuildCiArtifactRequestForWebhook(event pipe
 		request.DataSource = repository.WEBHOOK
 	}
 	return request, nil
+}
+
+func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForFluxDeployment(appIdentifier *bean8.FluxAppIdentifier, wfr *pipelineConfig.CdWorkflowRunner, hash string) bool {
+	fluxAppDetail, err := impl.fluxApplicationService.GetFluxAppDetail(context.Background(), appIdentifier)
+	if err != nil {
+		impl.logger.Errorw("error in getting helm app release status", "appIdentifier", appIdentifier, "err", err)
+		// Handle release not found errors
+		// If release not found, mark the deployment as failure
+		wfr.Status = cdWorkflow2.WorkflowUnableToFetchState
+		wfr.Message = fmt.Sprintf("error in fetching app detail; err: %s", err.Error())
+		wfr.FinishedOn = time.Now()
+		return true
+	}
+	lastObservedRevisionSplit := strings.Split(fluxAppDetail.LastObservedVersion, ":") //master@sha1:633dc4ce8dc7463a4297481fef9457a0b97e8e68
+	var lastObservedRevision string
+	if len(lastObservedRevisionSplit) > 1 {
+		lastObservedRevision = lastObservedRevisionSplit[1]
+	}
+	if hash == lastObservedRevision {
+		return false
+	}
+	wfr.FinishedOn = time.Now()
+	wfr.Message = fluxAppDetail.FluxAppStatusDetail.Message
+	switch fluxAppDetail.FluxAppStatusDetail.Reason {
+	case bean8.InstallSucceededReason, bean8.UpgradeSucceededReason, bean8.TestSucceededReason, bean8.RollbackSucceededReason:
+		if fluxAppDetail.AppHealthStatus == commonBean.HealthStatusHealthy {
+			wfr.Status = cdWorkflow2.WorkflowSucceeded
+		}
+	case bean8.UpgradeFailedReason,
+		bean8.TestFailedReason,
+		bean8.RollbackFailedReason,
+		bean8.UninstallFailedReason,
+		bean8.ArtifactFailedReason,
+		bean8.InstallFailedReason:
+		wfr.Status = cdWorkflow2.WorkflowFailed
+	}
+	return true
 }

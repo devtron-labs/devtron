@@ -4,6 +4,7 @@
 | Key   | Type     | Default Value     | Description       | Example       | Deprecated       |
 |-------|----------|-------------------|-------------------|-----------------------|------------------|
  | ARGO_APP_MANUAL_SYNC_TIME | int |3 | retry argocd app manual sync if the timeline is stuck in ARGOCD_SYNC_INITIATED state for more than this defined time (in mins) |  | false |
+ | CD_FLUX_PIPELINE_STATUS_CRON_TIME | string |*/2 * * * * | Cron time to check the pipeline status for flux cd pipeline |  | false |
  | CD_HELM_PIPELINE_STATUS_CRON_TIME | string |*/2 * * * * | Cron time to check the pipeline status  |  | false |
  | CD_PIPELINE_STATUS_CRON_TIME | string |*/2 * * * * | Cron time for CD pipeline status |  | false |
  | CD_PIPELINE_STATUS_TIMEOUT_DURATION | string |20 | Timeout for CD pipeline to get healthy |  | false |
@@ -12,6 +13,7 @@
  | DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT | int |6 | Context timeout for no gitops concurrent async deployments |  | false |
  | EXPOSE_CD_METRICS | bool |false |  |  | false |
  | FEATURE_MIGRATE_ARGOCD_APPLICATION_ENABLE | bool |false | enable migration of external argocd application to devtron pipeline |  | false |
+ | FLUX_CD_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME | string |120 | eligible time for checking flux app status periodically and update in db, value is in seconds., default is 120, if wfr is updated within configured time i.e. FLUX_CD_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME then do not include for this cron cycle. |  | false |
  | HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME | string |120 | eligible time for checking helm app status periodically and update in db, value is in seconds., default is 120, if wfr is updated within configured time i.e. HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME then do not include for this cron cycle. |  | false |
  | IS_INTERNAL_USE | bool |true | If enabled then cd pipeline and helm apps will not need the deployment app type mandatorily. Couple this flag with HIDE_GITOPS_OR_HELM_OPTION (in Dashborad) and if gitops is configured and allowed for the env, pipeline/ helm app will gitops else no-gitops. |  | false |
  | MIGRATE_DEPLOYMENT_CONFIG_DATA | bool |false | migrate deployment config data from charts table to deployment_config table |  | false |

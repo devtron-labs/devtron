@@ -19,6 +19,8 @@ package status
 import (
 	"context"
 	"fmt"
+	util2 "github.com/devtron-labs/devtron/internal/util"
+	bean4 "github.com/devtron-labs/devtron/pkg/fluxApplication/bean"
 	util "github.com/devtron-labs/devtron/util/event"
 	"time"
 
@@ -63,6 +65,8 @@ type WorkflowStatusService interface {
 	CheckArgoPipelineTimelineStatusPeriodicallyAndUpdateInDb(pendingSinceSeconds int, timeForDegradation int) error
 
 	CheckArgoAppStatusPeriodicallyAndUpdateInDb(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) error
+
+	CheckFluxAppStatusPeriodicallyAndUpdateInDb(fluxPipelineStatusCheckEligibleTime int, getPipelineDeployedWithinHours int, cdPipelineTimeoutDuration int) error
 }
 
 type WorkflowStatusServiceImpl struct {
@@ -149,7 +153,7 @@ func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
 
 func (impl *WorkflowStatusServiceImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipelineStatusCheckEligibleTime int,
 	getPipelineDeployedWithinHours int) error {
-	wfrList, err := impl.cdWorkflowRepository.GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours)
+	wfrList, err := impl.cdWorkflowRepository.GetLatestTriggersOfPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours, util2.PIPELINE_DEPLOYMENT_TYPE_HELM)
 	if err != nil {
 		impl.logger.Errorw("error in getting latest triggers of helm pipelines which are stuck in non terminal statuses", "err", err)
 		return err
@@ -593,6 +597,84 @@ func (impl *WorkflowStatusServiceImpl) syncACDHelmApps(deployedBeforeMinutes int
 		}
 		timeline.CreateAuditLog(1)
 		_, err = impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
+	}
+	return nil
+}
+
+func (impl *WorkflowStatusServiceImpl) CheckFluxAppStatusPeriodicallyAndUpdateInDb(fluxPipelineStatusCheckEligibleTime int, getPipelineDeployedWithinHours int, cdPipelineTimeoutDuration int) error {
+	wfrList, err := impl.cdWorkflowRepository.GetLatestTriggersOfPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours, util2.PIPELINE_DEPLOYMENT_TYPE_FLUX)
+	if err != nil {
+		impl.logger.Errorw("error in getting latest triggers of helm pipelines which are stuck in non terminal statuses", "err", err)
+		return err
+	}
+	impl.logger.Debugw("checking helm app status for non terminal deployment triggers", "wfrList", wfrList, "number of wfr", len(wfrList))
+	for _, wfr := range wfrList {
+		if time.Now().Sub(wfr.StartedOn) <= time.Duration(fluxPipelineStatusCheckEligibleTime)*time.Second {
+			// if wfr is updated within configured time then do not include for this cron cycle
+			continue
+		}
+
+		appIdentifier := &bean4.FluxAppIdentifier{
+			ClusterId:      wfr.CdWorkflow.Pipeline.Environment.ClusterId,
+			Namespace:      wfr.CdWorkflow.Pipeline.Environment.Namespace,
+			Name:           wfr.CdWorkflow.Pipeline.DeploymentAppName,
+			IsKustomizeApp: false,
+		}
+
+		pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(wfr.CdWorkflowId)
+		if err != nil {
+			impl.logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", wfr.CdWorkflowId)
+			return err
+		}
+
+		if isWfrUpdated := impl.workflowDagExecutor.UpdateWorkflowRunnerStatusForFluxDeployment(appIdentifier, wfr, pipelineOverride.GitHash); !isWfrUpdated {
+			continue
+		}
+
+		wfr.UpdateAuditLog(1)
+		err = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(wfr)
+		if err != nil {
+			impl.logger.Errorw("error on update cd workflow runner", "wfr", wfr, "err", err)
+			return err
+		}
+
+		if wfr.Status == cdWorkflow2.WorkflowFailed {
+			err = impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineFailed(wfr.RefCdWorkflowRunnerId, "Deployment failed")
+			if err != nil {
+				impl.logger.Errorw("error updating CdPipelineStatusTimeline", "err", err)
+				return err
+			}
+			impl.deploymentEventHandler.WriteCDNotificationEventAsync(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride, util.Fail)
+		}
+
+		appId := wfr.CdWorkflow.Pipeline.AppId
+		envId := wfr.CdWorkflow.Pipeline.EnvironmentId
+		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
+			return err
+		}
+		if slices.Contains(cdWorkflow2.WfrTerminalStatusList, wfr.Status) {
+			util3.TriggerCDMetrics(cdWorkflow.GetTriggerMetricsFromRunnerObj(wfr, envDeploymentConfig), impl.config.ExposeCDMetrics)
+		}
+
+		impl.logger.Infow("updated workflow runner status for helm app", "wfr", wfr)
+		if wfr.Status == cdWorkflow2.WorkflowSucceeded {
+			timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(wfr.Id, timelineStatus.TIMELINE_STATUS_APP_HEALTHY, "App status is Healthy.", 1)
+			_, err = impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
+			if err != nil {
+				impl.logger.Errorw("error in saving timeline status for helm app", "wfr.Id", wfr.Id, "err", err)
+				return err
+			}
+			impl.deploymentEventHandler.WriteCDNotificationEventAsync(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride, util.Success)
+			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(bean3.TriggerContext{}, pipelineOverride)
+			if err != nil {
+				impl.logger.Errorw("error on handling deployment success event", "wfr", wfr, "err", err)
+				return err
+			}
+		} else if wfr.Status == cdWorkflow2.WorkflowTimedOut {
+			impl.deploymentEventHandler.WriteCDNotificationEventAsync(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride, util.Fail)
+		}
 	}
 	return nil
 }
