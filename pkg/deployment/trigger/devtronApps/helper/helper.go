@@ -39,9 +39,7 @@ func NewTriggerEvent(deploymentAppType string, triggeredAt time.Time, deployedBy
 		triggerEvent.PerformDeploymentOnCluster = true
 		triggerEvent.DeploymentAppType = deploymentAppType
 		triggerEvent.ManifestStorageType = bean2.ManifestStorageGit
-		if deploymentAppType == bean.FluxCd {
-			triggerEvent.DeployFluxCdApp = true
-		} else {
+		if deploymentAppType == bean.ArgoCd {
 			triggerEvent.DeployArgoCdApp = true
 		}
 	case bean.Helm:
