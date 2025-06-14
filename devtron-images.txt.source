@@ -26,7 +26,7 @@ quay.io/devtron/k9s-k8s-utils:latest
 quay.io/devtron/kubectl:latest
 quay.io/devtron/kubelink:a4fc9044-564-33855
 quay.io/devtron/kubewatch:a4fc9044-419-33852
-quay.io/devtron/lens:da156379-333-32910
+quay.io/devtron/lens:a4fc9044-333-33874
 quay.io/devtron/migrator:v4.16.2
 quay.io/devtron/minideb:latest
 quay.io/devtron/minio-mc:RELEASE.2021-02-14T04-28-06Z

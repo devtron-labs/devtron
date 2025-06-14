@@ -134,7 +134,7 @@ components:
   # Values for lens
   lens:
     registry: ""
-    image: "lens:da156379-333-32910"
+    image: "lens:a4fc9044-333-33874"
     imagePullPolicy: IfNotPresent
     configs:
       GIT_SENSOR_PROTOCOL: GRPC
