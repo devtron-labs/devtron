@@ -1,3 +1,5 @@
+## v1.7.0
+
 ## Enhancements
 - feat: Added Cronjob chart 1-6-0 (#6650)
 - feat: Enhancement clone UI support new (#6628)
@@ -49,3 +51,5 @@
 - sync: Release candidate v0.36.0 (#6595)
 - misc: GetConfigDBObj in tx (#6584)
 - sync: Main sync develop (#6583)
+
+
