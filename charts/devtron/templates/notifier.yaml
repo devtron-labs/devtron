@@ -27,6 +27,7 @@ metadata:
     release: devtron
     app: notifier
 data:
+{{ toYaml $.Values.global.dbConfig | indent 2 }}
 {{- if .configs}}
 {{ toYaml .configs | indent 2 }}
 {{- end }}
@@ -124,6 +125,26 @@ spec:
                   name: {{ .dbconfig.secretName }}
                   key: {{ .dbconfig.keyName }}
             {{- end }}
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: notifier-cm
+                  key: PG_ADDR
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: notifier-cm
+                  key: PG_PORT
+            - name: DB_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: notifier-cm
+                  key: PG_USER
+            - name: DB
+              valueFrom:
+                configMapKeyRef:
+                  name: notifier-cm
+                  key: PG_DATABASE
           envFrom:
           - configMapRef:
               name: notifier-cm

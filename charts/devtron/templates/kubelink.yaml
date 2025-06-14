@@ -27,6 +27,7 @@ metadata:
     "helm.sh/resource-policy": keep
 {{- if .configs }}
 data:
+{{ toYaml $.Values.global.dbConfig | indent 2 }}
 {{ toYaml .configs | indent 2 }}
 {{- if $.Values.installer.modules }}
 {{- if has "cicd" $.Values.installer.modules }}
