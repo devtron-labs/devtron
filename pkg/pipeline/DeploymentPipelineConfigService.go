@@ -93,16 +93,12 @@ import (
 	"go.uber.org/zap"
 	chart2 "helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/rest"
 	"net/http"
 	"path"
 	"path/filepath"
 	controllerClient "sigs.k8s.io/controller-runtime/pkg/client"
-	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 	"strconv"
 	"strings"
 	"time"
@@ -818,16 +814,6 @@ func (impl *CdPipelineConfigServiceImpl) ParseReleaseConfigForExternalFluxCDApp(
 	valueFileNameEnv := fmt.Sprintf("_%d-values.yaml", env.Id)
 	releaseConfig := adapter2.NewFluxSpecReleaseConfig(env.ClusterId, env.Namespace, gitRepositoryName, existingHelmRelease.Name, secretName, chartLocation, chartVersion, revision, repoURL, valueFileNameEnv, valuesFile)
 	return releaseConfig, nil
-}
-
-func getClient(config *rest.Config) (k8sClient.Client, error) {
-	scheme := runtime.NewScheme()
-	// Register core Kubernetes types
-	_ = v1.AddToScheme(scheme)
-	// Register Flux types
-	_ = sourcev1.AddToScheme(scheme)
-	_ = helmv2.AddToScheme(scheme)
-	return k8sClient.New(config, k8sClient.Options{Scheme: scheme})
 }
 
 func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ExternalAppLinkValidationResponse {
