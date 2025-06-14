@@ -17,7 +17,7 @@ quay.io/devtron/devtron:c8e75fb3-434-33854
 quay.io/devtron/dex:v2.30.2
 quay.io/devtron/git-sensor:a4fc9044-200-33872
 quay.io/devtron/grafana:7.3.1
-quay.io/devtron/hyperion:667bd63f-280-32953
+quay.io/devtron/hyperion:c8e75fb3-280-33879
 quay.io/devtron/image-scanner:a4fc9044-141-33877
 quay.io/devtron/inception:473deaa4-185-21582
 quay.io/devtron/k8s-sidecar:1.1.0
