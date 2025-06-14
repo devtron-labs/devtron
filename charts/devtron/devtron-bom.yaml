@@ -209,7 +209,7 @@ security:
       tag: 4.3.6
 # Values for notifier integration
 notifier:
-  image: "notifier:99e2f3cd-372-32893"
+  image: "notifier:19d654ff-372-33876"
   healthPort: 3000
 minio:
   image: "minio:RELEASE.2021-02-14T04-01-33Z"

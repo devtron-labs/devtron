@@ -34,7 +34,7 @@ quay.io/devtron/minio:RELEASE.2021-02-14T04-01-33Z
 quay.io/devtron/nats-box
 quay.io/devtron/nats-server-config-reloader:0.6.2
 quay.io/devtron/nats:2.9.3-alpine
-quay.io/devtron/notifier:99e2f3cd-372-32893
+quay.io/devtron/notifier:19d654ff-372-33876
 quay.io/devtron/postgres:14.9
 quay.io/devtron/postgres_exporter:v0.10.1
 quay.io/devtron/postgres_exporter:v0.4.7
