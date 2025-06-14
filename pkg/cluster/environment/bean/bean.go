@@ -66,6 +66,7 @@ type ResourceGroupingResponse struct {
 const (
 	PIPELINE_DEPLOYMENT_TYPE_HELM = "helm"
 	PIPELINE_DEPLOYMENT_TYPE_ACD  = "argo_cd"
+	PIPELINE_DEPLOYMENT_TYPE_FLUX = "flux_cd"
 )
 
 type DataSourceMetaData struct {

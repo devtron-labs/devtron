@@ -118,6 +118,8 @@ func (impl *FluxApplicationServiceImpl) GetFluxAppDetail(ctx context.Context, ap
 			Message: fluxDetailResponse.FluxAppStatusDetail.GetMessage(),
 		},
 		ResourceTreeResponse: fluxDetailResponse.ResourceTreeResponse,
+		AppHealthStatus:      fluxDetailResponse.ApplicationStatus,
+		LastObservedVersion:  fluxDetailResponse.GetLastObservedGeneration(),
 	}
 
 	return appDetail, nil

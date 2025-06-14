@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/runTime"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/retryFunc"
 	"github.com/google/go-github/github"
@@ -62,11 +63,11 @@ func NewGithubClient(host string, token string, org string, logger *zap.SugaredL
 		logger.Errorw("error in creating git client ", "host", hostUrl, "err", err)
 		return GitHubClient{}, err
 	}
-	if hostUrl.Host == GITHUB_HOST {
+	if hostUrl.Host == bean.GITHUB_HOST {
 		client = github.NewClient(tc)
 	} else {
 		logger.Infow("creating github EnterpriseClient with org", "host", host, "org", org)
-		hostUrl.Path = path.Join(hostUrl.Path, GITHUB_API_V3)
+		hostUrl.Path = path.Join(hostUrl.Path, bean.GITHUB_API_V3)
 		client, err = github.NewEnterpriseClient(hostUrl.String(), hostUrl.String(), tc)
 	}
 
@@ -116,13 +117,13 @@ func (impl GitHubClient) CreateRepository(ctx context.Context, config *bean2.Git
 			repoExists = false
 		} else {
 			impl.logger.Errorw("error in creating github repo", "err", err)
-			detailedErrorGitOpsConfigActions.StageErrorMap[GetRepoUrlStage] = err
+			detailedErrorGitOpsConfigActions.StageErrorMap[bean.GetRepoUrlStage] = err
 			globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitHubClient", start, err)
 			return "", false, isEmpty, detailedErrorGitOpsConfigActions
 		}
 	}
 	if repoExists {
-		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, GetRepoUrlStage)
+		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, bean.GetRepoUrlStage)
 		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitHubClient", start, nil)
 		return url, false, isEmpty, detailedErrorGitOpsConfigActions
 	}
@@ -139,56 +140,56 @@ func (impl GitHubClient) CreateRepository(ctx context.Context, config *bean2.Git
 		url, isEmpty, err = impl.GetRepoUrl(config)
 		if err != nil {
 			impl.logger.Errorw("error in getting github repo", "repo", config.GitRepoName, "err", err)
-			detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err1
+			detailedErrorGitOpsConfigActions.StageErrorMap[bean.CreateRepoStage] = err1
 			globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitHubClient", start, err1)
 			return "", true, isEmpty, detailedErrorGitOpsConfigActions
 		}
-		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, GetRepoUrlStage)
+		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, bean.GetRepoUrlStage)
 		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitHubClient", start, nil)
 		return url, false, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	impl.logger.Infow("github repo created ", "r", r.CloneURL)
-	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateRepoStage)
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, bean.CreateRepoStage)
 
 	validated, err := impl.ensureProjectAvailabilityOnHttp(config)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability github", "project", config.GitRepoName, "err", err)
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = err
+		detailedErrorGitOpsConfigActions.StageErrorMap[bean.CloneHttpStage] = err
 		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitHubClient", start, err)
 		return *r.CloneURL, true, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	if !validated {
 		err = fmt.Errorf("unable to validate project:%s in given time", config.GitRepoName)
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = err
+		detailedErrorGitOpsConfigActions.StageErrorMap[bean.CloneHttpStage] = err
 		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitHubClient", start, err)
 		return "", true, isEmpty, detailedErrorGitOpsConfigActions
 	}
-	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, bean.CloneHttpStage)
 
 	_, err = impl.CreateReadme(ctx, config)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme github", "project", config.GitRepoName, "err", err)
-		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
+		detailedErrorGitOpsConfigActions.StageErrorMap[bean.CreateReadmeStage] = err
 		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitHubClient", start, err)
 		return *r.CloneURL, true, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	isEmpty = false //As we have created readme, repo is no longer empty
-	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateReadmeStage)
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, bean.CreateReadmeStage)
 
 	validated, err = impl.ensureProjectAvailabilityOnSsh(config.GitRepoName, *r.CloneURL, config.TargetRevision)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability github", "project", config.GitRepoName, "err", err)
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
+		detailedErrorGitOpsConfigActions.StageErrorMap[bean.CloneSshStage] = err
 		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitHubClient", start, err)
 		return *r.CloneURL, true, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	if !validated {
 		err = fmt.Errorf("unable to validate project:%s in given time", config.GitRepoName)
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
+		detailedErrorGitOpsConfigActions.StageErrorMap[bean.CloneSshStage] = err
 		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitHubClient", start, err)
 		return "", true, isEmpty, detailedErrorGitOpsConfigActions
 	}
-	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneSshStage)
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, bean.CloneSshStage)
 	//_, err = impl.createReadme(name)
 	globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitHubClient", start, nil)
 	return *r.CloneURL, true, isEmpty, detailedErrorGitOpsConfigActions

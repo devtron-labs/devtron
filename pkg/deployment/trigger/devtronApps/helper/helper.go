@@ -34,12 +34,14 @@ func NewTriggerEvent(deploymentAppType string, triggeredAt time.Time, deployedBy
 		TriggeredAt: triggeredAt,
 	}
 	switch deploymentAppType {
-	case bean.ArgoCd:
+	case bean.ArgoCd, bean.FluxCd:
 		triggerEvent.PerformChartPush = true
 		triggerEvent.PerformDeploymentOnCluster = true
-		triggerEvent.DeployArgoCdApp = true
-		triggerEvent.DeploymentAppType = bean.ArgoCd
+		triggerEvent.DeploymentAppType = deploymentAppType
 		triggerEvent.ManifestStorageType = bean2.ManifestStorageGit
+		if deploymentAppType == bean.ArgoCd {
+			triggerEvent.DeployArgoCdApp = true
+		}
 	case bean.Helm:
 		triggerEvent.PerformChartPush = false
 		triggerEvent.PerformDeploymentOnCluster = true

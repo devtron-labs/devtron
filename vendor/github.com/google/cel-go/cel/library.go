@@ -15,11 +15,13 @@
 package cel
 
 import (
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/google/cel-go/common/ast"
 	"github.com/google/cel-go/common/operators"
 	"github.com/google/cel-go/common/overloads"
 	"github.com/google/cel-go/common/stdlib"
@@ -28,17 +30,17 @@ import (
 	"github.com/google/cel-go/common/types/traits"
 	"github.com/google/cel-go/interpreter"
 	"github.com/google/cel-go/parser"
-
-	exprpb "google.golang.org/genproto/googleapis/api/expr/v1alpha1"
 )
 
 const (
 	optMapMacro                = "optMap"
 	optFlatMapMacro            = "optFlatMap"
 	hasValueFunc               = "hasValue"
+	unwrapOptFunc              = "unwrapOpt"
 	optionalNoneFunc           = "optional.none"
 	optionalOfFunc             = "optional.of"
 	optionalOfNonZeroValueFunc = "optional.ofNonZeroValue"
+	optionalUnwrapFunc         = "optional.unwrap"
 	valueFunc                  = "value"
 	unusedIterVar              = "#unused"
 )
@@ -261,6 +263,37 @@ func (stdLibrary) ProgramOptions() []ProgramOption {
 // be expressed with `optMap`.
 //
 //	msg.?elements.optFlatMap(e, e[?0]) // return the first element if present.
+
+// # First
+//
+// Introduced in version: 2
+//
+// Returns an optional with the first value from the right hand list, or
+// optional.None.
+//
+// [1, 2, 3].first().value() == 1
+
+// # Last
+//
+// Introduced in version: 2
+//
+// Returns an optional with the last value from the right hand list, or
+// optional.None.
+//
+// [1, 2, 3].last().value() == 3
+//
+// This is syntactic sugar for msg.elements[msg.elements.size()-1].
+
+// # Unwrap / UnwrapOpt
+//
+// Introduced in version: 2
+//
+// Returns a list of all the values that are not none in the input list of optional values.
+// Can be used as optional.unwrap(List[T]) or with postfix notation: List[T].unwrapOpt()
+//
+// optional.unwrap([optional.of(42), optional.none()]) == [42]
+// [optional.of(42), optional.none()].unwrapOpt() == [42]
+
 func OptionalTypes(opts ...OptionalTypesOption) EnvOption {
 	lib := &optionalLib{version: math.MaxUint32}
 	for _, opt := range opts {
@@ -304,6 +337,7 @@ func (lib *optionalLib) CompileOptions() []EnvOption {
 	optionalTypeV := OptionalType(paramTypeV)
 	listTypeV := ListType(paramTypeV)
 	mapTypeKV := MapType(paramTypeK, paramTypeV)
+	listOptionalTypeV := ListType(optionalTypeV)
 
 	opts := []EnvOption{
 		// Enable the optional syntax in the parser.
@@ -313,7 +347,7 @@ func (lib *optionalLib) CompileOptions() []EnvOption {
 		Types(types.OptionalType),
 
 		// Configure the optMap and optFlatMap macros.
-		Macros(NewReceiverMacro(optMapMacro, 2, optMap)),
+		Macros(ReceiverMacro(optMapMacro, 2, optMap)),
 
 		// Global and member functions for working with optional values.
 		Function(optionalOfFunc,
@@ -374,8 +408,48 @@ func (lib *optionalLib) CompileOptions() []EnvOption {
 			Overload("optional_map_index_value", []*Type{OptionalType(mapTypeKV), paramTypeK}, optionalTypeV)),
 	}
 	if lib.version >= 1 {
-		opts = append(opts, Macros(NewReceiverMacro(optFlatMapMacro, 2, optFlatMap)))
+		opts = append(opts, Macros(ReceiverMacro(optFlatMapMacro, 2, optFlatMap)))
 	}
+
+	if lib.version >= 2 {
+		opts = append(opts, Function("last",
+			MemberOverload("list_last", []*Type{listTypeV}, optionalTypeV,
+				UnaryBinding(func(v ref.Val) ref.Val {
+					list := v.(traits.Lister)
+					sz := list.Size().Value().(int64)
+
+					if sz == 0 {
+						return types.OptionalNone
+					}
+
+					return types.OptionalOf(list.Get(types.Int(sz - 1)))
+				}),
+			),
+		))
+
+		opts = append(opts, Function("first",
+			MemberOverload("list_first", []*Type{listTypeV}, optionalTypeV,
+				UnaryBinding(func(v ref.Val) ref.Val {
+					list := v.(traits.Lister)
+					sz := list.Size().Value().(int64)
+
+					if sz == 0 {
+						return types.OptionalNone
+					}
+
+					return types.OptionalOf(list.Get(types.Int(0)))
+				}),
+			),
+		))
+
+		opts = append(opts, Function(optionalUnwrapFunc,
+			Overload("optional_unwrap", []*Type{listOptionalTypeV}, listTypeV,
+				UnaryBinding(optUnwrap))))
+		opts = append(opts, Function(unwrapOptFunc,
+			MemberOverload("optional_unwrapOpt", []*Type{listOptionalTypeV}, listTypeV,
+				UnaryBinding(optUnwrap))))
+	}
+
 	return opts
 }
 
@@ -386,58 +460,75 @@ func (lib *optionalLib) ProgramOptions() []ProgramOption {
 	}
 }
 
-func optMap(meh MacroExprHelper, target *exprpb.Expr, args []*exprpb.Expr) (*exprpb.Expr, *Error) {
+func optMap(meh MacroExprFactory, target ast.Expr, args []ast.Expr) (ast.Expr, *Error) {
 	varIdent := args[0]
 	varName := ""
-	switch varIdent.GetExprKind().(type) {
-	case *exprpb.Expr_IdentExpr:
-		varName = varIdent.GetIdentExpr().GetName()
+	switch varIdent.Kind() {
+	case ast.IdentKind:
+		varName = varIdent.AsIdent()
 	default:
-		return nil, meh.NewError(varIdent.GetId(), "optMap() variable name must be a simple identifier")
+		return nil, meh.NewError(varIdent.ID(), "optMap() variable name must be a simple identifier")
 	}
 	mapExpr := args[1]
-	return meh.GlobalCall(
+	return meh.NewCall(
 		operators.Conditional,
-		meh.ReceiverCall(hasValueFunc, target),
-		meh.GlobalCall(optionalOfFunc,
-			meh.Fold(
-				unusedIterVar,
+		meh.NewMemberCall(hasValueFunc, target),
+		meh.NewCall(optionalOfFunc,
+			meh.NewComprehension(
 				meh.NewList(),
+				unusedIterVar,
 				varName,
-				meh.ReceiverCall(valueFunc, target),
-				meh.LiteralBool(false),
-				meh.Ident(varName),
+				meh.NewMemberCall(valueFunc, meh.Copy(target)),
+				meh.NewLiteral(types.False),
+				meh.NewIdent(varName),
 				mapExpr,
 			),
 		),
-		meh.GlobalCall(optionalNoneFunc),
+		meh.NewCall(optionalNoneFunc),
 	), nil
 }
 
-func optFlatMap(meh MacroExprHelper, target *exprpb.Expr, args []*exprpb.Expr) (*exprpb.Expr, *Error) {
+func optFlatMap(meh MacroExprFactory, target ast.Expr, args []ast.Expr) (ast.Expr, *Error) {
 	varIdent := args[0]
 	varName := ""
-	switch varIdent.GetExprKind().(type) {
-	case *exprpb.Expr_IdentExpr:
-		varName = varIdent.GetIdentExpr().GetName()
+	switch varIdent.Kind() {
+	case ast.IdentKind:
+		varName = varIdent.AsIdent()
 	default:
-		return nil, meh.NewError(varIdent.GetId(), "optFlatMap() variable name must be a simple identifier")
+		return nil, meh.NewError(varIdent.ID(), "optFlatMap() variable name must be a simple identifier")
 	}
 	mapExpr := args[1]
-	return meh.GlobalCall(
+	return meh.NewCall(
 		operators.Conditional,
-		meh.ReceiverCall(hasValueFunc, target),
-		meh.Fold(
-			unusedIterVar,
+		meh.NewMemberCall(hasValueFunc, target),
+		meh.NewComprehension(
 			meh.NewList(),
+			unusedIterVar,
 			varName,
-			meh.ReceiverCall(valueFunc, target),
-			meh.LiteralBool(false),
-			meh.Ident(varName),
+			meh.NewMemberCall(valueFunc, meh.Copy(target)),
+			meh.NewLiteral(types.False),
+			meh.NewIdent(varName),
 			mapExpr,
 		),
-		meh.GlobalCall(optionalNoneFunc),
+		meh.NewCall(optionalNoneFunc),
 	), nil
+}
+
+func optUnwrap(value ref.Val) ref.Val {
+	list := value.(traits.Lister)
+	var unwrappedList []ref.Val
+	iter := list.Iterator()
+	for iter.HasNext() == types.True {
+		val := iter.Next()
+		opt, isOpt := val.(*types.Optional)
+		if !isOpt {
+			return types.WrapErr(fmt.Errorf("value %v is not optional", val))
+		}
+		if opt.HasValue() {
+			unwrappedList = append(unwrappedList, opt.GetValue())
+		}
+	}
+	return types.DefaultTypeAdapter.NativeToValue(unwrappedList)
 }
 
 func enableOptionalSyntax() EnvOption {
@@ -445,6 +536,12 @@ func enableOptionalSyntax() EnvOption {
 		e.prsrOpts = append(e.prsrOpts, parser.EnableOptionalSyntax(true))
 		return e, nil
 	}
+}
+
+// EnableErrorOnBadPresenceTest enables error generation when a presence test or optional field
+// selection is performed on a primitive type.
+func EnableErrorOnBadPresenceTest(value bool) EnvOption {
+	return features(featureEnableErrorOnBadPresenceTest, value)
 }
 
 func decorateOptionalOr(i interpreter.Interpretable) (interpreter.Interpretable, error) {
@@ -672,7 +769,7 @@ var (
 func timestampGetFullYear(ts, tz ref.Val) ref.Val {
 	t, err := inTimeZone(ts, tz)
 	if err != nil {
-		return types.NewErr(err.Error())
+		return types.NewErrFromString(err.Error())
 	}
 	return types.Int(t.Year())
 }
@@ -680,7 +777,7 @@ func timestampGetFullYear(ts, tz ref.Val) ref.Val {
 func timestampGetMonth(ts, tz ref.Val) ref.Val {
 	t, err := inTimeZone(ts, tz)
 	if err != nil {
-		return types.NewErr(err.Error())
+		return types.NewErrFromString(err.Error())
 	}
 	// CEL spec indicates that the month should be 0-based, but the Time value
 	// for Month() is 1-based.
@@ -690,7 +787,7 @@ func timestampGetMonth(ts, tz ref.Val) ref.Val {
 func timestampGetDayOfYear(ts, tz ref.Val) ref.Val {
 	t, err := inTimeZone(ts, tz)
 	if err != nil {
-		return types.NewErr(err.Error())
+		return types.NewErrFromString(err.Error())
 	}
 	return types.Int(t.YearDay() - 1)
 }
@@ -698,7 +795,7 @@ func timestampGetDayOfYear(ts, tz ref.Val) ref.Val {
 func timestampGetDayOfMonthZeroBased(ts, tz ref.Val) ref.Val {
 	t, err := inTimeZone(ts, tz)
 	if err != nil {
-		return types.NewErr(err.Error())
+		return types.NewErrFromString(err.Error())
 	}
 	return types.Int(t.Day() - 1)
 }
@@ -706,7 +803,7 @@ func timestampGetDayOfMonthZeroBased(ts, tz ref.Val) ref.Val {
 func timestampGetDayOfMonthOneBased(ts, tz ref.Val) ref.Val {
 	t, err := inTimeZone(ts, tz)
 	if err != nil {
-		return types.NewErr(err.Error())
+		return types.NewErrFromString(err.Error())
 	}
 	return types.Int(t.Day())
 }
@@ -714,7 +811,7 @@ func timestampGetDayOfMonthOneBased(ts, tz ref.Val) ref.Val {
 func timestampGetDayOfWeek(ts, tz ref.Val) ref.Val {
 	t, err := inTimeZone(ts, tz)
 	if err != nil {
-		return types.NewErr(err.Error())
+		return types.NewErrFromString(err.Error())
 	}
 	return types.Int(t.Weekday())
 }
@@ -722,7 +819,7 @@ func timestampGetDayOfWeek(ts, tz ref.Val) ref.Val {
 func timestampGetHours(ts, tz ref.Val) ref.Val {
 	t, err := inTimeZone(ts, tz)
 	if err != nil {
-		return types.NewErr(err.Error())
+		return types.NewErrFromString(err.Error())
 	}
 	return types.Int(t.Hour())
 }
@@ -730,7 +827,7 @@ func timestampGetHours(ts, tz ref.Val) ref.Val {
 func timestampGetMinutes(ts, tz ref.Val) ref.Val {
 	t, err := inTimeZone(ts, tz)
 	if err != nil {
-		return types.NewErr(err.Error())
+		return types.NewErrFromString(err.Error())
 	}
 	return types.Int(t.Minute())
 }
@@ -738,7 +835,7 @@ func timestampGetMinutes(ts, tz ref.Val) ref.Val {
 func timestampGetSeconds(ts, tz ref.Val) ref.Val {
 	t, err := inTimeZone(ts, tz)
 	if err != nil {
-		return types.NewErr(err.Error())
+		return types.NewErrFromString(err.Error())
 	}
 	return types.Int(t.Second())
 }
@@ -746,7 +843,7 @@ func timestampGetSeconds(ts, tz ref.Val) ref.Val {
 func timestampGetMilliseconds(ts, tz ref.Val) ref.Val {
 	t, err := inTimeZone(ts, tz)
 	if err != nil {
-		return types.NewErr(err.Error())
+		return types.NewErrFromString(err.Error())
 	}
 	return types.Int(t.Nanosecond() / 1000000)
 }

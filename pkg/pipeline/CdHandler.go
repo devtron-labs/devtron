@@ -56,6 +56,7 @@ import (
 const (
 	DEVTRON_APP_HELM_PIPELINE_STATUS_UPDATE_CRON = "DTAppHelmPipelineStatusUpdateCron"
 	DEVTRON_APP_ARGO_PIPELINE_STATUS_UPDATE_CRON = "DTAppArgoPipelineStatusUpdateCron"
+	DEVTRON_APP_FLUX_PIPELINE_STATUS_UPDATE_CRON = "DTAppFluxPipelineStatusUpdateCron"
 	HELM_APP_ARGO_PIPELINE_STATUS_UPDATE_CRON    = "HelmAppArgoPipelineStatusUpdateCron"
 )
 
