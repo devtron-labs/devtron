@@ -610,6 +610,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 					impl.logger.Errorw("error in parsing deployment config for external flux app", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
 					return nil, err
 				}
+				envDeploymentConfig.ConfigType = bean4.CUSTOM.String()
 			} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD && pipeline.GetReleaseMode() == util.PIPELINE_RELEASE_MODE_CREATE {
 				releaseConfig, err = impl.parseReleaseConfigForACDApp(app, appDeploymentConfig, env)
 				if err != nil {
