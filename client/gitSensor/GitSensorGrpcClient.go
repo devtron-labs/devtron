@@ -90,7 +90,7 @@ func (client *GrpcApiClientImpl) getConnection() (*grpc.ClientConn, error) {
 		grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor, otelgrpc.UnaryClientInterceptor()),
 		grpc.WithBlock(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
+		grpc.WithDefaultServiceConfig(client.config.ServiceConfig),
 	)
 	endpoint := fmt.Sprintf("dns:///%s", client.config.Url)
 

@@ -18,6 +18,7 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
@@ -93,6 +94,24 @@ func (handler DevtronAppAutoCompleteRestHandlerImpl) GetAppListForAutocomplete(w
 	v := r.URL.Query()
 	teamId := v.Get("teamId")
 	appName := v.Get("appName")
+	offset := 0
+	size := 0 // default value is 0, it means if not provided in query param it will fetch all
+	sizeStr := v.Get("size")
+	if sizeStr != "" {
+		size, err = strconv.Atoi(sizeStr)
+		if err != nil || size < 0 {
+			common.WriteJsonResp(w, errors.New("invalid size"), nil, http.StatusBadRequest)
+			return
+		}
+	}
+	offsetStr := v.Get("offset")
+	if offsetStr != "" {
+		offset, err = strconv.Atoi(offsetStr)
+		if err != nil || offset < 0 {
+			common.WriteJsonResp(w, errors.New("invalid offset"), nil, http.StatusBadRequest)
+			return
+		}
+	}
 	appTypeParam := v.Get("appType")
 	var appType int
 	if appTypeParam != "" {
@@ -131,6 +150,7 @@ func (handler DevtronAppAutoCompleteRestHandlerImpl) GetAppListForAutocomplete(w
 		}
 	}
 	if isActionUserSuperAdmin {
+		apps = handler.getPaginatedResultsForApps(offset, size, apps)
 		common.WriteJsonResp(w, err, apps, http.StatusOK)
 		return
 	}
@@ -161,6 +181,7 @@ func (handler DevtronAppAutoCompleteRestHandlerImpl) GetAppListForAutocomplete(w
 	}
 	span.End()
 	// RBAC
+	accessedApps = handler.getPaginatedResultsForApps(offset, size, accessedApps)
 	common.WriteJsonResp(w, err, accessedApps, http.StatusOK)
 }
 
@@ -289,4 +310,15 @@ func (handler DevtronAppAutoCompleteRestHandlerImpl) TeamListAutocomplete(w http
 	}
 
 	common.WriteJsonResp(w, err, result, http.StatusOK)
+}
+
+func (handler DevtronAppAutoCompleteRestHandlerImpl) getPaginatedResultsForApps(offset int, size int, apps []*pipeline.AppBean) []*pipeline.AppBean {
+	if size > 0 {
+		if offset+size <= len(apps) {
+			apps = apps[offset : offset+size]
+		} else {
+			apps = apps[offset:]
+		}
+	}
+	return apps
 }

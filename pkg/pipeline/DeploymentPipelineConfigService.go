@@ -494,6 +494,10 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 	}
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
+		// skip creation of pipeline if envId is not set
+		if pipeline.EnvironmentId <= 0 || pipeline.IsSwitchCiPipelineRequest() {
+			continue
+		}
 		env, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching env by id", "envId", pipeline.EnvironmentId, "err", err)
@@ -1337,7 +1341,8 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 				impl.logger.Errorw("error in deleting workflow mapping", "err", err)
 				return deleteResponse, err
 			}
-			err = impl.appWorkflowRepository.DeleteAppWorkflow(appWorkflow, tx)
+			//delete app workflow and all it's mappings
+			err = impl.appWorkflowRepository.DeleteAppWorkflowAndAllMappings(appWorkflow, tx)
 			if err != nil {
 				impl.logger.Errorw("error in deleting workflow mapping", "err", err)
 				return deleteResponse, err
@@ -1816,6 +1821,11 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 	}
 
 	for _, dbPipeline := range authorizedPipelines {
+		if _, ok := pipelineWorkflowMapping[dbPipeline.Id]; !ok {
+			// can be due to concurrent deletion of pipeline, app workflow mapping
+			impl.logger.Warnw("pipeline workflow mapping not found for pipeline", "pipelineId", dbPipeline.Id)
+			continue
+		}
 		var customTag *bean.CustomTagData
 		var customTagStage repository5.PipelineStageType
 		customTagPreCD := customTagMapResponse.GetCustomTagForEntityKey(pipelineConfigBean.EntityTypePreCD, strconv.Itoa(dbPipeline.Id))
@@ -1897,6 +1907,10 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironmentMin(request 
 	//authorization block ends here
 	span.End()
 	for _, dbPipeline := range pipelines {
+		if _, ok := objects[dbPipeline.Id]; !ok {
+			impl.logger.Warnw("no objects found for pipeline", "pipelineId", dbPipeline.Id)
+			continue
+		}
 		appObject := objects[dbPipeline.Id][0]
 		envObject := objects[dbPipeline.Id][1]
 		if !(appResults[appObject] && envResults[envObject]) {
@@ -2133,6 +2147,10 @@ func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter
 
 	pipelinesMap := make(map[int][]*pipelineConfig.Pipeline)
 	for _, pipeline := range cdPipelines {
+		if _, ok := objects[pipeline.Id]; !ok {
+			impl.logger.Warnw("skipping pipeline as no object found for it", "pipelineId", pipeline.Id)
+			continue
+		}
 		appObject := objects[pipeline.Id][0]
 		envObject := objects[pipeline.Id][1]
 		if !(appResults[appObject] && envResults[envObject]) {

@@ -1,0 +1,1 @@
+-- not dropping the added column as it is used for audit and data loss can be impactful. The old code can run with the column added and should not cause any issue.

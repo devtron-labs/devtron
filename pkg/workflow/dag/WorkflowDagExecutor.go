@@ -1050,7 +1050,10 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 	} else {
 		ciArtifactArr = append(ciArtifactArr, pluginArtifacts[0])
 	}
-	go impl.WriteCiSuccessEvent(request, pipelineModal, buildArtifact)
+	runnableFunc := func() {
+		impl.WriteCiSuccessEvent(request, pipelineModal, buildArtifact)
+	}
+	impl.asyncRunnable.Execute(runnableFunc)
 	async := false
 
 	// execute auto trigger in batch on CI success event
@@ -1072,7 +1075,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 		for j := 0; j < batchSize; j++ {
 			wg.Add(1)
 			index := i + j
-			go func(index int) {
+			runnableFunc := func(index int) {
 				defer wg.Done()
 				ciArtifact := ciArtifactArr[index]
 				// handle individual CiArtifact success event
@@ -1080,7 +1083,8 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 				if err != nil {
 					impl.logger.Errorw("error on handle  ci success event", "ciArtifactId", ciArtifact.Id, "err", err)
 				}
-			}(index)
+			}
+			impl.asyncRunnable.Execute(func() { runnableFunc(index) })
 		}
 		wg.Wait()
 		i += batchSize

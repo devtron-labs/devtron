@@ -52,6 +52,11 @@ func Generate(size int) string {
 	return str
 }
 
+// GenerateUCID generates UCID of len 16
+func GenerateUCID() string {
+	return Generate(16)
+}
+
 func hasScheme(url string) bool {
 	return len(url) >= 7 && (url[:7] == "http://" || url[:8] == "https://")
 }
