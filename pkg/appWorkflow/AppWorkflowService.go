@@ -437,6 +437,11 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowMappingForEnv(appIds []int) (m
 	workflowMappings := make(map[int][]bean4.AppWorkflowMappingDto)
 	workflows := make(map[int]*bean4.AppWorkflowDto)
 	for _, w := range appWorkflowMappings {
+		if _, ok := pipelineMap[w.ComponentId]; !ok && w.Type == "CD_PIPELINE" {
+			impl.Logger.Warnw("pipeline not found for componentId", "componentId", w.ComponentId, "appWorkflowId", w.AppWorkflowId)
+			// If the pipeline is not found, we skip adding this mapping as one possible reason would be pipeline have been deleted
+			continue
+		}
 		if _, ok := workflows[w.AppWorkflowId]; !ok {
 			workflows[w.AppWorkflowId] = &bean4.AppWorkflowDto{
 				Id:    w.AppWorkflowId,
