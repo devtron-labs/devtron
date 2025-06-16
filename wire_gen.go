@@ -640,7 +640,7 @@ func InitializeApp() (*App, error) {
 	workflowConfigSnapshotRepositoryImpl := repository19.NewWorkflowConfigSnapshotRepositoryImpl(db, sugaredLogger, transactionUtilImpl)
 	workflowTriggerAuditServiceImpl := service3.NewWorkflowTriggerAuditServiceImpl(sugaredLogger, workflowConfigSnapshotRepositoryImpl, ciCdConfig, transactionUtilImpl)
 	triggerAuditHookImpl := hook.NewTriggerAuditHookImpl(sugaredLogger, workflowTriggerAuditServiceImpl)
-	workflowServiceImpl, err := executor.NewWorkflowServiceImpl(sugaredLogger, environmentRepositoryImpl, ciCdConfig, configReadServiceImpl, globalCMCSServiceImpl, argoWorkflowExecutorImpl, systemWorkflowExecutorImpl, k8sCommonServiceImpl, infraProviderImpl, serviceImpl, k8sServiceImpl, triggerAuditHookImpl)
+	workflowServiceImpl, err := executor.NewWorkflowServiceImpl(sugaredLogger, environmentRepositoryImpl, ciCdConfig, configReadServiceImpl, globalCMCSServiceImpl, argoWorkflowExecutorImpl, systemWorkflowExecutorImpl, k8sCommonServiceImpl, infraProviderImpl, serviceImpl, k8sServiceImpl, triggerAuditHookImpl, infraConfigAuditServiceImpl)
 	if err != nil {
 		return nil, err
 	}

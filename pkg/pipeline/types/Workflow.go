@@ -119,6 +119,8 @@ type WorkflowRequest struct {
 	IsExtRun                    bool                              `json:"isExtRun"`
 	ImageRetryCount             int                               `json:"imageRetryCount"`
 	ImageRetryInterval          int                               `json:"imageRetryInterval"`
+	IsReTrigger                 bool                              `json:"isReTrigger"`
+	ReferenceCiWorkflowId       int                               `json:"referenceCiWorkflowId"` // data filled when retriggering a ci workflow
 	// Data from CD Workflow service
 	WorkflowRunnerId            int                                  `json:"workflowRunnerId"`
 	CdPipelineId                int                                  `json:"cdPipelineId"`
@@ -162,6 +164,15 @@ func (workflowRequest *WorkflowRequest) IsCdStageTypePre() bool {
 
 func (workflowRequest *WorkflowRequest) IsCdStageTypePost() bool {
 	return workflowRequest.StageType == POST
+}
+
+func (workflowRequest *WorkflowRequest) IsCiTypeWorkflowRequest() bool {
+	// pipelineId in workflowRequest refers to CiPipelineId, only filled for ci type workflowRequest
+	return workflowRequest.PipelineId > 0
+}
+
+func (workflowRequest *WorkflowRequest) IsCiRetriggerType() bool {
+	return workflowRequest.IsReTrigger
 }
 
 func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {

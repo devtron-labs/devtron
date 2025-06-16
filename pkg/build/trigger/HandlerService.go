@@ -683,6 +683,10 @@ func (impl *HandlerServiceImpl) triggerCiPipeline(trigger *types.CiTriggerReques
 			return 0, err
 		}
 		savedCiWf, workflowRequest = trigger.RetriggerCiWorkflow, trigger.RetriggerWorkflowRequest
+		if trigger.RetriggerCiWorkflow != nil {
+			workflowRequest.ReferenceCiWorkflowId = trigger.RetriggerCiWorkflow.ReferenceCiWorkflowId
+		}
+		workflowRequest.IsReTrigger = true
 	} else {
 		variableSnapshot, savedCiWf, workflowRequest, err = impl.StartCiWorkflowAndPrepareWfRequest(trigger)
 		if err != nil {

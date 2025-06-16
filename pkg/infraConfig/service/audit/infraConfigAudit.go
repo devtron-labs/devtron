@@ -23,10 +23,12 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"strconv"
 )
 
 type InfraConfigAuditService interface {
 	SaveCiInfraConfigHistorySnapshot(tx *pg.Tx, workflowId int, triggeredBy int32, infraConfigs map[string]*infraBean.InfraConfig) error
+	GetInfraConfigByWorkflowId(workflowId int, workflowType string) (*infraBean.InfraConfig, error)
 	sql.TransactionWrapper
 }
 
@@ -70,4 +72,37 @@ func (impl *InfraConfigAuditServiceImpl) SaveCiInfraConfigHistorySnapshot(tx *pg
 		return err
 	}
 	return nil
+}
+
+func (impl *InfraConfigAuditServiceImpl) GetInfraConfigByWorkflowId(workflowId int, workflowType string) (*infraBean.InfraConfig, error) {
+	workflowTypeEnum := audit.WorkflowType(workflowType)
+	infraConfigHistories, err := impl.infraConfigAuditRepository.GetInfraConfigHistoryByWorkflowId(workflowId, workflowTypeEnum)
+	if err != nil {
+		impl.logger.Errorw("failed to get infra config history by workflow id", "error", err, "workflowId", workflowId, "workflowType", workflowType)
+		return nil, err
+	}
+
+	// Create InfraConfig from history records
+	infraConfig := &infraBean.InfraConfig{}
+	for _, history := range infraConfigHistories {
+		switch history.Key {
+		case infraBean.CPULimitKey:
+			infraConfig.CiLimitCpu = history.ValueString
+		case infraBean.CPURequestKey:
+			infraConfig.CiReqCpu = history.ValueString
+		case infraBean.MemoryLimitKey:
+			infraConfig.CiLimitMem = history.ValueString
+		case infraBean.MemoryRequestKey:
+			infraConfig.CiReqMem = history.ValueString
+		case infraBean.TimeOutKey:
+			// Convert string back to float64
+			if timeout, parseErr := strconv.ParseFloat(history.ValueString, 64); parseErr == nil {
+				infraConfig.CiDefaultTimeout = timeout
+			} else {
+				impl.logger.Warnw("failed to parse timeout value", "valueString", history.ValueString, "parseErr", parseErr)
+			}
+		}
+	}
+
+	return infraConfig, nil
 }

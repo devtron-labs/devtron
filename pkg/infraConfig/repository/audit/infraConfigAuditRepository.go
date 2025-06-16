@@ -24,6 +24,7 @@ import (
 
 type InfraConfigAuditRepository interface {
 	SaveInfraConfigHistorySnapshot(tx *pg.Tx, infraConfigTriggerHistories []*InfraConfigTriggerHistory) error
+	GetInfraConfigHistoryByWorkflowId(workflowId int, workflowType WorkflowType) ([]*InfraConfigTriggerHistory, error)
 }
 
 type InfraConfigAuditRepositoryImpl struct {
@@ -82,4 +83,16 @@ func (impl *InfraConfigAuditRepositoryImpl) SaveInfraConfigHistorySnapshot(tx *p
 		return err
 	}
 	return nil
+}
+
+func (impl *InfraConfigAuditRepositoryImpl) GetInfraConfigHistoryByWorkflowId(workflowId int, workflowType WorkflowType) ([]*InfraConfigTriggerHistory, error) {
+	var infraConfigHistories []*InfraConfigTriggerHistory
+	err := impl.dbConnection.Model(&infraConfigHistories).
+		Where("workflow_id = ?", workflowId).
+		Where("workflow_type = ?", workflowType).
+		Select()
+	if err != nil {
+		return nil, err
+	}
+	return infraConfigHistories, nil
 }
