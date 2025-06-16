@@ -19,14 +19,15 @@ package helper
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/base64"
 	"encoding/json"
 	"io"
 )
 
-// CompressJSON marshals and compresses JSON data
-func CompressJSON(data interface{}) (string, error) {
+// CompressWorkflowRequest compresses WorkflowRequest to bytes
+func CompressWorkflowRequest(workflowRequest interface{}) (string, error) {
 	// Marshal to JSON
-	jsonData, err := json.Marshal(data)
+	jsonData, err := json.Marshal(workflowRequest)
 	if err != nil {
 		return "", err
 	}
@@ -45,13 +46,21 @@ func CompressJSON(data interface{}) (string, error) {
 		return "", err
 	}
 
-	return string(buf.Bytes()), nil
+	// Encode compressed binary data to Base64 to avoid UTF-8 encoding issues
+	return base64.StdEncoding.EncodeToString(buf.Bytes()), nil
 }
 
-// DecompressJSON decompresses and unmarshals JSON data
-func DecompressJSON(compressedData []byte, target interface{}) error {
-	// Decompress
-	reader, err := gzip.NewReader(bytes.NewReader(compressedData))
+// DecompressWorkflowRequest decompresses bytes to WorkflowRequest
+// This function handles both Base64 encoded and legacy raw binary data for backward compatibility
+func DecompressWorkflowRequest(compressedData string, target interface{}) error {
+	// Try Base64 decoding first (new format)
+	decodedData, err := base64.StdEncoding.DecodeString(compressedData)
+	if err != nil {
+		return err
+	}
+
+	// Use decoded data for decompression
+	reader, err := gzip.NewReader(bytes.NewReader(decodedData))
 	if err != nil {
 		return err
 	}
@@ -66,65 +75,3 @@ func DecompressJSON(compressedData []byte, target interface{}) error {
 	// Unmarshal JSON
 	return json.Unmarshal(decompressedData, target)
 }
-
-// CompressString compresses string data
-func CompressString(data string) ([]byte, error) {
-	var buf bytes.Buffer
-	gzipWriter := gzip.NewWriter(&buf)
-
-	_, err := gzipWriter.Write([]byte(data))
-	if err != nil {
-		return nil, err
-	}
-
-	err = gzipWriter.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
-// DecompressString decompresses string data
-func DecompressString(compressedData []byte) (string, error) {
-	reader, err := gzip.NewReader(bytes.NewReader(compressedData))
-	if err != nil {
-		return "", err
-	}
-	defer reader.Close()
-
-	decompressedData, err := io.ReadAll(reader)
-	if err != nil {
-		return "", err
-	}
-
-	return string(decompressedData), nil
-}
-
-// Utility functions for backward compatibility
-
-// CompressWorkflowRequest compresses WorkflowRequest to bytes
-func CompressWorkflowRequest(workflowRequest interface{}) (string, error) {
-	return CompressJSON(workflowRequest)
-}
-
-// DecompressWorkflowRequest decompresses bytes to WorkflowRequest
-func DecompressWorkflowRequest(compressedData string, target interface{}) error {
-	return DecompressJSON([]byte(compressedData), target)
-}
-
-// Example usage:
-/*
-// Compress before saving
-compressedData, err := CompressWorkflowRequest(workflowRequest)
-if err != nil {
-    return err
-}
-snapshot.WorkflowRequestJson = compressedData
-// Decompress when reading
-var workflowRequest types.WorkflowRequest
-err = DecompressWorkflowRequest(snapshot.WorkflowRequestJson, &workflowRequest)
-if err != nil {
-    return err
-}
-*/
