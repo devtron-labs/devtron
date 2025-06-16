@@ -31,7 +31,6 @@
 - chore: when a cluster event occurs, create config map instead of secret (#6607)
 - chore: Gpu workload chart (#6608)
 - misc: update sample dockerfiles use non-root user (UID 2002) and base images (#6512)
-- sync: Develop main sync (#6638)
 - misc: added missing dependency (#6634)
 - misc: notification for failed Deployment (#6611)
 - misc: wire in EA (#6616)
