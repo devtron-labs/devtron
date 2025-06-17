@@ -93,8 +93,11 @@ import (
 	"go.uber.org/zap"
 	chart2 "helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
+	v1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
 	"net/http"
 	"path"
 	"path/filepath"
@@ -809,11 +812,12 @@ func (impl *CdPipelineConfigServiceImpl) getExtFluxHelmReleaseAndGitRepository(c
 		return nil, nil, err
 	}
 
-	apiClient, err := controllerClient.New(restConfig, controllerClient.Options{})
+	apiClient, err := getClient(restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in creating k8s client", "clusterId", clusterId, "err", err)
 		return nil, nil, err
 	}
+
 	key := types.NamespacedName{Name: fluxHelmReleaseName, Namespace: namespace}
 	existingHelmRelease := &helmv2.HelmRelease{}
 	err = apiClient.Get(ctx, key, existingHelmRelease)
@@ -832,6 +836,16 @@ func (impl *CdPipelineConfigServiceImpl) getExtFluxHelmReleaseAndGitRepository(c
 		}
 	}
 	return existingHelmRelease, existingGitRepository, nil
+}
+
+func getClient(config *rest.Config) (controllerClient.Client, error) {
+	scheme := runtime.NewScheme()
+	// Register core Kubernetes types
+	_ = v1.AddToScheme(scheme)
+	// Register Flux types
+	_ = sourcev1.AddToScheme(scheme)
+	_ = helmv2.AddToScheme(scheme)
+	return controllerClient.New(config, controllerClient.Options{Scheme: scheme})
 }
 
 func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ExternalAppLinkValidationResponse {
@@ -1741,7 +1755,8 @@ func (impl *CdPipelineConfigServiceImpl) DeleteFluxTypePipelineDeploymentApp(ctx
 		impl.logger.Errorw("error in getting rest config", "clusterId", clusterId, "err", err)
 		return err
 	}
-	apiClient, err := controllerClient.New(restConfig, controllerClient.Options{})
+
+	apiClient, err := getClient(restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in creating k8s client", "clusterId", clusterId, "err", err)
 		return err
