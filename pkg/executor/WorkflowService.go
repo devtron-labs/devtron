@@ -167,7 +167,7 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplateAndAuditTrigger(workflowR
 	}
 	err = impl.auditTrigger(workflowRequest)
 	if err != nil {
-		impl.Logger.Errorw("error occurred while auditing trigger", "err", err)
+		impl.Logger.Errorw("error occurred while auditing trigger", "workflowRunnerId", workflowRequest.WorkflowRunnerId, "ciWorkflowId", workflowRequest.WorkflowId, "err", err)
 		return bean3.WorkflowTemplate{}, err
 	}
 	workflowTemplate := workflowRequest.GetWorkflowTemplate(workflowJson, impl.ciCdConfig)
@@ -263,9 +263,9 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplateAndAuditTrigger(workflowR
 
 	if workflowRequest.IsCiTypeWorkflowRequest() && workflowRequest.IsCiRetriggerType() {
 		// here we need to update the workflow template with cpu request and limit, memory limit and request and Build timeout (in oss this is applicable on all ci builds i.e. applied globally)
-		err = impl.updateWorkflowTemplateWithInfraConfigFromHistory(workflowRequest, &workflowTemplate)
+		err = impl.populateReTriggerWorkflowTemplateWithInfraConfig(workflowRequest, &workflowTemplate)
 		if err != nil {
-			impl.Logger.Errorw("error occurred while updating workflow template with infra config from history", "err", err)
+			impl.Logger.Errorw("error occurred while updating workflow template with infra config from history", "ciWorkflowId", workflowRequest.WorkflowId, "err", err)
 			return bean3.WorkflowTemplate{}, err
 		}
 
@@ -524,9 +524,9 @@ func (impl *WorkflowServiceImpl) getWfClient(environment *repository2.Environmen
 	return wfClient, nil
 }
 
-// updateWorkflowTemplateWithInfraConfigFromHistory updates the workflow template with CPU, memory limits/requests and timeout
+// populateReTriggerWorkflowTemplateWithInfraConfig updates the workflow template with CPU, memory limits/requests and timeout
 // from the infra_config_trigger_history table based on previous workflow ID.
-func (impl *WorkflowServiceImpl) updateWorkflowTemplateWithInfraConfigFromHistory(workflowRequest *types.WorkflowRequest, workflowTemplate *bean3.WorkflowTemplate) error {
+func (impl *WorkflowServiceImpl) populateReTriggerWorkflowTemplateWithInfraConfig(workflowRequest *types.WorkflowRequest, workflowTemplate *bean3.WorkflowTemplate) error {
 	// Skip if no previous workflow ID is available or if this is not a CI/Job workflow
 	if workflowRequest.ReferenceCiWorkflowId == 0 {
 		impl.Logger.Debugw("skipping infra config history update", "referenceWorkflowId", workflowRequest.ReferenceCiWorkflowId, "workflowType", workflowRequest.Type)
@@ -536,7 +536,7 @@ func (impl *WorkflowServiceImpl) updateWorkflowTemplateWithInfraConfigFromHistor
 	// Get infra config from history based on previous workflow ID
 	historicalInfraConfig, err := impl.infraConfigAuditService.GetInfraConfigByWorkflowId(workflowRequest.ReferenceCiWorkflowId, bean.CI_WORKFLOW_TYPE.String())
 	if err != nil {
-		impl.Logger.Warnw("could not retrieve infra config from history, using current config", "referenceWorkflowId", workflowRequest.ReferenceCiWorkflowId, "err", err)
+		impl.Logger.Errorw("could not retrieve infra config from history, using current config", "referenceWorkflowId", workflowRequest.ReferenceCiWorkflowId, "err", err)
 		return nil // Don't fail the workflow, just use current config
 	}
 
@@ -545,17 +545,21 @@ func (impl *WorkflowServiceImpl) updateWorkflowTemplateWithInfraConfigFromHistor
 		return nil
 	}
 
-	impl.Logger.Infow("applying historical infra config to workflow template", "referenceWorkflowId", workflowRequest.ReferenceCiWorkflowId, "historicalConfig", historicalInfraConfig)
+	impl.Logger.Infow("applying historical infra config to workflow template", "referenceWorkflowId", workflowRequest.ReferenceCiWorkflowId)
 
 	// apply historical infra configurations to a workflow template
-	impl.applyInfraConfigToWorkflowTemplate(workflowRequest, workflowTemplate, historicalInfraConfig)
+	err = impl.applyInfraConfigToWorkflowTemplate(workflowRequest, workflowTemplate, historicalInfraConfig)
+	if err != nil {
+		impl.Logger.Errorw("error in applying infra config to workflow template", "referenceWorkflowId", workflowRequest.ReferenceCiWorkflowId, "err", err)
+		return err
+	}
 
 	return nil
 }
 
 // applyInfraConfigToWorkflowTemplate applies the historical infra configuration to the workflow template.
 // This function handles the core OSS functionality and can be extended in enterprise for additional fields.
-func (impl *WorkflowServiceImpl) applyInfraConfigToWorkflowTemplate(workflowRequest *types.WorkflowRequest, workflowTemplate *bean3.WorkflowTemplate, infraConfig *v1.InfraConfig) {
+func (impl *WorkflowServiceImpl) applyInfraConfigToWorkflowTemplate(workflowRequest *types.WorkflowRequest, workflowTemplate *bean3.WorkflowTemplate, infraConfig *v1.InfraConfig) error {
 	// Apply timeout configuration
 	if infraConfig.GetCiDefaultTimeout() > 0 {
 		timeout := infraConfig.GetCiTimeoutInt()
@@ -581,7 +585,8 @@ func (impl *WorkflowServiceImpl) applyInfraConfigToWorkflowTemplate(workflowRequ
 				container.Resources.Limits[v12.ResourceCPU] = cpuLimit
 				impl.Logger.Debugw("applied historical CPU limit to workflow template", "cpuLimit", infraConfig.GetCiLimitCpu(), "workflowId", workflowRequest.WorkflowId)
 			} else {
-				impl.Logger.Warnw("failed to parse CPU limit from historical config", "cpuLimit", infraConfig.GetCiLimitCpu(), "err", err)
+				impl.Logger.Errorw("failed to parse CPU limit from historical config", "cpuLimit", infraConfig.GetCiLimitCpu(), "err", err)
+				return err
 			}
 		}
 		if infraConfig.GetCiReqCpu() != "" {
@@ -589,7 +594,8 @@ func (impl *WorkflowServiceImpl) applyInfraConfigToWorkflowTemplate(workflowRequ
 				container.Resources.Requests[v12.ResourceCPU] = cpuRequest
 				impl.Logger.Debugw("applied historical CPU request to workflow template", "cpuRequest", infraConfig.GetCiReqCpu(), "workflowId", workflowRequest.WorkflowId)
 			} else {
-				impl.Logger.Warnw("failed to parse CPU request from historical config", "cpuRequest", infraConfig.GetCiReqCpu(), "err", err)
+				impl.Logger.Errorw("failed to parse CPU request from historical config", "cpuRequest", infraConfig.GetCiReqCpu(), "err", err)
+				return err
 			}
 		}
 
@@ -599,7 +605,8 @@ func (impl *WorkflowServiceImpl) applyInfraConfigToWorkflowTemplate(workflowRequ
 				container.Resources.Limits[v12.ResourceMemory] = memoryLimit
 				impl.Logger.Debugw("applied historical memory limit to workflow template", "memoryLimit", infraConfig.GetCiLimitMem(), "workflowId", workflowRequest.WorkflowId)
 			} else {
-				impl.Logger.Warnw("failed to parse memory limit from historical config", "memoryLimit", infraConfig.GetCiLimitMem(), "err", err)
+				impl.Logger.Errorw("failed to parse memory limit from historical config", "memoryLimit", infraConfig.GetCiLimitMem(), "err", err)
+				return err
 			}
 		}
 		if infraConfig.GetCiReqMem() != "" {
@@ -607,15 +614,17 @@ func (impl *WorkflowServiceImpl) applyInfraConfigToWorkflowTemplate(workflowRequ
 				container.Resources.Requests[v12.ResourceMemory] = memoryRequest
 				impl.Logger.Debugw("applied historical memory request to workflow template", "memoryRequest", infraConfig.GetCiReqMem(), "workflowId", workflowRequest.WorkflowId)
 			} else {
-				impl.Logger.Warnw("failed to parse memory request from historical config", "memoryRequest", infraConfig.GetCiReqMem(), "err", err)
+				impl.Logger.Errorw("failed to parse memory request from historical config", "memoryRequest", infraConfig.GetCiReqMem(), "err", err)
+				return err
 			}
 		}
 	}
 
-	impl.applyEnterpriseInfraConfigToWorkflowTemplate(workflowRequest, workflowTemplate, infraConfig)
+	return impl.applyEnterpriseInfraConfigToWorkflowTemplate(workflowRequest, workflowTemplate, infraConfig)
 }
 
 // applyEnterpriseInfraConfigToWorkflowTemplate is a placeholder for enterprise-specific infra config application.
-func (impl *WorkflowServiceImpl) applyEnterpriseInfraConfigToWorkflowTemplate(workflowRequest *types.WorkflowRequest, workflowTemplate *bean3.WorkflowTemplate, infraConfig *v1.InfraConfig) {
+func (impl *WorkflowServiceImpl) applyEnterpriseInfraConfigToWorkflowTemplate(workflowRequest *types.WorkflowRequest, workflowTemplate *bean3.WorkflowTemplate, infraConfig *v1.InfraConfig) error {
 	impl.Logger.Debugw("enterprise infra config application (no-op in OSS)", "workflowId", workflowRequest.WorkflowId)
+	return nil
 }

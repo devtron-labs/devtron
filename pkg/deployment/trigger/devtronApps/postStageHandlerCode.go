@@ -35,7 +35,6 @@ func (impl *HandlerServiceImpl) TriggerPostStage(request bean.CdTriggerRequest) 
 	triggeredAt := time.Now()
 	triggeredBy := request.TriggeredBy
 	pipeline := request.Pipeline
-	artifact := request.Artifact
 	cdWf := request.CdWf
 	ctx := context.Background() //before there was only one context. To check why here we are not using ctx from request.TriggerContext
 	env, namespace, err := impl.getEnvAndNsIfRunStageInEnv(ctx, request)
@@ -104,23 +103,9 @@ func (impl *HandlerServiceImpl) TriggerPostStage(request bean.CdTriggerRequest) 
 		impl.logger.Errorw("error, checkVulnerabilityStatusAndFailWfIfNeeded", "err", err, "runner", runner)
 		return nil, err
 	}
-
-	var cdStageWorkflowRequest *types.WorkflowRequest
-	if request.IsRetrigger {
-		// Retrieve workflow request from snapshot
-		workflowRequest, err := impl.workflowTriggerAuditService.GetWorkflowRequestFromSnapshotForRetrigger(runner.Id, types.POST_CD_WORKFLOW_TYPE)
-		if err != nil {
-			impl.logger.Errorw("error retrieving workflow request from snapshot for post cd workflow type", "cdWorkflowId", runner.CdWorkflow.Id, "err", err)
-			return nil, err
-		}
-		cdStageWorkflowRequest = workflowRequest
-		// Update dynamic fields in the workflow request for retrigger
-		impl.updateWorkflowRequestForCdRetrigger(cdStageWorkflowRequest, runner)
-	} else {
-		cdStageWorkflowRequest, err = impl.getPrePostCdStageWorkflowRequest(ctx, runner, cdWf, pipeline, env, artifact, types.POST, envDevploymentConfig, triggeredBy)
-		if err != nil {
-			return impl.buildWfRequestErrorHandler(runner, err, triggeredBy)
-		}
+	cdStageWorkflowRequest, err := impl.preparePrePostCdWorkflowRequest(ctx, runner, cdWf, request, env, types.POST, envDevploymentConfig)
+	if err != nil {
+		return impl.buildWfRequestErrorHandler(runner, err, triggeredBy)
 	}
 	_, jobHelmPackagePath, err := impl.workflowService.SubmitWorkflow(cdStageWorkflowRequest)
 	if err != nil {

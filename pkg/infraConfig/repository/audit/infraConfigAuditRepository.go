@@ -91,8 +91,5 @@ func (impl *InfraConfigAuditRepositoryImpl) GetInfraConfigHistoryByWorkflowId(wo
 		Where("workflow_id = ?", workflowId).
 		Where("workflow_type = ?", workflowType).
 		Select()
-	if err != nil {
-		return nil, err
-	}
-	return infraConfigHistories, nil
+	return infraConfigHistories, err
 }

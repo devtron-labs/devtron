@@ -18,11 +18,9 @@ package service
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/adapter"
-	"github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/helper"
-
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/adapter"
 	"github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/repository"
 	"go.uber.org/zap"
 )
@@ -102,7 +100,7 @@ func (impl *WorkflowTriggerAuditServiceImpl) maskSecretsInWorkflowRequest(workfl
 func (impl *WorkflowTriggerAuditServiceImpl) createWorkflowConfigSnapshot(workflowRequest *types.WorkflowRequest) (*repository.WorkflowConfigSnapshot, error) {
 	// sanitize secrets before storing
 	sanitizedWorkflowRequest := impl.maskSecretsInWorkflowRequest(workflowRequest)
-	compressedWorkflowJson, err := helper.CompressWorkflowRequest(sanitizedWorkflowRequest)
+	compressedWorkflowJson, err := sanitizedWorkflowRequest.CompressWorkflowRequest()
 	if err != nil {
 		impl.logger.Errorw("error in compressing sanitized workflow request", "err", err)
 		return nil, err
@@ -128,7 +126,7 @@ func (impl *WorkflowTriggerAuditServiceImpl) GetWorkflowRequestFromSnapshotForRe
 
 	// Decompress and unmarshal the workflow request
 	var workflowRequest types.WorkflowRequest
-	err = helper.DecompressWorkflowRequest(snapshot.WorkflowRequestJson, &workflowRequest)
+	err = workflowRequest.DecompressWorkflowRequest(snapshot.WorkflowRequestJson)
 	if err != nil {
 		impl.logger.Errorw("error in decompressing workflow request from snapshot for retrigger", "err", err, "snapshotId", snapshot.Id)
 		return nil, err
@@ -176,62 +174,3 @@ func (impl *WorkflowTriggerAuditServiceImpl) restoreSecretsInWorkflowRequest(wor
 	impl.logger.Debugw("completed secret restoration in workflow request", "workflowId", workflowRequest.WorkflowId)
 	return nil
 }
-
-// isSecretPlaceholder checks if a value is a sanitized secret placeholder
-func (impl *WorkflowTriggerAuditServiceImpl) isSecretPlaceholder(value string) bool {
-	// Check for empty values which indicate sanitized secrets
-	return value == ""
-}
-
-// getSecretFromCurrentEnvironment retrieves secret from current environment variables
-func (impl *WorkflowTriggerAuditServiceImpl) getSecretFromCurrentEnvironment(key, placeholder string) string {
-	// In a production environment, this should:
-	// 1. Use a secure secret management system
-	// 2. Implement proper authentication and authorization
-	// 3. Log access for audit purposes
-
-	// For now, we'll return empty string to indicate secret needs manual restoration
-	// This prevents using potentially stale or incorrect secrets
-	impl.logger.Warnw("secret restoration needed for retrigger", "key", key, "placeholder", placeholder)
-
-	// TODO: Implement actual secret retrieval from:
-	// - Kubernetes secrets
-	// - HashiCorp Vault
-	// - AWS Secrets Manager
-	// - Azure Key Vault
-	// - Google Secret Manager
-	// - Environment variables (with proper validation)
-
-	return ""
-}
-
-//
-//	// Convert back to WorkflowRequest type
-//	reconstructedJson, err := json.Marshal(reconstructedWorkflowRequest)
-//	if err != nil {
-//		impl.logger.Errorw("error in marshaling reconstructed workflow request", "err", err)
-//		return nil, err
-//	}
-//
-//	var workflowRequest types.WorkflowRequest
-//	err = json.Unmarshal(reconstructedJson, &workflowRequest)
-//	if err != nil {
-//		impl.logger.Errorw("error in unmarshaling reconstructed workflow request", "err", err)
-//		return nil, err
-//	}
-//
-//	retriggerConfig := &bean.RetriggerWorkflowConfig{
-//		AuditId:             configSnapshot.Id,
-//		WorkflowType:        string(configSnapshot.WorkflowType),
-//		PipelineId:          configSnapshot.PipelineId,
-//		AppId:               configSnapshot.AppId,
-//		EnvironmentId:       configSnapshot.EnvironmentId,
-//		ArtifactId:          configSnapshot.ArtifactId,
-//		WorkflowRequest:     &workflowRequest,
-//		ConfigSnapshot:      configSnapshot,
-//		OriginalTriggeredBy: configSnapshot.TriggeredBy,
-//		OriginalTriggerTime: configSnapshot.CreatedOn,
-//	}
-//
-//	return retriggerConfig, nil
-//}

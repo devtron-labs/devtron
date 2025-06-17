@@ -81,8 +81,15 @@ func (impl *InfraConfigAuditServiceImpl) GetInfraConfigByWorkflowId(workflowId i
 		impl.logger.Errorw("failed to get infra config history by workflow id", "error", err, "workflowId", workflowId, "workflowType", workflowType)
 		return nil, err
 	}
+	infraConfig, err := impl.fetchInfraConfigFromHistory(infraConfigHistories)
+	if err != nil {
+		impl.logger.Errorw("failed to fetch infra config from history", "infraConfigHistories", infraConfigHistories, "err", err)
+		return nil, err
+	}
+	return infraConfig, nil
+}
 
-	// Create InfraConfig from history records
+func (impl *InfraConfigAuditServiceImpl) fetchInfraConfigFromHistory(infraConfigHistories []*audit.InfraConfigTriggerHistory) (*infraBean.InfraConfig, error) {
 	infraConfig := &infraBean.InfraConfig{}
 	for _, history := range infraConfigHistories {
 		switch history.Key {
@@ -99,7 +106,8 @@ func (impl *InfraConfigAuditServiceImpl) GetInfraConfigByWorkflowId(workflowId i
 			if timeout, parseErr := strconv.ParseFloat(history.ValueString, 64); parseErr == nil {
 				infraConfig.CiDefaultTimeout = timeout
 			} else {
-				impl.logger.Warnw("failed to parse timeout value", "valueString", history.ValueString, "parseErr", parseErr)
+				impl.logger.Errorw("failed to parse timeout value", "valueString", history.ValueString, "parseErr", parseErr)
+				return nil, parseErr
 			}
 		}
 	}

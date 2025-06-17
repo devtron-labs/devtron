@@ -671,7 +671,7 @@ func (impl *HandlerServiceImpl) fetchVariableSnapshotForCiRetrigger(trigger *typ
 	return prePostAndRefPluginResponse.VariableSnapshot, nil
 }
 
-func (impl *HandlerServiceImpl) triggerCiPipeline(trigger *types.CiTriggerRequest) (int, error) {
+func (impl *HandlerServiceImpl) prepareCiWfRequest(trigger *types.CiTriggerRequest) (map[string]string, *pipelineConfig.CiWorkflow, *types.WorkflowRequest, error) {
 	var variableSnapshot map[string]string
 	var savedCiWf *pipelineConfig.CiWorkflow
 	var workflowRequest *types.WorkflowRequest
@@ -680,7 +680,7 @@ func (impl *HandlerServiceImpl) triggerCiPipeline(trigger *types.CiTriggerReques
 		variableSnapshot, err = impl.fetchVariableSnapshotForCiRetrigger(trigger)
 		if err != nil {
 			impl.Logger.Errorw("error in fetchVariableSnapshotForCiRetrigger", "triggerRequest", trigger, "err", err)
-			return 0, err
+			return nil, nil, nil, err
 		}
 		savedCiWf, workflowRequest = trigger.RetriggerCiWorkflow, trigger.RetriggerWorkflowRequest
 		if trigger.RetriggerCiWorkflow != nil {
@@ -691,9 +691,18 @@ func (impl *HandlerServiceImpl) triggerCiPipeline(trigger *types.CiTriggerReques
 		variableSnapshot, savedCiWf, workflowRequest, err = impl.StartCiWorkflowAndPrepareWfRequest(trigger)
 		if err != nil {
 			impl.Logger.Errorw("error in starting ci workflow and preparing wf request", "triggerRequest", trigger, "err", err)
-			return 0, err
+			return nil, nil, nil, err
 		}
 		workflowRequest.CiPipelineType = trigger.PipelineType
+	}
+	return variableSnapshot, savedCiWf, workflowRequest, nil
+}
+
+func (impl *HandlerServiceImpl) triggerCiPipeline(trigger *types.CiTriggerRequest) (int, error) {
+	variableSnapshot, savedCiWf, workflowRequest, err := impl.prepareCiWfRequest(trigger)
+	if err != nil {
+		impl.Logger.Errorw("error in preparing wf request", "triggerRequest", trigger, "err", err)
+		return 0, err
 	}
 
 	err = impl.executeCiPipeline(workflowRequest)
@@ -744,11 +753,13 @@ func (impl *HandlerServiceImpl) StartCiWorkflowAndPrepareWfRequest(trigger *type
 	impl.Logger.Debugw("ci pipeline manual trigger", "request", trigger)
 	ciMaterials, err := impl.GetCiMaterials(trigger.PipelineId, trigger.CiMaterials)
 	if err != nil {
+		impl.Logger.Errorw("error in getting ci materials", "pipelineId", trigger.PipelineId, "ciMaterials", trigger.CiMaterials, "err", err)
 		return nil, nil, nil, err
 	}
 
 	ciPipelineScripts, err := impl.ciPipelineRepository.FindCiScriptsByCiPipelineId(trigger.PipelineId)
 	if err != nil && !util.IsErrNoRows(err) {
+		impl.Logger.Errorw("error in getting ci script by pipeline id", "pipelineId", trigger.PipelineId, "err", err)
 		return nil, nil, nil, err
 	}
 
@@ -764,12 +775,14 @@ func (impl *HandlerServiceImpl) StartCiWorkflowAndPrepareWfRequest(trigger *type
 	ciWorkflowConfigNamespace := impl.config.GetDefaultNamespace()
 	envModal, isJob, err := impl.getEnvironmentForJob(pipeline, trigger)
 	if err != nil {
+		impl.Logger.Errorw("error in getting environment for job", "pipelineId", trigger.PipelineId, "err", err)
 		return nil, nil, nil, err
 	}
 	if isJob && envModal != nil {
 
 		err = impl.checkArgoSetupRequirement(envModal)
 		if err != nil {
+			impl.Logger.Errorw("error in checking argo setup requirement", "envModal", envModal, "err", err)
 			return nil, nil, nil, err
 		}
 
@@ -870,6 +883,7 @@ func (impl *HandlerServiceImpl) StartCiWorkflowAndPrepareWfRequest(trigger *type
 	err = impl.updateCiWorkflow(workflowRequest, savedCiWf)
 	appLabels, err := impl.appCrudOperationService.GetLabelsByAppId(pipeline.AppId)
 	if err != nil {
+		impl.Logger.Errorw("error in getting labels by appId", "appId", pipeline.AppId, "err", err)
 		return nil, nil, nil, err
 	}
 	workflowRequest.AppLabels = appLabels

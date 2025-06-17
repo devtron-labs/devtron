@@ -61,6 +61,34 @@ import (
 	"time"
 )
 
+func (impl *HandlerServiceImpl) preparePrePostCdWorkflowRequest(ctx context.Context, runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow,
+	request bean.CdTriggerRequest, env *repository4.Environment, stageType string, envDeploymentConfig *bean5.DeploymentConfig) (*types.WorkflowRequest, error) {
+	var cdStageWorkflowRequest *types.WorkflowRequest
+	var err error
+	if request.IsRetrigger {
+		// retrieve workflow request from snapshot
+		workflowType := types.PRE_CD_WORKFLOW_TYPE
+		if stageType == types.POST {
+			workflowType = types.POST_CD_WORKFLOW_TYPE
+		}
+		workflowRequest, err := impl.workflowTriggerAuditService.GetWorkflowRequestFromSnapshotForRetrigger(runner.Id, workflowType)
+		if err != nil {
+			impl.logger.Errorw("error retrieving workflow request from snapshot for pre/post cd stage type", "workflowType", workflowType, "cdWorkflowId", runner.CdWorkflow.Id, "err", err)
+			return nil, err
+		}
+		cdStageWorkflowRequest = workflowRequest
+		// Update dynamic fields in the workflow request for retrigger
+		impl.updateWorkflowRequestForCdRetrigger(cdStageWorkflowRequest, runner)
+	} else {
+		cdStageWorkflowRequest, err = impl.getPrePostCdStageWorkflowRequest(ctx, runner, cdWf, request.Pipeline, env, request.Artifact, stageType, envDeploymentConfig, request.TriggeredBy)
+		if err != nil {
+			impl.logger.Errorw("error retrieving workflow request from snapshot for pre/post cd stage type", "stageType", stageType, "cdWorkflowId", runner.CdWorkflow.Id, "err", err)
+			return nil, err
+		}
+	}
+	return cdStageWorkflowRequest, nil
+}
+
 func (impl *HandlerServiceImpl) TriggerPreStage(request bean.CdTriggerRequest) (*bean6.ManifestPushTemplate, error) {
 	request.WorkflowType = apiBean.CD_WORKFLOW_TYPE_PRE
 	// setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
@@ -123,23 +151,9 @@ func (impl *HandlerServiceImpl) TriggerPreStage(request bean.CdTriggerRequest) (
 		impl.logger.Errorw("error, checkVulnerabilityStatusAndFailWfIfNeeded", "err", err, "runner", runner)
 		return nil, err
 	}
-
-	var cdStageWorkflowRequest *types.WorkflowRequest
-	if request.IsRetrigger {
-		// Retrieve workflow request from snapshot
-		workflowRequest, err := impl.workflowTriggerAuditService.GetWorkflowRequestFromSnapshotForRetrigger(runner.Id, types.PRE_CD_WORKFLOW_TYPE)
-		if err != nil {
-			impl.logger.Errorw("error retrieving workflow request from snapshot for pre cd stage type", "cdWorkflowId", runner.CdWorkflow.Id, "err", err)
-			return nil, err
-		}
-		cdStageWorkflowRequest = workflowRequest
-		// Update dynamic fields in the workflow request for retrigger
-		impl.updateWorkflowRequestForCdRetrigger(cdStageWorkflowRequest, runner)
-	} else {
-		cdStageWorkflowRequest, err = impl.getPrePostCdStageWorkflowRequest(ctx, runner, cdWf, pipeline, env, artifact, types.PRE, envDeploymentConfig, triggeredBy)
-		if err != nil {
-			return impl.buildWfRequestErrorHandler(runner, err, triggeredBy)
-		}
+	cdStageWorkflowRequest, err := impl.preparePrePostCdWorkflowRequest(ctx, runner, cdWf, request, env, types.PRE, envDeploymentConfig)
+	if err != nil {
+		return impl.buildWfRequestErrorHandler(runner, err, triggeredBy)
 	}
 	_, span := otel.Tracer("orchestrator").Start(ctx, "cdWorkflowService.SubmitWorkflow")
 	_, jobHelmPackagePath, err := impl.workflowService.SubmitWorkflow(cdStageWorkflowRequest)
