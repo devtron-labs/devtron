@@ -251,6 +251,14 @@ func (impl *ServiceImpl) FetchResourceTree(ctx context.Context, appId int, envId
 		} else {
 			resourceTree["status"] = applicationStatus
 		}
+		if applicationStatus == argoApplication.Healthy {
+			status, err := impl.appListingService.ISLastReleaseStopType(appId, envId)
+			if err != nil {
+				impl.logger.Errorw("service err, FetchAppDetailsV2", "err", err, "app", appId, "env", envId)
+			} else if status {
+				resourceTree["status"] = argoApplication.HIBERNATING
+			}
+		}
 	} else {
 		impl.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", cdPipeline.DeploymentAppName, "env", cdPipeline.Environment.Name)
 	}
