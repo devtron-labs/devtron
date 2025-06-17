@@ -45,6 +45,8 @@ func (handler *FluxApplicationRestHandlerImpl) ListFluxApplications(w http.Respo
 	var clusterIds []int
 	var err error
 
+	noStream := v.Get("noStream") == "true"
+
 	//handling when the clusterIds string is empty ,it will not support the
 	if len(clusterIdString) == 0 {
 		handler.logger.Errorw("error in getting cluster ids", "error", err, "clusterIds", clusterIds)
@@ -57,7 +59,7 @@ func (handler *FluxApplicationRestHandlerImpl) ListFluxApplications(w http.Respo
 		return
 	}
 	handler.logger.Debugw("extracted ClusterIds successfully ", "clusterIds", clusterIds)
-	handler.fluxApplicationService.ListFluxApplications(r.Context(), clusterIds, w)
+	handler.fluxApplicationService.ListFluxApplications(r.Context(), clusterIds, noStream, w)
 }
 
 func (handler *FluxApplicationRestHandlerImpl) GetApplicationDetail(w http.ResponseWriter, r *http.Request) {

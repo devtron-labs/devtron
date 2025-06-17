@@ -36,6 +36,7 @@ type FluxCDSpec struct {
 	DevtronValueFile       string   `json:"devtronValueFile"`
 	HelmReleaseValuesFiles []string `json:"helmReleaseValuesFiles"` //getValuesFileArr
 	GitRepositoryNamespace string   `json:"gitRepositoryNamespace"`
+	ExtFluxValues          string   `json:"extFluxValues"`
 }
 
 func (f *FluxCDSpec) GetFinalValuesFilePathArray() []string {

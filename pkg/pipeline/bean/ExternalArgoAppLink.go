@@ -17,6 +17,7 @@ type MigrateReleaseValidationRequest struct {
 	DeploymentAppType          string                     `json:"deploymentAppType"`
 	ApplicationMetadataRequest ApplicationMetadataRequest `json:"applicationMetadata"`
 	HelmReleaseMetadataRequest HelmReleaseMetadataRequest `json:"helmReleaseMetadata"`
+	FluxReleaseMetadataRequest FluxReleaseMetadataRequest `json:"fluxReleaseMetadata"`
 }
 
 type ApplicationMetadataRequest struct {
@@ -29,12 +30,25 @@ type HelmReleaseMetadataRequest struct {
 	ReleaseNamespace string `json:"releaseNamespace"`
 }
 
-func (h MigrateReleaseValidationRequest) GetReleaseClusterId() int {
+type FluxReleaseMetadataRequest struct {
+	ReleaseClusterId int    `json:"releaseClusterId"`
+	ReleaseNamespace string `json:"releaseNamespace"`
+}
+
+func (h MigrateReleaseValidationRequest) GetHelmReleaseClusterId() int {
 	return h.HelmReleaseMetadataRequest.ReleaseClusterId
 }
 
-func (h MigrateReleaseValidationRequest) GetReleaseNamespace() string {
+func (h MigrateReleaseValidationRequest) GetHelmReleaseNamespace() string {
 	return h.HelmReleaseMetadataRequest.ReleaseNamespace
+}
+
+func (h MigrateReleaseValidationRequest) GetFluxReleaseClusterId() int {
+	return h.FluxReleaseMetadataRequest.ReleaseClusterId
+}
+
+func (h MigrateReleaseValidationRequest) GetFluxReleaseNamespace() string {
+	return h.FluxReleaseMetadataRequest.ReleaseNamespace
 }
 
 type ExternalAppLinkValidationResponse struct {
@@ -42,6 +56,7 @@ type ExternalAppLinkValidationResponse struct {
 	ErrorDetail         *ErrorDetail        `json:"errorDetail"`
 	ApplicationMetadata ApplicationMetadata `json:"applicationMetadata"`
 	HelmReleaseMetadata HelmReleaseMetadata `json:"helmReleaseMetadata"`
+	FluxReleaseMetadata FluxReleaseMetadata `json:"fluxReleaseMetadata"`
 }
 
 func (a *ApplicationMetadata) UpdateApplicationSpecData(argoApplicationSpec *v1alpha1.Application) {
@@ -127,14 +142,14 @@ func (r *HelmReleaseMetadata) UpdateReleaseData(release *gRPC.DeployedAppDetail)
 	}
 }
 
-func (r *HelmReleaseMetadata) UpdateClusterData(cluster *bean.ClusterBean) {
-	r.Destination.ClusterName = cluster.ClusterName
-	r.Destination.ClusterServerUrl = cluster.ServerUrl
+func (r *Destination) UpdateClusterData(cluster *bean.ClusterBean) {
+	r.ClusterName = cluster.ClusterName
+	r.ClusterServerUrl = cluster.ServerUrl
 }
 
-func (r *HelmReleaseMetadata) UpdateEnvironmentMetadata(environment *repository.Environment) {
-	r.Destination.EnvironmentName = environment.Name
-	r.Destination.EnvironmentId = environment.Id
+func (r *Destination) UpdateEnvironmentMetadata(environment *repository.Environment) {
+	r.EnvironmentName = environment.Name
+	r.EnvironmentId = environment.Id
 }
 
 func (r *HelmReleaseMetadata) UpdateChartRefData(chartRef *bean2.ChartRefDto) {
@@ -177,6 +192,14 @@ type HelmReleaseMetadata struct {
 	Info        HelmReleaseInfo  `json:"info"`
 	Chart       HelmReleaseChart `json:"chart"`
 	Destination Destination      `json:"destination"`
+}
+
+type FluxReleaseMetadata struct {
+	RepoUrl              string      `json:"repoUrl"`
+	RequiredChartName    string      `json:"requiredChartName"`
+	SavedChartName       string      `json:"savedChartName"`
+	RequiredChartVersion string      `json:"requiredChartVersion"`
+	Destination          Destination `json:"destination"`
 }
 
 type HelmReleaseChart struct {

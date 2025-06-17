@@ -330,6 +330,9 @@ func (impl *HandlerServiceImpl) UpdateHelmRelease(ctx context.Context, fluxCdSpe
 			ValuesFiles: fluxCdSpec.GetFinalValuesFilePathArray(),
 		},
 	}
+	// resetting original values so that values are derived only from existing.Spec.Chart.Spec.ValuesFiles
+	existing.Spec.Values = nil
+	existing.Spec.ValuesFrom = nil
 	err = apiClient.Update(ctx, existing)
 	if err != nil {
 		impl.logger.Errorw("error in updating helm release", "name", name, "namespace", namespace, "err", err)
