@@ -73,14 +73,14 @@ func NewAppLevelReleaseConfigFromChart(gitRepoURL, chartLocation string) *bean.R
 		}}
 }
 
-func NewFluxSpecReleaseConfig(clusterId int, namespace, gitRepositoryName, helmReleaseName, gitOpsSecretName, ChartLocation, ChartVersion,
-	RevisionTarget, RepoUrl string, DevtronValueFileName string, HelmReleaseValuesFiles []string) *bean.ReleaseConfiguration {
+func NewFluxSpecReleaseConfig(clusterId int, helmReleaseNamespace, gitRepositoryName, gitRepositoryNamespace, helmReleaseName, gitOpsSecretName, ChartLocation, ChartVersion, RevisionTarget, RepoUrl, DevtronValueFileName string, HelmReleaseValuesFiles []string) *bean.ReleaseConfiguration {
 	return &bean.ReleaseConfiguration{
 		Version: bean.Version,
 		FluxCDSpec: bean.FluxCDSpec{
 			ClusterId:              clusterId,
-			Namespace:              namespace,
+			HelmReleaseNamespace:   helmReleaseNamespace,
 			GitRepositoryName:      gitRepositoryName,
+			GitRepositoryNamespace: gitRepositoryNamespace,
 			HelmReleaseName:        helmReleaseName,
 			GitOpsSecretName:       gitOpsSecretName,
 			ChartLocation:          ChartLocation,

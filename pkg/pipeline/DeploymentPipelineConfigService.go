@@ -758,8 +758,7 @@ func (impl *CdPipelineConfigServiceImpl) parseReleaseConfigForFluxApp(app *app2.
 	deploymentAppName := fmt.Sprintf("%s-%s", app.AppName, env.Name)
 	secretName := fmt.Sprintf("devtron-flux-secret-%d", activeGitOpsConfig.Id)
 	valueFileNameEnv := fmt.Sprintf("_%d-values.yaml", env.Id)
-	return adapter2.NewFluxSpecReleaseConfig(env.ClusterId, env.Namespace, deploymentAppName, deploymentAppName, secretName, chartLocation,
-		latestChart.ChartVersion, globalUtil.GetDefaultTargetRevision(), appDeploymentConfig.GetRepoURL(), valueFileNameEnv, getValuesFileArrForDevtronInlineApps(chartLocation)), nil
+	return adapter2.NewFluxSpecReleaseConfig(env.ClusterId, env.Namespace, deploymentAppName, env.Namespace, deploymentAppName, secretName, chartLocation, latestChart.ChartVersion, globalUtil.GetDefaultTargetRevision(), appDeploymentConfig.GetRepoURL(), valueFileNameEnv, getValuesFileArrForDevtronInlineApps(chartLocation)), nil
 }
 
 func getValuesFileArrForDevtronInlineApps(chartLocation string) []string {
@@ -775,10 +774,11 @@ func (impl *CdPipelineConfigServiceImpl) ParseReleaseConfigForExternalFluxCDApp(
 		impl.logger.Errorw("error in fetching flux helm release", "clusterId", clusterId, "namespace", namespace, "err", err)
 		return nil, err
 	}
-	var gitRepositoryName, secretName, chartLocation, chartVersion, revision, repoURL string
+	var gitRepositoryName, gitRepositoryNamespace, secretName, chartLocation, chartVersion, revision, repoURL string
 	var valuesFile []string
 	if existingHelmRelease != nil && existingHelmRelease.Spec.Chart != nil {
 		gitRepositoryName = existingHelmRelease.Spec.Chart.Spec.SourceRef.Name
+		gitRepositoryNamespace = existingHelmRelease.Spec.Chart.Spec.SourceRef.Namespace
 		chartLocation = existingHelmRelease.Spec.Chart.Spec.Chart
 		chartVersion = existingHelmRelease.Spec.Chart.Spec.Version
 		valuesFile = existingHelmRelease.Spec.Chart.Spec.ValuesFiles
@@ -792,7 +792,7 @@ func (impl *CdPipelineConfigServiceImpl) ParseReleaseConfigForExternalFluxCDApp(
 		}
 	}
 	valueFileNameEnv := fmt.Sprintf("_%d-values.yaml", env.Id)
-	releaseConfig := adapter2.NewFluxSpecReleaseConfig(env.ClusterId, env.Namespace, gitRepositoryName, existingHelmRelease.Name, secretName, chartLocation, chartVersion, revision, repoURL, valueFileNameEnv, valuesFile)
+	releaseConfig := adapter2.NewFluxSpecReleaseConfig(env.ClusterId, env.Namespace, gitRepositoryName, gitRepositoryNamespace, existingHelmRelease.Name, secretName, chartLocation, chartVersion, revision, repoURL, valueFileNameEnv, valuesFile)
 	return releaseConfig, nil
 }
 
@@ -1731,7 +1731,6 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 func (impl *CdPipelineConfigServiceImpl) DeleteFluxTypePipelineDeploymentApp(ctx context.Context, envDeploymentConfig *bean4.DeploymentConfig) error {
 	fluxCdSpec := envDeploymentConfig.ReleaseConfiguration.FluxCDSpec
 	clusterId := fluxCdSpec.ClusterId
-	namespace := fluxCdSpec.Namespace
 	clusterConfig, err := impl.clusterReadService.GetClusterConfigByClusterId(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster", "clusterId", clusterId, "error", err)
@@ -1747,7 +1746,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteFluxTypePipelineDeploymentApp(ctx
 		impl.logger.Errorw("error in creating k8s client", "clusterId", clusterId, "err", err)
 		return err
 	}
-	name, namespace := fluxCdSpec.GitRepositoryName, fluxCdSpec.Namespace
+	name, namespace := fluxCdSpec.HelmReleaseName, fluxCdSpec.HelmReleaseNamespace
 	key := types.NamespacedName{Name: name, Namespace: namespace}
 
 	existingHelmRelease := &helmv2.HelmRelease{}
@@ -1762,6 +1761,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteFluxTypePipelineDeploymentApp(ctx
 		return err
 	}
 
+	key = types.NamespacedName{Name: fluxCdSpec.GitRepositoryName, Namespace: fluxCdSpec.GitRepositoryNamespace}
 	existingGitRepository := &sourcev1.GitRepository{}
 	err = apiClient.Get(ctx, key, existingGitRepository)
 	if err != nil {

@@ -23,11 +23,12 @@ type ReleaseConfiguration struct {
 }
 
 type FluxCDSpec struct {
-	ClusterId         int    `json:"clusterId"`
-	Namespace         string `json:"namespace"`
-	GitRepositoryName string `json:"gitRepositoryName"`
-	HelmReleaseName   string `json:"helmReleaseName"`
-	GitOpsSecretName  string `json:"gitOpsSecretName"` //fmt.Sprintf("devtron-flux-secret-%d", gitOpsConfig.Id)
+	ClusterId              int    `json:"clusterId"`
+	HelmReleaseNamespace   string `json:"helmReleaseNamespace"`
+	GitRepositoryName      string `json:"gitRepositoryName"`
+	GitRepositoryNamespace string `json:"gitRepositoryNamespace"`
+	HelmReleaseName        string `json:"helmReleaseName"`
+	GitOpsSecretName       string `json:"gitOpsSecretName"` //fmt.Sprintf("devtron-flux-secret-%d", gitOpsConfig.Id)
 
 	ChartLocation          string   `json:"chartLocation"`
 	ChartVersion           string   `json:"chartVersion"`
@@ -35,7 +36,6 @@ type FluxCDSpec struct {
 	RepoUrl                string   `json:"repoUrl"`
 	DevtronValueFile       string   `json:"devtronValueFile"`
 	HelmReleaseValuesFiles []string `json:"helmReleaseValuesFiles"` //getValuesFileArr
-	GitRepositoryNamespace string   `json:"gitRepositoryNamespace"`
 	ExtFluxValues          string   `json:"extFluxValues"`
 }
 

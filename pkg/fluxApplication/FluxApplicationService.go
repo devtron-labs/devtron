@@ -221,9 +221,7 @@ func (impl *FluxApplicationServiceImpl) GetFluxAppDetail(ctx context.Context, ap
 }
 func (impl *FluxApplicationServiceImpl) listApplications(ctx context.Context, clusterIds []int) (gRPC.ApplicationService_ListFluxApplicationsClient, error) {
 	var err error
-	req := &gRPC.AppListRequest{
-		LabelSelector: []string{"managed-by!=devtron"}, // this will exclude all flux apps created by devtron
-	}
+	req := &gRPC.AppListRequest{}
 	if len(clusterIds) == 0 {
 		return nil, nil
 	}
