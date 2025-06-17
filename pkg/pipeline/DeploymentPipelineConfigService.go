@@ -828,7 +828,7 @@ func (impl *CdPipelineConfigServiceImpl) getExtFluxHelmReleaseAndGitRepository(c
 	var existingGitRepository *sourcev1.GitRepository
 	if existingHelmRelease != nil && existingHelmRelease.Spec.Chart != nil {
 		key := types.NamespacedName{Name: existingHelmRelease.Spec.Chart.Spec.SourceRef.Name, Namespace: existingHelmRelease.Spec.Chart.Spec.SourceRef.Namespace}
-		existingGitRepository := &sourcev1.GitRepository{}
+		existingGitRepository = &sourcev1.GitRepository{}
 		err := apiClient.Get(ctx, key, existingGitRepository)
 		if err != nil {
 			impl.logger.Errorw("error in getting git repository", "key", key, "err", err)
