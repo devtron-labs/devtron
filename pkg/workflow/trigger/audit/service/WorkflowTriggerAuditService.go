@@ -110,7 +110,7 @@ func (impl *WorkflowTriggerAuditServiceImpl) createWorkflowConfigSnapshot(workfl
 	workflowType, pipelineId, workflowId := types.PRE_CD_WORKFLOW_TYPE, workflowRequest.CdPipelineId, workflowRequest.WorkflowRunnerId
 	if workflowRequest.IsCdStageTypePost() {
 		workflowType = types.POST_CD_WORKFLOW_TYPE
-	} else {
+	} else if workflowRequest.IsCiTypeWorkflowRequest() {
 		workflowType, pipelineId, workflowId = types.CI_WORKFLOW_TYPE, workflowRequest.PipelineId, workflowRequest.WorkflowId
 	}
 	configSnapshot := adapter.GetWorkflowConfigSnapshot(workflowId, workflowType, pipelineId, compressedWorkflowJson, types.TriggerAuditSchemaVersionV1, workflowRequest.TriggeredBy)
