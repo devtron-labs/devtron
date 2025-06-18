@@ -954,7 +954,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateDeploymentAppTypeForLinkRequest
 		}
 	}
 	if overrideDeploymentType != expectedDeploymentAppType {
-		errMsg := fmt.Sprintf("Cannot migrate Argo CD Application. Deployment via %q is enforced on the target environment.", overrideDeploymentType)
+		errMsg := fmt.Sprintf("Cannot migrate Externalgit. Deployment via %q is enforced on the target environment.", overrideDeploymentType)
 		return pipelineConfigBean.LinkFailedError{
 			Reason:      pipelineConfigBean.EnforcedPolicyViolation,
 			UserMessage: errMsg,
