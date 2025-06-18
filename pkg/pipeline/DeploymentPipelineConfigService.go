@@ -825,6 +825,14 @@ func (impl *CdPipelineConfigServiceImpl) getExtFluxHelmReleaseAndGitRepository(c
 		impl.logger.Errorw("error in getting helm release", "key", key, "err", err)
 		return nil, nil, err
 	}
+
+	if existingHelmRelease != nil && existingHelmRelease.Spec.Chart != nil && existingHelmRelease.Spec.Chart.Spec.SourceRef.Kind != "GitRepository" {
+		return nil, nil, pipelineConfigBean.LinkFailedError{
+			Reason:      pipelineConfigBean.UnsupportedFluxHelmReleaseSpec,
+			UserMessage: fmt.Sprintf("invalid source repository kind %s", existingHelmRelease.Spec.Chart.Spec.SourceRef.Kind),
+		}
+	}
+
 	var existingGitRepository *sourcev1.GitRepository
 	if existingHelmRelease != nil && existingHelmRelease.Spec.Chart != nil {
 		key := types.NamespacedName{Name: existingHelmRelease.Spec.Chart.Spec.SourceRef.Name, Namespace: existingHelmRelease.Spec.Chart.Spec.SourceRef.Namespace}

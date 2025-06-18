@@ -268,6 +268,7 @@ const (
 	InternalServerError                  LinkFailedReason = "InternalServerError"
 	EnvironmentAlreadyPresent            LinkFailedReason = "EnvironmentAlreadyPresent"
 	EnforcedPolicyViolation              LinkFailedReason = "EnforcedPolicyViolation"
+	UnsupportedFluxHelmReleaseSpec       LinkFailedReason = "UnsupportedFluxHelmReleaseSpec"
 )
 
 const (
