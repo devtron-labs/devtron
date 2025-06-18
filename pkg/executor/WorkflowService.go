@@ -31,6 +31,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/config/read"
 	v1 "github.com/devtron-labs/devtron/pkg/infraConfig/bean/v1"
+	infraConfigAudit "github.com/devtron-labs/devtron/pkg/infraConfig/service/audit"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -39,8 +40,10 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders/infraGetters"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/ucid"
+	"github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/hook"
 	"go.uber.org/zap"
 	v12 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/rest"
 	"net/http"
@@ -62,18 +65,20 @@ type WorkflowService interface {
 }
 
 type WorkflowServiceImpl struct {
-	Logger                 *zap.SugaredLogger
-	config                 *rest.Config
-	ciCdConfig             *types.CiCdConfig
-	configMapService       read.ConfigReadService
-	envRepository          repository2.EnvironmentRepository
-	globalCMCSService      pipeline.GlobalCMCSService
-	argoWorkflowExecutor   executors.ArgoWorkflowExecutor
-	systemWorkflowExecutor executors.SystemWorkflowExecutor
-	k8sCommonService       k8s2.K8sCommonService
-	infraProvider          infraProviders.InfraProvider
-	ucid                   ucid.Service
-	k8sUtil                *k8s.K8sServiceImpl
+	Logger                  *zap.SugaredLogger
+	config                  *rest.Config
+	ciCdConfig              *types.CiCdConfig
+	configMapService        read.ConfigReadService
+	envRepository           repository2.EnvironmentRepository
+	globalCMCSService       pipeline.GlobalCMCSService
+	argoWorkflowExecutor    executors.ArgoWorkflowExecutor
+	systemWorkflowExecutor  executors.SystemWorkflowExecutor
+	k8sCommonService        k8s2.K8sCommonService
+	infraProvider           infraProviders.InfraProvider
+	ucid                    ucid.Service
+	k8sUtil                 *k8s.K8sServiceImpl
+	triggerAuditHook        hook.TriggerAuditHook
+	infraConfigAuditService infraConfigAudit.InfraConfigAuditService
 }
 
 // TODO: Move to bean
@@ -89,19 +94,23 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger,
 	infraProvider infraProviders.InfraProvider,
 	ucid ucid.Service,
 	k8sUtil *k8s.K8sServiceImpl,
+	triggerAuditHook hook.TriggerAuditHook,
+	infraConfigAuditService infraConfigAudit.InfraConfigAuditService,
 ) (*WorkflowServiceImpl, error) {
 	commonWorkflowService := &WorkflowServiceImpl{
-		Logger:                 Logger,
-		ciCdConfig:             ciCdConfig,
-		configMapService:       configMapService,
-		envRepository:          envRepository,
-		globalCMCSService:      globalCMCSService,
-		argoWorkflowExecutor:   argoWorkflowExecutor,
-		k8sUtil:                k8sUtil,
-		systemWorkflowExecutor: systemWorkflowExecutor,
-		k8sCommonService:       k8sCommonService,
-		infraProvider:          infraProvider,
-		ucid:                   ucid,
+		Logger:                  Logger,
+		ciCdConfig:              ciCdConfig,
+		configMapService:        configMapService,
+		envRepository:           envRepository,
+		globalCMCSService:       globalCMCSService,
+		argoWorkflowExecutor:    argoWorkflowExecutor,
+		k8sUtil:                 k8sUtil,
+		systemWorkflowExecutor:  systemWorkflowExecutor,
+		k8sCommonService:        k8sCommonService,
+		infraProvider:           infraProvider,
+		ucid:                    ucid,
+		triggerAuditHook:        triggerAuditHook,
+		infraConfigAuditService: infraConfigAuditService,
 	}
 	restConfig, err := k8sUtil.GetK8sInClusterRestConfig()
 	if err != nil {
@@ -117,7 +126,7 @@ const (
 )
 
 func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *types.WorkflowRequest) (*unstructured.UnstructuredList, string, error) {
-	workflowTemplate, err := impl.createWorkflowTemplate(workflowRequest)
+	workflowTemplate, err := impl.createWorkflowTemplateAndAuditTrigger(workflowRequest)
 	if err != nil {
 		return nil, "", err
 	}
@@ -133,10 +142,32 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *types.WorkflowR
 	return createdWf, jobHelmChartPath, err
 }
 
-func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.WorkflowRequest) (bean3.WorkflowTemplate, error) {
+func (impl *WorkflowServiceImpl) auditTrigger(workflowRequest *types.WorkflowRequest) error {
+	if workflowRequest.IsCdStageTypePre() || workflowRequest.IsCdStageTypePost() {
+		err := impl.triggerAuditHook.AuditPrePostCdTrigger(workflowRequest)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while auditing pre/post cd trigger", "stageType", workflowRequest.StageType, "workflowRunnerId", workflowRequest.WorkflowRunnerId, "err", err)
+			return err
+		}
+	} else {
+		err := impl.triggerAuditHook.AuditCiTrigger(workflowRequest)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while auditing ci trigger", "ciWorkflowId", workflowRequest.WorkflowId, "err", err)
+			return err
+		}
+	}
+	return nil
+}
+
+func (impl *WorkflowServiceImpl) createWorkflowTemplateAndAuditTrigger(workflowRequest *types.WorkflowRequest) (bean3.WorkflowTemplate, error) {
 	workflowJson, err := workflowRequest.GetWorkflowJson(impl.ciCdConfig)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while getting workflow json", "err", err)
+		return bean3.WorkflowTemplate{}, err
+	}
+	err = impl.auditTrigger(workflowRequest)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while auditing trigger", "workflowRunnerId", workflowRequest.WorkflowRunnerId, "ciWorkflowId", workflowRequest.WorkflowId, "err", err)
 		return bean3.WorkflowTemplate{}, err
 	}
 	workflowTemplate := workflowRequest.GetWorkflowTemplate(workflowJson, impl.ciCdConfig)
@@ -229,6 +260,17 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 		return bean3.WorkflowTemplate{}, err
 	}
 	workflowTemplate.DevtronInstanceUID = devtronUCID
+
+	if workflowRequest.IsCiTypeWorkflowRequest() && workflowRequest.IsCiRetriggerType() {
+		// here we need to update the workflow template with cpu request and limit, memory limit and request and Build timeout (in oss this is applicable on all ci builds i.e. applied globally)
+		err = impl.populateReTriggerWorkflowTemplateWithInfraConfig(workflowRequest, &workflowTemplate)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while updating workflow template with infra config from history", "ciWorkflowId", workflowRequest.WorkflowId, "err", err)
+			return bean3.WorkflowTemplate{}, err
+		}
+
+	}
+
 	return workflowTemplate, nil
 }
 
@@ -480,4 +522,109 @@ func (impl *WorkflowServiceImpl) getWfClient(environment *repository2.Environmen
 		}
 	}
 	return wfClient, nil
+}
+
+// populateReTriggerWorkflowTemplateWithInfraConfig updates the workflow template with CPU, memory limits/requests and timeout
+// from the infra_config_trigger_history table based on previous workflow ID.
+func (impl *WorkflowServiceImpl) populateReTriggerWorkflowTemplateWithInfraConfig(workflowRequest *types.WorkflowRequest, workflowTemplate *bean3.WorkflowTemplate) error {
+	// Skip if no previous workflow ID is available or if this is not a CI/Job workflow
+	if workflowRequest.ReferenceCiWorkflowId == 0 {
+		impl.Logger.Debugw("skipping infra config history update", "referenceWorkflowId", workflowRequest.ReferenceCiWorkflowId, "workflowType", workflowRequest.Type)
+		return nil
+	}
+
+	// Get infra config from history based on previous workflow ID
+	historicalInfraConfig, err := impl.infraConfigAuditService.GetInfraConfigByWorkflowId(workflowRequest.ReferenceCiWorkflowId, bean.CI_WORKFLOW_TYPE.String())
+	if err != nil {
+		impl.Logger.Errorw("could not retrieve infra config from history, using current config", "referenceWorkflowId", workflowRequest.ReferenceCiWorkflowId, "err", err)
+		return err
+	}
+
+	if historicalInfraConfig == nil {
+		impl.Logger.Debugw("no historical infra config found, using current config", "referenceWorkflowId", workflowRequest.ReferenceCiWorkflowId)
+		return nil
+	}
+
+	impl.Logger.Infow("applying historical infra config to workflow template", "referenceWorkflowId", workflowRequest.ReferenceCiWorkflowId)
+
+	// apply historical infra configurations to a workflow template
+	err = impl.applyInfraConfigToWorkflowTemplate(workflowRequest, workflowTemplate, historicalInfraConfig)
+	if err != nil {
+		impl.Logger.Errorw("error in applying infra config to workflow template", "referenceWorkflowId", workflowRequest.ReferenceCiWorkflowId, "err", err)
+		return err
+	}
+
+	return nil
+}
+
+// applyInfraConfigToWorkflowTemplate applies the historical infra configuration to the workflow template.
+// This function handles the core OSS functionality and can be extended in enterprise for additional fields.
+func (impl *WorkflowServiceImpl) applyInfraConfigToWorkflowTemplate(workflowRequest *types.WorkflowRequest, workflowTemplate *bean3.WorkflowTemplate, infraConfig *v1.InfraConfig) error {
+	// Apply timeout configuration
+	if infraConfig.GetCiDefaultTimeout() > 0 {
+		timeout := infraConfig.GetCiTimeoutInt()
+		workflowTemplate.SetActiveDeadlineSeconds(timeout)
+		impl.Logger.Debugw("applied historical timeout to workflow template", "timeout", timeout, "workflowId", workflowRequest.WorkflowId)
+	}
+
+	// Apply CPU and memory resource configurations to the main container
+	if len(workflowTemplate.Containers) > 0 {
+		container := &workflowTemplate.Containers[0]
+
+		// Initialize resources if not present
+		if container.Resources.Limits == nil {
+			container.Resources.Limits = make(v12.ResourceList)
+		}
+		if container.Resources.Requests == nil {
+			container.Resources.Requests = make(v12.ResourceList)
+		}
+
+		// Apply CPU limits and requests
+		if infraConfig.GetCiLimitCpu() != "" {
+			if cpuLimit, err := resource.ParseQuantity(infraConfig.GetCiLimitCpu()); err == nil {
+				container.Resources.Limits[v12.ResourceCPU] = cpuLimit
+				impl.Logger.Debugw("applied historical CPU limit to workflow template", "cpuLimit", infraConfig.GetCiLimitCpu(), "workflowId", workflowRequest.WorkflowId)
+			} else {
+				impl.Logger.Errorw("failed to parse CPU limit from historical config", "cpuLimit", infraConfig.GetCiLimitCpu(), "err", err)
+				return err
+			}
+		}
+		if infraConfig.GetCiReqCpu() != "" {
+			if cpuRequest, err := resource.ParseQuantity(infraConfig.GetCiReqCpu()); err == nil {
+				container.Resources.Requests[v12.ResourceCPU] = cpuRequest
+				impl.Logger.Debugw("applied historical CPU request to workflow template", "cpuRequest", infraConfig.GetCiReqCpu(), "workflowId", workflowRequest.WorkflowId)
+			} else {
+				impl.Logger.Errorw("failed to parse CPU request from historical config", "cpuRequest", infraConfig.GetCiReqCpu(), "err", err)
+				return err
+			}
+		}
+
+		// Apply memory limits and requests
+		if infraConfig.GetCiLimitMem() != "" {
+			if memoryLimit, err := resource.ParseQuantity(infraConfig.GetCiLimitMem()); err == nil {
+				container.Resources.Limits[v12.ResourceMemory] = memoryLimit
+				impl.Logger.Debugw("applied historical memory limit to workflow template", "memoryLimit", infraConfig.GetCiLimitMem(), "workflowId", workflowRequest.WorkflowId)
+			} else {
+				impl.Logger.Errorw("failed to parse memory limit from historical config", "memoryLimit", infraConfig.GetCiLimitMem(), "err", err)
+				return err
+			}
+		}
+		if infraConfig.GetCiReqMem() != "" {
+			if memoryRequest, err := resource.ParseQuantity(infraConfig.GetCiReqMem()); err == nil {
+				container.Resources.Requests[v12.ResourceMemory] = memoryRequest
+				impl.Logger.Debugw("applied historical memory request to workflow template", "memoryRequest", infraConfig.GetCiReqMem(), "workflowId", workflowRequest.WorkflowId)
+			} else {
+				impl.Logger.Errorw("failed to parse memory request from historical config", "memoryRequest", infraConfig.GetCiReqMem(), "err", err)
+				return err
+			}
+		}
+	}
+
+	return impl.applyEnterpriseInfraConfigToWorkflowTemplate(workflowRequest, workflowTemplate, infraConfig)
+}
+
+// applyEnterpriseInfraConfigToWorkflowTemplate is a placeholder for enterprise-specific infra config application.
+func (impl *WorkflowServiceImpl) applyEnterpriseInfraConfigToWorkflowTemplate(workflowRequest *types.WorkflowRequest, workflowTemplate *bean3.WorkflowTemplate, infraConfig *v1.InfraConfig) error {
+	impl.Logger.Debugw("enterprise infra config application (no-op in OSS)", "workflowId", workflowRequest.WorkflowId)
+	return nil
 }

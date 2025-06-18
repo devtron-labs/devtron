@@ -26,13 +26,13 @@ import (
 	"time"
 )
 
-func (impl *HandlerServiceImpl) checkFeasibilityForPostStage(pipeline *pipelineConfig.Pipeline, request *bean.TriggerRequest,
+func (impl *HandlerServiceImpl) checkFeasibilityForPostStage(pipeline *pipelineConfig.Pipeline, request *bean.CdTriggerRequest,
 	env *repository.Environment, cdWf *pipelineConfig.CdWorkflow, triggeredBy int32) (interface{}, error) {
 	//here return type is interface as ResourceFilterEvaluationAudit is not present in this version
 	return nil, nil
 }
 
-func (impl *HandlerServiceImpl) getManifestPushTemplateForPostStage(request bean.TriggerRequest, envDevploymentConfig *bean5.DeploymentConfig,
+func (impl *HandlerServiceImpl) getManifestPushTemplateForPostStage(request bean.CdTriggerRequest, envDevploymentConfig *bean5.DeploymentConfig,
 	jobHelmPackagePath string, cdStageWorkflowRequest *types.WorkflowRequest, cdWf *pipelineConfig.CdWorkflow, runner *pipelineConfig.CdWorkflowRunner,
 	pipeline *pipelineConfig.Pipeline, triggeredBy int32, triggeredAt time.Time) (*bean4.ManifestPushTemplate, error) {
 	return nil, nil
