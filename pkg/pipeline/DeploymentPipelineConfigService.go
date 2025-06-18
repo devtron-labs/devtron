@@ -761,7 +761,7 @@ func (impl *CdPipelineConfigServiceImpl) parseReleaseConfigForFluxApp(app *app2.
 	deploymentAppName := fmt.Sprintf("%s-%s", app.AppName, env.Name)
 	secretName := fmt.Sprintf("devtron-flux-secret-%d", activeGitOpsConfig.Id)
 	valueFileNameEnv := fmt.Sprintf("_%d-values.yaml", env.Id)
-	return adapter2.NewFluxSpecReleaseConfig(env.ClusterId, env.Namespace, deploymentAppName, env.Namespace, deploymentAppName, secretName, chartLocation, latestChart.ChartVersion, globalUtil.GetDefaultTargetRevision(), appDeploymentConfig.GetRepoURL(), valueFileNameEnv, getValuesFileArrForDevtronInlineApps(chartLocation)), nil
+	return adapter2.NewFluxSpecReleaseConfig(env.ClusterId, env.Namespace, deploymentAppName, env.Namespace, deploymentAppName, secretName, chartLocation, latestChart.ChartVersion, globalUtil.GetDefaultTargetRevision(), appDeploymentConfig.GetRepoURL(), valueFileNameEnv, getValuesFileArrForDevtronInlineApps(chartLocation), ""), nil
 }
 
 func getValuesFileArrForDevtronInlineApps(chartLocation string) []string {
@@ -777,7 +777,7 @@ func (impl *CdPipelineConfigServiceImpl) ParseReleaseConfigForExternalFluxCDApp(
 		impl.logger.Errorw("error in fetching flux helm release", "clusterId", clusterId, "namespace", namespace, "err", err)
 		return nil, err
 	}
-	var gitRepositoryName, gitRepositoryNamespace, secretName, chartLocation, chartVersion, revision, repoURL string
+	var gitRepositoryName, gitRepositoryNamespace, secretName, chartLocation, chartVersion, revision, repoURL, extValueFile string
 	var valuesFile []string
 	if existingHelmRelease != nil && existingHelmRelease.Spec.Chart != nil {
 		gitRepositoryName = existingHelmRelease.Spec.Chart.Spec.SourceRef.Name
@@ -785,6 +785,7 @@ func (impl *CdPipelineConfigServiceImpl) ParseReleaseConfigForExternalFluxCDApp(
 		chartLocation = existingHelmRelease.Spec.Chart.Spec.Chart
 		chartVersion = existingHelmRelease.Spec.Chart.Spec.Version
 		valuesFile = existingHelmRelease.Spec.Chart.Spec.ValuesFiles
+		extValueFile = existingHelmRelease.Spec.Values.String()
 		// assuming helm repo and git repository are in same namespace
 	}
 	if existingGitRepository != nil && existingGitRepository.Spec.SecretRef != nil {
@@ -795,7 +796,7 @@ func (impl *CdPipelineConfigServiceImpl) ParseReleaseConfigForExternalFluxCDApp(
 		}
 	}
 	valueFileNameEnv := fmt.Sprintf("_%d-values.yaml", env.Id)
-	releaseConfig := adapter2.NewFluxSpecReleaseConfig(env.ClusterId, env.Namespace, gitRepositoryName, gitRepositoryNamespace, existingHelmRelease.Name, secretName, chartLocation, chartVersion, revision, repoURL, valueFileNameEnv, valuesFile)
+	releaseConfig := adapter2.NewFluxSpecReleaseConfig(env.ClusterId, env.Namespace, gitRepositoryName, gitRepositoryNamespace, existingHelmRelease.Name, secretName, chartLocation, chartVersion, revision, repoURL, valueFileNameEnv, valuesFile, extValueFile)
 	return releaseConfig, nil
 }
 
@@ -2900,32 +2901,33 @@ func (impl *CdPipelineConfigServiceImpl) GetValuesAndChartMetadataForExternalFlu
 	targetRevision := spec.RevisionTarget
 	//TODO: validation is performed before this step, so assuming ValueFiles array is not empty
 
-	var valuesFilePath string
-	if len(spec.HelmReleaseValuesFiles) == 0 {
-
-	}
-
-	valuesFileName := filepath.Base(valuesFilePath)
-
 	helmChart, err := impl.extractHelmChartForExternalArgoOrFluxApp(repoURL, targetRevision, chartPath)
 	if err != nil {
 		impl.logger.Errorw("error in extracting helm ")
 		return nil, nil, err
 	}
-	for _, file := range helmChart.Files {
-		if file.Name == valuesFileName {
-			return file.Data, helmChart.Metadata, nil
+
+	var valuesFilePath string
+	if len(spec.HelmReleaseValuesFiles) == 0 {
+		return []byte(spec.ExtFluxValues), helmChart.Metadata, nil
+	} else {
+		valuesFilePath = spec.HelmReleaseValuesFiles[len(spec.HelmReleaseValuesFiles)-1]
+		valuesFileName := filepath.Base(valuesFilePath)
+		for _, file := range helmChart.Files {
+			if file.Name == valuesFileName {
+				return file.Data, helmChart.Metadata, nil
+			}
+		}
+		if valuesFileName == "values.yaml" && helmChart.Values != nil {
+			byteValues, err := json.Marshal(helmChart.Values)
+			if err != nil {
+				impl.logger.Errorw("error in json Marshal values", "values", helmChart.Values, "err", err)
+				return nil, nil, err
+			}
+			return byteValues, helmChart.Metadata, nil
 		}
 	}
-	if valuesFileName == "values.yaml" && helmChart.Values != nil {
-		byteValues, err := json.Marshal(helmChart.Values)
-		if err != nil {
-			impl.logger.Errorw("error in json Marshal values", "values", helmChart.Values, "err", err)
-			return nil, nil, err
-		}
-		return byteValues, helmChart.Metadata, nil
-	}
-	return nil, nil, errors2.New(fmt.Sprintf("values file with name %s not found in chart", valuesFileName))
+	return nil, nil, errors2.New("unable to parse values")
 }
 
 func (impl *CdPipelineConfigServiceImpl) extractHelmChartForExternalArgoOrFluxApp(repoURL, targetRevision, chartPath string) (*chart2.Chart, error) {
