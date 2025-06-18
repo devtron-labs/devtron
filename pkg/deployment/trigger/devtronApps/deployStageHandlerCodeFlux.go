@@ -286,8 +286,8 @@ func (impl *HandlerServiceImpl) CreateHelmRelease(ctx context.Context, fluxCdSpe
 					Version:           manifestPushTemplate.ChartVersion,
 					SourceRef: helmv2.CrossNamespaceObjectReference{
 						Kind:      sourcev1.GitRepositoryKind,
-						Name:      name, //using same name for git repository and helm release which will be = deploymentAppName
-						Namespace: namespace,
+						Name:      fluxCdSpec.GitRepositoryName, //using same name for git repository and helm release which will be = deploymentAppName
+						Namespace: fluxCdSpec.GitRepositoryNamespace,
 					},
 					ValuesFiles: fluxCdSpec.GetFinalValuesFilePathArray(),
 				},
@@ -324,8 +324,8 @@ func (impl *HandlerServiceImpl) UpdateHelmRelease(ctx context.Context, fluxCdSpe
 			Version:           manifestPushTemplate.ChartVersion,
 			SourceRef: helmv2.CrossNamespaceObjectReference{
 				Kind:      sourcev1.GitRepositoryKind,
-				Name:      name,
-				Namespace: namespace,
+				Name:      fluxCdSpec.GitRepositoryName,
+				Namespace: fluxCdSpec.GitRepositoryNamespace,
 			},
 			ValuesFiles: fluxCdSpec.GetFinalValuesFilePathArray(),
 		},
