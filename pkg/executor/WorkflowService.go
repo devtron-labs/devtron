@@ -537,7 +537,7 @@ func (impl *WorkflowServiceImpl) populateReTriggerWorkflowTemplateWithInfraConfi
 	historicalInfraConfig, err := impl.infraConfigAuditService.GetInfraConfigByWorkflowId(workflowRequest.ReferenceCiWorkflowId, bean.CI_WORKFLOW_TYPE.String())
 	if err != nil {
 		impl.Logger.Errorw("could not retrieve infra config from history, using current config", "referenceWorkflowId", workflowRequest.ReferenceCiWorkflowId, "err", err)
-		return nil // Don't fail the workflow, just use current config
+		return err
 	}
 
 	if historicalInfraConfig == nil {
