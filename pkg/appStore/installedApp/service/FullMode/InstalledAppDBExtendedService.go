@@ -111,8 +111,8 @@ func (impl *InstalledAppDBExtendedServiceImpl) IsGitOpsRepoAlreadyRegistered(rep
 	if util.IsErrNoRows(err) {
 		return false, nil
 	}
-	if installedAppModel != nil && installedAppModel.AppId != appId {
-		return true, nil
+	if installedAppModel != nil && installedAppModel.AppId == appId {
+		return false, nil
 	}
 	impl.Logger.Warnw("repository is already in use for helm app", "repoUrl", repoUrl, "appId", installedAppModel.AppId)
 	return true, nil

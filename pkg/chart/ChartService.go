@@ -1065,8 +1065,8 @@ func (impl *ChartServiceImpl) IsGitOpsRepoAlreadyRegistered(gitOpsRepoUrl string
 	} else if util.IsErrNoRows(err) {
 		return false, nil
 	}
-	if chartModel != nil && chartModel.AppId != appId {
-		return true, nil
+	if chartModel != nil && chartModel.AppId == appId {
+		return false, nil
 	}
 	impl.logger.Errorw("repository is already in use for devtron app", "repoUrl", gitOpsRepoUrl, "appId", chartModel.AppId)
 	return true, nil
