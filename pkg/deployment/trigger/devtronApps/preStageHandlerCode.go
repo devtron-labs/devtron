@@ -71,9 +71,9 @@ func (impl *HandlerServiceImpl) preparePrePostCdWorkflowRequest(ctx context.Cont
 		if stageType == types.POST {
 			workflowType = types.POST_CD_WORKFLOW_TYPE
 		}
-		workflowRequest, err := impl.workflowTriggerAuditService.GetWorkflowRequestFromSnapshotForRetrigger(runner.Id, workflowType)
+		workflowRequest, err := impl.workflowTriggerAuditService.GetWorkflowRequestFromSnapshotForRetrigger(runner.RefCdWorkflowRunnerId, workflowType)
 		if err != nil {
-			impl.logger.Errorw("error retrieving workflow request from snapshot for pre/post cd stage type", "workflowType", workflowType, "cdWorkflowId", runner.CdWorkflow.Id, "err", err)
+			impl.logger.Errorw("error retrieving workflow request from snapshot for pre/post cd stage type", "workflowType", workflowType, "refCdWorkflowRunnerId", runner.RefCdWorkflowRunnerId, "err", err)
 			return nil, err
 		}
 		cdStageWorkflowRequest = workflowRequest
@@ -82,7 +82,7 @@ func (impl *HandlerServiceImpl) preparePrePostCdWorkflowRequest(ctx context.Cont
 	} else {
 		cdStageWorkflowRequest, err = impl.getPrePostCdStageWorkflowRequest(ctx, runner, cdWf, request.Pipeline, env, request.Artifact, stageType, envDeploymentConfig, request.TriggeredBy)
 		if err != nil {
-			impl.logger.Errorw("error retrieving workflow request from snapshot for pre/post cd stage type", "stageType", stageType, "cdWorkflowId", runner.CdWorkflow.Id, "err", err)
+			impl.logger.Errorw("error retrieving workflow request from snapshot for pre/post cd stage type", "stageType", stageType, "refCdWorkflowRunnerId", runner.RefCdWorkflowRunnerId, "err", err)
 			return nil, err
 		}
 	}
