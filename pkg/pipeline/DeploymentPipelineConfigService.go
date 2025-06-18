@@ -1323,7 +1323,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkFluxAppRequest(ctx context.
 	}
 	response.FluxReleaseMetadata.Destination.UpdateEnvironmentMetadata(targetEnv)
 
-	err = impl.ValidateDeploymentAppTypeForLinkRequest(targetEnv.Id, util.PIPELINE_DEPLOYMENT_TYPE_HELM, false)
+	err = impl.ValidateDeploymentAppTypeForLinkRequest(targetEnv.Id, util.PIPELINE_DEPLOYMENT_TYPE_FLUX, true)
 	if err != nil {
 		return response.SetErrorDetail(err)
 	}
