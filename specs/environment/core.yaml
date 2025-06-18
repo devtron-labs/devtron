@@ -1,0 +1,159 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /env/namespace/autocomplete:
+    get:
+      description: list of namespaces group by clusters
+      parameters:
+        - in: query
+          name: ids
+          example: "1,2"
+          description: cluster ids
+          required: false
+          allowEmptyValue: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    description: namespace list group by cluster
+                    items:
+                      $ref: '#/components/schemas/ClusterEnvDto'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+# components mentioned below
+components:
+  schemas:
+    ClusterEnvDto:
+      type: object
+      properties:
+        clusterId:
+          type: integer
+          description: cluster id
+        clusterName:
+          type: string
+          description: cluster name
+        environments:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnvDto'
+        isVirtualCluster:
+          type: boolean
+          description: whether cluster is virtual or not
+        clusterServerUrl:
+          type: string
+          description: cluster server URL
+        clusterConfig:
+          type: object
+          description: cluster configuration
+          properties:
+            bearerToken:
+              type: string
+              description: bearer token for cluster access
+            tlsConfig:
+              type: object
+              description: TLS configuration
+              properties:
+                insecureSkipTLSVerify:
+                  type: boolean
+                  description: whether to skip TLS verification
+    EnvDto:
+      type: object
+      properties:
+        environmentId:
+          type: integer
+          description: environment id
+        environmentName:
+          type: string
+          description: environment name
+        namespace:
+          type: string
+          description: namespace
+        environmentIdentifier:
+          type: string
+          description: environment identifier
+        description:
+          type: string
+          description: environment description
+        isVirtualEnvironment:
+          type: boolean
+          description: whether environment is virtual or not
+        default:
+          type: boolean
+          description: whether environment is default or not
+        clusterId:
+          type: integer
+          description: cluster id
+        clusterName:
+          type: string
+          description: cluster name
+        active:
+          type: boolean
+          description: whether environment is active
+        createdOn:
+          type: string
+          format: date-time
+          description: creation timestamp
+        updatedOn:
+          type: string
+          format: date-time
+          description: last update timestamp
+        createdBy:
+          type: string
+          description: creator's name
+        updatedBy:
+          type: string
+          description: last updater's name
+
+    ErrorResponse:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        status:
+          type: string
+          description: Error message
+        errors:
+          type: array
+          description: errors
+          items:
+            $ref: '#/components/schemas/Error'
+
+    Error:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error internal code
+        internalMessage:
+          type: string
+          description: Error internal message
+        userMessage:
+          type: string
+          description: Error user message

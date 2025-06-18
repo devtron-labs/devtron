@@ -1,0 +1,281 @@
+openapi: "3.0.2"
+info:
+  title: Devtron Labs
+  description: Devtron API for Kubernetes resource management
+  version: "1.0"
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Labs
+    email: support@devtron.ai
+    url: https://devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: http://localhost:8080/orchestrator/k8s
+paths:
+  /resource/inception/info:
+    get:
+      description: Get inception pod info, such as pod name
+      responses:
+        "200":
+          description: this api give you inception pod info, such as pod name
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/ResourceInfo'
+
+  /resource:
+    post:
+      description: Get Kubernetes resource details
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestBean'
+      responses:
+        "200":
+          description: Resource details
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/ManifestResponse'
+
+  /resource/create:
+    post:
+      description: Create Kubernetes resource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestBean'
+      responses:
+        "200":
+          description: Resource created successfully
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/ManifestResponse'
+
+  /resource/update:
+    put:
+      description: Update Kubernetes resource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestBean'
+      responses:
+        "200":
+          description: Resource updated successfully
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/ManifestResponse'
+
+  /resource/delete:
+    delete:
+      description: Delete Kubernetes resource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestBean'
+      responses:
+        "200":
+          description: Resource deleted successfully
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/ManifestResponse'
+
+  /api-resources/{clusterId}:
+    get:
+      description: Get all API resources for a cluster
+      parameters:
+        - name: clusterId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: API resources list
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/K8sApiResource'
+
+  /resource/urls:
+    get:
+      description: Get host URLs by batch
+      parameters:
+        - name: appId
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: appType
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Host URLs
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    items:
+                      type: string
+
+components:
+  schemas:
+    ResourceInfo:
+      type: object
+      required:
+        - podName
+      properties:
+        podName:
+          type: string
+          description: pod name
+
+    ResourceRequestBean:
+      type: object
+      properties:
+        appId:
+          type: integer
+          description: application id
+        k8sRequest:
+          $ref: '#/components/schemas/K8sRequestDto'
+
+    K8sRequestDto:
+      type: object
+      properties:
+        resourceIdentifier:
+          $ref: '#/components/schemas/ResourceIdentifier'
+        patch:
+          type: string
+          description: patch data for update operations
+
+    ResourceIdentifier:
+      type: object
+      properties:
+        name:
+          type: string
+          description: resource name
+        namespace:
+          type: string
+          description: resource namespace
+        groupVersionKind:
+          $ref: '#/components/schemas/GroupVersionKind'
+
+    GroupVersionKind:
+      type: object
+      properties:
+        group:
+          type: string
+          description: API group
+        version:
+          type: string
+          description: API version
+        kind:
+          type: string
+          description: resource kind
+
+    ManifestResponse:
+      type: object
+      properties:
+        manifest:
+          type: object
+          description: Kubernetes manifest
+        success:
+          type: boolean
+          description: operation success status
+
+    K8sApiResource:
+      type: object
+      properties:
+        gvk:
+          $ref: '#/components/schemas/GroupVersionKind'
+        gvr:
+          $ref: '#/components/schemas/GroupVersionResource'
+        namespaced:
+          type: boolean
+          description: whether resource is namespaced
+
+    GroupVersionResource:
+      type: object
+      properties:
+        group:
+          type: string
+          description: API group
+        version:
+          type: string
+          description: API version
+        resource:
+          type: string
+          description: resource name
