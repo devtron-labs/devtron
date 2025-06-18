@@ -71,6 +71,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger,
 }
 
 func (impl *CiServiceImpl) WriteCITriggerEvent(trigger *types.CiTriggerRequest, workflowRequest *types.WorkflowRequest) {
+	impl.Logger.Debugw("triggering notification for ci trigger event", "pipelineId", workflowRequest.PipelineId, "ciWorkflowId", workflowRequest.WorkflowId)
 	event, _ := impl.eventFactory.Build(util2.Trigger, &workflowRequest.PipelineId, workflowRequest.AppId, nil, util2.CI)
 	material := &buildBean.MaterialTriggerInfo{}
 
