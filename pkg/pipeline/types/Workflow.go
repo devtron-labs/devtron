@@ -188,7 +188,6 @@ func (workflowRequest *WorkflowRequest) CompressWorkflowRequest() (string, error
 }
 
 // DecompressWorkflowRequest decompresses bytes to WorkflowRequest
-// This function handles both Base64 encoded and legacy raw binary data for backward compatibility
 func (workflowRequest *WorkflowRequest) DecompressWorkflowRequest(compressedData string) error {
 	decodedData, err := base64.StdEncoding.DecodeString(compressedData)
 	if err != nil {
