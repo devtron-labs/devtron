@@ -1042,7 +1042,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateAppChartTypeForLinkedApp(appId 
 			UserMessage: err.Error(),
 		}
 	}
-	if chartRef.Name != requiredChartName {
+	if impl.deploymentConfig.ValidateExtAppChart && chartRef.Name != requiredChartName {
 		return chartRef, pipelineConfigBean.LinkFailedError{
 			Reason:      pipelineConfigBean.ChartTypeMismatch,
 			UserMessage: fmt.Sprintf(pipelineConfigBean.ChartTypeMismatchErrorMsg, requiredChartName, chartRef.Name),
@@ -1303,9 +1303,11 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkFluxAppRequest(ctx context.
 	}
 	response.FluxReleaseMetadata.SavedChartName = chartRef.Name
 
-	err = impl.validateIfChartVersionAvailableForChart(chartRef, response.FluxReleaseMetadata.RequiredChartVersion)
-	if err != nil {
-		return response.SetErrorDetail(err)
+	if impl.deploymentConfig.ValidateExtAppChart {
+		err = impl.validateIfChartVersionAvailableForChart(chartRef, response.FluxReleaseMetadata.RequiredChartVersion)
+		if err != nil {
+			return response.SetErrorDetail(err)
+		}
 	}
 
 	cluster, err := impl.clusterReadService.FindById(releaseClusterId)

@@ -272,7 +272,7 @@ const (
 )
 
 const (
-	ChartTypeMismatchErrorMsg    string = "Argo CD application uses '%s' chart where as this application uses '%s' chart. You can upload your own charts in Global Configuration > Deployment Charts."
+	ChartTypeMismatchErrorMsg    string = "External application uses '%s' chart where as this application uses '%s' chart. You can upload your own charts in Global Configuration > Deployment Charts."
 	ChartVersionNotFoundErrorMsg string = "Chart version %s not found for %s chart"
 	PipelineAlreadyPresentMsg    string = "A pipeline already exist for this environment."
 	HelmAppAlreadyPresentMsg     string = "A helm app already exist for this environment."

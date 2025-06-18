@@ -37,6 +37,7 @@ type DeploymentServiceTypeConfig struct {
 	MigrateDeploymentConfigData           bool `env:"MIGRATE_DEPLOYMENT_CONFIG_DATA" envDefault:"false" description:"migrate deployment config data from charts table to deployment_config table" deprecated:"false"`
 	FeatureMigrateArgoCdApplicationEnable bool `env:"FEATURE_MIGRATE_ARGOCD_APPLICATION_ENABLE" envDefault:"false" description:"enable migration of external argocd application to devtron pipeline" deprecated:"false"`
 	ShouldCheckNamespaceOnClone           bool `env:"SHOULD_CHECK_NAMESPACE_ON_CLONE" envDefault:"false"  description:"should we check if namespace exists or not while cloning app" deprecated:"false"`
+	ValidateExtAppChart                   bool `env:"VALIDATE_EXT_APP_CHART_TYPE" envDefault:"false" description:"validate external flux app chart" deprecated:"false"`
 }
 
 func (d *DeploymentServiceTypeConfig) IsFeatureMigrateArgoCdApplicationEnable() bool {
@@ -52,10 +53,10 @@ type GlobalEnvVariables struct {
 	EnableAsyncArgoCdInstallDevtronChart bool   `env:"ENABLE_ASYNC_ARGO_CD_INSTALL_DEVTRON_CHART" envDefault:"false" description:"To enable async installation of gitops application"`
 	ArgoGitCommitRetryCountOnConflict    int    `env:"ARGO_GIT_COMMIT_RETRY_COUNT_ON_CONFLICT" envDefault:"3" description:"retry argocd app manual sync if the timeline is stuck in ARGOCD_SYNC_INITIATED state for more than this defined time (in mins)"
 	`
-	ArgoGitCommitRetryDelayOnConflict    int    `env:"ARGO_GIT_COMMIT_RETRY_DELAY_ON_CONFLICT" envDefault:"1" description:"Delay on retrying the maifest commit the on gitops"`
-	ExposeCiMetrics                      bool   `env:"EXPOSE_CI_METRICS" envDefault:"false" description:"To expose CI metrics"`
-	ExecuteWireNilChecker                bool   `env:"EXECUTE_WIRE_NIL_CHECKER" envDefault:"false" description:"checks for any nil pointer in wire.go"`
-	IsAirGapEnvironment                  bool   `json:"isAirGapEnvironment" env:"IS_AIR_GAP_ENVIRONMENT" envDefault:"false"`
+	ArgoGitCommitRetryDelayOnConflict int  `env:"ARGO_GIT_COMMIT_RETRY_DELAY_ON_CONFLICT" envDefault:"1" description:"Delay on retrying the maifest commit the on gitops"`
+	ExposeCiMetrics                   bool `env:"EXPOSE_CI_METRICS" envDefault:"false" description:"To expose CI metrics"`
+	ExecuteWireNilChecker             bool `env:"EXECUTE_WIRE_NIL_CHECKER" envDefault:"false" description:"checks for any nil pointer in wire.go"`
+	IsAirGapEnvironment               bool `json:"isAirGapEnvironment" env:"IS_AIR_GAP_ENVIRONMENT" envDefault:"false"`
 }
 
 type GlobalClusterConfig struct {
