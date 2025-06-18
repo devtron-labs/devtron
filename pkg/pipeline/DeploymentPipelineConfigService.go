@@ -939,7 +939,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 }
 
 func (impl *CdPipelineConfigServiceImpl) ValidateDeploymentAppTypeForLinkRequest(targetEnvId int, expectedDeploymentAppType string, isGitOpsConfigured bool) error {
-	overrideDeploymentType, err := impl.deploymentTypeOverrideService.ValidateAndOverrideDeploymentAppType(util.PIPELINE_DEPLOYMENT_TYPE_ACD, isGitOpsConfigured, targetEnvId)
+	overrideDeploymentType, err := impl.deploymentTypeOverrideService.ValidateAndOverrideDeploymentAppType(expectedDeploymentAppType, isGitOpsConfigured, targetEnvId)
 	if err != nil {
 		impl.logger.Errorw("validation error for the used deployment type", "targetEnvId", targetEnvId, "deploymentAppType", expectedDeploymentAppType, "err", err)
 		if apiError, ok := err.(*util.ApiError); ok && apiError.Code == constants.InvalidDeploymentAppTypeForPipeline {
