@@ -18,6 +18,7 @@ package service
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/adapter"
@@ -37,6 +38,7 @@ type WorkflowTriggerAuditServiceImpl struct {
 	logger                           *zap.SugaredLogger
 	workflowConfigSnapshotRepository repository.WorkflowConfigSnapshotRepository
 	config                           *types.CiCdConfig
+	dockerRegistryConfig             pipeline.DockerRegistryConfig
 	*sql.TransactionUtilImpl
 }
 
@@ -44,12 +46,14 @@ func NewWorkflowTriggerAuditServiceImpl(
 	logger *zap.SugaredLogger,
 	workflowConfigSnapshotRepository repository.WorkflowConfigSnapshotRepository,
 	config *types.CiCdConfig,
+	dockerRegistryConfig pipeline.DockerRegistryConfig,
 	transactionUtilImpl *sql.TransactionUtilImpl) *WorkflowTriggerAuditServiceImpl {
 
 	return &WorkflowTriggerAuditServiceImpl{
 		logger:                           logger,
 		workflowConfigSnapshotRepository: workflowConfigSnapshotRepository,
 		config:                           config,
+		dockerRegistryConfig:             dockerRegistryConfig,
 		TransactionUtilImpl:              transactionUtilImpl,
 	}
 }
@@ -84,6 +88,7 @@ func (impl *WorkflowTriggerAuditServiceImpl) SaveTriggerAudit(workflowRequest *t
 }
 
 func (impl *WorkflowTriggerAuditServiceImpl) maskSecretsInWorkflowRequest(workflowRequest *types.WorkflowRequest) *types.WorkflowRequest {
+	// Mask blob storage secrets
 	if workflowRequest.BlobStorageS3Config != nil {
 		workflowRequest.BlobStorageS3Config.AccessKey = ""
 		workflowRequest.BlobStorageS3Config.Passkey = ""
@@ -94,6 +99,13 @@ func (impl *WorkflowTriggerAuditServiceImpl) maskSecretsInWorkflowRequest(workfl
 	if workflowRequest.GcpBlobConfig != nil {
 		workflowRequest.GcpBlobConfig.CredentialFileJsonData = ""
 	}
+
+	// Mask docker registry secrets
+	workflowRequest.DockerPassword = ""
+	workflowRequest.AccessKey = ""
+	workflowRequest.SecretKey = ""
+	workflowRequest.DockerCert = ""
+
 	return workflowRequest
 }
 
@@ -171,6 +183,38 @@ func (impl *WorkflowTriggerAuditServiceImpl) restoreSecretsInWorkflowRequest(wor
 		}
 	}
 
+	// Restore docker registry secrets
+	err := impl.restoreDockerRegistrySecrets(workflowRequest)
+	if err != nil {
+		impl.logger.Errorw("error in restoring docker registry secrets", "err", err, "workflowId", workflowRequest.WorkflowId)
+		return err
+	}
+
 	impl.logger.Debugw("completed secret restoration in workflow request", "workflowId", workflowRequest.WorkflowId)
+	return nil
+}
+
+// restoreDockerRegistrySecrets restores docker registry secrets from current registry configuration
+func (impl *WorkflowTriggerAuditServiceImpl) restoreDockerRegistrySecrets(workflowRequest *types.WorkflowRequest) error {
+	// Skip if no docker registry ID is present
+	if workflowRequest.DockerRegistryId == "" {
+		impl.logger.Debugw("no docker registry ID found, skipping docker registry secret restoration", "workflowId", workflowRequest.WorkflowId)
+		return nil
+	}
+
+	// Fetch current docker registry details
+	dockerRegistry, err := impl.dockerRegistryConfig.FetchOneDockerAccount(workflowRequest.DockerRegistryId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching docker registry details for secret restoration", "err", err, "dockerRegistryId", workflowRequest.DockerRegistryId)
+		return fmt.Errorf("failed to fetch docker registry details: %w", err)
+	}
+
+	// Restore docker registry secrets
+	workflowRequest.DockerPassword = dockerRegistry.Password
+	workflowRequest.AccessKey = dockerRegistry.AWSAccessKeyId
+	workflowRequest.SecretKey = dockerRegistry.AWSSecretAccessKey
+	workflowRequest.DockerCert = dockerRegistry.Cert
+
+	impl.logger.Debugw("successfully restored docker registry secrets", "workflowId", workflowRequest.WorkflowId, "dockerRegistryId", workflowRequest.DockerRegistryId)
 	return nil
 }
