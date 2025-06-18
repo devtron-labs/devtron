@@ -896,7 +896,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		requestedGitUrl = argoApplicationSpec.Spec.Source.RepoURL
 	}
 
-	sanitisedRepoUrl, err := impl.validateGitOpsForExternalApp(requestedGitUrl)
+	sanitisedRepoUrl, err := impl.validateGitOpsForExternalApp(requestedGitUrl, appId)
 	if err != nil {
 		return response.SetErrorDetail(err)
 	}
@@ -980,11 +980,12 @@ func (impl *CdPipelineConfigServiceImpl) validateIfChartVersionAvailableForChart
 	return nil
 }
 
-func (impl *CdPipelineConfigServiceImpl) validateGitOpsForExternalApp(requestedGitUrl string) (string, error) {
+func (impl *CdPipelineConfigServiceImpl) validateGitOpsForExternalApp(requestedGitUrl string, appId int) (string, error) {
 
 	validateRequest := &validationBean.ValidateGitOpsRepoUrlRequest{
 		RequestedGitUrl: requestedGitUrl,
 		UseActiveGitOps: true, // oss only supports active gitops
+		AppId:           appId,
 	}
 	sanitisedRepoUrl, err := impl.gitOpsValidationService.ValidateGitOpsRepoUrl(validateRequest)
 	if err != nil {
@@ -1279,7 +1280,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkFluxAppRequest(ctx context.
 		branch = gitRepository.Spec.Reference.Branch
 	}
 
-	sanitisedRepoUrl, err := impl.validateGitOpsForExternalApp(requestedGitUrl)
+	sanitisedRepoUrl, err := impl.validateGitOpsForExternalApp(requestedGitUrl, appId)
 	if err != nil {
 		return response.SetErrorDetail(err)
 	}

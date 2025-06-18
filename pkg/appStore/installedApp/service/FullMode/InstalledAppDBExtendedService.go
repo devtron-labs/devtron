@@ -28,7 +28,7 @@ import (
 type InstalledAppDBExtendedService interface {
 	EAMode.InstalledAppDBService
 	UpdateInstalledAppVersionStatus(application *v1alpha1.Application) (bool, error)
-	IsGitOpsRepoAlreadyRegistered(repoUrl string) (bool, error)
+	IsGitOpsRepoAlreadyRegistered(repoUrl string, appId int) (bool, error)
 }
 
 type InstalledAppDBExtendedServiceImpl struct {
@@ -91,9 +91,9 @@ func (impl *InstalledAppDBExtendedServiceImpl) UpdateInstalledAppVersionStatus(a
 	return true, nil
 }
 
-func (impl *InstalledAppDBExtendedServiceImpl) IsGitOpsRepoAlreadyRegistered(repoUrl string) (bool, error) {
+func (impl *InstalledAppDBExtendedServiceImpl) IsGitOpsRepoAlreadyRegistered(repoUrl string, appId int) (bool, error) {
 
-	urlPresent, err := impl.InstalledAppDBServiceImpl.DeploymentConfigService.CheckIfURLAlreadyPresent(repoUrl)
+	urlPresent, err := impl.InstalledAppDBServiceImpl.DeploymentConfigService.CheckIfURLAlreadyPresent(repoUrl, appId)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("error in checking url in deployment configs", "repoUrl", repoUrl, "err", err)
 		return false, err
@@ -110,6 +110,9 @@ func (impl *InstalledAppDBExtendedServiceImpl) IsGitOpsRepoAlreadyRegistered(rep
 	}
 	if util.IsErrNoRows(err) {
 		return false, nil
+	}
+	if installedAppModel != nil && installedAppModel.AppId != appId {
+		return true, nil
 	}
 	impl.Logger.Warnw("repository is already in use for helm app", "repoUrl", repoUrl, "appId", installedAppModel.AppId)
 	return true, nil

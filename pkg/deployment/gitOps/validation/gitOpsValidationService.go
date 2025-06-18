@@ -181,7 +181,7 @@ func (impl *GitOpsValidationServiceImpl) ValidateGitOpsRepoUrl(request *gitOpsBe
 	// Validate: Organisational URL ends
 
 	// Validate: Unique GitOps repository URL starts
-	isValid := impl.validateUniqueGitOpsRepo(sanitiseGitRepoUrl)
+	isValid := impl.validateUniqueGitOpsRepo(sanitiseGitRepoUrl, request.AppId)
 	if !isValid {
 		impl.logger.Errorw("git repo url already exists", "repo url", request.RequestedGitUrl)
 		errMsg := fmt.Sprintf("invalid git repository! '%s' is already in use by another application! Use a different repository", request.RequestedGitUrl)
@@ -350,12 +350,12 @@ func (impl *GitOpsValidationServiceImpl) getValidationErrorForNonOrganisationalU
 		WithCode(constants.GitOpsOrganisationMismatch)
 }
 
-func (impl *GitOpsValidationServiceImpl) validateUniqueGitOpsRepo(repoUrl string) (isValid bool) {
-	isDevtronAppRegistered, err := impl.chartService.IsGitOpsRepoAlreadyRegistered(repoUrl)
+func (impl *GitOpsValidationServiceImpl) validateUniqueGitOpsRepo(repoUrl string, appId int) (isValid bool) {
+	isDevtronAppRegistered, err := impl.chartService.IsGitOpsRepoAlreadyRegistered(repoUrl, appId)
 	if err != nil || isDevtronAppRegistered {
 		return isValid
 	}
-	isHelmAppRegistered, err := impl.installedAppService.IsGitOpsRepoAlreadyRegistered(repoUrl)
+	isHelmAppRegistered, err := impl.installedAppService.IsGitOpsRepoAlreadyRegistered(repoUrl, appId)
 	if err != nil || isHelmAppRegistered {
 		return isValid
 	}
