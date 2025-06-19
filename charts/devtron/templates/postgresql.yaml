@@ -1,4 +1,14 @@
-{{- with .Values.components.postgres }}
+{{- if and $.Values.global.externalPostgres $.Values.global.externalPostgres.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql-postgresql
+  namespace: devtroncd
+spec:
+  type: ExternalName
+  externalName: {{ $.Values.global.externalPostgres.PG_ADDR }}
+{{- else }}
+{{- with $.Values.components.postgres }}
 ---
 apiVersion: v1
 kind: Service
@@ -359,4 +369,5 @@ data:
       cat /extraconfigs/* >>/configs/postgresql.conf
     fi
     echo "Initialization done."
+{{- end }}
 {{- end }}
