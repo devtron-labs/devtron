@@ -58,10 +58,9 @@ type CaptureInApi struct {
 }
 
 func (msg Capture) APIfy() APIMessage {
-	library := "posthog-go"
 	libraryVersion := getVersion()
 
-	myProperties := Properties{}.Set("$lib", library).Set("$lib_version", libraryVersion)
+	myProperties := Properties{}.Set("$lib", SDKName).Set("$lib_version", libraryVersion)
 
 	if msg.Properties != nil {
 		for k, v := range msg.Properties {
@@ -76,7 +75,7 @@ func (msg Capture) APIfy() APIMessage {
 	apified := CaptureInApi{
 		Type:           msg.Type,
 		Uuid:           msg.Uuid,
-		Library:        library,
+		Library:        SDKName,
 		LibraryVersion: libraryVersion,
 		Timestamp:      msg.Timestamp,
 		DistinctId:     msg.DistinctId,
