@@ -174,8 +174,15 @@ func (impl *ChartServiceImpl) Create(templateRequest bean3.TemplateRequest, ctx 
 		return nil, err
 	}
 
+	tx, err := impl.chartRepository.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in starting transaction to update charts", "error", err)
+		return nil, err
+	}
+	defer impl.chartRepository.RollbackTx(tx)
 	// STARTS
-	currentLatestChart, err := impl.chartRepository.FindLatestChartForAppByAppId(nil, templateRequest.AppId)
+
+	currentLatestChart, err := impl.chartRepository.FindLatestChartForAppByAppId(tx, templateRequest.AppId)
 	if err != nil && pg.ErrNoRows != err {
 		return nil, err
 	}
@@ -183,13 +190,6 @@ func (impl *ChartServiceImpl) Create(templateRequest bean3.TemplateRequest, ctx 
 	if currentLatestChart.GitRepoUrl != "" {
 		gitRepoUrl = currentLatestChart.GitRepoUrl
 	}
-
-	tx, err := impl.chartRepository.StartTx()
-	if err != nil {
-		impl.logger.Errorw("error in starting transaction to update charts", "error", err)
-		return nil, err
-	}
-	defer impl.chartRepository.RollbackTx(tx)
 
 	impl.logger.Debugw("current latest chart in db", "chartId", currentLatestChart.Id)
 	if currentLatestChart.Id > 0 {
@@ -620,9 +620,16 @@ func (impl *ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateReq
 		return nil, err
 	}
 
+	tx, err := impl.chartRepository.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in starting transaction to update charts", "error", err)
+		return nil, err
+	}
+	defer impl.chartRepository.RollbackTx(tx)
+
 	// STARTS
 	_, span = otel.Tracer("orchestrator").Start(newCtx, "chartRepository.FindLatestChartForAppByAppId")
-	currentLatestChart, err := impl.chartRepository.FindLatestChartForAppByAppId(nil, templateRequest.AppId)
+	currentLatestChart, err := impl.chartRepository.FindLatestChartForAppByAppId(tx, templateRequest.AppId)
 	span.End()
 	if err != nil {
 		return nil, err
@@ -633,13 +640,6 @@ func (impl *ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateReq
 		impl.logger.Errorw("error in finding chart ref by id", "chartRefId", template.ChartRefId, "err", err)
 		return nil, err
 	}
-
-	tx, err := impl.chartRepository.StartTx()
-	if err != nil {
-		impl.logger.Errorw("error in starting transaction to update charts", "error", err)
-		return nil, err
-	}
-	defer impl.chartRepository.RollbackTx(tx)
 
 	if currentLatestChart.Id > 0 && currentLatestChart.Id == templateRequest.Id {
 
