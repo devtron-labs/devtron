@@ -185,7 +185,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangeDeploymentType(ctx context
 		}
 		deploymentConfig.DeploymentAppType = request.DesiredDeploymentType
 		deploymentConfig.ReleaseMode = util.PIPELINE_RELEASE_MODE_CREATE //now pipeline release mode will be create
-		releaseConfig, err := impl.DeploymentConfigReadService.ParseEnvLevelReleaseConfigForDevtronApp(deploymentConfig, pipeline.AppId, pipeline.EnvironmentId)
+		releaseConfig, err := impl.DeploymentConfigReadService.ParseEnvLevelReleaseConfigForDevtronApp(nil, deploymentConfig, pipeline.AppId, pipeline.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw("error in parsing release config", "err", err)
 			return response, err
@@ -353,7 +353,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 		}
 		envDeploymentConfig.ReleaseMode = util.PIPELINE_RELEASE_MODE_CREATE // now pipeline release mode will be create
 		envDeploymentConfig.DeploymentAppType = request.DesiredDeploymentType
-		releaseConfig, err := impl.DeploymentConfigReadService.ParseEnvLevelReleaseConfigForDevtronApp(envDeploymentConfig, item.AppId, item.EnvId)
+		releaseConfig, err := impl.DeploymentConfigReadService.ParseEnvLevelReleaseConfigForDevtronApp(nil, envDeploymentConfig, item.AppId, item.EnvId)
 		if err != nil {
 			impl.logger.Errorw("error in parsing release config", "err", err)
 			return response, err

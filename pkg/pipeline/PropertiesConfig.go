@@ -191,7 +191,7 @@ func (impl *PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environ
 	environmentPropertiesResponse.EnvironmentConfig = *environmentProperties
 
 	//setting global config
-	chart, err := impl.chartRepo.FindLatestChartForAppByAppId(appId)
+	chart, err := impl.chartRepo.FindLatestChartForAppByAppId(nil, appId)
 	if err != nil {
 		return nil, err
 	}
@@ -367,7 +367,7 @@ func (impl *PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, 
 	}
 
 	if !oldEnvOverride.Latest {
-		envOverrideExisting, err := impl.envConfigOverrideReadService.FindLatestChartForAppByAppIdAndEnvId(appId, oldEnvOverride.TargetEnvironment)
+		envOverrideExisting, err := impl.envConfigOverrideReadService.FindLatestChartForAppByAppIdAndEnvId(nil, appId, oldEnvOverride.TargetEnvironment)
 		if err != nil && !errors.IsNotFound(err) {
 			return nil, err
 		}
@@ -507,7 +507,7 @@ func (impl *PropertiesConfigServiceImpl) CreateIfRequired(request *bean.Environm
 	if errors.IsNotFound(err) {
 		if isOverride {
 			// before creating new entry, remove previous one from latest tag
-			envOverrideExisting, err := impl.envConfigOverrideReadService.FindLatestChartForAppByAppIdAndEnvId(chart.AppId, environmentId)
+			envOverrideExisting, err := impl.envConfigOverrideReadService.FindLatestChartForAppByAppIdAndEnvId(nil, chart.AppId, environmentId)
 			if err != nil && !errors.IsNotFound(err) {
 				return nil, isAppMetricsEnabled, err
 			}
@@ -687,7 +687,7 @@ func (impl *PropertiesConfigServiceImpl) ResetEnvironmentProperties(id int, user
 		return false, err
 	}
 
-	chart, err := impl.chartRepo.FindLatestChartForAppByAppId(envOverride.Chart.AppId)
+	chart, err := impl.chartRepo.FindLatestChartForAppByAppId(nil, envOverride.Chart.AppId)
 	if err != nil {
 		impl.logger.Errorw("error in chartRefRepository.FindById", "chartRefId", envOverride.Chart.ChartRefId, "err", err)
 		return false, err
@@ -718,7 +718,7 @@ func (impl *PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespac
 	}
 	if errors2.Is(err, pg.ErrNoRows) {
 		impl.logger.Warnw("no chart found this ref id", "refId", environmentProperties.ChartRefId)
-		chart, err = impl.chartRepo.FindLatestChartForAppByAppId(appId)
+		chart, err = impl.chartRepo.FindLatestChartForAppByAppId(nil, appId)
 		if err != nil && !errors2.Is(err, pg.ErrNoRows) {
 			return nil, err
 		}

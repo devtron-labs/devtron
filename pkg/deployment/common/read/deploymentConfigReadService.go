@@ -30,7 +30,7 @@ type DeploymentConfigReadService interface {
 
 	GetDeploymentConfigForApp(tx *pg.Tx, appId int) (*bean.DeploymentConfig, bool, error)
 	GetDeploymentConfigForAppAndEnv(tx *pg.Tx, appLevelConfig *bean.DeploymentConfig, appId, envId int) (*bean.DeploymentConfig, bool, error)
-	ParseEnvLevelReleaseConfigForDevtronApp(config *bean.DeploymentConfig, appId int, envId int) (*bean.ReleaseConfiguration, error)
+	ParseEnvLevelReleaseConfigForDevtronApp(tx *pg.Tx, config *bean.DeploymentConfig, appId int, envId int) (*bean.ReleaseConfiguration, error)
 }
 
 type DeploymentConfigReadServiceImpl struct {
@@ -130,7 +130,7 @@ func (impl *DeploymentConfigReadServiceImpl) GetDeploymentConfigForApp(tx *pg.Tx
 		return appLevelConfig, isMigrationNeeded, err
 	} else if interalUtil.IsErrNoRows(err) {
 		isMigrationNeeded = true
-		appLevelConfig, err = impl.parseAppLevelMigrationDataForDevtronApps(appId)
+		appLevelConfig, err = impl.parseAppLevelMigrationDataForDevtronApps(tx, appId)
 		if err != nil {
 			impl.logger.Errorw("error in migrating app level config to deployment config", "appId", appId, "err", err)
 			return appLevelConfig, isMigrationNeeded, err
@@ -143,7 +143,7 @@ func (impl *DeploymentConfigReadServiceImpl) GetDeploymentConfigForApp(tx *pg.Tx
 		}
 		if appLevelConfig.ReleaseConfiguration == nil || len(appLevelConfig.ReleaseConfiguration.Version) == 0 {
 			isMigrationNeeded = true
-			releaseConfig, err := impl.parseAppLevelReleaseConfigForDevtronApp(appId, appLevelConfig)
+			releaseConfig, err := impl.parseAppLevelReleaseConfigForDevtronApp(tx, appId, appLevelConfig)
 			if err != nil {
 				impl.logger.Errorw("error in parsing release configuration for app", "appId", appId, "err", err)
 				return appLevelConfig, isMigrationNeeded, err
@@ -165,7 +165,7 @@ func (impl *DeploymentConfigReadServiceImpl) GetDeploymentConfigForAppAndEnv(tx 
 		return envLevelConfig, isMigrationNeeded, err
 	} else if interalUtil.IsErrNoRows(err) {
 		// case: deployment config data is not yet migrated
-		envLevelConfig, err = impl.parseEnvLevelMigrationDataForDevtronApps(appLevelConfig, appId, envId)
+		envLevelConfig, err = impl.parseEnvLevelMigrationDataForDevtronApps(tx, appLevelConfig, appId, envId)
 		if err != nil {
 			impl.logger.Errorw("error in parsing env level config to deployment config", "appId", appId, "envId", envId, "err", err)
 			return envLevelConfig, isMigrationNeeded, err
@@ -180,7 +180,7 @@ func (impl *DeploymentConfigReadServiceImpl) GetDeploymentConfigForAppAndEnv(tx 
 		// case: deployment config is migrated; but release config is absent.
 		if envLevelConfig.ReleaseConfiguration == nil || len(envLevelConfig.ReleaseConfiguration.Version) == 0 {
 			isMigrationNeeded = true
-			releaseConfig, err := impl.ParseEnvLevelReleaseConfigForDevtronApp(envLevelConfig, appId, envId)
+			releaseConfig, err := impl.ParseEnvLevelReleaseConfigForDevtronApp(tx, envLevelConfig, appId, envId)
 			if err != nil {
 				impl.logger.Errorw("error in parsing env level release config", "appId", appId, "envId", envId, "err", err)
 				return envLevelConfig, isMigrationNeeded, err
@@ -257,7 +257,7 @@ func (impl *DeploymentConfigReadServiceImpl) configureEnvURLByAppURLIfNotConfigu
 	return appAndEnvLevelConfig, isRepoUrlUpdated, nil
 }
 
-func (impl *DeploymentConfigReadServiceImpl) parseEnvLevelMigrationDataForDevtronApps(appLevelConfig *bean.DeploymentConfig, appId, envId int) (*bean.DeploymentConfig, error) {
+func (impl *DeploymentConfigReadServiceImpl) parseEnvLevelMigrationDataForDevtronApps(tx *pg.Tx, appLevelConfig *bean.DeploymentConfig, appId, envId int) (*bean.DeploymentConfig, error) {
 	/*
 		We can safely assume that no link argoCD pipeline is created if migration is happening
 		migration case, default values for below fields will be =>
@@ -284,7 +284,7 @@ func (impl *DeploymentConfigReadServiceImpl) parseEnvLevelMigrationDataForDevtro
 	}
 	config.DeploymentAppType = deploymentAppType
 
-	releaseConfig, err := impl.ParseEnvLevelReleaseConfigForDevtronApp(config, appId, envId)
+	releaseConfig, err := impl.ParseEnvLevelReleaseConfigForDevtronApp(tx, config, appId, envId)
 	if err != nil {
 		impl.logger.Errorw("error in parsing env level release config", "appId", appId, "envId", envId, "err", err)
 		return nil, err
@@ -327,18 +327,18 @@ func (impl *DeploymentConfigReadServiceImpl) getConfigMetaDataForAppAndEnv(appId
 	return environmentId, deploymentAppName, namespace, nil
 }
 
-func (impl *DeploymentConfigReadServiceImpl) ParseEnvLevelReleaseConfigForDevtronApp(config *bean.DeploymentConfig, appId int, envId int) (*bean.ReleaseConfiguration, error) {
+func (impl *DeploymentConfigReadServiceImpl) ParseEnvLevelReleaseConfigForDevtronApp(tx *pg.Tx, config *bean.DeploymentConfig, appId int, envId int) (*bean.ReleaseConfiguration, error) {
 	releaseConfig := &bean.ReleaseConfiguration{}
 	if config.DeploymentAppType == interalUtil.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		releaseConfig.Version = bean.Version
-		envOverride, err := impl.envConfigOverrideService.FindLatestChartForAppByAppIdAndEnvId(appId, envId)
+		envOverride, err := impl.envConfigOverrideService.FindLatestChartForAppByAppIdAndEnvId(tx, appId, envId)
 		if err != nil && !errors.IsNotFound(err) {
 			impl.logger.Errorw("error in fetch")
 			return nil, err
 		}
 		var latestChart *chartRepoRepository.Chart
 		if !envOverride.IsOverridden() {
-			latestChart, err = impl.chartRepository.FindLatestChartForAppByAppId(appId)
+			latestChart, err = impl.chartRepository.FindLatestChartForAppByAppId(tx, appId)
 			if err != nil {
 				return nil, err
 			}
@@ -380,8 +380,8 @@ func (impl *DeploymentConfigReadServiceImpl) ParseEnvLevelReleaseConfigForDevtro
 	return releaseConfig, nil
 }
 
-func (impl *DeploymentConfigReadServiceImpl) parseAppLevelMigrationDataForDevtronApps(appId int) (*bean.DeploymentConfig, error) {
-	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
+func (impl *DeploymentConfigReadServiceImpl) parseAppLevelMigrationDataForDevtronApps(tx *pg.Tx, appId int) (*bean.DeploymentConfig, error) {
+	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(tx, appId)
 	if err != nil {
 		return nil, err
 	}
@@ -398,8 +398,8 @@ func (impl *DeploymentConfigReadServiceImpl) parseAppLevelMigrationDataForDevtro
 	return config, nil
 }
 
-func (impl *DeploymentConfigReadServiceImpl) parseAppLevelReleaseConfigForDevtronApp(appId int, appLevelConfig *bean.DeploymentConfig) (*bean.ReleaseConfiguration, error) {
-	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
+func (impl *DeploymentConfigReadServiceImpl) parseAppLevelReleaseConfigForDevtronApp(tx *pg.Tx, appId int, appLevelConfig *bean.DeploymentConfig) (*bean.ReleaseConfiguration, error) {
+	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(tx, appId)
 	if err != nil {
 		return nil, err
 	}
@@ -408,6 +408,7 @@ func (impl *DeploymentConfigReadServiceImpl) parseAppLevelReleaseConfigForDevtro
 	if len(appLevelConfig.RepoURL) > 0 {
 		repoURL = appLevelConfig.RepoURL
 	}
+
 	chartLocation := filepath.Join(chart.ReferenceTemplate, chart.ChartVersion)
 	releaseConfig := adapter.NewAppLevelReleaseConfigFromChart(repoURL, chartLocation)
 	return releaseConfig, nil

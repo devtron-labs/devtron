@@ -175,7 +175,7 @@ func (impl *ChartServiceImpl) Create(templateRequest bean3.TemplateRequest, ctx 
 	}
 
 	// STARTS
-	currentLatestChart, err := impl.chartRepository.FindLatestChartForAppByAppId(templateRequest.AppId)
+	currentLatestChart, err := impl.chartRepository.FindLatestChartForAppByAppId(nil, templateRequest.AppId)
 	if err != nil && pg.ErrNoRows != err {
 		return nil, err
 	}
@@ -335,26 +335,14 @@ func (impl *ChartServiceImpl) UpdateExistingChartsToLatestFalse(tx *pg.Tx, templ
 
 	impl.logger.Debug("updating all other charts which are not latest but may be set previous true, setting previous=false")
 	//step 2
-	noLatestCharts, dbErr := impl.chartRepository.FindNoLatestChartForAppByAppId(templateRequest.AppId)
-	if dbErr != nil && !util.IsErrNoRows(dbErr) {
-		impl.logger.Errorw("error in getting non-latest charts", "appId", templateRequest.AppId, "err", dbErr)
-		return dbErr
-	}
-	var updatedCharts []*chartRepoRepository.Chart
-	for _, noLatestChart := range noLatestCharts {
-		if noLatestChart.Id != templateRequest.Id {
-			noLatestChart.Latest = false // these are already false by d way
-			noLatestChart.Previous = false
-			noLatestChart.UpdateAuditLog(templateRequest.UserId)
-			updatedCharts = append(updatedCharts, noLatestChart)
-		}
-	}
-	err := impl.chartRepository.UpdateAllInTx(tx, updatedCharts)
+	_, err := impl.chartRepository.UpdateNoLatestChartForAppByAppId(tx, templateRequest.AppId, templateRequest.Id, templateRequest.UserId)
 	if err != nil {
+		impl.logger.Errorw("error in updating non-latest charts", "appId", templateRequest.AppId, "chartId", templateRequest.Id, "err", err)
 		return err
 	}
+
 	impl.logger.Debug("now going to update latest entry in db to false and previous flag = true")
-	// now finally update latest entry in db to false and previous true
+	// now finally update the latest entry in db to false and previous true
 	currentLatestChart.Latest = false // these are already false by d way
 	currentLatestChart.Previous = true
 	currentLatestChart.UpdateAuditLog(templateRequest.UserId)
@@ -442,7 +430,7 @@ func (impl *ChartServiceImpl) CreateChartFromEnvOverride(ctx context.Context, te
 		return nil, err
 	}
 
-	currentLatestChart, err := impl.chartRepository.FindLatestChartForAppByAppId(templateRequest.AppId)
+	currentLatestChart, err := impl.chartRepository.FindLatestChartForAppByAppId(nil, templateRequest.AppId)
 	if err != nil && pg.ErrNoRows != err {
 		return nil, err
 	}
@@ -634,7 +622,7 @@ func (impl *ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateReq
 
 	// STARTS
 	_, span = otel.Tracer("orchestrator").Start(newCtx, "chartRepository.FindLatestChartForAppByAppId")
-	currentLatestChart, err := impl.chartRepository.FindLatestChartForAppByAppId(templateRequest.AppId)
+	currentLatestChart, err := impl.chartRepository.FindLatestChartForAppByAppId(nil, templateRequest.AppId)
 	span.End()
 	if err != nil {
 		return nil, err
@@ -799,14 +787,14 @@ func (impl *ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId i
 		impl.logger.Errorw("error, ChartRefAutocompleteGlobalData", "err", err)
 		return nil, err
 	}
-	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
+	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(nil, appId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching latest chart", "err", err)
 		return chartRefResponse, err
 	}
 	chartRefResponse.LatestAppChartRef = chart.ChartRefId
 	if envId > 0 {
-		envOverride, err := impl.envConfigOverrideReadService.FindLatestChartForAppByAppIdAndEnvId(appId, envId)
+		envOverride, err := impl.envConfigOverrideReadService.FindLatestChartForAppByAppIdAndEnvId(nil, appId, envId)
 		if err != nil && !errors.IsNotFound(err) {
 			impl.logger.Errorw("error in fetching latest chart", "err", err)
 			return chartRefResponse, err
@@ -959,7 +947,7 @@ func (impl *ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOve
 }
 
 func (impl *ChartServiceImpl) CheckIfChartRefUserUploadedByAppId(id int) (bool, error) {
-	chartInfo, err := impl.chartRepository.FindLatestChartForAppByAppId(id)
+	chartInfo, err := impl.chartRepository.FindLatestChartForAppByAppId(nil, id)
 	if err != nil {
 		return false, err
 	}

@@ -91,7 +91,7 @@ func (impl *ChartReadServiceImpl) IsGitOpsRepoConfiguredForDevtronApps(appIds []
 }
 
 func (impl *ChartReadServiceImpl) FindLatestChartForAppByAppId(appId int) (chartTemplate *bean.TemplateRequest, err error) {
-	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
+	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(nil, appId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart ", "appId", appId, "err", err)
 		return nil, err

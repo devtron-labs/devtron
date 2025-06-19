@@ -65,7 +65,7 @@ type EnvConfigOverrideRepository interface {
 	GetEnvConfigByChartId(chartId int) ([]EnvConfigOverride, error)
 	UpdateEnvConfigStatus(config *EnvConfigOverride) error
 	Delete(envConfigOverride *EnvConfigOverride) error
-	FindLatestChartForAppByAppIdAndEnvId(appId, targetEnvironmentId int) (*EnvConfigOverride, error)
+	FindLatestChartForAppByAppIdAndEnvId(tx *pg.Tx, appId, targetEnvironmentId int) (*EnvConfigOverride, error)
 	FindChartRefIdsForLatestChartForAppByAppIdAndEnvIds(appId int, targetEnvironmentIds []int) (map[int]int, error)
 	FindChartByAppIdAndEnvIdAndChartRefId(appId, targetEnvironmentId int, chartRefId int) (*EnvConfigOverride, error)
 	Update(tx *pg.Tx, envConfigOverride *EnvConfigOverride) (*EnvConfigOverride, error)
@@ -279,9 +279,14 @@ func (r EnvConfigOverrideRepositoryImpl) Delete(envConfigOverride *EnvConfigOver
 	return err
 }
 
-func (r EnvConfigOverrideRepositoryImpl) FindLatestChartForAppByAppIdAndEnvId(appId, targetEnvironmentId int) (*EnvConfigOverride, error) {
+func (r EnvConfigOverrideRepositoryImpl) FindLatestChartForAppByAppIdAndEnvId(tx *pg.Tx, appId, targetEnvironmentId int) (*EnvConfigOverride, error) {
 	eco := &EnvConfigOverride{}
-	err := r.dbConnection.
+	var connection orm.DB
+	connection = tx
+	if tx == nil {
+		connection = r.dbConnection
+	}
+	err := connection.
 		Model(eco).
 		Where("env_config_override.target_environment = ?", targetEnvironmentId).
 		Where("env_config_override.latest = ?", true).
