@@ -38,6 +38,7 @@ type DeploymentServiceTypeConfig struct {
 	FeatureMigrateArgoCdApplicationEnable bool `env:"FEATURE_MIGRATE_ARGOCD_APPLICATION_ENABLE" envDefault:"false" description:"enable migration of external argocd application to devtron pipeline" deprecated:"false"`
 	ShouldCheckNamespaceOnClone           bool `env:"SHOULD_CHECK_NAMESPACE_ON_CLONE" envDefault:"false"  description:"should we check if namespace exists or not while cloning app" deprecated:"false"`
 	ValidateExtAppChart                   bool `env:"VALIDATE_EXT_APP_CHART_TYPE" envDefault:"false" description:"validate external flux app chart" deprecated:"false"`
+	FeatureMigrateFluxApplicationEnable   bool `env:"FEATURE_MIGRATE_FLUX_APPLICATION_ENABLE" envDefault:"false" description:"enable flux application services" deprecated:"false"`
 }
 
 func (d *DeploymentServiceTypeConfig) IsFeatureMigrateArgoCdApplicationEnable() bool {
@@ -45,6 +46,13 @@ func (d *DeploymentServiceTypeConfig) IsFeatureMigrateArgoCdApplicationEnable() 
 		return false
 	}
 	return d.FeatureMigrateArgoCdApplicationEnable
+}
+
+func (d *DeploymentServiceTypeConfig) IsFeatureMigrateFluxApplicationEnable() bool {
+	if d == nil {
+		return false
+	}
+	return d.FeatureMigrateFluxApplicationEnable
 }
 
 type GlobalEnvVariables struct {
