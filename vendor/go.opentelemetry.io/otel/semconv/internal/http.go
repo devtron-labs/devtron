@@ -1,17 +1,7 @@
 // Copyright The OpenTelemetry Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
+// Package internal provides common semconv functionality.
 package internal // import "go.opentelemetry.io/otel/semconv/internal"
 
 import (
@@ -60,7 +50,10 @@ type SemanticConventions struct {
 // namespace as specified by the OpenTelemetry specification for a
 // span.  The network parameter is a string that net.Dial function
 // from standard library can understand.
-func (sc *SemanticConventions) NetAttributesFromHTTPRequest(network string, request *http.Request) []attribute.KeyValue {
+func (sc *SemanticConventions) NetAttributesFromHTTPRequest(
+	network string,
+	request *http.Request,
+) []attribute.KeyValue {
 	attrs := []attribute.KeyValue{}
 
 	switch network {
@@ -126,7 +119,7 @@ func hostIPNamePort(hostWithPort string) (ip string, name string, port int) {
 		name = hostPart
 	}
 	if parsedPort, err = strconv.ParseUint(portPart, 10, 16); err == nil {
-		port = int(parsedPort)
+		port = int(parsedPort) // nolint: gosec  // Bit size of 16 checked above.
 	}
 	return
 }
@@ -189,9 +182,10 @@ func (sc *SemanticConventions) httpBasicAttributesFromHTTPRequest(request *http.
 	}
 
 	flavor := ""
-	if request.ProtoMajor == 1 {
+	switch request.ProtoMajor {
+	case 1:
 		flavor = fmt.Sprintf("1.%d", request.ProtoMinor)
-	} else if request.ProtoMajor == 2 {
+	case 2:
 		flavor = "2"
 	}
 	if flavor != "" {
@@ -209,7 +203,10 @@ func (sc *SemanticConventions) httpBasicAttributesFromHTTPRequest(request *http.
 
 // HTTPServerMetricAttributesFromHTTPRequest generates low-cardinality attributes
 // to be used with server-side HTTP metrics.
-func (sc *SemanticConventions) HTTPServerMetricAttributesFromHTTPRequest(serverName string, request *http.Request) []attribute.KeyValue {
+func (sc *SemanticConventions) HTTPServerMetricAttributesFromHTTPRequest(
+	serverName string,
+	request *http.Request,
+) []attribute.KeyValue {
 	attrs := []attribute.KeyValue{}
 	if serverName != "" {
 		attrs = append(attrs, sc.HTTPServerNameKey.String(serverName))
@@ -221,7 +218,10 @@ func (sc *SemanticConventions) HTTPServerMetricAttributesFromHTTPRequest(serverN
 // http namespace as specified by the OpenTelemetry specification for
 // a span on the server side. Currently, only basic authentication is
 // supported.
-func (sc *SemanticConventions) HTTPServerAttributesFromHTTPRequest(serverName, route string, request *http.Request) []attribute.KeyValue {
+func (sc *SemanticConventions) HTTPServerAttributesFromHTTPRequest(
+	serverName, route string,
+	request *http.Request,
+) []attribute.KeyValue {
 	attrs := []attribute.KeyValue{
 		sc.HTTPTargetKey.String(request.RequestURI),
 	}

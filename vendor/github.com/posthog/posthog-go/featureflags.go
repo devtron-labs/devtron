@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha1"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -35,15 +36,16 @@ type FeatureFlagsPoller struct {
 	mutex          sync.RWMutex
 	nextPollTick   func() time.Duration
 	flagTimeout    time.Duration
+	decider        decider
+	disableGeoIP   bool
 }
 
 type FeatureFlag struct {
-	Key                        string `json:"key"`
-	IsSimpleFlag               bool   `json:"is_simple_flag"`
-	RolloutPercentage          *uint8 `json:"rollout_percentage"`
-	Active                     bool   `json:"active"`
-	Filters                    Filter `json:"filters"`
-	EnsureExperienceContinuity *bool  `json:"ensure_experience_continuity"`
+	Key                        string   `json:"key"`
+	RolloutPercentage          *float64 `json:"rollout_percentage"`
+	Active                     bool     `json:"active"`
+	Filters                    Filter   `json:"filters"`
+	EnsureExperienceContinuity *bool    `json:"ensure_experience_continuity"`
 }
 
 type Filter struct {
@@ -58,14 +60,14 @@ type Variants struct {
 }
 
 type FlagVariant struct {
-	Key               string `json:"key"`
-	Name              string `json:"name"`
-	RolloutPercentage *uint8 `json:"rollout_percentage"`
+	Key               string   `json:"key"`
+	Name              string   `json:"name"`
+	RolloutPercentage *float64 `json:"rollout_percentage"`
 }
 
 type FeatureFlagCondition struct {
 	Properties        []FlagProperty `json:"properties"`
-	RolloutPercentage *uint8         `json:"rollout_percentage"`
+	RolloutPercentage *float64       `json:"rollout_percentage"`
 	Variant           *string        `json:"variant"`
 }
 
@@ -106,7 +108,6 @@ type DecideRequestData struct {
 type DecideResponse struct {
 	FeatureFlags        map[string]interface{} `json:"featureFlags"`
 	FeatureFlagPayloads map[string]string      `json:"featureFlagPayloads"`
-	QuotaLimited        *[]string              `json:"quota_limited"`
 }
 
 type InconclusiveMatchError struct {
@@ -126,8 +127,9 @@ func newFeatureFlagsPoller(
 	pollingInterval time.Duration,
 	nextPollTick func() time.Duration,
 	flagTimeout time.Duration,
+	decider decider,
+	disableGeoIP bool,
 ) *FeatureFlagsPoller {
-
 	if nextPollTick == nil {
 		nextPollTick = func() time.Duration { return pollingInterval }
 	}
@@ -144,6 +146,8 @@ func newFeatureFlagsPoller(
 		mutex:          sync.RWMutex{},
 		nextPollTick:   nextPollTick,
 		flagTimeout:    flagTimeout,
+		decider:        decider,
+		disableGeoIP:   disableGeoIP,
 	}
 
 	go poller.run()
@@ -171,6 +175,9 @@ func (poller *FeatureFlagsPoller) run() {
 	}
 }
 
+// fetchNewFeatureFlags fetches the latest feature flag definitions from the PostHog API
+// These are used for local evaluation of feature flags and should not be confused with
+// the feature flags fetched from the flags API.
 func (poller *FeatureFlagsPoller) fetchNewFeatureFlags() {
 	personalApiKey := poller.personalApiKey
 	headers := [][2]string{{"Authorization", "Bearer " + personalApiKey + ""}}
@@ -199,7 +206,7 @@ func (poller *FeatureFlagsPoller) fetchNewFeatureFlags() {
 	}
 
 	defer res.Body.Close()
-	resBody, err := ioutil.ReadAll(res.Body)
+	resBody, err := io.ReadAll(res.Body)
 	if err != nil {
 		poller.Errorf("Unable to fetch feature flags: %s", err)
 		return
@@ -242,7 +249,6 @@ func (poller *FeatureFlagsPoller) GetFeatureFlag(flagConfig FeatureFlagPayload) 
 	}
 
 	if (err != nil || result == nil) && !flagConfig.OnlyEvaluateLocally {
-
 		result, err = poller.getFeatureFlagVariant(flag, flagConfig.Key, flagConfig.DistinctId, flagConfig.Groups, flagConfig.PersonProperties, flagConfig.GroupProperties)
 		if err != nil {
 			return nil, err
@@ -295,9 +301,7 @@ func (poller *FeatureFlagsPoller) getFeatureFlag(flagConfig FeatureFlagPayload) 
 	if err != nil {
 		return FeatureFlag{}, err
 	}
-
-	featureFlag := FeatureFlag{Key: ""}
-
+	var featureFlag FeatureFlag
 	// avoid using flag for conflicts with Golang's stdlib `flag`
 	for _, storedFlag := range featureFlags {
 		if flagConfig.Key == storedFlag.Key {
@@ -340,12 +344,18 @@ func (poller *FeatureFlagsPoller) GetAllFlags(flagConfig FeatureFlagPayloadNoKey
 	}
 
 	if fallbackToDecide && !flagConfig.OnlyEvaluateLocally {
-		result, err := poller.getFeatureFlagVariants(flagConfig.DistinctId, flagConfig.Groups, flagConfig.PersonProperties, flagConfig.GroupProperties)
+		flagsResponse, err := poller.getFeatureFlagVariants(
+			flagConfig.DistinctId,
+			flagConfig.Groups,
+			flagConfig.PersonProperties,
+			flagConfig.GroupProperties,
+		)
 
 		if err != nil {
 			return response, err
-		} else {
-			for k, v := range result.FeatureFlags {
+		}
+		if flagsResponse != nil {
+			for k, v := range flagsResponse.FeatureFlags {
 				response[k] = v
 			}
 		}
@@ -353,7 +363,6 @@ func (poller *FeatureFlagsPoller) GetAllFlags(flagConfig FeatureFlagPayloadNoKey
 
 	return response, nil
 }
-
 func (poller *FeatureFlagsPoller) computeFlagLocally(
 	flag FeatureFlag,
 	distinctId string,
@@ -371,43 +380,45 @@ func (poller *FeatureFlagsPoller) computeFlagLocally(
 	}
 
 	if flag.Filters.AggregationGroupTypeIndex != nil {
-
-		groupName, exists := poller.groups[fmt.Sprintf("%d", *flag.Filters.AggregationGroupTypeIndex)]
+		groupType, exists := poller.groups[fmt.Sprintf("%d", *flag.Filters.AggregationGroupTypeIndex)]
 
 		if !exists {
 			errMessage := "flag has unknown group type index"
 			return nil, errors.New(errMessage)
 		}
 
-		_, exists = groups[groupName]
+		groupKey, exists := groups[groupType]
 
 		if !exists {
-			errMessage := fmt.Sprintf("FEATURE FLAGS] Can't compute group feature flag: %s without group names passed in", flag.Key)
+			errMessage := fmt.Sprintf("[FEATURE FLAGS] Can't compute group feature flag: %s without group names passed in", flag.Key)
 			return nil, errors.New(errMessage)
 		}
 
-		focusedGroupProperties := groupProperties[groupName]
-		return matchFeatureFlagProperties(flag, groups[groupName].(string), focusedGroupProperties, cohorts)
+		focusedGroupProperties := groupProperties[groupType]
+		if _, ok := focusedGroupProperties["$group_key"]; !ok {
+			focusedGroupProperties = Properties{"$group_key": groupKey}.Merge(focusedGroupProperties)
+		}
+		return matchFeatureFlagProperties(flag, groups[groupType].(string), focusedGroupProperties, cohorts)
 	} else {
-		return matchFeatureFlagProperties(flag, distinctId, personProperties, cohorts)
+		localPersonProperties := personProperties
+		if _, ok := localPersonProperties["distinct_id"]; !ok {
+			localPersonProperties = Properties{"distinct_id": distinctId}.Merge(localPersonProperties)
+		}
+		return matchFeatureFlagProperties(flag, distinctId, localPersonProperties, cohorts)
 	}
 }
 
-func getMatchingVariant(flag FeatureFlag, distinctId string) (interface{}, error) {
+func getMatchingVariant(flag FeatureFlag, distinctId string) interface{} {
 	lookupTable := getVariantLookupTable(flag)
 
-	hashValue, err := _hash(flag.Key, distinctId, "variant")
-	if err != nil {
-		return nil, err
-	}
-
+	hashValue := calculateHash(flag.Key+".", distinctId, "variant")
 	for _, variant := range lookupTable {
 		if hashValue >= float64(variant.ValueMin) && hashValue < float64(variant.ValueMax) {
-			return variant.Key, nil
+			return variant.Key
 		}
 	}
 
-	return true, nil
+	return true
 }
 
 func getVariantLookupTable(flag FeatureFlag) []FlagVariantMeta {
@@ -421,10 +432,10 @@ func getVariantLookupTable(flag FeatureFlag) []FlagVariantMeta {
 	}
 
 	for _, variant := range multivariates.Variants {
-		valueMax := float64(valueMin) + float64(*variant.RolloutPercentage)/100
-		_flagVariantMeta := FlagVariantMeta{ValueMin: float64(valueMin), ValueMax: valueMax, Key: variant.Key}
+		valueMax := valueMin + *variant.RolloutPercentage/100.
+		_flagVariantMeta := FlagVariantMeta{ValueMin: valueMin, ValueMax: valueMax, Key: variant.Key}
 		lookupTable = append(lookupTable, _flagVariantMeta)
-		valueMin = float64(valueMax)
+		valueMin = valueMax
 	}
 
 	return lookupTable
@@ -459,7 +470,6 @@ func matchFeatureFlagProperties(
 	})
 
 	for _, condition := range sortedConditions {
-
 		isMatch, err := isConditionMatch(flag, distinctId, condition, properties, cohorts)
 		if err != nil {
 			if _, ok := err.(*InconclusiveMatchError); ok {
@@ -476,7 +486,7 @@ func matchFeatureFlagProperties(
 			if variantOverride != nil && multivariates != nil && multivariates.Variants != nil && containsVariant(multivariates.Variants, *variantOverride) {
 				return *variantOverride, nil
 			} else {
-				return getMatchingVariant(flag, distinctId)
+				return getMatchingVariant(flag, distinctId), nil
 			}
 		}
 	}
@@ -496,32 +506,25 @@ func isConditionMatch(
 	cohorts map[string]PropertyGroup,
 ) (bool, error) {
 	if len(condition.Properties) > 0 {
+		var (
+			isMatch bool
+			err     error
+		)
 		for _, prop := range condition.Properties {
-			var isMatch bool
-			var err error
-
 			if prop.Type == "cohort" {
 				isMatch, err = matchCohort(prop, properties, cohorts)
 			} else {
 				isMatch, err = matchProperty(prop, properties)
 			}
 
-			if err != nil {
+			if err != nil || !isMatch {
 				return false, err
 			}
-
-			if !isMatch {
-				return false, nil
-			}
-		}
-
-		if condition.RolloutPercentage != nil {
-			return true, nil
 		}
 	}
 
 	if condition.RolloutPercentage != nil {
-		return checkIfSimpleFlagEnabled(flag.Key, distinctId, *condition.RolloutPercentage)
+		return checkIfSimpleFlagEnabled(flag.Key, distinctId, *condition.RolloutPercentage), nil
 	}
 
 	return true, nil
@@ -834,38 +837,17 @@ func containsVariant(variantList []FlagVariant, key string) bool {
 	return false
 }
 
-func (poller *FeatureFlagsPoller) isSimpleFlagEnabled(key string, distinctId string, rolloutPercentage uint8) (bool, error) {
-	isEnabled, err := checkIfSimpleFlagEnabled(key, distinctId, rolloutPercentage)
-	if err != nil {
-		errMessage := "Error converting string to int"
-		poller.Errorf(errMessage)
-		return false, errors.New(errMessage)
-	}
-	return isEnabled, nil
-}
-
 // extracted as a regular func for testing purposes
-func checkIfSimpleFlagEnabled(key string, distinctId string, rolloutPercentage uint8) (bool, error) {
-	val, err := _hash(key, distinctId, "")
-	if err != nil {
-		return false, err
-	}
-
-	return val <= float64(rolloutPercentage)/100, nil
+func checkIfSimpleFlagEnabled(key, distinctId string, rolloutPercentage float64) bool {
+	hash := calculateHash(key+".", distinctId, "")
+	return hash <= rolloutPercentage/100.
 }
 
-func _hash(key string, distinctId string, salt string) (float64, error) {
+func calculateHash(prefix, distinctId, salt string) float64 {
 	hash := sha1.New()
-	hash.Write([]byte("" + key + "." + distinctId + "" + salt))
+	hash.Write([]byte(prefix + distinctId + salt))
 	digest := hash.Sum(nil)
-	hexString := fmt.Sprintf("%x\n", digest)[:15]
-
-	value, err := strconv.ParseInt(hexString, 16, 64)
-	if err != nil {
-		return 0, err
-	}
-
-	return float64(value) / LONG_SCALE, nil
+	return float64(binary.BigEndian.Uint64(digest[:8])>>4) / LONG_SCALE
 }
 
 func (poller *FeatureFlagsPoller) GetFeatureFlags() ([]FeatureFlag, error) {
@@ -877,17 +859,6 @@ func (poller *FeatureFlagsPoller) GetFeatureFlags() ([]FeatureFlag, error) {
 	}
 
 	return poller.featureFlags, nil
-}
-
-func (poller *FeatureFlagsPoller) decide(requestData []byte, headers [][2]string) (*http.Response, context.CancelFunc, error) {
-	decideEndpoint := "decide/?v=3"
-
-	url, err := url.Parse(poller.Endpoint + "/" + decideEndpoint + "")
-	if err != nil {
-		poller.Errorf("creating url - %s", err)
-	}
-
-	return poller.request("POST", url, requestData, headers, poller.flagTimeout)
 }
 
 func (poller *FeatureFlagsPoller) localEvaluationFlags(headers [][2]string) (*http.Response, context.CancelFunc, error) {
@@ -915,7 +886,7 @@ func (poller *FeatureFlagsPoller) request(method string, url *url.URL, requestDa
 
 	version := getVersion()
 
-	req.Header.Add("User-Agent", SdkName+"/"+version)
+	req.Header.Add("User-Agent", SDKName+"/"+version)
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Content-Length", fmt.Sprintf("%d", len(requestData)))
 
@@ -939,94 +910,40 @@ func (poller *FeatureFlagsPoller) shutdownPoller() {
 	poller.shutdown <- true
 }
 
-func (poller *FeatureFlagsPoller) getFeatureFlagVariants(distinctId string, groups Groups, personProperties Properties, groupProperties map[string]Properties) (*DecideResponse, error) {
-	errorMessage := "Failed when getting flag variants"
-	requestDataBytes, err := json.Marshal(DecideRequestData{
-		ApiKey:           poller.projectApiKey,
-		DistinctId:       distinctId,
-		Groups:           groups,
-		PersonProperties: personProperties,
-		GroupProperties:  groupProperties,
-	})
-	headers := [][2]string{{"Authorization", "Bearer " + poller.personalApiKey + ""}}
-	if err != nil {
-		errorMessage = "unable to marshal decide endpoint request data"
-		poller.Errorf(errorMessage)
-		return nil, errors.New(errorMessage)
-	}
-	res, cancel, err := poller.decide(requestDataBytes, headers)
-	defer cancel()
-	if err != nil || res.StatusCode != http.StatusOK {
-		errorMessage = "Error calling /decide/"
-		if err != nil {
-			errorMessage += " - " + err.Error()
-		}
-		poller.Errorf(errorMessage)
-		return nil, errors.New(errorMessage)
-	}
-	resBody, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		errorMessage = "Error reading response from /decide/"
-		poller.Errorf(errorMessage)
-		return nil, errors.New(errorMessage)
-	}
-	defer res.Body.Close()
-	decideResponse := DecideResponse{}
-	err = json.Unmarshal([]byte(resBody), &decideResponse)
-	if err != nil {
-		errorMessage = "Error parsing response from /decide/"
-		poller.Errorf(errorMessage)
-		return nil, errors.New(errorMessage)
-	}
-
-	return &decideResponse, nil
+// getFeatureFlagVariants is a helper function to get the feature flag variants for
+// a given distinctId, groups, personProperties, and groupProperties.
+// This makes a request to the flags endpoint and returns the response.
+// This is used in fallback scenarios where we can't compute the flag locally.
+func (poller *FeatureFlagsPoller) getFeatureFlagVariants(distinctId string, groups Groups, personProperties Properties, groupProperties map[string]Properties) (*FlagsResponse, error) {
+	return poller.decider.makeFlagsRequest(distinctId, groups, personProperties, groupProperties, poller.disableGeoIP)
 }
 
 func (poller *FeatureFlagsPoller) getFeatureFlagVariant(featureFlag FeatureFlag, key string, distinctId string, groups Groups, personProperties Properties, groupProperties map[string]Properties) (interface{}, error) {
 	var result interface{} = false
 
-	if featureFlag.IsSimpleFlag {
+	flagsResponse, variantErr := poller.getFeatureFlagVariants(distinctId, groups, personProperties, groupProperties)
 
-		// json.Unmarshal will convert JSON `null` to a nullish value for each type
-		// which is 0 for uint. However, our feature flags should have rolloutPercentage == 100
-		// if it is set to `null`. Having rollout percentage be a pointer and deferencing it
-		// here allows its value to be `nil` following json.Unmarhsal, so we can appropriately
-		// set it to 100
-		rolloutPercentage := uint8(100)
-		if featureFlag.RolloutPercentage != nil {
-			rolloutPercentage = *featureFlag.RolloutPercentage
-		}
-		var err error
-		result, err = poller.isSimpleFlagEnabled(key, distinctId, rolloutPercentage)
-		if err != nil {
-			return false, err
-		}
-	} else {
-		featureFlagVariants, variantErr := poller.getFeatureFlagVariants(distinctId, groups, personProperties, groupProperties)
+	if variantErr != nil {
+		return false, variantErr
+	}
 
-		if variantErr != nil {
-			return false, variantErr
+	for flagKey, flagValue := range flagsResponse.FeatureFlags {
+		if key == flagKey {
+			return flagValue, nil
 		}
-
-		for flagKey, flagValue := range featureFlagVariants.FeatureFlags {
-			flagValueString := fmt.Sprintf("%v", flagValue)
-			if key == flagKey && flagValueString != "false" {
-				result = flagValueString
-				break
-			}
-		}
-		return result, nil
 	}
 	return result, nil
 }
 
 func (poller *FeatureFlagsPoller) getFeatureFlagPayload(key string, distinctId string, groups Groups, personProperties Properties, groupProperties map[string]Properties) (string, error) {
-	featureFlagVariants, err := poller.getFeatureFlagVariants(distinctId, groups, personProperties, groupProperties)
+	flagsResponse, err := poller.getFeatureFlagVariants(distinctId, groups, personProperties, groupProperties)
 	if err != nil {
 		return "", err
 	}
-
-	return featureFlagVariants.FeatureFlagPayloads[key], nil
+	if flagsResponse != nil {
+		return flagsResponse.FeatureFlagPayloads[key], nil
+	}
+	return "", nil
 }
 
 func getSafeProp[T any](properties map[string]any, key string) T {

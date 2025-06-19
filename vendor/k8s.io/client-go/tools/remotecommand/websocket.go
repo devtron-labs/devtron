@@ -36,13 +36,9 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// writeDeadline defines the time that a write to the websocket connection
-// must complete by, otherwise an i/o timeout occurs. The writeDeadline
-// has nothing to do with a response from the other websocket connection
-// endpoint; only that the message was successfully processed by the
-// local websocket connection. The typical write deadline within the websocket
-// library is one second.
-const writeDeadline = 2 * time.Second
+// writeDeadline defines the time that a client-side write to the websocket
+// connection must complete before an i/o timeout occurs.
+const writeDeadline = 60 * time.Second
 
 var (
 	_ Executor          = &wsStreamExecutor{}
@@ -65,8 +61,8 @@ const (
 	// "pong" message before a timeout error occurs for websocket reading.
 	// This duration must always be greater than the "pingPeriod". By defining
 	// this deadline in terms of the ping period, we are essentially saying
-	// we can drop "X-1" (e.g. 3-1=2) pings before firing the timeout.
-	pingReadDeadline = (pingPeriod * 3) + (1 * time.Second)
+	// we can drop "X" (e.g. 12) pings before firing the timeout.
+	pingReadDeadline = (pingPeriod * 12) + (1 * time.Second)
 )
 
 // wsStreamExecutor handles transporting standard shell streams over an httpstream connection.
@@ -252,6 +248,7 @@ func (c *wsStreamCreator) readDemuxLoop(bufferSize int, period time.Duration, de
 	// Initialize and start the ping/pong heartbeat.
 	h := newHeartbeat(c.conn, period, deadline)
 	// Set initial timeout for websocket connection reading.
+	klog.V(5).Infof("Websocket initial read deadline: %s", deadline)
 	if err := c.conn.SetReadDeadline(time.Now().Add(deadline)); err != nil {
 		klog.Errorf("Websocket initial setting read deadline failed %v", err)
 		return
@@ -315,7 +312,7 @@ func (c *wsStreamCreator) readDemuxLoop(bufferSize int, period time.Duration, de
 				if errRead == io.EOF {
 					break
 				}
-				c.closeAllStreamReaders(fmt.Errorf("read message: %w", err))
+				c.closeAllStreamReaders(fmt.Errorf("read message: %w", errRead))
 				return
 			}
 		}
@@ -358,8 +355,8 @@ func (s *stream) Read(p []byte) (n int, err error) {
 
 // Write writes directly to the underlying WebSocket connection.
 func (s *stream) Write(p []byte) (n int, err error) {
-	klog.V(4).Infof("Write() on stream %d", s.id)
-	defer klog.V(4).Infof("Write() done on stream %d", s.id)
+	klog.V(8).Infof("Write() on stream %d", s.id)
+	defer klog.V(8).Infof("Write() done on stream %d", s.id)
 	s.connWriteLock.Lock()
 	defer s.connWriteLock.Unlock()
 	if s.conn == nil {
@@ -367,7 +364,7 @@ func (s *stream) Write(p []byte) (n int, err error) {
 	}
 	err = s.conn.SetWriteDeadline(time.Now().Add(writeDeadline))
 	if err != nil {
-		klog.V(7).Infof("Websocket setting write deadline failed %v", err)
+		klog.V(4).Infof("Websocket setting write deadline failed %v", err)
 		return 0, err
 	}
 	// Message writer buffers the message data, so we don't need to do that ourselves.
@@ -396,8 +393,8 @@ func (s *stream) Write(p []byte) (n int, err error) {
 
 // Close half-closes the stream, indicating this side is finished with the stream.
 func (s *stream) Close() error {
-	klog.V(4).Infof("Close() on stream %d", s.id)
-	defer klog.V(4).Infof("Close() done on stream %d", s.id)
+	klog.V(6).Infof("Close() on stream %d", s.id)
+	defer klog.V(6).Infof("Close() done on stream %d", s.id)
 	s.connWriteLock.Lock()
 	defer s.connWriteLock.Unlock()
 	if s.conn == nil {
@@ -456,7 +453,7 @@ func newHeartbeat(conn *gwebsocket.Conn, period time.Duration, deadline time.Dur
 	// be empty.
 	h.conn.SetPongHandler(func(msg string) error {
 		// Push the read deadline into the future.
-		klog.V(8).Infof("Pong message received (%s)--resetting read deadline", msg)
+		klog.V(6).Infof("Pong message received (%s)--resetting read deadline", msg)
 		err := h.conn.SetReadDeadline(time.Now().Add(deadline))
 		if err != nil {
 			klog.Errorf("Websocket setting read deadline failed %v", err)
@@ -491,14 +488,14 @@ func (h *heartbeat) start() {
 	for {
 		select {
 		case <-h.closer:
-			klog.V(8).Infof("closed channel--returning")
+			klog.V(5).Infof("closed channel--returning")
 			return
 		case <-t.C:
 			// "WriteControl" does not need to be protected by a mutex. According to
 			// gorilla/websockets library docs: "The Close and WriteControl methods can
 			// be called concurrently with all other methods."
-			if err := h.conn.WriteControl(gwebsocket.PingMessage, h.message, time.Now().Add(writeDeadline)); err == nil {
-				klog.V(8).Infof("Websocket Ping succeeeded")
+			if err := h.conn.WriteControl(gwebsocket.PingMessage, h.message, time.Now().Add(pingReadDeadline)); err == nil {
+				klog.V(6).Infof("Websocket Ping succeeeded")
 			} else {
 				klog.Errorf("Websocket Ping failed: %v", err)
 				if errors.Is(err, gwebsocket.ErrCloseSent) {

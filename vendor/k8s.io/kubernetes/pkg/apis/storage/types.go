@@ -203,6 +203,14 @@ type VolumeError struct {
 	// information.
 	// +optional
 	Message string
+
+	// errorCode is a numeric gRPC code representing the error encountered during Attach or Detach operations.
+	//
+	// This is an optional, alpha field that requires the MutableCSINodeAllocatableCount feature gate being enabled to be set.
+	//
+	// +featureGate=MutableCSINodeAllocatableCount
+	// +optional
+	ErrorCode *int32
 }
 
 // VolumeBindingMode indicates how PersistentVolumeClaims should be bound.
@@ -284,7 +292,7 @@ type CSIDriverSpec struct {
 	// permission of the volume before being mounted.
 	// Refer to the specific FSGroupPolicy values for additional details.
 	//
-	// This field is immutable.
+	// This field was immutable in Kubernetes < 1.29 and now is mutable.
 	//
 	// Defaults to ReadWriteOnceWithFSType, which will examine each volume
 	// to determine if Kubernetes should modify ownership and permissions of the volume.
@@ -318,7 +326,7 @@ type CSIDriverSpec struct {
 	// deployed on such a cluster and the deployment determines which mode that is, for example
 	// via a command line parameter of the driver.
 	//
-	// This field is immutable.
+	// This field was immutable in Kubernetes < 1.29 and now is mutable.
 	//
 	// +optional
 	PodInfoOnMount *bool
@@ -412,6 +420,20 @@ type CSIDriverSpec struct {
 	// +featureGate=SELinuxMountReadWriteOncePod
 	// +optional
 	SELinuxMount *bool
+
+	// nodeAllocatableUpdatePeriodSeconds specifies the interval between periodic updates of
+	// the CSINode allocatable capacity for this driver. When set, both periodic updates and
+	// updates triggered by capacity-related failures are enabled. If not set, no updates
+	// occur (neither periodic nor upon detecting capacity-related failures), and the
+	// allocatable.count remains static. The minimum allowed value for this field is 10 seconds.
+	//
+	// This is an alpha feature and requires the MutableCSINodeAllocatableCount feature gate to be enabled.
+	//
+	// This field is mutable.
+	//
+	// +featureGate=MutableCSINodeAllocatableCount
+	// +optional
+	NodeAllocatableUpdatePeriodSeconds *int64
 }
 
 // FSGroupPolicy specifies if a CSI Driver supports modifying
@@ -423,7 +445,7 @@ const (
 	// ReadWriteOnceWithFSTypeFSGroupPolicy indicates that each volume will be examined
 	// to determine if the volume ownership and permissions
 	// should be modified. If a fstype is defined and the volume's access mode
-	// contains ReadWriteOnce, then the defined fsGroup will be applied.
+	// contains ReadWriteOnce or ReadWriteOncePod, then the defined fsGroup will be applied.
 	// This mode should be defined if it's expected that the
 	// fsGroup may need to be modified depending on the pod's SecurityPolicy.
 	// This is the default behavior if no other FSGroupPolicy is defined.
@@ -495,6 +517,8 @@ const (
 // there are no CSI Drivers available on the node, or the Kubelet version is low
 // enough that it doesn't create this object.
 // CSINode has an OwnerReference that points to the corresponding node object.
+// When the MutableCSINodeAllocatableCount feature gate is enabled, the allocatable.count
+// field in CSINodeDriver can be updated.
 type CSINode struct {
 	metav1.TypeMeta
 

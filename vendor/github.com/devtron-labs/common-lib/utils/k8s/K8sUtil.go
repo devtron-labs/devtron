@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils"
 	http2 "github.com/devtron-labs/common-lib/utils/http"
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	"github.com/devtron-labs/common-lib/utils/k8s/configMap"
 	"io"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -235,6 +236,27 @@ func (impl *K8sServiceImpl) CreateConfigMap(namespace string, cm *v1.ConfigMap, 
 	} else {
 		return cm, nil
 	}
+}
+
+func (impl *K8sServiceImpl) CreateConfigMapObject(name, namespace string, client *v12.CoreV1Client, opts ...configMap.ConfigMapOption) (*v1.ConfigMap, error) {
+	configMap := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+	}
+	for _, option := range opts {
+		option(configMap)
+	}
+	return impl.CreateConfigMap(namespace, configMap, client)
+}
+
+func (impl *K8sServiceImpl) DeleteConfigMap(namespace string, name string, client *v12.CoreV1Client) error {
+	err := client.ConfigMaps(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+	if err != nil {
+		impl.logger.Errorw("error in deleting cm", "namespace", namespace, "err", err)
+		return err
+	}
+	return nil
 }
 
 func (impl *K8sServiceImpl) UpdateConfigMap(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) (*v1.ConfigMap, error) {
