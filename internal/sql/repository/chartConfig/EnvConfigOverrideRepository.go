@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 	"github.com/juju/errors"
 )
 
@@ -58,16 +59,16 @@ type EnvConfigOverrideRepository interface {
 	ActiveEnvConfigOverride(appId, environmentId int) (*EnvConfigOverride, error) //successful env config
 	GetByIdIncludingInactive(id int) (*EnvConfigOverride, error)
 	//this api updates only EnvOverrideValues, EnvMergedValues, Status, ManualReviewed, active based on id
-	UpdateProperties(config *EnvConfigOverride) error
+	UpdateProperties(tx *pg.Tx, config *EnvConfigOverride) error
 	GetByEnvironment(targetEnvironmentId int) ([]EnvConfigOverride, error)
 
 	GetEnvConfigByChartId(chartId int) ([]EnvConfigOverride, error)
 	UpdateEnvConfigStatus(config *EnvConfigOverride) error
 	Delete(envConfigOverride *EnvConfigOverride) error
-	FindLatestChartForAppByAppIdAndEnvId(appId, targetEnvironmentId int) (*EnvConfigOverride, error)
+	FindLatestChartForAppByAppIdAndEnvId(tx *pg.Tx, appId, targetEnvironmentId int) (*EnvConfigOverride, error)
 	FindChartRefIdsForLatestChartForAppByAppIdAndEnvIds(appId int, targetEnvironmentIds []int) (map[int]int, error)
 	FindChartByAppIdAndEnvIdAndChartRefId(appId, targetEnvironmentId int, chartRefId int) (*EnvConfigOverride, error)
-	Update(envConfigOverride *EnvConfigOverride) (*EnvConfigOverride, error)
+	Update(tx *pg.Tx, envConfigOverride *EnvConfigOverride) (*EnvConfigOverride, error)
 	FindChartForAppByAppIdAndEnvId(appId, targetEnvironmentId int) (*EnvConfigOverride, error)
 	SaveWithTxn(model *EnvConfigOverride, tx *pg.Tx) error
 	UpdateWithTxn(envConfigOverride *EnvConfigOverride, tx *pg.Tx) (*EnvConfigOverride, error)
@@ -78,6 +79,7 @@ type EnvConfigOverrideRepository interface {
 	// EnvConfigOverride.Chart is not populated,
 	// as the chartRepoRepository.Chart contains the reference chart(in bytes).
 	GetAllOverridesForApp(appId int) ([]*EnvConfigOverride, error)
+	GetDbConnection() *pg.DB
 }
 
 type EnvConfigOverrideRepositoryImpl struct {
@@ -205,8 +207,13 @@ func (r EnvConfigOverrideRepositoryImpl) GetByIdIncludingInactive(id int) (*EnvC
 
 // this api updates only EnvOverrideValues, EnvMergedValues, Status, ManualReviewed, active
 // based on id
-func (r EnvConfigOverrideRepositoryImpl) UpdateProperties(config *EnvConfigOverride) error {
-	_, err := r.dbConnection.Model(config).
+func (r EnvConfigOverrideRepositoryImpl) UpdateProperties(tx *pg.Tx, config *EnvConfigOverride) error {
+	var connection orm.DB
+	connection = tx
+	if tx == nil {
+		connection = r.dbConnection
+	}
+	_, err := connection.Model(config).
 		Set("env_override_yaml = ?", config.EnvOverrideValues).
 		Set("status =?", config.Status).
 		Set("reviewed =?", config.ManualReviewed).
@@ -272,9 +279,14 @@ func (r EnvConfigOverrideRepositoryImpl) Delete(envConfigOverride *EnvConfigOver
 	return err
 }
 
-func (r EnvConfigOverrideRepositoryImpl) FindLatestChartForAppByAppIdAndEnvId(appId, targetEnvironmentId int) (*EnvConfigOverride, error) {
+func (r EnvConfigOverrideRepositoryImpl) FindLatestChartForAppByAppIdAndEnvId(tx *pg.Tx, appId, targetEnvironmentId int) (*EnvConfigOverride, error) {
 	eco := &EnvConfigOverride{}
-	err := r.dbConnection.
+	var connection orm.DB
+	connection = tx
+	if tx == nil {
+		connection = r.dbConnection
+	}
+	err := connection.
 		Model(eco).
 		Where("env_config_override.target_environment = ?", targetEnvironmentId).
 		Where("env_config_override.latest = ?", true).
@@ -321,8 +333,13 @@ func (r EnvConfigOverrideRepositoryImpl) FindChartByAppIdAndEnvIdAndChartRefId(a
 	return eco, err
 }
 
-func (r EnvConfigOverrideRepositoryImpl) Update(envConfigOverride *EnvConfigOverride) (*EnvConfigOverride, error) {
-	err := r.dbConnection.Update(envConfigOverride)
+func (r EnvConfigOverrideRepositoryImpl) Update(tx *pg.Tx, envConfigOverride *EnvConfigOverride) (*EnvConfigOverride, error) {
+	var connection orm.DB
+	connection = tx
+	if tx == nil {
+		connection = r.dbConnection
+	}
+	err := connection.Update(envConfigOverride)
 	return envConfigOverride, err
 }
 
@@ -379,4 +396,8 @@ func (r EnvConfigOverrideRepositoryImpl) GetAllOverridesForApp(appId int) ([]*En
 		Where("charts.app_id = ?", appId).
 		Select()
 	return eco, err
+}
+
+func (r EnvConfigOverrideRepositoryImpl) GetDbConnection() *pg.DB {
+	return r.dbConnection
 }

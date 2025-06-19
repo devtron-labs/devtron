@@ -103,7 +103,7 @@ func (impl *HandlerServiceImpl) TriggerPreStage(request bean.TriggerRequest) (*b
 		return nil, err
 	}
 
-	envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(pipeline.AppId, pipeline.EnvironmentId)
+	envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(nil, pipeline.AppId, pipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching deployment config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
 		return nil, err

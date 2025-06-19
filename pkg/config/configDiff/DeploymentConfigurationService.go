@@ -480,7 +480,7 @@ func (impl *DeploymentConfigurationServiceImpl) getRefChartBytes(ctx context.Con
 func (impl *DeploymentConfigurationServiceImpl) getConfiguredChartRef(envId int, appId int) (int, error) {
 	var chartRefId int
 	if envId > 0 {
-		envOverride, err := impl.envConfigOverrideService.FindLatestChartForAppByAppIdAndEnvId(appId, envId)
+		envOverride, err := impl.envConfigOverrideService.FindLatestChartForAppByAppIdAndEnvId(nil, appId, envId)
 		if err != nil && !errors.IsNotFound(err) {
 			impl.logger.Errorw("error in fetching latest chart", "err", err)
 			return 0, nil

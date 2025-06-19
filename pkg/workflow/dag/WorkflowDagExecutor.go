@@ -510,7 +510,7 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.
 			if util4.IsTerminalRunnerStatus(cdWfr.Status) {
 				appId := cdWfr.CdWorkflow.Pipeline.AppId
 				envId := cdWfr.CdWorkflow.Pipeline.EnvironmentId
-				envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
+				envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(nil, appId, envId)
 				if err != nil {
 					impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
 				}
@@ -555,7 +555,7 @@ func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncInstallRequest(cdAsyncIn
 			return err
 		}
 	}
-	envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(overrideRequest.AppId, overrideRequest.EnvId)
+	envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(nil, overrideRequest.AppId, overrideRequest.EnvId)
 	if err != nil {
 		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "err", err)
 		return err

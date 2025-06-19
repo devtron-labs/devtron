@@ -46,15 +46,15 @@ import (
 type DeploymentConfigService interface {
 	CreateOrUpdateConfig(tx *pg.Tx, config *bean.DeploymentConfig, userId int32) (*bean.DeploymentConfig, error)
 	CreateOrUpdateConfigInBulk(tx *pg.Tx, configToBeCreated, configToBeUpdated []*bean.DeploymentConfig, userId int32) error
-	GetConfigForDevtronApps(appId, envId int) (*bean.DeploymentConfig, error)
-	GetAndMigrateConfigIfAbsentForDevtronApps(appId, envId int) (*bean.DeploymentConfig, error)
+	GetConfigForDevtronApps(tx *pg.Tx, appId, envId int) (*bean.DeploymentConfig, error)
+	GetAndMigrateConfigIfAbsentForDevtronApps(tx *pg.Tx, appId, envId int) (*bean.DeploymentConfig, error)
 	GetConfigForHelmApps(appId, envId int) (*bean.DeploymentConfig, error)
 	IsChartStoreAppManagedByArgoCd(appId int) (bool, error)
 	GetConfigEvenIfInactive(appId, envId int) (*bean.DeploymentConfig, error)
 	GetAndMigrateConfigIfAbsentForHelmApp(appId, envId int) (*bean.DeploymentConfig, error)
 	UpdateRepoUrlForAppAndEnvId(repoURL string, appId, envId int) error
 	GetConfigsByAppIds(appIds []int) ([]*bean.DeploymentConfig, error)
-	UpdateChartLocationInDeploymentConfig(appId, envId, chartRefId int, userId int32, chartVersion string) error
+	UpdateChartLocationInDeploymentConfig(tx *pg.Tx, appId, envId, chartRefId int, userId int32, chartVersion string) error
 	GetAllArgoAppInfosByDeploymentAppNames(deploymentAppNames []string) ([]*bean.DevtronArgoCdAppInfo, error)
 	GetExternalReleaseType(appId, environmentId int) (bean.ExternalReleaseType, error)
 	CheckIfURLAlreadyPresent(repoURL string) (bool, error)
@@ -187,9 +187,9 @@ func (impl *DeploymentConfigServiceImpl) CreateOrUpdateConfigInBulk(tx *pg.Tx, c
 	return nil
 }
 
-func (impl *DeploymentConfigServiceImpl) GetConfigForDevtronApps(appId, envId int) (*bean.DeploymentConfig, error) {
+func (impl *DeploymentConfigServiceImpl) GetConfigForDevtronApps(tx *pg.Tx, appId, envId int) (*bean.DeploymentConfig, error) {
 
-	appLevelConfig, err := impl.getAppLevelConfigForDevtronApps(appId, false)
+	appLevelConfig, err := impl.getAppLevelConfigForDevtronApps(tx, appId, false)
 	if err != nil {
 		impl.logger.Errorw("error in getting app level Config for devtron apps", "appId", appId, "envId", envId, "err", err)
 		return nil, err
@@ -198,7 +198,7 @@ func (impl *DeploymentConfigServiceImpl) GetConfigForDevtronApps(appId, envId in
 	if envId > 0 {
 		// if envId > 0 then only env level config will be returned,
 		// for getting app level config envId should be zero
-		envLevelConfig, err := impl.getEnvLevelDataForDevtronApps(appId, envId, appLevelConfig, false)
+		envLevelConfig, err := impl.getEnvLevelDataForDevtronApps(tx, appId, envId, appLevelConfig, false)
 		if err != nil {
 			impl.logger.Errorw("error in getting env level data for devtron apps", "appId", appId, "envId", envId, "err", err)
 			return nil, err
@@ -208,9 +208,9 @@ func (impl *DeploymentConfigServiceImpl) GetConfigForDevtronApps(appId, envId in
 	return appLevelConfig, nil
 }
 
-func (impl *DeploymentConfigServiceImpl) GetAndMigrateConfigIfAbsentForDevtronApps(appId, envId int) (*bean.DeploymentConfig, error) {
+func (impl *DeploymentConfigServiceImpl) GetAndMigrateConfigIfAbsentForDevtronApps(tx *pg.Tx, appId, envId int) (*bean.DeploymentConfig, error) {
 	migrateDeploymentConfigData := impl.deploymentServiceTypeConfig.MigrateDeploymentConfigData
-	appLevelConfig, err := impl.getAppLevelConfigForDevtronApps(appId, migrateDeploymentConfigData)
+	appLevelConfig, err := impl.getAppLevelConfigForDevtronApps(tx, appId, migrateDeploymentConfigData)
 	if err != nil {
 		impl.logger.Errorw("error in getting app level Config for devtron apps", "appId", appId, "envId", envId, "err", err)
 		return nil, err
@@ -219,7 +219,7 @@ func (impl *DeploymentConfigServiceImpl) GetAndMigrateConfigIfAbsentForDevtronAp
 	if envId > 0 {
 		// if envId > 0 then only env level config will be returned,
 		// for getting app level config envId should be zero
-		envLevelConfig, err = impl.getEnvLevelDataForDevtronApps(appId, envId, appLevelConfig, migrateDeploymentConfigData)
+		envLevelConfig, err = impl.getEnvLevelDataForDevtronApps(tx, appId, envId, appLevelConfig, migrateDeploymentConfigData)
 		if err != nil {
 			impl.logger.Errorw("error in getting env level data for devtron apps", "appId", appId, "envId", envId, "err", err)
 			return nil, err
@@ -319,7 +319,7 @@ func (impl *DeploymentConfigServiceImpl) GetConfigsByAppIds(appIds []int) ([]*be
 	return resp, nil
 }
 
-func (impl *DeploymentConfigServiceImpl) UpdateChartLocationInDeploymentConfig(appId, envId, chartRefId int, userId int32, chartVersion string) error {
+func (impl *DeploymentConfigServiceImpl) UpdateChartLocationInDeploymentConfig(tx *pg.Tx, appId, envId, chartRefId int, userId int32, chartVersion string) error {
 
 	pipeline, err := impl.pipelineRepository.FindOneByAppIdAndEnvId(appId, envId)
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
@@ -331,7 +331,7 @@ func (impl *DeploymentConfigServiceImpl) UpdateChartLocationInDeploymentConfig(a
 		return nil
 	}
 
-	config, err := impl.GetConfigForDevtronApps(appId, envId)
+	config, err := impl.GetConfigForDevtronApps(tx, appId, envId)
 	if err != nil {
 		impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", appId, "envId", envId, "err", err)
 		return err
@@ -344,7 +344,7 @@ func (impl *DeploymentConfigServiceImpl) UpdateChartLocationInDeploymentConfig(a
 		}
 		chartLocation := filepath.Join(chartRef.Location, chartVersion)
 		config.SetChartLocation(chartLocation)
-		config, err = impl.CreateOrUpdateConfig(nil, config, userId)
+		config, err = impl.CreateOrUpdateConfig(tx, config, userId)
 		if err != nil {
 			impl.logger.Errorw("error in CreateOrUpdateConfig", "appId", appId, "envId", envId, "err", err)
 			return err
@@ -397,7 +397,7 @@ func (impl *DeploymentConfigServiceImpl) GetAllArgoAppInfosByDeploymentAppNames(
 }
 
 func (impl *DeploymentConfigServiceImpl) GetExternalReleaseType(appId, environmentId int) (bean.ExternalReleaseType, error) {
-	config, err := impl.GetConfigForDevtronApps(appId, environmentId)
+	config, err := impl.GetConfigForDevtronApps(nil, appId, environmentId)
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", appId, "envId", environmentId, "err", err)
 		return bean.Undefined, err
@@ -427,7 +427,7 @@ func (impl *DeploymentConfigServiceImpl) CheckIfURLAlreadyPresent(repoURL string
 func (impl *DeploymentConfigServiceImpl) FilterPipelinesByApplicationClusterIdAndNamespace(pipelines []pipelineConfig.Pipeline, applicationObjectClusterId int, applicationObjectNamespace string) (pipelineConfig.Pipeline, error) {
 	pipeline := pipelineConfig.Pipeline{}
 	for _, p := range pipelines {
-		dc, err := impl.GetConfigForDevtronApps(p.AppId, p.EnvironmentId)
+		dc, err := impl.GetConfigForDevtronApps(nil, p.AppId, p.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", p.AppId, "environmentId", p.EnvironmentId, "err", err)
 			return pipeline, err
@@ -615,14 +615,14 @@ func (impl *DeploymentConfigServiceImpl) GetConfigDBObj(tx *pg.Tx, appId, envId 
 	return configDbObj, nil
 }
 
-func (impl *DeploymentConfigServiceImpl) getAppLevelConfigForDevtronApps(appId int, migrateDataIfAbsent bool) (*bean.DeploymentConfig, error) {
-	appLevelConfig, isMigrationNeeded, err := impl.deploymentConfigReadService.GetDeploymentConfigForApp(appId)
+func (impl *DeploymentConfigServiceImpl) getAppLevelConfigForDevtronApps(tx *pg.Tx, appId int, migrateDataIfAbsent bool) (*bean.DeploymentConfig, error) {
+	appLevelConfig, isMigrationNeeded, err := impl.deploymentConfigReadService.GetDeploymentConfigForApp(tx, appId)
 	if err != nil {
 		impl.logger.Errorw("error in getting app level Config for devtron apps", "appId", appId, "err", err)
 		return nil, err
 	}
 	if migrateDataIfAbsent && isMigrationNeeded {
-		_, err := impl.CreateOrUpdateConfig(nil, appLevelConfig, bean3.SYSTEM_USER_ID)
+		_, err := impl.CreateOrUpdateConfig(tx, appLevelConfig, bean3.SYSTEM_USER_ID)
 		if err != nil {
 			impl.logger.Errorw("error in migrating app level config to deployment config", "appId", appId, "err", err)
 			return nil, err
@@ -632,14 +632,14 @@ func (impl *DeploymentConfigServiceImpl) getAppLevelConfigForDevtronApps(appId i
 
 }
 
-func (impl *DeploymentConfigServiceImpl) getEnvLevelDataForDevtronApps(appId, envId int, appLevelConfig *bean.DeploymentConfig, migrateDataIfAbsent bool) (*bean.DeploymentConfig, error) {
-	envLevelConfig, isMigrationNeeded, err := impl.deploymentConfigReadService.GetDeploymentConfigForAppAndEnv(appLevelConfig, appId, envId)
+func (impl *DeploymentConfigServiceImpl) getEnvLevelDataForDevtronApps(tx *pg.Tx, appId, envId int, appLevelConfig *bean.DeploymentConfig, migrateDataIfAbsent bool) (*bean.DeploymentConfig, error) {
+	envLevelConfig, isMigrationNeeded, err := impl.deploymentConfigReadService.GetDeploymentConfigForAppAndEnv(tx, appLevelConfig, appId, envId)
 	if err != nil {
 		impl.logger.Errorw("error in getting env level data for devtron apps", "appId", appId, "envId", envId, "appLevelConfig", appLevelConfig, "err", err)
 		return nil, err
 	}
 	if migrateDataIfAbsent && isMigrationNeeded {
-		_, err := impl.CreateOrUpdateConfig(nil, envLevelConfig, bean3.SYSTEM_USER_ID)
+		_, err := impl.CreateOrUpdateConfig(tx, envLevelConfig, bean3.SYSTEM_USER_ID)
 		if err != nil {
 			impl.logger.Errorw("error in migrating env level config to deployment config", "appId", appId, "envId", envId, "err", err)
 			return nil, err

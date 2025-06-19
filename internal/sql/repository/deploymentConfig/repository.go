@@ -123,13 +123,12 @@ func (impl *RepositoryImpl) UpdateAll(tx *pg.Tx, configs []*DeploymentConfig) ([
 
 func (impl *RepositoryImpl) GetByAppIdAndEnvId(tx *pg.Tx, appId, envId int) (*DeploymentConfig, error) {
 	result := &DeploymentConfig{}
-	var query *orm.Query
-	if tx != nil {
-		query = tx.Model(result)
-	} else {
-		query = impl.dbConnection.Model(result)
+	var connection orm.DB
+	connection = tx
+	if tx == nil {
+		connection = impl.dbConnection
 	}
-	err := query.
+	err := connection.Model(result).
 		Join("INNER JOIN app a").
 		JoinOn("deployment_config.app_id = a.id").
 		Join("INNER JOIN environment e").
@@ -146,13 +145,12 @@ func (impl *RepositoryImpl) GetByAppIdAndEnvId(tx *pg.Tx, appId, envId int) (*De
 
 func (impl *RepositoryImpl) GetAppLevelConfigForDevtronApps(tx *pg.Tx, appId int) (*DeploymentConfig, error) {
 	result := &DeploymentConfig{}
-	var query *orm.Query
-	if tx != nil {
-		query = tx.Model(result)
-	} else {
-		query = impl.dbConnection.Model(result)
+	var connection orm.DB
+	connection = tx
+	if tx == nil {
+		connection = impl.dbConnection
 	}
-	err := query.
+	err := connection.Model(result).
 		Join("INNER JOIN app a").
 		JoinOn("deployment_config.app_id = a.id").
 		Where("a.active = ?", true).
