@@ -150,6 +150,7 @@ func (r *Destination) UpdateClusterData(cluster *bean.ClusterBean) {
 func (r *Destination) UpdateEnvironmentMetadata(environment *repository.Environment) {
 	r.EnvironmentName = environment.Name
 	r.EnvironmentId = environment.Id
+	r.Namespace = environment.Namespace
 }
 
 func (r *HelmReleaseMetadata) UpdateChartRefData(chartRef *bean2.ChartRefDto) {
