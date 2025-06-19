@@ -7,6 +7,9 @@ metadata:
     release: devtron
   annotations:
     "helm.sh/resource-policy": keep
+    {{- if $.Values.components.devtron.annotations }}
+{{ toYaml $.Values.components.devtron.annotations | indent 4 }}
+    {{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole

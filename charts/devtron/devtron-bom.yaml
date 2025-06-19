@@ -8,9 +8,14 @@ global:
     runAsUser: 1000
     runAsNonRoot: true
   containerRegistry: "quay.io/devtron"
+  dbConfig:
+    PG_ADDR: postgresql-postgresql.devtroncd
+    PG_PORT: "5432"
+    PG_USER: postgres
+    PG_DATABASE: orchestrator
 extraManifests: []
 installer:
-  release: "v1.6.0"
+  release: "v1.7.0"
   registry: ""
   image: "inception"
   tag: "473deaa4-185-21582"
@@ -35,13 +40,13 @@ components:
         ENABLE_RESOURCE_SCAN: "true"
         FEATURE_CODE_MIRROR_ENABLE: "true"
     registry: ""
-    image: "dashboard:c5dfd7aa-690-32907"
+    image: "dashboard:a85f2624-690-33873"
     imagePullPolicy: IfNotPresent
     healthPort: 8080
   devtron:
     registry: ""
-    image: "hyperion:667bd63f-280-32953"
-    cicdImage: "devtron:667bd63f-434-32952"
+    image: "hyperion:c8e75fb3-280-33879"
+    cicdImage: "devtron:c8e75fb3-434-33854"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     podSecurityContext:
@@ -55,7 +60,7 @@ components:
     healthPort: 8080
   ciRunner:
     registry: ""
-    image: "ci-runner:da156379-138-32911"
+    image: "ci-runner:a4fc9044-138-33875"
   argocdDexServer:
     registry: ""
     image: "dex:v2.30.2"
@@ -64,7 +69,7 @@ components:
       authenticator: "authenticator:e414faff-393-13273"
   kubelink:
     registry: ""
-    image: "kubelink:da156379-564-32903"
+    image: "kubelink:a4fc9044-564-33855"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
@@ -72,11 +77,7 @@ components:
       MANIFEST_FETCH_BATCH_SIZE: "2"
       NATS_MSG_PROCESSING_BATCH_SIZE: "1"
       NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
-      PG_ADDR: postgresql-postgresql.devtroncd
-      PG_DATABASE: orchestrator
       PG_LOG_QUERY: "true"
-      PG_PORT: "5432"
-      PG_USER: postgres
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
@@ -91,7 +92,7 @@ components:
     healthPort: 50052
   kubewatch:
     registry: ""
-    image: "kubewatch:da156379-419-32900"
+    image: "kubewatch:a4fc9044-419-33852"
     imagePullPolicy: IfNotPresent
     healthPort: 8080
     configs:
@@ -101,11 +102,7 @@ components:
       ACD_NAMESPACE: "devtroncd"
       ACD_INFORMER: "true"
       NATS_STREAM_MAX_AGE: "10800"
-      PG_ADDR: postgresql-postgresql.devtroncd
-      PG_DATABASE: orchestrator
       PG_LOG_QUERY: "true"
-      PG_PORT: "5432"
-      PG_USER: postgres
       CLUSTER_ARGO_CD_TYPE: "ALL_CLUSTER"
     dbconfig:
       secretName: postgresql-postgresql
@@ -119,15 +116,14 @@ components:
       image: postgres_exporter:v0.10.1
   gitsensor:
     registry: ""
-    image: "git-sensor:da156379-200-32905"
+    image: "git-sensor:a4fc9044-200-33872"
     imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
     persistence:
       volumeSize: 2Gi
     configs:
-      PG_ADDR: postgresql-postgresql.devtroncd
-      PG_USER: postgres
+      PG_DATABASE: git_sensor
       COMMIT_STATS_TIMEOUT_IN_SEC: "2"
       ENABLE_FILE_STATS: "true"
       USE_GIT_CLI: "true"
@@ -138,15 +134,12 @@ components:
   # Values for lens
   lens:
     registry: ""
-    image: "lens:da156379-333-32910"
+    image: "lens:a4fc9044-333-33874"
     imagePullPolicy: IfNotPresent
     configs:
       GIT_SENSOR_PROTOCOL: GRPC
       GIT_SENSOR_URL: git-sensor-service.devtroncd:90
       NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
-      PG_ADDR: postgresql-postgresql.devtroncd
-      PG_PORT: "5432"
-      PG_USER: postgres
       PG_DATABASE: lens
     dbconfig:
       secretName: postgresql-postgresql
@@ -174,23 +167,10 @@ components:
     kubectlImage: "kubectl:latest"
     duplicateChartImage: devtron-utils:dup-chart-repo-v1.1.0
     entMigratorImage: "devtron-utils:geni-v1.1.4"
-    configs:
-      PG_ADDR: postgresql-postgresql.devtroncd
-    envVars:
-      devtron:
-        DB_NAME: "orchestrator"
-      casbin:
-        DB_NAME: "casbin"
-      gitsensor:
-        DB_NAME: "git_sensor"
-      lens:
-        DB_NAME: "lens"
   chartSync:
     registry: ""
-    image: chart-sync:da156379-836-32914
+    image: chart-sync:a4fc9044-836-33878
     schedule: "0 19 * * *"
-    extraConfigs:
-      PG_ADDR: postgresql-postgresql.devtroncd
     podSecurityContext:
       fsGroup: 1001
       runAsGroup: 1001
@@ -218,7 +198,7 @@ workflowController:
   IMDSv1ExecutorImage: "argoexec:v3.0.7"
 security:
   imageScanner:
-    image: "image-scanner:da156379-141-32912"
+    image: "image-scanner:a4fc9044-141-33877"
     healthPort: 8080
     configs:
       TRIVY_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-db
@@ -229,7 +209,7 @@ security:
       tag: 4.3.6
 # Values for notifier integration
 notifier:
-  image: "notifier:99e2f3cd-372-32893"
+  image: "notifier:19d654ff-372-33876"
   healthPort: 3000
 minio:
   image: "minio:RELEASE.2021-02-14T04-01-33Z"
@@ -256,10 +236,7 @@ devtronEnterprise:
     image: "casbin:f6ff5f74-064b67e5-462-30822"
     imagePullPolicy: IfNotPresent
     configs:
-      PG_ADDR: postgresql-postgresql.devtroncd
       PG_DATABASE: casbin
-      PG_PORT: "5432"
-      PG_USER: postgres
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
