@@ -3,6 +3,7 @@ package terminal
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/url"
 
 	"k8s.io/client-go/rest"
@@ -11,43 +12,52 @@ import (
 
 // FallbackExecutor tries WebSocket first and falls back to SPDY if needed
 type FallbackExecutor struct {
-	wsExecutor   remotecommand.Executor
-	spdyExecutor remotecommand.Executor
+	executor remotecommand.Executor
 }
 
 // NewFallbackExecutor creates a new executor that tries WebSocket first and falls back to SPDY
 func NewFallbackExecutor(config *rest.Config, method string, url *url.URL) (remotecommand.Executor, error) {
 	// Create WebSocket executor
-	wsExecutor, err := NewWebSocketExecutor(config, method, url)
+	wsExecutor, err := remotecommand.NewWebSocketExecutor(config, method, url.String())
 	if err != nil {
-		return nil, fmt.Errorf("error creating WebSocket executor: %v", err)
+		log.Printf("Warning: Failed to create WebSocket executor: %v", err)
+		// Continue with SPDY only
+		spdyExecutor, err := remotecommand.NewSPDYExecutor(config, method, url)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create SPDY executor: %v", err)
+		}
+		return spdyExecutor, nil
 	}
 
 	// Create SPDY executor as fallback
 	spdyExecutor, err := remotecommand.NewSPDYExecutor(config, method, url)
 	if err != nil {
-		return nil, fmt.Errorf("error creating SPDY executor: %v", err)
+		log.Printf("Warning: Failed to create SPDY executor: %v", err)
+		// Use WebSocket only
+		return wsExecutor, nil
+	}
+
+	// Use Kubernetes built-in fallback executor
+	fallbackExecutor, err := remotecommand.NewFallbackExecutor(wsExecutor, spdyExecutor, func(err error) bool {
+		// Fall back to SPDY if WebSocket fails due to connection issues
+		log.Printf("WebSocket failed, falling back to SPDY: %v", err)
+		return true
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create fallback executor: %v", err)
 	}
 
 	return &FallbackExecutor{
-		wsExecutor:   wsExecutor,
-		spdyExecutor: spdyExecutor,
+		executor: fallbackExecutor,
 	}, nil
 }
 
 // Stream is deprecated. Please use StreamWithContext.
-func (f *FallbackExecutor) Stream(options remotecommand.StreamOptions) error {
-	return f.StreamWithContext(context.Background(), options)
+func (e *FallbackExecutor) Stream(options remotecommand.StreamOptions) error {
+	return e.executor.Stream(options)
 }
 
-// StreamWithContext tries WebSocket first and falls back to SPDY if needed
-func (f *FallbackExecutor) StreamWithContext(ctx context.Context, options remotecommand.StreamOptions) error {
-	// Try WebSocket first
-	err := f.wsExecutor.StreamWithContext(ctx, options)
-	if err == nil {
-		return nil
-	}
-
-	// If WebSocket fails, try SPDY
-	return f.spdyExecutor.StreamWithContext(ctx, options)
+// StreamWithContext delegates to the underlying fallback executor
+func (e *FallbackExecutor) StreamWithContext(ctx context.Context, options remotecommand.StreamOptions) error {
+	return e.executor.StreamWithContext(ctx, options)
 }
