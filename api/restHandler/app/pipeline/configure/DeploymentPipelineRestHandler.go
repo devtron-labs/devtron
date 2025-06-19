@@ -2472,6 +2472,11 @@ func (handler *PipelineConfigRestHandlerImpl) ValidateExternalAppLinkRequest(w h
 		common.WriteJsonResp(w, err, response, http.StatusOK)
 		return
 		// handle helm deployment types
+	} else if request.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_FLUX {
+		response := handler.pipelineBuilder.ValidateLinkFluxAppRequest(ctx, &request)
+		common.WriteJsonResp(w, err, response, http.StatusOK)
+		return
+		// handle helm deployment types
 	}
 	common.WriteJsonResp(w, errors.New("invalid deployment app type in request"), nil, http.StatusBadRequest)
 	return

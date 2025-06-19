@@ -22,6 +22,7 @@ type ValidateGitOpsRepoUrlRequest struct {
 	RequestedGitUrl string
 	DesiredGitUrl   string
 	UseActiveGitOps bool
+	AppId           int
 }
 
 type ValidateGitOpsRepoRequest struct {

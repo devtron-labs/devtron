@@ -55,7 +55,7 @@ func (impl *HandlerServiceImpl) deployFluxCdApp(ctx context.Context, overrideReq
 	gitOpsSecret, err := impl.upsertGitRepoSecret(newCtx,
 		valuesOverrideResponse.DeploymentConfig.ReleaseConfiguration.FluxCDSpec.GitOpsSecretName,
 		valuesOverrideResponse.ManifestPushTemplate.RepoUrl,
-		overrideRequest.Namespace,
+		valuesOverrideResponse.DeploymentConfig.ReleaseConfiguration.FluxCDSpec.GitRepositoryNamespace,
 		clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in creating git repo secret", "clusterId", overrideRequest.ClusterId, "err", err)
@@ -214,7 +214,7 @@ func (impl *HandlerServiceImpl) updateFluxCdApp(ctx context.Context, valuesOverr
 }
 
 func (impl *HandlerServiceImpl) CreateGitRepository(ctx context.Context, fluxCdSpec bean.FluxCDSpec, secretName string, manifestPushTemplate *bean2.ManifestPushTemplate, apiClient client.Client) (*sourcev1.GitRepository, error) {
-	name, namespace := fluxCdSpec.GitRepositoryName, fluxCdSpec.Namespace
+	name, namespace := fluxCdSpec.GitRepositoryName, fluxCdSpec.GitRepositoryNamespace
 	gitRepo := &sourcev1.GitRepository{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -241,7 +241,7 @@ func (impl *HandlerServiceImpl) CreateGitRepository(ctx context.Context, fluxCdS
 
 func (impl *HandlerServiceImpl) UpdateGitRepository(ctx context.Context, fluxCdSpec bean.FluxCDSpec, manifestPushTemplate *bean2.ManifestPushTemplate,
 	secretName string, apiClient client.Client) (*sourcev1.GitRepository, error) {
-	name, namespace := fluxCdSpec.GitRepositoryName, fluxCdSpec.Namespace
+	name, namespace := fluxCdSpec.GitRepositoryName, fluxCdSpec.GitRepositoryNamespace
 	key := types.NamespacedName{Name: name, Namespace: namespace}
 	existing := &sourcev1.GitRepository{}
 
@@ -265,7 +265,7 @@ func (impl *HandlerServiceImpl) UpdateGitRepository(ctx context.Context, fluxCdS
 
 func (impl *HandlerServiceImpl) CreateHelmRelease(ctx context.Context, fluxCdSpec bean.FluxCDSpec,
 	manifestPushTemplate *bean2.ManifestPushTemplate, apiClient client.Client) (*helmv2.HelmRelease, error) {
-	name, namespace := fluxCdSpec.GitRepositoryName, fluxCdSpec.Namespace
+	name, namespace := fluxCdSpec.HelmReleaseName, fluxCdSpec.HelmReleaseNamespace
 	helmRelease := &helmv2.HelmRelease{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -286,8 +286,8 @@ func (impl *HandlerServiceImpl) CreateHelmRelease(ctx context.Context, fluxCdSpe
 					Version:           manifestPushTemplate.ChartVersion,
 					SourceRef: helmv2.CrossNamespaceObjectReference{
 						Kind:      sourcev1.GitRepositoryKind,
-						Name:      name, //using same name for git repository and helm release which will be = deploymentAppName
-						Namespace: namespace,
+						Name:      fluxCdSpec.GitRepositoryName, //using same name for git repository and helm release which will be = deploymentAppName
+						Namespace: fluxCdSpec.GitRepositoryNamespace,
 					},
 					ValuesFiles: fluxCdSpec.GetFinalValuesFilePathArray(),
 				},
@@ -304,7 +304,7 @@ func (impl *HandlerServiceImpl) CreateHelmRelease(ctx context.Context, fluxCdSpe
 
 func (impl *HandlerServiceImpl) UpdateHelmRelease(ctx context.Context, fluxCdSpec bean.FluxCDSpec,
 	manifestPushTemplate *bean2.ManifestPushTemplate, apiClient client.Client) (*helmv2.HelmRelease, error) {
-	name, namespace := fluxCdSpec.GitRepositoryName, fluxCdSpec.Namespace
+	name, namespace := fluxCdSpec.HelmReleaseName, fluxCdSpec.HelmReleaseNamespace
 	key := types.NamespacedName{Name: name, Namespace: namespace}
 	existing := &helmv2.HelmRelease{}
 
@@ -324,12 +324,15 @@ func (impl *HandlerServiceImpl) UpdateHelmRelease(ctx context.Context, fluxCdSpe
 			Version:           manifestPushTemplate.ChartVersion,
 			SourceRef: helmv2.CrossNamespaceObjectReference{
 				Kind:      sourcev1.GitRepositoryKind,
-				Name:      name,
-				Namespace: namespace,
+				Name:      fluxCdSpec.GitRepositoryName,
+				Namespace: fluxCdSpec.GitRepositoryNamespace,
 			},
 			ValuesFiles: fluxCdSpec.GetFinalValuesFilePathArray(),
 		},
 	}
+	// resetting original values so that values are derived only from existing.Spec.Chart.Spec.ValuesFiles
+	existing.Spec.Values = nil
+	existing.Spec.ValuesFrom = nil
 	err = apiClient.Update(ctx, existing)
 	if err != nil {
 		impl.logger.Errorw("error in updating helm release", "name", name, "namespace", namespace, "err", err)
