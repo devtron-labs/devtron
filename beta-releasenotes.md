@@ -1,5 +1,6 @@
 ## Enhancements
 ## Bugs
+- fix: panic in logs api (#6684)
 - fix: Empty migration seq (#6673)
 ## Others
 - sync: Vendor update for release 38 (#6681)
