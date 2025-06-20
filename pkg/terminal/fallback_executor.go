@@ -17,27 +17,38 @@ type FallbackExecutor struct {
 
 // NewFallbackExecutor creates a new executor that tries WebSocket first and falls back to SPDY
 func NewFallbackExecutor(config *rest.Config, method string, url *url.URL) (remotecommand.Executor, error) {
-	// Create WebSocket executor
-	wsExecutor, err := remotecommand.NewWebSocketExecutor(config, method, url.String())
-	if err != nil {
-		log.Printf("Warning: Failed to create WebSocket executor: %v", err)
-		// Continue with SPDY only
-		spdyExecutor, err := remotecommand.NewSPDYExecutor(config, method, url)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create SPDY executor: %v", err)
-		}
+	var wsExecutor, spdyExecutor remotecommand.Executor
+	var wsErr, spdyErr error
+
+	// Try to create WebSocket executor
+	wsExecutor, wsErr = remotecommand.NewWebSocketExecutor(config, method, url.String())
+	if wsErr != nil {
+		log.Printf("Warning: Failed to create WebSocket executor: %v", wsErr)
+	}
+
+	// Try to create SPDY executor
+	spdyExecutor, spdyErr = remotecommand.NewSPDYExecutor(config, method, url)
+	if spdyErr != nil {
+		log.Printf("Warning: Failed to create SPDY executor: %v", spdyErr)
+	}
+
+	// Handle different scenarios
+	if wsErr != nil && spdyErr != nil {
+		// Both failed
+		return nil, fmt.Errorf("failed to create any executor: WebSocket error: %v, SPDY error: %v", wsErr, spdyErr)
+	}
+
+	if wsErr != nil {
+		// Only WebSocket failed, use SPDY
 		return spdyExecutor, nil
 	}
 
-	// Create SPDY executor as fallback
-	spdyExecutor, err := remotecommand.NewSPDYExecutor(config, method, url)
-	if err != nil {
-		log.Printf("Warning: Failed to create SPDY executor: %v", err)
-		// Use WebSocket only
+	if spdyErr != nil {
+		// Only SPDY failed, use WebSocket
 		return wsExecutor, nil
 	}
 
-	// Use Kubernetes built-in fallback executor
+	// Both succeeded, create fallback executor
 	fallbackExecutor, err := remotecommand.NewFallbackExecutor(wsExecutor, spdyExecutor, func(err error) bool {
 		// Fall back to SPDY if WebSocket fails due to connection issues
 		log.Printf("WebSocket failed, falling back to SPDY: %v", err)
