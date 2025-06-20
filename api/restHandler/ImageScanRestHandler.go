@@ -142,6 +142,7 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 	}
 	common.WriteJsonResp(w, err, results, http.StatusOK)
 }
+
 func (impl ImageScanRestHandlerImpl) getAuthorisedImageScanDeployInfoIds(token string, filteredDeployInfoList []*security2.ImageScanDeployInfo) ([]int, error) {
 	var ids []int
 	var appRBACObjects []string
