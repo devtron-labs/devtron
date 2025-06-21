@@ -1,5 +1,6 @@
 ## Enhancements
 ## Bugs
+- fix: Fix scanning optimisation (#6683)
 - fix: panic in logs api (#6684)
 - fix: Empty migration seq (#6673)
 ## Others
