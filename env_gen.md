@@ -25,6 +25,14 @@
  | USE_DEPLOYMENT_CONFIG_DATA | bool |false | use deployment config data from deployment_config table |  | true |
 
 
+## CI_BUILDX Related Environment Variables
+| Key   | Type     | Default Value     | Description       | Example       | Deprecated       |
+|-------|----------|-------------------|-------------------|-----------------------|------------------|
+ | ASYNC_BUILDX_CACHE_EXPORT | bool |false | To enable async container image cache export |  | false |
+ | BUILDX_CACHE_MODE_MIN | bool |false | To set build cache mode to minimum in buildx |  | false |
+ | BUILDX_INTERRUPTION_MAX_RETRY | int |3 | Maximum number of retries for buildx builder interruption |  | false |
+
+
 ## CI_RUNNER Related Environment Variables
 | Key   | Type     | Default Value     | Description       | Example       | Deprecated       |
 |-------|----------|-------------------|-------------------|-----------------------|------------------|
@@ -136,10 +144,8 @@
  | ARGO_GIT_COMMIT_RETRY_DELAY_ON_CONFLICT | int |1 | Delay on retrying the maifest commit the on gitops |  | false |
  | ARGO_REPO_REGISTER_RETRY_COUNT | int |4 | Retry count for registering a GitOps repository to ArgoCD | 3 | false |
  | ARGO_REPO_REGISTER_RETRY_DELAY | int |5 | Delay (in Seconds) between the retries for registering a GitOps repository to ArgoCD | 5 | false |
- | ASYNC_BUILDX_CACHE_EXPORT | bool |false | To enable async container image cache export |  | false |
  | BATCH_SIZE | int |5 | there is feature to get URL's of services/ingresses. so to extract those, we need to parse all the servcie and ingress objects of the application. this BATCH_SIZE flag controls the no of these objects get parsed in one go. |  | false |
  | BLOB_STORAGE_ENABLED | bool |false |  |  | false |
- | BUILDX_CACHE_MODE_MIN | bool |false | To set build cache mode to minimum in buildx |  | false |
  | CD_HOST | string |localhost | Host for the devtron stack |  | false |
  | CD_NAMESPACE | string |devtroncd |  |  | false |
  | CD_PORT | string |8000 | Port for pre/post-cd |  | false |
