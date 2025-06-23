@@ -1,0 +1,104 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrator/app/env/patch:
+    patch:
+      description: change the deployment template for an app and environment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - envId
+                - appId
+                - targetChartRefId
+              properties:
+                envId:
+                  type: integer
+                  description: ID of the environment
+                appId:
+                  type: integer
+                  description: ID of the application
+                targetChartRefId:
+                  type: integer
+                  description: ID of the target chart reference
+                isBasicViewLocked:
+                  type: boolean
+                  description: Whether the basic view is locked
+                currentViewEditor:
+                  type: string
+                  enum: [BASIC, ADVANCED, UNDEFINED]
+                  description: Current view editor type
+                template:
+                  type: object
+                  description: Deployment template configuration
+
+      responses:
+        '200':
+          description: Successfully updated deployment template
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether the operation was successful
+                  message:
+                    type: string
+                    description: Success message
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    description: Error code
+                  status:
+                    type: string
+                    description: Error message
+                  userDetailedMessage:
+                    type: string
+                    description: Detailed error message for user
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    description: Error code
+                  status:
+                    type: string
+                    description: Error message
+                  userDetailedMessage:
+                    type: string
+                    description: Detailed error message for user
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    description: Error code
+                  status:
+                    type: string
+                    description: Error message
+                  userDetailedMessage:
+                    type: string
+                    description: Detailed error message for user

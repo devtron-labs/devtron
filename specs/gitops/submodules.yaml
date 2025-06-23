@@ -1,0 +1,262 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Git Submodules support in CI
+paths:
+  /orchestrator/git/host:
+    get:
+      description: get all git hosts
+      operationId: GetGitHosts
+      responses:
+        '200':
+          description: Successfully return details of all git hosts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GitHostRequest'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      description: create git host
+      operationId: CreateGitHost
+      requestBody:
+        description: A JSON object containing the git host configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GitHostRequest'
+      responses:
+        '200':
+          description: Successfully created git host
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitHostRequest'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/git/host/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      description: get git host by id
+      operationId: GetGitHostById
+      responses:
+        '200':
+          description: Successfully return git host details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitHostRequest'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/git/host/{id}/event:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      description: get all webhook event config for git host
+      operationId: GetAllWebhookEventConfig
+      responses:
+        '200':
+          description: Successfully return webhook event config
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WebhookEventConfig'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/git/host/event/{eventId}:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      description: get webhook event config by id
+      operationId: GetWebhookEventConfig
+      responses:
+        '200':
+          description: Successfully return webhook event config
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookEventConfig'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/git/host/webhook-meta-config/{gitProviderId}:
+    parameters:
+      - name: gitProviderId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      description: get webhook data meta config for git provider
+      operationId: GetWebhookDataMetaConfig
+      responses:
+        '200':
+          description: Successfully return webhook data meta config
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookDataMetaConfigResponse'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    GitHostRequest:
+      type: object
+      required:
+        - name
+        - url
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        url:
+          type: string
+        active:
+          type: boolean
+    WebhookEventConfig:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        eventType:
+          type: string
+        gitHostId:
+          type: integer
+    WebhookDataMetaConfigResponse:
+      type: object
+      properties:
+        gitHostId:
+          type: integer
+        gitHost:
+          $ref: '#/components/schemas/GitHostRequest'
+        webhookEvents:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookEventConfig'
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message
