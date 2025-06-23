@@ -24,17 +24,18 @@ spec:
         - env:
           - name: DB_TYPE
             value: postgres
-          - name: PG_USER
-            value: postgres
-          - name: PG_ADDR
-            value: {{ .configs.PG_ADDR | default "postgresql-postgresql.devtroncd" }}
           - name: DB_PORT
-            value: "5432"
-          - name: PG_DATABASE
-            value: orchestrator
+            valueFrom:
+              configMapKeyRef:
+                name: devtron-cm
+                key: PG_PORT
           envFrom:
             - secretRef:
                 name: devtron-secret
+            - configMapRef:
+                name: devtron-cm
+            - configMapRef:
+                name: devtron-custom-cm
             - configMapRef:
                 name: devtron-common-cm
           image: {{ include "common.image" (dict "component" $.Values.components.migrator "global" $.Values.global "extraImage" $.Values.components.migrator.duplicateChartImage ) }}
@@ -71,25 +72,21 @@ spec:
         - command:
             - /bin/sh
             - -c
-            - 'if [ $(MIGRATE_TO_VERSION) -eq "0" ]; then migrate -path $(SCRIPT_LOCATION) -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable up;  else   echo $(MIGRATE_TO_VERSION); migrate -path $(SCRIPT_LOCATION)  -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable goto $(MIGRATE_TO_VERSION);    fi '
+            - 'if [ $(MIGRATE_TO_VERSION) -eq "0" ]; then migrate -path $(SCRIPT_LOCATION) -database postgres://$(PG_USER):$(DB_PASSWORD)@$(PG_ADDR):$(PG_PORT)/$(PG_DATABASE)?sslmode=disable up;  else   echo $(MIGRATE_TO_VERSION); migrate -path $(SCRIPT_LOCATION)  -database postgres://$(PG_USER):$(DB_PASSWORD)@$(PG_ADDR):$(PG_PORT)/$(PG_DATABASE)?sslmode=disable goto $(MIGRATE_TO_VERSION);    fi '
           env:
             - name: SCRIPT_LOCATION
               value: /shared/sql/
             - name: DB_TYPE
               value: postgres
-            - name: DB_USER_NAME
-              value: postgres
-            - name: DB_HOST
-              value: {{ .configs.PG_ADDR | default "postgresql-postgresql.devtroncd" }}
-            - name: DB_PORT
-              value: "5432"
-            - name: DB_NAME
-              value: {{ .envVars.devtron.DB_NAME }}
             - name: MIGRATE_TO_VERSION
               value: "0"
           envFrom:
             - secretRef:
                 name: postgresql-migrator
+            - configMapRef:
+                name: devtron-cm
+            - configMapRef:
+                name: devtron-custom-cm
             - configMapRef:
                 name: devtron-common-cm
           {{- if .image }}        
@@ -177,25 +174,23 @@ spec:
         - command:
             - /bin/sh
             - -c
-            - 'if [ $(MIGRATE_TO_VERSION) -eq "0" ]; then migrate -path $(SCRIPT_LOCATION) -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable up;  else   echo $(MIGRATE_TO_VERSION); migrate -path $(SCRIPT_LOCATION)  -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable goto $(MIGRATE_TO_VERSION);    fi '
+            - 'if [ $(MIGRATE_TO_VERSION) -eq "0" ]; then migrate -path $(SCRIPT_LOCATION) -database postgres://$(PG_USER):$(DB_PASSWORD)@$(PG_ADDR):$(PG_PORT)/$(PG_DATABASE)?sslmode=disable up;  else   echo $(MIGRATE_TO_VERSION); migrate -path $(SCRIPT_LOCATION)  -database postgres://$(PG_USER):$(DB_PASSWORD)@$(PG_ADDR):$(PG_PORT)/$(PG_DATABASE)?sslmode=disable goto $(MIGRATE_TO_VERSION);    fi '
           env:
             - name: SCRIPT_LOCATION
               value: /shared/casbin/
             - name: DB_TYPE
               value: postgres
-            - name: DB_USER_NAME
-              value: postgres
-            - name: DB_HOST
-              value: {{ .configs.PG_ADDR | default "postgresql-postgresql.devtroncd" }}
-            - name: DB_PORT
-              value: "5432"
-            - name: DB_NAME
-              value: {{ .envVars.casbin.DB_NAME }}
             - name: MIGRATE_TO_VERSION
               value: "0"
+            - name: PG_DATABASE
+              value: casbin
           envFrom:
             - secretRef:
                 name: postgresql-migrator
+            - configMapRef:
+                name: devtron-cm
+            - configMapRef:
+                name: devtron-custom-cm
             - configMapRef:
                 name: devtron-common-cm
           {{- if .image }}        
@@ -264,25 +259,19 @@ spec:
         - command:
             - /bin/sh
             - -c
-            - 'if [ $(MIGRATE_TO_VERSION) -eq "0" ]; then migrate -path $(SCRIPT_LOCATION) -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable up;  else   echo $(MIGRATE_TO_VERSION); migrate -path $(SCRIPT_LOCATION)  -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable goto $(MIGRATE_TO_VERSION);    fi '
+            - 'if [ $(MIGRATE_TO_VERSION) -eq "0" ]; then migrate -path $(SCRIPT_LOCATION) -database postgres://$(PG_USER):$(DB_PASSWORD)@$(PG_ADDR):$(PG_PORT)/$(PG_DATABASE)?sslmode=disable up;  else   echo $(MIGRATE_TO_VERSION); migrate -path $(SCRIPT_LOCATION)  -database postgres://$(PG_USER):$(DB_PASSWORD)@$(PG_ADDR):$(PG_PORT)/$(PG_DATABASE)?sslmode=disable goto $(MIGRATE_TO_VERSION);    fi '
           env:
             - name: SCRIPT_LOCATION
               value: /shared/sql/
             - name: DB_TYPE
               value: postgres
-            - name: DB_USER_NAME
-              value: postgres
-            - name: DB_HOST
-              value: {{ .configs.PG_ADDR | default "postgresql-postgresql.devtroncd" }}
-            - name: DB_PORT
-              value: "5432"
-            - name: DB_NAME
-              value: {{ .envVars.gitsensor.DB_NAME }}
             - name: MIGRATE_TO_VERSION
               value: "0"
           envFrom:
             - secretRef:
                 name: postgresql-migrator
+            - configMapRef:
+                name: git-sensor-cm
             - configMapRef:
                 name: devtron-common-cm
           {{- if .image }}        
@@ -348,18 +337,10 @@ spec:
         - command:
             - /bin/sh
             - -c
-            - export DATABASE_URL="postgres://${DB_USER_NAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable"; ./geni up
+            - export DATABASE_URL="postgres://${PG_USER}:${DB_PASSWORD}@${PG_ADDR}:${PG_PORT}/${PG_DATABASE}?sslmode=disable"; ./geni up
           env:
             - name: DATABASE_MIGRATIONS_FOLDER
               value: /shared/sql-ent/
-            - name: DB_USER_NAME
-              value: postgres
-            - name: DB_HOST
-              value: {{ .configs.PG_ADDR | default "postgresql-postgresql.devtroncd" }}
-            - name: DB_PORT
-              value: "5432"
-            - name: DB_NAME
-              value: orchestrator
             - name: MIGRATE_TO_VERSION
               value: "0"
             - name: DATABASE_MIGRATIONS_TABLE
@@ -367,6 +348,10 @@ spec:
           envFrom:
             - secretRef:
                 name: postgresql-migrator
+            - configMapRef:
+                name: devtron-cm
+            - configMapRef:
+                name: devtron-custom-cm
           image: {{ include "common.image" (dict "component" $.Values.components.migrator "global" $.Values.global "extraImage" $.Values.components.migrator.entMigratorImage ) }}
           name: postgresql-enterprise-migrations
           volumeMounts:
@@ -421,25 +406,19 @@ spec:
         command:
             - /bin/sh
             - -c
-            - 'if [ $(MIGRATE_TO_VERSION) -eq "0" ]; then migrate -path $(SCRIPT_LOCATION) -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable up;  else   echo $(MIGRATE_TO_VERSION); migrate -path $(SCRIPT_LOCATION)  -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable goto $(MIGRATE_TO_VERSION);    fi ' 
+            - 'if [ $(MIGRATE_TO_VERSION) -eq "0" ]; then migrate -path $(SCRIPT_LOCATION) -database postgres://$(PG_USER):$(DB_PASSWORD)@$(PG_ADDR):$(PG_PORT)/$(PG_DATABASE)?sslmode=disable up;  else   echo $(MIGRATE_TO_VERSION); migrate -path $(SCRIPT_LOCATION)  -database postgres://$(PG_USER):$(DB_PASSWORD)@$(PG_ADDR):$(PG_PORT)/$(PG_DATABASE)?sslmode=disable goto $(MIGRATE_TO_VERSION);    fi ' 
         env:
             - name: SCRIPT_LOCATION
               value: /shared/sql/
             - name: DB_TYPE
               value: postgres
-            - name: DB_USER_NAME
-              value: postgres
-            - name: DB_HOST
-              value: {{ .configs.PG_ADDR | default "postgresql-postgresql.devtroncd" }}
-            - name: DB_PORT
-              value: "5432"
-            - name: DB_NAME
-              value: {{ .envVars.lens.DB_NAME }}
             - name: MIGRATE_TO_VERSION
               value: "0"
         envFrom:
         - secretRef:
             name: postgresql-migrator
+        - configMapRef:
+            name: lens-cm
         - configMapRef:
             name: devtron-common-cm
         {{- if .image }}        
