@@ -1,0 +1,59 @@
+openapi: 3.0.0
+info:
+  title: User API
+  version: v1
+paths:
+  /orchestrator/user:
+    get:
+      summary: Get all users
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserInfo'
+    post:
+      summary: Create user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserInfo'
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInfo'
+components:
+  schemas:
+    UserInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+        email_id:
+          type: string
+        roleFilters:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleFilter'
+        superAdmin:
+          type: boolean
+    RoleFilter:
+      type: object
+      properties:
+        project:
+          type: string
+        environment:
+          type: string
+        application:
+          type: string
+        action:
+          type: string
+# Add other schemas as needed

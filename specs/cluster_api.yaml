@@ -1,0 +1,39 @@
+openapi: 3.0.0
+info:
+  title: Cluster API
+  version: v1
+paths:
+  /orchestrator/cluster/save:
+    post:
+      summary: Save a cluster
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClusterRequest' # Placeholder - actual schema to be defined
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterResponse' # Placeholder - actual schema to be defined
+components:
+  schemas:
+    ClusterRequest: # Placeholder
+      type: object
+      properties:
+        clusterName:
+          type: string
+        serverUrl:
+          type: string
+        config:
+          type: object # Placeholder for cluster config structure
+    ClusterResponse: # Placeholder
+      type: object
+      properties:
+        clusterId:
+          type: integer
+        status:
+          type: string

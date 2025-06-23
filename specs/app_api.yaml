@@ -1,0 +1,39 @@
+openapi: 3.0.0
+info:
+  title: App API
+  version: v1
+paths:
+  /orchestrator/app/create:
+    post:
+      summary: Create an application
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppRequest' # Placeholder - actual schema to be defined
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppResponse' # Placeholder - actual schema to be defined
+components:
+  schemas:
+    AppRequest: # Placeholder
+      type: object
+      properties:
+        appName:
+          type: string
+        teamId:
+          type: integer
+        templateId:
+          type: integer
+    AppResponse: # Placeholder
+      type: object
+      properties:
+        appId:
+          type: integer
+        status:
+          type: string

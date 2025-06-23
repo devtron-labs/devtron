@@ -1,0 +1,39 @@
+openapi: 3.0.0
+info:
+  title: Git API
+  version: v1
+paths:
+  /orchestrator/git/host/create:
+    post:
+      summary: Create a Git host
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GitHostRequest' # Placeholder - actual schema to be defined
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitHostResponse' # Placeholder - actual schema to be defined
+components:
+  schemas:
+    GitHostRequest: # Placeholder
+      type: object
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+        authMode:
+          type: string
+    GitHostResponse: # Placeholder
+      type: object
+      properties:
+        hostId:
+          type: integer
+        status:
+          type: string
