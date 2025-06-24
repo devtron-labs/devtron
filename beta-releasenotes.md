@@ -1,4 +1,5 @@
 ## Enhancements
+- feat: Audit ci trigger, precd and post cd trigger so that retrigger can happen from last failed config snapshot  (#6659)
 ## Bugs
 - fix: Fix scanning optimisation (#6683)
 - fix: panic in logs api (#6684)
