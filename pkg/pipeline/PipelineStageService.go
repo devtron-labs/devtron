@@ -25,7 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
+	"github.com/devtron-labs/devtron/pkg/pipeline/helper"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
@@ -37,7 +37,6 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -681,13 +680,7 @@ func (impl *PipelineStageServiceImpl) CreateStageSteps(steps []*bean.PipelineSta
 				impl.logger.Errorw("error in creating script and mapping for inline step", "err", err, "inlineStepDetail", inlineStepDetail)
 				return err
 			}
-			for _, path := range step.OutputDirectoryPath {
-				if strings.HasPrefix(path, constants.CiRunnerWorkingDir) {
-					errMsg := fmt.Sprintf("output directory path cannot start with reserved path %s", constants.CiRunnerWorkingDir)
-					return util.NewApiError(http.StatusBadRequest, errMsg, errMsg)
-				}
-			}
-
+			step.OutputDirectoryPath = helper.FilterReservedPathFromOutputDirPath(step.OutputDirectoryPath)
 			inlineStep := &repository.PipelineStageStep{
 				PipelineStageId:     stageId,
 				Name:                step.Name,
@@ -1253,6 +1246,7 @@ func (impl *PipelineStageServiceImpl) UpdateStageStepsWithTx(steps []*bean.Pipel
 			outputVariables = step.RefPluginStepDetail.OutputVariables
 			conditionDetails = step.RefPluginStepDetail.ConditionDetails
 		} else if step.StepType == repository.PIPELINE_STEP_TYPE_INLINE {
+			step.OutputDirectoryPath = helper.FilterReservedPathFromOutputDirPath(step.OutputDirectoryPath)
 			if savedStep.StepType == repository.PIPELINE_STEP_TYPE_REF_PLUGIN {
 				//step changed from ref plugin to inline, create script and mapping
 				scriptEntryId, err := impl.CreateScriptAndMappingForInlineStep(step.InlineStepDetail, userId, tx)
