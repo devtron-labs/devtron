@@ -680,6 +680,7 @@ func (impl *PipelineStageServiceImpl) CreateStageSteps(steps []*bean.PipelineSta
 				impl.logger.Errorw("error in creating script and mapping for inline step", "err", err, "inlineStepDetail", inlineStepDetail)
 				return err
 			}
+			// TODO: silenly filtering reserved paths, not throwing error as of now since this flow is not in tx
 			step.OutputDirectoryPath = helper.FilterReservedPathFromOutputDirPath(step.OutputDirectoryPath)
 			inlineStep := &repository.PipelineStageStep{
 				PipelineStageId:     stageId,
