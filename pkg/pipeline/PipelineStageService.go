@@ -680,8 +680,7 @@ func (impl *PipelineStageServiceImpl) CreateStageSteps(steps []*bean.PipelineSta
 				impl.logger.Errorw("error in creating script and mapping for inline step", "err", err, "inlineStepDetail", inlineStepDetail)
 				return err
 			}
-			// TODO: silenly filtering reserved paths, not throwing error as of now since this flow is not in tx
-			step.OutputDirectoryPath = helper.FilterReservedPathFromOutputDirPath(step.OutputDirectoryPath)
+
 			inlineStep := &repository.PipelineStageStep{
 				PipelineStageId:     stageId,
 				Name:                step.Name,
@@ -689,7 +688,7 @@ func (impl *PipelineStageServiceImpl) CreateStageSteps(steps []*bean.PipelineSta
 				Index:               step.Index,
 				StepType:            step.StepType,
 				ScriptId:            scriptEntryId,
-				OutputDirectoryPath: step.OutputDirectoryPath,
+				OutputDirectoryPath: helper.FilterReservedPathFromOutputDirPath(step.OutputDirectoryPath), // TODO: silently filtering reserved paths, not throwing error as of now since this flow is not in tx
 				DependentOnStep:     dependentOnStep,
 				Deleted:             false,
 				AuditLog: sql.AuditLog{
@@ -1208,7 +1207,7 @@ func (impl *PipelineStageServiceImpl) UpdateStageStepsWithTx(steps []*bean.Pipel
 			Description:         step.Description,
 			Index:               step.Index,
 			StepType:            step.StepType,
-			OutputDirectoryPath: step.OutputDirectoryPath,
+			OutputDirectoryPath: helper.FilterReservedPathFromOutputDirPath(step.OutputDirectoryPath),
 			DependentOnStep:     dependentOnStep,
 			Deleted:             false,
 			AuditLog: sql.AuditLog{
@@ -1247,7 +1246,6 @@ func (impl *PipelineStageServiceImpl) UpdateStageStepsWithTx(steps []*bean.Pipel
 			outputVariables = step.RefPluginStepDetail.OutputVariables
 			conditionDetails = step.RefPluginStepDetail.ConditionDetails
 		} else if step.StepType == repository.PIPELINE_STEP_TYPE_INLINE {
-			step.OutputDirectoryPath = helper.FilterReservedPathFromOutputDirPath(step.OutputDirectoryPath)
 			if savedStep.StepType == repository.PIPELINE_STEP_TYPE_REF_PLUGIN {
 				//step changed from ref plugin to inline, create script and mapping
 				scriptEntryId, err := impl.CreateScriptAndMappingForInlineStep(step.InlineStepDetail, userId, tx)
