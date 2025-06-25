@@ -82,6 +82,7 @@ type AppStoreDeploymentServiceImpl struct {
 	appRepository                        app.AppRepository
 	eaModeDeploymentService              deployment2.EAModeDeploymentService
 	fullModeDeploymentService            deployment.FullModeDeploymentService
+	fullModeFluxDeploymentService        deployment.FullModeFluxDeploymentService
 	environmentService                   environment.EnvironmentService
 	helmAppService                       service.HelmAppService
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
@@ -103,6 +104,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
 	appRepository app.AppRepository,
 	eaModeDeploymentService deployment2.EAModeDeploymentService,
 	fullModeDeploymentService deployment.FullModeDeploymentService,
+	fullModeFluxDeploymentService deployment.FullModeFluxDeploymentService,
 	environmentService environment.EnvironmentService,
 	helmAppService service.HelmAppService,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
@@ -123,6 +125,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
 		appRepository:                        appRepository,
 		eaModeDeploymentService:              eaModeDeploymentService,
 		fullModeDeploymentService:            fullModeDeploymentService,
+		fullModeFluxDeploymentService:        fullModeFluxDeploymentService,
 		environmentService:                   environmentService,
 		helmAppService:                       helmAppService,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
@@ -218,6 +221,11 @@ func (impl *AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 			return nil, errors.New("service err, Error in git operations")
 		}
 		installAppVersionRequest, err = impl.fullModeDeploymentService.InstallApp(installAppVersionRequest, gitOpsResponse.ChartGitAttribute, ctx, tx)
+	} else if util.IsFluxApp(installAppVersionRequest.DeploymentAppType) {
+		if gitOpsResponse == nil && gitOpsResponse.ChartGitAttribute != nil {
+			return nil, errors.New("service err, Error in git operations")
+		}
+		installAppVersionRequest, err = impl.fullModeFluxDeploymentService.InstallApp(installAppVersionRequest, gitOpsResponse.ChartGitAttribute, ctx, tx)
 	}
 	if err != nil {
 		return nil, err
