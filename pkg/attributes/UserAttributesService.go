@@ -28,22 +28,15 @@ import (
 )
 
 type UserAttributesService interface {
-	AddUserAttributes(request *UserAttributesDto) (*UserAttributesDto, error)
-	UpdateUserAttributes(request *UserAttributesDto) (*UserAttributesDto, error)
-	PatchUserAttributes(request *UserAttributesDto) (*UserAttributesDto, error)
-	GetUserAttribute(request *UserAttributesDto) (*UserAttributesDto, error)
+	AddUserAttributes(request *bean.UserAttributesDto) (*bean.UserAttributesDto, error)
+	UpdateUserAttributes(request *bean.UserAttributesDto) (*bean.UserAttributesDto, error)
+	PatchUserAttributes(request *bean.UserAttributesDto) (*bean.UserAttributesDto, error)
+	GetUserAttribute(request *bean.UserAttributesDto) (*bean.UserAttributesDto, error)
 }
 
 type UserAttributesServiceImpl struct {
 	logger               *zap.SugaredLogger
 	attributesRepository repository.UserAttributesRepository
-}
-
-type UserAttributesDto struct {
-	EmailId string `json:"emailId"`
-	Key     string `json:"key"`
-	Value   string `json:"value"`
-	UserId  int32  `json:"-"`
 }
 
 func NewUserAttributesServiceImpl(logger *zap.SugaredLogger,
@@ -55,7 +48,7 @@ func NewUserAttributesServiceImpl(logger *zap.SugaredLogger,
 	return serviceImpl
 }
 
-func (impl UserAttributesServiceImpl) AddUserAttributes(request *UserAttributesDto) (*UserAttributesDto, error) {
+func (impl UserAttributesServiceImpl) AddUserAttributes(request *bean.UserAttributesDto) (*bean.UserAttributesDto, error) {
 	dao := &repository.UserAttributesDao{
 		EmailId: request.EmailId,
 		Key:     request.Key,
@@ -70,7 +63,7 @@ func (impl UserAttributesServiceImpl) AddUserAttributes(request *UserAttributesD
 	return request, nil
 }
 
-func (impl UserAttributesServiceImpl) UpdateUserAttributes(request *UserAttributesDto) (*UserAttributesDto, error) {
+func (impl UserAttributesServiceImpl) UpdateUserAttributes(request *bean.UserAttributesDto) (*bean.UserAttributesDto, error) {
 
 	userAttribute, err := impl.GetUserAttribute(request)
 	if err != nil {
@@ -100,7 +93,7 @@ func (impl UserAttributesServiceImpl) UpdateUserAttributes(request *UserAttribut
 	return request, nil
 }
 
-func (impl UserAttributesServiceImpl) PatchUserAttributes(request *UserAttributesDto) (*UserAttributesDto, error) {
+func (impl UserAttributesServiceImpl) PatchUserAttributes(request *bean.UserAttributesDto) (*bean.UserAttributesDto, error) {
 	existingAttribute, err := impl.GetUserAttribute(request)
 	if err != nil {
 		impl.logger.Errorw("error while getting user attributes during patch request", "req", request, "error", err)
@@ -156,7 +149,7 @@ func (impl UserAttributesServiceImpl) parseJSONValue(jsonValue, context string) 
 }
 
 // updateAttributeInDatabase updates the merged data in the database
-func (impl UserAttributesServiceImpl) updateAttributeInDatabase(request *UserAttributesDto, mergedData map[string]interface{}) (*UserAttributesDto, error) {
+func (impl UserAttributesServiceImpl) updateAttributeInDatabase(request *bean.UserAttributesDto, mergedData map[string]interface{}) (*bean.UserAttributesDto, error) {
 	mergedJSON, err := json.Marshal(mergedData)
 	if err != nil {
 		impl.logger.Errorw("error converting merged data to JSON", "data", mergedData, "error", err)
@@ -253,7 +246,7 @@ func (impl UserAttributesServiceImpl) mergeResourceTypes(existingResources, newR
 	return hasChanges
 }
 
-func (impl UserAttributesServiceImpl) GetUserAttribute(request *UserAttributesDto) (*UserAttributesDto, error) {
+func (impl UserAttributesServiceImpl) GetUserAttribute(request *bean.UserAttributesDto) (*bean.UserAttributesDto, error) {
 
 	dao := &repository.UserAttributesDao{
 		EmailId: request.EmailId,
@@ -269,7 +262,7 @@ func (impl UserAttributesServiceImpl) GetUserAttribute(request *UserAttributesDt
 		impl.logger.Errorw("error in fetching user attributes", "req", request, "error", err)
 		return nil, errors.New("error occurred while getting user attributes")
 	}
-	resAttrDto := &UserAttributesDto{
+	resAttrDto := &bean.UserAttributesDto{
 		EmailId: request.EmailId,
 		Key:     request.Key,
 		Value:   modelValue,

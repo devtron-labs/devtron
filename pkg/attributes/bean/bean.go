@@ -31,3 +31,10 @@ type AttributesDto struct {
 	Active bool   `json:"active"`
 	UserId int32  `json:"-"`
 }
+
+type UserAttributesDto struct {
+	EmailId string `json:"emailId"`
+	Key     string `json:"key"`
+	Value   string `json:"value"`
+	UserId  int32  `json:"-"`
+}

@@ -1,9 +1,11 @@
 package adapter
 
-import "github.com/devtron-labs/devtron/pkg/attributes"
+import (
+	"github.com/devtron-labs/devtron/pkg/attributes/bean"
+)
 
-func BuildResponseDTO(request *attributes.UserAttributesDto, mergedValue string) *attributes.UserAttributesDto {
-	return &attributes.UserAttributesDto{
+func BuildResponseDTO(request *bean.UserAttributesDto, mergedValue string) *bean.UserAttributesDto {
+	return &bean.UserAttributesDto{
 		EmailId: request.EmailId,
 		Key:     request.Key,
 		Value:   mergedValue,
