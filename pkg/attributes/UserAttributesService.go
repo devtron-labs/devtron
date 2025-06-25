@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"reflect"
@@ -99,92 +100,181 @@ func (impl UserAttributesServiceImpl) UpdateUserAttributes(request *UserAttribut
 }
 
 func (impl UserAttributesServiceImpl) PatchUserAttributes(request *UserAttributesDto) (*UserAttributesDto, error) {
-	userAttribute, err := impl.GetUserAttribute(request)
+	existingAttribute, err := impl.GetUserAttribute(request)
 	if err != nil {
 		impl.logger.Errorw("error while getting user attributes during patch request", "req", request, "error", err)
-		return nil, errors.New("error occurred while updating user attributes")
+		return nil, errors.New("error occurred while getting user attributes")
 	}
-	if userAttribute == nil {
+
+	if existingAttribute == nil {
 		impl.logger.Info("no data found for request, so going to add instead of update", "req", request)
-		attributes, err := impl.AddUserAttributes(request)
+		newAttribute, err := impl.AddUserAttributes(request)
 		if err != nil {
 			impl.logger.Errorw("error in adding new user attributes", "req", request, "error", err)
-			return nil, errors.New("error occurred while updating user attributes")
+			return nil, errors.New("error occurred while adding user attributes")
 		}
-		return attributes, nil
+		return newAttribute, nil
 	}
 
-	// Parse existing JSON
-	var existingData map[string]interface{}
-	if userAttribute.Value != "" {
-		err = json.Unmarshal([]byte(userAttribute.Value), &existingData)
-		if err != nil {
-			impl.logger.Errorw("error parsing existing json value", "value", userAttribute.Value, "error", err)
-			return nil, errors.New("error occurred while updating user attributes")
-		}
-	} else {
-		existingData = make(map[string]interface{})
-	}
-
-	// Parse new JSON
-	var newData map[string]interface{}
-	if request.Value != "" {
-		err = json.Unmarshal([]byte(request.Value), &newData)
-		if err != nil {
-			impl.logger.Errorw("error parsing request json value", "value", request.Value, "error", err)
-			return nil, errors.New("error occurred while updating user attributes")
-		}
-	} else {
-		newData = make(map[string]interface{})
-	}
-
-	// Check if there are any changes
-	anyChanges := false
-
-	// Merge the objects (patch style)
-	for key, newValue := range newData {
-		existingValue, exists := existingData[key]
-		if !exists || !reflect.DeepEqual(existingValue, newValue) {
-			existingData[key] = newValue
-			anyChanges = true
-		}
-	}
-
-	// If no changes, return the existing data
-	if !anyChanges {
-		impl.logger.Infow("no change detected, skipping update", "key", request.Key)
-		return userAttribute, nil
-	}
-
-	// Convert back to JSON string
-	mergedJson, err := json.Marshal(existingData)
+	existingData, err := impl.parseJSONValue(existingAttribute.Value, "existing")
 	if err != nil {
-		impl.logger.Errorw("error converting merged data to json", "data", existingData, "error", err)
-		return nil, errors.New("error occurred while updating user attributes")
+		return nil, err
 	}
 
+	newData, err := impl.parseJSONValue(request.Value, "request")
+	if err != nil {
+		return nil, err
+	}
+
+	// Merge the data
+	hasChanges := impl.mergeUserAttributesData(existingData, newData)
+	if !hasChanges {
+		impl.logger.Infow("no changes detected, skipping update", "key", request.Key)
+		return existingAttribute, nil
+	}
+
+	// Update in database and return result
+	return impl.updateAttributeInDatabase(request, existingData)
+}
+
+// parseJSONValue parses a JSON string into a map, with proper error handling
+func (impl UserAttributesServiceImpl) parseJSONValue(jsonValue, context string) (map[string]interface{}, error) {
+	var data map[string]interface{}
+
+	if jsonValue == "" {
+		return make(map[string]interface{}), nil
+	}
+
+	err := json.Unmarshal([]byte(jsonValue), &data)
+	if err != nil {
+		impl.logger.Errorw("error parsing JSON value", "context", context, "value", jsonValue, "error", err)
+		return nil, errors.New("error occurred while parsing user attributes data")
+	}
+
+	return data, nil
+}
+
+// updateAttributeInDatabase updates the merged data in the database
+func (impl UserAttributesServiceImpl) updateAttributeInDatabase(request *UserAttributesDto, mergedData map[string]interface{}) (*UserAttributesDto, error) {
+	// Convert merged data back to JSON
+	mergedJSON, err := json.Marshal(mergedData)
+	if err != nil {
+		impl.logger.Errorw("error converting merged data to JSON", "data", mergedData, "error", err)
+		return nil, errors.New("error occurred while processing user attributes")
+	}
+
+	// Create DAO for database update
 	dao := &repository.UserAttributesDao{
 		EmailId: request.EmailId,
 		Key:     request.Key,
-		Value:   string(mergedJson),
+		Value:   string(mergedJSON),
 		UserId:  request.UserId,
 	}
 
+	// Update in database
 	err = impl.attributesRepository.UpdateDataValByKey(dao)
 	if err != nil {
-		impl.logger.Errorw("error in update attributes", "req", dao, "error", err)
+		impl.logger.Errorw("error updating user attributes in database", "dao", dao, "error", err)
 		return nil, errors.New("error occurred while updating user attributes")
 	}
 
-	// Return the updated data
-	result := &UserAttributesDto{
+	// Build and return response
+	return impl.buildResponseDTO(request, string(mergedJSON)), nil
+}
+
+// buildResponseDTO creates the response DTO
+func (impl UserAttributesServiceImpl) buildResponseDTO(request *UserAttributesDto, mergedValue string) *UserAttributesDto {
+	return &UserAttributesDto{
 		EmailId: request.EmailId,
 		Key:     request.Key,
-		Value:   string(mergedJson),
+		Value:   mergedValue,
 		UserId:  request.UserId,
 	}
+}
 
-	return result, nil
+// mergeUserAttributesData merges newData into existingData with special handling for resources
+func (impl UserAttributesServiceImpl) mergeUserAttributesData(existingData, newData map[string]interface{}) bool {
+	hasChanges := false
+
+	for key, newValue := range newData {
+		if key == bean.UserPreferencesResourcesKey {
+			// Special handling for resources - merge nested structure
+			if impl.mergeResourcesData(existingData, newValue) {
+				hasChanges = true
+			}
+		} else {
+			if impl.mergeStandardAttribute(existingData, key, newValue) {
+				hasChanges = true
+			}
+		}
+	}
+
+	return hasChanges
+}
+
+// mergeStandardAttribute merges a standard (non-resource) attribute
+func (impl UserAttributesServiceImpl) mergeStandardAttribute(existingData map[string]interface{}, key string, newValue interface{}) bool {
+	existingValue, exists := existingData[key]
+	if !exists || !reflect.DeepEqual(existingValue, newValue) {
+		existingData[key] = newValue
+		return true
+	}
+	return false
+}
+
+// mergeResourcesData handles the special merging logic for the resources object
+func (impl UserAttributesServiceImpl) mergeResourcesData(existingData map[string]interface{}, newResourcesValue interface{}) bool {
+	impl.ensureResourcesStructureExists(existingData)
+
+	existingResources, ok := existingData[bean.UserPreferencesResourcesKey].(map[string]interface{})
+	if !ok {
+		existingData[bean.UserPreferencesResourcesKey] = newResourcesValue
+		return true
+	}
+
+	newResources, ok := newResourcesValue.(map[string]interface{})
+	if !ok {
+		existingData[bean.UserPreferencesResourcesKey] = newResourcesValue
+		return true
+	}
+
+	return impl.mergeResourceTypes(existingResources, newResources)
+}
+
+// ensureResourcesStructureExists initializes the resources structure if it doesn't exist
+func (impl UserAttributesServiceImpl) ensureResourcesStructureExists(existingData map[string]interface{}) {
+	if existingData[bean.UserPreferencesResourcesKey] == nil {
+		existingData[bean.UserPreferencesResourcesKey] = make(map[string]interface{})
+	}
+}
+
+// mergeResourceTypes merges individual resource types from new resources into existing resources
+func (impl UserAttributesServiceImpl) mergeResourceTypes(existingResources, newResources map[string]interface{}) bool {
+	hasChanges := false
+
+	// Merge each resource type from newResources
+	for resourceType, newResourceData := range newResources {
+		existingResourceData, exists := existingResources[resourceType]
+		if !exists || !reflect.DeepEqual(existingResourceData, newResourceData) {
+			existingResources[resourceType] = newResourceData
+			hasChanges = true
+		}
+	}
+
+	return hasChanges
+}
+
+// initializeSupportedResourceTypes ensures all supported resource types are initialized
+func (impl UserAttributesServiceImpl) initializeSupportedResourceTypes(existingResources map[string]interface{}) {
+	supportedResourceTypes := []string{"cluster", "job", "app-group", "application/devtron-application"}
+
+	for _, resourceType := range supportedResourceTypes {
+		if existingResources[resourceType] == nil {
+			existingResources[resourceType] = map[string]interface{}{
+				"recently-visited": []interface{}{},
+			}
+		}
+	}
 }
 
 func (impl UserAttributesServiceImpl) GetUserAttribute(request *UserAttributesDto) (*UserAttributesDto, error) {
