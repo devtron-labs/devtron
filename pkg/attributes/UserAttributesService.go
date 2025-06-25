@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/attributes/adapter"
 	"github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -118,22 +119,22 @@ func (impl UserAttributesServiceImpl) PatchUserAttributes(request *UserAttribute
 
 	existingData, err := impl.parseJSONValue(existingAttribute.Value, "existing")
 	if err != nil {
+		impl.logger.Errorw("error in parsing json", "existingAttribute.Value", existingAttribute.Value, "error", err)
 		return nil, err
 	}
 
 	newData, err := impl.parseJSONValue(request.Value, "request")
 	if err != nil {
+		impl.logger.Errorw("error in parsing request json", "request.Value", request.Value, "error", err)
 		return nil, err
 	}
 
-	// Merge the data
 	hasChanges := impl.mergeUserAttributesData(existingData, newData)
 	if !hasChanges {
 		impl.logger.Infow("no changes detected, skipping update", "key", request.Key)
 		return existingAttribute, nil
 	}
 
-	// Update in database and return result
 	return impl.updateAttributeInDatabase(request, existingData)
 }
 
@@ -156,14 +157,12 @@ func (impl UserAttributesServiceImpl) parseJSONValue(jsonValue, context string) 
 
 // updateAttributeInDatabase updates the merged data in the database
 func (impl UserAttributesServiceImpl) updateAttributeInDatabase(request *UserAttributesDto, mergedData map[string]interface{}) (*UserAttributesDto, error) {
-	// Convert merged data back to JSON
 	mergedJSON, err := json.Marshal(mergedData)
 	if err != nil {
 		impl.logger.Errorw("error converting merged data to JSON", "data", mergedData, "error", err)
 		return nil, errors.New("error occurred while processing user attributes")
 	}
 
-	// Create DAO for database update
 	dao := &repository.UserAttributesDao{
 		EmailId: request.EmailId,
 		Key:     request.Key,
@@ -179,17 +178,7 @@ func (impl UserAttributesServiceImpl) updateAttributeInDatabase(request *UserAtt
 	}
 
 	// Build and return response
-	return impl.buildResponseDTO(request, string(mergedJSON)), nil
-}
-
-// buildResponseDTO creates the response DTO
-func (impl UserAttributesServiceImpl) buildResponseDTO(request *UserAttributesDto, mergedValue string) *UserAttributesDto {
-	return &UserAttributesDto{
-		EmailId: request.EmailId,
-		Key:     request.Key,
-		Value:   mergedValue,
-		UserId:  request.UserId,
-	}
+	return adapter.BuildResponseDTO(request, string(mergedJSON)), nil
 }
 
 // mergeUserAttributesData merges newData into existingData with special handling for resources
@@ -262,19 +251,6 @@ func (impl UserAttributesServiceImpl) mergeResourceTypes(existingResources, newR
 	}
 
 	return hasChanges
-}
-
-// initializeSupportedResourceTypes ensures all supported resource types are initialized
-func (impl UserAttributesServiceImpl) initializeSupportedResourceTypes(existingResources map[string]interface{}) {
-	supportedResourceTypes := []string{"cluster", "job", "app-group", "application/devtron-application"}
-
-	for _, resourceType := range supportedResourceTypes {
-		if existingResources[resourceType] == nil {
-			existingResources[resourceType] = map[string]interface{}{
-				"recently-visited": []interface{}{},
-			}
-		}
-	}
 }
 
 func (impl UserAttributesServiceImpl) GetUserAttribute(request *UserAttributesDto) (*UserAttributesDto, error) {
