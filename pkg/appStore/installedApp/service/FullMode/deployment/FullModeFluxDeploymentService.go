@@ -18,13 +18,13 @@ package deployment
 
 import (
 	"context"
-	bean3 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
-	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/client/fluxcd"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/common"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
@@ -51,28 +51,48 @@ type FullModeFluxDeploymentService interface {
 type FullModeFluxDeploymentServiceImpl struct {
 	logger                          *zap.SugaredLogger
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService
+	fluxCdDeploymentService         fluxcd.DeploymentService
+	clusterService                  cluster.ClusterService
 }
 
 func NewFullModeFluxDeploymentServiceImpl(logger *zap.SugaredLogger,
-	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService) *FullModeFluxDeploymentServiceImpl {
+	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
+	fluxCdDeploymentService fluxcd.DeploymentService, clusterService cluster.ClusterService) *FullModeFluxDeploymentServiceImpl {
 	return &FullModeFluxDeploymentServiceImpl{
 		logger:                          logger,
 		appStoreDeploymentCommonService: appStoreDeploymentCommonService,
+		fluxCdDeploymentService:         fluxCdDeploymentService,
+		clusterService:                  clusterService,
 	}
 }
 
 func (impl *FullModeFluxDeploymentServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *commonBean.ChartGitAttribute,
 	ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error) {
-
+	clusterConfig, err := impl.clusterService.GetClusterConfigByClusterId(installAppVersionRequest.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster", "clusterId", installAppVersionRequest.ClusterId, "error", err)
+		return nil, err
+	}
+	//deploy app
+	err = impl.fluxCdDeploymentService.DeployFluxCdApp(ctx, &fluxcd.DeploymentRequest{
+		ClusterConfig:    clusterConfig,
+		DeploymentConfig: installAppVersionRequest.GetDeploymentConfig(),
+		IsAppCreated:     false,
+	})
+	if err != nil {
+		impl.logger.Errorw("error in deploy Flux Cd App", "error", err)
+		return nil, err
+	}
+	return installAppVersionRequest, nil
 }
 
 func (impl *FullModeFluxDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context, appName, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO,
 	installedApps *repository.InstalledApps, tx *pg.Tx) error {
-
+	return nil
 }
 
 func (impl *FullModeFluxDeploymentServiceImpl) RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (*appStoreBean.InstallAppVersionDTO, bool, error) {
-
+	return nil, false, nil
 }
 
 func (impl *FullModeFluxDeploymentServiceImpl) GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*gRPC.HelmAppDeploymentHistory, error) {
@@ -83,49 +103,4 @@ func (impl *FullModeFluxDeploymentServiceImpl) GetDeploymentHistory(ctx context.
 
 func (impl *FullModeFluxDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, version int32) (*openapi.HelmAppDeploymentManifestDetail, error) {
 	return impl.appStoreDeploymentCommonService.GetDeploymentHistoryInfoFromDB(ctx, installedApp, version)
-}
-
-func (impl *HandlerServiceImpl) deployFluxCdApp(ctx context.Context, overrideRequest *bean3.ValuesOverrideRequest,
-	valuesOverrideResponse *app.ValuesOverrideResponse) error {
-	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "HandlerServiceImpl.deployFluxCdApp")
-	defer span.End()
-	clusterConfig, err := impl.clusterService.GetClusterConfigByClusterId(overrideRequest.ClusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster", "clusterId", overrideRequest.ClusterId, "error", err)
-		return err
-	}
-	gitOpsSecret, err := impl.upsertGitRepoSecret(newCtx,
-		valuesOverrideResponse.DeploymentConfig.ReleaseConfiguration.FluxCDSpec.GitOpsSecretName,
-		valuesOverrideResponse.ManifestPushTemplate.RepoUrl,
-		overrideRequest.Namespace,
-		clusterConfig)
-	if err != nil {
-		impl.logger.Errorw("error in creating git repo secret", "clusterId", overrideRequest.ClusterId, "err", err)
-		return err
-	}
-	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
-	if err != nil {
-		impl.logger.Errorw("error in getting rest config", "clusterId", overrideRequest.ClusterId, "err", err)
-		return err
-	}
-	apiClient, err := getClient(restConfig)
-	if err != nil {
-		impl.logger.Errorw("error in creating k8s client", "clusterId", overrideRequest.ClusterId, "err", err)
-		return err
-	}
-	//create/update gitOps secret
-	if valuesOverrideResponse.Pipeline == nil || !valuesOverrideResponse.Pipeline.DeploymentAppCreated {
-		err := impl.createFluxCdApp(newCtx, valuesOverrideResponse, gitOpsSecret.GetName(), apiClient, overrideRequest.UserId)
-		if err != nil {
-			impl.logger.Errorw("error in creating flux-cd application", "err", err)
-			return err
-		}
-	} else {
-		err := impl.updateFluxCdApp(newCtx, valuesOverrideResponse, gitOpsSecret.GetName(), apiClient)
-		if err != nil {
-			impl.logger.Errorw("error in updating flux-cd application", "err", err)
-			return err
-		}
-	}
-	return nil
 }
