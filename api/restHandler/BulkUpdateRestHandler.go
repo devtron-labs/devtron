@@ -19,7 +19,7 @@ package restHandler
 import (
 	"encoding/json"
 	"fmt"
-	bean4 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	util2 "github.com/devtron-labs/devtron/pkg/auth/user/util"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
 	"github.com/devtron-labs/devtron/pkg/bulkAction/bean"
@@ -40,7 +40,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -48,17 +47,31 @@ import (
 )
 
 type BulkUpdateRestHandler interface {
-	FindBulkUpdateReadme(w http.ResponseWriter, r *http.Request)
-	GetImpactedAppsName(w http.ResponseWriter, r *http.Request)
-	BulkUpdate(w http.ResponseWriter, r *http.Request)
-
+	//deprecated
 	BulkHibernate(w http.ResponseWriter, r *http.Request)
+	BulkHibernateV1(w http.ResponseWriter, r *http.Request)
 	BulkUnHibernate(w http.ResponseWriter, r *http.Request)
 	BulkDeploy(w http.ResponseWriter, r *http.Request)
 	BulkBuildTrigger(w http.ResponseWriter, r *http.Request)
 
 	HandleCdPipelineBulkAction(w http.ResponseWriter, r *http.Request)
+	BulkEditRestHandler
 }
+
+type BulkEditRestHandler interface {
+	BulkEditV1Beta1RestHandler
+	BulkEditV1Beta2RestHandler
+}
+
+type BulkEditV1Beta1RestHandler interface {
+	FindBulkUpdateReadme(w http.ResponseWriter, r *http.Request)
+	GetImpactedAppsName(w http.ResponseWriter, r *http.Request)
+	BulkUpdate(w http.ResponseWriter, r *http.Request)
+}
+
+type BulkEditV1Beta2RestHandler interface {
+}
+
 type BulkUpdateRestHandlerImpl struct {
 	pipelineBuilder         pipeline.PipelineBuilder
 	ciPipelineRepository    pipelineConfig.CiPipelineRepository
@@ -69,7 +82,6 @@ type BulkUpdateRestHandlerImpl struct {
 	propertiesConfigService pipeline.PropertiesConfigService
 	userAuthService         user.UserService
 	validator               *validator.Validate
-	teamService             team.TeamService
 	enforcer                casbin.Enforcer
 	gitSensorClient         gitSensor.Client
 	pipelineRepository      pipelineConfig.PipelineRepository
@@ -78,7 +90,7 @@ type BulkUpdateRestHandlerImpl struct {
 	envService              environment.EnvironmentService
 	gitRegistryConfig       gitProvider.GitRegistryConfig
 	dockerRegistryConfig    pipeline.DockerRegistryConfig
-	cdHandelr               pipeline.CdHandler
+	cdHandler               pipeline.CdHandler
 	appCloneService         appClone.AppCloneService
 	materialRepository      repository.MaterialRepository
 }
@@ -88,7 +100,6 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logg
 	chartService chart.ChartService,
 	propertiesConfigService pipeline.PropertiesConfigService,
 	userAuthService user.UserService,
-	teamService team.TeamService,
 	enforcer casbin.Enforcer,
 	ciHandler pipeline.CiHandler,
 	validator *validator.Validate,
@@ -96,7 +107,7 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logg
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
 	enforcerUtil rbac.EnforcerUtil, envService environment.EnvironmentService,
 	gitRegistryConfig gitProvider.GitRegistryConfig, dockerRegistryConfig pipeline.DockerRegistryConfig,
-	cdHandelr pipeline.CdHandler,
+	cdHandler pipeline.CdHandler,
 	appCloneService appClone.AppCloneService,
 	appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository repository.MaterialRepository,
@@ -109,7 +120,6 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logg
 		propertiesConfigService: propertiesConfigService,
 		userAuthService:         userAuthService,
 		validator:               validator,
-		teamService:             teamService,
 		enforcer:                enforcer,
 		ciHandler:               ciHandler,
 		gitSensorClient:         gitSensorClient,
@@ -119,7 +129,7 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logg
 		envService:              envService,
 		gitRegistryConfig:       gitRegistryConfig,
 		dockerRegistryConfig:    dockerRegistryConfig,
-		cdHandelr:               cdHandelr,
+		cdHandler:               cdHandler,
 		appCloneService:         appCloneService,
 		appWorkflowService:      appWorkflowService,
 		materialRepository:      materialRepository,
@@ -265,13 +275,8 @@ func (handler BulkUpdateRestHandlerImpl) BulkUpdate(w http.ResponseWriter, r *ht
 		}
 	}
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
-	userEmail := util.GetEmailFromContext(r.Context())
-	userMetadata := &bean4.UserMetadata{
-		UserEmailId:      userEmail,
-		IsUserSuperAdmin: isSuperAdmin,
-		UserId:           userId,
-	}
-	response := handler.bulkUpdateService.BulkUpdate(script.Spec, userMetadata)
+	userMetadata := util2.GetUserMetadata(r.Context(), userId, isSuperAdmin)
+	response := handler.bulkUpdateService.BulkUpdate(r.Context(), script.Spec, userMetadata)
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 
@@ -282,12 +287,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkHibernate(w http.ResponseWriter, r 
 	}
 	token := r.Header.Get("token")
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
-	userEmail := util.GetEmailFromContext(r.Context())
-	userMetadata := &bean4.UserMetadata{
-		UserEmailId:      userEmail,
-		IsUserSuperAdmin: isSuperAdmin,
-		UserId:           request.UserId,
-	}
+	userMetadata := util2.GetUserMetadata(r.Context(), request.UserId, isSuperAdmin)
 
 	response, err := handler.bulkUpdateService.BulkHibernate(r.Context(), request, handler.checkAuthForBulkHibernateAndUnhibernate, userMetadata)
 	if err != nil {
@@ -327,12 +327,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkUnHibernate(w http.ResponseWriter, 
 	}
 	token := r.Header.Get("token")
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
-	userEmail := util.GetEmailFromContext(r.Context())
-	userMetadata := &bean4.UserMetadata{
-		UserEmailId:      userEmail,
-		IsUserSuperAdmin: isSuperAdmin,
-		UserId:           request.UserId,
-	}
+	userMetadata := util2.GetUserMetadata(r.Context(), request.UserId, isSuperAdmin)
 	response, err := handler.bulkUpdateService.BulkUnHibernate(r.Context(), request, handler.checkAuthForBulkHibernateAndUnhibernate, userMetadata)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -340,6 +335,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkUnHibernate(w http.ResponseWriter, 
 	}
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
+
 func (handler BulkUpdateRestHandlerImpl) BulkDeploy(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
@@ -361,14 +357,10 @@ func (handler BulkUpdateRestHandlerImpl) BulkDeploy(w http.ResponseWriter, r *ht
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	ctx := util.NewRequestCtx(r.Context())
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
-	userEmail := util.GetEmailFromContext(r.Context())
-	userMetadata := &bean4.UserMetadata{
-		UserEmailId:      userEmail,
-		IsUserSuperAdmin: isSuperAdmin,
-		UserId:           userId,
-	}
-	response, err := handler.bulkUpdateService.BulkDeploy(&request, token, handler.checkAuthBatch, userMetadata)
+	userMetadata := util2.GetUserMetadata(ctx, userId, isSuperAdmin)
+	response, err := handler.bulkUpdateService.BulkDeploy(ctx, &request, handler.checkAuthBatch, userMetadata)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return

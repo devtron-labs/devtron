@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Bulk Edit Application batch/v1beta1 Schema",
+  "type": "object",
+  "description": "Input Script for bulk edit",
+  "required": [
+    "apiVersion",
+    "kind",
+    "spec"
+  ],
+  "properties": {
+    "apiVersion": {
+      "const": "batch/v1beta1"
+    },
+    "kind": {
+      "const": "Application"
+    },
+    "spec": {
+      "type": "object",
+      "anyOf": [
+        {
+          "required": [
+            "deploymentTemplate"
+          ]
+        },
+        {
+          "required": [
+            "configMap"
+          ]
+        },
+        {
+          "required": [
+            "secret"
+          ]
+        }
+      ],
+      "properties": {
+        "includes": {
+          "type": "object",
+          "properties": {
+            "names": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z%]+[a-z0-9%\\-\\?]*[a-z0-9%]+$"
+              },
+              "description": "Array of application names to be included"
+            }
+          }
+        },
+        "excludes": {
+          "type": "object",
+          "properties": {
+            "names": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z%]+[a-z0-9%\\-\\?]*[a-z0-9%]+$"
+              },
+              "description": "Array of application names to be excluded"
+            }
+          }
+        },
+        "envIds": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "description": "Array of Environment Ids of dependent apps"
+        },
+        "global": {
+          "type": "boolean",
+          "description": "Flag for updating base Configurations of dependent apps"
+        },
+        "deploymentTemplate": {
+          "type": "object",
+          "properties": {
+            "spec": {
+              "type": "object",
+              "properties": {
+                "patchData": {
+                  "type": "string",
+                  "description": "String with details of the patch to be used for updating"
+                }
+              }
+            }
+          }
+        },
+        "configMap": {
+          "type": "object",
+          "properties": {
+            "names": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z]+[a-z0-9\\-\\?]*[a-z0-9]+$"
+              },
+              "description": "Name of all ConfigMaps to be updated"
+            },
+            "patchData": {
+              "type": "string",
+              "description": "String with details of the patch to be used for updating"
+            }
+          }
+        },
+        "secret": {
+          "type": "object",
+          "properties": {
+            "names": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Name of all Secrets to be updated"
+            },
+            "patchData": {
+              "type": "string",
+              "description": "String with details of the patch to be used for updating"
+            }
+          }
+        }
+      }
+    }
+  }
+}

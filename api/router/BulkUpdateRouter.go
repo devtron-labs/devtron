@@ -35,17 +35,31 @@ func NewBulkUpdateRouterImpl(handler restHandler.BulkUpdateRestHandler) *BulkUpd
 	}
 	return router
 }
+
 func (router BulkUpdateRouterImpl) initBulkUpdateRouter(bulkRouter *mux.Router) {
 	bulkRouter.Path("/{apiVersion}/{kind}/readme").HandlerFunc(router.restHandler.FindBulkUpdateReadme).Methods("GET")
+	// Initialize v1beta1 routes
+	router.initV1beta1Router(bulkRouter)
+	// Initialize v1beta2 routes
+	router.initV1beta2Router(bulkRouter)
+	// Initialize Ent routes
+	router.initBulkUpdateRouterEnt(bulkRouter)
+}
+
+func (router BulkUpdateRouterImpl) initV1beta1Router(bulkRouter *mux.Router) {
 	bulkRouter.Path("/v1beta1/application/dryrun").HandlerFunc(router.restHandler.GetImpactedAppsName).Methods("POST")
 	bulkRouter.Path("/v1beta1/application").HandlerFunc(router.restHandler.BulkUpdate).Methods("POST")
 
 	bulkRouter.Path("/v1beta1/hibernate").HandlerFunc(router.restHandler.BulkHibernate).Methods("POST")
 	bulkRouter.Path("/v1beta1/unhibernate").HandlerFunc(router.restHandler.BulkUnHibernate).Methods("POST")
-	bulkRouter.Path("/v1beta2/hibernate").HandlerFunc(router.restHandler.BulkHibernate).Methods("POST")
-	bulkRouter.Path("/v1beta2/unhibernate").HandlerFunc(router.restHandler.BulkUnHibernate).Methods("POST")
 	bulkRouter.Path("/v1beta1/deploy").HandlerFunc(router.restHandler.BulkDeploy).Methods("POST")
 	bulkRouter.Path("/v1beta1/build").HandlerFunc(router.restHandler.BulkBuildTrigger).Methods("POST")
 	bulkRouter.Path("/v1beta1/cd-pipeline").HandlerFunc(router.restHandler.HandleCdPipelineBulkAction).Methods("POST")
+}
 
+func (router BulkUpdateRouterImpl) initV1beta2Router(bulkRouter *mux.Router) {
+	bulkRouter.Path("/v1beta2/unhibernate").HandlerFunc(router.restHandler.BulkUnHibernate).Methods("POST")
+	bulkRouter.Path("/v1beta2/hibernate").HandlerFunc(router.restHandler.BulkHibernateV1).Methods("POST")
+	// Initialize v1beta2 routes for Ent
+	router.initV1beta2RouterEnt(bulkRouter)
 }
