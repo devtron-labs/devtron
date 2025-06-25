@@ -432,7 +432,7 @@ func (impl *ManifestCreationServiceImpl) getEnvOverrideForLastSavedConfigTrigger
 	}
 	if envOverride.Id == 0 {
 		_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindLatestChartForAppByAppId")
-		chart, err = impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
+		chart, err = impl.chartRepository.FindLatestChartForAppByAppId(nil, overrideRequest.AppId)
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
@@ -480,7 +480,7 @@ func (impl *ManifestCreationServiceImpl) getEnvOverrideForLastSavedConfigTrigger
 		envOverride.Chart = chart
 	} else if envOverride.Id > 0 && !envOverride.IsOverride {
 		_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindLatestChartForAppByAppId")
-		chart, err = impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
+		chart, err = impl.chartRepository.FindLatestChartForAppByAppId(nil, overrideRequest.AppId)
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
