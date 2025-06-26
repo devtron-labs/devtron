@@ -18,12 +18,14 @@ package appStoreBean
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	bean3 "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
+	"github.com/devtron-labs/devtron/client/fluxcd"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
@@ -127,6 +129,7 @@ type InstallAppVersionDTO struct {
 	AppStoreApplicationVersionId int
 	DisplayName                  string `json:"-"` // used only for external apps
 	IsChartLinkRequest           bool
+	GitOpsId                     int
 }
 
 func (chart *InstallAppVersionDTO) GetTargetRevision() string {
@@ -195,6 +198,7 @@ type InstalledAppDeploymentAction struct {
 	PerformGitOps           bool
 	PerformACDDeployment    bool
 	PerformHelmDeployment   bool
+	PerformFluxDeployment   bool
 }
 
 type InstalledAppDeleteResponseDTO struct {
@@ -218,6 +222,9 @@ type InstallAppVersionChartRepoDTO struct {
 }
 
 func (chart *InstallAppVersionDTO) GetDeploymentConfig() *bean2.DeploymentConfig {
+	if util2.IsFluxApp(chart.DeploymentAppType) {
+		return chart.GetFluxDeploymentConfig()
+	}
 	var configType string
 	if chart.IsCustomRepository {
 		configType = bean2.CUSTOM.String()
@@ -252,6 +259,41 @@ func (chart *InstallAppVersionDTO) GetDeploymentConfig() *bean2.DeploymentConfig
 					},
 					SyncPolicy: nil,
 				},
+			},
+		},
+		Active: true,
+	}
+}
+
+func (chart *InstallAppVersionDTO) GetFluxDeploymentConfig() *bean2.DeploymentConfig {
+	var configType string
+	if chart.IsCustomRepository {
+		configType = bean2.CUSTOM.String()
+	} else {
+		configType = bean2.SYSTEM_GENERATED.String()
+	}
+	chartLocation := util.BuildDeployedAppName(chart.AppName, chart.EnvironmentName)
+	return &bean2.DeploymentConfig{
+		AppId:             chart.AppId,
+		EnvironmentId:     chart.EnvironmentId,
+		ConfigType:        configType,
+		DeploymentAppType: chart.DeploymentAppType,
+		ReleaseMode:       util2.PIPELINE_RELEASE_MODE_CREATE,
+		ReleaseConfiguration: &bean2.ReleaseConfiguration{
+			Version: bean2.Version,
+			FluxCDSpec: bean2.FluxCDSpec{
+				ClusterId:              chart.ClusterId,
+				HelmReleaseNamespace:   chart.Namespace,
+				GitRepositoryNamespace: chart.Namespace,
+				GitRepositoryName:      util.BuildDeployedAppName(chart.AppName, chart.EnvironmentName),
+				HelmReleaseName:        util.BuildDeployedAppName(chart.AppName, chart.EnvironmentName),
+				GitOpsSecretName:       fmt.Sprintf("devtron-flux-secret-%d", chart.GitOpsId),
+				ChartLocation:          chartLocation,
+				ChartVersion:           chart.InstallAppVersionChartDTO.ChartVersion,
+				RevisionTarget:         util.GetDefaultTargetRevision(),
+				RepoUrl:                chart.GitOpsRepoURL,
+				DevtronValueFile:       "",
+				HelmReleaseValuesFiles: fluxcd.GetValuesFileArrForDevtronInlineApps(chartLocation),
 			},
 		},
 		Active: true,
