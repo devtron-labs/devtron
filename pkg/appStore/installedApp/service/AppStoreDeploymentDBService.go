@@ -169,7 +169,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) AppStoreDeployOperationDB(installRe
 	// Stage 2: ends
 
 	// Stage 3: save installed_apps model
-	if globalUtil.IsFullStack() && util.IsAcdApp(installRequest.DeploymentAppType) {
+	if globalUtil.IsFullStack() && (util.IsAcdApp(installRequest.DeploymentAppType) || util.IsFluxApp(installRequest.DeploymentAppType)) {
 		installRequest.UpdateCustomGitOpsRepoUrl(gitOpsConfigStatus.AllowCustomRepository, requestType)
 		// validate GitOps request
 		validationErr := impl.validateGitOpsRequest(gitOpsConfigStatus.AllowCustomRepository, installRequest.GitOpsRepoURL)
@@ -208,6 +208,12 @@ func (impl *AppStoreDeploymentDBServiceImpl) AppStoreDeployOperationDB(installRe
 	installRequest.InstalledAppId = installedApp.Id
 	// Stage 3: ends
 
+	gitOpsConfig, err := impl.gitOpsConfigReadService.GetGitOpsProviderByRepoURL(installRequest.GitOpsRepoURL)
+	if err != nil {
+		impl.logger.Errorw("error fetching gitops config by repo url", "repoUrl", installRequest.GitOpsRepoURL, "err", err)
+		return nil, err
+	}
+	installRequest.GitOpsId = gitOpsConfig.Id
 	deploymentConfig := installRequest.GetDeploymentConfig()
 	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(tx, deploymentConfig, installRequest.UserId)
 	if err != nil {

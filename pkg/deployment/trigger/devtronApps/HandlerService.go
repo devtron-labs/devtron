@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"context"
 	"github.com/devtron-labs/common-lib/async"
+	"github.com/devtron-labs/devtron/client/fluxcd"
 	"os"
 	"time"
 
@@ -170,6 +171,7 @@ type HandlerServiceImpl struct {
 	blobConfigStorageService            pipeline.BlobStorageConfigService
 	deploymentEventHandler              app.DeploymentEventHandler
 	asyncRunnable                       *async.Runnable
+	fluxCdDeploymentService             fluxcd.DeploymentService
 }
 
 func NewHandlerServiceImpl(logger *zap.SugaredLogger,
@@ -232,7 +234,8 @@ func NewHandlerServiceImpl(logger *zap.SugaredLogger,
 	workflowService executor.WorkflowService,
 	blobConfigStorageService pipeline.BlobStorageConfigService,
 	deploymentEventHandler app.DeploymentEventHandler,
-	asyncRunnable *async.Runnable) (*HandlerServiceImpl, error) {
+	asyncRunnable *async.Runnable,
+	fluxCdDeploymentService fluxcd.DeploymentService) (*HandlerServiceImpl, error) {
 	impl := &HandlerServiceImpl{
 		logger:                              logger,
 		cdWorkflowCommonService:             cdWorkflowCommonService,
@@ -300,6 +303,7 @@ func NewHandlerServiceImpl(logger *zap.SugaredLogger,
 		blobConfigStorageService: blobConfigStorageService,
 		deploymentEventHandler:   deploymentEventHandler,
 		asyncRunnable:            asyncRunnable,
+		fluxCdDeploymentService:  fluxCdDeploymentService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
