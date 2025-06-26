@@ -135,11 +135,11 @@ func (impl *DeploymentServiceImpl) upsertGitRepoSecret(ctx context.Context, flux
 		"providerId": gitOpsConfig.Provider,
 	}
 
-	namespace := fluxCdSpec.Namespace
+	namespace := fluxCdSpec.GitRepositoryNamespace
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fluxCdSpec.GitOpsSecretName,
-			Namespace: fluxCdSpec.Namespace,
+			Namespace: fluxCdSpec.GitRepositoryNamespace,
 			Labels:    labels,
 		},
 		Type: v1.SecretTypeBasicAuth,
@@ -223,7 +223,7 @@ func (impl *DeploymentServiceImpl) updateFluxCdApp(ctx context.Context, fluxCdSp
 }
 
 func (impl *DeploymentServiceImpl) CreateGitRepository(ctx context.Context, fluxCdSpec bean.FluxCDSpec, secretName string, apiClient client.Client) (*sourcev1.GitRepository, error) {
-	name, namespace := fluxCdSpec.GitRepositoryName, fluxCdSpec.Namespace
+	name, namespace := fluxCdSpec.GitRepositoryName, fluxCdSpec.GitRepositoryNamespace
 	gitRepo := &sourcev1.GitRepository{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -250,7 +250,7 @@ func (impl *DeploymentServiceImpl) CreateGitRepository(ctx context.Context, flux
 
 func (impl *DeploymentServiceImpl) UpdateGitRepository(ctx context.Context, fluxCdSpec bean.FluxCDSpec,
 	secretName string, apiClient client.Client) (*sourcev1.GitRepository, error) {
-	name, namespace := fluxCdSpec.GitRepositoryName, fluxCdSpec.Namespace
+	name, namespace := fluxCdSpec.GitRepositoryName, fluxCdSpec.GitRepositoryNamespace
 	key := types.NamespacedName{Name: name, Namespace: namespace}
 	existing := &sourcev1.GitRepository{}
 
@@ -274,7 +274,7 @@ func (impl *DeploymentServiceImpl) UpdateGitRepository(ctx context.Context, flux
 
 func (impl *DeploymentServiceImpl) CreateHelmRelease(ctx context.Context, fluxCdSpec bean.FluxCDSpec,
 	apiClient client.Client) (*helmv2.HelmRelease, error) {
-	name, namespace := fluxCdSpec.GitRepositoryName, fluxCdSpec.Namespace
+	name, namespace := fluxCdSpec.GitRepositoryName, fluxCdSpec.HelmReleaseNamespace
 	helmRelease := &helmv2.HelmRelease{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -313,7 +313,7 @@ func (impl *DeploymentServiceImpl) CreateHelmRelease(ctx context.Context, fluxCd
 
 func (impl *DeploymentServiceImpl) UpdateHelmRelease(ctx context.Context, fluxCdSpec bean.FluxCDSpec,
 	apiClient client.Client) (*helmv2.HelmRelease, error) {
-	name, namespace := fluxCdSpec.GitRepositoryName, fluxCdSpec.Namespace
+	name, namespace := fluxCdSpec.GitRepositoryName, fluxCdSpec.HelmReleaseNamespace
 	key := types.NamespacedName{Name: name, Namespace: namespace}
 	existing := &helmv2.HelmRelease{}
 
@@ -350,7 +350,6 @@ func (impl *DeploymentServiceImpl) UpdateHelmRelease(ctx context.Context, fluxCd
 func (impl *DeploymentServiceImpl) DeleteFluxDeploymentApp(ctx context.Context, request *DeploymentAppDeleteRequest) error {
 	fluxCdSpec := request.DeploymentConfig.ReleaseConfiguration.FluxCDSpec
 	clusterId := fluxCdSpec.ClusterId
-	namespace := fluxCdSpec.Namespace
 	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(request.ClusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config", "clusterId", clusterId, "err", err)
@@ -361,7 +360,7 @@ func (impl *DeploymentServiceImpl) DeleteFluxDeploymentApp(ctx context.Context, 
 		impl.logger.Errorw("error in creating k8s client", "clusterId", clusterId, "err", err)
 		return err
 	}
-	name, namespace := fluxCdSpec.GitRepositoryName, fluxCdSpec.Namespace
+	name, namespace := fluxCdSpec.HelmReleaseName, fluxCdSpec.HelmReleaseNamespace
 	key := types.NamespacedName{Name: name, Namespace: namespace}
 
 	existingHelmRelease := &helmv2.HelmRelease{}
@@ -376,6 +375,7 @@ func (impl *DeploymentServiceImpl) DeleteFluxDeploymentApp(ctx context.Context, 
 		return err
 	}
 
+	key = types.NamespacedName{Name: fluxCdSpec.GitRepositoryName, Namespace: fluxCdSpec.GitRepositoryNamespace}
 	existingGitRepository := &sourcev1.GitRepository{}
 	err = apiClient.Get(ctx, key, existingGitRepository)
 	if err != nil {

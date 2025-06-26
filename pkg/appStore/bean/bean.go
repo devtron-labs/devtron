@@ -283,7 +283,8 @@ func (chart *InstallAppVersionDTO) GetFluxDeploymentConfig() *bean2.DeploymentCo
 			Version: bean2.Version,
 			FluxCDSpec: bean2.FluxCDSpec{
 				ClusterId:              chart.ClusterId,
-				Namespace:              chart.Namespace,
+				HelmReleaseNamespace:   chart.Namespace,
+				GitRepositoryNamespace: chart.Namespace,
 				GitRepositoryName:      util.BuildDeployedAppName(chart.AppName, chart.EnvironmentName),
 				HelmReleaseName:        util.BuildDeployedAppName(chart.AppName, chart.EnvironmentName),
 				GitOpsSecretName:       fmt.Sprintf("devtron-flux-secret-%d", chart.GitOpsId),

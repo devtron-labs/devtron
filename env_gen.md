@@ -13,6 +13,7 @@
  | DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT | int |6 | Context timeout for no gitops concurrent async deployments |  | false |
  | EXPOSE_CD_METRICS | bool |false |  |  | false |
  | FEATURE_MIGRATE_ARGOCD_APPLICATION_ENABLE | bool |false | enable migration of external argocd application to devtron pipeline |  | false |
+ | FEATURE_MIGRATE_FLUX_APPLICATION_ENABLE | bool |false | enable flux application services |  | false |
  | FLUX_CD_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME | string |120 | eligible time for checking flux app status periodically and update in db, value is in seconds., default is 120, if wfr is updated within configured time i.e. FLUX_CD_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME then do not include for this cron cycle. |  | false |
  | HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME | string |120 | eligible time for checking helm app status periodically and update in db, value is in seconds., default is 120, if wfr is updated within configured time i.e. HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME then do not include for this cron cycle. |  | false |
  | IS_INTERNAL_USE | bool |true | If enabled then cd pipeline and helm apps will not need the deployment app type mandatorily. Couple this flag with HIDE_GITOPS_OR_HELM_OPTION (in Dashborad) and if gitops is configured and allowed for the env, pipeline/ helm app will gitops else no-gitops. |  | false |
@@ -25,6 +26,7 @@
  | RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS | bool |false |  |  | false |
  | SHOULD_CHECK_NAMESPACE_ON_CLONE | bool |false | should we check if namespace exists or not while cloning app |  | false |
  | USE_DEPLOYMENT_CONFIG_DATA | bool |false | use deployment config data from deployment_config table |  | true |
+ | VALIDATE_EXT_APP_CHART_TYPE | bool |false | validate external flux app chart |  | false |
 
 
 ## CI_RUNNER Related Environment Variables
