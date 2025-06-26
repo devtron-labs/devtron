@@ -760,7 +760,7 @@ func (impl *AppStoreDeploymentServiceImpl) updateInstalledApp(ctx context.Contex
 			}
 		}
 	} else if installedAppDeploymentAction.PerformFluxDeployment {
-		err = impl.fullModeFluxDeploymentService.UpdateApp(upgradeAppRequest)
+		err = impl.fullModeFluxDeploymentService.UpgradeDeployment(upgradeAppRequest, gitOpsResponse.ChartGitAttribute, upgradeAppRequest.InstalledAppVersionHistoryId, ctx)
 		if err != nil {
 			impl.logger.Errorw("error in flux app patch request", "err", err)
 			return nil, err

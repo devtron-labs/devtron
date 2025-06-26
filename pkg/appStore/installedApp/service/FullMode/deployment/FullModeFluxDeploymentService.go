@@ -36,8 +36,8 @@ type FullModeFluxDeploymentService interface {
 
 	// InstallApp will create git repo and helm release crd objects
 	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *commonBean.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
-	// UpdateApp will update git repo and helm release crd objects
-	UpdateApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
+	// UpgradeDeployment will update git repo and helm release crd objects
+	UpgradeDeployment(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *commonBean.ChartGitAttribute, installedAppVersionHistoryId int, ctx context.Context) error
 
 	// DeleteInstalledApp will delete entry from appStatus.AppStatusDto table, from repository.ChartGroupDeployment table (if exists) and delete crd objects
 	DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, dbTransaction *pg.Tx) error
@@ -83,14 +83,14 @@ func (impl *FullModeFluxDeploymentServiceImpl) InstallApp(installAppVersionReque
 	return installAppVersionRequest, nil
 }
 
-func (impl *FullModeFluxDeploymentServiceImpl) UpdateApp(upgradeAppRequest *appStoreBean.InstallAppVersionDTO) error {
+func (impl *FullModeFluxDeploymentServiceImpl) UpgradeDeployment(upgradeAppRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *commonBean.ChartGitAttribute, installedAppVersionHistoryId int, ctx context.Context) error {
 	clusterConfig, err := impl.clusterService.GetClusterConfigByClusterId(upgradeAppRequest.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster", "clusterId", upgradeAppRequest.ClusterId, "error", err)
 		return err
 	}
 	//deploy app
-	err = impl.fluxCdDeploymentService.DeployFluxCdApp(context.Background(), &fluxcd.DeploymentRequest{
+	err = impl.fluxCdDeploymentService.DeployFluxCdApp(ctx, &fluxcd.DeploymentRequest{
 		ClusterConfig:    clusterConfig,
 		DeploymentConfig: upgradeAppRequest.GetDeploymentConfig(),
 		IsAppCreated:     true,
