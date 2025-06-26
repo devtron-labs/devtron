@@ -355,7 +355,7 @@ func makeAccessorStage(pair []string) evaluationOperator {
 				field = coreValue.MapIndex(reflect.ValueOf(pair[i]))
 				if field != (reflect.Value{}) {
 					inter := field.Interface()
-					if reflect.TypeOf(inter).Kind() == reflect.Func {
+					if inter != nil && reflect.TypeOf(inter).Kind() == reflect.Func {
 						method = reflect.ValueOf(inter)
 					} else {
 						value = inter
@@ -446,6 +446,7 @@ func separatorStage(left interface{}, right interface{}, parameters Parameters) 
 func inStage(left interface{}, right interface{}, parameters Parameters) (interface{}, error) {
 
 	for _, value := range right.([]interface{}) {
+		value = castToFloat64(value)
 		if left == value {
 			return true, nil
 		}

@@ -1,4 +1,4 @@
-// Copyright 2013-2022 The NATS Authors
+// Copyright 2013-2023 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -23,6 +23,8 @@ import (
 // Data will be encoded and decoded via the EncodedConn and its associated encoders.
 
 // BindSendChan binds a channel for send operations to NATS.
+//
+// Deprecated: Encoded connections are no longer supported.
 func (c *EncodedConn) BindSendChan(subject string, channel any) error {
 	chVal := reflect.ValueOf(channel)
 	if chVal.Kind() != reflect.Chan {
@@ -61,11 +63,15 @@ func chPublish(c *EncodedConn, chVal reflect.Value, subject string) {
 }
 
 // BindRecvChan binds a channel for receive operations from NATS.
+//
+// Deprecated: Encoded connections are no longer supported.
 func (c *EncodedConn) BindRecvChan(subject string, channel any) (*Subscription, error) {
 	return c.bindRecvChan(subject, _EMPTY_, channel)
 }
 
 // BindRecvQueueChan binds a channel for queue-based receive operations from NATS.
+//
+// Deprecated: Encoded connections are no longer supported.
 func (c *EncodedConn) BindRecvQueueChan(subject, queue string, channel any) (*Subscription, error) {
 	return c.bindRecvChan(subject, queue, channel)
 }
@@ -107,5 +113,5 @@ func (c *EncodedConn) bindRecvChan(subject, queue string, channel any) (*Subscri
 		chVal.Send(oPtr)
 	}
 
-	return c.Conn.subscribe(subject, queue, cb, nil, false, nil)
+	return c.Conn.subscribe(subject, queue, cb, nil, nil, false, nil)
 }

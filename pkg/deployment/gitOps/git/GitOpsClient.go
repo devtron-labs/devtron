@@ -34,40 +34,9 @@ type GitOpsClient interface {
 	GetRepoUrl(config *gitOps.GitOpsConfigDto) (repoUrl string, isRepoEmpty bool, err error)
 	DeleteRepository(config *gitOps.GitOpsConfigDto) error
 	CreateReadme(ctx context.Context, config *gitOps.GitOpsConfigDto) (string, error)
-}
-
-func GetGitConfig(gitOpsConfigReadService config.GitOpsConfigReadService) (*bean.GitConfig, error) {
-	gitOpsConfig, err := gitOpsConfigReadService.GetGitOpsConfigActive()
-	if err != nil && err != pg.ErrNoRows {
-		return nil, err
-	} else if err == pg.ErrNoRows {
-		// adding this block for backward compatibility,TODO: remove in next  iteration
-		// cfg := &GitConfig{}
-		// err := env.Parse(cfg)
-		// return cfg, err
-		return &bean.GitConfig{}, nil
-	}
-
-	if gitOpsConfig == nil || gitOpsConfig.Id == 0 {
-		return nil, err
-	}
-	cfg := &bean.GitConfig{
-		GitlabGroupId:         gitOpsConfig.GitLabGroupId,
-		GitToken:              gitOpsConfig.Token,
-		GitUserName:           gitOpsConfig.Username,
-		GithubOrganization:    gitOpsConfig.GitHubOrgId,
-		GitProvider:           gitOpsConfig.Provider,
-		GitHost:               gitOpsConfig.Host,
-		AzureToken:            gitOpsConfig.Token,
-		AzureProject:          gitOpsConfig.AzureProjectName,
-		BitbucketWorkspaceId:  gitOpsConfig.BitBucketWorkspaceId,
-		BitbucketProjectKey:   gitOpsConfig.BitBucketProjectKey,
-		EnableTLSVerification: gitOpsConfig.EnableTLSVerification,
-		TLSCert:               gitOpsConfig.TLSConfig.TLSCertData,
-		TLSKey:                gitOpsConfig.TLSConfig.TLSKeyData,
-		CaCert:                gitOpsConfig.TLSConfig.CaData,
-	}
-	return cfg, err
+	// CreateFirstCommitOnHead creates a commit on the HEAD of the repository, used for initializing the repository.
+	// It is used when the repository is empty and needs an initial commit.
+	CreateFirstCommitOnHead(ctx context.Context, config *gitOps.GitOpsConfigDto) (string, error)
 }
 
 func GetGitConfigAll(gitOpsConfigReadService config.GitOpsConfigReadService) ([]*bean.GitConfig, error) {
@@ -125,7 +94,7 @@ func NewGitOpsClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitOpsHe
 		gitBitbucketClient := NewGitBitbucketClient(config.GitUserName, config.GitToken, config.GitHost, logger, gitOpsHelper, tlsConfig)
 		return gitBitbucketClient, nil
 	} else {
-		logger.Errorw("no gitops config provided, gitops will not work ")
-		return nil, nil
+		logger.Warn("no gitops config provided, gitops will not work")
+		return &UnimplementedGitOpsClient{}, nil
 	}
 }

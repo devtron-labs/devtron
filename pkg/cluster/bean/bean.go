@@ -83,6 +83,6 @@ type DefaultClusterComponent struct {
 }
 
 const (
-	DefaultNamespace     = "default"
-	SecretFieldUpdatedOn = "updated_on"
+	DefaultNamespace = "default"
+	CmFieldUpdatedOn = "updated_on"
 )

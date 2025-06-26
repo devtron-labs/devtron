@@ -31,7 +31,6 @@ import (
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	read4 "github.com/devtron-labs/devtron/api/helm-app/service/read"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	bean7 "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/client/fluxcd"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -1155,7 +1154,7 @@ func (impl *CdPipelineConfigServiceImpl) GetAndValidateArgoApplicationSpec(appli
 			UserMessage: "application with multiple/ empty helm value files are not supported",
 		}
 	}
-	if strings.ToLower(argoApplicationSpec.Spec.Source.TargetRevision) == bean7.TargetRevisionHead {
+	if globalUtil.IsHeadTargetRevision(argoApplicationSpec.Spec.Source.TargetRevision) {
 		return argoApplicationSpec, pipelineConfigBean.LinkFailedError{
 			Reason:      pipelineConfigBean.UnsupportedApplicationSpec,
 			UserMessage: "Target revision head not supported",

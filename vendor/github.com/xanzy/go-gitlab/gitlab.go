@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/rand"
 	"mime/multipart"
 	"net/http"
@@ -236,15 +237,16 @@ type Client struct {
 // ListOptions specifies the optional parameters to various List methods that
 // support pagination.
 type ListOptions struct {
-	// For offset-based paginated result sets, page of results to retrieve.
-	Page int `url:"page,omitempty" json:"page,omitempty"`
-	// For offset-based and keyset-based paginated result sets, the number of results to include per page.
-	PerPage int `url:"per_page,omitempty" json:"per_page,omitempty"`
-
-	// For keyset-based paginated result sets, name of the column by which to order
-	OrderBy string `url:"order_by,omitempty" json:"order_by,omitempty"`
 	// For keyset-based paginated result sets, the value must be `"keyset"`
 	Pagination string `url:"pagination,omitempty" json:"pagination,omitempty"`
+	// For offset-based and keyset-based paginated result sets, the number of results to include per page.
+	PerPage int `url:"per_page,omitempty" json:"per_page,omitempty"`
+	// For offset-based paginated result sets, page of results to retrieve.
+	Page int `url:"page,omitempty" json:"page,omitempty"`
+	// For keyset-based paginated result sets, tree record ID at which to fetch the next page.
+	PageToken string `url:"page_token,omitempty" json:"page_token,omitempty"`
+	// For keyset-based paginated result sets, name of the column by which to order
+	OrderBy string `url:"order_by,omitempty" json:"order_by,omitempty"`
 	// For keyset-based paginated result sets, sort order (`"asc"`` or `"desc"`)
 	Sort string `url:"sort,omitempty" json:"sort,omitempty"`
 }
@@ -509,7 +511,7 @@ func (c *Client) retryHTTPBackoff(min, max time.Duration, attemptNum int, resp *
 // min and max are mainly used for bounding the jitter that will be added to
 // the reset time retrieved from the headers. But if the final wait time is
 // less then min, min will be used instead.
-func rateLimitBackoff(min, max time.Duration, _ int, resp *http.Response) time.Duration {
+func rateLimitBackoff(min, max time.Duration, attemptNum int, resp *http.Response) time.Duration {
 	// rnd is used to generate pseudo-random numbers.
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -524,6 +526,11 @@ func rateLimitBackoff(min, max time.Duration, _ int, resp *http.Response) time.D
 					min = wait
 				}
 			}
+		} else {
+			// In case the RateLimit-Reset header is not set, back off an additional
+			// 100% exponentially. With the default milliseconds being set to 100 for
+			// `min`, this makes the 5th retry wait 3.2 seconds (3,200 ms) by default.
+			min = time.Duration(float64(min) * math.Pow(2, float64(attemptNum)))
 		}
 	}
 

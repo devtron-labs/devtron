@@ -13,15 +13,10 @@ data:
   DEVTRON_HELM_RELEASE_NAME: {{ $.Release.Name }}
   DEVTRON_HELM_RELEASE_NAMESPACE: {{ $.Release.Namespace }}
   FEATURE_MIGRATE_ARGOCD_APPLICATION_ENABLE: "true"
-  PG_USER: postgres
-  {{- if not $.Values.devtronEnterprise.enabled }}
-  PG_ADDR: postgresql-postgresql.devtroncd
-  {{- end }}
-  PG_PORT: "5432"
+{{ toYaml $.Values.global.dbConfig | indent 2 }}
   HELM_CLIENT_URL: kubelink-service-headless:50051
   DASHBOARD_PORT: "80"
   DASHBOARD_HOST: dashboard-service.devtroncd
-  PG_DATABASE: orchestrator
   DEX_HOST: http://argocd-dex-server.devtroncd
   DEX_PORT: "5556"
   APP_SYNC_IMAGE: {{ include "common.image" (dict "component" $.Values.components.chartSync "global" $.Values.global ) }}
