@@ -602,7 +602,7 @@ func (impl *AppStoreDeploymentServiceImpl) updateInstalledApp(ctx context.Contex
 
 	installedAppDeploymentAction := adapter.NewInstalledAppDeploymentAction(deploymentConfig.DeploymentAppType)
 	// migrate installedApp.GitOpsRepoName to installedApp.GitOpsRepoUrl
-	if util.IsAcdApp(deploymentConfig.DeploymentAppType) &&
+	if (util.IsAcdApp(deploymentConfig.DeploymentAppType) || util.IsFluxApp(deploymentConfig.DeploymentAppType)) &&
 		len(deploymentConfig.GetRepoURL()) == 0 {
 		gitRepoUrl, err := impl.fullModeDeploymentService.GetAcdAppGitOpsRepoURL(installedApp.App.AppName, installedApp.Environment.Name)
 		if err != nil {
@@ -758,6 +758,12 @@ func (impl *AppStoreDeploymentServiceImpl) updateInstalledApp(ctx context.Contex
 				impl.logger.Errorw("error in helm update request", "err", err)
 				return nil, err
 			}
+		}
+	} else if installedAppDeploymentAction.PerformFluxDeployment {
+		err = impl.fullModeFluxDeploymentService.UpdateApp(upgradeAppRequest)
+		if err != nil {
+			impl.logger.Errorw("error in flux app patch request", "err", err)
+			return nil, err
 		}
 	}
 	installedApp.UpdateStatus(appStoreBean.DEPLOY_SUCCESS)

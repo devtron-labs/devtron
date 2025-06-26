@@ -18,8 +18,7 @@ package deployment
 
 import (
 	"context"
-	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
-	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
+	"errors"
 	"github.com/devtron-labs/devtron/client/fluxcd"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
@@ -27,7 +26,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/go-pg/pg"
-	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 )
 
@@ -38,14 +36,13 @@ type FullModeFluxDeploymentService interface {
 
 	// InstallApp will create git repo and helm release crd objects
 	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *commonBean.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
+	// UpdateApp will update git repo and helm release crd objects
+	UpdateApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
+
 	// DeleteInstalledApp will delete entry from appStatus.AppStatusDto table, from repository.ChartGroupDeployment table (if exists) and delete crd objects
 	DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, dbTransaction *pg.Tx) error
 	// RollbackRelease will rollback to a previous deployment for the given installedAppVersionHistoryId; returns - valuesYamlStr, success, error
 	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (*appStoreBean.InstallAppVersionDTO, bool, error)
-	// GetDeploymentHistory will return gRPC.HelmAppDeploymentHistory for the given installedAppDto.InstalledAppId
-	GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*gRPC.HelmAppDeploymentHistory, error)
-	// GetDeploymentHistoryInfo will return openapi.HelmAppDeploymentManifestDetail for the given appStoreBean.InstallAppVersionDTO
-	GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, version int32) (*openapi.HelmAppDeploymentManifestDetail, error)
 }
 
 type FullModeFluxDeploymentServiceImpl struct {
@@ -86,21 +83,42 @@ func (impl *FullModeFluxDeploymentServiceImpl) InstallApp(installAppVersionReque
 	return installAppVersionRequest, nil
 }
 
-func (impl *FullModeFluxDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context, appName, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO,
-	installedApps *repository.InstalledApps, tx *pg.Tx) error {
+func (impl *FullModeFluxDeploymentServiceImpl) UpdateApp(upgradeAppRequest *appStoreBean.InstallAppVersionDTO) error {
+	clusterConfig, err := impl.clusterService.GetClusterConfigByClusterId(upgradeAppRequest.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster", "clusterId", upgradeAppRequest.ClusterId, "error", err)
+		return err
+	}
+	//deploy app
+	err = impl.fluxCdDeploymentService.DeployFluxCdApp(context.Background(), &fluxcd.DeploymentRequest{
+		ClusterConfig:    clusterConfig,
+		DeploymentConfig: upgradeAppRequest.GetDeploymentConfig(),
+		IsAppCreated:     true,
+	})
+	if err != nil {
+		impl.logger.Errorw("error in deploy Flux Cd App", "error", err)
+		return err
+	}
+	return nil
+}
+
+func (impl *FullModeFluxDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context, appName, environmentName string,
+	installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, tx *pg.Tx) error {
+	clusterConfig, err := impl.clusterService.GetClusterConfigByClusterId(installAppVersionRequest.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster", "clusterId", installAppVersionRequest.ClusterId, "error", err)
+		return err
+	}
+	err = impl.fluxCdDeploymentService.DeleteFluxDeploymentApp(ctx, &fluxcd.DeploymentAppDeleteRequest{
+		ClusterConfig: clusterConfig,
+	})
+	if err != nil {
+		impl.logger.Errorw("error in deploy Flux Cd App", "error", err)
+		return err
+	}
 	return nil
 }
 
 func (impl *FullModeFluxDeploymentServiceImpl) RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (*appStoreBean.InstallAppVersionDTO, bool, error) {
-	return nil, false, nil
-}
-
-func (impl *FullModeFluxDeploymentServiceImpl) GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*gRPC.HelmAppDeploymentHistory, error) {
-	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "FullModeFluxDeploymentServiceImpl.GetDeploymentHistory")
-	defer span.End()
-	return impl.appStoreDeploymentCommonService.GetDeploymentHistoryFromDB(newCtx, installedApp)
-}
-
-func (impl *FullModeFluxDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, version int32) (*openapi.HelmAppDeploymentManifestDetail, error) {
-	return impl.appStoreDeploymentCommonService.GetDeploymentHistoryInfoFromDB(ctx, installedApp, version)
+	return nil, false, errors.New("this is not implemented")
 }

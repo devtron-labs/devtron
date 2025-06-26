@@ -40,6 +40,7 @@ import (
 
 type DeploymentService interface {
 	DeployFluxCdApp(ctx context.Context, request *DeploymentRequest) error
+	DeleteFluxDeploymentApp(ctx context.Context, request *DeploymentAppDeleteRequest) error
 }
 
 type DeploymentServiceImpl struct {
@@ -67,6 +68,11 @@ type DeploymentRequest struct {
 	ClusterConfig    *k8s.ClusterConfig
 	DeploymentConfig *bean.DeploymentConfig
 	IsAppCreated     bool
+}
+
+type DeploymentAppDeleteRequest struct {
+	ClusterConfig    *k8s.ClusterConfig
+	DeploymentConfig *bean.DeploymentConfig
 }
 
 func GetValuesFileArrForDevtronInlineApps(chartLocation string) []string {
@@ -110,16 +116,6 @@ func (impl *DeploymentServiceImpl) DeployFluxCdApp(ctx context.Context, request 
 		}
 	}
 	return nil
-}
-
-func getClient(config *rest.Config) (client.Client, error) {
-	scheme := runtime.NewScheme()
-	// Register core Kubernetes types
-	_ = v1.AddToScheme(scheme)
-	// Register Flux types
-	_ = sourcev1.AddToScheme(scheme)
-	_ = helmv2.AddToScheme(scheme)
-	return client.New(config, client.Options{Scheme: scheme})
 }
 
 func (impl *DeploymentServiceImpl) upsertGitRepoSecret(ctx context.Context, fluxCdSpec bean.FluxCDSpec, clusterConfig *k8s.ClusterConfig) (*v1.Secret, error) {
@@ -349,4 +345,61 @@ func (impl *DeploymentServiceImpl) UpdateHelmRelease(ctx context.Context, fluxCd
 		return nil, fmt.Errorf("failed to update HelmRelease: %w", err)
 	}
 	return existing, nil
+}
+
+func (impl *DeploymentServiceImpl) DeleteFluxDeploymentApp(ctx context.Context, request *DeploymentAppDeleteRequest) error {
+	fluxCdSpec := request.DeploymentConfig.ReleaseConfiguration.FluxCDSpec
+	clusterId := fluxCdSpec.ClusterId
+	namespace := fluxCdSpec.Namespace
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(request.ClusterConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config", "clusterId", clusterId, "err", err)
+		return err
+	}
+	apiClient, err := getClient(restConfig)
+	if err != nil {
+		impl.logger.Errorw("error in creating k8s client", "clusterId", clusterId, "err", err)
+		return err
+	}
+	name, namespace := fluxCdSpec.GitRepositoryName, fluxCdSpec.Namespace
+	key := types.NamespacedName{Name: name, Namespace: namespace}
+
+	existingHelmRelease := &helmv2.HelmRelease{}
+	err = apiClient.Get(ctx, key, existingHelmRelease)
+	if err != nil {
+		impl.logger.Errorw("error in getting helm release", "key", key, "err", err)
+		return err
+	}
+	err = apiClient.Delete(ctx, existingHelmRelease)
+	if err != nil {
+		impl.logger.Errorw("error in deleting helm release", "key", key, "err", err)
+		return err
+	}
+
+	existingGitRepository := &sourcev1.GitRepository{}
+	err = apiClient.Get(ctx, key, existingGitRepository)
+	if err != nil {
+		impl.logger.Errorw("error in getting git repository", "key", key, "err", err)
+		return err
+	}
+	err = apiClient.Delete(ctx, existingGitRepository)
+	if err != nil {
+		impl.logger.Errorw("error in deleting git repository", "name", name, "namespace", namespace, "err", err)
+		return err
+	}
+	return nil
+}
+
+func getClient(config *rest.Config) (client.Client, error) {
+	return client.New(config, client.Options{Scheme: getSchemeWithFluxCRDTypes()})
+}
+
+func getSchemeWithFluxCRDTypes() *runtime.Scheme {
+	scheme := runtime.NewScheme()
+	// Register core Kubernetes types
+	_ = v1.AddToScheme(scheme)
+	// Register Flux types
+	_ = sourcev1.AddToScheme(scheme)
+	_ = helmv2.AddToScheme(scheme)
+	return scheme
 }

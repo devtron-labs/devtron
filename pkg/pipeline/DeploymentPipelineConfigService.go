@@ -32,6 +32,7 @@ import (
 	read4 "github.com/devtron-labs/devtron/api/helm-app/service/read"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	bean7 "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/client/fluxcd"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -203,6 +204,7 @@ type CdPipelineConfigServiceImpl struct {
 	chartReadService                  read3.ChartReadService
 	helmAppReadService                read4.HelmAppReadService
 	K8sUtil                           *k8s.K8sServiceImpl
+	fluxCDDeploymentService           fluxcd.DeploymentService
 }
 
 func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -237,7 +239,8 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 	installedAppReadService installedAppReader.InstalledAppReadService,
 	chartReadService read3.ChartReadService,
 	helmAppReadService read4.HelmAppReadService,
-	K8sUtil *k8s.K8sServiceImpl) *CdPipelineConfigServiceImpl {
+	K8sUtil *k8s.K8sServiceImpl,
+	fluxCDDeploymentService fluxcd.DeploymentService) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
 		logger:                            logger,
 		pipelineRepository:                pipelineRepository,
@@ -284,6 +287,7 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 		chartReadService:                  chartReadService,
 		helmAppReadService:                helmAppReadService,
 		K8sUtil:                           K8sUtil,
+		fluxCDDeploymentService:           fluxCDDeploymentService,
 	}
 }
 
@@ -1542,7 +1546,15 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 				impl.logger.Infow("app deleted from argocd", "id", pipeline.Id, "pipelineName", pipeline.Name, "app", deploymentAppName)
 			}
 		} else if util.IsFluxApp(envDeploymentConfig.DeploymentAppType) {
-			err = impl.DeleteFluxTypePipelineDeploymentApp(ctx, envDeploymentConfig)
+			clusterConfig, err := impl.clusterReadService.GetClusterConfigByClusterId(clusterBean.Id)
+			if err != nil {
+				impl.logger.Errorw("error, GetClusterConfigByClusterId", "clusterId", clusterBean.Id, "err", err)
+				return nil, err
+			}
+			err = impl.fluxCDDeploymentService.DeleteFluxDeploymentApp(ctx, &fluxcd.DeploymentAppDeleteRequest{
+				ClusterConfig:    clusterConfig,
+				DeploymentConfig: envDeploymentConfig,
+			})
 			if err != nil {
 				impl.logger.Errorw("error, DeleteFluxTypePipelineDeploymentApp", "err", err, "pipelineId", pipeline.Id)
 				if !forceDelete {

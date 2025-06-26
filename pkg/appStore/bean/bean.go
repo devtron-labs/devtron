@@ -198,6 +198,7 @@ type InstalledAppDeploymentAction struct {
 	PerformGitOps           bool
 	PerformACDDeployment    bool
 	PerformHelmDeployment   bool
+	PerformFluxDeployment   bool
 }
 
 type InstalledAppDeleteResponseDTO struct {
