@@ -67,7 +67,7 @@ import (
 	"helm.sh/helm/v3/pkg/chart"
 )
 
-func (impl *HandlerServiceImpl) TriggerStageForBulk(triggerRequest bean.TriggerRequest) error {
+func (impl *HandlerServiceImpl) TriggerStageForBulk(triggerRequest bean.CdTriggerRequest) error {
 
 	preStage, err := impl.pipelineStageService.GetCdStageByCdPipelineIdAndStageType(triggerRequest.Pipeline.Id, repository.PIPELINE_STAGE_TYPE_PRE_CD, false)
 	if err != nil && err != pg.ErrNoRows {
@@ -228,7 +228,7 @@ func (impl *HandlerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		overrideRequest.CdWorkflowId = cdWf.Id
 
 		_, span = otel.Tracer("orchestrator").Start(ctx, "TriggerPreStage")
-		triggerRequest := bean.TriggerRequest{
+		triggerRequest := bean.CdTriggerRequest{
 			CdWf:                  cdWf,
 			Artifact:              artifact,
 			Pipeline:              cdPipeline,
@@ -357,7 +357,7 @@ func (impl *HandlerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			}
 		}
 		_, span = otel.Tracer("orchestrator").Start(ctx, "TriggerPostStage")
-		triggerRequest := bean.TriggerRequest{
+		triggerRequest := bean.CdTriggerRequest{
 			CdWf:                  cdWf,
 			Pipeline:              cdPipeline,
 			TriggeredBy:           overrideRequest.UserId,
@@ -383,7 +383,7 @@ func isNotHibernateRequest(deploymentType models.DeploymentType) bool {
 }
 
 // TODO: write a wrapper to handle auto and manual trigger
-func (impl *HandlerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerRequest) error {
+func (impl *HandlerServiceImpl) TriggerAutomaticDeployment(request bean.CdTriggerRequest) error {
 	// in case of manual trigger auth is already applied and for auto triggers there is no need for auth check here
 	triggeredBy := request.TriggeredBy
 	pipeline := request.Pipeline
