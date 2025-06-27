@@ -2,6 +2,7 @@
 - feat: add app name in labels list api (#6688)
 - feat: Audit ci trigger, precd and post cd trigger so that retrigger can happen from last failed config snapshot  (#6659)
 ## Bugs
+- fix: app clone panic (#6696)
 - fix: Spdy migration to websocket (#6682)
 - fix: Fix scanning optimisation (#6683)
 - fix: panic in logs api (#6684)
