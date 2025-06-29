@@ -10,7 +10,7 @@
   ],
   "properties": {
     "apiVersion": {
-      "const": "batch/v1beta1"
+      "const": "v1beta1"
     },
     "kind": {
       "const": "Application"

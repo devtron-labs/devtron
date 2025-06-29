@@ -19,7 +19,6 @@ package service
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -68,7 +67,7 @@ import (
 )
 
 type BulkUpdateService interface {
-	FindBulkUpdateReadme(operation string) (response *bean4.BulkUpdateSeeExampleResponse, err error)
+	GetBulkEditConfig(apiVersion, kind string) (response *bean4.BulkEditConfigResponse, err error)
 	GetBulkAppName(bulkUpdateRequest *bean4.BulkUpdatePayload) (*bean4.ImpactedObjectsResponse, error)
 	ApplyJsonPatch(patch jsonpatch.Patch, target string) (string, error)
 	BulkUpdateDeploymentTemplate(ctx context.Context, bulkUpdatePayload *bean4.BulkUpdatePayload, userMetadata *bean6.UserMetadata) *bean4.DeploymentTemplateBulkUpdateResponse
@@ -84,6 +83,8 @@ type BulkUpdateService interface {
 
 	GetBulkActionImpactedPipelinesAndWfs(dto *bean4.CdBulkActionRequestDto) ([]*pipelineConfig.Pipeline, []int, []int, error)
 	PerformBulkActionOnCdPipelines(dto *bean4.CdBulkActionRequestDto, impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool, impactedAppWfIds []int, impactedCiPipelineIds []int) (*bean4.PipelineAndWfBulkActionResponseDto, error)
+	// BulkUpdateServiceEnt is the interface for the bulk update service in the Ent version
+	BulkUpdateServiceEnt
 }
 
 type BulkUpdateServiceImpl struct {
@@ -158,23 +159,23 @@ const (
 	Skipped            = "skipped"
 )
 
-func (impl BulkUpdateServiceImpl) FindBulkUpdateReadme(operation string) (*bean4.BulkUpdateSeeExampleResponse, error) {
-	bulkUpdateReadme, err := impl.bulkUpdateRepository.FindBulkUpdateReadme(operation)
-	response := &bean4.BulkUpdateSeeExampleResponse{}
+func (impl BulkUpdateServiceImpl) GetBulkEditConfig(apiVersion, kind string) (*bean4.BulkEditConfigResponse, error) {
+	bulkEditConfig, err := impl.bulkUpdateRepository.FindBulkEditConfig(apiVersion, kind)
+	response := &bean4.BulkEditConfigResponse{}
 	if err != nil {
 		impl.logger.Errorw("error in fetching batch operation example", "err", err)
 		return response, err
 	}
-	script := &bean4.BulkUpdateScript{}
-	err = json.Unmarshal([]byte(bulkUpdateReadme.Script), &script)
-	if err != nil {
-		impl.logger.Errorw("error in script value(in db) of batch operation example", "err", err)
-		return response, err
+	// script is only maintained for backward compatibility,
+	// there is valid usage of this field in the UI.
+	script := &bean4.BulkUpdateScript{
+		ApiVersion: bulkEditConfig.ApiVersion,
+		Kind:       bulkEditConfig.Kind,
 	}
-	response = &bean4.BulkUpdateSeeExampleResponse{
-		Operation: bulkUpdateReadme.Resource,
+	response = &bean4.BulkEditConfigResponse{
+		Operation: fmt.Sprintf("%s/%s", bulkEditConfig.ApiVersion, bulkEditConfig.Kind),
 		Script:    script,
-		ReadMe:    bulkUpdateReadme.Readme,
+		ReadMe:    bulkEditConfig.Readme,
 	}
 	return response, nil
 }

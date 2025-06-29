@@ -60,16 +60,15 @@ type BulkUpdateRestHandler interface {
 
 type BulkEditRestHandler interface {
 	BulkEditV1Beta1RestHandler
-	BulkEditV1Beta2RestHandler
+	// BulkEditV1Beta2RestHandlerEnt interface that defines the methods for bulk edit v1beta2.
+	// v1beta2 is an Ent only version, so it does not have a separate interface.
+	BulkEditV1Beta2RestHandlerEnt
 }
 
 type BulkEditV1Beta1RestHandler interface {
 	FindBulkUpdateReadme(w http.ResponseWriter, r *http.Request)
 	GetImpactedAppsName(w http.ResponseWriter, r *http.Request)
 	BulkUpdate(w http.ResponseWriter, r *http.Request)
-}
-
-type BulkEditV1Beta2RestHandler interface {
 }
 
 type BulkUpdateRestHandlerImpl struct {
@@ -137,18 +136,16 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logg
 }
 
 func (handler BulkUpdateRestHandlerImpl) FindBulkUpdateReadme(w http.ResponseWriter, r *http.Request) {
-	var operation string
 	vars := mux.Vars(r)
 	apiVersion := vars["apiVersion"]
 	kind := vars["kind"]
-	operation = fmt.Sprintf("%s/%s", apiVersion, kind)
-	response, err := handler.bulkUpdateService.FindBulkUpdateReadme(operation)
+	response, err := handler.bulkUpdateService.GetBulkEditConfig(apiVersion, kind)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	//auth free, only login required
-	var responseArr []*bean.BulkUpdateSeeExampleResponse
+	// auth free, only login required
+	var responseArr []*bean.BulkEditConfigResponse
 	responseArr = append(responseArr, response)
 	common.WriteJsonResp(w, nil, responseArr, http.StatusOK)
 }
