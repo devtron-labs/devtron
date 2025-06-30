@@ -274,12 +274,18 @@ argo-cd:
       # -- If defined, a repository applied to all Argo CD deployments
       repository: quay.io/argoproj/argocd
       # -- Overrides the global Argo CD image tag whose default is the chart appVersion
-      tag: "v2.5.2"
+      tag: "v2.13.3"
       # -- If defined, a imagePullPolicy applied to all Argo CD deployments
       imagePullPolicy: IfNotPresent
   configs:
     secret:
       createSecret: false
+    cm:
+      create: false
+    # argocd-rbac-cm
+    rbac:
+      create: true
+      policy.default: role:admin
   # argocd-application-controller
   controller:
     args:
@@ -342,7 +348,6 @@ argo-cd:
       tag: 7.0.5-alpine
   # argocd-server
   server:
-    configEnabled: false
     affinity:
       podAntiAffinity:
         preferredDuringSchedulingIgnoredDuringExecution:
@@ -365,9 +370,6 @@ argo-cd:
           - all
       readOnlyRootFilesystem: true
       runAsNonRoot: true
-    # argocd-rbac-cm
-    rbacConfig:
-      policy.default: role:admin
   # argocd-repo-server
   repoServer:
     affinity:
@@ -401,7 +403,7 @@ argo-cd:
       readOnlyRootFilesystem: true
       runAsNonRoot: true
   applicationSet:
-    enabled: false
+    replicas: 0
   notifications:
     enabled: false
 # Values for security integration
