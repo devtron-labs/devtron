@@ -313,7 +313,7 @@ func (impl *DeploymentServiceImpl) CreateHelmRelease(ctx context.Context, fluxCd
 
 func (impl *DeploymentServiceImpl) UpdateHelmRelease(ctx context.Context, fluxCdSpec bean.FluxCDSpec,
 	apiClient client.Client) (*helmv2.HelmRelease, error) {
-	name, namespace := fluxCdSpec.GitRepositoryName, fluxCdSpec.HelmReleaseNamespace
+	name, namespace := fluxCdSpec.HelmReleaseName, fluxCdSpec.HelmReleaseNamespace
 	key := types.NamespacedName{Name: name, Namespace: namespace}
 	existing := &helmv2.HelmRelease{}
 
