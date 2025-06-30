@@ -102,14 +102,22 @@ func NewInstalledAppDeploymentAction(deploymentAppType string) *appStoreBean.Ins
 		installedAppDeploymentAction.PerformGitOps = true
 		installedAppDeploymentAction.PerformACDDeployment = true
 		installedAppDeploymentAction.PerformHelmDeployment = false
+		installedAppDeploymentAction.PerformFluxDeployment = false
+	case util.PIPELINE_DEPLOYMENT_TYPE_FLUX:
+		installedAppDeploymentAction.PerformGitOps = true
+		installedAppDeploymentAction.PerformFluxDeployment = true
+		installedAppDeploymentAction.PerformACDDeployment = false
+		installedAppDeploymentAction.PerformHelmDeployment = false
 	case util.PIPELINE_DEPLOYMENT_TYPE_HELM:
 		installedAppDeploymentAction.PerformGitOps = false
 		installedAppDeploymentAction.PerformACDDeployment = false
 		installedAppDeploymentAction.PerformHelmDeployment = true
+		installedAppDeploymentAction.PerformFluxDeployment = false
 	case util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD:
 		installedAppDeploymentAction.PerformGitOps = false
 		installedAppDeploymentAction.PerformHelmDeployment = false
 		installedAppDeploymentAction.PerformACDDeployment = false
+		installedAppDeploymentAction.PerformFluxDeployment = false
 	}
 	return installedAppDeploymentAction
 }

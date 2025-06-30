@@ -398,6 +398,11 @@ func NewMigrateExternalAppValidationRequest(pipeline *bean.CDPipelineConfigObjec
 			ReleaseClusterId: env.ClusterId,
 			ReleaseNamespace: env.Namespace,
 		}
+	} else if pipeline.DeploymentAppType == bean3.PIPELINE_DEPLOYMENT_TYPE_FLUX {
+		request.FluxReleaseMetadataRequest = pipelineConfigBean.FluxReleaseMetadataRequest{
+			ReleaseClusterId: env.ClusterId,
+			ReleaseNamespace: env.Namespace,
+		}
 	}
 	return request
 }

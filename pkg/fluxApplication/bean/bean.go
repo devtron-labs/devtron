@@ -34,6 +34,8 @@ type FluxApplicationDetailDto struct {
 	*FluxApplication
 	FluxAppStatusDetail  *FluxAppStatusDetail
 	ResourceTreeResponse *gRPC.ResourceTreeResponse `json:"resourceTree"`
+	AppHealthStatus      string                     `json:"appHealthStatus"`
+	LastObservedVersion  string                     `json:"lastObservedVersion"`
 }
 
 type FluxAppStatusDetail struct {

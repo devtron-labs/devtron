@@ -43,7 +43,7 @@ type ManifestPushTemplate struct {
 	BuiltChartPath         string
 	BuiltChartBytes        *[]byte
 	MergedValues           string
-	IsArgoSyncSupported    bool
+	ArgoSyncNeeded         bool
 }
 
 type ManifestPushResponse struct {

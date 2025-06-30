@@ -5,6 +5,7 @@ import (
 	apiGitOpsBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/util"
 	globalUtil "github.com/devtron-labs/devtron/util"
+	"path"
 	"strconv"
 	"strings"
 )
@@ -18,6 +19,30 @@ const (
 type ReleaseConfiguration struct {
 	Version    ReleaseConfigVersion `json:"version"`
 	ArgoCDSpec ArgoCDSpec           `json:"argoCDSpec"`
+	FluxCDSpec FluxCDSpec           `json:"fluxCDSpec"`
+}
+
+type FluxCDSpec struct {
+	ClusterId              int    `json:"clusterId"`
+	HelmReleaseNamespace   string `json:"helmReleaseNamespace"`
+	GitRepositoryName      string `json:"gitRepositoryName"`
+	GitRepositoryNamespace string `json:"gitRepositoryNamespace"`
+	HelmReleaseName        string `json:"helmReleaseName"`
+	GitOpsSecretName       string `json:"gitOpsSecretName"` //fmt.Sprintf("devtron-flux-secret-%d", gitOpsConfig.Id)
+
+	ChartLocation          string   `json:"chartLocation"`
+	ChartVersion           string   `json:"chartVersion"`
+	RevisionTarget         string   `json:"revisionTarget"`
+	RepoUrl                string   `json:"repoUrl"`
+	DevtronValueFile       string   `json:"devtronValueFile"`
+	HelmReleaseValuesFiles []string `json:"helmReleaseValuesFiles"` //getValuesFileArr
+	ExtFluxValues          string   `json:"extFluxValues"`
+}
+
+func (f *FluxCDSpec) GetFinalValuesFilePathArray() []string {
+	//here our understanding is that devtron will always commit at chartLocation/devtronValueFile path
+	//and apart from this there might be some other value files too, that are required for the chart to function
+	return append(f.HelmReleaseValuesFiles, path.Join(f.ChartLocation, f.DevtronValueFile))
 }
 
 type ArgoCDSpec struct {
@@ -172,6 +197,14 @@ func (d *DeploymentConfig) IsAcdRelease() bool {
 	return d.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD
 }
 
+func (d *DeploymentConfig) IsFluxCDRelease() bool {
+	return d.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_FLUX
+}
+
+func (d *DeploymentConfig) IsFluxRelease() bool {
+	return d.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_FLUX
+}
+
 func (d *DeploymentConfig) IsLinkedRelease() bool {
 	return d.ReleaseMode == util.PIPELINE_RELEASE_MODE_LINK
 }
@@ -181,7 +214,7 @@ func (d *DeploymentConfig) IsArgoCdClientSupported() bool {
 }
 
 func (d *DeploymentConfig) IsArgoAppSyncAndRefreshSupported() bool {
-	return d.IsAcdRelease() && !d.IsLinkedRelease()
+	return d.IsAcdRelease() && d.IsFluxCDRelease() && !d.IsLinkedRelease()
 }
 
 func (d *DeploymentConfig) IsArgoAppPatchSupported() bool {
@@ -210,6 +243,11 @@ func (d *DeploymentConfig) IsPipelineGitOpsRepoConfigured(isAppLevelGitOpsConfig
 }
 
 func (d *DeploymentConfig) GetRepoURL() string {
+
+	if d.IsFluxRelease() && d.ReleaseConfiguration != nil {
+		return d.ReleaseConfiguration.FluxCDSpec.RepoUrl
+	}
+
 	if d.ReleaseConfiguration == nil || d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil {
 		return d.RepoURL
 	}
@@ -217,6 +255,9 @@ func (d *DeploymentConfig) GetRepoURL() string {
 }
 
 func (d *DeploymentConfig) GetTargetRevision() string {
+	if d.IsFluxRelease() && d.ReleaseConfiguration != nil {
+		return d.ReleaseConfiguration.FluxCDSpec.RevisionTarget
+	}
 	if d.ReleaseConfiguration == nil ||
 		d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil ||
 		len(d.ReleaseConfiguration.ArgoCDSpec.Spec.Source.TargetRevision) == 0 {
@@ -225,7 +266,11 @@ func (d *DeploymentConfig) GetTargetRevision() string {
 	return d.ReleaseConfiguration.ArgoCDSpec.Spec.Source.TargetRevision
 }
 
-func (d *DeploymentConfig) GetValuesFilePath() string {
+func (d *DeploymentConfig) GetValuesFilePathForCommit() string {
+	if d.IsFluxRelease() && d.ReleaseConfiguration != nil {
+		// We will commit values in last file of array
+		return d.ReleaseConfiguration.FluxCDSpec.DevtronValueFile
+	}
 	if d.ReleaseConfiguration == nil || d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil {
 		return ""
 	}
@@ -238,6 +283,9 @@ func (d *DeploymentConfig) GetValuesFilePath() string {
 }
 
 func (d *DeploymentConfig) GetChartLocation() string {
+	if d.IsFluxRelease() && d.ReleaseConfiguration != nil {
+		return d.ReleaseConfiguration.FluxCDSpec.ChartLocation
+	}
 	if d.ReleaseConfiguration == nil || d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil {
 		return ""
 	}
@@ -246,6 +294,10 @@ func (d *DeploymentConfig) GetChartLocation() string {
 
 func (d *DeploymentConfig) SetRepoURL(repoURL string) *DeploymentConfig {
 	d.RepoURL = repoURL // maintain for backward compatibility
+	if d.IsFluxRelease() && d.ReleaseConfiguration != nil {
+		d.ReleaseConfiguration.FluxCDSpec.RepoUrl = repoURL
+		return d
+	}
 	if d.ReleaseConfiguration == nil || d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil {
 		return d
 	}
@@ -254,17 +306,32 @@ func (d *DeploymentConfig) SetRepoURL(repoURL string) *DeploymentConfig {
 }
 
 func (d *DeploymentConfig) SetChartLocation(chartLocation string) {
-	if d.ReleaseConfiguration == nil || d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil {
+	if d.IsFluxRelease() && d.ReleaseConfiguration != nil {
+		d.ReleaseConfiguration.FluxCDSpec.ChartLocation = chartLocation
+		return
+	}
+	if d.ReleaseConfiguration == nil ||
+		(d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil &&
+			len(d.ReleaseConfiguration.FluxCDSpec.ChartLocation) == 0) {
 		return
 	}
 	d.ReleaseConfiguration.ArgoCDSpec.Spec.Source.Path = chartLocation
 }
 
 func (d *DeploymentConfig) GetRevision() string {
+	if d.IsFluxRelease() && d.ReleaseConfiguration != nil {
+		return d.ReleaseConfiguration.FluxCDSpec.RevisionTarget
+	}
+
 	if d.ReleaseConfiguration == nil || d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil {
 		return ""
 	}
-	return d.ReleaseConfiguration.ArgoCDSpec.Spec.Source.TargetRevision
+	if d.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		return d.ReleaseConfiguration.ArgoCDSpec.Spec.Source.TargetRevision
+	} else if d.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_FLUX {
+		return d.ReleaseConfiguration.FluxCDSpec.RevisionTarget
+	}
+	return ""
 }
 
 func (d *DeploymentConfig) GetAcdAppName() string {

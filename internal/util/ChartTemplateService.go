@@ -40,6 +40,7 @@ import (
 
 const (
 	PIPELINE_DEPLOYMENT_TYPE_ACD               = "argo_cd"
+	PIPELINE_DEPLOYMENT_TYPE_FLUX              = "flux_cd"
 	PIPELINE_DEPLOYMENT_TYPE_HELM              = "helm"
 	PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD = "manifest_download"
 	PIPELINE_DEPLOYMENT_TYPE_MANIFEST_PUSH     = "manifest_push"
@@ -448,6 +449,10 @@ func IsHelmApp(deploymentAppType string) bool {
 
 func IsAcdApp(deploymentAppType string) bool {
 	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_ACD
+}
+
+func IsFluxApp(deploymentAppType string) bool {
+	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_FLUX
 }
 
 // TODO refactoring: This feature belongs to enterprise only

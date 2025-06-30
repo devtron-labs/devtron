@@ -46,6 +46,10 @@ func (impl *CommonBaseServiceImpl) isGitOpsEnable() (*FeatureGitOpsVariables, er
 	featureGitOpsFlags := &FeatureGitOpsVariables{
 		IsFeatureArgoCdMigrationEnabled: impl.globalEnvVariables.DeploymentServiceTypeConfig.IsFeatureMigrateArgoCdApplicationEnable(),
 	}
+	if impl.globalEnvVariables.DeploymentServiceTypeConfig.FeatureMigrateFluxApplicationEnable {
+		featureGitOpsFlags.IsFeatureGitOpsEnabled = true
+		featureGitOpsFlags.IsFeatureUserDefinedGitOpsEnabled = true
+	}
 	argoModule, err := impl.moduleReadService.GetModuleInfoByName(bean.ModuleNameArgoCd)
 	if err != nil && !errors.Is(err, moduleErr.ModuleNotFoundError) {
 		impl.logger.Errorw("error in getting argo module", "error", err)

@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"github.com/juju/errors"
@@ -68,6 +69,7 @@ type PipelineOverrideRepository interface {
 	GetByPipelineIdAndReleaseNo(pipelineId, releaseNo int) (pipelineOverrides []*PipelineOverride, err error)
 	GetAllRelease(appId, environmentId int) (pipelineOverrides []*PipelineOverride, err error)
 	FindByPipelineTriggerGitHash(gitHash string) (pipelineOverride *PipelineOverride, err error)
+	FindByPipelineLikeTriggerGitHash(gitHash string) (pipelineOverride *PipelineOverride, err error)
 	GetLatestRelease(appId, environmentId int) (pipelineOverrides *PipelineOverride, err error)
 	GetLatestReleaseForAppIds(appIds []int, envId int) (pipelineOverrides []*PipelineConfigOverrideMetadata, err error)
 	FindById(id int) (*PipelineOverride, error)
@@ -283,6 +285,16 @@ func (impl PipelineOverrideRepositoryImpl) FindByPipelineTriggerGitHash(gitHash 
 	err = impl.dbConnection.Model(pipelineOverride).
 		Column("pipeline_override.*", "Pipeline", "CiArtifact").
 		Where("pipeline_override.git_hash =?", gitHash).
+		Order("id DESC").Limit(1).
+		Select()
+	return pipelineOverride, err
+}
+
+func (impl PipelineOverrideRepositoryImpl) FindByPipelineLikeTriggerGitHash(gitHash string) (pipelineOverride *PipelineOverride, err error) {
+	pipelineOverride = &PipelineOverride{}
+	err = impl.dbConnection.Model(pipelineOverride).
+		Column("pipeline_override.*", "Pipeline", "CiArtifact").
+		Where("pipeline_override.git_hash LIKE ?", util2.GetLIKEClauseQueryParamEnd(gitHash)).
 		Order("id DESC").Limit(1).
 		Select()
 	return pipelineOverride, err

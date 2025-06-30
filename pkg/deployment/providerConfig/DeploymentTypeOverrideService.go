@@ -62,6 +62,7 @@ func (impl *DeploymentTypeOverrideServiceImpl) ValidateAndOverrideDeploymentAppT
 	AllowedDeploymentAppTypes := map[string]bool{
 		util2.PIPELINE_DEPLOYMENT_TYPE_ACD:  true,
 		util2.PIPELINE_DEPLOYMENT_TYPE_HELM: true,
+		util2.PIPELINE_DEPLOYMENT_TYPE_FLUX: true,
 	}
 	for k, v := range deploymentTypeValidationConfig {
 		// rewriting allowed deployment types based on config provided by user
@@ -72,11 +73,15 @@ func (impl *DeploymentTypeOverrideServiceImpl) ValidateAndOverrideDeploymentAppT
 			overrideDeploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_ACD
 		} else if AllowedDeploymentAppTypes[util2.PIPELINE_DEPLOYMENT_TYPE_HELM] {
 			overrideDeploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_HELM
+		} else if AllowedDeploymentAppTypes[util2.PIPELINE_DEPLOYMENT_TYPE_FLUX] {
+			overrideDeploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_FLUX
 		}
 	}
 	if deploymentType == "" {
 		if isGitOpsConfigured && AllowedDeploymentAppTypes[util2.PIPELINE_DEPLOYMENT_TYPE_ACD] {
 			overrideDeploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_ACD
+		} else if isGitOpsConfigured && AllowedDeploymentAppTypes[util2.PIPELINE_DEPLOYMENT_TYPE_FLUX] {
+			overrideDeploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_FLUX
 		} else if AllowedDeploymentAppTypes[util2.PIPELINE_DEPLOYMENT_TYPE_HELM] {
 			overrideDeploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_HELM
 		}
@@ -85,7 +90,7 @@ func (impl *DeploymentTypeOverrideServiceImpl) ValidateAndOverrideDeploymentAppT
 		impl.logger.Errorw("validation error for the given deployment type", "deploymentType", deploymentType, "err", err)
 		return overrideDeploymentType, err
 	}
-	if !isGitOpsConfigured && util2.IsAcdApp(overrideDeploymentType) {
+	if !isGitOpsConfigured && util2.IsAcdApp(overrideDeploymentType) && util2.IsFluxApp(overrideDeploymentType) {
 		impl.logger.Errorw("GitOps not configured but selected as a deployment app type")
 		err = &util2.ApiError{
 			HttpStatusCode:  http.StatusBadRequest,

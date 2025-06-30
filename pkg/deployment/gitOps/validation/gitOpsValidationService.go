@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	gitOpsBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation/bean"
 	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
@@ -180,7 +181,7 @@ func (impl *GitOpsValidationServiceImpl) ValidateGitOpsRepoUrl(request *gitOpsBe
 	// Validate: Organisational URL ends
 
 	// Validate: Unique GitOps repository URL starts
-	isValid := impl.validateUniqueGitOpsRepo(sanitiseGitRepoUrl)
+	isValid := impl.validateUniqueGitOpsRepo(sanitiseGitRepoUrl, request.AppId)
 	if !isValid {
 		impl.logger.Errorw("git repo url already exists", "repo url", request.RequestedGitUrl)
 		errMsg := fmt.Sprintf("invalid git repository! '%s' is already in use by another application! Use a different repository", request.RequestedGitUrl)
@@ -290,14 +291,14 @@ func (impl *GitOpsValidationServiceImpl) validateForGitOpsOrg(request *gitOpsBea
 
 func (impl *GitOpsValidationServiceImpl) extractErrorMessageByProvider(err error, provider string) error {
 	switch provider {
-	case git.GITLAB_PROVIDER:
+	case bean2.GITLAB_PROVIDER:
 		errorResponse, ok := err.(*gitlab.ErrorResponse)
 		if ok {
 			errorMessage := fmt.Errorf("gitlab client error: %s", errorResponse.Message)
 			return errorMessage
 		}
 		return fmt.Errorf("gitlab client error: %s", err.Error())
-	case git.AZURE_DEVOPS_PROVIDER:
+	case bean2.AZURE_DEVOPS_PROVIDER:
 		if errorResponse, ok := err.(azuredevops.WrappedError); ok {
 			errorMessage := fmt.Errorf("azure devops client error: %s", *errorResponse.Message)
 			return errorMessage
@@ -306,9 +307,9 @@ func (impl *GitOpsValidationServiceImpl) extractErrorMessageByProvider(err error
 			return errorMessage
 		}
 		return fmt.Errorf("azure devops client error: %s", err.Error())
-	case git.BITBUCKET_PROVIDER:
+	case bean2.BITBUCKET_PROVIDER:
 		return fmt.Errorf("bitbucket client error: %s", err.Error())
-	case git.GITHUB_PROVIDER:
+	case bean2.GITHUB_PROVIDER:
 		return fmt.Errorf("github client error: %s", err.Error())
 	}
 	return err
@@ -328,19 +329,19 @@ func (impl *GitOpsValidationServiceImpl) convertDetailedErrorToResponse(detailed
 func (impl *GitOpsValidationServiceImpl) getValidationErrorForNonOrganisationalURL(activeGitOpsConfig *apiBean.GitOpsConfigDto) error {
 	var errorMessageKey, errorMessage string
 	switch strings.ToUpper(activeGitOpsConfig.Provider) {
-	case git.GITHUB_PROVIDER:
+	case bean2.GITHUB_PROVIDER:
 		errorMessageKey = "The repository must belong to GitHub organization"
 		errorMessage = fmt.Sprintf("%s as configured in global configurations > GitOps", activeGitOpsConfig.GitHubOrgId)
 
-	case git.GITLAB_PROVIDER:
+	case bean2.GITLAB_PROVIDER:
 		errorMessageKey = "The repository must belong to gitLab Group ID"
 		errorMessage = fmt.Sprintf("%s as configured in global configurations > GitOps", activeGitOpsConfig.GitHubOrgId)
 
-	case git.BITBUCKET_PROVIDER:
+	case bean2.BITBUCKET_PROVIDER:
 		errorMessageKey = "The repository must belong to BitBucket Workspace"
 		errorMessage = fmt.Sprintf("%s as configured in global configurations > GitOps", activeGitOpsConfig.BitBucketWorkspaceId)
 
-	case git.AZURE_DEVOPS_PROVIDER:
+	case bean2.AZURE_DEVOPS_PROVIDER:
 		errorMessageKey = "The repository must belong to Azure DevOps Project"
 		errorMessage = fmt.Sprintf("%s as configured in global configurations > GitOps", activeGitOpsConfig.AzureProjectName)
 	}
@@ -349,12 +350,12 @@ func (impl *GitOpsValidationServiceImpl) getValidationErrorForNonOrganisationalU
 		WithCode(constants.GitOpsOrganisationMismatch)
 }
 
-func (impl *GitOpsValidationServiceImpl) validateUniqueGitOpsRepo(repoUrl string) (isValid bool) {
-	isDevtronAppRegistered, err := impl.chartService.IsGitOpsRepoAlreadyRegistered(repoUrl)
+func (impl *GitOpsValidationServiceImpl) validateUniqueGitOpsRepo(repoUrl string, appId int) (isValid bool) {
+	isDevtronAppRegistered, err := impl.chartService.IsGitOpsRepoAlreadyRegistered(repoUrl, appId)
 	if err != nil || isDevtronAppRegistered {
 		return isValid
 	}
-	isHelmAppRegistered, err := impl.installedAppService.IsGitOpsRepoAlreadyRegistered(repoUrl)
+	isHelmAppRegistered, err := impl.installedAppService.IsGitOpsRepoAlreadyRegistered(repoUrl, appId)
 	if err != nil || isHelmAppRegistered {
 		return isValid
 	}
