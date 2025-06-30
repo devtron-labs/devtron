@@ -68,7 +68,7 @@ import (
 
 type BulkUpdateService interface {
 	GetBulkEditConfig(apiVersion, kind string) (response *bean4.BulkEditConfigResponse, err error)
-	GetBulkAppName(bulkUpdateRequest *bean4.BulkUpdatePayload) (*bean4.ImpactedObjectsResponse, error)
+	DryRunBulkEdit(bulkUpdateRequest *bean4.BulkUpdatePayload) (*bean4.ImpactedObjectsResponse, error)
 	ApplyJsonPatch(patch jsonpatch.Patch, target string) (string, error)
 	BulkUpdateDeploymentTemplate(ctx context.Context, bulkUpdatePayload *bean4.BulkUpdatePayload, userMetadata *bean6.UserMetadata) *bean4.DeploymentTemplateBulkUpdateResponse
 	BulkUpdateConfigMap(ctx context.Context, bulkUpdatePayload *bean4.BulkUpdatePayload, userMetadata *bean6.UserMetadata) *bean4.CmAndSecretBulkUpdateResponse
@@ -180,7 +180,7 @@ func (impl BulkUpdateServiceImpl) GetBulkEditConfig(apiVersion, kind string) (*b
 	return response, nil
 }
 
-func (impl BulkUpdateServiceImpl) GetBulkAppName(bulkUpdatePayload *bean4.BulkUpdatePayload) (*bean4.ImpactedObjectsResponse, error) {
+func (impl BulkUpdateServiceImpl) DryRunBulkEdit(bulkUpdatePayload *bean4.BulkUpdatePayload) (*bean4.ImpactedObjectsResponse, error) {
 	impactedObjectsResponse := &bean4.ImpactedObjectsResponse{}
 	deploymentTemplateImpactedObjects := []*bean4.DeploymentTemplateImpactedObjectsResponseForOneApp{}
 	configMapImpactedObjects := []*bean4.CmAndSecretImpactedObjectsResponseForOneApp{}

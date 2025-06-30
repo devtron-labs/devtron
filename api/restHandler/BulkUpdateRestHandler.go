@@ -66,9 +66,9 @@ type BulkEditRestHandler interface {
 }
 
 type BulkEditV1Beta1RestHandler interface {
-	FindBulkUpdateReadme(w http.ResponseWriter, r *http.Request)
-	GetImpactedAppsName(w http.ResponseWriter, r *http.Request)
-	BulkUpdate(w http.ResponseWriter, r *http.Request)
+	GetBulkEditConfig(w http.ResponseWriter, r *http.Request)
+	DryRunBulkEdit(w http.ResponseWriter, r *http.Request)
+	BulkEdit(w http.ResponseWriter, r *http.Request)
 }
 
 type BulkUpdateRestHandlerImpl struct {
@@ -135,7 +135,7 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logg
 	}
 }
 
-func (handler BulkUpdateRestHandlerImpl) FindBulkUpdateReadme(w http.ResponseWriter, r *http.Request) {
+func (handler BulkUpdateRestHandlerImpl) GetBulkEditConfig(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	apiVersion := vars["apiVersion"]
 	kind := vars["kind"]
@@ -165,7 +165,8 @@ func (handler BulkUpdateRestHandlerImpl) CheckAuthForImpactedObjects(AppId int, 
 	return true
 
 }
-func (handler BulkUpdateRestHandlerImpl) GetImpactedAppsName(w http.ResponseWriter, r *http.Request) {
+
+func (handler BulkUpdateRestHandlerImpl) DryRunBulkEdit(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var script bean.BulkUpdateScript
 	err := decoder.Decode(&script)
@@ -180,34 +181,34 @@ func (handler BulkUpdateRestHandlerImpl) GetImpactedAppsName(w http.ResponseWrit
 		return
 	}
 	token := r.Header.Get("token")
-	impactedApps, err := handler.bulkUpdateService.GetBulkAppName(script.Spec)
+	impactedObjects, err := handler.bulkUpdateService.DryRunBulkEdit(script.Spec)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	appResourceObjects, envResourceObjects := handler.enforcerUtil.GetRbacObjectsForAllAppsAndEnvironments()
-	for _, deploymentTemplateImpactedApp := range impactedApps.DeploymentTemplate {
+	for _, deploymentTemplateImpactedApp := range impactedObjects.DeploymentTemplate {
 		ok := handler.CheckAuthForImpactedObjects(deploymentTemplateImpactedApp.AppId, deploymentTemplateImpactedApp.EnvId, appResourceObjects, envResourceObjects, token)
 		if !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	}
-	for _, configMapImpactedApp := range impactedApps.ConfigMap {
+	for _, configMapImpactedApp := range impactedObjects.ConfigMap {
 		ok := handler.CheckAuthForImpactedObjects(configMapImpactedApp.AppId, configMapImpactedApp.EnvId, appResourceObjects, envResourceObjects, token)
 		if !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	}
-	for _, secretImpactedApp := range impactedApps.Secret {
+	for _, secretImpactedApp := range impactedObjects.Secret {
 		ok := handler.CheckAuthForImpactedObjects(secretImpactedApp.AppId, secretImpactedApp.EnvId, appResourceObjects, envResourceObjects, token)
 		if !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	}
-	common.WriteJsonResp(w, err, impactedApps, http.StatusOK)
+	common.WriteJsonResp(w, err, impactedObjects, http.StatusOK)
 }
 
 func (handler BulkUpdateRestHandlerImpl) CheckAuthForBulkUpdate(AppId int, EnvId int, AppName string, rbacObjects map[int]string, token string) bool {
@@ -224,7 +225,8 @@ func (handler BulkUpdateRestHandlerImpl) CheckAuthForBulkUpdate(AppId int, EnvId
 	return true
 
 }
-func (handler BulkUpdateRestHandlerImpl) BulkUpdate(w http.ResponseWriter, r *http.Request) {
+
+func (handler BulkUpdateRestHandlerImpl) BulkEdit(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -244,28 +246,28 @@ func (handler BulkUpdateRestHandlerImpl) BulkUpdate(w http.ResponseWriter, r *ht
 		return
 	}
 	token := r.Header.Get("token")
-	impactedApps, err := handler.bulkUpdateService.GetBulkAppName(script.Spec)
+	impactedObjects, err := handler.bulkUpdateService.DryRunBulkEdit(script.Spec)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	rbacObjects := handler.enforcerUtil.GetRbacObjectsForAllApps(helper.CustomApp)
-	for _, deploymentTemplateImpactedApp := range impactedApps.DeploymentTemplate {
+	for _, deploymentTemplateImpactedApp := range impactedObjects.DeploymentTemplate {
 		ok := handler.CheckAuthForBulkUpdate(deploymentTemplateImpactedApp.AppId, deploymentTemplateImpactedApp.EnvId, deploymentTemplateImpactedApp.AppName, rbacObjects, token)
 		if !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	}
-	for _, configMapImpactedApp := range impactedApps.ConfigMap {
-		ok := handler.CheckAuthForBulkUpdate(configMapImpactedApp.AppId, configMapImpactedApp.EnvId, configMapImpactedApp.AppName, rbacObjects, token)
+	for _, impactedConfigMap := range impactedObjects.ConfigMap {
+		ok := handler.CheckAuthForBulkUpdate(impactedConfigMap.AppId, impactedConfigMap.EnvId, impactedConfigMap.AppName, rbacObjects, token)
 		if !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	}
-	for _, secretImpactedApp := range impactedApps.Secret {
-		ok := handler.CheckAuthForBulkUpdate(secretImpactedApp.AppId, secretImpactedApp.EnvId, secretImpactedApp.AppName, rbacObjects, token)
+	for _, impactedSecret := range impactedObjects.Secret {
+		ok := handler.CheckAuthForBulkUpdate(impactedSecret.AppId, impactedSecret.EnvId, impactedSecret.AppName, rbacObjects, token)
 		if !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
