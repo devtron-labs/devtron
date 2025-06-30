@@ -14,17 +14,25 @@ INSERT INTO "plugin_pipeline_script" ("id", "script","type","deleted","created_o
     #!/bin/sh 
     set -eo pipefail 
     #set -v  ## uncomment this to debug the script 
+    AwsAccessKey="${AccessKey:-$(echo "$CI_CD_EVENT" | jq -r \'.commonWorkflowRequest.accessKey\')}"
+    AwsSecretKey="${SecretKey:-$(echo "$CI_CD_EVENT" | jq -r \'.commonWorkflowRequest.secretKey\')}"
+    mkdir -p ~/.aws
+    echo -e "\n[tag-profile]\naws_access_key_id = $AwsAccessKey\naws_secret_access_key =$AwsSecretKey" >> ~/.aws/credentials
+    if [[ $AwsAccessKey ]]; then
+        export AWS_PROFILE=tag-profile
+    fi 
     pipeline_type=$(echo $CI_CD_EVENT | jq -r \'.type\')
+    Region=$(echo $CI_CD_EVENT | jq -r .commonWorkflowRequest.dockerRegistryURL | sed \'s|https://||\'|  awk -F. \'{print $4}\')
     if [[ "$pipeline_type" == "CI" ]]; then
         image_repo=$(echo $CI_CD_EVENT | jq -r  .commonWorkflowRequest.dockerRepository)
         image_tag=$(echo $CI_CD_EVENT | jq -r .commonWorkflowRequest.dockerImageTag)
-        MANIFEST=$(aws ecr batch-get-image --repository-name $image_repo --image-ids imageTag=$image_tag --region ap-south-1 --output text --query \'images[].imageManifest\')
-        aws ecr put-image --repository-name $image_repo --image-tag=$CustomTag --image-manifest "$MANIFEST" --region ap-south-1
+        MANIFEST=$(aws ecr batch-get-image --repository-name $image_repo --image-ids imageTag=$image_tag --region $Region --output text --query \'images[].imageManifest\')
+        aws ecr put-image --repository-name $image_repo --image-tag=$CustomTag --image-manifest "$MANIFEST" --region $Region
     elif [[ "$pipeline_type" == "CD" ]]; then
         image_repo=$(echo $CI_CD_EVENT | jq -r .commonWorkflowRequest.ciArtifactDTO.image | cut -d\'/\' -f2 | cut -d':' -f1)
         image_tag=$(echo $CI_CD_EVENT | jq -r .commonWorkflowRequest.ciArtifactDTO.image | cut -d \':\' -f2)
-        MANIFEST=$(aws ecr batch-get-image --repository-name $image_repo --image-ids imageTag=$image_tag --region ap-south-1 --output text --query \'images[].imageManifest\')
-        aws ecr put-image --repository-name $image_repo --image-tag=$CustomTag --image-manifest "$MANIFEST" --region ap-south-1
+        MANIFEST=$(aws ecr batch-get-image --repository-name $image_repo --image-ids imageTag=$image_tag --region $Region --output text --query \'images[].imageManifest\')
+        aws ecr put-image --repository-name $image_repo --image-tag=$CustomTag --image-manifest "$MANIFEST" --region $Region
     else
         echo "No able to re-tag the image"
     fi      
