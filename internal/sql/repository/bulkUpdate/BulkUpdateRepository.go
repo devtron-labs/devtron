@@ -26,6 +26,8 @@ import (
 	"go.uber.org/zap"
 )
 
+// DEPRECATED: Use BulkEditConfig instead of BulkUpdateReadme.
+// TODO: Remove this table in future versions.
 type BulkUpdateReadme struct {
 	tableName struct{} `sql:"bulk_update_readme" pg:",discard_unknown_columns"`
 	Id        int      `sql:"id"`
@@ -34,10 +36,21 @@ type BulkUpdateReadme struct {
 	Readme    string   `sql:"readme"`
 }
 
-type BulkUpdateRepository interface {
-	FindBulkUpdateReadme(operation string) (*BulkUpdateReadme, error)
+// BulkEditConfig is used to store the configuration for bulk edit operations.
+type BulkEditConfig struct {
+	tableName  struct{} `sql:"bulk_edit_config" pg:",discard_unknown_columns"`
+	Id         int      `sql:"id,pk"`
+	ApiVersion string   `sql:"api_version,notnull"`
+	Kind       string   `sql:"kind,notnull"`
+	Readme     string   `sql:"readme"`
+	Schema     string   `sql:"schema"`
+}
 
-	//For Deployment Template :
+type BulkUpdateRepository interface {
+	FindBulkEditConfig(apiVersion, kind string) (*BulkEditConfig, error)
+
+	// methods for Deployment Template :
+
 	FindDeploymentTemplateBulkAppNameForGlobal(appNameIncludes []string, appNameExcludes []string) ([]*app.App, error)
 	FindDeploymentTemplateBulkAppNameForEnv(appNameIncludes []string, appNameExcludes []string, envId int) ([]*app.App, error)
 	FindAppByChartId(chartId int) (*app.App, error)
@@ -47,7 +60,8 @@ type BulkUpdateRepository interface {
 	BulkUpdateChartsValuesYamlAndGlobalOverrideById(id int, patchValuesYml string, patchGlobalOverrideYml string) error
 	BulkUpdateChartsEnvYamlOverrideById(id int, patch string) error
 
-	//For ConfigMap & Secret :
+	// methods for ConfigMap & Secret :
+
 	FindCMBulkAppModelForGlobal(appNameIncludes []string, appNameExcludes []string, configMapNames []string) ([]*chartConfig.ConfigMapAppModel, error)
 	FindSecretBulkAppModelForGlobal(appNameIncludes []string, appNameExcludes []string, secretNames []string) ([]*chartConfig.ConfigMapAppModel, error)
 	FindCMBulkAppModelForEnv(appNameIncludes []string, appNameExcludes []string, envId int, configMapNames []string) ([]*chartConfig.ConfigMapEnvModel, error)
@@ -104,12 +118,14 @@ func appendBuildSecretNameQuery(q *orm.Query, secretNames []string) *orm.Query {
 	return q.Where("secret_data LIKE ANY (array[?])", pg.In(secretNamesLikeClause))
 }
 
-func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkUpdateReadme(resource string) (*BulkUpdateReadme, error) {
-	bulkUpdateReadme := &BulkUpdateReadme{}
+func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkEditConfig(apiVersion, kind string) (*BulkEditConfig, error) {
+	bulkEditConfig := &BulkEditConfig{}
 	err := repositoryImpl.dbConnection.
-		Model(bulkUpdateReadme).Where("resource LIKE ?", resource).
+		Model(bulkEditConfig).
+		Where("api_version = ?", apiVersion).
+		Where("kind = ?", kind).
 		Select()
-	return bulkUpdateReadme, err
+	return bulkEditConfig, err
 }
 
 func (repositoryImpl BulkUpdateRepositoryImpl) FindDeploymentTemplateBulkAppNameForGlobal(appNameIncludes []string, appNameExcludes []string) ([]*app.App, error) {

@@ -49,7 +49,7 @@ type BulkUpdateScript struct {
 	Kind       string             `json:"kind" validate:"required"`
 	Spec       *BulkUpdatePayload `json:"spec" validate:"required"`
 }
-type BulkUpdateSeeExampleResponse struct {
+type BulkEditConfigResponse struct {
 	Operation string            `json:"operation"`
 	Script    *BulkUpdateScript `json:"script" validate:"required"`
 	ReadMe    string            `json:"readme"`

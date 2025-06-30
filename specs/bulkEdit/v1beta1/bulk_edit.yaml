@@ -113,36 +113,33 @@ components:
     BulkUpdateSeeExampleResponse:
       type: object
       required:
-        - Script
+        - script
       properties:
         resource:
           type: string
           description: Resource from url path, i.e. {apiVersion} & {kind}
         script:
           $ref: '#/components/schemas/BulkUpdateScript'
-          description: Input Script for bulk update
         readMe:
           type: string
           description: Readme for bulk update
     BulkUpdateScript:
       type: object
+      description: Input Script for bulk edit
       required:
-        - ApiVersion
-        - Kind
-        - Spec
+        - apiVersion
+        - kind
+        - spec
       properties:
         apiVersion:
           type: string
-          description: Api version from url
-          example:
-            - v1beta1
+          enum: [ "batch/v1beta1" ]
         kind:
           type: string
-          description: Kind
-          example:
-            - application
+          enum: [ "Application" ]
         spec:
           $ref: '#/components/schemas/BulkUpdatePayload'
+
     BulkUpdatePayload:
       type: object
       properties:
@@ -154,44 +151,41 @@ components:
           type: array
           items:
             type: integer
-          description: All Env Id's for updating dependent apps
+            exclusiveMinimum: 0
+          description: Array of Environment Ids of dependent apps
         global:
           type: boolean
-          description: Global flag for updating dependent apps
-        DeploymentTemplate:
-          $ref: '#/components/schemas/Tasks'
-        ConfigMaps:
-          type: object
-          properties:
-            names:
-              type: array
-              items:
-                type: string
-                description : Name of All ConfigMaps to be updated
-            tasks:
-              $ref: '#/components/schemas/Spec'
-        Secrets:
-          type: object
-          properties:
-            names:
-              type: array
-              items:
-                type: string
-                description : Name of All Secrets to be updated
-            tasks:
-              $ref: '#/components/schemas/Spec'
-    Tasks:
-      type: object
-      properties:
-        spec:
+          description: Flag for updating base Configurations of dependent apps
+        deploymentTemplate:
           $ref: '#/components/schemas/Spec'
-          description: Spec of the Task
+        configMap:
+          type: object
+          properties:
+            allOf:
+              $ref: '#/components/schemas/Spec'
+            names:
+              type: array
+              items:
+                type: string
+                pattern: "^[a-z]+[a-z0-9\\-\\?]*[a-z0-9]+$"
+              description: Name of all ConfigMaps to be updated
+        secret:
+          type: object
+          properties:
+            allOf:
+              $ref: '#/components/schemas/Spec'
+            names:
+              type: array
+              items:
+                type: string
+              description: Name of all Secrets to be updated
+
     Spec:
       type: object
       properties:
         patchData:
           type: string
-          description: string with details of the patch to be used for updating
+          description: String with details of the patch to be used for updating
 
     NameIncludesExcludes:
       type: object
@@ -200,7 +194,8 @@ components:
           type: array
           items:
             type: string
-          description: All strings of app names to be included/excluded
+            pattern: "^[a-z%]+[a-z0-9%\\-\\?]*[a-z0-9%]+$"
+          description: Array of application names to be included
     ImpactedObjectsResponse:
       type: object
       properties:
