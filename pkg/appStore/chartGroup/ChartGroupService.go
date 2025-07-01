@@ -159,6 +159,7 @@ type ChartGroupBean struct {
 	ChartGroupEntries  []*ChartGroupEntryBean `json:"chartGroupEntries,omitempty"`
 	InstalledChartData []*InstalledChartData  `json:"installedChartData,omitempty"`
 	UserId             int32                  `json:"-"`
+	CreatedBy          int32                  `json:"createdBy,omitempty"`
 }
 
 type ChartGroupEntryBean struct {
@@ -390,6 +391,7 @@ func (impl *ChartGroupServiceImpl) GetChartGroupList(max int) (*ChartGroupList, 
 			Name:        group.Name,
 			Description: group.Description,
 			Id:          group.Id,
+			CreatedBy:   group.CreatedBy,
 		}
 		groupMap[group.Id] = chartGroupRes
 		groupIds = append(groupIds, group.Id)
