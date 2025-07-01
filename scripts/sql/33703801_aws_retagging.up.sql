@@ -1,5 +1,5 @@
 INSERT INTO "plugin_parent_metadata" ("id", "name","identifier", "description","type","icon","deleted", "created_on", "created_by", "updated_on", "updated_by")
-VALUES (nextval('id_seq_plugin_parent_metadata'), 'AWS ECR Retag','aws-retag','AWS ECR Retag is a functionality to retag','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/aws-signer-image.jpeg','f', 'now()', 1, 'now()', 1);
+VALUES (nextval('id_seq_plugin_parent_metadata'), 'AWS ECR Retag','aws-retag','AWS ECR Retag is a functionality to retag','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/plugin-icons/ic-plugin-aws-ecr-retag.png','f', 'now()', 1, 'now()', 1);
 
 
 INSERT INTO "plugin_metadata" ("id", "name", "description","deleted", "created_on", "created_by", "updated_on", "updated_by","plugin_parent_metadata_id","plugin_version","is_deprecated","is_latest")
@@ -42,6 +42,6 @@ INSERT INTO "plugin_step" ("id", "plugin_id","name","description","index","step_
 VALUES (nextval('id_seq_plugin_step'), (SELECT id FROM plugin_metadata WHERE name='AWS ECR Retag' AND plugin_version='1.0.0' AND deleted= false),'Step 1','Runnig the plugin','1','INLINE',(SELECT last_value FROM id_seq_plugin_pipeline_script),'f','now()', 1, 'now()', 1);
 
 INSERT INTO plugin_step_variable (id,plugin_step_id,name,format,description,is_exposed,allow_empty_value,default_value,value,variable_type,value_type,previous_step_index,variable_step_index,variable_step_index_in_plugin,reference_variable_name,deleted,created_on,created_by,updated_on,updated_by) 
-VALUES (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='AWS ECR Retag' and p.plugin_version='1.0.0' and ps."index"=1 and ps.deleted=false),'CustomTag','STRING','Provide the  tag for retagging','t','t',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
+VALUES (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='AWS ECR Retag' and p.plugin_version='1.0.0' and ps."index"=1 and ps.deleted=false),'CustomTag','STRING','Provide the  tag for retagging','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='AWS ECR Retag' and p.plugin_version='1.0.0' and ps."index"=1 and ps.deleted=false),'AccessKey','STRING','Provide the access key','t','t',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='AWS ECR Retag' and p.plugin_version='1.0.0' and ps."index"=1 and ps.deleted=false),'SecretKey','STRING','Provide the secret key','t','t',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
