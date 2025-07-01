@@ -203,6 +203,8 @@ func (impl *AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 			if impl.aCDConfig.IsManualSyncEnabled() {
 				_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_INITIATED, time.Now(), tx)
 			}
+		} else if util.IsFluxApp(installAppVersionRequest.DeploymentAppType) {
+			_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, timelineStatus.TIMELINE_STATUS_GIT_COMMIT, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_GIT_COMMIT, time.Now(), tx)
 		}
 		installAppVersionRequest.GitHash = gitOpsResponse.GitHash
 		if len(installAppVersionRequest.GitHash) > 0 {
@@ -733,7 +735,7 @@ func (impl *AppStoreDeploymentServiceImpl) updateInstalledApp(ctx context.Contex
 
 		upgradeAppRequest.GitHash = gitOpsResponse.GitHash
 		_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, timelineStatus.TIMELINE_STATUS_GIT_COMMIT, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_GIT_COMMIT, time.Now(), tx)
-		if impl.aCDConfig.IsManualSyncEnabled() {
+		if installedAppDeploymentAction.PerformACDDeployment && impl.aCDConfig.IsManualSyncEnabled() { //if acd then only save manifest timeline, filtering flux through this check
 			_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_INITIATED, time.Now(), tx)
 		}
 		installedAppVersionHistory.GitHash = gitOpsResponse.GitHash
