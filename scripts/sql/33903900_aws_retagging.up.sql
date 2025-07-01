@@ -1,9 +1,9 @@
 INSERT INTO "plugin_parent_metadata" ("id", "name","identifier", "description","type","icon","deleted", "created_on", "created_by", "updated_on", "updated_by")
-VALUES (nextval('id_seq_plugin_parent_metadata'), 'AWS ECR Retag','aws-retag','AWS ECR Retag is a functionality to retag','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/plugin-icons/ic-plugin-aws-ecr-retag.png','f', 'now()', 1, 'now()', 1);
+VALUES (nextval('id_seq_plugin_parent_metadata'), 'AWS ECR Retag','aws-retag','AWS ECR Retag plugin that enables retagging of container images within ECR','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/plugin-icons/ic-plugin-aws-ecr-retag.png','f', 'now()', 1, 'now()', 1);
 
 
 INSERT INTO "plugin_metadata" ("id", "name", "description","deleted", "created_on", "created_by", "updated_on", "updated_by","plugin_parent_metadata_id","plugin_version","is_deprecated","is_latest")
-VALUES (nextval('id_seq_plugin_metadata'), 'AWS ECR Retag','Re tag your image with AWS ECR Retag','f', 'now()', 1, 'now()', 1, (SELECT id FROM plugin_parent_metadata WHERE identifier='aws-retag'),'1.0.0', false, true);
+VALUES (nextval('id_seq_plugin_metadata'), 'AWS ECR Retag','Re tag your ECR image with AWS ECR Retag','f', 'now()', 1, 'now()', 1, (SELECT id FROM plugin_parent_metadata WHERE identifier='aws-retag'),'1.0.0', false, true);
 
 INSERT INTO "plugin_stage_mapping" ("plugin_id","stage_type","created_on", "created_by", "updated_on", "updated_by")
 VALUES ((SELECT id FROM plugin_metadata WHERE plugin_version='1.0.0' and name='AWS ECR Retag' and deleted= false),0,'now()', 1, 'now()', 1);
