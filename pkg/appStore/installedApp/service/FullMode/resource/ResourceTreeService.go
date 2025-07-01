@@ -41,6 +41,8 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
+	"github.com/devtron-labs/devtron/pkg/fluxApplication"
+	bean5 "github.com/devtron-labs/devtron/pkg/fluxApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application3 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
@@ -77,6 +79,7 @@ type InstalledAppResourceServiceImpl struct {
 	deploymentConfigurationService       common.DeploymentConfigService
 	OCIRegistryConfigRepository          repository2.OCIRegistryConfigRepository
 	argoApplicationService               argoApplication.ArgoApplicationService
+	fluxApplicationService               fluxApplication.FluxApplicationService
 }
 
 func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
@@ -91,7 +94,8 @@ func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
 	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService, K8sUtil k8s2.K8sService,
 	deploymentConfigurationService common.DeploymentConfigService,
 	OCIRegistryConfigRepository repository2.OCIRegistryConfigRepository,
-	argoApplicationService argoApplication.ArgoApplicationService) *InstalledAppResourceServiceImpl {
+	argoApplicationService argoApplication.ArgoApplicationService,
+	fluxApplicationService fluxApplication.FluxApplicationService) *InstalledAppResourceServiceImpl {
 	return &InstalledAppResourceServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -108,6 +112,7 @@ func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
 		deploymentConfigurationService:       deploymentConfigurationService,
 		OCIRegistryConfigRepository:          OCIRegistryConfigRepository,
 		argoApplicationService:               argoApplicationService,
+		fluxApplicationService:               fluxApplicationService,
 	}
 }
 
@@ -170,6 +175,26 @@ func (impl *InstalledAppResourceServiceImpl) FetchResourceTree(rctx context.Cont
 			releaseStatus := impl.getReleaseStatusFromHelmReleaseInstallStatus(helmReleaseInstallStatus, status)
 			releaseStatusMap := util2.InterfaceToMapAdapter(releaseStatus)
 			appDetailsContainer.ReleaseStatus = releaseStatusMap
+		}
+	} else if util.IsFluxApp(deploymentConfig.DeploymentAppType) {
+		req := &bean5.FluxAppIdentifier{
+			ClusterId:      installedApp.Environment.ClusterId,
+			Namespace:      installedApp.Environment.Namespace,
+			Name:           deploymentAppName,
+			IsKustomizeApp: false,
+		}
+		detail, err := impl.fluxApplicationService.GetFluxAppDetail(rctx, req)
+		if err != nil {
+			impl.logger.Errorw("error in fetching app detail", "payload", req, "err", err)
+		}
+		if detail != nil {
+			resourceTree = util2.InterfaceToMapAdapter(detail.ResourceTreeResponse)
+			applicationStatus := detail.AppHealthStatus
+			if detail.ResourceTreeResponse != nil && len(detail.ResourceTreeResponse.Nodes) == 0 {
+				resourceTree["status"] = commonBean.HealthStatusUnknown
+			} else {
+				resourceTree["status"] = applicationStatus
+			}
 		}
 	}
 	if resourceTree != nil {
