@@ -59,7 +59,7 @@ type CrudOperationServiceConfig struct {
 type AppCrudOperationService interface {
 	Create(request *bean.AppLabelDto, tx *pg.Tx) (*bean.AppLabelDto, error)
 	FindById(id int) (*bean.AppLabelDto, error)
-	FindAll() ([]*bean.AppLabelDto, error)
+	FindAll(propagated *bool) ([]*bean.AppLabelDto, error)
 	GetAppMetaInfo(appId int, installedAppId int, envId int) (*bean.AppMetaInfoDto, error)
 	GetHelmAppMetaInfo(appId string) (*bean.AppMetaInfoDto, error)
 	GetAppLabelsForDeployment(ctx context.Context, appId int, appName, envName string) ([]byte, error)
@@ -318,9 +318,9 @@ func (impl AppCrudOperationServiceImpl) FindById(id int) (*bean.AppLabelDto, err
 	return label, nil
 }
 
-func (impl AppCrudOperationServiceImpl) FindAll() ([]*bean.AppLabelDto, error) {
+func (impl AppCrudOperationServiceImpl) FindAll(propagated *bool) ([]*bean.AppLabelDto, error) {
 	results := make([]*bean.AppLabelDto, 0)
-	models, err := impl.appLabelRepository.FindAll()
+	models, err := impl.appLabelRepository.FindAll(propagated)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching FindAll app labels", "error", err)
 		return nil, err
@@ -334,6 +334,7 @@ func (impl AppCrudOperationServiceImpl) FindAll() ([]*bean.AppLabelDto, error) {
 			Key:       model.Key,
 			Value:     model.Value,
 			Propagate: model.Propagate,
+			AppName:   model.App.AppName,
 		}
 		results = append(results, dto)
 	}

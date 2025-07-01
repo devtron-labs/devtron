@@ -24,7 +24,6 @@ import (
 	"encoding/json"
 	errors2 "errors"
 	"fmt"
-	"github.com/devtron-labs/common-lib/async"
 	"io"
 	"log"
 	"net/http"
@@ -32,6 +31,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/devtron-labs/common-lib/async"
 
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/utils/k8s"
@@ -358,7 +359,8 @@ func getExecutor(k8sClient kubernetes.Interface, cfg *rest.Config, podName, name
 		TTY:       tty,
 	}, scheme.ParameterCodec)
 
-	exec, err := remotecommand.NewSPDYExecutor(cfg, "POST", req.URL())
+	// Use the new fallback executor instead of SPDY directly
+	exec, err := NewFallbackExecutor(cfg, "POST", req.URL())
 	return exec, err
 }
 
