@@ -313,9 +313,11 @@ func (impl *DeploymentServiceImpl) CreateHelmRelease(ctx context.Context, fluxCd
 
 func (impl *DeploymentServiceImpl) UpdateHelmRelease(ctx context.Context, fluxCdSpec bean.FluxCDSpec,
 	apiClient client.Client) (*helmv2.HelmRelease, error) {
-	name, namespace := fluxCdSpec.GitRepositoryName, fluxCdSpec.HelmReleaseNamespace
+	name, namespace := fluxCdSpec.HelmReleaseName, fluxCdSpec.HelmReleaseNamespace
 	key := types.NamespacedName{Name: name, Namespace: namespace}
 	existing := &helmv2.HelmRelease{}
+
+	gitRepositoryName, gitRepositoryNamespace := fluxCdSpec.GitRepositoryName, fluxCdSpec.GitRepositoryNamespace
 
 	err := apiClient.Get(ctx, key, existing)
 	if err != nil {
@@ -333,8 +335,8 @@ func (impl *DeploymentServiceImpl) UpdateHelmRelease(ctx context.Context, fluxCd
 			Version:           fluxCdSpec.ChartVersion,
 			SourceRef: helmv2.CrossNamespaceObjectReference{
 				Kind:      sourcev1.GitRepositoryKind,
-				Name:      name,
-				Namespace: namespace,
+				Name:      gitRepositoryName,
+				Namespace: gitRepositoryNamespace,
 			},
 			ValuesFiles: fluxCdSpec.GetFinalValuesFilePathArray(),
 		},
