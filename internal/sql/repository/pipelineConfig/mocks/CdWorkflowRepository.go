@@ -806,7 +806,7 @@ func (_m *CdWorkflowRepository) GetLatestTriggersOfHelmPipelinesStuckInNonTermin
 	ret := _m.Called(getPipelineDeployedWithinHours)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses")
+		panic("no return value specified for GetLatestTriggersOfPipelinesStuckInNonTerminalStatuses")
 	}
 
 	var r0 []*pipelineConfig.CdWorkflowRunner
