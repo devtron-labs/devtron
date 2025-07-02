@@ -10,6 +10,7 @@
 - fix: panic in logs api (#6684)
 - fix: Empty migration seq (#6673)
 ## Others
+- sync: Main sync develop (#6699)
 - chore: oss main sync 29 06 (#6692)
 - chore: when output dir path is /devtroncd inany pipeline stage step then the ci runner is stuck in recursive self-copy situation  (#6686)
 - sync: Vendor update for release 38 (#6681)
