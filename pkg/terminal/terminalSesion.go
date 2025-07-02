@@ -360,7 +360,7 @@ func getExecutor(k8sClient kubernetes.Interface, cfg *rest.Config, podName, name
 	}, scheme.ParameterCodec)
 
 	// Use the new fallback executor instead of SPDY directly
-	exec, err := NewFallbackExecutor(cfg, "POST", req.URL())
+	exec, err := remotecommand.NewSPDYExecutor(cfg, "POST", req.URL())
 	return exec, err
 }
 
