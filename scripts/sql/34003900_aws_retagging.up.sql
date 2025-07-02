@@ -24,6 +24,7 @@ INSERT INTO "plugin_pipeline_script" ("id", "script","type","deleted","created_o
         else
             echo "No Tags Provided for retagging"
         fi  
+        echo $Tag
         AwsAccessKey="${AwsAccessEcrKey:-$(echo "$CI_CD_EVENT" | jq -r \'.commonWorkflowRequest.accessKey\')}"
         AwsSecretKey="${AwsSecretEcrKey:-$(echo "$CI_CD_EVENT" | jq -r \'.commonWorkflowRequest.secretKey\')}"
         mkdir -p ~/.aws
@@ -39,12 +40,12 @@ INSERT INTO "plugin_pipeline_script" ("id", "script","type","deleted","created_o
             image_repo=$(echo $CI_CD_EVENT | jq -r  .commonWorkflowRequest.dockerRepository)
             image_tag=$(echo $CI_CD_EVENT | jq -r .commonWorkflowRequest.dockerImageTag)
             MANIFEST=$(aws ecr batch-get-image --repository-name $image_repo --image-ids imageTag=$image_tag --region $Region --output text --query \'images[].imageManifest\')
-            aws ecr put-image --repository-name $image_repo --image-tag=$AwsEcrFixedTag --image-manifest "$MANIFEST" --region $Region
+            aws ecr put-image --repository-name $image_repo --image-tag=$Tag --image-manifest "$MANIFEST" --region $Region
         elif [[ "$pipeline_type" == "CD" ]]; then
             image_repo=$(echo $CI_CD_EVENT | jq -r .commonWorkflowRequest.ciArtifactDTO.image | cut -d\'/\' -f2 | cut -d\':\' -f1)
             image_tag=$(echo $CI_CD_EVENT | jq -r .commonWorkflowRequest.ciArtifactDTO.image | cut -d \':\' -f2)
             MANIFEST=$(aws ecr batch-get-image --repository-name $image_repo --image-ids imageTag=$image_tag --region $Region --output text --query \'images[].imageManifest\')
-            aws ecr put-image --repository-name $image_repo --image-tag=$AwsEcrFixedTag --image-manifest "$MANIFEST" --region $Region
+            aws ecr put-image --repository-name $image_repo --image-tag=$Tag --image-manifest "$MANIFEST" --region $Region
         fi  
         if [ $? -ne 0 ]; then
             echo "*************Failed to Retag the image****************"
