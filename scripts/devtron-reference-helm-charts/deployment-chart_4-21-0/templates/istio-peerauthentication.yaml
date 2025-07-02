@@ -1,6 +1,10 @@
 {{- with .Values.istio }}
 {{- if and .enable .peerAuthentication.enabled }}
+{{ if semverCompare ">=1.22-0" $.Capabilities.KubeVersion.GitVersion -}}
+apiVersion: security.istio.io/v1
+{{- else -}}
 apiVersion: security.istio.io/v1beta1
+{{- end }}
 kind: PeerAuthentication
 metadata:
   {{- if .peerAuthentication.name }}

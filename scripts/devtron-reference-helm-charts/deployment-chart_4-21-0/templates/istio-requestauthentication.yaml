@@ -1,10 +1,14 @@
 {{- with .Values.istio }}
 {{- if and .enable .requestAuthentication.enabled }}
+{{ if semverCompare ">=1.22-0" $.Capabilities.KubeVersion.GitVersion -}}
+apiVersion: security.istio.io/v1
+{{- else -}}
 apiVersion: security.istio.io/v1beta1
+{{- end }}
 kind: RequestAuthentication
 metadata:
   {{- if .requestAuthentication.name }}
-  name: {{.requestAuthentication.name }}
+  name: {{ .requestAuthentication.name }}
   {{- else }}
   name: {{ template ".Chart.Name .fullname" $ }}
   {{- end }}

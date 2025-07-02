@@ -1,6 +1,11 @@
 {{- if $.Values.appMetrics -}}
+{{- if eq .Values.MetricsScraper  "Victoria" }}
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+{{- else if eq .Values.MetricsScraper  "Prometheus" }}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
+{{- end }}
 metadata:
   name: {{ template ".Chart.Name .fullname" $ }}
   labels:
