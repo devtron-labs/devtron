@@ -81,6 +81,7 @@ type ChartGroupServiceImpl struct {
 	installAppService                    FullMode.InstalledAppDBExtendedService
 	appStoreAppsEventPublishService      out.AppStoreAppsEventPublishService
 	teamReadService                      read.TeamReadService
+	userService                          user.UserService
 }
 
 func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
@@ -104,7 +105,9 @@ func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
 	gitOperationService git.GitOperationService,
 	installAppService FullMode.InstalledAppDBExtendedService,
 	appStoreAppsEventPublishService out.AppStoreAppsEventPublishService,
-	teamReadService read.TeamReadService) (*ChartGroupServiceImpl, error) {
+	teamReadService read.TeamReadService,
+	userService user.UserService,
+) (*ChartGroupServiceImpl, error) {
 	impl := &ChartGroupServiceImpl{
 		logger:                               logger,
 		chartGroupEntriesRepository:          chartGroupEntriesRepository,
@@ -128,6 +131,7 @@ func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
 		appStoreAppsEventPublishService:      appStoreAppsEventPublishService,
 		appStoreRepository:                   appStoreRepository,
 		teamReadService:                      teamReadService,
+		userService:                          userService,
 	}
 	return impl, nil
 }
@@ -159,7 +163,7 @@ type ChartGroupBean struct {
 	ChartGroupEntries  []*ChartGroupEntryBean `json:"chartGroupEntries,omitempty"`
 	InstalledChartData []*InstalledChartData  `json:"installedChartData,omitempty"`
 	UserId             int32                  `json:"-"`
-	CreatedBy          int32                  `json:"createdBy,omitempty"`
+	CreatedBy          string                 `json:"createdBy,omitempty"`
 }
 
 type ChartGroupEntryBean struct {
@@ -376,6 +380,25 @@ func (impl *ChartGroupServiceImpl) charterEntryAdopter(chartGroupEntry *reposito
 	return entry
 }
 
+func (impl *ChartGroupServiceImpl) getChartGroupUserEmailMap(groups []*repository2.ChartGroup) (map[int32]string, error) {
+	createdByUserIds := make([]int32, 0, len(groups))
+	for _, group := range groups {
+		createdByUserIds = append(createdByUserIds, group.CreatedBy)
+	}
+	userIdVsEmailMap := make(map[int32]string, len(createdByUserIds))
+	if len(createdByUserIds) > 0 {
+		userInfos, err := impl.userService.GetByIds(createdByUserIds)
+		if err != nil {
+			impl.logger.Errorw("error in fetching user infos by user ids", "userIds", createdByUserIds, "err", err)
+			return nil, err
+		}
+		for _, userInfo := range userInfos {
+			userIdVsEmailMap[userInfo.Id] = userInfo.EmailId
+		}
+	}
+	return userIdVsEmailMap, nil
+}
+
 func (impl *ChartGroupServiceImpl) GetChartGroupList(max int) (*ChartGroupList, error) {
 	groups, err := impl.chartGroupRepository.GetAll(max)
 	if err != nil {
@@ -386,12 +409,17 @@ func (impl *ChartGroupServiceImpl) GetChartGroupList(max int) (*ChartGroupList, 
 	}
 	var groupIds []int
 	groupMap := make(map[int]*ChartGroupBean)
+	userIdVsEmailMap, err := impl.getChartGroupUserEmailMap(groups)
+	if err != nil {
+		impl.logger.Errorw("error in fetching chart group created by users email map ", "err", err)
+		return nil, err
+	}
 	for _, group := range groups {
 		chartGroupRes := &ChartGroupBean{
 			Name:        group.Name,
 			Description: group.Description,
 			Id:          group.Id,
-			CreatedBy:   group.CreatedBy,
+			CreatedBy:   userIdVsEmailMap[group.CreatedBy],
 		}
 		groupMap[group.Id] = chartGroupRes
 		groupIds = append(groupIds, group.Id)
