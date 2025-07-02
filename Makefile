@@ -2,7 +2,7 @@
 
 all: fetch-all-env build
 
-TARGET_BRANCH?=main
+TARGET_BRANCH?=develop
 TAG?=$(shell bash -c 'git log --pretty=format:'%h' -n 1')
 FLAGS=
 ENVVAR=
