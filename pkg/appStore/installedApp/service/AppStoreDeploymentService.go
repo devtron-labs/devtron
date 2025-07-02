@@ -865,7 +865,7 @@ func (impl *AppStoreDeploymentServiceImpl) InstallAppByHelm(installAppVersionReq
 
 func (impl *AppStoreDeploymentServiceImpl) UpdatePreviousDeploymentStatusForAppStore(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error {
 	//creating pipeline status timeline for deployment failed
-	if !util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
+	if !util.IsAcdApp(installAppVersionRequest.DeploymentAppType) && !util.IsFluxApp(installAppVersionRequest.DeploymentAppType) {
 		return nil
 	}
 	err1 := impl.fullModeDeploymentService.UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest, triggeredAt, err)
