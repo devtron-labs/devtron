@@ -66,6 +66,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/workflow/dag/adaptor"
 	bean2 "github.com/devtron-labs/devtron/pkg/workflow/dag/bean"
 	"github.com/devtron-labs/devtron/pkg/workflow/dag/helper"
+	auditService "github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/service"
 	error2 "github.com/devtron-labs/devtron/util/error"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
@@ -151,11 +152,12 @@ type WorkflowDagExecutorImpl struct {
 	scanHistoryRepository   repository3.ImageScanHistoryRepository
 	imageScanService        imageScanning.ImageScanService
 
-	K8sUtil                *k8s.K8sServiceImpl
-	envRepository          repository5.EnvironmentRepository
-	k8sCommonService       k8sPkg.K8sCommonService
-	workflowService        executor.WorkflowService
-	ciHandlerService       trigger.HandlerService
+	K8sUtil                     *k8s.K8sServiceImpl
+	envRepository               repository5.EnvironmentRepository
+	k8sCommonService            k8sPkg.K8sCommonService
+	workflowService             executor.WorkflowService
+	ciHandlerService            trigger.HandlerService
+	workflowTriggerAuditService auditService.WorkflowTriggerAuditService
 	fluxApplicationService fluxApplication.FluxApplicationService
 }
 
@@ -191,6 +193,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	k8sCommonService k8sPkg.K8sCommonService,
 	workflowService executor.WorkflowService,
 	ciHandlerService trigger.HandlerService,
+	workflowTriggerAuditService auditService.WorkflowTriggerAuditService,
 	fluxApplicationService fluxApplication.FluxApplicationService,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
@@ -226,6 +229,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		k8sCommonService:              k8sCommonService,
 		workflowService:               workflowService,
 		ciHandlerService:              ciHandlerService,
+		workflowTriggerAuditService:   workflowTriggerAuditService,
 		fluxApplicationService:        fluxApplicationService,
 	}
 	config, err := types.GetCdConfig()
@@ -398,7 +402,21 @@ func (impl *WorkflowDagExecutorImpl) HandleCdStageReTrigger(runner *pipelineConf
 		return nil
 	}
 
-	triggerRequest := triggerBean.TriggerRequest{
+	err = impl.reTriggerCdStageFromSnapshot(runner)
+	if err != nil {
+		impl.logger.Warnw("failed to retrigger CD stage from snapshot", "runnerId", runner.Id, "err", err)
+		return err
+	}
+
+	impl.logger.Infow("cd stage re triggered for runner", "runnerId", runner.Id)
+	return nil
+}
+
+// reTriggerCdStageFromSnapshot attempts to retrigger CD stage using stored workflow config snapshot
+func (impl *WorkflowDagExecutorImpl) reTriggerCdStageFromSnapshot(runner *pipelineConfig.CdWorkflowRunner) error {
+	impl.logger.Infow("attempting to retrigger CD stage from stored snapshot", "runnerId", runner.Id, "workflowType", runner.WorkflowType)
+
+	triggerRequest := triggerBean.CdTriggerRequest{
 		CdWf:                  runner.CdWorkflow,
 		Pipeline:              runner.CdWorkflow.Pipeline,
 		Artifact:              runner.CdWorkflow.CiArtifact,
@@ -408,23 +426,23 @@ func (impl *WorkflowDagExecutorImpl) HandleCdStageReTrigger(runner *pipelineConf
 		TriggerContext: triggerBean.TriggerContext{
 			Context: context.Background(),
 		},
+		IsRetrigger: true,
 	}
 
 	if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
-		_, err = impl.cdHandlerService.TriggerPreStage(triggerRequest)
+		_, err := impl.cdHandlerService.TriggerPreStage(triggerRequest)
 		if err != nil {
 			impl.logger.Errorw("error in TriggerPreStage ", "err", err, "cdWorkflowRunnerId", runner.Id)
 			return err
 		}
 	} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
-		_, err = impl.cdHandlerService.TriggerPostStage(triggerRequest)
+		_, err := impl.cdHandlerService.TriggerPostStage(triggerRequest)
 		if err != nil {
 			impl.logger.Errorw("error in TriggerPostStage ", "err", err, "cdWorkflowRunnerId", runner.Id)
 			return err
 		}
 	}
 
-	impl.logger.Infow("cd stage re triggered for runner", "runnerId", runner.Id)
 	return nil
 }
 
@@ -598,7 +616,7 @@ func (impl *WorkflowDagExecutorImpl) handleCiSuccessEvent(triggerContext trigger
 		return err
 	}
 	for _, pipeline := range pipelines {
-		triggerRequest := triggerBean.TriggerRequest{
+		triggerRequest := triggerBean.CdTriggerRequest{
 			CdWf:           nil,
 			Pipeline:       pipeline,
 			Artifact:       artifact,
@@ -644,7 +662,7 @@ func (impl *WorkflowDagExecutorImpl) handleWebhookExternalCiEvent(artifact *repo
 
 	for _, pipeline := range pipelines {
 		//applyAuth=false, already auth applied for this flow
-		triggerRequest := triggerBean.TriggerRequest{
+		triggerRequest := triggerBean.CdTriggerRequest{
 			CdWf:        nil,
 			Pipeline:    pipeline,
 			Artifact:    artifact,
@@ -680,7 +698,7 @@ func (impl *WorkflowDagExecutorImpl) deleteCorruptedPipelineStage(pipelineStage 
 	return nil, false
 }
 
-func (impl *WorkflowDagExecutorImpl) triggerIfAutoStageCdPipeline(request triggerBean.TriggerRequest) error {
+func (impl *WorkflowDagExecutorImpl) triggerIfAutoStageCdPipeline(request triggerBean.CdTriggerRequest) error {
 	preStage, err := impl.getPipelineStage(request.Pipeline.Id, repository4.PIPELINE_STAGE_TYPE_PRE_CD)
 	if err != nil {
 		return err
@@ -812,7 +830,7 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(triggerContext
 			pipelineOverride.DeploymentType != models.DEPLOYMENTTYPE_STOP &&
 			pipelineOverride.DeploymentType != models.DEPLOYMENTTYPE_START {
 
-			triggerRequest := triggerBean.TriggerRequest{
+			triggerRequest := triggerBean.CdTriggerRequest{
 				CdWf:                  cdWorkflow,
 				Pipeline:              pipelineOverride.Pipeline,
 				TriggeredBy:           bean7.SYSTEM_USER_ID,
@@ -886,7 +904,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(triggerContext 
 		//finding ci artifact by ciPipelineID and pipelineId
 		//TODO : confirm values for applyAuth, async & triggeredBy
 
-		triggerRequest := triggerBean.TriggerRequest{
+		triggerRequest := triggerBean.CdTriggerRequest{
 			CdWf:           nil,
 			Pipeline:       pipeline,
 			Artifact:       ciArtifact,

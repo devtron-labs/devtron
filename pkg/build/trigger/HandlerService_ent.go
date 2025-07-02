@@ -99,6 +99,6 @@ func (impl *HandlerServiceImpl) updateCIBuildConfig(ciBuildConfigBean *bean2.CiB
 	return ciBuildConfigBean
 }
 
-func updateBuildPrePostStepDataReq(req *pipelineConfigBean.BuildPrePostStepDataRequest, trigger types.Trigger) *pipelineConfigBean.BuildPrePostStepDataRequest {
+func updateBuildPrePostStepDataReq(req *pipelineConfigBean.BuildPrePostStepDataRequest, trigger *types.CiTriggerRequest) *pipelineConfigBean.BuildPrePostStepDataRequest {
 	return req
 }

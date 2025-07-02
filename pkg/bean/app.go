@@ -914,6 +914,7 @@ type AppLabelDto struct {
 	Value     string `json:"value,notnull"`
 	Propagate bool   `json:"propagate,notnull"`
 	AppId     int    `json:"appId,omitempty"`
+	AppName   string `json:"appName,omitempty"`
 	UserId    int32  `json:"-"`
 }
 

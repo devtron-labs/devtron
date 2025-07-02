@@ -773,13 +773,25 @@ func (impl *CdWorkflowRepositoryImpl) FindDeployedCdWorkflowRunnersByPipelineId(
 }
 
 func (impl *CdWorkflowRepositoryImpl) FindLatestCdWorkflowRunnerArtifactMetadataForAppAndEnvIds(appVsEnvIdMap map[int][]int, runnerType apiBean.WorkflowType) ([]*cdWorkflow.CdWorkflowRunnerArtifactMetadata, error) {
-	var allRunners []*cdWorkflow.CdWorkflowRunnerArtifactMetadata
+	var runners []*cdWorkflow.CdWorkflowRunnerArtifactMetadata
+
+	// Prepare the (app_id, env_id) tuple list for the query
+	tupleList := make([]interface{}, 0, len(appVsEnvIdMap))
+	for appId, envIds := range appVsEnvIdMap {
+		for _, envId := range envIds {
+			tupleList = append(tupleList, []interface{}{appId, envId})
+		}
+	}
+	if len(tupleList) == 0 {
+		return nil, nil
+	}
+
 	query := `
 WITH RankedData AS (
     SELECT 
         p.app_id AS "app_id",
         p.environment_id AS "env_id",
-		p.deleted AS "deleted",
+        p.deleted AS "deleted",
         wf.ci_artifact_id AS "ci_artifact_id",
         ci_artifact.parent_ci_artifact AS "parent_ci_artifact",
         ci_artifact.scanned AS "scanned",
@@ -787,17 +799,15 @@ WITH RankedData AS (
     FROM cd_workflow_runner INNER JOIN cd_workflow wf ON wf.id = cd_workflow_runner.cd_workflow_id
     INNER JOIN pipeline p ON p.id = wf.pipeline_id
     INNER JOIN ci_artifact ON ci_artifact.id = wf.ci_artifact_id
-    WHERE cd_workflow_runner.workflow_type = ? AND p.app_id = ? AND p.environment_id IN (?))
+    WHERE cd_workflow_runner.workflow_type = ? 
+      AND (p.app_id, p.environment_id) IN ( ? )
+)
 SELECT "app_id","env_id","ci_artifact_id","parent_ci_artifact","scanned" FROM RankedData WHERE rn = 1 and deleted= false;
 `
-	for appId, envIds := range appVsEnvIdMap {
-		var runners []*cdWorkflow.CdWorkflowRunnerArtifactMetadata
-		_, err := impl.dbConnection.Query(&runners, query, runnerType, appId, pg.In(envIds))
-		if err != nil {
-			impl.logger.Errorw("error in getting cdWfrs by appId and envIds and runner type", "appVsEnvIdMap", appVsEnvIdMap, "err", err)
-			return nil, err
-		}
-		allRunners = append(allRunners, runners...)
+	_, err := impl.dbConnection.Query(&runners, query, runnerType, pg.In(tupleList))
+	if err != nil {
+		impl.logger.Errorw("error in getting cdWfrs by appId and envIds and runner type", "appVsEnvIdMap", appVsEnvIdMap, "err", err)
+		return nil, err
 	}
-	return allRunners, nil
+	return runners, nil
 }

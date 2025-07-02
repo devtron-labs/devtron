@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"context"
 	"github.com/devtron-labs/common-lib/async"
+	service2 "github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/service"
 	"github.com/devtron-labs/devtron/client/fluxcd"
 	"os"
 	"time"
@@ -91,15 +92,15 @@ prePostWfAndLogsCode.go - code containing pre/post wf handling(abort) and logs r
 */
 
 type HandlerService interface {
-	TriggerPostStage(request bean.TriggerRequest) (*bean4.ManifestPushTemplate, error)
-	TriggerPreStage(request bean.TriggerRequest) (*bean4.ManifestPushTemplate, error)
+	TriggerPostStage(request bean.CdTriggerRequest) (*bean4.ManifestPushTemplate, error)
+	TriggerPreStage(request bean.CdTriggerRequest) (*bean4.ManifestPushTemplate, error)
 
 	TriggerAutoCDOnPreStageSuccess(triggerContext bean.TriggerContext, cdPipelineId, ciArtifactId, workflowId int) error
 
-	TriggerStageForBulk(triggerRequest bean.TriggerRequest) error
+	TriggerStageForBulk(triggerRequest bean.CdTriggerRequest) error
 
 	ManualCdTrigger(triggerContext bean.TriggerContext, overrideRequest *bean3.ValuesOverrideRequest, userMetadata *userBean.UserMetadata) (int, string, *bean4.ManifestPushTemplate, error)
-	TriggerAutomaticDeployment(request bean.TriggerRequest) error
+	TriggerAutomaticDeployment(request bean.CdTriggerRequest) error
 
 	TriggerRelease(ctx context.Context, overrideRequest *bean3.ValuesOverrideRequest, envDeploymentConfig *bean9.DeploymentConfig, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifestPushTemplate *bean4.ManifestPushTemplate, err error)
 
@@ -171,6 +172,7 @@ type HandlerServiceImpl struct {
 	blobConfigStorageService            pipeline.BlobStorageConfigService
 	deploymentEventHandler              app.DeploymentEventHandler
 	asyncRunnable                       *async.Runnable
+	workflowTriggerAuditService         service2.WorkflowTriggerAuditService
 	fluxCdDeploymentService             fluxcd.DeploymentService
 }
 
@@ -235,6 +237,7 @@ func NewHandlerServiceImpl(logger *zap.SugaredLogger,
 	blobConfigStorageService pipeline.BlobStorageConfigService,
 	deploymentEventHandler app.DeploymentEventHandler,
 	asyncRunnable *async.Runnable,
+	workflowTriggerAuditService service2.WorkflowTriggerAuditService,
 	fluxCdDeploymentService fluxcd.DeploymentService) (*HandlerServiceImpl, error) {
 	impl := &HandlerServiceImpl{
 		logger:                              logger,
@@ -296,13 +299,14 @@ func NewHandlerServiceImpl(logger *zap.SugaredLogger,
 		attributeService:         attributeService,
 		cdWorkflowRunnerService:  cdWorkflowRunnerService,
 
-		clusterRepository:        clusterRepository,
-		clusterService:           clusterService,
-		ciLogService:             ciLogService,
-		workflowService:          workflowService,
-		blobConfigStorageService: blobConfigStorageService,
-		deploymentEventHandler:   deploymentEventHandler,
-		asyncRunnable:            asyncRunnable,
+		clusterRepository:           clusterRepository,
+		clusterService:              clusterService,
+		ciLogService:                ciLogService,
+		workflowService:             workflowService,
+		blobConfigStorageService:    blobConfigStorageService,
+		deploymentEventHandler:      deploymentEventHandler,
+		asyncRunnable:               asyncRunnable,
+		workflowTriggerAuditService: workflowTriggerAuditService,
 		fluxCdDeploymentService:  fluxCdDeploymentService,
 	}
 	config, err := types.GetCdConfig()

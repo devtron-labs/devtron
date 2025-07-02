@@ -87,9 +87,23 @@ func (handler AppInfoRestHandlerImpl) GetAllLabels(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	propagatedLabelsOnlyStr := r.URL.Query().Get("showPropagatedOnly")
+
+	var propagatedLabelsOnlyBool *bool
+	if propagatedLabelsOnlyStr != "" {
+		if val, err := strconv.ParseBool(propagatedLabelsOnlyStr); err == nil {
+			propagatedLabelsOnlyBool = &val
+		} else {
+			// Invalid boolean value provided, treat as null (nil)
+			propagatedLabelsOnlyBool = nil
+			handler.logger.Infow("Invalid 'showPropagatedOnly' value from quey params — defaulting to nil", propagatedLabelsOnlyStr)
+		}
+	}
+
 	token := r.Header.Get("token")
 	results := make([]*bean.AppLabelDto, 0)
-	labels, err := handler.appService.FindAll()
+
+	labels, err := handler.appService.FindAll(propagatedLabelsOnlyBool)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAllLabels", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

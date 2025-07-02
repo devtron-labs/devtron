@@ -328,7 +328,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeTriggerBulkAction() error {
 			ReferenceId: pointer.String(msg.MsgId),
 		}
 
-		triggerRequest := triggerBean.TriggerRequest{
+		triggerRequest := triggerBean.CdTriggerRequest{
 			CdWf:           adapter.ConvertCdWorkflowDtoToDbObj(wf), //TODO: update object from db to dto
 			Artifact:       artifact,
 			Pipeline:       pipelineObj,
