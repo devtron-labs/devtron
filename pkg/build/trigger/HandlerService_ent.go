@@ -65,10 +65,11 @@ func (impl *HandlerServiceImpl) updateWorkflowRequestWithEntSupportData(workflow
 	return workflowRequest
 }
 
-func (impl *HandlerServiceImpl) updateWorkflowRequestWithBuildCacheData(workflowRequest *types.WorkflowRequest,
+func (impl *HandlerServiceImpl) updateWorkflowRequestWithBuildxFlags(workflowRequest *types.WorkflowRequest,
 	scope resourceQualifiers.Scope) (*types.WorkflowRequest, error) {
-	workflowRequest.BuildxCacheModeMin = impl.buildxCacheFlags.BuildxCacheModeMin
-	workflowRequest.AsyncBuildxCacheExport = impl.buildxCacheFlags.AsyncBuildxCacheExport
+	workflowRequest.BuildxCacheModeMin = impl.buildxGlobalFlags.BuildxCacheModeMin
+	workflowRequest.AsyncBuildxCacheExport = impl.buildxGlobalFlags.AsyncBuildxCacheExport
+	workflowRequest.BuildxInterruptionMaxRetry = impl.buildxGlobalFlags.BuildxInterruptionMaxRetry
 	return workflowRequest, nil
 }
 

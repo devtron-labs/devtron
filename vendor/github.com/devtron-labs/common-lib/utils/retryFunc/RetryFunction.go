@@ -26,13 +26,26 @@ import (
 
 // Retry performs a function with retries, delay, and a max number of attempts.
 func Retry(fn func(retriesLeft int) error, shouldRetry func(err error) bool, maxRetries int, delay time.Duration, logger *zap.SugaredLogger) error {
+	return retry(fn, shouldRetry, maxRetries, delay, logger)
+}
+
+// RetryWithOutLogging performs a function with retries, delay, and a max number of attempts without logging.
+func RetryWithOutLogging(fn func(retriesLeft int) error, shouldRetry func(err error) bool, maxRetries int, delay time.Duration) error {
+	return retry(fn, shouldRetry, maxRetries, delay, nil)
+}
+
+func retry(fn func(retriesLeft int) error, shouldRetry func(err error) bool, maxRetries int, delay time.Duration, logger *zap.SugaredLogger) error {
 	var err error
-	logger.Debugw("retrying function",
-		"maxRetries", maxRetries, "delay", delay,
-		"callerFunc", runTime.GetCallerFunctionName(),
-		"path", fmt.Sprintf("%s:%d", runTime.GetCallerFileName(), runTime.GetCallerLineNumber()))
+	if logger != nil {
+		logger.Debugw("retrying function",
+			"maxRetries", maxRetries, "delay", delay,
+			"callerFunc", runTime.GetCallerFunctionName(),
+			"path", fmt.Sprintf("%s:%d", runTime.GetCallerFileName(), runTime.GetCallerLineNumber()))
+	}
 	for i := 0; i < maxRetries; i++ {
-		logger.Debugw("function called with retry", "attempt", i+1, "maxRetries", maxRetries, "delay", delay)
+		if logger != nil {
+			logger.Debugw("function called with retry", "attempt", i+1, "maxRetries", maxRetries, "delay", delay)
+		}
 		err = fn(maxRetries - (i + 1))
 		if err == nil {
 			return nil
@@ -40,7 +53,9 @@ func Retry(fn func(retriesLeft int) error, shouldRetry func(err error) bool, max
 		if !shouldRetry(err) {
 			return sanitiseError(err)
 		}
-		logger.Infow(fmt.Sprintf("Attempt %d failed, retrying in %v", i+1, delay), "err", err)
+		if logger != nil {
+			logger.Infow(fmt.Sprintf("Attempt %d failed, retrying in %v", i+1, delay), "err", err)
+		}
 		time.Sleep(delay)
 	}
 	return fmt.Errorf("after %d attempts, last error: %s", maxRetries, err)
@@ -56,6 +71,15 @@ func NewRetryableError(err error) *RetryableError {
 	return &RetryableError{
 		err: err,
 	}
+}
+
+// IsRetryableError checks if the error is a RetryableError.
+func IsRetryableError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var retryErr *RetryableError
+	return errors.As(err, &retryErr)
 }
 
 func (r *RetryableError) Error() string { return r.err.Error() }
