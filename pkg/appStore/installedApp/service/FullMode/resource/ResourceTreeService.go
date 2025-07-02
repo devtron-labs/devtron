@@ -32,6 +32,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/constants"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	cdWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/bean"
@@ -39,6 +40,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	bean3 "github.com/devtron-labs/devtron/pkg/argoApplication/bean"
+	bean4 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/fluxApplication"
@@ -188,6 +190,29 @@ func (impl *InstalledAppResourceServiceImpl) FetchResourceTree(rctx context.Cont
 			impl.logger.Errorw("error in fetching app detail", "payload", req, "err", err)
 		}
 		if detail != nil {
+			iaVersion, err := impl.installedAppRepositoryHistory.GetLatestInstalledAppVersionHistoryByInstalledAppId(installedApp.Id)
+			if err != nil {
+				impl.logger.Errorw("error in fetching latest installed app version history", "err", err)
+			} else if iaVersion != nil {
+				switch detail.FluxAppStatusDetail.Reason {
+				case bean5.InstallSucceededReason, bean5.UpgradeSucceededReason, bean5.TestSucceededReason, bean5.RollbackSucceededReason:
+					if detail.AppHealthStatus == commonBean.HealthStatusHealthy {
+						iaVersion.Status = cdWorkflow2.WorkflowSucceeded
+					}
+				case bean5.UpgradeFailedReason,
+					bean5.TestFailedReason,
+					bean5.RollbackFailedReason,
+					bean5.UninstallFailedReason,
+					bean5.ArtifactFailedReason,
+					bean5.InstallFailedReason:
+					iaVersion.Status = cdWorkflow2.WorkflowFailed
+				}
+				iaVersion.UpdateAuditLog(bean4.SYSTEM_USER_ID)
+				_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(iaVersion, nil)
+				if err != nil {
+					impl.logger.Errorw("error in updating app version history", "err", err)
+				}
+			}
 			resourceTree = util2.InterfaceToMapAdapter(detail.ResourceTreeResponse)
 			applicationStatus := detail.AppHealthStatus
 			if detail.ResourceTreeResponse != nil && len(detail.ResourceTreeResponse.Nodes) == 0 {
