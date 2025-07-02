@@ -25,7 +25,6 @@ import (
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	bean3 "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/client/fluxcd"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
@@ -290,10 +289,9 @@ func (chart *InstallAppVersionDTO) GetFluxDeploymentConfig() *bean2.DeploymentCo
 				GitOpsSecretName:       fmt.Sprintf("devtron-flux-secret-%d", chart.GitOpsId),
 				ChartLocation:          chartLocation,
 				//ChartVersion:           chart.InstallAppVersionChartDTO.ChartVersion,
-				RevisionTarget:         util.GetDefaultTargetRevision(),
-				RepoUrl:                chart.GitOpsRepoURL,
-				DevtronValueFile:       "",
-				HelmReleaseValuesFiles: fluxcd.GetValuesFileArrForDevtronInlineApps(chartLocation),
+				RevisionTarget:   util.GetDefaultTargetRevision(),
+				RepoUrl:          chart.GitOpsRepoURL,
+				DevtronValueFile: "values.yaml",
 			},
 		},
 		Active: true,
