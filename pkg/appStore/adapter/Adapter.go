@@ -281,7 +281,7 @@ func UpdateInstallAppDetails(request *appStoreBean.InstallAppVersionDTO, install
 	request.EnvironmentId = installedApp.EnvironmentId
 	request.Status = installedApp.Status
 	request.DeploymentAppType = config.DeploymentAppType
-	if util.IsAcdApp(config.DeploymentAppType) {
+	if util.IsAcdApp(config.DeploymentAppType) || util.IsFluxApp(config.DeploymentAppType) {
 		request.GitOpsRepoURL = config.GetRepoURL()
 		request.TargetRevision = config.GetTargetRevision()
 	}
