@@ -289,7 +289,7 @@ func (chart *InstallAppVersionDTO) GetFluxDeploymentConfig() *bean2.DeploymentCo
 				HelmReleaseName:        util.BuildDeployedAppName(chart.AppName, chart.EnvironmentName),
 				GitOpsSecretName:       fmt.Sprintf("devtron-flux-secret-%d", chart.GitOpsId),
 				ChartLocation:          chartLocation,
-				ChartVersion:           chart.InstallAppVersionChartDTO.ChartVersion,
+				//ChartVersion:           chart.InstallAppVersionChartDTO.ChartVersion,
 				RevisionTarget:         util.GetDefaultTargetRevision(),
 				RepoUrl:                chart.GitOpsRepoURL,
 				DevtronValueFile:       "",
