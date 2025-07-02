@@ -78,6 +78,10 @@ func NewGithubClient(host string, token string, org string, logger *zap.SugaredL
 	}, err
 }
 
+func (impl GitHubClient) getClient() *github.Client {
+	return impl.client
+}
+
 func (impl GitHubClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
 	var err error
 	start := time.Now()
@@ -194,6 +198,10 @@ func (impl GitHubClient) CreateRepository(ctx context.Context, config *bean2.Git
 	return *r.CloneURL, true, isEmpty, detailedErrorGitOpsConfigActions
 }
 
+func (impl GitHubClient) CreateFirstCommitOnHead(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
+	return impl.CreateReadme(ctx, config)
+}
+
 func (impl GitHubClient) CreateReadme(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
 	var err error
 	start := time.Now()
@@ -233,7 +241,7 @@ func (impl GitHubClient) CommitValues(ctx context.Context, config *ChartConfig, 
 	if err != nil {
 		responseErr, ok := err.(*github.ErrorResponse)
 		if !ok || responseErr.Response.StatusCode != 404 {
-			impl.logger.Errorw("error in creating repo github", "err", err, "config", config)
+			impl.logger.Errorw("error in creating repo github", "config", config, "err", err)
 			globalUtil.TriggerGitOpsMetrics("CommitValues", "GitHubClient", start, err)
 			return "", time.Time{}, err
 		} else {
@@ -263,13 +271,13 @@ func (impl GitHubClient) CommitValues(ctx context.Context, config *ChartConfig, 
 	}
 	c, httpRes, err := impl.client.Repositories.CreateFile(ctx, impl.org, config.ChartRepoName, path, options)
 	if err != nil && httpRes != nil && httpRes.StatusCode == http2.StatusConflict {
-		impl.logger.Warn("conflict found in commit github", "err", err, "config", config)
+		impl.logger.Warnw("conflict found in commit github", "config", config, "err", err)
 		if publishStatusConflictErrorMetrics {
 			globalUtil.TriggerGitOpsMetrics("CommitValues", "GitHubClient", start, err)
 		}
 		return "", time.Time{}, retryFunc.NewRetryableError(err)
 	} else if err != nil {
-		impl.logger.Errorw("error in commit github", "err", err, "config", config)
+		impl.logger.Errorw("error in commit github", "config", config, "err", err)
 		globalUtil.TriggerGitOpsMetrics("CommitValues", "GitHubClient", start, err)
 		return "", time.Time{}, err
 	}

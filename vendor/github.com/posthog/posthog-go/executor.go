@@ -1,34 +1,29 @@
 package posthog
 
-import "sync"
-
 type executor struct {
 	queue chan func()
-	mutex sync.Mutex
-	size  int
-	cap   int
 }
 
 func newExecutor(cap int) *executor {
 	e := &executor{
-		queue: make(chan func(), 1),
-		cap:   cap,
+		queue: make(chan func(), cap),
 	}
 	go e.loop()
+
 	return e
 }
 
-func (e *executor) do(task func()) (ok bool) {
-	e.mutex.Lock()
+func (e *executor) do(task func()) bool {
+	select {
+	case e.queue <- task:
+		// task is enqueued successfully
+		return true
 
-	if e.size != e.cap {
-		e.queue <- task
-		e.size++
-		ok = true
+	default:
+		// buffer was full; inform the caller rather than blocking
 	}
 
-	e.mutex.Unlock()
-	return
+	return false
 }
 
 func (e *executor) close() {
@@ -37,17 +32,7 @@ func (e *executor) close() {
 
 func (e *executor) loop() {
 	for task := range e.queue {
-		go e.run(task)
+		capturedTask := task
+		go capturedTask()
 	}
-}
-
-func (e *executor) run(task func()) {
-	defer e.done()
-	task()
-}
-
-func (e *executor) done() {
-	e.mutex.Lock()
-	e.size--
-	e.mutex.Unlock()
 }

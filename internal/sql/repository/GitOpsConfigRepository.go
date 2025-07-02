@@ -29,6 +29,7 @@ type GitOpsConfigRepository interface {
 	GetAllGitOpsConfig() ([]*GitOpsConfig, error)
 	GetAllGitOpsConfigCount() (int, error)
 	GetGitOpsConfigByProvider(provider string) (*GitOpsConfig, error)
+	CheckIfGitOpsProviderExist(provider string) (bool, error)
 	GetGitOpsConfigActive() (*GitOpsConfig, error)
 	GetConnection() *pg.DB
 	GetEmailIdFromActiveGitOpsConfig() (string, error)
@@ -103,6 +104,13 @@ func (impl *GitOpsConfigRepositoryImpl) GetGitOpsConfigByProvider(provider strin
 	var model GitOpsConfig
 	err := impl.dbConnection.Model(&model).Where("provider = ?", provider).Select()
 	return &model, err
+}
+
+func (impl *GitOpsConfigRepositoryImpl) CheckIfGitOpsProviderExist(provider string) (bool, error) {
+	found, err := impl.dbConnection.Model((*GitOpsConfig)(nil)).
+		Where("provider = ?", provider).
+		Exists()
+	return found, err
 }
 
 func (impl *GitOpsConfigRepositoryImpl) GetGitOpsConfigActive() (*GitOpsConfig, error) {

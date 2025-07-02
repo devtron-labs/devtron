@@ -4,7 +4,7 @@
 [![Coverage Status](https://img.shields.io/codecov/c/gh/caarlos0/env.svg?logo=codecov&style=for-the-badge)](https://codecov.io/gh/caarlos0/env)
 [![](http://img.shields.io/badge/godoc-reference-5272B4.svg?style=for-the-badge)](https://pkg.go.dev/github.com/caarlos0/env/v6)
 
-Simple lib to parse envs to structs in Go.
+A simple and zero-dependencies library to parse environment variables into structs.
 
 ## Example
 
@@ -76,7 +76,6 @@ Complete list:
 - `uint64`
 - `float32`
 - `float64`
-- `string`
 - `time.Duration`
 - `encoding.TextUnmarshaler`
 - `url.URL`
@@ -105,16 +104,10 @@ to the `env.ParseWithFuncs()` function.
 In addition to accepting a struct pointer (same as `Parse()`), this function
 also accepts a `map[reflect.Type]env.ParserFunc`.
 
-`env` also ships with some pre-built custom parser funcs for common types. You
-can check them out [here](parsers/).
-
 If you add a custom parser for, say `Foo`, it will also be used to parse
 `*Foo` and `[]Foo` types.
 
-This directory contains pre-built, custom parsers that can be used with `env.ParseWithFuncs`
-to facilitate the parsing of envs that are not basic types.
-
-Check the example in the [go doc](http://godoc.org/github.com/caarlos0/env)
+Check the examples in the [go doc](http://pkg.go.dev/github.com/caarlos0/env/v6)
 for more info.
 
 ### A note about `TextUnmarshaler` and `time.Time`
@@ -296,6 +289,56 @@ func main() {
 }
 ```
 
+### Prefixes
+
+You can prefix sub-structs env tags, as well as a whole `env.Parse` call.
+
+Here's an example flexing it a bit:
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/caarlos0/env/v6"
+)
+
+type Config struct {
+	Home string `env:"HOME"`
+}
+
+type ComplexConfig struct {
+	Foo   Config `envPrefix:"FOO_"`
+	Clean Config
+	Bar   Config `envPrefix:"BAR_"`
+	Blah  string `env:"BLAH"`
+}
+
+func main() {
+	cfg := ComplexConfig{}
+	if 	err := Parse(&cfg, Options{
+		Prefix: "T_",
+		Environment: map[string]string{
+			"T_FOO_HOME": "/foo",
+			"T_BAR_HOME": "/bar",
+			"T_BLAH":     "blahhh",
+			"T_HOME":     "/clean",
+		},
+	}); err != nil {
+		log.Fatal(err)
+	}
+
+	// Load env vars.
+	if err := env.Parse(cfg, opts); err != nil {
+		log.Fatal(err)
+	}
+
+	// Print the loaded data.
+	fmt.Printf("%+v\n", cfg.envData)
+}
+```
 
 ### On set hooks
 
@@ -372,7 +415,7 @@ func main() {
 
 ## Defaults from code
 
-You may define default value also in code, by initialising the config data before it's filled by `env.Parse`.  
+You may define default value also in code, by initialising the config data before it's filled by `env.Parse`.
 Default values defined as struct tags will overwrite existing values during Parse.
 
 ```go

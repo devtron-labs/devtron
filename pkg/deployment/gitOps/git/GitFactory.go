@@ -18,11 +18,13 @@ package git
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/adapter"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/go-pg/pg"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
 	"time"
@@ -34,24 +36,27 @@ type GitFactory struct {
 	logger       *zap.SugaredLogger
 }
 
-func (factory *GitFactory) Reload(gitOpsConfigReadService config.GitOpsConfigReadService) error {
-	var err error
+func (factory *GitFactory) Reload(gitOpsConfigReadService config.GitOpsConfigReadService) (err error) {
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("Reload", "GitService", start, err)
 	}()
 	factory.logger.Infow("reloading gitops details")
-	cfg, err := GetGitConfig(gitOpsConfigReadService)
-	if err != nil {
+	gitConfig, err := gitOpsConfigReadService.GetGitConfig()
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
+		factory.logger.Errorw("error in getting gitops config", "err", err)
 		return err
+	} else if errors.Is(err, pg.ErrNoRows) || gitConfig == nil {
+		factory.logger.Warn("no gitops config found, gitops will not work")
+		return nil
 	}
-	factory.GitOpsHelper.SetAuth(cfg.GetAuth())
-	client, err := NewGitOpsClient(cfg, factory.logger, factory.GitOpsHelper)
+	factory.GitOpsHelper.SetAuth(gitConfig.GetAuth())
+	client, err := NewGitOpsClient(gitConfig, factory.logger, factory.GitOpsHelper)
 	if err != nil {
 		return err
 	}
 	factory.Client = client
-	factory.logger.Infow(" gitops details reload success")
+	factory.logger.Infow("gitops details reload success")
 	return nil
 }
 
@@ -78,7 +83,7 @@ func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *gitOps.GitOpsConfigD
 	}
 	group, _, err := gitLabClient.Groups.GetGroup(gitOpsConfig.GitLabGroupId, &gitlab.GetGroupOptions{})
 	if err != nil {
-		factory.logger.Errorw("error in fetching gitlab group name", "err", err, "gitLab groupID", gitOpsConfig.GitLabGroupId)
+		factory.logger.Errorw("error in fetching gitlab group name", "gitLab groupID", gitOpsConfig.GitLabGroupId, "err", err)
 		return "", err
 	}
 	if group == nil {
@@ -96,10 +101,14 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *gitOps.GitOpsCon
 	}()
 	cfg := adapter.ConvertGitOpsConfigToGitConfig(gitOpsConfig)
 	//factory.GitOpsHelper.SetAuth(cfg.GetAuth())
-	gitOpsHelper := NewGitOpsHelperImpl(cfg.GetAuth(), factory.logger, cfg.GetTLSConfig(), gitOpsConfig.EnableTLSVerification)
-
+	gitOpsHelper, err := NewGitOpsHelperImpl(cfg.GetAuth(), factory.logger, cfg.GetTLSConfig(), gitOpsConfig.EnableTLSVerification)
+	if err != nil {
+		factory.logger.Errorw("error in creating gitOps helper", "gitProvider", cfg.GitProvider, "err", err)
+		return nil, gitOpsHelper, err
+	}
 	client, err := NewGitOpsClient(cfg, factory.logger, gitOpsHelper)
 	if err != nil {
+		factory.logger.Errorw("error in creating gitOps client", "gitProvider", cfg.GitProvider, "err", err)
 		return client, gitOpsHelper, err
 	}
 
@@ -109,18 +118,31 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *gitOps.GitOpsCon
 }
 
 func NewGitFactory(logger *zap.SugaredLogger, gitOpsConfigReadService config.GitOpsConfigReadService) (*GitFactory, error) {
-	cfg, err := GetGitConfig(gitOpsConfigReadService)
-	if err != nil {
-		return nil, err
+	gitFactory := &GitFactory{
+		logger: logger,
 	}
-	gitOpsHelper := NewGitOpsHelperImpl(cfg.GetAuth(), logger, cfg.GetTLSConfig(), cfg.EnableTLSVerification)
-	client, err := NewGitOpsClient(cfg, logger, gitOpsHelper)
-	if err != nil {
-		logger.Errorw("error in creating gitOps client", "err", err, "gitProvider", cfg.GitProvider)
+	gitConfig, err := gitOpsConfigReadService.GetGitConfig()
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
+		logger.Errorw("error in getting gitops config", "err", err)
+		return gitFactory, err
+	} else if errors.Is(err, pg.ErrNoRows) || gitConfig == nil {
+		logger.Warn("no gitops config found, gitops will not work")
+		return gitFactory, nil
 	}
-	return &GitFactory{
-		Client:       client,
-		logger:       logger,
-		GitOpsHelper: gitOpsHelper,
-	}, nil
+	gitOpsHelper, err := NewGitOpsHelperImpl(gitConfig.GetAuth(), logger, gitConfig.GetTLSConfig(), gitConfig.EnableTLSVerification)
+	if err != nil {
+		logger.Errorw("error in creating gitOps helper", "gitProvider", gitConfig.GitProvider, "err", err)
+		// error handling is skipped intentionally here, otherwise orchestration will not work
+	}
+	gitFactory.GitOpsHelper = gitOpsHelper
+	client, err := NewGitOpsClient(gitConfig, logger, gitOpsHelper)
+	if err != nil {
+		logger.Errorw("error in creating gitOps client", "gitProvider", gitConfig.GitProvider, "err", err)
+		// error handling is skipped intentionally here, otherwise orchestration will not work
+	}
+	if client == nil {
+		client = &UnimplementedGitOpsClient{}
+	}
+	gitFactory.Client = client
+	return gitFactory, nil
 }

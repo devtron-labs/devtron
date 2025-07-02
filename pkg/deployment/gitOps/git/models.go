@@ -29,13 +29,17 @@ type DetailedErrorGitOpsConfigActions struct {
 }
 
 type ChartConfig struct {
-	ChartName        string
-	ChartLocation    string
-	FileName         string //filename
-	FileContent      string
-	ReleaseMessage   string
-	ChartRepoName    string
-	TargetRevision   string
+	ChartName      string
+	ChartLocation  string
+	FileName       string //filename
+	FileContent    string
+	ReleaseMessage string
+	ChartRepoName  string
+	TargetRevision string
+	// UseDefaultBranch will override the TargetRevision and use the default branch of the repo
+	// This is currently implemented for the bitbucket client only.
+	// This is used to create the first commit on default branch.
+	UseDefaultBranch bool
 	UserName         string
 	UserEmailId      string
 	bitBucketBaseDir string // base directory is required for bitbucket to load the

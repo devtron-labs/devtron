@@ -434,6 +434,7 @@ func (impl *K8sApplicationServiceImpl) GetPodLogs(ctx context.Context, request *
 	restConfig, err := impl.k8sCommonService.GetRestConfigOfCluster(ctx, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by clusterId", "err", err, "clusterId", clusterId, "")
+		return nil, err
 	}
 	resp, err := impl.K8sUtil.GetPodLogs(ctx, restConfig, resourceIdentifier.Name, resourceIdentifier.Namespace, podLogsRequest.SinceTime, podLogsRequest.TailLines, podLogsRequest.SinceSeconds, podLogsRequest.Follow, podLogsRequest.ContainerName, podLogsRequest.IsPrevContainerLogsEnabled)
 	if err != nil {

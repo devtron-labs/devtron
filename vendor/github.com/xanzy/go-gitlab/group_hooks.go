@@ -229,6 +229,25 @@ func (s *GroupsService) DeleteGroupHook(pid interface{}, hook int, options ...Re
 	return s.client.Do(req, nil)
 }
 
+// TriggerTestGroupHook triggers a test hook for a specified group.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/group_webhooks.html#trigger-a-test-group-hook
+func (s *GroupsService) TriggerTestGroupHook(pid interface{}, hook int, trigger GroupHookTrigger, options ...RequestOptionFunc) (*Response, error) {
+	group, err := parseID(pid)
+	if err != nil {
+		return nil, err
+	}
+	u := fmt.Sprintf("groups/%s/hooks/%d/test/%s", PathEscape(group), hook, trigger)
+
+	req, err := s.client.NewRequest(http.MethodPost, u, nil, options)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.client.Do(req, nil)
+}
+
 // SetGroupCustomHeader creates or updates a group custom webhook header.
 //
 // GitLab API docs:

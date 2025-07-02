@@ -217,7 +217,7 @@ func (model Model) GetAssertion(sec string, ptype string) (*Assertion, error) {
 		return nil, fmt.Errorf("missing required section %s", sec)
 	}
 	if model[sec][ptype] == nil {
-		return nil, fmt.Errorf("missiong required definition %s in section %s", ptype, sec)
+		return nil, fmt.Errorf("missing required definition %s in section %s", ptype, sec)
 	}
 	return model[sec][ptype], nil
 }
@@ -359,10 +359,14 @@ func (model Model) SortPoliciesByPriority() error {
 	return nil
 }
 
+var (
+	pPattern = regexp.MustCompile("^p_")
+	rPattern = regexp.MustCompile("^r_")
+)
+
 func (model Model) ToText() string {
 	tokenPatterns := make(map[string]string)
 
-	pPattern, rPattern := regexp.MustCompile("^p_"), regexp.MustCompile("^r_")
 	for _, ptype := range []string{"r", "p"} {
 		for _, token := range model[ptype][ptype].Tokens {
 			tokenPatterns[token] = rPattern.ReplaceAllString(pPattern.ReplaceAllString(token, "p."), "r.")

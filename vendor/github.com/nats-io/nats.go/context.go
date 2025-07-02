@@ -1,4 +1,4 @@
-// Copyright 2016-2022 The NATS Authors
+// Copyright 2016-2023 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -88,7 +88,7 @@ func (nc *Conn) oldRequestWithContext(ctx context.Context, subj string, hdr, dat
 	inbox := nc.NewInbox()
 	ch := make(chan *Msg, RequestChanLen)
 
-	s, err := nc.subscribe(inbox, _EMPTY_, nil, ch, true, nil)
+	s, err := nc.subscribe(inbox, _EMPTY_, nil, ch, nil, true, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -217,6 +217,8 @@ func (nc *Conn) FlushWithContext(ctx context.Context) error {
 // RequestWithContext will create an Inbox and perform a Request
 // using the provided cancellation context with the Inbox reply
 // for the data v. A response will be decoded into the vPtr last parameter.
+//
+// Deprecated: Encoded connections are no longer supported.
 func (c *EncodedConn) RequestWithContext(ctx context.Context, subject string, v any, vPtr any) error {
 	if ctx == nil {
 		return ErrInvalidContext

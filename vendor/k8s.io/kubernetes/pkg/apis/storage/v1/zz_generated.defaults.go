@@ -22,68 +22,99 @@ limitations under the License.
 package v1
 
 import (
-	v1 "k8s.io/api/storage/v1"
+	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
-	corev1 "k8s.io/kubernetes/pkg/apis/core/v1"
+	apiscorev1 "k8s.io/kubernetes/pkg/apis/core/v1"
 )
 
 // RegisterDefaults adds defaulters functions to the given scheme.
 // Public to allow building arbitrary schemes.
 // All generated defaulters are covering - they call all nested defaulters.
 func RegisterDefaults(scheme *runtime.Scheme) error {
-	scheme.AddTypeDefaultingFunc(&v1.CSIDriver{}, func(obj interface{}) { SetObjectDefaults_CSIDriver(obj.(*v1.CSIDriver)) })
-	scheme.AddTypeDefaultingFunc(&v1.CSIDriverList{}, func(obj interface{}) { SetObjectDefaults_CSIDriverList(obj.(*v1.CSIDriverList)) })
-	scheme.AddTypeDefaultingFunc(&v1.StorageClass{}, func(obj interface{}) { SetObjectDefaults_StorageClass(obj.(*v1.StorageClass)) })
-	scheme.AddTypeDefaultingFunc(&v1.StorageClassList{}, func(obj interface{}) { SetObjectDefaults_StorageClassList(obj.(*v1.StorageClassList)) })
-	scheme.AddTypeDefaultingFunc(&v1.VolumeAttachment{}, func(obj interface{}) { SetObjectDefaults_VolumeAttachment(obj.(*v1.VolumeAttachment)) })
-	scheme.AddTypeDefaultingFunc(&v1.VolumeAttachmentList{}, func(obj interface{}) { SetObjectDefaults_VolumeAttachmentList(obj.(*v1.VolumeAttachmentList)) })
+	scheme.AddTypeDefaultingFunc(&storagev1.CSIDriver{}, func(obj interface{}) { SetObjectDefaults_CSIDriver(obj.(*storagev1.CSIDriver)) })
+	scheme.AddTypeDefaultingFunc(&storagev1.CSIDriverList{}, func(obj interface{}) { SetObjectDefaults_CSIDriverList(obj.(*storagev1.CSIDriverList)) })
+	scheme.AddTypeDefaultingFunc(&storagev1.StorageClass{}, func(obj interface{}) { SetObjectDefaults_StorageClass(obj.(*storagev1.StorageClass)) })
+	scheme.AddTypeDefaultingFunc(&storagev1.StorageClassList{}, func(obj interface{}) { SetObjectDefaults_StorageClassList(obj.(*storagev1.StorageClassList)) })
+	scheme.AddTypeDefaultingFunc(&storagev1.VolumeAttachment{}, func(obj interface{}) { SetObjectDefaults_VolumeAttachment(obj.(*storagev1.VolumeAttachment)) })
+	scheme.AddTypeDefaultingFunc(&storagev1.VolumeAttachmentList{}, func(obj interface{}) { SetObjectDefaults_VolumeAttachmentList(obj.(*storagev1.VolumeAttachmentList)) })
 	return nil
 }
 
-func SetObjectDefaults_CSIDriver(in *v1.CSIDriver) {
+func SetObjectDefaults_CSIDriver(in *storagev1.CSIDriver) {
 	SetDefaults_CSIDriver(in)
 }
 
-func SetObjectDefaults_CSIDriverList(in *v1.CSIDriverList) {
+func SetObjectDefaults_CSIDriverList(in *storagev1.CSIDriverList) {
 	for i := range in.Items {
 		a := &in.Items[i]
 		SetObjectDefaults_CSIDriver(a)
 	}
 }
 
-func SetObjectDefaults_StorageClass(in *v1.StorageClass) {
+func SetObjectDefaults_StorageClass(in *storagev1.StorageClass) {
 	SetDefaults_StorageClass(in)
 }
 
-func SetObjectDefaults_StorageClassList(in *v1.StorageClassList) {
+func SetObjectDefaults_StorageClassList(in *storagev1.StorageClassList) {
 	for i := range in.Items {
 		a := &in.Items[i]
 		SetObjectDefaults_StorageClass(a)
 	}
 }
 
-func SetObjectDefaults_VolumeAttachment(in *v1.VolumeAttachment) {
+func SetObjectDefaults_VolumeAttachment(in *storagev1.VolumeAttachment) {
 	if in.Spec.Source.InlineVolumeSpec != nil {
-		corev1.SetDefaults_ResourceList(&in.Spec.Source.InlineVolumeSpec.Capacity)
+		apiscorev1.SetDefaults_ResourceList(&in.Spec.Source.InlineVolumeSpec.Capacity)
 		if in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.HostPath != nil {
-			corev1.SetDefaults_HostPathVolumeSource(in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.HostPath)
+			apiscorev1.SetDefaults_HostPathVolumeSource(in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.HostPath)
 		}
 		if in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.RBD != nil {
-			corev1.SetDefaults_RBDPersistentVolumeSource(in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.RBD)
+			if in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.RBD.RBDPool == "" {
+				in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.RBD.RBDPool = "rbd"
+			}
+			if in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.RBD.RadosUser == "" {
+				in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.RBD.RadosUser = "admin"
+			}
+			if in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.RBD.Keyring == "" {
+				in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.RBD.Keyring = "/etc/ceph/keyring"
+			}
 		}
 		if in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.ISCSI != nil {
-			corev1.SetDefaults_ISCSIPersistentVolumeSource(in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.ISCSI)
+			if in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.ISCSI.ISCSIInterface == "" {
+				in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.ISCSI.ISCSIInterface = "default"
+			}
 		}
 		if in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.AzureDisk != nil {
-			corev1.SetDefaults_AzureDiskVolumeSource(in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.AzureDisk)
+			if in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.AzureDisk.CachingMode == nil {
+				ptrVar1 := corev1.AzureDataDiskCachingMode(corev1.AzureDataDiskCachingReadWrite)
+				in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.AzureDisk.CachingMode = &ptrVar1
+			}
+			if in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.AzureDisk.FSType == nil {
+				var ptrVar1 string = "ext4"
+				in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.AzureDisk.FSType = &ptrVar1
+			}
+			if in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.AzureDisk.ReadOnly == nil {
+				var ptrVar1 bool = false
+				in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.AzureDisk.ReadOnly = &ptrVar1
+			}
+			if in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.AzureDisk.Kind == nil {
+				ptrVar1 := corev1.AzureDataDiskKind(corev1.AzureSharedBlobDisk)
+				in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.AzureDisk.Kind = &ptrVar1
+			}
 		}
 		if in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.ScaleIO != nil {
-			corev1.SetDefaults_ScaleIOPersistentVolumeSource(in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.ScaleIO)
+			if in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.ScaleIO.StorageMode == "" {
+				in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.ScaleIO.StorageMode = "ThinProvisioned"
+			}
+			if in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.ScaleIO.FSType == "" {
+				in.Spec.Source.InlineVolumeSpec.PersistentVolumeSource.ScaleIO.FSType = "xfs"
+			}
 		}
 	}
 }
 
-func SetObjectDefaults_VolumeAttachmentList(in *v1.VolumeAttachmentList) {
+func SetObjectDefaults_VolumeAttachmentList(in *storagev1.VolumeAttachmentList) {
 	for i := range in.Items {
 		a := &in.Items[i]
 		SetObjectDefaults_VolumeAttachment(a)
