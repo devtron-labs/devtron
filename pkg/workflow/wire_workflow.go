@@ -19,10 +19,19 @@ package workflow
 import (
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	"github.com/devtron-labs/devtron/pkg/workflow/status"
+	"github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/hook"
+	"github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/repository"
+	"github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/service"
 	"github.com/google/wire"
 )
 
 var WorkflowWireSet = wire.NewSet(
 	cd.CdWorkflowWireSet,
 	status.WorkflowStatusWireSet,
+	hook.NewTriggerAuditHookImpl,
+	wire.Bind(new(hook.TriggerAuditHook), new(*hook.TriggerAuditHookImpl)),
+	service.NewWorkflowTriggerAuditServiceImpl,
+	wire.Bind(new(service.WorkflowTriggerAuditService), new(*service.WorkflowTriggerAuditServiceImpl)),
+	repository.NewWorkflowConfigSnapshotRepositoryImpl,
+	wire.Bind(new(repository.WorkflowConfigSnapshotRepository), new(*repository.WorkflowConfigSnapshotRepositoryImpl)),
 )

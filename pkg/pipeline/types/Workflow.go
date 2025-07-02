@@ -17,6 +17,9 @@
 package types
 
 import (
+	"bytes"
+	"compress/gzip"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo-workflows/v3/workflow/common"
@@ -38,6 +41,7 @@ import (
 	bean6 "github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/plugin/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+	"io"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -119,6 +123,8 @@ type WorkflowRequest struct {
 	IsExtRun                    bool                              `json:"isExtRun"`
 	ImageRetryCount             int                               `json:"imageRetryCount"`
 	ImageRetryInterval          int                               `json:"imageRetryInterval"`
+	IsReTrigger                 bool                              `json:"isReTrigger"`
+	ReferenceCiWorkflowId       int                               `json:"referenceCiWorkflowId"` // data filled when retriggering a ci workflow
 	// Data from CD Workflow service
 	WorkflowRunnerId            int                                  `json:"workflowRunnerId"`
 	CdPipelineId                int                                  `json:"cdPipelineId"`
@@ -155,6 +161,71 @@ type WorkflowRequest struct {
 	UseDockerApiToGetDigest     bool   `json:"useDockerApiToGetDigest"`
 	HostUrl                     string `json:"hostUrl"`
 	WorkflowRequestEnt
+}
+
+// CompressWorkflowRequest compresses WorkflowRequest to bytes
+func (workflowRequest *WorkflowRequest) CompressWorkflowRequest() (string, error) {
+	jsonData, err := json.Marshal(workflowRequest)
+	if err != nil {
+		return "", err
+	}
+
+	// Compress using gzip
+	var buf bytes.Buffer
+	gzipWriter := gzip.NewWriter(&buf)
+
+	_, err = gzipWriter.Write(jsonData)
+	if err != nil {
+		return "", err
+	}
+
+	err = gzipWriter.Close()
+	if err != nil {
+		return "", err
+	}
+
+	// Encode compressed binary data to Base64 to avoid UTF-8 encoding issues
+	return base64.StdEncoding.EncodeToString(buf.Bytes()), nil
+}
+
+// DecompressWorkflowRequest decompresses bytes to WorkflowRequest
+func (workflowRequest *WorkflowRequest) DecompressWorkflowRequest(compressedData string) error {
+	decodedData, err := base64.StdEncoding.DecodeString(compressedData)
+	if err != nil {
+		return err
+	}
+
+	// Use decoded data for decompression
+	reader, err := gzip.NewReader(bytes.NewReader(decodedData))
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+
+	// Read decompressed data
+	decompressedData, err := io.ReadAll(reader)
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal(decompressedData, workflowRequest)
+}
+
+func (workflowRequest *WorkflowRequest) IsCdStageTypePre() bool {
+	return workflowRequest.StageType == PRE
+}
+
+func (workflowRequest *WorkflowRequest) IsCdStageTypePost() bool {
+	return workflowRequest.StageType == POST
+}
+
+func (workflowRequest *WorkflowRequest) IsCiTypeWorkflowRequest() bool {
+	// pipelineId in workflowRequest refers to CiPipelineId, only filled for ci type workflowRequest
+	return workflowRequest.PipelineId > 0
+}
+
+func (workflowRequest *WorkflowRequest) IsCiRetriggerType() bool {
+	return workflowRequest.IsReTrigger
 }
 
 func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {

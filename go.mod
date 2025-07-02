@@ -315,7 +315,7 @@ require (
 replace (
 	github.com/argoproj/argo-workflows/v3 v3.5.13 => github.com/devtron-labs/argo-workflows/v3 v3.5.13
 	github.com/cyphar/filepath-securejoin v0.4.1 => github.com/cyphar/filepath-securejoin v0.3.6 // indirect
-	github.com/devtron-labs/authenticator => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250623221428-f565cfab8993
-	github.com/devtron-labs/common-lib => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250623221428-f565cfab8993
+	github.com/devtron-labs/authenticator => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250624130631-fd0c2f8fd85c
+	github.com/devtron-labs/common-lib => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250624130631-fd0c2f8fd85c
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.61.0 => go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.46.1
 )

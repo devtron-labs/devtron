@@ -565,7 +565,7 @@ type GitTriggerInfoResponse struct {
 	TargetPlatforms  []*bean2.TargetPlatform                `json:"targetPlatforms"`
 }
 
-type Trigger struct {
+type CiTriggerRequest struct {
 	PipelineId            int
 	CommitHashes          map[int]pipelineConfig.GitCommit
 	CiMaterials           []*pipelineConfig.CiPipelineMaterial
@@ -576,9 +576,13 @@ type Trigger struct {
 	PipelineType          string
 	CiArtifactLastFetch   time.Time
 	ReferenceCiWorkflowId int
+	// below fields used at the time of retrigger
+	IsRetrigger              bool
+	RetriggerWorkflowRequest *WorkflowRequest
+	RetriggerCiWorkflow      *pipelineConfig.CiWorkflow
 }
 
-func (obj *Trigger) BuildTriggerObject(refCiWorkflow *pipelineConfig.CiWorkflow,
+func (obj *CiTriggerRequest) BuildTriggerObject(refCiWorkflow *pipelineConfig.CiWorkflow,
 	ciMaterials []*pipelineConfig.CiPipelineMaterial, triggeredBy int32,
 	invalidateCache bool, runtimeParameters *common.RuntimeParameters,
 	pipelineType string) {
