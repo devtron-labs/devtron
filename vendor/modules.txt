@@ -523,7 +523,7 @@ github.com/davecgh/go-spew/spew
 # github.com/deckarep/golang-set v1.8.0
 ## explicit; go 1.17
 github.com/deckarep/golang-set
-# github.com/devtron-labs/authenticator v0.4.35-0.20240809073103-6e11da8083f8 => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250701092405-436b4302b736
+# github.com/devtron-labs/authenticator v0.4.35-0.20240809073103-6e11da8083f8 => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250702071405-c03dcfbe9993
 ## explicit; go 1.24.0
 github.com/devtron-labs/authenticator/apiToken
 github.com/devtron-labs/authenticator/client
@@ -531,7 +531,7 @@ github.com/devtron-labs/authenticator/jwt
 github.com/devtron-labs/authenticator/middleware
 github.com/devtron-labs/authenticator/oidc
 github.com/devtron-labs/authenticator/password
-# github.com/devtron-labs/common-lib v0.18.1-0.20241001061923-eda545dc839e => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250701092405-436b4302b736
+# github.com/devtron-labs/common-lib v0.18.1-0.20241001061923-eda545dc839e => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250702071405-c03dcfbe9993
 ## explicit; go 1.24.0
 github.com/devtron-labs/common-lib/async
 github.com/devtron-labs/common-lib/blob-storage
@@ -645,6 +645,10 @@ github.com/envoyproxy/protoc-gen-validate/validate
 # github.com/evanphx/json-patch v5.9.11+incompatible
 ## explicit
 github.com/evanphx/json-patch
+# github.com/evanphx/json-patch/v5 v5.9.11
+## explicit; go 1.18
+github.com/evanphx/json-patch/v5
+github.com/evanphx/json-patch/v5/internal/json
 # github.com/exponent-io/jsonpath v0.0.0-20210407135951-1de76d718b3f
 ## explicit; go 1.15
 github.com/exponent-io/jsonpath
@@ -654,8 +658,23 @@ github.com/fatih/camelcase
 # github.com/felixge/httpsnoop v1.0.4
 ## explicit; go 1.13
 github.com/felixge/httpsnoop
-# github.com/fxamacker/cbor/v2 v2.7.0
-## explicit; go 1.17
+# github.com/fluxcd/helm-controller/api v1.3.0
+## explicit; go 1.24.0
+github.com/fluxcd/helm-controller/api/v2
+# github.com/fluxcd/pkg/apis/acl v0.7.0
+## explicit; go 1.24.0
+github.com/fluxcd/pkg/apis/acl
+# github.com/fluxcd/pkg/apis/kustomize v1.10.0
+## explicit; go 1.24.0
+github.com/fluxcd/pkg/apis/kustomize
+# github.com/fluxcd/pkg/apis/meta v1.13.0
+## explicit; go 1.24.0
+github.com/fluxcd/pkg/apis/meta
+# github.com/fluxcd/source-controller/api v1.6.2
+## explicit; go 1.24.0
+github.com/fluxcd/source-controller/api/v1
+# github.com/fxamacker/cbor/v2 v2.8.0
+## explicit; go 1.20
 github.com/fxamacker/cbor/v2
 # github.com/gammazero/deque v1.0.0
 ## explicit; go 1.22
@@ -1839,6 +1858,7 @@ k8s.io/apimachinery/pkg/api/validate/constraints
 k8s.io/apimachinery/pkg/api/validate/content
 k8s.io/apimachinery/pkg/api/validation
 k8s.io/apimachinery/pkg/apis/meta/internalversion
+k8s.io/apimachinery/pkg/apis/meta/internalversion/scheme
 k8s.io/apimachinery/pkg/apis/meta/internalversion/validation
 k8s.io/apimachinery/pkg/apis/meta/v1
 k8s.io/apimachinery/pkg/apis/meta/v1/unstructured
@@ -2148,6 +2168,7 @@ k8s.io/client-go/listers/storage/v1
 k8s.io/client-go/listers/storage/v1alpha1
 k8s.io/client-go/listers/storage/v1beta1
 k8s.io/client-go/listers/storagemigration/v1alpha1
+k8s.io/client-go/metadata
 k8s.io/client-go/openapi
 k8s.io/client-go/openapi/cached
 k8s.io/client-go/openapi3
@@ -2450,6 +2471,12 @@ oras.land/oras-go/v2/registry/remote/credentials/trace
 oras.land/oras-go/v2/registry/remote/errcode
 oras.land/oras-go/v2/registry/remote/internal/errutil
 oras.land/oras-go/v2/registry/remote/retry
+# sigs.k8s.io/controller-runtime v0.21.0
+## explicit; go 1.24.0
+sigs.k8s.io/controller-runtime/pkg/client
+sigs.k8s.io/controller-runtime/pkg/client/apiutil
+sigs.k8s.io/controller-runtime/pkg/log
+sigs.k8s.io/controller-runtime/pkg/scheme
 # sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8
 ## explicit; go 1.23
 sigs.k8s.io/json
@@ -2569,5 +2596,5 @@ xorm.io/xorm/log
 xorm.io/xorm/names
 xorm.io/xorm/schemas
 xorm.io/xorm/tags
-# github.com/devtron-labs/authenticator => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250701092405-436b4302b736
-# github.com/devtron-labs/common-lib => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250701092405-436b4302b736
+# github.com/devtron-labs/authenticator => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250702071405-c03dcfbe9993
+# github.com/devtron-labs/common-lib => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250702071405-c03dcfbe9993

@@ -102,7 +102,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
 	repository9 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	repository23 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
+	repository24 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/resourceGroup"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -115,13 +115,13 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appClone/batch"
 	appStatus2 "github.com/devtron-labs/devtron/pkg/appStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/chartGroup"
-	repository28 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
+	repository29 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/chartProvider"
 	"github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
-	service6 "github.com/devtron-labs/devtron/pkg/appStore/discover/service"
+	service7 "github.com/devtron-labs/devtron/pkg/appStore/discover/service"
 	read5 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
 	repository3 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
-	service5 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
+	service6 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	deployment2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
@@ -130,7 +130,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/common"
 	"github.com/devtron-labs/devtron/pkg/appStore/values/repository"
-	service4 "github.com/devtron-labs/devtron/pkg/appStore/values/service"
+	service5 "github.com/devtron-labs/devtron/pkg/appStore/values/service"
 	appWorkflow2 "github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	read22 "github.com/devtron-labs/devtron/pkg/argoApplication/read"
@@ -147,9 +147,9 @@ import (
 	read17 "github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging/read"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitHost"
 	read21 "github.com/devtron-labs/devtron/pkg/build/git/gitHost/read"
-	repository26 "github.com/devtron-labs/devtron/pkg/build/git/gitHost/repository"
+	repository27 "github.com/devtron-labs/devtron/pkg/build/git/gitHost/repository"
 	read15 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
-	repository21 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
+	repository22 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
 	read9 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
 	repository12 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
@@ -158,7 +158,7 @@ import (
 	pipeline2 "github.com/devtron-labs/devtron/pkg/build/pipeline"
 	read14 "github.com/devtron-labs/devtron/pkg/build/pipeline/read"
 	"github.com/devtron-labs/devtron/pkg/build/trigger"
-	service7 "github.com/devtron-labs/devtron/pkg/bulkAction/service"
+	service8 "github.com/devtron-labs/devtron/pkg/bulkAction/service"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
 	read16 "github.com/devtron-labs/devtron/pkg/chart/read"
@@ -196,8 +196,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/publish"
 	"github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
-	repository25 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/repository"
-	service3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/service"
+	repository26 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/repository"
+	service4 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/service"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/history/deployment/cdPipeline"
@@ -226,7 +226,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/k8s/capacity"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
-	repository27 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
+	repository28 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/module"
 	bean2 "github.com/devtron-labs/devtron/pkg/module/bean"
 	"github.com/devtron-labs/devtron/pkg/module/read"
@@ -237,19 +237,19 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/draftAwareConfigService"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
-	repository22 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
+	repository23 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders/infraGetters/ci"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders/infraGetters/job"
-	repository19 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	repository20 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
 	repository18 "github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus/repository"
 	"github.com/devtron-labs/devtron/pkg/plugin"
-	repository20 "github.com/devtron-labs/devtron/pkg/plugin/repository"
+	repository21 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
 	read18 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/read"
-	repository24 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
+	repository25 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool"
 	repository16 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool/repository"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
@@ -273,6 +273,9 @@ import (
 	read20 "github.com/devtron-labs/devtron/pkg/workflow/cd/read"
 	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	status2 "github.com/devtron-labs/devtron/pkg/workflow/status"
+	"github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/hook"
+	repository19 "github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/repository"
+	service3 "github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/service"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/commonEnforcementFunctionsUtil"
 	"github.com/devtron-labs/devtron/util/cron"
@@ -635,12 +638,15 @@ func InitializeApp() (*App, error) {
 	ciInfraGetter := ci.NewCiInfraGetter(sugaredLogger, infraConfigServiceImpl, infraConfigAuditServiceImpl)
 	infraProviderImpl := infraProviders.NewInfraProviderImpl(sugaredLogger, infraGetter, ciInfraGetter)
 	serviceImpl := ucid.NewServiceImpl(sugaredLogger, k8sServiceImpl, acdAuthConfig)
-	workflowServiceImpl, err := executor.NewWorkflowServiceImpl(sugaredLogger, environmentRepositoryImpl, ciCdConfig, configReadServiceImpl, globalCMCSServiceImpl, argoWorkflowExecutorImpl, systemWorkflowExecutorImpl, k8sCommonServiceImpl, infraProviderImpl, serviceImpl, k8sServiceImpl)
+	workflowConfigSnapshotRepositoryImpl := repository19.NewWorkflowConfigSnapshotRepositoryImpl(db, sugaredLogger, transactionUtilImpl)
+	workflowTriggerAuditServiceImpl := service3.NewWorkflowTriggerAuditServiceImpl(sugaredLogger, workflowConfigSnapshotRepositoryImpl, ciCdConfig, dockerRegistryConfigImpl, transactionUtilImpl)
+	triggerAuditHookImpl := hook.NewTriggerAuditHookImpl(sugaredLogger, workflowTriggerAuditServiceImpl)
+	workflowServiceImpl, err := executor.NewWorkflowServiceImpl(sugaredLogger, environmentRepositoryImpl, ciCdConfig, configReadServiceImpl, globalCMCSServiceImpl, argoWorkflowExecutorImpl, systemWorkflowExecutorImpl, k8sCommonServiceImpl, infraProviderImpl, serviceImpl, k8sServiceImpl, triggerAuditHookImpl, infraConfigAuditServiceImpl)
 	if err != nil {
 		return nil, err
 	}
-	pipelineStageRepositoryImpl := repository19.NewPipelineStageRepository(sugaredLogger, db)
-	globalPluginRepositoryImpl := repository20.NewGlobalPluginRepository(sugaredLogger, db)
+	pipelineStageRepositoryImpl := repository20.NewPipelineStageRepository(sugaredLogger, db)
+	globalPluginRepositoryImpl := repository21.NewGlobalPluginRepository(sugaredLogger, db)
 	globalPluginServiceImpl := plugin.NewGlobalPluginService(sugaredLogger, globalPluginRepositoryImpl, pipelineStageRepositoryImpl, userServiceImpl)
 	pipelineStageServiceImpl := pipeline.NewPipelineStageService(sugaredLogger, pipelineStageRepositoryImpl, globalPluginRepositoryImpl, pipelineRepositoryImpl, scopedVariableManagerImpl, globalPluginServiceImpl)
 	ciTemplateRepositoryImpl := pipelineConfig.NewCiTemplateRepositoryImpl(db, sugaredLogger)
@@ -650,7 +656,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	materialRepositoryImpl := repository21.NewMaterialRepositoryImpl(db)
+	materialRepositoryImpl := repository22.NewMaterialRepositoryImpl(db)
 	gitMaterialReadServiceImpl := read15.NewGitMaterialReadServiceImpl(sugaredLogger, materialRepositoryImpl)
 	appCrudOperationServiceImpl := app2.NewAppCrudOperationServiceImpl(appLabelRepositoryImpl, sugaredLogger, appRepositoryImpl, userRepositoryImpl, installedAppRepositoryImpl, genericNoteServiceImpl, installedAppDBServiceImpl, crudOperationServiceConfig, dbMigrationServiceImpl, gitMaterialReadServiceImpl)
 	imageTagRepositoryImpl := repository2.NewImageTagRepository(db, sugaredLogger)
@@ -663,20 +669,20 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	prePostCdScriptHistoryRepositoryImpl := repository22.NewPrePostCdScriptHistoryRepositoryImpl(sugaredLogger, db)
-	configMapHistoryRepositoryImpl := repository22.NewConfigMapHistoryRepositoryImpl(sugaredLogger, db, transactionUtilImpl)
+	prePostCdScriptHistoryRepositoryImpl := repository23.NewPrePostCdScriptHistoryRepositoryImpl(sugaredLogger, db)
+	configMapHistoryRepositoryImpl := repository23.NewConfigMapHistoryRepositoryImpl(sugaredLogger, db, transactionUtilImpl)
 	configMapHistoryServiceImpl := configMapAndSecret.NewConfigMapHistoryServiceImpl(sugaredLogger, configMapHistoryRepositoryImpl, pipelineRepositoryImpl, configMapRepositoryImpl, userServiceImpl, scopedVariableCMCSManagerImpl)
 	prePostCdScriptHistoryServiceImpl := history.NewPrePostCdScriptHistoryServiceImpl(sugaredLogger, prePostCdScriptHistoryRepositoryImpl, configMapRepositoryImpl, configMapHistoryServiceImpl)
-	gitMaterialHistoryRepositoryImpl := repository22.NewGitMaterialHistoryRepositoyImpl(db)
+	gitMaterialHistoryRepositoryImpl := repository23.NewGitMaterialHistoryRepositoyImpl(db)
 	gitMaterialHistoryServiceImpl := history.NewGitMaterialHistoryServiceImpl(gitMaterialHistoryRepositoryImpl, sugaredLogger)
-	ciPipelineHistoryRepositoryImpl := repository22.NewCiPipelineHistoryRepositoryImpl(db, sugaredLogger)
+	ciPipelineHistoryRepositoryImpl := repository23.NewCiPipelineHistoryRepositoryImpl(db, sugaredLogger)
 	ciPipelineHistoryServiceImpl := history.NewCiPipelineHistoryServiceImpl(ciPipelineHistoryRepositoryImpl, sugaredLogger, ciPipelineRepositoryImpl)
 	ciBuildConfigRepositoryImpl := pipelineConfig.NewCiBuildConfigRepositoryImpl(db, sugaredLogger)
 	ciBuildConfigServiceImpl := pipeline.NewCiBuildConfigServiceImpl(sugaredLogger, ciBuildConfigRepositoryImpl)
 	ciTemplateServiceImpl := pipeline.NewCiTemplateServiceImpl(sugaredLogger, ciBuildConfigServiceImpl, ciTemplateRepositoryImpl, ciTemplateOverrideRepositoryImpl)
 	pipelineConfigRepositoryImpl := chartConfig.NewPipelineConfigRepository(db)
 	configMapServiceImpl := pipeline.NewConfigMapServiceImpl(chartRepositoryImpl, sugaredLogger, chartRepoRepositoryImpl, mergeUtil, pipelineConfigRepositoryImpl, configMapRepositoryImpl, commonServiceImpl, appRepositoryImpl, configMapHistoryServiceImpl, environmentRepositoryImpl, scopedVariableCMCSManagerImpl)
-	deploymentTemplateHistoryRepositoryImpl := repository22.NewDeploymentTemplateHistoryRepositoryImpl(sugaredLogger, db)
+	deploymentTemplateHistoryRepositoryImpl := repository23.NewDeploymentTemplateHistoryRepositoryImpl(sugaredLogger, db)
 	deploymentTemplateHistoryServiceImpl := deploymentTemplate.NewDeploymentTemplateHistoryServiceImpl(sugaredLogger, deploymentTemplateHistoryRepositoryImpl, pipelineRepositoryImpl, chartRepositoryImpl, userServiceImpl, cdWorkflowRepositoryImpl, scopedVariableManagerImpl, deployedAppMetricsServiceImpl, chartRefServiceImpl)
 	chartReadServiceImpl := read16.NewChartReadServiceImpl(sugaredLogger, chartRepositoryImpl, deploymentConfigServiceImpl, deployedAppMetricsServiceImpl, gitOpsConfigReadServiceImpl, chartRefReadServiceImpl)
 	chartServiceImpl := chart.NewChartServiceImpl(chartRepositoryImpl, sugaredLogger, chartTemplateServiceImpl, chartRepoRepositoryImpl, appRepositoryImpl, mergeUtil, envConfigOverrideRepositoryImpl, pipelineConfigRepositoryImpl, environmentRepositoryImpl, deploymentTemplateHistoryServiceImpl, scopedVariableManagerImpl, deployedAppMetricsServiceImpl, chartRefServiceImpl, gitOpsConfigReadServiceImpl, deploymentConfigServiceImpl, envConfigOverrideReadServiceImpl, chartReadServiceImpl)
@@ -688,14 +694,14 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	blobStorageConfigServiceImpl := pipeline.NewBlobStorageConfigServiceImpl(sugaredLogger, k8sServiceImpl, ciCdConfig)
-	handlerServiceImpl := trigger.NewHandlerServiceImpl(sugaredLogger, workflowServiceImpl, ciPipelineMaterialRepositoryImpl, ciPipelineRepositoryImpl, ciArtifactRepositoryImpl, pipelineStageServiceImpl, userServiceImpl, ciTemplateReadServiceImpl, appCrudOperationServiceImpl, environmentRepositoryImpl, appRepositoryImpl, scopedVariableManagerImpl, customTagServiceImpl, ciCdPipelineOrchestratorImpl, attributesServiceImpl, pluginInputVariableParserImpl, globalPluginServiceImpl, ciServiceImpl, ciWorkflowRepositoryImpl, clientImpl, ciLogServiceImpl, blobStorageConfigServiceImpl, clusterServiceImplExtended, environmentServiceImpl, k8sServiceImpl, runnable)
+	handlerServiceImpl := trigger.NewHandlerServiceImpl(sugaredLogger, workflowServiceImpl, ciPipelineMaterialRepositoryImpl, ciPipelineRepositoryImpl, ciArtifactRepositoryImpl, pipelineStageServiceImpl, userServiceImpl, ciTemplateReadServiceImpl, appCrudOperationServiceImpl, environmentRepositoryImpl, appRepositoryImpl, scopedVariableManagerImpl, customTagServiceImpl, ciCdPipelineOrchestratorImpl, attributesServiceImpl, pluginInputVariableParserImpl, globalPluginServiceImpl, ciServiceImpl, ciWorkflowRepositoryImpl, clientImpl, ciLogServiceImpl, blobStorageConfigServiceImpl, clusterServiceImplExtended, environmentServiceImpl, k8sServiceImpl, runnable, workflowTriggerAuditServiceImpl)
 	gitWebhookServiceImpl := gitWebhook.NewGitWebhookServiceImpl(sugaredLogger, gitWebhookRepositoryImpl, handlerServiceImpl)
 	gitWebhookRestHandlerImpl := restHandler.NewGitWebhookRestHandlerImpl(sugaredLogger, gitWebhookServiceImpl)
 	ecrConfig, err := pipeline.GetEcrConfig()
 	if err != nil {
 		return nil, err
 	}
-	ciTemplateHistoryRepositoryImpl := repository22.NewCiTemplateHistoryRepositoryImpl(db, sugaredLogger)
+	ciTemplateHistoryRepositoryImpl := repository23.NewCiTemplateHistoryRepositoryImpl(db, sugaredLogger)
 	ciTemplateHistoryServiceImpl := history.NewCiTemplateHistoryServiceImpl(ciTemplateHistoryRepositoryImpl, sugaredLogger)
 	resourceGroupRepositoryImpl := resourceGroup.NewResourceGroupRepositoryImpl(db)
 	resourceGroupMappingRepositoryImpl := resourceGroup.NewResourceGroupMappingRepositoryImpl(db)
@@ -703,14 +709,14 @@ func InitializeApp() (*App, error) {
 	buildPipelineSwitchServiceImpl := pipeline.NewBuildPipelineSwitchServiceImpl(sugaredLogger, ciPipelineConfigReadServiceImpl, ciPipelineRepositoryImpl, ciCdPipelineOrchestratorImpl, pipelineRepositoryImpl, ciWorkflowRepositoryImpl, appWorkflowRepositoryImpl, ciPipelineHistoryServiceImpl, ciTemplateOverrideRepositoryImpl, ciPipelineMaterialRepositoryImpl)
 	ciPipelineConfigServiceImpl := pipeline.NewCiPipelineConfigServiceImpl(sugaredLogger, ciCdPipelineOrchestratorImpl, dockerArtifactStoreRepositoryImpl, gitMaterialReadServiceImpl, appRepositoryImpl, pipelineRepositoryImpl, ciPipelineConfigReadServiceImpl, ciPipelineRepositoryImpl, ecrConfig, appWorkflowRepositoryImpl, ciCdConfig, attributesServiceImpl, pipelineStageServiceImpl, ciPipelineMaterialRepositoryImpl, ciTemplateServiceImpl, ciTemplateReadServiceImpl, ciTemplateOverrideRepositoryImpl, ciTemplateHistoryServiceImpl, enforcerUtilImpl, ciWorkflowRepositoryImpl, resourceGroupServiceImpl, customTagServiceImpl, cdWorkflowRepositoryImpl, buildPipelineSwitchServiceImpl, pipelineStageRepositoryImpl, globalPluginRepositoryImpl, appListingServiceImpl)
 	ciMaterialConfigServiceImpl := pipeline.NewCiMaterialConfigServiceImpl(sugaredLogger, materialRepositoryImpl, ciTemplateReadServiceImpl, ciCdPipelineOrchestratorImpl, ciPipelineRepositoryImpl, gitMaterialHistoryServiceImpl, pipelineRepositoryImpl, ciPipelineMaterialRepositoryImpl, transactionUtilImpl, gitMaterialReadServiceImpl)
-	imageTaggingRepositoryImpl := repository23.NewImageTaggingRepositoryImpl(db, transactionUtilImpl)
+	imageTaggingRepositoryImpl := repository24.NewImageTaggingRepositoryImpl(db, transactionUtilImpl)
 	imageTaggingReadServiceImpl, err := read17.NewImageTaggingReadServiceImpl(imageTaggingRepositoryImpl, sugaredLogger)
 	if err != nil {
 		return nil, err
 	}
 	imageTaggingServiceImpl := imageTagging.NewImageTaggingServiceImpl(imageTaggingRepositoryImpl, imageTaggingReadServiceImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl, environmentRepositoryImpl, sugaredLogger)
 	deploymentGroupRepositoryImpl := repository2.NewDeploymentGroupRepositoryImpl(sugaredLogger, db)
-	pipelineStrategyHistoryRepositoryImpl := repository22.NewPipelineStrategyHistoryRepositoryImpl(sugaredLogger, db)
+	pipelineStrategyHistoryRepositoryImpl := repository23.NewPipelineStrategyHistoryRepositoryImpl(sugaredLogger, db)
 	pipelineStrategyHistoryServiceImpl := history.NewPipelineStrategyHistoryServiceImpl(sugaredLogger, pipelineStrategyHistoryRepositoryImpl, userServiceImpl)
 	propertiesConfigServiceImpl := pipeline.NewPropertiesConfigServiceImpl(sugaredLogger, envConfigOverrideRepositoryImpl, chartRepositoryImpl, environmentRepositoryImpl, deploymentTemplateHistoryServiceImpl, scopedVariableManagerImpl, deployedAppMetricsServiceImpl, envConfigOverrideReadServiceImpl, deploymentConfigServiceImpl, chartServiceImpl)
 	installedAppDBExtendedServiceImpl := FullMode.NewInstalledAppDBExtendedServiceImpl(installedAppDBServiceImpl, appStatusServiceImpl, gitOpsConfigReadServiceImpl)
@@ -752,13 +758,13 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	cvePolicyRepositoryImpl := repository24.NewPolicyRepositoryImpl(db, sugaredLogger)
-	imageScanResultRepositoryImpl := repository24.NewImageScanResultRepositoryImpl(db, sugaredLogger)
-	imageScanDeployInfoRepositoryImpl := repository24.NewImageScanDeployInfoRepositoryImpl(db, sugaredLogger)
-	imageScanObjectMetaRepositoryImpl := repository24.NewImageScanObjectMetaRepositoryImpl(db, sugaredLogger)
-	imageScanHistoryRepositoryImpl := repository24.NewImageScanHistoryRepositoryImpl(db, sugaredLogger)
+	cvePolicyRepositoryImpl := repository25.NewPolicyRepositoryImpl(db, sugaredLogger)
+	imageScanResultRepositoryImpl := repository25.NewImageScanResultRepositoryImpl(db, sugaredLogger)
+	imageScanDeployInfoRepositoryImpl := repository25.NewImageScanDeployInfoRepositoryImpl(db, sugaredLogger)
+	imageScanObjectMetaRepositoryImpl := repository25.NewImageScanObjectMetaRepositoryImpl(db, sugaredLogger)
+	imageScanHistoryRepositoryImpl := repository25.NewImageScanHistoryRepositoryImpl(db, sugaredLogger)
 	imageScanHistoryReadServiceImpl := read18.NewImageScanHistoryReadService(sugaredLogger, imageScanHistoryRepositoryImpl)
-	cveStoreRepositoryImpl := repository24.NewCveStoreRepositoryImpl(db, sugaredLogger)
+	cveStoreRepositoryImpl := repository25.NewCveStoreRepositoryImpl(db, sugaredLogger)
 	policyServiceImpl := imageScanning.NewPolicyServiceImpl(environmentServiceImpl, sugaredLogger, appRepositoryImpl, pipelineOverrideRepositoryImpl, cvePolicyRepositoryImpl, clusterServiceImplExtended, pipelineRepositoryImpl, imageScanResultRepositoryImpl, imageScanDeployInfoRepositoryImpl, imageScanObjectMetaRepositoryImpl, httpClient, ciArtifactRepositoryImpl, ciCdConfig, imageScanHistoryReadServiceImpl, cveStoreRepositoryImpl, ciTemplateRepositoryImpl, clusterReadServiceImpl, transactionUtilImpl)
 	imageScanResultReadServiceImpl := read18.NewImageScanResultReadServiceImpl(sugaredLogger, imageScanResultRepositoryImpl)
 	draftAwareConfigServiceImpl := draftAwareConfigService.NewDraftAwareResourceServiceImpl(sugaredLogger, configMapServiceImpl, chartServiceImpl, propertiesConfigServiceImpl)
@@ -766,22 +772,22 @@ func InitializeApp() (*App, error) {
 	manifestCreationServiceImpl := manifest.NewManifestCreationServiceImpl(sugaredLogger, dockerRegistryIpsConfigServiceImpl, chartRefServiceImpl, scopedVariableCMCSManagerImpl, k8sCommonServiceImpl, deployedAppMetricsServiceImpl, imageDigestPolicyServiceImpl, utilMergeUtil, appCrudOperationServiceImpl, deploymentTemplateServiceImpl, argoClientWrapperServiceImpl, configMapHistoryRepositoryImpl, configMapRepositoryImpl, chartRepositoryImpl, envConfigOverrideRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, ciArtifactRepositoryImpl, pipelineOverrideRepositoryImpl, pipelineStrategyHistoryRepositoryImpl, pipelineConfigRepositoryImpl, deploymentTemplateHistoryRepositoryImpl, deploymentConfigServiceImpl, envConfigOverrideReadServiceImpl)
 	configMapHistoryReadServiceImpl := read19.NewConfigMapHistoryReadService(sugaredLogger, configMapHistoryRepositoryImpl, scopedVariableCMCSManagerImpl)
 	deployedConfigurationHistoryServiceImpl := history.NewDeployedConfigurationHistoryServiceImpl(sugaredLogger, userServiceImpl, deploymentTemplateHistoryServiceImpl, pipelineStrategyHistoryServiceImpl, configMapHistoryServiceImpl, cdWorkflowRepositoryImpl, scopedVariableCMCSManagerImpl, deploymentTemplateHistoryReadServiceImpl, configMapHistoryReadServiceImpl)
-	userDeploymentRequestRepositoryImpl := repository25.NewUserDeploymentRequestRepositoryImpl(db, transactionUtilImpl)
-	userDeploymentRequestServiceImpl := service3.NewUserDeploymentRequestServiceImpl(sugaredLogger, userDeploymentRequestRepositoryImpl)
+	userDeploymentRequestRepositoryImpl := repository26.NewUserDeploymentRequestRepositoryImpl(db, transactionUtilImpl)
+	userDeploymentRequestServiceImpl := service4.NewUserDeploymentRequestServiceImpl(sugaredLogger, userDeploymentRequestRepositoryImpl)
 	imageScanDeployInfoReadServiceImpl := read18.NewImageScanDeployInfoReadService(sugaredLogger, imageScanDeployInfoRepositoryImpl)
 	imageScanDeployInfoServiceImpl := imageScanning.NewImageScanDeployInfoService(sugaredLogger, imageScanDeployInfoRepositoryImpl)
-	manifestPushConfigRepositoryImpl := repository19.NewManifestPushConfigRepository(sugaredLogger, db)
-	scanToolExecutionHistoryMappingRepositoryImpl := repository24.NewScanToolExecutionHistoryMappingRepositoryImpl(db, sugaredLogger)
+	manifestPushConfigRepositoryImpl := repository20.NewManifestPushConfigRepository(sugaredLogger, db)
+	scanToolExecutionHistoryMappingRepositoryImpl := repository25.NewScanToolExecutionHistoryMappingRepositoryImpl(db, sugaredLogger)
 	cdWorkflowReadServiceImpl := read20.NewCdWorkflowReadServiceImpl(sugaredLogger, cdWorkflowRepositoryImpl)
 	imageScanServiceImpl := imageScanning.NewImageScanServiceImpl(sugaredLogger, imageScanHistoryRepositoryImpl, imageScanResultRepositoryImpl, imageScanObjectMetaRepositoryImpl, cveStoreRepositoryImpl, imageScanDeployInfoRepositoryImpl, userServiceImpl, appRepositoryImpl, environmentServiceImpl, ciArtifactRepositoryImpl, policyServiceImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, scanToolMetadataRepositoryImpl, scanToolExecutionHistoryMappingRepositoryImpl, cvePolicyRepositoryImpl, cdWorkflowReadServiceImpl)
-	devtronAppsHandlerServiceImpl, err := devtronApps.NewHandlerServiceImpl(sugaredLogger, cdWorkflowCommonServiceImpl, gitOpsManifestPushServiceImpl, gitOpsConfigReadServiceImpl, argoK8sClientImpl, acdConfig, argoClientWrapperServiceImpl, pipelineStatusTimelineServiceImpl, chartTemplateServiceImpl, workflowEventPublishServiceImpl, manifestCreationServiceImpl, deployedConfigurationHistoryServiceImpl, pipelineStageServiceImpl, globalPluginServiceImpl, customTagServiceImpl, pluginInputVariableParserImpl, prePostCdScriptHistoryServiceImpl, scopedVariableCMCSManagerImpl, imageDigestPolicyServiceImpl, userServiceImpl, helmAppServiceImpl, enforcerUtilImpl, userDeploymentRequestServiceImpl, helmAppClientImpl, eventSimpleFactoryImpl, eventRESTClientImpl, environmentVariables, appRepositoryImpl, ciPipelineMaterialRepositoryImpl, imageScanHistoryReadServiceImpl, imageScanDeployInfoReadServiceImpl, imageScanDeployInfoServiceImpl, pipelineRepositoryImpl, pipelineOverrideRepositoryImpl, manifestPushConfigRepositoryImpl, chartRepositoryImpl, environmentRepositoryImpl, cdWorkflowRepositoryImpl, ciWorkflowRepositoryImpl, ciArtifactRepositoryImpl, ciTemplateReadServiceImpl, gitMaterialReadServiceImpl, appLabelRepositoryImpl, ciPipelineRepositoryImpl, appWorkflowRepositoryImpl, dockerArtifactStoreRepositoryImpl, imageScanServiceImpl, k8sServiceImpl, transactionUtilImpl, deploymentConfigServiceImpl, ciCdPipelineOrchestratorImpl, gitOperationServiceImpl, attributesServiceImpl, clusterRepositoryImpl, cdWorkflowRunnerServiceImpl, clusterServiceImplExtended, ciLogServiceImpl, workflowServiceImpl, blobStorageConfigServiceImpl, deploymentEventHandlerImpl, runnable, deploymentServiceImpl)
+	devtronAppsHandlerServiceImpl, err := devtronApps.NewHandlerServiceImpl(sugaredLogger, cdWorkflowCommonServiceImpl, gitOpsManifestPushServiceImpl, gitOpsConfigReadServiceImpl, argoK8sClientImpl, acdConfig, argoClientWrapperServiceImpl, pipelineStatusTimelineServiceImpl, chartTemplateServiceImpl, workflowEventPublishServiceImpl, manifestCreationServiceImpl, deployedConfigurationHistoryServiceImpl, pipelineStageServiceImpl, globalPluginServiceImpl, customTagServiceImpl, pluginInputVariableParserImpl, prePostCdScriptHistoryServiceImpl, scopedVariableCMCSManagerImpl, imageDigestPolicyServiceImpl, userServiceImpl, helmAppServiceImpl, enforcerUtilImpl, userDeploymentRequestServiceImpl, helmAppClientImpl, eventSimpleFactoryImpl, eventRESTClientImpl, environmentVariables, appRepositoryImpl, ciPipelineMaterialRepositoryImpl, imageScanHistoryReadServiceImpl, imageScanDeployInfoReadServiceImpl, imageScanDeployInfoServiceImpl, pipelineRepositoryImpl, pipelineOverrideRepositoryImpl, manifestPushConfigRepositoryImpl, chartRepositoryImpl, environmentRepositoryImpl, cdWorkflowRepositoryImpl, ciWorkflowRepositoryImpl, ciArtifactRepositoryImpl, ciTemplateReadServiceImpl, gitMaterialReadServiceImpl, appLabelRepositoryImpl, ciPipelineRepositoryImpl, appWorkflowRepositoryImpl, dockerArtifactStoreRepositoryImpl, imageScanServiceImpl, k8sServiceImpl, transactionUtilImpl, deploymentConfigServiceImpl, ciCdPipelineOrchestratorImpl, gitOperationServiceImpl, attributesServiceImpl, clusterRepositoryImpl, cdWorkflowRunnerServiceImpl, clusterServiceImplExtended, ciLogServiceImpl, workflowServiceImpl, blobStorageConfigServiceImpl, deploymentEventHandlerImpl, runnable, workflowTriggerAuditServiceImpl, deploymentServiceImpl)
 	if err != nil {
 		return nil, err
 	}
 	pipelineConfigRestHandlerImpl := configure.NewPipelineRestHandlerImpl(pipelineBuilderImpl, sugaredLogger, deploymentTemplateValidationServiceImpl, chartServiceImpl, devtronAppGitOpConfigServiceImpl, propertiesConfigServiceImpl, userServiceImpl, teamServiceImpl, enforcerImpl, ciHandlerImpl, validate, clientImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl, enforcerUtilImpl, dockerRegistryConfigImpl, cdHandlerImpl, appCloneServiceImpl, generateManifestDeploymentTemplateServiceImpl, appWorkflowServiceImpl, gitMaterialReadServiceImpl, policyServiceImpl, imageScanResultReadServiceImpl, ciPipelineMaterialRepositoryImpl, imageTaggingReadServiceImpl, imageTaggingServiceImpl, ciArtifactRepositoryImpl, deployedAppMetricsServiceImpl, chartRefServiceImpl, ciCdPipelineOrchestratorImpl, gitProviderReadServiceImpl, teamReadServiceImpl, environmentRepositoryImpl, chartReadServiceImpl, draftAwareConfigServiceImpl, handlerServiceImpl, devtronAppsHandlerServiceImpl)
 	commonArtifactServiceImpl := artifacts.NewCommonArtifactServiceImpl(sugaredLogger, ciArtifactRepositoryImpl)
 	fluxApplicationServiceImpl := fluxApplication.NewFluxApplicationServiceImpl(sugaredLogger, helmAppReadServiceImpl, clusterServiceImplExtended, helmAppClientImpl, pumpImpl, pipelineRepositoryImpl, installedAppRepositoryImpl)
-	workflowDagExecutorImpl := dag.NewWorkflowDagExecutorImpl(sugaredLogger, pipelineRepositoryImpl, pipelineOverrideRepositoryImpl, cdWorkflowRepositoryImpl, ciArtifactRepositoryImpl, enforcerUtilImpl, appWorkflowRepositoryImpl, pipelineStageServiceImpl, ciWorkflowRepositoryImpl, ciPipelineRepositoryImpl, pipelineStageRepositoryImpl, globalPluginRepositoryImpl, eventRESTClientImpl, eventSimpleFactoryImpl, customTagServiceImpl, pipelineStatusTimelineServiceImpl, cdWorkflowRunnerServiceImpl, ciServiceImpl, helmAppServiceImpl, cdWorkflowCommonServiceImpl, devtronAppsHandlerServiceImpl, userDeploymentRequestServiceImpl, manifestCreationServiceImpl, commonArtifactServiceImpl, deploymentConfigServiceImpl, runnable, imageScanHistoryRepositoryImpl, imageScanServiceImpl, k8sServiceImpl, environmentRepositoryImpl, k8sCommonServiceImpl, workflowServiceImpl, handlerServiceImpl, fluxApplicationServiceImpl)
+	workflowDagExecutorImpl := dag.NewWorkflowDagExecutorImpl(sugaredLogger, pipelineRepositoryImpl, pipelineOverrideRepositoryImpl, cdWorkflowRepositoryImpl, ciArtifactRepositoryImpl, enforcerUtilImpl, appWorkflowRepositoryImpl, pipelineStageServiceImpl, ciWorkflowRepositoryImpl, ciPipelineRepositoryImpl, pipelineStageRepositoryImpl, globalPluginRepositoryImpl, eventRESTClientImpl, eventSimpleFactoryImpl, customTagServiceImpl, pipelineStatusTimelineServiceImpl, cdWorkflowRunnerServiceImpl, ciServiceImpl, helmAppServiceImpl, cdWorkflowCommonServiceImpl, devtronAppsHandlerServiceImpl, userDeploymentRequestServiceImpl, manifestCreationServiceImpl, commonArtifactServiceImpl, deploymentConfigServiceImpl, runnable, imageScanHistoryRepositoryImpl, imageScanServiceImpl, k8sServiceImpl, environmentRepositoryImpl, k8sCommonServiceImpl, workflowServiceImpl, handlerServiceImpl, workflowTriggerAuditServiceImpl, fluxApplicationServiceImpl)
 	externalCiRestHandlerImpl := restHandler.NewExternalCiRestHandlerImpl(sugaredLogger, validate, userServiceImpl, enforcerImpl, workflowDagExecutorImpl)
 	pubSubClientRestHandlerImpl := restHandler.NewPubSubClientRestHandlerImpl(pubSubClientServiceImpl, sugaredLogger, ciCdConfig)
 	webhookRouterImpl := router.NewWebhookRouterImpl(gitWebhookRestHandlerImpl, pipelineConfigRestHandlerImpl, externalCiRestHandlerImpl, pubSubClientRestHandlerImpl)
@@ -797,7 +803,7 @@ func InitializeApp() (*App, error) {
 	deleteServiceFullModeImpl := delete2.NewDeleteServiceFullModeImpl(sugaredLogger, gitMaterialReadServiceImpl, gitRegistryConfigImpl, ciTemplateRepositoryImpl, dockerRegistryConfigImpl, dockerArtifactStoreRepositoryImpl)
 	gitProviderRestHandlerImpl := restHandler.NewGitProviderRestHandlerImpl(dockerRegistryConfigImpl, sugaredLogger, gitRegistryConfigImpl, userServiceImpl, validate, enforcerImpl, teamServiceImpl, deleteServiceFullModeImpl, gitProviderReadServiceImpl)
 	gitProviderRouterImpl := router.NewGitProviderRouterImpl(gitProviderRestHandlerImpl)
-	gitHostRepositoryImpl := repository26.NewGitHostRepositoryImpl(db)
+	gitHostRepositoryImpl := repository27.NewGitHostRepositoryImpl(db)
 	gitHostConfigImpl := gitHost.NewGitHostConfigImpl(gitHostRepositoryImpl, sugaredLogger)
 	gitHostReadServiceImpl := read21.NewGitHostReadServiceImpl(sugaredLogger, gitHostRepositoryImpl, attributesServiceImpl)
 	gitHostRestHandlerImpl := restHandler.NewGitHostRestHandlerImpl(sugaredLogger, gitHostConfigImpl, userServiceImpl, validate, enforcerImpl, clientImpl, gitProviderReadServiceImpl, gitHostReadServiceImpl)
@@ -825,7 +831,7 @@ func InitializeApp() (*App, error) {
 	chartRefRouterImpl := router.NewChartRefRouterImpl(chartRefRestHandlerImpl)
 	configMapRestHandlerImpl := restHandler.NewConfigMapRestHandlerImpl(pipelineBuilderImpl, sugaredLogger, chartServiceImpl, userServiceImpl, teamServiceImpl, enforcerImpl, pipelineRepositoryImpl, enforcerUtilImpl, configMapServiceImpl, draftAwareConfigServiceImpl)
 	configMapRouterImpl := router.NewConfigMapRouterImpl(configMapRestHandlerImpl)
-	k8sResourceHistoryRepositoryImpl := repository27.NewK8sResourceHistoryRepositoryImpl(db, sugaredLogger)
+	k8sResourceHistoryRepositoryImpl := repository28.NewK8sResourceHistoryRepositoryImpl(db, sugaredLogger)
 	k8sResourceHistoryServiceImpl := kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl(k8sResourceHistoryRepositoryImpl, sugaredLogger, appRepositoryImpl, environmentRepositoryImpl)
 	ephemeralContainersRepositoryImpl := repository5.NewEphemeralContainersRepositoryImpl(db, transactionUtilImpl)
 	ephemeralContainerServiceImpl := cluster.NewEphemeralContainerServiceImpl(ephemeralContainersRepositoryImpl, sugaredLogger)
@@ -838,21 +844,21 @@ func InitializeApp() (*App, error) {
 	argoApplicationReadServiceImpl := read22.NewArgoApplicationReadServiceImpl(sugaredLogger, clusterRepositoryImpl, k8sServiceImpl, helmAppClientImpl, helmAppServiceImpl)
 	argoApplicationServiceExtendedImpl := argoApplication.NewArgoApplicationServiceExtendedServiceImpl(acdAuthConfig, argoApplicationServiceImpl, argoClientWrapperServiceImpl, argoApplicationReadServiceImpl, clusterServiceImplExtended, runnable)
 	installedAppResourceServiceImpl := resource.NewInstalledAppResourceServiceImpl(sugaredLogger, installedAppRepositoryImpl, appStoreApplicationVersionRepositoryImpl, argoClientWrapperServiceImpl, acdAuthConfig, installedAppVersionHistoryRepositoryImpl, helmAppServiceImpl, helmAppReadServiceImpl, appStatusServiceImpl, k8sCommonServiceImpl, k8sApplicationServiceImpl, k8sServiceImpl, deploymentConfigServiceImpl, ociRegistryConfigRepositoryImpl, argoApplicationServiceExtendedImpl, fluxApplicationServiceImpl)
-	chartGroupEntriesRepositoryImpl := repository28.NewChartGroupEntriesRepositoryImpl(db, sugaredLogger)
-	chartGroupReposotoryImpl := repository28.NewChartGroupReposotoryImpl(db, sugaredLogger)
-	chartGroupDeploymentRepositoryImpl := repository28.NewChartGroupDeploymentRepositoryImpl(db, sugaredLogger)
+	chartGroupEntriesRepositoryImpl := repository29.NewChartGroupEntriesRepositoryImpl(db, sugaredLogger)
+	chartGroupReposotoryImpl := repository29.NewChartGroupReposotoryImpl(db, sugaredLogger)
+	chartGroupDeploymentRepositoryImpl := repository29.NewChartGroupDeploymentRepositoryImpl(db, sugaredLogger)
 	appStoreVersionValuesRepositoryImpl := appStoreValuesRepository.NewAppStoreVersionValuesRepositoryImpl(sugaredLogger, db)
 	appStoreRepositoryImpl := appStoreDiscoverRepository.NewAppStoreRepositoryImpl(sugaredLogger, db)
 	clusterInstalledAppsRepositoryImpl := repository3.NewClusterInstalledAppsRepositoryImpl(db, sugaredLogger)
-	appStoreValuesServiceImpl := service4.NewAppStoreValuesServiceImpl(sugaredLogger, appStoreApplicationVersionRepositoryImpl, installedAppRepositoryImpl, installedAppReadServiceEAImpl, appStoreVersionValuesRepositoryImpl, userServiceImpl)
+	appStoreValuesServiceImpl := service5.NewAppStoreValuesServiceImpl(sugaredLogger, appStoreApplicationVersionRepositoryImpl, installedAppRepositoryImpl, installedAppReadServiceEAImpl, appStoreVersionValuesRepositoryImpl, userServiceImpl)
 	appStoreDeploymentCommonServiceImpl := appStoreDeploymentCommon.NewAppStoreDeploymentCommonServiceImpl(sugaredLogger, appStoreApplicationVersionRepositoryImpl, chartTemplateServiceImpl, userServiceImpl, helmAppServiceImpl, installedAppDBServiceImpl)
 	fullModeDeploymentServiceImpl := deployment.NewFullModeDeploymentServiceImpl(sugaredLogger, argoK8sClientImpl, acdAuthConfig, chartGroupDeploymentRepositoryImpl, installedAppRepositoryImpl, installedAppVersionHistoryRepositoryImpl, appStoreDeploymentCommonServiceImpl, helmAppServiceImpl, appStatusServiceImpl, pipelineStatusTimelineServiceImpl, userServiceImpl, pipelineStatusTimelineRepositoryImpl, appStoreApplicationVersionRepositoryImpl, argoClientWrapperServiceImpl, acdConfig, gitOperationServiceImpl, gitOpsConfigReadServiceImpl, gitOpsValidationServiceImpl, environmentRepositoryImpl, deploymentConfigServiceImpl, chartTemplateServiceImpl)
-	appStoreValidatorImpl := service5.NewAppAppStoreValidatorImpl(sugaredLogger)
-	appStoreDeploymentDBServiceImpl := service5.NewAppStoreDeploymentDBServiceImpl(sugaredLogger, installedAppRepositoryImpl, appStoreApplicationVersionRepositoryImpl, appRepositoryImpl, environmentServiceImpl, installedAppVersionHistoryRepositoryImpl, environmentVariables, gitOpsConfigReadServiceImpl, deploymentTypeOverrideServiceImpl, fullModeDeploymentServiceImpl, appStoreValidatorImpl, installedAppDBServiceImpl, deploymentConfigServiceImpl, clusterReadServiceImpl)
+	appStoreValidatorImpl := service6.NewAppAppStoreValidatorImpl(sugaredLogger)
+	appStoreDeploymentDBServiceImpl := service6.NewAppStoreDeploymentDBServiceImpl(sugaredLogger, installedAppRepositoryImpl, appStoreApplicationVersionRepositoryImpl, appRepositoryImpl, environmentServiceImpl, installedAppVersionHistoryRepositoryImpl, environmentVariables, gitOpsConfigReadServiceImpl, deploymentTypeOverrideServiceImpl, fullModeDeploymentServiceImpl, appStoreValidatorImpl, installedAppDBServiceImpl, deploymentConfigServiceImpl, clusterReadServiceImpl)
 	eaModeDeploymentServiceImpl := deployment2.NewEAModeDeploymentServiceImpl(sugaredLogger, helmAppServiceImpl, appStoreApplicationVersionRepositoryImpl, helmAppClientImpl, installedAppRepositoryImpl, ociRegistryConfigRepositoryImpl, appStoreDeploymentCommonServiceImpl, helmAppReadServiceImpl)
 	fullModeFluxDeploymentServiceImpl := deployment.NewFullModeFluxDeploymentServiceImpl(sugaredLogger, appStoreDeploymentCommonServiceImpl, deploymentServiceImpl, clusterServiceImplExtended)
-	deletePostProcessorImpl := service5.NewDeletePostProcessorImpl(sugaredLogger)
-	appStoreDeploymentServiceImpl := service5.NewAppStoreDeploymentServiceImpl(sugaredLogger, installedAppRepositoryImpl, installedAppDBServiceImpl, appStoreDeploymentDBServiceImpl, chartGroupDeploymentRepositoryImpl, appStoreApplicationVersionRepositoryImpl, appRepositoryImpl, eaModeDeploymentServiceImpl, fullModeDeploymentServiceImpl, fullModeFluxDeploymentServiceImpl, environmentServiceImpl, helmAppServiceImpl, installedAppVersionHistoryRepositoryImpl, environmentVariables, acdConfig, gitOpsConfigReadServiceImpl, deletePostProcessorImpl, appStoreValidatorImpl, deploymentConfigServiceImpl, ociRegistryConfigRepositoryImpl)
+	deletePostProcessorImpl := service6.NewDeletePostProcessorImpl(sugaredLogger)
+	appStoreDeploymentServiceImpl := service6.NewAppStoreDeploymentServiceImpl(sugaredLogger, installedAppRepositoryImpl, installedAppDBServiceImpl, appStoreDeploymentDBServiceImpl, chartGroupDeploymentRepositoryImpl, appStoreApplicationVersionRepositoryImpl, appRepositoryImpl, eaModeDeploymentServiceImpl, fullModeDeploymentServiceImpl, fullModeFluxDeploymentServiceImpl, environmentServiceImpl, helmAppServiceImpl, installedAppVersionHistoryRepositoryImpl, environmentVariables, acdConfig, gitOpsConfigReadServiceImpl, deletePostProcessorImpl, appStoreValidatorImpl, deploymentConfigServiceImpl, ociRegistryConfigRepositoryImpl)
 	appStoreAppsEventPublishServiceImpl := out.NewAppStoreAppsEventPublishServiceImpl(sugaredLogger, pubSubClientServiceImpl)
 	chartGroupServiceImpl, err := chartGroup.NewChartGroupServiceImpl(sugaredLogger, chartGroupEntriesRepositoryImpl, chartGroupReposotoryImpl, chartGroupDeploymentRepositoryImpl, installedAppRepositoryImpl, appStoreVersionValuesRepositoryImpl, appStoreRepositoryImpl, userAuthServiceImpl, appStoreApplicationVersionRepositoryImpl, environmentServiceImpl, teamRepositoryImpl, clusterInstalledAppsRepositoryImpl, appStoreValuesServiceImpl, appStoreDeploymentServiceImpl, appStoreDeploymentDBServiceImpl, pipelineStatusTimelineServiceImpl, acdConfig, fullModeDeploymentServiceImpl, gitOperationServiceImpl, installedAppDBExtendedServiceImpl, appStoreAppsEventPublishServiceImpl, teamReadServiceImpl)
 	if err != nil {
@@ -868,7 +874,7 @@ func InitializeApp() (*App, error) {
 	installedAppRestHandlerImpl := appStore.NewInstalledAppRestHandlerImpl(sugaredLogger, userServiceImpl, enforcerImpl, enforcerUtilImpl, enforcerUtilHelmImpl, installedAppDBExtendedServiceImpl, installedAppResourceServiceImpl, chartGroupServiceImpl, validate, clusterServiceImplExtended, appStoreDeploymentServiceImpl, appStoreDeploymentDBServiceImpl, helmAppClientImpl, cdApplicationStatusUpdateHandlerImpl, installedAppRepositoryImpl, appCrudOperationServiceImpl, installedAppDeploymentTypeChangeServiceImpl, clusterReadServiceImpl)
 	appStoreValuesRestHandlerImpl := appStoreValues.NewAppStoreValuesRestHandlerImpl(sugaredLogger, userServiceImpl, appStoreValuesServiceImpl)
 	appStoreValuesRouterImpl := appStoreValues.NewAppStoreValuesRouterImpl(appStoreValuesRestHandlerImpl)
-	appStoreServiceImpl := service6.NewAppStoreServiceImpl(sugaredLogger, appStoreApplicationVersionRepositoryImpl)
+	appStoreServiceImpl := service7.NewAppStoreServiceImpl(sugaredLogger, appStoreApplicationVersionRepositoryImpl)
 	appStoreRestHandlerImpl := appStoreDiscover.NewAppStoreRestHandlerImpl(sugaredLogger, userServiceImpl, appStoreServiceImpl, enforcerImpl)
 	appStoreDiscoverRouterImpl := appStoreDiscover.NewAppStoreDiscoverRouterImpl(appStoreRestHandlerImpl)
 	chartProviderRestHandlerImpl := chartProvider2.NewChartProviderRestHandlerImpl(sugaredLogger, userServiceImpl, validate, chartProviderServiceImpl, enforcerImpl)
@@ -951,7 +957,7 @@ func InitializeApp() (*App, error) {
 	telemetryRouterImpl := router.NewTelemetryRouterImpl(sugaredLogger, telemetryRestHandlerImpl)
 	bulkUpdateRepositoryImpl := bulkUpdate.NewBulkUpdateRepository(db, sugaredLogger)
 	deployedAppServiceImpl := deployedApp.NewDeployedAppServiceImpl(sugaredLogger, k8sCommonServiceImpl, devtronAppsHandlerServiceImpl, environmentRepositoryImpl, pipelineRepositoryImpl, cdWorkflowRepositoryImpl)
-	bulkUpdateServiceImpl := service7.NewBulkUpdateServiceImpl(bulkUpdateRepositoryImpl, sugaredLogger, environmentRepositoryImpl, pipelineRepositoryImpl, appRepositoryImpl, deploymentTemplateHistoryServiceImpl, configMapHistoryServiceImpl, pipelineBuilderImpl, enforcerUtilImpl, ciHandlerImpl, ciPipelineRepositoryImpl, appWorkflowRepositoryImpl, appWorkflowServiceImpl, scopedVariableManagerImpl, deployedAppMetricsServiceImpl, chartRefServiceImpl, deployedAppServiceImpl, cdPipelineEventPublishServiceImpl, handlerServiceImpl)
+	bulkUpdateServiceImpl := service8.NewBulkUpdateServiceImpl(bulkUpdateRepositoryImpl, sugaredLogger, environmentRepositoryImpl, pipelineRepositoryImpl, appRepositoryImpl, deploymentTemplateHistoryServiceImpl, configMapHistoryServiceImpl, pipelineBuilderImpl, enforcerUtilImpl, ciHandlerImpl, ciPipelineRepositoryImpl, appWorkflowRepositoryImpl, appWorkflowServiceImpl, scopedVariableManagerImpl, deployedAppMetricsServiceImpl, chartRefServiceImpl, deployedAppServiceImpl, cdPipelineEventPublishServiceImpl, handlerServiceImpl)
 	bulkUpdateRestHandlerImpl := restHandler.NewBulkUpdateRestHandlerImpl(pipelineBuilderImpl, sugaredLogger, bulkUpdateServiceImpl, chartServiceImpl, propertiesConfigServiceImpl, userServiceImpl, teamServiceImpl, enforcerImpl, ciHandlerImpl, validate, clientImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl, enforcerUtilImpl, environmentServiceImpl, gitRegistryConfigImpl, dockerRegistryConfigImpl, cdHandlerImpl, appCloneServiceImpl, appWorkflowServiceImpl, materialRepositoryImpl)
 	bulkUpdateRouterImpl := router.NewBulkUpdateRouterImpl(bulkUpdateRestHandlerImpl)
 	webhookSecretValidatorImpl := gitWebhook.NewWebhookSecretValidatorImpl(sugaredLogger)
@@ -973,7 +979,7 @@ func InitializeApp() (*App, error) {
 	pipelineTriggerRouterImpl := trigger3.NewPipelineTriggerRouter(pipelineTriggerRestHandlerImpl, sseSSE)
 	webhookDataRestHandlerImpl := webhook.NewWebhookDataRestHandlerImpl(sugaredLogger, userServiceImpl, ciPipelineMaterialRepositoryImpl, enforcerUtilImpl, enforcerImpl, clientImpl, webhookEventDataConfigImpl)
 	pipelineConfigRouterImpl := configure2.NewPipelineRouterImpl(pipelineConfigRestHandlerImpl, webhookDataRestHandlerImpl)
-	prePostCiScriptHistoryRepositoryImpl := repository22.NewPrePostCiScriptHistoryRepositoryImpl(sugaredLogger, db)
+	prePostCiScriptHistoryRepositoryImpl := repository23.NewPrePostCiScriptHistoryRepositoryImpl(sugaredLogger, db)
 	prePostCiScriptHistoryServiceImpl := history.NewPrePostCiScriptHistoryServiceImpl(sugaredLogger, prePostCiScriptHistoryRepositoryImpl)
 	pipelineHistoryRestHandlerImpl := history2.NewPipelineHistoryRestHandlerImpl(sugaredLogger, userServiceImpl, enforcerImpl, pipelineStrategyHistoryServiceImpl, deploymentTemplateHistoryServiceImpl, configMapHistoryServiceImpl, prePostCiScriptHistoryServiceImpl, prePostCdScriptHistoryServiceImpl, enforcerUtilImpl, deployedConfigurationHistoryServiceImpl)
 	pipelineHistoryRouterImpl := history3.NewPipelineHistoryRouterImpl(pipelineHistoryRestHandlerImpl)

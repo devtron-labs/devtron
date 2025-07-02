@@ -148,6 +148,12 @@ type GitRepositorySpec struct {
 	// should be included in the Artifact produced for this GitRepository.
 	// +optional
 	Include []GitRepositoryInclude `json:"include,omitempty"`
+
+	// SparseCheckout specifies a list of directories to checkout when cloning
+	// the repository. If specified, only these directories are included in the
+	// Artifact produced for this GitRepository.
+	// +optional
+	SparseCheckout []string `json:"sparseCheckout,omitempty"`
 }
 
 // GitRepositoryInclude specifies a local reference to a GitRepository which
@@ -265,6 +271,11 @@ type GitRepositoryStatus struct {
 	// produce the current Artifact.
 	// +optional
 	ObservedInclude []GitRepositoryInclude `json:"observedInclude,omitempty"`
+
+	// ObservedSparseCheckout is the observed list of directories used to
+	// produce the current Artifact.
+	// +optional
+	ObservedSparseCheckout []string `json:"observedSparseCheckout,omitempty"`
 
 	// SourceVerificationMode is the last used verification mode indicating
 	// which Git object(s) have been verified.
