@@ -1,4 +1,5 @@
 ## Enhancements
+- feat: flux cd deployment  (#6660)
 - feat: add app name in labels list api (#6688)
 - feat: Audit ci trigger, precd and post cd trigger so that retrigger can happen from last failed config snapshot  (#6659)
 ## Bugs
