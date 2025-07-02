@@ -1,0 +1,131 @@
+{{ $scrapetype := include "scrapeType" . }}
+{{ $scraper := get (dict "servicemonitor" .Values.servicemonitor "vmservicescrape" .Values.vmservicescrape) $scrapetype }}  
+{{- if ($scrapetype) }}
+{{- if and ($scrapetype) (eq .Values.MetricsScraper "Victoria") -}}
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+{{- else }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+{{- end }}
+metadata:
+  {{- if $scraper.name }}
+  name: {{ $scraper.name }}
+  {{- else }}
+  name: {{ template ".Chart.Name .fullname" . }}-vm
+  {{- end }}
+  labels:
+    kind: {{ $scrapetype }}
+    app: {{ template ".Chart.Name .name" . }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    chart: {{ template ".Chart.Name .chart" . }}
+    release: {{ .Values.prometheus.release }}
+    {{- if .Values.vmservicescrape.additionalLabels }}
+{{ toYaml .Values.vmservicescrape.additionalLabels | indent 4 }}
+    {{- end }}
+    {{- if .Values.appLabels }}
+{{ toYaml .Values.appLabels | indent 4 }}
+    {{- end }}        
+spec:
+  endpoints:  
+    {{- range .Values.ContainerPort }}
+    {{ $scraper := get (dict "servicemonitor" .servicemonitor "vmservicescrape" .vmservicescrape) $scrapetype }}
+      {{- if  $scraper }}
+        {{- if $scraper.enabled}}
+    {{- if $scraper.targetPort }}
+    - targetPort: {{ $scraper.targetPort }}
+    {{- else if .servicePort }}
+    - port: {{ .name }}
+    {{- end }}
+      {{- if $scraper.path }}
+      path: {{ $scraper.path}}
+      {{- end }}
+      {{- if $scraper.scheme }}
+      scheme: {{ $scraper.scheme}}
+      {{- end }}
+      {{- if $scraper.interval }}
+      interval: {{ $scraper.interval}}
+      {{- end }}
+      {{- if $scraper.scrapeTimeout }}
+      scrapeTimeout: {{ $scraper.scrapeTimeout | quote }}
+      {{- end }}
+      {{- if $scraper.basicAuth }}
+      basicAuth:
+      {{- toYaml $scraper.basicAuth | nindent 8 }}
+      {{- end }}
+      {{- if $scraper.insecureTLS }}
+      tlsConfig:
+        insecureSkipVerify: true
+      {{- else if $scraper.tlsConfig }}
+      tlsConfig:
+      {{- toYaml $scraper.tlsConfig | nindent 8 }}
+      {{- end }}
+      {{- if $scraper.metricRelabelings}}
+      metricRelabelings:
+{{toYaml $scraper.metricRelabelings | indent 8 }}
+      {{- end }}
+{{- if $scraper.relabelings }}
+      relabelings:
+{{ toYaml $scraper.relabelings | indent 8 }}
+      {{- end }}      
+        {{- end }}
+      {{- end }}
+    {{- end }}
+    {{- range .Values.containers }}
+      {{- range .ports }}
+      {{ $scraper := get (dict "servicemonitor" .servicemonitor "vmservicescrape" .vmservicescrape) $scrapetype }}
+        {{- if  $scraper }}
+          {{- if $scraper.enabled}}
+    {{- if $scraper.targetPort }}
+    - targetPort: {{ $scraper.targetPort }}
+    {{- else if .servicePort }}
+    - port: {{ .name }}
+    {{- end }}
+      {{- if $scraper.path }}
+      path: {{ $scraper.path}}
+      {{- end }}
+      {{- if $scraper.scheme }}
+      scheme: {{ $scraper.scheme}}
+      {{- end }}
+      {{- if $scraper.interval }}
+      interval: {{ $scraper.interval}}
+      {{- end }}
+      {{- if $scraper.scrapeTimeout }}
+      scrapeTimeout: {{ $scraper.scrapeTimeout}}
+      {{- end }}
+      {{- if $scraper.basicAuth }}
+      basicAuth:
+      {{- toYaml $scraper.basicAuth | nindent 8 }}
+      {{- end }}
+      {{- if $scraper.insecureTLS }}
+      tlsConfig:
+        insecureSkipVerify: true
+      {{- else if $scraper.tlsConfig }}
+      tlsConfig:
+      {{- toYaml $scraper.tlsConfig | nindent 8 }}
+      {{- end }}
+      {{- if $scraper.metricRelabelings}}
+      metricRelabelings:
+{{toYaml $scraper.metricRelabelings | indent 8 }}
+      {{- end }}
+{{- if $scraper.relabelings }}
+      relabelings:
+{{ toYaml $scraper.relabelings | indent 8 }}
+      {{- end }}      
+          {{- end }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+  {{- if $scraper.namespaceSelector }}
+  namespaceSelector:
+    matchNames:
+      {{- toYaml $scraper.namespaceSelector | nindent 6 }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- if .Values.servicemonitor.matchLabels }}
+      {{- toYaml $scraper.matchLabels | nindent 6 }}
+      {{- end }}
+      app: {{ template ".Chart.Name .name" $ }}
+{{- end }}

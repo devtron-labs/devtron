@@ -1,0 +1,18 @@
+{{ include "keda.autoscaling.spec" (list . .Values.kedaAutoscaling (include ".Chart.Name .fullname" $) ) }}
+
+{{- if .Values.additionalDeployments }}
+{{- range $additionalDeployment := .Values.additionalDeployments }}
+{{- if and $additionalDeployment.kedaAutoscaling $additionalDeployment.kedaAutoscaling.enabled }}
+---
+{{- $mergedKedaAutoscalingValues := deepCopy $.Values.kedaAutoscaling -}}
+{{- $dummy := mergeOverwrite $mergedKedaAutoscalingValues $additionalDeployment.kedaAutoscaling -}}
+{{- $targetDeploymentName := "" -}}
+{{- if $additionalDeployment.nameOverride -}}
+{{- $targetDeploymentName = $additionalDeployment.nameOverride -}}
+{{- else -}}
+{{- $targetDeploymentName = printf "%s-%s" (include ".Chart.Name .fullname" $) $additionalDeployment.name -}}
+{{- end -}}
+{{ include "keda.autoscaling.spec" (list $ $mergedKedaAutoscalingValues $targetDeploymentName) }}
+{{- end }}
+{{- end }}
+{{- end }}
