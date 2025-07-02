@@ -6,6 +6,8 @@ servers:
   - url: http://localhost/orchestrator
     description: Local development server
 tags:
+  - name: Labels
+    x-displayName: Labels
   - name: bulk_other
     x-displayName: BulkGetData
   - name: BulkUpdate
@@ -56,10 +58,166 @@ tags:
   - name: Workflow Management
     x-displayName: Workflow Management
 paths:
+  /app/labels/list:
+    get:
+      summary: List Application Labels
+      description: |
+        Retrieves a list of application labels. By default, returns all labels. 
+        Use the `showPropagatedOnly` parameter to filter for labels where propagate = true.
+        
+        **Required Token Permission:**
+        - Must have **View** access to the applications in scope.
+      operationId: getAppLabels
+      tags:
+        - Labels
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: showPropagatedOnly
+          in: query
+          description: |
+            If true, only returns labels where propagate = true. 
+            If false or not provided, all labels are returned.
+          required: false
+          schema:
+            type: boolean
+            default: false
+          example: false
+      responses:
+        '200':
+          description: Successfully retrieved labels list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    description: HTTP status code
+                    example: 200
+                  status:
+                    type: string
+                    description: Response status message
+                    example: "OK"
+                  result:
+                    type: array
+                    description: Array of label objects
+                    items:
+                      type: object
+                      required:
+                        - key
+                        - value
+                        - propagate
+                        - appId
+                        - appName
+                      properties:
+                        key:
+                          type: string
+                          description: The label key/name
+                          example: "environment"
+                        value:
+                          type: string
+                          description: The label value
+                          example: "production"
+                        propagate:
+                          type: boolean
+                          description: Whether this label should be propagated
+                          example: true
+                        appId:
+                          type: integer
+                          description: The unique identifier of the application
+                          example: 1234
+                        appName:
+                          type: string
+                          description: The name of the application
+                          example: "web-service"
+              examples:
+                all_labels:
+                  summary: All labels response
+                  description: Example response when showPropagatedOnly is false or not provided
+                  value:
+                    code: 200
+                    status: "OK"
+                    result:
+                      - key: "environment"
+                        value: "production"
+                        propagate: true
+                        appId: 1234
+                        appName: "web-service"
+                      - key: "team"
+                        value: "backend"
+                        propagate: false
+                        appId: 1234
+                        appName: "web-service"
+                propagated_only:
+                  summary: Propagated labels only
+                  description: Example response when showPropagatedOnly is true
+                  value:
+                    code: 200
+                    status: "OK"
+                    result:
+                      - key: "environment"
+                        value: "production"
+                        propagate: true
+                        appId: 1234
+                        appName: "web-service"
+        '401':
+          description: Authentication required or token invalid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 401
+                  status:
+                    type: string
+                    example: "Unauthorized"
+                  message:
+                    type: string
+                    example: "Authentication token is required"
+        '403':
+          description: Insufficient permissions to access the resource
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 403
+                  status:
+                    type: string
+                    example: "Forbidden"
+                  message:
+                    type: string
+                    example: "Token does not have View access to the applications in scope"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 500
+                  status:
+                    type: string
+                    example: "Internal Server Error"
+                  message:
+                    type: string
+                    example: "An unexpected error occurred"
   /batch/{apiVersion}/{kind}/readme:
     get:
+      summary: Get Readme for Bulk Update
       description: Returns Readme for bulk update for different resource in the url
       operationId: FindBulkUpdateReadme
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       parameters:
         - name: apiVersion
           in: path
@@ -88,10 +246,14 @@ paths:
         - bulk_other
   /batch/v1beta1/application/dryrun:
     post:
+      summary: Dry Run for Bulk Application Update
       description: >-
         Returns details(id, name, envId) of all apps to be impacted with bulk
         update
       operationId: GetBulkAppName
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       requestBody:
         description: A JSON object containing information by which apps will be filtered
         required: true
@@ -130,8 +292,12 @@ paths:
         - bulk_other
   /batch/v1beta1/hibernate:
     post:
+      summary: Bulk Hibernate Applications
       description: Bulk Hibernates applications
       operationId: BulkHibernate
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       tags:
         - BulkUpdate
       requestBody:
@@ -170,8 +336,12 @@ paths:
                 $ref: '#/components/schemas/Error'
   /batch/v1beta1/unhibernate:
     post:
+      summary: Bulk Un-Hibernate Applications
       description: Bulk Un-Hibernates applications
       operationId: BulkUnHibernate
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       tags:
         - BulkUpdate
       requestBody:
@@ -210,8 +380,12 @@ paths:
                 $ref: '#/components/schemas/Error'
   /batch/v1beta1/deploy:
     post:
+      summary: Bulk Deploy Applications
       description: Bulk Triggers deployment of applications
       operationId: BulkDeploy
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       tags:
         - BulkUpdate
       requestBody:
@@ -248,8 +422,12 @@ paths:
                 $ref: '#/components/schemas/Error'
   /batch/v1beta1/build:
     post:
+      summary: Bulk Trigger Application Builds
       description: Bulk Triggers build of applications
       operationId: BulkBuildTrigger
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       tags:
         - BulkUpdate
       requestBody:
@@ -292,6 +470,9 @@ paths:
         bulk editing application configurations like deployment templates,
         configmaps, and secrets.
       operationId: BulkUpdate
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       tags:
         - BulkUpdate
       requestBody:
@@ -1291,6 +1472,9 @@ paths:
       summary: Create Environment
       description: Create a new environment within a cluster.
       operationId: CreateEnvironment
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       tags:
         - Environment Management
       requestBody:
@@ -1329,6 +1513,9 @@ paths:
       summary: Update Environment
       description: Update an existing environment.
       operationId: UpdateEnvironment
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       tags:
         - Environment Management
       requestBody:
@@ -1367,6 +1554,9 @@ paths:
       summary: Get Environment by ID
       description: Get detailed information for a specific environment by its ID.
       operationId: GetEnvironmentById
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       tags:
         - Environment Management
       parameters:
@@ -1412,6 +1602,9 @@ paths:
       summary: Delete Cluster
       description: Delete an existing cluster.
       operationId: DeleteCluster
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       tags:
         - Cluster Management
       requestBody:
@@ -1457,6 +1650,9 @@ paths:
       summary: Delete Environment (via POST)
       description: Delete an existing environment using POST method.
       operationId: DeleteEnvironmentViaPost
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       tags:
         - Environment Management
       requestBody:
@@ -1502,6 +1698,9 @@ paths:
       summary: List clusters with their environments
       description: Provides a list of all clusters and the environments within each.
       operationId: getClustersWithEnvironments
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       tags:
         - Cluster Environment
       responses:
@@ -1530,6 +1729,9 @@ paths:
       summary: List environments for a specific cluster
       description: Provides a list of all environments for a given cluster ID.
       operationId: getEnvironmentsForCluster
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       tags:
         - Cluster Environment
       parameters:
@@ -1577,6 +1779,9 @@ paths:
       summary: Update Cluster
       description: Update an existing cluster's configuration.
       operationId: UpdateCluster
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       tags:
         - Cluster Management
       requestBody:
@@ -1615,6 +1820,9 @@ paths:
       summary: Get Cluster
       description: Get details of a specific cluster by ID.
       operationId: GetCluster
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       tags:
         - Cluster Management
       parameters:
@@ -1654,6 +1862,9 @@ paths:
       summary: List Accessible Clusters
       description: list of clusters accessible to the authenticated user.
       operationId: GetAuthClusterList
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       tags:
         - Cluster Management
       responses:
@@ -1686,6 +1897,9 @@ paths:
       summary: Validate Cluster Configuration
       description: Validate a cluster configuration using kubeconfig.
       operationId: ValidateCluster
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       tags:
         - Cluster Management
       requestBody:
@@ -1722,6 +1936,9 @@ paths:
       summary: Save Multiple Clusters
       description: Save configurations for multiple clusters.
       operationId: SaveClusters
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       tags:
         - Cluster Management
       requestBody:
@@ -1754,7 +1971,12 @@ paths:
                 $ref: '#/components/schemas/Error'
   /orchestrator/app/env/patch:
     patch:
+      summary: Patch Application Environment
       description: change the deployment template for an app and environment
+      operationId: PatchAppEnv
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       requestBody:
         content:
           application/json:
@@ -1775,10 +1997,14 @@ paths:
         - Change Chart
   /orchestrator/app/workflow/clone:
     post:
+      summary: Clone Application Workflow
       description: >-
         Clones an application workflow from a source environment to a target
-        environment (Enterprise Only)
+        environment
       operationId: CloneApplicationWorkflow
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       requestBody:
         description: A JSON object containing the details required to clone the workflow
         required: true
@@ -1802,6 +2028,9 @@ paths:
         This API is used for fetching the manifest of a specified Kubernetes
         resource.
       operationId: getResourceManifest
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       requestBody:
         description: JSON payload specifying the resource to fetch.
         required: true
@@ -1833,6 +2062,9 @@ paths:
         This API is used for editing the manifest of a specified Kubernetes
         resource.
       operationId: updateResourceManifest
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       requestBody:
         description: JSON payload containing the resource identifier and the patch.
         required: true
@@ -1865,6 +2097,9 @@ paths:
         This API is used for applying a desired manifest to create a Kubernetes
         resource.
       operationId: createResource
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       requestBody:
         description: JSON payload containing the resource manifest to apply.
         required: true
@@ -1895,6 +2130,9 @@ paths:
       summary: Delete Resource
       description: This API is used for deleting a specified Kubernetes resource.
       operationId: deleteResource
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       requestBody:
         description: JSON payload specifying the resource to delete.
         required: true
@@ -1925,6 +2163,9 @@ paths:
       summary: Get Resource Events
       description: This API is used for fetching events for Kubernetes resources.
       operationId: getResourceEvents
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       requestBody:
         required: false
         content:
@@ -1949,6 +2190,9 @@ paths:
         This API is used for fetching logs for a specified container within a
         pod.
       operationId: getPodLogs
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       parameters:
         - name: podName
           in: path
@@ -2016,6 +2260,9 @@ paths:
         This API establishes a session for executing commands in a pod's
         container (terminal access).
       operationId: getPodExecSession
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       parameters:
         - name: identifier
           in: path
@@ -2070,6 +2317,9 @@ paths:
       summary: Get API Resources
       description: Get all available API resources for a given cluster ID.
       operationId: getApiResources
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       parameters:
         - name: clusterId
           in: path
@@ -2094,6 +2344,9 @@ paths:
         This API is used for fetching a list of Kubernetes resources based on
         the request criteria.
       operationId: listResources
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       requestBody:
         description: JSON payload specifying the criteria for listing resources.
         required: true
@@ -2126,7 +2379,10 @@ paths:
     post:
       summary: Rotates the Pods
       description: This API is used to rotate (restart) pods for the provided resources.
-      operationId: K8s ResourceForResources
+      operationId: K8sResourceForResources
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       parameters:
         - name: appId
           in: query
@@ -2159,6 +2415,9 @@ paths:
         This API is used to apply (create or update) Kubernetes resources in a
         cluster.
       operationId: applyResources
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       requestBody:
         description: JSON payload containing the manifest of resources to apply.
         required: true
@@ -2183,6 +2442,10 @@ paths:
     post:
       summary: Create an application workflow
       description: Creates a new workflow for a given application.
+      operationId: CreateAppWorkflow
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       tags:
         - Workflow Management
       requestBody:
@@ -2226,6 +2489,10 @@ paths:
     delete:
       summary: Delete an application workflow
       description: Deletes an existing workflow for a given application.
+      operationId: DeleteAppWorkflow
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
       tags:
         - Workflow Management
       parameters:
@@ -3938,6 +4205,7 @@ components:
 x-tagGroups:
   - name: Devtron Labs Kubernetes API
     tags:
+      - Labels
       - bulk_other
       - BulkUpdate
       - SSO Configuration
