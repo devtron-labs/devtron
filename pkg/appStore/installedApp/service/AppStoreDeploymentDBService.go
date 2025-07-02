@@ -208,12 +208,14 @@ func (impl *AppStoreDeploymentDBServiceImpl) AppStoreDeployOperationDB(installRe
 	installRequest.InstalledAppId = installedApp.Id
 	// Stage 3: ends
 
-	gitOpsConfig, err := impl.gitOpsConfigReadService.GetGitOpsProviderByRepoURL(installRequest.GitOpsRepoURL)
-	if err != nil {
-		impl.logger.Errorw("error fetching gitops config by repo url", "repoUrl", installRequest.GitOpsRepoURL, "err", err)
-		return nil, err
+	if len(installRequest.GitOpsRepoURL) > 0 {
+		gitOpsConfig, err := impl.gitOpsConfigReadService.GetGitOpsProviderByRepoURL(installRequest.GitOpsRepoURL)
+		if err != nil {
+			impl.logger.Errorw("error fetching gitops config by repo url", "repoUrl", installRequest.GitOpsRepoURL, "err", err)
+			return nil, err
+		}
+		installRequest.GitOpsId = gitOpsConfig.Id
 	}
-	installRequest.GitOpsId = gitOpsConfig.Id
 	deploymentConfig := installRequest.GetDeploymentConfig()
 	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(tx, deploymentConfig, installRequest.UserId)
 	if err != nil {
