@@ -152,6 +152,10 @@ const (
 	// InvalidCELExpressionReason represents the fact that a CEL expression
 	// in the configuration is invalid.
 	InvalidCELExpressionReason string = "InvalidCELExpression"
+
+	// FeatureGateDisabledReason represents the fact that a feature is trying to
+	// be used, but the feature gate for that feature is disabled.
+	FeatureGateDisabledReason string = "FeatureGateDisabled"
 )
 
 // ObjectWithConditions describes a Kubernetes resource object with status conditions.
