@@ -1,5 +1,5 @@
 
-# Deployment Chart - v4.21.0
+# Deployment Chart - v5.0.0
 
 ## 1. Yaml File -
 
