@@ -10,6 +10,7 @@
 - fix: panic in logs api (#6684)
 - fix: Empty migration seq (#6673)
 ## Others
+- misc: added support for service extraSpec (#6702)
 - sync: vendor update in develop (#6700)
 - sync: Main sync develop (#6699)
 - chore: oss main sync 29 06 (#6692)
