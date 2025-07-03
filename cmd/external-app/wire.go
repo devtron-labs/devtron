@@ -208,6 +208,8 @@ func InitializeApp() (*App, error) {
 		// binding gitops to helm (for hyperion)
 		wire.Bind(new(deployment.FullModeDeploymentService), new(*deployment2.EAModeDeploymentServiceImpl)),
 
+		wire.Bind(new(deployment.FullModeFluxDeploymentService), new(*deployment2.EAModeDeploymentServiceImpl)),
+
 		router.NewTelemetryRouterImpl,
 		wire.Bind(new(router.TelemetryRouter), new(*router.TelemetryRouterImpl)),
 		restHandler.NewTelemetryRestHandlerImpl,

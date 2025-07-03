@@ -79,6 +79,7 @@ type DeploymentType = string
 const (
 	Helm                    DeploymentType = "helm"
 	ArgoCd                  DeploymentType = "argo_cd"
+	FluxCd                  DeploymentType = "flux_cd"
 	ManifestDownload        DeploymentType = "manifest_download"
 	GitOpsWithoutDeployment DeploymentType = "git_ops_without_deployment"
 )

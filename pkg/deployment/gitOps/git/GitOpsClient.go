@@ -20,8 +20,10 @@ import (
 	"context"
 	"crypto/tls"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
 )
@@ -37,28 +39,58 @@ type GitOpsClient interface {
 	CreateFirstCommitOnHead(ctx context.Context, config *gitOps.GitOpsConfigDto) (string, error)
 }
 
+func GetGitConfigAll(gitOpsConfigReadService config.GitOpsConfigReadService) ([]*bean.GitConfig, error) {
+	gitOpsConfigs, err := gitOpsConfigReadService.GetAllGitOpsConfig()
+	if err != nil && err != pg.ErrNoRows {
+		return nil, err
+	} else if err == pg.ErrNoRows {
+		return nil, nil
+	}
+	cfgs := make([]*bean.GitConfig, 0, len(gitOpsConfigs))
+	for _, gitOpsConfig := range gitOpsConfigs {
+		cfgs = append(cfgs, &bean.GitConfig{
+			GitlabGroupId:         gitOpsConfig.GitLabGroupId,
+			GitToken:              gitOpsConfig.Token,
+			GitUserName:           gitOpsConfig.Username,
+			GithubOrganization:    gitOpsConfig.GitHubOrgId,
+			GitProvider:           gitOpsConfig.Provider,
+			GitHost:               gitOpsConfig.Host,
+			AzureToken:            gitOpsConfig.Token,
+			AzureProject:          gitOpsConfig.AzureProjectName,
+			BitbucketWorkspaceId:  gitOpsConfig.BitBucketWorkspaceId,
+			BitbucketProjectKey:   gitOpsConfig.BitBucketProjectKey,
+			IsActiveConfig:        gitOpsConfig.Active,
+			CaCert:                gitOpsConfig.TLSConfig.CaData,
+			TLSCert:               gitOpsConfig.TLSConfig.TLSCertData,
+			TLSKey:                gitOpsConfig.TLSConfig.TLSKeyData,
+			EnableTLSVerification: gitOpsConfig.EnableTLSVerification,
+		})
+	}
+	return cfgs, nil
+}
+
 func NewGitOpsClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitOpsHelper *GitOpsHelper) (GitOpsClient, error) {
 
 	var tlsConfig *tls.Config
 	var err error
 	if config.EnableTLSVerification {
-		tlsConfig, err = util.GetTlsConfig(config.TLSKey, config.TLSCert, config.CaCert, GIT_TLS_DIR)
+		tlsConfig, err = util.GetTlsConfig(config.TLSKey, config.TLSCert, config.CaCert, bean.GIT_TLS_DIR)
 		if err != nil {
 			logger.Errorw("error in getting tls config", "err", err)
 			return nil, err
 		}
 	}
 
-	if config.GitProvider == GITLAB_PROVIDER {
+	if config.GitProvider == bean.GITLAB_PROVIDER {
 		gitLabClient, err := NewGitLabClient(config, logger, gitOpsHelper, tlsConfig)
 		return gitLabClient, err
-	} else if config.GitProvider == GITHUB_PROVIDER {
+	} else if config.GitProvider == bean.GITHUB_PROVIDER {
 		gitHubClient, err := NewGithubClient(config.GitHost, config.GitToken, config.GithubOrganization, logger, gitOpsHelper, tlsConfig)
 		return gitHubClient, err
-	} else if config.GitProvider == AZURE_DEVOPS_PROVIDER {
+	} else if config.GitProvider == bean.AZURE_DEVOPS_PROVIDER {
 		gitAzureClient, err := NewGitAzureClient(config.AzureToken, config.GitHost, config.AzureProject, logger, gitOpsHelper, tlsConfig)
 		return gitAzureClient, err
-	} else if config.GitProvider == BITBUCKET_PROVIDER {
+	} else if config.GitProvider == bean.BITBUCKET_PROVIDER {
 		gitBitbucketClient := NewGitBitbucketClient(config.GitUserName, config.GitToken, config.GitHost, logger, gitOpsHelper, tlsConfig)
 		return gitBitbucketClient, nil
 	} else {

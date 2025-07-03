@@ -82,6 +82,7 @@ type AppStoreDeploymentServiceImpl struct {
 	appRepository                        app.AppRepository
 	eaModeDeploymentService              deployment2.EAModeDeploymentService
 	fullModeDeploymentService            deployment.FullModeDeploymentService
+	fullModeFluxDeploymentService        deployment.FullModeFluxDeploymentService
 	environmentService                   environment.EnvironmentService
 	helmAppService                       service.HelmAppService
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
@@ -103,6 +104,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
 	appRepository app.AppRepository,
 	eaModeDeploymentService deployment2.EAModeDeploymentService,
 	fullModeDeploymentService deployment.FullModeDeploymentService,
+	fullModeFluxDeploymentService deployment.FullModeFluxDeploymentService,
 	environmentService environment.EnvironmentService,
 	helmAppService service.HelmAppService,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
@@ -123,6 +125,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
 		appRepository:                        appRepository,
 		eaModeDeploymentService:              eaModeDeploymentService,
 		fullModeDeploymentService:            fullModeDeploymentService,
+		fullModeFluxDeploymentService:        fullModeFluxDeploymentService,
 		environmentService:                   environmentService,
 		helmAppService:                       helmAppService,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
@@ -200,6 +203,8 @@ func (impl *AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 			if impl.aCDConfig.IsManualSyncEnabled() {
 				_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_INITIATED, time.Now(), tx)
 			}
+		} else if util.IsFluxApp(installAppVersionRequest.DeploymentAppType) {
+			_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, timelineStatus.TIMELINE_STATUS_GIT_COMMIT, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_GIT_COMMIT, time.Now(), tx)
 		}
 		installAppVersionRequest.GitHash = gitOpsResponse.GitHash
 		if len(installAppVersionRequest.GitHash) > 0 {
@@ -218,6 +223,11 @@ func (impl *AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 			return nil, errors.New("service err, Error in git operations")
 		}
 		installAppVersionRequest, err = impl.fullModeDeploymentService.InstallApp(installAppVersionRequest, gitOpsResponse.ChartGitAttribute, ctx, tx)
+	} else if util.IsFluxApp(installAppVersionRequest.DeploymentAppType) {
+		if gitOpsResponse == nil && gitOpsResponse.ChartGitAttribute != nil {
+			return nil, errors.New("service err, Error in git operations")
+		}
+		installAppVersionRequest, err = impl.fullModeFluxDeploymentService.InstallApp(installAppVersionRequest, gitOpsResponse.ChartGitAttribute, ctx, tx)
 	}
 	if err != nil {
 		return nil, err
@@ -594,7 +604,7 @@ func (impl *AppStoreDeploymentServiceImpl) updateInstalledApp(ctx context.Contex
 
 	installedAppDeploymentAction := adapter.NewInstalledAppDeploymentAction(deploymentConfig.DeploymentAppType)
 	// migrate installedApp.GitOpsRepoName to installedApp.GitOpsRepoUrl
-	if util.IsAcdApp(deploymentConfig.DeploymentAppType) &&
+	if (util.IsAcdApp(deploymentConfig.DeploymentAppType) || util.IsFluxApp(deploymentConfig.DeploymentAppType)) &&
 		len(deploymentConfig.GetRepoURL()) == 0 {
 		gitRepoUrl, err := impl.fullModeDeploymentService.GetAcdAppGitOpsRepoURL(installedApp.App.AppName, installedApp.Environment.Name)
 		if err != nil {
@@ -725,7 +735,7 @@ func (impl *AppStoreDeploymentServiceImpl) updateInstalledApp(ctx context.Contex
 
 		upgradeAppRequest.GitHash = gitOpsResponse.GitHash
 		_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, timelineStatus.TIMELINE_STATUS_GIT_COMMIT, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_GIT_COMMIT, time.Now(), tx)
-		if impl.aCDConfig.IsManualSyncEnabled() {
+		if installedAppDeploymentAction.PerformACDDeployment && impl.aCDConfig.IsManualSyncEnabled() { //if acd then only save manifest timeline, filtering flux through this check
 			_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_INITIATED, time.Now(), tx)
 		}
 		installedAppVersionHistory.GitHash = gitOpsResponse.GitHash
@@ -750,6 +760,12 @@ func (impl *AppStoreDeploymentServiceImpl) updateInstalledApp(ctx context.Contex
 				impl.logger.Errorw("error in helm update request", "err", err)
 				return nil, err
 			}
+		}
+	} else if installedAppDeploymentAction.PerformFluxDeployment {
+		err = impl.fullModeFluxDeploymentService.UpgradeDeployment(upgradeAppRequest, gitOpsResponse.ChartGitAttribute, upgradeAppRequest.InstalledAppVersionHistoryId, ctx)
+		if err != nil {
+			impl.logger.Errorw("error in flux app patch request", "err", err)
+			return nil, err
 		}
 	}
 	installedApp.UpdateStatus(appStoreBean.DEPLOY_SUCCESS)
@@ -849,7 +865,7 @@ func (impl *AppStoreDeploymentServiceImpl) InstallAppByHelm(installAppVersionReq
 
 func (impl *AppStoreDeploymentServiceImpl) UpdatePreviousDeploymentStatusForAppStore(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error {
 	//creating pipeline status timeline for deployment failed
-	if !util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
+	if !util.IsAcdApp(installAppVersionRequest.DeploymentAppType) && !util.IsFluxApp(installAppVersionRequest.DeploymentAppType) {
 		return nil
 	}
 	err1 := impl.fullModeDeploymentService.UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest, triggeredAt, err)
