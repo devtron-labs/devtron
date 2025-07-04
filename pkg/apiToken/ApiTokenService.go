@@ -49,7 +49,7 @@ type ApiTokenServiceImpl struct {
 	userService           user2.UserService
 	userAuditService      user2.UserAuditService
 	apiTokenRepository    ApiTokenRepository
-	tokenVariableConfig   *TokenVariableConfig
+	TokenVariableConfig   *TokenVariableConfig
 }
 
 func NewApiTokenServiceImpl(logger *zap.SugaredLogger,
@@ -70,7 +70,7 @@ func NewApiTokenServiceImpl(logger *zap.SugaredLogger,
 	if err != nil {
 		return nil, err
 	}
-	apiTokenService.tokenVariableConfig = cfg
+	apiTokenService.TokenVariableConfig = cfg
 
 	return apiTokenService, nil
 }
@@ -130,7 +130,7 @@ func (impl ApiTokenServiceImpl) GetAllApiTokensForWebhook(projectName string, en
 				ExpireAtInMs:   &apiTokenFromDb.ExpireAtInMs,
 				UpdatedAt:      &updatedAtStr,
 			}
-			if !impl.tokenVariableConfig.HideApiTokens {
+			if !impl.TokenVariableConfig.HideApiTokens {
 				apiToken.Token = &apiTokenFromDb.Token
 			}
 			apiTokens = append(apiTokens, apiToken)
@@ -168,7 +168,7 @@ func (impl ApiTokenServiceImpl) GetAllActiveApiTokens() ([]*openapi.ApiToken, er
 			ExpireAtInMs:   &apiTokenFromDb.ExpireAtInMs,
 			UpdatedAt:      &updatedAtStr,
 		}
-		if !impl.tokenVariableConfig.HideApiTokens {
+		if !impl.TokenVariableConfig.HideApiTokens {
 			apiToken.Token = &apiTokenFromDb.Token
 		}
 		if latestAuditLog != nil {
