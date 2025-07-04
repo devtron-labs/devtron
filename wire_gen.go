@@ -1023,7 +1023,11 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	apiTokenRepositoryImpl := apiToken.NewApiTokenRepositoryImpl(db)
-	apiTokenServiceImpl := apiToken.NewApiTokenServiceImpl(sugaredLogger, apiTokenSecretServiceImpl, userServiceImpl, userAuditServiceImpl, apiTokenRepositoryImpl)
+	apiTokenConfig, err := apiToken.GetApiTokenConfig()
+	if err != nil {
+		return nil, err
+	}
+	apiTokenServiceImpl := apiToken.NewApiTokenServiceImpl(sugaredLogger, apiTokenSecretServiceImpl, userServiceImpl, userAuditServiceImpl, apiTokenRepositoryImpl, apiTokenConfig)
 	apiTokenRestHandlerImpl := apiToken2.NewApiTokenRestHandlerImpl(sugaredLogger, apiTokenServiceImpl, userServiceImpl, enforcerImpl, validate)
 	apiTokenRouterImpl := apiToken2.NewApiTokenRouterImpl(apiTokenRestHandlerImpl)
 	k8sCapacityServiceImpl := capacity.NewK8sCapacityServiceImpl(sugaredLogger, k8sApplicationServiceImpl, k8sServiceImpl, k8sCommonServiceImpl)

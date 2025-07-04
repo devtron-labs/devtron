@@ -26,6 +26,7 @@ var ApiTokenWireSet = wire.NewSet(
 	wire.Bind(new(apiToken.ApiTokenRepository), new(*apiToken.ApiTokenRepositoryImpl)),
 	apiToken.NewApiTokenServiceImpl,
 	wire.Bind(new(apiToken.ApiTokenService), new(*apiToken.ApiTokenServiceImpl)),
+	apiToken.GetApiTokenConfig,
 	NewApiTokenRestHandlerImpl,
 	wire.Bind(new(ApiTokenRestHandler), new(*ApiTokenRestHandlerImpl)),
 	NewApiTokenRouterImpl,

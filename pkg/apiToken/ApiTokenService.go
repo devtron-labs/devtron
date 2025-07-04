@@ -19,6 +19,7 @@ package apiToken
 import (
 	"errors"
 	"fmt"
+	"github.com/caarlos0/env"
 	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"regexp"
 	"strconv"
@@ -48,17 +49,34 @@ type ApiTokenServiceImpl struct {
 	userService           user2.UserService
 	userAuditService      user2.UserAuditService
 	apiTokenRepository    ApiTokenRepository
+	apiTokenConfig        *ApiTokenConfig
 }
 
-func NewApiTokenServiceImpl(logger *zap.SugaredLogger, apiTokenSecretService ApiTokenSecretService, userService user2.UserService, userAuditService user2.UserAuditService,
-	apiTokenRepository ApiTokenRepository) *ApiTokenServiceImpl {
+func NewApiTokenServiceImpl(logger *zap.SugaredLogger,
+	apiTokenSecretService ApiTokenSecretService,
+	userService user2.UserService,
+	userAuditService user2.UserAuditService,
+	apiTokenRepository ApiTokenRepository,
+	apiTokenConfig *ApiTokenConfig,
+) *ApiTokenServiceImpl {
 	return &ApiTokenServiceImpl{
 		logger:                logger,
 		apiTokenSecretService: apiTokenSecretService,
 		userService:           userService,
 		userAuditService:      userAuditService,
 		apiTokenRepository:    apiTokenRepository,
+		apiTokenConfig:        apiTokenConfig,
 	}
+}
+
+type ApiTokenConfig struct {
+	HideApiTokens bool `env:"HIDE_API_TOKENS" envDefault:"false" description:"Boolean flag for should the api tokens generated be hidden from the UI"`
+}
+
+func GetApiTokenConfig() (*ApiTokenConfig, error) {
+	cfg := &ApiTokenConfig{}
+	err := env.Parse(cfg)
+	return cfg, err
 }
 
 var invalidCharsInApiTokenName = regexp.MustCompile("[,\\s]")
@@ -104,8 +122,10 @@ func (impl ApiTokenServiceImpl) GetAllApiTokensForWebhook(projectName string, en
 				Name:           &apiTokenFromDb.Name,
 				Description:    &apiTokenFromDb.Description,
 				ExpireAtInMs:   &apiTokenFromDb.ExpireAtInMs,
-				Token:          &apiTokenFromDb.Token,
 				UpdatedAt:      &updatedAtStr,
+			}
+			if !impl.apiTokenConfig.HideApiTokens {
+				apiToken.Token = &apiTokenFromDb.Token
 			}
 			apiTokens = append(apiTokens, apiToken)
 		}
@@ -140,8 +160,10 @@ func (impl ApiTokenServiceImpl) GetAllActiveApiTokens() ([]*openapi.ApiToken, er
 			Name:           &apiTokenFromDb.Name,
 			Description:    &apiTokenFromDb.Description,
 			ExpireAtInMs:   &apiTokenFromDb.ExpireAtInMs,
-			Token:          &apiTokenFromDb.Token,
 			UpdatedAt:      &updatedAtStr,
+		}
+		if !impl.apiTokenConfig.HideApiTokens {
+			apiToken.Token = &apiTokenFromDb.Token
 		}
 		if latestAuditLog != nil {
 			lastUsedAtStr := latestAuditLog.CreatedOn.String()
