@@ -73,6 +73,26 @@ func NewAppLevelReleaseConfigFromChart(gitRepoURL, chartLocation string) *bean.R
 		}}
 }
 
+func NewFluxSpecReleaseConfig(clusterId int, helmReleaseNamespace, gitRepositoryName, gitRepositoryNamespace, helmReleaseName, gitOpsSecretName, ChartLocation, ChartVersion, RevisionTarget, RepoUrl, DevtronValueFileName string, HelmReleaseValuesFiles []string, extValues string) *bean.ReleaseConfiguration {
+	return &bean.ReleaseConfiguration{
+		Version: bean.Version,
+		FluxCDSpec: bean.FluxCDSpec{
+			ClusterId:              clusterId,
+			HelmReleaseNamespace:   helmReleaseNamespace,
+			GitRepositoryName:      gitRepositoryName,
+			GitRepositoryNamespace: gitRepositoryNamespace,
+			HelmReleaseName:        helmReleaseName,
+			GitOpsSecretName:       gitOpsSecretName,
+			ChartLocation:          ChartLocation,
+			ChartVersion:           ChartVersion,
+			RevisionTarget:         RevisionTarget,
+			RepoUrl:                RepoUrl,
+			DevtronValueFile:       DevtronValueFileName,
+			HelmReleaseValuesFiles: HelmReleaseValuesFiles,
+			ExtFluxValues:          extValues,
+		}}
+}
+
 func GetDeploymentConfigType(isCustomGitOpsRepo bool) string {
 	if isCustomGitOpsRepo {
 		return string(bean.CUSTOM)

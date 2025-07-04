@@ -300,7 +300,7 @@ func (impl CiCdPipelineOrchestratorImpl) validateCiPipelineMaterial(ciPipelineMa
 		return errors.New(string(bean.CI_PATCH_SKIP_MESSAGE) + impl.getSkipMessage(ciPipelineMaterial.CiPipeline))
 	}
 	if ciPipelineMaterial.Regex != "" {
-		// Checking Trigger Access for Regex branch
+		// Checking CiTriggerRequest Access for Regex branch
 		if ok, err := checkAppSpecificAccess(token, casbin.ActionTrigger, appId); !ok {
 			return err
 		}

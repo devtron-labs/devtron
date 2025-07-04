@@ -73,7 +73,7 @@ type ChartService interface {
 	ConfigureGitOpsRepoUrlForApp(appId int, repoUrl, chartLocation string, isCustomRepo bool, userId int32) (*bean2.DeploymentConfig, error)
 
 	IsGitOpsRepoConfiguredForDevtronApp(appId int) (bool, error)
-	IsGitOpsRepoAlreadyRegistered(gitOpsRepoUrl string) (bool, error)
+	IsGitOpsRepoAlreadyRegistered(gitOpsRepoUrl string, appId int) (bool, error)
 
 	GetDeploymentTemplateDataByAppIdAndCharRefId(appId, chartRefId int) (map[string]interface{}, error)
 
@@ -1038,9 +1038,9 @@ func (impl *ChartServiceImpl) ConfigureGitOpsRepoUrlForApp(appId int, repoUrl, c
 //	return nil
 //}
 
-func (impl *ChartServiceImpl) IsGitOpsRepoAlreadyRegistered(gitOpsRepoUrl string) (bool, error) {
+func (impl *ChartServiceImpl) IsGitOpsRepoAlreadyRegistered(gitOpsRepoUrl string, appId int) (bool, error) {
 
-	isURLPresent, err := impl.deploymentConfigService.CheckIfURLAlreadyPresent(gitOpsRepoUrl)
+	isURLPresent, err := impl.deploymentConfigService.CheckIfURLAlreadyPresent(gitOpsRepoUrl, appId)
 	if err != nil {
 		impl.logger.Errorw("error in checking if gitOps repo url is already present", "error", err)
 		return false, err
@@ -1054,6 +1054,9 @@ func (impl *ChartServiceImpl) IsGitOpsRepoAlreadyRegistered(gitOpsRepoUrl string
 		impl.logger.Errorw("error in fetching chartModel", "repoUrl", gitOpsRepoUrl, "err", err)
 		return true, err
 	} else if util.IsErrNoRows(err) {
+		return false, nil
+	}
+	if chartModel != nil && chartModel.AppId == appId {
 		return false, nil
 	}
 	impl.logger.Errorw("repository is already in use for devtron app", "repoUrl", gitOpsRepoUrl, "appId", chartModel.AppId)

@@ -96,6 +96,7 @@ metadata:
     release: casbin
 {{- if .configs }}
 data:
+{{ toYaml $.Values.global.dbConfig | indent 2 }}
 {{ toYaml .configs | indent 2 }}
 {{- end }}
 ---
