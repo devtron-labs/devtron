@@ -556,7 +556,7 @@ func (impl ClusterRestHandlerImpl) DeleteCluster(w http.ResponseWriter, r *http.
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean bean2.ClusterBean
+	var bean bean2.DeleteClusterBean
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, Delete", "error", err, "payload", bean)
@@ -580,7 +580,7 @@ func (impl ClusterRestHandlerImpl) DeleteCluster(w http.ResponseWriter, r *http.
 	//RBAC enforcer Ends
 	err = impl.deleteService.DeleteCluster(&bean, userId)
 	if err != nil {
-		impl.logger.Errorw("error in deleting cluster", "err", err, "id", bean.Id, "name", bean.ClusterName)
+		impl.logger.Errorw("error in deleting cluster", "err", err, "id", bean.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
