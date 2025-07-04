@@ -1,4 +1,5 @@
 ## Enhancements
+- feat: added the plugin for aws ecr retagging (#6695)
 - feat: k8s resource recommendation service integration (#6676)
 - feat: flux cd deployment  (#6660)
 - feat: add app name in labels list api (#6688)
