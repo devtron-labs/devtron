@@ -731,14 +731,14 @@ func (impl *CdPipelineConfigServiceImpl) parseReleaseConfigForACDApp(app *app2.A
 
 func (impl *CdPipelineConfigServiceImpl) parseReleaseConfigForFluxApp(app *app2.App, appDeploymentConfig *bean4.DeploymentConfig, env *repository6.Environment) (*bean4.ReleaseConfiguration, error) {
 
-	envOverride, err := impl.envConfigOverrideService.FindLatestChartForAppByAppIdAndEnvId(app.Id, env.Id)
+	envOverride, err := impl.envConfigOverrideService.FindLatestChartForAppByAppIdAndEnvId(nil, app.Id, env.Id)
 	if err != nil && !errors2.IsNotFound(err) {
 		impl.logger.Errorw("error in fetch")
 		return nil, err
 	}
 	var latestChart *chartRepoRepository.Chart
 	if !envOverride.IsOverridden() {
-		latestChart, err = impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
+		latestChart, err = impl.chartRepository.FindLatestChartForAppByAppId(nil, app.Id)
 		if err != nil {
 			return nil, err
 		}
