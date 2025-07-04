@@ -57,7 +57,7 @@ func (impl *ChartReadServiceImpl) GetByAppIdAndChartRefId(appId int, chartRefId 
 		impl.logger.Errorw("error in fetching app-metrics", "appId", appId, "err", err)
 		return nil, err
 	}
-	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, 0)
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(nil, appId, 0)
 	if err != nil {
 		impl.logger.Errorw("error in fetching deployment config by appId", "appId", appId, "err", err)
 		return nil, err
@@ -91,13 +91,13 @@ func (impl *ChartReadServiceImpl) IsGitOpsRepoConfiguredForDevtronApps(appIds []
 }
 
 func (impl *ChartReadServiceImpl) FindLatestChartForAppByAppId(appId int) (chartTemplate *bean.TemplateRequest, err error) {
-	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
+	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(nil, appId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart ", "appId", appId, "err", err)
 		return nil, err
 	}
 
-	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, 0)
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(nil, appId, 0)
 	if err != nil {
 		impl.logger.Errorw("error in fetching deployment config by appId", "appId", appId, "err", err)
 		return nil, err
