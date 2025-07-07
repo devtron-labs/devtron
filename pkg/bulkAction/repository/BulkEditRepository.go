@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package bulkUpdate
+package repository
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -46,7 +46,7 @@ type BulkEditConfig struct {
 	Schema     string   `sql:"schema"`
 }
 
-type BulkUpdateRepository interface {
+type BulkEditRepository interface {
 	FindBulkEditConfig(apiVersion, kind string) (*BulkEditConfig, error)
 
 	// methods for Deployment Template :
@@ -70,15 +70,18 @@ type BulkUpdateRepository interface {
 	BulkUpdateSecretDataForGlobalById(id int, patch string) error
 	BulkUpdateConfigMapDataForEnvById(id int, patch string) error
 	BulkUpdateSecretDataForEnvById(id int, patch string) error
+
+	// BulkEditRepositoryEnt is used for ent-specific operations.
+	BulkEditRepositoryEnt
 }
 
-func NewBulkUpdateRepository(dbConnection *pg.DB,
-	logger *zap.SugaredLogger) *BulkUpdateRepositoryImpl {
-	return &BulkUpdateRepositoryImpl{dbConnection: dbConnection,
+func NewBulkEditRepository(dbConnection *pg.DB,
+	logger *zap.SugaredLogger) *BulkEditRepositoryImpl {
+	return &BulkEditRepositoryImpl{dbConnection: dbConnection,
 		logger: logger}
 }
 
-type BulkUpdateRepositoryImpl struct {
+type BulkEditRepositoryImpl struct {
 	dbConnection *pg.DB
 	logger       *zap.SugaredLogger
 }
@@ -118,7 +121,7 @@ func appendBuildSecretNameQuery(q *orm.Query, secretNames []string) *orm.Query {
 	return q.Where("secret_data LIKE ANY (array[?])", pg.In(secretNamesLikeClause))
 }
 
-func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkEditConfig(apiVersion, kind string) (*BulkEditConfig, error) {
+func (repositoryImpl BulkEditRepositoryImpl) FindBulkEditConfig(apiVersion, kind string) (*BulkEditConfig, error) {
 	bulkEditConfig := &BulkEditConfig{}
 	err := repositoryImpl.dbConnection.
 		Model(bulkEditConfig).
@@ -128,7 +131,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkEditConfig(apiVersion, ki
 	return bulkEditConfig, err
 }
 
-func (repositoryImpl BulkUpdateRepositoryImpl) FindDeploymentTemplateBulkAppNameForGlobal(appNameIncludes []string, appNameExcludes []string) ([]*app.App, error) {
+func (repositoryImpl BulkEditRepositoryImpl) FindDeploymentTemplateBulkAppNameForGlobal(appNameIncludes []string, appNameExcludes []string) ([]*app.App, error) {
 	apps := []*app.App{}
 	q := repositoryImpl.dbConnection.
 		Model(&apps).Join("INNER JOIN charts ch ON app.id = ch.app_id").
@@ -139,7 +142,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindDeploymentTemplateBulkAppName
 	return apps, err
 }
 
-func (repositoryImpl BulkUpdateRepositoryImpl) FindDeploymentTemplateBulkAppNameForEnv(appNameIncludes []string, appNameExcludes []string, envId int) ([]*app.App, error) {
+func (repositoryImpl BulkEditRepositoryImpl) FindDeploymentTemplateBulkAppNameForEnv(appNameIncludes []string, appNameExcludes []string, envId int) ([]*app.App, error) {
 	apps := []*app.App{}
 	q := repositoryImpl.dbConnection.
 		Model(&apps).Join("INNER JOIN charts ch ON app.id = ch.app_id").
@@ -151,7 +154,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindDeploymentTemplateBulkAppName
 	err := q.Select()
 	return apps, err
 }
-func (repositoryImpl BulkUpdateRepositoryImpl) FindCMBulkAppModelForGlobal(appNameIncludes []string, appNameExcludes []string, configMapNames []string) ([]*chartConfig.ConfigMapAppModel, error) {
+func (repositoryImpl BulkEditRepositoryImpl) FindCMBulkAppModelForGlobal(appNameIncludes []string, appNameExcludes []string, configMapNames []string) ([]*chartConfig.ConfigMapAppModel, error) {
 	CmAndSecretAppModel := []*chartConfig.ConfigMapAppModel{}
 	q := repositoryImpl.dbConnection.
 		Model(&CmAndSecretAppModel).Join("INNER JOIN app ON app.id = config_map_app_model.app_id").
@@ -161,7 +164,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindCMBulkAppModelForGlobal(appNa
 	err := q.Select()
 	return CmAndSecretAppModel, err
 }
-func (repositoryImpl BulkUpdateRepositoryImpl) FindSecretBulkAppModelForGlobal(appNameIncludes []string, appNameExcludes []string, secretNames []string) ([]*chartConfig.ConfigMapAppModel, error) {
+func (repositoryImpl BulkEditRepositoryImpl) FindSecretBulkAppModelForGlobal(appNameIncludes []string, appNameExcludes []string, secretNames []string) ([]*chartConfig.ConfigMapAppModel, error) {
 	CmAndSecretAppModel := []*chartConfig.ConfigMapAppModel{}
 	q := repositoryImpl.dbConnection.
 		Model(&CmAndSecretAppModel).Join("INNER JOIN app ON app.id = config_map_app_model.app_id").
@@ -171,7 +174,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindSecretBulkAppModelForGlobal(a
 	err := q.Select()
 	return CmAndSecretAppModel, err
 }
-func (repositoryImpl BulkUpdateRepositoryImpl) FindCMBulkAppModelForEnv(appNameIncludes []string, appNameExcludes []string, envId int, configMapNames []string) ([]*chartConfig.ConfigMapEnvModel, error) {
+func (repositoryImpl BulkEditRepositoryImpl) FindCMBulkAppModelForEnv(appNameIncludes []string, appNameExcludes []string, envId int, configMapNames []string) ([]*chartConfig.ConfigMapEnvModel, error) {
 	CmAndSecretEnvModel := []*chartConfig.ConfigMapEnvModel{}
 	q := repositoryImpl.dbConnection.
 		Model(&CmAndSecretEnvModel).Join("INNER JOIN app ON app.id = config_map_env_model.app_id").
@@ -182,7 +185,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindCMBulkAppModelForEnv(appNameI
 	err := q.Select()
 	return CmAndSecretEnvModel, err
 }
-func (repositoryImpl BulkUpdateRepositoryImpl) FindSecretBulkAppModelForEnv(appNameIncludes []string, appNameExcludes []string, envId int, secretNames []string) ([]*chartConfig.ConfigMapEnvModel, error) {
+func (repositoryImpl BulkEditRepositoryImpl) FindSecretBulkAppModelForEnv(appNameIncludes []string, appNameExcludes []string, envId int, secretNames []string) ([]*chartConfig.ConfigMapEnvModel, error) {
 	CmAndSecretEnvModel := []*chartConfig.ConfigMapEnvModel{}
 	q := repositoryImpl.dbConnection.
 		Model(&CmAndSecretEnvModel).Join("INNER JOIN app ON app.id = config_map_env_model.app_id").
@@ -193,7 +196,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindSecretBulkAppModelForEnv(appN
 	err := q.Select()
 	return CmAndSecretEnvModel, err
 }
-func (repositoryImpl BulkUpdateRepositoryImpl) FindAppByChartId(chartId int) (*app.App, error) {
+func (repositoryImpl BulkEditRepositoryImpl) FindAppByChartId(chartId int) (*app.App, error) {
 	app := &app.App{}
 	err := repositoryImpl.dbConnection.
 		Model(app).Join("INNER JOIN charts ch ON app.id = ch.app_id").
@@ -203,7 +206,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindAppByChartId(chartId int) (*a
 		Select()
 	return app, err
 }
-func (repositoryImpl BulkUpdateRepositoryImpl) FindAppByChartEnvId(chartEnvId int) (*app.App, error) {
+func (repositoryImpl BulkEditRepositoryImpl) FindAppByChartEnvId(chartEnvId int) (*app.App, error) {
 	app := &app.App{}
 	err := repositoryImpl.dbConnection.
 		Model(app).Join("INNER JOIN charts ch ON app.id = ch.app_id").
@@ -214,7 +217,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindAppByChartEnvId(chartEnvId in
 		Select()
 	return app, err
 }
-func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkChartsByAppNameSubstring(appNameIncludes []string, appNameExcludes []string) ([]*chartRepoRepository.Chart, error) {
+func (repositoryImpl BulkEditRepositoryImpl) FindBulkChartsByAppNameSubstring(appNameIncludes []string, appNameExcludes []string) ([]*chartRepoRepository.Chart, error) {
 	charts := []*chartRepoRepository.Chart{}
 	q := repositoryImpl.dbConnection.
 		Model(&charts).Join("INNER JOIN app ON app.id=app_id ").
@@ -225,7 +228,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkChartsByAppNameSubstring(
 	return charts, err
 }
 
-func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkChartsEnvByAppNameSubstring(appNameIncludes []string, appNameExcludes []string, envId int) ([]*chartConfig.EnvConfigOverride, error) {
+func (repositoryImpl BulkEditRepositoryImpl) FindBulkChartsEnvByAppNameSubstring(appNameIncludes []string, appNameExcludes []string, envId int) ([]*chartConfig.EnvConfigOverride, error) {
 	charts := []*chartConfig.EnvConfigOverride{}
 	q := repositoryImpl.dbConnection.
 		Model(&charts).Join("INNER JOIN charts ch ON ch.id=env_config_override.chart_id").
@@ -238,7 +241,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkChartsEnvByAppNameSubstri
 	err := q.Select()
 	return charts, err
 }
-func (repositoryImpl BulkUpdateRepositoryImpl) BulkUpdateChartsValuesYamlAndGlobalOverrideById(id int, patchValuesYml string, patchGlobalOverrideYml string) error {
+func (repositoryImpl BulkEditRepositoryImpl) BulkUpdateChartsValuesYamlAndGlobalOverrideById(id int, patchValuesYml string, patchGlobalOverrideYml string) error {
 	chart := &chartRepoRepository.Chart{}
 	_, err := repositoryImpl.dbConnection.
 		Model(chart).
@@ -252,7 +255,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) BulkUpdateChartsValuesYamlAndGlob
 	}
 	return nil
 }
-func (repositoryImpl BulkUpdateRepositoryImpl) BulkUpdateChartsEnvYamlOverrideById(id int, patch string) error {
+func (repositoryImpl BulkEditRepositoryImpl) BulkUpdateChartsEnvYamlOverrideById(id int, patch string) error {
 	chartEnv := &chartConfig.EnvConfigOverride{}
 	_, err := repositoryImpl.dbConnection.
 		Model(chartEnv).
@@ -265,7 +268,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) BulkUpdateChartsEnvYamlOverrideBy
 	}
 	return nil
 }
-func (repositoryImpl BulkUpdateRepositoryImpl) BulkUpdateConfigMapDataForGlobalById(id int, patch string) error {
+func (repositoryImpl BulkEditRepositoryImpl) BulkUpdateConfigMapDataForGlobalById(id int, patch string) error {
 	CmAppModel := &chartConfig.ConfigMapAppModel{}
 	_, err := repositoryImpl.dbConnection.
 		Model(CmAppModel).
@@ -278,7 +281,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) BulkUpdateConfigMapDataForGlobalB
 	}
 	return nil
 }
-func (repositoryImpl BulkUpdateRepositoryImpl) BulkUpdateSecretDataForGlobalById(id int, patch string) error {
+func (repositoryImpl BulkEditRepositoryImpl) BulkUpdateSecretDataForGlobalById(id int, patch string) error {
 	SecretAppModel := &chartConfig.ConfigMapAppModel{}
 	_, err := repositoryImpl.dbConnection.
 		Model(SecretAppModel).
@@ -291,7 +294,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) BulkUpdateSecretDataForGlobalById
 	}
 	return nil
 }
-func (repositoryImpl BulkUpdateRepositoryImpl) BulkUpdateConfigMapDataForEnvById(id int, patch string) error {
+func (repositoryImpl BulkEditRepositoryImpl) BulkUpdateConfigMapDataForEnvById(id int, patch string) error {
 	CmEnvModel := &chartConfig.ConfigMapEnvModel{}
 	_, err := repositoryImpl.dbConnection.
 		Model(CmEnvModel).
@@ -304,7 +307,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) BulkUpdateConfigMapDataForEnvById
 	}
 	return nil
 }
-func (repositoryImpl BulkUpdateRepositoryImpl) BulkUpdateSecretDataForEnvById(id int, patch string) error {
+func (repositoryImpl BulkEditRepositoryImpl) BulkUpdateSecretDataForEnvById(id int, patch string) error {
 	SecretEnvModel := &chartConfig.ConfigMapEnvModel{}
 	_, err := repositoryImpl.dbConnection.
 		Model(SecretEnvModel).

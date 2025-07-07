@@ -275,7 +275,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkEdit(w http.ResponseWriter, r *http
 	}
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 	userMetadata := util2.GetUserMetadata(r.Context(), userId, isSuperAdmin)
-	response := handler.bulkUpdateService.BulkUpdate(r.Context(), script.Spec, userMetadata)
+	response := handler.bulkUpdateService.BulkEdit(r.Context(), script.Spec, userMetadata)
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 

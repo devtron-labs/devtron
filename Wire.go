@@ -102,7 +102,6 @@ import (
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appStatusRepo "github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
-	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
@@ -127,6 +126,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/build"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	pipeline6 "github.com/devtron-labs/devtron/pkg/build/pipeline"
+	repository11 "github.com/devtron-labs/devtron/pkg/bulkAction/repository"
 	"github.com/devtron-labs/devtron/pkg/bulkAction/service"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
@@ -266,8 +266,8 @@ func InitializeApp() (*App, error) {
 		app.NewAppService,
 		wire.Bind(new(app.AppService), new(*app.AppServiceImpl)),
 
-		bulkUpdate.NewBulkUpdateRepository,
-		wire.Bind(new(bulkUpdate.BulkUpdateRepository), new(*bulkUpdate.BulkUpdateRepositoryImpl)),
+		repository11.NewBulkEditRepository,
+		wire.Bind(new(repository11.BulkEditRepository), new(*repository11.BulkEditRepositoryImpl)),
 
 		chartConfig.NewEnvConfigOverrideRepository,
 		wire.Bind(new(chartConfig.EnvConfigOverrideRepository), new(*chartConfig.EnvConfigOverrideRepositoryImpl)),
