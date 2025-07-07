@@ -14,20 +14,20 @@ import (
 	"time"
 )
 
-func (impl *HandlerServiceImpl) checkFeasibilityForPreStage(pipeline *pipelineConfig.Pipeline, request *bean2.TriggerRequest,
+func (impl *HandlerServiceImpl) checkFeasibilityForPreStage(pipeline *pipelineConfig.Pipeline, request *bean2.CdTriggerRequest,
 	env *repository.Environment, artifact *repository2.CiArtifact, triggeredBy int32) (interface{}, error) {
 	//here return type is interface as ResourceFilterEvaluationAudit is not present in this version
 	return nil, nil
 }
 
-func (impl *HandlerServiceImpl) createAuditDataForDeploymentWindowBypass(request bean2.TriggerRequest, wfrId int) error {
+func (impl *HandlerServiceImpl) createAuditDataForDeploymentWindowBypass(request bean2.CdTriggerRequest, wfrId int) error {
 	return nil
 }
 
 func (impl *HandlerServiceImpl) getManifestPushTemplateForPreStage(ctx context.Context, envDeploymentConfig *bean3.DeploymentConfig,
 	pipeline *pipelineConfig.Pipeline, artifact *repository2.CiArtifact, jobHelmPackagePath string,
 	cdWf *pipelineConfig.CdWorkflow, runner *pipelineConfig.CdWorkflowRunner, triggeredBy int32, triggeredAt time.Time,
-	request bean2.TriggerRequest) (*bean6.ManifestPushTemplate, error) {
+	request bean2.CdTriggerRequest) (*bean6.ManifestPushTemplate, error) {
 	return nil, nil
 }
 
