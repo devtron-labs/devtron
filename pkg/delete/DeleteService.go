@@ -41,13 +41,13 @@ import (
 )
 
 type DeleteService interface {
-	DeleteCluster(deleteRequest *bean2.ClusterBean, userId int32) error
+	DeleteCluster(deleteRequest *bean2.DeleteClusterBean, userId int32) error
 	DeleteEnvironment(deleteRequest *bean.EnvironmentBean, userId int32) error
 	DeleteTeam(deleteRequest *bean3.TeamRequest) error
 	DeleteChartRepo(deleteRequest *chartRepo.ChartRepoDto) error
 	DeleteDockerRegistryConfig(deleteRequest *types.DockerArtifactStoreBean) error
 	CanDeleteChartRegistryPullConfig(storeId string) bool
-	DeleteClusterConfigMap(deleteRequest *bean2.ClusterBean) error
+	DeleteClusterConfigMap(deleteRequest *bean2.DeleteClusterBean) error
 }
 
 type DeleteServiceImpl struct {
@@ -91,7 +91,7 @@ func NewDeleteServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl DeleteServiceImpl) DeleteCluster(deleteRequest *bean2.ClusterBean, userId int32) error {
+func (impl DeleteServiceImpl) DeleteCluster(deleteRequest *bean2.DeleteClusterBean, userId int32) error {
 	clusterName, err := impl.clusterService.DeleteFromDb(deleteRequest, userId)
 	if err != nil {
 		impl.logger.Errorw("error im deleting cluster", "err", err, "deleteRequest", deleteRequest)
@@ -108,11 +108,11 @@ func (impl DeleteServiceImpl) DeleteCluster(deleteRequest *bean2.ClusterBean, us
 	return nil
 }
 
-func (impl DeleteServiceImpl) DeleteClusterConfigMap(deleteRequest *bean2.ClusterBean) error {
+func (impl DeleteServiceImpl) DeleteClusterConfigMap(deleteRequest *bean2.DeleteClusterBean) error {
 	// kubelink informers are listening this secret, deleting this secret will inform kubelink that this cluster is deleted
 	k8sClient, err := impl.K8sUtil.GetCoreV1ClientInCluster()
 	if err != nil {
-		impl.logger.Errorw("error in getting in cluster k8s client", "err", err, "clusterName", deleteRequest.ClusterName)
+		impl.logger.Errorw("error in getting in cluster k8s client", "err", err, "clusterId", deleteRequest.Id)
 		return nil
 	}
 	cmName := cluster.ParseCmNameForK8sInformerOnClusterEvent(deleteRequest.Id)
