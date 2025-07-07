@@ -13,6 +13,7 @@
 - fix: panic in logs api (#6684)
 - fix: Empty migration seq (#6673)
 ## Others
+- sync: vendor update (#6713)
 - sync: Release candidate v0.39.0 (#6712)
 - misc: consolidated commonly used api specs into single file (#6698)
 - misc: added support for service extraSpec (#6702)
