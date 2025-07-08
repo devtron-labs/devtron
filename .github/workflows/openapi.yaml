@@ -1,0 +1,63 @@
+name: OpenAPI Lint and Build Documentation
+
+on:
+  pull_request:
+    paths:
+      - 'specs/swagger/**'
+
+jobs:
+  lint-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 
+
+      - name: Switch to PR branch
+        run: |
+          echo "🔄 Switching to PR branch: ${{ github.head_ref }}"
+          git checkout ${{ github.head_ref }}
+          git pull origin ${{ github.head_ref }}
+          echo "✅ Now on branch: $(git branch --show-current)"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+
+      - name: Install Redocly CLI
+        run: npm install -g @redocly/cli
+
+      - name: Lint OpenAPI specification
+        run: |
+          cd specs/swagger
+          echo "🔍 Linting OpenAPI specification..."
+          redocly lint openapi.yaml --skip-rule=warning
+          echo "✅ Linting passed! No critical errors found."
+
+      - name: Build OpenAPI documentation
+        run: |
+          cd specs/swagger
+          echo "🔨 Building OpenAPI documentation..."
+          redocly build-docs openapi.yaml --output=openapi.html
+          echo "✅ Documentation built successfully!"
+
+      - name: Commit and push updated documentation
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # Add the generated documentation
+          git add specs/swagger/openapi.html
+          
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "📝 No changes to commit"
+          else
+            echo "📝 Committing documentation changes..."
+            git commit -m "Update OpenAPI documentation [skip ci]"
+            echo "📤 Pushing changes to PR branch: ${{ github.head_ref }}"
+            git push origin ${{ github.head_ref }}
+            echo "✅ Changes pushed successfully!"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_SYSTEMSDT_TOKEN }}
