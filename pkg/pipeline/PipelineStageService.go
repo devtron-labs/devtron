@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/helper"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
@@ -679,6 +680,7 @@ func (impl *PipelineStageServiceImpl) CreateStageSteps(steps []*bean.PipelineSta
 				impl.logger.Errorw("error in creating script and mapping for inline step", "err", err, "inlineStepDetail", inlineStepDetail)
 				return err
 			}
+
 			inlineStep := &repository.PipelineStageStep{
 				PipelineStageId:     stageId,
 				Name:                step.Name,
@@ -686,7 +688,7 @@ func (impl *PipelineStageServiceImpl) CreateStageSteps(steps []*bean.PipelineSta
 				Index:               step.Index,
 				StepType:            step.StepType,
 				ScriptId:            scriptEntryId,
-				OutputDirectoryPath: step.OutputDirectoryPath,
+				OutputDirectoryPath: helper.FilterReservedPathFromOutputDirPath(step.OutputDirectoryPath), // TODO: silently filtering reserved paths, not throwing error as of now since this flow is not in tx
 				DependentOnStep:     dependentOnStep,
 				Deleted:             false,
 				AuditLog: sql.AuditLog{
@@ -1205,7 +1207,7 @@ func (impl *PipelineStageServiceImpl) UpdateStageStepsWithTx(steps []*bean.Pipel
 			Description:         step.Description,
 			Index:               step.Index,
 			StepType:            step.StepType,
-			OutputDirectoryPath: step.OutputDirectoryPath,
+			OutputDirectoryPath: helper.FilterReservedPathFromOutputDirPath(step.OutputDirectoryPath),
 			DependentOnStep:     dependentOnStep,
 			Deleted:             false,
 			AuditLog: sql.AuditLog{

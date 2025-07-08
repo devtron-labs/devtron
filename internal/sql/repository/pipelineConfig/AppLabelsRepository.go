@@ -41,7 +41,7 @@ type AppLabelRepository interface {
 	Delete(model *AppLabel, tx *pg.Tx) error
 	FindById(id int) (*AppLabel, error)
 	FindAllByIds(ids []int) ([]*AppLabel, error)
-	FindAll() ([]*AppLabel, error)
+	FindAll(propagated *bool) ([]*AppLabel, error)
 	FindByLabelKey(key string) ([]*AppLabel, error)
 	FindByAppIdAndKeyAndValue(appId int, key string, value string) (*AppLabel, error)
 	FindByLabelValue(label string) ([]*AppLabel, error)
@@ -89,9 +89,16 @@ func (impl AppLabelRepositoryImpl) FindAllByIds(ids []int) ([]*AppLabel, error) 
 	err := impl.dbConnection.Model(&models).Where("id in (?)", pg.In(ids)).Order("updated_on desc").Select()
 	return models, err
 }
-func (impl AppLabelRepositoryImpl) FindAll() ([]*AppLabel, error) {
+func (impl AppLabelRepositoryImpl) FindAll(propagated *bool) ([]*AppLabel, error) {
 	var models []*AppLabel
-	err := impl.dbConnection.Model(&models).Order("updated_on desc").Select()
+	query := impl.dbConnection.Model(&models).
+		Column("app_label.*", "App").
+		Order("updated_on desc")
+	// if propagated flag is not set then show all labels
+	if propagated != nil {
+		query = query.Where("propagate = ?", *propagated)
+	}
+	err := query.Select()
 	return models, err
 }
 func (impl AppLabelRepositoryImpl) FindByLabelKey(key string) ([]*AppLabel, error) {
