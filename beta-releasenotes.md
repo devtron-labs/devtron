@@ -13,6 +13,7 @@
 - fix: panic in logs api (#6684)
 - fix: Empty migration seq (#6673)
 ## Others
+- chore: OSS main sync (#6717)
 - chore: added sql file of 4.21 (#6716)
 - sync: Main sync develop (#6715)
 - sync: vendor update (#6713)
