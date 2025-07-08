@@ -13,7 +13,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GetWorkflowStatusResponse'
-              example: '{"status":"In progress","startTime":"1","endTime":"","message":"e-message","podStatus":"Running","podName":"pod-name","workflowExecutionStages":{"workflow":[{"stageName":"Preparation","status":"SUCCESS","startTime":"1","endTime":"2","message":"p-message","metadata":{}},{"stageName":"Execution","status":"STARTED","startTime":"2","endTime":"","message":"e-message","metadata":{}}],"pod":[{"stageName":"Execution","status":"STARTED","startTime":"2","endTime":"","message":"e-message","metadata":{"ClusterID":"?? (possible?)","podName":"pod-name"}}]}}'
+              example: '{"status":"In progress","startTime":"1","endTime":"","message":"e-message","podStatus":"Running","podName":"pod-name","workflowExecutionStages":{"workflow":[{"stageName":"Preparation","status":"SUCCESS","startTime":"1","endTime":"2","message":"p-message","metadata":{}},{"stageName":"Execution","status":"STARTED","startTime":"2","endTime":"","message":"e-message","metadata":{}}],"pod":[{"stageName":"Execution","status":"STARTED","startTime":"2","endTime":"","message":"e-message","metadata":{"clusterId":"123","podName":"pod-name"}}]}}'
 
 components:
   schemas:
@@ -89,7 +89,7 @@ components:
               metadata:
                 type: object
                 properties:
-                  ClusterID:
+                  clusterId:
                     type: string
                     description: Cluster ID
                   podName:
