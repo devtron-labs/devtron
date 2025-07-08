@@ -52,6 +52,6 @@ func (workflowRequest *WorkflowRequest) SetImageScanningSteps(imageScanningSteps
 	return
 }
 
-func (workflowRequest *WorkflowRequest) SetEntOnlyFields(trigger Trigger, ciConfig *CiConfig) {
+func (workflowRequest *WorkflowRequest) SetEntOnlyFields(trigger *CiTriggerRequest, ciConfig *CiConfig) {
 	return
 }

@@ -63,7 +63,7 @@ func (impl *HandlerServiceImpl) getManifestPushService(storageType string) publi
 	return manifestPushService
 }
 
-func (impl *HandlerServiceImpl) preStageHandlingForTriggerStageInBulk(triggerRequest *bean.TriggerRequest) error {
+func (impl *HandlerServiceImpl) preStageHandlingForTriggerStageInBulk(triggerRequest *bean.CdTriggerRequest) error {
 	return nil
 }
 
