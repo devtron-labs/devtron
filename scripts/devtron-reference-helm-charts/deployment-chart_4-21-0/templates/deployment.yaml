@@ -172,6 +172,8 @@ spec:
 {{- end }}
 {{- if $.Values.restartPolicy }}
       restartPolicy: {{  $.Values.restartPolicy }}
+{{- else }}
+      restartPolicy: Always
 {{- end }}
 {{- if $.Values.initContainers}}
       initContainers:
@@ -786,6 +788,8 @@ spec:
 {{- end }}
 {{- if $.Values.restartPolicy }}
       restartPolicy: {{  $.Values.restartPolicy }}
+{{- else }}
+      restartPolicy: Always
 {{- end }}
 {{- if $.Values.initContainers}}
       initContainers:
