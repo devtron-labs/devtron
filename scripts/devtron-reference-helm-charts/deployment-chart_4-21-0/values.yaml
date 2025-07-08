@@ -383,6 +383,8 @@ prometheus:
 servicemonitor:
   additionalLabels: {}
 
+vmservicescrape:
+  additionalLabels: {}
 
 prometheusRule:
   enabled: false
@@ -716,3 +718,17 @@ secondaryWorkload:
     enabled: false
     containerResource:
       enabled: false
+
+
+
+vmrule:
+  enabled: false
+  name: test-vmr
+  rules: []   
+
+podmonitor:
+  enabled: false
+  name: ""
+  jobLabel: test
+
+MetricsScraper: Prometheus

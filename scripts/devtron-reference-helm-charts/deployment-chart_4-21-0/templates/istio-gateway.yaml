@@ -1,5 +1,9 @@
 {{- if and .Values.istio.enable .Values.istio.gateway.enabled -}}
+{{ if semverCompare ">=1.22-0" $.Capabilities.KubeVersion.GitVersion -}}
+apiVersion: networking.istio.io/v1
+{{ else }}
 apiVersion: networking.istio.io/v1beta1
+{{- end }}
 kind: Gateway
 metadata:
   {{- if .Values.istio.gateway.name }}
@@ -24,6 +28,9 @@ metadata:
 {{ toYaml $.Values.istio.gateway.annotations | indent 4 }}
 {{- end }}
 spec:
+{{- if .Values.istio.gateway.gatewayExtraSpec }}
+{{ toYaml $.Values.istio.gateway.gatewayExtraSpec | indent 2}}
+{{- end }}
 {{ with $.Values.istio.gateway }}
   selector:
     {{- if .selector }}
