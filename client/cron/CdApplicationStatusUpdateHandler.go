@@ -115,6 +115,11 @@ func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appServi
 		logger.Errorw("error in starting argo application status update cron job", "err", err)
 		return nil
 	}
+	_, err = cron.AddFunc("@every 1m", impl.FluxApplicationStatusUpdate)
+	if err != nil {
+		logger.Errorw("error in starting argo application status update cron job", "err", err)
+		return nil
+	}
 	return impl
 }
 
@@ -130,6 +135,30 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) HelmApplicationStatusUpdate() 
 	}
 	getPipelineDeployedWithinHours := impl.AppStatusConfig.GetPipelineDeployedWithinHours
 	err = impl.workflowStatusService.CheckHelmAppStatusPeriodicallyAndUpdateInDb(HelmPipelineStatusCheckEligibleTime, getPipelineDeployedWithinHours)
+	if err != nil {
+		impl.logger.Errorw("error helm app status update - cron job", "err", err)
+		return
+	}
+	return
+}
+
+func (impl *CdApplicationStatusUpdateHandlerImpl) FluxApplicationStatusUpdate() {
+	cronProcessStartTime := time.Now()
+	defer func() {
+		middleware.DeploymentStatusCronDuration.WithLabelValues(pipeline.DEVTRON_APP_FLUX_PIPELINE_STATUS_UPDATE_CRON).Observe(time.Since(cronProcessStartTime).Seconds())
+	}()
+	getPipelineDeployedWithinHours := impl.AppStatusConfig.GetPipelineDeployedWithinHours
+	FluxCDPipelineStatusCheckEligibleTime, err := strconv.Atoi(impl.AppStatusConfig.FluxCDPipelineStatusCheckEligibleTime)
+	if err != nil {
+		impl.logger.Errorw("error in converting string to int", "err", err)
+		return
+	}
+	cdPipelineTimeoutDuration, err := strconv.Atoi(impl.AppStatusConfig.CdPipelineStatusTimeoutDuration)
+	if err != nil {
+		impl.logger.Errorw("error in converting string to int", "err", err)
+		return
+	}
+	err = impl.workflowStatusService.CheckFluxAppStatusPeriodicallyAndUpdateInDb(FluxCDPipelineStatusCheckEligibleTime, getPipelineDeployedWithinHours, cdPipelineTimeoutDuration)
 	if err != nil {
 		impl.logger.Errorw("error helm app status update - cron job", "err", err)
 		return

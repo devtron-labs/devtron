@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/retryFunc"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/go-bitbucket"
 	"go.uber.org/zap"
@@ -122,19 +123,19 @@ func (impl GitBitbucketClient) CreateRepository(ctx context.Context, config *bea
 	repoUrl, repoExists, err := impl.repoExists(repoOptions)
 	if err != nil {
 		impl.logger.Errorw("error in communication with bitbucket", "repoOptions", repoOptions, "err", err)
-		detailedErrorGitOpsConfigActions.StageErrorMap[GetRepoUrlStage] = err
+		detailedErrorGitOpsConfigActions.StageErrorMap[bean.GetRepoUrlStage] = err
 		util.TriggerGitOpsMetrics("CreateRepository", "GitBitbucketClient", start, err)
 		return "", false, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	if repoExists {
-		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, GetRepoUrlStage)
+		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, bean.GetRepoUrlStage)
 		util.TriggerGitOpsMetrics("CreateRepository", "GitBitbucketClient", start, nil)
 		return repoUrl, false, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	_, err = impl.client.Repositories.Repository.Create(repoOptions)
 	if err != nil {
 		impl.logger.Errorw("error in creating repo bitbucket", "repoOptions", repoOptions, "err", err)
-		detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err
+		detailedErrorGitOpsConfigActions.StageErrorMap[bean.CreateRepoStage] = err
 		repoUrl, repoExists, err = impl.repoExists(repoOptions)
 		if err != nil {
 			impl.logger.Errorw("error in creating repo bitbucket", "repoOptions", repoOptions, "err", err)
@@ -146,46 +147,46 @@ func (impl GitBitbucketClient) CreateRepository(ctx context.Context, config *bea
 	}
 	repoUrl = fmt.Sprintf(BITBUCKET_CLONE_BASE_URL+"%s/%s.git", repoOptions.Owner, repoOptions.RepoSlug)
 	impl.logger.Infow("repo created ", "repoUrl", repoUrl)
-	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateRepoStage)
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, bean.CreateRepoStage)
 
 	validated, err := impl.ensureProjectAvailabilityOnHttp(repoOptions)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability bitbucket", "repoName", repoOptions.RepoSlug, "err", err)
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = err
+		detailedErrorGitOpsConfigActions.StageErrorMap[bean.CloneHttpStage] = err
 		util.TriggerGitOpsMetrics("CreateRepository", "GitBitbucketClient", start, err)
 		return "", true, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	if !validated {
 		err = fmt.Errorf("unable to validate project:%s in given time", config.GitRepoName)
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = err
+		detailedErrorGitOpsConfigActions.StageErrorMap[bean.CloneHttpStage] = err
 		util.TriggerGitOpsMetrics("CreateRepository", "GitBitbucketClient", start, err)
 		return "", true, isEmpty, detailedErrorGitOpsConfigActions
 	}
-	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, bean.CloneHttpStage)
 
 	_, err = impl.CreateReadme(ctx, config)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme bitbucket", "repoName", repoOptions.RepoSlug, "err", err)
-		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
+		detailedErrorGitOpsConfigActions.StageErrorMap[bean.CreateReadmeStage] = err
 		util.TriggerGitOpsMetrics("CreateRepository", "GitBitbucketClient", start, err)
 		return "", true, isEmpty, detailedErrorGitOpsConfigActions
 	}
-	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateReadmeStage)
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, bean.CreateReadmeStage)
 
 	validated, err = impl.ensureProjectAvailabilityOnSsh(repoOptions, config.TargetRevision)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability bitbucket", "project", config.GitRepoName, "err", err)
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
+		detailedErrorGitOpsConfigActions.StageErrorMap[bean.CloneSshStage] = err
 		util.TriggerGitOpsMetrics("CreateRepository", "GitBitbucketClient", start, err)
 		return "", true, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	if !validated {
 		err = fmt.Errorf("unable to validate project:%s in given time", config.GitRepoName)
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
+		detailedErrorGitOpsConfigActions.StageErrorMap[bean.CloneSshStage] = err
 		util.TriggerGitOpsMetrics("CreateRepository", "GitBitbucketClient", start, err)
 		return "", true, isEmpty, detailedErrorGitOpsConfigActions
 	}
-	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneSshStage)
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, bean.CloneSshStage)
 	util.TriggerGitOpsMetrics("CreateRepository", "GitBitbucketClient", start, nil)
 	return repoUrl, true, isEmpty, detailedErrorGitOpsConfigActions
 }

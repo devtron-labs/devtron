@@ -121,7 +121,8 @@ type ApplyResourcesResponse struct {
 }
 
 type ManifestResponse struct {
-	Manifest unstructured.Unstructured `json:"manifest,omitempty"`
+	Manifest            unstructured.Unstructured  `json:"manifest,omitempty"`
+	RecommendedManifest *unstructured.Unstructured `json:"recommendedManifest,omitempty"` // imp: this is used to show recommended resources for the resource browser
 	// EphemeralContainers are set for Pod kind manifest response only.
 	// will only contain ephemeral containers which are in running state
 	// +optional

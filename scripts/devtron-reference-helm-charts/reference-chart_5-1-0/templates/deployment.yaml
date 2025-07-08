@@ -109,7 +109,6 @@ spec:
 {{ toYaml .Values.podExtraSpecs | indent 6 }}	
 {{- end }}
       terminationGracePeriodSeconds: {{ $.Values.GracePeriod }}
-      restartPolicy: Always
 {{- if $.Values.hostAliases }}
       hostAliases:
 {{ toYaml .Values.hostAliases | indent 8 }}
@@ -185,15 +184,14 @@ spec:
       securityContext:
 {{ toYaml .Values.podSecurityContext | indent 8 }}
 {{- end }}
-{{- if $.Values.restartPolicy }}
-      restartPolicy: {{  $.Values.restartPolicy }}
-{{- end }}
 {{- if $.Values.podSecurityContext }}
       securityContext:
 {{ toYaml .Values.podSecurityContext | indent 8 }}
 {{- end }}
 {{- if $.Values.restartPolicy }}
       restartPolicy: {{  $.Values.restartPolicy  }}
+{{- else }}
+      restartPolicy: Always
 {{- end }}
 {{- if $.Values.initContainers}}
       initContainers:

@@ -57,7 +57,7 @@ type DeploymentConfigService interface {
 	UpdateChartLocationInDeploymentConfig(appId, envId, chartRefId int, userId int32, chartVersion string) error
 	GetAllArgoAppInfosByDeploymentAppNames(deploymentAppNames []string) ([]*bean.DevtronArgoCdAppInfo, error)
 	GetExternalReleaseType(appId, environmentId int) (bean.ExternalReleaseType, error)
-	CheckIfURLAlreadyPresent(repoURL string) (bool, error)
+	CheckIfURLAlreadyPresent(repoURL string, appId int) (bool, error)
 	FilterPipelinesByApplicationClusterIdAndNamespace(pipelines []pipelineConfig.Pipeline, applicationObjectClusterId int, applicationObjectNamespace string) (pipelineConfig.Pipeline, error)
 }
 
@@ -336,7 +336,7 @@ func (impl *DeploymentConfigServiceImpl) UpdateChartLocationInDeploymentConfig(a
 		impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", appId, "envId", envId, "err", err)
 		return err
 	}
-	if config.ReleaseMode == util2.PIPELINE_RELEASE_MODE_CREATE && config.DeploymentAppType == bean4.PIPELINE_DEPLOYMENT_TYPE_ACD {
+	if config.ReleaseMode == util2.PIPELINE_RELEASE_MODE_CREATE && (config.IsAcdRelease() || config.IsFluxRelease()) {
 		chartRef, err := impl.chartRefRepository.FindById(chartRefId)
 		if err != nil {
 			impl.logger.Errorw("error in chartRefRepository.FindById", "chartRefId", chartRefId, "err", err)
@@ -408,7 +408,7 @@ func (impl *DeploymentConfigServiceImpl) GetExternalReleaseType(appId, environme
 	return externalHelmReleaseType, nil
 }
 
-func (impl *DeploymentConfigServiceImpl) CheckIfURLAlreadyPresent(repoURL string) (bool, error) {
+func (impl *DeploymentConfigServiceImpl) CheckIfURLAlreadyPresent(repoURL string, appId int) (bool, error) {
 	//TODO: optimisation
 	configs, err := impl.getAllAppLevelConfigsWithCustomGitOpsURL()
 	if err != nil {
@@ -416,7 +416,7 @@ func (impl *DeploymentConfigServiceImpl) CheckIfURLAlreadyPresent(repoURL string
 		return false, err
 	}
 	for _, dc := range configs {
-		if dc.GetRepoURL() == repoURL {
+		if dc.GetRepoURL() == repoURL && dc.AppId != appId {
 			impl.logger.Warnw("repository is already in use for helm app", "repoUrl", repoURL)
 			return true, nil
 		}

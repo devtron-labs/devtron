@@ -70,7 +70,7 @@ type ClusterService interface {
 	FindAllExceptVirtual() ([]*bean.ClusterBean, error)
 	FindAllWithoutConfig() ([]*bean.ClusterBean, error)
 	FindAllActive() ([]bean.ClusterBean, error)
-	DeleteFromDb(bean *bean.ClusterBean, userId int32) (string, error)
+	DeleteFromDb(bean *clusterBean.DeleteClusterBean, userId int32) (string, error)
 
 	FindById(id int) (*bean.ClusterBean, error)
 	FindByIdWithoutConfig(id int) (*bean.ClusterBean, error)
@@ -580,7 +580,7 @@ func (impl *ClusterServiceImpl) buildInformer() {
 	impl.K8sInformerFactory.BuildInformer(clusterInfo)
 }
 
-func (impl *ClusterServiceImpl) DeleteFromDb(bean *bean.ClusterBean, userId int32) (string, error) {
+func (impl *ClusterServiceImpl) DeleteFromDb(bean *clusterBean.DeleteClusterBean, userId int32) (string, error) {
 	existingCluster, err := impl.clusterRepository.FindById(bean.Id)
 	if err != nil {
 		impl.logger.Errorw("No matching entry found for delete.", "id", bean.Id)
