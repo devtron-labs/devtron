@@ -122,16 +122,16 @@ var (
 	whoAmILong = templates.LongDesc(`
 		Experimental: Check who you are and your attributes (groups, extra).
 
-        This command is helpful to get yourself aware of the current user attributes, 
-        especially when dynamic authentication, e.g., token webhook, auth proxy, or OIDC provider, 
+        This command is helpful to get yourself aware of the current user attributes,
+        especially when dynamic authentication, e.g., token webhook, auth proxy, or OIDC provider,
         is enabled in the Kubernetes cluster.
 	`)
 
 	whoAmIExample = templates.Examples(`
-		# Get your subject attributes.
+		# Get your subject attributes
 		kubectl auth whoami
-		
-		# Get your subject attributes in JSON format.
+
+		# Get your subject attributes in JSON format
 		kubectl auth whoami -o json
 	`)
 )
@@ -250,7 +250,7 @@ func printTableSelfSubjectAccessReview(obj runtime.Object, out io.Writer) error 
 	}
 
 	if len(ui.Extra) > 0 {
-		for _, k := range sets.StringKeySet(ui.Extra).List() {
+		for _, k := range sets.List(sets.KeySet(ui.Extra)) {
 			v := ui.Extra[k]
 			_, err := fmt.Fprintf(w, "Extra: %s\t%v\n", k, v)
 			if err != nil {

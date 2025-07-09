@@ -1,62 +1,40 @@
 package deque
 
+import "fmt"
+
 // minCapacity is the smallest capacity that deque may have. Must be power of 2
 // for bitwise modulus: x % n == x & (n - 1).
 const minCapacity = 16
 
 // Deque represents a single instance of the deque data structure. A Deque
-// instance contains items of the type sepcified by the type argument.
+// instance contains items of the type specified by the type argument.
+//
+// For example, to create a Deque that contains strings do one of the
+// following:
+//
+//	var stringDeque deque.Deque[string]
+//	stringDeque := new(deque.Deque[string])
+//	stringDeque := &deque.Deque[string]{}
+//
+// To create a Deque that will never resize to have space for less than 64
+// items, specify a base capacity:
+//
+//	var d deque.Deque[int]
+//	d.SetBaseCap(64)
+//
+// To ensure the Deque can store 1000 items without needing to resize while
+// items are added:
+//
+//	d.Grow(1000)
+//
+// Any values supplied to SetBaseCap and Grow are rounded up to the nearest
+// power of 2, since the Deque grows by powers of 2.
 type Deque[T any] struct {
 	buf    []T
 	head   int
 	tail   int
 	count  int
 	minCap int
-}
-
-// New creates a new Deque, optionally setting the current and minimum capacity
-// when non-zero values are given for these. The Deque instance returns
-// operates on items of the type specified by the type argument. For example,
-// to create a Deque that contains strings,
-//
-//   stringDeque := deque.New[string]()
-//
-// To create a Deque with capacity to store 2048 ints without resizing, and
-// that will not resize below space for 32 items when removing items:
-//   d := deque.New[int](2048, 32)
-//
-// To create a Deque that has not yet allocated memory, but after it does will
-// never resize to have space for less than 64 items:
-//   d := deque.New[int](0, 64)
-//
-// Any size values supplied here are rounded up to the nearest power of 2.
-func New[T any](size ...int) *Deque[T] {
-	var capacity, minimum int
-	if len(size) >= 1 {
-		capacity = size[0]
-		if len(size) >= 2 {
-			minimum = size[1]
-		}
-	}
-
-	minCap := minCapacity
-	for minCap < minimum {
-		minCap <<= 1
-	}
-
-	var buf []T
-	if capacity != 0 {
-		bufSize := minCap
-		for bufSize < capacity {
-			bufSize <<= 1
-		}
-		buf = make([]T, bufSize)
-	}
-
-	return &Deque[T]{
-		buf:    buf,
-		minCap: minCap,
-	}
 }
 
 // Cap returns the current capacity of the Deque. If q is nil, q.Cap() is zero.
@@ -68,7 +46,7 @@ func (q *Deque[T]) Cap() int {
 }
 
 // Len returns the number of elements currently stored in the queue. If q is
-// nil, q.Len() is zero.
+// nil, q.Len() returns zero.
 func (q *Deque[T]) Len() int {
 	if q == nil {
 		return 0
@@ -77,8 +55,8 @@ func (q *Deque[T]) Len() int {
 }
 
 // PushBack appends an element to the back of the queue. Implements FIFO when
-// elements are removed with PopFront(), and LIFO when elements are removed
-// with PopBack().
+// elements are removed with PopFront, and LIFO when elements are removed with
+// PopBack.
 func (q *Deque[T]) PushBack(elem T) {
 	q.growIfFull()
 
@@ -99,7 +77,7 @@ func (q *Deque[T]) PushFront(elem T) {
 }
 
 // PopFront removes and returns the element from the front of the queue.
-// Implements FIFO when used with PushBack(). If the queue is empty, the call
+// Implements FIFO when used with PushBack. If the queue is empty, the call
 // panics.
 func (q *Deque[T]) PopFront() T {
 	if q.count <= 0 {
@@ -117,7 +95,7 @@ func (q *Deque[T]) PopFront() T {
 }
 
 // PopBack removes and returns the element from the back of the queue.
-// Implements LIFO when used with PushBack(). If the queue is empty, the call
+// Implements LIFO when used with PushBack. If the queue is empty, the call
 // panics.
 func (q *Deque[T]) PopBack() T {
 	if q.count <= 0 {
@@ -138,8 +116,7 @@ func (q *Deque[T]) PopBack() T {
 }
 
 // Front returns the element at the front of the queue. This is the element
-// that would be returned by PopFront(). This call panics if the queue is
-// empty.
+// that would be returned by PopFront. This call panics if the queue is empty.
 func (q *Deque[T]) Front() T {
 	if q.count <= 0 {
 		panic("deque: Front() called when empty")
@@ -148,7 +125,7 @@ func (q *Deque[T]) Front() T {
 }
 
 // Back returns the element at the back of the queue. This is the element that
-// would be returned by PopBack(). This call panics if the queue is empty.
+// would be returned by PopBack. This call panics if the queue is empty.
 func (q *Deque[T]) Back() T {
 	if q.count <= 0 {
 		panic("deque: Back() called when empty")
@@ -169,22 +146,18 @@ func (q *Deque[T]) Back() T {
 // and when full the oldest is popped from the other end. All the log entries
 // in the buffer must be readable without altering the buffer contents.
 func (q *Deque[T]) At(i int) T {
-	if i < 0 || i >= q.count {
-		panic("deque: At() called with index out of range")
-	}
+	q.checkRange(i)
 	// bitwise modulus
 	return q.buf[(q.head+i)&(len(q.buf)-1)]
 }
 
-// Set puts the element at index i in the queue. Set shares the same purpose
-// than At() but perform the opposite operation. The index i is the same index
-// defined by At(). If the index is invalid, the call panics.
-func (q *Deque[T]) Set(i int, elem T) {
-	if i < 0 || i >= q.count {
-		panic("deque: Set() called with index out of range")
-	}
+// Set assigns the item to index i in the queue. Set indexes the deque the same
+// as At but perform the opposite operation. If the index is invalid, the call
+// panics.
+func (q *Deque[T]) Set(i int, item T) {
+	q.checkRange(i)
 	// bitwise modulus
-	q.buf[(q.head+i)&(len(q.buf)-1)] = elem
+	q.buf[(q.head+i)&(len(q.buf)-1)] = item
 }
 
 // Clear removes all elements from the queue, but retains the current capacity.
@@ -193,21 +166,52 @@ func (q *Deque[T]) Set(i int, elem T) {
 // only added. Only when items are removed is the queue subject to getting
 // resized smaller.
 func (q *Deque[T]) Clear() {
-	// bitwise modulus
-	modBits := len(q.buf) - 1
 	var zero T
-	for h := q.head; h != q.tail; h = (h + 1) & modBits {
-		q.buf[h] = zero
+	modBits := len(q.buf) - 1
+	h := q.head
+	for i := 0; i < q.Len(); i++ {
+		q.buf[(h+i)&modBits] = zero
 	}
 	q.head = 0
 	q.tail = 0
 	q.count = 0
 }
 
+// Grow grows deque's capacity, if necessary, to guarantee space for another n
+// items. After Grow(n), at least n items can be written to the deque without
+// another allocation. If n is negative, Grow panics.
+func (q *Deque[T]) Grow(n int) {
+	if n < 0 {
+		panic("deque.Grow: negative count")
+	}
+	c := q.Cap()
+	l := q.Len()
+	// If already big enough.
+	if n <= c-l {
+		return
+	}
+
+	if c == 0 {
+		c = minCapacity
+	}
+
+	newLen := l + n
+	for c < newLen {
+		c <<= 1
+	}
+	if l == 0 {
+		q.buf = make([]T, c)
+		q.head = 0
+		q.tail = 0
+	} else {
+		q.resize(c)
+	}
+}
+
 // Rotate rotates the deque n steps front-to-back. If n is negative, rotates
-// back-to-front. Having Deque provide Rotate() avoids resizing that could
-// happen if implementing rotation using only Pop and Push methods. If q.Len()
-// is one or less, or q is nil, then Rotate does nothing.
+// back-to-front. Having Deque provide Rotate avoids resizing that could happen
+// if implementing rotation using only Pop and Push methods. If q.Len() is one
+// or less, or q is nil, then Rotate does nothing.
 func (q *Deque[T]) Rotate(n int) {
 	if q.Len() <= 1 {
 		return
@@ -285,16 +289,21 @@ func (q *Deque[T]) RIndex(f func(T) bool) int {
 
 // Insert is used to insert an element into the middle of the queue, before the
 // element at the specified index. Insert(0,e) is the same as PushFront(e) and
-// Insert(Len(),e) is the same as PushBack(e). Accepts only non-negative index
-// values, and panics if index is out of range.
+// Insert(Len(),e) is the same as PushBack(e). Out of range indexes result in
+// pushing the item onto the front of back of the deque.
 //
 // Important: Deque is optimized for O(1) operations at the ends of the queue,
 // not for operations in the the middle. Complexity of this function is
 // constant plus linear in the lesser of the distances between the index and
 // either of the ends of the queue.
 func (q *Deque[T]) Insert(at int, item T) {
-	if at < 0 || at > q.count {
-		panic("deque: Insert() called with index out of range")
+	if at <= 0 {
+		q.PushFront(item)
+		return
+	}
+	if at >= q.Len() {
+		q.PushBack(item)
+		return
 	}
 	if at*2 < q.count {
 		q.PushFront(item)
@@ -326,10 +335,7 @@ func (q *Deque[T]) Insert(at int, item T) {
 // constant plus linear in the lesser of the distances between the index and
 // either of the ends of the queue.
 func (q *Deque[T]) Remove(at int) T {
-	if at < 0 || at >= q.Len() {
-		panic("deque: Remove() called with index out of range")
-	}
-
+	q.checkRange(at)
 	rm := (q.head + at) & (len(q.buf) - 1)
 	if at*2 < q.count {
 		for i := 0; i < at; i++ {
@@ -348,18 +354,33 @@ func (q *Deque[T]) Remove(at int) T {
 	return q.PopBack()
 }
 
-// SetMinCapacity sets a minimum capacity of 2^minCapacityExp. If the value of
-// the minimum capacity is less than or equal to the minimum allowed, then
-// capacity is set to the minimum allowed. This may be called at anytime to set
-// a new minimum capacity.
-//
-// Setting a larger minimum capacity may be used to prevent resizing when the
-// number of stored items changes frequently across a wide range.
-func (q *Deque[T]) SetMinCapacity(minCapacityExp uint) {
-	if 1<<minCapacityExp > minCapacity {
-		q.minCap = 1 << minCapacityExp
-	} else {
-		q.minCap = minCapacity
+// SetBaseCap sets a base capacity so that at least the specified number of
+// items can always be stored without resizing.
+func (q *Deque[T]) SetBaseCap(baseCap int) {
+	minCap := minCapacity
+	for minCap < baseCap {
+		minCap <<= 1
+	}
+	q.minCap = minCap
+}
+
+// Swap exchanges the two values at idxA and idxB. It panics if either index is
+// out of range.
+func (q *Deque[T]) Swap(idxA, idxB int) {
+	q.checkRange(idxA)
+	q.checkRange(idxB)
+	if idxA == idxB {
+		return
+	}
+
+	realA := (q.head + idxA) & (len(q.buf) - 1)
+	realB := (q.head + idxB) & (len(q.buf) - 1)
+	q.buf[realA], q.buf[realB] = q.buf[realB], q.buf[realA]
+}
+
+func (q *Deque[T]) checkRange(i int) {
+	if i < 0 || i >= q.count {
+		panic(fmt.Sprintf("deque: index out of range %d with length %d", i, q.Len()))
 	}
 }
 
@@ -385,21 +406,21 @@ func (q *Deque[T]) growIfFull() {
 		q.buf = make([]T, q.minCap)
 		return
 	}
-	q.resize()
+	q.resize(q.count << 1)
 }
 
 // shrinkIfExcess resize down if the buffer 1/4 full.
 func (q *Deque[T]) shrinkIfExcess() {
 	if len(q.buf) > q.minCap && (q.count<<2) == len(q.buf) {
-		q.resize()
+		q.resize(q.count << 1)
 	}
 }
 
 // resize resizes the deque to fit exactly twice its current contents. This is
 // used to grow the queue when it is full, and also to shrink it when it is
 // only a quarter full.
-func (q *Deque[T]) resize() {
-	newBuf := make([]T, q.count<<1)
+func (q *Deque[T]) resize(newSize int) {
+	newBuf := make([]T, newSize)
 	if q.tail > q.head {
 		copy(newBuf, q.buf[q.head:q.tail])
 	} else {

@@ -202,3 +202,8 @@ func IsDefaultTargetRevision(branch string) bool {
 func GetDefaultTargetRevision() string {
 	return argoBean.TargetRevisionMaster
 }
+
+// IsHeadTargetRevision checks if the target revision is "HEAD" or "head".
+func IsHeadTargetRevision(targetRevision string) bool {
+	return strings.ToLower(targetRevision) == argoBean.TargetRevisionHead
+}

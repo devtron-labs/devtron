@@ -766,11 +766,11 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 			res := buildBean.CiPipelineMaterialResponse{
 				Id:              m.Id,
 				GitMaterialId:   m.GitMaterialId,
-				GitMaterialName: m.GitMaterial.Name[strings.Index(m.GitMaterial.Name, "-")+1:],
+				GitMaterialName: _gitTrigger.GitRepoName,
 				Type:            string(m.Type),
-				Value:           m.Value,
+				Value:           _gitTrigger.CiConfigureSourceValue,
 				Active:          m.Active,
-				Url:             m.GitMaterial.Url,
+				Url:             _gitTrigger.GitRepoUrl,
 				History:         history,
 			}
 			ciMaterialsArr = append(ciMaterialsArr, res)

@@ -24,12 +24,8 @@ import (
 	"fmt"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	posthogTelemetry "github.com/devtron-labs/common-lib/telemetry"
-	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
-	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
-	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
-	bean3 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	module2 "github.com/devtron-labs/devtron/pkg/module/bean"
 	ucidService "github.com/devtron-labs/devtron/pkg/ucid"
 	cron3 "github.com/devtron-labs/devtron/util/cron"
@@ -49,9 +45,7 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/posthog/posthog-go"
 	"github.com/robfig/cron/v3"
-	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
-	"k8s.io/apimachinery/pkg/version"
 )
 
 type TelemetryEventClientImpl struct {
@@ -154,115 +148,6 @@ func (impl *TelemetryEventClientImpl) StopCron() {
 	impl.cron.Stop()
 }
 
-func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []bean3.ClusterBean, user []bean.UserInfo,
-	k8sServerVersion *version.Info, hostURL bool, ssoSetup bool, HelmAppAccessCount string, ChartStoreVisitCount string,
-	SkippedOnboarding bool, HelmAppUpdateCounter string, helmChartSuccessfulDeploymentCount int, ExternalHelmAppClusterCount map[int32]int) {
-
-	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
-	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
-	}
-	k8sServerVersion, err = discoveryClient.ServerVersion()
-	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
-	}
-
-	users, err := impl.userService.GetAll()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summery event", "err", err)
-		return
-	}
-
-	clusters, err := impl.clusterService.FindAllActive()
-
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
-	}
-
-	hostURL = false
-
-	attribute, err := impl.attributeRepo.FindByKey(bean2.HostUrlKey)
-	if err == nil && attribute.Id > 0 {
-		hostURL = true
-	}
-
-	attribute, err = impl.attributeRepo.FindByKey("HelmAppAccessCounter")
-
-	if err == nil {
-		HelmAppAccessCount = attribute.Value
-	}
-
-	attribute, err = impl.attributeRepo.FindByKey("ChartStoreVisitCount")
-
-	if err == nil {
-		ChartStoreVisitCount = attribute.Value
-	}
-
-	attribute, err = impl.attributeRepo.FindByKey("HelmAppUpdateCounter")
-
-	if err == nil {
-		HelmAppUpdateCounter = attribute.Value
-	}
-
-	helmChartSuccessfulDeploymentCount, err = impl.installedAppReadService.GetDeploymentSuccessfulStatusCountForTelemetry()
-
-	//externalHelmCount := make(map[int32]int)
-	ExternalHelmAppClusterCount = make(map[int32]int)
-
-	for _, clusterDetail := range clusters {
-		req := &gRPC.AppListRequest{}
-		config := &gRPC.ClusterConfig{
-			ApiServerUrl:          clusterDetail.ServerUrl,
-			Token:                 clusterDetail.Config[commonBean.BearerToken],
-			ClusterId:             int32(clusterDetail.Id),
-			ClusterName:           clusterDetail.ClusterName,
-			InsecureSkipTLSVerify: clusterDetail.InsecureSkipTLSVerify,
-		}
-
-		if clusterDetail.InsecureSkipTLSVerify == false {
-			config.KeyData = clusterDetail.Config[commonBean.TlsKey]
-			config.CertData = clusterDetail.Config[commonBean.CertData]
-			config.CaData = clusterDetail.Config[commonBean.CertificateAuthorityData]
-		}
-		req.Clusters = append(req.Clusters, config)
-		applicationStream, err := impl.helmAppClient.ListApplication(context.Background(), req)
-		if err == nil {
-			clusterList, err1 := applicationStream.Recv()
-			if err1 != nil {
-				impl.logger.Errorw("error in list helm applications streams recv", "err", err)
-			}
-			if err1 != nil && clusterList != nil && !clusterList.Errored {
-				ExternalHelmAppClusterCount[clusterList.ClusterId] = len(clusterList.DeployedAppDetail)
-			}
-		} else {
-			impl.logger.Errorw("error while fetching list application from kubelink", "err", err)
-		}
-	}
-
-	//getting userData from emailId
-	userData, err := impl.userAttributesRepository.GetUserDataByEmailId(AdminEmailIdConst)
-
-	SkippedOnboardingValue := gjson.Get(userData, SkippedOnboardingConst).Str
-
-	if SkippedOnboardingValue == "true" {
-		SkippedOnboarding = true
-	} else {
-		SkippedOnboarding = false
-	}
-
-	ssoSetup = false
-
-	ssoConfig, err := impl.ssoLoginService.GetAll()
-	if err == nil && len(ssoConfig) > 0 {
-		ssoSetup = true
-	}
-
-	return clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter, helmChartSuccessfulDeploymentCount, ExternalHelmAppClusterCount
-}
-
 // New methods for collecting additional telemetry metrics
 
 func (impl *TelemetryEventClientImpl) SummaryEventForTelemetryEA() {
@@ -291,7 +176,7 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 		return err
 	}
 
-	clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter, helmChartSuccessfulDeploymentCount, ExternalHelmAppClusterCount := impl.SummaryDetailsForTelemetry()
+	clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter, helmChartSuccessfulDeploymentCount, ExternalHelmAppClusterCount := impl.GetSummaryDetailsForTelemetry()
 
 	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: TelemetryEventType(eventType), DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()

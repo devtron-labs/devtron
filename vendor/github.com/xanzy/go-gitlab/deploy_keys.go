@@ -67,6 +67,7 @@ type ProjectDeployKey struct {
 	Key       string     `json:"key"`
 	CreatedAt *time.Time `json:"created_at"`
 	CanPush   bool       `json:"can_push"`
+	ExpiresAt *time.Time `json:"expires_at"`
 }
 
 func (k ProjectDeployKey) String() string {
@@ -162,11 +163,12 @@ func (s *DeployKeysService) GetDeployKey(pid interface{}, deployKey int, options
 // AddDeployKeyOptions represents the available ADDDeployKey() options.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ee/api/deploy_keys.html#add-deploy-key
+// https://docs.gitlab.com/ee/api/deploy_keys.html#add-deploy-key-for-a-project
 type AddDeployKeyOptions struct {
-	Title   *string `url:"title,omitempty" json:"title,omitempty"`
-	Key     *string `url:"key,omitempty" json:"key,omitempty"`
-	CanPush *bool   `url:"can_push,omitempty" json:"can_push,omitempty"`
+	Key       *string    `url:"key,omitempty" json:"key,omitempty"`
+	Title     *string    `url:"title,omitempty" json:"title,omitempty"`
+	CanPush   *bool      `url:"can_push,omitempty" json:"can_push,omitempty"`
+	ExpiresAt *time.Time `url:"expires_at,omitempty" json:"expires_at,omitempty"`
 }
 
 // AddDeployKey creates a new deploy key for a project. If deploy key already
@@ -174,7 +176,7 @@ type AddDeployKeyOptions struct {
 // original one was is accessible by same user.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ee/api/deploy_keys.html#add-deploy-key
+// https://docs.gitlab.com/ee/api/deploy_keys.html#add-deploy-key-for-a-project
 func (s *DeployKeysService) AddDeployKey(pid interface{}, opt *AddDeployKeyOptions, options ...RequestOptionFunc) (*ProjectDeployKey, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {

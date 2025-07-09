@@ -227,7 +227,6 @@ func (impl ArgoK8sClientImpl) DeleteArgoApplication(ctx context.Context, k8sConf
 	patchType := types.MergePatchType
 	patchJSON := ""
 
-	//TODO: ayush test cascade delete
 	if cascadeDelete {
 		patchJSON = `{"metadata": {"finalizers": ["resources-finalizer.argocd.argoproj.io"]}}`
 	} else {

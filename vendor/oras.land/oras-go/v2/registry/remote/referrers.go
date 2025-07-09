@@ -102,7 +102,7 @@ func (e *ReferrersError) IsReferrersIndexDelete() bool {
 
 // buildReferrersTag builds the referrers tag for the given manifest descriptor.
 // Format: <algorithm>-<digest>
-// Reference: https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc3/spec.md#unavailable-referrers-api
+// Reference: https://github.com/opencontainers/distribution-spec/blob/v1.1.0/spec.md#unavailable-referrers-api
 func buildReferrersTag(desc ocispec.Descriptor) string {
 	alg := desc.Digest.Algorithm().String()
 	encoded := desc.Digest.Encoded()

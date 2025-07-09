@@ -36,6 +36,7 @@ import (
 const (
 	couldNotMarshalErrMsg       = "Could not unmarshal to object of type %s: %v"
 	AnnotationLastAppliedConfig = "kubectl.kubernetes.io/last-applied-configuration"
+	replacement                 = "++++++++"
 )
 
 // Holds diffing result of two resources
@@ -195,12 +196,12 @@ func serverSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*D
 	return buildDiffResult(predictedLiveBytes, liveBytes), nil
 }
 
-// removeWebhookMutation will compare the predictedLive with live to identify
-// changes done by mutation webhooks. Webhook mutations are identified by finding
-// changes in predictedLive fields not associated with any manager in the
-// managedFields. All fields under this condition will be reverted with their state
-// from live. If the given predictedLive does not have the managedFields, an error
-// will be returned.
+// removeWebhookMutation will compare the predictedLive with live to identify changes done by mutation webhooks.
+// Webhook mutations are removed from predictedLive by removing all fields which are not managed by the given 'manager'.
+// At this step, we will only have the fields that are managed by the given 'manager'.
+// It is then merged with the live state and re-assigned to predictedLive. This means that any
+// fields not managed by the specified manager will be reverted with their state from live, including any webhook mutations.
+// If the given predictedLive does not have the managedFields, an error will be returned.
 func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkParser *managedfields.GvkParser, manager string) (*unstructured.Unstructured, error) {
 	plManagedFields := predictedLive.GetManagedFields()
 	if len(plManagedFields) == 0 {
@@ -222,57 +223,58 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 		return nil, fmt.Errorf("error converting live state from unstructured to %s: %w", gvk, err)
 	}
 
+	// Initialize an empty fieldpath.Set to aggregate managed fields for the specified manager
+	managerFieldsSet := &fieldpath.Set{}
+
+	// Iterate over all ManagedFields entries in predictedLive
+	for _, mfEntry := range plManagedFields {
+		managedFieldsSet := &fieldpath.Set{}
+		err := managedFieldsSet.FromJSON(bytes.NewReader(mfEntry.FieldsV1.Raw))
+		if err != nil {
+			return nil, fmt.Errorf("error building managedFields set: %s", err)
+		}
+		if mfEntry.Manager == manager {
+			// Union the fields with the aggregated set
+			managerFieldsSet = managerFieldsSet.Union(managedFieldsSet)
+		}
+	}
+
+	if managerFieldsSet.Empty() {
+		return nil, fmt.Errorf("no managed fields found for manager: %s", manager)
+	}
+
+	predictedLiveFieldSet, err := typedPredictedLive.ToFieldSet()
+	if err != nil {
+		return nil, fmt.Errorf("error converting predicted live state to FieldSet: %w", err)
+	}
+
+	// Remove fields from predicted live that are not managed by the provided manager
+	nonArgoFieldsSet := predictedLiveFieldSet.Difference(managerFieldsSet)
+
 	// Compare the predicted live with the live resource
 	comparison, err := typedLive.Compare(typedPredictedLive)
 	if err != nil {
 		return nil, fmt.Errorf("error comparing predicted resource to live resource: %w", err)
 	}
 
-	// Loop over all existing managers in predicted live resource to identify
-	// fields mutated (in predicted live) not owned by any manager.
-	for _, mfEntry := range plManagedFields {
-		mfs := &fieldpath.Set{}
-		err := mfs.FromJSON(bytes.NewReader(mfEntry.FieldsV1.Raw))
-		if err != nil {
-			return nil, fmt.Errorf("error building managedFields set: %s", err)
-		}
-		if comparison.Added != nil && !comparison.Added.Empty() {
-			// exclude the added fields owned by this manager from the comparison
-			comparison.Added = comparison.Added.Difference(mfs)
-		}
-		if comparison.Modified != nil && !comparison.Modified.Empty() {
-			// exclude the modified fields owned by this manager from the comparison
-			comparison.Modified = comparison.Modified.Difference(mfs)
-		}
-		if comparison.Removed != nil && !comparison.Removed.Empty() {
-			// exclude the removed fields owned by this manager from the comparison
-			comparison.Removed = comparison.Removed.Difference(mfs)
-		}
-	}
-	// At this point, comparison holds all mutations that aren't owned by any
-	// of the existing managers.
-
-	if comparison.Added != nil && !comparison.Added.Empty() {
-		// remove added fields that aren't owned by any manager
-		typedPredictedLive = typedPredictedLive.RemoveItems(comparison.Added)
-	}
-
-	if comparison.Modified != nil && !comparison.Modified.Empty() {
-		liveModValues := typedLive.ExtractItems(comparison.Modified)
-		// revert modified fields not owned by any manager
-		typedPredictedLive, err = typedPredictedLive.Merge(liveModValues)
-		if err != nil {
-			return nil, fmt.Errorf("error reverting webhook modified fields in predicted live resource: %s", err)
-		}
-	}
-
 	if comparison.Removed != nil && !comparison.Removed.Empty() {
-		liveRmValues := typedLive.ExtractItems(comparison.Removed)
-		// revert removed fields not owned by any manager
-		typedPredictedLive, err = typedPredictedLive.Merge(liveRmValues)
-		if err != nil {
-			return nil, fmt.Errorf("error reverting webhook removed fields in predicted live resource: %s", err)
-		}
+		// exclude the removed fields not owned by this manager from the comparison
+		comparison.Removed = comparison.Removed.Difference(nonArgoFieldsSet)
+	}
+
+	// In case any of the removed fields cause schema violations, we will keep those fields
+	nonArgoFieldsSet = safelyRemoveFieldsSet(typedPredictedLive, nonArgoFieldsSet)
+	typedPredictedLive = typedPredictedLive.RemoveItems(nonArgoFieldsSet)
+
+	// Apply the predicted live state to the live state to get a diff without mutation webhook fields
+	typedPredictedLive, err = typedLive.Merge(typedPredictedLive)
+
+	// After applying the predicted live to live state, this would cause any removed fields to be restored.
+	// We need to re-remove these from predicted live.
+	typedPredictedLive = typedPredictedLive.RemoveItems(comparison.Removed)
+
+	if err != nil {
+		return nil, fmt.Errorf("error applying predicted live to live state: %w", err)
 	}
 
 	plu := typedPredictedLive.AsValue().Unstructured()
@@ -281,6 +283,31 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 		return nil, fmt.Errorf("error converting live typedValue: expected map got %T", plu)
 	}
 	return &unstructured.Unstructured{Object: pl}, nil
+}
+
+// safelyRemoveFieldSet will validate if removing the fieldsToRemove set from predictedLive maintains
+// a valid schema. If removing a field in fieldsToRemove is invalid and breaks the schema, it is not safe
+// to remove and will be skipped from removal from predictedLive.
+func safelyRemoveFieldsSet(predictedLive *typed.TypedValue, fieldsToRemove *fieldpath.Set) *fieldpath.Set {
+	// In some cases, we cannot remove fields due to violation of the predicted live schema. In such cases we validate the removal
+	// of each field and only include it if the removal is valid.
+	testPredictedLive := predictedLive.RemoveItems(fieldsToRemove)
+	err := testPredictedLive.Validate()
+	if err != nil {
+		adjustedFieldsToRemove := fieldpath.NewSet()
+		fieldsToRemove.Iterate(func(p fieldpath.Path) {
+			singleFieldSet := fieldpath.NewSet(p)
+			testSingleRemoval := predictedLive.RemoveItems(singleFieldSet)
+			// Check if removing this single field maintains a valid schema
+			if testSingleRemoval.Validate() == nil {
+				// If valid, add this field to the adjusted set to remove
+				adjustedFieldsToRemove.Insert(p)
+			}
+		})
+		return adjustedFieldsToRemove
+	}
+	// If no violations, return the original set to remove
+	return fieldsToRemove
 }
 
 func jsonStrToUnstructured(jsonString string) (*unstructured.Unstructured, error) {
@@ -665,29 +692,7 @@ func ThreeWayDiff(orig, config, live *unstructured.Unstructured) (*DiffResult, e
 		}
 	}
 
-	predictedLive := &unstructured.Unstructured{}
-	err = json.Unmarshal(predictedLiveBytes, predictedLive)
-	if err != nil {
-		return nil, err
-	}
-
 	return buildDiffResult(predictedLiveBytes, liveBytes), nil
-}
-
-// stripTypeInformation strips any type information (e.g. float64 vs. int) from the unstructured
-// object by remarshalling the object. This is important for diffing since it will cause godiff
-// to report a false difference.
-func stripTypeInformation(un *unstructured.Unstructured) *unstructured.Unstructured {
-	unBytes, err := json.Marshal(un)
-	if err != nil {
-		panic(err)
-	}
-	var newUn unstructured.Unstructured
-	err = json.Unmarshal(unBytes, &newUn)
-	if err != nil {
-		panic(err)
-	}
-	return &newUn
 }
 
 // removeNamespaceAnnotation remove the namespace and an empty annotation map from the metadata.
@@ -1009,13 +1014,13 @@ func CreateTwoWayMergePatch(orig, new, dataStruct interface{}) ([]byte, bool, er
 	return patch, string(patch) != "{}", nil
 }
 
-// HideSecretData replaces secret data values in specified target, live secrets and in last applied configuration of live secret with stars. Also preserves differences between
-// target, live and last applied config values. E.g. if all three are equal the values would be replaced with same number of stars. If all the are different then number of stars
+// HideSecretData replaces secret data & optional annotations values in specified target, live secrets and in last applied configuration of live secret with plus(+). Also preserves differences between
+// target, live and last applied config values. E.g. if all three are equal the values would be replaced with same number of plus(+). If all are different then number of plus(+)
 // in replacement should be different.
-func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstructured) (*unstructured.Unstructured, *unstructured.Unstructured, error) {
-	var orig *unstructured.Unstructured
+func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstructured, hideAnnotations map[string]bool) (*unstructured.Unstructured, *unstructured.Unstructured, error) {
+	var liveLastAppliedAnnotation *unstructured.Unstructured
 	if live != nil {
-		orig, _ = GetLastAppliedConfigAnnotation(live)
+		liveLastAppliedAnnotation, _ = GetLastAppliedConfigAnnotation(live)
 		live = live.DeepCopy()
 	}
 	if target != nil {
@@ -1023,7 +1028,7 @@ func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstru
 	}
 
 	keys := map[string]bool{}
-	for _, obj := range []*unstructured.Unstructured{target, live, orig} {
+	for _, obj := range []*unstructured.Unstructured{target, live, liveLastAppliedAnnotation} {
 		if obj == nil {
 			continue
 		}
@@ -1035,25 +1040,57 @@ func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstru
 		}
 	}
 
+	var err error
+	target, live, liveLastAppliedAnnotation, err = hide(target, live, liveLastAppliedAnnotation, keys, "data")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	target, live, liveLastAppliedAnnotation, err = hide(target, live, liveLastAppliedAnnotation, hideAnnotations, "metadata", "annotations")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if live != nil && liveLastAppliedAnnotation != nil {
+		annotations := live.GetAnnotations()
+		if annotations == nil {
+			annotations = make(map[string]string)
+		}
+		// special case: hide "kubectl.kubernetes.io/last-applied-configuration" annotation
+		if _, ok := hideAnnotations[corev1.LastAppliedConfigAnnotation]; ok {
+			annotations[corev1.LastAppliedConfigAnnotation] = replacement
+		} else {
+			lastAppliedData, err := json.Marshal(liveLastAppliedAnnotation)
+			if err != nil {
+				return nil, nil, fmt.Errorf("error marshaling json: %s", err)
+			}
+			annotations[corev1.LastAppliedConfigAnnotation] = string(lastAppliedData)
+		}
+		live.SetAnnotations(annotations)
+	}
+	return target, live, nil
+}
+
+func hide(target, live, liveLastAppliedAnnotation *unstructured.Unstructured, keys map[string]bool, fields ...string) (*unstructured.Unstructured, *unstructured.Unstructured, *unstructured.Unstructured, error) {
 	for k := range keys {
 		// we use "+" rather than the more common "*"
-		nextReplacement := "++++++++"
+		nextReplacement := replacement
 		valToReplacement := make(map[string]string)
-		for _, obj := range []*unstructured.Unstructured{target, live, orig} {
+		for _, obj := range []*unstructured.Unstructured{target, live, liveLastAppliedAnnotation} {
 			var data map[string]interface{}
 			if obj != nil {
 				// handles an edge case when secret data has nil value
 				// https://github.com/argoproj/argo-cd/issues/5584
-				dataValue, ok := obj.Object["data"]
+				dataValue, ok, _ := unstructured.NestedFieldCopy(obj.Object, fields...)
 				if ok {
 					if dataValue == nil {
 						continue
 					}
 				}
 				var err error
-				data, _, err = unstructured.NestedMap(obj.Object, "data")
+				data, _, err = unstructured.NestedMap(obj.Object, fields...)
 				if err != nil {
-					return nil, nil, fmt.Errorf("unstructured.NestedMap error: %s", err)
+					return nil, nil, nil, fmt.Errorf("unstructured.NestedMap error: %s", err)
 				}
 			}
 			if data == nil {
@@ -1071,25 +1108,13 @@ func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstru
 				valToReplacement[val] = replacement
 			}
 			data[k] = replacement
-			err := unstructured.SetNestedField(obj.Object, data, "data")
+			err := unstructured.SetNestedField(obj.Object, data, fields...)
 			if err != nil {
-				return nil, nil, fmt.Errorf("unstructured.SetNestedField error: %s", err)
+				return nil, nil, nil, fmt.Errorf("unstructured.SetNestedField error: %s", err)
 			}
 		}
 	}
-	if live != nil && orig != nil {
-		annotations := live.GetAnnotations()
-		if annotations == nil {
-			annotations = make(map[string]string)
-		}
-		lastAppliedData, err := json.Marshal(orig)
-		if err != nil {
-			return nil, nil, fmt.Errorf("error marshaling json: %s", err)
-		}
-		annotations[corev1.LastAppliedConfigAnnotation] = string(lastAppliedData)
-		live.SetAnnotations(annotations)
-	}
-	return target, live, nil
+	return target, live, liveLastAppliedAnnotation, nil
 }
 
 func toString(val interface{}) string {
@@ -1105,11 +1130,20 @@ func toString(val interface{}) string {
 // Remarshalling also strips any type information (e.g. float64 vs. int) from the unstructured
 // object. This is important for diffing since it will cause godiff to report a false difference.
 func remarshal(obj *unstructured.Unstructured, o options) *unstructured.Unstructured {
-	obj = stripTypeInformation(obj)
 	data, err := json.Marshal(obj)
 	if err != nil {
 		panic(err)
 	}
+
+	// Unmarshal again to strip type information (e.g. float64 vs. int) from the unstructured
+	// object. This is important for diffing since it will cause godiff to report a false difference.
+	var newUn unstructured.Unstructured
+	err = json.Unmarshal(data, &newUn)
+	if err != nil {
+		panic(err)
+	}
+	obj = &newUn
+
 	gvk := obj.GroupVersionKind()
 	item, err := scheme.Scheme.New(obj.GroupVersionKind())
 	if err != nil {

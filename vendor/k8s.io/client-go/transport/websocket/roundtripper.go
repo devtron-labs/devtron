@@ -18,13 +18,21 @@ package websocket
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	gwebsocket "github.com/gorilla/websocket"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/httpstream"
+	"k8s.io/apimachinery/pkg/util/httpstream/wsstream"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
@@ -34,6 +42,17 @@ var (
 	_ utilnet.TLSClientConfigHolder = &RoundTripper{}
 	_ http.RoundTripper             = &RoundTripper{}
 )
+
+var (
+	statusScheme = runtime.NewScheme()
+	statusCodecs = serializer.NewCodecFactory(statusScheme)
+)
+
+func init() {
+	statusScheme.AddUnversionedTypes(metav1.SchemeGroupVersion,
+		&metav1.Status{},
+	)
+}
 
 // ConnectionHolder defines functions for structure providing
 // access to the websocket connection.
@@ -88,8 +107,8 @@ func (rt *RoundTripper) RoundTrip(request *http.Request) (retResp *http.Response
 	}()
 
 	// set the protocol version directly on the dialer from the header
-	protocolVersions := request.Header[httpstream.HeaderProtocolVersion]
-	delete(request.Header, httpstream.HeaderProtocolVersion)
+	protocolVersions := request.Header[wsstream.WebSocketProtocolHeader]
+	delete(request.Header, wsstream.WebSocketProtocolHeader)
 
 	dialer := gwebsocket.Dialer{
 		Proxy:           rt.Proxier,
@@ -108,7 +127,48 @@ func (rt *RoundTripper) RoundTrip(request *http.Request) (retResp *http.Response
 	}
 	wsConn, resp, err := dialer.DialContext(request.Context(), request.URL.String(), request.Header)
 	if err != nil {
-		return nil, &httpstream.UpgradeFailureError{Cause: err}
+		// BadHandshake error becomes an "UpgradeFailureError" (used for streaming fallback).
+		if errors.Is(err, gwebsocket.ErrBadHandshake) {
+			cause := err
+			// Enhance the error message with the error response if possible.
+			if resp != nil && len(resp.Status) > 0 {
+				defer resp.Body.Close()                         //nolint:errcheck
+				cause = fmt.Errorf("%w (%s)", err, resp.Status) // Always add the response status
+				responseError := ""
+				responseErrorBytes, readErr := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
+				if readErr != nil {
+					cause = fmt.Errorf("%w: unable to read error from server response", cause)
+				} else {
+					// If returned error can be decoded as "metav1.Status", return a "StatusError".
+					responseError = strings.TrimSpace(string(responseErrorBytes))
+					if len(responseError) > 0 {
+						if obj, _, decodeErr := statusCodecs.UniversalDecoder().Decode(responseErrorBytes, nil, &metav1.Status{}); decodeErr == nil {
+							if status, ok := obj.(*metav1.Status); ok {
+								cause = &apierrors.StatusError{ErrStatus: *status}
+							}
+						} else {
+							// Otherwise, append the responseError string.
+							cause = fmt.Errorf("%w: %s", cause, responseError)
+						}
+					}
+				}
+			}
+			return nil, &httpstream.UpgradeFailureError{Cause: cause}
+		}
+		return nil, err
+	}
+
+	// Ensure we got back a protocol we understand
+	foundProtocol := false
+	for _, protocolVersion := range protocolVersions {
+		if protocolVersion == wsConn.Subprotocol() {
+			foundProtocol = true
+			break
+		}
+	}
+	if !foundProtocol {
+		wsConn.Close() // nolint:errcheck
+		return nil, &httpstream.UpgradeFailureError{Cause: fmt.Errorf("invalid protocol, expected one of %q, got %q", protocolVersions, wsConn.Subprotocol())}
 	}
 
 	rt.Conn = wsConn
@@ -149,7 +209,8 @@ func RoundTripperFor(config *restclient.Config) (http.RoundTripper, ConnectionHo
 // a WebSocket connection. Upon success, it returns the negotiated connection.
 // The round tripper rt must use the WebSocket round tripper wsRt - see RoundTripperFor.
 func Negotiate(rt http.RoundTripper, connectionInfo ConnectionHolder, req *http.Request, protocols ...string) (*gwebsocket.Conn, error) {
-	req.Header[httpstream.HeaderProtocolVersion] = protocols
+	// Plumb protocols to RoundTripper#RoundTrip
+	req.Header[wsstream.WebSocketProtocolHeader] = protocols
 	resp, err := rt.RoundTrip(req)
 	if err != nil {
 		return nil, err

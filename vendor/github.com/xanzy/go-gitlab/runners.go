@@ -52,19 +52,20 @@ type Runner struct {
 //
 // GitLab API docs: https://docs.gitlab.com/ee/api/runners.html
 type RunnerDetails struct {
-	Paused       bool       `json:"paused"`
-	Architecture string     `json:"architecture"`
-	Description  string     `json:"description"`
-	ID           int        `json:"id"`
-	IPAddress    string     `json:"ip_address"`
-	IsShared     bool       `json:"is_shared"`
-	RunnerType   string     `json:"runner_type"`
-	ContactedAt  *time.Time `json:"contacted_at"`
-	Name         string     `json:"name"`
-	Online       bool       `json:"online"`
-	Status       string     `json:"status"`
-	Platform     string     `json:"platform"`
-	Projects     []struct {
+	Paused          bool       `json:"paused"`
+	Architecture    string     `json:"architecture"`
+	Description     string     `json:"description"`
+	ID              int        `json:"id"`
+	IPAddress       string     `json:"ip_address"`
+	IsShared        bool       `json:"is_shared"`
+	RunnerType      string     `json:"runner_type"`
+	ContactedAt     *time.Time `json:"contacted_at"`
+	MaintenanceNote string     `json:"maintenance_note"`
+	Name            string     `json:"name"`
+	Online          bool       `json:"online"`
+	Status          string     `json:"status"`
+	Platform        string     `json:"platform"`
+	Projects        []struct {
 		ID                int    `json:"id"`
 		Name              string `json:"name"`
 		NameWithNamespace string `json:"name_with_namespace"`
@@ -173,13 +174,14 @@ func (s *RunnersService) GetRunnerDetails(rid interface{}, options ...RequestOpt
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/runners.html#update-runners-details
 type UpdateRunnerDetailsOptions struct {
-	Description    *string   `url:"description,omitempty" json:"description,omitempty"`
-	Paused         *bool     `url:"paused,omitempty" json:"paused,omitempty"`
-	TagList        *[]string `url:"tag_list[],omitempty" json:"tag_list,omitempty"`
-	RunUntagged    *bool     `url:"run_untagged,omitempty" json:"run_untagged,omitempty"`
-	Locked         *bool     `url:"locked,omitempty" json:"locked,omitempty"`
-	AccessLevel    *string   `url:"access_level,omitempty" json:"access_level,omitempty"`
-	MaximumTimeout *int      `url:"maximum_timeout,omitempty" json:"maximum_timeout,omitempty"`
+	Description     *string   `url:"description,omitempty" json:"description,omitempty"`
+	Paused          *bool     `url:"paused,omitempty" json:"paused,omitempty"`
+	TagList         *[]string `url:"tag_list[],omitempty" json:"tag_list,omitempty"`
+	RunUntagged     *bool     `url:"run_untagged,omitempty" json:"run_untagged,omitempty"`
+	Locked          *bool     `url:"locked,omitempty" json:"locked,omitempty"`
+	AccessLevel     *string   `url:"access_level,omitempty" json:"access_level,omitempty"`
+	MaximumTimeout  *int      `url:"maximum_timeout,omitempty" json:"maximum_timeout,omitempty"`
+	MaintenanceNote *string   `url:"maintenance_note,omitempty" json:"maintenance_note,omitempty"`
 
 	// Deprecated: Use Paused instead. (Deprecated in GitLab 14.8)
 	Active *bool `url:"active,omitempty" json:"active,omitempty"`

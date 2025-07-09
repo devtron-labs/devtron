@@ -29,11 +29,13 @@ import (
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/adapter"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/bean"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
 type CdWorkflowRunnerService interface {
 	UpdateWfr(dto *bean.CdWorkflowRunnerDto, updatedBy int) error
+	SaveWfr(tx *pg.Tx, wfr *pipelineConfig.CdWorkflowRunner) error
 	UpdateIsArtifactUploaded(wfrId int, isArtifactUploaded bool) error
 	SaveCDWorkflowRunnerWithStage(wfr *pipelineConfig.CdWorkflowRunner) (*pipelineConfig.CdWorkflowRunner, error)
 	UpdateCdWorkflowRunnerWithStage(wfr *pipelineConfig.CdWorkflowRunner) error
@@ -103,7 +105,7 @@ func (impl *CdWorkflowRunnerServiceImpl) SaveCDWorkflowRunnerWithStage(wfr *pipe
 	if impl.config.EnableWorkflowExecutionStage {
 		wfr.Status = cdWorkflow.WorkflowWaitingToStart
 	}
-	wfr, err = impl.cdWorkflowRepository.SaveWorkFlowRunnerWithTx(wfr, tx)
+	err = impl.cdWorkflowRepository.SaveWorkFlowRunnerWithTx(wfr, tx)
 	if err != nil {
 		impl.logger.Errorw("error in saving workflow", "payload", wfr, "error", err)
 		return wfr, err
@@ -197,4 +199,8 @@ func (impl *CdWorkflowRunnerServiceImpl) GetPrePostWorkflowStagesByWorkflowRunne
 		}
 	}
 	return resp, nil
+}
+
+func (impl *CdWorkflowRunnerServiceImpl) SaveWfr(tx *pg.Tx, wfr *pipelineConfig.CdWorkflowRunner) error {
+	return impl.cdWorkflowRepository.SaveWorkFlowRunnerWithTx(wfr, tx)
 }
