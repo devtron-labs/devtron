@@ -7,7 +7,7 @@ quay.io/devtron/authenticator:e414faff-393-13273
 quay.io/devtron/bats:v1.4.1
 quay.io/devtron/busybox:1.31.1
 quay.io/devtron/centos-k8s-utils:latest
-quay.io/devtron/chart-sync:a4fc9044-836-33878
+quay.io/devtron/chart-sync:f21e02cb-836-34536
 quay.io/devtron/ci-runner:f21e02cb-138-34532
 quay.io/devtron/clair:4.3.6
 quay.io/devtron/curl:7.73.0

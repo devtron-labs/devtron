@@ -254,7 +254,7 @@ components:
     entMigratorImage: "devtron-utils:geni-v1.1.4"
   chartSync:
     registry: ""
-    image: chart-sync:a4fc9044-836-33878
+    image: chart-sync:f21e02cb-836-34536
     schedule: "0 19 * * *"
     extraConfigs: {}
     podSecurityContext:
