@@ -5,6 +5,7 @@
 - feat: add app name in labels list api (#6688)
 - feat: Audit ci trigger, precd and post cd trigger so that retrigger can happen from last failed config snapshot  (#6659)
 ## Bugs
+- fix: argo sync (#6718)
 - fix: cluster delete (#6706)
 - fix: Notifier v1 removed (#6705)
 - fix: app clone panic (#6696)
