@@ -186,9 +186,18 @@ argo-cd:
       # -- If defined, a repository applied to all Argo CD deployments
       repository: quay.io/argoproj/argocd
       # -- Overrides the global Argo CD image tag whose default is the chart appVersion
-      tag: "v2.5.2"
+      tag: "v2.13.3"
       # -- If defined, a imagePullPolicy applied to all Argo CD deployments
       imagePullPolicy: IfNotPresent
+  configs:
+    cm:
+      create: false
+    # argocd-rbac-cm
+    rbac:
+      create: true
+      policy.default: role:admin
+  applicationSet:
+    replicas: 0
 # Change below values for workflow controller
 workflowController:
   registry: "quay.io/argoproj"
