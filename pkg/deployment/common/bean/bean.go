@@ -214,7 +214,7 @@ func (d *DeploymentConfig) IsArgoCdClientSupported() bool {
 }
 
 func (d *DeploymentConfig) IsArgoAppSyncAndRefreshSupported() bool {
-	return d.IsAcdRelease() && d.IsFluxCDRelease() && !d.IsLinkedRelease()
+	return d.IsAcdRelease() && !d.IsLinkedRelease()
 }
 
 func (d *DeploymentConfig) IsArgoAppPatchSupported() bool {
