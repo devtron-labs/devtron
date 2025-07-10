@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/bean"
+	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 )
@@ -31,7 +32,7 @@ type EnvConfigOverrideService interface {
 	GetByIdIncludingInactive(id int) (*bean.EnvConfigOverride, error)
 	GetByEnvironment(targetEnvironmentId int) ([]*bean.EnvConfigOverride, error)
 	GetEnvConfigByChartId(chartId int) ([]*bean.EnvConfigOverride, error)
-	FindLatestChartForAppByAppIdAndEnvId(appId, targetEnvironmentId int) (*bean.EnvConfigOverride, error)
+	FindLatestChartForAppByAppIdAndEnvId(tx *pg.Tx, appId, targetEnvironmentId int) (*bean.EnvConfigOverride, error)
 	FindChartRefIdsForLatestChartForAppByAppIdAndEnvIds(appId int, targetEnvironmentIds []int) (map[int]int, error)
 	FindChartByAppIdAndEnvIdAndChartRefId(appId, targetEnvironmentId int, chartRefId int) (*bean.EnvConfigOverride, error)
 	FindChartForAppByAppIdAndEnvId(appId, targetEnvironmentId int) (*bean.EnvConfigOverride, error)
@@ -134,8 +135,8 @@ func (impl EnvConfigOverrideReadServiceImpl) GetEnvConfigByChartId(chartId int) 
 	return envConfigOverrides, nil
 }
 
-func (impl EnvConfigOverrideReadServiceImpl) FindLatestChartForAppByAppIdAndEnvId(appId, targetEnvironmentId int) (*bean.EnvConfigOverride, error) {
-	overrideDBObj, err := impl.envConfigOverrideRepository.FindLatestChartForAppByAppIdAndEnvId(appId, targetEnvironmentId)
+func (impl EnvConfigOverrideReadServiceImpl) FindLatestChartForAppByAppIdAndEnvId(tx *pg.Tx, appId, targetEnvironmentId int) (*bean.EnvConfigOverride, error) {
+	overrideDBObj, err := impl.envConfigOverrideRepository.FindLatestChartForAppByAppIdAndEnvId(tx, appId, targetEnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in getting chart env config override", "appId", appId, "targetEnvironmentId", targetEnvironmentId, "err", err)
 		return nil, err

@@ -92,7 +92,7 @@ func (impl *CommonServiceImpl) FetchLatestChartVersion(appId int, envId int) (st
 		}
 		//if chart is overrides in env, and not mark as overrides in db, it means it was not completed and refer to latest to the app.
 		if (envOverride.Id == 0) || (envOverride.Id > 0 && !envOverride.IsOverride) {
-			chart, err = impl.chartRepository.FindLatestChartForAppByAppId(appId)
+			chart, err = impl.chartRepository.FindLatestChartForAppByAppId(nil, appId)
 			if err != nil {
 				return "", err
 			}
@@ -101,7 +101,7 @@ func (impl *CommonServiceImpl) FetchLatestChartVersion(appId int, envId int) (st
 			chart = envOverride.Chart
 		}
 	} else if appId > 0 {
-		chartG, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
+		chartG, err := impl.chartRepository.FindLatestChartForAppByAppId(nil, appId)
 		if err != nil {
 			return "", err
 		}

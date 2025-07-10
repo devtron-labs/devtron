@@ -165,7 +165,7 @@ func (impl *PipelineDeploymentConfigServiceImpl) GetLatestDeploymentTemplateConf
 			}
 		}
 	} else {
-		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(pipeline.AppId)
+		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(nil, pipeline.AppId)
 		if err != nil {
 			impl.logger.Errorw("error in getting chart by appId", "err", err, "appId", pipeline.AppId)
 			return nil, err
