@@ -625,8 +625,10 @@ func (handler *PipelineConfigRestHandlerImpl) validateCiTriggerRBAC(token string
 	appObject := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
 	workflowObject := handler.enforcerUtil.GetWorkflowRBACByCiPipelineId(ciPipelineId, workflowName)
 	triggerObject := handler.enforcerUtil.GetTeamEnvRBACNameByCiPipelineIdAndEnvIdOrName(ciPipelineId, triggerEnvironmentId, envName)
-	appRbacOk := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appObject)
-	if !appRbacOk {
+	var appRbacOk bool
+	if ciPipeline.App.AppType == helper.CustomApp {
+		appRbacOk = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appObject)
+	} else if ciPipeline.App.AppType == helper.Job {
 		appRbacOk = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionTrigger, appObject) && handler.enforcer.Enforce(token, casbin.ResourceWorkflow, casbin.ActionTrigger, workflowObject) && handler.enforcer.Enforce(token, casbin.ResourceJobsEnv, casbin.ActionTrigger, triggerObject)
 	}
 

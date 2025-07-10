@@ -54,6 +54,10 @@ func (bean ClusterBean) GetClusterConfig() *k8s.ClusterConfig {
 	return clusterCfg
 }
 
+type DeleteClusterBean struct {
+	Id int `json:"id" validate:"number,required"`
+}
+
 type UserInfo struct {
 	UserName          string            `json:"userName,omitempty"`
 	Config            map[string]string `json:"config,omitempty"`

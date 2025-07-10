@@ -110,6 +110,11 @@ func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appServi
 		logger.Errorw("error in starting argo application status update cron job", "err", err)
 		return nil
 	}
+	_, err = cron.AddFunc("@every 1m", impl.ArgoPipelineTimelineUpdate)
+	if err != nil {
+		logger.Errorw("error in starting argo application status update cron job", "err", err)
+		return nil
+	}
 	_, err = cron.AddFunc("@every 1m", impl.FluxApplicationStatusUpdate)
 	if err != nil {
 		logger.Errorw("error in starting argo application status update cron job", "err", err)
