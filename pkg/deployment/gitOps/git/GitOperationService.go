@@ -18,8 +18,8 @@ package git
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils/retryFunc"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -28,7 +28,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	globalUtil "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/retryFunc"
 	dirCopy "github.com/otiai10/copy"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -284,10 +283,7 @@ func (impl *GitOperationServiceImpl) CommitValues(ctx context.Context, chartGitA
 }
 
 func (impl *GitOperationServiceImpl) isRetryableGitCommitError(err error) bool {
-	if retryErr := (&retryFunc.RetryableError{}); errors.As(err, &retryErr) {
-		return true
-	}
-	return false
+	return retryFunc.IsRetryableError(err)
 }
 
 func (impl *GitOperationServiceImpl) CreateRepository(ctx context.Context, dto *apiBean.GitOpsConfigDto, userId int32) (string, bool, bool, error) {
