@@ -68,6 +68,7 @@ func NewApiTokenServiceImpl(logger *zap.SugaredLogger,
 
 	cfg, err := GetTokenConfig()
 	if err != nil {
+		apiTokenService.logger.Errorw("error while getting token config ", "error", err)
 		return nil, err
 	}
 	apiTokenService.TokenVariableConfig = cfg
