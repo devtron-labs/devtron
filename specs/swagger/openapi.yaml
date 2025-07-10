@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   version: 1.0.0
-  title: Common Devtron automation APIs
+  title: Common Devtron automation APIs test
 servers:
   - url: http://localhost/orchestrator
     description: Local development server
