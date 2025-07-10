@@ -20,13 +20,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
-	"github.com/devtron-labs/devtron/pkg/cluster/environment"
-	"github.com/devtron-labs/devtron/pkg/cluster/rbac"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	"github.com/devtron-labs/devtron/pkg/cluster/rbac"
 
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -671,7 +672,14 @@ func (impl ClusterRestHandlerImpl) GetClusterNamespaces(w http.ResponseWriter, r
 
 	allClusterNamespaces, err := impl.clusterService.FindAllNamespacesByUserIdAndClusterId(userId, clusterId, isActionUserSuperAdmin)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		// Check if it's a cluster connectivity error and return appropriate status code
+		if err.Error() == cluster.ErrClusterNotReachable {
+			impl.logger.Errorw("cluster connectivity error in GetClusterNamespaces", "error", err, "clusterId", clusterId)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		} else {
+			impl.logger.Errorw("error in GetClusterNamespaces", "error", err, "clusterId", clusterId)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		}
 		return
 	}
 	common.WriteJsonResp(w, nil, allClusterNamespaces, http.StatusOK)
