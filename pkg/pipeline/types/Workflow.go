@@ -157,6 +157,7 @@ type WorkflowRequest struct {
 	Scope                       resourceQualifiers.Scope
 	BuildxCacheModeMin          bool   `json:"buildxCacheModeMin"`
 	AsyncBuildxCacheExport      bool   `json:"asyncBuildxCacheExport"`
+	BuildxInterruptionMaxRetry  int    `json:"buildxInterruptionMaxRetry"`
 	UseDockerApiToGetDigest     bool   `json:"useDockerApiToGetDigest"`
 	HostUrl                     string `json:"hostUrl"`
 	WorkflowRequestEnt
