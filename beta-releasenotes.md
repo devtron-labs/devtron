@@ -15,6 +15,7 @@
 - fix: panic in logs api (#6684)
 - fix: Empty migration seq (#6673)
 ## Others
+- misc: Added index.html and .nojekyll file for static page setup (#6709)
 - chore: OSS main sync (#6717)
 - chore: added sql file of 4.21 (#6716)
 - sync: Main sync develop (#6715)
