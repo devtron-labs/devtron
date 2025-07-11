@@ -206,6 +206,7 @@
  | GRAFANA_PORT | string |8090 | Port for grafana micro-service |  | false |
  | GRAFANA_URL | string | | Host URL for the grafana dashboard |  | false |
  | GRAFANA_USERNAME | string |admin | Username for grafana  |  | false |
+ | HIDE_API_TOKENS | bool |false | Boolean flag for should the api tokens generated be hidden from the UI |  | false |
  | HIDE_IMAGE_TAGGING_HARD_DELETE | bool |false | Flag to hide the hard delete option in the image tagging service |  | false |
  | IGNORE_AUTOCOMPLETE_AUTH_CHECK | bool |false | flag for ignoring auth check in autocomplete apis. |  | false |
  | INSTALLED_MODULES |  | | List of installed modules given in helm values/yaml are written in cm and used by devtron to know which modules are given | security.trivy,security.clair | false |
