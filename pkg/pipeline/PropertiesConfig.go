@@ -367,7 +367,7 @@ func (impl *PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, 
 	}
 
 	if !oldEnvOverride.Latest {
-		envOverrideExisting, err := impl.envConfigOverrideReadService.FindLatestChartForAppByAppIdAndEnvId(nil, appId, oldEnvOverride.TargetEnvironment)
+		envOverrideExisting, err := impl.envConfigOverrideReadService.FindLatestChartForAppByAppIdAndEnvId(tx, appId, oldEnvOverride.TargetEnvironment)
 		if err != nil && !errors.IsNotFound(err) {
 			return nil, err
 		}
@@ -507,7 +507,7 @@ func (impl *PropertiesConfigServiceImpl) CreateIfRequired(request *bean.Environm
 	if errors.IsNotFound(err) {
 		if isOverride {
 			// before creating new entry, remove previous one from latest tag
-			envOverrideExisting, err := impl.envConfigOverrideReadService.FindLatestChartForAppByAppIdAndEnvId(nil, chart.AppId, environmentId)
+			envOverrideExisting, err := impl.envConfigOverrideReadService.FindLatestChartForAppByAppIdAndEnvId(tx, chart.AppId, environmentId)
 			if err != nil && !errors.IsNotFound(err) {
 				return nil, isAppMetricsEnabled, err
 			}
@@ -687,7 +687,7 @@ func (impl *PropertiesConfigServiceImpl) ResetEnvironmentProperties(id int, user
 		return false, err
 	}
 
-	chart, err := impl.chartRepo.FindLatestChartForAppByAppId(nil, envOverride.Chart.AppId)
+	chart, err := impl.chartRepo.FindLatestChartForAppByAppId(tx, envOverride.Chart.AppId)
 	if err != nil {
 		impl.logger.Errorw("error in chartRefRepository.FindById", "chartRefId", envOverride.Chart.ChartRefId, "err", err)
 		return false, err

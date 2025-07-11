@@ -430,17 +430,17 @@ func (impl *ChartServiceImpl) CreateChartFromEnvOverride(ctx context.Context, te
 		return nil, err
 	}
 
-	currentLatestChart, err := impl.chartRepository.FindLatestChartForAppByAppId(nil, templateRequest.AppId)
-	if err != nil && pg.ErrNoRows != err {
-		return nil, err
-	}
-
 	tx, err := impl.chartRepository.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting transaction to update charts", "error", err)
 		return nil, err
 	}
 	defer impl.chartRepository.RollbackTx(tx)
+
+	currentLatestChart, err := impl.chartRepository.FindLatestChartForAppByAppId(tx, templateRequest.AppId)
+	if err != nil && pg.ErrNoRows != err {
+		return nil, err
+	}
 
 	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(tx, templateRequest.AppId, 0)
 	if err != nil {
