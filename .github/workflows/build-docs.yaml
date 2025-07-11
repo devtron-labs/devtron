@@ -5,6 +5,8 @@ on:
       - main
     paths:
       - 'specs/swagger/**'
+permissions:
+  contents: write
 jobs:
   lint-and-build:
     runs-on: ubuntu-latest
@@ -18,19 +20,17 @@ jobs:
 
       - name: Install Redocly CLI
         run: npm install -g @redocly/cli
-      
+
       - name: Switch to gh-pages branch
         run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
           echo "Switching to gh-pages branch..."
           git checkout -b gh-pages
-      
-      - name: Fetch latest commits from main
-        run: |
-          echo "Fetching latest commits from main..."
-          git fetch origin main
-          git checkout origin/main -- specs/swagger/
-          echo "Latest OpenAPI specs fetched from main!"
-      
+          git fetch origin gh-pages
+          git pull --rebase origin gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_SYSTEMSDT_TOKEN }}
       - name: Build OpenAPI documentation
         run: |
           cd specs/swagger
@@ -48,7 +48,7 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "Update OpenAPI documentation from main branch"
-            git push origin gh-pages
+            git push --force origin gh-pages
             echo "Documentation pushed to gh-pages branch!"
           fi
         env:
