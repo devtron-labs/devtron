@@ -3,6 +3,8 @@ on:
  pull_request:
    paths:
      - 'specs/swagger/**'
+permissions:
+  contents: read
 jobs:
  lint:
    runs-on: ubuntu-latest
