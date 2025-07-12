@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
@@ -97,28 +98,40 @@ func appendBuildAppNameQuery(q *orm.Query, appNameIncludes []string, appNameExcl
 
 }
 
-func appendBuildCMNameQuery(q *orm.Query, configMapNames []string) *orm.Query {
-	if len(configMapNames) == 0 {
-		return q
-	}
-	//replacing configMapName with "%configMapName%"
-	configMapNamesLikeClause := make([]string, len(configMapNames))
-	for i := range configMapNames {
-		configMapNamesLikeClause[i] = util.GetLIKEClauseQueryParam(configMapNames[i])
-	}
-	return q.Where("config_map_data LIKE ANY (array[?])", pg.In(configMapNamesLikeClause))
+func appendBuildCMNameLikeQuery(q *orm.Query, configMapNames []string) *orm.Query {
+	// replacing configMapName with "%configMapName%"
+	configMapNamesLikeClause := sliceUtil.NewSliceFromFuncExec(configMapNames, func(secretName string) string {
+		return util.GetLIKEClauseQueryParam(secretName)
+	})
+	return appendBuildCMNameQuery(q, configMapNamesLikeClause, nil)
 }
 
-func appendBuildSecretNameQuery(q *orm.Query, secretNames []string) *orm.Query {
-	if len(secretNames) == 0 {
-		return q
+func appendBuildCMNameQuery(q *orm.Query, configMapNameIncludes, configMapNameExcludes []string) *orm.Query {
+	if len(configMapNameIncludes) != 0 {
+		q = q.Where("config_map_data LIKE ANY (array[?])", pg.In(configMapNameIncludes))
 	}
-	//replacing secretName with "%secretName%"
-	secretNamesLikeClause := make([]string, len(secretNames))
-	for i := range secretNames {
-		secretNamesLikeClause[i] = util.GetLIKEClauseQueryParam(secretNames[i])
+	if len(configMapNameExcludes) != 0 {
+		q = q.Where("config_map_data NOT LIKE ALL (array[?])", pg.In(configMapNameExcludes))
 	}
-	return q.Where("secret_data LIKE ANY (array[?])", pg.In(secretNamesLikeClause))
+	return q
+}
+
+func appendBuildSecretNameLikeQuery(q *orm.Query, secretNames []string) *orm.Query {
+	// replacing secretName with "%secretName%"
+	secretNamesLikeClause := sliceUtil.NewSliceFromFuncExec(secretNames, func(secretName string) string {
+		return util.GetLIKEClauseQueryParam(secretName)
+	})
+	return appendBuildSecretNameQuery(q, secretNamesLikeClause, nil)
+}
+
+func appendBuildSecretNameQuery(q *orm.Query, secretNameIncludes, secretNameExcludes []string) *orm.Query {
+	if len(secretNameIncludes) != 0 {
+		q = q.Where("secret_data LIKE ANY (array[?])", pg.In(secretNameIncludes))
+	}
+	if len(secretNameExcludes) != 0 {
+		q = q.Where("secret_data NOT LIKE ALL (array[?])", pg.In(secretNameExcludes))
+	}
+	return q
 }
 
 func (repositoryImpl BulkEditRepositoryImpl) FindBulkEditConfig(apiVersion, kind string) (*BulkEditConfig, error) {
@@ -160,7 +173,7 @@ func (repositoryImpl BulkEditRepositoryImpl) FindCMBulkAppModelForGlobal(appName
 		Model(&CmAndSecretAppModel).Join("INNER JOIN app ON app.id = config_map_app_model.app_id").
 		Where("app.active = ?", true)
 	q = appendBuildAppNameQuery(q, appNameIncludes, appNameExcludes)
-	q = appendBuildCMNameQuery(q, configMapNames)
+	q = appendBuildCMNameLikeQuery(q, configMapNames)
 	err := q.Select()
 	return CmAndSecretAppModel, err
 }
@@ -170,7 +183,7 @@ func (repositoryImpl BulkEditRepositoryImpl) FindSecretBulkAppModelForGlobal(app
 		Model(&CmAndSecretAppModel).Join("INNER JOIN app ON app.id = config_map_app_model.app_id").
 		Where("app.active = ?", true)
 	q = appendBuildAppNameQuery(q, appNameIncludes, appNameExcludes)
-	q = appendBuildSecretNameQuery(q, secretNames)
+	q = appendBuildSecretNameLikeQuery(q, secretNames)
 	err := q.Select()
 	return CmAndSecretAppModel, err
 }
@@ -181,7 +194,7 @@ func (repositoryImpl BulkEditRepositoryImpl) FindCMBulkAppModelForEnv(appNameInc
 		Where("app.active = ?", true).
 		Where("config_map_env_model.environment_id = ? ", envId)
 	q = appendBuildAppNameQuery(q, appNameIncludes, appNameExcludes)
-	q = appendBuildCMNameQuery(q, configMapNames)
+	q = appendBuildCMNameLikeQuery(q, configMapNames)
 	err := q.Select()
 	return CmAndSecretEnvModel, err
 }
@@ -192,7 +205,7 @@ func (repositoryImpl BulkEditRepositoryImpl) FindSecretBulkAppModelForEnv(appNam
 		Where("app.active = ?", true).
 		Where("config_map_env_model.environment_id = ? ", envId)
 	q = appendBuildAppNameQuery(q, appNameIncludes, appNameExcludes)
-	q = appendBuildSecretNameQuery(q, secretNames)
+	q = appendBuildSecretNameLikeQuery(q, secretNames)
 	err := q.Select()
 	return CmAndSecretEnvModel, err
 }
