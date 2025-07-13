@@ -370,6 +370,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(chart.ChartService), new(*chart.ChartServiceImpl)),
 		read2.NewChartReadServiceImpl,
 		wire.Bind(new(read2.ChartReadService), new(*read2.ChartReadServiceImpl)),
+
+		service.NewBulkUpdateServiceEntImpl,
 		service.NewBulkUpdateServiceImpl,
 		wire.Bind(new(service.BulkUpdateService), new(*service.BulkUpdateServiceImpl)),
 

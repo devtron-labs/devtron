@@ -9,6 +9,13 @@ import (
 type BulkUpdateServiceEnt interface {
 }
 
+type BulkUpdateServiceEntImpl struct {
+}
+
+func NewBulkUpdateServiceEntImpl() *BulkUpdateServiceEntImpl {
+	return nil
+}
+
 func (impl BulkUpdateServiceImpl) isEnvDTConfigUpdateAllowed(ctx context.Context, appId, envId int, userMetadata *userBean.UserMetadata) error {
 	return nil
 }

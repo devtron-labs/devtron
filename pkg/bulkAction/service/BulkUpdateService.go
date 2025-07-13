@@ -108,6 +108,7 @@ type BulkUpdateServiceImpl struct {
 	deployedAppService               deployedApp.DeployedAppService
 	cdPipelineEventPublishService    out.CDPipelineEventPublishService
 	ciHandlerService                 trigger.HandlerService
+	*BulkUpdateServiceEntImpl
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository repository.BulkEditRepository,
@@ -129,6 +130,7 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository repository.BulkEditRepository
 	deployedAppService deployedApp.DeployedAppService,
 	cdPipelineEventPublishService out.CDPipelineEventPublishService,
 	ciHandlerService trigger.HandlerService,
+	bulkUpdateServiceEntImpl *BulkUpdateServiceEntImpl,
 ) *BulkUpdateServiceImpl {
 	return &BulkUpdateServiceImpl{
 		bulkEditRepository:               bulkUpdateRepository,
@@ -150,8 +152,8 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository repository.BulkEditRepository
 		deployedAppService:               deployedAppService,
 		cdPipelineEventPublishService:    cdPipelineEventPublishService,
 		ciHandlerService:                 ciHandlerService,
+		BulkUpdateServiceEntImpl:         bulkUpdateServiceEntImpl,
 	}
-
 }
 
 const (
