@@ -86,9 +86,11 @@ type HandlerService interface {
 	DownloadCiWorkflowArtifacts(pipelineId int, buildId int) (*os.File, error)
 }
 
-type BuildxCacheFlags struct {
-	BuildxCacheModeMin     bool `env:"BUILDX_CACHE_MODE_MIN" envDefault:"false" description:"To set build cache mode to minimum in buildx" `
-	AsyncBuildxCacheExport bool `env:"ASYNC_BUILDX_CACHE_EXPORT" envDefault:"false" description:"To enable async container image cache export"`
+// CATEGORY=CI_BUILDX
+type BuildxGlobalFlags struct {
+	BuildxCacheModeMin         bool `env:"BUILDX_CACHE_MODE_MIN" envDefault:"false" description:"To set build cache mode to minimum in buildx" `
+	AsyncBuildxCacheExport     bool `env:"ASYNC_BUILDX_CACHE_EXPORT" envDefault:"false" description:"To enable async container image cache export"`
+	BuildxInterruptionMaxRetry int  `env:"BUILDX_INTERRUPTION_MAX_RETRY" envDefault:"3" description:"Maximum number of retries for buildx builder interruption"`
 }
 
 type HandlerServiceImpl struct {
@@ -107,7 +109,7 @@ type HandlerServiceImpl struct {
 	config                       *types.CiConfig
 	scopedVariableManager        variables.ScopedVariableManager
 	ciCdPipelineOrchestrator     pipeline2.CiCdPipelineOrchestrator
-	buildxCacheFlags             *BuildxCacheFlags
+	buildxGlobalFlags            *BuildxGlobalFlags
 	attributeService             attributes.AttributesService
 	pluginInputVariableParser    pipeline2.PluginInputVariableParser
 	globalPluginService          plugin.GlobalPluginService
@@ -149,10 +151,10 @@ func NewHandlerServiceImpl(Logger *zap.SugaredLogger, workflowService executor.W
 	asyncRunnable *async.Runnable,
 	workflowTriggerAuditService auditService.WorkflowTriggerAuditService,
 ) *HandlerServiceImpl {
-	buildxCacheFlags := &BuildxCacheFlags{}
+	buildxCacheFlags := &BuildxGlobalFlags{}
 	err := env.Parse(buildxCacheFlags)
 	if err != nil {
-		Logger.Infow("error occurred while parsing BuildxCacheFlags env,so setting BuildxCacheModeMin and AsyncBuildxCacheExport to default value", "err", err)
+		Logger.Infow("error occurred while parsing BuildxGlobalFlags env,so setting BuildxCacheModeMin and AsyncBuildxCacheExport to default value", "err", err)
 	}
 	cis := &HandlerServiceImpl{
 		Logger:                       Logger,
@@ -169,7 +171,7 @@ func NewHandlerServiceImpl(Logger *zap.SugaredLogger, workflowService executor.W
 		scopedVariableManager:        scopedVariableManager,
 		customTagService:             customTagService,
 		ciCdPipelineOrchestrator:     ciCdPipelineOrchestrator,
-		buildxCacheFlags:             buildxCacheFlags,
+		buildxGlobalFlags:            buildxCacheFlags,
 		attributeService:             attributeService,
 		pluginInputVariableParser:    pluginInputVariableParser,
 		globalPluginService:          globalPluginService,
@@ -867,9 +869,9 @@ func (impl *HandlerServiceImpl) StartCiWorkflowAndPrepareWfRequest(trigger *type
 	} else {
 		workflowRequest.Type = pipelineConfigBean.CI_WORKFLOW_PIPELINE_TYPE
 	}
-	workflowRequest, err = impl.updateWorkflowRequestWithBuildCacheData(workflowRequest, scope)
+	workflowRequest, err = impl.updateWorkflowRequestWithBuildxFlags(workflowRequest, scope)
 	if err != nil {
-		impl.Logger.Errorw("error, updateWorkflowRequestWithBuildCacheData", "workflowRequest", workflowRequest, "err", err)
+		impl.Logger.Errorw("error, updateWorkflowRequestWithBuildxFlags", "workflowRequest", workflowRequest, "err", err)
 		return nil, nil, nil, err
 	}
 	if impl.canSetK8sDriverData(workflowRequest) {

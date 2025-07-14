@@ -9,6 +9,7 @@ import (
 	"math"
 	"math/big"
 	"reflect"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -1018,7 +1019,7 @@ func (schema *Schema) validate(ctx context.Context, stack []*Schema) ([]*Schema,
 				}
 			}
 			if !validationOpts.schemaPatternValidationDisabled && schema.Pattern != "" {
-				if _, err := schema.compilePattern(validationOpts.regexCompilerFunc); err != nil {
+				if _, err := schema.compilePattern(); err != nil {
 					return stack, err
 				}
 			}
@@ -1728,10 +1729,10 @@ func (schema *Schema) visitJSONString(settings *schemaValidationSettings, value 
 	// "pattern"
 	if !settings.patternValidationDisabled && schema.Pattern != "" {
 		cpiface, _ := compiledPatterns.Load(schema.Pattern)
-		cp, _ := cpiface.(RegexMatcher)
+		cp, _ := cpiface.(*regexp.Regexp)
 		if cp == nil {
 			var err error
-			if cp, err = schema.compilePattern(settings.regexCompiler); err != nil {
+			if cp, err = schema.compilePattern(); err != nil {
 				if !settings.multiError {
 					return err
 				}

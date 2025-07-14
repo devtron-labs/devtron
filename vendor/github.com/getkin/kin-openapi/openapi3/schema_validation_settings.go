@@ -7,12 +7,6 @@ import (
 // SchemaValidationOption describes options a user has when validating request / response bodies.
 type SchemaValidationOption func(*schemaValidationSettings)
 
-type RegexCompilerFunc func(expr string) (RegexMatcher, error)
-
-type RegexMatcher interface {
-	MatchString(s string) bool
-}
-
 type schemaValidationSettings struct {
 	failfast                    bool
 	multiError                  bool
@@ -21,8 +15,6 @@ type schemaValidationSettings struct {
 	patternValidationDisabled   bool
 	readOnlyValidationDisabled  bool
 	writeOnlyValidationDisabled bool
-
-	regexCompiler RegexCompilerFunc
 
 	onceSettingDefaults sync.Once
 	defaultsSet         func()
@@ -76,11 +68,6 @@ func DefaultsSet(f func()) SchemaValidationOption {
 // If the passed function returns an empty string, it returns to the previous Error() implementation.
 func SetSchemaErrorMessageCustomizer(f func(err *SchemaError) string) SchemaValidationOption {
 	return func(s *schemaValidationSettings) { s.customizeMessageError = f }
-}
-
-// SetSchemaRegexCompiler allows to override the regex implementation used to validate field "pattern".
-func SetSchemaRegexCompiler(c RegexCompilerFunc) SchemaValidationOption {
-	return func(s *schemaValidationSettings) { s.regexCompiler = c }
 }
 
 func newSchemaValidationSettings(opts ...SchemaValidationOption) *schemaValidationSettings {
