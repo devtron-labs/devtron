@@ -85,7 +85,7 @@ func (handler TelemetryRestHandlerImpl) SendTelemetryData(w http.ResponseWriter,
 	eventType := payload["eventType"]
 	if eventType != nil {
 		eventTypeStr, ok := eventType.(string)
-		if !ok {
+		if ok {
 			eventTypeString = eventTypeStr
 		}
 	}
