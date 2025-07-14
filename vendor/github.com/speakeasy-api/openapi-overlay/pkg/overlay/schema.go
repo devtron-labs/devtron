@@ -13,9 +13,11 @@ type Extensions map[string]any
 type Overlay struct {
 	Extensions `yaml:"-,inline"`
 
-	// Version is the version of the overlay configuration. As the RFC was never
-	// really ratifies, this value does not mean much.
+	// Version is the version of the overlay configuration. This is only ever expected to be 1.0.0
 	Version string `yaml:"overlay"`
+
+	// JSONPathVersion should be set to rfc9535, and is used for backwards compatability purposes
+	JSONPathVersion string `yaml:"x-speakeasy-jsonpath,omitempty"`
 
 	// Info describes the metadata for the overlay.
 	Info Info `yaml:"info"`

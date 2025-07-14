@@ -267,7 +267,7 @@ require (
 	github.com/fluxcd/helm-controller/api v1.3.0
 	github.com/fluxcd/pkg/apis/meta v1.13.0
 	github.com/fluxcd/source-controller/api v1.6.2
-	github.com/oapi-codegen/oapi-codegen/v2 v2.4.1
+	github.com/oapi-codegen/oapi-codegen/v2 v2.4.2-0.20250511160408-c8cf342fd5ea
 	sigs.k8s.io/controller-runtime v0.21.0
 )
 
@@ -309,14 +309,15 @@ require (
 	github.com/fluxcd/pkg/apis/acl v0.7.0 // indirect
 	github.com/fluxcd/pkg/apis/kustomize v1.10.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.8.0 // indirect
-	github.com/getkin/kin-openapi v0.127.0 // indirect
+	github.com/getkin/kin-openapi v0.128.0 // indirect
 	github.com/google/go-github/v66 v66.0.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/invopop/yaml v0.3.1 // indirect
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/perimeterx/marshmallow v1.1.5 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
-	github.com/speakeasy-api/openapi-overlay v0.9.0 // indirect
+	github.com/speakeasy-api/jsonpath v0.6.0 // indirect
+	github.com/speakeasy-api/openapi-overlay v0.10.2 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.5.0 // indirect
 	github.com/vmware-labs/yaml-jsonpath v0.3.2 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
