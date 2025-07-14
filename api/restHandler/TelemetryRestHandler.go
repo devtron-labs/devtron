@@ -81,9 +81,14 @@ func (handler TelemetryRestHandlerImpl) SendTelemetryData(w http.ResponseWriter,
 	//	common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 	//	return
 	//}
-
+	var eventTypeString string
 	eventType := payload["eventType"]
-	eventTypeString := eventType.(string)
+	if eventType != nil {
+		eventTypeStr, ok := eventType.(string)
+		if !ok {
+			eventTypeString = eventTypeStr
+		}
+	}
 	err = handler.telemetryEventClient.SendGenericTelemetryEvent(eventTypeString, payload)
 
 	if err != nil {
