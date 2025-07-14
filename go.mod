@@ -262,7 +262,13 @@ require (
 	xorm.io/xorm v1.0.3 // indirect
 )
 
-require github.com/docker/distribution v2.8.2+incompatible
+require (
+	github.com/docker/distribution v2.8.2+incompatible
+	github.com/fluxcd/helm-controller/api v1.3.0
+	github.com/fluxcd/pkg/apis/meta v1.13.0
+	github.com/fluxcd/source-controller/api v1.6.2
+	sigs.k8s.io/controller-runtime v0.21.0
+)
 
 require (
 	cel.dev/expr v0.24.0 // indirect
@@ -297,7 +303,10 @@ require (
 	github.com/dlclark/regexp2 v1.11.4 // indirect
 	github.com/envoyproxy/go-control-plane/envoy v1.32.4 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.2.1 // indirect
-	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
+	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
+	github.com/fluxcd/pkg/apis/acl v0.7.0 // indirect
+	github.com/fluxcd/pkg/apis/kustomize v1.10.0 // indirect
+	github.com/fxamacker/cbor/v2 v2.8.0 // indirect
 	github.com/google/go-github/v66 v66.0.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
@@ -315,7 +324,7 @@ require (
 replace (
 	github.com/argoproj/argo-workflows/v3 v3.5.13 => github.com/devtron-labs/argo-workflows/v3 v3.5.13
 	github.com/cyphar/filepath-securejoin v0.4.1 => github.com/cyphar/filepath-securejoin v0.3.6 // indirect
-	github.com/devtron-labs/authenticator => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250616095652-3ee00d35b864
-	github.com/devtron-labs/common-lib => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250616095652-3ee00d35b864
+	github.com/devtron-labs/authenticator => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250708133124-d0285b3c0de2
+	github.com/devtron-labs/common-lib => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250708133124-d0285b3c0de2
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.61.0 => go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.46.1
 )

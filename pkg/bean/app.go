@@ -657,6 +657,14 @@ type CDPipelineConfigObject struct {
 	ReleaseMode                   string                                 `json:"releaseMode" validate:"omitempty,oneof=link create"`
 }
 
+func (cdPipelineConfig *CDPipelineConfigObject) IsFluxDeploymentAppType() bool {
+	return cdPipelineConfig.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_FLUX
+}
+
+func (cdPipelineConfig *CDPipelineConfigObject) IsAcdDeploymentAppType() bool {
+	return cdPipelineConfig.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD
+}
+
 func (cdPipelineConfig *CDPipelineConfigObject) IsLinkedRelease() bool {
 	return cdPipelineConfig.GetReleaseMode() == util.PIPELINE_RELEASE_MODE_LINK
 }
@@ -703,6 +711,11 @@ func (cdPipelineConfig *CDPipelineConfigObject) PatchSourceInfo() (int, string) 
 
 func (cdPipelineConfig *CDPipelineConfigObject) IsExternalArgoAppLinkRequest() bool {
 	return cdPipelineConfig.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD &&
+		cdPipelineConfig.GetReleaseMode() == util.PIPELINE_RELEASE_MODE_LINK
+}
+
+func (cdPipelineConfig *CDPipelineConfigObject) IsExternalFluxAppLinkRequest() bool {
+	return cdPipelineConfig.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_FLUX &&
 		cdPipelineConfig.GetReleaseMode() == util.PIPELINE_RELEASE_MODE_LINK
 }
 
@@ -901,6 +914,7 @@ type AppLabelDto struct {
 	Value     string `json:"value,notnull"`
 	Propagate bool   `json:"propagate,notnull"`
 	AppId     int    `json:"appId,omitempty"`
+	AppName   string `json:"appName,omitempty"`
 	UserId    int32  `json:"-"`
 }
 

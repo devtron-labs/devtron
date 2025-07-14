@@ -361,7 +361,7 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *bean.Clu
 	return clusterBean, nil
 }
 
-func (impl ClusterServiceImplExtended) DeleteFromDb(bean *bean.ClusterBean, userId int32) (string, error) {
+func (impl ClusterServiceImplExtended) DeleteFromDb(bean *bean.DeleteClusterBean, userId int32) (string, error) {
 	existingCluster, err := impl.clusterRepository.FindById(bean.Id)
 	if err != nil {
 		impl.logger.Errorw("No matching entry found for delete.", "id", bean.Id)
