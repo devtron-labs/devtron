@@ -6,6 +6,7 @@
 - feat: add app name in labels list api (#6688)
 - feat: Audit ci trigger, precd and post cd trigger so that retrigger can happen from last failed config snapshot  (#6659)
 ## Bugs
+- fix: telemetry panic fix (#6724)
 - fix: Build get Stuck Indefinitely in case of K8s Driver When Node Termination Occurs (#6687)
 - fix: argo sync (#6718)
 - fix: cluster delete (#6706)
