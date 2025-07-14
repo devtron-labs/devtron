@@ -1,4 +1,4 @@
-package adaptor
+package adapter
 
 import "github.com/devtron-labs/devtron/pkg/bulkAction/bean"
 

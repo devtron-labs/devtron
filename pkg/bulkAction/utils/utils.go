@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	jsonpatch "github.com/evanphx/json-patch"
 )
 
 // GenerateIdentifierKey returns the appKey and pipelineKey for a given pipeline.
@@ -10,4 +11,12 @@ import (
 func GenerateIdentifierKey(id int, name string) (appKey string) {
 	appKey = fmt.Sprintf("%d_%s", id, name)
 	return appKey
+}
+
+func ApplyJsonPatch(patch jsonpatch.Patch, target string) (string, error) {
+	modified, err := patch.Apply([]byte(target))
+	if err != nil {
+		return "Patch Failed", err
+	}
+	return string(modified), err
 }

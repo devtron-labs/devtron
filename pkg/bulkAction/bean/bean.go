@@ -16,8 +16,6 @@
 
 package bean
 
-import "errors"
-
 type NameIncludesExcludes struct {
 	Names []string `json:"names"`
 }
@@ -161,5 +159,3 @@ type PipelineAndWfBulkActionResponseDto struct {
 	CiPipelineRespDtos  []*CiBulkActionResponseDto `json:"ciPipelines"`
 	AppWfRespDtos       []*WfBulkActionResponseDto `json:"appWorkflows"`
 }
-
-var ErrConfigProtectionEnabled = errors.New("config protection enabled")

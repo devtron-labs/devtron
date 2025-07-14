@@ -24,6 +24,22 @@ func (impl BulkUpdateServiceImpl) isBaseDTConfigUpdateAllowed(ctx context.Contex
 	return nil
 }
 
+func (impl BulkUpdateServiceImpl) isEnvCMConfigUpdateAllowed(ctx context.Context, appId, envId int, userMetadata *userBean.UserMetadata) error {
+	return nil
+}
+
+func (impl BulkUpdateServiceImpl) isBaseCMConfigUpdateAllowed(ctx context.Context, appId int, userMetadata *userBean.UserMetadata) error {
+	return nil
+}
+
+func (impl BulkUpdateServiceImpl) isEnvCSConfigUpdateAllowed(ctx context.Context, appId, envId int, userMetadata *userBean.UserMetadata) error {
+	return nil
+}
+
+func (impl BulkUpdateServiceImpl) isBaseCSConfigUpdateAllowed(ctx context.Context, appId int, userMetadata *userBean.UserMetadata) error {
+	return nil
+}
+
 func (impl BulkUpdateServiceImpl) BulkHibernateV1(ctx context.Context, request *bean.BulkApplicationForEnvironmentPayload, checkAuthForBulkActions func(token string, appObject string, envObject string) bool,
 	userMetadata *userBean.UserMetadata) (*bean.BulkApplicationHibernateUnhibernateForEnvironmentResponse, error) {
 	return nil, nil

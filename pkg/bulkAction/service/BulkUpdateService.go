@@ -35,7 +35,7 @@ import (
 	bean6 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/build/trigger"
-	"github.com/devtron-labs/devtron/pkg/bulkAction/adaptor"
+	"github.com/devtron-labs/devtron/pkg/bulkAction/adapter"
 	bean4 "github.com/devtron-labs/devtron/pkg/bulkAction/bean"
 	"github.com/devtron-labs/devtron/pkg/bulkAction/repository"
 	"github.com/devtron-labs/devtron/pkg/bulkAction/utils"
@@ -46,7 +46,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
-	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/adapter"
+	dtAdapter "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
@@ -419,12 +419,7 @@ func (impl BulkUpdateServiceImpl) DryRunBulkEdit(bulkUpdatePayload *bean4.BulkUp
 }
 
 func (impl BulkUpdateServiceImpl) ApplyJsonPatch(patch jsonpatch.Patch, target string) (string, error) {
-	modified, err := patch.Apply([]byte(target))
-	if err != nil {
-		impl.logger.Errorw("error in applying JSON patch", "err", err)
-		return "Patch Failed", err
-	}
-	return string(modified), err
+	return utils.ApplyJsonPatch(patch, target)
 }
 
 func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(ctx context.Context, bulkUpdatePayload *bean4.BulkUpdatePayload, userMetadata *bean6.UserMetadata) *bean4.DeploymentTemplateBulkUpdateResponse {
@@ -460,7 +455,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(ctx context.Conte
 					appDetailsByChart, _ := impl.bulkEditRepository.FindAppByChartId(chart.Id)
 					appId := appDetailsByChart.Id
 					if validationErr := impl.isBaseDTConfigUpdateAllowed(ctx, appId, userMetadata); validationErr != nil {
-						deploymentTemplateBulkUpdateResponse.Failure = append(deploymentTemplateBulkUpdateResponse.Failure, adaptor.GetDeploymentTemplateBulkUpdateResponseForOneApp(appId, appDetailsByChart.AppName, 0, validationErr.Error()))
+						deploymentTemplateBulkUpdateResponse.Failure = append(deploymentTemplateBulkUpdateResponse.Failure, adapter.GetDeploymentTemplateBulkUpdateResponseForOneApp(appId, appDetailsByChart.AppName, 0, validationErr.Error()))
 						continue
 					}
 					modifiedValuesYml, err := impl.ApplyJsonPatch(deploymentTemplatePatch, chart.Values)
@@ -539,7 +534,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(ctx context.Conte
 					appDetailsByChart, _ := impl.bulkEditRepository.FindAppByChartEnvId(chartEnv.Id)
 					appId := appDetailsByChart.Id
 					if validationErr := impl.isEnvDTConfigUpdateAllowed(ctx, appId, envId, userMetadata); validationErr != nil {
-						deploymentTemplateBulkUpdateResponse.Failure = append(deploymentTemplateBulkUpdateResponse.Failure, adaptor.GetDeploymentTemplateBulkUpdateResponseForOneApp(appId, appDetailsByChart.AppName, envId, validationErr.Error()))
+						deploymentTemplateBulkUpdateResponse.Failure = append(deploymentTemplateBulkUpdateResponse.Failure, adapter.GetDeploymentTemplateBulkUpdateResponseForOneApp(appId, appDetailsByChart.AppName, envId, validationErr.Error()))
 						continue
 					}
 					modified, err := impl.ApplyJsonPatch(deploymentTemplatePatch, chartEnv.EnvOverrideValues)
@@ -579,7 +574,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(ctx context.Conte
 								return nil
 							}
 							chartEnv.EnvOverrideValues = modified
-							chartEnvDTO := adapter.EnvOverrideDBToDTO(chartEnv)
+							chartEnvDTO := dtAdapter.EnvOverrideDBToDTO(chartEnv)
 							err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(chartEnvDTO, nil, isAppMetricsEnabled, 0)
 							if err != nil {
 								impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", chartEnv)
@@ -634,6 +629,10 @@ func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(ctx context.Context, bulkU
 					if err != nil {
 						impl.logger.Errorw("error in fetching app details by id", "appId", appId, "err", err)
 						configMapBulkUpdateResponse.Message = append(configMapBulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps globally : %s", err.Error()))
+						continue
+					}
+					if validationErr := impl.isBaseCMConfigUpdateAllowed(ctx, appId, userMetadata); validationErr != nil {
+						configMapBulkUpdateResponse.Failure = append(configMapBulkUpdateResponse.Failure, adapter.GetCmAndSecretBulkUpdateResponseForOneApp(appDetailsById.Id, appDetailsById.AppName, 0, []string{}, validationErr.Error()))
 						continue
 					}
 					configMapNames := gjson.Get(configMapAppModel.ConfigMapData, "maps.#.name")
@@ -727,6 +726,17 @@ func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(ctx context.Context, bulkU
 				configMapBulkUpdateResponse.Message = append(configMapBulkUpdateResponse.Message, fmt.Sprintf("No matching apps to update for envId : %d", envId))
 			} else {
 				for _, configMapEnvModel := range configMapEnvModels {
+					appId := configMapEnvModel.AppId
+					appDetailsById, err := impl.appRepository.FindById(appId)
+					if err != nil {
+						impl.logger.Errorw("error in fetching app details by id", "appId", appId, "err", err)
+						configMapBulkUpdateResponse.Message = append(configMapBulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps for env : %s", err.Error()))
+						continue
+					}
+					if validationErr := impl.isEnvCMConfigUpdateAllowed(ctx, appId, envId, userMetadata); validationErr != nil {
+						configMapBulkUpdateResponse.Failure = append(configMapBulkUpdateResponse.Failure, adapter.GetCmAndSecretBulkUpdateResponseForOneApp(appDetailsById.Id, appDetailsById.AppName, envId, []string{}, validationErr.Error()))
+						continue
+					}
 					configMapNames := gjson.Get(configMapEnvModel.ConfigMapData, "maps.#.name")
 					messageCmNamesMap := make(map[string][]string)
 					for i, configMapName := range configMapNames.Array() {
@@ -842,6 +852,16 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(ctx context.Context, bulkUpda
 			} else {
 				for _, secretAppModel := range secretAppModels {
 					appId := secretAppModel.AppId
+					appDetailsById, err := impl.appRepository.FindById(appId)
+					if err != nil {
+						impl.logger.Errorw("error in fetching app details by id", "appId", appId, "err", err)
+						secretBulkUpdateResponse.Message = append(secretBulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps globally : %s", err.Error()))
+						continue
+					}
+					if validationErr := impl.isBaseCSConfigUpdateAllowed(ctx, appId, userMetadata); validationErr != nil {
+						secretBulkUpdateResponse.Failure = append(secretBulkUpdateResponse.Failure, adapter.GetCmAndSecretBulkUpdateResponseForOneApp(appDetailsById.Id, appDetailsById.AppName, 0, []string{}, validationErr.Error()))
+						continue
+					}
 					secretNames := gjson.Get(secretAppModel.SecretData, "secrets.#.name")
 					messageSecretNamesMap := make(map[string][]string)
 					for i, secretName := range secretNames.Array() {
@@ -941,6 +961,16 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(ctx context.Context, bulkUpda
 			} else {
 				for _, secretEnvModel := range secretEnvModels {
 					appId := secretEnvModel.AppId
+					appDetailsById, err := impl.appRepository.FindById(appId)
+					if err != nil {
+						impl.logger.Errorw("error in fetching app details by id", "appId", appId, "err", err)
+						secretBulkUpdateResponse.Message = append(secretBulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps for env : %s", err.Error()))
+						continue
+					}
+					if validationErr := impl.isEnvCSConfigUpdateAllowed(ctx, appId, envId, userMetadata); validationErr != nil {
+						secretBulkUpdateResponse.Failure = append(secretBulkUpdateResponse.Failure, adapter.GetCmAndSecretBulkUpdateResponseForOneApp(appDetailsById.Id, appDetailsById.AppName, envId, []string{}, validationErr.Error()))
+						continue
+					}
 					secretNames := gjson.Get(secretEnvModel.SecretData, "secrets.#.name")
 					messageSecretNamesMap := make(map[string][]string)
 					for i, secretName := range secretNames.Array() {
@@ -1444,7 +1474,6 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(ctx *util2.RequestCtx, request *bea
 		artifactResponse, err := impl.pipelineBuilder.RetrieveArtifactsByCDPipelineV2(pipeline, bean.CD_WORKFLOW_TYPE_DEPLOY, artifactsListingFilterOptions)
 		if err != nil {
 			impl.logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", pipeline.Id)
-			//return nil, err
 			pipelineResponse := response[appKey]
 			pipelineResponse[appKey] = false
 			response[appKey] = pipelineResponse
