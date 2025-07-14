@@ -364,7 +364,7 @@ func (impl *ChartServiceImpl) updateChartLocationForEnvironmentConfigs(ctx conte
 
 	envOverriddenMap := impl.getEnvOverriddenMap(envOverrides)
 	for _, override := range envOverrides {
-		if isOverridden, ok := envOverriddenMap[override.TargetEnvironment]; ok && !isOverridden {
+		if isOverridden, ok := envOverriddenMap[override.TargetEnvironment]; !ok || !isOverridden {
 			err := impl.deploymentConfigService.UpdateChartLocationInDeploymentConfig(tx, appId, override.TargetEnvironment, chartRefId, userId, version)
 			if err != nil {
 				impl.logger.Errorw("error in updating chart location for env level deployment configs", "appId", appId, "envId", override.TargetEnvironment, "err", err)
