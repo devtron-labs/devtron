@@ -1,4 +1,5 @@
 ## Enhancements
+- feat: enhance patch support for user attribute patch api within nested structure (#6689)
 - feat: added the plugin for aws ecr retagging (#6695)
 - feat: k8s resource recommendation service integration (#6676)
 - feat: flux cd deployment  (#6660)
