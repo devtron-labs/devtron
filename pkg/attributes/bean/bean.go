@@ -21,6 +21,7 @@ const (
 	API_SECRET_KEY                 string = "apiTokenSecret"
 	ENFORCE_DEPLOYMENT_TYPE_CONFIG string = "enforceDeploymentTypeConfig"
 	PRIORITY_DEPLOYMENT_CONDITION  string = "priorityDeploymentCondition"
+	UserPreferencesResourcesKey           = "resources"
 )
 
 type AttributesDto struct {
@@ -29,4 +30,11 @@ type AttributesDto struct {
 	Value  string `json:"value,omitempty"`
 	Active bool   `json:"active"`
 	UserId int32  `json:"-"`
+}
+
+type UserAttributesDto struct {
+	EmailId string `json:"emailId"`
+	Key     string `json:"key"`
+	Value   string `json:"value"`
+	UserId  int32  `json:"-"`
 }
