@@ -1,0 +1,26 @@
+name: Lint API Specs
+on:
+ pull_request:
+   paths:
+     - 'specs/swagger/**'
+permissions:
+  contents: read
+jobs:
+ lint:
+   runs-on: ubuntu-latest
+   steps:
+     - name: Checkout repository
+       uses: actions/checkout@v4
+       with:
+         fetch-depth: 0 
+     - name: Setup Node.js
+       uses: actions/setup-node@v4
+     - name: Install Redocly CLI
+       run: npm install -g @redocly/cli
+     - name: Lint OpenAPI specification
+       run: |
+         cd specs/swagger
+         echo "Linting OpenAPI specification..."
+         redocly lint openapi.yaml
+       env:
+         GITHUB_TOKEN: ${{ secrets.GH_SYSTEMSDT_TOKEN }}
