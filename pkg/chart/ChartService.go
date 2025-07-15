@@ -42,6 +42,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	chartRefBean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
+	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	variablesRepository "github.com/devtron-labs/devtron/pkg/variables/repository"
@@ -75,7 +76,7 @@ type ChartService interface {
 	IsGitOpsRepoAlreadyRegistered(gitOpsRepoUrl string, appId int) (bool, error)
 
 	GetDeploymentTemplateDataByAppIdAndCharRefId(appId, chartRefId int) (map[string]interface{}, error)
-
+	GetLatestEnvironmentProperties(appId, environmentId int) (environmentProperties *pipelineBean.EnvironmentProperties, err error)
 	ChartServiceEnt
 }
 
@@ -1139,4 +1140,45 @@ func (impl *ChartServiceImpl) GetDeploymentTemplateDataByAppIdAndCharRefId(appId
 		appConfigResponse["globalConfig"] = appOverride
 	}
 	return appConfigResponse, nil
+}
+
+func (impl *ChartServiceImpl) GetLatestEnvironmentProperties(appId, environmentId int) (environmentProperties *pipelineBean.EnvironmentProperties, err error) {
+	env, err := impl.environmentRepository.FindById(environmentId)
+	if err != nil {
+		impl.logger.Errorw("error in finding env by id", "envId", environmentId, "err", err)
+		return environmentProperties, err
+	}
+	envOverride, err := impl.envConfigOverrideReadService.ActiveEnvConfigOverride(appId, environmentId)
+	if err != nil {
+		impl.logger.Errorw("error in finding ActiveEnvConfigOverride", "appId", appId, "envId", environmentId, "err", err)
+		return environmentProperties, err
+	}
+	if envOverride.Id == 0 {
+		impl.logger.Warnw("No env config exists with tag latest for given appId and envId", "envId", environmentId)
+		return environmentProperties, nil
+	}
+	r := json.RawMessage("{}")
+	err = r.UnmarshalJSON([]byte(envOverride.EnvOverrideValues))
+	if err != nil {
+		return environmentProperties, err
+	}
+	environmentProperties = &pipelineBean.EnvironmentProperties{
+		Id:                envOverride.Id,
+		Status:            envOverride.Status,
+		EnvOverrideValues: r,
+		ManualReviewed:    envOverride.ManualReviewed,
+		Active:            envOverride.Active,
+		Namespace:         env.Namespace,
+		Description:       env.Description,
+		EnvironmentId:     environmentId,
+		EnvironmentName:   env.Name,
+		Latest:            envOverride.Latest,
+		ChartRefId:        envOverride.Chart.ChartRefId,
+		IsOverride:        envOverride.IsOverride,
+		IsBasicViewLocked: envOverride.IsBasicViewLocked,
+		CurrentViewEditor: envOverride.CurrentViewEditor,
+		MergeStrategy:     envOverride.MergeStrategy,
+		ClusterId:         env.ClusterId,
+	}
+	return environmentProperties, nil
 }
