@@ -1,3 +1,5 @@
+## v1.8.0
+
 ## Enhancements
 - feat: added the plugin for aws ecr retagging (#6695)
 - feat: flux cd deployment  (#6660)
@@ -16,3 +18,5 @@
 - chore: added sql file of 4.21 (#6716)
 - misc: added support for service extraSpec (#6702)
 - chore: when output dir path is /devtroncd in any pipeline stage step then the ci runner is stuck in recursive self-copy situation  (#6686)
+
+
