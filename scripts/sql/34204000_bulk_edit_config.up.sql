@@ -5,7 +5,7 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_bulk_edit_config;
 
 -- Create a new table
 CREATE TABLE IF NOT EXISTS "public"."bulk_edit_config" (
-                                                           "id"            INTEGER             NOT NULL DEFAULT nextval('id_seq_workflow_config_snapshot'::regclass),
+    "id"            INTEGER             NOT NULL DEFAULT nextval('id_seq_workflow_config_snapshot'::regclass),
     "api_version"   VARCHAR(255) NOT NULL,
     "kind"          VARCHAR(255) NOT NULL,
     "readme"        TEXT,
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS "public"."bulk_edit_config" (
     "updated_by"    INTEGER,
     PRIMARY KEY ("id"),
     UNIQUE ("api_version", "kind")
-    );
+);
 
 -- Insert data from bulk_update_readme (assuming only one row for 'v1beta1/application')
 INSERT INTO "public"."bulk_edit_config" ("api_version", "kind", "readme", "schema", "created_on", "created_by")
@@ -205,7 +205,7 @@ The following tables list the configurable parameters of the Payload component i
     }
   }
 }', NOW(), 1
-    WHERE NOT EXISTS (
+WHERE NOT EXISTS (
     SELECT 1 FROM "public"."bulk_edit_config"
     WHERE api_version = 'v1beta1' AND kind = 'application'
 );
@@ -582,7 +582,7 @@ The following tables list the configurable parameters of the Payload component i
     }
   }
 }', NOW(), 1
-    WHERE NOT EXISTS (
+WHERE NOT EXISTS (
     SELECT 1 FROM "public"."bulk_edit_config"
     WHERE api_version = 'v1beta2' AND kind = 'application'
 );
