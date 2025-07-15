@@ -14,7 +14,6 @@
 - fix: panic in logs api (#6684)
 - fix: Empty migration seq (#6673)
 ## Others
-- chore: Api token hide via flag (#6708)
 - chore: added sql file of 4.21 (#6716)
 - misc: added support for service extraSpec (#6702)
 - chore: when output dir path is /devtroncd in any pipeline stage step then the ci runner is stuck in recursive self-copy situation  (#6686)
