@@ -36,7 +36,9 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -225,4 +227,20 @@ func OverrideK8sHttpClientWithTracer(restConfig *rest.Config) (*http.Client, err
 	}
 	httpClientFor.Transport = otelhttp.NewTransport(httpClientFor.Transport)
 	return httpClientFor, nil
+}
+
+func GetServerNameFromServerUrl(serverURL string) (string, error) {
+	u, err := url.Parse(serverURL)
+	if err != nil {
+		return "", err
+	}
+
+	host := u.Host
+	if strings.Contains(host, ":") {
+		host, _, err = net.SplitHostPort(u.Host)
+		if err != nil {
+			return "", err
+		}
+	}
+	return host, nil
 }

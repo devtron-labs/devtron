@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
 	securityBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/bean"
 	security2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"net/http"
 	"strconv"
 
@@ -104,6 +105,45 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 		return
 	}
 	token := r.Header.Get("token")
+	isSuperAdmin := false
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
+		isSuperAdmin = true
+	}
+	var ids []int
+	if isSuperAdmin {
+		ids = sliceUtil.NewSliceFromFuncExec(filteredDeployInfoList, func(item *security2.ImageScanDeployInfo) int {
+			return item.Id
+		})
+	} else {
+		ids, err = impl.getAuthorisedImageScanDeployInfoIds(token, filteredDeployInfoList)
+		if err != nil {
+			impl.logger.Errorw("error in getting authorised image scan deploy info ids", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if len(ids) == 0 {
+		responseList := make([]*securityBean.ImageScanHistoryResponse, 0)
+		common.WriteJsonResp(w, nil, &securityBean.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
+		return
+	}
+
+	results, err := impl.imageScanService.FetchScanExecutionListing(request, ids)
+	if err != nil {
+		impl.logger.Errorw("service err, ScanExecutionList", "err", err, "payload", request)
+		if util.IsErrNoRows(err) {
+			responseList := make([]*securityBean.ImageScanHistoryResponse, 0)
+			common.WriteJsonResp(w, nil, &securityBean.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
+		} else {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		}
+		return
+	}
+	common.WriteJsonResp(w, err, results, http.StatusOK)
+}
+
+func (impl ImageScanRestHandlerImpl) getAuthorisedImageScanDeployInfoIds(token string, filteredDeployInfoList []*security2.ImageScanDeployInfo) ([]int, error) {
 	var ids []int
 	var appRBACObjects []string
 	var envRBACObjects []string
@@ -119,8 +159,8 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 
 	appObjects, envObjects, appIdtoApp, envIdToEnv, err := impl.enforcerUtil.GetAppAndEnvRBACNamesByAppAndEnvIds(IdToAppEnvPairs)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
+		impl.logger.Errorw("error in getting app and env rbac objects", "err", err)
+		return nil, err
 	}
 
 	for _, item := range filteredDeployInfoList {
@@ -136,8 +176,8 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 		} else if item.ScanObjectMetaId > 0 && (item.ObjectType == ObjectTypePod) {
 			environments, err := impl.environmentService.GetByClusterId(item.ClusterId)
 			if err != nil {
-				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-				return
+				impl.logger.Errorw("error in getting environments for cluster", "clusterId", item.ClusterId, "err", err)
+				return nil, err
 			}
 			for _, environment := range environments {
 				podObject := environment.EnvironmentIdentifier
@@ -163,25 +203,7 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 			}
 		}
 	}
-
-	if ids == nil || len(ids) == 0 {
-		responseList := make([]*securityBean.ImageScanHistoryResponse, 0)
-		common.WriteJsonResp(w, nil, &securityBean.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
-		return
-	}
-
-	results, err := impl.imageScanService.FetchScanExecutionListing(request, ids)
-	if err != nil {
-		impl.logger.Errorw("service err, ScanExecutionList", "err", err, "payload", request)
-		if util.IsErrNoRows(err) {
-			responseList := make([]*securityBean.ImageScanHistoryResponse, 0)
-			common.WriteJsonResp(w, nil, &securityBean.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
-		} else {
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		}
-		return
-	}
-	common.WriteJsonResp(w, err, results, http.StatusOK)
+	return ids, nil
 }
 
 func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter, r *http.Request) {

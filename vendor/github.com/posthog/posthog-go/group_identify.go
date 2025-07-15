@@ -9,9 +9,10 @@ type GroupIdentify struct {
 	Type string
 	Key  string
 
-	DistinctId string
-	Timestamp  time.Time
-	Properties Properties
+	DistinctId   string
+	Timestamp    time.Time
+	Properties   Properties
+	DisableGeoIP bool
 }
 
 func (msg GroupIdentify) internal() {
@@ -49,10 +50,16 @@ type GroupIdentifyInApi struct {
 }
 
 func (msg GroupIdentify) APIfy() APIMessage {
-	library := "posthog-go"
+	myProperties := Properties{}.
+		Set("$lib", SDKName).
+		Set("$lib_version", getVersion()).
+		Set("$group_type", msg.Type).
+		Set("$group_key", msg.Key).
+		Set("$group_set", msg.Properties)
 
-	myProperties := Properties{}.Set("$lib", library).Set("$lib_version", getVersion())
-	myProperties.Set("$group_type", msg.Type).Set("$group_key", msg.Key).Set("$group_set", msg.Properties)
+	if msg.DisableGeoIP {
+		myProperties.Set(propertyGeoipDisable, true)
+	}
 
 	distinctId := fmt.Sprintf("$%s_%s", msg.Type, msg.Key)
 
@@ -61,7 +68,7 @@ func (msg GroupIdentify) APIfy() APIMessage {
 		Properties:     myProperties,
 		DistinctId:     distinctId,
 		Timestamp:      msg.Timestamp,
-		Library:        library,
+		Library:        SDKName,
 		LibraryVersion: getVersion(),
 	}
 

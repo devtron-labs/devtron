@@ -351,7 +351,7 @@ func (impl EnvironmentServiceImpl) FindClusterByEnvId(id int) (*bean4.ClusterBea
 	return clusterBean, nil
 }
 
-var permittedDeploymentConfigString = []string{bean2.PIPELINE_DEPLOYMENT_TYPE_HELM, bean2.PIPELINE_DEPLOYMENT_TYPE_ACD}
+var permittedDeploymentConfigString = []string{bean2.PIPELINE_DEPLOYMENT_TYPE_HELM, bean2.PIPELINE_DEPLOYMENT_TYPE_ACD, bean2.PIPELINE_DEPLOYMENT_TYPE_FLUX}
 
 func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymentTypeParam bool) ([]bean2.EnvironmentBean, error) {
 	models, err := impl.environmentRepository.FindAllActive()

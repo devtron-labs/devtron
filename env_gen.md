@@ -4,6 +4,7 @@
 | Key   | Type     | Default Value     | Description       | Example       | Deprecated       |
 |-------|----------|-------------------|-------------------|-----------------------|------------------|
  | ARGO_APP_MANUAL_SYNC_TIME | int |3 | retry argocd app manual sync if the timeline is stuck in ARGOCD_SYNC_INITIATED state for more than this defined time (in mins) |  | false |
+ | CD_FLUX_PIPELINE_STATUS_CRON_TIME | string |*/2 * * * * | Cron time to check the pipeline status for flux cd pipeline |  | false |
  | CD_HELM_PIPELINE_STATUS_CRON_TIME | string |*/2 * * * * | Cron time to check the pipeline status  |  | false |
  | CD_PIPELINE_STATUS_CRON_TIME | string |*/2 * * * * | Cron time for CD pipeline status |  | false |
  | CD_PIPELINE_STATUS_TIMEOUT_DURATION | string |20 | Timeout for CD pipeline to get healthy |  | false |
@@ -12,6 +13,8 @@
  | DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT | int |6 | Context timeout for no gitops concurrent async deployments |  | false |
  | EXPOSE_CD_METRICS | bool |false |  |  | false |
  | FEATURE_MIGRATE_ARGOCD_APPLICATION_ENABLE | bool |false | enable migration of external argocd application to devtron pipeline |  | false |
+ | FEATURE_MIGRATE_FLUX_APPLICATION_ENABLE | bool |false | enable flux application services |  | false |
+ | FLUX_CD_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME | string |120 | eligible time for checking flux app status periodically and update in db, value is in seconds., default is 120, if wfr is updated within configured time i.e. FLUX_CD_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME then do not include for this cron cycle. |  | false |
  | HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME | string |120 | eligible time for checking helm app status periodically and update in db, value is in seconds., default is 120, if wfr is updated within configured time i.e. HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME then do not include for this cron cycle. |  | false |
  | IS_INTERNAL_USE | bool |true | If enabled then cd pipeline and helm apps will not need the deployment app type mandatorily. Couple this flag with HIDE_GITOPS_OR_HELM_OPTION (in Dashborad) and if gitops is configured and allowed for the env, pipeline/ helm app will gitops else no-gitops. |  | false |
  | MIGRATE_DEPLOYMENT_CONFIG_DATA | bool |false | migrate deployment config data from charts table to deployment_config table |  | false |
@@ -23,6 +26,7 @@
  | RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS | bool |false |  |  | false |
  | SHOULD_CHECK_NAMESPACE_ON_CLONE | bool |false | should we check if namespace exists or not while cloning app |  | false |
  | USE_DEPLOYMENT_CONFIG_DATA | bool |false | use deployment config data from deployment_config table |  | true |
+ | VALIDATE_EXT_APP_CHART_TYPE | bool |false | validate external flux app chart |  | false |
 
 
 ## CI_RUNNER Related Environment Variables
@@ -131,11 +135,11 @@
  | APP_SYNC_JOB_RESOURCES_OBJ | string | | To pass the resource of app sync |  | false |
  | APP_SYNC_SERVICE_ACCOUNT | string |chart-sync | Service account to be used in app sync Job |  | false |
  | APP_SYNC_SHUTDOWN_WAIT_DURATION | int |120 |  |  | false |
- | ARGO_AUTO_SYNC_ENABLED | bool |true | If enabled all argocd application will have auto sync enabled |  | false |
+ | ARGO_AUTO_SYNC_ENABLED | bool |true | If enabled all argocd application will have auto sync enabled | true | false |
  | ARGO_GIT_COMMIT_RETRY_COUNT_ON_CONFLICT | int |3 | retry argocd app manual sync if the timeline is stuck in ARGOCD_SYNC_INITIATED state for more than this defined time (in mins) |  | false |
  | ARGO_GIT_COMMIT_RETRY_DELAY_ON_CONFLICT | int |1 | Delay on retrying the maifest commit the on gitops |  | false |
- | ARGO_REPO_REGISTER_RETRY_COUNT | int |3 | Argo app registration in argo retries on deployment |  | false |
- | ARGO_REPO_REGISTER_RETRY_DELAY | int |10 | Argo app registration in argo cd on deployment delay between retry |  | false |
+ | ARGO_REPO_REGISTER_RETRY_COUNT | int |4 | Retry count for registering a GitOps repository to ArgoCD | 3 | false |
+ | ARGO_REPO_REGISTER_RETRY_DELAY | int |5 | Delay (in Seconds) between the retries for registering a GitOps repository to ArgoCD | 5 | false |
  | ASYNC_BUILDX_CACHE_EXPORT | bool |false | To enable async container image cache export |  | false |
  | BATCH_SIZE | int |5 | there is feature to get URL's of services/ingresses. so to extract those, we need to parse all the servcie and ingress objects of the application. this BATCH_SIZE flag controls the no of these objects get parsed in one go. |  | false |
  | BLOB_STORAGE_ENABLED | bool |false |  |  | false |
@@ -185,6 +189,9 @@
  | FEATURE_RESTART_WORKLOAD_BATCH_SIZE | int |1 | restart workload retrieval batch size  |  | false |
  | FEATURE_RESTART_WORKLOAD_WORKER_POOL_SIZE | int |5 | restart workload retrieval pool size |  | false |
  | FORCE_SECURITY_SCANNING | bool |false | By enabling this no one can disable image scaning on ci-pipeline from UI |  | false |
+ | GITHUB_ORG_NAME | string | |  |  | false |
+ | GITHUB_TOKEN | string | |  |  | false |
+ | GITHUB_USERNAME | string | |  |  | false |
  | GITOPS_REPO_PREFIX | string | | Prefix for Gitops repo being creation for argocd application |  | false |
  | GO_RUNTIME_ENV | string |production |  |  | false |
  | GRAFANA_HOST | string |localhost | Host URL for the grafana dashboard |  | false |

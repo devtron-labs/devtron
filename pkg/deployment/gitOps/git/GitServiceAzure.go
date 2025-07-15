@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/gitUtil"
 	"github.com/devtron-labs/devtron/util/retryFunc"
@@ -112,12 +113,12 @@ func (impl GitAzureClient) CreateRepository(ctx context.Context, config *bean2.G
 	url, repoExists, isEmpty, err = impl.repoExists(config.GitRepoName, impl.project)
 	if err != nil {
 		impl.logger.Errorw("error in communication with azure", "err", err)
-		detailedErrorGitOpsConfigActions.StageErrorMap[GetRepoUrlStage] = err
+		detailedErrorGitOpsConfigActions.StageErrorMap[bean.GetRepoUrlStage] = err
 		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitAzureClient", start, err)
 		return "", false, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	if repoExists {
-		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, GetRepoUrlStage)
+		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, bean.GetRepoUrlStage)
 		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitAzureClient", start, nil)
 		return url, false, isEmpty, detailedErrorGitOpsConfigActions
 	}
@@ -131,7 +132,7 @@ func (impl GitAzureClient) CreateRepository(ctx context.Context, config *bean2.G
 	})
 	if err != nil {
 		impl.logger.Errorw("error in creating repo azure", "project", config.GitRepoName, "err", err)
-		detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err
+		detailedErrorGitOpsConfigActions.StageErrorMap[bean.CreateRepoStage] = err
 		url, repoExists, isEmpty, err = impl.repoExists(config.GitRepoName, impl.project)
 		if err != nil {
 			impl.logger.Errorw("error in communication with azure", "err", err)
@@ -142,47 +143,51 @@ func (impl GitAzureClient) CreateRepository(ctx context.Context, config *bean2.G
 		}
 	}
 	impl.logger.Infow("repo created ", "r", operationReference.WebUrl)
-	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateRepoStage)
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, bean.CreateRepoStage)
 	validated, err := impl.ensureProjectAvailabilityOnHttp(config.GitRepoName)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability azure", "project", config.GitRepoName, "err", err)
 		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitAzureClient", start, err)
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = err
+		detailedErrorGitOpsConfigActions.StageErrorMap[bean.CloneHttpStage] = err
 		return *operationReference.WebUrl, true, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	if !validated {
 		err = fmt.Errorf("unable to validate project:%s in given time", config.GitRepoName)
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = err
+		detailedErrorGitOpsConfigActions.StageErrorMap[bean.CloneHttpStage] = err
 		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitAzureClient", start, err)
 		return "", true, isEmpty, detailedErrorGitOpsConfigActions
 	}
-	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, bean.CloneHttpStage)
 
 	_, err = impl.CreateReadme(ctx, config)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme azure", "project", config.GitRepoName, "err", err)
-		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
+		detailedErrorGitOpsConfigActions.StageErrorMap[bean.CreateReadmeStage] = err
 		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitAzureClient", start, err)
 		return *operationReference.WebUrl, true, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	isEmpty = false //As we have created readme, repo is no longer empty
-	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateReadmeStage)
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, bean.CreateReadmeStage)
 	validated, err = impl.ensureProjectAvailabilityOnSsh(impl.project, *operationReference.WebUrl, config.TargetRevision)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability azure", "project", config.GitRepoName, "err", err)
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
+		detailedErrorGitOpsConfigActions.StageErrorMap[bean.CloneSshStage] = err
 		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitAzureClient", start, err)
 		return *operationReference.WebUrl, true, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	if !validated {
 		err = fmt.Errorf("unable to validate project:%s in given time", config.GitRepoName)
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
+		detailedErrorGitOpsConfigActions.StageErrorMap[bean.CloneSshStage] = err
 		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitAzureClient", start, err)
 		return "", true, isEmpty, detailedErrorGitOpsConfigActions
 	}
-	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneSshStage)
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, bean.CloneSshStage)
 	globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitAzureClient", start, nil)
 	return *operationReference.WebUrl, true, isEmpty, detailedErrorGitOpsConfigActions
+}
+
+func (impl GitAzureClient) CreateFirstCommitOnHead(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
+	return impl.CreateReadme(ctx, config)
 }
 
 func (impl GitAzureClient) CreateReadme(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
@@ -302,7 +307,7 @@ func (impl GitAzureClient) CommitValues(ctx context.Context, config *ChartConfig
 		Project:      &impl.project,
 	})
 	if e := (azuredevops.WrappedError{}); errors.As(err, &e) && e.StatusCode != nil && *e.StatusCode == http2.StatusConflict {
-		impl.logger.Warn("conflict found in commit azure", "err", err, "config", config)
+		impl.logger.Warnw("conflict found in commit azure", "config", config, "err", err)
 		if publishStatusConflictError {
 			globalUtil.TriggerGitOpsMetrics("CommitValues", "GitAzureClient", start, err)
 		}

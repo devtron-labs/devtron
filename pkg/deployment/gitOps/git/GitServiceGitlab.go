@@ -141,18 +141,18 @@ func (impl GitLabClient) CreateRepository(ctx context.Context, config *bean2.Git
 	repoUrl, isEmpty, err = impl.GetRepoUrl(config)
 	if err != nil {
 		impl.logger.Errorw("error in getting repo url ", "gitlab project", config.GitRepoName, "err", err)
-		detailedErrorGitOpsConfigActions.StageErrorMap[GetRepoUrlStage] = err
+		detailedErrorGitOpsConfigActions.StageErrorMap[bean.GetRepoUrlStage] = err
 		util.TriggerGitOpsMetrics("CreateRepository", "GitLabClient", start, err)
 		return "", false, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	if len(repoUrl) > 0 {
-		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, GetRepoUrlStage)
+		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, bean.GetRepoUrlStage)
 		util.TriggerGitOpsMetrics("CreateRepository", "GitLabClient", start, nil)
 		return repoUrl, false, isEmpty, detailedErrorGitOpsConfigActions
 	} else {
 		url, err = impl.createProject(config.GitRepoName, config.Description)
 		if err != nil {
-			detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err
+			detailedErrorGitOpsConfigActions.StageErrorMap[bean.CreateRepoStage] = err
 			repoUrl, isEmpty, err = impl.GetRepoUrl(config)
 			if err != nil {
 				impl.logger.Errorw("error in getting repo url ", "gitlab project", config.GitRepoName, "err", err)
@@ -162,46 +162,46 @@ func (impl GitLabClient) CreateRepository(ctx context.Context, config *bean2.Git
 				return "", true, isEmpty, detailedErrorGitOpsConfigActions
 			}
 		}
-		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateRepoStage)
+		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, bean.CreateRepoStage)
 	}
 	repoUrl = url
 	validated, err := impl.ensureProjectAvailability(config.GitRepoName)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "gitlab project", config.GitRepoName, "err", err)
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = err
+		detailedErrorGitOpsConfigActions.StageErrorMap[bean.CloneHttpStage] = err
 		util.TriggerGitOpsMetrics("CreateRepository", "GitLabClient", start, err)
 		return "", true, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	if !validated {
 		err = fmt.Errorf("unable to validate project:%s in given time", config.GitRepoName)
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = err
+		detailedErrorGitOpsConfigActions.StageErrorMap[bean.CloneHttpStage] = err
 		util.TriggerGitOpsMetrics("CreateRepository", "GitLabClient", start, err)
 		return "", true, isEmpty, detailedErrorGitOpsConfigActions
 	}
-	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, bean.CloneHttpStage)
 	_, err = impl.CreateReadme(ctx, config)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme ", "gitlab project", config.GitRepoName, "err", err)
-		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
+		detailedErrorGitOpsConfigActions.StageErrorMap[bean.CreateReadmeStage] = err
 		util.TriggerGitOpsMetrics("CreateRepository", "GitLabClient", start, err)
 		return "", true, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	isEmpty = false //As we have created readme, repo is no longer empty
-	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateReadmeStage)
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, bean.CreateReadmeStage)
 	validated, err = impl.ensureProjectAvailabilityOnSsh(config.GitRepoName, repoUrl, config.TargetRevision)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "gitlab project", config.GitRepoName, "err", err)
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
+		detailedErrorGitOpsConfigActions.StageErrorMap[bean.CloneSshStage] = err
 		util.TriggerGitOpsMetrics("CreateRepository", "GitLabClient", start, err)
 		return "", true, isEmpty, detailedErrorGitOpsConfigActions
 	}
 	if !validated {
 		err = fmt.Errorf("unable to validate project:%s in given time", config.GitRepoName)
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
+		detailedErrorGitOpsConfigActions.StageErrorMap[bean.CloneSshStage] = err
 		util.TriggerGitOpsMetrics("CreateRepository", "GitLabClient", start, err)
 		return "", true, isEmpty, detailedErrorGitOpsConfigActions
 	}
-	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneSshStage)
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, bean.CloneSshStage)
 	util.TriggerGitOpsMetrics("CreateRepository", "GitLabClient", start, nil)
 	return url, true, isEmpty, detailedErrorGitOpsConfigActions
 }
@@ -213,7 +213,7 @@ func (impl GitLabClient) DeleteProject(projectName string) (err error) {
 	}()
 
 	impl.logger.Infow("deleting project ", "gitlab project name", projectName)
-	_, err = impl.client.Projects.DeleteProject(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, projectName))
+	_, err = impl.client.Projects.DeleteProject(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, projectName), nil)
 	return err
 }
 func (impl GitLabClient) createProject(name, description string) (url string, err error) {
@@ -317,6 +317,10 @@ func (impl GitLabClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl stri
 	return "", isRepoEmpty, nil
 }
 
+func (impl GitLabClient) CreateFirstCommitOnHead(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
+	return impl.CreateReadme(ctx, config)
+}
+
 func (impl GitLabClient) CreateReadme(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
 	var err error
 	start := time.Now()
@@ -378,7 +382,7 @@ func (impl GitLabClient) CommitValues(ctx context.Context, config *ChartConfig, 
 	c, httpRes, err := impl.client.Commits.CreateCommit(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath,
 		config.ChartRepoName), actions, gitlab.WithContext(ctx))
 	if err != nil && httpRes != nil && httpRes.StatusCode == http.StatusBadRequest {
-		impl.logger.Warn("conflict found in commit gitlab", "err", err, "config", config)
+		impl.logger.Warnw("conflict found in commit gitlab", "config", config, "err", err)
 		if publishStatusConflictError {
 			util.TriggerGitOpsMetrics("CommitValues", "GitLabClient", start, err)
 		}

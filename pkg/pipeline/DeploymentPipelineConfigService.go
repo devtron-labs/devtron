@@ -22,6 +22,7 @@ import (
 	errors3 "errors"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/devtron-labs/common-lib/utils/k8s"
 	commonBean2 "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
@@ -30,7 +31,7 @@ import (
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	read4 "github.com/devtron-labs/devtron/api/helm-app/service/read"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	bean7 "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/client/fluxcd"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -54,6 +55,7 @@ import (
 	read2 "github.com/devtron-labs/devtron/pkg/cluster/read"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	adapter2 "github.com/devtron-labs/devtron/pkg/deployment/common/adapter"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	errors4 "github.com/devtron-labs/devtron/pkg/deployment/common/errors"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
@@ -83,15 +85,23 @@ import (
 	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/beHelper"
 	"github.com/devtron-labs/devtron/util/rbac"
+	helmv2 "github.com/fluxcd/helm-controller/api/v2"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	"github.com/go-pg/pg"
 	errors2 "github.com/juju/errors"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	chart2 "helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
+	v1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
 	"net/http"
+	"path"
 	"path/filepath"
+	controllerClient "sigs.k8s.io/controller-runtime/pkg/client"
 	"strconv"
 	"strings"
 	"time"
@@ -108,6 +118,7 @@ type CdPipelineConfigService interface {
 	CreateCdPipelines(cdPipelines *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error)
 	ValidateLinkExternalArgoCDRequest(request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ExternalAppLinkValidationResponse
 	ValidateLinkHelmAppRequest(ctx context.Context, request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ExternalAppLinkValidationResponse
+	ValidateLinkFluxAppRequest(ctx context.Context, request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ExternalAppLinkValidationResponse
 	// PatchCdPipelines : Handle CD pipeline patch requests, making necessary changes to the configuration and returning the updated version.
 	// Performs Create ,Update and Delete operation.
 	PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error)
@@ -195,6 +206,8 @@ type CdPipelineConfigServiceImpl struct {
 	installedAppReadService           installedAppReader.InstalledAppReadService
 	chartReadService                  read3.ChartReadService
 	helmAppReadService                read4.HelmAppReadService
+	K8sUtil                           *k8s.K8sServiceImpl
+	fluxCDDeploymentService           fluxcd.DeploymentService
 }
 
 func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -228,7 +241,9 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 	clusterReadService read2.ClusterReadService,
 	installedAppReadService installedAppReader.InstalledAppReadService,
 	chartReadService read3.ChartReadService,
-	helmAppReadService read4.HelmAppReadService) *CdPipelineConfigServiceImpl {
+	helmAppReadService read4.HelmAppReadService,
+	K8sUtil *k8s.K8sServiceImpl,
+	fluxCDDeploymentService fluxcd.DeploymentService) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
 		logger:                            logger,
 		pipelineRepository:                pipelineRepository,
@@ -274,6 +289,8 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 		installedAppReadService:           installedAppReadService,
 		chartReadService:                  chartReadService,
 		helmAppReadService:                helmAppReadService,
+		K8sUtil:                           K8sUtil,
+		fluxCDDeploymentService:           fluxCDDeploymentService,
 	}
 }
 
@@ -521,6 +538,14 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 						linkCDValidationResponse.ErrorDetail.ValidationFailedMessage,
 						string(linkCDValidationResponse.ErrorDetail.ValidationFailedReason))
 			}
+		} else if pipeline.IsExternalFluxAppLinkRequest() {
+			linkCDValidationResponse := impl.ValidateLinkFluxAppRequest(context.Background(), migrationReq)
+			if !linkCDValidationResponse.IsLinkable {
+				return nil,
+					util.NewApiError(http.StatusPreconditionFailed,
+						linkCDValidationResponse.ErrorDetail.ValidationFailedMessage,
+						string(linkCDValidationResponse.ErrorDetail.ValidationFailedReason))
+			}
 		}
 	}
 
@@ -530,8 +555,9 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 		return nil, err
 	}
 
+	isGitopsConfiguredAndFluxCDRequest := gitOpsConfigurationStatus.IsGitOpsConfigured && pipelineCreateRequest.Pipelines[0].DeploymentAppType == clutserBean.PIPELINE_DEPLOYMENT_TYPE_FLUX
 	// TODO: creating git repo for all apps irrespective of acd or helm
-	if gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled() &&
+	if (gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled() || isGitopsConfiguredAndFluxCDRequest) &&
 		impl.IsGitOpsRequiredForCD(pipelineCreateRequest) { //TODO: ayush revisit
 
 		if gitOps.IsGitOpsRepoNotConfigured(appDeploymentConfig.GetRepoURL()) {
@@ -549,10 +575,12 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 				impl.logger.Errorw("error in creating git repo", "err", err)
 				return nil, fmt.Errorf("Create GitOps repository error: %s", err.Error())
 			}
-			err = impl.RegisterInACD(ctx, chartGitAttr, pipelineCreateRequest.UserId)
-			if err != nil {
-				impl.logger.Errorw("error in registering app in acd", "err", err)
-				return nil, err
+			if pipelineCreateRequest.Pipelines[0].IsAcdDeploymentAppType() {
+				err = impl.RegisterInACD(ctx, chartGitAttr, pipelineCreateRequest.UserId)
+				if err != nil {
+					impl.logger.Errorw("error in registering app in acd", "err", err)
+					return nil, err
+				}
 			}
 			// below function will update gitRepoUrl for charts if user has not already provided gitOps repoURL
 			appDeploymentConfig, err = impl.chartService.ConfigureGitOpsRepoUrlForApp(pipelineCreateRequest.AppId, chartGitAttr.RepoUrl, chartGitAttr.ChartLocation, false, pipelineCreateRequest.UserId)
@@ -581,6 +609,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 				Active:            true,
 			}
 			var releaseConfig *bean4.ReleaseConfiguration
+			//TODO: abstract below code into function for getting release config
 			if pipeline.IsExternalArgoAppLinkRequest() {
 				releaseConfig, err = impl.parseReleaseConfigForExternalAcdApp(pipeline.ApplicationObjectClusterId, pipeline.ApplicationObjectNamespace, pipeline.DeploymentAppName)
 				if err != nil {
@@ -588,10 +617,24 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 					return nil, err
 				}
 				envDeploymentConfig.ConfigType = bean4.CUSTOM.String()
-			} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+			} else if pipeline.IsExternalFluxAppLinkRequest() {
+				releaseConfig, err = impl.ParseReleaseConfigForExternalFluxCDApp(ctx, env.ClusterId, env.Namespace, pipeline.DeploymentAppName, env)
+				if err != nil {
+					impl.logger.Errorw("error in parsing deployment config for external flux app", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
+					return nil, err
+				}
+				envDeploymentConfig.ConfigType = bean4.CUSTOM.String()
+			} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD && pipeline.GetReleaseMode() == util.PIPELINE_RELEASE_MODE_CREATE {
 				releaseConfig, err = impl.parseReleaseConfigForACDApp(app, appDeploymentConfig, env)
 				if err != nil {
 					impl.logger.Errorw("error in parsing deployment config for acd app", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
+					return nil, err
+				}
+				envDeploymentConfig.ConfigType = appDeploymentConfig.ConfigType
+			} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_FLUX && pipeline.GetReleaseMode() == util.PIPELINE_RELEASE_MODE_CREATE {
+				releaseConfig, err = impl.parseReleaseConfigForFluxApp(app, appDeploymentConfig, env)
+				if err != nil {
+					impl.logger.Errorw("error in parsing deployment config for helm app", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
 					return nil, err
 				}
 				envDeploymentConfig.ConfigType = appDeploymentConfig.ConfigType
@@ -686,6 +729,137 @@ func (impl *CdPipelineConfigServiceImpl) parseReleaseConfigForACDApp(app *app2.A
 	}, nil
 }
 
+func (impl *CdPipelineConfigServiceImpl) parseReleaseConfigForFluxApp(app *app2.App, appDeploymentConfig *bean4.DeploymentConfig, env *repository6.Environment) (*bean4.ReleaseConfiguration, error) {
+
+	envOverride, err := impl.envConfigOverrideService.FindLatestChartForAppByAppIdAndEnvId(app.Id, env.Id)
+	if err != nil && !errors2.IsNotFound(err) {
+		impl.logger.Errorw("error in fetch")
+		return nil, err
+	}
+	var latestChart *chartRepoRepository.Chart
+	if !envOverride.IsOverridden() {
+		latestChart, err = impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		//if chart is overrides in env, it means it may have different version than app level.
+		latestChart = envOverride.Chart
+	}
+	chartRefId := latestChart.ChartRefId
+
+	chartRef, err := impl.chartRefReadService.FindById(chartRefId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching chart", "chartRefId", chartRefId, "err", err)
+		return nil, err
+	}
+
+	activeGitOpsConfig, err := impl.gitOpsConfigReadService.GetGitOpsConfigActive()
+	if err != nil {
+		impl.logger.Errorw("error in fetching active gitops config", "err", err)
+		return nil, err
+	}
+
+	chartLocation := filepath.Join(chartRef.Location, latestChart.ChartVersion)
+	deploymentAppName := fmt.Sprintf("%s-%s", app.AppName, env.Name)
+	secretName := fmt.Sprintf("devtron-flux-secret-%d", activeGitOpsConfig.Id)
+	valueFileNameEnv := fmt.Sprintf("_%d-values.yaml", env.Id)
+	return adapter2.NewFluxSpecReleaseConfig(env.ClusterId, env.Namespace, deploymentAppName, env.Namespace, deploymentAppName, secretName, chartLocation, latestChart.ChartVersion, globalUtil.GetDefaultTargetRevision(), appDeploymentConfig.GetRepoURL(), valueFileNameEnv, getValuesFileArrForDevtronInlineApps(chartLocation), ""), nil
+}
+
+func getValuesFileArrForDevtronInlineApps(chartLocation string) []string {
+	//order matters here, last file will override previous file
+	//for external flux apps this array might have some other data and we will add our devtronValueFileName (format: _{envId}-values.yaml) along with this array
+	return []string{path.Join(chartLocation, "values.yaml")}
+}
+
+func (impl *CdPipelineConfigServiceImpl) ParseReleaseConfigForExternalFluxCDApp(ctx context.Context, clusterId int, namespace, fluxHelmReleaseName string, env *repository6.Environment) (*bean4.ReleaseConfiguration, error) {
+
+	existingHelmRelease, existingGitRepository, err := impl.getExtFluxHelmReleaseAndGitRepository(ctx, clusterId, namespace, fluxHelmReleaseName)
+	if err != nil {
+		impl.logger.Errorw("error in fetching flux helm release", "clusterId", clusterId, "namespace", namespace, "err", err)
+		return nil, err
+	}
+	var gitRepositoryName, gitRepositoryNamespace, secretName, chartLocation, chartVersion, revision, repoURL, extValueFile string
+	var valuesFile []string
+	if existingHelmRelease != nil && existingHelmRelease.Spec.Chart != nil {
+		gitRepositoryName = existingHelmRelease.Spec.Chart.Spec.SourceRef.Name
+		gitRepositoryNamespace = existingHelmRelease.Spec.Chart.Spec.SourceRef.Namespace
+		chartLocation = existingHelmRelease.Spec.Chart.Spec.Chart
+		chartVersion = existingHelmRelease.Spec.Chart.Spec.Version
+		valuesFile = existingHelmRelease.Spec.Chart.Spec.ValuesFiles
+		extValueFile = existingHelmRelease.Spec.Values.String()
+		// assuming helm repo and git repository are in same namespace
+	}
+	if existingGitRepository != nil && existingGitRepository.Spec.SecretRef != nil {
+		secretName = existingGitRepository.Spec.SecretRef.Name
+		repoURL = existingGitRepository.Spec.URL
+		if existingGitRepository.Spec.Reference != nil {
+			revision = existingGitRepository.Spec.Reference.Branch
+		}
+	}
+	valueFileNameEnv := fmt.Sprintf("_%d-values.yaml", env.Id)
+	releaseConfig := adapter2.NewFluxSpecReleaseConfig(env.ClusterId, env.Namespace, gitRepositoryName, gitRepositoryNamespace, existingHelmRelease.Name, secretName, chartLocation, chartVersion, revision, repoURL, valueFileNameEnv, valuesFile, extValueFile)
+	return releaseConfig, nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) getExtFluxHelmReleaseAndGitRepository(ctx context.Context, clusterId int, namespace string, fluxHelmReleaseName string) (*helmv2.HelmRelease, *sourcev1.GitRepository, error) {
+	clusterConfig, err := impl.clusterReadService.GetClusterConfigByClusterId(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster", "clusterId", clusterId, "error", err)
+		return nil, nil, err
+	}
+
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config", "clusterId", clusterId, "err", err)
+		return nil, nil, err
+	}
+
+	apiClient, err := getClient(restConfig)
+	if err != nil {
+		impl.logger.Errorw("error in creating k8s client", "clusterId", clusterId, "err", err)
+		return nil, nil, err
+	}
+
+	key := types.NamespacedName{Name: fluxHelmReleaseName, Namespace: namespace}
+	existingHelmRelease := &helmv2.HelmRelease{}
+	err = apiClient.Get(ctx, key, existingHelmRelease)
+	if err != nil {
+		impl.logger.Errorw("error in getting helm release", "key", key, "err", err)
+		return nil, nil, err
+	}
+
+	if existingHelmRelease != nil && existingHelmRelease.Spec.Chart != nil && existingHelmRelease.Spec.Chart.Spec.SourceRef.Kind != "GitRepository" {
+		return nil, nil, pipelineConfigBean.LinkFailedError{
+			Reason:      pipelineConfigBean.UnsupportedFluxHelmReleaseSpec,
+			UserMessage: fmt.Sprintf("invalid source repository kind %s", existingHelmRelease.Spec.Chart.Spec.SourceRef.Kind),
+		}
+	}
+
+	var existingGitRepository *sourcev1.GitRepository
+	if existingHelmRelease != nil && existingHelmRelease.Spec.Chart != nil {
+		key := types.NamespacedName{Name: existingHelmRelease.Spec.Chart.Spec.SourceRef.Name, Namespace: existingHelmRelease.Spec.Chart.Spec.SourceRef.Namespace}
+		existingGitRepository = &sourcev1.GitRepository{}
+		err := apiClient.Get(ctx, key, existingGitRepository)
+		if err != nil {
+			impl.logger.Errorw("error in getting git repository", "key", key, "err", err)
+			return nil, nil, err
+		}
+	}
+	return existingHelmRelease, existingGitRepository, nil
+}
+
+func getClient(config *rest.Config) (controllerClient.Client, error) {
+	scheme := runtime.NewScheme()
+	// Register core Kubernetes types
+	_ = v1.AddToScheme(scheme)
+	// Register Flux types
+	_ = sourcev1.AddToScheme(scheme)
+	_ = helmv2.AddToScheme(scheme)
+	return controllerClient.New(config, controllerClient.Options{Scheme: scheme})
+}
+
 func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ExternalAppLinkValidationResponse {
 
 	appId := request.AppId
@@ -721,7 +895,12 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 	}
 	response.ApplicationMetadata.UpdateEnvironmentData(targetEnv)
 
-	sanitisedRepoUrl, err := impl.validateGitOpsForExternalAcd(argoApplicationSpec)
+	var requestedGitUrl string
+	if argoApplicationSpec.Spec.Source != nil {
+		requestedGitUrl = argoApplicationSpec.Spec.Source.RepoURL
+	}
+
+	sanitisedRepoUrl, err := impl.validateGitOpsForExternalApp(requestedGitUrl, appId)
 	if err != nil {
 		return response.SetErrorDetail(err)
 	}
@@ -731,7 +910,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		chartPath = argoApplicationSpec.Spec.Source.Path
 		targetRevision = argoApplicationSpec.Spec.Source.TargetRevision
 	}
-	helmChart, err := impl.extractHelmChartForExternalArgoApp(sanitisedRepoUrl, targetRevision, chartPath)
+	helmChart, err := impl.extractHelmChartForExternalArgoOrFluxApp(sanitisedRepoUrl, targetRevision, chartPath)
 	if err != nil {
 		impl.logger.Errorw("error in extracting helm chart from application spec", "acdAppName", acdAppName, "err", err)
 		return response.SetUnknownErrorDetail(err)
@@ -764,7 +943,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 }
 
 func (impl *CdPipelineConfigServiceImpl) ValidateDeploymentAppTypeForLinkRequest(targetEnvId int, expectedDeploymentAppType string, isGitOpsConfigured bool) error {
-	overrideDeploymentType, err := impl.deploymentTypeOverrideService.ValidateAndOverrideDeploymentAppType(util.PIPELINE_DEPLOYMENT_TYPE_ACD, isGitOpsConfigured, targetEnvId)
+	overrideDeploymentType, err := impl.deploymentTypeOverrideService.ValidateAndOverrideDeploymentAppType(expectedDeploymentAppType, isGitOpsConfigured, targetEnvId)
 	if err != nil {
 		impl.logger.Errorw("validation error for the used deployment type", "targetEnvId", targetEnvId, "deploymentAppType", expectedDeploymentAppType, "err", err)
 		if apiError, ok := err.(*util.ApiError); ok && apiError.Code == constants.InvalidDeploymentAppTypeForPipeline {
@@ -778,8 +957,8 @@ func (impl *CdPipelineConfigServiceImpl) ValidateDeploymentAppTypeForLinkRequest
 			UserMessage: err.Error(),
 		}
 	}
-	if overrideDeploymentType != util.PIPELINE_DEPLOYMENT_TYPE_ACD {
-		errMsg := fmt.Sprintf("Cannot migrate Argo CD Application. Deployment via %q is enforced on the target environment.", overrideDeploymentType)
+	if overrideDeploymentType != expectedDeploymentAppType {
+		errMsg := fmt.Sprintf("Cannot migrate Externalgit. Deployment via %q is enforced on the target environment.", overrideDeploymentType)
 		return pipelineConfigBean.LinkFailedError{
 			Reason:      pipelineConfigBean.EnforcedPolicyViolation,
 			UserMessage: errMsg,
@@ -805,14 +984,12 @@ func (impl *CdPipelineConfigServiceImpl) validateIfChartVersionAvailableForChart
 	return nil
 }
 
-func (impl *CdPipelineConfigServiceImpl) validateGitOpsForExternalAcd(argoApplicationSpec *v1alpha1.Application) (string, error) {
-	var requestedGitUrl string
-	if argoApplicationSpec.Spec.Source != nil {
-		requestedGitUrl = argoApplicationSpec.Spec.Source.RepoURL
-	}
+func (impl *CdPipelineConfigServiceImpl) validateGitOpsForExternalApp(requestedGitUrl string, appId int) (string, error) {
+
 	validateRequest := &validationBean.ValidateGitOpsRepoUrlRequest{
 		RequestedGitUrl: requestedGitUrl,
 		UseActiveGitOps: true, // oss only supports active gitops
+		AppId:           appId,
 	}
 	sanitisedRepoUrl, err := impl.gitOpsValidationService.ValidateGitOpsRepoUrl(validateRequest)
 	if err != nil {
@@ -869,7 +1046,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateAppChartTypeForLinkedApp(appId 
 			UserMessage: err.Error(),
 		}
 	}
-	if chartRef.Name != requiredChartName {
+	if impl.deploymentConfig.ValidateExtAppChart && chartRef.Name != requiredChartName {
 		return chartRef, pipelineConfigBean.LinkFailedError{
 			Reason:      pipelineConfigBean.ChartTypeMismatch,
 			UserMessage: fmt.Sprintf(pipelineConfigBean.ChartTypeMismatchErrorMsg, requiredChartName, chartRef.Name),
@@ -977,7 +1154,7 @@ func (impl *CdPipelineConfigServiceImpl) GetAndValidateArgoApplicationSpec(appli
 			UserMessage: "application with multiple/ empty helm value files are not supported",
 		}
 	}
-	if strings.ToLower(argoApplicationSpec.Spec.Source.TargetRevision) == bean7.TargetRevisionHead {
+	if globalUtil.IsHeadTargetRevision(argoApplicationSpec.Spec.Source.TargetRevision) {
 		return argoApplicationSpec, pipelineConfigBean.LinkFailedError{
 			Reason:      pipelineConfigBean.UnsupportedApplicationSpec,
 			UserMessage: "Target revision head not supported",
@@ -1034,8 +1211,8 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkHelmAppRequest(ctx context.
 
 	appId := request.AppId
 
-	releaseClusterId := request.GetReleaseClusterId()
-	releaseNamespace := request.GetReleaseNamespace()
+	releaseClusterId := request.GetHelmReleaseClusterId()
+	releaseNamespace := request.GetHelmReleaseNamespace()
 
 	release, err := impl.helmAppService.GetReleaseDetails(ctx, releaseClusterId, request.DeploymentAppName, releaseNamespace)
 	if err != nil {
@@ -1049,13 +1226,13 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkHelmAppRequest(ctx context.
 		impl.logger.Errorw("error in getting cluster by id", "clusterId", releaseClusterId, "err", err)
 		return response.SetUnknownErrorDetail(err)
 	}
-	response.HelmReleaseMetadata.UpdateClusterData(cluster)
+	response.HelmReleaseMetadata.Destination.UpdateClusterData(cluster)
 
 	targetEnv, err := impl.validateIfTargetEnvironmentAdded(releaseClusterId, releaseNamespace)
 	if err != nil {
 		return response.SetErrorDetail(err)
 	}
-	response.HelmReleaseMetadata.UpdateEnvironmentMetadata(targetEnv)
+	response.HelmReleaseMetadata.Destination.UpdateEnvironmentMetadata(targetEnv)
 
 	chartRef, err := impl.ValidateAppChartTypeForLinkedApp(appId, release.ChartName)
 	if err != nil {
@@ -1078,6 +1255,84 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkHelmAppRequest(ctx context.
 	if err != nil {
 		return response.SetErrorDetail(err)
 	}
+
+	return response
+}
+
+func (impl *CdPipelineConfigServiceImpl) ValidateLinkFluxAppRequest(ctx context.Context, request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ExternalAppLinkValidationResponse {
+
+	response := pipelineConfigBean.ExternalAppLinkValidationResponse{}
+
+	appId := request.AppId
+	releaseClusterId := request.GetFluxReleaseClusterId()
+	releaseNamespace := request.GetFluxReleaseNamespace()
+	deploymentAppName := request.DeploymentAppName
+
+	helmRelease, gitRepository, err := impl.getExtFluxHelmReleaseAndGitRepository(ctx, releaseClusterId, releaseNamespace, deploymentAppName)
+	if err != nil {
+		impl.logger.Errorw("error in fetching flux helm release", "clusterId", releaseClusterId, "namespace", releaseNamespace, "err", err)
+		return response.SetUnknownErrorDetail(err)
+	}
+
+	var requestedGitUrl, branch, chartLocation string
+
+	if helmRelease != nil {
+		chartLocation = helmRelease.Spec.Chart.Spec.Chart
+	}
+	if gitRepository != nil {
+		requestedGitUrl = gitRepository.Spec.URL
+		branch = gitRepository.Spec.Reference.Branch
+	}
+
+	sanitisedRepoUrl, err := impl.validateGitOpsForExternalApp(requestedGitUrl, appId)
+	if err != nil {
+		return response.SetErrorDetail(err)
+	}
+
+	helmChart, err := impl.extractHelmChartForExternalArgoOrFluxApp(sanitisedRepoUrl, branch, chartLocation)
+	if err != nil {
+		impl.logger.Errorw("error in extracting helm chart from external flux app", "fluxAppName", request.DeploymentAppName, "err", err)
+		return response.SetUnknownErrorDetail(err)
+	}
+	response.FluxReleaseMetadata.RequiredChartName = helmChart.Name()
+	response.FluxReleaseMetadata.RequiredChartVersion = helmChart.Metadata.Version
+
+	chartRef, err := impl.ValidateAppChartTypeForLinkedApp(appId, response.FluxReleaseMetadata.RequiredChartName)
+	if err != nil {
+		if chartRef != nil {
+			response.FluxReleaseMetadata.SavedChartName = chartRef.Name
+		}
+		impl.logger.Errorw("error in finding chart configured for app ", "appId", appId, "err", err)
+		return response.SetErrorDetail(err)
+	}
+	response.FluxReleaseMetadata.SavedChartName = chartRef.Name
+
+	if impl.deploymentConfig.ValidateExtAppChart {
+		err = impl.validateIfChartVersionAvailableForChart(chartRef, response.FluxReleaseMetadata.RequiredChartVersion)
+		if err != nil {
+			return response.SetErrorDetail(err)
+		}
+	}
+
+	cluster, err := impl.clusterReadService.FindById(releaseClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster by id", "clusterId", releaseClusterId, "err", err)
+		return response.SetUnknownErrorDetail(err)
+	}
+	response.FluxReleaseMetadata.Destination.UpdateClusterData(cluster)
+
+	targetEnv, err := impl.validateIfTargetEnvironmentAdded(releaseClusterId, releaseNamespace)
+	if err != nil {
+		return response.SetErrorDetail(err)
+	}
+	response.FluxReleaseMetadata.Destination.UpdateEnvironmentMetadata(targetEnv)
+
+	err = impl.ValidateDeploymentAppTypeForLinkRequest(targetEnv.Id, util.PIPELINE_DEPLOYMENT_TYPE_FLUX, true)
+	if err != nil {
+		return response.SetErrorDetail(err)
+	}
+
+	response.IsLinkable = true
 
 	return response
 }
@@ -1475,6 +1730,22 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 				}
 				impl.logger.Infow("app deleted from argocd", "id", pipeline.Id, "pipelineName", pipeline.Name, "app", deploymentAppName)
 			}
+		} else if util.IsFluxApp(envDeploymentConfig.DeploymentAppType) {
+			clusterConfig, err := impl.clusterReadService.GetClusterConfigByClusterId(clusterBean.Id)
+			if err != nil {
+				impl.logger.Errorw("error, GetClusterConfigByClusterId", "clusterId", clusterBean.Id, "err", err)
+				return nil, err
+			}
+			err = impl.fluxCDDeploymentService.DeleteFluxDeploymentApp(ctx, &fluxcd.DeploymentAppDeleteRequest{
+				ClusterConfig:    clusterConfig,
+				DeploymentConfig: envDeploymentConfig,
+			})
+			if err != nil {
+				impl.logger.Errorw("error, DeleteFluxTypePipelineDeploymentApp", "err", err, "pipelineId", pipeline.Id)
+				if !forceDelete {
+					return deleteResponse, err
+				}
+			}
 		} else if util.IsHelmApp(envDeploymentConfig.DeploymentAppType) {
 			err = impl.DeleteHelmTypePipelineDeploymentApp(ctx, forceDelete, pipeline)
 			if err != nil {
@@ -1492,6 +1763,55 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 	deleteResponse.DeleteInitiated = true
 	impl.pipelineConfigEventPublishService.PublishCDPipelineDelete(pipeline.Id, userId)
 	return deleteResponse, nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) DeleteFluxTypePipelineDeploymentApp(ctx context.Context, envDeploymentConfig *bean4.DeploymentConfig) error {
+	fluxCdSpec := envDeploymentConfig.ReleaseConfiguration.FluxCDSpec
+	clusterId := fluxCdSpec.ClusterId
+	clusterConfig, err := impl.clusterReadService.GetClusterConfigByClusterId(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster", "clusterId", clusterId, "error", err)
+		return err
+	}
+	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config", "clusterId", clusterId, "err", err)
+		return err
+	}
+
+	apiClient, err := getClient(restConfig)
+	if err != nil {
+		impl.logger.Errorw("error in creating k8s client", "clusterId", clusterId, "err", err)
+		return err
+	}
+	name, namespace := fluxCdSpec.HelmReleaseName, fluxCdSpec.HelmReleaseNamespace
+	key := types.NamespacedName{Name: name, Namespace: namespace}
+
+	existingHelmRelease := &helmv2.HelmRelease{}
+	err = apiClient.Get(ctx, key, existingHelmRelease)
+	if err != nil {
+		impl.logger.Errorw("error in getting helm release", "key", key, "err", err)
+		return err
+	}
+	err = apiClient.Delete(ctx, existingHelmRelease)
+	if err != nil {
+		impl.logger.Errorw("error in deleting helm release", "key", key, "err", err)
+		return err
+	}
+
+	key = types.NamespacedName{Name: fluxCdSpec.GitRepositoryName, Namespace: fluxCdSpec.GitRepositoryNamespace}
+	existingGitRepository := &sourcev1.GitRepository{}
+	err = apiClient.Get(ctx, key, existingGitRepository)
+	if err != nil {
+		impl.logger.Errorw("error in getting git repository", "key", key, "err", err)
+		return err
+	}
+	err = apiClient.Delete(ctx, existingGitRepository)
+	if err != nil {
+		impl.logger.Errorw("error in deleting git repository", "name", name, "namespace", namespace, "err", err)
+		return err
+	}
+	return nil
 }
 
 func (impl *CdPipelineConfigServiceImpl) DeleteHelmTypePipelineDeploymentApp(ctx context.Context, forceDelete bool, pipeline *pipelineConfig.Pipeline) error {
@@ -2060,8 +2380,9 @@ func (impl *CdPipelineConfigServiceImpl) IsGitOpsRequiredForCD(pipelineCreateReq
 	haveAtLeastOneGitOps := false
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 		if pipeline.EnvironmentId > 0 &&
-			pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD &&
-			!pipeline.IsExternalArgoAppLinkRequest() {
+			(pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD &&
+				!pipeline.IsExternalArgoAppLinkRequest()) || (pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_FLUX &&
+			!pipeline.IsExternalFluxAppLinkRequest()) {
 			haveAtLeastOneGitOps = true
 		}
 	}
@@ -2321,6 +2642,17 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 				impl.logger.Errorw("error in creating env override", "appId", app.Id, "envId", envOverride.TargetEnvironment, "err", err)
 				return 0, err
 			}
+		} else if pipeline.IsExternalFluxAppLinkRequest() {
+			overrideCreateRequest, err := impl.parseEnvOverrideCreateRequestForExternalFluxApp(deploymentConfig, latestChart, app, userId, pipeline, appLevelAppMetricsEnabled)
+			if err != nil {
+				impl.logger.Errorw("error in parsing override request for external acd app", "appId", app.Id, "err", err)
+				return 0, err
+			}
+			envOverride, updatedAppMetrics, err = impl.propertiesConfigService.CreateIfRequired(overrideCreateRequest, tx)
+			if err != nil {
+				impl.logger.Errorw("error in creating env override", "appId", app.Id, "envId", envOverride.TargetEnvironment, "err", err)
+				return 0, err
+			}
 		} else {
 			overrideCreateRequest := &pipelineConfigBean.EnvironmentOverrideCreateInternalDTO{
 				Chart:               latestChart,
@@ -2524,13 +2856,36 @@ func (impl *CdPipelineConfigServiceImpl) parseEnvOverrideCreateRequestForExterna
 	return overrideCreateRequest, err
 }
 
+func (impl *CdPipelineConfigServiceImpl) parseEnvOverrideCreateRequestForExternalFluxApp(deploymentConfig *bean4.DeploymentConfig, latestChart *chartRepoRepository.Chart, app *app2.App, userId int32, pipeline *bean.CDPipelineConfigObject, appLevelAppMetricsEnabled bool) (*pipelineConfigBean.EnvironmentOverrideCreateInternalDTO, error) {
+	values, _, err := impl.GetValuesAndChartMetadataForExternalFluxCDApp(deploymentConfig.ReleaseConfiguration.FluxCDSpec)
+	if err != nil {
+		impl.logger.Errorw("error in reading values for external argocd app", "acdAppName", deploymentConfig.ReleaseConfiguration.ArgoCDSpec.Metadata.Name, "err", err)
+		return nil, err
+	}
+	latestChart.GlobalOverride = string(values)
+	overrideCreateRequest := &pipelineConfigBean.EnvironmentOverrideCreateInternalDTO{
+		Chart:               latestChart,
+		EnvironmentId:       pipeline.EnvironmentId,
+		UserId:              userId,
+		ManualReviewed:      false,
+		ChartStatus:         models.CHARTSTATUS_NEW,
+		IsOverride:          true,
+		IsAppMetricsEnabled: appLevelAppMetricsEnabled,
+		IsBasicViewLocked:   false,
+		Namespace:           pipeline.Namespace,
+		CurrentViewEditor:   latestChart.CurrentViewEditor,
+		MergeStrategy:       models.MERGE_STRATEGY_REPLACE,
+	}
+	return overrideCreateRequest, err
+}
+
 func (impl *CdPipelineConfigServiceImpl) GetValuesAndChartMetadataForExternalArgoCDApp(spec bean4.ArgoCDSpec) (json.RawMessage, *chart2.Metadata, error) {
 	repoURL := spec.Spec.Source.RepoURL
 	chartPath := spec.Spec.Source.Path
 	targetRevision := spec.Spec.Source.TargetRevision
 	//validation is performed before this step, so assuming ValueFiles array has one and only one entry
 	valuesFileName := spec.Spec.Source.Helm.ValueFiles[0]
-	helmChart, err := impl.extractHelmChartForExternalArgoApp(repoURL, targetRevision, chartPath)
+	helmChart, err := impl.extractHelmChartForExternalArgoOrFluxApp(repoURL, targetRevision, chartPath)
 	if err != nil {
 		impl.logger.Errorw("error in extracting helm ")
 		return nil, nil, err
@@ -2551,7 +2906,42 @@ func (impl *CdPipelineConfigServiceImpl) GetValuesAndChartMetadataForExternalArg
 	return nil, nil, errors2.New(fmt.Sprintf("values file with name %s not found in chart", valuesFileName))
 }
 
-func (impl *CdPipelineConfigServiceImpl) extractHelmChartForExternalArgoApp(repoURL, targetRevision, chartPath string) (*chart2.Chart, error) {
+func (impl *CdPipelineConfigServiceImpl) GetValuesAndChartMetadataForExternalFluxCDApp(spec bean4.FluxCDSpec) (json.RawMessage, *chart2.Metadata, error) {
+	repoURL := spec.RepoUrl
+	chartPath := spec.ChartLocation
+	targetRevision := spec.RevisionTarget
+	//TODO: validation is performed before this step, so assuming ValueFiles array is not empty
+
+	helmChart, err := impl.extractHelmChartForExternalArgoOrFluxApp(repoURL, targetRevision, chartPath)
+	if err != nil {
+		impl.logger.Errorw("error in extracting helm ")
+		return nil, nil, err
+	}
+
+	var valuesFilePath string
+	if len(spec.HelmReleaseValuesFiles) == 0 {
+		return []byte(spec.ExtFluxValues), helmChart.Metadata, nil
+	} else {
+		valuesFilePath = spec.HelmReleaseValuesFiles[len(spec.HelmReleaseValuesFiles)-1]
+		valuesFileName := filepath.Base(valuesFilePath)
+		for _, file := range helmChart.Files {
+			if file.Name == valuesFileName {
+				return file.Data, helmChart.Metadata, nil
+			}
+		}
+		if valuesFileName == "values.yaml" && helmChart.Values != nil {
+			byteValues, err := json.Marshal(helmChart.Values)
+			if err != nil {
+				impl.logger.Errorw("error in json Marshal values", "values", helmChart.Values, "err", err)
+				return nil, nil, err
+			}
+			return byteValues, helmChart.Metadata, nil
+		}
+	}
+	return nil, nil, errors2.New("unable to parse values")
+}
+
+func (impl *CdPipelineConfigServiceImpl) extractHelmChartForExternalArgoOrFluxApp(repoURL, targetRevision, chartPath string) (*chart2.Chart, error) {
 	repoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(repoURL)
 	chartDir := fmt.Sprintf("%s-%s", repoName, impl.chartTemplateService.GetDir())
 	clonedDir, err := impl.gitOperationService.GetClonedDir(context.Background(), chartDir, repoURL, targetRevision)
