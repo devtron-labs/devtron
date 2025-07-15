@@ -1,5 +1,5 @@
 public.ecr.aws/docker/library/redis:7.0.5-alpine
-quay.io/argoproj/argocd:v2.5.2
+quay.io/argoproj/argocd:v2.13.3
 quay.io/argoproj/workflow-controller:v3.4.3
 quay.io/devtron/alpine-k8s-utils:latest
 quay.io/devtron/alpine-netshoot:latest
