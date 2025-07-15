@@ -1,5 +1,4 @@
 ## Enhancements
-- feat: enhance patch support for user attribute patch api within nested structure (#6689)
 - feat: added the plugin for aws ecr retagging (#6695)
 - feat: flux cd deployment  (#6660)
 - feat: add app name in labels list api (#6688)
