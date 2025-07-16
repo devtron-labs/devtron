@@ -965,12 +965,17 @@ func (impl *ChartServiceImpl) ConfigureGitOpsRepoUrlForApp(appId int, repoUrl, c
 	if err != nil {
 		return nil, err
 	}
+	committed := false
 	tx, err := impl.chartRepository.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting transaction to update charts", "error", err)
 		return nil, err
 	}
-	defer impl.chartRepository.RollbackTx(tx)
+	defer func() {
+		if !committed {
+			impl.chartRepository.RollbackTx(tx)
+		}
+	}()
 	var updatedCharts []*chartRepoRepository.Chart
 	for _, ch := range charts {
 		if !ch.IsCustomGitRepository {
@@ -1003,6 +1008,7 @@ func (impl *ChartServiceImpl) ConfigureGitOpsRepoUrlForApp(appId int, repoUrl, c
 		impl.logger.Errorw("error in committing transaction to update charts", "error", err)
 		return nil, err
 	}
+	committed = true
 
 	return deploymentConfig, nil
 }

@@ -1370,7 +1370,7 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) erro
 	// Rollback tx on error.
 	defer tx.Rollback()
 	// deleting deployment config first as it is dependent on app
-	appDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(nil, appId, 0)
+	appDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(tx, appId, 0)
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "err", err)
 		return err

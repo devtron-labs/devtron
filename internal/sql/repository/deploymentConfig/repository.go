@@ -124,8 +124,9 @@ func (impl *RepositoryImpl) UpdateAll(tx *pg.Tx, configs []*DeploymentConfig) ([
 func (impl *RepositoryImpl) GetByAppIdAndEnvId(tx *pg.Tx, appId, envId int) (*DeploymentConfig, error) {
 	result := &DeploymentConfig{}
 	var connection orm.DB
-	connection = tx
-	if tx == nil {
+	if tx != nil {
+		connection = tx
+	} else {
 		connection = impl.dbConnection
 	}
 	err := connection.Model(result).
@@ -146,8 +147,9 @@ func (impl *RepositoryImpl) GetByAppIdAndEnvId(tx *pg.Tx, appId, envId int) (*De
 func (impl *RepositoryImpl) GetAppLevelConfigForDevtronApps(tx *pg.Tx, appId int) (*DeploymentConfig, error) {
 	result := &DeploymentConfig{}
 	var connection orm.DB
-	connection = tx
-	if tx == nil {
+	if tx != nil {
+		connection = tx
+	} else {
 		connection = impl.dbConnection
 	}
 	err := connection.Model(result).
