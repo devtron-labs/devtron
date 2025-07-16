@@ -91,10 +91,12 @@ The following tables list the configurable parameters of the Payload component i
   ],
   "properties": {
     "apiVersion": {
-      "const": "v1beta1"
+      "type": "string",
+      "const": "batch/v1beta1"
     },
     "kind": {
-      "const": "Application"
+      "type": "string",
+      "enum": ["application", "Application"]
     },
     "spec": {
       "type": "object",
@@ -337,227 +339,132 @@ The following tables list the configurable parameters of the Payload component i
   ],
   "properties": {
     "apiVersion": {
+      "type": "string",
       "const": "batch/v1beta2"
     },
     "kind": {
-      "const": "Application"
+      "type": "string",
+      "enum": ["application", "Application"]
     },
     "spec": {
       "type": "object",
+      "required": [
+        "selectors"
+      ],
+      "anyOf": [
+        {
+          "$ref": "#/definitions/DeploymentTemplate"
+        },
+        {
+          "$ref": "#/definitions/ConfigMap"
+        },
+        {
+          "$ref": "#/definitions/Secret"
+        }
+      ],
       "properties": {
-        "anyOf": [
-          {
-            "required": [
-              "deploymentTemplate"
-            ]
-          },
-          {
-            "required": [
-              "configMap"
-            ]
-          },
-          {
-            "required": [
-              "secret"
-            ]
-          }
-        ],
         "selectors": {
+          "$ref": "#/definitions/Selectors"
+        }
+      }
+    }
+  },
+  "definitions": {
+    "Selectors": {"type": "object",
+      "properties": {
+        "match": {
           "type": "object",
           "properties": {
-            "match": {
+            "type": {
+              "type": "string",
+              "enum": ["criteria", "global"]
+            },
+            "project": {
+              "type": "object",
+              "properties": {
+                "includes": {
+                  "$ref": "#/definitions/NameIncludesExcludes"
+                },
+                "excludes": {
+                  "$ref": "#/definitions/NameIncludesExcludes"
+                }
+              }
+            },
+            "app": {
+              "type": "object",
+              "properties": {
+                "includes": {
+                  "$ref": "#/definitions/NameIncludesExcludes"
+                },
+                "excludes": {
+                  "$ref": "#/definitions/NameIncludesExcludes"
+                }
+              }
+            },
+            "env": {
               "type": "object",
               "properties": {
                 "type": {
                   "type": "string",
-                  "enum": ["criteria", "global"]
+                  "enum": ["prod", "non-prod"]
                 },
-                "project": {
-                  "type": "object",
-                  "properties": {
-                    "includes": {
-                      "$ref": "#/definitions/NameIncludesExcludes"
-                    },
-                    "excludes": {
-                      "$ref": "#/definitions/NameIncludesExcludes"
-                    }
-                  }
+                "includes": {
+                  "$ref": "#/definitions/NameIncludesExcludes"
                 },
-                "app": {
-                  "type": "object",
-                  "properties": {
-                    "includes": {
-                      "$ref": "#/definitions/NameIncludesExcludes"
-                    },
-                    "excludes": {
-                      "$ref": "#/definitions/NameIncludesExcludes"
-                    }
-                  }
-                },
-                "env": {
-                  "type": "object",
-                  "properties": {
-                    "type": {
-                      "type": "string",
-                      "enum": ["prod", "non-prod"]
-                    },
-                    "includes": {
-                      "$ref": "#/definitions/NameIncludesExcludes"
-                    },
-                    "excludes": {
-                      "$ref": "#/definitions/NameIncludesExcludes"
-                    }
-                  }
+                "excludes": {
+                  "$ref": "#/definitions/NameIncludesExcludes"
                 }
               }
             }
           }
-        },
-        "deploymentTemplate": {
-          "type": "object",
-          "properties": {
-            "match": {
-              "type": "object",
-              "properties": {
-                "include-base-config": {
-                  "type": "boolean"
-                },
-                "chart": {
-                  "type": "object",
-                  "properties": {
-                    "name": {
-                      "type": "string"
-                    },
-                    "version": {
-                      "type": "object",
-                      "properties": {
-                        "value": {
-                          "type": "string",
-                          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
-                        },
-                        "operator": {
-                          "type": "string",
-                          "enum": ["EQUAL", "GREATER", "LESS", "GREATER_EQUAL", "LESS_EQUAL"]
-                        }
-                      }
-                    },
-                    "custom": {
-                      "type": "boolean"
-                    }
+        }
+      }
+    },
+    "Secret": {
+      "type": "object",
+      "required": [
+        "secret"
+      ],
+      "secret": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "object",
+            "properties": {
+              "match": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["environment", "volume"]
+                  },
+                  "include-base-config": {
+                    "type": "boolean"
+                  },
+                  "includes": {
+                    "$ref": "#/definitions/NameIncludesExcludes"
+                  },
+                  "excludes": {
+                    "$ref": "#/definitions/NameIncludesExcludes"
                   }
                 }
-              }
-            },
-            "operation": {
-              "type": "object",
-              "properties": {
-                "action": {
-                  "type": "string",
-                  "enum": ["update"]
-                },
-                "field": {
-                  "type": "string",
-                  "enum": ["values", "version"]
-                },
-                "patchJson": {
-                  "type": "string"
-                },
-                "chartVersion": {
-                  "type": "string",
-                  "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
-                }
-              }
-            }
-          }
-        },
-        "configMap": {
-          "type": "object",
-          "properties": {
-            "spec": {
-              "type": "object",
-              "properties": {
-                "match": {
-                  "type": "object",
-                  "properties": {
-                    "type": {
-                      "type": "string",
-                      "enum": ["environment", "volume"]
-                    },
-                    "include-base-config": {
-                      "type": "boolean"
-                    },
-                    "includes": {
-                      "$ref": "#/definitions/NameIncludesExcludes"
-                    },
-                    "excludes": {
-                      "$ref": "#/definitions/NameIncludesExcludes"
-                    }
-                  }
-                },
-                "operation": {
-                  "type": "object",
-                  "properties": {
-                    "action": {
-                      "type": "string",
-                      "enum": ["create", "update", "delete"]
-                    },
-                    "field": {
-                      "type": "string",
-                      "enum": ["data"]
-                    },
-                    "patchJson": {
-                      "type": "string"
-                    },
-                    "value": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "secret": {
-          "type": "object",
-          "properties": {
-            "spec": {
-              "type": "object",
-              "properties": {
-                "match": {
-                  "type": "object",
-                  "properties": {
-                    "type": {
-                      "type": "string",
-                      "enum": ["environment", "volume"]
-                    },
-                    "include-base-config": {
-                      "type": "boolean"
-                    },
-                    "includes": {
-                      "$ref": "#/definitions/NameIncludesExcludes"
-                    },
-                    "excludes": {
-                      "$ref": "#/definitions/NameIncludesExcludes"
-                    }
-                  }
-                },
-                "operation": {
-                  "type": "object",
-                  "properties": {
-                    "action": {
-                      "type": "string",
-                      "enum": ["create", "update", "delete"]
-                    },
-                    "field": {
-                      "type": "string",
-                      "enum": ["data"]
-                    },
-                    "patchJson": {
-                      "type": "string"
-                    },
-                    "value": {
-                      "type": "string"
-                    }
+              },
+              "operation": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": ["create", "update", "delete"]
+                  },
+                  "field": {
+                    "type": "string",
+                    "enum": ["data"]
+                  },
+                  "patchJson": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "string"
                   }
                 }
               }
@@ -565,9 +472,123 @@ The following tables list the configurable parameters of the Payload component i
           }
         }
       }
-    }
-  },
-  "definitions": {
+    },
+    "ConfigMap": {
+      "type": "object",
+      "required": [
+        "configMap"
+      ],
+      "configMap": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "object",
+            "properties": {
+              "match": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["environment", "volume"]
+                  },
+                  "include-base-config": {
+                    "type": "boolean"
+                  },
+                  "includes": {
+                    "$ref": "#/definitions/NameIncludesExcludes"
+                  },
+                  "excludes": {
+                    "$ref": "#/definitions/NameIncludesExcludes"
+                  }
+                }
+              },
+              "operation": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": ["create", "update", "delete"]
+                  },
+                  "field": {
+                    "type": "string",
+                    "enum": ["data"]
+                  },
+                  "patchJson": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "DeploymentTemplate": {
+      "type": "object",
+      "required": [
+        "deploymentTemplate"
+      ],
+      "deploymentTemplate": {
+        "type": "object",
+        "properties": {
+          "match": {
+            "type": "object",
+            "properties": {
+              "include-base-config": {
+                "type": "boolean"
+              },
+              "chart": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "object",
+                    "properties": {
+                      "value": {
+                        "type": "string",
+                        "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+                      },
+                      "operator": {
+                        "type": "string",
+                        "enum": ["EQUAL", "GREATER", "LESS", "GREATER_EQUAL", "LESS_EQUAL"]
+                      }
+                    }
+                  },
+                  "custom": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          },
+          "operation": {
+            "type": "object",
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": ["update"]
+              },
+              "field": {
+                "type": "string",
+                "enum": ["values", "version"]
+              },
+              "patchJson": {
+                "type": "string"
+              },
+              "chartVersion": {
+                "type": "string",
+                "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+              }
+            }
+          }
+        }
+      }
+    },
     "NameIncludesExcludes": {
       "type": "object",
       "properties": {

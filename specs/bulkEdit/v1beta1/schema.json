@@ -10,10 +10,12 @@
   ],
   "properties": {
     "apiVersion": {
-      "const": "v1beta1"
+      "type": "string",
+      "const": "batch/v1beta1"
     },
     "kind": {
-      "const": "Application"
+      "type": "string",
+      "enum": ["application", "Application"]
     },
     "spec": {
       "type": "object",
