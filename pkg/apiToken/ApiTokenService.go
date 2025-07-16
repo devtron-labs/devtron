@@ -19,6 +19,7 @@ package apiToken
 import (
 	"errors"
 	"fmt"
+	"github.com/caarlos0/env"
 	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"regexp"
 	"strconv"
@@ -48,17 +49,41 @@ type ApiTokenServiceImpl struct {
 	userService           user2.UserService
 	userAuditService      user2.UserAuditService
 	apiTokenRepository    ApiTokenRepository
+	TokenVariableConfig   *TokenVariableConfig
 }
 
-func NewApiTokenServiceImpl(logger *zap.SugaredLogger, apiTokenSecretService ApiTokenSecretService, userService user2.UserService, userAuditService user2.UserAuditService,
-	apiTokenRepository ApiTokenRepository) *ApiTokenServiceImpl {
-	return &ApiTokenServiceImpl{
+func NewApiTokenServiceImpl(logger *zap.SugaredLogger,
+	apiTokenSecretService ApiTokenSecretService,
+	userService user2.UserService,
+	userAuditService user2.UserAuditService,
+	apiTokenRepository ApiTokenRepository,
+) (*ApiTokenServiceImpl, error) {
+	apiTokenService := &ApiTokenServiceImpl{
 		logger:                logger,
 		apiTokenSecretService: apiTokenSecretService,
 		userService:           userService,
 		userAuditService:      userAuditService,
 		apiTokenRepository:    apiTokenRepository,
 	}
+
+	cfg, err := GetTokenConfig()
+	if err != nil {
+		apiTokenService.logger.Errorw("error while getting token config ", "error", err)
+		return nil, err
+	}
+	apiTokenService.TokenVariableConfig = cfg
+
+	return apiTokenService, nil
+}
+
+func GetTokenConfig() (*TokenVariableConfig, error) {
+	cfg := &TokenVariableConfig{}
+	err := env.Parse(cfg)
+	return cfg, err
+}
+
+type TokenVariableConfig struct {
+	HideApiTokens bool `env:"HIDE_API_TOKENS" envDefault:"false" description:"Boolean flag for should the api tokens generated be hidden from the UI"`
 }
 
 var invalidCharsInApiTokenName = regexp.MustCompile("[,\\s]")
@@ -104,8 +129,10 @@ func (impl ApiTokenServiceImpl) GetAllApiTokensForWebhook(projectName string, en
 				Name:           &apiTokenFromDb.Name,
 				Description:    &apiTokenFromDb.Description,
 				ExpireAtInMs:   &apiTokenFromDb.ExpireAtInMs,
-				Token:          &apiTokenFromDb.Token,
 				UpdatedAt:      &updatedAtStr,
+			}
+			if !impl.TokenVariableConfig.HideApiTokens {
+				apiToken.Token = &apiTokenFromDb.Token
 			}
 			apiTokens = append(apiTokens, apiToken)
 		}
@@ -140,8 +167,10 @@ func (impl ApiTokenServiceImpl) GetAllActiveApiTokens() ([]*openapi.ApiToken, er
 			Name:           &apiTokenFromDb.Name,
 			Description:    &apiTokenFromDb.Description,
 			ExpireAtInMs:   &apiTokenFromDb.ExpireAtInMs,
-			Token:          &apiTokenFromDb.Token,
 			UpdatedAt:      &updatedAtStr,
+		}
+		if !impl.TokenVariableConfig.HideApiTokens {
+			apiToken.Token = &apiTokenFromDb.Token
 		}
 		if latestAuditLog != nil {
 			lastUsedAtStr := latestAuditLog.CreatedOn.String()
@@ -262,6 +291,7 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 		Token:          &token,
 		UserId:         &userId,
 		UserIdentifier: &email,
+		HideApiToken:   impl.TokenVariableConfig.HideApiTokens,
 	}, nil
 }
 
@@ -307,8 +337,9 @@ func (impl ApiTokenServiceImpl) UpdateApiToken(apiTokenId int, request *openapi.
 
 	success := true
 	return &openapi.UpdateApiTokenResponse{
-		Success: &success,
-		Token:   &apiToken.Token,
+		Success:      &success,
+		Token:        &apiToken.Token,
+		HideApiToken: impl.TokenVariableConfig.HideApiTokens,
 	}, nil
 }
 
