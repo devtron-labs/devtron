@@ -19,6 +19,7 @@ package restHandler
 import (
 	"encoding/json"
 	"errors"
+	"github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"net/http"
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -108,7 +109,7 @@ func (handler *UserAttributesRestHandlerImpl) PatchUserAttributes(w http.Respons
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
-func (handler *UserAttributesRestHandlerImpl) validateUserAttributesRequest(w http.ResponseWriter, r *http.Request, operation string) (*attributes.UserAttributesDto, bool) {
+func (handler *UserAttributesRestHandlerImpl) validateUserAttributesRequest(w http.ResponseWriter, r *http.Request, operation string) (*bean.UserAttributesDto, bool) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -116,7 +117,7 @@ func (handler *UserAttributesRestHandlerImpl) validateUserAttributesRequest(w ht
 	}
 
 	decoder := json.NewDecoder(r.Body)
-	var dto attributes.UserAttributesDto
+	var dto bean.UserAttributesDto
 	err = decoder.Decode(&dto)
 	if err != nil {
 		handler.logger.Errorw("request err, "+operation, "err", err, "payload", dto)
@@ -158,7 +159,7 @@ func (handler *UserAttributesRestHandlerImpl) GetUserAttribute(w http.ResponseWr
 		return
 	}
 
-	dto := attributes.UserAttributesDto{}
+	dto := bean.UserAttributesDto{}
 
 	emailId, err := handler.userService.GetActiveEmailById(userId)
 	if err != nil {
