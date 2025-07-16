@@ -76,6 +76,7 @@ type ClusterService interface {
 	FindById(id int) (*bean.ClusterBean, error)
 	FindByIdWithoutConfig(id int) (*bean.ClusterBean, error)
 	FindByIds(id []int) ([]bean.ClusterBean, error)
+	FindByIdsWithoutConfig(ids []int) ([]*bean.ClusterBean, error)
 	Update(ctx context.Context, bean *bean.ClusterBean, userId int32) (*bean.ClusterBean, error)
 	Delete(bean *bean.ClusterBean, userId int32) error
 
@@ -352,6 +353,21 @@ func (impl *ClusterServiceImpl) FindByIds(ids []int) ([]bean.ClusterBean, error)
 	for _, model := range models {
 		bean := adapter.GetClusterBean(model)
 		beans = append(beans, bean)
+	}
+	return beans, nil
+}
+
+func (impl *ClusterServiceImpl) FindByIdsWithoutConfig(ids []int) ([]*bean.ClusterBean, error) {
+	models, err := impl.clusterRepository.FindByIds(ids)
+	if err != nil {
+		return nil, err
+	}
+	var beans []*bean.ClusterBean
+	for _, model := range models {
+		bean := adapter.GetClusterBean(model)
+		//empty bearer token as it will be hidden for user
+		bean.Config = map[string]string{commonBean.BearerToken: ""}
+		beans = append(beans, &bean)
 	}
 	return beans, nil
 }
