@@ -291,6 +291,7 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 		Token:          &token,
 		UserId:         &userId,
 		UserIdentifier: &email,
+		HideApiToken:   impl.TokenVariableConfig.HideApiTokens,
 	}, nil
 }
 
@@ -336,8 +337,9 @@ func (impl ApiTokenServiceImpl) UpdateApiToken(apiTokenId int, request *openapi.
 
 	success := true
 	return &openapi.UpdateApiTokenResponse{
-		Success: &success,
-		Token:   &apiToken.Token,
+		Success:      &success,
+		Token:        &apiToken.Token,
+		HideApiToken: impl.TokenVariableConfig.HideApiTokens,
 	}, nil
 }
 
