@@ -178,7 +178,7 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus eventProcessorBean.CiCd
 		}
 		appId := savedWorkflow.CdWorkflow.Pipeline.AppId
 		envId := savedWorkflow.CdWorkflow.Pipeline.EnvironmentId
-		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
+		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(nil, appId, envId)
 		if err != nil {
 			impl.Logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
 			return savedWorkflow.Id, savedWorkflow.Status, true, "", err

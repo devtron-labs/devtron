@@ -760,7 +760,7 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 		return envs, err
 	}
 	newCtx, span = otel.Tracer("chartRepository").Start(newCtx, "FindLatestChartForAppByAppId")
-	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
+	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(nil, appId)
 	span.End()
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error in fetching latest chart", "err", err)
@@ -781,7 +781,7 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 	}
 	for _, env := range envs {
 		newCtx, span = otel.Tracer("envOverrideRepository").Start(newCtx, "FindLatestChartForAppByAppIdAndEnvId")
-		envOverride, err := impl.envConfigOverrideReadService.FindLatestChartForAppByAppIdAndEnvId(appId, env.EnvironmentId)
+		envOverride, err := impl.envConfigOverrideReadService.FindLatestChartForAppByAppIdAndEnvId(nil, appId, env.EnvironmentId)
 		span.End()
 		if err != nil && !errors2.IsNotFound(err) {
 			impl.Logger.Errorw("error in fetching latest chart by appId and envId", "err", err, "appId", appId, "envId", env.EnvironmentId)
