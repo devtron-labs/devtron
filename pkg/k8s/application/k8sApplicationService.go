@@ -1040,17 +1040,81 @@ func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req bean5.
 	if container == nil {
 		return false, errors.New("externally created ephemeral containers cannot be removed")
 	}
+	// Check if pod exists and is running before attempting to execute command
+	var v1Client *v1.CoreV1Client
+	if req.ExternalArgoAppIdentifier != nil {
+		_, v1Client, err = impl.k8sCommonService.GetCoreClientByClusterIdForExternalArgoApps(&req)
+		if err != nil {
+			impl.logger.Errorw("error in getting coreV1 client by clusterId for external argo apps", "err", err, "req", req)
+			return false, err
+		}
+	} else {
+		_, v1Client, err = impl.k8sCommonService.GetCoreClientByClusterId(req.ClusterId)
+		if err != nil {
+			impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", req.ClusterId, "err", err)
+			return false, err
+		}
+	}
+
+	// Check if pod exists and is running
+	pod, err := impl.K8sUtil.GetPodByName(req.Namespace, req.PodName, v1Client)
+	if err != nil {
+		if k8s.IsResourceNotFoundErr(err) {
+			impl.logger.Infow("pod not found, ephemeral container termination not needed", "podName", req.PodName, "namespace", req.Namespace, "clusterId", req.ClusterId)
+			// Pod doesn't exist, so ephemeral container is already terminated
+			err = impl.ephemeralContainerService.AuditEphemeralContainerAction(req, repository.ActionTerminate)
+			if err != nil {
+				impl.logger.Errorw("error in saving ephemeral container data", "err", err)
+				return true, err
+			}
+			return true, nil
+		}
+		impl.logger.Errorw("error in getting pod", "clusterId", req.ClusterId, "namespace", req.Namespace, "podName", req.PodName, "err", err)
+		return false, err
+	}
+
+	// Check if pod is in a terminated state
+	if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+		impl.logger.Infow("pod is in terminated state, ephemeral container termination not needed", "podName", req.PodName, "namespace", req.Namespace, "clusterId", req.ClusterId, "podPhase", pod.Status.Phase)
+		// Pod is terminated, so ephemeral container is already terminated
+		err = impl.ephemeralContainerService.AuditEphemeralContainerAction(req, repository.ActionTerminate)
+		if err != nil {
+			impl.logger.Errorw("error in saving ephemeral container data", "err", err)
+			return true, err
+		}
+		return true, nil
+	}
+
+	// Check if the specific ephemeral container is still running
+	ephemeralContainerRunning := false
+	for _, ecStatus := range pod.Status.EphemeralContainerStatuses {
+		if ecStatus.Name == req.BasicData.ContainerName && ecStatus.State.Running != nil {
+			ephemeralContainerRunning = true
+			break
+		}
+	}
+
+	if !ephemeralContainerRunning {
+		impl.logger.Infow("ephemeral container is not running, termination not needed", "podName", req.PodName, "namespace", req.Namespace, "clusterId", req.ClusterId, "containerName", req.BasicData.ContainerName)
+		// Ephemeral container is not running, so it's already terminated
+		err = impl.ephemeralContainerService.AuditEphemeralContainerAction(req, repository.ActionTerminate)
+		if err != nil {
+			impl.logger.Errorw("error in saving ephemeral container data", "err", err)
+			return true, err
+		}
+		return true, nil
+	}
 	containerKillCommand := fmt.Sprintf("kill -16 $(pgrep -f '%s' -o)", fmt.Sprintf(k8sObjectUtils.EphemeralContainerStartingShellScriptFileName, terminalReq.ContainerName))
 	cmds := []string{"sh", "-c", containerKillCommand}
 	_, errBuf, err := impl.terminalSession.RunCmdInRemotePod(terminalReq, cmds)
 	if err != nil {
 		impl.logger.Errorw("failed to execute commands ", "err", err, "commands", cmds, "podName", req.PodName, "namespace", req.Namespace)
-		return false, err
+		// not returning the error since websocket connection will break when running kill command
 	}
 	errBufString := errBuf.String()
 	if errBufString != "" {
 		impl.logger.Errorw("error response on executing commands ", "err", errBufString, "commands", cmds, "podName", req.Namespace, "namespace", req.Namespace)
-		return false, err
+		// not returning the error since websocket connection will break when running kill command
 	}
 
 	if err == nil {
