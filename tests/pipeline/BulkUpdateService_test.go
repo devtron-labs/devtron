@@ -17,9 +17,11 @@
 package pipeline
 
 import (
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/auth/user/util"
 	"github.com/devtron-labs/devtron/pkg/bulkAction/bean"
 	"io"
 	"log"
@@ -110,7 +112,7 @@ func TestBulkUpdate(t *testing.T) {
 	for _, tt := range tests {
 		testname := fmt.Sprintf("%s,%s", tt.Payload.Includes, tt.Payload.Excludes)
 		t.Run(testname, func(t *testing.T) {
-			got := bulkUpdateService.BulkUpdate(tt.Payload)
+			got := bulkUpdateService.BulkEdit(context.Background(), tt.Payload, util.GetUserMetadata(context.Background(), 1, true))
 			if got.DeploymentTemplate.Message[len(got.DeploymentTemplate.Message)-1] != tt.deploymentTemplateWant {
 				t.Errorf("got %s, want %s", got, tt.deploymentTemplateWant)
 			}
