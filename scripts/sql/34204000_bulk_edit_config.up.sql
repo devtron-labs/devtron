@@ -226,8 +226,6 @@ The new `v1beta2` version brings better separation of concerns, improved selecto
 * Bulk creation and deletion of ConfigMaps and Secrets.
 * Bulk update Deployment Template version without affecting the existing values.
 
----
-
 ## Basic Example
 
 This example applies bulk edits to applications with the following criteria:
@@ -308,7 +306,6 @@ spec:
           field: data
           patchJson: ''[{ "op": "add", "path": "/DB_PASSWORD}", "value": "********" },{"op": "replace","path":"/ADMIN_PASSWORD","value": "********"}]''
 ```
----
 
 ## Field Reference
 
@@ -335,17 +332,15 @@ spec:
 
 ### ConfigMap / Secret
 
-| Field                                             | Description                                                                                                                                                                                                                                                                                                       |
-|---------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `configMap/secret.spec.match.include-base-config` | Whether to include base configs                                                                                                                                                                                                                                                                                   |
-| `configMap/secret.spec.match.includes.names`      | Names to include                                                                                                                                                                                                                                                                                                  |
-| `configMap/secret.spec.match.excludes.names`      | Names to exclude                                                                                                                                                                                                                                                                                                  |
-| `configMap/secret.spec.operation.action`          | Supported: `create`, `update`, `delete`. For `create`/ `delete`, use `value`. For `update`, use `patchJson`.                                                                                                                                                                                                      |
-| `configMap/secret.spec.operation.field`           | Supported: `data`. Requires `patchJson` is specified.                                                                                                                                                                                                                                                             |
-| `configMap/secret.spec.operation.patchJson`       | JSON Patch string to apply. If `action` is `update`, this is required.                                                                                                                                                                                                                                            |
-| `configMap/secret.spec.operation.value`           | For `action` is `create`, value is a JSON string representing the ConfigMap/Secret data (e.g: "{\"name\":\"xyz\",\"type\":\"environment\",\"data\":{\"FEAT_TEST_ENABLE\":\"false\",\"LOG_LEVEL\":\"-1\"},\"mergeStrategy\":\"replace\"}"). For `delete`, the value is the name of the ConfigMap/Secret to delete. |
-
----
+| Field                                             | Description                                                                                                                                                                                                                                                                                                                             |
+|---------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `configMap/secret.spec.match.include-base-config` | Whether to include base configs                                                                                                                                                                                                                                                                                                         |
+| `configMap/secret.spec.match.includes.names`      | Names to include                                                                                                                                                                                                                                                                                                                        |
+| `configMap/secret.spec.match.excludes.names`      | Names to exclude                                                                                                                                                                                                                                                                                                                        |
+| `configMap/secret.spec.operation.action`          | Supported: `create`, `update`, `delete`. For `create`/ `delete`, use `value`. For `update`, use `patchJson`.                                                                                                                                                                                                                            |
+| `configMap/secret.spec.operation.field`           | Supported: `data`. Requires `patchJson` is specified.                                                                                                                                                                                                                                                                                   |
+| `configMap/secret.spec.operation.patchJson`       | JSON Patch string to apply. If `action` is `update`, this is required.                                                                                                                                                                                                                                                                  |
+| `configMap/secret.spec.operation.value`           | For `action` is `create`, value is a JSON string representing the ConfigMap/Secret data (e.g: "{\\"name\\":\\"xyz\\",\\"type\\":\\"environment\\",\\"data\\":{\\"FEAT_TEST_ENABLE\\":\\"false\\",\\"LOG_LEVEL\\":\\"-1\\"},\\"mergeStrategy\\":\\"replace\\"}"). For `delete`, the value is the name of the ConfigMap/Secret to delete. |
 ','{
   "$schema": "http://json-schema.org/draft-04/schema#",
   "title": "Bulk Edit Application batch/v1beta2 Schema",
