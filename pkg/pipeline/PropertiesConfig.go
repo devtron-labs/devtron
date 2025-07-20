@@ -191,7 +191,7 @@ func (impl *PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environ
 	environmentPropertiesResponse.EnvironmentConfig = *environmentProperties
 
 	//setting global config
-	chart, err := impl.chartRepo.FindLatestChartForAppByAppId(appId)
+	chart, err := impl.chartRepo.FindLatestChartForAppByAppId(nil, appId)
 	if err != nil {
 		return nil, err
 	}
@@ -297,7 +297,15 @@ func (impl *PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, 
 		CurrentViewEditor:   environmentProperties.CurrentViewEditor,
 		MergeStrategy:       environmentProperties.MergeStrategy,
 	}
-	envOverride, appMetrics, err := impl.CreateIfRequired(overrideCreateRequest, nil)
+	dbConnection := impl.envConfigRepo.GetDbConnection()
+
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in beginning db tx", "err", err)
+		return nil, err
+	}
+
+	envOverride, appMetrics, err := impl.CreateIfRequired(overrideCreateRequest, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -324,8 +332,9 @@ func (impl *PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, 
 		ChartRefId:        environmentProperties.ChartRefId,
 		IsOverride:        envOverride.IsOverride,
 	}
+	err = tx.Commit()
 	if err != nil {
-		impl.logger.Errorw("chart version parsing", "err", err, "chartVersion", chart.ChartVersion)
+		impl.logger.Errorw("error in commiting tx", "err", err)
 		return nil, err
 	}
 
@@ -351,8 +360,14 @@ func (impl *PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, 
 		return nil, fmt.Errorf("enviremnt is restricted to namespace: %s only, cant deploy to: %s", env.Namespace, propertiesRequest.Namespace)
 	}
 
+	tx, err := impl.envConfigRepo.GetDbConnection().Begin()
+	if err != nil {
+		impl.logger.Errorw("error in beginning db tx", "err", err)
+		return nil, err
+	}
+
 	if !oldEnvOverride.Latest {
-		envOverrideExisting, err := impl.envConfigOverrideReadService.FindLatestChartForAppByAppIdAndEnvId(appId, oldEnvOverride.TargetEnvironment)
+		envOverrideExisting, err := impl.envConfigOverrideReadService.FindLatestChartForAppByAppIdAndEnvId(tx, appId, oldEnvOverride.TargetEnvironment)
 		if err != nil && !errors.IsNotFound(err) {
 			return nil, err
 		}
@@ -362,7 +377,7 @@ func (impl *PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, 
 			envOverrideExisting.UpdatedOn = time.Now()
 			envOverrideExisting.UpdatedBy = userId
 			envOverrideExistingDBObj := adapter.EnvOverrideDTOToDB(envOverrideExisting)
-			envOverrideExistingDBObj, err = impl.envConfigRepo.Update(envOverrideExistingDBObj)
+			envOverrideExistingDBObj, err = impl.envConfigRepo.Update(tx, envOverrideExistingDBObj)
 			if err != nil {
 				return nil, err
 			}
@@ -387,7 +402,7 @@ func (impl *PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, 
 	overrideDbObj.Latest = true
 	overrideDbObj.IsOverride = true
 	impl.logger.Debugw("updating environment override ", "value", overrideDbObj)
-	err = impl.envConfigRepo.UpdateProperties(overrideDbObj)
+	err = impl.envConfigRepo.UpdateProperties(tx, overrideDbObj)
 
 	if oldEnvOverride.Namespace != overrideDbObj.Namespace {
 		return nil, fmt.Errorf("namespace name update not supported")
@@ -403,7 +418,7 @@ func (impl *PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, 
 		impl.logger.Errorw("error in chartRefRepository.FindById", "chartRefId", chart.ChartRefId, "err", err)
 		return nil, err
 	}
-	err = impl.deploymentConfigService.UpdateChartLocationInDeploymentConfig(appId, overrideDbObj.TargetEnvironment, chart.ChartRefId, userId, chart.ChartVersion)
+	err = impl.deploymentConfigService.UpdateChartLocationInDeploymentConfig(tx, appId, overrideDbObj.TargetEnvironment, chart.ChartRefId, userId, chart.ChartVersion)
 	if err != nil {
 		impl.logger.Errorw("error in UpdateChartLocationInDeploymentConfig", "appId", appId, "envId", overrideDbObj.TargetEnvironment, "err", err)
 		return nil, err
@@ -428,9 +443,13 @@ func (impl *PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, 
 
 	overrideOverrideDTO := adapter.EnvOverrideDBToDTO(overrideDbObj)
 	//creating history
-	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(overrideOverrideDTO, nil, isAppMetricsEnabled, 0)
+	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(overrideOverrideDTO, tx, isAppMetricsEnabled, 0)
 	if err != nil {
 		impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", overrideOverrideDTO)
+		return nil, err
+	}
+	err = tx.Commit()
+	if err != nil {
 		return nil, err
 	}
 	//VARIABLE_MAPPING_UPDATE
@@ -488,7 +507,7 @@ func (impl *PropertiesConfigServiceImpl) CreateIfRequired(request *bean.Environm
 	if errors.IsNotFound(err) {
 		if isOverride {
 			// before creating new entry, remove previous one from latest tag
-			envOverrideExisting, err := impl.envConfigOverrideReadService.FindLatestChartForAppByAppIdAndEnvId(chart.AppId, environmentId)
+			envOverrideExisting, err := impl.envConfigOverrideReadService.FindLatestChartForAppByAppIdAndEnvId(tx, chart.AppId, environmentId)
 			if err != nil && !errors.IsNotFound(err) {
 				return nil, isAppMetricsEnabled, err
 			}
@@ -504,7 +523,7 @@ func (impl *PropertiesConfigServiceImpl) CreateIfRequired(request *bean.Environm
 				if tx != nil {
 					envOverrideDBObj, err = impl.envConfigRepo.UpdateWithTxn(envOverrideDBObj, tx)
 				} else {
-					envOverrideDBObj, err = impl.envConfigRepo.Update(envOverrideDBObj)
+					envOverrideDBObj, err = impl.envConfigRepo.Update(nil, envOverrideDBObj)
 				}
 				if err != nil {
 					return nil, isAppMetricsEnabled, err
@@ -546,7 +565,7 @@ func (impl *PropertiesConfigServiceImpl) CreateIfRequired(request *bean.Environm
 		envOverrideDBObj.Chart = chart
 		envOverride = adapter.EnvOverrideDBToDTO(envOverrideDBObj)
 
-		err = impl.deploymentConfigService.UpdateChartLocationInDeploymentConfig(chart.AppId, envOverride.TargetEnvironment, chart.ChartRefId, userId, envOverride.Chart.ChartVersion)
+		err = impl.deploymentConfigService.UpdateChartLocationInDeploymentConfig(tx, chart.AppId, envOverride.TargetEnvironment, chart.ChartRefId, userId, envOverride.Chart.ChartVersion)
 		if err != nil {
 			impl.logger.Errorw("error in UpdateChartLocationInDeploymentConfig", "appId", chart.AppId, "envId", envOverride.TargetEnvironment, "err", err)
 			return nil, isAppMetricsEnabled, err
@@ -614,8 +633,14 @@ func (impl *PropertiesConfigServiceImpl) ResetEnvironmentProperties(id int, user
 	envOverride.Latest = false
 	impl.logger.Infow("reset environment override ", "value", envOverride)
 
+	tx, err := impl.environmentRepository.GetConnection().Begin()
+	if err != nil {
+		impl.logger.Errorw("error in beginning db tx", "err", err)
+		return false, err
+	}
+
 	envOverrideDBObj := adapter.EnvOverrideDTOToDB(envOverride)
-	err = impl.envConfigRepo.UpdateProperties(envOverrideDBObj)
+	err = impl.envConfigRepo.UpdateProperties(tx, envOverrideDBObj)
 	if err != nil {
 		impl.logger.Warnw("error in update envOverride", "envOverrideId", id)
 	}
@@ -625,22 +650,27 @@ func (impl *PropertiesConfigServiceImpl) ResetEnvironmentProperties(id int, user
 		return false, err
 	}
 
-	chart, err := impl.chartRepo.FindLatestChartForAppByAppId(envOverride.Chart.AppId)
+	chart, err := impl.chartRepo.FindLatestChartForAppByAppId(tx, envOverride.Chart.AppId)
 	if err != nil {
 		impl.logger.Errorw("error in chartRefRepository.FindById", "chartRefId", envOverride.Chart.ChartRefId, "err", err)
 		return false, err
 	}
-	err = impl.deploymentConfigService.UpdateChartLocationInDeploymentConfig(envOverride.Chart.AppId, envOverride.TargetEnvironment, chart.ChartRefId, userId, chart.ChartVersion)
+	err = impl.deploymentConfigService.UpdateChartLocationInDeploymentConfig(tx, envOverride.Chart.AppId, envOverride.TargetEnvironment, chart.ChartRefId, userId, chart.ChartVersion)
 	if err != nil {
 		impl.logger.Errorw("error in UpdateChartLocationInDeploymentConfig", "appId", envOverride.Chart.AppId, "envId", envOverride.TargetEnvironment, "err", err)
 		return false, err
 	}
 
 	//VARIABLES
-	err = impl.scopedVariableManager.RemoveMappedVariables(envOverride.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, envOverride.UpdatedBy, nil)
+	err = impl.scopedVariableManager.RemoveMappedVariables(envOverride.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, envOverride.UpdatedBy, tx)
 	if err != nil {
 		return false, err
 	}
+	err = tx.Commit()
+	if err != nil {
+		return false, err
+	}
+
 	return true, nil
 }
 
@@ -651,7 +681,7 @@ func (impl *PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespac
 	}
 	if errors2.Is(err, pg.ErrNoRows) {
 		impl.logger.Warnw("no chart found this ref id", "refId", environmentProperties.ChartRefId)
-		chart, err = impl.chartRepo.FindLatestChartForAppByAppId(appId)
+		chart, err = impl.chartRepo.FindLatestChartForAppByAppId(nil, appId)
 		if err != nil && !errors2.Is(err, pg.ErrNoRows) {
 			return nil, err
 		}
@@ -693,7 +723,7 @@ func (impl *PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespac
 		envOverride.CurrentViewEditor = environmentProperties.CurrentViewEditor
 		envOverride.UpdatedOn = time.Now()
 		impl.logger.Debugw("updating environment override ", "value", envOverride)
-		err = impl.envConfigRepo.UpdateProperties(adapter.EnvOverrideDTOToDB(envOverride))
+		err = impl.envConfigRepo.UpdateProperties(nil, adapter.EnvOverrideDTOToDB(envOverride))
 	}
 
 	r := json.RawMessage{}
