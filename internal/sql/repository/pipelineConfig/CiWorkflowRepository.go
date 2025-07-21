@@ -40,6 +40,7 @@ type CiWorkflowRepository interface {
 	FindByName(name string) (*CiWorkflow, error)
 
 	FindLastTriggeredWorkflowByCiIds(pipelineId []int) (ciWorkflow []*CiWorkflow, err error)
+	FindLastTriggeredWorkflowByCiIdsOptimized(pipelineId []int) (ciWorkflow []*CiWorkflow, err error)
 	FindLastTriggeredWorkflowByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error)
 	FindAllLastTriggeredWorkflowByArtifactId(ciArtifactId []int) (ciWorkflow []*CiWorkflow, err error)
 	FindAllTriggeredWorkflowCountInLast24Hour() (ciWorkflowCount int, err error)
@@ -287,6 +288,23 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByCiIds(pipelineI
 		Column("ci_workflow.*", "CiPipeline").
 		Where("ci_workflow.id IN (select MAX(id) from ci_workflow where  ci_pipeline_id IN (?) GROUP BY ci_pipeline_id)", pg.In(pipelineId)).
 		Select()
+	return ciWorkflow, err
+}
+
+// FindLastTriggeredWorkflowByCiIdsOptimized uses the ci_workflow_status_latest table for better performance
+func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByCiIdsOptimized(pipelineId []int) (ciWorkflow []*CiWorkflow, err error) {
+	err = impl.dbConnection.Model(&ciWorkflow).
+		Column("ci_workflow.*", "CiPipeline").
+		Join("INNER JOIN ci_workflow_status_latest cwsl ON cwsl.ci_workflow_id = ci_workflow.id").
+		Where("cwsl.pipeline_id IN (?)", pg.In(pipelineId)).
+		Select()
+
+	if err != nil {
+		impl.logger.Errorw("error in optimized query, falling back to old method", "err", err, "pipelineIds", pipelineId)
+		// Fallback to the old method if optimized query fails
+		return impl.FindLastTriggeredWorkflowByCiIds(pipelineId)
+	}
+
 	return ciWorkflow, err
 }
 

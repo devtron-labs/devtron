@@ -870,9 +870,9 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(request res
 	if len(ciPipelineIds) == 0 {
 		return ciWorkflowStatuses, nil
 	}
-	latestCiWorkflows, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByCiIds(ciPipelineIds)
+	latestCiWorkflows, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByCiIdsOptimized(ciPipelineIds)
 	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("err", "ciPipelineIds", ciPipelineIds, "err", err)
+		impl.Logger.Errorw("err in optimized ci workflow fetch", "ciPipelineIds", ciPipelineIds, "err", err)
 		return ciWorkflowStatuses, err
 	}
 
