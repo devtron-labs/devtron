@@ -23,8 +23,8 @@ import (
 
 type WorkflowStatusUpdateService interface {
 	// Methods to update latest status tables when workflow status changes
-	UpdateCiWorkflowStatusLatest(pipelineId, appId, ciWorkflowId int, status string, userId int32) error
-	UpdateCdWorkflowStatusLatest(pipelineId, appId, environmentId, workflowRunnerId int, workflowType, status string, userId int32) error
+	UpdateCiWorkflowStatusLatest(pipelineId, appId, ciWorkflowId int, userId int32) error
+	UpdateCdWorkflowStatusLatest(pipelineId, appId, environmentId, workflowRunnerId int, workflowType string, userId int32) error
 
 	// Methods to fetch optimized status for trigger view
 	FetchCiStatusForTriggerViewOptimized(appId int) ([]*pipelineConfig.CiWorkflowStatus, error)
@@ -58,12 +58,12 @@ func NewWorkflowStatusUpdateServiceImpl(
 	}
 }
 
-func (impl *WorkflowStatusUpdateServiceImpl) UpdateCiWorkflowStatusLatest(pipelineId, appId, ciWorkflowId int, status string, userId int32) error {
-	return impl.workflowStatusLatestService.SaveOrUpdateCiWorkflowStatusLatest(pipelineId, appId, ciWorkflowId, status, userId)
+func (impl *WorkflowStatusUpdateServiceImpl) UpdateCiWorkflowStatusLatest(pipelineId, appId, ciWorkflowId int, userId int32) error {
+	return impl.workflowStatusLatestService.SaveOrUpdateCiWorkflowStatusLatest(pipelineId, appId, ciWorkflowId, userId)
 }
 
-func (impl *WorkflowStatusUpdateServiceImpl) UpdateCdWorkflowStatusLatest(pipelineId, appId, environmentId, workflowRunnerId int, workflowType, status string, userId int32) error {
-	return impl.workflowStatusLatestService.SaveOrUpdateCdWorkflowStatusLatest(pipelineId, appId, environmentId, workflowRunnerId, workflowType, status, userId)
+func (impl *WorkflowStatusUpdateServiceImpl) UpdateCdWorkflowStatusLatest(pipelineId, appId, environmentId, workflowRunnerId int, workflowType string, userId int32) error {
+	return impl.workflowStatusLatestService.SaveOrUpdateCdWorkflowStatusLatest(pipelineId, appId, environmentId, workflowRunnerId, workflowType, userId)
 }
 
 func (impl *WorkflowStatusUpdateServiceImpl) FetchCiStatusForTriggerViewOptimized(appId int) ([]*pipelineConfig.CiWorkflowStatus, error) {
