@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package status
+package workflowStatusLatest
 
 import (
 	util2 "github.com/devtron-labs/devtron/internal/util"

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package status
+package workflowStatusLatest
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"

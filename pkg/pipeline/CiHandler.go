@@ -29,6 +29,7 @@ import (
 	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
+	"github.com/devtron-labs/devtron/pkg/workflow/status/workflowStatusLatest"
 	"regexp"
 	"slices"
 	"strconv"
@@ -97,6 +98,7 @@ type CiHandlerImpl struct {
 	config                       *types.CiConfig
 	k8sCommonService             k8sPkg.K8sCommonService
 	workFlowStageStatusService   workflowStatus.WorkFlowStageStatusService
+	workflowStatusUpdateService  workflowStatusLatest.WorkflowStatusUpdateService
 }
 
 func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
@@ -104,6 +106,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 	appListingRepository repository.AppListingRepository, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup.ResourceGroupService, envRepository repository2.EnvironmentRepository,
 	imageTaggingService imageTagging.ImageTaggingService, k8sCommonService k8sPkg.K8sCommonService, appWorkflowRepository appWorkflow.AppWorkflowRepository, customTagService CustomTagService,
 	workFlowStageStatusService workflowStatus.WorkFlowStageStatusService,
+	workflowStatusUpdateService workflowStatusLatest.WorkflowStatusUpdateService,
 ) *CiHandlerImpl {
 	cih := &CiHandlerImpl{
 		Logger:                       Logger,
@@ -126,6 +129,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		appWorkflowRepository:        appWorkflowRepository,
 		k8sCommonService:             k8sCommonService,
 		workFlowStageStatusService:   workFlowStageStatusService,
+		workflowStatusUpdateService:  workflowStatusUpdateService,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -644,10 +648,15 @@ func (impl *CiHandlerImpl) stateChanged(status string, podStatus string, msg str
 }
 
 func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewV1(appId int) ([]*pipelineConfig.CiWorkflowStatus, error) {
-	ciWorkflowStatuses, err := impl.ciWorkflowRepository.FIndCiWorkflowStatusesByAppId(appId)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("err in fetching ciWorkflowStatuses from ciWorkflowRepository", "appId", appId, "err", err)
-		return ciWorkflowStatuses, err
+	ciWorkflowStatuses, err := impl.workflowStatusUpdateService.FetchCiStatusForTriggerViewOptimized(appId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching ci status from optimized service, falling back to old method", "appId", appId, "err", err)
+		// Fallback to old method if optimized service fails
+		ciWorkflowStatuses, err = impl.ciWorkflowRepository.FIndCiWorkflowStatusesByAppId(appId)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.Logger.Errorw("err in fetching ciWorkflowStatuses from ciWorkflowRepository", "appId", appId, "err", err)
+			return ciWorkflowStatuses, err
+		}
 	}
 
 	return ciWorkflowStatuses, err
