@@ -28,6 +28,7 @@ import (
 var WorkflowWireSet = wire.NewSet(
 	cd.CdWorkflowWireSet,
 	status.WorkflowStatusWireSet,
+	status.WorkflowStatusLatestWireSet,
 	hook.NewTriggerAuditHookImpl,
 	wire.Bind(new(hook.TriggerAuditHook), new(*hook.TriggerAuditHookImpl)),
 	service.NewWorkflowTriggerAuditServiceImpl,
