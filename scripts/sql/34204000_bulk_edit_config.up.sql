@@ -275,12 +275,13 @@ spec:
       env:
         type: non-prod
   deploymentTemplate:
-    match:
-      include-base-config: true
-    operation:
-      action: update
-      field: values
-      patchJson: ''[{ "op": "replace", "path": "/replicas", "value": 4 }]''
+    spec:
+      match:
+        include-base-config: true
+      operation:
+        action: update
+        field: values
+        patchJson: ''[{ "op": "replace", "path": "/replicas", "value": 4 }]''
   configMap:
     spec:
       match:
@@ -301,10 +302,10 @@ spec:
           names: ["qa-secret-%", "prod-secret-%"]
         excludes:
           names: ["%dev%", "%test%"]
-        operation:
-          action: update
-          field: data
-          patchJson: ''[{ "op": "add", "path": "/DB_PASSWORD}", "value": "********" },{"op": "replace","path":"/ADMIN_PASSWORD","value": "********"}]''
+      operation:
+        action: update
+        field: data
+        patchJson: ''[{ "op": "add", "path": "/DB_PASSWORD}", "value": "********" },{"op": "replace","path":"/ADMIN_PASSWORD","value": "********"}]''
 ```
 
 ## Field Reference
