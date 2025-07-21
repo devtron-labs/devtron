@@ -28,12 +28,12 @@ import (
 
 type WorkflowStatusLatestService interface {
 	// CI Workflow Status Latest methods
-	SaveOrUpdateCiWorkflowStatusLatest(pipelineId, appId, ciWorkflowId int, status string, userId int32) error
+	SaveOrUpdateCiWorkflowStatusLatest(pipelineId, appId, ciWorkflowId int, userId int32) error
 	GetCiWorkflowStatusLatestByPipelineId(pipelineId int) (*CiWorkflowStatusLatest, error)
 	GetCiWorkflowStatusLatestByAppId(appId int) ([]*CiWorkflowStatusLatest, error)
 
 	// CD Workflow Status Latest methods
-	SaveOrUpdateCdWorkflowStatusLatest(pipelineId, appId, environmentId, workflowRunnerId int, workflowType, status string, userId int32) error
+	SaveOrUpdateCdWorkflowStatusLatest(pipelineId, appId, environmentId, workflowRunnerId int, workflowType string, userId int32) error
 	GetCdWorkflowStatusLatestByPipelineIdAndWorkflowType(pipelineId int, workflowType string) (*CdWorkflowStatusLatest, error)
 	GetCdWorkflowStatusLatestByAppId(appId int) ([]*CdWorkflowStatusLatest, error)
 	GetCdWorkflowStatusLatestByPipelineId(pipelineId int) ([]*CdWorkflowStatusLatest, error)
@@ -65,7 +65,7 @@ type CiWorkflowStatusLatest struct {
 	PipelineId   int    `json:"pipelineId"`
 	AppId        int    `json:"appId"`
 	CiWorkflowId int    `json:"ciWorkflowId"`
-	Status       string `json:"status"`
+	Status       string `json:"status"` // Derived from ci_workflow table
 }
 
 type CdWorkflowStatusLatest struct {
@@ -74,11 +74,11 @@ type CdWorkflowStatusLatest struct {
 	EnvironmentId    int    `json:"environmentId"`
 	WorkflowType     string `json:"workflowType"`
 	WorkflowRunnerId int    `json:"workflowRunnerId"`
-	Status           string `json:"status"`
+	Status           string `json:"status"` // Derived from cd_workflow_runner table
 }
 
 // CI Workflow Status Latest methods implementation
-func (impl *WorkflowStatusLatestServiceImpl) SaveOrUpdateCiWorkflowStatusLatest(pipelineId, appId, ciWorkflowId int, status string, userId int32) error {
+func (impl *WorkflowStatusLatestServiceImpl) SaveOrUpdateCiWorkflowStatusLatest(pipelineId, appId, ciWorkflowId int, userId int32) error {
 	// Check if entry exists
 	existingEntry, err := impl.workflowStatusLatestRepository.GetCiWorkflowStatusLatestByPipelineId(pipelineId)
 	if err != nil && err != pg.ErrNoRows {
@@ -93,7 +93,6 @@ func (impl *WorkflowStatusLatestServiceImpl) SaveOrUpdateCiWorkflowStatusLatest(
 			PipelineId:   pipelineId,
 			AppId:        appId,
 			CiWorkflowId: ciWorkflowId,
-			Status:       status,
 		}
 		model.CreatedBy = userId
 		model.CreatedOn = now
@@ -104,7 +103,6 @@ func (impl *WorkflowStatusLatestServiceImpl) SaveOrUpdateCiWorkflowStatusLatest(
 	} else {
 		// Update existing entry
 		existingEntry.CiWorkflowId = ciWorkflowId
-		existingEntry.Status = status
 		existingEntry.UpdatedBy = userId
 		existingEntry.UpdatedOn = now
 
@@ -123,11 +121,18 @@ func (impl *WorkflowStatusLatestServiceImpl) GetCiWorkflowStatusLatestByPipeline
 		return nil, err
 	}
 
+	// Get status from ci_workflow table
+	ciWorkflow, err := impl.ciWorkflowRepository.FindById(model.CiWorkflowId)
+	if err != nil {
+		impl.logger.Errorw("error in getting ci workflow", "err", err, "ciWorkflowId", model.CiWorkflowId)
+		return nil, err
+	}
+
 	return &CiWorkflowStatusLatest{
 		PipelineId:   model.PipelineId,
 		AppId:        model.AppId,
 		CiWorkflowId: model.CiWorkflowId,
-		Status:       model.Status,
+		Status:       ciWorkflow.Status,
 	}, nil
 }
 
@@ -140,11 +145,18 @@ func (impl *WorkflowStatusLatestServiceImpl) GetCiWorkflowStatusLatestByAppId(ap
 
 	var result []*CiWorkflowStatusLatest
 	for _, model := range models {
+		// Get status from ci_workflow table
+		ciWorkflow, err := impl.ciWorkflowRepository.FindById(model.CiWorkflowId)
+		if err != nil {
+			impl.logger.Errorw("error in getting ci workflow", "err", err, "ciWorkflowId", model.CiWorkflowId)
+			continue // Skip this entry if we can't get the workflow
+		}
+
 		result = append(result, &CiWorkflowStatusLatest{
 			PipelineId:   model.PipelineId,
 			AppId:        model.AppId,
 			CiWorkflowId: model.CiWorkflowId,
-			Status:       model.Status,
+			Status:       ciWorkflow.Status,
 		})
 	}
 

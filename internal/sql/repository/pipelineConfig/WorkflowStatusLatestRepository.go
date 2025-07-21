@@ -58,7 +58,6 @@ type CiWorkflowStatusLatest struct {
 	PipelineId   int      `sql:"pipeline_id"`
 	AppId        int      `sql:"app_id"`
 	CiWorkflowId int      `sql:"ci_workflow_id"`
-	Status       string   `sql:"status"`
 	sql.AuditLog
 }
 
@@ -71,7 +70,6 @@ type CdWorkflowStatusLatest struct {
 	EnvironmentId    int      `sql:"environment_id"`
 	WorkflowType     string   `sql:"workflow_type"`
 	WorkflowRunnerId int      `sql:"workflow_runner_id"`
-	Status           string   `sql:"status"`
 	sql.AuditLog
 }
 

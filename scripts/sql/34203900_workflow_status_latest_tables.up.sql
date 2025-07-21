@@ -9,7 +9,6 @@ CREATE TABLE IF NOT EXISTS "public"."ci_workflow_status_latest" (
     "pipeline_id"           int4             NOT NULL,
     "app_id"                int4             NOT NULL,
     "ci_workflow_id"        int4             NOT NULL,
-    "status"                varchar(50)      NOT NULL,
     "created_on"            timestamptz      NOT NULL,
     "created_by"            int4             NOT NULL,
     "updated_on"            timestamptz      NOT NULL,
@@ -29,7 +28,6 @@ CREATE TABLE IF NOT EXISTS "public"."cd_workflow_status_latest" (
     "environment_id"        int4             NOT NULL,
     "workflow_type"         varchar(20)      NOT NULL, -- PRE, DEPLOY, POST
     "workflow_runner_id"    int4             NOT NULL,
-    "status"                varchar(50)      NOT NULL,
     "created_on"            timestamptz      NOT NULL,
     "created_by"            int4             NOT NULL,
     "updated_on"            timestamptz      NOT NULL,
