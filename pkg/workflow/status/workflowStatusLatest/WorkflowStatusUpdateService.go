@@ -67,7 +67,6 @@ func (impl *WorkflowStatusUpdateServiceImpl) UpdateCdWorkflowStatusLatest(pipeli
 }
 
 func (impl *WorkflowStatusUpdateServiceImpl) FetchCiStatusForTriggerViewOptimized(appId int) ([]*pipelineConfig.CiWorkflowStatus, error) {
-	// First try to get from the optimized latest status table
 	latestStatuses, err := impl.workflowStatusLatestService.GetCiWorkflowStatusLatestByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in getting ci workflow status latest by app id", "err", err, "appId", appId)
@@ -78,7 +77,6 @@ func (impl *WorkflowStatusUpdateServiceImpl) FetchCiStatusForTriggerViewOptimize
 	// Convert to the expected format
 	var ciWorkflowStatuses []*pipelineConfig.CiWorkflowStatus
 	for _, latestStatus := range latestStatuses {
-		// Get pipeline name from CI pipeline repository
 		ciPipeline, err := impl.ciPipelineRepository.FindById(latestStatus.PipelineId)
 		if err != nil {
 			impl.logger.Errorw("error in getting ci pipeline", "err", err, "pipelineId", latestStatus.PipelineId)
@@ -90,7 +88,7 @@ func (impl *WorkflowStatusUpdateServiceImpl) FetchCiStatusForTriggerViewOptimize
 			CiPipelineName:    ciPipeline.Name,
 			CiStatus:          latestStatus.Status,
 			CiWorkflowId:      latestStatus.CiWorkflowId,
-			StorageConfigured: true, // Default value, can be enhanced later
+			StorageConfigured: latestStatus.StorageConfigured,
 		}
 		ciWorkflowStatuses = append(ciWorkflowStatuses, ciWorkflowStatus)
 	}
