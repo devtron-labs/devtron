@@ -17,8 +17,10 @@
 package workflowStatusLatest
 
 import (
-	util2 "github.com/devtron-labs/devtron/internal/util"
+	"fmt"
 	"time"
+
+	util2 "github.com/devtron-labs/devtron/internal/util"
 
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -79,6 +81,45 @@ type CdWorkflowStatusLatest struct {
 
 // CI Workflow Status Latest methods implementation
 func (impl *WorkflowStatusLatestServiceImpl) SaveOrUpdateCiWorkflowStatusLatest(pipelineId, appId, ciWorkflowId int, userId int32) error {
+	// Validate required parameters
+	if pipelineId <= 0 {
+		impl.logger.Errorw("invalid pipelineId provided", "pipelineId", pipelineId)
+		return fmt.Errorf("invalid pipelineId: %d", pipelineId)
+	}
+
+	if ciWorkflowId <= 0 {
+		impl.logger.Errorw("invalid ciWorkflowId provided", "ciWorkflowId", ciWorkflowId)
+		return fmt.Errorf("invalid ciWorkflowId: %d", ciWorkflowId)
+	}
+
+	// If appId is not provided (0), fetch it from the CiPipeline
+	if appId <= 0 {
+		ciPipeline, err := impl.ciWorkflowRepository.FindById(ciWorkflowId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching ci workflow to get appId", "err", err, "ciWorkflowId", ciWorkflowId)
+			return err
+		}
+
+		if ciPipeline == nil {
+			impl.logger.Errorw("ci workflow not found", "ciWorkflowId", ciWorkflowId)
+			return fmt.Errorf("ci workflow not found with id: %d", ciWorkflowId)
+		}
+
+		// Check if CiPipeline is loaded
+		if ciPipeline.CiPipeline == nil {
+			impl.logger.Errorw("ci pipeline not loaded in ci workflow", "ciWorkflowId", ciWorkflowId, "ciPipelineId", ciPipeline.CiPipelineId)
+			return fmt.Errorf("ci pipeline not loaded for workflow id: %d", ciWorkflowId)
+		}
+
+		appId = ciPipeline.CiPipeline.AppId
+		if appId <= 0 {
+			impl.logger.Errorw("invalid appId in ci pipeline", "ciWorkflowId", ciWorkflowId, "ciPipelineId", ciPipeline.CiPipelineId, "appId", appId)
+			return fmt.Errorf("invalid appId in ci pipeline: %d", appId)
+		}
+
+		impl.logger.Debugw("fetched appId from ci workflow", "ciWorkflowId", ciWorkflowId, "appId", appId)
+	}
+
 	// Check if entry exists
 	existingEntry, err := impl.workflowStatusLatestRepository.GetCiWorkflowStatusLatestByPipelineId(pipelineId)
 	if err != nil && err != pg.ErrNoRows {
@@ -165,6 +206,61 @@ func (impl *WorkflowStatusLatestServiceImpl) GetCiWorkflowStatusLatestByAppId(ap
 
 // CD Workflow Status Latest methods implementation
 func (impl *WorkflowStatusLatestServiceImpl) SaveOrUpdateCdWorkflowStatusLatest(pipelineId, appId, environmentId, workflowRunnerId int, workflowType string, userId int32) error {
+	// Validate required parameters
+	if pipelineId <= 0 {
+		impl.logger.Errorw("invalid pipelineId provided", "pipelineId", pipelineId)
+		return fmt.Errorf("invalid pipelineId: %d", pipelineId)
+	}
+
+	if workflowRunnerId <= 0 {
+		impl.logger.Errorw("invalid workflowRunnerId provided", "workflowRunnerId", workflowRunnerId)
+		return fmt.Errorf("invalid workflowRunnerId: %d", workflowRunnerId)
+	}
+
+	// If appId or environmentId is not provided (0), fetch them from the CdWorkflow
+	if appId <= 0 || environmentId <= 0 {
+		cdWorkflowRunner, err := impl.cdWorkflowRepository.FindBasicWorkflowRunnerById(workflowRunnerId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching cd workflow runner to get appId/environmentId", "err", err, "workflowRunnerId", workflowRunnerId)
+			return err
+		}
+
+		if cdWorkflowRunner == nil {
+			impl.logger.Errorw("cd workflow runner not found", "workflowRunnerId", workflowRunnerId)
+			return fmt.Errorf("cd workflow runner not found with id: %d", workflowRunnerId)
+		}
+
+		// Check if CdWorkflow is loaded
+		if cdWorkflowRunner.CdWorkflow == nil {
+			impl.logger.Errorw("cd workflow not loaded in cd workflow runner", "workflowRunnerId", workflowRunnerId, "cdWorkflowId", cdWorkflowRunner.CdWorkflowId)
+			return fmt.Errorf("cd workflow not loaded for workflow runner id: %d", workflowRunnerId)
+		}
+
+		// Check if Pipeline is loaded
+		if cdWorkflowRunner.CdWorkflow.Pipeline == nil {
+			impl.logger.Errorw("pipeline not loaded in cd workflow", "workflowRunnerId", workflowRunnerId, "cdWorkflowId", cdWorkflowRunner.CdWorkflowId, "pipelineId", cdWorkflowRunner.CdWorkflow.PipelineId)
+			return fmt.Errorf("pipeline not loaded for workflow runner id: %d", workflowRunnerId)
+		}
+
+		if appId <= 0 {
+			appId = cdWorkflowRunner.CdWorkflow.Pipeline.AppId
+			if appId <= 0 {
+				impl.logger.Errorw("invalid appId in pipeline", "workflowRunnerId", workflowRunnerId, "pipelineId", cdWorkflowRunner.CdWorkflow.PipelineId, "appId", appId)
+				return fmt.Errorf("invalid appId in pipeline: %d", appId)
+			}
+			impl.logger.Debugw("fetched appId from cd workflow runner", "workflowRunnerId", workflowRunnerId, "appId", appId)
+		}
+
+		if environmentId <= 0 {
+			environmentId = cdWorkflowRunner.CdWorkflow.Pipeline.EnvironmentId
+			if environmentId <= 0 {
+				impl.logger.Errorw("invalid environmentId in pipeline", "workflowRunnerId", workflowRunnerId, "pipelineId", cdWorkflowRunner.CdWorkflow.PipelineId, "environmentId", environmentId)
+				return fmt.Errorf("invalid environmentId in pipeline: %d", environmentId)
+			}
+			impl.logger.Debugw("fetched environmentId from cd workflow runner", "workflowRunnerId", workflowRunnerId, "environmentId", environmentId)
+		}
+	}
+
 	// Check if entry exists
 	existingEntry, err := impl.workflowStatusLatestRepository.GetCdWorkflowStatusLatestByPipelineIdAndWorkflowType(pipelineId, workflowType)
 	if err != nil && err != pg.ErrNoRows {

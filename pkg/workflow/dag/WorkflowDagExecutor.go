@@ -946,7 +946,12 @@ func (impl *WorkflowDagExecutorImpl) UpdateCiWorkflowForCiSuccess(request *bean2
 	}
 
 	// Update latest status table for CI workflow
-	err = impl.workflowStatusUpdateService.UpdateCiWorkflowStatusLatest(savedWorkflow.CiPipelineId, savedWorkflow.CiPipeline.AppId, savedWorkflow.Id, savedWorkflow.TriggeredBy)
+	// Check if CiPipeline is loaded, if not pass 0 as appId to let the function fetch it
+	appId := 0
+	if savedWorkflow.CiPipeline != nil {
+		appId = savedWorkflow.CiPipeline.AppId
+	}
+	err = impl.workflowStatusUpdateService.UpdateCiWorkflowStatusLatest(savedWorkflow.CiPipelineId, appId, savedWorkflow.Id, savedWorkflow.TriggeredBy)
 	if err != nil {
 		impl.logger.Errorw("error in updating ci workflow status latest", "err", err, "pipelineId", savedWorkflow.CiPipelineId, "workflowId", savedWorkflow.Id)
 		// Don't return error here as the main workflow update was successful
@@ -1132,7 +1137,12 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 	impl.logger.Debugw("Completed: auto trigger for children Stage/CD pipelines", "Time taken", time.Since(start).Seconds())
 
 	// Update latest status table for CI workflow
-	err = impl.workflowStatusUpdateService.UpdateCiWorkflowStatusLatest(ciPipelineId, pipelineModal.AppId, buildArtifact.Id, request.UserId)
+	// Check if pipelineModal is not nil before accessing AppId
+	appId := 0
+	if pipelineModal != nil {
+		appId = pipelineModal.AppId
+	}
+	err = impl.workflowStatusUpdateService.UpdateCiWorkflowStatusLatest(ciPipelineId, appId, buildArtifact.Id, request.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in updating ci workflow status latest", "err", err, "pipelineId", ciPipelineId, "workflowId", buildArtifact.Id)
 		// Don't return error here as the main workflow was successful

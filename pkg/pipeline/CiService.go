@@ -142,7 +142,12 @@ func (impl *CiServiceImpl) SaveCiWorkflowWithStage(wf *pipelineConfig.CiWorkflow
 	}
 
 	// Update latest status table for CI workflow
-	err = impl.workflowStatusUpdateService.UpdateCiWorkflowStatusLatest(wf.CiPipelineId, wf.CiPipeline.AppId, wf.Id, wf.TriggeredBy)
+	// Check if CiPipeline is loaded, if not pass 0 as appId to let the function fetch it
+	appId := 0
+	if wf.CiPipeline != nil {
+		appId = wf.CiPipeline.AppId
+	}
+	err = impl.workflowStatusUpdateService.UpdateCiWorkflowStatusLatest(wf.CiPipelineId, appId, wf.Id, wf.TriggeredBy)
 	if err != nil {
 		impl.Logger.Errorw("error in updating ci workflow status latest", "err", err, "pipelineId", wf.CiPipelineId, "workflowId", wf.Id)
 		// Don't return error here as the main workflow update was successful
@@ -186,7 +191,12 @@ func (impl *CiServiceImpl) UpdateCiWorkflowWithStage(wf *pipelineConfig.CiWorkfl
 	}
 
 	// Update latest status table for CI workflow
-	err = impl.workflowStatusUpdateService.UpdateCiWorkflowStatusLatest(wf.CiPipelineId, wf.CiPipeline.AppId, wf.Id, wf.TriggeredBy)
+	// Check if CiPipeline is loaded, if not pass 0 as appId to let the function fetch it
+	appId := 0
+	if wf.CiPipeline != nil {
+		appId = wf.CiPipeline.AppId
+	}
+	err = impl.workflowStatusUpdateService.UpdateCiWorkflowStatusLatest(wf.CiPipelineId, appId, wf.Id, wf.TriggeredBy)
 	if err != nil {
 		impl.Logger.Errorw("error in updating ci workflow status latest", "err", err, "pipelineId", wf.CiPipelineId, "workflowId", wf.Id)
 		// Don't return error here as the main workflow save was successful

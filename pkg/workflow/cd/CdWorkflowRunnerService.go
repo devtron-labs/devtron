@@ -82,7 +82,14 @@ func (impl *CdWorkflowRunnerServiceImpl) UpdateWfr(dto *bean.CdWorkflowRunnerDto
 	}
 
 	// Update latest status table for CD workflow
-	err = impl.workflowStatusUpdateService.UpdateCdWorkflowStatusLatest(runnerDbObj.CdWorkflow.PipelineId, runnerDbObj.CdWorkflow.Pipeline.AppId, runnerDbObj.CdWorkflow.Pipeline.EnvironmentId, runnerDbObj.Id, runnerDbObj.WorkflowType.String(), int32(updatedBy))
+	// Check if CdWorkflow and Pipeline are loaded, if not pass 0 as appId/environmentId to let the function fetch them
+	appId := 0
+	environmentId := 0
+	if runnerDbObj.CdWorkflow != nil && runnerDbObj.CdWorkflow.Pipeline != nil {
+		appId = runnerDbObj.CdWorkflow.Pipeline.AppId
+		environmentId = runnerDbObj.CdWorkflow.Pipeline.EnvironmentId
+	}
+	err = impl.workflowStatusUpdateService.UpdateCdWorkflowStatusLatest(runnerDbObj.CdWorkflow.PipelineId, appId, environmentId, runnerDbObj.Id, runnerDbObj.WorkflowType.String(), int32(updatedBy))
 	if err != nil {
 		impl.logger.Errorw("error in updating cd workflow status latest", "err", err, "pipelineId", runnerDbObj.CdWorkflow.PipelineId, "workflowRunnerId", runnerDbObj.Id)
 		// Don't return error here as the main workflow update was successful
@@ -136,7 +143,14 @@ func (impl *CdWorkflowRunnerServiceImpl) SaveCDWorkflowRunnerWithStage(wfr *pipe
 	}
 
 	// Update latest status table for CD workflow
-	err = impl.workflowStatusUpdateService.UpdateCdWorkflowStatusLatest(wfr.CdWorkflow.PipelineId, wfr.CdWorkflow.Pipeline.AppId, wfr.CdWorkflow.Pipeline.EnvironmentId, wfr.Id, wfr.WorkflowType.String(), wfr.TriggeredBy)
+	// Check if CdWorkflow and Pipeline are loaded, if not pass 0 as appId/environmentId to let the function fetch them
+	appId := 0
+	environmentId := 0
+	if wfr.CdWorkflow != nil && wfr.CdWorkflow.Pipeline != nil {
+		appId = wfr.CdWorkflow.Pipeline.AppId
+		environmentId = wfr.CdWorkflow.Pipeline.EnvironmentId
+	}
+	err = impl.workflowStatusUpdateService.UpdateCdWorkflowStatusLatest(wfr.CdWorkflow.PipelineId, appId, environmentId, wfr.Id, wfr.WorkflowType.String(), wfr.TriggeredBy)
 	if err != nil {
 		impl.logger.Errorw("error in updating cd workflow status latest", "err", err, "pipelineId", wfr.CdWorkflow.PipelineId, "workflowRunnerId", wfr.Id)
 		// Don't return error here as the main workflow save was successful
@@ -181,7 +195,14 @@ func (impl *CdWorkflowRunnerServiceImpl) UpdateCdWorkflowRunnerWithStage(wfr *pi
 	}
 
 	// Update latest status table for CD workflow
-	err = impl.workflowStatusUpdateService.UpdateCdWorkflowStatusLatest(wfr.CdWorkflow.PipelineId, wfr.CdWorkflow.Pipeline.AppId, wfr.CdWorkflow.Pipeline.EnvironmentId, wfr.Id, wfr.WorkflowType.String(), wfr.TriggeredBy)
+	// Check if CdWorkflow and Pipeline are loaded, if not pass 0 as appId/environmentId to let the function fetch them
+	appId := 0
+	environmentId := 0
+	if wfr.CdWorkflow != nil && wfr.CdWorkflow.Pipeline != nil {
+		appId = wfr.CdWorkflow.Pipeline.AppId
+		environmentId = wfr.CdWorkflow.Pipeline.EnvironmentId
+	}
+	err = impl.workflowStatusUpdateService.UpdateCdWorkflowStatusLatest(wfr.CdWorkflow.PipelineId, appId, environmentId, wfr.Id, wfr.WorkflowType.String(), wfr.TriggeredBy)
 	if err != nil {
 		impl.logger.Errorw("error in updating cd workflow status latest", "err", err, "pipelineId", wfr.CdWorkflow.PipelineId, "workflowRunnerId", wfr.Id)
 		// Don't return error here as the main workflow update was successful
