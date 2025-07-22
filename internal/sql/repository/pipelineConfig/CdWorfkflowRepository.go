@@ -19,6 +19,7 @@ package pipelineConfig
 import (
 	"context"
 	"errors"
+	"fmt"
 	apiBean "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow"
@@ -28,6 +29,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
+	"strings"
 	"time"
 )
 
@@ -69,7 +71,7 @@ type CdWorkflowRepository interface {
 	IsLatestWf(pipelineId int, wfId int) (bool, error)
 	FindLatestCdWorkflowByPipelineId(pipelineIds []int) (*CdWorkflow, error)
 	FindLatestCdWorkflowByPipelineIdV2(pipelineIds []int) ([]*CdWorkflow, error)
-	FetchAllCdStagesLatestEntity(pipelineIds []int) ([]*CdWorkflowStatus, error)
+	FetchAllCdStagesLatestEntity(pipelineWorkflowPairs map[int]apiBean.WorkflowType) ([]*CdWorkflowStatus, error)
 	FetchAllCdStagesLatestEntityStatus(wfrIds []int) ([]*CdWorkflowRunner, error)
 	ExistsByStatus(status string) (bool, error)
 	FetchEnvAllCdStagesLatestEntityStatus(wfrIds []int, envID int) ([]*CdWorkflowRunner, error)
@@ -578,15 +580,15 @@ func (impl *CdWorkflowRepositoryImpl) IsLatestWf(pipelineId int, wfId int) (bool
 	return !exists, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) FetchAllCdStagesLatestEntity(pipelineIds []int) ([]*CdWorkflowStatus, error) {
+func (impl *CdWorkflowRepositoryImpl) FetchAllCdStagesLatestEntity(pipelineWorkflowPairs map[int]apiBean.WorkflowType) ([]*CdWorkflowStatus, error) {
 	var cdWorkflowStatus []*CdWorkflowStatus
-	if len(pipelineIds) == 0 {
+	if len(pipelineWorkflowPairs) == 0 {
 		return cdWorkflowStatus, nil
 	}
 	query := "select p.ci_pipeline_id, wf.pipeline_id, wfr.workflow_type, max(wfr.id) as wfr_id from cd_workflow_runner wfr" +
 		" inner join cd_workflow wf on wf.id=wfr.cd_workflow_id" +
 		" inner join pipeline p on p.id = wf.pipeline_id" +
-		" where wf.pipeline_id in (" + sqlIntSeq(pipelineIds) + ")" +
+		" where (wf.pipeline_id, wfr.workflow_type) in (" + buildPipelineTypeValuesList(pipelineWorkflowPairs) + ")" +
 		" group by p.ci_pipeline_id, wf.pipeline_id, wfr.workflow_type order by wfr_id desc;"
 	_, err := impl.dbConnection.Query(&cdWorkflowStatus, query)
 	if err != nil {
@@ -594,6 +596,14 @@ func (impl *CdWorkflowRepositoryImpl) FetchAllCdStagesLatestEntity(pipelineIds [
 		return cdWorkflowStatus, err
 	}
 	return cdWorkflowStatus, nil
+}
+
+func buildPipelineTypeValuesList(pairs map[int]apiBean.WorkflowType) string {
+	var values []string
+	for pipelineId, workflowType := range pairs {
+		values = append(values, fmt.Sprintf("(%d,'%s')", pipelineId, workflowType))
+	}
+	return strings.Join(values, ",")
 }
 
 func (impl *CdWorkflowRepositoryImpl) FetchAllCdStagesLatestEntityStatus(wfrIds []int) ([]*CdWorkflowRunner, error) {

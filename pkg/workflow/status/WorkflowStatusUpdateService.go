@@ -18,13 +18,14 @@ package status
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
 type WorkflowStatusUpdateService interface {
 	// Methods to update latest status tables when workflow status changes
 	UpdateCiWorkflowStatusLatest(pipelineId, appId, ciWorkflowId int, userId int32) error
-	UpdateCdWorkflowStatusLatest(pipelineId, appId, environmentId, workflowRunnerId int, workflowType string, userId int32) error
+	UpdateCdWorkflowStatusLatest(tx *pg.Tx, pipelineId, appId, environmentId, workflowRunnerId int, workflowType string, userId int32) error
 
 	// Methods to fetch optimized status for trigger view
 	FetchCiStatusForTriggerViewOptimized(appId int) ([]*pipelineConfig.CiWorkflowStatus, error)
@@ -62,8 +63,8 @@ func (impl *WorkflowStatusUpdateServiceImpl) UpdateCiWorkflowStatusLatest(pipeli
 	return impl.workflowStatusLatestService.SaveOrUpdateCiWorkflowStatusLatest(pipelineId, appId, ciWorkflowId, userId)
 }
 
-func (impl *WorkflowStatusUpdateServiceImpl) UpdateCdWorkflowStatusLatest(pipelineId, appId, environmentId, workflowRunnerId int, workflowType string, userId int32) error {
-	return impl.workflowStatusLatestService.SaveOrUpdateCdWorkflowStatusLatest(pipelineId, appId, environmentId, workflowRunnerId, workflowType, userId)
+func (impl *WorkflowStatusUpdateServiceImpl) UpdateCdWorkflowStatusLatest(tx *pg.Tx, pipelineId, appId, environmentId, workflowRunnerId int, workflowType string, userId int32) error {
+	return impl.workflowStatusLatestService.SaveOrUpdateCdWorkflowStatusLatest(tx, pipelineId, appId, environmentId, workflowRunnerId, workflowType, userId)
 }
 
 func (impl *WorkflowStatusUpdateServiceImpl) FetchCiStatusForTriggerViewOptimized(appId int) ([]*pipelineConfig.CiWorkflowStatus, error) {
