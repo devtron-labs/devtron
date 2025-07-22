@@ -208,7 +208,7 @@ func (handler BulkUpdateRestHandlerImpl) DryRunBulkEdit(w http.ResponseWriter, r
 			return
 		}
 	}
-	common.WriteJsonResp(w, err, impactedObjects, http.StatusOK)
+	common.WriteJsonResp(w, nil, impactedObjects, http.StatusOK)
 }
 
 func (handler BulkUpdateRestHandlerImpl) CheckAuthForBulkUpdate(AppId int, EnvId int, AppName string, rbacObjects map[int]string, token string) bool {

@@ -18,5 +18,5 @@ func ApplyJsonPatch(patch jsonpatch.Patch, target string) (string, error) {
 	if err != nil {
 		return "Patch Failed", err
 	}
-	return string(modified), err
+	return string(modified), nil
 }
