@@ -18,9 +18,12 @@ package read
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/bean"
+	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -42,19 +45,25 @@ type EnvConfigOverrideService interface {
 	// EnvConfigOverride.Chart is not populated,
 	// as the chartRepoRepository.Chart contains the reference chart(in bytes).
 	GetAllOverridesForApp(ctx context.Context, appId int) ([]*bean.EnvConfigOverride, error)
+	GetLatestEnvironmentProperties(appId, environmentId int) (environmentProperties *pipelineBean.EnvironmentProperties, err error)
 	EnvConfigOverrideServiceEnt
 }
 
 type EnvConfigOverrideReadServiceImpl struct {
-	envConfigOverrideRepository chartConfig.EnvConfigOverrideRepository
 	logger                      *zap.SugaredLogger
+	environmentRepository       repository.EnvironmentRepository
+	envConfigOverrideRepository chartConfig.EnvConfigOverrideRepository
 }
 
-func NewEnvConfigOverrideReadServiceImpl(repository chartConfig.EnvConfigOverrideRepository, logger *zap.SugaredLogger,
+func NewEnvConfigOverrideReadServiceImpl(
+	logger *zap.SugaredLogger,
+	environmentRepository repository.EnvironmentRepository,
+	repository chartConfig.EnvConfigOverrideRepository,
 ) *EnvConfigOverrideReadServiceImpl {
 	return &EnvConfigOverrideReadServiceImpl{
-		envConfigOverrideRepository: repository,
 		logger:                      logger,
+		environmentRepository:       environmentRepository,
+		envConfigOverrideRepository: repository,
 	}
 }
 
@@ -220,4 +229,45 @@ func (impl EnvConfigOverrideReadServiceImpl) GetAllOverridesForApp(ctx context.C
 		envConfigOverrides = append(envConfigOverrides, adapter.EnvOverrideDBToDTO(dbObj))
 	}
 	return envConfigOverrides, nil
+}
+
+func (impl EnvConfigOverrideReadServiceImpl) GetLatestEnvironmentProperties(appId, environmentId int) (environmentProperties *pipelineBean.EnvironmentProperties, err error) {
+	env, err := impl.environmentRepository.FindById(environmentId)
+	if err != nil {
+		impl.logger.Errorw("error in finding env by id", "envId", environmentId, "err", err)
+		return environmentProperties, err
+	}
+	envOverride, err := impl.ActiveEnvConfigOverride(appId, environmentId)
+	if err != nil {
+		impl.logger.Errorw("error in finding ActiveEnvConfigOverride", "appId", appId, "envId", environmentId, "err", err)
+		return environmentProperties, err
+	}
+	if envOverride.Id == 0 {
+		impl.logger.Warnw("No env config exists with tag latest for given appId and envId", "envId", environmentId)
+		return environmentProperties, nil
+	}
+	r := json.RawMessage("{}")
+	err = r.UnmarshalJSON([]byte(envOverride.EnvOverrideValues))
+	if err != nil {
+		return environmentProperties, err
+	}
+	environmentProperties = &pipelineBean.EnvironmentProperties{
+		Id:                envOverride.Id,
+		Status:            envOverride.Status,
+		EnvOverrideValues: r,
+		ManualReviewed:    envOverride.ManualReviewed,
+		Active:            envOverride.Active,
+		Namespace:         env.Namespace,
+		Description:       env.Description,
+		EnvironmentId:     environmentId,
+		EnvironmentName:   env.Name,
+		Latest:            envOverride.Latest,
+		ChartRefId:        envOverride.Chart.ChartRefId,
+		IsOverride:        envOverride.IsOverride,
+		IsBasicViewLocked: envOverride.IsBasicViewLocked,
+		CurrentViewEditor: envOverride.CurrentViewEditor,
+		MergeStrategy:     envOverride.MergeStrategy,
+		ClusterId:         env.ClusterId,
+	}
+	return environmentProperties, nil
 }
