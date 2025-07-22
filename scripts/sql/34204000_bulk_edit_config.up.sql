@@ -501,7 +501,6 @@ spec:
                 },
                 "chart": {
                   "type": "object",
-                  "required": ["name"],
                   "description": "Chart selection criteria",
                   "properties": {
                     "name": {
@@ -514,7 +513,7 @@ spec:
                     },
                     "version": {
                       "type": "object",
-                      "required": ["value"],
+                      "required": ["value", "operator"],
                       "description": "Chart version criteria",
                       "properties": {
                         "value": {
