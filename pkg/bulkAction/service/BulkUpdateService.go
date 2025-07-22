@@ -55,6 +55,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/json"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/sliceUtil"
 	jsonpatch "github.com/evanphx/json-patch"
@@ -358,59 +359,11 @@ func (impl BulkUpdateServiceImpl) DryRunBulkEdit(bulkUpdatePayload *bean4.BulkUp
 	if bulkUpdatePayload.Excludes != nil && len(bulkUpdatePayload.Excludes.Names) > 0 {
 		appNameExcludes = bulkUpdatePayload.Excludes.Names
 	}
-	deploymentTemplateImpactedObjects := make([]*bean4.DeploymentTemplateImpactedObjectsResponseForOneApp, 0)
-	configMapImpactedObjects := make([]*bean4.CmAndSecretImpactedObjectsResponseForOneApp, 0)
-	secretImpactedObjects := make([]*bean4.CmAndSecretImpactedObjectsResponseForOneApp, 0)
-	if bulkUpdatePayload.Global {
-		// For Deployment Template
-		impactedBaseDeploymentTemplates, err := impl.getImpactedBaseDeploymentTemplates(bulkUpdatePayload.DeploymentTemplate, appNameIncludes, appNameExcludes)
-		if err != nil {
-			impl.logger.Errorw("error in fetching impacted base deployment templates", "err", err)
-			return nil, err
-		}
-		deploymentTemplateImpactedObjects = append(deploymentTemplateImpactedObjects, impactedBaseDeploymentTemplates...)
-
-		// For ConfigMap
-		impactedBaseConfigMaps, err := impl.getImpactedBaseConfigMaps(bulkUpdatePayload.ConfigMap, appNameIncludes, appNameExcludes)
-		if err != nil {
-			impl.logger.Errorw("error in fetching impacted base config maps", "err", err)
-			return nil, err
-		}
-		configMapImpactedObjects = append(configMapImpactedObjects, impactedBaseConfigMaps...)
-
-		// For Secret
-		impactedBaseSecrets, err := impl.getImpactedBaseSecrets(bulkUpdatePayload.Secret, appNameIncludes, appNameExcludes)
-		if err != nil {
-			impl.logger.Errorw("error in fetching impacted base secrets", "err", err)
-			return nil, err
-		}
-		secretImpactedObjects = append(secretImpactedObjects, impactedBaseSecrets...)
-	}
-
-	for _, envId := range bulkUpdatePayload.EnvIds {
-		// For Deployment Template
-		impactedEnvDeploymentTemplates, err := impl.getImpactedDeploymentTemplates(bulkUpdatePayload.DeploymentTemplate, appNameIncludes, appNameExcludes, envId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching impacted base deployment templates", "envId", envId, "err", err)
-			return nil, err
-		}
-		deploymentTemplateImpactedObjects = append(deploymentTemplateImpactedObjects, impactedEnvDeploymentTemplates...)
-
-		// For ConfigMap
-		impactedEnvConfigMaps, err := impl.getImpactedConfigMaps(bulkUpdatePayload.ConfigMap, appNameIncludes, appNameExcludes, envId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching impacted base config maps", "envId", envId, "err", err)
-			return nil, err
-		}
-		configMapImpactedObjects = append(configMapImpactedObjects, impactedEnvConfigMaps...)
-
-		// For Secret
-		impactedEnvSecrets, err := impl.getImpactedSecrets(bulkUpdatePayload.Secret, appNameIncludes, appNameExcludes, envId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching impacted base secrets", "envId", envId, "err", err)
-			return nil, err
-		}
-		secretImpactedObjects = append(secretImpactedObjects, impactedEnvSecrets...)
+	deploymentTemplateImpactedObjects, configMapImpactedObjects,
+		secretImpactedObjects, err := impl.dryRunBulkEdit(bulkUpdatePayload, appNameIncludes, appNameExcludes)
+	if err != nil {
+		impl.logger.Errorw("error in dry-run bulk edit", "bulkUpdatePayload", bulkUpdatePayload, "err", err)
+		return nil, err
 	}
 	impactedObjectsResponse.DeploymentTemplate = deploymentTemplateImpactedObjects
 	impactedObjectsResponse.ConfigMap = configMapImpactedObjects
@@ -418,8 +371,69 @@ func (impl BulkUpdateServiceImpl) DryRunBulkEdit(bulkUpdatePayload *bean4.BulkUp
 	return impactedObjectsResponse, nil
 }
 
+func (impl BulkUpdateServiceImpl) dryRunBulkEdit(bulkUpdatePayload *bean4.BulkUpdatePayload, appNameIncludes, appNameExcludes []string) (
+	dtImpactedObjects []*bean4.DeploymentTemplateImpactedObjectsResponseForOneApp,
+	cmImpactedObjects, csImpactedObjects []*bean4.CmAndSecretImpactedObjectsResponseForOneApp, err error) {
+
+	dtImpactedObjects = make([]*bean4.DeploymentTemplateImpactedObjectsResponseForOneApp, 0)
+	cmImpactedObjects = make([]*bean4.CmAndSecretImpactedObjectsResponseForOneApp, 0)
+	csImpactedObjects = make([]*bean4.CmAndSecretImpactedObjectsResponseForOneApp, 0)
+	if bulkUpdatePayload.Global {
+		// For Deployment Template
+		impactedBaseDeploymentTemplates, err := impl.getImpactedBaseDeploymentTemplates(bulkUpdatePayload.DeploymentTemplate, appNameIncludes, appNameExcludes)
+		if err != nil {
+			impl.logger.Errorw("error in fetching impacted base deployment templates", "err", err)
+			return dtImpactedObjects, cmImpactedObjects, csImpactedObjects, err
+		}
+		dtImpactedObjects = append(dtImpactedObjects, impactedBaseDeploymentTemplates...)
+
+		// For ConfigMap
+		impactedBaseConfigMaps, err := impl.getImpactedBaseConfigMaps(bulkUpdatePayload.ConfigMap, appNameIncludes, appNameExcludes)
+		if err != nil {
+			impl.logger.Errorw("error in fetching impacted base config maps", "err", err)
+			return dtImpactedObjects, cmImpactedObjects, csImpactedObjects, err
+		}
+		cmImpactedObjects = append(cmImpactedObjects, impactedBaseConfigMaps...)
+
+		// For Secret
+		impactedBaseSecrets, err := impl.getImpactedBaseSecrets(bulkUpdatePayload.Secret, appNameIncludes, appNameExcludes)
+		if err != nil {
+			impl.logger.Errorw("error in fetching impacted base secrets", "err", err)
+			return dtImpactedObjects, cmImpactedObjects, csImpactedObjects, err
+		}
+		csImpactedObjects = append(csImpactedObjects, impactedBaseSecrets...)
+	}
+
+	for _, envId := range bulkUpdatePayload.EnvIds {
+		// For Deployment Template
+		impactedEnvDeploymentTemplates, err := impl.getImpactedDeploymentTemplates(bulkUpdatePayload.DeploymentTemplate, appNameIncludes, appNameExcludes, envId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching impacted base deployment templates", "envId", envId, "err", err)
+			return dtImpactedObjects, cmImpactedObjects, csImpactedObjects, err
+		}
+		dtImpactedObjects = append(dtImpactedObjects, impactedEnvDeploymentTemplates...)
+
+		// For ConfigMap
+		impactedEnvConfigMaps, err := impl.getImpactedConfigMaps(bulkUpdatePayload.ConfigMap, appNameIncludes, appNameExcludes, envId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching impacted base config maps", "envId", envId, "err", err)
+			return dtImpactedObjects, cmImpactedObjects, csImpactedObjects, err
+		}
+		cmImpactedObjects = append(cmImpactedObjects, impactedEnvConfigMaps...)
+
+		// For Secret
+		impactedEnvSecrets, err := impl.getImpactedSecrets(bulkUpdatePayload.Secret, appNameIncludes, appNameExcludes, envId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching impacted base secrets", "envId", envId, "err", err)
+			return dtImpactedObjects, cmImpactedObjects, csImpactedObjects, err
+		}
+		csImpactedObjects = append(csImpactedObjects, impactedEnvSecrets...)
+	}
+	return dtImpactedObjects, cmImpactedObjects, csImpactedObjects, nil
+}
+
 func (impl BulkUpdateServiceImpl) ApplyJsonPatch(patch jsonpatch.Patch, target string) (string, error) {
-	return utils.ApplyJsonPatch(patch, target)
+	return json.ApplyJsonPatch(patch, target)
 }
 
 func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(ctx context.Context, bulkUpdatePayload *bean4.BulkUpdatePayload, userMetadata *bean6.UserMetadata) *bean4.DeploymentTemplateBulkUpdateResponse {
