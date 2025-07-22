@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/adapter"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/bean"
+	"github.com/devtron-labs/devtron/pkg/workflow/status/workflowStatusLatest"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -43,22 +44,25 @@ type CdWorkflowRunnerService interface {
 }
 
 type CdWorkflowRunnerServiceImpl struct {
-	logger               *zap.SugaredLogger
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
-	workflowStageService workflowStatus.WorkFlowStageStatusService
-	transactionManager   sql.TransactionWrapper
-	config               *types.CiConfig
+	logger                      *zap.SugaredLogger
+	cdWorkflowRepository        pipelineConfig.CdWorkflowRepository
+	workflowStageService        workflowStatus.WorkFlowStageStatusService
+	transactionManager          sql.TransactionWrapper
+	config                      *types.CiConfig
+	workflowStatusUpdateService workflowStatusLatest.WorkflowStatusUpdateService
 }
 
 func NewCdWorkflowRunnerServiceImpl(logger *zap.SugaredLogger,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	workflowStageService workflowStatus.WorkFlowStageStatusService,
-	transactionManager sql.TransactionWrapper) *CdWorkflowRunnerServiceImpl {
+	transactionManager sql.TransactionWrapper,
+	workflowStatusUpdateService workflowStatusLatest.WorkflowStatusUpdateService) *CdWorkflowRunnerServiceImpl {
 	impl := &CdWorkflowRunnerServiceImpl{
-		logger:               logger,
-		cdWorkflowRepository: cdWorkflowRepository,
-		workflowStageService: workflowStageService,
-		transactionManager:   transactionManager,
+		logger:                      logger,
+		cdWorkflowRepository:        cdWorkflowRepository,
+		workflowStageService:        workflowStageService,
+		transactionManager:          transactionManager,
+		workflowStatusUpdateService: workflowStatusUpdateService,
 	}
 	ciConfig, err := types.GetCiConfig()
 	if err != nil {
@@ -76,6 +80,14 @@ func (impl *CdWorkflowRunnerServiceImpl) UpdateWfr(dto *bean.CdWorkflowRunnerDto
 		impl.logger.Errorw("error in updating runner status in db", "runnerId", runnerDbObj.Id, "err", err)
 		return err
 	}
+
+	// Update latest status table for CD workflow
+	err = impl.workflowStatusUpdateService.UpdateCdWorkflowStatusLatest(runnerDbObj.CdWorkflow.PipelineId, runnerDbObj.CdWorkflow.Pipeline.AppId, runnerDbObj.CdWorkflow.Pipeline.EnvironmentId, runnerDbObj.Id, runnerDbObj.WorkflowType.String(), int32(updatedBy))
+	if err != nil {
+		impl.logger.Errorw("error in updating cd workflow status latest", "err", err, "pipelineId", runnerDbObj.CdWorkflow.PipelineId, "workflowRunnerId", runnerDbObj.Id)
+		// Don't return error here as the main workflow update was successful
+	}
+
 	return nil
 }
 
@@ -122,6 +134,14 @@ func (impl *CdWorkflowRunnerServiceImpl) SaveCDWorkflowRunnerWithStage(wfr *pipe
 		impl.logger.Errorw("error in committing transaction", "workflowName", wfr.Name, "error", err)
 		return wfr, err
 	}
+
+	// Update latest status table for CD workflow
+	err = impl.workflowStatusUpdateService.UpdateCdWorkflowStatusLatest(wfr.CdWorkflow.PipelineId, wfr.CdWorkflow.Pipeline.AppId, wfr.CdWorkflow.Pipeline.EnvironmentId, wfr.Id, wfr.WorkflowType.String(), wfr.TriggeredBy)
+	if err != nil {
+		impl.logger.Errorw("error in updating cd workflow status latest", "err", err, "pipelineId", wfr.CdWorkflow.PipelineId, "workflowRunnerId", wfr.Id)
+		// Don't return error here as the main workflow save was successful
+	}
+
 	return wfr, nil
 }
 
@@ -159,6 +179,14 @@ func (impl *CdWorkflowRunnerServiceImpl) UpdateCdWorkflowRunnerWithStage(wfr *pi
 		impl.logger.Errorw("error in committing transaction", "workflowName", wfr.Name, "error", err)
 		return err
 	}
+
+	// Update latest status table for CD workflow
+	err = impl.workflowStatusUpdateService.UpdateCdWorkflowStatusLatest(wfr.CdWorkflow.PipelineId, wfr.CdWorkflow.Pipeline.AppId, wfr.CdWorkflow.Pipeline.EnvironmentId, wfr.Id, wfr.WorkflowType.String(), wfr.TriggeredBy)
+	if err != nil {
+		impl.logger.Errorw("error in updating cd workflow status latest", "err", err, "pipelineId", wfr.CdWorkflow.PipelineId, "workflowRunnerId", wfr.Id)
+		// Don't return error here as the main workflow update was successful
+	}
+
 	return nil
 
 }

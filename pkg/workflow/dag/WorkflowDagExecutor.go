@@ -21,6 +21,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/common-lib/async"
 	"github.com/devtron-labs/common-lib/utils"
@@ -71,10 +76,6 @@ import (
 	util2 "github.com/devtron-labs/devtron/util/event"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/rest"
-	"net/http"
-	"strings"
-	"sync"
-	"time"
 
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -88,6 +89,7 @@ import (
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
+	"github.com/devtron-labs/devtron/pkg/workflow/status/workflowStatusLatest"
 	util4 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
@@ -158,7 +160,8 @@ type WorkflowDagExecutorImpl struct {
 	workflowService             executor.WorkflowService
 	ciHandlerService            trigger.HandlerService
 	workflowTriggerAuditService auditService.WorkflowTriggerAuditService
-	fluxApplicationService fluxApplication.FluxApplicationService
+	fluxApplicationService      fluxApplication.FluxApplicationService
+	workflowStatusUpdateService workflowStatusLatest.WorkflowStatusUpdateService
 }
 
 func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -195,6 +198,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	ciHandlerService trigger.HandlerService,
 	workflowTriggerAuditService auditService.WorkflowTriggerAuditService,
 	fluxApplicationService fluxApplication.FluxApplicationService,
+	workflowStatusUpdateService workflowStatusLatest.WorkflowStatusUpdateService,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
@@ -231,6 +235,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		ciHandlerService:              ciHandlerService,
 		workflowTriggerAuditService:   workflowTriggerAuditService,
 		fluxApplicationService:        fluxApplicationService,
+		workflowStatusUpdateService:   workflowStatusUpdateService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -940,6 +945,13 @@ func (impl *WorkflowDagExecutorImpl) UpdateCiWorkflowForCiSuccess(request *bean2
 		return err
 	}
 
+	// Update latest status table for CI workflow
+	err = impl.workflowStatusUpdateService.UpdateCiWorkflowStatusLatest(savedWorkflow.CiPipelineId, savedWorkflow.CiPipeline.AppId, savedWorkflow.Id, savedWorkflow.TriggeredBy)
+	if err != nil {
+		impl.logger.Errorw("error in updating ci workflow status latest", "err", err, "pipelineId", savedWorkflow.CiPipelineId, "workflowId", savedWorkflow.Id)
+		// Don't return error here as the main workflow update was successful
+	}
+
 	return nil
 }
 
@@ -1118,6 +1130,14 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 		i += batchSize
 	}
 	impl.logger.Debugw("Completed: auto trigger for children Stage/CD pipelines", "Time taken", time.Since(start).Seconds())
+
+	// Update latest status table for CI workflow
+	err = impl.workflowStatusUpdateService.UpdateCiWorkflowStatusLatest(ciPipelineId, pipelineModal.AppId, buildArtifact.Id, request.UserId)
+	if err != nil {
+		impl.logger.Errorw("error in updating ci workflow status latest", "err", err, "pipelineId", ciPipelineId, "workflowId", buildArtifact.Id)
+		// Don't return error here as the main workflow was successful
+	}
+
 	return buildArtifact.Id, err
 }
 
