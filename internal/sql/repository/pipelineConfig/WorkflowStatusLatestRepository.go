@@ -28,7 +28,6 @@ type WorkflowStatusLatestRepository interface {
 	UpdateCiWorkflowStatusLatest(model *CiWorkflowStatusLatest) error
 	GetCiWorkflowStatusLatestByPipelineId(pipelineId int) (*CiWorkflowStatusLatest, error)
 	GetCiWorkflowStatusLatestByAppId(appId int) ([]*CiWorkflowStatusLatest, error)
-	GetByPipelineIds(pipelineIds []int) ([]int, error)
 	GetCiWorkflowStatusLatestByPipelineIds(pipelineIds []int) ([]*CiWorkflowStatusLatest, error)
 	DeleteCiWorkflowStatusLatestByPipelineId(pipelineId int) error
 
@@ -127,23 +126,6 @@ func (impl *WorkflowStatusLatestRepositoryImpl) DeleteCiWorkflowStatusLatestByPi
 		return err
 	}
 	return nil
-}
-
-func (impl *WorkflowStatusLatestRepositoryImpl) GetByPipelineIds(pipelineIds []int) ([]int, error) {
-	if len(pipelineIds) == 0 {
-		return []int{}, nil
-	}
-
-	var cachedPipelineIds []int
-	err := impl.dbConnection.Model(&CiWorkflowStatusLatest{}).
-		Column("pipeline_id").
-		Where("pipeline_id IN (?)", pg.In(pipelineIds)).
-		Select(&cachedPipelineIds)
-	if err != nil {
-		impl.logger.Errorw("error in getting cached pipeline ids", "err", err, "pipelineIds", pipelineIds)
-		return nil, err
-	}
-	return cachedPipelineIds, nil
 }
 
 func (impl *WorkflowStatusLatestRepositoryImpl) GetCiWorkflowStatusLatestByPipelineIds(pipelineIds []int) ([]*CiWorkflowStatusLatest, error) {
