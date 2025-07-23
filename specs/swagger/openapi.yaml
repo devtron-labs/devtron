@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   version: 1.0.0
-  title: Devtron Labs
+  title: Common Devtron automation APIs
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
@@ -5294,7 +5294,7 @@ components:
         minimum: 1
         default: 20
 x-tagGroups:
-  - name: Devtron Labs
+  - name: Common Devtron automation APIs
     tags:
       - Metadata
       - Jobs
