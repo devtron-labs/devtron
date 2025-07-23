@@ -106,11 +106,29 @@ func (impl *CdWorkflowRunnerReadServiceImpl) GetWfrStatusForLatestRunners(pipeli
 	// calculating all the pipelines not present in the index table cdWorkflowLatest
 	pipelinesAbsentInCache := make(map[int][]bean2.WorkflowType)
 	for _, item := range pipelines {
-		if stages, ok := cdWorfklowLatestMap[item.Id]; !ok || len(stages) == 0 {
+
+		var isPreCDConfigured, isPostCDConfigured bool
+		if configuredStages, ok := pipelineStageMap[item.Id]; ok {
+			for _, stage := range configuredStages {
+				if stage == bean2.CD_WORKFLOW_TYPE_PRE {
+					isPreCDConfigured = true
+				} else if stage == bean2.CD_WORKFLOW_TYPE_POST {
+					isPostCDConfigured = true
+				}
+			}
+		}
+
+		if _, ok := cdWorfklowLatestMap[item.Id]; !ok {
 			pipelinesAbsentInCache[item.Id] = append(pipelinesAbsentInCache[item.Id], bean2.CD_WORKFLOW_TYPE_PRE, bean2.CD_WORKFLOW_TYPE_POST, bean2.CD_WORKFLOW_TYPE_DEPLOY)
+			if isPreCDConfigured {
+				pipelinesAbsentInCache[item.Id] = append(pipelinesAbsentInCache[item.Id], bean2.CD_WORKFLOW_TYPE_PRE)
+			}
+			if isPostCDConfigured {
+				pipelinesAbsentInCache[item.Id] = append(pipelinesAbsentInCache[item.Id], bean2.CD_WORKFLOW_TYPE_POST)
+			}
 		} else {
 			isPreCDStageAbsent, isPostCdStageAbsent, isDeployStageAbsent := true, true, true
-			for _, stage := range stages {
+			for _, stage := range cdWorfklowLatestMap[item.Id] {
 				switch stage {
 				case bean2.CD_WORKFLOW_TYPE_PRE:
 					isPreCDStageAbsent = false
@@ -123,21 +141,11 @@ func (impl *CdWorkflowRunnerReadServiceImpl) GetWfrStatusForLatestRunners(pipeli
 			if isDeployStageAbsent {
 				pipelinesAbsentInCache[item.Id] = append(pipelinesAbsentInCache[item.Id], bean2.CD_WORKFLOW_TYPE_DEPLOY)
 			}
-			if configuredStages, ok := pipelineStageMap[item.Id]; ok {
-				var isPreCDConfigured, isPostCDConfigured bool
-				for _, stage := range configuredStages {
-					if stage == bean2.CD_WORKFLOW_TYPE_PRE {
-						isPreCDConfigured = true
-					} else if stage == bean2.CD_WORKFLOW_TYPE_POST {
-						isPostCDConfigured = true
-					}
-				}
-				if isPreCDConfigured && isPreCDStageAbsent {
-					pipelinesAbsentInCache[item.Id] = append(pipelinesAbsentInCache[item.Id], bean2.CD_WORKFLOW_TYPE_PRE)
-				}
-				if isPostCDConfigured && isPostCdStageAbsent {
-					pipelinesAbsentInCache[item.Id] = append(pipelinesAbsentInCache[item.Id], bean2.CD_WORKFLOW_TYPE_POST)
-				}
+			if isPreCDConfigured && isPreCDStageAbsent {
+				pipelinesAbsentInCache[item.Id] = append(pipelinesAbsentInCache[item.Id], bean2.CD_WORKFLOW_TYPE_PRE)
+			}
+			if isPostCDConfigured && isPostCdStageAbsent {
+				pipelinesAbsentInCache[item.Id] = append(pipelinesAbsentInCache[item.Id], bean2.CD_WORKFLOW_TYPE_POST)
 			}
 		}
 	}
