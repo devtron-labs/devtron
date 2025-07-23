@@ -6,120 +6,122 @@ info:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
 servers:
-  - url: http://localhost/orchestrator
-    description: Local development server
+- url: http://localhost/orchestrator
+  description: Local development server
 tags:
-  - name: Metadata
-    description: Application metadata and information retrieval
-    x-displayName: Application Metadata
-  - name: Jobs
-    description: Job management operations for creating, cloning, and retrieving jobs
-    x-displayName: Job Management
-  - name: Helm Charts
-    description: Helm chart deployment management and operations
-    x-displayName: Helm Chart Management
-  - name: List Applications
-    x-displayName: List Applications
-    description: Application listing
-  - name: Applications
-    description: Application management operations including creation, listing, and updates
-    x-displayName: Application Management
-  - name: Labels
-    x-displayName: Labels
-  - name: bulk_other
-    x-displayName: BulkGetData
-  - name: BulkUpdate
-    x-displayName: BulkUpdate
-  - name: SSO Configuration
-    description: Manage Single Sign-On (SSO) provider configurations.
-    x-displayName: SSO Configuration
-  - name: User Management
-    description: Operations related to user accounts (CRUD, listing, bulk actions).
-    x-displayName: User Management
-  - name: Role Group Management
-    description: Operations related to user role groups (CRUD, listing, bulk actions).
-    x-displayName: Role Group Management
-  - name: RBAC
-    description: >-
-      Operations related to Role-Based Access Control, like fetching default
-      roles.
-    x-displayName: RBAC
-  - name: Authentication
-    description: >-
-      Core authentication endpoints including login, token refresh, and auth
-      verification.
-    x-displayName: Authentication
-  - name: Policy Management
-    description: Endpoints for managing policies.
-    x-displayName: Policy Management
-  - name: Cache Management
-    description: Endpoints for managing authentication and authorization caches.
-    x-displayName: Cache Management
-  - name: Cluster Environment
-    description: Operations related to clusters and environments
-    x-displayName: Cluster Environment
-  - name: Cluster Management
-    description: Operations related to cluster creation, update, and validation
-    x-displayName: Cluster Management
-  - name: Environment Management
-    description: Operations for creating, updating, and deleting environments
-    x-displayName: Environment Management
-  - name: Change Chart
-    x-displayName: ChangeChartType
-  - name: Clone Workflow
-    x-displayName: CloneWorkflow (ENT)
-  - name: Deployment History
-    x-displayName: Get Deployment History (ENT)
-    description: >-
-      Retrieves the deployment history for a specific CD pipeline based on
-      various filter criteria.
-  - name: K8s Resource
-    description: >-
-      APIs for managing Kubernetes resources (get, create, update, delete,
-      list).
-    x-displayName: K8s Resource
-  - name: Workflow Management
-    x-displayName: Workflow Management
-  - name: Devtron Server version
-    x-displayName: Devtron Server version
-  - name: GitOps Validation
-    x-displayName: GitOps Validation
+- name: Metadata
+  description: Application metadata and information retrieval
+  x-displayName: Application Metadata
+- name: Jobs
+  description: Job management operations for creating, cloning, and retrieving jobs
+  x-displayName: Job Management
+- name: Helm Charts
+  description: Helm chart deployment management and operations
+  x-displayName: Helm Chart Management
+- name: List Applications
+  x-displayName: List Applications
+  description: Application listing
+- name: Applications
+  description: Application management operations including creation, listing, and
+    updates
+  x-displayName: Application Management
+- name: Labels
+  x-displayName: Labels
+- name: bulk_other
+  x-displayName: BulkGetData
+- name: BulkUpdate
+  x-displayName: BulkUpdate
+- name: SSO Configuration
+  description: Manage Single Sign-On (SSO) provider configurations.
+  x-displayName: SSO Configuration
+- name: User Management
+  description: Operations related to user accounts (CRUD, listing, bulk actions).
+  x-displayName: User Management
+- name: Role Group Management
+  description: Operations related to user role groups (CRUD, listing, bulk actions).
+  x-displayName: Role Group Management
+- name: RBAC
+  description: Operations related to Role-Based Access Control, like fetching default
+    roles.
+  x-displayName: RBAC
+- name: Authentication
+  description: Core authentication endpoints including login, token refresh, and auth
+    verification.
+  x-displayName: Authentication
+- name: Policy Management
+  description: Endpoints for managing policies.
+  x-displayName: Policy Management
+- name: Cache Management
+  description: Endpoints for managing authentication and authorization caches.
+  x-displayName: Cache Management
+- name: Cluster Environment
+  description: Operations related to clusters and environments
+  x-displayName: Cluster Environment
+- name: Cluster Management
+  description: Operations related to cluster creation, update, and validation
+  x-displayName: Cluster Management
+- name: Environment Management
+  description: Operations for creating, updating, and deleting environments
+  x-displayName: Environment Management
+- name: Change Chart
+  x-displayName: ChangeChartType
+- name: Clone Workflow
+  x-displayName: CloneWorkflow (ENT)
+- name: Deployment History
+  x-displayName: Get Deployment History (ENT)
+  description: Retrieves the deployment history for a specific CD pipeline based on
+    various filter criteria.
+- name: K8s Resource
+  description: APIs for managing Kubernetes resources (get, create, update, delete,
+    list).
+  x-displayName: K8s Resource
+- name: Workflow Management
+  x-displayName: Workflow Management
+- name: Notifications
+  x-displayName: Notifiactions
+- name: Devtron Server version
+  x-displayName: Devtron Server version
+- name: GitOps Validation
+  x-displayName: GitOps Validation
 paths:
   /resource/history/deployment/cd-pipeline/v1:
     get:
       summary: Get Deployment History
-      description: >-
-        Retrieves the deployment history for a specific CD pipeline based on
-        various filter criteria.
+      description: Retrieves the deployment history for a specific CD pipeline based
+        on various filter criteria.
       operationId: getDeploymentHistory
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       parameters:
-        - name: filterCriteria
-          in: query
-          required: true
-          schema:
-            type: array
-            items:
-              type: string
-          description: |
-            Filter criteria for deployment history. Example:
-            - application/devtron-application|id|1064
-            - environment|id|146
-            - release|id|203
-        - name: offset
-          in: query
-          required: false
-          schema:
-            type: integer
-          description: The starting point for fetching records (pagination).
-        - name: limit
-          in: query
-          required: false
-          schema:
-            type: integer
-          description: The number of records to return (pagination).
+      - name: filterCriteria
+        in: query
+        required: true
+        schema:
+          type: array
+          items:
+            type: string
+        description: 'Filter criteria for deployment history. Example:
+
+          - application/devtron-application|id|1064
+
+          - environment|id|146
+
+          - release|id|203
+
+          '
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: The starting point for fetching records (pagination).
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: The number of records to return (pagination).
       responses:
         '200':
           description: Successful retrieval of deployment history.
@@ -185,8 +187,7 @@ paths:
                               example: deepak@devtron.ai
                             image:
                               type: string
-                              example: >-
-                                devtroninc.azurecr.io/test:8a0c2298-fc94fa4b-956-18655
+                              example: devtroninc.azurecr.io/test:8a0c2298-fc94fa4b-956-18655
                             ci_artifact_id:
                               type: integer
                               example: 14593
@@ -209,18 +210,17 @@ paths:
                                     example: 8a0c22983ae7acae10abe7569026ae25d889e159
                                   Author:
                                     type: string
-                                    example: >-
-                                      jatin-jangir-0220
-                                      <122791251+jatin-jangir-0220@users.noreply.github.com>
+                                    example: jatin-jangir-0220 <122791251+jatin-jangir-0220@users.noreply.github.com>
                                   Date:
                                     type: string
                                     format: date-time
                                     example: '2024-04-29T18:49:39Z'
                                   Message:
                                     type: string
-                                    example: |+
-                                      Update Dockerfile (#19)
+                                    example: 'Update Dockerfile (#19)
 
+
+                                      '
                                   Changes:
                                     type: string
                                     nullable: true
@@ -241,8 +241,7 @@ paths:
                                     example: main
                                   GitRepoUrl:
                                     type: string
-                                    example: >-
-                                      https://github.com/devtron-labs/casbin-enterprise
+                                    example: https://github.com/devtron-labs/casbin-enterprise
                                   GitRepoName:
                                     type: string
                                     example: casbin-enterprise
@@ -293,8 +292,7 @@ paths:
                                     example: ''
                                   url:
                                     type: string
-                                    example: >-
-                                      https://github.com/devtron-labs/casbin-enterprise
+                                    example: https://github.com/devtron-labs/casbin-enterprise
                                   regex:
                                     type: string
                                     example: ''
@@ -316,127 +314,124 @@ paths:
                     status: OK
                     result:
                       cdWorkflows:
-                        - id: 19752
-                          cd_workflow_id: 19561
-                          name: cd-1064-nu4s
-                          status: Failed
-                          pod_status: ''
-                          message: >-
-                            Unable to continue with install: could not get
-                            information about the resource Job "" in namespace
-                            "devtroncd": resource name may not be empty
-                          started_on: '2024-07-25T08:26:21.792068Z'
-                          finished_on: '2024-07-25T08:26:23.855384Z'
-                          pipeline_id: 2082
-                          namespace: devtron-cd
-                          log_file_path: ''
-                          triggered_by: 23
-                          email_id: deepak@devtron.ai
-                          image: >-
-                            devtroninc.azurecr.io/test:8a0c2298-fc94fa4b-956-18655
-                          ci_artifact_id: 14593
-                          workflow_type: DEPLOY
-                          blobStorageEnabled: true
-                          userApprovalMetadata: null
-                          gitTriggers:
-                            '1013':
-                              Commit: 8a0c22983ae7acae10abe7569026ae25d889e159
-                              Author: >-
-                                jatin-jangir-0220
-                                <122791251+jatin-jangir-0220@users.noreply.github.com>
-                              Date: '2024-04-29T18:49:39Z'
-                              Message: |+
-                                Update Dockerfile (#19)
+                      - id: 19752
+                        cd_workflow_id: 19561
+                        name: cd-1064-nu4s
+                        status: Failed
+                        pod_status: ''
+                        message: 'Unable to continue with install: could not get information
+                          about the resource Job "" in namespace "devtroncd": resource
+                          name may not be empty'
+                        started_on: '2024-07-25T08:26:21.792068Z'
+                        finished_on: '2024-07-25T08:26:23.855384Z'
+                        pipeline_id: 2082
+                        namespace: devtron-cd
+                        log_file_path: ''
+                        triggered_by: 23
+                        email_id: deepak@devtron.ai
+                        image: devtroninc.azurecr.io/test:8a0c2298-fc94fa4b-956-18655
+                        ci_artifact_id: 14593
+                        workflow_type: DEPLOY
+                        blobStorageEnabled: true
+                        userApprovalMetadata: null
+                        gitTriggers:
+                          '1013':
+                            Commit: 8a0c22983ae7acae10abe7569026ae25d889e159
+                            Author: jatin-jangir-0220 <122791251+jatin-jangir-0220@users.noreply.github.com>
+                            Date: '2024-04-29T18:49:39Z'
+                            Message: 'Update Dockerfile (#19)
 
-                              Changes: null
-                              WebhookData:
-                                id: 0
-                                eventActionType: ''
-                                data: null
-                              CiConfigureSourceValue: main
-                              GitRepoUrl: >-
-                                https://github.com/devtron-labs/casbin-enterprise
-                              GitRepoName: casbin-enterprise
-                              CiConfigureSourceType: SOURCE_TYPE_BRANCH_FIXED
-                            '2072':
-                              Commit: fc94fa4bad21460e822ce896b5166273aa3df1a8
-                              Author: >-
-                                Gireesh Naidu
-                                <111440205+gireesh-naidu@users.noreply.github.com>
-                              Date: '2024-07-23T18:13:18+05:30'
-                              Message: "fix: getting 500 while updating the branch of linked CI (#1424)\n\n* fix: sync ci pipeline materials for linked pipelines\r\n\r\n* fix: sync ci pipeline materials for linked pipelines\r\n\r\n* fix: null column fix\r\n\r\n* fix: null column fix\r\n\r\n* fix: able to delete ci pipeline though it has linked ci's using API"
-                              Changes: null
-                              WebhookData:
-                                id: 0
-                                eventActionType: ''
-                                data: null
-                              CiConfigureSourceValue: main
-                              GitRepoUrl: >-
-                                https://github.com/devtron-labs/devtron-enterprise
-                              GitRepoName: devtron-enterprise
-                              CiConfigureSourceType: SOURCE_TYPE_BRANCH_FIXED
-                          ciMaterials:
-                            - id: 1013
-                              gitMaterialId: 411
-                              gitMaterialUrl: ''
-                              gitMaterialName: casbin-enterprise
-                              type: SOURCE_TYPE_BRANCH_FIXED
-                              value: main
-                              active: true
-                              lastFetchTime: '0001-01-01T00:00:00Z'
-                              isRepoError: false
-                              repoErrorMsg: ''
-                              isBranchError: false
-                              branchErrorMsg: ''
-                              url: >-
-                                https://github.com/devtron-labs/casbin-enterprise
-                              regex: ''
-                            - id: 2072
-                              gitMaterialId: 1286
-                              gitMaterialUrl: ''
-                              gitMaterialName: devtron-enterprise
-                              type: SOURCE_TYPE_BRANCH_FIXED
-                              value: main
-                              active: true
-                              lastFetchTime: '0001-01-01T00:00:00Z'
-                              isRepoError: false
-                              repoErrorMsg: ''
-                              isBranchError: false
-                              branchErrorMsg: ''
-                              url: >-
-                                https://github.com/devtron-labs/devtron-enterprise
-                              regex: ''
-                          imageReleaseTags: null
-                          imageComment: null
-                          referenceCdWorkflowRunnerId: 0
-                          appliedFilters: null
-                          appliedFiltersState: 0
-                          appliedFiltersTimestamp: '0001-01-01T00:00:00Z'
-                          promotionApprovalMetadata: null
-                          runSource:
-                            kind: release
-                            version: alpha1
-                            id: 203
-                            identifier: qa-releases-track-0.0.2
-                            releaseVersion: 0.0.2
-                            name: deepak-qa-release
-                            releaseTrackName: qa-releases-track
-                          targetConfig:
-                            tenantId: qa-devtroncd-x
-                            tenantName: QA Devtron Env
-                            installationId: qa-devtroncd-2
-                            installationName: qa-devtroncd-2
-                            releaseChannelId: beta
-                            releaseChannelName: beta-channel
+
+                              '
+                            Changes: null
+                            WebhookData:
+                              id: 0
+                              eventActionType: ''
+                              data: null
+                            CiConfigureSourceValue: main
+                            GitRepoUrl: https://github.com/devtron-labs/casbin-enterprise
+                            GitRepoName: casbin-enterprise
+                            CiConfigureSourceType: SOURCE_TYPE_BRANCH_FIXED
+                          '2072':
+                            Commit: fc94fa4bad21460e822ce896b5166273aa3df1a8
+                            Author: Gireesh Naidu <111440205+gireesh-naidu@users.noreply.github.com>
+                            Date: '2024-07-23T18:13:18+05:30'
+                            Message: "fix: getting 500 while updating the branch of\
+                              \ linked CI (#1424)\n\n* fix: sync ci pipeline materials\
+                              \ for linked pipelines\r\n\r\n* fix: sync ci pipeline\
+                              \ materials for linked pipelines\r\n\r\n* fix: null\
+                              \ column fix\r\n\r\n* fix: null column fix\r\n\r\n*\
+                              \ fix: able to delete ci pipeline though it has linked\
+                              \ ci's using API"
+                            Changes: null
+                            WebhookData:
+                              id: 0
+                              eventActionType: ''
+                              data: null
+                            CiConfigureSourceValue: main
+                            GitRepoUrl: https://github.com/devtron-labs/devtron-enterprise
+                            GitRepoName: devtron-enterprise
+                            CiConfigureSourceType: SOURCE_TYPE_BRANCH_FIXED
+                        ciMaterials:
+                        - id: 1013
+                          gitMaterialId: 411
+                          gitMaterialUrl: ''
+                          gitMaterialName: casbin-enterprise
+                          type: SOURCE_TYPE_BRANCH_FIXED
+                          value: main
+                          active: true
+                          lastFetchTime: '0001-01-01T00:00:00Z'
+                          isRepoError: false
+                          repoErrorMsg: ''
+                          isBranchError: false
+                          branchErrorMsg: ''
+                          url: https://github.com/devtron-labs/casbin-enterprise
+                          regex: ''
+                        - id: 2072
+                          gitMaterialId: 1286
+                          gitMaterialUrl: ''
+                          gitMaterialName: devtron-enterprise
+                          type: SOURCE_TYPE_BRANCH_FIXED
+                          value: main
+                          active: true
+                          lastFetchTime: '0001-01-01T00:00:00Z'
+                          isRepoError: false
+                          repoErrorMsg: ''
+                          isBranchError: false
+                          branchErrorMsg: ''
+                          url: https://github.com/devtron-labs/devtron-enterprise
+                          regex: ''
+                        imageReleaseTags: null
+                        imageComment: null
+                        referenceCdWorkflowRunnerId: 0
+                        appliedFilters: null
+                        appliedFiltersState: 0
+                        appliedFiltersTimestamp: '0001-01-01T00:00:00Z'
+                        promotionApprovalMetadata: null
+                        runSource:
+                          kind: release
+                          version: alpha1
+                          id: 203
+                          identifier: qa-releases-track-0.0.2
+                          releaseVersion: 0.0.2
+                          name: deepak-qa-release
+                          releaseTrackName: qa-releases-track
+                        targetConfig:
+                          tenantId: qa-devtroncd-x
+                          tenantName: QA Devtron Env
+                          installationId: qa-devtroncd-2
+                          installationName: qa-devtroncd-2
+                          releaseChannelId: beta
+                          releaseChannelName: beta-channel
       tags:
-        - Deployment History
+      - Deployment History
   /orchestrator/app/labels/list:
     get:
       summary: List all app labels
       description: This API will return all the labels available in the database.
       operationId: listAppLabels
       security:
-        - ApiKeyAuth: []
+      - ApiKeyAuth: []
       parameters: []
       responses:
         '200':
@@ -453,14 +448,14 @@ paths:
                     description: status
                   result:
                     allOf:
-                      - type: object
-                        properties:
-                          appId:
-                            type: integer
-                            description: unique application id
-                        required:
-                          - appId
-                      - $ref: '#/components/schemas/AppLabel'
+                    - type: object
+                      properties:
+                        appId:
+                          type: integer
+                          description: unique application id
+                      required:
+                      - appId
+                    - $ref: '#/components/schemas/AppLabel'
         '400':
           description: Bad request
         '401':
@@ -476,22 +471,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       tags:
-        - Metadata
+      - Metadata
   /orchestrator/app/meta/info/{appId}:
     get:
       summary: Get application meta info
       description: Application basic info, projects and labels
       operationId: getAppMetaInfo
       security:
-        - ApiKeyAuth: []
+      - ApiKeyAuth: []
       parameters:
-        - name: appId
-          in: path
-          description: application id
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: appId
+        in: path
+        description: application id
+        required: true
+        schema:
+          type: integer
+          format: int64
       responses:
         '200':
           description: application basic info, projects and labels
@@ -524,21 +519,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       tags:
-        - Metadata
+      - Metadata
   /orchestrator/helm/meta/info/{appId}:
     get:
       summary: Get Helm application meta info
       description: Application info for all types of Helm apps
       operationId: getHelmAppMetaInfo
       security:
-        - ApiKeyAuth: []
+      - ApiKeyAuth: []
       parameters:
-        - name: appId
-          in: path
-          description: application id
-          required: true
-          schema:
-            type: string
+      - name: appId
+        in: path
+        description: application id
+        required: true
+        schema:
+          type: string
       responses:
         '200':
           description: Helm application basic info
@@ -571,14 +566,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       tags:
-        - Metadata
+      - Metadata
   /orchestrator/job:
     post:
       summary: Create or clone a job
       description: Create and clone a job
       operationId: createOrCloneJob
       security:
-        - ApiKeyAuth: []
+      - ApiKeyAuth: []
       requestBody:
         required: true
         content:
@@ -599,14 +594,14 @@ paths:
         '500':
           description: Internal server error
       tags:
-        - Jobs
+      - Jobs
   /orchestrator/job/list:
     post:
       summary: List jobs
       description: Get the list of all the jobs by applying filter
       operationId: listJobs
       security:
-        - ApiKeyAuth: []
+      - ApiKeyAuth: []
       requestBody:
         required: true
         content:
@@ -627,20 +622,20 @@ paths:
         '500':
           description: Internal server error
       tags:
-        - Jobs
+      - Jobs
   /orchestrator/job/ci-pipeline/list/{jobId}:
     get:
       summary: Get job CI pipeline list
       description: fetch details of job ci-pipelines for the overview page
       operationId: getJobCiPipelineList
       security:
-        - ApiKeyAuth: []
+      - ApiKeyAuth: []
       parameters:
-        - name: jobId
-          in: path
-          required: true
-          schema:
-            type: integer
+      - name: jobId
+        in: path
+        required: true
+        schema:
+          type: integer
       responses:
         '200':
           description: Job CI pipeline list
@@ -651,61 +646,61 @@ paths:
         '500':
           description: Internal server error
       tags:
-        - Jobs
+      - Jobs
   /orchestrator/app-store/installed-app:
     get:
       summary: List deployed charts
       operationId: listDeployedCharts
       description: deployed chart listing, with search filters
       security:
-        - ApiKeyAuth: []
+      - ApiKeyAuth: []
       parameters:
-        - name: envs
-          in: query
-          description: environment ids
-          required: false
-          schema:
-            type: array
-            items:
-              type: string
-        - name: chartRepoId
-          in: query
-          description: chart repo ids
-          required: false
-          schema:
-            type: array
-            items:
-              type: string
-        - name: appStoreName
-          in: query
-          description: chart name
-          required: false
-          schema:
+      - name: envs
+        in: query
+        description: environment ids
+        required: false
+        schema:
+          type: array
+          items:
             type: string
-        - name: appName
-          in: query
-          description: chart name as app name for devtron
-          required: false
-          schema:
+      - name: chartRepoId
+        in: query
+        description: chart repo ids
+        required: false
+        schema:
+          type: array
+          items:
             type: string
-        - name: onlyDeprecated
-          in: query
-          description: show only deprecated or all
-          required: false
-          schema:
-            type: boolean
-        - name: offset
-          in: query
-          description: offset for result set
-          required: false
-          schema:
-            type: integer
-        - name: size
-          in: query
-          description: total request size.
-          required: false
-          schema:
-            type: integer
+      - name: appStoreName
+        in: query
+        description: chart name
+        required: false
+        schema:
+          type: string
+      - name: appName
+        in: query
+        description: chart name as app name for devtron
+        required: false
+        schema:
+          type: string
+      - name: onlyDeprecated
+        in: query
+        description: show only deprecated or all
+        required: false
+        schema:
+          type: boolean
+      - name: offset
+        in: query
+        description: offset for result set
+        required: false
+        schema:
+          type: integer
+      - name: size
+        in: query
+        description: total request size.
+        required: false
+        schema:
+          type: integer
       responses:
         '200':
           description: deployed chart listing, with search filters
@@ -737,27 +732,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       tags:
-        - Helm Charts
+      - Helm Charts
   /orchestrator/app-store/installed-app/notes:
     get:
       summary: Fetch notes.txt for deployed helm charts
       operationId: fetchNotesTxt
       description: Used to fetch notes.txt for helm charts deployed via gitOps
       security:
-        - ApiKeyAuth: []
+      - ApiKeyAuth: []
       parameters:
-        - name: env-id
-          in: query
-          description: it is an environment id of app
-          required: true
-          schema:
-            type: integer
-        - name: installed-app-id
-          in: query
-          description: it is a installed application id
-          required: true
-          schema:
-            type: integer
+      - name: env-id
+        in: query
+        description: it is an environment id of app
+        required: true
+        schema:
+          type: integer
+      - name: installed-app-id
+        in: query
+        description: it is a installed application id
+        required: true
+        schema:
+          type: integer
       responses:
         '200':
           description: if it is able to fetch the notes.txt then status will be ok
@@ -777,29 +772,29 @@ paths:
         '500':
           description: error while fetching notes.txt
       tags:
-        - Helm Charts
+      - Helm Charts
   /orchestrator/app/autocomplete:
     get:
       summary: List application autocomplete
       operationId: listAppAutocomplete
       description: list of namespaces group by clusters
       parameters:
-        - in: query
-          name: appName
-          example: abc
-          description: app name, wildcard query
-          required: false
-          allowEmptyValue: true
-          schema:
-            type: string
-        - in: query
-          name: teamId
-          example: '1'
-          description: project id
-          required: false
-          allowEmptyValue: false
-          schema:
-            type: integer
+      - in: query
+        name: appName
+        example: abc
+        description: app name, wildcard query
+        required: false
+        allowEmptyValue: true
+        schema:
+          type: string
+      - in: query
+        name: teamId
+        example: '1'
+        description: project id
+        required: false
+        allowEmptyValue: false
+        schema:
+          type: integer
       responses:
         '200':
           description: list response
@@ -829,16 +824,16 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       tags:
-        - List Applications
+      - List Applications
       security:
-        - ApiKeyAuth: []
+      - ApiKeyAuth: []
   /orchestrator/app:
     post:
       summary: Create a new application
       operationId: createApplication
       description: create new application
       security:
-        - ApiKeyAuth: []
+      - ApiKeyAuth: []
       requestBody:
         description: json as request body
         required: true
@@ -863,14 +858,14 @@ paths:
                     type: object
                     description: string
                     allOf:
-                      - type: object
-                        properties:
-                          id:
-                            type: integer
-                            description: unique application id
-                        required:
-                          - id
-                      - $ref: '#/components/schemas/App'
+                    - type: object
+                      properties:
+                        id:
+                          type: integer
+                          description: unique application id
+                      required:
+                      - id
+                    - $ref: '#/components/schemas/App'
         '400':
           description: Bad request
           content:
@@ -884,14 +879,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       tags:
-        - Applications
+      - Applications
   /orchestrator/app/edit:
     post:
       summary: Update application projects and labels
       operationId: updateApplicationProjectsAndLabels
       description: update application projects and labels
       security:
-        - ApiKeyAuth: []
+      - ApiKeyAuth: []
       requestBody:
         description: json as request body
         required: true
@@ -916,14 +911,14 @@ paths:
                     type: object
                     description: string
                     allOf:
-                      - type: object
-                        properties:
-                          id:
-                            type: integer
-                            description: unique application id
-                        required:
-                          - id
-                      - $ref: '#/components/schemas/App'
+                    - type: object
+                      properties:
+                        id:
+                          type: integer
+                          description: unique application id
+                      required:
+                      - id
+                    - $ref: '#/components/schemas/App'
         '400':
           description: Bad request
           content:
@@ -937,16 +932,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       tags:
-        - Applications
+      - Applications
   /orchestrator/app/list:
     post:
       summary: List applications
       operationId: listApplications
-      description: >-
-        app listing, collection of deployed applications or undeployed or
-        incomplete configured apps.
+      description: app listing, collection of deployed applications or undeployed
+        or incomplete configured apps.
       security:
-        - ApiKeyAuth: []
+      - ApiKeyAuth: []
       requestBody:
         description: json as request body
         required: true
@@ -971,15 +965,14 @@ paths:
                     type: object
                     description: string
                     required:
-                      - appCount
-                      - appContainers
-                      - deploymentGroup
+                    - appCount
+                    - appContainers
+                    - deploymentGroup
                     properties:
                       appCount:
                         type: integer
-                        description: >-
-                          app count, total number of apps available based on
-                          filter provided in request.
+                        description: app count, total number of apps available based
+                          on filter provided in request.
                       appContainers:
                         type: array
                         description: app containers
@@ -1002,14 +995,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       tags:
-        - Applications
+      - Applications
   /orchestrator/app/edit/projects:
     post:
       summary: Update project for app
       operationId: updateProjectForApp
       description: update project for app
       security:
-        - ApiKeyAuth: []
+      - ApiKeyAuth: []
       requestBody:
         description: json as request body
         required: true
@@ -1047,37 +1040,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       tags:
-        - Applications
+      - Applications
   /app/labels/list:
     get:
       summary: List Application Labels
-      description: >
-        Retrieves a list of application labels. By default, returns all labels. 
-
-        Use the `showPropagatedOnly` parameter to filter for labels where
-        propagate = true.
-
-
-        **Required Token Permission:**
-
-        - Must have **View** access to the applications in scope.
+      description: "Retrieves a list of application labels. By default, returns all\
+        \ labels. \nUse the `showPropagatedOnly` parameter to filter for labels where\
+        \ propagate = true.\n\n**Required Token Permission:**\n- Must have **View**\
+        \ access to the applications in scope.\n"
       operationId: getAppLabels
       tags:
-        - Labels
+      - Labels
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       parameters:
-        - name: showPropagatedOnly
-          in: query
-          description: |
-            If true, only returns labels where propagate = true. 
-            If false or not provided, all labels are returned.
-          required: false
-          schema:
-            type: boolean
-            default: false
-          example: false
+      - name: showPropagatedOnly
+        in: query
+        description: "If true, only returns labels where propagate = true. \nIf false\
+          \ or not provided, all labels are returned.\n"
+        required: false
+        schema:
+          type: boolean
+          default: false
+        example: false
       responses:
         '200':
           description: Successfully retrieved labels list
@@ -1100,11 +1086,11 @@ paths:
                     items:
                       type: object
                       required:
-                        - key
-                        - value
-                        - propagate
-                        - appId
-                        - appName
+                      - key
+                      - value
+                      - propagate
+                      - appId
+                      - appName
                       properties:
                         key:
                           type: string
@@ -1129,23 +1115,22 @@ paths:
               examples:
                 all_labels:
                   summary: All labels response
-                  description: >-
-                    Example response when showPropagatedOnly is false or not
-                    provided
+                  description: Example response when showPropagatedOnly is false or
+                    not provided
                   value:
                     code: 200
                     status: OK
                     result:
-                      - key: environment
-                        value: production
-                        propagate: true
-                        appId: 1234
-                        appName: web-service
-                      - key: team
-                        value: backend
-                        propagate: false
-                        appId: 1234
-                        appName: web-service
+                    - key: environment
+                      value: production
+                      propagate: true
+                      appId: 1234
+                      appName: web-service
+                    - key: team
+                      value: backend
+                      propagate: false
+                      appId: 1234
+                      appName: web-service
                 propagated_only:
                   summary: Propagated labels only
                   description: Example response when showPropagatedOnly is true
@@ -1153,11 +1138,11 @@ paths:
                     code: 200
                     status: OK
                     result:
-                      - key: environment
-                        value: production
-                        propagate: true
-                        appId: 1234
-                        appName: web-service
+                    - key: environment
+                      value: production
+                      propagate: true
+                      appId: 1234
+                      appName: web-service
         '401':
           description: Authentication required or token invalid
           content:
@@ -1189,8 +1174,7 @@ paths:
                     example: Forbidden
                   message:
                     type: string
-                    example: >-
-                      Token does not have View access to the applications in
+                    example: Token does not have View access to the applications in
                       scope
         '500':
           description: Internal server error
@@ -1214,19 +1198,19 @@ paths:
       description: Returns Readme for bulk update for different resource in the url
       operationId: FindBulkUpdateReadme
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       parameters:
-        - name: apiVersion
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: kind
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: apiVersion
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: kind
+        in: path
+        required: true
+        schema:
+          type: string
       responses:
         '200':
           description: Successful GET operation
@@ -1241,17 +1225,16 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       tags:
-        - bulk_other
+      - bulk_other
   /batch/v1beta1/application/dryrun:
     post:
       summary: Dry Run for Bulk Application Update
-      description: >-
-        Returns details(id, name, envId) of all apps to be impacted with bulk
-        update
+      description: Returns details(id, name, envId) of all apps to be impacted with
+        bulk update
       operationId: GetBulkAppName
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       requestBody:
         description: A JSON object containing information by which apps will be filtered
         required: true
@@ -1287,21 +1270,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       tags:
-        - bulk_other
+      - bulk_other
   /batch/v1beta1/hibernate:
     post:
       summary: Bulk Hibernate Applications
       description: Bulk Hibernates applications
       operationId: BulkHibernate
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       tags:
-        - BulkUpdate
+      - BulkUpdate
       requestBody:
-        description: >-
-          A JSON object containing information about applications and
-          environments to hibernate.
+        description: A JSON object containing information about applications and environments
+          to hibernate.
         required: true
         content:
           application/json:
@@ -1338,14 +1320,13 @@ paths:
       description: Bulk Un-Hibernates applications
       operationId: BulkUnHibernate
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       tags:
-        - BulkUpdate
+      - BulkUpdate
       requestBody:
-        description: >-
-          A JSON object containing information about applications and
-          environments to un-hibernate.
+        description: A JSON object containing information about applications and environments
+          to un-hibernate.
         required: true
         content:
           application/json:
@@ -1382,10 +1363,10 @@ paths:
       description: Bulk Triggers deployment of applications
       operationId: BulkDeploy
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       tags:
-        - BulkUpdate
+      - BulkUpdate
       requestBody:
         description: A JSON object containing information for bulk deployment.
         required: true
@@ -1424,10 +1405,10 @@ paths:
       description: Bulk Triggers build of applications
       operationId: BulkBuildTrigger
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       tags:
-        - BulkUpdate
+      - BulkUpdate
       requestBody:
         description: A JSON object containing information for bulk build trigger.
         required: true
@@ -1463,20 +1444,18 @@ paths:
   /batch/v1beta1/application:
     post:
       summary: Bulk Edit Applications
-      description: >-
-        Bulk Updates (Edit) all impacted apps. This endpoint can be used for
-        bulk editing application configurations like deployment templates,
-        configmaps, and secrets.
+      description: Bulk Updates (Edit) all impacted apps. This endpoint can be used
+        for bulk editing application configurations like deployment templates, configmaps,
+        and secrets.
       operationId: BulkUpdate
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       tags:
-        - BulkUpdate
+      - BulkUpdate
       requestBody:
-        description: >-
-          A JSON object containing information about update changes and by which
-          apps will be filtered for bulk editing.
+        description: A JSON object containing information about update changes and
+          by which apps will be filtered for bulk editing.
         required: true
         content:
           application/json:
@@ -1510,7 +1489,7 @@ paths:
   /sso/create:
     post:
       tags:
-        - SSO Configuration
+      - SSO Configuration
       summary: Create SSO Login Configuration
       operationId: CreateSSOLoginConfig
       requestBody:
@@ -1527,12 +1506,12 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /sso/update:
     put:
       tags:
-        - SSO Configuration
+      - SSO Configuration
       summary: Update SSO Login Configuration
       operationId: UpdateSSOLoginConfig
       requestBody:
@@ -1549,12 +1528,12 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /sso/list:
     get:
       tags:
-        - SSO Configuration
+      - SSO Configuration
       summary: Get All SSO Login Configurations
       operationId: GetAllSSOLoginConfig
       responses:
@@ -1569,16 +1548,16 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /sso/{id}:
     get:
       tags:
-        - SSO Configuration
+      - SSO Configuration
       summary: Get SSO Login Configuration by ID
       operationId: GetSSOLoginConfig
       parameters:
-        - $ref: '#/components/parameters/PathId'
+      - $ref: '#/components/parameters/PathId'
       responses:
         '200':
           $ref: '#/components/responses/SSOLoginConfigResponse'
@@ -1591,21 +1570,21 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /sso:
     get:
       tags:
-        - SSO Configuration
+      - SSO Configuration
       summary: Get SSO Login Configuration by Name
       operationId: GetSSOLoginConfigByName
       parameters:
-        - name: name
-          in: query
-          required: true
-          description: Name of the SSO configuration.
-          schema:
-            type: string
+      - name: name
+        in: query
+        required: true
+        description: Name of the SSO configuration.
+        schema:
+          type: string
       responses:
         '200':
           $ref: '#/components/responses/SSOLoginConfigResponse'
@@ -1616,12 +1595,12 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /rbac/roles/default:
     get:
       tags:
-        - RBAC
+      - RBAC
       summary: Get All Default Roles
       operationId: GetAllDefaultRoles
       responses:
@@ -1640,12 +1619,12 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /api/v1/session:
     post:
       tags:
-        - Authentication
+      - Authentication
       summary: User Login
       description: Authenticates a user and returns a session token.
       operationId: LoginHandler
@@ -1665,8 +1644,8 @@ paths:
                   format: password
                   example: password123
               required:
-                - username
-                - password
+              - username
+              - password
       responses:
         '200':
           description: Login successful, token returned.
@@ -1692,12 +1671,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /refresh:
     get:
       tags:
-        - Authentication
+      - Authentication
       summary: Refresh Session Token
       operationId: RefreshTokenHandler
       description: Handles token refresh (details depend on OIDC/OAuth flow).
@@ -1707,33 +1686,32 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /admin/policy/default:
     post:
       tags:
-        - Policy Management
+      - Policy Management
       summary: Add Default Policy and Roles
       operationId: AddDefaultPolicyAndRoles
-      description: >-
-        Creates default policies and roles based on team, app, and environment.
+      description: Creates default policies and roles based on team, app, and environment.
         This is a specialized endpoint.
       parameters:
-        - name: team
-          in: query
-          required: true
-          schema:
-            type: string
-        - name: app
-          in: query
-          required: true
-          schema:
-            type: string
-        - name: env
-          in: query
-          required: true
-          schema:
-            type: string
+      - name: team
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: app
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: env
+        in: query
+        required: true
+        schema:
+          type: string
       responses:
         '200':
           description: Default policies and roles added successfully.
@@ -1742,12 +1720,12 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /devtron/auth/verify:
     get:
       tags:
-        - Authentication
+      - Authentication
       summary: Verify Authentication Status
       operationId: AuthVerification
       responses:
@@ -1760,12 +1738,12 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /devtron/auth/verify/v2:
     get:
       tags:
-        - Authentication
+      - Authentication
       summary: Verify Authentication Status (V2)
       operationId: AuthVerificationV2
       responses:
@@ -1785,20 +1763,20 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /user/v2:
     get:
       tags:
-        - User Management
+      - User Management
       summary: List Users (V2 - Paginated, Filtered)
       operationId: GetAllUsersV2
       parameters:
-        - $ref: '#/components/parameters/SearchKeyQuery'
-        - $ref: '#/components/parameters/SortOrderQuery'
-        - $ref: '#/components/parameters/SortByQueryUser'
-        - $ref: '#/components/parameters/OffsetQuery'
-        - $ref: '#/components/parameters/SizeQuery'
+      - $ref: '#/components/parameters/SearchKeyQuery'
+      - $ref: '#/components/parameters/SortOrderQuery'
+      - $ref: '#/components/parameters/SortByQueryUser'
+      - $ref: '#/components/parameters/OffsetQuery'
+      - $ref: '#/components/parameters/SizeQuery'
       responses:
         '200':
           $ref: '#/components/responses/UserListingResponse'
@@ -1811,11 +1789,11 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
     post:
       tags:
-        - User Management
+      - User Management
       summary: Create User (V2)
       operationId: CreateUserV2
       requestBody:
@@ -1834,11 +1812,11 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
     put:
       tags:
-        - User Management
+      - User Management
       summary: Update User (V2)
       operationId: UpdateUserV2
       requestBody:
@@ -1855,12 +1833,12 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /user:
     get:
       tags:
-        - User Management
+      - User Management
       summary: List All Users (V1)
       operationId: GetAllUsers
       responses:
@@ -1879,11 +1857,11 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
     post:
       tags:
-        - User Management
+      - User Management
       summary: Create User
       operationId: CreateUser
       requestBody:
@@ -1902,11 +1880,11 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
     put:
       tags:
-        - User Management
+      - User Management
       summary: Update User
       operationId: UpdateUser
       requestBody:
@@ -1923,16 +1901,16 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /user/{id}:
     get:
       tags:
-        - User Management
+      - User Management
       summary: Get User by ID
       operationId: GetUserById
       parameters:
-        - $ref: '#/components/parameters/PathId'
+      - $ref: '#/components/parameters/PathId'
       responses:
         '200':
           $ref: '#/components/responses/UserInfoResponse'
@@ -1943,15 +1921,15 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
     delete:
       tags:
-        - User Management
+      - User Management
       summary: Delete User by ID
       operationId: DeleteUser
       parameters:
-        - $ref: '#/components/parameters/PathId'
+      - $ref: '#/components/parameters/PathId'
       responses:
         '200':
           $ref: '#/components/responses/GenericSuccess'
@@ -1964,16 +1942,16 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /user/v2/{id}:
     get:
       tags:
-        - User Management
+      - User Management
       summary: Get User by ID (V2)
       operationId: GetUserByIdV2
       parameters:
-        - $ref: '#/components/parameters/PathId'
+      - $ref: '#/components/parameters/PathId'
       responses:
         '200':
           $ref: '#/components/responses/UserInfoResponse'
@@ -1984,12 +1962,12 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /user/bulk:
     delete:
       tags:
-        - User Management
+      - User Management
       summary: Bulk Delete Users
       operationId: BulkDeleteUsers
       responses:
@@ -2004,12 +1982,12 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /user/detail/get:
     get:
       tags:
-        - User Management
+      - User Management
       summary: List All Detailed Users
       operationId: GetAllDetailedUsers
       responses:
@@ -2028,20 +2006,20 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /user/role/group/v2:
     get:
       tags:
-        - Role Group Management
+      - Role Group Management
       summary: List Role Groups (V2 - Paginated, Filtered)
       operationId: FetchRoleGroupsV2
       parameters:
-        - $ref: '#/components/parameters/SearchKeyQuery'
-        - $ref: '#/components/parameters/SortOrderQuery'
-        - $ref: '#/components/parameters/SortByQueryRoleGroup'
-        - $ref: '#/components/parameters/OffsetQuery'
-        - $ref: '#/components/parameters/SizeQuery'
+      - $ref: '#/components/parameters/SearchKeyQuery'
+      - $ref: '#/components/parameters/SortOrderQuery'
+      - $ref: '#/components/parameters/SortByQueryRoleGroup'
+      - $ref: '#/components/parameters/OffsetQuery'
+      - $ref: '#/components/parameters/SizeQuery'
       responses:
         '200':
           $ref: '#/components/responses/RoleGroupListingResponse'
@@ -2054,11 +2032,11 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
     post:
       tags:
-        - Role Group Management
+      - Role Group Management
       summary: Create Role Group (V2)
       operationId: CreateRoleGroupV2
       requestBody:
@@ -2075,11 +2053,11 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
     put:
       tags:
-        - Role Group Management
+      - Role Group Management
       summary: Update Role Group (V2)
       operationId: UpdateRoleGroupV2
       requestBody:
@@ -2094,12 +2072,12 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /user/role/group:
     get:
       tags:
-        - Role Group Management
+      - Role Group Management
       summary: List All Role Groups (V1)
       operationId: FetchRoleGroups
       responses:
@@ -2118,11 +2096,11 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
     post:
       tags:
-        - Role Group Management
+      - Role Group Management
       summary: Create Role Group
       operationId: CreateRoleGroup
       requestBody:
@@ -2139,11 +2117,11 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
     put:
       tags:
-        - Role Group Management
+      - Role Group Management
       summary: Update Role Group
       operationId: UpdateRoleGroup
       requestBody:
@@ -2158,16 +2136,16 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /user/role/group/{id}:
     get:
       tags:
-        - Role Group Management
+      - Role Group Management
       summary: Get Role Group by ID
       operationId: FetchRoleGroupById
       parameters:
-        - $ref: '#/components/parameters/PathId'
+      - $ref: '#/components/parameters/PathId'
       responses:
         '200':
           $ref: '#/components/responses/RoleGroupResponse'
@@ -2176,15 +2154,15 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
     delete:
       tags:
-        - Role Group Management
+      - Role Group Management
       summary: Delete Role Group by ID
       operationId: DeleteRoleGroup
       parameters:
-        - $ref: '#/components/parameters/PathId'
+      - $ref: '#/components/parameters/PathId'
       responses:
         '200':
           $ref: '#/components/responses/GenericSuccess'
@@ -2195,16 +2173,16 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /user/role/group/v2/{id}:
     get:
       tags:
-        - Role Group Management
+      - Role Group Management
       summary: Get Role Group by ID (V2)
       operationId: FetchRoleGroupByIdV2
       parameters:
-        - $ref: '#/components/parameters/PathId'
+      - $ref: '#/components/parameters/PathId'
       responses:
         '200':
           $ref: '#/components/responses/RoleGroupResponse'
@@ -2213,12 +2191,12 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /user/role/group/detailed/get:
     get:
       tags:
-        - Role Group Management
+      - Role Group Management
       summary: List All Detailed Role Groups
       operationId: FetchDetailedRoleGroups
       responses:
@@ -2231,21 +2209,21 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /user/role/group/search:
     get:
       tags:
-        - Role Group Management
+      - Role Group Management
       summary: Search Role Groups by Name
       operationId: FetchRoleGroupsByName
       parameters:
-        - name: name
-          in: query
-          required: true
-          description: Name of the role group to search for.
-          schema:
-            type: string
+      - name: name
+        in: query
+        required: true
+        description: Name of the role group to search for.
+        schema:
+          type: string
       responses:
         '200':
           $ref: '#/components/responses/RoleGroupResponse'
@@ -2254,12 +2232,12 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /user/role/group/bulk:
     delete:
       tags:
-        - Role Group Management
+      - Role Group Management
       summary: Bulk Delete Role Groups
       operationId: BulkDeleteRoleGroups
       responses:
@@ -2274,21 +2252,21 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /user/check/roles:
     get:
       tags:
-        - Authentication
+      - Authentication
       summary: Check Logged-in User's Roles
       operationId: CheckUserRoles
       parameters:
-        - name: appName
-          in: query
-          required: false
-          description: Optional application name to filter roles for.
-          schema:
-            type: string
+      - name: appName
+        in: query
+        required: false
+        description: Optional application name to filter roles for.
+        schema:
+          type: string
       responses:
         '200':
           description: User roles information.
@@ -2312,16 +2290,15 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /user/sync/orchestratortocasbin:
     get:
       tags:
-        - Policy Management
+      - Policy Management
       summary: Sync Orchestrator to Casbin
       operationId: SyncOrchestratorToCasbin
-      description: >-
-        Synchronizes policies from orchestrator to Casbin. Requires admin
+      description: Synchronizes policies from orchestrator to Casbin. Requires admin
         privileges.
       responses:
         '200':
@@ -2335,16 +2312,15 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /user/update/trigger/terminal:
     put:
       tags:
-        - Policy Management
+      - Policy Management
       summary: Update Trigger Policy for Terminal Access
       operationId: UpdateTriggerPolicyForTerminalAccess
-      description: >-
-        Updates trigger policies related to terminal access. Requires global
+      description: Updates trigger policies related to terminal access. Requires global
         update privileges.
       responses:
         '200':
@@ -2360,12 +2336,12 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /user/role/cache:
     get:
       tags:
-        - Cache Management
+      - Cache Management
       summary: Get Role Cache Dump
       operationId: GetRoleCacheDump
       description: Retrieves a dump of the role cache. Requires super admin privileges.
@@ -2379,12 +2355,12 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /user/role/cache/invalidate:
     get:
       tags:
-        - Cache Management
+      - Cache Management
       summary: Invalidate Role Cache
       operationId: InvalidateRoleCache
       description: Clears the role cache. Requires super admin privileges.
@@ -2398,12 +2374,12 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /login:
     get:
       tags:
-        - Authentication
+      - Authentication
       summary: OIDC Login Redirect (Informational)
       description: Initiates OIDC login flow. Handled by the OIDC client library.
       operationId: HandleOIDCLogin
@@ -2411,12 +2387,12 @@ paths:
         '302':
           description: Redirect to OIDC provider.
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /auth/login:
     get:
       tags:
-        - Authentication
+      - Authentication
       summary: OIDC Login Redirect (Informational - Alternate Path)
       description: Initiates OIDC login flow. Handled by the OIDC client library.
       operationId: HandleOIDCAuthLogin
@@ -2424,16 +2400,15 @@ paths:
         '302':
           description: Redirect to OIDC provider.
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /auth/callback:
     get:
       tags:
-        - Authentication
+      - Authentication
       summary: OIDC Callback (Informational)
-      description: >-
-        Handles the callback from the OIDC provider. Handled by the OIDC client
-        library.
+      description: Handles the callback from the OIDC provider. Handled by the OIDC
+        client library.
       operationId: HandleOIDCCallback
       responses:
         '302':
@@ -2443,38 +2418,38 @@ paths:
         '500':
           description: Server error during OIDC callback.
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /api/dex/{path}:
     get:
       tags:
-        - Authentication
+      - Authentication
       summary: Dex Proxy (Informational)
       description: Proxies requests to the Dex IdP. Handled by the Dex proxy mechanism.
       operationId: DexProxyHandler
       parameters:
-        - name: path
-          in: path
-          required: true
-          description: Path to be proxied to Dex.
-          schema:
-            type: string
+      - name: path
+        in: path
+        required: true
+        description: Path to be proxied to Dex.
+        schema:
+          type: string
       responses:
         default:
           description: Response from Dex.
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
   /env:
     post:
       summary: Create Environment
       description: Create a new environment within a cluster.
       operationId: CreateEnvironment
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       tags:
-        - Environment Management
+      - Environment Management
       requestBody:
         description: Environment details
         required: true
@@ -2512,10 +2487,10 @@ paths:
       description: Update an existing environment.
       operationId: UpdateEnvironment
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       tags:
-        - Environment Management
+      - Environment Management
       requestBody:
         description: Environment details to update
         required: true
@@ -2553,17 +2528,17 @@ paths:
       description: Get detailed information for a specific environment by its ID.
       operationId: GetEnvironmentById
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       tags:
-        - Environment Management
+      - Environment Management
       parameters:
-        - name: id
-          in: query
-          required: true
-          description: ID of the environment
-          schema:
-            type: integer
+      - name: id
+        in: query
+        required: true
+        description: ID of the environment
+        schema:
+          type: integer
       responses:
         '200':
           description: Successfully retrieved environment details
@@ -2601,14 +2576,13 @@ paths:
       description: Delete an existing cluster.
       operationId: DeleteCluster
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       tags:
-        - Cluster Management
+      - Cluster Management
       requestBody:
-        description: >-
-          A JSON object containing the cluster config (primarily ID is used for
-          deletion)
+        description: A JSON object containing the cluster config (primarily ID is
+          used for deletion)
         required: true
         content:
           application/json:
@@ -2649,14 +2623,13 @@ paths:
       description: Delete an existing environment using POST method.
       operationId: DeleteEnvironmentViaPost
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       tags:
-        - Environment Management
+      - Environment Management
       requestBody:
-        description: >-
-          A JSON object containing the env config (primarily ID is used for
-          deletion)
+        description: A JSON object containing the env config (primarily ID is used
+          for deletion)
         required: true
         content:
           application/json:
@@ -2697,10 +2670,10 @@ paths:
       description: Provides a list of all clusters and the environments within each.
       operationId: getClustersWithEnvironments
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       tags:
-        - Cluster Environment
+      - Cluster Environment
       responses:
         '200':
           description: Successfully retrieved list of clusters and environments
@@ -2728,17 +2701,17 @@ paths:
       description: Provides a list of all environments for a given cluster ID.
       operationId: getEnvironmentsForCluster
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       tags:
-        - Cluster Environment
+      - Cluster Environment
       parameters:
-        - name: cluster_id
-          in: path
-          required: true
-          description: ID of the cluster
-          schema:
-            type: integer
+      - name: cluster_id
+        in: path
+        required: true
+        description: ID of the cluster
+        schema:
+          type: integer
       responses:
         '200':
           description: Successfully retrieved list of environments
@@ -2778,10 +2751,10 @@ paths:
       description: Update an existing cluster's configuration.
       operationId: UpdateCluster
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       tags:
-        - Cluster Management
+      - Cluster Management
       requestBody:
         description: A JSON object containing the cluster config
         required: true
@@ -2819,17 +2792,17 @@ paths:
       description: Get details of a specific cluster by ID.
       operationId: GetCluster
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       tags:
-        - Cluster Management
+      - Cluster Management
       parameters:
-        - name: id
-          in: query
-          description: cluster id.
-          required: true
-          schema:
-            type: integer
+      - name: id
+        in: query
+        description: cluster id.
+        required: true
+        schema:
+          type: integer
       responses:
         '200':
           description: Successfully get cluster
@@ -2861,10 +2834,10 @@ paths:
       description: list of clusters accessible to the authenticated user.
       operationId: GetAuthClusterList
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       tags:
-        - Cluster Management
+      - Cluster Management
       responses:
         '200':
           description: cluster list
@@ -2896,10 +2869,10 @@ paths:
       description: Validate a cluster configuration using kubeconfig.
       operationId: ValidateCluster
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       tags:
-        - Cluster Management
+      - Cluster Management
       requestBody:
         content:
           application/json:
@@ -2909,7 +2882,7 @@ paths:
                 kubeconfig:
                   $ref: '#/components/schemas/Kubeconfig'
               required:
-                - kubeconfig
+              - kubeconfig
       responses:
         '200':
           description: OK
@@ -2935,10 +2908,10 @@ paths:
       description: Save configurations for multiple clusters.
       operationId: SaveClusters
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       tags:
-        - Cluster Management
+      - Cluster Management
       requestBody:
         content:
           application/json:
@@ -2973,8 +2946,8 @@ paths:
       description: change the deployment template for an app and environment
       operationId: PatchAppEnv
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       requestBody:
         content:
           application/json:
@@ -2992,17 +2965,16 @@ paths:
         '422':
           description: bad request
       tags:
-        - Change Chart
+      - Change Chart
   /app/workflow/clone:
     post:
       summary: Clone Application Workflow
-      description: >-
-        Clones an application workflow from a source environment to a target
+      description: Clones an application workflow from a source environment to a target
         environment
       operationId: CloneApplicationWorkflow
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       requestBody:
         description: A JSON object containing the details required to clone the workflow
         required: true
@@ -3018,17 +2990,16 @@ paths:
               schema:
                 $ref: '#/components/schemas/StandardResponse'
       tags:
-        - Clone Workflow
+      - Clone Workflow
   /k8s/resource:
     post:
       summary: Get Resource Manifest
-      description: >-
-        This API is used for fetching the manifest of a specified Kubernetes
+      description: This API is used for fetching the manifest of a specified Kubernetes
         resource.
       operationId: getResourceManifest
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       requestBody:
         description: JSON payload specifying the resource to fetch.
         required: true
@@ -3053,16 +3024,15 @@ paths:
                   result:
                     $ref: '#/components/schemas/ResourceGetResponse'
       tags:
-        - K8s Resource
+      - K8s Resource
     put:
       summary: Update Resource Manifest
-      description: >-
-        This API is used for editing the manifest of a specified Kubernetes
+      description: This API is used for editing the manifest of a specified Kubernetes
         resource.
       operationId: updateResourceManifest
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       requestBody:
         description: JSON payload containing the resource identifier and the patch.
         required: true
@@ -3087,17 +3057,16 @@ paths:
                   result:
                     $ref: '#/components/schemas/ResourceGetResponse'
       tags:
-        - K8s Resource
+      - K8s Resource
   /k8s/resource/create:
     post:
       summary: Create Resource
-      description: >-
-        This API is used for applying a desired manifest to create a Kubernetes
+      description: This API is used for applying a desired manifest to create a Kubernetes
         resource.
       operationId: createResource
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       requestBody:
         description: JSON payload containing the resource manifest to apply.
         required: true
@@ -3122,15 +3091,15 @@ paths:
                   result:
                     $ref: '#/components/schemas/ResourceGetResponse'
       tags:
-        - K8s Resource
+      - K8s Resource
   /k8s/resource/delete:
     post:
       summary: Delete Resource
       description: This API is used for deleting a specified Kubernetes resource.
       operationId: deleteResource
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       requestBody:
         description: JSON payload specifying the resource to delete.
         required: true
@@ -3155,15 +3124,15 @@ paths:
                   result:
                     $ref: '#/components/schemas/ResourceGetResponse'
       tags:
-        - K8s Resource
+      - K8s Resource
   /k8s/events:
     post:
       summary: Get Resource Events
       description: This API is used for fetching events for Kubernetes resources.
       operationId: getResourceEvents
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       requestBody:
         required: false
         content:
@@ -3172,135 +3141,131 @@ paths:
               $ref: '#/components/schemas/ResourceRequestObject'
       responses:
         '200':
-          description: >-
-            Successfully retrieved resource events. The response is a stream of
-            events.
+          description: Successfully retrieved resource events. The response is a stream
+            of events.
           content:
             text/event-stream:
               schema:
                 $ref: '#/components/schemas/EventsResponseObject'
       tags:
-        - K8s Resource
+      - K8s Resource
   /k8s/pods/logs/{podName}:
     get:
       summary: Get Pod Logs
-      description: >-
-        This API is used for fetching logs for a specified container within a
-        pod.
+      description: This API is used for fetching logs for a specified container within
+        a pod.
       operationId: getPodLogs
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       parameters:
-        - name: podName
-          in: path
-          required: true
-          description: Name of the pod.
-          schema:
-            type: string
-        - name: containerName
-          in: query
-          required: true
-          description: Name of the container within the pod.
-          schema:
-            type: string
-        - name: appId
-          in: query
-          required: false
-          description: Application ID.
-          schema:
-            type: string
-        - name: clusterId
-          in: query
-          required: false
-          description: Cluster ID.
-          schema:
-            type: integer
-        - name: namespace
-          in: query
-          description: Namespace of the pod. Required if clusterId is passed.
-          required: false
-          schema:
-            type: string
-        - name: follow
-          in: query
-          description: Whether to follow the log stream.
-          schema:
-            type: boolean
-            default: false
-        - name: sinceSeconds
-          in: query
-          description: >-
-            Return logs newer than a relative duration like 5s, 2m, or 3h.
-            Defaults to all logs.
-          schema:
-            type: integer
-        - name: tailLines
-          in: query
-          description: If set, the number of lines from the end of the logs to show.
-          schema:
-            type: integer
+      - name: podName
+        in: path
+        required: true
+        description: Name of the pod.
+        schema:
+          type: string
+      - name: containerName
+        in: query
+        required: true
+        description: Name of the container within the pod.
+        schema:
+          type: string
+      - name: appId
+        in: query
+        required: false
+        description: Application ID.
+        schema:
+          type: string
+      - name: clusterId
+        in: query
+        required: false
+        description: Cluster ID.
+        schema:
+          type: integer
+      - name: namespace
+        in: query
+        description: Namespace of the pod. Required if clusterId is passed.
+        required: false
+        schema:
+          type: string
+      - name: follow
+        in: query
+        description: Whether to follow the log stream.
+        schema:
+          type: boolean
+          default: false
+      - name: sinceSeconds
+        in: query
+        description: Return logs newer than a relative duration like 5s, 2m, or 3h.
+          Defaults to all logs.
+        schema:
+          type: integer
+      - name: tailLines
+        in: query
+        description: If set, the number of lines from the end of the logs to show.
+        schema:
+          type: integer
       responses:
         '200':
-          description: >-
-            Successfully retrieved pod logs. The response is a stream of log
-            lines.
+          description: Successfully retrieved pod logs. The response is a stream of
+            log lines.
           content:
             text/event-stream:
               schema:
                 $ref: '#/components/schemas/LogsResponseObject'
       tags:
-        - K8s Resource
+      - K8s Resource
   /k8s/pod/exec/session/{identifier}/{namespace}/{pod}/{shell}/{container}:
     get:
       summary: Get Pod Exec Session
-      description: >-
-        This API establishes a session for executing commands in a pod's
+      description: This API establishes a session for executing commands in a pod's
         container (terminal access).
       operationId: getPodExecSession
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       parameters:
-        - name: identifier
-          in: path
-          required: true
-          description: Application ID or Cluster ID. Example '2|devtroncd|devtron' or '3'.
-          schema:
-            type: string
-        - name: namespace
-          in: path
-          required: true
-          description: Namespace of the pod.
-          schema:
-            type: string
-            example: devtroncd
-        - name: pod
-          in: path
-          required: true
-          description: Name of the pod.
-          schema:
-            type: string
-            example: inception-58d44d99fd-tfw4s
-        - name: shell
-          in: path
-          required: true
-          description: Shell to invoke.
-          schema:
-            type: string
-            enum:
-              - bash
-              - sh
-              - powershell
-              - cmd
-            example: bash
-        - name: container
-          in: path
-          required: true
-          description: Name of the container.
-          schema:
-            type: string
-            example: devtron
+      - name: identifier
+        in: path
+        required: true
+        description: Application ID or Cluster ID. Example '2|devtroncd|devtron' or
+          '3'.
+        schema:
+          type: string
+      - name: namespace
+        in: path
+        required: true
+        description: Namespace of the pod.
+        schema:
+          type: string
+          example: devtroncd
+      - name: pod
+        in: path
+        required: true
+        description: Name of the pod.
+        schema:
+          type: string
+          example: inception-58d44d99fd-tfw4s
+      - name: shell
+        in: path
+        required: true
+        description: Shell to invoke.
+        schema:
+          type: string
+          enum:
+          - bash
+          - sh
+          - powershell
+          - cmd
+          example: bash
+      - name: container
+        in: path
+        required: true
+        description: Name of the container.
+        schema:
+          type: string
+          example: devtron
       responses:
         '200':
           description: Successfully established exec session.
@@ -3309,42 +3274,42 @@ paths:
               schema:
                 $ref: '#/components/schemas/TerminalMessage'
       tags:
-        - K8s Resource
+      - K8s Resource
   /k8s/api-resources/{clusterId}:
     get:
       summary: Get API Resources
       description: Get all available API resources for a given cluster ID.
       operationId: getApiResources
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       parameters:
-        - name: clusterId
-          in: path
-          description: ID of the cluster.
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: clusterId
+        in: path
+        description: ID of the cluster.
+        required: true
+        schema:
+          type: integer
+          format: int64
       responses:
         '200':
-          description: Successfully fetched all API resources for the given cluster ID.
+          description: Successfully fetched all API resources for the given cluster
+            ID.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/GetAllApiResourcesResponse'
       tags:
-        - K8s Resource
+      - K8s Resource
   /k8s/resource/list:
     post:
       summary: List Resources
-      description: >-
-        This API is used for fetching a list of Kubernetes resources based on
-        the request criteria.
+      description: This API is used for fetching a list of Kubernetes resources based
+        on the request criteria.
       operationId: listResources
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       requestBody:
         description: JSON payload specifying the criteria for listing resources.
         required: true
@@ -3372,25 +3337,24 @@ paths:
                     items:
                       $ref: '#/components/schemas/ClusterResourceListResponse'
       tags:
-        - K8s Resource
+      - K8s Resource
   /k8s/resources/rotate:
     post:
       summary: Rotates the Pods
       description: This API is used to rotate (restart) pods for the provided resources.
       operationId: K8sResourceForResources
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       parameters:
-        - name: appId
-          in: query
-          description: Application ID.
-          required: true
-          schema:
-            type: string
+      - name: appId
+        in: query
+        description: Application ID.
+        required: true
+        schema:
+          type: string
       requestBody:
-        description: >-
-          JSON payload specifying the resources for which pods should be
+        description: JSON payload specifying the resources for which pods should be
           rotated.
         required: true
         content:
@@ -3405,17 +3369,16 @@ paths:
               schema:
                 $ref: '#/components/schemas/RotatePodResponse'
       tags:
-        - K8s Resource
+      - K8s Resource
   /k8s/resources/apply:
     post:
       summary: Apply Resources
-      description: >-
-        This API is used to apply (create or update) Kubernetes resources in a
-        cluster.
+      description: This API is used to apply (create or update) Kubernetes resources
+        in a cluster.
       operationId: applyResources
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       requestBody:
         description: JSON payload containing the manifest of resources to apply.
         required: true
@@ -3425,8 +3388,7 @@ paths:
               $ref: '#/components/schemas/ApplyResourcesRequest'
       responses:
         '200':
-          description: >-
-            Response array indicating the status of application for each
+          description: Response array indicating the status of application for each
             resource.
           content:
             application/json:
@@ -3435,17 +3397,17 @@ paths:
                 items:
                   $ref: '#/components/schemas/ApplyResourcesResponse'
       tags:
-        - K8s Resource
+      - K8s Resource
   /app/workflow:
     post:
       summary: Create an application workflow
       description: Creates a new workflow for a given application.
       operationId: CreateAppWorkflow
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       tags:
-        - Workflow Management
+      - Workflow Management
       requestBody:
         required: true
         content:
@@ -3489,23 +3451,23 @@ paths:
       description: Deletes an existing workflow for a given application.
       operationId: DeleteAppWorkflow
       security:
-        - bearerAuth: []
-        - apiKeyAuth: []
+      - bearerAuth: []
+      - apiKeyAuth: []
       tags:
-        - Workflow Management
+      - Workflow Management
       parameters:
-        - name: app-wf-id
-          in: path
-          required: true
-          description: ID of the application workflow to delete.
-          schema:
-            type: integer
-        - name: app-id
-          in: path
-          required: true
-          description: ID of the application.
-          schema:
-            type: integer
+      - name: app-wf-id
+        in: path
+        required: true
+        description: ID of the application workflow to delete.
+        schema:
+          type: integer
+      - name: app-id
+        in: path
+        required: true
+        description: ID of the application.
+        schema:
+          type: integer
       responses:
         '200':
           description: Successfully deleted workflow.
@@ -3567,16 +3529,16 @@ paths:
                     example: FULL
                     description: server mode FULL/EA_ONLY
                     enum:
-                      - FULL
-                      - EA_ONLY
+                    - FULL
+                    - EA_ONLY
       tags:
-        - Devtron Server version
+      - Devtron Server version
   /validate:
     post:
       description: Validate gitops configuration by dry run
       summary: Validate gitops configuration by dry run
       security:
-        - ApiKeyAuth: []
+      - ApiKeyAuth: []
       operationId: GitOpsValidateDryRun
       requestBody:
         description: A JSON object containing the gitops configuration
@@ -3611,13 +3573,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       tags:
-        - GitOps Validation
+      - GitOps Validation
   /config:
     post:
       description: create/save new configuration and validate them before saving
       summary: create/save new configuration and validate them before saving
       security:
-        - ApiKeyAuth: []
+      - ApiKeyAuth: []
       operationId: CreateGitOpsConfig
       requestBody:
         description: A JSON object containing the gitops configuration
@@ -3628,8 +3590,7 @@ paths:
               $ref: '#/components/schemas/GitOpsConfigDto'
       responses:
         '200':
-          description: >-
-            Successfully return all validation stages results and if validation
+          description: Successfully return all validation stages results and if validation
             is correct then saves the configuration in the backend
           content:
             application/json:
@@ -3654,17 +3615,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       tags:
-        - GitOps Validation
+      - GitOps Validation
     put:
-      description: >-
-        update configuration and validate them before saving(if last validation
+      description: update configuration and validate them before saving(if last validation
         is within 30 seconds then do not validate)
-      summary: >-
-        update configuration and validate them before saving(if last validation
+      summary: update configuration and validate them before saving(if last validation
         is within 30 seconds then do not validate)
       operationId: UpdateGitOpsConfig
       security:
-        - ApiKeyAuth: []
+      - ApiKeyAuth: []
       requestBody:
         description: A JSON object containing the gitops configuration
         required: true
@@ -3674,8 +3633,7 @@ paths:
               $ref: '#/components/schemas/GitOpsConfigDto'
       responses:
         '200':
-          description: >-
-            Successfully return all validation stages results and if validation
+          description: Successfully return all validation stages results and if validation
             is correct then updates the configuration in the backend
           content:
             application/json:
@@ -3700,7 +3658,209 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       tags:
-        - GitOps Validation
+      - GitOps Validation
+  /notification:
+    get:
+      summary: Returns all notification settings
+      description: Returns all notification settings
+      operationId: findNotificationSetting
+      parameters:
+      - name: offset
+        in: query
+        description: value can be regex search string.
+        required: true
+        schema:
+          type: integer
+      - name: size
+        in: query
+        description: value can be regex search string.
+        required: true
+        schema:
+          type: integer
+      security:
+      - bearerAuth: []
+      - apiKeyAuth: []
+      tags:
+      - Notifications
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSetting'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Creates a new NotificationSetting
+      description: create NotificationSetting api.
+      operationId: addNotificationSetting
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationSetting'
+      security:
+      - bearerAuth: []
+      - apiKeyAuth: []
+      tags:
+      - Notifications
+      responses:
+        '200':
+          description: create NotificationSetting response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSetting'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Update  NotificationSetting
+      description: Update NotificationSetting api either recipients or events(trigger/success/failed).
+      operationId: updateNotificationSetting
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationSetting'
+      security:
+      - bearerAuth: []
+      - apiKeyAuth: []
+      tags:
+      - Notifications
+      responses:
+        '200':
+          description: create NotificationSetting response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSetting'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: delete NotificationSetting
+      description: delete NotificationSetting.
+      operationId: deleteNotificationSetting
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationSetting'
+      security:
+      - bearerAuth: []
+      - apiKeyAuth: []
+      tags:
+      - Notifications
+      responses:
+        '200':
+          description: create NotificationSetting response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSetting'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /notification/recipient:
+    get:
+      summary: used to fetch providers(recipients)
+      description: recipients fetch by string search, it will return slacks providers
+        and email ids
+      operationId: deleteGroupPolicy
+      parameters:
+      - name: value
+        in: query
+        description: value can be regex search string.
+        required: true
+        schema:
+          type: string
+      security:
+      - bearerAuth: []
+      - apiKeyAuth: []
+      tags:
+      - Notifications
+      responses:
+        '204':
+          description: list of recipients
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /notification/channel:
+    get:
+      summary: get all NotificationSettingConfig list
+      description: get all NotificationSettingConfig list
+      operationId: findNotificationSettingConfig
+      security:
+      - bearerAuth: []
+      - apiKeyAuth: []
+      tags:
+      - Notifications
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationConfigResponse'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Creates a new NotificationSettingConfig
+      description: create NotificationSettingConfig, Slack or SES
+      operationId: addNotificationSettingConfig
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationConfig'
+      security:
+      - bearerAuth: []
+      - apiKeyAuth: []
+      tags:
+      - Notifications
+      responses:
+        '200':
+          description: create NotificationSettingConfig response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationConfigResponse'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   securitySchemes:
     ApiKeyAuth:
@@ -3721,8 +3881,8 @@ components:
     AppLabel:
       type: object
       required:
-        - key
-        - value
+      - key
+      - value
       properties:
         key:
           type: string
@@ -3736,8 +3896,8 @@ components:
     AppLabels:
       type: object
       required:
-        - appId
-        - labels
+      - appId
+      - labels
       properties:
         appId:
           type: integer
@@ -3749,13 +3909,13 @@ components:
     AppMetaInfo:
       type: object
       required:
-        - appId
-        - projectId
-        - appName
-        - projectName
-        - createdOn
-        - createdBy
-        - labels
+      - appId
+      - projectId
+      - appName
+      - projectName
+      - createdOn
+      - createdBy
+      - labels
       properties:
         appId:
           type: integer
@@ -3803,11 +3963,12 @@ components:
                 nullable: true
     Error:
       required:
-        - code
-        - message
+      - code
+      - message
       properties:
         code:
           type: integer
+          format: int32
           description: Error code
         message:
           type: string
@@ -3889,16 +4050,16 @@ components:
             type: integer
           description: used to give the project id
           example:
-            - 1
-            - 2
+          - 1
+          - 2
         appStatuses:
           type: array
           items:
             type: string
           description: used to give the filter of app ci-build status
           example:
-            - Succeeded
-            - Starting
+          - Succeeded
+          - Starting
         sortBy:
           type: string
           description: used to give the sort by constraint
@@ -3909,9 +4070,8 @@ components:
           example: ASC
         offset:
           type: integer
-          description: >-
-            used to give the number from which we want our job (if the offset is
-            20 means we want list of jobs from 20)
+          description: used to give the number from which we want our job (if the
+            offset is 20 means we want list of jobs from 20)
           example: 0
         size:
           type: integer
@@ -3972,18 +4132,18 @@ components:
     ChartInfo:
       type: object
       required:
-        - installedAppId
-        - environmentId
-        - installedAppVersionId
-        - appStoreApplicationVersionId
-        - appStoreApplicationName
-        - status
-        - appName
-        - environmentName
-        - deployedAt
-        - deployedBy
-        - readme
-        - deprecated
+      - installedAppId
+      - environmentId
+      - installedAppVersionId
+      - appStoreApplicationVersionId
+      - appStoreApplicationName
+      - status
+      - appName
+      - environmentName
+      - deployedAt
+      - deployedBy
+      - readme
+      - deprecated
       properties:
         installedAppId:
           type: integer
@@ -4030,9 +4190,9 @@ components:
     App:
       type: object
       required:
-        - appName
-        - teamId
-        - templateId
+      - appName
+      - teamId
+      - templateId
       properties:
         appName:
           type: string
@@ -4042,7 +4202,8 @@ components:
           description: project id
         templateId:
           type: integer
-          description: reference app id, used for clone, set default value 0 for blank app.
+          description: reference app id, used for clone, set default value 0 for blank
+            app.
         labels:
           type: array
           description: each apps may have multiple labels. these are optional.
@@ -4051,8 +4212,8 @@ components:
     AppProjectUpdateRequest:
       type: object
       required:
-        - teamId
-        - appId
+      - teamId
+      - appId
       properties:
         teamId:
           type: integer
@@ -4065,8 +4226,8 @@ components:
     AppListingRequest:
       type: object
       required:
-        - offset
-        - size
+      - offset
+      - size
       properties:
         appNameSearch:
           type: string
@@ -4106,9 +4267,9 @@ components:
     AppContainer:
       type: object
       required:
-        - appId
-        - appName
-        - environments
+      - appId
+      - appName
+      - environments
       properties:
         appId:
           type: integer
@@ -4123,10 +4284,10 @@ components:
     EnvContainer:
       type: object
       required:
-        - appId
-        - appName
-        - environmentId
-        - environmentName
+      - appId
+      - appName
+      - environmentId
+      - environmentName
       properties:
         appId:
           type: integer
@@ -4174,7 +4335,7 @@ components:
     DeploymentGroup:
       type: object
       required:
-        - id
+      - id
       properties:
         id:
           type: integer
@@ -4197,7 +4358,7 @@ components:
     BulkUpdateSeeExampleResponse:
       type: object
       required:
-        - Script
+      - Script
       properties:
         resource:
           type: string
@@ -4211,20 +4372,20 @@ components:
     BulkUpdateScript:
       type: object
       required:
-        - ApiVersion
-        - Kind
-        - Spec
+      - ApiVersion
+      - Kind
+      - Spec
       properties:
         apiVersion:
           type: string
           description: Api version from url
           example:
-            - v1beta1
+          - v1beta1
         kind:
           type: string
           description: Kind
           example:
-            - application
+          - application
         spec:
           $ref: '#/components/schemas/BulkUpdatePayload'
     BulkUpdatePayload:
@@ -4290,8 +4451,7 @@ components:
         deploymentTemplate:
           type: array
           items:
-            $ref: >-
-              #/components/schemas/DeploymentTemplateImpactedObjectsResponseForOneApp
+            $ref: '#/components/schemas/DeploymentTemplateImpactedObjectsResponseForOneApp'
         configMap:
           type: array
           items:
@@ -4425,8 +4585,7 @@ components:
           type: array
           items:
             type: integer
-          description: >-
-            All App Id's for the bulk action (alternative to includes/excludes
+          description: All App Id's for the bulk action (alternative to includes/excludes
             by name)
         projectIds:
           type: array
@@ -4476,7 +4635,7 @@ components:
     BulkDeployRequest:
       type: object
       required:
-        - envIds
+      - envIds
       properties:
         includes:
           $ref: '#/components/schemas/NameIncludesExcludes'
@@ -4491,9 +4650,8 @@ components:
           type: array
           items:
             type: integer
-          description: >-
-            All App Id's for the bulk deployment (alternative to
-            includes/excludes by name)
+          description: All App Id's for the bulk deployment (alternative to includes/excludes
+            by name)
         projectIds:
           type: array
           items:
@@ -4511,7 +4669,7 @@ components:
     BulkBuildTriggerRequest:
       type: object
       required:
-        - ciPipelineId
+      - ciPipelineId
       properties:
         includes:
           $ref: '#/components/schemas/NameIncludesExcludes'
@@ -4521,9 +4679,8 @@ components:
           type: array
           items:
             type: integer
-          description: >-
-            All App Id's for the bulk build trigger (alternative to
-            includes/excludes by name)
+          description: All App Id's for the bulk build trigger (alternative to includes/excludes
+            by name)
         projectIds:
           type: array
           items:
@@ -4550,43 +4707,38 @@ components:
           nullable: true
         config:
           type: object
-          description: >-
-            Configuration for the SSO provider (Dex connector config). Structure
-            varies.
+          description: Configuration for the SSO provider (Dex connector config).
+            Structure varies.
         active:
           type: boolean
       required:
-        - name
-        - url
-        - config
-        - active
+      - name
+      - url
+      - config
+      - active
     UserInfo:
       type: object
       properties:
         id:
           type: integer
           format: int32
-          description: >-
-            User ID. Should not be set for new user creation if auto-generated.
+          description: User ID. Should not be set for new user creation if auto-generated.
             Not allowed to be system-admin-userid (1 or 2) by validation.
         email_id:
           type: string
           format: email
-          description: >-
-            User's email address. Cannot be system admin user email by
+          description: User's email address. Cannot be system admin user email by
             validation.
         roles:
           type: array
           items:
             type: string
-          description: >-
-            List of direct roles assigned to the user (deprecated in favor of
-            roleFilters and userRoleGroups).
+          description: List of direct roles assigned to the user (deprecated in favor
+            of roleFilters and userRoleGroups).
           nullable: true
         accessToken:
           type: string
-          description: >-
-            Access token for the user (typically not part of create/update
+          description: Access token for the user (typically not part of create/update
             payload, but in response).
           readOnly: true
           nullable: true
@@ -4614,7 +4766,7 @@ components:
           readOnly: true
           description: The time the user last logged in.
       required:
-        - email_id
+      - email_id
     RoleGroup:
       type: object
       properties:
@@ -4635,52 +4787,48 @@ components:
           type: boolean
           description: Indicates if this role group grants super admin privileges.
       required:
-        - name
-        - roleFilters
+      - name
+      - roleFilters
     RoleFilter:
       type: object
       description: Defines a specific permission filter for a role.
       properties:
         entity:
           type: string
-          description: >-
-            The type of entity this filter applies to (e.g., apps, jobs,
+          description: The type of entity this filter applies to (e.g., apps, jobs,
             chart-group, cluster).
           enum:
-            - apps
-            - jobs
-            - chart-group
-            - cluster
+          - apps
+          - jobs
+          - chart-group
+          - cluster
         team:
           type: string
-          description: >-
-            Team associated with this permission. Can be empty for some global
-            entities.
+          description: Team associated with this permission. Can be empty for some
+            global entities.
           nullable: true
         entityName:
           type: string
-          description: >-
-            Name of the specific entity (e.g., application name, job name, chart
-            group name). Can be empty for 'all' access.
+          description: Name of the specific entity (e.g., application name, job name,
+            chart group name). Can be empty for 'all' access.
           nullable: true
         environment:
           type: string
-          description: >-
-            Environment associated with this permission. Can be empty if not
-            applicable.
+          description: Environment associated with this permission. Can be empty if
+            not applicable.
           nullable: true
         action:
           type: string
-          description: Action permitted (e.g., get, create, update, delete, trigger, *).
+          description: Action permitted (e.g., get, create, update, delete, trigger,
+            *).
         accessType:
           type: string
-          description: >-
-            Access type, typically for distinguishing app types like devtron-app
+          description: Access type, typically for distinguishing app types like devtron-app
             or helm-app.
           enum:
-            - devtron-app
-            - helm-app
-            - ''
+          - devtron-app
+          - helm-app
+          - ''
           nullable: true
         cluster:
           type: string
@@ -4707,8 +4855,8 @@ components:
           description: Workflow name, applicable if entity is 'jobs'.
           nullable: true
       required:
-        - entity
-        - action
+      - entity
+      - action
     UserRoleGroup:
       type: object
       description: Associates a user with a role group.
@@ -4731,10 +4879,10 @@ components:
         entity:
           type: string
           enum:
-            - apps
-            - cluster
-            - chart-group
-            - jobs
+          - apps
+          - cluster
+          - chart-group
+          - jobs
         accessType:
           type: string
           nullable: true
@@ -4750,7 +4898,7 @@ components:
         listingRequest:
           $ref: '#/components/schemas/ListingRequest'
       required:
-        - ids
+      - ids
     ListingRequest:
       type: object
       properties:
@@ -4760,8 +4908,8 @@ components:
         sortOrder:
           type: string
           enum:
-            - ASC
-            - DESC
+          - ASC
+          - DESC
           nullable: true
         sortBy:
           type: string
@@ -4784,8 +4932,8 @@ components:
     EnvironmentCreateRequest:
       type: object
       required:
-        - environment_name
-        - cluster_id
+      - environment_name
+      - cluster_id
       properties:
         environment_name:
           type: string
@@ -4816,14 +4964,14 @@ components:
           items:
             type: string
             enum:
-              - helm
-              - argo_cd
+            - helm
+            - argo_cd
     EnvironmentUpdateRequest:
       type: object
       required:
-        - id
-        - environment_name
-        - cluster_id
+      - id
+      - environment_name
+      - cluster_id
       properties:
         id:
           type: integer
@@ -4853,8 +5001,8 @@ components:
           items:
             type: string
             enum:
-              - helm
-              - argo_cd
+            - helm
+            - argo_cd
     EnvironmentDetail:
       type: object
       properties:
@@ -4889,8 +5037,8 @@ components:
           items:
             type: string
             enum:
-              - helm
-              - argo_cd
+            - helm
+            - argo_cd
     ClusterWithEnvironments:
       type: object
       properties:
@@ -4952,7 +5100,8 @@ components:
           properties:
             bearer_token:
               type: string
-              description: it will be empty while fetching, and if no change while updating
+              description: it will be empty while fetching, and if no change while
+                updating
         prometheusAuth:
           $ref: '#/components/schemas/PrometheusAuthGet'
         defaultClusterComponents:
@@ -4981,8 +5130,8 @@ components:
     ValidateClusterBean:
       type: object
       required:
-        - cluster_name
-        - server_url
+      - cluster_name
+      - server_url
       properties:
         userInfos:
           type: object
@@ -5003,16 +5152,20 @@ components:
           properties:
             bearer_token:
               type: string
-              description: it will be empty while fetching, and if no change while updating
+              description: it will be empty while fetching, and if no change while
+                updating
             tls_key:
               type: string
-              description: it will be empty while fetching, and if no change while updating
+              description: it will be empty while fetching, and if no change while
+                updating
             cert_data:
               type: string
-              description: it will be empty while fetching, and if no change while updating
+              description: it will be empty while fetching, and if no change while
+                updating
             cert_auth_data:
               type: string
-              description: it will be empty while fetching, and if no change while updating
+              description: it will be empty while fetching, and if no change while
+                updating
         prometheusAuth:
           $ref: '#/components/schemas/PrometheusAuthAdd'
         defaultClusterComponent:
@@ -5044,8 +5197,8 @@ components:
         type:
           type: string
           enum:
-            - basic
-            - bearer
+          - basic
+          - bearer
         basic:
           type: object
           properties:
@@ -5103,8 +5256,8 @@ components:
         type:
           type: string
           enum:
-            - yaml
-            - json
+          - yaml
+          - json
     CloneApplicationWorkflowRequest:
       type: object
       properties:
@@ -5128,9 +5281,8 @@ components:
           description: Name of the target environment
         cloneEnvInSameWorkflow:
           type: boolean
-          description: >-
-            Flag indicating if the environment should be cloned in the same
-            workflow
+          description: Flag indicating if the environment should be cloned in the
+            same workflow
     CloneApplicationWorkflowResponse:
       type: object
       properties:
@@ -5138,15 +5290,15 @@ components:
           type: string
           description: Status of the operation
           enum:
-            - SUCCESS
-            - FAILED
-            - SKIPPED
+          - SUCCESS
+          - FAILED
+          - SKIPPED
         message:
           type: string
           description: Detailed message about the operation result
       required:
-        - status
-        - message
+      - status
+      - message
     StandardResponse:
       type: object
       properties:
@@ -5165,23 +5317,23 @@ components:
               type: string
               description: Status of the operation
               enum:
-                - SUCCESS
-                - FAILED
-                - SKIPPED
+              - SUCCESS
+              - FAILED
+              - SKIPPED
             message:
               type: string
               description: Detailed message about the operation result
           required:
-            - status
-            - message
+          - status
+          - message
       required:
-        - code
-        - status
-        - result
+      - code
+      - status
+      - result
     ResourceInfo:
       type: object
       required:
-        - podName
+      - podName
       properties:
         podName:
           type: string
@@ -5207,14 +5359,12 @@ components:
       properties:
         appId:
           type: string
-          description: >-
-            Application ID. Used when the request is context-specific to an
-            application.
+          description: Application ID. Used when the request is context-specific to
+            an application.
           example: my-app/env-1
         clusterId:
           type: number
-          description: >-
-            Cluster ID. Used when the request is for a direct cluster resource
+          description: Cluster ID. Used when the request is for a direct cluster resource
             (appId is not supplied).
           example: 1
         k8sRequest:
@@ -5236,8 +5386,8 @@ components:
               description: Name of the resource.
               example: my-deployment
           required:
-            - name
-            - groupVersionKind
+          - name
+          - groupVersionKind
         podLogsRequest:
           type: object
           properties:
@@ -5256,13 +5406,14 @@ components:
           $ref: '#/components/schemas/ManifestResponse'
         secretViewAccess:
           type: boolean
-          description: >
-            Indicates whether a user can see obscured secret values or not. True
-            if the user has permission, false otherwise.
+          description: 'Indicates whether a user can see obscured secret values or
+            not. True if the user has permission, false otherwise.
+
+            '
           example: true
       required:
-        - manifestResponse
-        - secretViewAccess
+      - manifestResponse
+      - secretViewAccess
     ManifestResponse:
       type: object
       properties:
@@ -5289,9 +5440,8 @@ components:
           $ref: '#/components/schemas/ObjectReference'
         reason:
           type: string
-          description: >-
-            Short, machine-understandable string that describes the reason for
-            the transition into the object's current status.
+          description: Short, machine-understandable string that describes the reason
+            for the transition into the object's current status.
           example: Scheduled
         message:
           type: string
@@ -5306,18 +5456,16 @@ components:
         lastTimestamp:
           type: string
           format: date-time
-          description: >-
-            The time at which the most recent occurrence of this event was
-            recorded.
+          description: The time at which the most recent occurrence of this event
+            was recorded.
         count:
           type: integer
           format: int32
           description: The number of times this event has occurred.
         type:
           type: string
-          description: >-
-            Type of this event (Normal, Warning), new types could be added in
-            the future.
+          description: Type of this event (Normal, Warning), new types could be added
+            in the future.
           example: Normal
         eventTime:
           type: string
@@ -5418,46 +5566,45 @@ components:
           description: Kind of the API resource.
           example: Deployment
       required:
-        - group
-        - version
-        - kind
+      - group
+      - version
+      - kind
     ClusterResourceListResponse:
       type: object
-      description: >-
-        Represents a list of resources with dynamic headers and corresponding
+      description: Represents a list of resources with dynamic headers and corresponding
         data.
       properties:
         headers:
           type: array
           items:
             type: string
-          description: >-
-            An array of strings representing the column headers for the resource
-            list.
+          description: An array of strings representing the column headers for the
+            resource list.
           example:
-            - NAME
-            - NAMESPACE
-            - KIND
-            - AGE
+          - NAME
+          - NAMESPACE
+          - KIND
+          - AGE
         data:
           type: array
           items:
             type: object
             additionalProperties:
               type: string
-            description: >
-              An array of objects. Each object represents a resource, and its
-              keys correspond to the 'headers'. The values are the resource's
+            description: 'An array of objects. Each object represents a resource,
+              and its keys correspond to the ''headers''. The values are the resource''s
               data for those headers.
+
+              '
             example:
-              - NAME: my-pod-1
-                NAMESPACE: default
-                KIND: Pod
-                AGE: 2d
-              - NAME: my-service-abc
-                NAMESPACE: kube-system
-                KIND: Service
-                AGE: 10h
+            - NAME: my-pod-1
+              NAMESPACE: default
+              KIND: Pod
+              AGE: 2d
+            - NAME: my-service-abc
+              NAMESPACE: kube-system
+              KIND: Service
+              AGE: 10h
     RotatePodRequest:
       type: object
       properties:
@@ -5481,18 +5628,19 @@ components:
                 description: Name of the resource (e.g., Deployment, StatefulSet name).
                 example: my-app-deployment
             required:
-              - name
-              - groupVersionKind
-              - namespace
+            - name
+            - groupVersionKind
+            - namespace
       required:
-        - clusterId
-        - resources
+      - clusterId
+      - resources
     RotatePodResponse:
       type: object
       properties:
         containsError:
           type: boolean
-          description: True if any error occurred during the rotation of one or more pods.
+          description: True if any error occurred during the rotation of one or more
+            pods.
           example: false
         responses:
           type: array
@@ -5510,8 +5658,7 @@ components:
               errorResponse:
                 type: string
                 nullable: true
-                description: >-
-                  Error message if rotation failed for this specific resource.
+                description: Error message if rotation failed for this specific resource.
                   Otherwise null.
                 example: failed to find resource
     ApplyResourcesRequest:
@@ -5523,37 +5670,19 @@ components:
           example: 1
         manifest:
           type: string
-          description: >
-            A string containing one or more Kubernetes resource manifests,
-            separated by '---'.
-          example: |
-            apiVersion: v1
-            kind: ConfigMap
-            metadata:
-              name: my-cm
-            data:
-              key: value
-            ---
-            apiVersion: apps/v1
-            kind: Deployment
-            metadata:
-              name: my-app
-            spec:
-              replicas: 1
-              selector:
-                matchLabels:
-                  app: my-app
-              template:
-                metadata:
-                  labels:
-                    app: my-app
-                spec:
-                  containers:
-                  - name: nginx
-                    image: nginx
+          description: 'A string containing one or more Kubernetes resource manifests,
+            separated by ''---''.
+
+            '
+          example: "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: my-cm\ndata:\n\
+            \  key: value\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n\
+            \  name: my-app\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n\
+            \      app: my-app\n  template:\n    metadata:\n      labels:\n      \
+            \  app: my-app\n    spec:\n      containers:\n      - name: nginx\n  \
+            \      image: nginx\n"
       required:
-        - clusterId
-        - manifest
+      - clusterId
+      - manifest
     ApplyResourcesResponse:
       type: object
       properties:
@@ -5568,20 +5697,18 @@ components:
         error:
           type: string
           nullable: true
-          description: >-
-            Error message if applying this specific resource failed. Otherwise
+          description: Error message if applying this specific resource failed. Otherwise
             null.
           example: null
         isUpdate:
           type: boolean
-          description: >-
-            True if the resource was updated, false if it was created (or no
-            change).
+          description: True if the resource was updated, false if it was created (or
+            no change).
           example: true
       required:
-        - kind
-        - name
-        - isUpdate
+      - kind
+      - name
+      - isUpdate
     AppWorkflowDto:
       type: object
       properties:
@@ -5671,6 +5798,128 @@ components:
               error:
                 type: string
           description: map of stage and their respective errors
+    NotificationSetting:
+      type: object
+      required:
+      - configName
+      properties:
+        id:
+          type: integer
+          description: Unique id
+        configName:
+          type: string
+          description: Unique name of group
+        appId:
+          type: integer
+          description: app id
+        envId:
+          type: integer
+          description: env id
+        pipelineIds:
+          type: array
+          items:
+            type: integer
+        eventTypeIds:
+          type: array
+          items:
+            type: integer
+        pipelineType:
+          type: string
+          description: pipeline type CI or CD
+        providers:
+          type: array
+          items:
+            $ref: '#/components/schemas/providers'
+          description: role filters objects
+    providers:
+      type: object
+      required:
+      - dest
+      properties:
+        dest:
+          type: string
+          description: channel destination name
+        rule:
+          type: string
+          description: rule
+        configId:
+          type: integer
+          description: config id
+    NotificationConfig:
+      type: object
+      required:
+      - channel
+      properties:
+        channel:
+          type: string
+          description: channel type
+          enum:
+          - slack
+          - ses
+        configs:
+          type: array
+          items:
+            $ref: '#/components/schemas/configs'
+          description: config holds for either slack or ses
+    NotificationConfigResponse:
+      type: object
+      properties:
+        slackConfigs:
+          type: array
+          items:
+            $ref: '#/components/schemas/configs'
+          description: config holds for either slack or ses
+        sesConfigs:
+          type: array
+          items:
+            $ref: '#/components/schemas/configs'
+          description: config holds for either slack or ses
+    configs:
+      type: object
+      required:
+      - type
+      - configName
+      properties:
+        id:
+          type: integer
+          description: unique id for config either slack or ses on response or update
+            only
+        type:
+          type: string
+          description: channel destination type, slack or ses
+        configName:
+          type: string
+          description: configName
+        secretKey:
+          type: string
+          description: secretKey, only in case of ses
+        accessKey:
+          type: string
+          description: accessKey, only in case of ses
+        fromEmail:
+          type: string
+          description: fromEmail, only in case of ses
+        region:
+          type: string
+          description: region, only in case of ses
+        webhookUrl:
+          type: string
+          description: webhook url, only fill in case of type is slack
+        teamId:
+          type: integer
+          description: project id, only fill in case of type is slack
+        userId:
+          type: integer
+          description: project id, only fill in case of type is slack
+    entity:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: it contains entity id
+        name:
+          type: string
+          description: it contains entity name
   requestBodies:
     SSOLoginDto:
       description: SSO Login Configuration object
@@ -5811,8 +6060,8 @@ components:
       schema:
         type: string
         enum:
-          - ASC
-          - DESC
+        - ASC
+        - DESC
     SortByQueryUser:
       name: sortBy
       in: query
@@ -5821,8 +6070,8 @@ components:
       schema:
         type: string
         enum:
-          - email_id
-          - last_login
+        - email_id
+        - last_login
     SortByQueryRoleGroup:
       name: sortBy
       in: query
@@ -5831,7 +6080,7 @@ components:
       schema:
         type: string
         enum:
-          - name
+        - name
     OffsetQuery:
       name: offset
       in: query
@@ -5852,30 +6101,31 @@ components:
         minimum: 1
         default: 20
 x-tagGroups:
-  - name: Common Devtron automation APIs
-    tags:
-      - Metadata
-      - Jobs
-      - Helm Charts
-      - List Applications
-      - Applications
-      - Labels
-      - bulk_other
-      - BulkUpdate
-      - SSO Configuration
-      - User Management
-      - Role Group Management
-      - RBAC
-      - Authentication
-      - Policy Management
-      - Cache Management
-      - Cluster Environment
-      - Cluster Management
-      - Environment Management
-      - Change Chart
-      - Clone Workflow
-      - Deployment History
-      - K8s Resource
-      - Workflow Management
-      - Devtron Server version
-      - GitOps Validation
+- name: Common Devtron automation APIs
+  tags:
+  - Metadata
+  - Jobs
+  - Helm Charts
+  - List Applications
+  - Applications
+  - Labels
+  - bulk_other
+  - BulkUpdate
+  - SSO Configuration
+  - User Management
+  - Role Group Management
+  - RBAC
+  - Authentication
+  - Policy Management
+  - Cache Management
+  - Cluster Environment
+  - Cluster Management
+  - Environment Management
+  - Change Chart
+  - Clone Workflow
+  - Deployment History
+  - K8s Resource
+  - Workflow Management
+  - Devtron Server version
+  - GitOps Validation
+  - Notifications
