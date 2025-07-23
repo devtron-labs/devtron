@@ -49,8 +49,6 @@ paths:
                   result:
                     type: array
                     description: app list
-                    items:
-                      $ref: '#/components/schemas/App'
         '400':
           description: Bad request
           content:
@@ -72,15 +70,6 @@ components:
       in: header
       name: Authorization
   schemas:
-    App:
-      type: object
-      properties:
-        id:
-          type: integer
-          description: app id
-        name:
-          type: string
-          description: app name
     ErrorResponse:
       type: object
       properties:
