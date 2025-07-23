@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/workflow/workflowStatusLatest"
 	"net/http"
 	"strings"
 	"sync"
@@ -89,7 +90,6 @@ import (
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
-	"github.com/devtron-labs/devtron/pkg/workflow/status/workflowStatusLatest"
 	util4 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
@@ -944,19 +944,6 @@ func (impl *WorkflowDagExecutorImpl) UpdateCiWorkflowForCiSuccess(request *bean2
 		impl.logger.Errorw("update wf failed for id ", "err", err)
 		return err
 	}
-
-	// Update latest status table for CI workflow
-	// Check if CiPipeline is loaded, if not pass 0 as appId to let the function fetch it
-	appId := 0
-	if savedWorkflow.CiPipeline != nil {
-		appId = savedWorkflow.CiPipeline.AppId
-	}
-	err = impl.workflowStatusUpdateService.UpdateCiWorkflowStatusLatest(savedWorkflow.CiPipelineId, appId, savedWorkflow.Id, savedWorkflow.TriggeredBy)
-	if err != nil {
-		impl.logger.Errorw("error in updating ci workflow status latest", "err", err, "pipelineId", savedWorkflow.CiPipelineId, "workflowId", savedWorkflow.Id)
-		// Don't return error here as the main workflow update was successful
-	}
-
 	return nil
 }
 
@@ -1135,19 +1122,6 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 		i += batchSize
 	}
 	impl.logger.Debugw("Completed: auto trigger for children Stage/CD pipelines", "Time taken", time.Since(start).Seconds())
-
-	// Update latest status table for CI workflow
-	// Check if pipelineModal is not nil before accessing AppId
-	appId := 0
-	if pipelineModal != nil {
-		appId = pipelineModal.AppId
-	}
-	err = impl.workflowStatusUpdateService.UpdateCiWorkflowStatusLatest(ciPipelineId, appId, buildArtifact.Id, request.UserId)
-	if err != nil {
-		impl.logger.Errorw("error in updating ci workflow status latest", "err", err, "pipelineId", ciPipelineId, "workflowId", buildArtifact.Id)
-		// Don't return error here as the main workflow was successful
-	}
-
 	return buildArtifact.Id, err
 }
 

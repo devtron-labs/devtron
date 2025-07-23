@@ -30,7 +30,7 @@ import (
 
 type WorkflowStatusLatestService interface {
 	// CI Workflow Status Latest methods
-	SaveOrUpdateCiWorkflowStatusLatest(pipelineId, appId, ciWorkflowId int, userId int32) error
+	SaveOrUpdateCiWorkflowStatusLatest(tx *pg.Tx, pipelineId, appId, ciWorkflowId int, userId int32) error
 	GetCiWorkflowStatusLatestByPipelineId(pipelineId int) (*CiWorkflowStatusLatest, error)
 	GetCiWorkflowStatusLatestByAppId(appId int) ([]*CiWorkflowStatusLatest, error)
 
@@ -81,7 +81,7 @@ type CdWorkflowStatusLatest struct {
 }
 
 // CI Workflow Status Latest methods implementation
-func (impl *WorkflowStatusLatestServiceImpl) SaveOrUpdateCiWorkflowStatusLatest(pipelineId, appId, ciWorkflowId int, userId int32) error {
+func (impl *WorkflowStatusLatestServiceImpl) SaveOrUpdateCiWorkflowStatusLatest(tx *pg.Tx, pipelineId, appId, ciWorkflowId int, userId int32) error {
 	// Validate required parameters
 	if pipelineId <= 0 {
 		impl.logger.Errorw("invalid pipelineId provided", "pipelineId", pipelineId)
@@ -141,14 +141,14 @@ func (impl *WorkflowStatusLatestServiceImpl) SaveOrUpdateCiWorkflowStatusLatest(
 		model.UpdatedBy = userId
 		model.UpdatedOn = now
 
-		return impl.workflowStatusLatestRepository.SaveCiWorkflowStatusLatest(model)
+		return impl.workflowStatusLatestRepository.SaveCiWorkflowStatusLatest(tx, model)
 	} else {
 		// Update existing entry
 		existingEntry.CiWorkflowId = ciWorkflowId
 		existingEntry.UpdatedBy = userId
 		existingEntry.UpdatedOn = now
 
-		return impl.workflowStatusLatestRepository.UpdateCiWorkflowStatusLatest(existingEntry)
+		return impl.workflowStatusLatestRepository.UpdateCiWorkflowStatusLatest(tx, existingEntry)
 	}
 }
 

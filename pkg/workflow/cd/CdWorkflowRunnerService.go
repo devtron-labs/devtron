@@ -89,7 +89,7 @@ func (impl *CdWorkflowRunnerServiceImpl) UpdateWfr(dto *bean.CdWorkflowRunnerDto
 		appId = runnerDbObj.CdWorkflow.Pipeline.AppId
 		environmentId = runnerDbObj.CdWorkflow.Pipeline.EnvironmentId
 	}
-	err = impl.workflowStatusUpdateService.UpdateCdWorkflowStatusLatest(runnerDbObj.CdWorkflow.PipelineId, appId, environmentId, runnerDbObj.Id, runnerDbObj.WorkflowType.String(), int32(updatedBy))
+	err = impl.workflowStatusUpdateService.UpdateCdWorkflowStatusLatest(nil, runnerDbObj.CdWorkflow.PipelineId, appId, environmentId, runnerDbObj.Id, runnerDbObj.WorkflowType.String(), int32(updatedBy))
 	if err != nil {
 		impl.logger.Errorw("error in updating cd workflow status latest", "err", err, "pipelineId", runnerDbObj.CdWorkflow.PipelineId, "workflowRunnerId", runnerDbObj.Id)
 		// Don't return error here as the main workflow update was successful
