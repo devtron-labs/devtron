@@ -21,7 +21,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/workflow/workflowStatusLatest"
 	"net/http"
 	"strings"
 	"sync"
@@ -161,7 +160,6 @@ type WorkflowDagExecutorImpl struct {
 	ciHandlerService            trigger.HandlerService
 	workflowTriggerAuditService auditService.WorkflowTriggerAuditService
 	fluxApplicationService      fluxApplication.FluxApplicationService
-	workflowStatusUpdateService workflowStatusLatest.WorkflowStatusUpdateService
 }
 
 func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -198,7 +196,6 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	ciHandlerService trigger.HandlerService,
 	workflowTriggerAuditService auditService.WorkflowTriggerAuditService,
 	fluxApplicationService fluxApplication.FluxApplicationService,
-	workflowStatusUpdateService workflowStatusLatest.WorkflowStatusUpdateService,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
@@ -234,9 +231,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		workflowService:               workflowService,
 		ciHandlerService:              ciHandlerService,
 		workflowTriggerAuditService:   workflowTriggerAuditService,
-		fluxApplicationService:        fluxApplicationService,
-		workflowStatusUpdateService:   workflowStatusUpdateService,
-	}
+		fluxApplicationService:        fluxApplicationService}
 	config, err := types.GetCdConfig()
 	if err != nil {
 		return nil
