@@ -147,21 +147,6 @@ func (impl *CdWorkflowRunnerServiceImpl) SaveCDWorkflowRunnerWithStage(wfr *pipe
 		impl.logger.Errorw("error in committing transaction", "workflowName", wfr.Name, "error", err)
 		return wfr, err
 	}
-
-	// Update latest status table for CD workflow
-	// Check if CdWorkflow and Pipeline are loaded, if not pass 0 as appId/environmentId to let the function fetch them
-	appId := 0
-	environmentId := 0
-	if wfr.CdWorkflow != nil && wfr.CdWorkflow.Pipeline != nil {
-		appId = wfr.CdWorkflow.Pipeline.AppId
-		environmentId = wfr.CdWorkflow.Pipeline.EnvironmentId
-	}
-	err = impl.workflowStatusUpdateService.UpdateCdWorkflowStatusLatest(wfr.CdWorkflow.PipelineId, appId, environmentId, wfr.Id, wfr.WorkflowType.String(), wfr.TriggeredBy)
-	if err != nil {
-		impl.logger.Errorw("error in updating cd workflow status latest", "err", err, "pipelineId", wfr.CdWorkflow.PipelineId, "workflowRunnerId", wfr.Id)
-		// Don't return error here as the main workflow save was successful
-	}
-
 	return wfr, nil
 }
 
@@ -198,20 +183,6 @@ func (impl *CdWorkflowRunnerServiceImpl) UpdateCdWorkflowRunnerWithStage(wfr *pi
 	if err != nil {
 		impl.logger.Errorw("error in committing transaction", "workflowName", wfr.Name, "error", err)
 		return err
-	}
-
-	// Update latest status table for CD workflow
-	// Check if CdWorkflow and Pipeline are loaded, if not pass 0 as appId/environmentId to let the function fetch them
-	appId := 0
-	environmentId := 0
-	if wfr.CdWorkflow != nil && wfr.CdWorkflow.Pipeline != nil {
-		appId = wfr.CdWorkflow.Pipeline.AppId
-		environmentId = wfr.CdWorkflow.Pipeline.EnvironmentId
-	}
-	err = impl.workflowStatusUpdateService.UpdateCdWorkflowStatusLatest(wfr.CdWorkflow.PipelineId, appId, environmentId, wfr.Id, wfr.WorkflowType.String(), wfr.TriggeredBy)
-	if err != nil {
-		impl.logger.Errorw("error in updating cd workflow status latest", "err", err, "pipelineId", wfr.CdWorkflow.PipelineId, "workflowRunnerId", wfr.Id)
-		// Don't return error here as the main workflow update was successful
 	}
 
 	return nil
