@@ -27,6 +27,7 @@ import (
 	buildBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
 	"regexp"
@@ -647,10 +648,9 @@ func (impl *CiHandlerImpl) stateChanged(status string, podStatus string, msg str
 }
 
 func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewV1(appId int) ([]*pipelineConfig.CiWorkflowStatus, error) {
-	// Get all CI pipeline IDs for this app
 	allPipelineIds, err := impl.ciWorkflowRepository.FindCiPipelineIdsByAppId(appId)
 	if err != nil {
-		impl.Logger.Errorw("error in getting ci pipeline ids for app, falling back to old method", "err", err, "appId", appId)
+		impl.Logger.Errorw("error in getting ci pipeline ids for app, falling back to old method", "appId", appId, "err", err)
 		return impl.ciWorkflowRepository.FIndCiWorkflowStatusesByAppId(appId)
 	}
 
@@ -658,89 +658,69 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewV1(appId int) ([]*pipeline
 		return []*pipelineConfig.CiWorkflowStatus{}, nil
 	}
 
-	// Find which pipeline IDs have entries in latest status table
 	pipelinesInLatestTable, err := impl.workflowStatusLatestRepository.GetByPipelineIds(allPipelineIds)
 	if err != nil {
-		impl.Logger.Errorw("error in checking latest status table, falling back to old method", "err", err, "appId", appId)
+		impl.Logger.Errorw("error in checking latest status table, falling back to old method", "appId", appId, "err", err)
 		return impl.ciWorkflowRepository.FIndCiWorkflowStatusesByAppId(appId)
 	}
 
 	var allStatuses []*pipelineConfig.CiWorkflowStatus
 
-	// Fetch from latest status table for available pipelines
 	if len(pipelinesInLatestTable) > 0 {
 		statusesFromLatestTable, err := impl.fetchCiStatusFromLatestTable(pipelinesInLatestTable)
 		if err != nil {
-			impl.Logger.Errorw("error in fetching from latest status table", "err", err, "pipelineIds", pipelinesInLatestTable)
+			impl.Logger.Errorw("error in fetching from latest status table", "pipelineIds", pipelinesInLatestTable, "err", err)
 			return nil, err
 		} else {
 			allStatuses = append(allStatuses, statusesFromLatestTable...)
 		}
 	}
 
-	// Find pipeline IDs that are NOT in latest status table
-	pipelinesNotInLatestTable := impl.findMissingPipelineIds(allPipelineIds, pipelinesInLatestTable)
+	pipelinesNotInLatestTable := impl.getPipelineIdsNotInLatestTable(allPipelineIds, pipelinesInLatestTable)
 
-	// Fetch using complex query for missing pipeline IDs
 	if len(pipelinesNotInLatestTable) > 0 {
-		statusesFromComplexQuery, err := impl.fetchCiStatusUsingComplexQuery(pipelinesNotInLatestTable)
+		statusesFromComplexQuery, err := impl.fetchCiStatusUsingFallbackMethod(pipelinesNotInLatestTable)
 		if err != nil {
-			impl.Logger.Errorw("error in fetching using complex query", "err", err, "pipelineIds", pipelinesNotInLatestTable)
+			impl.Logger.Errorw("error in fetching using complex query", "pipelineIds", pipelinesNotInLatestTable, "err", err)
 			return nil, err
 		} else {
 			allStatuses = append(allStatuses, statusesFromComplexQuery...)
 		}
 	}
 
-	impl.Logger.Debugw("hybrid ci status fetch completed",
-		"appId", appId,
-		"totalPipelines", len(allPipelineIds),
-		"pipelinesFromLatestTable", len(pipelinesInLatestTable),
-		"pipelinesFromComplexQuery", len(pipelinesNotInLatestTable),
-		"totalResults", len(allStatuses))
+	impl.Logger.Debugw("hybrid ci status fetch completed", "appId", appId, "totalPipelines", len(allPipelineIds), "pipelinesFromLatestTable", len(pipelinesInLatestTable), "pipelinesFromOldQuery", len(pipelinesNotInLatestTable))
 
 	return allStatuses, nil
 }
 
 // fetchCiStatusFromLatestTable fetches CI status from ci_workflow_status_latest table
 func (impl *CiHandlerImpl) fetchCiStatusFromLatestTable(pipelineIds []int) ([]*pipelineConfig.CiWorkflowStatus, error) {
-	// Get entries from latest status table
 	latestStatusEntries, err := impl.workflowStatusLatestRepository.GetCiWorkflowStatusLatestByPipelineIds(pipelineIds)
 	if err != nil {
 		return nil, err
 	}
 
-	// Extract workflow IDs
 	var workflowIds []int
 	for _, entry := range latestStatusEntries {
 		workflowIds = append(workflowIds, entry.CiWorkflowId)
 	}
 
-	// Get workflows by IDs
 	workflows, err := impl.ciWorkflowRepository.FindWorkflowsByCiWorkflowIds(workflowIds)
 	if err != nil {
 		return nil, err
 	}
 
-	// Convert to CiWorkflowStatus format
 	var statuses []*pipelineConfig.CiWorkflowStatus
 	for _, workflow := range workflows {
-		status := &pipelineConfig.CiWorkflowStatus{
-			CiWorkflowId:      workflow.Id,
-			CiPipelineName:    workflow.CiPipeline.Name,
-			CiPipelineId:      workflow.CiPipelineId,
-			CiStatus:          workflow.Status,
-			StorageConfigured: workflow.BlobStorageEnabled,
-		}
+		status := adapter.GetCiWorkflowStatusFromCiWorkflow(workflow)
 		statuses = append(statuses, status)
 	}
 
 	return statuses, nil
 }
 
-// fetchCiStatusUsingComplexQuery fetches CI status using complex query for specific pipeline IDs
-func (impl *CiHandlerImpl) fetchCiStatusUsingComplexQuery(pipelineIds []int) ([]*pipelineConfig.CiWorkflowStatus, error) {
-	// Get latest workflows for these pipelines
+// fetchCiStatusUsingFallbackMethod fetches CI status directly from workflow table having multiple joins
+func (impl *CiHandlerImpl) fetchCiStatusUsingFallbackMethod(pipelineIds []int) ([]*pipelineConfig.CiWorkflowStatus, error) {
 	workflows, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByCiIds(pipelineIds)
 	if err != nil {
 		return nil, err
@@ -749,13 +729,7 @@ func (impl *CiHandlerImpl) fetchCiStatusUsingComplexQuery(pipelineIds []int) ([]
 	// Convert to CiWorkflowStatus format
 	var statuses []*pipelineConfig.CiWorkflowStatus
 	for _, workflow := range workflows {
-		status := &pipelineConfig.CiWorkflowStatus{
-			CiWorkflowId:      workflow.Id,
-			CiPipelineName:    workflow.CiPipeline.Name,
-			CiPipelineId:      workflow.CiPipelineId,
-			CiStatus:          workflow.Status,
-			StorageConfigured: workflow.BlobStorageEnabled,
-		}
+		status := adapter.GetCiWorkflowStatusFromCiWorkflow(workflow)
 		statuses = append(statuses, status)
 	}
 
@@ -787,50 +761,43 @@ func (impl *CiHandlerImpl) fetchLastTriggeredWorkflowsHybrid(pipelineIds []int) 
 		return []*pipelineConfig.CiWorkflow{}, nil
 	}
 
-	// Find which pipeline IDs have entries in latest status table
 	pipelinesInLatestTable, err := impl.workflowStatusLatestRepository.GetByPipelineIds(pipelineIds)
 	if err != nil {
-		impl.Logger.Errorw("error in checking latest status table, falling back to complex query", "err", err, "pipelineIds", pipelineIds)
+		impl.Logger.Errorw("error in checking latest status table, falling back to complex query", "pipelineIds", pipelineIds, "err", err)
 		return impl.ciWorkflowRepository.FindLastTriggeredWorkflowByCiIds(pipelineIds)
 	}
 
 	var allWorkflows []*pipelineConfig.CiWorkflow
 
-	// Fetch from latest status table for available pipelines
 	if len(pipelinesInLatestTable) > 0 {
 		workflowsFromLatestTable, err := impl.fetchWorkflowsFromLatestTable(pipelinesInLatestTable)
 		if err != nil {
-			impl.Logger.Errorw("error in fetching from latest status table", "err", err, "pipelineIds", pipelinesInLatestTable)
+			impl.Logger.Errorw("error in fetching from latest status table", "pipelineIds", pipelinesInLatestTable, "err", err)
 			return nil, err
 		} else {
 			allWorkflows = append(allWorkflows, workflowsFromLatestTable...)
 		}
 	}
 
-	// Find pipeline IDs that are NOT in latest status table
-	pipelinesNotInLatestTable := impl.findMissingPipelineIds(pipelineIds, pipelinesInLatestTable)
+	pipelinesNotInLatestTable := impl.getPipelineIdsNotInLatestTable(pipelineIds, pipelinesInLatestTable)
 
-	// Fetch using complex query for missing pipeline IDs
 	if len(pipelinesNotInLatestTable) > 0 {
 		workflowsFromComplexQuery, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByCiIds(pipelinesNotInLatestTable)
 		if err != nil {
-			impl.Logger.Errorw("error in fetching using complex query", "err", err, "pipelineIds", pipelinesNotInLatestTable)
+			impl.Logger.Errorw("error in fetching using complex query", "pipelineIds", pipelinesNotInLatestTable, "err", err)
 			return nil, err
 		} else {
 			allWorkflows = append(allWorkflows, workflowsFromComplexQuery...)
 		}
 	}
 
-	impl.Logger.Debugw("hybrid workflow fetch completed",
-		"totalPipelines", len(pipelineIds),
-		"pipelinesFromLatestTable", len(pipelinesInLatestTable),
-		"pipelinesFromOldQuery", len(pipelinesNotInLatestTable))
+	impl.Logger.Debugw("hybrid workflow fetch completed", "totalPipelines", len(pipelineIds), "pipelinesFromLatestTable", len(pipelinesInLatestTable), "pipelinesFromOldQuery", len(pipelinesNotInLatestTable))
 
 	return allWorkflows, nil
 }
 
-// findMissingPipelineIds finds pipeline IDs that are NOT in the latest status table
-func (impl *CiHandlerImpl) findMissingPipelineIds(allPipelineIds, pipelinesInLatestTable []int) []int {
+// getPipelineIdsNotInLatestTable finds pipeline IDs that are NOT in the latest status table
+func (impl *CiHandlerImpl) getPipelineIdsNotInLatestTable(allPipelineIds, pipelinesInLatestTable []int) []int {
 	pipelineIdMap := make(map[int]bool)
 	for _, id := range pipelinesInLatestTable {
 		pipelineIdMap[id] = true
@@ -1053,7 +1020,6 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(request res
 	if len(ciPipelineIds) == 0 {
 		return ciWorkflowStatuses, nil
 	}
-	// Hybrid approach: Use latest status table for available pipelines, fallback to complex old query for others
 	latestCiWorkflows, err := impl.fetchLastTriggeredWorkflowsHybrid(ciPipelineIds)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("err in hybrid ci workflow fetch", "ciPipelineIds", ciPipelineIds, "err", err)
