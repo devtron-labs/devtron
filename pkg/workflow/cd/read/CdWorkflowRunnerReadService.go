@@ -119,7 +119,7 @@ func (impl *CdWorkflowRunnerReadServiceImpl) GetWfrStatusForLatestRunners(pipeli
 		}
 
 		if _, ok := cdWorfklowLatestMap[item.Id]; !ok {
-			pipelinesAbsentInCache[item.Id] = append(pipelinesAbsentInCache[item.Id], bean2.CD_WORKFLOW_TYPE_PRE, bean2.CD_WORKFLOW_TYPE_POST, bean2.CD_WORKFLOW_TYPE_DEPLOY)
+			pipelinesAbsentInCache[item.Id] = append(pipelinesAbsentInCache[item.Id], bean2.CD_WORKFLOW_TYPE_DEPLOY)
 			if isPreCDConfigured {
 				pipelinesAbsentInCache[item.Id] = append(pipelinesAbsentInCache[item.Id], bean2.CD_WORKFLOW_TYPE_PRE)
 			}
