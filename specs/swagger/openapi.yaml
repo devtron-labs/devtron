@@ -80,6 +80,8 @@ tags:
     x-displayName: Workflow Management
   - name: Devtron Server version
     x-displayName: Devtron Server version
+  - name: GitOps Validation
+    x-displayName: GitOps Validation
 paths:
   /resource/history/deployment/cd-pipeline/v1:
     get:
@@ -3954,6 +3956,205 @@ components:
           description: environment id
           items:
             type: integer
+      responses:
+        '200':
+          description: Successfully deleted workflow.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: OK
+        '400':
+          description: Bad Request. Invalid path parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden. User does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /version:
+    get:
+      summary: Get Devtron server version information
+      security: []
+      responses:
+        '200':
+          description: meta info about devtron server
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  gitCommit:
+                    type: string
+                    example: d252aa3e
+                    description: git hash from which code was compiled
+                  buildTime:
+                    type: string
+                    format: date-time
+                    example: '2021-12-15T05:44:05Z'
+                    description: time when code was complied
+                  serverMode:
+                    type: string
+                    example: FULL
+                    description: server mode FULL/EA_ONLY
+                    enum:
+                      - FULL
+                      - EA_ONLY
+      tags:
+        - Devtron Server version
+  /validate:
+    post:
+      description: Validate gitops configuration by dry run
+      summary: Validate gitops configuration by dry run
+      security:
+        - ApiKeyAuth: []
+      operationId: GitOpsValidateDryRun
+      requestBody:
+        description: A JSON object containing the gitops configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GitOpsConfigDto'
+      responses:
+        '200':
+          description: Successfully return all validation stages results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailedError'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      tags:
+        - GitOps Validation
+  /config:
+    post:
+      description: create/save new configuration and validate them before saving
+      summary: create/save new configuration and validate them before saving
+      security:
+        - ApiKeyAuth: []
+      operationId: CreateGitOpsConfig
+      requestBody:
+        description: A JSON object containing the gitops configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GitOpsConfigDto'
+      responses:
+        '200':
+          description: >-
+            Successfully return all validation stages results and if validation
+            is correct then saves the configuration in the backend
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailedError'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      tags:
+        - GitOps Validation
+    put:
+      description: >-
+        update configuration and validate them before saving(if last validation
+        is within 30 seconds then do not validate)
+      summary: >-
+        update configuration and validate them before saving(if last validation
+        is within 30 seconds then do not validate)
+      operationId: UpdateGitOpsConfig
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        description: A JSON object containing the gitops configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GitOpsConfigDto'
+      responses:
+        '200':
+          description: >-
+            Successfully return all validation stages results and if validation
+            is correct then updates the configuration in the backend
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailedError'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      tags:
+        - GitOps Validation
+
+components:
+  schemas:
+=======
         teams:
           type: array
           description: team id, teams ids are projects ids
@@ -5493,6 +5694,50 @@ components:
         isLast:
           type: boolean
           description: Indicates if this is the last node in its branch of the tree.
+    GitOpsConfigDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        provider:
+          type: string
+        username:
+          type: string
+        token:
+          type: string
+        gitLabGroupId:
+          type: string
+        gitHubOrgId:
+          type: string
+        host:
+          type: string
+        active:
+          type: boolean
+        azureProjectName:
+          type: string
+        userId:
+          type: integer
+    DetailedError:
+      type: object
+      properties:
+        successfulStages:
+          type: array
+          items:
+            type: string
+          description: All successful stages
+        validatedOn:
+          type: string
+          description: Timestamp of validation
+        stageErrorMap:
+          type: array
+          items:
+            type: object
+            properties:
+              stage:
+                type: string
+              error:
+                type: string
+          description: map of stage and their respective errors
   requestBodies:
     SSOLoginDto:
       description: SSO Login Configuration object
@@ -5673,6 +5918,21 @@ components:
         format: int32
         minimum: 1
         default: 20
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token authentication
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key authentication
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
 x-tagGroups:
   - name: Common Devtron automation APIs
     tags:
@@ -5699,4 +5959,5 @@ x-tagGroups:
       - K8s Resource
       - Workflow Management
       - Devtron Server version
+      - GitOps Validation
       - Deployment History

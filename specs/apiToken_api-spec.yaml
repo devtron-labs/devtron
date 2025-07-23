@@ -2,10 +2,15 @@ openapi: "3.0.3"
 info:
   version: 1.0.0
   title: Devtron Labs
+servers:
+  - url: http://localhost/orchestrator 
 paths:
-  /orchestrator/api-token:
+  /api-token:
     get:
       description: Get All active Api Tokens
+      summary: Get All active Api Tokens
+      security: 
+       - ApiKeyAuth: []
       responses:
         "200":
           description: Successfully fetched active API tokens links
@@ -17,6 +22,9 @@ paths:
                   $ref: "#/components/schemas/ApiToken"
     post:
       description: Create api-token
+      summary: Create Api Token
+      security: 
+       - ApiKeyAuth: []
       requestBody:
         required: true
         content:
@@ -32,9 +40,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CreateApiTokenResponse"
-  /orchestrator/api-token/{id}:
+  /api-token/{id}:
     put:
       description: Update api-token
+      summary: Update Api Token
+      security:
+      - ApiKeyAuth: []
       parameters:
         - name: id
           in: path
@@ -58,6 +69,9 @@ paths:
                 $ref: "#/components/schemas/UpdateApiTokenResponse"
     delete:
       description: Delete api-token
+      summary: Delete the Api Token
+      security:
+      - ApiKeyAuth: []
       parameters:
         - name: id
           in: path
@@ -74,6 +88,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/ActionResponse"
 components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
   schemas:
     ApiToken:
       type: object
