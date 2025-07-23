@@ -700,6 +700,7 @@ func (impl *CiHandlerImpl) fetchCiWorkflowStatusFromLatestEntries(latestCiWorkfl
 
 	workflows, err := impl.ciWorkflowRepository.FindWorkflowsByCiWorkflowIds(workflowIds)
 	if err != nil {
+		impl.Logger.Errorw("error in fetching ci workflows by ci workflow ids", "workflowIds", workflowIds, "err", err)
 		return nil, err
 	}
 
@@ -712,14 +713,14 @@ func (impl *CiHandlerImpl) fetchCiWorkflowStatusFromLatestEntries(latestCiWorkfl
 	return statuses, nil
 }
 
-// fetchCiStatusUsingFallbackMethod fetches CI status directly from workflow table having multiple joins
+// fetchCiStatusUsingFallbackMethod fetches CI status directly from ci_workflow table
 func (impl *CiHandlerImpl) fetchCiStatusUsingFallbackMethod(pipelineIds []int) ([]*pipelineConfig.CiWorkflowStatus, error) {
 	workflows, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByCiIds(pipelineIds)
 	if err != nil {
+		impl.Logger.Errorw("error in fetching ci workflows by ci ids", "pipelineIds", pipelineIds, "err", err)
 		return nil, err
 	}
 
-	// Convert to CiWorkflowStatus format
 	var statuses []*pipelineConfig.CiWorkflowStatus
 	for _, workflow := range workflows {
 		status := adapter.GetCiWorkflowStatusFromCiWorkflow(workflow)
