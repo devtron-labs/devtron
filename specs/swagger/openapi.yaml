@@ -68,6 +68,9 @@ tags:
     x-displayName: ChangeChartType
   - name: Clone Workflow
     x-displayName: CloneWorkflow (ENT)
+  - name: Deployment History
+    x-displayName: Get Deployment History (ENT)
+    description: Retrieves the deployment history for a specific CD pipeline based on various filter criteria.
   - name: K8s Resource
     description: >-
       APIs for managing Kubernetes resources (get, create, update, delete,
@@ -78,6 +81,351 @@ tags:
   - name: Devtron Server version
     x-displayName: Devtron Server version
 paths:
+  /resource/history/deployment/cd-pipeline/v1:
+    get:
+      summary: Get Deployment History
+      description: >-
+        Retrieves the deployment history for a specific CD pipeline based on
+        various filter criteria.
+      operationId: getDeploymentHistory
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: filterCriteria
+          in: query
+          required: true
+          schema:
+            type: array
+            items:
+              type: string
+          description: |
+            Filter criteria for deployment history. Example:
+            - application/devtron-application|id|1064
+            - environment|id|146
+            - release|id|203
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: The starting point for fetching records (pagination).
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: The number of records to return (pagination).
+      responses:
+        '200':
+          description: Successful retrieval of deployment history.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  status:
+                    type: string
+                    example: OK
+                  result:
+                    type: object
+                    properties:
+                      cdWorkflows:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 19767
+                            cd_workflow_id:
+                              type: integer
+                              example: 19576
+                            name:
+                              type: string
+                              example: cd-1064-nu4s
+                            status:
+                              type: string
+                              example: Succeeded
+                            pod_status:
+                              type: string
+                              example: ''
+                            message:
+                              type: string
+                              example: ''
+                            started_on:
+                              type: string
+                              format: date-time
+                              example: '2024-07-25T08:36:42.414376Z'
+                            finished_on:
+                              type: string
+                              format: date-time
+                              example: '2024-07-25T08:40:03.455303Z'
+                            pipeline_id:
+                              type: integer
+                              example: 2082
+                            namespace:
+                              type: string
+                              example: devtron-cd
+                            log_file_path:
+                              type: string
+                              example: ''
+                            triggered_by:
+                              type: integer
+                              example: 23
+                            email_id:
+                              type: string
+                              example: deepak@devtron.ai
+                            image:
+                              type: string
+                              example: >-
+                                devtroninc.azurecr.io/test:8a0c2298-fc94fa4b-956-18655
+                            ci_artifact_id:
+                              type: integer
+                              example: 14593
+                            workflow_type:
+                              type: string
+                              example: DEPLOY
+                            blobStorageEnabled:
+                              type: boolean
+                              example: true
+                            userApprovalMetadata:
+                              type: object
+                              nullable: true
+                            gitTriggers:
+                              type: object
+                              additionalProperties:
+                                type: object
+                                properties:
+                                  Commit:
+                                    type: string
+                                    example: 8a0c22983ae7acae10abe7569026ae25d889e159
+                                  Author:
+                                    type: string
+                                    example: >-
+                                      jatin-jangir-0220
+                                      <122791251+jatin-jangir-0220@users.noreply.github.com>
+                                  Date:
+                                    type: string
+                                    format: date-time
+                                    example: '2024-04-29T18:49:39Z'
+                                  Message:
+                                    type: string
+                                    example: |+
+                                      Update Dockerfile (#19)
+
+                                  Changes:
+                                    type: string
+                                    nullable: true
+                                  WebhookData:
+                                    type: object
+                                    properties:
+                                      id:
+                                        type: integer
+                                        example: 0
+                                      eventActionType:
+                                        type: string
+                                        example: ''
+                                      data:
+                                        type: string
+                                        nullable: true
+                                  CiConfigureSourceValue:
+                                    type: string
+                                    example: main
+                                  GitRepoUrl:
+                                    type: string
+                                    example: >-
+                                      https://github.com/devtron-labs/casbin-enterprise
+                                  GitRepoName:
+                                    type: string
+                                    example: casbin-enterprise
+                                  CiConfigureSourceType:
+                                    type: string
+                                    example: SOURCE_TYPE_BRANCH_FIXED
+                            ciMaterials:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  id:
+                                    type: integer
+                                    example: 1013
+                                  gitMaterialId:
+                                    type: integer
+                                    example: 411
+                                  gitMaterialUrl:
+                                    type: string
+                                    example: ''
+                                  gitMaterialName:
+                                    type: string
+                                    example: casbin-enterprise
+                                  type:
+                                    type: string
+                                    example: SOURCE_TYPE_BRANCH_FIXED
+                                  value:
+                                    type: string
+                                    example: main
+                                  active:
+                                    type: boolean
+                                    example: true
+                                  lastFetchTime:
+                                    type: string
+                                    format: date-time
+                                    example: '0001-01-01T00:00:00Z'
+                                  isRepoError:
+                                    type: boolean
+                                    example: false
+                                  repoErrorMsg:
+                                    type: string
+                                    example: ''
+                                  isBranchError:
+                                    type: boolean
+                                    example: false
+                                  branchErrorMsg:
+                                    type: string
+                                    example: ''
+                                  url:
+                                    type: string
+                                    example: >-
+                                      https://github.com/devtron-labs/casbin-enterprise
+                                  regex:
+                                    type: string
+                                    example: ''
+                      tagsEditable:
+                        type: boolean
+                        example: false
+                      appReleaseTagNames:
+                        type: array
+                        items:
+                          type: string
+                        example: []
+                      hideImageTaggingHardDelete:
+                        type: boolean
+                        example: false
+              examples:
+                example-1:
+                  value:
+                    code: 200
+                    status: OK
+                    result:
+                      cdWorkflows:
+                        - id: 19752
+                          cd_workflow_id: 19561
+                          name: cd-1064-nu4s
+                          status: Failed
+                          pod_status: ''
+                          message: >-
+                            Unable to continue with install: could not get
+                            information about the resource Job "" in namespace
+                            "devtroncd": resource name may not be empty
+                          started_on: '2024-07-25T08:26:21.792068Z'
+                          finished_on: '2024-07-25T08:26:23.855384Z'
+                          pipeline_id: 2082
+                          namespace: devtron-cd
+                          log_file_path: ''
+                          triggered_by: 23
+                          email_id: deepak@devtron.ai
+                          image: >-
+                            devtroninc.azurecr.io/test:8a0c2298-fc94fa4b-956-18655
+                          ci_artifact_id: 14593
+                          workflow_type: DEPLOY
+                          blobStorageEnabled: true
+                          userApprovalMetadata: null
+                          gitTriggers:
+                            '1013':
+                              Commit: 8a0c22983ae7acae10abe7569026ae25d889e159
+                              Author: >-
+                                jatin-jangir-0220
+                                <122791251+jatin-jangir-0220@users.noreply.github.com>
+                              Date: '2024-04-29T18:49:39Z'
+                              Message: |+
+                                Update Dockerfile (#19)
+
+                              Changes: null
+                              WebhookData:
+                                id: 0
+                                eventActionType: ''
+                                data: null
+                              CiConfigureSourceValue: main
+                              GitRepoUrl: >-
+                                https://github.com/devtron-labs/casbin-enterprise
+                              GitRepoName: casbin-enterprise
+                              CiConfigureSourceType: SOURCE_TYPE_BRANCH_FIXED
+                            '2072':
+                              Commit: fc94fa4bad21460e822ce896b5166273aa3df1a8
+                              Author: >-
+                                Gireesh Naidu
+                                <111440205+gireesh-naidu@users.noreply.github.com>
+                              Date: '2024-07-23T18:13:18+05:30'
+                              Message: "fix: getting 500 while updating the branch of linked CI (#1424)\n\n* fix: sync ci pipeline materials for linked pipelines\r\n\r\n* fix: sync ci pipeline materials for linked pipelines\r\n\r\n* fix: null column fix\r\n\r\n* fix: null column fix\r\n\r\n* fix: able to delete ci pipeline though it has linked ci's using API"
+                              Changes: null
+                              WebhookData:
+                                id: 0
+                                eventActionType: ''
+                                data: null
+                              CiConfigureSourceValue: main
+                              GitRepoUrl: >-
+                                https://github.com/devtron-labs/devtron-enterprise
+                              GitRepoName: devtron-enterprise
+                              CiConfigureSourceType: SOURCE_TYPE_BRANCH_FIXED
+                          ciMaterials:
+                            - id: 1013
+                              gitMaterialId: 411
+                              gitMaterialUrl: ''
+                              gitMaterialName: casbin-enterprise
+                              type: SOURCE_TYPE_BRANCH_FIXED
+                              value: main
+                              active: true
+                              lastFetchTime: '0001-01-01T00:00:00Z'
+                              isRepoError: false
+                              repoErrorMsg: ''
+                              isBranchError: false
+                              branchErrorMsg: ''
+                              url: >-
+                                https://github.com/devtron-labs/casbin-enterprise
+                              regex: ''
+                            - id: 2072
+                              gitMaterialId: 1286
+                              gitMaterialUrl: ''
+                              gitMaterialName: devtron-enterprise
+                              type: SOURCE_TYPE_BRANCH_FIXED
+                              value: main
+                              active: true
+                              lastFetchTime: '0001-01-01T00:00:00Z'
+                              isRepoError: false
+                              repoErrorMsg: ''
+                              isBranchError: false
+                              branchErrorMsg: ''
+                              url: >-
+                                https://github.com/devtron-labs/devtron-enterprise
+                              regex: ''
+                          imageReleaseTags: null
+                          imageComment: null
+                          referenceCdWorkflowRunnerId: 0
+                          appliedFilters: null
+                          appliedFiltersState: 0
+                          appliedFiltersTimestamp: '0001-01-01T00:00:00Z'
+                          promotionApprovalMetadata: null
+                          runSource:
+                            kind: release
+                            version: alpha1
+                            id: 203
+                            identifier: qa-releases-track-0.0.2
+                            releaseVersion: 0.0.2
+                            name: deepak-qa-release
+                            releaseTrackName: qa-releases-track
+                          targetConfig:
+                            tenantId: qa-devtroncd-x
+                            tenantName: QA Devtron Env
+                            installationId: qa-devtroncd-2
+                            installationName: qa-devtroncd-2
+                            releaseChannelId: beta
+                            releaseChannelName: beta-channel
+      tags:
+        - Deployment History
   /orchestrator/app/labels/list:
     get:
       summary: List all app labels
@@ -5351,3 +5699,4 @@ x-tagGroups:
       - K8s Resource
       - Workflow Management
       - Devtron Server version
+      - Deployment History
