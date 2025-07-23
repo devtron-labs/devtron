@@ -28,7 +28,7 @@ type WorkflowStatusLatestRepository interface {
 	UpdateCiWorkflowStatusLatest(model *CiWorkflowStatusLatest) error
 	GetCiWorkflowStatusLatestByPipelineId(pipelineId int) (*CiWorkflowStatusLatest, error)
 	GetCiWorkflowStatusLatestByAppId(appId int) ([]*CiWorkflowStatusLatest, error)
-	GetCachedPipelineIds(pipelineIds []int) ([]int, error)
+	GetByPipelineIds(pipelineIds []int) ([]int, error)
 	GetCiWorkflowStatusLatestByPipelineIds(pipelineIds []int) ([]*CiWorkflowStatusLatest, error)
 	DeleteCiWorkflowStatusLatestByPipelineId(pipelineId int) error
 
@@ -129,7 +129,7 @@ func (impl *WorkflowStatusLatestRepositoryImpl) DeleteCiWorkflowStatusLatestByPi
 	return nil
 }
 
-func (impl *WorkflowStatusLatestRepositoryImpl) GetCachedPipelineIds(pipelineIds []int) ([]int, error) {
+func (impl *WorkflowStatusLatestRepositoryImpl) GetByPipelineIds(pipelineIds []int) ([]int, error) {
 	if len(pipelineIds) == 0 {
 		return []int{}, nil
 	}

@@ -659,7 +659,7 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewV1(appId int) ([]*pipeline
 	}
 
 	// Find which pipeline IDs have entries in latest status table
-	pipelinesInLatestTable, err := impl.workflowStatusLatestRepository.GetCachedPipelineIds(allPipelineIds)
+	pipelinesInLatestTable, err := impl.workflowStatusLatestRepository.GetByPipelineIds(allPipelineIds)
 	if err != nil {
 		impl.Logger.Errorw("error in checking latest status table, falling back to old method", "err", err, "appId", appId)
 		return impl.ciWorkflowRepository.FIndCiWorkflowStatusesByAppId(appId)
@@ -788,7 +788,7 @@ func (impl *CiHandlerImpl) fetchLastTriggeredWorkflowsHybrid(pipelineIds []int) 
 	}
 
 	// Find which pipeline IDs have entries in latest status table
-	pipelinesInLatestTable, err := impl.workflowStatusLatestRepository.GetCachedPipelineIds(pipelineIds)
+	pipelinesInLatestTable, err := impl.workflowStatusLatestRepository.GetByPipelineIds(pipelineIds)
 	if err != nil {
 		impl.Logger.Errorw("error in checking latest status table, falling back to complex query", "err", err, "pipelineIds", pipelineIds)
 		return impl.ciWorkflowRepository.FindLastTriggeredWorkflowByCiIds(pipelineIds)
