@@ -33,10 +33,11 @@ type WorkflowStatusLatestService interface {
 	GetCiWorkflowStatusLatestByAppId(appId int) ([]*CiWorkflowStatusLatest, error)
 
 	// CD Workflow Status Latest methods
-	SaveOrUpdateCdWorkflowStatusLatest(pipelineId, appId, environmentId, workflowRunnerId int, workflowType string, userId int32) error
+	SaveOrUpdateCdWorkflowStatusLatest(tx *pg.Tx, pipelineId, appId, environmentId, workflowRunnerId int, workflowType string, userId int32) error
 	GetCdWorkflowStatusLatestByPipelineIdAndWorkflowType(pipelineId int, workflowType string) (*CdWorkflowStatusLatest, error)
 	GetCdWorkflowStatusLatestByAppId(appId int) ([]*CdWorkflowStatusLatest, error)
 	GetCdWorkflowStatusLatestByPipelineId(pipelineId int) ([]*CdWorkflowStatusLatest, error)
+	GetCdWorkflowLatestByPipelineIds(pipelineIds []int) ([]*CdWorkflowStatusLatest, error)
 }
 
 type WorkflowStatusLatestServiceImpl struct {
@@ -165,9 +166,9 @@ func (impl *WorkflowStatusLatestServiceImpl) GetCiWorkflowStatusLatestByAppId(ap
 }
 
 // CD Workflow Status Latest methods implementation
-func (impl *WorkflowStatusLatestServiceImpl) SaveOrUpdateCdWorkflowStatusLatest(pipelineId, appId, environmentId, workflowRunnerId int, workflowType string, userId int32) error {
+func (impl *WorkflowStatusLatestServiceImpl) SaveOrUpdateCdWorkflowStatusLatest(tx *pg.Tx, pipelineId, appId, environmentId, workflowRunnerId int, workflowType string, userId int32) error {
 	// Check if entry exists
-	existingEntry, err := impl.workflowStatusLatestRepository.GetCdWorkflowStatusLatestByPipelineIdAndWorkflowType(pipelineId, workflowType)
+	existingEntry, err := impl.workflowStatusLatestRepository.GetCdWorkflowStatusLatestByPipelineIdAndWorkflowType(tx, pipelineId, workflowType)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting cd workflow status latest", "err", err, "pipelineId", pipelineId, "workflowType", workflowType)
 		return err
@@ -188,19 +189,19 @@ func (impl *WorkflowStatusLatestServiceImpl) SaveOrUpdateCdWorkflowStatusLatest(
 		model.UpdatedBy = userId
 		model.UpdatedOn = now
 
-		return impl.workflowStatusLatestRepository.SaveCdWorkflowStatusLatest(model)
+		return impl.workflowStatusLatestRepository.SaveCdWorkflowStatusLatest(tx, model)
 	} else {
 		// Update existing entry
 		existingEntry.WorkflowRunnerId = workflowRunnerId
 		existingEntry.UpdatedBy = userId
 		existingEntry.UpdatedOn = now
 
-		return impl.workflowStatusLatestRepository.UpdateCdWorkflowStatusLatest(existingEntry)
+		return impl.workflowStatusLatestRepository.UpdateCdWorkflowStatusLatest(tx, existingEntry)
 	}
 }
 
 func (impl *WorkflowStatusLatestServiceImpl) GetCdWorkflowStatusLatestByPipelineIdAndWorkflowType(pipelineId int, workflowType string) (*CdWorkflowStatusLatest, error) {
-	model, err := impl.workflowStatusLatestRepository.GetCdWorkflowStatusLatestByPipelineIdAndWorkflowType(pipelineId, workflowType)
+	model, err := impl.workflowStatusLatestRepository.GetCdWorkflowStatusLatestByPipelineIdAndWorkflowType(nil, pipelineId, workflowType)
 	if err != nil {
 		if err == pg.ErrNoRows {
 			// Fallback to old method
@@ -349,4 +350,23 @@ func (impl *WorkflowStatusLatestServiceImpl) getCdWorkflowStatusFromOldMethod(pi
 		WorkflowRunnerId: wfr.Id,
 		Status:           wfr.Status,
 	}, nil
+}
+
+func (impl *WorkflowStatusLatestServiceImpl) GetCdWorkflowLatestByPipelineIds(pipelineIds []int) ([]*CdWorkflowStatusLatest, error) {
+	cdWorkflowStatusLatest, err := impl.workflowStatusLatestRepository.GetCdWorkflowStatusLatestByPipelineIds(pipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting cd workflow status latest by pipeline ids", "pipelineIds", pipelineIds, "err", err)
+		return nil, err
+	}
+	var result []*CdWorkflowStatusLatest
+	for _, model := range cdWorkflowStatusLatest {
+		result = append(result, &CdWorkflowStatusLatest{
+			PipelineId:       model.PipelineId,
+			AppId:            model.AppId,
+			EnvironmentId:    model.EnvironmentId,
+			WorkflowType:     model.WorkflowType,
+			WorkflowRunnerId: model.WorkflowRunnerId,
+		})
+	}
+	return result, nil
 }

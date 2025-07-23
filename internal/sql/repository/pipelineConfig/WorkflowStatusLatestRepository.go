@@ -19,6 +19,7 @@ package pipelineConfig
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
 )
 
@@ -32,12 +33,13 @@ type WorkflowStatusLatestRepository interface {
 	DeleteCiWorkflowStatusLatestByPipelineId(pipelineId int) error
 
 	// CD Workflow Status Latest methods
-	SaveCdWorkflowStatusLatest(model *CdWorkflowStatusLatest) error
-	UpdateCdWorkflowStatusLatest(model *CdWorkflowStatusLatest) error
-	GetCdWorkflowStatusLatestByPipelineIdAndWorkflowType(pipelineId int, workflowType string) (*CdWorkflowStatusLatest, error)
+	SaveCdWorkflowStatusLatest(tx *pg.Tx, model *CdWorkflowStatusLatest) error
+	UpdateCdWorkflowStatusLatest(tx *pg.Tx, model *CdWorkflowStatusLatest) error
+	GetCdWorkflowStatusLatestByPipelineIdAndWorkflowType(tx *pg.Tx, pipelineId int, workflowType string) (*CdWorkflowStatusLatest, error)
 	GetCdWorkflowStatusLatestByAppId(appId int) ([]*CdWorkflowStatusLatest, error)
 	GetCdWorkflowStatusLatestByPipelineId(pipelineId int) ([]*CdWorkflowStatusLatest, error)
 	DeleteCdWorkflowStatusLatestByPipelineId(pipelineId int) error
+	GetCdWorkflowStatusLatestByPipelineIds(pipelineIds []int) ([]*CdWorkflowStatusLatest, error)
 }
 
 type WorkflowStatusLatestRepositoryImpl struct {
@@ -145,8 +147,14 @@ func (impl *WorkflowStatusLatestRepositoryImpl) GetCiWorkflowStatusLatestByPipel
 }
 
 // CD Workflow Status Latest methods implementation
-func (impl *WorkflowStatusLatestRepositoryImpl) SaveCdWorkflowStatusLatest(model *CdWorkflowStatusLatest) error {
-	err := impl.dbConnection.Insert(model)
+func (impl *WorkflowStatusLatestRepositoryImpl) SaveCdWorkflowStatusLatest(tx *pg.Tx, model *CdWorkflowStatusLatest) error {
+	var connection orm.DB
+	if tx != nil {
+		connection = tx
+	} else {
+		connection = impl.dbConnection
+	}
+	err := connection.Insert(model)
 	if err != nil {
 		impl.logger.Errorw("error in saving cd workflow status latest", "err", err, "model", model)
 		return err
@@ -154,8 +162,14 @@ func (impl *WorkflowStatusLatestRepositoryImpl) SaveCdWorkflowStatusLatest(model
 	return nil
 }
 
-func (impl *WorkflowStatusLatestRepositoryImpl) UpdateCdWorkflowStatusLatest(model *CdWorkflowStatusLatest) error {
-	_, err := impl.dbConnection.Model(model).WherePK().UpdateNotNull()
+func (impl *WorkflowStatusLatestRepositoryImpl) UpdateCdWorkflowStatusLatest(tx *pg.Tx, model *CdWorkflowStatusLatest) error {
+	var connection orm.DB
+	if tx != nil {
+		connection = tx
+	} else {
+		connection = impl.dbConnection
+	}
+	_, err := connection.Model(model).WherePK().UpdateNotNull()
 	if err != nil {
 		impl.logger.Errorw("error in updating cd workflow status latest", "err", err, "model", model)
 		return err
@@ -163,9 +177,15 @@ func (impl *WorkflowStatusLatestRepositoryImpl) UpdateCdWorkflowStatusLatest(mod
 	return nil
 }
 
-func (impl *WorkflowStatusLatestRepositoryImpl) GetCdWorkflowStatusLatestByPipelineIdAndWorkflowType(pipelineId int, workflowType string) (*CdWorkflowStatusLatest, error) {
+func (impl *WorkflowStatusLatestRepositoryImpl) GetCdWorkflowStatusLatestByPipelineIdAndWorkflowType(tx *pg.Tx, pipelineId int, workflowType string) (*CdWorkflowStatusLatest, error) {
 	model := &CdWorkflowStatusLatest{}
-	err := impl.dbConnection.Model(model).
+	var connection orm.DB
+	if tx != nil {
+		connection = tx
+	} else {
+		connection = impl.dbConnection
+	}
+	err := connection.Model(model).
 		Where("pipeline_id = ?", pipelineId).
 		Where("workflow_type = ?", workflowType).
 		Select()
@@ -209,4 +229,16 @@ func (impl *WorkflowStatusLatestRepositoryImpl) DeleteCdWorkflowStatusLatestByPi
 		return err
 	}
 	return nil
+}
+
+func (impl *WorkflowStatusLatestRepositoryImpl) GetCdWorkflowStatusLatestByPipelineIds(pipelineIds []int) ([]*CdWorkflowStatusLatest, error) {
+	var models []*CdWorkflowStatusLatest
+	err := impl.dbConnection.Model(&models).
+		Where("pipeline_id IN (?)", pg.In(pipelineIds)).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting cd workflow status latest by pipeline ids", "err", err, "pipelineIds", pipelineIds)
+		return nil, err
+	}
+	return models, nil
 }
