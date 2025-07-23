@@ -3537,7 +3537,7 @@ paths:
       description: Returns all notification settings
       operationId: findNotificationSetting
       tags:
-        - Notifications
+      - Notifications
       parameters:
       - name: offset
         in: query
@@ -3582,7 +3582,7 @@ paths:
       - bearerAuth: []
       - apiKeyAuth: []
       tags:
-        - Notifications
+      - Notifications
       responses:
         '200':
           description: create NotificationSetting response
@@ -3611,7 +3611,7 @@ paths:
       - bearerAuth: []
       - apiKeyAuth: []
       tags:
-        - Notifications
+      - Notifications
       responses:
         '200':
           description: create NotificationSetting response
@@ -3640,7 +3640,7 @@ paths:
       - bearerAuth: []
       - apiKeyAuth: []
       tags:
-        - Notifications
+      - Notifications
       responses:
         '200':
           description: create NotificationSetting response
@@ -3671,7 +3671,7 @@ paths:
       - bearerAuth: []
       - apiKeyAuth: []
       tags:
-        - Notifications
+      - Notifications
       responses:
         '204':
           description: list of recipients
@@ -3690,7 +3690,7 @@ paths:
       - bearerAuth: []
       - apiKeyAuth: []
       tags:
-        - Notifications
+      - Notifications
       responses:
         '200':
           description: list response
@@ -3719,7 +3719,7 @@ paths:
       - bearerAuth: []
       - apiKeyAuth: []
       tags:
-        - Notifications
+      - Notifications
       responses:
         '200':
           description: create NotificationSettingConfig response
@@ -3729,6 +3729,198 @@ paths:
                 $ref: '#/components/schemas/NotificationConfigResponse'
         default:
           description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/app/history/deployed-component/detail/{appId}/{pipelineId}/{id}:
+    get:
+      summary: Fetch component history
+      description: fetch detail of a history on the basis of the history component
+        and it's name
+      operationId: FetchHistoryByDeployedConfigurationDetail
+      tags:
+      - Deployment History
+      parameters:
+      - name: appId
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: pipelineId
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: historyComponent
+        in: query
+        required: true
+        schema:
+          type: string
+          enum:
+          - DEPLOYMENT_TEMPLATE
+          - CONFIGMAP
+          - SECRET
+          - PIPELINE_STRATEGY
+      - name: historyComponentName
+        in: query
+        required: false
+        description: name of config-map, secret
+        schema:
+          type: string
+      security:
+      - bearerAuth: []
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: Successfully return history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryComponentDetailDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/app/history/deployed-component/list/{appId}/{pipelineId}:
+    get:
+      summary: fetch deployed history details list
+      description: fetch deployed history details list
+      operationId: FetchHistoryListByDeployedConfigurationDetail
+      tags:
+      - Deployment History
+      parameters:
+      - name: appId
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: pipelineId
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: historyComponent
+        in: query
+        required: true
+        schema:
+          type: string
+          enum:
+          - DEPLOYMENT_TEMPLATE
+          - CONFIGMAP
+          - SECRET
+          - PIPELINE_STRATEGY
+      - name: historyComponentName
+        in: query
+        required: false
+        description: name of config-map, secret
+        schema:
+          type: string
+      - name: baseConfigurationId
+        in: query
+        required: true
+        description: id of base configuration
+        schema:
+          type: integer
+      security:
+      - bearerAuth: []
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: Successfully return history list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HistoryComponentListDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/app/history/deployed-configuration/{appId}/{pipelineId}/{wfrId}:
+    get:
+      summary: all deployed configuration history
+      description: fetch all deployed configurations history (deployment template,
+        pipeline strategy, configmaps, secrets)
+      operationId: FetchHistoryListForAllDeployedConfigurations
+      tags:
+      - Deployment History
+      parameters:
+      - name: appId
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: pipelineId
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: wfrId
+        in: path
+        required: true
+        schema:
+          type: integer
+      security:
+      - bearerAuth: []
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: Successfully return history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HistoryConfigurationListDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
           content:
             application/json:
               schema:
@@ -3840,7 +4032,6 @@ components:
       properties:
         code:
           type: integer
-          format: int32
           description: Error code
         message:
           type: string
@@ -5748,6 +5939,62 @@ components:
         name:
           type: string
           description: it contains entity name
+    HistoryComponentDetailDto:
+      type: object
+      properties:
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoryComponentValuesDto'
+        codeEditorValue:
+          type: object
+          properties:
+            displayName:
+              type: string
+            value:
+              type: string
+    HistoryComponentValuesDto:
+      type: object
+      properties:
+        fieldName:
+          type: object
+          properties:
+            displayName:
+              type: string
+            value:
+              type: string
+    HistoryComponentListDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        deployedOn:
+          type: string
+          format: timestamp
+        deployedBy:
+          type: string
+        deploymentStatus:
+          type: string
+    HistoryConfigurationListDto:
+      type: array
+      items:
+        $ref: '#/components/schemas/HistoryConfiguration'
+    HistoryConfiguration:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          enum:
+          - DEPLOYMENT_TEMPLATE
+          - CONFIGMAP
+          - SECRET
+          - PIPELINE_STRATEGY
+        childList:
+          type: array
+          items:
+            type: string
   requestBodies:
     SSOLoginDto:
       description: SSO Login Configuration object
