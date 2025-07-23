@@ -2,9 +2,19 @@ openapi: "3.0.0"
 info:
   version: 1.0.0
   title: Devtron Labs
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://api.yourdomain.com
+    description: Production server
+security:
+  - ApiKeyAuth: []
 paths:
   /orchestrator/app/autocomplete:
     get:
+      summary: List application autocomplete
+      operationId: listAppAutocomplete
       description: list of namespaces group by clusters
       parameters:
         - in: query
@@ -41,6 +51,12 @@ paths:
                     description: app list
                     items:
                       $ref: '#/components/schemas/App'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         default:
           description: unexpected error
           content:
@@ -50,6 +66,11 @@ paths:
 
 # components mentioned below
 components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
   schemas:
     App:
       type: object
@@ -61,35 +82,36 @@ components:
           type: string
           description: app name
     ErrorResponse:
-      required:
-        - code
-        - status
+      type: object
       properties:
         code:
           type: integer
           format: int32
-          description: Error code
         status:
           type: string
-          description: Error message
+        result:
+          type: object
+          nullable: true
         errors:
           type: array
-          description: errors
           items:
-            $ref: '#/components/schemas/Error'
+            type: object
+            properties:
+              userMessage:
+                type: string
+                nullable: true
+              internalMessage:
+                type: string
+                nullable: true
 
     Error:
       required:
         - code
-        - status
+        - message
       properties:
         code:
           type: integer
-          format: int32
-          description: Error internal code
-        internalMessage:
+          description: Error code
+        message:
           type: string
-          description: Error internal message
-        userMessage:
-          type: string
-          description: Error user message
+          description: Error message
