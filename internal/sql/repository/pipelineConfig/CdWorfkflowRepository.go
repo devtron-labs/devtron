@@ -71,7 +71,7 @@ type CdWorkflowRepository interface {
 	IsLatestWf(pipelineId int, wfId int) (bool, error)
 	FindLatestCdWorkflowByPipelineId(pipelineIds []int) (*CdWorkflow, error)
 	FindLatestCdWorkflowByPipelineIdV2(pipelineIds []int) ([]*CdWorkflow, error)
-	FetchAllCdStagesLatestEntity(pipelineWorkflowPairs map[int]apiBean.WorkflowType) ([]*CdWorkflowStatus, error)
+	FetchAllCdStagesLatestEntity(pipelineWorkflowPairs map[int][]apiBean.WorkflowType) ([]*CdWorkflowStatus, error)
 	FetchAllCdStagesLatestEntityStatus(wfrIds []int) ([]*CdWorkflowRunner, error)
 	ExistsByStatus(status string) (bool, error)
 	FetchEnvAllCdStagesLatestEntityStatus(wfrIds []int, envID int) ([]*CdWorkflowRunner, error)
@@ -580,7 +580,7 @@ func (impl *CdWorkflowRepositoryImpl) IsLatestWf(pipelineId int, wfId int) (bool
 	return !exists, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) FetchAllCdStagesLatestEntity(pipelineWorkflowPairs map[int]apiBean.WorkflowType) ([]*CdWorkflowStatus, error) {
+func (impl *CdWorkflowRepositoryImpl) FetchAllCdStagesLatestEntity(pipelineWorkflowPairs map[int][]apiBean.WorkflowType) ([]*CdWorkflowStatus, error) {
 	var cdWorkflowStatus []*CdWorkflowStatus
 	if len(pipelineWorkflowPairs) == 0 {
 		return cdWorkflowStatus, nil
@@ -598,14 +598,15 @@ func (impl *CdWorkflowRepositoryImpl) FetchAllCdStagesLatestEntity(pipelineWorkf
 	return cdWorkflowStatus, nil
 }
 
-func buildPipelineTypeValuesList(pairs map[int]apiBean.WorkflowType) string {
+func buildPipelineTypeValuesList(pairs map[int][]apiBean.WorkflowType) string {
 	var values []string
-	for pipelineId, workflowType := range pairs {
-		values = append(values, fmt.Sprintf("(%d,'%s')", pipelineId, workflowType))
+	for pipelineId, workflowTypes := range pairs {
+		for _, workflowType := range workflowTypes {
+			values = append(values, fmt.Sprintf("(%d,'%s')", pipelineId, workflowType))
+		}
 	}
 	return strings.Join(values, ",")
 }
-
 func (impl *CdWorkflowRepositoryImpl) FetchAllCdStagesLatestEntityStatus(wfrIds []int) ([]*CdWorkflowRunner, error) {
 	var wfrList []*CdWorkflowRunner
 	err := impl.dbConnection.Model(&wfrList).
