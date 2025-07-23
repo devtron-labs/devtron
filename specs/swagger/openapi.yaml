@@ -57,15 +57,21 @@ tags:
     x-displayName: K8s Resource
   - name: Workflow Management
     x-displayName: Workflow Management
+  - name: Devtron Server version
+    x-displayName: Devtron Server version
 paths:
   /app/labels/list:
     get:
       summary: List Application Labels
-      description: |
+      description: >
         Retrieves a list of application labels. By default, returns all labels. 
-        Use the `showPropagatedOnly` parameter to filter for labels where propagate = true.
-        
+
+        Use the `showPropagatedOnly` parameter to filter for labels where
+        propagate = true.
+
+
         **Required Token Permission:**
+
         - Must have **View** access to the applications in scope.
       operationId: getAppLabels
       tags:
@@ -99,7 +105,7 @@ paths:
                   status:
                     type: string
                     description: Response status message
-                    example: "OK"
+                    example: OK
                   result:
                     type: array
                     description: Array of label objects
@@ -115,11 +121,11 @@ paths:
                         key:
                           type: string
                           description: The label key/name
-                          example: "environment"
+                          example: environment
                         value:
                           type: string
                           description: The label value
-                          example: "production"
+                          example: production
                         propagate:
                           type: boolean
                           description: Whether this label should be propagated
@@ -131,37 +137,39 @@ paths:
                         appName:
                           type: string
                           description: The name of the application
-                          example: "web-service"
+                          example: web-service
               examples:
                 all_labels:
                   summary: All labels response
-                  description: Example response when showPropagatedOnly is false or not provided
+                  description: >-
+                    Example response when showPropagatedOnly is false or not
+                    provided
                   value:
                     code: 200
-                    status: "OK"
+                    status: OK
                     result:
-                      - key: "environment"
-                        value: "production"
+                      - key: environment
+                        value: production
                         propagate: true
                         appId: 1234
-                        appName: "web-service"
-                      - key: "team"
-                        value: "backend"
+                        appName: web-service
+                      - key: team
+                        value: backend
                         propagate: false
                         appId: 1234
-                        appName: "web-service"
+                        appName: web-service
                 propagated_only:
                   summary: Propagated labels only
                   description: Example response when showPropagatedOnly is true
                   value:
                     code: 200
-                    status: "OK"
+                    status: OK
                     result:
-                      - key: "environment"
-                        value: "production"
+                      - key: environment
+                        value: production
                         propagate: true
                         appId: 1234
-                        appName: "web-service"
+                        appName: web-service
         '401':
           description: Authentication required or token invalid
           content:
@@ -174,10 +182,10 @@ paths:
                     example: 401
                   status:
                     type: string
-                    example: "Unauthorized"
+                    example: Unauthorized
                   message:
                     type: string
-                    example: "Authentication token is required"
+                    example: Authentication token is required
         '403':
           description: Insufficient permissions to access the resource
           content:
@@ -190,10 +198,12 @@ paths:
                     example: 403
                   status:
                     type: string
-                    example: "Forbidden"
+                    example: Forbidden
                   message:
                     type: string
-                    example: "Token does not have View access to the applications in scope"
+                    example: >-
+                      Token does not have View access to the applications in
+                      scope
         '500':
           description: Internal server error
           content:
@@ -206,10 +216,10 @@ paths:
                     example: 500
                   status:
                     type: string
-                    example: "Internal Server Error"
+                    example: Internal Server Error
                   message:
                     type: string
-                    example: "An unexpected error occurred"
+                    example: An unexpected error occurred
   /batch/{apiVersion}/{kind}/readme:
     get:
       summary: Get Readme for Bulk Update
@@ -2543,6 +2553,36 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /orchestrator/version:
+    get:
+      summary: Get Devtron server version information
+      security: []
+      responses:
+        '200':
+          description: meta info about devtron server
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  gitCommit:
+                    type: string
+                    example: d252aa3e
+                    description: git hash from which code was compiled
+                  buildTime:
+                    type: string
+                    format: date-time
+                    example: '2021-12-15T05:44:05Z'
+                    description: time when code was complied
+                  serverMode:
+                    type: string
+                    example: FULL
+                    description: server mode FULL/EA_ONLY
+                    enum:
+                      - FULL
+                      - EA_ONLY
+      tags:
+        - Devtron Server version
 components:
   schemas:
     BulkUpdateSeeExampleResponse:
@@ -2913,8 +2953,8 @@ components:
         config:
           type: object
           description: >-
-            Configuration for the SSO provider (Dex connector config).
-            Structure varies.
+            Configuration for the SSO provider (Dex connector config). Structure
+            varies.
         active:
           type: boolean
       required:
@@ -4203,7 +4243,7 @@ components:
       name: X-API-Key
       description: API key authentication
 x-tagGroups:
-  - name: Devtron Labs Kubernetes API
+  - name: Common Devtron automation APIs
     tags:
       - Labels
       - bulk_other
@@ -4222,3 +4262,4 @@ x-tagGroups:
       - Clone Workflow
       - K8s Resource
       - Workflow Management
+      - Devtron Server version
