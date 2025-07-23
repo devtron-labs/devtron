@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package status
+package workflowStatusLatest
 
 import (
 	util2 "github.com/devtron-labs/devtron/internal/util"
@@ -61,12 +61,12 @@ func NewWorkflowStatusLatestServiceImpl(
 	}
 }
 
-// DTOs for service layer
 type CiWorkflowStatusLatest struct {
-	PipelineId   int    `json:"pipelineId"`
-	AppId        int    `json:"appId"`
-	CiWorkflowId int    `json:"ciWorkflowId"`
-	Status       string `json:"status"` // Derived from ci_workflow table
+	PipelineId        int    `json:"pipelineId"`
+	AppId             int    `json:"appId"`
+	CiWorkflowId      int    `json:"ciWorkflowId"`
+	Status            string `json:"status"` // Derived from ci_workflow table
+	StorageConfigured bool   `json:"storageConfigured"`
 }
 
 type CdWorkflowStatusLatest struct {
@@ -154,10 +154,11 @@ func (impl *WorkflowStatusLatestServiceImpl) GetCiWorkflowStatusLatestByAppId(ap
 		}
 
 		result = append(result, &CiWorkflowStatusLatest{
-			PipelineId:   model.PipelineId,
-			AppId:        model.AppId,
-			CiWorkflowId: model.CiWorkflowId,
-			Status:       ciWorkflow.Status,
+			PipelineId:        model.PipelineId,
+			AppId:             model.AppId,
+			CiWorkflowId:      model.CiWorkflowId,
+			Status:            ciWorkflow.Status,
+			StorageConfigured: ciWorkflow.BlobStorageEnabled,
 		})
 	}
 

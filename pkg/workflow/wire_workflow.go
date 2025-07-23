@@ -22,13 +22,14 @@ import (
 	"github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/hook"
 	"github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/repository"
 	"github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/service"
+	"github.com/devtron-labs/devtron/pkg/workflow/workflowStatusLatest"
 	"github.com/google/wire"
 )
 
 var WorkflowWireSet = wire.NewSet(
 	cd.CdWorkflowWireSet,
 	status.WorkflowStatusWireSet,
-	status.WorkflowStatusLatestWireSet,
+	workflowStatusLatest.WorkflowStatusLatestWireSet,
 	hook.NewTriggerAuditHookImpl,
 	wire.Bind(new(hook.TriggerAuditHook), new(*hook.TriggerAuditHookImpl)),
 	service.NewWorkflowTriggerAuditServiceImpl,

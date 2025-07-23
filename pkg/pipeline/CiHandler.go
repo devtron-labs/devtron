@@ -27,6 +27,7 @@ import (
 	buildBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
 	"regexp"
@@ -76,27 +77,28 @@ type CiHandler interface {
 }
 
 type CiHandlerImpl struct {
-	Logger                       *zap.SugaredLogger
-	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
-	ciService                    CiService
-	gitSensorClient              gitSensor.Client
-	ciWorkflowRepository         pipelineConfig.CiWorkflowRepository
-	ciArtifactRepository         repository.CiArtifactRepository
-	userService                  user.UserService
-	eventClient                  client.EventClient
-	eventFactory                 client.EventFactory
-	ciPipelineRepository         pipelineConfig.CiPipelineRepository
-	appListingRepository         repository.AppListingRepository
-	cdPipelineRepository         pipelineConfig.PipelineRepository
-	enforcerUtil                 rbac.EnforcerUtil
-	resourceGroupService         resourceGroup.ResourceGroupService
-	envRepository                repository2.EnvironmentRepository
-	imageTaggingService          imageTagging.ImageTaggingService
-	customTagService             CustomTagService
-	appWorkflowRepository        appWorkflow.AppWorkflowRepository
-	config                       *types.CiConfig
-	k8sCommonService             k8sPkg.K8sCommonService
-	workFlowStageStatusService   workflowStatus.WorkFlowStageStatusService
+	Logger                         *zap.SugaredLogger
+	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
+	ciService                      CiService
+	gitSensorClient                gitSensor.Client
+	ciWorkflowRepository           pipelineConfig.CiWorkflowRepository
+	ciArtifactRepository           repository.CiArtifactRepository
+	userService                    user.UserService
+	eventClient                    client.EventClient
+	eventFactory                   client.EventFactory
+	ciPipelineRepository           pipelineConfig.CiPipelineRepository
+	appListingRepository           repository.AppListingRepository
+	cdPipelineRepository           pipelineConfig.PipelineRepository
+	enforcerUtil                   rbac.EnforcerUtil
+	resourceGroupService           resourceGroup.ResourceGroupService
+	envRepository                  repository2.EnvironmentRepository
+	imageTaggingService            imageTagging.ImageTaggingService
+	customTagService               CustomTagService
+	appWorkflowRepository          appWorkflow.AppWorkflowRepository
+	config                         *types.CiConfig
+	k8sCommonService               k8sPkg.K8sCommonService
+	workFlowStageStatusService     workflowStatus.WorkFlowStageStatusService
+	workflowStatusLatestRepository pipelineConfig.WorkflowStatusLatestRepository
 }
 
 func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
@@ -104,28 +106,30 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 	appListingRepository repository.AppListingRepository, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup.ResourceGroupService, envRepository repository2.EnvironmentRepository,
 	imageTaggingService imageTagging.ImageTaggingService, k8sCommonService k8sPkg.K8sCommonService, appWorkflowRepository appWorkflow.AppWorkflowRepository, customTagService CustomTagService,
 	workFlowStageStatusService workflowStatus.WorkFlowStageStatusService,
+	workflowStatusLatestRepository pipelineConfig.WorkflowStatusLatestRepository,
 ) *CiHandlerImpl {
 	cih := &CiHandlerImpl{
-		Logger:                       Logger,
-		ciService:                    ciService,
-		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
-		gitSensorClient:              gitSensorClient,
-		ciWorkflowRepository:         ciWorkflowRepository,
-		ciArtifactRepository:         ciArtifactRepository,
-		userService:                  userService,
-		eventClient:                  eventClient,
-		eventFactory:                 eventFactory,
-		ciPipelineRepository:         ciPipelineRepository,
-		appListingRepository:         appListingRepository,
-		cdPipelineRepository:         cdPipelineRepository,
-		enforcerUtil:                 enforcerUtil,
-		resourceGroupService:         resourceGroupService,
-		envRepository:                envRepository,
-		imageTaggingService:          imageTaggingService,
-		customTagService:             customTagService,
-		appWorkflowRepository:        appWorkflowRepository,
-		k8sCommonService:             k8sCommonService,
-		workFlowStageStatusService:   workFlowStageStatusService,
+		Logger:                         Logger,
+		ciService:                      ciService,
+		ciPipelineMaterialRepository:   ciPipelineMaterialRepository,
+		gitSensorClient:                gitSensorClient,
+		ciWorkflowRepository:           ciWorkflowRepository,
+		ciArtifactRepository:           ciArtifactRepository,
+		userService:                    userService,
+		eventClient:                    eventClient,
+		eventFactory:                   eventFactory,
+		ciPipelineRepository:           ciPipelineRepository,
+		appListingRepository:           appListingRepository,
+		cdPipelineRepository:           cdPipelineRepository,
+		enforcerUtil:                   enforcerUtil,
+		resourceGroupService:           resourceGroupService,
+		envRepository:                  envRepository,
+		imageTaggingService:            imageTaggingService,
+		customTagService:               customTagService,
+		appWorkflowRepository:          appWorkflowRepository,
+		k8sCommonService:               k8sCommonService,
+		workFlowStageStatusService:     workFlowStageStatusService,
+		workflowStatusLatestRepository: workflowStatusLatestRepository,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -644,13 +648,155 @@ func (impl *CiHandlerImpl) stateChanged(status string, podStatus string, msg str
 }
 
 func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewV1(appId int) ([]*pipelineConfig.CiWorkflowStatus, error) {
-	ciWorkflowStatuses, err := impl.ciWorkflowRepository.FIndCiWorkflowStatusesByAppId(appId)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("err in fetching ciWorkflowStatuses from ciWorkflowRepository", "appId", appId, "err", err)
-		return ciWorkflowStatuses, err
+	allPipelineIds, err := impl.ciWorkflowRepository.FindCiPipelineIdsByAppId(appId)
+	if err != nil {
+		impl.Logger.Errorw("error in getting ci pipeline ids for app, falling back to old method", "appId", appId, "err", err)
+		return impl.ciWorkflowRepository.FIndCiWorkflowStatusesByAppId(appId)
 	}
 
-	return ciWorkflowStatuses, err
+	if len(allPipelineIds) == 0 {
+		return []*pipelineConfig.CiWorkflowStatus{}, nil
+	}
+
+	latestStatusEntries, err := impl.workflowStatusLatestRepository.GetCiWorkflowStatusLatestByPipelineIds(allPipelineIds)
+	if err != nil {
+		impl.Logger.Errorw("error in checking latest status table, falling back to old method", "appId", appId, "err", err)
+		return impl.ciWorkflowRepository.FIndCiWorkflowStatusesByAppId(appId)
+	}
+
+	var allStatuses []*pipelineConfig.CiWorkflowStatus
+
+	if len(latestStatusEntries) > 0 {
+		statusesFromLatestTable, err := impl.fetchCiWorkflowStatusFromLatestEntries(latestStatusEntries)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching ci workflow status from latest ci workflow entries ", "latestStatusEntries", latestStatusEntries, "err", err)
+			return nil, err
+		} else {
+			allStatuses = append(allStatuses, statusesFromLatestTable...)
+		}
+	}
+
+	pipelinesNotInLatestTable := impl.getPipelineIdsNotInLatestTable(allPipelineIds, latestStatusEntries)
+
+	if len(pipelinesNotInLatestTable) > 0 {
+		statusesFromOldQuery, err := impl.fetchCiStatusUsingFallbackMethod(pipelinesNotInLatestTable)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching using fallback method by pipelineIds", "pipelineIds", pipelinesNotInLatestTable, "err", err)
+			return nil, err
+		} else {
+			allStatuses = append(allStatuses, statusesFromOldQuery...)
+		}
+	}
+
+	return allStatuses, nil
+}
+
+// fetchCiWorkflowStatusFromLatestEntries fetches CI status from ci_workflow_status_latest table
+func (impl *CiHandlerImpl) fetchCiWorkflowStatusFromLatestEntries(latestCiWorkflowStatusEntries []*pipelineConfig.CiWorkflowStatusLatest) ([]*pipelineConfig.CiWorkflowStatus, error) {
+	var workflowIds []int
+	for _, entry := range latestCiWorkflowStatusEntries {
+		workflowIds = append(workflowIds, entry.CiWorkflowId)
+	}
+
+	workflows, err := impl.ciWorkflowRepository.FindWorkflowsByCiWorkflowIds(workflowIds)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching ci workflows by ci workflow ids", "workflowIds", workflowIds, "err", err)
+		return nil, err
+	}
+
+	var statuses []*pipelineConfig.CiWorkflowStatus
+	for _, workflow := range workflows {
+		status := adapter.GetCiWorkflowStatusFromCiWorkflow(workflow)
+		statuses = append(statuses, status)
+	}
+
+	return statuses, nil
+}
+
+// fetchCiStatusUsingFallbackMethod fetches CI status directly from ci_workflow table
+func (impl *CiHandlerImpl) fetchCiStatusUsingFallbackMethod(pipelineIds []int) ([]*pipelineConfig.CiWorkflowStatus, error) {
+	workflows, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByCiIds(pipelineIds)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching ci workflows by ci ids", "pipelineIds", pipelineIds, "err", err)
+		return nil, err
+	}
+
+	var statuses []*pipelineConfig.CiWorkflowStatus
+	for _, workflow := range workflows {
+		status := adapter.GetCiWorkflowStatusFromCiWorkflow(workflow)
+		statuses = append(statuses, status)
+	}
+
+	return statuses, nil
+}
+
+func (impl *CiHandlerImpl) fetchWorkflowsFromLatestTable(latestStatusEntries []*pipelineConfig.CiWorkflowStatusLatest) ([]*pipelineConfig.CiWorkflow, error) {
+	var workflowIds []int
+	for _, entry := range latestStatusEntries {
+		workflowIds = append(workflowIds, entry.CiWorkflowId)
+	}
+
+	return impl.ciWorkflowRepository.FindWorkflowsByCiWorkflowIds(workflowIds)
+}
+
+// fetchLastTriggeredWorkflowsHybrid implements hybrid approach for workflow fetching
+// Uses latest status table for available pipelines, fallback to complex query for missing pipelines
+func (impl *CiHandlerImpl) fetchLastTriggeredWorkflowsHybrid(pipelineIds []int) ([]*pipelineConfig.CiWorkflow, error) {
+	if len(pipelineIds) == 0 {
+		return []*pipelineConfig.CiWorkflow{}, nil
+	}
+
+	latestStatusEntries, err := impl.workflowStatusLatestRepository.GetCiWorkflowStatusLatestByPipelineIds(pipelineIds)
+	if err != nil {
+		impl.Logger.Errorw("error in checking latest status table, falling back to complex query", "pipelineIds", pipelineIds, "err", err)
+		return impl.ciWorkflowRepository.FindLastTriggeredWorkflowByCiIds(pipelineIds)
+	}
+
+	var allWorkflows []*pipelineConfig.CiWorkflow
+
+	if len(latestStatusEntries) > 0 {
+		workflowsFromLatestTable, err := impl.fetchWorkflowsFromLatestTable(latestStatusEntries)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching from latest status table", "latestStatusEntries", latestStatusEntries, "err", err)
+			return nil, err
+		} else {
+			allWorkflows = append(allWorkflows, workflowsFromLatestTable...)
+		}
+	}
+
+	pipelinesNotInLatestTable := impl.getPipelineIdsNotInLatestTable(pipelineIds, latestStatusEntries)
+
+	if len(pipelinesNotInLatestTable) > 0 {
+		workflowsFromOldQuery, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByCiIds(pipelinesNotInLatestTable)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching using old query by pipeline ids", "pipelineIds", pipelinesNotInLatestTable, "err", err)
+			return nil, err
+		} else {
+			allWorkflows = append(allWorkflows, workflowsFromOldQuery...)
+		}
+	}
+
+	return allWorkflows, nil
+}
+
+// getPipelineIdsNotInLatestTable finds pipeline IDs that are NOT in the latest status table
+func (impl *CiHandlerImpl) getPipelineIdsNotInLatestTable(allPipelineIds []int, latestStatusEntries []*pipelineConfig.CiWorkflowStatusLatest) []int {
+	var pipelinesInLatestTable []int
+	for _, entry := range latestStatusEntries {
+		pipelinesInLatestTable = append(pipelinesInLatestTable, entry.PipelineId)
+	}
+	pipelineIdMap := make(map[int]bool)
+	for _, id := range pipelinesInLatestTable {
+		pipelineIdMap[id] = true
+	}
+
+	var missingPipelineIds []int
+	for _, id := range allPipelineIds {
+		if !pipelineIdMap[id] {
+			missingPipelineIds = append(missingPipelineIds, id)
+		}
+	}
+	return missingPipelineIds
 }
 
 func (impl *CiHandlerImpl) FetchCiStatusForTriggerView(appId int) ([]*pipelineConfig.CiWorkflowStatus, error) {
@@ -861,9 +1007,9 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(request res
 	if len(ciPipelineIds) == 0 {
 		return ciWorkflowStatuses, nil
 	}
-	latestCiWorkflows, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByCiIds(ciPipelineIds)
+	latestCiWorkflows, err := impl.fetchLastTriggeredWorkflowsHybrid(ciPipelineIds)
 	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("err", "ciPipelineIds", ciPipelineIds, "err", err)
+		impl.Logger.Errorw("err in hybrid ci workflow fetch", "ciPipelineIds", ciPipelineIds, "err", err)
 		return ciWorkflowStatuses, err
 	}
 
