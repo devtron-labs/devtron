@@ -15,24 +15,31 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 
+          
       - name: Setup Node.js
         uses: actions/setup-node@v4
-
+        
       - name: Install Redocly CLI
         run: npm install -g @redocly/cli
-
-      - name: Switch to gh-pages branch
+        
+      - name: Switch to gh-pages and copy OpenAPI source
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          echo "Switching to gh-pages branch..."
-          git checkout -b gh-pages
-          git fetch origin gh-pages
-          git pull --rebase origin gh-pages
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_SYSTEMSDT_TOKEN }}
+          
+          mkdir tmp-api
+
+          cp specs/swagger/openapi.yaml tmp-api/
+          
+          git checkout gh-pages
+          
+          cp tmp-api/openapi.yaml specs/swagger/openapi.yaml
+          
+          rm -rf /tmp-api
+
       - name: Build OpenAPI documentation
         run: |
+
           cd specs/swagger
           echo "Building OpenAPI documentation..."
           redocly build-docs openapi.yaml --output=openapi.html
@@ -42,13 +49,14 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          echo "Committing and pushing documentation..."
-          git add specs/swagger/openapi.html
+          
+          git add specs/swagger/openapi.html specs/swagger/openapi.yaml
+          
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
             git commit -m "Update OpenAPI documentation from main branch"
-            git push --force origin gh-pages
+            git push origin gh-pages
             echo "Documentation pushed to gh-pages branch!"
           fi
         env:
