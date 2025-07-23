@@ -9,14 +9,18 @@ servers:
   - url: http://localhost/orchestrator
     description: Local development server
 tags:
-  - name: jobs_other
-    x-displayName: other
-  - name: charts_other
-    x-displayName: other
-  - name: applisting_other
-    x-displayName: other
-  - name: application_other
-    x-displayName: other
+  - name: Jobs
+    description: Job management operations for creating, cloning, and retrieving jobs
+    x-displayName: Job Management
+  - name: Helm Charts
+    description: Helm chart deployment management and operations
+    x-displayName: Helm Chart Management
+  - name: List Applications
+    x-displayName: List Applications
+    description: Application listing
+  - name: Applications
+    description: Application management operations including creation, listing, and updates
+    x-displayName: Application Management
   - name: Labels
     x-displayName: Labels
   - name: bulk_other
@@ -96,7 +100,7 @@ paths:
         '500':
           description: Internal server error
       tags:
-        - jobs_other
+        - Jobs
   /orchestrator/job/list:
     post:
       summary: List jobs
@@ -124,7 +128,7 @@ paths:
         '500':
           description: Internal server error
       tags:
-        - jobs_other
+        - Jobs
   /orchestrator/job/ci-pipeline/list/{jobId}:
     get:
       summary: Get job CI pipeline list
@@ -148,7 +152,7 @@ paths:
         '500':
           description: Internal server error
       tags:
-        - jobs_other
+        - Jobs
   /orchestrator/app-store/installed-app:
     get:
       summary: List deployed charts
@@ -234,7 +238,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       tags:
-        - charts_other
+        - Helm Charts
   /orchestrator/app-store/installed-app/notes:
     get:
       summary: Fetch notes.txt for deployed helm charts
@@ -274,7 +278,7 @@ paths:
         '500':
           description: error while fetching notes.txt
       tags:
-        - charts_other
+        - Helm Charts
   /orchestrator/app/autocomplete:
     get:
       summary: List application autocomplete
@@ -326,7 +330,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       tags:
-        - applisting_other
+        - List Applications
       security:
         - ApiKeyAuth: []
   /orchestrator/app:
@@ -381,7 +385,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       tags:
-        - application_other
+        - Applications
   /orchestrator/app/edit:
     post:
       summary: Update application projects and labels
@@ -434,7 +438,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       tags:
-        - application_other
+        - Applications
   /orchestrator/app/list:
     post:
       summary: List applications
@@ -499,7 +503,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       tags:
-        - application_other
+        - Applications
   /orchestrator/app/edit/projects:
     post:
       summary: Update project for app
@@ -544,7 +548,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       tags:
-        - application_other
+        - Applications
   /app/labels/list:
     get:
       summary: List Application Labels
@@ -5101,10 +5105,10 @@ components:
 x-tagGroups:
   - name: Devtron Labs
     tags:
-      - jobs_other
-      - charts_other
-      - applisting_other
-      - application_other
+      - Jobs
+      - Helm Charts
+      - List Applications
+      - Applications
       - Labels
       - bulk_other
       - BulkUpdate
