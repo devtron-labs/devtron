@@ -28,7 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/adapter"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/bean"
-	"github.com/devtron-labs/devtron/pkg/workflow/status/workflowStatusLatest"
+	"github.com/devtron-labs/devtron/pkg/workflow/workflowStatusLatest"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -38,7 +38,7 @@ type CdWorkflowRunnerService interface {
 	UpdateWfr(dto *bean.CdWorkflowRunnerDto, updatedBy int) error
 	SaveWfr(tx *pg.Tx, wfr *pipelineConfig.CdWorkflowRunner) error
 	UpdateIsArtifactUploaded(wfrId int, isArtifactUploaded bool) error
-	SaveCDWorkflowRunnerWithStage(wfr *pipelineConfig.CdWorkflowRunner) (*pipelineConfig.CdWorkflowRunner, error)
+	SaveCDWorkflowRunnerWithStage(wfr *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline) (*pipelineConfig.CdWorkflowRunner, error)
 	UpdateCdWorkflowRunnerWithStage(wfr *pipelineConfig.CdWorkflowRunner) error
 	GetPrePostWorkflowStagesByWorkflowRunnerIdsList(wfIdWfTypeMap map[int]bean4.CdWorkflowWithArtifact) (map[int]map[string][]*bean3.WorkflowStageDto, error)
 }
@@ -107,7 +107,7 @@ func (impl *CdWorkflowRunnerServiceImpl) UpdateIsArtifactUploaded(wfrId int, isA
 	return nil
 }
 
-func (impl *CdWorkflowRunnerServiceImpl) SaveCDWorkflowRunnerWithStage(wfr *pipelineConfig.CdWorkflowRunner) (*pipelineConfig.CdWorkflowRunner, error) {
+func (impl *CdWorkflowRunnerServiceImpl) SaveCDWorkflowRunnerWithStage(wfr *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline) (*pipelineConfig.CdWorkflowRunner, error) {
 	// implementation
 	tx, err := impl.transactionManager.StartTx()
 	if err != nil {
@@ -133,6 +133,12 @@ func (impl *CdWorkflowRunnerServiceImpl) SaveCDWorkflowRunnerWithStage(wfr *pipe
 	err = impl.workflowStageService.SaveWorkflowStages(wfr.Id, wfr.WorkflowType.String(), wfr.Name, tx)
 	if err != nil {
 		impl.logger.Errorw("error in saving workflow stages", "workflowName", wfr.Name, "error", err)
+		return wfr, err
+	}
+
+	err = impl.workflowStatusUpdateService.UpdateCdWorkflowStatusLatest(tx, cdWf.PipelineId, pipeline.AppId, pipeline.EnvironmentId, wfr.Id, wfr.WorkflowType.String(), wfr.CreatedBy)
+	if err != nil {
+		impl.logger.Errorw("error in updating workflow status latest, ManualCdTrigger", "runnerId", wfr.CreatedBy, "err", err)
 		return wfr, err
 	}
 

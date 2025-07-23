@@ -40,7 +40,7 @@ type CiWorkflowRepository interface {
 	FindByName(name string) (*CiWorkflow, error)
 
 	FindLastTriggeredWorkflowByCiIds(pipelineId []int) (ciWorkflow []*CiWorkflow, err error)
-	FindLastTriggeredWorkflowByCiIdsOptimized(pipelineId []int) (ciWorkflow []*CiWorkflow, err error)
+	FindWorkflowsByCiWorkflowIds(ciWorkflowIds []int) (ciWorkflow []*CiWorkflow, err error)
 	FindLastTriggeredWorkflowByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error)
 	FindAllLastTriggeredWorkflowByArtifactId(ciArtifactId []int) (ciWorkflow []*CiWorkflow, err error)
 	FindAllTriggeredWorkflowCountInLast24Hour() (ciWorkflowCount int, err error)
@@ -49,6 +49,7 @@ type CiWorkflowRepository interface {
 	ExistsByStatus(status string) (bool, error)
 	FindBuildTypeAndStatusDataOfLast1Day() ([]*BuildTypeCount, error)
 	FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error)
+	FindCiPipelineIdsByAppId(appId int) ([]int, error)
 
 	MigrateIsArtifactUploaded(wfId int, isArtifactUploaded bool)
 	MigrateCiArtifactLocation(wfId int, artifactLocation string)
@@ -291,20 +292,16 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByCiIds(pipelineI
 	return ciWorkflow, err
 }
 
-// FindLastTriggeredWorkflowByCiIdsOptimized uses the ci_workflow_status_latest table for better performance
-func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByCiIdsOptimized(pipelineId []int) (ciWorkflow []*CiWorkflow, err error) {
-	err = impl.dbConnection.Model(&ciWorkflow).
-		Column("ci_workflow.*", "CiPipeline").
-		Join("INNER JOIN ci_workflow_status_latest cwsl ON cwsl.ci_workflow_id = ci_workflow.id").
-		Where("cwsl.pipeline_id IN (?)", pg.In(pipelineId)).
-		Select()
-
-	if err != nil {
-		impl.logger.Errorw("error in optimized query, falling back to old method", "err", err, "pipelineIds", pipelineId)
-		// Fallback to the old method if optimized query fails
-		return impl.FindLastTriggeredWorkflowByCiIds(pipelineId)
+// FindWorkflowsByCiWorkflowIds fetches workflows by their workflow IDs (simple query)
+func (impl *CiWorkflowRepositoryImpl) FindWorkflowsByCiWorkflowIds(ciWorkflowIds []int) (ciWorkflow []*CiWorkflow, err error) {
+	if len(ciWorkflowIds) == 0 {
+		return ciWorkflow, nil
 	}
 
+	err = impl.dbConnection.Model(&ciWorkflow).
+		Column("ci_workflow.*", "CiPipeline").
+		Where("ci_workflow.id IN (?)", pg.In(ciWorkflowIds)).
+		Select()
 	return ciWorkflow, err
 }
 
@@ -395,6 +392,16 @@ func (impl *CiWorkflowRepositoryImpl) FIndCiWorkflowStatusesByAppId(appId int) (
 		return ciworkflowStatuses, err
 	}
 	return ciworkflowStatuses, err
+}
+
+// FindCiPipelineIdsByAppId gets all CI pipeline IDs for an app (simple query)
+func (impl *CiWorkflowRepositoryImpl) FindCiPipelineIdsByAppId(appId int) ([]int, error) {
+	var ciPipelineIds []int
+	err := impl.dbConnection.Model((*CiPipeline)(nil)).
+		Column("id").
+		Where("app_id = ? AND deleted = false", appId).
+		Select(&ciPipelineIds)
+	return ciPipelineIds, err
 }
 
 func (impl *CiWorkflowRepositoryImpl) MigrateIsArtifactUploaded(wfId int, isArtifactUploaded bool) {

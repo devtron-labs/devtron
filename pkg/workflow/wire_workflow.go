@@ -19,10 +19,10 @@ package workflow
 import (
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	"github.com/devtron-labs/devtron/pkg/workflow/status"
-	"github.com/devtron-labs/devtron/pkg/workflow/status/workflowStatusLatest"
 	"github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/hook"
 	"github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/repository"
 	"github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/service"
+	"github.com/devtron-labs/devtron/pkg/workflow/workflowStatusLatest"
 	"github.com/google/wire"
 )
 

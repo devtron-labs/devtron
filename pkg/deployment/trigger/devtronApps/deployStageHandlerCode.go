@@ -269,7 +269,20 @@ func (impl *HandlerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			}
 			cdWorkflowId = cdWf.Id
 		}
-
+		tx, err := impl.cdWorkflowRepository.GetConnection().Begin()
+		if err != nil {
+			impl.logger.Errorw("error in getting connection for cdWorkflowRepository, ManualCdTrigger", "err", err)
+			return 0, "", nil, err
+		}
+		isRollbackNeeded := true
+		defer func() {
+			if isRollbackNeeded {
+				err = tx.Rollback()
+				if err != nil {
+					impl.logger.Errorw("error in rolling back transaction for cdWorkflowRunner, ManualCdTrigger", "cdWorkflowId", cdWorkflowId, "err", err)
+				}
+			}
+		}()
 		runner := &pipelineConfig.CdWorkflowRunner{
 			Name:         cdPipeline.Name,
 			WorkflowType: bean3.CD_WORKFLOW_TYPE_DEPLOY,
@@ -282,11 +295,26 @@ func (impl *HandlerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
 			ReferenceId:  triggerContext.ReferenceId,
 		}
-		err = impl.cdWorkflowRunnerService.SaveWfr(nil, runner)
+
+		err = impl.cdWorkflowRunnerService.SaveWfr(tx, runner)
 		if err != nil {
 			impl.logger.Errorw("err in creating cdWorkflowRunner, ManualCdTrigger", "cdWorkflowId", cdWorkflowId, "err", err)
 			return 0, "", nil, err
 		}
+
+		err = impl.workflowStatusUpdateService.UpdateCdWorkflowStatusLatest(tx, overrideRequest.PipelineId, overrideRequest.AppId, overrideRequest.EnvId, runner.Id, runner.WorkflowType.String(), overrideRequest.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in updating workflow status latest, ManualCdTrigger", "runnerId", overrideRequest.WfrId, "err", err)
+			return 0, "", nil, err
+		}
+
+		isRollbackNeeded = false
+		err = tx.Commit()
+		if err != nil {
+			impl.logger.Errorw("error in committing transaction for cdWorkflowRunner, ManualCdTrigger", "cdWorkflowId", cdWorkflowId, "err", err)
+			return 0, "", nil, err
+		}
+
 		runner.CdWorkflow = &pipelineConfig.CdWorkflow{
 			Pipeline: cdPipeline,
 		}
@@ -407,6 +435,22 @@ func (impl *HandlerServiceImpl) TriggerAutomaticDeployment(request bean.CdTrigge
 		}
 	}
 
+	tx, err := impl.cdWorkflowRepository.GetConnection().Begin()
+	if err != nil {
+		impl.logger.Errorw("error in getting connection for cdWorkflowRepository, ManualCdTrigger", "err", err)
+		return err
+	}
+
+	isRollbackNeeded := true
+	defer func() {
+		if isRollbackNeeded {
+			err = tx.Rollback()
+			if err != nil {
+				impl.logger.Errorw("error in rolling back transaction for cdWorkflowRunner, ManualCdTrigger", "cdWorkflowId", cdWf.Id, "err", err)
+			}
+		}
+	}()
+
 	runner := &pipelineConfig.CdWorkflowRunner{
 		Name:         pipeline.Name,
 		WorkflowType: bean3.CD_WORKFLOW_TYPE_DEPLOY,
@@ -419,10 +463,23 @@ func (impl *HandlerServiceImpl) TriggerAutomaticDeployment(request bean.CdTrigge
 		AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggeredAt, UpdatedBy: triggeredBy},
 		ReferenceId:  request.TriggerContext.ReferenceId,
 	}
-	err := impl.cdWorkflowRunnerService.SaveWfr(nil, runner)
+	err = impl.cdWorkflowRunnerService.SaveWfr(tx, runner)
 	if err != nil {
 		return err
 	}
+
+	err = impl.workflowStatusUpdateService.UpdateCdWorkflowStatusLatest(tx, pipeline.Id, pipeline.AppId, pipeline.EnvironmentId, runner.Id, runner.WorkflowType.String(), request.TriggeredBy)
+	if err != nil {
+		impl.logger.Errorw("error in updating workflow status latest, ManualCdTrigger", "runnerId", runner.Id, "err", err)
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction for cdWorkflowRunner, ManualCdTrigger", "cdWorkflowId", cdWf.Id, "err", err)
+		return err
+	}
+	isRollbackNeeded = false
 	runner.CdWorkflow = &pipelineConfig.CdWorkflow{
 		Pipeline: pipeline,
 	}

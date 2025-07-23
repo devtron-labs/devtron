@@ -20,8 +20,9 @@ import (
 	"bufio"
 	"context"
 	"github.com/devtron-labs/common-lib/async"
-	service2 "github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/service"
 	"github.com/devtron-labs/devtron/client/fluxcd"
+	service2 "github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/service"
+	"github.com/devtron-labs/devtron/pkg/workflow/workflowStatusLatest"
 	"os"
 	"time"
 
@@ -174,6 +175,7 @@ type HandlerServiceImpl struct {
 	asyncRunnable                       *async.Runnable
 	workflowTriggerAuditService         service2.WorkflowTriggerAuditService
 	fluxCdDeploymentService             fluxcd.DeploymentService
+	workflowStatusUpdateService         workflowStatusLatest.WorkflowStatusUpdateService
 }
 
 func NewHandlerServiceImpl(logger *zap.SugaredLogger,
@@ -238,7 +240,8 @@ func NewHandlerServiceImpl(logger *zap.SugaredLogger,
 	deploymentEventHandler app.DeploymentEventHandler,
 	asyncRunnable *async.Runnable,
 	workflowTriggerAuditService service2.WorkflowTriggerAuditService,
-	fluxCdDeploymentService fluxcd.DeploymentService) (*HandlerServiceImpl, error) {
+	fluxCdDeploymentService fluxcd.DeploymentService,
+	workflowStatusUpdateService workflowStatusLatest.WorkflowStatusUpdateService) (*HandlerServiceImpl, error) {
 	impl := &HandlerServiceImpl{
 		logger:                              logger,
 		cdWorkflowCommonService:             cdWorkflowCommonService,
@@ -307,7 +310,8 @@ func NewHandlerServiceImpl(logger *zap.SugaredLogger,
 		deploymentEventHandler:      deploymentEventHandler,
 		asyncRunnable:               asyncRunnable,
 		workflowTriggerAuditService: workflowTriggerAuditService,
-		fluxCdDeploymentService:  fluxCdDeploymentService,
+		fluxCdDeploymentService:     fluxCdDeploymentService,
+		workflowStatusUpdateService: workflowStatusUpdateService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
