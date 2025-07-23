@@ -479,7 +479,7 @@ func (impl *HandlerServiceImpl) TriggerAutomaticDeployment(request bean.CdTrigge
 		impl.logger.Errorw("error in committing transaction for cdWorkflowRunner, ManualCdTrigger", "cdWorkflowId", cdWf.Id, "err", err)
 		return err
 	}
-
+	isRollbackNeeded = false
 	runner.CdWorkflow = &pipelineConfig.CdWorkflow{
 		Pipeline: pipeline,
 	}
