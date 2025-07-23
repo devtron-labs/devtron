@@ -2,12 +2,32 @@ openapi: "3.0.0"
 info:
   version: 1.0.0
   title: Devtron Labs
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: http://localhost/orchestrator
+    description: Local development server
+security:
+  - ApiKeyAuth: []
 paths:
   /orchestrator/app/labels/list:
     get:
-      description: this api will return all the labels available in database.
+      summary: List all app labels
+      description: This API will return all the labels available in the database.
+      operationId: listAppLabels
+      security:
+        - ApiKeyAuth: []
       parameters: [ ]
       responses:
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not found
+        '500':
+          description: Internal server error
         '200':
           description: list response
           content:
@@ -39,7 +59,11 @@ paths:
 
   /orchestrator/app/meta/info/{appId}:
     get:
-      description: application basic info, projects and labels
+      summary: Get application meta info
+      description: Application basic info, projects and labels
+      operationId: getAppMetaInfo
+      security:
+        - ApiKeyAuth: []
       parameters:
         - name: appId
           in: path
@@ -65,6 +89,14 @@ paths:
                     type: object
                     description: meta info project name and labels
                     $ref: '#/components/schemas/AppMetaInfo'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not found
+        '500':
+          description: Internal server error
         default:
           description: unexpected error
           content:
@@ -73,7 +105,11 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
   /orchestrator/helm/meta/info/{appId}:
     get:
-      description: application info for all types of helm apps
+      summary: Get Helm application meta info
+      description: Application info for all types of Helm apps
+      operationId: getHelmAppMetaInfo
+      security:
+        - ApiKeyAuth: []
       parameters:
         - name: appId
           in: path
@@ -98,9 +134,28 @@ paths:
                     type: object
                     description: meta info project name and labels
                     $ref: '#/components/schemas/AppMetaInfo'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not found
+        '500':
+          description: Internal server error
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 # components mentioned below
 components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
   schemas:
     AppLabel:
       type: object
@@ -167,35 +222,36 @@ components:
           description: app created by
 
     ErrorResponse:
-      required:
-        - code
-        - status
+      type: object
       properties:
         code:
           type: integer
           format: int32
-          description: Error code
         status:
           type: string
-          description: Error message
+        result:
+          type: object
+          nullable: true
         errors:
           type: array
-          description: errors
           items:
-            $ref: '#/components/schemas/Error'
+            type: object
+            properties:
+              userMessage:
+                type: string
+                nullable: true
+              internalMessage:
+                type: string
+                nullable: true
 
     Error:
       required:
         - code
-        - status
+        - message
       properties:
         code:
           type: integer
-          format: int32
-          description: Error internal code
-        internalMessage:
+          description: Error code
+        message:
           type: string
-          description: Error internal message
-        userMessage:
-          type: string
-          description: Error user message
+          description: Error message
