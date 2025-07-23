@@ -6,8 +6,6 @@ info:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
 servers:
-  - url: https://api.yourdomain.com
-    description: Production server
   - url: http://localhost/orchestrator
     description: Local development server
 tags:
