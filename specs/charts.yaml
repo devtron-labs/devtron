@@ -2,10 +2,22 @@ openapi: "3.0.0"
 info:
   version: 1.0.0
   title: Devtron Labs
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://api.yourdomain.com
+    description: Production server
+security:
+  - ApiKeyAuth: []
 paths:
   /orchestrator/app-store/installed-app:
     get:
+      summary: List deployed charts
+      operationId: listDeployedCharts
       description: deployed chart listing, with search filters
+      security:
+        - ApiKeyAuth: []
       parameters:
         - name: envs
           in: query
@@ -71,6 +83,12 @@ paths:
                     description: deployed chart listing, with search filters
                     items:
                       $ref: '#/components/schemas/ChartInfo'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         default:
           description: unexpected error
           content:
@@ -79,18 +97,24 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
   /orchestrator/app-store/installed-app/notes:
     get:
+      summary: Fetch notes.txt for deployed helm charts
+      operationId: fetchNotesTxt
       description: Used to fetch notes.txt for helm charts deployed via gitOps
+      security:
+        - ApiKeyAuth: []
       parameters:
         - name: env-id
           in: query
           description: it is an environment id of app
           required: true
-          type: integer
+          schema:
+            type: integer
         - name: installed-app-id
           in: query
           description: it is a installed application id
           required: true
-          type: integer
+          schema:
+            type: integer
       responses:
         '200':
           description: if it is able to fetch the notes.txt then status will be ok
@@ -101,6 +125,12 @@ paths:
                   notes:
                     type: string
                     description: it will provide notes
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: error while fetching notes.txt
 
@@ -108,6 +138,11 @@ paths:
 
 # components mentioned below
 components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
   schemas:
     ChartInfo:
       type: object
@@ -169,35 +204,36 @@ components:
           description: is deprecated or not
 
     ErrorResponse:
-      required:
-        - code
-        - status
+      type: object
       properties:
         code:
           type: integer
           format: int32
-          description: Error code
         status:
           type: string
-          description: Error message
+        result:
+          type: object
+          nullable: true
         errors:
           type: array
-          description: errors
           items:
-            $ref: '#/components/schemas/Error'
+            type: object
+            properties:
+              userMessage:
+                type: string
+                nullable: true
+              internalMessage:
+                type: string
+                nullable: true
 
     Error:
       required:
         - code
-        - status
+        - message
       properties:
         code:
           type: integer
-          format: int32
-          description: Error internal code
-        internalMessage:
+          description: Error code
+        message:
           type: string
-          description: Error internal message
-        userMessage:
-          type: string
-          description: Error user message
+          description: Error message
