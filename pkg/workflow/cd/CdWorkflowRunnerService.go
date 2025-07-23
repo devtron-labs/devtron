@@ -28,7 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/adapter"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/bean"
-	"github.com/devtron-labs/devtron/pkg/workflow/status"
+	"github.com/devtron-labs/devtron/pkg/workflow/workflowStatusLatest"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -49,14 +49,14 @@ type CdWorkflowRunnerServiceImpl struct {
 	workflowStageService        workflowStatus.WorkFlowStageStatusService
 	transactionManager          sql.TransactionWrapper
 	config                      *types.CiConfig
-	workflowStatusUpdateService status.WorkflowStatusUpdateService
+	workflowStatusUpdateService workflowStatusLatest.WorkflowStatusUpdateService
 }
 
 func NewCdWorkflowRunnerServiceImpl(logger *zap.SugaredLogger,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	workflowStageService workflowStatus.WorkFlowStageStatusService,
 	transactionManager sql.TransactionWrapper,
-	workflowStatusUpdateService status.WorkflowStatusUpdateService) *CdWorkflowRunnerServiceImpl {
+	workflowStatusUpdateService workflowStatusLatest.WorkflowStatusUpdateService) *CdWorkflowRunnerServiceImpl {
 	impl := &CdWorkflowRunnerServiceImpl{
 		logger:                      logger,
 		cdWorkflowRepository:        cdWorkflowRepository,

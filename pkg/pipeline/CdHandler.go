@@ -32,7 +32,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
 	bean5 "github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus/bean"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
-	"github.com/devtron-labs/devtron/pkg/workflow/status"
+	"github.com/devtron-labs/devtron/pkg/workflow/workflowStatusLatest"
 	"slices"
 	"strconv"
 	"strings"
@@ -91,7 +91,7 @@ type CdHandlerImpl struct {
 	deploymentConfigService      common2.DeploymentConfigService
 	workflowStageStatusService   workflowStatus.WorkFlowStageStatusService
 	cdWorkflowRunnerService      cd.CdWorkflowRunnerService
-	WorkflowStatusLatestService  status.WorkflowStatusLatestService
+	WorkflowStatusLatestService  workflowStatusLatest.WorkflowStatusLatestService
 	pipelineStageRepository      repository2.PipelineStageRepository
 }
 
@@ -107,7 +107,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
 	deploymentConfigService common2.DeploymentConfigService,
 	workflowStageStatusService workflowStatus.WorkFlowStageStatusService,
 	cdWorkflowRunnerService cd.CdWorkflowRunnerService,
-	WorkflowStatusLatestService status.WorkflowStatusLatestService,
+	WorkflowStatusLatestService workflowStatusLatest.WorkflowStatusLatestService,
 	pipelineStageRepository repository2.PipelineStageRepository,
 ) *CdHandlerImpl {
 	cdh := &CdHandlerImpl{

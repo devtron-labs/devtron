@@ -21,8 +21,8 @@ import (
 	"context"
 	"github.com/devtron-labs/common-lib/async"
 	"github.com/devtron-labs/devtron/client/fluxcd"
-	status2 "github.com/devtron-labs/devtron/pkg/workflow/status"
 	service2 "github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/service"
+	"github.com/devtron-labs/devtron/pkg/workflow/workflowStatusLatest"
 	"os"
 	"time"
 
@@ -175,7 +175,7 @@ type HandlerServiceImpl struct {
 	asyncRunnable                       *async.Runnable
 	workflowTriggerAuditService         service2.WorkflowTriggerAuditService
 	fluxCdDeploymentService             fluxcd.DeploymentService
-	workflowStatusUpdateService         status2.WorkflowStatusUpdateService
+	workflowStatusUpdateService         workflowStatusLatest.WorkflowStatusUpdateService
 }
 
 func NewHandlerServiceImpl(logger *zap.SugaredLogger,
@@ -241,7 +241,7 @@ func NewHandlerServiceImpl(logger *zap.SugaredLogger,
 	asyncRunnable *async.Runnable,
 	workflowTriggerAuditService service2.WorkflowTriggerAuditService,
 	fluxCdDeploymentService fluxcd.DeploymentService,
-	workflowStatusUpdateService status2.WorkflowStatusUpdateService) (*HandlerServiceImpl, error) {
+	workflowStatusUpdateService workflowStatusLatest.WorkflowStatusUpdateService) (*HandlerServiceImpl, error) {
 	impl := &HandlerServiceImpl{
 		logger:                              logger,
 		cdWorkflowCommonService:             cdWorkflowCommonService,
