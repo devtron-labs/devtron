@@ -1,0 +1,63 @@
+name: OpenAPI Build Documentation
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'specs/swagger/**'
+permissions:
+  contents: write
+jobs:
+  lint-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        
+      - name: Install Redocly CLI
+        run: npm install -g @redocly/cli
+        
+      - name: Switch to gh-pages and copy OpenAPI source
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          mkdir tmp-api
+
+          cp specs/swagger/openapi.yaml tmp-api/
+          
+          git checkout gh-pages
+          
+          cp tmp-api/openapi.yaml specs/swagger/openapi.yaml
+          
+          rm -rf /tmp-api
+
+      - name: Build OpenAPI documentation
+        run: |
+
+          cd specs/swagger
+          echo "Building OpenAPI documentation..."
+          redocly build-docs openapi.yaml --output=openapi.html
+          echo "Documentation built successfully!"
+      
+      - name: Commit and push documentation
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          git add specs/swagger/openapi.html specs/swagger/openapi.yaml
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update OpenAPI documentation from main branch"
+            git push origin gh-pages
+            echo "Documentation pushed to gh-pages branch!"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_SYSTEMSDT_TOKEN }}

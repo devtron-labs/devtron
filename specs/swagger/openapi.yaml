@@ -75,6 +75,8 @@ tags:
     x-displayName: K8s Resource
   - name: Workflow Management
     x-displayName: Workflow Management
+  - name: Devtron Server version
+    x-displayName: Devtron Server version
 paths:
   /orchestrator/app/labels/list:
     get:
@@ -2111,7 +2113,7 @@ paths:
       security:
         - bearerAuth: []
         - apiKeyAuth: []
-  /orchestrator/env:
+  /env:
     post:
       summary: Create Environment
       description: Create a new environment within a cluster.
@@ -2241,7 +2243,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/cluster/delete:
+  /cluster/delete:
     post:
       summary: Delete Cluster
       description: Delete an existing cluster.
@@ -2289,7 +2291,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/env/delete:
+  /env/delete:
     post:
       summary: Delete Environment (via POST)
       description: Delete an existing environment using POST method.
@@ -2337,7 +2339,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/env/clusters:
+  /env/clusters:
     get:
       summary: List clusters with their environments
       description: Provides a list of all clusters and the environments within each.
@@ -2368,7 +2370,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/cluster/{cluster_id}/env:
+  /cluster/{cluster_id}/env:
     get:
       summary: List environments for a specific cluster
       description: Provides a list of all environments for a given cluster ID.
@@ -2418,7 +2420,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/cluster:
+  /cluster:
     put:
       summary: Update Cluster
       description: Update an existing cluster's configuration.
@@ -2501,7 +2503,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/cluster/auth-list:
+  /cluster/auth-list:
     get:
       summary: List Accessible Clusters
       description: list of clusters accessible to the authenticated user.
@@ -2536,7 +2538,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /orchestrator/cluster/validate:
+  /cluster/validate:
     post:
       summary: Validate Cluster Configuration
       description: Validate a cluster configuration using kubeconfig.
@@ -2575,7 +2577,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/cluster/saveClusters:
+  /cluster/saveClusters:
     post:
       summary: Save Multiple Clusters
       description: Save configurations for multiple clusters.
@@ -2613,7 +2615,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/app/env/patch:
+  /app/env/patch:
     patch:
       summary: Patch Application Environment
       description: change the deployment template for an app and environment
@@ -2639,7 +2641,7 @@ paths:
           description: bad request
       tags:
         - Change Chart
-  /orchestrator/app/workflow/clone:
+  /app/workflow/clone:
     post:
       summary: Clone Application Workflow
       description: >-
@@ -2665,7 +2667,7 @@ paths:
                 $ref: '#/components/schemas/StandardResponse'
       tags:
         - Clone Workflow
-  /orchestrator/k8s/resource:
+  /k8s/resource:
     post:
       summary: Get Resource Manifest
       description: >-
@@ -2734,7 +2736,7 @@ paths:
                     $ref: '#/components/schemas/ResourceGetResponse'
       tags:
         - K8s Resource
-  /orchestrator/k8s/resource/create:
+  /k8s/resource/create:
     post:
       summary: Create Resource
       description: >-
@@ -2769,7 +2771,7 @@ paths:
                     $ref: '#/components/schemas/ResourceGetResponse'
       tags:
         - K8s Resource
-  /orchestrator/k8s/resource/delete:
+  /k8s/resource/delete:
     post:
       summary: Delete Resource
       description: This API is used for deleting a specified Kubernetes resource.
@@ -2802,7 +2804,7 @@ paths:
                     $ref: '#/components/schemas/ResourceGetResponse'
       tags:
         - K8s Resource
-  /orchestrator/k8s/events:
+  /k8s/events:
     post:
       summary: Get Resource Events
       description: This API is used for fetching events for Kubernetes resources.
@@ -2827,7 +2829,7 @@ paths:
                 $ref: '#/components/schemas/EventsResponseObject'
       tags:
         - K8s Resource
-  /orchestrator/k8s/pods/logs/{podName}:
+  /k8s/pods/logs/{podName}:
     get:
       summary: Get Pod Logs
       description: >-
@@ -2897,7 +2899,7 @@ paths:
                 $ref: '#/components/schemas/LogsResponseObject'
       tags:
         - K8s Resource
-  /orchestrator/k8s/pod/exec/session/{identifier}/{namespace}/{pod}/{shell}/{container}:
+  /k8s/pod/exec/session/{identifier}/{namespace}/{pod}/{shell}/{container}:
     get:
       summary: Get Pod Exec Session
       description: >-
@@ -2956,7 +2958,7 @@ paths:
                 $ref: '#/components/schemas/TerminalMessage'
       tags:
         - K8s Resource
-  /orchestrator/k8s/api-resources/{clusterId}:
+  /k8s/api-resources/{clusterId}:
     get:
       summary: Get API Resources
       description: Get all available API resources for a given cluster ID.
@@ -2981,7 +2983,7 @@ paths:
                 $ref: '#/components/schemas/GetAllApiResourcesResponse'
       tags:
         - K8s Resource
-  /orchestrator/k8s/resource/list:
+  /k8s/resource/list:
     post:
       summary: List Resources
       description: >-
@@ -3019,7 +3021,7 @@ paths:
                       $ref: '#/components/schemas/ClusterResourceListResponse'
       tags:
         - K8s Resource
-  /orchestrator/k8s/resources/rotate:
+  /k8s/resources/rotate:
     post:
       summary: Rotates the Pods
       description: This API is used to rotate (restart) pods for the provided resources.
@@ -3052,7 +3054,7 @@ paths:
                 $ref: '#/components/schemas/RotatePodResponse'
       tags:
         - K8s Resource
-  /orchestrator/k8s/resources/apply:
+  /k8s/resources/apply:
     post:
       summary: Apply Resources
       description: >-
@@ -3082,7 +3084,7 @@ paths:
                   $ref: '#/components/schemas/ApplyResourcesResponse'
       tags:
         - K8s Resource
-  /orchestrator/app/workflow:
+  /app/workflow:
     post:
       summary: Create an application workflow
       description: Creates a new workflow for a given application.
@@ -3129,7 +3131,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/app/workflow/{app-wf-id}/app/{app-id}:
+  /app/workflow/{app-wf-id}/app/{app-id}:
     delete:
       summary: Delete an application workflow
       description: Deletes an existing workflow for a given application.
@@ -3187,6 +3189,36 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /version:
+    get:
+      summary: Get Devtron server version information
+      security: []
+      responses:
+        '200':
+          description: meta info about devtron server
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  gitCommit:
+                    type: string
+                    example: d252aa3e
+                    description: git hash from which code was compiled
+                  buildTime:
+                    type: string
+                    format: date-time
+                    example: '2021-12-15T05:44:05Z'
+                    description: time when code was complied
+                  serverMode:
+                    type: string
+                    example: FULL
+                    description: server mode FULL/EA_ONLY
+                    enum:
+                      - FULL
+                      - EA_ONLY
+      tags:
+        - Devtron Server version
 components:
   securitySchemes:
     ApiKeyAuth:
