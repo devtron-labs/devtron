@@ -3,11 +3,14 @@ info:
   version: 1.0.0
   title: GitOps Validation
 servers:
-  - url: http://localhost:3000/orchestrator/gitops
+  - url: https://api.yourdomain.com
 paths:
   /validate:
     post:
       description: Validate gitops configuration by dry run
+      summary: Validate gitops configuration by dry run
+      security: 
+        - ApiKeyAuth: []
       operationId: GitOpsValidateDryRun
       requestBody:
         description: A JSON object containing the gitops configuration
@@ -44,6 +47,9 @@ paths:
   /config:
     post:
       description: create/save new configuration and validate them before saving
+      summary: create/save new configuration and validate them before saving
+      security: 
+        - ApiKeyAuth: []
       operationId: CreateGitOpsConfig
       requestBody:
         description: A JSON object containing the gitops configuration
@@ -79,7 +85,10 @@ paths:
                 $ref: '#/components/schemas/Error'
     put:
       description: update configuration and validate them before saving(if last validation is within 30 seconds then do not validate)
+      summary: update configuration and validate them before saving(if last validation is within 30 seconds then do not validate)
       operationId: UpdateGitOpsConfig
+      security: 
+        - ApiKeyAuth: []
       requestBody:
         description: A JSON object containing the gitops configuration
         required: true
@@ -114,6 +123,11 @@ paths:
                 $ref: '#/components/schemas/Error'
 
 components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
   schemas:
     GitOpsConfigDto:
       type: object
