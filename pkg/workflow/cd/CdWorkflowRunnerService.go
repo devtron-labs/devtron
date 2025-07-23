@@ -80,6 +80,21 @@ func (impl *CdWorkflowRunnerServiceImpl) UpdateWfr(dto *bean.CdWorkflowRunnerDto
 		impl.logger.Errorw("error in updating runner status in db", "runnerId", runnerDbObj.Id, "err", err)
 		return err
 	}
+
+	// Update latest status table for CD workflow
+	// Check if CdWorkflow and Pipeline are loaded, if not pass 0 as appId/environmentId to let the function fetch them
+	appId := 0
+	environmentId := 0
+	if runnerDbObj.CdWorkflow != nil && runnerDbObj.CdWorkflow.Pipeline != nil {
+		appId = runnerDbObj.CdWorkflow.Pipeline.AppId
+		environmentId = runnerDbObj.CdWorkflow.Pipeline.EnvironmentId
+	}
+	err = impl.workflowStatusUpdateService.UpdateCdWorkflowStatusLatest(nil, runnerDbObj.CdWorkflow.PipelineId, appId, environmentId, runnerDbObj.Id, runnerDbObj.WorkflowType.String(), int32(updatedBy))
+	if err != nil {
+		impl.logger.Errorw("error in updating cd workflow status latest", "err", err, "pipelineId", runnerDbObj.CdWorkflow.PipelineId, "workflowRunnerId", runnerDbObj.Id)
+		// Don't return error here as the main workflow update was successful
+	}
+
 	return nil
 }
 
@@ -169,6 +184,7 @@ func (impl *CdWorkflowRunnerServiceImpl) UpdateCdWorkflowRunnerWithStage(wfr *pi
 		impl.logger.Errorw("error in committing transaction", "workflowName", wfr.Name, "error", err)
 		return err
 	}
+
 	return nil
 
 }

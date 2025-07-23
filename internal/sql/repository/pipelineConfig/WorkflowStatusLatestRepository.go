@@ -25,8 +25,8 @@ import (
 
 type WorkflowStatusLatestRepository interface {
 	// CI Workflow Status Latest methods
-	SaveCiWorkflowStatusLatest(model *CiWorkflowStatusLatest) error
-	UpdateCiWorkflowStatusLatest(model *CiWorkflowStatusLatest) error
+	SaveCiWorkflowStatusLatest(tx *pg.Tx, model *CiWorkflowStatusLatest) error
+	UpdateCiWorkflowStatusLatest(tx *pg.Tx, model *CiWorkflowStatusLatest) error
 	GetCiWorkflowStatusLatestByPipelineId(pipelineId int) (*CiWorkflowStatusLatest, error)
 	GetCiWorkflowStatusLatestByAppId(appId int) ([]*CiWorkflowStatusLatest, error)
 	GetCiWorkflowStatusLatestByPipelineIds(pipelineIds []int) ([]*CiWorkflowStatusLatest, error)
@@ -77,8 +77,14 @@ type CdWorkflowStatusLatest struct {
 }
 
 // CI Workflow Status Latest methods implementation
-func (impl *WorkflowStatusLatestRepositoryImpl) SaveCiWorkflowStatusLatest(model *CiWorkflowStatusLatest) error {
-	err := impl.dbConnection.Insert(model)
+func (impl *WorkflowStatusLatestRepositoryImpl) SaveCiWorkflowStatusLatest(tx *pg.Tx, model *CiWorkflowStatusLatest) error {
+	var connection orm.DB
+	if tx != nil {
+		connection = tx
+	} else {
+		connection = impl.dbConnection
+	}
+	err := connection.Insert(model)
 	if err != nil {
 		impl.logger.Errorw("error in saving ci workflow status latest", "err", err, "model", model)
 		return err
@@ -86,8 +92,14 @@ func (impl *WorkflowStatusLatestRepositoryImpl) SaveCiWorkflowStatusLatest(model
 	return nil
 }
 
-func (impl *WorkflowStatusLatestRepositoryImpl) UpdateCiWorkflowStatusLatest(model *CiWorkflowStatusLatest) error {
-	_, err := impl.dbConnection.Model(model).WherePK().UpdateNotNull()
+func (impl *WorkflowStatusLatestRepositoryImpl) UpdateCiWorkflowStatusLatest(tx *pg.Tx, model *CiWorkflowStatusLatest) error {
+	var connection orm.DB
+	if tx != nil {
+		connection = tx
+	} else {
+		connection = impl.dbConnection
+	}
+	_, err := connection.Model(model).WherePK().UpdateNotNull()
 	if err != nil {
 		impl.logger.Errorw("error in updating ci workflow status latest", "err", err, "model", model)
 		return err

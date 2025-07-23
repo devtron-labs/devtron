@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
+	"github.com/devtron-labs/devtron/pkg/workflow/workflowStatusLatest"
 	"regexp"
 	"slices"
 	"strconv"
@@ -99,6 +100,7 @@ type CiHandlerImpl struct {
 	k8sCommonService               k8sPkg.K8sCommonService
 	workFlowStageStatusService     workflowStatus.WorkFlowStageStatusService
 	workflowStatusLatestRepository pipelineConfig.WorkflowStatusLatestRepository
+	workflowStatusUpdateService    workflowStatusLatest.WorkflowStatusUpdateService
 }
 
 func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
@@ -107,6 +109,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 	imageTaggingService imageTagging.ImageTaggingService, k8sCommonService k8sPkg.K8sCommonService, appWorkflowRepository appWorkflow.AppWorkflowRepository, customTagService CustomTagService,
 	workFlowStageStatusService workflowStatus.WorkFlowStageStatusService,
 	workflowStatusLatestRepository pipelineConfig.WorkflowStatusLatestRepository,
+	workflowStatusUpdateService workflowStatusLatest.WorkflowStatusUpdateService,
 ) *CiHandlerImpl {
 	cih := &CiHandlerImpl{
 		Logger:                         Logger,
@@ -130,6 +133,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		k8sCommonService:               k8sCommonService,
 		workFlowStageStatusService:     workFlowStageStatusService,
 		workflowStatusLatestRepository: workflowStatusLatestRepository,
+		workflowStatusUpdateService:    workflowStatusUpdateService,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -601,6 +605,19 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus eventProcessorBean.CiCd
 			impl.Logger.Error("update wf failed for id " + strconv.Itoa(savedWorkflow.Id))
 			return savedWorkflow.Id, true, err
 		}
+
+		// Update latest status table for CI workflow
+		// Check if CiPipeline is loaded, if not pass 0 as appId to let the function fetch it
+		appId := 0
+		if savedWorkflow.CiPipeline != nil {
+			appId = savedWorkflow.CiPipeline.AppId
+		}
+		err = impl.workflowStatusUpdateService.UpdateCiWorkflowStatusLatest(nil, savedWorkflow.CiPipelineId, appId, savedWorkflow.Id, savedWorkflow.TriggeredBy)
+		if err != nil {
+			impl.Logger.Errorw("error in updating ci workflow status latest", "err", err, "pipelineId", savedWorkflow.CiPipelineId, "workflowId", savedWorkflow.Id)
+			// Don't return error here as the main workflow update was successful
+		}
+
 		impl.sendCIFailEvent(savedWorkflow, status, message)
 		return savedWorkflow.Id, true, nil
 	}

@@ -24,7 +24,7 @@ import (
 
 type WorkflowStatusUpdateService interface {
 	// Methods to update latest status tables when workflow status changes
-	UpdateCiWorkflowStatusLatest(pipelineId, appId, ciWorkflowId int, userId int32) error
+	UpdateCiWorkflowStatusLatest(tx *pg.Tx, pipelineId, appId, ciWorkflowId int, userId int32) error
 	UpdateCdWorkflowStatusLatest(tx *pg.Tx, pipelineId, appId, environmentId, workflowRunnerId int, workflowType string, userId int32) error
 
 	// Methods to fetch optimized status for trigger view
@@ -59,8 +59,8 @@ func NewWorkflowStatusUpdateServiceImpl(
 	}
 }
 
-func (impl *WorkflowStatusUpdateServiceImpl) UpdateCiWorkflowStatusLatest(pipelineId, appId, ciWorkflowId int, userId int32) error {
-	return impl.workflowStatusLatestService.SaveOrUpdateCiWorkflowStatusLatest(pipelineId, appId, ciWorkflowId, userId)
+func (impl *WorkflowStatusUpdateServiceImpl) UpdateCiWorkflowStatusLatest(tx *pg.Tx, pipelineId, appId, ciWorkflowId int, userId int32) error {
+	return impl.workflowStatusLatestService.SaveOrUpdateCiWorkflowStatusLatest(tx, pipelineId, appId, ciWorkflowId, userId)
 }
 
 func (impl *WorkflowStatusUpdateServiceImpl) UpdateCdWorkflowStatusLatest(tx *pg.Tx, pipelineId, appId, environmentId, workflowRunnerId int, workflowType string, userId int32) error {
