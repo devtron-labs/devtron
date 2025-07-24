@@ -135,13 +135,7 @@ func (impl *CiServiceImpl) SaveCiWorkflowWithStage(wf *pipelineConfig.CiWorkflow
 		return err
 	}
 
-	// Update latest status table for CI workflow within the transaction
-	// Check if CiPipeline is loaded, if not pass 0 as appId to let the function fetch it
-	appId := 0
-	if wf.CiPipeline != nil {
-		appId = wf.CiPipeline.AppId
-	}
-	err = impl.workflowStatusUpdateService.UpdateCiWorkflowStatusLatest(tx, wf.CiPipelineId, appId, wf.Id, wf.TriggeredBy)
+	err = impl.workflowStatusUpdateService.SaveCiWorkflowStatusLatest(tx, wf.CiPipelineId, wf.Id, wf.TriggeredBy)
 	if err != nil {
 		impl.Logger.Errorw("error in updating ci workflow status latest", "err", err, "pipelineId", wf.CiPipelineId, "workflowId", wf.Id)
 		return err
@@ -181,18 +175,6 @@ func (impl *CiServiceImpl) UpdateCiWorkflowWithStage(wf *pipelineConfig.CiWorkfl
 	err = impl.ciWorkflowRepository.UpdateWorkFlowWithTx(wf, tx)
 	if err != nil {
 		impl.Logger.Errorw("error in saving workflow", "payload", wf, "error", err)
-		return err
-	}
-
-	// Update latest status table for CI workflow within the transaction
-	// Check if CiPipeline is loaded, if not pass 0 as appId to let the function fetch it
-	appId := 0
-	if wf.CiPipeline != nil {
-		appId = wf.CiPipeline.AppId
-	}
-	err = impl.workflowStatusUpdateService.UpdateCiWorkflowStatusLatest(tx, wf.CiPipelineId, appId, wf.Id, wf.TriggeredBy)
-	if err != nil {
-		impl.Logger.Errorw("error in updating ci workflow status latest", "err", err, "pipelineId", wf.CiPipelineId, "workflowId", wf.Id)
 		return err
 	}
 

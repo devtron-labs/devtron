@@ -606,18 +606,6 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus eventProcessorBean.CiCd
 			return savedWorkflow.Id, true, err
 		}
 
-		// Update latest status table for CI workflow
-		// Check if CiPipeline is loaded, if not pass 0 as appId to let the function fetch it
-		appId := 0
-		if savedWorkflow.CiPipeline != nil {
-			appId = savedWorkflow.CiPipeline.AppId
-		}
-		err = impl.workflowStatusUpdateService.UpdateCiWorkflowStatusLatest(nil, savedWorkflow.CiPipelineId, appId, savedWorkflow.Id, savedWorkflow.TriggeredBy)
-		if err != nil {
-			impl.Logger.Errorw("error in updating ci workflow status latest", "err", err, "pipelineId", savedWorkflow.CiPipelineId, "workflowId", savedWorkflow.Id)
-			// Don't return error here as the main workflow update was successful
-		}
-
 		impl.sendCIFailEvent(savedWorkflow, status, message)
 		return savedWorkflow.Id, true, nil
 	}
