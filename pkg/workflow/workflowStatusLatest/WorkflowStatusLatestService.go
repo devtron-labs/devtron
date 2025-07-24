@@ -18,6 +18,7 @@ package workflowStatusLatest
 
 import (
 	"fmt"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -83,18 +84,35 @@ func (impl *WorkflowStatusLatestServiceImpl) SaveCiWorkflowStatusLatest(tx *pg.T
 		return fmt.Errorf("invalid ciWorkflowId: %d", ciWorkflowId)
 	}
 
-	now := time.Now()
-	model := &pipelineConfig.CiWorkflowStatusLatest{
-		PipelineId:   pipelineId,
-		AppId:        appId,
-		CiWorkflowId: ciWorkflowId,
+	// Check if entry exists
+	existingEntry, err := impl.workflowStatusLatestRepository.GetCiWorkflowStatusLatestByPipelineId(pipelineId)
+	if err != nil && !util2.IsErrNoRows(err) {
+		impl.logger.Errorw("error in getting ci workflow status latest", "err", err, "pipelineId", pipelineId)
+		return err
 	}
-	model.CreatedBy = userId
-	model.CreatedOn = now
-	model.UpdatedBy = userId
-	model.UpdatedOn = now
 
-	return impl.workflowStatusLatestRepository.SaveCiWorkflowStatusLatest(tx, model)
+	now := time.Now()
+	if util2.IsErrNoRows(err) {
+		// Create new entry
+		model := &pipelineConfig.CiWorkflowStatusLatest{
+			PipelineId:   pipelineId,
+			AppId:        appId,
+			CiWorkflowId: ciWorkflowId,
+		}
+		model.CreatedBy = userId
+		model.CreatedOn = now
+		model.UpdatedBy = userId
+		model.UpdatedOn = now
+
+		return impl.workflowStatusLatestRepository.SaveCiWorkflowStatusLatest(tx, model)
+	} else {
+		// Update existing entry with latest workflow ID
+		existingEntry.CiWorkflowId = ciWorkflowId
+		existingEntry.UpdatedBy = userId
+		existingEntry.UpdatedOn = now
+
+		return impl.workflowStatusLatestRepository.UpdateCiWorkflowStatusLatest(tx, existingEntry)
+	}
 }
 
 func (impl *WorkflowStatusLatestServiceImpl) GetCiWorkflowStatusLatestByPipelineIds(pipelineIds []int) ([]*pipelineConfig.CiWorkflowStatusLatest, error) {
@@ -109,21 +127,37 @@ func (impl *WorkflowStatusLatestServiceImpl) SaveCdWorkflowStatusLatest(tx *pg.T
 		return fmt.Errorf("invalid workflowRunnerId: %d", workflowRunnerId)
 	}
 
-	// Create new entry (always save, don't update)
-	now := time.Now()
-	model := &pipelineConfig.CdWorkflowStatusLatest{
-		PipelineId:       pipelineId,
-		AppId:            appId,
-		EnvironmentId:    environmentId,
-		WorkflowType:     workflowType,
-		WorkflowRunnerId: workflowRunnerId,
+	// Check if entry exists
+	existingEntry, err := impl.workflowStatusLatestRepository.GetCdWorkflowStatusLatestByPipelineIdAndWorkflowType(tx, pipelineId, workflowType)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting cd workflow status latest", "err", err, "pipelineId", pipelineId, "workflowType", workflowType)
+		return err
 	}
-	model.CreatedBy = userId
-	model.CreatedOn = now
-	model.UpdatedBy = userId
-	model.UpdatedOn = now
 
-	return impl.workflowStatusLatestRepository.SaveCdWorkflowStatusLatest(tx, model)
+	now := time.Now()
+	if err == pg.ErrNoRows {
+		// Create new entry
+		model := &pipelineConfig.CdWorkflowStatusLatest{
+			PipelineId:       pipelineId,
+			AppId:            appId,
+			EnvironmentId:    environmentId,
+			WorkflowType:     workflowType,
+			WorkflowRunnerId: workflowRunnerId,
+		}
+		model.CreatedBy = userId
+		model.CreatedOn = now
+		model.UpdatedBy = userId
+		model.UpdatedOn = now
+
+		return impl.workflowStatusLatestRepository.SaveCdWorkflowStatusLatest(tx, model)
+	} else {
+		// Update existing entry with latest workflow runner ID
+		existingEntry.WorkflowRunnerId = workflowRunnerId
+		existingEntry.UpdatedBy = userId
+		existingEntry.UpdatedOn = now
+
+		return impl.workflowStatusLatestRepository.UpdateCdWorkflowStatusLatest(tx, existingEntry)
+	}
 }
 
 func (impl *WorkflowStatusLatestServiceImpl) GetCdWorkflowLatestByPipelineIds(pipelineIds []int) ([]*CdWorkflowStatusLatest, error) {
