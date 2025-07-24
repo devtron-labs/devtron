@@ -30,7 +30,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
-	"github.com/devtron-labs/devtron/pkg/workflow/workflowStatusLatest"
 	"regexp"
 	"slices"
 	"strconv"
@@ -100,7 +99,6 @@ type CiHandlerImpl struct {
 	k8sCommonService               k8sPkg.K8sCommonService
 	workFlowStageStatusService     workflowStatus.WorkFlowStageStatusService
 	workflowStatusLatestRepository pipelineConfig.WorkflowStatusLatestRepository
-	workflowStatusUpdateService    workflowStatusLatest.WorkflowStatusUpdateService
 }
 
 func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
@@ -109,7 +107,6 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 	imageTaggingService imageTagging.ImageTaggingService, k8sCommonService k8sPkg.K8sCommonService, appWorkflowRepository appWorkflow.AppWorkflowRepository, customTagService CustomTagService,
 	workFlowStageStatusService workflowStatus.WorkFlowStageStatusService,
 	workflowStatusLatestRepository pipelineConfig.WorkflowStatusLatestRepository,
-	workflowStatusUpdateService workflowStatusLatest.WorkflowStatusUpdateService,
 ) *CiHandlerImpl {
 	cih := &CiHandlerImpl{
 		Logger:                         Logger,
@@ -133,7 +130,6 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		k8sCommonService:               k8sCommonService,
 		workFlowStageStatusService:     workFlowStageStatusService,
 		workflowStatusLatestRepository: workflowStatusLatestRepository,
-		workflowStatusUpdateService:    workflowStatusUpdateService,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {

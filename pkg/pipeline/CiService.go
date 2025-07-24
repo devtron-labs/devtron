@@ -46,16 +46,18 @@ type CiServiceImpl struct {
 	eventFactory                client.EventFactory
 	config                      *types.CiConfig
 	ciWorkflowRepository        pipelineConfig.CiWorkflowRepository
+	ciPipelineRepository        pipelineConfig.CiPipelineRepository
 	transactionManager          sql.TransactionWrapper
-	workflowStatusUpdateService workflowStatusLatest.WorkflowStatusUpdateService
+	workflowStatusLatestService workflowStatusLatest.WorkflowStatusLatestService
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger,
 	workflowStageStatusService workflowStatus.WorkFlowStageStatusService, eventClient client.EventClient,
 	eventFactory client.EventFactory,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
+	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	transactionManager sql.TransactionWrapper,
-	workflowStatusUpdateService workflowStatusLatest.WorkflowStatusUpdateService,
+	workflowStatusLatestService workflowStatusLatest.WorkflowStatusLatestService,
 ) *CiServiceImpl {
 	cis := &CiServiceImpl{
 		Logger:                      Logger,
@@ -63,8 +65,9 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger,
 		eventClient:                 eventClient,
 		eventFactory:                eventFactory,
 		ciWorkflowRepository:        ciWorkflowRepository,
+		ciPipelineRepository:        ciPipelineRepository,
 		transactionManager:          transactionManager,
-		workflowStatusUpdateService: workflowStatusUpdateService,
+		workflowStatusLatestService: workflowStatusLatestService,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -135,9 +138,17 @@ func (impl *CiServiceImpl) SaveCiWorkflowWithStage(wf *pipelineConfig.CiWorkflow
 		return err
 	}
 
-	err = impl.workflowStatusUpdateService.SaveCiWorkflowStatusLatest(tx, wf.CiPipelineId, wf.Id, wf.TriggeredBy)
+	// Get appId from CI pipeline (not from workflow to avoid transaction issues)
+	ciPipeline, err := impl.ciPipelineRepository.FindById(wf.CiPipelineId)
 	if err != nil {
-		impl.Logger.Errorw("error in updating ci workflow status latest", "err", err, "pipelineId", wf.CiPipelineId, "workflowId", wf.Id)
+		impl.Logger.Errorw("error in fetching ci pipeline for appId", "err", err, "ciPipelineId", wf.CiPipelineId)
+		return err
+	}
+	appId := ciPipeline.AppId
+
+	err = impl.workflowStatusLatestService.SaveCiWorkflowStatusLatest(tx, wf.CiPipelineId, appId, wf.Id, wf.TriggeredBy)
+	if err != nil {
+		impl.Logger.Errorw("error in saving ci workflow status latest", "err", err, "pipelineId", wf.CiPipelineId, "workflowId", wf.Id)
 		return err
 	}
 

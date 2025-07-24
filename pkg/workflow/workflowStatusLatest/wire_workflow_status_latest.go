@@ -26,6 +26,4 @@ var WorkflowStatusLatestWireSet = wire.NewSet(
 	wire.Bind(new(pipelineConfig.WorkflowStatusLatestRepository), new(*pipelineConfig.WorkflowStatusLatestRepositoryImpl)),
 	NewWorkflowStatusLatestServiceImpl,
 	wire.Bind(new(WorkflowStatusLatestService), new(*WorkflowStatusLatestServiceImpl)),
-	NewWorkflowStatusUpdateServiceImpl,
-	wire.Bind(new(WorkflowStatusUpdateService), new(*WorkflowStatusUpdateServiceImpl)),
 )

@@ -49,20 +49,20 @@ type CdWorkflowRunnerServiceImpl struct {
 	workflowStageService        workflowStatus.WorkFlowStageStatusService
 	transactionManager          sql.TransactionWrapper
 	config                      *types.CiConfig
-	workflowStatusUpdateService workflowStatusLatest.WorkflowStatusUpdateService
+	workflowStatusLatestService workflowStatusLatest.WorkflowStatusLatestService
 }
 
 func NewCdWorkflowRunnerServiceImpl(logger *zap.SugaredLogger,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	workflowStageService workflowStatus.WorkFlowStageStatusService,
 	transactionManager sql.TransactionWrapper,
-	workflowStatusUpdateService workflowStatusLatest.WorkflowStatusUpdateService) *CdWorkflowRunnerServiceImpl {
+	workflowStatusLatestService workflowStatusLatest.WorkflowStatusLatestService) *CdWorkflowRunnerServiceImpl {
 	impl := &CdWorkflowRunnerServiceImpl{
 		logger:                      logger,
 		cdWorkflowRepository:        cdWorkflowRepository,
 		workflowStageService:        workflowStageService,
 		transactionManager:          transactionManager,
-		workflowStatusUpdateService: workflowStatusUpdateService,
+		workflowStatusLatestService: workflowStatusLatestService,
 	}
 	ciConfig, err := types.GetCiConfig()
 	if err != nil {
@@ -121,7 +121,7 @@ func (impl *CdWorkflowRunnerServiceImpl) SaveCDWorkflowRunnerWithStage(wfr *pipe
 		return wfr, err
 	}
 
-	err = impl.workflowStatusUpdateService.UpdateCdWorkflowStatusLatest(tx, cdWf.PipelineId, pipeline.AppId, pipeline.EnvironmentId, wfr.Id, wfr.WorkflowType.String(), wfr.CreatedBy)
+	err = impl.workflowStatusLatestService.SaveCdWorkflowStatusLatest(tx, cdWf.PipelineId, pipeline.AppId, pipeline.EnvironmentId, wfr.Id, wfr.WorkflowType.String(), wfr.CreatedBy)
 	if err != nil {
 		impl.logger.Errorw("error in updating workflow status latest, ManualCdTrigger", "runnerId", wfr.CreatedBy, "err", err)
 		return wfr, err

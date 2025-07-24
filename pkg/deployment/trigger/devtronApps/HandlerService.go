@@ -175,7 +175,7 @@ type HandlerServiceImpl struct {
 	asyncRunnable                       *async.Runnable
 	workflowTriggerAuditService         service2.WorkflowTriggerAuditService
 	fluxCdDeploymentService             fluxcd.DeploymentService
-	workflowStatusUpdateService         workflowStatusLatest.WorkflowStatusUpdateService
+	workflowStatusLatestService         workflowStatusLatest.WorkflowStatusLatestService
 }
 
 func NewHandlerServiceImpl(logger *zap.SugaredLogger,
@@ -241,7 +241,7 @@ func NewHandlerServiceImpl(logger *zap.SugaredLogger,
 	asyncRunnable *async.Runnable,
 	workflowTriggerAuditService service2.WorkflowTriggerAuditService,
 	fluxCdDeploymentService fluxcd.DeploymentService,
-	workflowStatusUpdateService workflowStatusLatest.WorkflowStatusUpdateService) (*HandlerServiceImpl, error) {
+	workflowStatusLatestService workflowStatusLatest.WorkflowStatusLatestService) (*HandlerServiceImpl, error) {
 	impl := &HandlerServiceImpl{
 		logger:                              logger,
 		cdWorkflowCommonService:             cdWorkflowCommonService,
@@ -311,7 +311,7 @@ func NewHandlerServiceImpl(logger *zap.SugaredLogger,
 		asyncRunnable:               asyncRunnable,
 		workflowTriggerAuditService: workflowTriggerAuditService,
 		fluxCdDeploymentService:     fluxCdDeploymentService,
-		workflowStatusUpdateService: workflowStatusUpdateService,
+		workflowStatusLatestService: workflowStatusLatestService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {

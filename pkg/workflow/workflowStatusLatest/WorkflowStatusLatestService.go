@@ -30,7 +30,7 @@ import (
 
 type WorkflowStatusLatestService interface {
 	// CI Workflow Status Latest methods
-	SaveCiWorkflowStatusLatest(tx *pg.Tx, pipelineId, ciWorkflowId int, userId int32) error
+	SaveCiWorkflowStatusLatest(tx *pg.Tx, pipelineId, appId, ciWorkflowId int, userId int32) error
 	GetCiWorkflowStatusLatestByPipelineId(pipelineId int) (*CiWorkflowStatusLatest, error)
 	GetCiWorkflowStatusLatestByAppId(appId int) ([]*CiWorkflowStatusLatest, error)
 
@@ -83,53 +83,25 @@ type CdWorkflowStatusLatest struct {
 	Status           string `json:"status"` // Derived from cd_workflow_runner table
 }
 
-func (impl *WorkflowStatusLatestServiceImpl) SaveCiWorkflowStatusLatest(tx *pg.Tx, pipelineId, ciWorkflowId int, userId int32) error {
+func (impl *WorkflowStatusLatestServiceImpl) SaveCiWorkflowStatusLatest(tx *pg.Tx, pipelineId, appId, ciWorkflowId int, userId int32) error {
 	// Validate required parameters
-	if pipelineId <= 0 {
-		impl.logger.Errorw("invalid pipelineId provided", "pipelineId", pipelineId)
-		return fmt.Errorf("invalid pipelineId: %d", pipelineId)
-	}
-
 	if ciWorkflowId <= 0 {
 		impl.logger.Errorw("invalid ciWorkflowId provided", "ciWorkflowId", ciWorkflowId)
 		return fmt.Errorf("invalid ciWorkflowId: %d", ciWorkflowId)
 	}
-	ciPipeline, err := impl.ciPipelineRepository.FindOneWithAppData(pipelineId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching ci pipeline for appId", "ciPipelineId", pipelineId, "err", err)
-		return err
-	}
-	appId := ciPipeline.AppId
-
-	// Check if entry exists
-	existingEntry, err := impl.workflowStatusLatestRepository.GetCiWorkflowStatusLatestByPipelineId(pipelineId)
-	if err != nil && !util2.IsErrNoRows(err) {
-		impl.logger.Errorw("error in getting ci workflow status latest", "err", err, "pipelineId", pipelineId)
-		return err
-	}
 
 	now := time.Now()
-	if util2.IsErrNoRows(err) {
-		// Create new entry
-		model := &pipelineConfig.CiWorkflowStatusLatest{
-			PipelineId:   pipelineId,
-			AppId:        appId,
-			CiWorkflowId: ciWorkflowId,
-		}
-		model.CreatedBy = userId
-		model.CreatedOn = now
-		model.UpdatedBy = userId
-		model.UpdatedOn = now
-
-		return impl.workflowStatusLatestRepository.SaveCiWorkflowStatusLatest(tx, model)
-	} else {
-		// Update existing entry
-		existingEntry.CiWorkflowId = ciWorkflowId
-		existingEntry.UpdatedBy = userId
-		existingEntry.UpdatedOn = now
-
-		return impl.workflowStatusLatestRepository.UpdateCiWorkflowStatusLatest(tx, existingEntry)
+	model := &pipelineConfig.CiWorkflowStatusLatest{
+		PipelineId:   pipelineId,
+		AppId:        appId,
+		CiWorkflowId: ciWorkflowId,
 	}
+	model.CreatedBy = userId
+	model.CreatedOn = now
+	model.UpdatedBy = userId
+	model.UpdatedOn = now
+
+	return impl.workflowStatusLatestRepository.SaveCiWorkflowStatusLatest(tx, model)
 }
 
 func (impl *WorkflowStatusLatestServiceImpl) GetCiWorkflowStatusLatestByPipelineId(pipelineId int) (*CiWorkflowStatusLatest, error) {
@@ -189,91 +161,26 @@ func (impl *WorkflowStatusLatestServiceImpl) GetCiWorkflowStatusLatestByAppId(ap
 // CD Workflow Status Latest methods implementation
 func (impl *WorkflowStatusLatestServiceImpl) SaveCdWorkflowStatusLatest(tx *pg.Tx, pipelineId, appId, environmentId, workflowRunnerId int, workflowType string, userId int32) error {
 	// Validate required parameters
-	if pipelineId <= 0 {
-		impl.logger.Errorw("invalid pipelineId provided", "pipelineId", pipelineId)
-		return fmt.Errorf("invalid pipelineId: %d", pipelineId)
-	}
-
 	if workflowRunnerId <= 0 {
 		impl.logger.Errorw("invalid workflowRunnerId provided", "workflowRunnerId", workflowRunnerId)
 		return fmt.Errorf("invalid workflowRunnerId: %d", workflowRunnerId)
 	}
 
-	// If appId or environmentId is not provided (0), fetch them from the CdWorkflow
-	if appId <= 0 || environmentId <= 0 {
-		cdWorkflowRunner, err := impl.cdWorkflowRepository.FindBasicWorkflowRunnerById(workflowRunnerId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching cd workflow runner to get appId/environmentId", "err", err, "workflowRunnerId", workflowRunnerId)
-			return err
-		}
-
-		if cdWorkflowRunner == nil {
-			impl.logger.Errorw("cd workflow runner not found", "workflowRunnerId", workflowRunnerId)
-			return fmt.Errorf("cd workflow runner not found with id: %d", workflowRunnerId)
-		}
-
-		// Check if CdWorkflow is loaded
-		if cdWorkflowRunner.CdWorkflow == nil {
-			impl.logger.Errorw("cd workflow not loaded in cd workflow runner", "workflowRunnerId", workflowRunnerId, "cdWorkflowId", cdWorkflowRunner.CdWorkflowId)
-			return fmt.Errorf("cd workflow not loaded for workflow runner id: %d", workflowRunnerId)
-		}
-
-		// Check if Pipeline is loaded
-		if cdWorkflowRunner.CdWorkflow.Pipeline == nil {
-			impl.logger.Errorw("pipeline not loaded in cd workflow", "workflowRunnerId", workflowRunnerId, "cdWorkflowId", cdWorkflowRunner.CdWorkflowId, "pipelineId", cdWorkflowRunner.CdWorkflow.PipelineId)
-			return fmt.Errorf("pipeline not loaded for workflow runner id: %d", workflowRunnerId)
-		}
-
-		if appId <= 0 {
-			appId = cdWorkflowRunner.CdWorkflow.Pipeline.AppId
-			if appId <= 0 {
-				impl.logger.Errorw("invalid appId in pipeline", "workflowRunnerId", workflowRunnerId, "pipelineId", cdWorkflowRunner.CdWorkflow.PipelineId, "appId", appId)
-				return fmt.Errorf("invalid appId in pipeline: %d", appId)
-			}
-			impl.logger.Debugw("fetched appId from cd workflow runner", "workflowRunnerId", workflowRunnerId, "appId", appId)
-		}
-
-		if environmentId <= 0 {
-			environmentId = cdWorkflowRunner.CdWorkflow.Pipeline.EnvironmentId
-			if environmentId <= 0 {
-				impl.logger.Errorw("invalid environmentId in pipeline", "workflowRunnerId", workflowRunnerId, "pipelineId", cdWorkflowRunner.CdWorkflow.PipelineId, "environmentId", environmentId)
-				return fmt.Errorf("invalid environmentId in pipeline: %d", environmentId)
-			}
-			impl.logger.Debugw("fetched environmentId from cd workflow runner", "workflowRunnerId", workflowRunnerId, "environmentId", environmentId)
-		}
-	}
-
-	// Check if entry exists
-	existingEntry, err := impl.workflowStatusLatestRepository.GetCdWorkflowStatusLatestByPipelineIdAndWorkflowType(tx, pipelineId, workflowType)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting cd workflow status latest", "err", err, "pipelineId", pipelineId, "workflowType", workflowType)
-		return err
-	}
-
+	// Create new entry (always save, don't update)
 	now := time.Now()
-	if err == pg.ErrNoRows {
-		// Create new entry
-		model := &pipelineConfig.CdWorkflowStatusLatest{
-			PipelineId:       pipelineId,
-			AppId:            appId,
-			EnvironmentId:    environmentId,
-			WorkflowType:     workflowType,
-			WorkflowRunnerId: workflowRunnerId,
-		}
-		model.CreatedBy = userId
-		model.CreatedOn = now
-		model.UpdatedBy = userId
-		model.UpdatedOn = now
-
-		return impl.workflowStatusLatestRepository.SaveCdWorkflowStatusLatest(tx, model)
-	} else {
-		// Update existing entry
-		existingEntry.WorkflowRunnerId = workflowRunnerId
-		existingEntry.UpdatedBy = userId
-		existingEntry.UpdatedOn = now
-
-		return impl.workflowStatusLatestRepository.UpdateCdWorkflowStatusLatest(tx, existingEntry)
+	model := &pipelineConfig.CdWorkflowStatusLatest{
+		PipelineId:       pipelineId,
+		AppId:            appId,
+		EnvironmentId:    environmentId,
+		WorkflowType:     workflowType,
+		WorkflowRunnerId: workflowRunnerId,
 	}
+	model.CreatedBy = userId
+	model.CreatedOn = now
+	model.UpdatedBy = userId
+	model.UpdatedOn = now
+
+	return impl.workflowStatusLatestRepository.SaveCdWorkflowStatusLatest(tx, model)
 }
 
 func (impl *WorkflowStatusLatestServiceImpl) GetCdWorkflowStatusLatestByPipelineIdAndWorkflowType(pipelineId int, workflowType string) (*CdWorkflowStatusLatest, error) {
