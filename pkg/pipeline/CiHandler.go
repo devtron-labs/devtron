@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
+	"github.com/devtron-labs/devtron/pkg/workflow/workflowStatusLatest"
 	"regexp"
 	"slices"
 	"strconv"
@@ -77,28 +78,28 @@ type CiHandler interface {
 }
 
 type CiHandlerImpl struct {
-	Logger                         *zap.SugaredLogger
-	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
-	ciService                      CiService
-	gitSensorClient                gitSensor.Client
-	ciWorkflowRepository           pipelineConfig.CiWorkflowRepository
-	ciArtifactRepository           repository.CiArtifactRepository
-	userService                    user.UserService
-	eventClient                    client.EventClient
-	eventFactory                   client.EventFactory
-	ciPipelineRepository           pipelineConfig.CiPipelineRepository
-	appListingRepository           repository.AppListingRepository
-	cdPipelineRepository           pipelineConfig.PipelineRepository
-	enforcerUtil                   rbac.EnforcerUtil
-	resourceGroupService           resourceGroup.ResourceGroupService
-	envRepository                  repository2.EnvironmentRepository
-	imageTaggingService            imageTagging.ImageTaggingService
-	customTagService               CustomTagService
-	appWorkflowRepository          appWorkflow.AppWorkflowRepository
-	config                         *types.CiConfig
-	k8sCommonService               k8sPkg.K8sCommonService
-	workFlowStageStatusService     workflowStatus.WorkFlowStageStatusService
-	workflowStatusLatestRepository pipelineConfig.WorkflowStatusLatestRepository
+	Logger                       *zap.SugaredLogger
+	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
+	ciService                    CiService
+	gitSensorClient              gitSensor.Client
+	ciWorkflowRepository         pipelineConfig.CiWorkflowRepository
+	ciArtifactRepository         repository.CiArtifactRepository
+	userService                  user.UserService
+	eventClient                  client.EventClient
+	eventFactory                 client.EventFactory
+	ciPipelineRepository         pipelineConfig.CiPipelineRepository
+	appListingRepository         repository.AppListingRepository
+	cdPipelineRepository         pipelineConfig.PipelineRepository
+	enforcerUtil                 rbac.EnforcerUtil
+	resourceGroupService         resourceGroup.ResourceGroupService
+	envRepository                repository2.EnvironmentRepository
+	imageTaggingService          imageTagging.ImageTaggingService
+	customTagService             CustomTagService
+	appWorkflowRepository        appWorkflow.AppWorkflowRepository
+	config                       *types.CiConfig
+	k8sCommonService             k8sPkg.K8sCommonService
+	workFlowStageStatusService   workflowStatus.WorkFlowStageStatusService
+	workflowStatusLatestService  workflowStatusLatest.WorkflowStatusLatestService
 }
 
 func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
@@ -106,30 +107,30 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 	appListingRepository repository.AppListingRepository, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup.ResourceGroupService, envRepository repository2.EnvironmentRepository,
 	imageTaggingService imageTagging.ImageTaggingService, k8sCommonService k8sPkg.K8sCommonService, appWorkflowRepository appWorkflow.AppWorkflowRepository, customTagService CustomTagService,
 	workFlowStageStatusService workflowStatus.WorkFlowStageStatusService,
-	workflowStatusLatestRepository pipelineConfig.WorkflowStatusLatestRepository,
+	workflowStatusLatestService workflowStatusLatest.WorkflowStatusLatestService,
 ) *CiHandlerImpl {
 	cih := &CiHandlerImpl{
-		Logger:                         Logger,
-		ciService:                      ciService,
-		ciPipelineMaterialRepository:   ciPipelineMaterialRepository,
-		gitSensorClient:                gitSensorClient,
-		ciWorkflowRepository:           ciWorkflowRepository,
-		ciArtifactRepository:           ciArtifactRepository,
-		userService:                    userService,
-		eventClient:                    eventClient,
-		eventFactory:                   eventFactory,
-		ciPipelineRepository:           ciPipelineRepository,
-		appListingRepository:           appListingRepository,
-		cdPipelineRepository:           cdPipelineRepository,
-		enforcerUtil:                   enforcerUtil,
-		resourceGroupService:           resourceGroupService,
-		envRepository:                  envRepository,
-		imageTaggingService:            imageTaggingService,
-		customTagService:               customTagService,
-		appWorkflowRepository:          appWorkflowRepository,
-		k8sCommonService:               k8sCommonService,
-		workFlowStageStatusService:     workFlowStageStatusService,
-		workflowStatusLatestRepository: workflowStatusLatestRepository,
+		Logger:                       Logger,
+		ciService:                    ciService,
+		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
+		gitSensorClient:              gitSensorClient,
+		ciWorkflowRepository:         ciWorkflowRepository,
+		ciArtifactRepository:         ciArtifactRepository,
+		userService:                  userService,
+		eventClient:                  eventClient,
+		eventFactory:                 eventFactory,
+		ciPipelineRepository:         ciPipelineRepository,
+		appListingRepository:         appListingRepository,
+		cdPipelineRepository:         cdPipelineRepository,
+		enforcerUtil:                 enforcerUtil,
+		resourceGroupService:         resourceGroupService,
+		envRepository:                envRepository,
+		imageTaggingService:          imageTaggingService,
+		customTagService:             customTagService,
+		appWorkflowRepository:        appWorkflowRepository,
+		k8sCommonService:             k8sCommonService,
+		workFlowStageStatusService:   workFlowStageStatusService,
+		workflowStatusLatestService:  workflowStatusLatestService,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -659,7 +660,7 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewV1(appId int) ([]*pipeline
 		return []*pipelineConfig.CiWorkflowStatus{}, nil
 	}
 
-	latestStatusEntries, err := impl.workflowStatusLatestRepository.GetCiWorkflowStatusLatestByPipelineIds(allPipelineIds)
+	latestStatusEntries, err := impl.workflowStatusLatestService.GetCiWorkflowStatusLatestByPipelineIds(allPipelineIds)
 	if err != nil {
 		impl.Logger.Errorw("error in checking latest status table, falling back to old method", "appId", appId, "err", err)
 		return impl.ciWorkflowRepository.FIndCiWorkflowStatusesByAppId(appId)
@@ -747,7 +748,7 @@ func (impl *CiHandlerImpl) fetchLastTriggeredWorkflowsHybrid(pipelineIds []int) 
 		return []*pipelineConfig.CiWorkflow{}, nil
 	}
 
-	latestStatusEntries, err := impl.workflowStatusLatestRepository.GetCiWorkflowStatusLatestByPipelineIds(pipelineIds)
+	latestStatusEntries, err := impl.workflowStatusLatestService.GetCiWorkflowStatusLatestByPipelineIds(pipelineIds)
 	if err != nil {
 		impl.Logger.Errorw("error in checking latest status table, falling back to complex query", "pipelineIds", pipelineIds, "err", err)
 		return impl.ciWorkflowRepository.FindLastTriggeredWorkflowByCiIds(pipelineIds)

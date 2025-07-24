@@ -20,9 +20,6 @@ import (
 	"fmt"
 	"time"
 
-	util2 "github.com/devtron-labs/devtron/internal/util"
-
-	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -31,14 +28,10 @@ import (
 type WorkflowStatusLatestService interface {
 	// CI Workflow Status Latest methods
 	SaveCiWorkflowStatusLatest(tx *pg.Tx, pipelineId, appId, ciWorkflowId int, userId int32) error
-	GetCiWorkflowStatusLatestByPipelineId(pipelineId int) (*CiWorkflowStatusLatest, error)
-	GetCiWorkflowStatusLatestByAppId(appId int) ([]*CiWorkflowStatusLatest, error)
+	GetCiWorkflowStatusLatestByPipelineIds(pipelineIds []int) ([]*pipelineConfig.CiWorkflowStatusLatest, error)
 
 	// CD Workflow Status Latest methods
 	SaveCdWorkflowStatusLatest(tx *pg.Tx, pipelineId, appId, environmentId, workflowRunnerId int, workflowType string, userId int32) error
-	GetCdWorkflowStatusLatestByPipelineIdAndWorkflowType(pipelineId int, workflowType string) (*CdWorkflowStatusLatest, error)
-	GetCdWorkflowStatusLatestByAppId(appId int) ([]*CdWorkflowStatusLatest, error)
-	GetCdWorkflowStatusLatestByPipelineId(pipelineId int) ([]*CdWorkflowStatusLatest, error)
 	GetCdWorkflowLatestByPipelineIds(pipelineIds []int) ([]*CdWorkflowStatusLatest, error)
 }
 
@@ -104,58 +97,8 @@ func (impl *WorkflowStatusLatestServiceImpl) SaveCiWorkflowStatusLatest(tx *pg.T
 	return impl.workflowStatusLatestRepository.SaveCiWorkflowStatusLatest(tx, model)
 }
 
-func (impl *WorkflowStatusLatestServiceImpl) GetCiWorkflowStatusLatestByPipelineId(pipelineId int) (*CiWorkflowStatusLatest, error) {
-	model, err := impl.workflowStatusLatestRepository.GetCiWorkflowStatusLatestByPipelineId(pipelineId)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			// Fallback to old method
-			return impl.getCiWorkflowStatusFromOldMethod(pipelineId)
-		}
-		impl.logger.Errorw("error in getting ci workflow status latest", "err", err, "pipelineId", pipelineId)
-		return nil, err
-	}
-
-	// Get status from ci_workflow table
-	ciWorkflow, err := impl.ciWorkflowRepository.FindById(model.CiWorkflowId)
-	if err != nil {
-		impl.logger.Errorw("error in getting ci workflow", "err", err, "ciWorkflowId", model.CiWorkflowId)
-		return nil, err
-	}
-
-	return &CiWorkflowStatusLatest{
-		PipelineId:   model.PipelineId,
-		AppId:        model.AppId,
-		CiWorkflowId: model.CiWorkflowId,
-		Status:       ciWorkflow.Status,
-	}, nil
-}
-
-func (impl *WorkflowStatusLatestServiceImpl) GetCiWorkflowStatusLatestByAppId(appId int) ([]*CiWorkflowStatusLatest, error) {
-	models, err := impl.workflowStatusLatestRepository.GetCiWorkflowStatusLatestByAppId(appId)
-	if err != nil {
-		impl.logger.Errorw("error in getting ci workflow status latest by app id", "err", err, "appId", appId)
-		return nil, err
-	}
-
-	var result []*CiWorkflowStatusLatest
-	for _, model := range models {
-		// Get status from ci_workflow table
-		ciWorkflow, err := impl.ciWorkflowRepository.FindById(model.CiWorkflowId)
-		if err != nil {
-			impl.logger.Errorw("error in getting ci workflow", "err", err, "ciWorkflowId", model.CiWorkflowId)
-			continue // Skip this entry if we can't get the workflow
-		}
-
-		result = append(result, &CiWorkflowStatusLatest{
-			PipelineId:        model.PipelineId,
-			AppId:             model.AppId,
-			CiWorkflowId:      model.CiWorkflowId,
-			Status:            ciWorkflow.Status,
-			StorageConfigured: ciWorkflow.BlobStorageEnabled,
-		})
-	}
-
-	return result, nil
+func (impl *WorkflowStatusLatestServiceImpl) GetCiWorkflowStatusLatestByPipelineIds(pipelineIds []int) ([]*pipelineConfig.CiWorkflowStatusLatest, error) {
+	return impl.workflowStatusLatestRepository.GetCiWorkflowStatusLatestByPipelineIds(pipelineIds)
 }
 
 // CD Workflow Status Latest methods implementation
@@ -181,158 +124,6 @@ func (impl *WorkflowStatusLatestServiceImpl) SaveCdWorkflowStatusLatest(tx *pg.T
 	model.UpdatedOn = now
 
 	return impl.workflowStatusLatestRepository.SaveCdWorkflowStatusLatest(tx, model)
-}
-
-func (impl *WorkflowStatusLatestServiceImpl) GetCdWorkflowStatusLatestByPipelineIdAndWorkflowType(pipelineId int, workflowType string) (*CdWorkflowStatusLatest, error) {
-	model, err := impl.workflowStatusLatestRepository.GetCdWorkflowStatusLatestByPipelineIdAndWorkflowType(nil, pipelineId, workflowType)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			// Fallback to old method
-			return impl.getCdWorkflowStatusFromOldMethod(pipelineId, workflowType)
-		}
-		impl.logger.Errorw("error in getting cd workflow status latest", "err", err, "pipelineId", pipelineId, "workflowType", workflowType)
-		return nil, err
-	}
-
-	// Get status from cd_workflow_runner table
-	cdWorkflowRunner, err := impl.cdWorkflowRepository.FindBasicWorkflowRunnerById(model.WorkflowRunnerId)
-	if err != nil {
-		impl.logger.Errorw("error in getting cd workflow runner", "err", err, "workflowRunnerId", model.WorkflowRunnerId)
-		return nil, err
-	}
-
-	return &CdWorkflowStatusLatest{
-		PipelineId:       model.PipelineId,
-		AppId:            model.AppId,
-		EnvironmentId:    model.EnvironmentId,
-		WorkflowType:     model.WorkflowType,
-		WorkflowRunnerId: model.WorkflowRunnerId,
-		Status:           cdWorkflowRunner.Status,
-	}, nil
-}
-
-func (impl *WorkflowStatusLatestServiceImpl) GetCdWorkflowStatusLatestByAppId(appId int) ([]*CdWorkflowStatusLatest, error) {
-	models, err := impl.workflowStatusLatestRepository.GetCdWorkflowStatusLatestByAppId(appId)
-	if err != nil {
-		impl.logger.Errorw("error in getting cd workflow status latest by app id", "err", err, "appId", appId)
-		return nil, err
-	}
-
-	var result []*CdWorkflowStatusLatest
-	for _, model := range models {
-		// Get status from cd_workflow_runner table
-		cdWorkflowRunner, err := impl.cdWorkflowRepository.FindBasicWorkflowRunnerById(model.WorkflowRunnerId)
-		if err != nil {
-			impl.logger.Errorw("error in getting cd workflow runner", "err", err, "workflowRunnerId", model.WorkflowRunnerId)
-			continue // Skip this entry if we can't get the workflow runner
-		}
-
-		result = append(result, &CdWorkflowStatusLatest{
-			PipelineId:       model.PipelineId,
-			AppId:            model.AppId,
-			EnvironmentId:    model.EnvironmentId,
-			WorkflowType:     model.WorkflowType,
-			WorkflowRunnerId: model.WorkflowRunnerId,
-			Status:           cdWorkflowRunner.Status,
-		})
-	}
-
-	return result, nil
-}
-
-func (impl *WorkflowStatusLatestServiceImpl) GetCdWorkflowStatusLatestByPipelineId(pipelineId int) ([]*CdWorkflowStatusLatest, error) {
-	models, err := impl.workflowStatusLatestRepository.GetCdWorkflowStatusLatestByPipelineId(pipelineId)
-	if err != nil {
-		impl.logger.Errorw("error in getting cd workflow status latest by pipeline id", "err", err, "pipelineId", pipelineId)
-		return nil, err
-	}
-
-	var result []*CdWorkflowStatusLatest
-	for _, model := range models {
-		// Get status from cd_workflow_runner table
-		cdWorkflowRunner, err := impl.cdWorkflowRepository.FindBasicWorkflowRunnerById(model.WorkflowRunnerId)
-		if err != nil {
-			impl.logger.Errorw("error in getting cd workflow runner", "err", err, "workflowRunnerId", model.WorkflowRunnerId)
-			continue // Skip this entry if we can't get the workflow runner
-		}
-
-		result = append(result, &CdWorkflowStatusLatest{
-			PipelineId:       model.PipelineId,
-			AppId:            model.AppId,
-			EnvironmentId:    model.EnvironmentId,
-			WorkflowType:     model.WorkflowType,
-			WorkflowRunnerId: model.WorkflowRunnerId,
-			Status:           cdWorkflowRunner.Status,
-		})
-	}
-
-	return result, nil
-}
-
-// Fallback methods to old implementation when no entry found in latest status tables
-func (impl *WorkflowStatusLatestServiceImpl) getCiWorkflowStatusFromOldMethod(pipelineId int) (*CiWorkflowStatusLatest, error) {
-	// Get the latest CI workflow for this pipeline using the old method
-	workflow, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflow(pipelineId)
-	if err != nil {
-		if util2.IsErrNoRows(err) {
-			return &CiWorkflowStatusLatest{
-				PipelineId:   pipelineId,
-				AppId:        0, // Will need to be populated from pipeline info
-				CiWorkflowId: 0,
-				Status:       "Not Triggered",
-			}, nil
-		}
-		impl.logger.Errorw("error in getting last triggered workflow", "err", err, "pipelineId", pipelineId)
-		return nil, err
-	}
-
-	return &CiWorkflowStatusLatest{
-		PipelineId:   pipelineId,
-		AppId:        workflow.CiPipeline.AppId,
-		CiWorkflowId: workflow.Id,
-		Status:       workflow.Status,
-	}, nil
-}
-
-func (impl *WorkflowStatusLatestServiceImpl) getCdWorkflowStatusFromOldMethod(pipelineId int, workflowType string) (*CdWorkflowStatusLatest, error) {
-	// Convert workflowType to the appropriate enum
-	var runnerType bean.WorkflowType
-	switch workflowType {
-	case "PRE":
-		runnerType = bean.CD_WORKFLOW_TYPE_PRE
-	case "DEPLOY":
-		runnerType = bean.CD_WORKFLOW_TYPE_DEPLOY
-	case "POST":
-		runnerType = bean.CD_WORKFLOW_TYPE_POST
-	default:
-		runnerType = bean.WorkflowType(workflowType)
-	}
-
-	// Get the latest CD workflow runner for this pipeline and type using the old method
-	wfr, err := impl.cdWorkflowRepository.FindLatestByPipelineIdAndRunnerType(pipelineId, runnerType)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			return &CdWorkflowStatusLatest{
-				PipelineId:       pipelineId,
-				AppId:            0, // Will need to be populated from pipeline info
-				EnvironmentId:    0,
-				WorkflowType:     workflowType,
-				WorkflowRunnerId: 0,
-				Status:           "Not Triggered",
-			}, nil
-		}
-		impl.logger.Errorw("error in getting latest cd workflow runner", "err", err, "pipelineId", pipelineId, "runnerType", runnerType)
-		return nil, err
-	}
-
-	return &CdWorkflowStatusLatest{
-		PipelineId:       pipelineId,
-		AppId:            wfr.CdWorkflow.Pipeline.AppId,
-		EnvironmentId:    wfr.CdWorkflow.Pipeline.EnvironmentId,
-		WorkflowType:     workflowType,
-		WorkflowRunnerId: wfr.Id,
-		Status:           wfr.Status,
-	}, nil
 }
 
 func (impl *WorkflowStatusLatestServiceImpl) GetCdWorkflowLatestByPipelineIds(pipelineIds []int) ([]*CdWorkflowStatusLatest, error) {
