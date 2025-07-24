@@ -26,19 +26,10 @@ import (
 type WorkflowStatusLatestRepository interface {
 	// CI Workflow Status Latest methods
 	SaveCiWorkflowStatusLatest(tx *pg.Tx, model *CiWorkflowStatusLatest) error
-	UpdateCiWorkflowStatusLatest(tx *pg.Tx, model *CiWorkflowStatusLatest) error
-	GetCiWorkflowStatusLatestByPipelineId(pipelineId int) (*CiWorkflowStatusLatest, error)
-	GetCiWorkflowStatusLatestByAppId(appId int) ([]*CiWorkflowStatusLatest, error)
 	GetCiWorkflowStatusLatestByPipelineIds(pipelineIds []int) ([]*CiWorkflowStatusLatest, error)
-	DeleteCiWorkflowStatusLatestByPipelineId(pipelineId int) error
 
 	// CD Workflow Status Latest methods
 	SaveCdWorkflowStatusLatest(tx *pg.Tx, model *CdWorkflowStatusLatest) error
-	UpdateCdWorkflowStatusLatest(tx *pg.Tx, model *CdWorkflowStatusLatest) error
-	GetCdWorkflowStatusLatestByPipelineIdAndWorkflowType(tx *pg.Tx, pipelineId int, workflowType string) (*CdWorkflowStatusLatest, error)
-	GetCdWorkflowStatusLatestByAppId(appId int) ([]*CdWorkflowStatusLatest, error)
-	GetCdWorkflowStatusLatestByPipelineId(pipelineId int) ([]*CdWorkflowStatusLatest, error)
-	DeleteCdWorkflowStatusLatestByPipelineId(pipelineId int) error
 	GetCdWorkflowStatusLatestByPipelineIds(pipelineIds []int) ([]*CdWorkflowStatusLatest, error)
 }
 
@@ -92,56 +83,6 @@ func (impl *WorkflowStatusLatestRepositoryImpl) SaveCiWorkflowStatusLatest(tx *p
 	return nil
 }
 
-func (impl *WorkflowStatusLatestRepositoryImpl) UpdateCiWorkflowStatusLatest(tx *pg.Tx, model *CiWorkflowStatusLatest) error {
-	var connection orm.DB
-	if tx != nil {
-		connection = tx
-	} else {
-		connection = impl.dbConnection
-	}
-	_, err := connection.Model(model).WherePK().UpdateNotNull()
-	if err != nil {
-		impl.logger.Errorw("error in updating ci workflow status latest", "err", err, "model", model)
-		return err
-	}
-	return nil
-}
-
-func (impl *WorkflowStatusLatestRepositoryImpl) GetCiWorkflowStatusLatestByPipelineId(pipelineId int) (*CiWorkflowStatusLatest, error) {
-	model := &CiWorkflowStatusLatest{}
-	err := impl.dbConnection.Model(model).
-		Where("pipeline_id = ?", pipelineId).
-		Select()
-	if err != nil {
-		impl.logger.Errorw("error in getting ci workflow status latest by pipeline id", "err", err, "pipelineId", pipelineId)
-		return nil, err
-	}
-	return model, nil
-}
-
-func (impl *WorkflowStatusLatestRepositoryImpl) GetCiWorkflowStatusLatestByAppId(appId int) ([]*CiWorkflowStatusLatest, error) {
-	var models []*CiWorkflowStatusLatest
-	err := impl.dbConnection.Model(&models).
-		Where("app_id = ?", appId).
-		Select()
-	if err != nil {
-		impl.logger.Errorw("error in getting ci workflow status latest by app id", "err", err, "appId", appId)
-		return nil, err
-	}
-	return models, nil
-}
-
-func (impl *WorkflowStatusLatestRepositoryImpl) DeleteCiWorkflowStatusLatestByPipelineId(pipelineId int) error {
-	_, err := impl.dbConnection.Model(&CiWorkflowStatusLatest{}).
-		Where("pipeline_id = ?", pipelineId).
-		Delete()
-	if err != nil {
-		impl.logger.Errorw("error in deleting ci workflow status latest by pipeline id", "err", err, "pipelineId", pipelineId)
-		return err
-	}
-	return nil
-}
-
 func (impl *WorkflowStatusLatestRepositoryImpl) GetCiWorkflowStatusLatestByPipelineIds(pipelineIds []int) ([]*CiWorkflowStatusLatest, error) {
 	if len(pipelineIds) == 0 {
 		return []*CiWorkflowStatusLatest{}, nil
@@ -169,75 +110,6 @@ func (impl *WorkflowStatusLatestRepositoryImpl) SaveCdWorkflowStatusLatest(tx *p
 	err := connection.Insert(model)
 	if err != nil {
 		impl.logger.Errorw("error in saving cd workflow status latest", "err", err, "model", model)
-		return err
-	}
-	return nil
-}
-
-func (impl *WorkflowStatusLatestRepositoryImpl) UpdateCdWorkflowStatusLatest(tx *pg.Tx, model *CdWorkflowStatusLatest) error {
-	var connection orm.DB
-	if tx != nil {
-		connection = tx
-	} else {
-		connection = impl.dbConnection
-	}
-	_, err := connection.Model(model).WherePK().UpdateNotNull()
-	if err != nil {
-		impl.logger.Errorw("error in updating cd workflow status latest", "err", err, "model", model)
-		return err
-	}
-	return nil
-}
-
-func (impl *WorkflowStatusLatestRepositoryImpl) GetCdWorkflowStatusLatestByPipelineIdAndWorkflowType(tx *pg.Tx, pipelineId int, workflowType string) (*CdWorkflowStatusLatest, error) {
-	model := &CdWorkflowStatusLatest{}
-	var connection orm.DB
-	if tx != nil {
-		connection = tx
-	} else {
-		connection = impl.dbConnection
-	}
-	err := connection.Model(model).
-		Where("pipeline_id = ?", pipelineId).
-		Where("workflow_type = ?", workflowType).
-		Select()
-	if err != nil {
-		impl.logger.Errorw("error in getting cd workflow status latest by pipeline id and workflow type", "err", err, "pipelineId", pipelineId, "workflowType", workflowType)
-		return nil, err
-	}
-	return model, nil
-}
-
-func (impl *WorkflowStatusLatestRepositoryImpl) GetCdWorkflowStatusLatestByAppId(appId int) ([]*CdWorkflowStatusLatest, error) {
-	var models []*CdWorkflowStatusLatest
-	err := impl.dbConnection.Model(&models).
-		Where("app_id = ?", appId).
-		Select()
-	if err != nil {
-		impl.logger.Errorw("error in getting cd workflow status latest by app id", "err", err, "appId", appId)
-		return nil, err
-	}
-	return models, nil
-}
-
-func (impl *WorkflowStatusLatestRepositoryImpl) GetCdWorkflowStatusLatestByPipelineId(pipelineId int) ([]*CdWorkflowStatusLatest, error) {
-	var models []*CdWorkflowStatusLatest
-	err := impl.dbConnection.Model(&models).
-		Where("pipeline_id = ?", pipelineId).
-		Select()
-	if err != nil {
-		impl.logger.Errorw("error in getting cd workflow status latest by pipeline id", "err", err, "pipelineId", pipelineId)
-		return nil, err
-	}
-	return models, nil
-}
-
-func (impl *WorkflowStatusLatestRepositoryImpl) DeleteCdWorkflowStatusLatestByPipelineId(pipelineId int) error {
-	_, err := impl.dbConnection.Model(&CdWorkflowStatusLatest{}).
-		Where("pipeline_id = ?", pipelineId).
-		Delete()
-	if err != nil {
-		impl.logger.Errorw("error in deleting cd workflow status latest by pipeline id", "err", err, "pipelineId", pipelineId)
 		return err
 	}
 	return nil
