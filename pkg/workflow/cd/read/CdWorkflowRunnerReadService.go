@@ -104,9 +104,8 @@ func (impl *CdWorkflowRunnerReadServiceImpl) GetWfrStatusForLatestRunners(pipeli
 	}
 
 	// calculating all the pipelines not present in the index table cdWorkflowLatest
-	pipelinesAbsentInCache := make(map[int][]bean2.WorkflowType)
+	absentPipelineIds := make([]int, 0)
 	for _, item := range pipelines {
-
 		var isPreCDConfigured, isPostCDConfigured bool
 		if configuredStages, ok := pipelineStageMap[item.Id]; ok {
 			for _, stage := range configuredStages {
@@ -119,13 +118,7 @@ func (impl *CdWorkflowRunnerReadServiceImpl) GetWfrStatusForLatestRunners(pipeli
 		}
 
 		if _, ok := cdWorfklowLatestMap[item.Id]; !ok {
-			pipelinesAbsentInCache[item.Id] = append(pipelinesAbsentInCache[item.Id], bean2.CD_WORKFLOW_TYPE_DEPLOY)
-			if isPreCDConfigured {
-				pipelinesAbsentInCache[item.Id] = append(pipelinesAbsentInCache[item.Id], bean2.CD_WORKFLOW_TYPE_PRE)
-			}
-			if isPostCDConfigured {
-				pipelinesAbsentInCache[item.Id] = append(pipelinesAbsentInCache[item.Id], bean2.CD_WORKFLOW_TYPE_POST)
-			}
+			absentPipelineIds = append(absentPipelineIds, item.Id)
 		} else {
 			isPreCDStageAbsent, isPostCdStageAbsent, isDeployStageAbsent := true, true, true
 			for _, stage := range cdWorfklowLatestMap[item.Id] {
@@ -138,21 +131,15 @@ func (impl *CdWorkflowRunnerReadServiceImpl) GetWfrStatusForLatestRunners(pipeli
 					isDeployStageAbsent = false
 				}
 			}
-			if isDeployStageAbsent {
-				pipelinesAbsentInCache[item.Id] = append(pipelinesAbsentInCache[item.Id], bean2.CD_WORKFLOW_TYPE_DEPLOY)
-			}
-			if isPreCDConfigured && isPreCDStageAbsent {
-				pipelinesAbsentInCache[item.Id] = append(pipelinesAbsentInCache[item.Id], bean2.CD_WORKFLOW_TYPE_PRE)
-			}
-			if isPostCDConfigured && isPostCdStageAbsent {
-				pipelinesAbsentInCache[item.Id] = append(pipelinesAbsentInCache[item.Id], bean2.CD_WORKFLOW_TYPE_POST)
+			if isDeployStageAbsent || (isPreCDConfigured && isPreCDStageAbsent) || (isPostCDConfigured && isPostCdStageAbsent) {
+				absentPipelineIds = append(absentPipelineIds, item.Id)
 			}
 		}
 	}
-	if len(pipelinesAbsentInCache) > 0 {
-		remainingRunners, err := impl.cdWorkflowRepository.FetchAllCdStagesLatestEntity(pipelinesAbsentInCache)
+	if len(absentPipelineIds) > 0 {
+		remainingRunners, err := impl.cdWorkflowRepository.FetchAllCdStagesLatestEntity(absentPipelineIds)
 		if err != nil {
-			impl.logger.Errorw("error in fetching all cd stages latest entity", "pipelinesAbsentInCache", pipelinesAbsentInCache, "err", err)
+			impl.logger.Errorw("error in fetching all cd stages latest entity", "pipelineIds", absentPipelineIds, "err", err)
 			return nil, err
 		}
 		result = append(result, remainingRunners...)
