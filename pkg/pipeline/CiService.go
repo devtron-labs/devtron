@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/workflow/workflowStatusLatest"
 	util3 "github.com/devtron-labs/devtron/util"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"go.uber.org/zap"
@@ -39,28 +40,34 @@ type CiService interface {
 }
 
 type CiServiceImpl struct {
-	Logger                     *zap.SugaredLogger
-	workflowStageStatusService workflowStatus.WorkFlowStageStatusService
-	eventClient                client.EventClient
-	eventFactory               client.EventFactory
-	config                     *types.CiConfig
-	ciWorkflowRepository       pipelineConfig.CiWorkflowRepository
-	transactionManager         sql.TransactionWrapper
+	Logger                      *zap.SugaredLogger
+	workflowStageStatusService  workflowStatus.WorkFlowStageStatusService
+	eventClient                 client.EventClient
+	eventFactory                client.EventFactory
+	config                      *types.CiConfig
+	ciWorkflowRepository        pipelineConfig.CiWorkflowRepository
+	ciPipelineRepository        pipelineConfig.CiPipelineRepository
+	transactionManager          sql.TransactionWrapper
+	workflowStatusLatestService workflowStatusLatest.WorkflowStatusLatestService
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger,
 	workflowStageStatusService workflowStatus.WorkFlowStageStatusService, eventClient client.EventClient,
 	eventFactory client.EventFactory,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
+	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	transactionManager sql.TransactionWrapper,
+	workflowStatusLatestService workflowStatusLatest.WorkflowStatusLatestService,
 ) *CiServiceImpl {
 	cis := &CiServiceImpl{
-		Logger:                     Logger,
-		workflowStageStatusService: workflowStageStatusService,
-		eventClient:                eventClient,
-		eventFactory:               eventFactory,
-		ciWorkflowRepository:       ciWorkflowRepository,
-		transactionManager:         transactionManager,
+		Logger:                      Logger,
+		workflowStageStatusService:  workflowStageStatusService,
+		eventClient:                 eventClient,
+		eventFactory:                eventFactory,
+		ciWorkflowRepository:        ciWorkflowRepository,
+		ciPipelineRepository:        ciPipelineRepository,
+		transactionManager:          transactionManager,
+		workflowStatusLatestService: workflowStatusLatestService,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -131,11 +138,26 @@ func (impl *CiServiceImpl) SaveCiWorkflowWithStage(wf *pipelineConfig.CiWorkflow
 		return err
 	}
 
+	// Get appId from CI pipeline (not from workflow to avoid transaction issues)
+	ciPipeline, err := impl.ciPipelineRepository.FindById(wf.CiPipelineId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching ci pipeline for appId", "err", err, "ciPipelineId", wf.CiPipelineId)
+		return err
+	}
+	appId := ciPipeline.AppId
+
+	err = impl.workflowStatusLatestService.SaveCiWorkflowStatusLatest(tx, wf.CiPipelineId, appId, wf.Id, wf.TriggeredBy)
+	if err != nil {
+		impl.Logger.Errorw("error in saving ci workflow status latest", "err", err, "pipelineId", wf.CiPipelineId, "workflowId", wf.Id)
+		return err
+	}
+
 	err = impl.transactionManager.CommitTx(tx)
 	if err != nil {
 		impl.Logger.Errorw("error in committing transaction", "workflowName", wf.Name, "error", err)
 		return err
 	}
+
 	return nil
 
 }
@@ -172,6 +194,7 @@ func (impl *CiServiceImpl) UpdateCiWorkflowWithStage(wf *pipelineConfig.CiWorkfl
 		impl.Logger.Errorw("error in committing transaction", "workflowName", wf.Name, "error", err)
 		return err
 	}
+
 	return nil
 
 }
