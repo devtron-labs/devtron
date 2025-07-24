@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS "public"."ci_workflow_status_latest" (
     "updated_on"            timestamptz      NOT NULL,
     "updated_by"            int4             NOT NULL,
     PRIMARY KEY ("id"),
-    UNIQUE ("pipeline_id")
+    UNIQUE ("ci_workflow_id")
 );
 
 -- Create Sequence for cd_workflow_status_latest
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS "public"."cd_workflow_status_latest" (
     "updated_on"            timestamptz      NOT NULL,
     "updated_by"            int4             NOT NULL,
     PRIMARY KEY ("id"),
-    UNIQUE ("pipeline_id", "workflow_type")
+    UNIQUE ("workflow_runner_id", "workflow_type")
 );
 
 COMMIT;
