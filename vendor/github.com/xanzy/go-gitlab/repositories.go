@@ -209,6 +209,7 @@ type Compare struct {
 	Diffs          []*Diff   `json:"diffs"`
 	CompareTimeout bool      `json:"compare_timeout"`
 	CompareSameRef bool      `json:"compare_same_ref"`
+	WebURL         string    `json:"web_url"`
 }
 
 func (c Compare) String() string {

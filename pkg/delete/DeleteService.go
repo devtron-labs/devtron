@@ -19,9 +19,11 @@ package delete
 import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s"
+	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	bean4 "github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
@@ -34,17 +36,18 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/team/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	k8sError "k8s.io/apimachinery/pkg/api/errors"
 	http2 "net/http"
 )
 
 type DeleteService interface {
-	DeleteCluster(deleteRequest *bean2.ClusterBean, userId int32) error
+	DeleteCluster(deleteRequest *bean2.DeleteClusterBean, userId int32) error
 	DeleteEnvironment(deleteRequest *bean.EnvironmentBean, userId int32) error
 	DeleteTeam(deleteRequest *bean3.TeamRequest) error
 	DeleteChartRepo(deleteRequest *chartRepo.ChartRepoDto) error
 	DeleteDockerRegistryConfig(deleteRequest *types.DockerArtifactStoreBean) error
 	CanDeleteChartRegistryPullConfig(storeId string) bool
-	DeleteClusterSecret(deleteRequest *bean2.ClusterBean, err error) error
+	DeleteClusterConfigMap(deleteRequest *bean2.DeleteClusterBean) error
 }
 
 type DeleteServiceImpl struct {
@@ -58,6 +61,7 @@ type DeleteServiceImpl struct {
 	dockerRegistryRepository dockerRegistryRepository.DockerArtifactStoreRepository
 	K8sUtil                  k8s.K8sService
 	k8sInformerFactory       informer.K8sInformerFactory
+	appRepository            appRepository.AppRepository
 }
 
 func NewDeleteServiceImpl(logger *zap.SugaredLogger,
@@ -70,6 +74,7 @@ func NewDeleteServiceImpl(logger *zap.SugaredLogger,
 	dockerRegistryRepository dockerRegistryRepository.DockerArtifactStoreRepository,
 	k8sInformerFactory informer.K8sInformerFactory,
 	K8sUtil k8s.K8sService,
+	appRepository appRepository.AppRepository,
 ) *DeleteServiceImpl {
 	return &DeleteServiceImpl{
 		logger:                   logger,
@@ -82,34 +87,48 @@ func NewDeleteServiceImpl(logger *zap.SugaredLogger,
 		dockerRegistryRepository: dockerRegistryRepository,
 		K8sUtil:                  K8sUtil,
 		k8sInformerFactory:       k8sInformerFactory,
+		appRepository:            appRepository,
 	}
 }
 
-func (impl DeleteServiceImpl) DeleteCluster(deleteRequest *bean2.ClusterBean, userId int32) error {
+func (impl DeleteServiceImpl) DeleteCluster(deleteRequest *bean2.DeleteClusterBean, userId int32) error {
 	clusterName, err := impl.clusterService.DeleteFromDb(deleteRequest, userId)
 	if err != nil {
 		impl.logger.Errorw("error im deleting cluster", "err", err, "deleteRequest", deleteRequest)
 		return err
 	}
-	err = impl.DeleteClusterSecret(deleteRequest, err)
+	// deleting a cluster config map created at time of cluster creation/updation so that informer in kubelink and kubewatch can delete the cluster from cache
+	err = impl.DeleteClusterConfigMap(deleteRequest)
 	if err != nil {
-		impl.logger.Errorw("error in deleting cluster secret", "clusterId", deleteRequest.Id, "error", err)
-		return err
+		impl.logger.Errorw("error in deleting cluster cm", "clusterId", deleteRequest.Id, "error", err)
+		// We are not returning error as it is not a blocking call as cluster can be unreachable at that time, and we have already deleted cluster from db.
+		//return err
 	}
 	impl.k8sInformerFactory.DeleteClusterFromCache(clusterName)
 	return nil
 }
 
-func (impl DeleteServiceImpl) DeleteClusterSecret(deleteRequest *bean2.ClusterBean, err error) error {
+func (impl DeleteServiceImpl) DeleteClusterConfigMap(deleteRequest *bean2.DeleteClusterBean) error {
 	// kubelink informers are listening this secret, deleting this secret will inform kubelink that this cluster is deleted
 	k8sClient, err := impl.K8sUtil.GetCoreV1ClientInCluster()
 	if err != nil {
-		impl.logger.Errorw("error in getting in cluster k8s client", "err", err, "clusterName", deleteRequest.ClusterName)
+		impl.logger.Errorw("error in getting in cluster k8s client", "err", err, "clusterId", deleteRequest.Id)
 		return nil
 	}
-	secretName := cluster.ParseSecretNameForKubelinkInformer(deleteRequest.Id)
-	err = impl.K8sUtil.DeleteSecret(bean2.DefaultNamespace, secretName, k8sClient)
-	return err
+	cmName := cluster.ParseCmNameForK8sInformerOnClusterEvent(deleteRequest.Id)
+	err = impl.K8sUtil.DeleteConfigMap(bean4.DevtronCDNamespae, cmName, k8sClient)
+	if k8sError.IsNotFound(err) {
+		// when cm not found in devtroncd ns then delete the secret in default ns(secret name would be the same as cm name)
+		err = impl.K8sUtil.DeleteSecret(bean2.DefaultNamespace, cmName, k8sClient)
+		if err != nil {
+			impl.logger.Errorw("error in deleting cluster secret in default ns ", "secretName", cmName, "err", err)
+			return err
+		}
+	} else if err != nil {
+		impl.logger.Errorw("error in deleting cluster config map in devtroncd ns ", "cmName", cmName, "err", err)
+		return err
+	}
+	return nil
 }
 
 func (impl DeleteServiceImpl) DeleteEnvironment(deleteRequest *bean.EnvironmentBean, userId int32) error {
@@ -121,7 +140,17 @@ func (impl DeleteServiceImpl) DeleteEnvironment(deleteRequest *bean.EnvironmentB
 	return nil
 }
 func (impl DeleteServiceImpl) DeleteTeam(deleteRequest *bean3.TeamRequest) error {
-	err := impl.teamService.Delete(deleteRequest)
+	//finding if this project is used in some app; if yes, will not perform delete operation
+	apps, err := impl.appRepository.FindAppsByTeamId(deleteRequest.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("err in deleting team", "teamId", deleteRequest.Id, "err", err)
+		return err
+	}
+	if len(apps) > 0 {
+		impl.logger.Errorw("err in deleting team, found apps in team", "teamName", deleteRequest.Name, "err", err)
+		return fmt.Errorf(" Please delete all apps in this project before deleting this project")
+	}
+	err = impl.teamService.Delete(deleteRequest)
 	if err != nil {
 		impl.logger.Errorw("error in deleting team", "err", err, "deleteRequest", deleteRequest)
 		return err

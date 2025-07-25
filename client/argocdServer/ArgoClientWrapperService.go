@@ -28,6 +28,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/async"
+	"github.com/devtron-labs/common-lib/utils/retryFunc"
 	"github.com/devtron-labs/devtron/client/argocdServer/adapter"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/bean"
@@ -41,7 +42,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
-	"github.com/devtron-labs/devtron/util/retryFunc"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -51,9 +51,9 @@ import (
 )
 
 type ACDConfig struct {
-	ArgoCDAutoSyncEnabled     bool `env:"ARGO_AUTO_SYNC_ENABLED" envDefault:"true" description:"If enabled all argocd application will have auto sync enabled"` // will gradually switch this flag to false in enterprise
-	RegisterRepoMaxRetryCount int  `env:"ARGO_REPO_REGISTER_RETRY_COUNT" envDefault:"3" description:"Argo app registration in argo retries on deployment"`
-	RegisterRepoMaxRetryDelay int  `env:"ARGO_REPO_REGISTER_RETRY_DELAY" envDefault:"10" description:"Argo app registration in argo cd on deployment delay between retry"`
+	ArgoCDAutoSyncEnabled     bool `env:"ARGO_AUTO_SYNC_ENABLED" envDefault:"true" description:"If enabled all argocd application will have auto sync enabled" example:"true" deprecated:"false"` // will gradually switch this flag to false in enterprise
+	RegisterRepoMaxRetryCount int  `env:"ARGO_REPO_REGISTER_RETRY_COUNT" envDefault:"4" description:"Retry count for registering a GitOps repository to ArgoCD" example:"3" deprecated:"false"`
+	RegisterRepoMaxRetryDelay int  `env:"ARGO_REPO_REGISTER_RETRY_DELAY" envDefault:"5" description:"Delay (in Seconds) between the retries for registering a GitOps repository to ArgoCD" example:"5" deprecated:"false"`
 }
 
 func (config *ACDConfig) IsManualSyncEnabled() bool {
@@ -105,7 +105,7 @@ type ApplicationClientWrapper interface {
 	// IsArgoAppPatchRequired decides weather the v1alpha1.ApplicationSource requires to be updated
 	IsArgoAppPatchRequired(argoAppSpec *v1alpha1.ApplicationSource, currentGitRepoUrl, currentTargetRevision, currentChartPath string) bool
 
-	// GetGitOpsRepoName returns the GitOps repository name, configured for the argoCd app
+	// GetGitOpsRepoNameForApplication returns the GitOps repository name, configured for the argoCd app
 	GetGitOpsRepoNameForApplication(ctx context.Context, appName string) (gitOpsRepoName string, err error)
 
 	GetGitOpsRepoURLForApplication(ctx context.Context, appName string) (gitOpsRepoURL string, err error)
@@ -127,6 +127,7 @@ type RepoCredsClientWrapper interface {
 type CertificateClientWrapper interface {
 	CreateCertificate(ctx context.Context, query *certificate.RepositoryCertificateCreateRequest) (*v1alpha1.RepositoryCertificateList, error)
 	DeleteCertificate(ctx context.Context, query *certificate.RepositoryCertificateQuery, opts ...grpc.CallOption) (*v1alpha1.RepositoryCertificateList, error)
+	CertificateClientWrapperEnt
 }
 
 type ClusterClientWrapper interface {
@@ -147,7 +148,7 @@ type ArgoClientWrapperServiceImpl struct {
 	repositoryService       repository.ServiceClient
 	clusterClient           cluster.ServiceClient
 	repoCredsClient         repocreds2.ServiceClient
-	CertificateClient       certificate2.ServiceClient
+	certificateClient       certificate2.ServiceClient
 	logger                  *zap.SugaredLogger
 	ACDConfig               *ACDConfig
 	gitOpsConfigReadService config.GitOpsConfigReadService
@@ -176,7 +177,7 @@ func NewArgoClientWrapperServiceImpl(
 		repositoryService:              repositoryService,
 		clusterClient:                  clusterClient,
 		repoCredsClient:                repocredsClient,
-		CertificateClient:              CertificateClient,
+		certificateClient:              CertificateClient,
 		logger:                         logger,
 		ACDConfig:                      ACDConfig,
 		gitOpsConfigReadService:        gitOpsConfigReadService,
@@ -521,7 +522,7 @@ func (impl *ArgoClientWrapperServiceImpl) createRepoInArgoCd(ctx context.Context
 	}
 	repo, err := impl.repositoryService.Create(ctx, grpcConfig, &repository2.RepoCreateRequest{Repo: repo, Upsert: true})
 	if err != nil {
-		impl.logger.Errorw("error in creating argo Repository", "err", err)
+		impl.logger.Errorw("error in creating argo Repository", "url", gitOpsRepoUrl, "err", err)
 		return err
 	}
 	return nil
@@ -530,7 +531,8 @@ func (impl *ArgoClientWrapperServiceImpl) createRepoInArgoCd(ctx context.Context
 // isRetryableArgoRepoCreationError returns whether to retry or not, based on the error returned from callback func
 // In createRepoInArgoCd, we will retry only if the error matches to bean.ArgoRepoSyncDelayErr
 func (impl *ArgoClientWrapperServiceImpl) isRetryableArgoRepoCreationError(argoCdErr error) bool {
-	return strings.Contains(argoCdErr.Error(), bean.ArgoRepoSyncDelayErr)
+	return strings.Contains(argoCdErr.Error(), bean.ArgoRepoSyncDelayErr) ||
+		strings.Contains(argoCdErr.Error(), bean.ArgoRepoSyncDelayErrOld)
 }
 
 // handleArgoRepoCreationError - manages the error thrown while performing createRepoInArgoCd
@@ -543,15 +545,18 @@ func (impl *ArgoClientWrapperServiceImpl) handleArgoRepoCreationError(ctx contex
 		}
 	}
 	if isEmptyRepoError {
-		// - found empty repository, create some file in repository
+		impl.logger.Infow("handling for empty repo", "url", gitOpsRepoUrl)
+		// - found empty repository (there is no origin/HEAD)
+		// - create new commit on HEAD (default branch) with a README file
+		// - then register the repository in ArgoCD
 		gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(gitOpsRepoUrl)
-		err := impl.gitOperationService.CreateReadmeInGitRepo(ctx, gitOpsRepoName, targetRevision, userId)
+		err := impl.gitOperationService.CreateFirstCommitOnHead(ctx, gitOpsRepoName, userId)
 		if err != nil {
 			impl.logger.Errorw("error in creating file in git repo", "err", err)
 			return err
 		}
 	}
-	// try to register with after creating readme file
+	// try to register with after commiting a file to origin/HEAD
 	return impl.createRepoInArgoCd(ctx, grpcConfig, gitOpsRepoUrl)
 }
 
@@ -586,7 +591,7 @@ func (impl *ArgoClientWrapperServiceImpl) CreateCertificate(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	return impl.CertificateClient.CreateCertificate(ctx, grpcConfig, query)
+	return impl.certificateClient.CreateCertificate(ctx, grpcConfig, query)
 }
 
 func (impl *ArgoClientWrapperServiceImpl) DeleteCertificate(ctx context.Context, query *certificate.RepositoryCertificateQuery, opts ...grpc.CallOption) (*v1alpha1.RepositoryCertificateList, error) {
@@ -594,5 +599,5 @@ func (impl *ArgoClientWrapperServiceImpl) DeleteCertificate(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	return impl.CertificateClient.DeleteCertificate(ctx, grpcConfig, query, opts...)
+	return impl.certificateClient.DeleteCertificate(ctx, grpcConfig, query, opts...)
 }

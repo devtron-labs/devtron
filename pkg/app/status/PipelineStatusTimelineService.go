@@ -84,6 +84,7 @@ func NewPipelineStatusTimelineServiceImpl(logger *zap.SugaredLogger,
 }
 
 type PipelineTimelineDetailDto struct {
+	DeploymentAppType          string                       `json:"deploymentAppType"`
 	DeploymentStartedOn        time.Time                    `json:"deploymentStartedOn"`
 	DeploymentFinishedOn       time.Time                    `json:"deploymentFinishedOn"`
 	TriggeredBy                string                       `json:"triggeredBy"`
@@ -102,6 +103,7 @@ type PipelineStatusTimelineDto struct {
 	StatusDetail                 string                        `json:"statusDetail"`
 	StatusTime                   time.Time                     `json:"statusTime"`
 	ResourceDetails              []*SyncStageResourceDetailDto `json:"resourceDetails,omitempty"`
+	DeploymentAppType            string                        `json:"deploymentAppType"`
 }
 
 func (impl *PipelineStatusTimelineServiceImpl) SaveTimeline(timeline *pipelineConfig.PipelineStatusTimeline, tx *pg.Tx) error {
@@ -225,7 +227,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 	triggeredBy = wfr.TriggeredBy
 	wfrStatus = wfr.Status
 
-	envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
+	envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(nil, appId, envId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
 		return nil, err
@@ -240,7 +242,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 	var timelineDtos []*PipelineStatusTimelineDto
 	var statusLastFetchedAt time.Time
 	var statusFetchCount int
-	if util.IsAcdApp(deploymentAppType) && showTimeline {
+	if (util.IsAcdApp(deploymentAppType) || util.IsFluxApp(deploymentAppType)) && showTimeline {
 		timelines, err := impl.pipelineStatusTimelineRepository.FetchTimelinesByWfrId(wfrId)
 		if err != nil {
 			impl.logger.Errorw("error in getting timelines by wfrId", "err", err, "wfrId", wfrId)
@@ -253,10 +255,13 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 		if len(cdWorkflowRunnerIds) == 0 {
 			return nil, err
 		}
-		timelineResourceMap, err := impl.pipelineStatusTimelineResourcesService.GetTimelineResourcesForATimeline(cdWorkflowRunnerIds)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in getting timeline resources details", "err", err)
-			return nil, err
+		timelineResourceMap := make(map[int][]*SyncStageResourceDetailDto)
+		if util.IsAcdApp(deploymentAppType) {
+			timelineResourceMap, err = impl.pipelineStatusTimelineResourcesService.GetTimelineResourcesForATimeline(cdWorkflowRunnerIds)
+			if err != nil && err != pg.ErrNoRows {
+				impl.logger.Errorw("error in getting timeline resources details", "err", err)
+				return nil, err
+			}
 		}
 		for _, timeline := range timelines {
 			timelineResourceDetails := make([]*SyncStageResourceDetailDto, 0)
@@ -279,6 +284,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 		}
 	}
 	timelineDetail := &PipelineTimelineDetailDto{
+		DeploymentAppType:          deploymentAppType,
 		TriggeredBy:                triggeredByUserEmailId,
 		DeploymentStartedOn:        deploymentStartedOn,
 		DeploymentFinishedOn:       deploymentFinishedOn,
@@ -380,6 +386,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelinesForAppStore(install
 		StatusFetchCount:           statusFetchCount,
 		WfrStatus:                  installedAppVersionHistoryStatus,
 		DeploymentAppDeleteRequest: false,
+		DeploymentAppType:          deploymentAppType,
 	}
 	return timelineDetail, nil
 }

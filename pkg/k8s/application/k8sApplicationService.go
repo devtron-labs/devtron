@@ -263,6 +263,7 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 			request.ClusterId = appIdentifier.ClusterId
 			request.K8sRequest.ResourceIdentifier.Namespace = namespace
 			request.AppId = appId
+			request.ExternalArgoAppIdentifier = appIdentifier
 		} else if request.AppType == bean3.HelmAppType {
 			// For Helm App resources
 			appIdentifier, err := impl.helmAppService.DecodeAppId(appId)
@@ -370,6 +371,8 @@ func (impl *K8sApplicationServiceImpl) ValidateTerminalRequestQuery(r *http.Requ
 			resourceRequestBean.ClusterId = appIdentifier.ClusterId
 			request.ClusterId = appIdentifier.ClusterId
 			request.ExternalArgoApplicationName = appIdentifier.AppName
+			request.ExternalArgoApplicationNamespace = appIdentifier.Namespace
+			request.ExternalArgoAppIdentifier = appIdentifier
 		}
 	} else {
 		// Validate Cluster Id
@@ -431,6 +434,7 @@ func (impl *K8sApplicationServiceImpl) GetPodLogs(ctx context.Context, request *
 	restConfig, err := impl.k8sCommonService.GetRestConfigOfCluster(ctx, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by clusterId", "err", err, "clusterId", clusterId, "")
+		return nil, err
 	}
 	resp, err := impl.K8sUtil.GetPodLogs(ctx, restConfig, resourceIdentifier.Name, resourceIdentifier.Namespace, podLogsRequest.SinceTime, podLogsRequest.TailLines, podLogsRequest.SinceSeconds, podLogsRequest.Follow, podLogsRequest.ContainerName, podLogsRequest.IsPrevContainerLogsEnabled)
 	if err != nil {
@@ -876,7 +880,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req *bean5.E
 	var clientSet *kubernetes.Clientset
 	var v1Client *v1.CoreV1Client
 	var err error
-	if len(req.ExternalArgoApplicationName) > 0 {
+	if req.ExternalArgoAppIdentifier != nil {
 		clientSet, v1Client, err = impl.k8sCommonService.GetCoreClientByClusterIdForExternalArgoApps(req)
 		if err != nil {
 			impl.logger.Errorw("error in getting coreV1 client by clusterId", "err", err, "req", req)

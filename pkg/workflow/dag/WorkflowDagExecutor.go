@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/common-lib/async"
 	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/common-lib/utils/workFlow"
 	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
@@ -51,6 +52,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/service"
 	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/executor"
+	"github.com/devtron-labs/devtron/pkg/fluxApplication"
+	bean8 "github.com/devtron-labs/devtron/pkg/fluxApplication/bean"
 	k8sPkg "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
@@ -63,6 +66,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/workflow/dag/adaptor"
 	bean2 "github.com/devtron-labs/devtron/pkg/workflow/dag/bean"
 	"github.com/devtron-labs/devtron/pkg/workflow/dag/helper"
+	auditService "github.com/devtron-labs/devtron/pkg/workflow/trigger/audit/service"
 	error2 "github.com/devtron-labs/devtron/util/error"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
@@ -109,11 +113,13 @@ type WorkflowDagExecutor interface {
 	UpdateWorkflowRunnerStatusForDeployment(appIdentifier *helmBean.AppIdentifier, wfr *pipelineConfig.CdWorkflowRunner, skipReleaseNotFound bool) bool
 
 	BuildCiArtifactRequestForWebhook(event pipeline.ExternalCiWebhookDto) (*bean2.CiArtifactWebhookRequest, error)
+	UpdateWorkflowRunnerStatusForFluxDeployment(appIdentifier *bean8.FluxAppIdentifier, wfr *pipelineConfig.CdWorkflowRunner, pipelineOverride *chartConfig.PipelineOverride) bool
 }
 
 type WorkflowDagExecutorImpl struct {
 	logger                        *zap.SugaredLogger
 	pipelineRepository            pipelineConfig.PipelineRepository
+	pipelineOverrideRepository    chartConfig.PipelineOverrideRepository
 	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
 	ciArtifactRepository          repository.CiArtifactRepository
 	enforcerUtil                  rbac.EnforcerUtil
@@ -146,14 +152,17 @@ type WorkflowDagExecutorImpl struct {
 	scanHistoryRepository   repository3.ImageScanHistoryRepository
 	imageScanService        imageScanning.ImageScanService
 
-	K8sUtil          *k8s.K8sServiceImpl
-	envRepository    repository5.EnvironmentRepository
-	k8sCommonService k8sPkg.K8sCommonService
-	workflowService  executor.WorkflowService
-	ciHandlerService trigger.HandlerService
+	K8sUtil                     *k8s.K8sServiceImpl
+	envRepository               repository5.EnvironmentRepository
+	k8sCommonService            k8sPkg.K8sCommonService
+	workflowService             executor.WorkflowService
+	ciHandlerService            trigger.HandlerService
+	workflowTriggerAuditService auditService.WorkflowTriggerAuditService
+	fluxApplicationService fluxApplication.FluxApplicationService
 }
 
 func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
+	pipelineOverrideRepository chartConfig.PipelineOverrideRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
 	enforcerUtil rbac.EnforcerUtil,
@@ -184,9 +193,12 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	k8sCommonService k8sPkg.K8sCommonService,
 	workflowService executor.WorkflowService,
 	ciHandlerService trigger.HandlerService,
+	workflowTriggerAuditService auditService.WorkflowTriggerAuditService,
+	fluxApplicationService fluxApplication.FluxApplicationService,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
+		pipelineOverrideRepository:    pipelineOverrideRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
 		ciArtifactRepository:          ciArtifactRepository,
 		enforcerUtil:                  enforcerUtil,
@@ -217,6 +229,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		k8sCommonService:              k8sCommonService,
 		workflowService:               workflowService,
 		ciHandlerService:              ciHandlerService,
+		workflowTriggerAuditService:   workflowTriggerAuditService,
+		fluxApplicationService:        fluxApplicationService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -388,7 +402,21 @@ func (impl *WorkflowDagExecutorImpl) HandleCdStageReTrigger(runner *pipelineConf
 		return nil
 	}
 
-	triggerRequest := triggerBean.TriggerRequest{
+	err = impl.reTriggerCdStageFromSnapshot(runner)
+	if err != nil {
+		impl.logger.Warnw("failed to retrigger CD stage from snapshot", "runnerId", runner.Id, "err", err)
+		return err
+	}
+
+	impl.logger.Infow("cd stage re triggered for runner", "runnerId", runner.Id)
+	return nil
+}
+
+// reTriggerCdStageFromSnapshot attempts to retrigger CD stage using stored workflow config snapshot
+func (impl *WorkflowDagExecutorImpl) reTriggerCdStageFromSnapshot(runner *pipelineConfig.CdWorkflowRunner) error {
+	impl.logger.Infow("attempting to retrigger CD stage from stored snapshot", "runnerId", runner.Id, "workflowType", runner.WorkflowType)
+
+	triggerRequest := triggerBean.CdTriggerRequest{
 		CdWf:                  runner.CdWorkflow,
 		Pipeline:              runner.CdWorkflow.Pipeline,
 		Artifact:              runner.CdWorkflow.CiArtifact,
@@ -398,23 +426,23 @@ func (impl *WorkflowDagExecutorImpl) HandleCdStageReTrigger(runner *pipelineConf
 		TriggerContext: triggerBean.TriggerContext{
 			Context: context.Background(),
 		},
+		IsRetrigger: true,
 	}
 
 	if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
-		_, err = impl.cdHandlerService.TriggerPreStage(triggerRequest)
+		_, err := impl.cdHandlerService.TriggerPreStage(triggerRequest)
 		if err != nil {
 			impl.logger.Errorw("error in TriggerPreStage ", "err", err, "cdWorkflowRunnerId", runner.Id)
 			return err
 		}
 	} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
-		_, err = impl.cdHandlerService.TriggerPostStage(triggerRequest)
+		_, err := impl.cdHandlerService.TriggerPostStage(triggerRequest)
 		if err != nil {
 			impl.logger.Errorw("error in TriggerPostStage ", "err", err, "cdWorkflowRunnerId", runner.Id)
 			return err
 		}
 	}
 
-	impl.logger.Infow("cd stage re triggered for runner", "runnerId", runner.Id)
 	return nil
 }
 
@@ -510,7 +538,7 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.
 			if util4.IsTerminalRunnerStatus(cdWfr.Status) {
 				appId := cdWfr.CdWorkflow.Pipeline.AppId
 				envId := cdWfr.CdWorkflow.Pipeline.EnvironmentId
-				envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
+				envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(nil, appId, envId)
 				if err != nil {
 					impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
 				}
@@ -555,7 +583,7 @@ func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncInstallRequest(cdAsyncIn
 			return err
 		}
 	}
-	envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(overrideRequest.AppId, overrideRequest.EnvId)
+	envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(nil, overrideRequest.AppId, overrideRequest.EnvId)
 	if err != nil {
 		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "err", err)
 		return err
@@ -588,7 +616,7 @@ func (impl *WorkflowDagExecutorImpl) handleCiSuccessEvent(triggerContext trigger
 		return err
 	}
 	for _, pipeline := range pipelines {
-		triggerRequest := triggerBean.TriggerRequest{
+		triggerRequest := triggerBean.CdTriggerRequest{
 			CdWf:           nil,
 			Pipeline:       pipeline,
 			Artifact:       artifact,
@@ -634,7 +662,7 @@ func (impl *WorkflowDagExecutorImpl) handleWebhookExternalCiEvent(artifact *repo
 
 	for _, pipeline := range pipelines {
 		//applyAuth=false, already auth applied for this flow
-		triggerRequest := triggerBean.TriggerRequest{
+		triggerRequest := triggerBean.CdTriggerRequest{
 			CdWf:        nil,
 			Pipeline:    pipeline,
 			Artifact:    artifact,
@@ -670,7 +698,7 @@ func (impl *WorkflowDagExecutorImpl) deleteCorruptedPipelineStage(pipelineStage 
 	return nil, false
 }
 
-func (impl *WorkflowDagExecutorImpl) triggerIfAutoStageCdPipeline(request triggerBean.TriggerRequest) error {
+func (impl *WorkflowDagExecutorImpl) triggerIfAutoStageCdPipeline(request triggerBean.CdTriggerRequest) error {
 	preStage, err := impl.getPipelineStage(request.Pipeline.Id, repository4.PIPELINE_STAGE_TYPE_PRE_CD)
 	if err != nil {
 		return err
@@ -802,7 +830,7 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(triggerContext
 			pipelineOverride.DeploymentType != models.DEPLOYMENTTYPE_STOP &&
 			pipelineOverride.DeploymentType != models.DEPLOYMENTTYPE_START {
 
-			triggerRequest := triggerBean.TriggerRequest{
+			triggerRequest := triggerBean.CdTriggerRequest{
 				CdWf:                  cdWorkflow,
 				Pipeline:              pipelineOverride.Pipeline,
 				TriggeredBy:           bean7.SYSTEM_USER_ID,
@@ -876,7 +904,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(triggerContext 
 		//finding ci artifact by ciPipelineID and pipelineId
 		//TODO : confirm values for applyAuth, async & triggeredBy
 
-		triggerRequest := triggerBean.TriggerRequest{
+		triggerRequest := triggerBean.CdTriggerRequest{
 			CdWf:           nil,
 			Pipeline:       pipeline,
 			Artifact:       ciArtifact,
@@ -1290,4 +1318,74 @@ func (impl *WorkflowDagExecutorImpl) BuildCiArtifactRequestForWebhook(event pipe
 		request.DataSource = repository.WEBHOOK
 	}
 	return request, nil
+}
+
+func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForFluxDeployment(appIdentifier *bean8.FluxAppIdentifier, wfr *pipelineConfig.CdWorkflowRunner,
+	pipelineOverride *chartConfig.PipelineOverride) bool {
+	fluxAppDetail, err := impl.fluxApplicationService.GetFluxAppDetail(context.Background(), appIdentifier)
+	if err != nil {
+		impl.logger.Errorw("error in getting helm app release status", "appIdentifier", appIdentifier, "err", err)
+		// Handle release not found errors
+		// If release not found, mark the deployment as failure
+		wfr.Status = cdWorkflow2.WorkflowUnableToFetchState
+		wfr.Message = fmt.Sprintf("error in fetching app detail; err: %s", err.Error())
+		wfr.FinishedOn = time.Now()
+		return true
+	}
+	if !impl.checkIfFluxPipelineEventIsValid(fluxAppDetail.LastObservedVersion, pipelineOverride) {
+		return false
+	}
+	wfr.FinishedOn = time.Now()
+	wfr.Message = fluxAppDetail.FluxAppStatusDetail.Message
+	switch fluxAppDetail.FluxAppStatusDetail.Reason {
+	case bean8.InstallSucceededReason, bean8.UpgradeSucceededReason, bean8.TestSucceededReason, bean8.RollbackSucceededReason:
+		if fluxAppDetail.AppHealthStatus == commonBean.HealthStatusHealthy {
+			wfr.Status = cdWorkflow2.WorkflowSucceeded
+		}
+	case bean8.UpgradeFailedReason,
+		bean8.TestFailedReason,
+		bean8.RollbackFailedReason,
+		bean8.UninstallFailedReason,
+		bean8.ArtifactFailedReason,
+		bean8.InstallFailedReason:
+		wfr.Status = cdWorkflow2.WorkflowFailed
+	}
+	return true
+}
+
+func (impl *WorkflowDagExecutorImpl) checkIfFluxPipelineEventIsValid(lastObservedVersion string, pipelineOverride *chartConfig.PipelineOverride) bool {
+	gitHash := getShortHash(lastObservedVersion)
+	if !strings.HasPrefix(pipelineOverride.GitHash, gitHash) {
+		pipelineOverrideByHash, err := impl.pipelineOverrideRepository.FindByPipelineLikeTriggerGitHash(gitHash)
+		if err != nil {
+			impl.logger.Errorw("error on update application status", "gitHash", gitHash, "err", err)
+			return false
+		}
+		if pipelineOverrideByHash == nil || pipelineOverrideByHash.CommitTime.Before(pipelineOverride.CommitTime) {
+			// we have received trigger hash which is committed before this apps actual gitHash stored by us
+			// this means that the hash stored by us will be synced later, so we will drop this event
+			return false
+		}
+	}
+	return true
+}
+
+// getShortHash gets the short Git hash embedded in the version string
+// with the beginning of the full Git commit hash.
+//
+// version: expected format like "4.22.1+<shortHash>.<buildNumber>"
+// fullHash: expected to be a full 40-character Git commit SHA
+func getShortHash(version string) string {
+	// Split version string at '+' to extract metadata
+	parts := strings.Split(version, "+")
+	if len(parts) < 2 {
+		return "" // No metadata found
+	}
+
+	// Metadata might look like "2b6c6b2.2" → short hash + build number
+	metaParts := strings.Split(parts[1], ".")
+	shortHash := metaParts[0] // Take only the short hash before the dot
+
+	// Compare short hash with prefix of full hash
+	return shortHash
 }

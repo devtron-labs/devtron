@@ -1,48 +1,47 @@
-# Dockerfile
+# Base Image - slim Python
+FROM python:3.13-slim
 
-# Base Image
-FROM python:3.8
+# Environment settings
+ENV PYTHONUNBUFFERED=1 LANG=C.UTF-8
 
-# set default environment variables
-ENV PYTHONUNBUFFERED 1
-ENV LANG C.UTF-8
-
-# to take runtime arguments and set env variables
+# Django superuser build args
 ARG DJANGO_SUPERUSER_USERNAME
-ENV DJANGO_SUPERUSER_USERNAME=${DJANGO_SUPERUSER_USERNAME}
-
 ARG DJANGO_SUPERUSER_PASSWORD
-ENV DJANGO_SUPERUSER_PASSWORD=${DJANGO_SUPERUSER_PASSWORD}
-
 ARG DJANGO_SUPERUSER_EMAIL
+ENV DJANGO_SUPERUSER_USERNAME=${DJANGO_SUPERUSER_USERNAME}
+ENV DJANGO_SUPERUSER_PASSWORD=${DJANGO_SUPERUSER_PASSWORD}
 ENV DJANGO_SUPERUSER_EMAIL=${DJANGO_SUPERUSER_EMAIL}
 
-# create and set working directory
-RUN mkdir /app
+# Set workdir
 WORKDIR /app
 
-RUN chown -R www-data:www-data /app
+# Install system dependencies and nginx, then install Python deps
+COPY requirements.txt .
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends nginx vim && \
+    pip install --no-cache-dir -r requirements.txt && \
+    rm -rf /var/lib/apt/lists/*
 
-# Add current directory code to working directory
-COPY . /app/
+# Copy app code, nginx.conf, and start script
+COPY app/ ./
+COPY nginx.conf /etc/nginx/nginx.conf
+RUN chmod +x start-server.sh
 
-# install environment dependencies
-RUN pip install -r requirements.txt 
+# Create non-root user and set permissions
+RUN groupadd -g 2002 nonroot && \
+    useradd -u 2002 -g nonroot -s /bin/bash -m nonroot && \
+    mkdir -p /tmp/nginx-logs && \
+    chown -R nonroot:nonroot /app /tmp/nginx-logs
 
-# install nginx
-RUN apt-get update && apt-get install nginx vim -y --no-install-recommends
+# Expose port 8080
+EXPOSE 8080
 
-#Refer https://github.com/devtron-labs/devtron/blob/main/sample-docker-templates/django/nginx.default for sample nginx.default file
-COPY nginx.default /etc/nginx/sites-available/default
+# Switch to non-root
+USER nonroot
 
-RUN ln -sf /dev/stdout /var/log/nginx/access.log \
-    && ln -sf /dev/stderr /var/log/nginx/error.log
-
-
-# start server
-EXPOSE 8000
-
+# Stop signal for graceful shutdown
+# https://docs.docker.com/reference/dockerfile/#stopsignal
 STOPSIGNAL SIGTERM
 
-# Refer https://github.com/devtron-labs/devtron/blob/main/sample-docker-templates/django/start-server.sh for sample start-server.sh file
+# Start server (migrations, superuser, gunicorn, nginx)
 CMD ["/app/start-server.sh"]

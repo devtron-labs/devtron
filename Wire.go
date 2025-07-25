@@ -93,6 +93,7 @@ import (
 	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	eClient "github.com/devtron-labs/devtron/client/events"
+	"github.com/devtron-labs/devtron/client/fluxcd"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/client/lens"
@@ -223,6 +224,7 @@ func InitializeApp() (*App, error) {
 		policyGovernance.PolicyGovernanceWireSet,
 		resourceScan.ScanningResultWireSet,
 		executor.ExecutorWireSet,
+		fluxcd.DeploymentWireSet,
 		// -------wireset end ----------
 		// -------
 		gitSensor.GetConfig,
@@ -302,6 +304,9 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.CiPipelineConfigService), new(*pipeline.CiPipelineConfigServiceImpl)),
 		pipeline.NewCiMaterialConfigServiceImpl,
 		wire.Bind(new(pipeline.CiMaterialConfigService), new(*pipeline.CiMaterialConfigServiceImpl)),
+
+		app.NewDeploymentEventHandlerImpl,
+		wire.Bind(new(app.DeploymentEventHandler), new(*app.DeploymentEventHandlerImpl)),
 
 		pipeline.NewAppArtifactManagerImpl,
 		wire.Bind(new(pipeline.AppArtifactManager), new(*pipeline.AppArtifactManagerImpl)),
@@ -751,6 +756,10 @@ func InitializeApp() (*App, error) {
 
 		deployment3.NewFullModeDeploymentServiceImpl,
 		wire.Bind(new(deployment3.FullModeDeploymentService), new(*deployment3.FullModeDeploymentServiceImpl)),
+
+		deployment3.NewFullModeFluxDeploymentServiceImpl,
+		wire.Bind(new(deployment3.FullModeFluxDeploymentService), new(*deployment3.FullModeFluxDeploymentServiceImpl)),
+
 		//	util2.NewGoJsonSchemaCustomFormatChecker,
 
 		//history starts

@@ -61,7 +61,35 @@ import (
 	"time"
 )
 
-func (impl *HandlerServiceImpl) TriggerPreStage(request bean.TriggerRequest) (*bean6.ManifestPushTemplate, error) {
+func (impl *HandlerServiceImpl) preparePrePostCdWorkflowRequest(ctx context.Context, runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow,
+	request bean.CdTriggerRequest, env *repository4.Environment, stageType string, envDeploymentConfig *bean5.DeploymentConfig) (*types.WorkflowRequest, error) {
+	var cdStageWorkflowRequest *types.WorkflowRequest
+	var err error
+	if request.IsRetrigger {
+		// retrieve workflow request from snapshot
+		workflowType := types.PRE_CD_WORKFLOW_TYPE
+		if stageType == types.POST {
+			workflowType = types.POST_CD_WORKFLOW_TYPE
+		}
+		workflowRequest, err := impl.workflowTriggerAuditService.GetWorkflowRequestFromSnapshotForRetrigger(runner.RefCdWorkflowRunnerId, workflowType)
+		if err != nil {
+			impl.logger.Errorw("error retrieving workflow request from snapshot for pre/post cd stage type", "workflowType", workflowType, "refCdWorkflowRunnerId", runner.RefCdWorkflowRunnerId, "err", err)
+			return nil, err
+		}
+		cdStageWorkflowRequest = workflowRequest
+		// Update dynamic fields in the workflow request for retrigger
+		impl.updateWorkflowRequestForCdRetrigger(cdStageWorkflowRequest, runner)
+	} else {
+		cdStageWorkflowRequest, err = impl.getPrePostCdStageWorkflowRequest(ctx, runner, cdWf, request.Pipeline, env, request.Artifact, stageType, envDeploymentConfig, request.TriggeredBy)
+		if err != nil {
+			impl.logger.Errorw("error retrieving workflow request from snapshot for pre/post cd stage type", "stageType", stageType, "refCdWorkflowRunnerId", runner.RefCdWorkflowRunnerId, "err", err)
+			return nil, err
+		}
+	}
+	return cdStageWorkflowRequest, nil
+}
+
+func (impl *HandlerServiceImpl) TriggerPreStage(request bean.CdTriggerRequest) (*bean6.ManifestPushTemplate, error) {
 	request.WorkflowType = apiBean.CD_WORKFLOW_TYPE_PRE
 	// setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
@@ -103,7 +131,7 @@ func (impl *HandlerServiceImpl) TriggerPreStage(request bean.TriggerRequest) (*b
 		return nil, err
 	}
 
-	envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(pipeline.AppId, pipeline.EnvironmentId)
+	envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(nil, pipeline.AppId, pipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching deployment config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
 		return nil, err
@@ -123,30 +151,11 @@ func (impl *HandlerServiceImpl) TriggerPreStage(request bean.TriggerRequest) (*b
 		impl.logger.Errorw("error, checkVulnerabilityStatusAndFailWfIfNeeded", "err", err, "runner", runner)
 		return nil, err
 	}
-	_, span := otel.Tracer("orchestrator").Start(ctx, "buildWFRequest")
-	cdStageWorkflowRequest, err := impl.buildWFRequest(runner, cdWf, pipeline, envDeploymentConfig, triggeredBy)
-	span.End()
+	cdStageWorkflowRequest, err := impl.preparePrePostCdWorkflowRequest(ctx, runner, cdWf, request, env, types.PRE, envDeploymentConfig)
 	if err != nil {
 		return impl.buildWfRequestErrorHandler(runner, err, triggeredBy)
 	}
-	cdStageWorkflowRequest.StageType = types.PRE
-	// handling copyContainerImage plugin specific logic
-	imagePathReservationIds, err := impl.setCopyContainerImagePluginDataAndReserveImages(cdStageWorkflowRequest, pipeline.Id, types.PRE, artifact)
-	if err != nil {
-		runner.Status = cdWorkflow.WorkflowFailed
-		runner.Message = err.Error()
-		runner.FinishedOn = time.Now()
-		_ = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(runner)
-		return nil, err
-	} else {
-		runner.ImagePathReservationIds = imagePathReservationIds
-		_ = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(runner)
-	}
-
-	_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowService.SubmitWorkflow")
-	cdStageWorkflowRequest.Pipeline = pipeline
-	cdStageWorkflowRequest.Env = env
-	cdStageWorkflowRequest.Type = pipelineConfigBean.CD_WORKFLOW_PIPELINE_TYPE
+	_, span := otel.Tracer("orchestrator").Start(ctx, "cdWorkflowService.SubmitWorkflow")
 	_, jobHelmPackagePath, err := impl.workflowService.SubmitWorkflow(cdStageWorkflowRequest)
 	span.End()
 	if err != nil {
@@ -177,6 +186,45 @@ func (impl *HandlerServiceImpl) TriggerPreStage(request bean.TriggerRequest) (*b
 	return manifestPushTemplate, nil
 }
 
+// updateWorkflowRequestForCdRetrigger updates dynamic fields in workflow request for CD retrigger
+func (impl *HandlerServiceImpl) updateWorkflowRequestForCdRetrigger(workflowRequest *types.WorkflowRequest, newRunner *pipelineConfig.CdWorkflowRunner) {
+	// update workflow-specific dynamic fields
+	workflowRequest.WorkflowId = newRunner.CdWorkflowId
+	workflowRequest.WorkflowRunnerId = newRunner.Id
+	workflowRequest.WorkflowNamePrefix = fmt.Sprintf("%d-%s", newRunner.Id, newRunner.Name)
+	workflowRequest.TriggeredBy = bean7.SYSTEM_USER_ID
+}
+
+func (impl *HandlerServiceImpl) getPrePostCdStageWorkflowRequest(ctx context.Context, runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow,
+	pipeline *pipelineConfig.Pipeline, env *repository4.Environment, artifact *repository.CiArtifact, stageType string, envDeploymentConfig *bean5.DeploymentConfig, triggeredBy int32) (*types.WorkflowRequest, error) {
+
+	_, span := otel.Tracer("orchestrator").Start(ctx, "buildWFRequest")
+	cdStageWorkflowRequest, err := impl.buildWFRequest(runner, cdWf, pipeline, envDeploymentConfig, triggeredBy)
+	span.End()
+	if err != nil {
+		impl.logger.Errorw("error in building workflow request for pre/post stage", "runner", runner, "err", err)
+		return nil, err
+	}
+	cdStageWorkflowRequest.StageType = stageType
+	// handling copyContainerImage plugin specific logic
+	imagePathReservationIds, err := impl.setCopyContainerImagePluginDataAndReserveImages(cdStageWorkflowRequest, pipeline.Id, stageType, artifact)
+	if err != nil {
+		runner.Status = cdWorkflow.WorkflowFailed
+		runner.Message = err.Error()
+		runner.FinishedOn = time.Now()
+		_ = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(runner)
+		return nil, err
+	} else {
+		runner.ImagePathReservationIds = imagePathReservationIds
+		_ = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(runner)
+	}
+
+	cdStageWorkflowRequest.Pipeline = pipeline
+	cdStageWorkflowRequest.Env = env
+	cdStageWorkflowRequest.Type = pipelineConfigBean.CD_WORKFLOW_PIPELINE_TYPE
+	return cdStageWorkflowRequest, nil
+}
+
 func (impl *HandlerServiceImpl) TriggerAutoCDOnPreStageSuccess(triggerContext bean.TriggerContext, cdPipelineId, ciArtifactId, workflowId int) error {
 	pipeline, err := impl.pipelineRepository.FindById(cdPipelineId)
 	if err != nil {
@@ -200,7 +248,7 @@ func (impl *HandlerServiceImpl) TriggerAutoCDOnPreStageSuccess(triggerContext be
 			return nil
 		}
 
-		triggerRequest := bean.TriggerRequest{
+		triggerRequest := bean.CdTriggerRequest{
 			CdWf:           cdWorkflow,
 			Pipeline:       pipeline,
 			Artifact:       ciArtifact,
@@ -228,7 +276,7 @@ func (impl *HandlerServiceImpl) checkDeploymentTriggeredAlready(wfId int) bool {
 	return deploymentTriggeredAlready
 }
 
-func (impl *HandlerServiceImpl) createStartingWfAndRunner(request bean.TriggerRequest, triggeredAt time.Time) (*pipelineConfig.CdWorkflow, *pipelineConfig.CdWorkflowRunner, error) {
+func (impl *HandlerServiceImpl) createStartingWfAndRunner(request bean.CdTriggerRequest, triggeredAt time.Time) (*pipelineConfig.CdWorkflow, *pipelineConfig.CdWorkflowRunner, error) {
 	triggeredBy := request.TriggeredBy
 	artifact := request.Artifact
 	pipeline := request.Pipeline
@@ -269,10 +317,13 @@ func (impl *HandlerServiceImpl) createStartingWfAndRunner(request bean.TriggerRe
 	if err != nil {
 		return nil, nil, err
 	}
+	runner.CdWorkflow = cdWf
+	runner.CdWorkflow.CiArtifact = artifact
+	runner.CdWorkflow.Pipeline = pipeline
 	return cdWf, runner, nil
 }
 
-func (impl *HandlerServiceImpl) getEnvAndNsIfRunStageInEnv(ctx context.Context, request bean.TriggerRequest) (*repository4.Environment, string, error) {
+func (impl *HandlerServiceImpl) getEnvAndNsIfRunStageInEnv(ctx context.Context, request bean.CdTriggerRequest) (*repository4.Environment, string, error) {
 	workflowStage := request.WorkflowType
 	pipeline := request.Pipeline
 	var env *repository4.Environment

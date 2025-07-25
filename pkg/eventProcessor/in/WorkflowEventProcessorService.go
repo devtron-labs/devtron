@@ -328,7 +328,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeTriggerBulkAction() error {
 			ReferenceId: pointer.String(msg.MsgId),
 		}
 
-		triggerRequest := triggerBean.TriggerRequest{
+		triggerRequest := triggerBean.CdTriggerRequest{
 			CdWf:           adapter.ConvertCdWorkflowDtoToDbObj(wf), //TODO: update object from db to dto
 			Artifact:       artifact,
 			Pipeline:       pipelineObj,
@@ -1162,7 +1162,7 @@ func (impl *WorkflowEventProcessorImpl) setAdditionalDataInAsyncInstallReq(ctx c
 	if err != nil {
 		return err
 	}
-	envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(pipelineModel.AppId, pipelineModel.EnvironmentId)
+	envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(nil, pipelineModel.AppId, pipelineModel.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", pipelineModel.AppId, "envId", pipelineModel.EnvironmentId, "err", err)
 		return err

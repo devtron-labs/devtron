@@ -41,6 +41,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
@@ -767,6 +768,9 @@ func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []bean4.AppWork
 			impl.logger.Errorw("error in creating ci pipeline, app clone", "err", err)
 			return createWorkflowMappingDto, err
 		}
+		if ci == nil || ci.CiPipelines == nil || len(ci.CiPipelines) == 0 {
+			return createWorkflowMappingDto, errors.New("ci pipeline not created")
+		}
 		impl.logger.Debugw("ci created", "ci", ci)
 	}
 
@@ -812,6 +816,7 @@ type cloneCiPipelineRequest struct {
 func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (*bean.CiConfigRequest, error) {
 	refCiConfig, err := impl.pipelineBuilder.GetCiPipeline(req.refAppId)
 	if err != nil {
+		impl.logger.Errorw("error in fetching ci config", "err", err)
 		return nil, err
 	}
 
@@ -825,6 +830,7 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 		}
 	}
 	if refCiPipeline == nil {
+		impl.logger.Errorw("error in fetching ci pipeline", "err", err)
 		return nil, nil
 	}
 	pipelineName := refCiPipeline.Name

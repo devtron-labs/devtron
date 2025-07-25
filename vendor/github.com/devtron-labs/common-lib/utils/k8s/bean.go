@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	"github.com/devtron-labs/common-lib/utils/remoteConnection/bean"
 	v1 "k8s.io/api/core/v1"
@@ -43,10 +44,16 @@ type ClusterConfig struct {
 	RemoteConnectionConfig          *bean.RemoteConnectionConfigBean
 }
 
+var logger, _ = utils.NewSugardLogger()
+
 func (clusterConfig *ClusterConfig) PopulateTlsConfigurationsInto(restConfig *rest.Config) {
-	restConfig.TLSClientConfig = rest.TLSClientConfig{Insecure: clusterConfig.InsecureSkipTLSVerify}
+	serverName, err := GetServerNameFromServerUrl(clusterConfig.Host)
+	if err != nil {
+		// making it non-blocking to avoid blocking the flow
+		logger.Errorw("Error parsing server URL:", "err", err, "clusterConfig.Host", clusterConfig.Host)
+	}
+	restConfig.TLSClientConfig = rest.TLSClientConfig{Insecure: clusterConfig.InsecureSkipTLSVerify, ServerName: serverName}
 	if clusterConfig.InsecureSkipTLSVerify == false {
-		restConfig.TLSClientConfig.ServerName = restConfig.ServerName
 		restConfig.TLSClientConfig.KeyData = []byte(clusterConfig.KeyData)
 		restConfig.TLSClientConfig.CertData = []byte(clusterConfig.CertData)
 		restConfig.TLSClientConfig.CAData = []byte(clusterConfig.CAData)
@@ -114,7 +121,8 @@ type ApplyResourcesResponse struct {
 }
 
 type ManifestResponse struct {
-	Manifest unstructured.Unstructured `json:"manifest,omitempty"`
+	Manifest            unstructured.Unstructured  `json:"manifest,omitempty"`
+	RecommendedManifest *unstructured.Unstructured `json:"recommendedManifest,omitempty"` // imp: this is used to show recommended resources for the resource browser
 	// EphemeralContainers are set for Pod kind manifest response only.
 	// will only contain ephemeral containers which are in running state
 	// +optional

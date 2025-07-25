@@ -39,7 +39,6 @@ import (
 type EventClientConfig struct {
 	DestinationURL     string             `env:"EVENT_URL" envDefault:"http://localhost:3000/notify" description:"Notifier service url"`
 	NotificationMedium NotificationMedium `env:"NOTIFICATION_MEDIUM" envDefault:"rest" description:"notification medium"`
-	EnableNotifierV2   bool               `env:"ENABLE_NOTIFIER_V2" envDefault:"false" description:"enable notifier v2"`
 }
 type NotificationMedium string
 
@@ -243,20 +242,13 @@ func (impl *EventRESTClientImpl) sendEvent(event Event) (bool, error) {
 	impl.logger.Debugw("event before send", "event", event)
 
 	// Step 1: Create payload and destination URL based on config
-	bodyBytes, destinationUrl, err := impl.createPayloadAndDestination(event)
+	bodyBytes, destinationUrl, err := impl.createV2PayloadAndDestination(event)
 	if err != nil {
 		return false, err
 	}
 
 	// Step 2: Send via appropriate medium (NATS or REST)
 	return impl.deliverEvent(bodyBytes, destinationUrl)
-}
-
-func (impl *EventRESTClientImpl) createPayloadAndDestination(event Event) ([]byte, string, error) {
-	if impl.config.EnableNotifierV2 {
-		return impl.createV2PayloadAndDestination(event)
-	}
-	return impl.createDefaultPayloadAndDestination(event)
 }
 
 func (impl *EventRESTClientImpl) createV2PayloadAndDestination(event Event) ([]byte, string, error) {
@@ -300,15 +292,6 @@ func (impl *EventRESTClientImpl) createV2PayloadAndDestination(event Event) ([]b
 	}
 
 	return bodyBytes, destinationUrl, nil
-}
-
-func (impl *EventRESTClientImpl) createDefaultPayloadAndDestination(event Event) ([]byte, string, error) {
-	bodyBytes, err := json.Marshal(event)
-	if err != nil {
-		impl.logger.Errorw("error while marshaling event request", "err", err)
-		return nil, "", err
-	}
-	return bodyBytes, impl.config.DestinationURL, nil
 }
 
 func (impl *EventRESTClientImpl) processNotificationSettings(notificationSettings []repository.NotificationSettings) ([]*repository.NotificationSettingsBean, error) {

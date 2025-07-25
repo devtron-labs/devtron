@@ -25,6 +25,7 @@ metadata:
     release: devtron
 {{- if .configs }}
 data:
+{{ toYaml $.Values.global.dbConfig | indent 2 }}
 {{ toYaml .configs | indent 2 }}
 {{- end }}
   
@@ -75,6 +76,7 @@ spec:
         runAsUser: 1000
       serviceAccountName: devtron-default-sa
       {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.gitsensor.nodeSelector "tolerations" $.Values.components.gitsensor.tolerations "imagePullSecrets" $.Values.components.gitsensor.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      {{- if not (and $.Values.nfs $.Values.nfs.enabled) }}
       initContainers:
         - command:
           - /bin/sh
@@ -93,7 +95,8 @@ spec:
           terminationMessagePolicy: File
           volumeMounts:
           - mountPath: /git-base/
-            name: git-volume
+            name: git-volume    
+      {{- end }}
       containers:
         - name: git-sensor
           image: {{ include "common.image" (dict "component" $.Values.components.gitsensor "global" $.Values.global) }}

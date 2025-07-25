@@ -437,6 +437,11 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowMappingForEnv(appIds []int) (m
 	workflowMappings := make(map[int][]bean4.AppWorkflowMappingDto)
 	workflows := make(map[int]*bean4.AppWorkflowDto)
 	for _, w := range appWorkflowMappings {
+		if _, ok := pipelineMap[w.ComponentId]; !ok && w.Type == "CD_PIPELINE" {
+			impl.Logger.Warnw("pipeline not found for componentId", "componentId", w.ComponentId, "appWorkflowId", w.AppWorkflowId)
+			// If the pipeline is not found, we skip adding this mapping as one possible reason would be pipeline have been deleted
+			continue
+		}
 		if _, ok := workflows[w.AppWorkflowId]; !ok {
 			workflows[w.AppWorkflowId] = &bean4.AppWorkflowDto{
 				Id:    w.AppWorkflowId,
@@ -607,6 +612,10 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(request resou
 	}
 	appResults, envResults := request.CheckAuthBatch(token, appObjectArr, envObjectArr)
 	for _, pipeline := range pipelines {
+		if _, ok := objects[pipeline.Id]; !ok {
+			impl.Logger.Warnw("pipeline not found in objects map", "pipelineId", pipeline.Id)
+			continue
+		}
 		appObject := objects[pipeline.Id][0]
 		envObject := objects[pipeline.Id][1]
 		if !(appResults[appObject] && envResults[envObject]) {
@@ -811,7 +820,7 @@ func (impl AppWorkflowServiceImpl) FindCdPipelinesByAppId(appId int) (*bean.CdPi
 	}
 
 	for _, pipeline := range dbPipelines {
-		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, pipeline.EnvironmentId)
+		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(nil, appId, pipeline.EnvironmentId)
 		if err != nil {
 			impl.Logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", pipeline.EnvironmentId, "err", err)
 			return nil, err

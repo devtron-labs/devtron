@@ -19,6 +19,7 @@ package k8s
 import (
 	"context"
 	"flag"
+	"github.com/devtron-labs/common-lib/utils/k8s/configMap"
 	"go.uber.org/zap"
 	"io"
 	batchV1 "k8s.io/api/batch/v1"
@@ -76,7 +77,9 @@ type K8sService interface {
 	PatchConfigMap(namespace string, clusterConfig *ClusterConfig, name string, data map[string]interface{}) (*v1.ConfigMap, error)
 	UpdateConfigMap(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) (*v1.ConfigMap, error)
 	CreateConfigMap(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) (*v1.ConfigMap, error)
+	CreateConfigMapObject(name, namespace string, client *v12.CoreV1Client, opts ...configMap.ConfigMapOption) (*v1.ConfigMap, error)
 	GetConfigMap(namespace string, name string, client *v12.CoreV1Client) (*v1.ConfigMap, error)
+	DeleteConfigMap(namespace string, name string, client *v12.CoreV1Client) error
 	GetConfigMapWithCtx(ctx context.Context, namespace string, name string, client *v12.CoreV1Client) (*v1.ConfigMap, error)
 	GetNsIfExists(namespace string, client *v12.CoreV1Client) (ns *v1.Namespace, exists bool, err error)
 	CreateNsIfNotExists(namespace string, clusterConfig *ClusterConfig) (ns *v1.Namespace, nsCreated bool, err error)
@@ -112,6 +115,8 @@ type K8sService interface {
 	GetResourceByGVR(ctx context.Context, config *rest.Config, GVR schema.GroupVersionResource, resourceName, namespace string) (*unstructured.Unstructured, error)
 	PatchResourceByGVR(ctx context.Context, config *rest.Config, GVR schema.GroupVersionResource, resourceName, namespace string, patchType types.PatchType, patchData []byte) (*unstructured.Unstructured, error)
 	DeleteResourceByGVR(ctx context.Context, config *rest.Config, GVR schema.GroupVersionResource, resourceName, namespace string, forceDelete bool) error
+	GetRestClientForCRD(config *ClusterConfig, groupVersion *schema.GroupVersion) (*rest.RESTClient, error)
+	PatchResourceByRestClient(restClient *rest.RESTClient, resource, name, namespace string, pt types.PatchType, data []byte, subresources ...string) rest.Result
 
 	// k8s rest config methods
 

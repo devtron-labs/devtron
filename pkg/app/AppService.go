@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"strconv"
 	"time"
 
@@ -47,7 +46,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/common-lib/async"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -76,14 +74,16 @@ import (
 type AppServiceConfig struct {
 	CdPipelineStatusCronTime                   string `env:"CD_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *" description:"Cron time for CD pipeline status"`
 	CdHelmPipelineStatusCronTime               string `env:"CD_HELM_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *" description:"Cron time to check the pipeline status "`
+	CdFluxPipelineStatusCronTime               string `env:"CD_FLUX_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *" description:"Cron time to check the pipeline status for flux cd pipeline"`
 	CdPipelineStatusTimeoutDuration            string `env:"CD_PIPELINE_STATUS_TIMEOUT_DURATION" envDefault:"20" description:"Timeout for CD pipeline to get healthy" `                                                                                                                                                                                                               // in minutes
 	PipelineDegradedTime                       string `env:"PIPELINE_DEGRADED_TIME" envDefault:"10" description:"Time to mark a pipeline degraded if not healthy in defined time"`                                                                                                                                                                                                    // in minutes
 	GetPipelineDeployedWithinHours             int    `env:"DEPLOY_STATUS_CRON_GET_PIPELINE_DEPLOYED_WITHIN_HOURS" envDefault:"12" description:"This flag is used to fetch the deployment status of the application. It retrieves the status of deployments that occurred between 12 hours and 10 minutes prior to the current time. It fetches non-terminal statuses."`              // in hours
 	HelmPipelineStatusCheckEligibleTime        string `env:"HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME" envDefault:"120" description:"eligible time for checking helm app status periodically and update in db, value is in seconds., default is 120, if wfr is updated within configured time i.e. HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME then do not include for this cron cycle."` // in seconds
 	ExposeCDMetrics                            bool   `env:"EXPOSE_CD_METRICS" envDefault:"false"`
-	DevtronChartHelmInstallRequestTimeout      int    `env:"DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT" envDefault:"6" description:"Context timeout for no gitops concurrent async deployments"`                                                         // in minutes
-	DevtronChartArgoCdInstallRequestTimeout    int    `env:"DEVTRON_CHART_ARGO_CD_INSTALL_REQUEST_TIMEOUT" envDefault:"1" description:"Context timeout for gitops concurrent async deployments"`                                                    // in minutes
-	ArgoCdManualSyncCronPipelineDeployedBefore int    `env:"ARGO_APP_MANUAL_SYNC_TIME" envDefault:"3" description:"retry argocd app manual sync if the timeline is stuck in ARGOCD_SYNC_INITIATED state for more than this defined time (in mins)"` // in minutes
+	DevtronChartHelmInstallRequestTimeout      int    `env:"DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT" envDefault:"6" description:"Context timeout for no gitops concurrent async deployments"`                                                                                                                                                                                                 // in minutes
+	DevtronChartArgoCdInstallRequestTimeout    int    `env:"DEVTRON_CHART_ARGO_CD_INSTALL_REQUEST_TIMEOUT" envDefault:"1" description:"Context timeout for gitops concurrent async deployments"`                                                                                                                                                                                            // in minutes
+	ArgoCdManualSyncCronPipelineDeployedBefore int    `env:"ARGO_APP_MANUAL_SYNC_TIME" envDefault:"3" description:"retry argocd app manual sync if the timeline is stuck in ARGOCD_SYNC_INITIATED state for more than this defined time (in mins)"`                                                                                                                                         // in minutes
+	FluxCDPipelineStatusCheckEligibleTime      string `env:"FLUX_CD_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME" envDefault:"120" description:"eligible time for checking flux app status periodically and update in db, value is in seconds., default is 120, if wfr is updated within configured time i.e. FLUX_CD_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME then do not include for this cron cycle."` // in seconds
 }
 
 func GetAppServiceConfig() (*AppServiceConfig, error) {
@@ -126,7 +126,7 @@ type AppServiceImpl struct {
 	deploymentConfigService                common2.DeploymentConfigService
 	envConfigOverrideReadService           read.EnvConfigOverrideService
 	cdWorkflowRunnerService                cd.CdWorkflowRunnerService
-	asyncRunnable                          *async.Runnable
+	deploymentEventHandler                 DeploymentEventHandler
 }
 
 type AppService interface {
@@ -135,7 +135,6 @@ type AppService interface {
 	GetConfigMapAndSecretJson(appId int, envId int) ([]byte, error)
 	UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Application, cdWfrId int, updateTimedOutStatus bool) error
 	UpdateDeploymentStatusForGitOpsPipelines(app *v1alpha1.Application, applicationClusterId int, statusTime time.Time, isAppStore bool) (bool, bool, *chartConfig.PipelineOverride, error)
-	WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride)
 	CreateGitOpsRepo(app *app.App, targetRevision string, userId int32) (gitopsRepoName string, chartGitAttr *commonBean.ChartGitAttribute, err error)
 
 	// TODO: move inside reader service
@@ -168,7 +167,7 @@ func NewAppService(
 	deploymentConfigService common2.DeploymentConfigService,
 	envConfigOverrideReadService read.EnvConfigOverrideService,
 	cdWorkflowRunnerService cd.CdWorkflowRunnerService,
-	asyncRunnable *async.Runnable) *AppServiceImpl {
+	deploymentEventHandler DeploymentEventHandler) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		mergeUtil:                              mergeUtil,
 		pipelineOverrideRepository:             pipelineOverrideRepository,
@@ -199,7 +198,7 @@ func NewAppService(
 		deploymentConfigService:                deploymentConfigService,
 		envConfigOverrideReadService:           envConfigOverrideReadService,
 		cdWorkflowRunnerService:                cdWorkflowRunnerService,
-		asyncRunnable:                          asyncRunnable,
+		deploymentEventHandler:                 deploymentEventHandler,
 	}
 	return appServiceImpl
 }
@@ -309,6 +308,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 				impl.logger.Errorw("error on update cd workflow runner", "CdWorkflowId", pipelineOverride.CdWorkflowId, "status", cdWorkflow2.WorkflowTimedOut, "err", err)
 				return isSucceeded, isTimelineUpdated, pipelineOverride, err
 			}
+			impl.deploymentEventHandler.WriteCDNotificationEventAsync(cdPipeline.AppId, cdPipeline.EnvironmentId, pipelineOverride, eventUtil.Fail)
 			return isSucceeded, isTimelineUpdated, pipelineOverride, nil
 		}
 		if reconciledAt.IsZero() || (kubectlSyncedTimeline != nil && kubectlSyncedTimeline.Id > 0 && reconciledAt.After(kubectlSyncedTimeline.StatusTime)) {
@@ -325,7 +325,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 				}
 				if isSucceeded {
 					impl.logger.Infow("writing cd success event", "gitHash", gitHash, "pipelineOverride", pipelineOverride)
-					impl.asyncRunnable.Execute(func() { impl.WriteCDSuccessEvent(cdPipeline.AppId, cdPipeline.EnvironmentId, pipelineOverride) })
+					impl.deploymentEventHandler.WriteCDNotificationEventAsync(cdPipeline.AppId, cdPipeline.EnvironmentId, pipelineOverride, eventUtil.Success)
 				}
 			} else {
 				impl.logger.Debugw("event received for older triggered revision", "gitHash", gitHash)
@@ -488,7 +488,7 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValid(app *v1alpha1.Appl
 		// drop event
 		return isValid, pipeline, cdWfr, pipelineOverride, nil
 	}
-	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(pipeline.AppId, pipeline.EnvironmentId)
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(nil, pipeline.AppId, pipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in getting deployment config by appId and environmentId", "appId", pipeline.AppId, "environmentId", pipeline.EnvironmentId, "err", err)
 		return isValid, pipeline, cdWfr, pipelineOverride, err
@@ -773,23 +773,6 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 	return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, nil
 }
 
-func (impl *AppServiceImpl) WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride) {
-	event, _ := impl.eventFactory.Build(eventUtil.Success, &override.PipelineId, appId, &envId, eventUtil.CD)
-	impl.logger.Debugw("event WriteCDSuccessEvent", "event", event, "override", override)
-	event = impl.eventFactory.BuildExtraCDData(event, nil, override.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
-	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
-	if evtErr != nil {
-		impl.logger.Errorw("error in writing event", "event", event, "err", evtErr)
-	}
-}
-
-func (impl *AppServiceImpl) BuildCDSuccessPayload(appName string, environmentName string) *client.Payload {
-	payload := &client.Payload{}
-	payload.AppName = appName
-	payload.EnvName = environmentName
-	return payload
-}
-
 type ValuesOverrideResponse struct {
 	MergedValues         string
 	ReleaseOverrideJSON  string
@@ -804,7 +787,7 @@ type ValuesOverrideResponse struct {
 
 func (impl *AppServiceImpl) CreateGitOpsRepo(app *app.App, targetRevision string, userId int32) (gitOpsRepoName string, chartGitAttr *commonBean.ChartGitAttribute, err error) {
 
-	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(app.Id, 0)
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(nil, app.Id, 0)
 	if err != nil {
 		impl.logger.Errorw("error in getting deployment config for devtron apps", "appId", app.Id, "err", err)
 		return "", nil, err
@@ -885,29 +868,6 @@ type DeploymentEvent struct {
 type PipelineMaterialInfo struct {
 	PipelineMaterialId int
 	CommitHash         string
-}
-
-func buildCDTriggerEvent(impl *AppServiceImpl, overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline,
-	envOverride *chartConfig.EnvConfigOverride, materialInfo map[string]string, artifact *repository.CiArtifact) client.Event {
-	event, _ := impl.eventFactory.Build(eventUtil.Trigger, &pipeline.Id, pipeline.AppId, &pipeline.EnvironmentId, eventUtil.CD)
-	return event
-}
-
-func (impl *AppServiceImpl) BuildPayload(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline,
-	envOverride *chartConfig.EnvConfigOverride, materialInfo map[string]string, artifact *repository.CiArtifact) *client.Payload {
-	payload := &client.Payload{}
-	payload.AppName = pipeline.App.AppName
-	payload.PipelineName = pipeline.Name
-	payload.EnvName = envOverride.Environment.Name
-
-	var revision string
-	for _, v := range materialInfo {
-		revision = v
-		break
-	}
-	payload.Source = url.PathEscape(revision)
-	payload.DockerImageUrl = artifact.Image
-	return payload
 }
 
 type ReleaseAttributes struct {
@@ -991,7 +951,7 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 	}
 	appId := wfr.CdWorkflow.Pipeline.AppId
 	envId := wfr.CdWorkflow.Pipeline.EnvironmentId
-	envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
+	envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(nil, appId, envId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
 		return err

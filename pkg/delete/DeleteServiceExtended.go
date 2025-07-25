@@ -80,15 +80,15 @@ func NewDeleteServiceExtendedImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl DeleteServiceExtendedImpl) DeleteCluster(deleteRequest *bean2.ClusterBean, userId int32) error {
+func (impl DeleteServiceExtendedImpl) DeleteCluster(deleteRequest *bean2.DeleteClusterBean, userId int32) error {
 	//finding if there are env in this cluster or not, if yes then will not delete
 	env, err := impl.environmentRepository.FindByClusterId(deleteRequest.Id)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("err in deleting cluster", "clusterName", deleteRequest.ClusterName, "err", err)
+		impl.logger.Errorw("err in deleting cluster", "clusterId", deleteRequest.Id, "err", err)
 		return err
 	}
 	if len(env) > 0 {
-		impl.logger.Errorw("err in deleting cluster, found env in this cluster", "clusterName", deleteRequest.ClusterName, "err", err)
+		impl.logger.Errorw("err in deleting cluster, found env in this cluster", "clusterId", deleteRequest.Id, "err", err)
 		return &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: " Please delete all related environments before deleting this cluster"}
 	}
 	clusterName, err := impl.clusterService.DeleteFromDb(deleteRequest, userId)
@@ -96,10 +96,11 @@ func (impl DeleteServiceExtendedImpl) DeleteCluster(deleteRequest *bean2.Cluster
 		impl.logger.Errorw("error im deleting cluster", "err", err, "deleteRequest", deleteRequest)
 		return err
 	}
-	err = impl.DeleteClusterSecret(deleteRequest, err)
+	err = impl.DeleteClusterConfigMap(deleteRequest)
 	if err != nil {
 		impl.logger.Errorw("error in deleting cluster secret", "clusterId", deleteRequest.Id, "error", err)
-		return err
+		// We are not returning error as it is not a blocking call as cluster can be unreachable at that time, and we have already deleted cluster from db.
+		//return err
 	}
 	impl.k8sInformerFactory.DeleteClusterFromCache(clusterName)
 	return nil

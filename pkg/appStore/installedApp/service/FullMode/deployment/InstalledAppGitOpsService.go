@@ -18,10 +18,8 @@ package deployment
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
@@ -34,10 +32,9 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/xanzy/go-gitlab"
-	"strconv"
-
-	//"github.com/xanzy/go-gitlab"
 	"net/http"
+	"strconv"
+	"strings"
 )
 
 type InstalledAppGitOpsService interface {
@@ -178,7 +175,7 @@ func (impl *FullModeDeploymentServiceImpl) parseGitRepoErrorResponse(err error) 
 			impl.Logger.Errorw("no content found while updating git repo gitlab, do auto fix", "error", err)
 			noTargetFound = true
 		}
-		if err.Error() == git.BITBUCKET_REPO_NOT_FOUND_ERROR {
+		if strings.Contains(err.Error(), git.BitbucketRepoNotFoundError.Error()) {
 			impl.Logger.Errorw("no content found while updating git repo bitbucket, do auto fix", "error", err)
 			noTargetFound = true
 		}
@@ -243,50 +240,6 @@ func (impl *FullModeDeploymentServiceImpl) createGitOpsRepo(gitOpsRepoName strin
 		return "", false, err
 	}
 	return repoUrl, isNew, err
-}
-
-func (impl *FullModeDeploymentServiceImpl) updateValuesYamlInGit(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
-	valuesString, err := impl.appStoreDeploymentCommonService.GetValuesString(installAppVersionRequest.AppStoreName, installAppVersionRequest.ValuesOverrideYaml)
-	if err != nil {
-		impl.Logger.Errorw("error in getting values string", "err", err)
-		return nil, err
-	}
-
-	valuesGitConfig, err := impl.getGitCommitConfig(installAppVersionRequest, valuesString, appStoreBean.VALUES_YAML_FILE)
-	if err != nil {
-		impl.Logger.Errorw("error in getting git commit config", "err", err)
-	}
-
-	commitHash, _, err := impl.gitOperationService.CommitValues(context.Background(), valuesGitConfig)
-	if err != nil {
-		impl.Logger.Errorw("error in git commit", "err", err)
-		return installAppVersionRequest, errors.New(timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString())
-	}
-	//update timeline status for git commit state
-	installAppVersionRequest.GitHash = commitHash
-	return installAppVersionRequest, nil
-}
-
-func (impl *FullModeDeploymentServiceImpl) updateRequirementYamlInGit(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error {
-	requirementsString, err := impl.appStoreDeploymentCommonService.GetRequirementsString(appStoreAppVersion)
-	if err != nil {
-		impl.Logger.Errorw("error in getting requirements string", "err", err)
-		return err
-	}
-
-	requirementsGitConfig, err := impl.getGitCommitConfig(installAppVersionRequest, requirementsString, appStoreBean.REQUIREMENTS_YAML_FILE)
-	if err != nil {
-		impl.Logger.Errorw("error in getting git commit config", "err", err)
-		return err
-	}
-
-	_, _, err = impl.gitOperationService.CommitValues(context.Background(), requirementsGitConfig)
-	if err != nil {
-		impl.Logger.Errorw("error in values commit", "err", err)
-		return errors.New(timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString())
-	}
-
-	return nil
 }
 
 // createChartProxyAndGetPath parse chart in local directory and returns path of local dir and values.yaml
@@ -370,7 +323,7 @@ func (impl *FullModeDeploymentServiceImpl) getValuesAndRequirementForGitConfig(i
 		}
 
 	}
-	values, err := impl.appStoreDeploymentCommonService.GetValuesString(appStoreAppVersion.AppStore.Name, installAppVersionRequest.ValuesOverrideYaml)
+	values, err := impl.appStoreDeploymentCommonService.GetValuesString(appStoreAppVersion, installAppVersionRequest.ValuesOverrideYaml)
 	if err != nil {
 		impl.Logger.Errorw("error in getting values fot installedAppVersionRequest", "err", err)
 		return nil, nil, err

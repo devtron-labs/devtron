@@ -56,6 +56,7 @@ import (
 const (
 	DEVTRON_APP_HELM_PIPELINE_STATUS_UPDATE_CRON = "DTAppHelmPipelineStatusUpdateCron"
 	DEVTRON_APP_ARGO_PIPELINE_STATUS_UPDATE_CRON = "DTAppArgoPipelineStatusUpdateCron"
+	DEVTRON_APP_FLUX_PIPELINE_STATUS_UPDATE_CRON = "DTAppFluxPipelineStatusUpdateCron"
 	HELM_APP_ARGO_PIPELINE_STATUS_UPDATE_CRON    = "HelmAppArgoPipelineStatusUpdateCron"
 )
 
@@ -177,7 +178,7 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus eventProcessorBean.CiCd
 		}
 		appId := savedWorkflow.CdWorkflow.Pipeline.AppId
 		envId := savedWorkflow.CdWorkflow.Pipeline.EnvironmentId
-		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
+		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(nil, appId, envId)
 		if err != nil {
 			impl.Logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
 			return savedWorkflow.Id, savedWorkflow.Status, true, "", err
@@ -883,6 +884,10 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(request resou
 	}
 	appResults, envResults := request.CheckAuthBatch(token, appObjectArr, envObjectArr)
 	for _, pipeline := range cdPipelines {
+		if _, ok := objects[pipeline.Id]; !ok {
+			impl.Logger.Warnw("skipping pipeline as no object found for it", "pipelineId", pipeline.Id)
+			continue
+		}
 		appObject := objects[pipeline.Id][0]
 		envObject := objects[pipeline.Id][1]
 		if !(appResults[appObject] && envResults[envObject]) {
