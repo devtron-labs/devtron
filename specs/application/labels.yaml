@@ -56,7 +56,16 @@ paths:
                     type: string
                     description: status
                   result:
-                    $ref: '#/components/schemas/AppMetaInfo'
+                    allOf:
+                      - $ref: '#/components/schemas/AppMetaInfo'
+                      - type: object
+                        properties:
+                          gitMaterials:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/GitMaterialMeta'
+                          templateConfig:
+                            $ref: '#/components/schemas/TemplateConfig'
         default:
           description: unexpected error
           content:
@@ -64,7 +73,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /orchestrator/helm/meta/info/{appId}:
+  /orchestrator/app/helm/meta/info/{appId}:
     get:
       description: application info for all types of helm apps
       parameters:
@@ -200,15 +209,28 @@ components:
           type: string
           description: Original git URL
 
+    TemplateConfig:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Template config ID
+        identifier:
+          type: string
+          description: Template identifier
+        name:
+          type: string
+          description: Template name
+
     GenericNoteResponse:
       type: object
       properties:
         id:
           type: integer
           description: Note ID
-        note:
+        description:
           type: string
-          description: Note content
+          description: Note content/description
         createdOn:
           type: string
           format: date-time
