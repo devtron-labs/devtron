@@ -13,6 +13,7 @@ data:
   DEVTRON_HELM_RELEASE_NAME: {{ $.Release.Name }}
   DEVTRON_HELM_RELEASE_NAMESPACE: {{ $.Release.Namespace }}
   FEATURE_MIGRATE_ARGOCD_APPLICATION_ENABLE: "true"
+  GRPC_ENFORCE_ALPN_ENABLED: "false"
 {{ toYaml $.Values.global.dbConfig | indent 2 }}
   HELM_CLIENT_URL: kubelink-service-headless:50051
   DASHBOARD_PORT: "80"
