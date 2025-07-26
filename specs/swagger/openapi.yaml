@@ -92,7 +92,6 @@ paths:
       operationId: getDeploymentHistory
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       parameters:
       - name: filterCriteria
         in: query
@@ -431,7 +430,7 @@ paths:
       description: This API will return all the labels available in the database.
       operationId: listAppLabels
       security:
-      - ApiKeyAuth: []
+      - bearerAuth: []
       parameters: []
       responses:
         '200':
@@ -478,7 +477,7 @@ paths:
       description: Application basic info, projects and labels
       operationId: getAppMetaInfo
       security:
-      - ApiKeyAuth: []
+      - bearerAuth: []
       parameters:
       - name: appId
         in: path
@@ -526,7 +525,7 @@ paths:
       description: Application info for all types of Helm apps
       operationId: getHelmAppMetaInfo
       security:
-      - ApiKeyAuth: []
+      - bearerAuth: []
       parameters:
       - name: appId
         in: path
@@ -573,7 +572,7 @@ paths:
       description: Create and clone a job
       operationId: createOrCloneJob
       security:
-      - ApiKeyAuth: []
+      - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -601,7 +600,7 @@ paths:
       description: Get the list of all the jobs by applying filter
       operationId: listJobs
       security:
-      - ApiKeyAuth: []
+      - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -629,7 +628,7 @@ paths:
       description: fetch details of job ci-pipelines for the overview page
       operationId: getJobCiPipelineList
       security:
-      - ApiKeyAuth: []
+      - bearerAuth: []
       parameters:
       - name: jobId
         in: path
@@ -653,7 +652,7 @@ paths:
       operationId: listDeployedCharts
       description: deployed chart listing, with search filters
       security:
-      - ApiKeyAuth: []
+      - bearerAuth: []
       parameters:
       - name: envs
         in: query
@@ -739,7 +738,7 @@ paths:
       operationId: fetchNotesTxt
       description: Used to fetch notes.txt for helm charts deployed via gitOps
       security:
-      - ApiKeyAuth: []
+      - bearerAuth: []
       parameters:
       - name: env-id
         in: query
@@ -826,14 +825,14 @@ paths:
       tags:
       - List Applications
       security:
-      - ApiKeyAuth: []
+      - bearerAuth: []
   /orchestrator/app:
     post:
       summary: Create a new application
       operationId: createApplication
       description: create new application
       security:
-      - ApiKeyAuth: []
+      - bearerAuth: []
       requestBody:
         description: json as request body
         required: true
@@ -886,7 +885,7 @@ paths:
       operationId: updateApplicationProjectsAndLabels
       description: update application projects and labels
       security:
-      - ApiKeyAuth: []
+      - bearerAuth: []
       requestBody:
         description: json as request body
         required: true
@@ -940,7 +939,7 @@ paths:
       description: app listing, collection of deployed applications or undeployed
         or incomplete configured apps.
       security:
-      - ApiKeyAuth: []
+      - bearerAuth: []
       requestBody:
         description: json as request body
         required: true
@@ -1002,7 +1001,7 @@ paths:
       operationId: updateProjectForApp
       description: update project for app
       security:
-      - ApiKeyAuth: []
+      - bearerAuth: []
       requestBody:
         description: json as request body
         required: true
@@ -1053,7 +1052,6 @@ paths:
       - Labels
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       parameters:
       - name: showPropagatedOnly
         in: query
@@ -1199,7 +1197,6 @@ paths:
       operationId: FindBulkUpdateReadme
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       parameters:
       - name: apiVersion
         in: path
@@ -1234,7 +1231,6 @@ paths:
       operationId: GetBulkAppName
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       requestBody:
         description: A JSON object containing information by which apps will be filtered
         required: true
@@ -1278,7 +1274,6 @@ paths:
       operationId: BulkHibernate
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       tags:
       - BulkUpdate
       requestBody:
@@ -1321,7 +1316,6 @@ paths:
       operationId: BulkUnHibernate
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       tags:
       - BulkUpdate
       requestBody:
@@ -1364,7 +1358,6 @@ paths:
       operationId: BulkDeploy
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       tags:
       - BulkUpdate
       requestBody:
@@ -1406,7 +1399,6 @@ paths:
       operationId: BulkBuildTrigger
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       tags:
       - BulkUpdate
       requestBody:
@@ -1450,7 +1442,6 @@ paths:
       operationId: BulkUpdate
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       tags:
       - BulkUpdate
       requestBody:
@@ -1507,7 +1498,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /sso/update:
     put:
       tags:
@@ -1529,7 +1519,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /sso/list:
     get:
       tags:
@@ -1549,7 +1538,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /sso/{id}:
     get:
       tags:
@@ -1571,7 +1559,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /sso:
     get:
       tags:
@@ -1596,7 +1583,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /rbac/roles/default:
     get:
       tags:
@@ -1620,7 +1606,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /api/v1/session:
     post:
       tags:
@@ -1672,7 +1657,6 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /refresh:
     get:
       tags:
@@ -1687,7 +1671,6 @@ paths:
           $ref: '#/components/responses/Unauthorized'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /admin/policy/default:
     post:
       tags:
@@ -1721,7 +1704,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /devtron/auth/verify:
     get:
       tags:
@@ -1739,7 +1721,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /devtron/auth/verify/v2:
     get:
       tags:
@@ -1764,7 +1745,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /user/v2:
     get:
       tags:
@@ -1790,7 +1770,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
     post:
       tags:
       - User Management
@@ -1813,7 +1792,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
     put:
       tags:
       - User Management
@@ -1834,7 +1812,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /user:
     get:
       tags:
@@ -1858,7 +1835,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
     post:
       tags:
       - User Management
@@ -1881,7 +1857,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
     put:
       tags:
       - User Management
@@ -1902,7 +1877,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /user/{id}:
     get:
       tags:
@@ -1922,7 +1896,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
     delete:
       tags:
       - User Management
@@ -1943,7 +1916,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /user/v2/{id}:
     get:
       tags:
@@ -1963,7 +1935,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /user/bulk:
     delete:
       tags:
@@ -1983,7 +1954,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /user/detail/get:
     get:
       tags:
@@ -2007,7 +1977,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /user/role/group/v2:
     get:
       tags:
@@ -2033,7 +2002,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
     post:
       tags:
       - Role Group Management
@@ -2054,7 +2022,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
     put:
       tags:
       - Role Group Management
@@ -2073,7 +2040,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /user/role/group:
     get:
       tags:
@@ -2097,7 +2063,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
     post:
       tags:
       - Role Group Management
@@ -2118,7 +2083,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
     put:
       tags:
       - Role Group Management
@@ -2137,7 +2101,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /user/role/group/{id}:
     get:
       tags:
@@ -2155,7 +2118,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
     delete:
       tags:
       - Role Group Management
@@ -2174,7 +2136,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /user/role/group/v2/{id}:
     get:
       tags:
@@ -2192,7 +2153,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /user/role/group/detailed/get:
     get:
       tags:
@@ -2210,7 +2170,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /user/role/group/search:
     get:
       tags:
@@ -2233,7 +2192,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /user/role/group/bulk:
     delete:
       tags:
@@ -2253,7 +2211,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /user/check/roles:
     get:
       tags:
@@ -2291,7 +2248,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /user/sync/orchestratortocasbin:
     get:
       tags:
@@ -2313,7 +2269,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /user/update/trigger/terminal:
     put:
       tags:
@@ -2337,7 +2292,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /user/role/cache:
     get:
       tags:
@@ -2356,7 +2310,6 @@ paths:
           $ref: '#/components/responses/Forbidden'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /user/role/cache/invalidate:
     get:
       tags:
@@ -2375,7 +2328,6 @@ paths:
           $ref: '#/components/responses/Forbidden'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /login:
     get:
       tags:
@@ -2388,7 +2340,6 @@ paths:
           description: Redirect to OIDC provider.
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /auth/login:
     get:
       tags:
@@ -2401,7 +2352,6 @@ paths:
           description: Redirect to OIDC provider.
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /auth/callback:
     get:
       tags:
@@ -2419,7 +2369,6 @@ paths:
           description: Server error during OIDC callback.
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /api/dex/{path}:
     get:
       tags:
@@ -2439,7 +2388,6 @@ paths:
           description: Response from Dex.
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
   /env:
     post:
       summary: Create Environment
@@ -2447,7 +2395,6 @@ paths:
       operationId: CreateEnvironment
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       tags:
       - Environment Management
       requestBody:
@@ -2488,7 +2435,6 @@ paths:
       operationId: UpdateEnvironment
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       tags:
       - Environment Management
       requestBody:
@@ -2529,7 +2475,6 @@ paths:
       operationId: GetEnvironmentById
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       tags:
       - Environment Management
       parameters:
@@ -2577,7 +2522,6 @@ paths:
       operationId: DeleteCluster
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       tags:
       - Cluster Management
       requestBody:
@@ -2624,7 +2568,6 @@ paths:
       operationId: DeleteEnvironmentViaPost
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       tags:
       - Environment Management
       requestBody:
@@ -2671,7 +2614,6 @@ paths:
       operationId: getClustersWithEnvironments
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       tags:
       - Cluster Environment
       responses:
@@ -2702,7 +2644,6 @@ paths:
       operationId: getEnvironmentsForCluster
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       tags:
       - Cluster Environment
       parameters:
@@ -2752,7 +2693,6 @@ paths:
       operationId: UpdateCluster
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       tags:
       - Cluster Management
       requestBody:
@@ -2793,7 +2733,6 @@ paths:
       operationId: GetCluster
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       tags:
       - Cluster Management
       parameters:
@@ -2835,7 +2774,6 @@ paths:
       operationId: GetAuthClusterList
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       tags:
       - Cluster Management
       responses:
@@ -2870,7 +2808,6 @@ paths:
       operationId: ValidateCluster
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       tags:
       - Cluster Management
       requestBody:
@@ -2909,7 +2846,6 @@ paths:
       operationId: SaveClusters
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       tags:
       - Cluster Management
       requestBody:
@@ -2947,7 +2883,6 @@ paths:
       operationId: PatchAppEnv
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       requestBody:
         content:
           application/json:
@@ -2974,7 +2909,6 @@ paths:
       operationId: CloneApplicationWorkflow
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       requestBody:
         description: A JSON object containing the details required to clone the workflow
         required: true
@@ -2999,7 +2933,6 @@ paths:
       operationId: getResourceManifest
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       requestBody:
         description: JSON payload specifying the resource to fetch.
         required: true
@@ -3032,7 +2965,6 @@ paths:
       operationId: updateResourceManifest
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       requestBody:
         description: JSON payload containing the resource identifier and the patch.
         required: true
@@ -3066,7 +2998,6 @@ paths:
       operationId: createResource
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       requestBody:
         description: JSON payload containing the resource manifest to apply.
         required: true
@@ -3099,7 +3030,6 @@ paths:
       operationId: deleteResource
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       requestBody:
         description: JSON payload specifying the resource to delete.
         required: true
@@ -3132,7 +3062,6 @@ paths:
       operationId: getResourceEvents
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       requestBody:
         required: false
         content:
@@ -3157,7 +3086,6 @@ paths:
       operationId: getPodLogs
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       parameters:
       - name: podName
         in: path
@@ -3224,7 +3152,6 @@ paths:
       operationId: getPodExecSession
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       parameters:
       - name: identifier
         in: path
@@ -3282,7 +3209,6 @@ paths:
       operationId: getApiResources
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       parameters:
       - name: clusterId
         in: path
@@ -3309,7 +3235,6 @@ paths:
       operationId: listResources
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       requestBody:
         description: JSON payload specifying the criteria for listing resources.
         required: true
@@ -3345,7 +3270,6 @@ paths:
       operationId: K8sResourceForResources
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       parameters:
       - name: appId
         in: query
@@ -3378,7 +3302,6 @@ paths:
       operationId: applyResources
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       requestBody:
         description: JSON payload containing the manifest of resources to apply.
         required: true
@@ -3405,7 +3328,6 @@ paths:
       operationId: CreateAppWorkflow
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       tags:
       - Workflow Management
       requestBody:
@@ -3452,7 +3374,6 @@ paths:
       operationId: DeleteAppWorkflow
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       tags:
       - Workflow Management
       parameters:
@@ -3538,7 +3459,7 @@ paths:
       description: Validate gitops configuration by dry run
       summary: Validate gitops configuration by dry run
       security:
-      - ApiKeyAuth: []
+      - bearerAuth: []
       operationId: GitOpsValidateDryRun
       requestBody:
         description: A JSON object containing the gitops configuration
@@ -3579,7 +3500,7 @@ paths:
       description: create/save new configuration and validate them before saving
       summary: create/save new configuration and validate them before saving
       security:
-      - ApiKeyAuth: []
+      - bearerAuth: []
       operationId: CreateGitOpsConfig
       requestBody:
         description: A JSON object containing the gitops configuration
@@ -3623,7 +3544,7 @@ paths:
         is within 30 seconds then do not validate)
       operationId: UpdateGitOpsConfig
       security:
-      - ApiKeyAuth: []
+      - bearerAuth: []
       requestBody:
         description: A JSON object containing the gitops configuration
         required: true
@@ -3679,7 +3600,6 @@ paths:
           type: integer
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       tags:
       - Notifications
       responses:
@@ -3708,7 +3628,6 @@ paths:
               $ref: '#/components/schemas/NotificationSetting'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       tags:
       - Notifications
       responses:
@@ -3737,7 +3656,6 @@ paths:
               $ref: '#/components/schemas/NotificationSetting'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       tags:
       - Notifications
       responses:
@@ -3766,7 +3684,6 @@ paths:
               $ref: '#/components/schemas/NotificationSetting'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       tags:
       - Notifications
       responses:
@@ -3797,7 +3714,6 @@ paths:
           type: string
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       tags:
       - Notifications
       responses:
@@ -3816,7 +3732,6 @@ paths:
       operationId: findNotificationSettingConfig
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       tags:
       - Notifications
       responses:
@@ -3845,7 +3760,6 @@ paths:
               $ref: '#/components/schemas/NotificationConfig'
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       tags:
       - Notifications
       responses:
@@ -3903,7 +3817,6 @@ paths:
           type: string
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       responses:
         '200':
           description: Successfully return history
@@ -3971,7 +3884,6 @@ paths:
           type: integer
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       responses:
         '200':
           description: Successfully return history list
@@ -4025,7 +3937,6 @@ paths:
           type: integer
       security:
       - bearerAuth: []
-      - apiKeyAuth: []
       responses:
         '200':
           description: Successfully return history
@@ -4055,7 +3966,7 @@ paths:
                 $ref: '#/components/schemas/Error'
 components:
   securitySchemes:
-    ApiKeyAuth:
+    bearerAuth:
       type: apiKey
       in: header
       name: Authorization
@@ -4064,7 +3975,7 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: JWT token authentication
-    apiKeyAuth:
+    bearerAuth:
       type: apiKey
       in: header
       name: X-API-Key
