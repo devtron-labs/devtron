@@ -67,7 +67,7 @@ func NewEnvConfigOverrideReadServiceImpl(
 	}
 }
 
-func (impl EnvConfigOverrideReadServiceImpl) GetByChartAndEnvironment(chartId, targetEnvironmentId int) (*bean.EnvConfigOverride, error) {
+func (impl *EnvConfigOverrideReadServiceImpl) GetByChartAndEnvironment(chartId, targetEnvironmentId int) (*bean.EnvConfigOverride, error) {
 	overrideDBObj, err := impl.envConfigOverrideRepository.GetByChartAndEnvironment(chartId, targetEnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in getting chart env config override", "chartId", chartId, "targetEnvironmentId", targetEnvironmentId, "err", err)
@@ -82,7 +82,7 @@ func (impl EnvConfigOverrideReadServiceImpl) GetByChartAndEnvironment(chartId, t
 	return overrideDTO, nil
 }
 
-func (impl EnvConfigOverrideReadServiceImpl) ActiveEnvConfigOverride(appId, environmentId int) (*bean.EnvConfigOverride, error) {
+func (impl *EnvConfigOverrideReadServiceImpl) ActiveEnvConfigOverride(appId, environmentId int) (*bean.EnvConfigOverride, error) {
 	overrideDBObj, err := impl.envConfigOverrideRepository.ActiveEnvConfigOverride(appId, environmentId)
 	if err != nil {
 		impl.logger.Errorw("error in getting chart env config override", "appId", appId, "environmentId", environmentId, "err", err)
@@ -97,7 +97,7 @@ func (impl EnvConfigOverrideReadServiceImpl) ActiveEnvConfigOverride(appId, envi
 	return overrideDTO, nil
 }
 
-func (impl EnvConfigOverrideReadServiceImpl) GetByIdIncludingInactive(id int) (*bean.EnvConfigOverride, error) {
+func (impl *EnvConfigOverrideReadServiceImpl) GetByIdIncludingInactive(id int) (*bean.EnvConfigOverride, error) {
 	overrideDBObj, err := impl.envConfigOverrideRepository.GetByIdIncludingInactive(id)
 	if err != nil {
 		impl.logger.Errorw("error in getting chart env config override", "id", id, "err", err)
@@ -112,7 +112,7 @@ func (impl EnvConfigOverrideReadServiceImpl) GetByIdIncludingInactive(id int) (*
 	return overrideDTO, nil
 }
 
-func (impl EnvConfigOverrideReadServiceImpl) GetByEnvironment(targetEnvironmentId int) ([]*bean.EnvConfigOverride, error) {
+func (impl *EnvConfigOverrideReadServiceImpl) GetByEnvironment(targetEnvironmentId int) ([]*bean.EnvConfigOverride, error) {
 	overrideDBObjs, err := impl.envConfigOverrideRepository.GetByEnvironment(targetEnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in getting chart env config override", "targetEnvironmentId", targetEnvironmentId, "err", err)
@@ -125,7 +125,7 @@ func (impl EnvConfigOverrideReadServiceImpl) GetByEnvironment(targetEnvironmentI
 	return envConfigOverrides, nil
 }
 
-func (impl EnvConfigOverrideReadServiceImpl) GetEnvConfigByChartId(chartId int) ([]*bean.EnvConfigOverride, error) {
+func (impl *EnvConfigOverrideReadServiceImpl) GetEnvConfigByChartId(chartId int) ([]*bean.EnvConfigOverride, error) {
 	overrideDBObjs, err := impl.envConfigOverrideRepository.GetEnvConfigByChartId(chartId)
 	if err != nil {
 		impl.logger.Errorw("error in getting chart env config override", "chartId", chartId, "err", err)
@@ -144,7 +144,7 @@ func (impl EnvConfigOverrideReadServiceImpl) GetEnvConfigByChartId(chartId int) 
 	return envConfigOverrides, nil
 }
 
-func (impl EnvConfigOverrideReadServiceImpl) FindLatestChartForAppByAppIdAndEnvId(tx *pg.Tx, appId, targetEnvironmentId int) (*bean.EnvConfigOverride, error) {
+func (impl *EnvConfigOverrideReadServiceImpl) FindLatestChartForAppByAppIdAndEnvId(tx *pg.Tx, appId, targetEnvironmentId int) (*bean.EnvConfigOverride, error) {
 	overrideDBObj, err := impl.envConfigOverrideRepository.FindLatestChartForAppByAppIdAndEnvId(tx, appId, targetEnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in getting chart env config override", "appId", appId, "targetEnvironmentId", targetEnvironmentId, "err", err)
@@ -159,7 +159,7 @@ func (impl EnvConfigOverrideReadServiceImpl) FindLatestChartForAppByAppIdAndEnvI
 	return overrideDTO, nil
 }
 
-func (impl EnvConfigOverrideReadServiceImpl) FindChartRefIdsForLatestChartForAppByAppIdAndEnvIds(appId int, targetEnvironmentIds []int) (map[int]int, error) {
+func (impl *EnvConfigOverrideReadServiceImpl) FindChartRefIdsForLatestChartForAppByAppIdAndEnvIds(appId int, targetEnvironmentIds []int) (map[int]int, error) {
 	envChartMap, err := impl.envConfigOverrideRepository.FindChartRefIdsForLatestChartForAppByAppIdAndEnvIds(appId, targetEnvironmentIds)
 	if err != nil {
 		impl.logger.Errorw("error in getting chart env config override", "appId", appId, "targetEnvironmentIds", targetEnvironmentIds, "err", err)
@@ -168,7 +168,7 @@ func (impl EnvConfigOverrideReadServiceImpl) FindChartRefIdsForLatestChartForApp
 	return envChartMap, nil
 }
 
-func (impl EnvConfigOverrideReadServiceImpl) FindChartByAppIdAndEnvIdAndChartRefId(appId, targetEnvironmentId int, chartRefId int) (*bean.EnvConfigOverride, error) {
+func (impl *EnvConfigOverrideReadServiceImpl) FindChartByAppIdAndEnvIdAndChartRefId(appId, targetEnvironmentId int, chartRefId int) (*bean.EnvConfigOverride, error) {
 	overrideDBObj, err := impl.envConfigOverrideRepository.FindChartByAppIdAndEnvIdAndChartRefId(appId, targetEnvironmentId, chartRefId)
 	if err != nil {
 		impl.logger.Errorw("error in getting chart env config override", "appId", appId, "targetEnvironmentIds", targetEnvironmentId, "chartRefId", chartRefId, "err", err)
@@ -183,7 +183,7 @@ func (impl EnvConfigOverrideReadServiceImpl) FindChartByAppIdAndEnvIdAndChartRef
 	return overrideDTO, nil
 }
 
-func (impl EnvConfigOverrideReadServiceImpl) FindChartForAppByAppIdAndEnvId(appId, targetEnvironmentId int) (*bean.EnvConfigOverride, error) {
+func (impl *EnvConfigOverrideReadServiceImpl) FindChartForAppByAppIdAndEnvId(appId, targetEnvironmentId int) (*bean.EnvConfigOverride, error) {
 	overrideDBObj, err := impl.envConfigOverrideRepository.FindChartForAppByAppIdAndEnvId(appId, targetEnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in getting chart env config override", "appId", appId, "targetEnvironmentId", targetEnvironmentId, "err", err)
@@ -198,7 +198,7 @@ func (impl EnvConfigOverrideReadServiceImpl) FindChartForAppByAppIdAndEnvId(appI
 	return overrideDTO, nil
 }
 
-func (impl EnvConfigOverrideReadServiceImpl) GetByAppIdEnvIdAndChartRefId(appId, envId int, chartRefId int) (*bean.EnvConfigOverride, error) {
+func (impl *EnvConfigOverrideReadServiceImpl) GetByAppIdEnvIdAndChartRefId(appId, envId int, chartRefId int) (*bean.EnvConfigOverride, error) {
 	overrideDBObj, err := impl.envConfigOverrideRepository.GetByAppIdEnvIdAndChartRefId(appId, envId, chartRefId)
 	if err != nil {
 		impl.logger.Errorw("error in getting chart env config override", "appId", appId, "envId", envId, "chartRefId", chartRefId, "err", err)
@@ -213,7 +213,7 @@ func (impl EnvConfigOverrideReadServiceImpl) GetByAppIdEnvIdAndChartRefId(appId,
 	return overrideDTO, nil
 }
 
-func (impl EnvConfigOverrideReadServiceImpl) GetAllOverridesForApp(ctx context.Context, appId int) ([]*bean.EnvConfigOverride, error) {
+func (impl *EnvConfigOverrideReadServiceImpl) GetAllOverridesForApp(ctx context.Context, appId int) ([]*bean.EnvConfigOverride, error) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "EnvConfigOverrideReadServiceImpl.GetAllOverridesForApp")
 	defer span.End()
 	overrideDBObjs, err := impl.envConfigOverrideRepository.GetAllOverridesForApp(appId)
@@ -231,7 +231,7 @@ func (impl EnvConfigOverrideReadServiceImpl) GetAllOverridesForApp(ctx context.C
 	return envConfigOverrides, nil
 }
 
-func (impl EnvConfigOverrideReadServiceImpl) GetLatestEnvironmentProperties(appId, environmentId int) (environmentProperties *pipelineBean.EnvironmentProperties, err error) {
+func (impl *EnvConfigOverrideReadServiceImpl) GetLatestEnvironmentProperties(appId, environmentId int) (environmentProperties *pipelineBean.EnvironmentProperties, err error) {
 	env, err := impl.environmentRepository.FindById(environmentId)
 	if err != nil {
 		impl.logger.Errorw("error in finding env by id", "envId", environmentId, "err", err)
