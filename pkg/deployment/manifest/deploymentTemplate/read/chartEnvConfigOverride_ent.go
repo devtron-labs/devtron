@@ -21,6 +21,6 @@ import "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTempla
 type EnvConfigOverrideServiceEnt interface {
 }
 
-func (impl EnvConfigOverrideReadServiceImpl) getOverrideDataWithUpdatedPatchDataUnResolved(overrideDTO *bean.EnvConfigOverride, appId int) (*bean.EnvConfigOverride, error) {
+func (impl *EnvConfigOverrideReadServiceImpl) getOverrideDataWithUpdatedPatchDataUnResolved(overrideDTO *bean.EnvConfigOverride, appId int) (*bean.EnvConfigOverride, error) {
 	return overrideDTO, nil
 }

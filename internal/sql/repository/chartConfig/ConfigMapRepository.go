@@ -42,6 +42,13 @@ type ConfigMapRepository interface {
 	GetConfigNamesForAppAndEnvLevel(appId int, envId int) ([]bean.ConfigNameAndType, error)
 }
 
+type ConfigModel interface {
+	GetAppId() int
+	GetSecretData() string
+	GetConfigMapData() string
+	GetEnvironmentId() *int
+}
+
 type ConfigMapRepositoryImpl struct {
 	dbConnection *pg.DB
 	Logger       *zap.SugaredLogger
@@ -64,6 +71,23 @@ type ConfigMapAppModel struct {
 	SecretData    string   `sql:"secret_data"`
 	sql.AuditLog
 }
+
+func (c *ConfigMapAppModel) GetAppId() int {
+	return c.AppId
+}
+
+func (c *ConfigMapAppModel) GetSecretData() string {
+	return c.SecretData
+}
+
+func (c *ConfigMapAppModel) GetConfigMapData() string {
+	return c.ConfigMapData
+}
+
+func (c *ConfigMapAppModel) GetEnvironmentId() *int {
+	return nil
+}
+
 type cMCSNames struct {
 	Id     int    `json:"id"`
 	CMName string `json:"cm_name"`
@@ -160,6 +184,22 @@ type ConfigMapEnvModel struct {
 	SecretData    string   `sql:"secret_data"`
 	Deleted       bool     `sql:"deleted,notnull"`
 	sql.AuditLog
+}
+
+func (c *ConfigMapEnvModel) GetAppId() int {
+	return c.AppId
+}
+
+func (c *ConfigMapEnvModel) GetSecretData() string {
+	return c.SecretData
+}
+
+func (c *ConfigMapEnvModel) GetConfigMapData() string {
+	return c.ConfigMapData
+}
+
+func (c *ConfigMapEnvModel) GetEnvironmentId() *int {
+	return &c.EnvironmentId
 }
 
 func (impl ConfigMapRepositoryImpl) CreateEnvLevel(model *ConfigMapEnvModel) (*ConfigMapEnvModel, error) {

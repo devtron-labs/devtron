@@ -43,6 +43,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	chartRefBean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
+	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	variablesRepository "github.com/devtron-labs/devtron/pkg/variables/repository"
@@ -76,7 +77,7 @@ type ChartService interface {
 	IsGitOpsRepoAlreadyRegistered(gitOpsRepoUrl string, appId int) (bool, error)
 
 	GetDeploymentTemplateDataByAppIdAndCharRefId(appId, chartRefId int) (map[string]interface{}, error)
-
+	GetLatestEnvironmentProperties(appId, environmentId int) (environmentProperties *pipelineBean.EnvironmentProperties, err error)
 	ChartServiceEnt
 }
 
@@ -1136,4 +1137,8 @@ func (impl *ChartServiceImpl) GetDeploymentTemplateDataByAppIdAndCharRefId(appId
 		appConfigResponse["globalConfig"] = appOverride
 	}
 	return appConfigResponse, nil
+}
+
+func (impl *ChartServiceImpl) GetLatestEnvironmentProperties(appId, environmentId int) (environmentProperties *pipelineBean.EnvironmentProperties, err error) {
+	return impl.envConfigOverrideReadService.GetLatestEnvironmentProperties(appId, environmentId)
 }

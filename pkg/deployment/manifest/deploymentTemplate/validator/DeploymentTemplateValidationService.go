@@ -84,7 +84,7 @@ func (impl *DeploymentTemplateValidationServiceImpl) DeploymentTemplateValidate(
 	var templatejson interface{}
 	err = json.Unmarshal([]byte(templatejsonstring), &templatejson)
 	if err != nil {
-		fmt.Println("Error:", err)
+		impl.logger.Errorw("json Schema parsing error", "err", err)
 		return false, err
 	}
 

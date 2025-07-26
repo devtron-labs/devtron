@@ -19,7 +19,6 @@ package service
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -29,7 +28,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
-	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -37,7 +35,9 @@ import (
 	bean6 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/build/trigger"
+	"github.com/devtron-labs/devtron/pkg/bulkAction/adapter"
 	bean4 "github.com/devtron-labs/devtron/pkg/bulkAction/bean"
+	"github.com/devtron-labs/devtron/pkg/bulkAction/repository"
 	"github.com/devtron-labs/devtron/pkg/bulkAction/utils"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
@@ -46,7 +46,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
-	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/adapter"
+	dtAdapter "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
@@ -55,7 +55,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/json"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/go-pg/pg"
 	"github.com/tidwall/gjson"
@@ -67,26 +69,28 @@ import (
 )
 
 type BulkUpdateService interface {
-	FindBulkUpdateReadme(operation string) (response *bean4.BulkUpdateSeeExampleResponse, err error)
-	GetBulkAppName(bulkUpdateRequest *bean4.BulkUpdatePayload) (*bean4.ImpactedObjectsResponse, error)
+	GetBulkEditConfig(apiVersion, kind string) (response *bean4.BulkEditConfigResponse, err error)
+	DryRunBulkEdit(bulkUpdateRequest *bean4.BulkUpdatePayload) (*bean4.ImpactedObjectsResponse, error)
+	BulkEdit(ctx context.Context, bulkUpdateRequest *bean4.BulkUpdatePayload, userMetadata *bean6.UserMetadata) (bulkUpdateResponse *bean4.BulkUpdateResponse)
 	ApplyJsonPatch(patch jsonpatch.Patch, target string) (string, error)
-	BulkUpdateDeploymentTemplate(bulkUpdatePayload *bean4.BulkUpdatePayload, userMetadata *bean6.UserMetadata) *bean4.DeploymentTemplateBulkUpdateResponse
-	BulkUpdateConfigMap(bulkUpdatePayload *bean4.BulkUpdatePayload, userMetadata *bean6.UserMetadata) *bean4.CmAndSecretBulkUpdateResponse
-	BulkUpdateSecret(bulkUpdatePayload *bean4.BulkUpdatePayload, userMetadata *bean6.UserMetadata) *bean4.CmAndSecretBulkUpdateResponse
-	BulkUpdate(bulkUpdateRequest *bean4.BulkUpdatePayload, userMetadata *bean6.UserMetadata) (bulkUpdateResponse *bean4.BulkUpdateResponse)
+	BulkUpdateDeploymentTemplate(ctx context.Context, bulkUpdatePayload *bean4.BulkUpdatePayload, userMetadata *bean6.UserMetadata) *bean4.DeploymentTemplateBulkUpdateResponse
+	BulkUpdateConfigMap(ctx context.Context, bulkUpdatePayload *bean4.BulkUpdatePayload, userMetadata *bean6.UserMetadata) *bean4.CmAndSecretBulkUpdateResponse
+	BulkUpdateSecret(ctx context.Context, bulkUpdatePayload *bean4.BulkUpdatePayload, userMetadata *bean6.UserMetadata) *bean4.CmAndSecretBulkUpdateResponse
 	// BulkHibernate deprecated
 	BulkHibernate(ctx context.Context, request *bean4.BulkApplicationForEnvironmentPayload, checkAuthForBulkActions func(token string, appObject string, envObject string) bool, userMetadata *bean6.UserMetadata) (*bean4.BulkApplicationHibernateUnhibernateForEnvironmentResponse, error)
 	BulkHibernateV1(ctx context.Context, request *bean4.BulkApplicationForEnvironmentPayload, checkAuthForBulkActions func(token string, appObject string, envObject string) bool, userMetadata *bean6.UserMetadata) (*bean4.BulkApplicationHibernateUnhibernateForEnvironmentResponse, error)
 	BulkUnHibernate(ctx context.Context, request *bean4.BulkApplicationForEnvironmentPayload, checkAuthForBulkActions func(token string, appObject string, envObject string) bool, userMetadata *bean6.UserMetadata) (*bean4.BulkApplicationHibernateUnhibernateForEnvironmentResponse, error)
-	BulkDeploy(request *bean4.BulkApplicationForEnvironmentPayload, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool), userMetadata *bean6.UserMetadata) (*bean4.BulkApplicationForEnvironmentResponse, error)
+	BulkDeploy(ctx *util2.RequestCtx, request *bean4.BulkApplicationForEnvironmentPayload, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool), userMetadata *bean6.UserMetadata) (*bean4.BulkApplicationForEnvironmentResponse, error)
 	BulkBuildTrigger(request *bean4.BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*bean4.BulkApplicationForEnvironmentResponse, error)
 
 	GetBulkActionImpactedPipelinesAndWfs(dto *bean4.CdBulkActionRequestDto) ([]*pipelineConfig.Pipeline, []int, []int, error)
 	PerformBulkActionOnCdPipelines(dto *bean4.CdBulkActionRequestDto, impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool, impactedAppWfIds []int, impactedCiPipelineIds []int) (*bean4.PipelineAndWfBulkActionResponseDto, error)
+	// BulkUpdateServiceEnt is the interface for the bulk update service in the Ent version
+	BulkUpdateServiceEnt
 }
 
 type BulkUpdateServiceImpl struct {
-	bulkUpdateRepository             bulkUpdate.BulkUpdateRepository
+	bulkEditRepository               repository.BulkEditRepository
 	logger                           *zap.SugaredLogger
 	environmentRepository            repository2.EnvironmentRepository
 	pipelineRepository               pipelineConfig.PipelineRepository
@@ -105,9 +109,10 @@ type BulkUpdateServiceImpl struct {
 	deployedAppService               deployedApp.DeployedAppService
 	cdPipelineEventPublishService    out.CDPipelineEventPublishService
 	ciHandlerService                 trigger.HandlerService
+	*BulkUpdateServiceEntImpl
 }
 
-func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,
+func NewBulkUpdateServiceImpl(bulkUpdateRepository repository.BulkEditRepository,
 	logger *zap.SugaredLogger,
 	environmentRepository repository2.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
@@ -125,9 +130,11 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	chartRefService chartRef.ChartRefService,
 	deployedAppService deployedApp.DeployedAppService,
 	cdPipelineEventPublishService out.CDPipelineEventPublishService,
-	ciHandlerService trigger.HandlerService) *BulkUpdateServiceImpl {
+	ciHandlerService trigger.HandlerService,
+	bulkUpdateServiceEntImpl *BulkUpdateServiceEntImpl,
+) *BulkUpdateServiceImpl {
 	return &BulkUpdateServiceImpl{
-		bulkUpdateRepository:             bulkUpdateRepository,
+		bulkEditRepository:               bulkUpdateRepository,
 		logger:                           logger,
 		environmentRepository:            environmentRepository,
 		pipelineRepository:               pipelineRepository,
@@ -146,8 +153,8 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 		deployedAppService:               deployedAppService,
 		cdPipelineEventPublishService:    cdPipelineEventPublishService,
 		ciHandlerService:                 ciHandlerService,
+		BulkUpdateServiceEntImpl:         bulkUpdateServiceEntImpl,
 	}
-
 }
 
 const (
@@ -156,32 +163,192 @@ const (
 	Skipped            = "skipped"
 )
 
-func (impl BulkUpdateServiceImpl) FindBulkUpdateReadme(operation string) (*bean4.BulkUpdateSeeExampleResponse, error) {
-	bulkUpdateReadme, err := impl.bulkUpdateRepository.FindBulkUpdateReadme(operation)
-	response := &bean4.BulkUpdateSeeExampleResponse{}
+func (impl BulkUpdateServiceImpl) GetBulkEditConfig(apiVersion, kind string) (*bean4.BulkEditConfigResponse, error) {
+	bulkEditConfig, err := impl.bulkEditRepository.FindBulkEditConfig(apiVersion, kind)
+	response := &bean4.BulkEditConfigResponse{}
 	if err != nil {
 		impl.logger.Errorw("error in fetching batch operation example", "err", err)
 		return response, err
 	}
-	script := &bean4.BulkUpdateScript{}
-	err = json.Unmarshal([]byte(bulkUpdateReadme.Script), &script)
-	if err != nil {
-		impl.logger.Errorw("error in script value(in db) of batch operation example", "err", err)
-		return response, err
+	// script is only maintained for backward compatibility,
+	// there is valid usage of this field in the UI.
+	script := &bean4.BulkUpdateScript{
+		ApiVersion: bulkEditConfig.ApiVersion,
+		Kind:       bulkEditConfig.Kind,
 	}
-	response = &bean4.BulkUpdateSeeExampleResponse{
-		Operation: bulkUpdateReadme.Resource,
+	response = &bean4.BulkEditConfigResponse{
+		Operation: fmt.Sprintf("%s/%s", bulkEditConfig.ApiVersion, bulkEditConfig.Kind),
 		Script:    script,
-		ReadMe:    bulkUpdateReadme.Readme,
+		ReadMe:    bulkEditConfig.Readme,
 	}
 	return response, nil
 }
 
-func (impl BulkUpdateServiceImpl) GetBulkAppName(bulkUpdatePayload *bean4.BulkUpdatePayload) (*bean4.ImpactedObjectsResponse, error) {
+func (impl BulkUpdateServiceImpl) getImpactedBaseSecrets(cmAndSecretReq *bean4.CmAndSecretTask, appNameIncludes, appNameExcludes []string) ([]*bean4.CmAndSecretImpactedObjectsResponseForOneApp, error) {
+	return impl.getImpactedSecrets(cmAndSecretReq, appNameIncludes, appNameExcludes, 0)
+}
+
+func (impl BulkUpdateServiceImpl) getImpactedSecrets(cmAndSecretReq *bean4.CmAndSecretTask, appNameIncludes, appNameExcludes []string, envId int) ([]*bean4.CmAndSecretImpactedObjectsResponseForOneApp, error) {
+	if cmAndSecretReq == nil || cmAndSecretReq.Spec == nil || len(cmAndSecretReq.Spec.Names) == 0 {
+		return make([]*bean4.CmAndSecretImpactedObjectsResponseForOneApp, 0), nil
+	}
+	secretNames := util2.GetCopyByValueObject(cmAndSecretReq.Spec.Names)
+	var secretModels []chartConfig.ConfigModel
+	if envId > 0 {
+		secretEnvModels, err := impl.bulkEditRepository.FindSecretBulkAppModelForEnv(appNameIncludes, appNameExcludes, envId, secretNames)
+		if err != nil {
+			impl.logger.Errorw("error in fetching bulk app model for global", "err", err)
+			return nil, err
+		}
+		secretModels = sliceUtil.NewSliceFromFuncExec(secretEnvModels, func(model *chartConfig.ConfigMapEnvModel) chartConfig.ConfigModel {
+			return model
+		})
+	} else {
+		secretAppModels, err := impl.bulkEditRepository.FindSecretBulkAppModelForGlobal(appNameIncludes, appNameExcludes, secretNames)
+		if err != nil {
+			impl.logger.Errorw("error in fetching bulk app model for global", "err", err)
+			return make([]*bean4.CmAndSecretImpactedObjectsResponseForOneApp, 0), err
+		}
+		secretModels = sliceUtil.NewSliceFromFuncExec(secretAppModels, func(model *chartConfig.ConfigMapAppModel) chartConfig.ConfigModel {
+			return model
+		})
+	}
+	secretImpactedObjects := make([]*bean4.CmAndSecretImpactedObjectsResponseForOneApp, 0, len(secretModels))
+	secretSpecNames := make(map[string]bool)
+	if len(secretModels) != 0 {
+		for _, name := range cmAndSecretReq.Spec.Names {
+			secretSpecNames[name] = true
+		}
+	}
+	for _, secretAppModel := range secretModels {
+		var finalSecretNames []string
+		existingSecretNames := gjson.Get(secretAppModel.GetSecretData(), "secrets.#.name")
+		for _, secretName := range existingSecretNames.Array() {
+			_, contains := secretSpecNames[secretName.String()]
+			if contains == true {
+				finalSecretNames = append(finalSecretNames, secretName.String())
+			}
+		}
+		if len(finalSecretNames) != 0 {
+			appDetailsById, _ := impl.appRepository.FindById(secretAppModel.GetAppId())
+			secretImpactedObject := &bean4.CmAndSecretImpactedObjectsResponseForOneApp{
+				AppId:   secretAppModel.GetAppId(),
+				AppName: appDetailsById.AppName,
+				Names:   finalSecretNames,
+			}
+			if envId > 0 {
+				secretImpactedObject.EnvId = envId
+			}
+			secretImpactedObjects = append(secretImpactedObjects, secretImpactedObject)
+		}
+	}
+	return secretImpactedObjects, nil
+}
+
+func (impl BulkUpdateServiceImpl) getImpactedBaseConfigMaps(cmAndSecretReq *bean4.CmAndSecretTask, appNameIncludes, appNameExcludes []string) ([]*bean4.CmAndSecretImpactedObjectsResponseForOneApp, error) {
+	return impl.getImpactedConfigMaps(cmAndSecretReq, appNameIncludes, appNameExcludes, 0)
+}
+
+func (impl BulkUpdateServiceImpl) getImpactedConfigMaps(cmAndSecretReq *bean4.CmAndSecretTask, appNameIncludes, appNameExcludes []string, envId int) ([]*bean4.CmAndSecretImpactedObjectsResponseForOneApp, error) {
+	if cmAndSecretReq == nil || cmAndSecretReq.Spec == nil || len(cmAndSecretReq.Spec.Names) == 0 {
+		return make([]*bean4.CmAndSecretImpactedObjectsResponseForOneApp, 0), nil
+	}
+	cmNames := util2.GetCopyByValueObject(cmAndSecretReq.Spec.Names)
+	var configMapModels []chartConfig.ConfigModel
+	if envId > 0 {
+		configMapEnvModels, err := impl.bulkEditRepository.FindCMBulkAppModelForEnv(appNameIncludes, appNameExcludes, envId, cmNames)
+		if err != nil {
+			impl.logger.Errorw("error in fetching bulk app model for global", "err", err)
+			return nil, err
+		}
+		configMapModels = sliceUtil.NewSliceFromFuncExec(configMapEnvModels, func(model *chartConfig.ConfigMapEnvModel) chartConfig.ConfigModel {
+			return model
+		})
+	} else {
+		configMapAppModels, err := impl.bulkEditRepository.FindCMBulkAppModelForGlobal(appNameIncludes, appNameExcludes, cmNames)
+		if err != nil {
+			impl.logger.Errorw("error in fetching bulk app model for global", "err", err)
+			return make([]*bean4.CmAndSecretImpactedObjectsResponseForOneApp, 0), err
+		}
+		configMapModels = sliceUtil.NewSliceFromFuncExec(configMapAppModels, func(model *chartConfig.ConfigMapAppModel) chartConfig.ConfigModel {
+			return model
+		})
+	}
+	configMapImpactedObjects := make([]*bean4.CmAndSecretImpactedObjectsResponseForOneApp, 0, len(configMapModels))
+	configMapSpecNames := make(map[string]bool)
+	if len(configMapModels) != 0 {
+		for _, name := range cmAndSecretReq.Spec.Names {
+			configMapSpecNames[name] = true
+		}
+	}
+	for _, configMapAppModel := range configMapModels {
+		var finalConfigMapNames []string
+		configMapNames := gjson.Get(configMapAppModel.GetConfigMapData(), "maps.#.name")
+		for _, configMapName := range configMapNames.Array() {
+			_, contains := configMapSpecNames[configMapName.String()]
+			if contains == true {
+				finalConfigMapNames = append(finalConfigMapNames, configMapName.String())
+			}
+		}
+		if len(finalConfigMapNames) != 0 {
+			appDetailsById, err := impl.appRepository.FindById(configMapAppModel.GetAppId())
+			if err != nil {
+				impl.logger.Errorw("error in fetching app details by id", "err", err, "appId", configMapAppModel.GetAppId())
+				return nil, err
+			}
+			configMapImpactedObject := &bean4.CmAndSecretImpactedObjectsResponseForOneApp{
+				AppId:   configMapAppModel.GetAppId(),
+				AppName: appDetailsById.AppName,
+				Names:   finalConfigMapNames,
+			}
+			if envId > 0 {
+				configMapImpactedObject.EnvId = envId
+			}
+			configMapImpactedObjects = append(configMapImpactedObjects, configMapImpactedObject)
+		}
+	}
+	return configMapImpactedObjects, nil
+}
+
+func (impl BulkUpdateServiceImpl) getImpactedBaseDeploymentTemplates(deploymentTemplateReq *bean4.DeploymentTemplateTask, appNameIncludes, appNameExcludes []string) ([]*bean4.DeploymentTemplateImpactedObjectsResponseForOneApp, error) {
+	return impl.getImpactedDeploymentTemplates(deploymentTemplateReq, appNameIncludes, appNameExcludes, 0)
+}
+
+func (impl BulkUpdateServiceImpl) getImpactedDeploymentTemplates(deploymentTemplateReq *bean4.DeploymentTemplateTask, appNameIncludes, appNameExcludes []string, envId int) ([]*bean4.DeploymentTemplateImpactedObjectsResponseForOneApp, error) {
+	if deploymentTemplateReq == nil || deploymentTemplateReq.Spec == nil {
+		return make([]*bean4.DeploymentTemplateImpactedObjectsResponseForOneApp, 0), nil
+	}
+	var impactedAppObjects []*app.App
+	var err error
+	if envId > 0 {
+		impactedAppObjects, err = impl.bulkEditRepository.FindDeploymentTemplateBulkAppNameForEnv(appNameIncludes, appNameExcludes, envId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching bulk app names for env", "envId", envId, "err", err)
+			return nil, err
+		}
+	} else {
+		impactedAppObjects, err = impl.bulkEditRepository.FindDeploymentTemplateBulkAppNameForGlobal(appNameIncludes, appNameExcludes)
+		if err != nil {
+			impl.logger.Errorw("error in fetching bulk app names for global", "err", err)
+			return make([]*bean4.DeploymentTemplateImpactedObjectsResponseForOneApp, 0), err
+		}
+	}
+	deploymentTemplateImpactedObjects := make([]*bean4.DeploymentTemplateImpactedObjectsResponseForOneApp, 0, len(impactedAppObjects))
+	for _, appModel := range impactedAppObjects {
+		deploymentTemplateImpactedObject := &bean4.DeploymentTemplateImpactedObjectsResponseForOneApp{
+			AppId:   appModel.Id,
+			AppName: appModel.AppName,
+		}
+		if envId > 0 {
+			deploymentTemplateImpactedObject.EnvId = envId
+		}
+		deploymentTemplateImpactedObjects = append(deploymentTemplateImpactedObjects, deploymentTemplateImpactedObject)
+	}
+	return deploymentTemplateImpactedObjects, nil
+}
+
+func (impl BulkUpdateServiceImpl) DryRunBulkEdit(bulkUpdatePayload *bean4.BulkUpdatePayload) (*bean4.ImpactedObjectsResponse, error) {
 	impactedObjectsResponse := &bean4.ImpactedObjectsResponse{}
-	deploymentTemplateImpactedObjects := []*bean4.DeploymentTemplateImpactedObjectsResponseForOneApp{}
-	configMapImpactedObjects := []*bean4.CmAndSecretImpactedObjectsResponseForOneApp{}
-	secretImpactedObjects := []*bean4.CmAndSecretImpactedObjectsResponseForOneApp{}
 	var appNameIncludes []string
 	var appNameExcludes []string
 	if bulkUpdatePayload.Includes == nil || len(bulkUpdatePayload.Includes.Names) == 0 {
@@ -192,199 +359,84 @@ func (impl BulkUpdateServiceImpl) GetBulkAppName(bulkUpdatePayload *bean4.BulkUp
 	if bulkUpdatePayload.Excludes != nil && len(bulkUpdatePayload.Excludes.Names) > 0 {
 		appNameExcludes = bulkUpdatePayload.Excludes.Names
 	}
-	if bulkUpdatePayload.Global {
-		//For Deployment Template
-		if bulkUpdatePayload.DeploymentTemplate != nil && bulkUpdatePayload.DeploymentTemplate.Spec != nil {
-			appsGlobalDT, err := impl.bulkUpdateRepository.
-				FindDeploymentTemplateBulkAppNameForGlobal(appNameIncludes, appNameExcludes)
-			if err != nil {
-				impl.logger.Errorw("error in fetching bulk app names for global", "err", err)
-				return nil, err
-			}
-			for _, app := range appsGlobalDT {
-				deploymentTemplateImpactedObject := &bean4.DeploymentTemplateImpactedObjectsResponseForOneApp{
-					AppId:   app.Id,
-					AppName: app.AppName,
-				}
-				deploymentTemplateImpactedObjects = append(deploymentTemplateImpactedObjects, deploymentTemplateImpactedObject)
-			}
-		}
-
-		//For ConfigMap
-		if bulkUpdatePayload.ConfigMap != nil && bulkUpdatePayload.ConfigMap.Spec != nil && len(bulkUpdatePayload.ConfigMap.Spec.Names) != 0 {
-			cmNames := util2.GetCopyByValueObject(bulkUpdatePayload.ConfigMap.Spec.Names)
-			configMapAppModels, err := impl.bulkUpdateRepository.FindCMBulkAppModelForGlobal(appNameIncludes, appNameExcludes, cmNames)
-			if err != nil {
-				impl.logger.Errorw("error in fetching bulk app model for global", "err", err)
-				return nil, err
-			}
-			configMapSpecNames := make(map[string]bool)
-			if len(configMapAppModels) != 0 {
-				for _, name := range bulkUpdatePayload.ConfigMap.Spec.Names {
-					configMapSpecNames[name] = true
-				}
-			}
-			for _, configMapAppModel := range configMapAppModels {
-				var finalConfigMapNames []string
-				configMapNames := gjson.Get(configMapAppModel.ConfigMapData, "maps.#.name")
-				for _, configMapName := range configMapNames.Array() {
-					_, contains := configMapSpecNames[configMapName.String()]
-					if contains == true {
-						finalConfigMapNames = append(finalConfigMapNames, configMapName.String())
-					}
-				}
-				if len(finalConfigMapNames) != 0 {
-					appDetailsById, _ := impl.appRepository.FindById(configMapAppModel.AppId)
-					configMapImpactedObject := &bean4.CmAndSecretImpactedObjectsResponseForOneApp{
-						AppId:   configMapAppModel.AppId,
-						AppName: appDetailsById.AppName,
-						Names:   finalConfigMapNames,
-					}
-					configMapImpactedObjects = append(configMapImpactedObjects, configMapImpactedObject)
-				}
-			}
-		}
-		//For Secret
-		if bulkUpdatePayload.Secret != nil && bulkUpdatePayload.Secret.Spec != nil && len(bulkUpdatePayload.Secret.Spec.Names) != 0 {
-			secretNames := util2.GetCopyByValueObject(bulkUpdatePayload.Secret.Spec.Names)
-			secretAppModels, err := impl.bulkUpdateRepository.FindSecretBulkAppModelForGlobal(appNameIncludes, appNameExcludes, secretNames)
-			if err != nil {
-				impl.logger.Errorw("error in fetching bulk app model for global", "err", err)
-				return nil, err
-			}
-			secretSpecNames := make(map[string]bool)
-			if len(secretAppModels) != 0 {
-				for _, name := range bulkUpdatePayload.Secret.Spec.Names {
-					secretSpecNames[name] = true
-				}
-			}
-			for _, secretAppModel := range secretAppModels {
-				var finalSecretNames []string
-				secretNames := gjson.Get(secretAppModel.SecretData, "secrets.#.name")
-				for _, secretName := range secretNames.Array() {
-					_, contains := secretSpecNames[secretName.String()]
-					if contains == true {
-						finalSecretNames = append(finalSecretNames, secretName.String())
-					}
-				}
-				if len(finalSecretNames) != 0 {
-					appDetailsById, _ := impl.appRepository.FindById(secretAppModel.AppId)
-					secretImpactedObject := &bean4.CmAndSecretImpactedObjectsResponseForOneApp{
-						AppId:   secretAppModel.AppId,
-						AppName: appDetailsById.AppName,
-						Names:   finalSecretNames,
-					}
-					secretImpactedObjects = append(secretImpactedObjects, secretImpactedObject)
-				}
-			}
-		}
-	}
-
-	for _, envId := range bulkUpdatePayload.EnvIds {
-		//For Deployment Template
-		if bulkUpdatePayload.DeploymentTemplate != nil && bulkUpdatePayload.DeploymentTemplate.Spec != nil {
-			appsNotGlobalDT, err := impl.bulkUpdateRepository.
-				FindDeploymentTemplateBulkAppNameForEnv(appNameIncludes, appNameExcludes, envId)
-			if err != nil {
-				impl.logger.Errorw("error in fetching bulk app names for env", "err", err)
-				return nil, err
-			}
-			for _, app := range appsNotGlobalDT {
-				deploymentTemplateImpactedObject := &bean4.DeploymentTemplateImpactedObjectsResponseForOneApp{
-					AppId:   app.Id,
-					AppName: app.AppName,
-					EnvId:   envId,
-				}
-				deploymentTemplateImpactedObjects = append(deploymentTemplateImpactedObjects, deploymentTemplateImpactedObject)
-			}
-		}
-		//For ConfigMap
-		if bulkUpdatePayload.ConfigMap != nil && bulkUpdatePayload.ConfigMap.Spec != nil && len(bulkUpdatePayload.ConfigMap.Spec.Names) != 0 {
-			cmNames := util2.GetCopyByValueObject(bulkUpdatePayload.ConfigMap.Spec.Names)
-			configMapEnvModels, err := impl.bulkUpdateRepository.FindCMBulkAppModelForEnv(appNameIncludes, appNameExcludes, envId, cmNames)
-			if err != nil {
-				impl.logger.Errorw("error in fetching bulk app model for global", "err", err)
-				return nil, err
-			}
-			configMapSpecNames := make(map[string]bool)
-			if len(configMapEnvModels) != 0 {
-				for _, name := range bulkUpdatePayload.ConfigMap.Spec.Names {
-					configMapSpecNames[name] = true
-				}
-			}
-			for _, configMapEnvModel := range configMapEnvModels {
-				var finalConfigMapNames []string
-				configMapNames := gjson.Get(configMapEnvModel.ConfigMapData, "maps.#.name")
-				for _, configMapName := range configMapNames.Array() {
-					_, contains := configMapSpecNames[configMapName.String()]
-					if contains == true {
-						finalConfigMapNames = append(finalConfigMapNames, configMapName.String())
-					}
-				}
-
-				if len(finalConfigMapNames) != 0 {
-					appDetailsById, _ := impl.appRepository.FindById(configMapEnvModel.AppId)
-					configMapImpactedObject := &bean4.CmAndSecretImpactedObjectsResponseForOneApp{
-						AppId:   configMapEnvModel.AppId,
-						AppName: appDetailsById.AppName,
-						EnvId:   envId,
-						Names:   finalConfigMapNames,
-					}
-					configMapImpactedObjects = append(configMapImpactedObjects, configMapImpactedObject)
-				}
-			}
-		}
-		//For Secret
-		if bulkUpdatePayload.Secret != nil && bulkUpdatePayload.Secret.Spec != nil && len(bulkUpdatePayload.Secret.Spec.Names) != 0 {
-			secretNames := util2.GetCopyByValueObject(bulkUpdatePayload.Secret.Spec.Names)
-			secretEnvModels, err := impl.bulkUpdateRepository.FindSecretBulkAppModelForEnv(appNameIncludes, appNameExcludes, envId, secretNames)
-			if err != nil {
-				impl.logger.Errorw("error in fetching bulk app model for global", "err", err)
-				return nil, err
-			}
-			secretSpecNames := make(map[string]bool)
-			if len(secretEnvModels) != 0 {
-				for _, name := range bulkUpdatePayload.Secret.Spec.Names {
-					secretSpecNames[name] = true
-				}
-			}
-			for _, secretEnvModel := range secretEnvModels {
-				var finalSecretNames []string
-				secretNames := gjson.Get(secretEnvModel.SecretData, "secrets.#.name")
-				for _, secretName := range secretNames.Array() {
-					_, contains := secretSpecNames[secretName.String()]
-					if contains == true {
-						finalSecretNames = append(finalSecretNames, secretName.String())
-					}
-				}
-
-				if len(finalSecretNames) != 0 {
-					appDetailsById, _ := impl.appRepository.FindById(secretEnvModel.AppId)
-					secretImpactedObject := &bean4.CmAndSecretImpactedObjectsResponseForOneApp{
-						AppId:   secretEnvModel.AppId,
-						AppName: appDetailsById.AppName,
-						EnvId:   envId,
-						Names:   finalSecretNames,
-					}
-					secretImpactedObjects = append(secretImpactedObjects, secretImpactedObject)
-				}
-			}
-		}
+	deploymentTemplateImpactedObjects, configMapImpactedObjects,
+		secretImpactedObjects, err := impl.dryRunBulkEdit(bulkUpdatePayload, appNameIncludes, appNameExcludes)
+	if err != nil {
+		impl.logger.Errorw("error in dry-run bulk edit", "bulkUpdatePayload", bulkUpdatePayload, "err", err)
+		return nil, err
 	}
 	impactedObjectsResponse.DeploymentTemplate = deploymentTemplateImpactedObjects
 	impactedObjectsResponse.ConfigMap = configMapImpactedObjects
 	impactedObjectsResponse.Secret = secretImpactedObjects
 	return impactedObjectsResponse, nil
 }
-func (impl BulkUpdateServiceImpl) ApplyJsonPatch(patch jsonpatch.Patch, target string) (string, error) {
-	modified, err := patch.Apply([]byte(target))
-	if err != nil {
-		impl.logger.Errorw("error in applying JSON patch", "err", err)
-		return "Patch Failed", err
+
+func (impl BulkUpdateServiceImpl) dryRunBulkEdit(bulkUpdatePayload *bean4.BulkUpdatePayload, appNameIncludes, appNameExcludes []string) (
+	dtImpactedObjects []*bean4.DeploymentTemplateImpactedObjectsResponseForOneApp,
+	cmImpactedObjects, csImpactedObjects []*bean4.CmAndSecretImpactedObjectsResponseForOneApp, err error) {
+
+	dtImpactedObjects = make([]*bean4.DeploymentTemplateImpactedObjectsResponseForOneApp, 0)
+	cmImpactedObjects = make([]*bean4.CmAndSecretImpactedObjectsResponseForOneApp, 0)
+	csImpactedObjects = make([]*bean4.CmAndSecretImpactedObjectsResponseForOneApp, 0)
+	if bulkUpdatePayload.Global {
+		// For Deployment Template
+		impactedBaseDeploymentTemplates, err := impl.getImpactedBaseDeploymentTemplates(bulkUpdatePayload.DeploymentTemplate, appNameIncludes, appNameExcludes)
+		if err != nil {
+			impl.logger.Errorw("error in fetching impacted base deployment templates", "err", err)
+			return dtImpactedObjects, cmImpactedObjects, csImpactedObjects, err
+		}
+		dtImpactedObjects = append(dtImpactedObjects, impactedBaseDeploymentTemplates...)
+
+		// For ConfigMap
+		impactedBaseConfigMaps, err := impl.getImpactedBaseConfigMaps(bulkUpdatePayload.ConfigMap, appNameIncludes, appNameExcludes)
+		if err != nil {
+			impl.logger.Errorw("error in fetching impacted base config maps", "err", err)
+			return dtImpactedObjects, cmImpactedObjects, csImpactedObjects, err
+		}
+		cmImpactedObjects = append(cmImpactedObjects, impactedBaseConfigMaps...)
+
+		// For Secret
+		impactedBaseSecrets, err := impl.getImpactedBaseSecrets(bulkUpdatePayload.Secret, appNameIncludes, appNameExcludes)
+		if err != nil {
+			impl.logger.Errorw("error in fetching impacted base secrets", "err", err)
+			return dtImpactedObjects, cmImpactedObjects, csImpactedObjects, err
+		}
+		csImpactedObjects = append(csImpactedObjects, impactedBaseSecrets...)
 	}
-	return string(modified), err
+
+	for _, envId := range bulkUpdatePayload.EnvIds {
+		// For Deployment Template
+		impactedEnvDeploymentTemplates, err := impl.getImpactedDeploymentTemplates(bulkUpdatePayload.DeploymentTemplate, appNameIncludes, appNameExcludes, envId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching impacted base deployment templates", "envId", envId, "err", err)
+			return dtImpactedObjects, cmImpactedObjects, csImpactedObjects, err
+		}
+		dtImpactedObjects = append(dtImpactedObjects, impactedEnvDeploymentTemplates...)
+
+		// For ConfigMap
+		impactedEnvConfigMaps, err := impl.getImpactedConfigMaps(bulkUpdatePayload.ConfigMap, appNameIncludes, appNameExcludes, envId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching impacted base config maps", "envId", envId, "err", err)
+			return dtImpactedObjects, cmImpactedObjects, csImpactedObjects, err
+		}
+		cmImpactedObjects = append(cmImpactedObjects, impactedEnvConfigMaps...)
+
+		// For Secret
+		impactedEnvSecrets, err := impl.getImpactedSecrets(bulkUpdatePayload.Secret, appNameIncludes, appNameExcludes, envId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching impacted base secrets", "envId", envId, "err", err)
+			return dtImpactedObjects, cmImpactedObjects, csImpactedObjects, err
+		}
+		csImpactedObjects = append(csImpactedObjects, impactedEnvSecrets...)
+	}
+	return dtImpactedObjects, cmImpactedObjects, csImpactedObjects, nil
 }
-func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload *bean4.BulkUpdatePayload, userMetadata *bean6.UserMetadata) *bean4.DeploymentTemplateBulkUpdateResponse {
+
+func (impl BulkUpdateServiceImpl) ApplyJsonPatch(patch jsonpatch.Patch, target string) (string, error) {
+	return json.ApplyJsonPatch(patch, target)
+}
+
+func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(ctx context.Context, bulkUpdatePayload *bean4.BulkUpdatePayload, userMetadata *bean6.UserMetadata) *bean4.DeploymentTemplateBulkUpdateResponse {
 	deploymentTemplateBulkUpdateResponse := &bean4.DeploymentTemplateBulkUpdateResponse{}
 	var appNameIncludes []string
 	var appNameExcludes []string
@@ -405,7 +457,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 	}
 	var charts []*chartRepoRepository.Chart
 	if bulkUpdatePayload.Global {
-		charts, err = impl.bulkUpdateRepository.FindBulkChartsByAppNameSubstring(appNameIncludes, appNameExcludes)
+		charts, err = impl.bulkEditRepository.FindBulkChartsByAppNameSubstring(appNameIncludes, appNameExcludes)
 		if err != nil {
 			impl.logger.Error("error in fetching charts by app name substring")
 			deploymentTemplateBulkUpdateResponse.Message = append(deploymentTemplateBulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps globally : %s", err.Error()))
@@ -414,12 +466,17 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 				deploymentTemplateBulkUpdateResponse.Message = append(deploymentTemplateBulkUpdateResponse.Message, "No matching apps to update globally")
 			} else {
 				for _, chart := range charts {
-					appDetailsByChart, _ := impl.bulkUpdateRepository.FindAppByChartId(chart.Id)
+					appDetailsByChart, _ := impl.bulkEditRepository.FindAppByChartId(chart.Id)
+					appId := appDetailsByChart.Id
+					if validationErr := impl.isBaseDTConfigUpdateAllowed(ctx, appId, userMetadata); validationErr != nil {
+						deploymentTemplateBulkUpdateResponse.Failure = append(deploymentTemplateBulkUpdateResponse.Failure, adapter.GetDeploymentTemplateBulkUpdateResponseForOneApp(appId, appDetailsByChart.AppName, 0, validationErr.Error()))
+						continue
+					}
 					modifiedValuesYml, err := impl.ApplyJsonPatch(deploymentTemplatePatch, chart.Values)
 					if err != nil {
 						impl.logger.Errorw("error in applying JSON patch to chart.Values", "err", err)
 						bulkUpdateFailedResponse := &bean4.DeploymentTemplateBulkUpdateResponseForOneApp{
-							AppId:   appDetailsByChart.Id,
+							AppId:   appId,
 							AppName: appDetailsByChart.AppName,
 							Message: fmt.Sprintf("Error in applying JSON patch : %s", err.Error()),
 						}
@@ -429,24 +486,24 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 						if err != nil {
 							impl.logger.Errorw("error in applying JSON patch to GlobalOverride", "err", err)
 							bulkUpdateFailedResponse := &bean4.DeploymentTemplateBulkUpdateResponseForOneApp{
-								AppId:   appDetailsByChart.Id,
+								AppId:   appId,
 								AppName: appDetailsByChart.AppName,
 								Message: fmt.Sprintf("Error in applying JSON patch : %s", err.Error()),
 							}
 							deploymentTemplateBulkUpdateResponse.Failure = append(deploymentTemplateBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
 						} else {
-							err = impl.bulkUpdateRepository.BulkUpdateChartsValuesYamlAndGlobalOverrideById(chart.Id, modifiedValuesYml, modifiedGlobalOverrideYml)
+							err = impl.bulkEditRepository.BulkUpdateChartsValuesYamlAndGlobalOverrideById(chart.Id, modifiedValuesYml, modifiedGlobalOverrideYml)
 							if err != nil {
 								impl.logger.Errorw("error in bulk updating charts", "err", err)
 								bulkUpdateFailedResponse := &bean4.DeploymentTemplateBulkUpdateResponseForOneApp{
-									AppId:   appDetailsByChart.Id,
+									AppId:   appId,
 									AppName: appDetailsByChart.AppName,
 									Message: fmt.Sprintf("Error in updating in db : %s", err.Error()),
 								}
 								deploymentTemplateBulkUpdateResponse.Failure = append(deploymentTemplateBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
 							} else {
 								bulkUpdateSuccessResponse := &bean4.DeploymentTemplateBulkUpdateResponseForOneApp{
-									AppId:   appDetailsByChart.Id,
+									AppId:   appId,
 									AppName: appDetailsByChart.AppName,
 									Message: "Updated Successfully",
 								}
@@ -472,7 +529,6 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 								}
 							}
 						}
-
 					}
 				}
 			}
@@ -480,7 +536,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 	}
 	var chartsEnv []*chartConfig.EnvConfigOverride
 	for _, envId := range bulkUpdatePayload.EnvIds {
-		chartsEnv, err = impl.bulkUpdateRepository.FindBulkChartsEnvByAppNameSubstring(appNameIncludes, appNameExcludes, envId)
+		chartsEnv, err = impl.bulkEditRepository.FindBulkChartsEnvByAppNameSubstring(appNameIncludes, appNameExcludes, envId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching charts(for env) by app name substring", "err", err)
 			deploymentTemplateBulkUpdateResponse.Message = append(deploymentTemplateBulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps for envId = %d , %s", envId, err.Error()))
@@ -489,23 +545,28 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 				deploymentTemplateBulkUpdateResponse.Message = append(deploymentTemplateBulkUpdateResponse.Message, fmt.Sprintf("No matching apps to update for envId = %d", envId))
 			} else {
 				for _, chartEnv := range chartsEnv {
-					appDetailsByChart, _ := impl.bulkUpdateRepository.FindAppByChartEnvId(chartEnv.Id)
+					appDetailsByChart, _ := impl.bulkEditRepository.FindAppByChartEnvId(chartEnv.Id)
+					appId := appDetailsByChart.Id
+					if validationErr := impl.isEnvDTConfigUpdateAllowed(ctx, appId, envId, userMetadata); validationErr != nil {
+						deploymentTemplateBulkUpdateResponse.Failure = append(deploymentTemplateBulkUpdateResponse.Failure, adapter.GetDeploymentTemplateBulkUpdateResponseForOneApp(appId, appDetailsByChart.AppName, envId, validationErr.Error()))
+						continue
+					}
 					modified, err := impl.ApplyJsonPatch(deploymentTemplatePatch, chartEnv.EnvOverrideValues)
 					if err != nil {
 						impl.logger.Errorw("error in applying JSON patch", "err", err)
 						bulkUpdateFailedResponse := &bean4.DeploymentTemplateBulkUpdateResponseForOneApp{
-							AppId:   appDetailsByChart.Id,
+							AppId:   appId,
 							AppName: appDetailsByChart.AppName,
 							EnvId:   envId,
 							Message: fmt.Sprintf("Error in applying JSON patch : %s", err.Error()),
 						}
 						deploymentTemplateBulkUpdateResponse.Failure = append(deploymentTemplateBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
 					} else {
-						err = impl.bulkUpdateRepository.BulkUpdateChartsEnvYamlOverrideById(chartEnv.Id, modified)
+						err = impl.bulkEditRepository.BulkUpdateChartsEnvYamlOverrideById(chartEnv.Id, modified)
 						if err != nil {
 							impl.logger.Errorw("error in bulk updating charts", "err", err)
 							bulkUpdateFailedResponse := &bean4.DeploymentTemplateBulkUpdateResponseForOneApp{
-								AppId:   appDetailsByChart.Id,
+								AppId:   appId,
 								AppName: appDetailsByChart.AppName,
 								EnvId:   envId,
 								Message: fmt.Sprintf("Error in updating in db : %s", err.Error()),
@@ -513,7 +574,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 							deploymentTemplateBulkUpdateResponse.Failure = append(deploymentTemplateBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
 						} else {
 							bulkUpdateSuccessResponse := &bean4.DeploymentTemplateBulkUpdateResponseForOneApp{
-								AppId:   appDetailsByChart.Id,
+								AppId:   appId,
 								AppName: appDetailsByChart.AppName,
 								EnvId:   envId,
 								Message: "Updated Successfully",
@@ -527,7 +588,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 								return nil
 							}
 							chartEnv.EnvOverrideValues = modified
-							chartEnvDTO := adapter.EnvOverrideDBToDTO(chartEnv)
+							chartEnvDTO := dtAdapter.EnvOverrideDBToDTO(chartEnv)
 							err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(chartEnvDTO, nil, isAppMetricsEnabled, 0)
 							if err != nil {
 								impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", chartEnv)
@@ -549,7 +610,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 	return deploymentTemplateBulkUpdateResponse
 }
 
-func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(bulkUpdatePayload *bean4.BulkUpdatePayload, userMetadata *bean6.UserMetadata) *bean4.CmAndSecretBulkUpdateResponse {
+func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(ctx context.Context, bulkUpdatePayload *bean4.BulkUpdatePayload, userMetadata *bean6.UserMetadata) *bean4.CmAndSecretBulkUpdateResponse {
 	configMapBulkUpdateResponse := &bean4.CmAndSecretBulkUpdateResponse{}
 	var appNameIncludes []string
 	var appNameExcludes []string
@@ -568,7 +629,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(bulkUpdatePayload *bean4.B
 		for _, name := range bulkUpdatePayload.ConfigMap.Spec.Names {
 			configMapSpecNames[name] = true
 		}
-		configMapAppModels, err := impl.bulkUpdateRepository.FindCMBulkAppModelForGlobal(appNameIncludes, appNameExcludes, bulkUpdatePayload.ConfigMap.Spec.Names)
+		configMapAppModels, err := impl.bulkEditRepository.FindCMBulkAppModelForGlobal(appNameIncludes, appNameExcludes, bulkUpdatePayload.ConfigMap.Spec.Names)
 		if err != nil {
 			impl.logger.Errorw("error in fetching bulk app model for global", "err", err)
 			configMapBulkUpdateResponse.Message = append(configMapBulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps globally : %s", err.Error()))
@@ -577,6 +638,17 @@ func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(bulkUpdatePayload *bean4.B
 				configMapBulkUpdateResponse.Message = append(configMapBulkUpdateResponse.Message, "No matching apps to update globally")
 			} else {
 				for _, configMapAppModel := range configMapAppModels {
+					appId := configMapAppModel.AppId
+					appDetailsById, err := impl.appRepository.FindById(appId)
+					if err != nil {
+						impl.logger.Errorw("error in fetching app details by id", "appId", appId, "err", err)
+						configMapBulkUpdateResponse.Message = append(configMapBulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps globally : %s", err.Error()))
+						continue
+					}
+					if validationErr := impl.isBaseCMConfigUpdateAllowed(ctx, appId, userMetadata); validationErr != nil {
+						configMapBulkUpdateResponse.Failure = append(configMapBulkUpdateResponse.Failure, adapter.GetCmAndSecretBulkUpdateResponseForOneApp(appDetailsById.Id, appDetailsById.AppName, 0, []string{}, validationErr.Error()))
+						continue
+					}
 					configMapNames := gjson.Get(configMapAppModel.ConfigMapData, "maps.#.name")
 					messageCmNamesMap := make(map[string][]string)
 					for i, configMapName := range configMapNames.Array() {
@@ -617,7 +689,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(bulkUpdatePayload *bean4.B
 						}
 					}
 					if _, ok := messageCmNamesMap["Updated Successfully"]; ok {
-						err := impl.bulkUpdateRepository.BulkUpdateConfigMapDataForGlobalById(configMapAppModel.Id, configMapAppModel.ConfigMapData)
+						err := impl.bulkEditRepository.BulkUpdateConfigMapDataForGlobalById(configMapAppModel.Id, configMapAppModel.ConfigMapData)
 						if err != nil {
 							impl.logger.Errorw("error in bulk updating charts", "err", err)
 							messageCmNamesMap[fmt.Sprintf("Error in updating in db : %s", err.Error())] = messageCmNamesMap["Updated Successfully"]
@@ -630,7 +702,6 @@ func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(bulkUpdatePayload *bean4.B
 						}
 					}
 					if len(messageCmNamesMap) != 0 {
-						appDetailsById, _ := impl.appRepository.FindById(configMapAppModel.AppId)
 						for key, value := range messageCmNamesMap {
 							if key == "Updated Successfully" {
 								bulkUpdateSuccessResponse := &bean4.CmAndSecretBulkUpdateResponseForOneApp{
@@ -660,7 +731,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(bulkUpdatePayload *bean4.B
 		for _, name := range bulkUpdatePayload.ConfigMap.Spec.Names {
 			configMapSpecNames[name] = true
 		}
-		configMapEnvModels, err := impl.bulkUpdateRepository.FindCMBulkAppModelForEnv(appNameIncludes, appNameExcludes, envId, bulkUpdatePayload.ConfigMap.Spec.Names)
+		configMapEnvModels, err := impl.bulkEditRepository.FindCMBulkAppModelForEnv(appNameIncludes, appNameExcludes, envId, bulkUpdatePayload.ConfigMap.Spec.Names)
 		if err != nil {
 			impl.logger.Errorw("error in fetching bulk app model for env", "err", err)
 			configMapBulkUpdateResponse.Message = append(configMapBulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps for env: %d , %s", envId, err.Error()))
@@ -669,6 +740,17 @@ func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(bulkUpdatePayload *bean4.B
 				configMapBulkUpdateResponse.Message = append(configMapBulkUpdateResponse.Message, fmt.Sprintf("No matching apps to update for envId : %d", envId))
 			} else {
 				for _, configMapEnvModel := range configMapEnvModels {
+					appId := configMapEnvModel.AppId
+					appDetailsById, err := impl.appRepository.FindById(appId)
+					if err != nil {
+						impl.logger.Errorw("error in fetching app details by id", "appId", appId, "err", err)
+						configMapBulkUpdateResponse.Message = append(configMapBulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps for env : %s", err.Error()))
+						continue
+					}
+					if validationErr := impl.isEnvCMConfigUpdateAllowed(ctx, appId, envId, userMetadata); validationErr != nil {
+						configMapBulkUpdateResponse.Failure = append(configMapBulkUpdateResponse.Failure, adapter.GetCmAndSecretBulkUpdateResponseForOneApp(appDetailsById.Id, appDetailsById.AppName, envId, []string{}, validationErr.Error()))
+						continue
+					}
 					configMapNames := gjson.Get(configMapEnvModel.ConfigMapData, "maps.#.name")
 					messageCmNamesMap := make(map[string][]string)
 					for i, configMapName := range configMapNames.Array() {
@@ -709,7 +791,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(bulkUpdatePayload *bean4.B
 						}
 					}
 					if _, ok := messageCmNamesMap["Updated Successfully"]; ok {
-						err := impl.bulkUpdateRepository.BulkUpdateConfigMapDataForEnvById(configMapEnvModel.Id, configMapEnvModel.ConfigMapData)
+						err := impl.bulkEditRepository.BulkUpdateConfigMapDataForEnvById(configMapEnvModel.Id, configMapEnvModel.ConfigMapData)
 						if err != nil {
 							impl.logger.Errorw("error in bulk updating charts", "err", err)
 							messageCmNamesMap[fmt.Sprintf("Error in updating in db : %s", err.Error())] = messageCmNamesMap["Updated Successfully"]
@@ -754,7 +836,8 @@ func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(bulkUpdatePayload *bean4.B
 	}
 	return configMapBulkUpdateResponse
 }
-func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *bean4.BulkUpdatePayload, userMetadata *bean6.UserMetadata) *bean4.CmAndSecretBulkUpdateResponse {
+
+func (impl BulkUpdateServiceImpl) BulkUpdateSecret(ctx context.Context, bulkUpdatePayload *bean4.BulkUpdatePayload, userMetadata *bean6.UserMetadata) *bean4.CmAndSecretBulkUpdateResponse {
 	secretBulkUpdateResponse := &bean4.CmAndSecretBulkUpdateResponse{}
 	var appNameIncludes []string
 	var appNameExcludes []string
@@ -773,7 +856,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *bean4.Bulk
 		for _, name := range bulkUpdatePayload.Secret.Spec.Names {
 			secretSpecNames[name] = true
 		}
-		secretAppModels, err := impl.bulkUpdateRepository.FindSecretBulkAppModelForGlobal(appNameIncludes, appNameExcludes, bulkUpdatePayload.Secret.Spec.Names)
+		secretAppModels, err := impl.bulkEditRepository.FindSecretBulkAppModelForGlobal(appNameIncludes, appNameExcludes, bulkUpdatePayload.Secret.Spec.Names)
 		if err != nil {
 			impl.logger.Errorw("error in fetching bulk app model for global", "err", err)
 			secretBulkUpdateResponse.Message = append(secretBulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps globally : %s", err.Error()))
@@ -782,6 +865,17 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *bean4.Bulk
 				secretBulkUpdateResponse.Message = append(secretBulkUpdateResponse.Message, "No matching apps to update globally")
 			} else {
 				for _, secretAppModel := range secretAppModels {
+					appId := secretAppModel.AppId
+					appDetailsById, err := impl.appRepository.FindById(appId)
+					if err != nil {
+						impl.logger.Errorw("error in fetching app details by id", "appId", appId, "err", err)
+						secretBulkUpdateResponse.Message = append(secretBulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps globally : %s", err.Error()))
+						continue
+					}
+					if validationErr := impl.isBaseCSConfigUpdateAllowed(ctx, appId, userMetadata); validationErr != nil {
+						secretBulkUpdateResponse.Failure = append(secretBulkUpdateResponse.Failure, adapter.GetCmAndSecretBulkUpdateResponseForOneApp(appDetailsById.Id, appDetailsById.AppName, 0, []string{}, validationErr.Error()))
+						continue
+					}
 					secretNames := gjson.Get(secretAppModel.SecretData, "secrets.#.name")
 					messageSecretNamesMap := make(map[string][]string)
 					for i, secretName := range secretNames.Array() {
@@ -828,7 +922,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *bean4.Bulk
 						}
 					}
 					if _, ok := messageSecretNamesMap["Updated Successfully"]; ok {
-						err := impl.bulkUpdateRepository.BulkUpdateSecretDataForGlobalById(secretAppModel.Id, secretAppModel.SecretData)
+						err := impl.bulkEditRepository.BulkUpdateSecretDataForGlobalById(secretAppModel.Id, secretAppModel.SecretData)
 						if err != nil {
 							impl.logger.Errorw("error in bulk updating secrets", "err", err)
 							messageSecretNamesMap[fmt.Sprintf("Error in updating in db : %s", err.Error())] = messageSecretNamesMap["Updated Successfully"]
@@ -841,7 +935,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *bean4.Bulk
 						}
 					}
 					if len(messageSecretNamesMap) != 0 {
-						appDetailsById, _ := impl.appRepository.FindById(secretAppModel.AppId)
+						appDetailsById, _ := impl.appRepository.FindById(appId)
 						for key, value := range messageSecretNamesMap {
 							if key == "Updated Successfully" {
 								bulkUpdateSuccessResponse := &bean4.CmAndSecretBulkUpdateResponseForOneApp{
@@ -871,7 +965,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *bean4.Bulk
 		for _, name := range bulkUpdatePayload.Secret.Spec.Names {
 			secretSpecNames[name] = true
 		}
-		secretEnvModels, err := impl.bulkUpdateRepository.FindSecretBulkAppModelForEnv(appNameIncludes, appNameExcludes, envId, bulkUpdatePayload.Secret.Spec.Names)
+		secretEnvModels, err := impl.bulkEditRepository.FindSecretBulkAppModelForEnv(appNameIncludes, appNameExcludes, envId, bulkUpdatePayload.Secret.Spec.Names)
 		if err != nil {
 			impl.logger.Errorw("error in fetching bulk app model for env", "err", err)
 			secretBulkUpdateResponse.Message = append(secretBulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps for env: %d , %s", envId, err.Error()))
@@ -880,6 +974,17 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *bean4.Bulk
 				secretBulkUpdateResponse.Message = append(secretBulkUpdateResponse.Message, fmt.Sprintf("No matching apps to update for envId : %d", envId))
 			} else {
 				for _, secretEnvModel := range secretEnvModels {
+					appId := secretEnvModel.AppId
+					appDetailsById, err := impl.appRepository.FindById(appId)
+					if err != nil {
+						impl.logger.Errorw("error in fetching app details by id", "appId", appId, "err", err)
+						secretBulkUpdateResponse.Message = append(secretBulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps for env : %s", err.Error()))
+						continue
+					}
+					if validationErr := impl.isEnvCSConfigUpdateAllowed(ctx, appId, envId, userMetadata); validationErr != nil {
+						secretBulkUpdateResponse.Failure = append(secretBulkUpdateResponse.Failure, adapter.GetCmAndSecretBulkUpdateResponseForOneApp(appDetailsById.Id, appDetailsById.AppName, envId, []string{}, validationErr.Error()))
+						continue
+					}
 					secretNames := gjson.Get(secretEnvModel.SecretData, "secrets.#.name")
 					messageSecretNamesMap := make(map[string][]string)
 					for i, secretName := range secretNames.Array() {
@@ -926,7 +1031,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *bean4.Bulk
 						}
 					}
 					if _, ok := messageSecretNamesMap["Updated Successfully"]; ok {
-						err := impl.bulkUpdateRepository.BulkUpdateSecretDataForEnvById(secretEnvModel.Id, secretEnvModel.SecretData)
+						err := impl.bulkEditRepository.BulkUpdateSecretDataForEnvById(secretEnvModel.Id, secretEnvModel.SecretData)
 						if err != nil {
 							impl.logger.Errorw("error in bulk updating charts", "err", err)
 							messageSecretNamesMap[fmt.Sprintf("Error in updating in db : %s", err.Error())] = messageSecretNamesMap["Updated Successfully"]
@@ -939,7 +1044,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *bean4.Bulk
 						}
 					}
 					if len(messageSecretNamesMap) != 0 {
-						appDetailsById, _ := impl.appRepository.FindById(secretEnvModel.AppId)
+						appDetailsById, _ := impl.appRepository.FindById(appId)
 						for key, value := range messageSecretNamesMap {
 							if key == "Updated Successfully" {
 								bulkUpdateSuccessResponse := &bean4.CmAndSecretBulkUpdateResponseForOneApp{
@@ -971,19 +1076,20 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *bean4.Bulk
 	}
 	return secretBulkUpdateResponse
 }
-func (impl BulkUpdateServiceImpl) BulkUpdate(bulkUpdatePayload *bean4.BulkUpdatePayload, userMetadata *bean6.UserMetadata) *bean4.BulkUpdateResponse {
+
+func (impl BulkUpdateServiceImpl) BulkEdit(ctx context.Context, bulkUpdatePayload *bean4.BulkUpdatePayload, userMetadata *bean6.UserMetadata) *bean4.BulkUpdateResponse {
 	bulkUpdateResponse := &bean4.BulkUpdateResponse{}
 	var deploymentTemplateBulkUpdateResponse *bean4.DeploymentTemplateBulkUpdateResponse
 	var configMapBulkUpdateResponse *bean4.CmAndSecretBulkUpdateResponse
 	var secretBulkUpdateResponse *bean4.CmAndSecretBulkUpdateResponse
 	if bulkUpdatePayload.DeploymentTemplate != nil && bulkUpdatePayload.DeploymentTemplate.Spec != nil && bulkUpdatePayload.DeploymentTemplate.Spec.PatchJson != "" {
-		deploymentTemplateBulkUpdateResponse = impl.BulkUpdateDeploymentTemplate(bulkUpdatePayload, userMetadata)
+		deploymentTemplateBulkUpdateResponse = impl.BulkUpdateDeploymentTemplate(ctx, bulkUpdatePayload, userMetadata)
 	}
 	if bulkUpdatePayload.ConfigMap != nil && bulkUpdatePayload.ConfigMap.Spec != nil && len(bulkUpdatePayload.ConfigMap.Spec.Names) != 0 && bulkUpdatePayload.ConfigMap.Spec.PatchJson != "" {
-		configMapBulkUpdateResponse = impl.BulkUpdateConfigMap(bulkUpdatePayload, userMetadata)
+		configMapBulkUpdateResponse = impl.BulkUpdateConfigMap(ctx, bulkUpdatePayload, userMetadata)
 	}
 	if bulkUpdatePayload.Secret != nil && bulkUpdatePayload.Secret.Spec != nil && len(bulkUpdatePayload.Secret.Spec.Names) != 0 && bulkUpdatePayload.Secret.Spec.PatchJson != "" {
-		secretBulkUpdateResponse = impl.BulkUpdateSecret(bulkUpdatePayload, userMetadata)
+		secretBulkUpdateResponse = impl.BulkUpdateSecret(ctx, bulkUpdatePayload, userMetadata)
 	}
 
 	bulkUpdateResponse.DeploymentTemplate = deploymentTemplateBulkUpdateResponse
@@ -992,24 +1098,37 @@ func (impl BulkUpdateServiceImpl) BulkUpdate(bulkUpdatePayload *bean4.BulkUpdate
 	return bulkUpdateResponse
 }
 
-func (impl BulkUpdateServiceImpl) BulkHibernate(ctx context.Context, request *bean4.BulkApplicationForEnvironmentPayload, checkAuthForBulkActions func(token string, appObject string, envObject string) bool,
+func (impl BulkUpdateServiceImpl) BulkHibernate(ctx context.Context, request *bean4.BulkApplicationForEnvironmentPayload, checkAuthForBulkActions func(token, appObject, envObject string) bool,
 	userMetadata *bean6.UserMetadata) (*bean4.BulkApplicationHibernateUnhibernateForEnvironmentResponse, error) {
+	return impl.bulkHibernateCommon(request, ctx, util2.GetTokenFromContext(ctx), checkAuthForBulkActions, impl.deployedAppService.StopStartApp, userMetadata)
+}
+
+// stopAppFunc is the signature for the function that triggers the hibernation operation.
+type stopAppFunc func(ctx context.Context, req *bean5.StopAppRequest, userMetadata *bean6.UserMetadata) (int, error)
+
+// bulkHibernateCommon contains the common bulk-hibernate logic.
+func (impl BulkUpdateServiceImpl) bulkHibernateCommon(request *bean4.BulkApplicationForEnvironmentPayload, ctx context.Context, token string, checkAuthForBulkActions func(token, appObject, envObject string) bool, stopApp stopAppFunc, userMetadata *bean6.UserMetadata) (*bean4.BulkApplicationHibernateUnhibernateForEnvironmentResponse, error) {
+	// Fetch pipelines based on filters.
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
-	if len(request.AppIdIncludes) > 0 {
+	switch {
+	case len(request.AppIdIncludes) > 0:
 		pipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIdIncludes)
-	} else if len(request.AppIdExcludes) > 0 {
+	case len(request.AppIdExcludes) > 0:
 		pipelines, err = impl.pipelineRepository.FindActiveByNotFilter(request.EnvId, request.AppIdExcludes)
-	} else {
+	default:
 		pipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.EnvId)
 	}
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipelines", "envId", request.EnvId, "err", err)
 		return nil, err
 	}
-	response := make(map[string]map[string]any)
-	var cdPipelineIds []int
 
+	// Prepare a map to group responses by app.
+	response := make(map[string]map[string]any)
+
+	// Collect pipeline IDs to fetch deployment types.
+	var cdPipelineIds []int
 	for _, pipeline := range pipelines {
 		cdPipelineIds = append(cdPipelineIds, pipeline.Id)
 	}
@@ -1018,80 +1137,88 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(ctx context.Context, request *be
 		impl.logger.Errorw("error in fetching deploymentTypes", "pipelineIds", cdPipelineIds, "err", err)
 		return nil, err
 	}
+
+	// Process each pipeline.
 	for _, pipeline := range pipelines {
 		appKey := utils.GenerateIdentifierKey(pipeline.AppId, pipeline.App.AppName)
 		pipelineKey := utils.GenerateIdentifierKey(pipeline.Id, pipeline.Name)
+		// Initialize group map for app if needed.
 		if _, ok := response[appKey]; !ok {
-			pResponse := make(map[string]any)
-			pResponse[pipelineKey] = true //by default assuming that the operation is successful, if not so then we'll mark it as false
-			response[appKey] = pResponse
+			response[appKey] = map[string]any{pipelineKey: true} // default to success
 		}
+
+		// Authorization check using tokens.
 		appObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		envObject := impl.enforcerUtil.GetEnvRBACNameByAppId(pipeline.AppId, pipeline.EnvironmentId)
-		isValidAuth := checkAuthForBulkActions(util2.GetTokenFromContext(ctx), appObject, envObject)
-		if !isValidAuth {
-			//skip hibernate for the app if user does not have access on that
-			pipelineResponse := response[appKey]
-			pipelineResponse[pipelineKey] = false
-			pipelineResponse[AuthorizationError] = true
-			response[appKey] = pipelineResponse
+		if !checkAuthForBulkActions(util2.GetTokenFromContext(ctx), appObject, envObject) {
+			resp := response[appKey]
+			resp[pipelineKey] = false
+			resp[AuthorizationError] = true
+			response[appKey] = resp
 			continue
 		}
+
+		// Check deployment history: skip if already in target state.
 		deploymentHistory := deploymentTypeMap[pipeline.Id]
 		if deploymentHistory.DeploymentType == models.DEPLOYMENTTYPE_STOP {
 			impl.logger.Infow("application already hibernated", "app_id", pipeline.AppId)
-			pipelineResponse := response[appKey]
-			pipelineResponse[pipelineKey] = false
+			resp := response[appKey]
+			resp[pipelineKey] = false
 			if deploymentHistory.Status == argoApplication.HIBERNATING {
-				pipelineResponse[Skipped] = "Application is already hibernated"
+				resp[Skipped] = "Application is already hibernated"
 			} else {
-				pipelineResponse[Skipped] = "Hibernation already in progress"
+				resp[Skipped] = "Hibernation already in progress"
 			}
-			response[appKey] = pipelineResponse
+			response[appKey] = resp
 			continue
 		}
-		var hibernateReqError error
-		//if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+
 		stopRequest := &bean5.StopAppRequest{
 			AppId:         pipeline.AppId,
 			EnvironmentId: pipeline.EnvironmentId,
 			UserId:        request.UserId,
 			RequestType:   bean5.STOP,
 		}
-		_, hibernateReqError = impl.deployedAppService.StopStartApp(ctx, stopRequest, userMetadata)
+
+		// Calling the injected service function.
+		_, hibernateReqError := stopApp(ctx, stopRequest, userMetadata)
 		if hibernateReqError != nil {
 			impl.logger.Errorw("error in hibernating application", "err", hibernateReqError, "pipeline", pipeline)
-			pipelineResponse := response[appKey]
-			pipelineResponse[pipelineKey] = false
-			pipelineResponse[Error] = hibernateReqError.Error()
-			response[appKey] = pipelineResponse
+			resp := response[appKey]
+			resp[pipelineKey] = false
+			resp[Error] = hibernateReqError.Error()
+			response[appKey] = resp
 			continue
 		}
 	}
+
+	// Convert the response map into API response.
 	var responseArray []map[string]interface{}
 	for appKey, pipelineResponse := range response {
 		appMap := make(map[string]interface{})
 		appKeySplit := strings.Split(appKey, "_")
-		appId := appKeySplit[0]
-		appName := strings.Join(appKeySplit[1:], "_")
-		appMap["id"] = appId
-		appMap["appName"] = appName
+		appMap["id"] = appKeySplit[0]
+		appMap["appName"] = strings.Join(appKeySplit[1:], "_")
 		for key, value := range pipelineResponse {
-			if key == AuthorizationError {
+			switch key {
+			case AuthorizationError:
 				appMap[AuthorizationError] = value
-			} else if key == Error {
+			case Error:
 				appMap[Error] = value
-			} else if key == Skipped {
+			case Skipped:
 				appMap[Skipped] = value
-			} else {
+			default:
 				appMap["success"] = value
 			}
 		}
 		responseArray = append(responseArray, appMap)
 	}
-	bulkOperationResponse := &bean4.BulkApplicationHibernateUnhibernateForEnvironmentResponse{}
-	bulkOperationResponse.BulkApplicationForEnvironmentPayload = *request
-	bulkOperationResponse.Response = responseArray
+
+	// Build and return the final response.
+	bulkOperationResponse := &bean4.BulkApplicationHibernateUnhibernateForEnvironmentResponse{
+		BulkApplicationForEnvironmentPayload: *request,
+		Response:                             responseArray,
+	}
 	return bulkOperationResponse, nil
 }
 
@@ -1149,6 +1276,7 @@ func (impl BulkUpdateServiceImpl) buildHibernateUnHibernateRequestForHelmPipelin
 	}
 	return appIdentifier, hibernateRequest, nil
 }
+
 func (impl BulkUpdateServiceImpl) BulkUnHibernate(ctx context.Context, request *bean4.BulkApplicationForEnvironmentPayload, checkAuthForBulkActions func(token string, appObject string, envObject string) bool,
 	userMetadata *bean6.UserMetadata) (*bean4.BulkApplicationHibernateUnhibernateForEnvironmentResponse, error) {
 	var pipelines []*pipelineConfig.Pipeline
@@ -1255,7 +1383,7 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(ctx context.Context, request *
 	return bulkOperationResponse, nil
 }
 
-func (impl BulkUpdateServiceImpl) BulkDeploy(request *bean4.BulkApplicationForEnvironmentPayload, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool),
+func (impl BulkUpdateServiceImpl) BulkDeploy(ctx *util2.RequestCtx, request *bean4.BulkApplicationForEnvironmentPayload, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool),
 	userMetadata *bean6.UserMetadata) (*bean4.BulkApplicationForEnvironmentResponse, error) {
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
@@ -1323,7 +1451,7 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *bean4.BulkApplicationForEn
 		appObjectArr = append(appObjectArr, object[0])
 		envObjectArr = append(envObjectArr, object[1])
 	}
-	appResults, envResults := checkAuthBatch(token, appObjectArr, envObjectArr)
+	appResults, envResults := checkAuthBatch(util2.GetTokenFromContext(ctx), appObjectArr, envObjectArr)
 	//authorization block ends here
 
 	response := make(map[string]map[string]bool)
@@ -1352,7 +1480,6 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *bean4.BulkApplicationForEn
 			response[appKey] = pipelineResponse
 			continue
 		}
-
 		artifactsListingFilterOptions := &bean.ArtifactsListFilterOptions{
 			Limit:        10,
 			Offset:       0,
@@ -1361,10 +1488,10 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *bean4.BulkApplicationForEn
 		artifactResponse, err := impl.pipelineBuilder.RetrieveArtifactsByCDPipelineV2(pipeline, bean.CD_WORKFLOW_TYPE_DEPLOY, artifactsListingFilterOptions)
 		if err != nil {
 			impl.logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", pipeline.Id)
-			//return nil, err
 			pipelineResponse := response[appKey]
 			pipelineResponse[appKey] = false
 			response[appKey] = pipelineResponse
+			continue
 		}
 
 		artifacts := artifactResponse.CiArtifacts
