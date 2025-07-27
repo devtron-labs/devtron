@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/util"
+	"helm.sh/helm/v3/pkg/chart"
 	"slices"
 	"time"
 )
@@ -298,7 +299,6 @@ func (chart *InstallAppVersionDTO) GetFluxDeploymentConfig() *bean2.DeploymentCo
 	}
 }
 
-// /
 type RefChartProxyDir string
 
 const (
@@ -337,12 +337,7 @@ type AppNames struct {
 }
 
 type Dependencies struct {
-	Dependencies []Dependency `json:"dependencies"`
-}
-type Dependency struct {
-	Name       string `json:"name"`
-	Version    string `json:"version"`
-	Repository string `json:"repository"`
+	Dependencies []*chart.Dependency `json:"dependencies"`
 }
 
 const REFERENCE_TYPE_DEFAULT string = "DEFAULT"

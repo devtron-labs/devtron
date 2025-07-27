@@ -18,6 +18,7 @@ package deployment
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -27,12 +28,18 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
+	gitBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	validationBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation/bean"
+	chartRefBean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	globalUtil "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"github.com/google/go-github/github"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/xanzy/go-gitlab"
+	"helm.sh/helm/v3/pkg/chart"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -57,7 +64,7 @@ type InstalledAppGitOpsService interface {
 // GitOpsOperations handles all git operations for Helm App; and ensures that the return param bean.AppStoreGitOpsResponse is not nil
 func (impl *FullModeDeploymentServiceImpl) GitOpsOperations(manifestResponse *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*bean.AppStoreGitOpsResponse, error) {
 	appStoreGitOpsResponse := &bean.AppStoreGitOpsResponse{}
-	chartGitAttribute, githash, err := impl.createGitOpsRepoAndPushChart(installAppVersionRequest, manifestResponse.ChartResponse.BuiltChartPath, manifestResponse.RequirementsConfig, manifestResponse.ValuesConfig)
+	chartGitAttribute, githash, err := impl.createGitOpsRepoAndPushChart(installAppVersionRequest, manifestResponse.ChartResponse.BuiltChartPath, manifestResponse.ValuesConfig)
 	if err != nil {
 		impl.Logger.Errorw("Error in pushing chart to git", "err", err)
 		return appStoreGitOpsResponse, err
@@ -68,26 +75,31 @@ func (impl *FullModeDeploymentServiceImpl) GitOpsOperations(manifestResponse *be
 }
 
 func (impl *FullModeDeploymentServiceImpl) GenerateManifest(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) (manifestResponse *bean.AppStoreManifestResponse, err error) {
-
 	manifestResponse = &bean.AppStoreManifestResponse{}
-
-	ChartCreateResponse, err := impl.createChartProxyAndGetPath(installAppVersionRequest)
-	if err != nil {
-		impl.Logger.Errorw("Error in building chart while generating manifest", "err", err)
-		return manifestResponse, err
-	}
-	// valuesConfig and dependencyConfig's ChartConfig object contains ChartRepoName which is extracted from gitOpsRepoUrl
-	// that resides in the db and not from the current orchestrator cm prefix and appName.
-	valuesConfig, dependencyConfig, err := impl.getValuesAndRequirementForGitConfig(installAppVersionRequest, appStoreApplicationVersion)
+	values, dependencies, err := impl.getValuesAndRequirement(installAppVersionRequest, appStoreApplicationVersion)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching values and requirements.yaml config while generating manifest", "err", err)
 		return manifestResponse, err
 	}
-
-	manifestResponse.ChartResponse = ChartCreateResponse
+	chartCreateRequest := adapter.ParseChartCreateRequest(installAppVersionRequest.AppName, dependencies, true)
+	chartCreateResponse, err := impl.createChartProxyAndGetPath(chartCreateRequest)
+	if err != nil {
+		impl.Logger.Errorw("Error in building chart while generating manifest", "err", err)
+		return manifestResponse, err
+	}
+	if chartCreateResponse != nil && chartCreateResponse.ChartMetaData == nil {
+		chartCreateResponse.ChartMetaData.Dependencies = dependencies
+	}
+	// valuesConfig and chartMetaDataConfig's ChartConfig object contains ChartRepoName which is extracted from gitOpsRepoUrl
+	// that resides in the db and not from the current orchestrator cm prefix and appName.
+	valuesConfig, chartMetaDataConfig, err := impl.getValuesAndChartMetaDataForGitConfig(installAppVersionRequest, values, chartCreateResponse.ChartMetaData)
+	if err != nil {
+		impl.Logger.Errorw("error in getting values and requirements config for git commit", "err", err)
+		return manifestResponse, err
+	}
+	manifestResponse.ChartResponse = chartCreateResponse
 	manifestResponse.ValuesConfig = valuesConfig
-	manifestResponse.RequirementsConfig = dependencyConfig
-
+	manifestResponse.ChartMetaDataConfig = chartMetaDataConfig
 	return manifestResponse, nil
 }
 
@@ -109,7 +121,7 @@ func (impl *FullModeDeploymentServiceImpl) GenerateManifestAndPerformGitOperatio
 }
 
 func (impl *FullModeDeploymentServiceImpl) UpdateAppGitOpsOperations(manifest *bean.AppStoreManifestResponse,
-	installAppVersionRequest *appStoreBean.InstallAppVersionDTO, monoRepoMigrationRequired bool, commitRequirements bool) (*bean.AppStoreGitOpsResponse, error) {
+	installAppVersionRequest *appStoreBean.InstallAppVersionDTO, monoRepoMigrationRequired bool, updateDependencies bool) (*bean.AppStoreGitOpsResponse, error) {
 	var requirementsCommitErr, valuesCommitErr error
 	var gitHash string
 	if monoRepoMigrationRequired {
@@ -120,11 +132,20 @@ func (impl *FullModeDeploymentServiceImpl) UpdateAppGitOpsOperations(manifest *b
 
 	gitOpsResponse := &bean.AppStoreGitOpsResponse{}
 	ctx := context.Background()
-	if commitRequirements {
+	if updateDependencies {
 		// update dependency if chart or chart version is changed
-		_, _, requirementsCommitErr = impl.gitOperationService.CommitValues(ctx, manifest.RequirementsConfig)
+		_, _, requirementsCommitErr = impl.gitOperationService.CommitValues(ctx, manifest.ChartMetaDataConfig)
 		gitHash, _, valuesCommitErr = impl.gitOperationService.CommitValues(ctx, manifest.ValuesConfig)
 	} else {
+		cloneChartToGitRequest := adapter.ParseChartGitPushRequest(installAppVersionRequest, "")
+		migrateDependencies, err := impl.shouldMigrateProxyChartDependencies(cloneChartToGitRequest)
+		if err != nil {
+			impl.Logger.Errorw("error in checking if proxy chart dependencies should be migrated", "err", err)
+			return nil, err
+		}
+		if migrateDependencies {
+			_, _, requirementsCommitErr = impl.gitOperationService.CommitValues(ctx, manifest.ChartMetaDataConfig)
+		}
 		// only values are changed in update, so commit values config
 		gitHash, _, valuesCommitErr = impl.gitOperationService.CommitValues(ctx, manifest.ValuesConfig)
 	}
@@ -184,20 +205,21 @@ func (impl *FullModeDeploymentServiceImpl) parseGitRepoErrorResponse(err error) 
 }
 
 // createGitOpsRepoAndPushChart is a wrapper for creating GitOps repo and pushing chart to created repo
-func (impl *FullModeDeploymentServiceImpl) createGitOpsRepoAndPushChart(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, builtChartPath string, requirementsConfig *git.ChartConfig, valuesConfig *git.ChartConfig) (*commonBean.ChartGitAttribute, string, error) {
+func (impl *FullModeDeploymentServiceImpl) createGitOpsRepoAndPushChart(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, builtChartPath string, valuesConfig *git.ChartConfig) (*commonBean.ChartGitAttribute, string, error) {
 	// in case of monorepo migration installAppVersionRequest.GitOpsRepoURL is ""
 	if len(installAppVersionRequest.GitOpsRepoURL) == 0 {
 		gitOpsConfigStatus, err := impl.gitOpsConfigReadService.GetGitOpsConfigActive()
 		if err != nil {
 			return nil, "", err
 		}
-		InstalledApp, err := impl.installedAppRepository.GetInstalledApp(installAppVersionRequest.InstalledAppId)
+		installedApp, err := impl.installedAppRepository.GetInstalledApp(installAppVersionRequest.InstalledAppId)
 		if err != nil {
-			impl.Logger.Errorw("service err, installedApp", "err", err)
+			impl.Logger.Errorw("service err, installedApp", "installedAppId", installAppVersionRequest.InstalledAppId, "err", err)
 			return nil, "", err
 		}
-		if gitOpsConfigStatus.AllowCustomRepository && InstalledApp.IsCustomRepository {
-			return nil, "", fmt.Errorf("Invalid request! Git repository URL is not found for installed app '%s'", installAppVersionRequest.AppName)
+		if gitOpsConfigStatus.AllowCustomRepository && installedApp.IsCustomRepository {
+			errMSg := fmt.Sprintf("Invalid request! Git repository URL is not found for installed app '%s'", installAppVersionRequest.AppName)
+			return nil, "", util.NewApiError(http.StatusBadRequest, errMSg, errMSg)
 		}
 		gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(installAppVersionRequest.AppName)
 		gitOpsRepoURL, isNew, err := impl.createGitOpsRepo(gitOpsRepoName, installAppVersionRequest.GetTargetRevision(), installAppVersionRequest.UserId)
@@ -211,7 +233,7 @@ func (impl *FullModeDeploymentServiceImpl) createGitOpsRepoAndPushChart(installA
 
 	}
 	pushChartToGitRequest := adapter.ParseChartGitPushRequest(installAppVersionRequest, builtChartPath)
-	chartGitAttribute, commitHash, err := impl.gitOperationService.PushChartToGitOpsRepoForHelmApp(context.Background(), pushChartToGitRequest, requirementsConfig, valuesConfig)
+	chartGitAttribute, commitHash, err := impl.gitOperationService.PushChartToGitOpsRepoForHelmApp(context.Background(), pushChartToGitRequest, valuesConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in pushing chart to git", "err", err)
 		return nil, "", err
@@ -243,15 +265,13 @@ func (impl *FullModeDeploymentServiceImpl) createGitOpsRepo(gitOpsRepoName strin
 }
 
 // createChartProxyAndGetPath parse chart in local directory and returns path of local dir and values.yaml
-func (impl *FullModeDeploymentServiceImpl) createChartProxyAndGetPath(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*util.ChartCreateResponse, error) {
-	chartCreateRequest := adapter.ParseChartCreateRequest(installAppVersionRequest.AppName, true)
+func (impl *FullModeDeploymentServiceImpl) createChartProxyAndGetPath(chartCreateRequest *util.ChartCreateRequest) (*util.ChartCreateResponse, error) {
 	chartCreateResponse, err := impl.appStoreDeploymentCommonService.CreateChartProxyAndGetPath(chartCreateRequest)
 	if err != nil {
 		impl.Logger.Errorw("Error in building chart proxy", "err", err)
 		return chartCreateResponse, err
 	}
 	return chartCreateResponse, nil
-
 }
 
 // getGitCommitConfig will return util.ChartConfig (git commit config) for GitOps
@@ -311,39 +331,53 @@ func (impl *FullModeDeploymentServiceImpl) getGitCommitConfig(installAppVersionR
 	return YamlConfig, nil
 }
 
-// getValuesAndRequirementForGitConfig will return chart values(*util.ChartConfig) and requirements(*util.ChartConfig) for git commit
-func (impl *FullModeDeploymentServiceImpl) getValuesAndRequirementForGitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) (*git.ChartConfig, *git.ChartConfig, error) {
-
-	var err error
+// getValuesAndRequirement will return chart values(*git.ChartConfig) and requirements(*git.ChartConfig) for git commit
+func (impl *FullModeDeploymentServiceImpl) getValuesAndRequirement(installAppVersionRequest *appStoreBean.InstallAppVersionDTO,
+	appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) (values map[string]map[string]any, dependencies []*chart.Dependency, err error) {
 	if appStoreAppVersion == nil {
 		appStoreAppVersion, err = impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 		if err != nil {
 			impl.Logger.Errorw("fetching error", "err", err)
-			return nil, nil, err
+			return values, dependencies, err
 		}
-
 	}
-	values, err := impl.appStoreDeploymentCommonService.GetValuesString(appStoreAppVersion, installAppVersionRequest.ValuesOverrideYaml)
+	values, err = impl.appStoreDeploymentCommonService.GetProxyChartValues(appStoreAppVersion, installAppVersionRequest.ValuesOverrideYaml)
 	if err != nil {
 		impl.Logger.Errorw("error in getting values fot installedAppVersionRequest", "err", err)
-		return nil, nil, err
+		return values, dependencies, err
 	}
-	dependency, err := impl.appStoreDeploymentCommonService.GetRequirementsString(appStoreAppVersion)
+	dependencies, err = impl.appStoreDeploymentCommonService.GetProxyChartRequirements(appStoreAppVersion)
 	if err != nil {
-		impl.Logger.Errorw("error in getting dependency array fot installedAppVersionRequest", "err", err)
+		impl.Logger.Errorw("error in getting dependencies array fot installedAppVersionRequest", "err", err)
+		return values, dependencies, err
+	}
+	return values, dependencies, err
+}
+
+// getValuesAndChartMetaDataForGitConfig will return chart values(*git.ChartConfig) and requirements(*git.ChartConfig) for git commit
+func (impl *FullModeDeploymentServiceImpl) getValuesAndChartMetaDataForGitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO,
+	values map[string]map[string]any, chartMetaData *chart.Metadata) (*git.ChartConfig, *git.ChartConfig, error) {
+	valuesContent, err := json.Marshal(values)
+	if err != nil {
+		impl.Logger.Errorw("error in marshalling values content", "err", err)
 		return nil, nil, err
 	}
-	valuesConfig, err := impl.getGitCommitConfig(installAppVersionRequest, values, appStoreBean.VALUES_YAML_FILE)
+	valuesConfig, err := impl.getGitCommitConfig(installAppVersionRequest, string(valuesContent), appStoreBean.VALUES_YAML_FILE)
 	if err != nil {
 		impl.Logger.Errorw("error in creating values config for git", "err", err)
 		return nil, nil, err
 	}
-	RequirementConfig, err := impl.getGitCommitConfig(installAppVersionRequest, dependency, appStoreBean.REQUIREMENTS_YAML_FILE)
+	chartMetaDataContent, err := json.Marshal(chartMetaData)
+	if err != nil {
+		impl.Logger.Errorw("error in marshalling chartMetaData content", "err", err)
+		return nil, nil, err
+	}
+	chartMetaDataConfig, err := impl.getGitCommitConfig(installAppVersionRequest, string(chartMetaDataContent), chartRefBean.CHART_YAML_FILE)
 	if err != nil {
 		impl.Logger.Errorw("error in creating dependency config for git", "err", err)
 		return nil, nil, err
 	}
-	return valuesConfig, RequirementConfig, nil
+	return valuesConfig, chartMetaDataConfig, nil
 }
 
 func (impl *FullModeDeploymentServiceImpl) ValidateCustomGitOpsConfig(request validationBean.ValidateGitOpsRepoRequest) (string, bool, error) {
@@ -376,4 +410,73 @@ func (impl *FullModeDeploymentServiceImpl) CreateArgoRepoSecretIfNeeded(appStore
 		return err
 	}
 	return nil
+}
+
+func (impl *FullModeDeploymentServiceImpl) shouldMigrateProxyChartDependencies(pushChartToGitRequest *gitBean.PushChartToGitRequestDTO) (bool, error) {
+	clonedDir, err := impl.gitOperationService.CloneChartForHelmApp(pushChartToGitRequest.AppName, pushChartToGitRequest.RepoURL, pushChartToGitRequest.TargetRevision)
+	if err != nil {
+		impl.Logger.Errorw("error in cloning chart for helm app", "appName", pushChartToGitRequest.AppName, "repoUrl", pushChartToGitRequest.RepoURL, "err", err)
+		return false, err
+	}
+	defer impl.chartTemplateService.CleanDir(clonedDir)
+	gitOpsChartLocation := fmt.Sprintf("%s-%s", pushChartToGitRequest.AppName, pushChartToGitRequest.EnvName)
+	dir := filepath.Join(clonedDir, gitOpsChartLocation)
+	requirementsYamlPath := filepath.Join(dir, appStoreBean.REQUIREMENTS_YAML_FILE)
+	if _, err := os.Stat(requirementsYamlPath); os.IsNotExist(err) {
+		impl.Logger.Debugw("requirements.yaml not found in cloned repo from git-ops, no migrations required", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName)
+		return false, nil
+	} else if err != nil {
+		impl.Logger.Errorw("error in checking requirements.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
+		return false, err
+	}
+	chartYamlPath := filepath.Join(dir, chartRefBean.CHART_YAML_FILE)
+	if _, err := os.Stat(chartYamlPath); os.IsNotExist(err) {
+		impl.Logger.Debugw("chart.yaml not found in cloned repo from git-ops, no migrations required", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName)
+		return false, nil
+	} else if err != nil {
+		impl.Logger.Errorw("error in checking chart.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
+		return false, err
+	}
+	// load requirements.yaml file to check if it has dependencies
+	requirementsYamlContent, err := os.ReadFile(requirementsYamlPath)
+	if err != nil {
+		impl.Logger.Errorw("error in reading requirements.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
+		return false, err
+	}
+	dependencies := appStoreBean.Dependencies{}
+	err = json.Unmarshal(requirementsYamlContent, &dependencies)
+	if err != nil {
+		impl.Logger.Errorw("error in unmarshalling requirements.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
+		return false, err
+	}
+	if len(dependencies.Dependencies) == 0 {
+		impl.Logger.Debugw("no dependencies found in requirements.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName)
+		return false, nil
+	}
+	impl.Logger.Debugw("dependencies found in requirements.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "dependencies", dependencies.Dependencies)
+	// check if chart.yaml file has dependencies
+	chartYamlContent, err := os.ReadFile(chartYamlPath)
+	if err != nil {
+		impl.Logger.Errorw("error in reading chart.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
+		return false, err
+	}
+	chartMetadata := &chart.Metadata{}
+	err = json.Unmarshal(chartYamlContent, chartMetadata)
+	if err != nil {
+		impl.Logger.Errorw("error in unmarshalling chart.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
+		return false, err
+	}
+	if len(chartMetadata.Dependencies) == 0 {
+		impl.Logger.Debugw("no dependencies found in chart.yaml file, need to migrate proxy chart dependencies", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName)
+		return true, nil
+	}
+	impl.Logger.Debugw("dependencies found in chart.yaml file, validating against requirements.yaml", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "chartDependencies", chartMetadata.Dependencies)
+	// validate if chart.yaml dependencies are present in requirements.yaml
+	latestDependencies := sliceUtil.NewSliceFromFuncExec(chartMetadata.Dependencies, func(dependency *chart.Dependency) string {
+		return fmt.Sprintf("%s-%s-%s", strings.TrimSpace(dependency.Name), strings.TrimSpace(dependency.Version), strings.TrimSpace(dependency.Repository))
+	})
+	previousDependencies := sliceUtil.NewSliceFromFuncExec(dependencies.Dependencies, func(dependency *chart.Dependency) string {
+		return fmt.Sprintf("%s-%s-%s", strings.TrimSpace(dependency.Name), strings.TrimSpace(dependency.Version), strings.TrimSpace(dependency.Repository))
+	})
+	return sliceUtil.CompareTwoSlices(latestDependencies, previousDependencies), nil
 }
