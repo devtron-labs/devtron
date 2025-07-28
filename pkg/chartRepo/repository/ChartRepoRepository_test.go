@@ -40,7 +40,7 @@ func TestChartRepositoryImpl_Save(t *testing.T) {
 		AuditLog:     sql.AuditLog{CreatedBy: 1, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: 1},
 	}
 
-	err := cr.Save(c)
+	err := cr.Save(nil, c)
 	assert.NoError(t, err)
 
 }
