@@ -5985,20 +5985,23 @@ components:
       properties:
         id:
           type: integer
+          description: GitOps Id (null for new configuration)
         provider:
           type: string
           description: Gitops provider
           example: github,gitlabs
         username:
           type: string
-          description: Username
+          description: Username of GitOps
         token:
           type: string
-          description: Authentication token
+          description: Authentication token of GitOps
         gitLabGroupId:
           type: string
+          description: Group Id of gitLab
         gitHubOrgId:
           type: string
+          description: Group Id of gitHub
         host:
           type: string
           description: Host of gitops provider
@@ -6006,8 +6009,10 @@ components:
           type: boolean
         azureProjectName:
           type: string
+          description: Project Name of Azure
         userId:
           type: integer
+          description: User Id of GitOps
     DetailedError:
       type: object
       properties:
