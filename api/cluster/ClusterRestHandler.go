@@ -348,7 +348,7 @@ func (impl ClusterRestHandlerImpl) FindByIds(w http.ResponseWriter, r *http.Requ
 	}
 	//RBAC enforcer Ends
 
-	common.WriteJsonResp(w, err, result, http.StatusOK)
+	common.WriteJsonResp(w, nil, result, http.StatusOK)
 }
 
 func (impl ClusterRestHandlerImpl) FindById(w http.ResponseWriter, r *http.Request) {
