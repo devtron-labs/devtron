@@ -5987,16 +5987,21 @@ components:
           type: integer
         provider:
           type: string
+          description: Gitops provider
+          example: github,gitlabs
         username:
           type: string
+          description: Username
         token:
           type: string
+          description: Authentication token
         gitLabGroupId:
           type: string
         gitHubOrgId:
           type: string
         host:
           type: string
+          description: Host of gitops provider
         active:
           type: boolean
         azureProjectName:
