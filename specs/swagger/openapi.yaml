@@ -4062,10 +4062,10 @@ paths:
 components:
   securitySchemes:
     token:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-      description: JWT token authentication      
+      type: apiKey
+      in: header
+      name: token
+      description: JWT token sent in custom header     
     # bearerAuth:
     #   type: http
     #   scheme: bearer
@@ -5995,7 +5995,7 @@ components:
           description: Username of GitOps
         token:
           type: string
-          description: Authentication token of GitOps
+          description: Authentication token of GitOps provider
         gitLabGroupId:
           type: string
           description: Group Id of gitLab
@@ -6004,7 +6004,7 @@ components:
           description: Group Id of gitHub
         host:
           type: string
-          description: Host of gitops provider
+          description: Host of GitOps provider
         active:
           type: boolean
         azureProjectName:
@@ -6012,7 +6012,7 @@ components:
           description: Project Name of Azure
         userId:
           type: integer
-          description: User Id of GitOps
+          description: User Id of GitOps provider
     DetailedError:
       type: object
       properties:
