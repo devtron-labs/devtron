@@ -42,6 +42,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	resourcehelper "k8s.io/kubectl/pkg/util/resource"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -941,7 +942,7 @@ func getResourceString(quantity resource.Quantity, resourceName corev1.ResourceN
 		// first check for Gi
 		valueGi := float64(value) / (bean.Gibibyte * 1.0)
 		if valueGi >= 1 {
-			if valueGi == float64(int64(valueGi)) { // if the converted value is a whole number
+			if valueGi == math.Floor(valueGi) { // if the converted value is a whole number
 				quantityStr = fmt.Sprintf("%dGi", int64(valueGi))
 			} else {
 				quantityStr = fmt.Sprintf("%.2fGi", valueGi)
@@ -972,7 +973,7 @@ func getResourceString(quantity resource.Quantity, resourceName corev1.ResourceN
 			return fmt.Sprintf("%dm", cpuValueMilli)
 		}
 		// if the core value is a whole number then returning int else float
-		if cpuValueCore == float64(int64(cpuValueCore)) {
+		if cpuValueCore == math.Floor(cpuValueCore) {
 			return fmt.Sprintf("%d", int64(cpuValueCore))
 		}
 		// showing values in cores upto 2 decimal value
