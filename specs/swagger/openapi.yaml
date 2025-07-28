@@ -5992,7 +5992,7 @@ components:
           example: github,gitlabs
         username:
           type: string
-          description: Username of GitOps
+          description: Username of GitOps provider
         token:
           type: string
           description: Authentication token of GitOps provider
