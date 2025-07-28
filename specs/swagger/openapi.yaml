@@ -90,9 +90,14 @@ paths:
       description: Retrieves the deployment history for a specific CD pipeline based
         on various filter criteria.
       operationId: getDeploymentHistory
-      security:
-      - token: []
+      security: []
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - name: filterCriteria
         in: query
         required: true
@@ -429,9 +434,14 @@ paths:
       summary: List all app labels
       description: This API will return all the labels available in the database.
       operationId: listAppLabels
-      security:
-      - token: []
-      parameters: []
+      security: []
+      parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       responses:
         '200':
           description: list response
@@ -476,9 +486,14 @@ paths:
       summary: Get application meta info
       description: Application basic info, projects and labels
       operationId: getAppMetaInfo
-      security:
-      - token: []
+      security: []
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - name: appId
         in: path
         description: application id
@@ -524,9 +539,14 @@ paths:
       summary: Get Helm application meta info
       description: Application info for all types of Helm apps
       operationId: getHelmAppMetaInfo
-      security:
-      - token: []
+      security: []
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - name: appId
         in: path
         description: application id
@@ -571,8 +591,7 @@ paths:
       summary: Create or clone a job
       description: Create and clone a job
       operationId: createOrCloneJob
-      security:
-      - token: []
+      security: []
       requestBody:
         required: true
         content:
@@ -599,8 +618,7 @@ paths:
       summary: List jobs
       description: Get the list of all the jobs by applying filter
       operationId: listJobs
-      security:
-      - token: []
+      security: []
       requestBody:
         required: true
         content:
@@ -627,9 +645,14 @@ paths:
       summary: Get job CI pipeline list
       description: fetch details of job ci-pipelines for the overview page
       operationId: getJobCiPipelineList
-      security:
-      - token: []
+      security: []
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - name: jobId
         in: path
         required: true
@@ -652,9 +675,14 @@ paths:
       summary: List deployed charts
       operationId: listDeployedCharts
       description: deployed chart listing, with search filters
-      security:
-      - token: []
+      security: []
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - name: envs
         in: query
         description: environment ids
@@ -738,9 +766,14 @@ paths:
       summary: Fetch notes.txt for deployed helm charts
       operationId: fetchNotesTxt
       description: Used to fetch notes.txt for helm charts deployed via gitOps
-      security:
-      - token: []
+      security: []
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - name: env-id
         in: query
         description: it is an environment id of app
@@ -779,6 +812,12 @@ paths:
       operationId: listAppAutocomplete
       description: list of namespaces group by clusters
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - in: query
         name: appName
         example: abc
@@ -825,15 +864,13 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
       tags:
       - List Applications
-      security:
-      - token: []
+      security: []
   /orchestrator/app:
     post:
       summary: Create a new application
       operationId: createApplication
       description: create new application
-      security:
-      - token: []
+      security: []
       requestBody:
         description: json as request body
         required: true
@@ -885,8 +922,7 @@ paths:
       summary: Update application projects and labels
       operationId: updateApplicationProjectsAndLabels
       description: update application projects and labels
-      security:
-      - token: []
+      security: []
       requestBody:
         description: json as request body
         required: true
@@ -939,8 +975,7 @@ paths:
       operationId: listApplications
       description: app listing, collection of deployed applications or undeployed
         or incomplete configured apps.
-      security:
-      - token: []
+      security: []
       requestBody:
         description: json as request body
         required: true
@@ -1001,8 +1036,7 @@ paths:
       summary: Update project for app
       operationId: updateProjectForApp
       description: update project for app
-      security:
-      - token: []
+      security: []
       requestBody:
         description: json as request body
         required: true
@@ -1051,10 +1085,15 @@ paths:
       operationId: getAppLabels
       tags:
       - Labels
-      security:
-      - token: []
+      security: []
       
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - name: showPropagatedOnly
         in: query
         description: "If true, only returns labels where propagate = true. \nIf false\
@@ -1197,9 +1236,14 @@ paths:
       summary: Get Readme for Bulk Update
       description: Returns Readme for bulk update for different resource in the url
       operationId: FindBulkUpdateReadme
-      security:
-      - token: [] 
+      security: [] 
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - name: apiVersion
         in: path
         required: true
@@ -1233,8 +1277,7 @@ paths:
       description: Returns details(id, name, envId) of all apps to be impacted with
         bulk update
       operationId: GetBulkAppName
-      security:
-      - token: []
+      security: []
       
       requestBody:
         description: A JSON object containing information by which apps will be filtered
@@ -1277,8 +1320,7 @@ paths:
       summary: Bulk Hibernate Applications
       description: Bulk Hibernates applications
       operationId: BulkHibernate
-      security:
-      - token: []
+      security: []
       
       tags:
       - BulkUpdate
@@ -1320,8 +1362,7 @@ paths:
       summary: Bulk Un-Hibernate Applications
       description: Bulk Un-Hibernates applications
       operationId: BulkUnHibernate
-      security:
-      - token: []
+      security: []
       
       tags:
       - BulkUpdate
@@ -1363,8 +1404,7 @@ paths:
       summary: Bulk Deploy Applications
       description: Bulk Triggers deployment of applications
       operationId: BulkDeploy
-      security:
-      - token: []
+      security: []
       
       tags:
       - BulkUpdate
@@ -1405,8 +1445,7 @@ paths:
       summary: Bulk Trigger Application Builds
       description: Bulk Triggers build of applications
       operationId: BulkBuildTrigger
-      security:
-      - token: []
+      security: []
       
       tags:
       - BulkUpdate
@@ -1449,8 +1488,7 @@ paths:
         for bulk editing application configurations like deployment templates, configmaps,
         and secrets.
       operationId: BulkUpdate
-      security:
-      - token: []
+      security: []
       
       tags:
       - BulkUpdate
@@ -1506,8 +1544,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
   /sso/update:
     put:
@@ -1528,8 +1565,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
   /sso/list:
     get:
@@ -1548,8 +1584,7 @@ paths:
                   $ref: '#/components/schemas/SSOLoginDto'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
   /sso/{id}:
     get:
@@ -1558,6 +1593,12 @@ paths:
       summary: Get SSO Login Configuration by ID
       operationId: GetSSOLoginConfig
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - $ref: '#/components/parameters/PathId'
       responses:
         '200':
@@ -1570,8 +1611,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
   /sso:
     get:
@@ -1580,6 +1620,12 @@ paths:
       summary: Get SSO Login Configuration by Name
       operationId: GetSSOLoginConfigByName
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - name: name
         in: query
         required: true
@@ -1595,8 +1641,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
   /rbac/roles/default:
     get:
@@ -1619,8 +1664,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
   /api/v1/session:
     post:
@@ -1673,8 +1717,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-      security:
-      - token: []
+      security: []
       
   /refresh:
     get:
@@ -1688,8 +1731,7 @@ paths:
           description: Token refreshed successfully.
         '401':
           $ref: '#/components/responses/Unauthorized'
-      security:
-      - token: []
+      security: []
       
   /admin/policy/default:
     post:
@@ -1700,6 +1742,12 @@ paths:
       description: Creates default policies and roles based on team, app, and environment.
         This is a specialized endpoint.
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - name: team
         in: query
         required: true
@@ -1725,8 +1773,7 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
   /devtron/auth/verify:
     get:
@@ -1743,8 +1790,7 @@ paths:
                 type: boolean
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
   /devtron/auth/verify/v2:
     get:
@@ -1768,8 +1814,7 @@ paths:
                     type: string
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
   /user/v2:
     get:
@@ -1778,6 +1823,12 @@ paths:
       summary: List Users (V2 - Paginated, Filtered)
       operationId: GetAllUsersV2
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - $ref: '#/components/parameters/SearchKeyQuery'
       - $ref: '#/components/parameters/SortOrderQuery'
       - $ref: '#/components/parameters/SortByQueryUser'
@@ -1794,8 +1845,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
     post:
       tags:
@@ -1817,8 +1867,7 @@ paths:
           $ref: '#/components/responses/NotAcceptable'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
     put:
       tags:
@@ -1838,8 +1887,7 @@ paths:
           $ref: '#/components/responses/NotAcceptable'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
   /user:
     get:
@@ -1862,8 +1910,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
     post:
       tags:
@@ -1885,8 +1932,7 @@ paths:
           $ref: '#/components/responses/NotAcceptable'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
     put:
       tags:
@@ -1906,8 +1952,7 @@ paths:
           $ref: '#/components/responses/NotAcceptable'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
   /user/{id}:
     get:
@@ -1916,6 +1961,12 @@ paths:
       summary: Get User by ID
       operationId: GetUserById
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - $ref: '#/components/parameters/PathId'
       responses:
         '200':
@@ -1926,8 +1977,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
     delete:
       tags:
@@ -1935,6 +1985,12 @@ paths:
       summary: Delete User by ID
       operationId: DeleteUser
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - $ref: '#/components/parameters/PathId'
       responses:
         '200':
@@ -1947,8 +2003,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
   /user/v2/{id}:
     get:
@@ -1957,6 +2012,12 @@ paths:
       summary: Get User by ID (V2)
       operationId: GetUserByIdV2
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - $ref: '#/components/parameters/PathId'
       responses:
         '200':
@@ -1967,8 +2028,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
   /user/bulk:
     delete:
@@ -1987,8 +2047,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
   /user/detail/get:
     get:
@@ -2011,8 +2070,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
   /user/role/group/v2:
     get:
@@ -2021,6 +2079,12 @@ paths:
       summary: List Role Groups (V2 - Paginated, Filtered)
       operationId: FetchRoleGroupsV2
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - $ref: '#/components/parameters/SearchKeyQuery'
       - $ref: '#/components/parameters/SortOrderQuery'
       - $ref: '#/components/parameters/SortByQueryRoleGroup'
@@ -2037,8 +2101,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
     post:
       tags:
@@ -2058,8 +2121,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
     put:
       tags:
@@ -2077,8 +2139,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
   /user/role/group:
     get:
@@ -2101,8 +2162,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
     post:
       tags:
@@ -2122,8 +2182,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
     put:
       tags:
@@ -2141,8 +2200,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
   /user/role/group/{id}:
     get:
@@ -2151,6 +2209,12 @@ paths:
       summary: Get Role Group by ID
       operationId: FetchRoleGroupById
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - $ref: '#/components/parameters/PathId'
       responses:
         '200':
@@ -2159,8 +2223,7 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
     delete:
       tags:
@@ -2168,6 +2231,12 @@ paths:
       summary: Delete Role Group by ID
       operationId: DeleteRoleGroup
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - $ref: '#/components/parameters/PathId'
       responses:
         '200':
@@ -2178,8 +2247,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
   /user/role/group/v2/{id}:
     get:
@@ -2188,6 +2256,12 @@ paths:
       summary: Get Role Group by ID (V2)
       operationId: FetchRoleGroupByIdV2
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - $ref: '#/components/parameters/PathId'
       responses:
         '200':
@@ -2196,8 +2270,7 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
   /user/role/group/detailed/get:
     get:
@@ -2214,8 +2287,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
   /user/role/group/search:
     get:
@@ -2224,6 +2296,12 @@ paths:
       summary: Search Role Groups by Name
       operationId: FetchRoleGroupsByName
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - name: name
         in: query
         required: true
@@ -2237,8 +2315,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
   /user/role/group/bulk:
     delete:
@@ -2257,8 +2334,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
   /user/check/roles:
     get:
@@ -2267,6 +2343,12 @@ paths:
       summary: Check Logged-in User's Roles
       operationId: CheckUserRoles
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - name: appName
         in: query
         required: false
@@ -2295,8 +2377,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
   /user/sync/orchestratortocasbin:
     get:
@@ -2317,8 +2398,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
   /user/update/trigger/terminal:
     put:
@@ -2341,8 +2421,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalServerError'
-      security:
-      - token: []
+      security: []
       
   /user/role/cache:
     get:
@@ -2360,8 +2439,7 @@ paths:
                 type: object
         '403':
           $ref: '#/components/responses/Forbidden'
-      security:
-      - token: []
+      security: []
       
   /user/role/cache/invalidate:
     get:
@@ -2379,8 +2457,7 @@ paths:
                 type: string
         '403':
           $ref: '#/components/responses/Forbidden'
-      security:
-      - token: []
+      security: []
       
   /login:
     get:
@@ -2392,8 +2469,7 @@ paths:
       responses:
         '302':
           description: Redirect to OIDC provider.
-      security:
-      - token: []
+      security: []
       
   /auth/login:
     get:
@@ -2405,8 +2481,7 @@ paths:
       responses:
         '302':
           description: Redirect to OIDC provider.
-      security:
-      - token: []
+      security: []
       
   /auth/callback:
     get:
@@ -2423,8 +2498,7 @@ paths:
           description: Error during OIDC callback.
         '500':
           description: Server error during OIDC callback.
-      security:
-      - token: []
+      security: []
       
   /api/dex/{path}:
     get:
@@ -2434,6 +2508,12 @@ paths:
       description: Proxies requests to the Dex IdP. Handled by the Dex proxy mechanism.
       operationId: DexProxyHandler
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - name: path
         in: path
         required: true
@@ -2443,16 +2523,14 @@ paths:
       responses:
         default:
           description: Response from Dex.
-      security:
-      - token: []
+      security: []
       
   /env:
     post:
       summary: Create Environment
       description: Create a new environment within a cluster.
       operationId: CreateEnvironment
-      security:
-      - token: []
+      security: []
       
       tags:
       - Environment Management
@@ -2492,8 +2570,7 @@ paths:
       summary: Update Environment
       description: Update an existing environment.
       operationId: UpdateEnvironment
-      security:
-      - token: []
+      security: []
       
       tags:
       - Environment Management
@@ -2533,12 +2610,17 @@ paths:
       summary: Get Environment by ID
       description: Get detailed information for a specific environment by its ID.
       operationId: GetEnvironmentById
-      security:
-      - token: []
+      security: []
       
       tags:
       - Environment Management
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - name: id
         in: query
         required: true
@@ -2581,8 +2663,7 @@ paths:
       summary: Delete Cluster
       description: Delete an existing cluster.
       operationId: DeleteCluster
-      security:
-      - token: []
+      security: []
       tags:
       - Cluster Management
       requestBody:
@@ -2627,8 +2708,7 @@ paths:
       summary: Delete Environment (via POST)
       description: Delete an existing environment using POST method.
       operationId: DeleteEnvironmentViaPost
-      security:
-      - token: []
+      security: []
       tags:
       - Environment Management
       requestBody:
@@ -2673,8 +2753,7 @@ paths:
       summary: List clusters with their environments
       description: Provides a list of all clusters and the environments within each.
       operationId: getClustersWithEnvironments
-      security:
-      - token: []
+      security: []
       
       tags:
       - Cluster Environment
@@ -2704,12 +2783,17 @@ paths:
       summary: List environments for a specific cluster
       description: Provides a list of all environments for a given cluster ID.
       operationId: getEnvironmentsForCluster
-      security:
-      - token: []
+      security: []
       
       tags:
       - Cluster Environment
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - name: cluster_id
         in: path
         required: true
@@ -2754,8 +2838,7 @@ paths:
       summary: Update Cluster
       description: Update an existing cluster's configuration.
       operationId: UpdateCluster
-      security:
-      - token: []
+      security: []
       
       tags:
       - Cluster Management
@@ -2795,12 +2878,17 @@ paths:
       summary: Get Cluster
       description: Get details of a specific cluster by ID.
       operationId: GetCluster
-      security:
-      - token: []
+      security: []
       
       tags:
       - Cluster Management
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - name: id
         in: query
         description: cluster id.
@@ -2837,8 +2925,7 @@ paths:
       summary: List Accessible Clusters
       description: list of clusters accessible to the authenticated user.
       operationId: GetAuthClusterList
-      security:
-      - token: []
+      security: []
       
       tags:
       - Cluster Management
@@ -2872,8 +2959,7 @@ paths:
       summary: Validate Cluster Configuration
       description: Validate a cluster configuration using kubeconfig.
       operationId: ValidateCluster
-      security:
-      - token: []
+      security: []
       tags:
       - Cluster Management
       requestBody:
@@ -2910,8 +2996,7 @@ paths:
       summary: Save Multiple Clusters
       description: Save configurations for multiple clusters.
       operationId: SaveClusters
-      security:
-      - token: []
+      security: []
       
       tags:
       - Cluster Management
@@ -2948,8 +3033,7 @@ paths:
       summary: Patch Application Environment
       description: change the deployment template for an app and environment
       operationId: PatchAppEnv
-      security:
-      - token: []
+      security: []
       
       requestBody:
         content:
@@ -2978,8 +3062,7 @@ paths:
       description: Clones an application workflow from a source environment to a target
         environment
       operationId: CloneApplicationWorkflow
-      security:
-      - token: []
+      security: []
       
       requestBody:
         description: A JSON object containing the details required to clone the workflow
@@ -3003,8 +3086,7 @@ paths:
       description: This API is used for fetching the manifest of a specified Kubernetes
         resource.
       operationId: getResourceManifest
-      security:
-      - token: []
+      security: []
       
       requestBody:
         description: JSON payload specifying the resource to fetch.
@@ -3036,8 +3118,7 @@ paths:
       description: This API is used for editing the manifest of a specified Kubernetes
         resource.
       operationId: updateResourceManifest
-      security:
-      - token: []
+      security: []
       
       requestBody:
         description: JSON payload containing the resource identifier and the patch.
@@ -3070,8 +3151,7 @@ paths:
       description: This API is used for applying a desired manifest to create a Kubernetes
         resource.
       operationId: createResource
-      security:
-      - token: []
+      security: []
       
       requestBody:
         description: JSON payload containing the resource manifest to apply.
@@ -3103,8 +3183,7 @@ paths:
       summary: Delete Resource
       description: This API is used for deleting a specified Kubernetes resource.
       operationId: deleteResource
-      security:
-      - token: []
+      security: []
       
       requestBody:
         description: JSON payload specifying the resource to delete.
@@ -3136,8 +3215,7 @@ paths:
       summary: Get Resource Events
       description: This API is used for fetching events for Kubernetes resources.
       operationId: getResourceEvents
-      security:
-      - token: []
+      security: []
       
       requestBody:
         required: false
@@ -3161,10 +3239,15 @@ paths:
       description: This API is used for fetching logs for a specified container within
         a pod.
       operationId: getPodLogs
-      security:
-      - token: []
+      security: []
       
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - name: podName
         in: path
         required: true
@@ -3228,10 +3311,15 @@ paths:
       description: This API establishes a session for executing commands in a pod's
         container (terminal access).
       operationId: getPodExecSession
-      security:
-      - token: []
+      security: []
       
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - name: identifier
         in: path
         required: true
@@ -3286,10 +3374,15 @@ paths:
       summary: Get API Resources
       description: Get all available API resources for a given cluster ID.
       operationId: getApiResources
-      security:
-      - token: []
+      security: []
       
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - name: clusterId
         in: path
         description: ID of the cluster.
@@ -3313,8 +3406,7 @@ paths:
       description: This API is used for fetching a list of Kubernetes resources based
         on the request criteria.
       operationId: listResources
-      security:
-      - token: []
+      security: []
       
       requestBody:
         description: JSON payload specifying the criteria for listing resources.
@@ -3349,10 +3441,15 @@ paths:
       summary: Rotates the Pods
       description: This API is used to rotate (restart) pods for the provided resources.
       operationId: K8sResourceForResources
-      security:
-      - token: []
+      security: []
       
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - name: appId
         in: query
         description: Application ID.
@@ -3382,8 +3479,7 @@ paths:
       description: This API is used to apply (create or update) Kubernetes resources
         in a cluster.
       operationId: applyResources
-      security:
-      - token: []
+      security: []
       
       requestBody:
         description: JSON payload containing the manifest of resources to apply.
@@ -3409,8 +3505,7 @@ paths:
       summary: Create an application workflow
       description: Creates a new workflow for a given application.
       operationId: CreateAppWorkflow
-      security:
-      - token: []
+      security: []
       
       tags:
       - Workflow Management
@@ -3456,12 +3551,17 @@ paths:
       summary: Delete an application workflow
       description: Deletes an existing workflow for a given application.
       operationId: DeleteAppWorkflow
-      security:
-      - token: []
+      security: []
       
       tags:
       - Workflow Management
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - name: app-wf-id
         in: path
         required: true
@@ -3543,8 +3643,7 @@ paths:
     post:
       description: Validate gitops configuration by dry run
       summary: Validate gitops configuration by dry run
-      security:
-      - token: []
+      security: []
       operationId: GitOpsValidateDryRun
       requestBody:
         description: A JSON object containing the gitops configuration
@@ -3584,8 +3683,7 @@ paths:
     post:
       description: create/save new configuration and validate them before saving
       summary: create/save new configuration and validate them before saving
-      security:
-      - token: []
+      security: []
       operationId: CreateGitOpsConfig
       requestBody:
         description: A JSON object containing the gitops configuration
@@ -3628,8 +3726,7 @@ paths:
       summary: update configuration and validate them before saving(if last validation
         is within 30 seconds then do not validate)
       operationId: UpdateGitOpsConfig
-      security:
-      - token: []
+      security: []
       requestBody:
         description: A JSON object containing the gitops configuration
         required: true
@@ -3671,6 +3768,12 @@ paths:
       description: Returns all notification settings
       operationId: findNotificationSetting
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - name: offset
         in: query
         description: value can be regex search string.
@@ -3683,8 +3786,7 @@ paths:
         required: true
         schema:
           type: integer
-      security:
-      - token: []
+      security: []
       
       tags:
       - Notifications
@@ -3712,8 +3814,7 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/NotificationSetting'
-      security:
-      - token: []
+      security: []
       
       tags:
       - Notifications
@@ -3741,8 +3842,7 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/NotificationSetting'
-      security:
-      - token: []
+      security: []
       
       tags:
       - Notifications
@@ -3770,8 +3870,7 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/NotificationSetting'
-      security:
-      - token: []
+      security: []
       
       tags:
       - Notifications
@@ -3795,14 +3894,19 @@ paths:
         and email ids
       operationId: deleteGroupPolicy
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - name: value
         in: query
         description: value can be regex search string.
         required: true
         schema:
           type: string
-      security:
-      - token: []
+      security: []
       
       tags:
       - Notifications
@@ -3820,8 +3924,7 @@ paths:
       summary: get all NotificationSettingConfig list
       description: get all NotificationSettingConfig list
       operationId: findNotificationSettingConfig
-      security:
-      - token: []
+      security: []
       
       tags:
       - Notifications
@@ -3849,8 +3952,7 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/NotificationConfig'
-      security:
-      - token: []
+      security: []
       
       tags:
       - Notifications
@@ -3876,6 +3978,12 @@ paths:
       tags:
       - Deployment History
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - name: appId
         in: path
         required: true
@@ -3907,8 +4015,7 @@ paths:
         description: name of config-map, secret
         schema:
           type: string
-      security:
-      - token: []
+      security: []
       
       responses:
         '200':
@@ -3943,6 +4050,12 @@ paths:
       tags:
       - Deployment History
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - name: appId
         in: path
         required: true
@@ -3975,8 +4088,7 @@ paths:
         description: id of base configuration
         schema:
           type: integer
-      security:
-      - token: []
+      security: []
       
       responses:
         '200':
@@ -4014,6 +4126,12 @@ paths:
       tags:
       - Deployment History
       parameters:
+      - name: token
+        in: header
+        required: true
+        description: Authentication token.
+        schema:
+          type: string
       - name: appId
         in: path
         required: true
@@ -4029,8 +4147,7 @@ paths:
         required: true
         schema:
           type: integer
-      security:
-      - token: []
+      security: []
       
       responses:
         '200':
@@ -4060,22 +4177,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 components:
-  securitySchemes:
-    token:
-      type: apiKey
-      in: header
-      name: token
-      description: JWT token sent in custom header     
-    # bearerAuth:
-    #   type: http
-    #   scheme: bearer
-    #   bearerFormat: JWT
-    #   description: JWT token authentication
-    # apiKeyAuth:
-    #   type: apiKey
-    #   in: header
-    #   name: X-API-Key
-    #   description: API key authentication
   schemas:
     AppLabel:
       type: object
