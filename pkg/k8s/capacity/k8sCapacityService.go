@@ -967,8 +967,8 @@ func getResourceString(quantity resource.Quantity, resourceName corev1.ResourceN
 		cpuValueMilli := quantity.MilliValue() // it is safe to use MilliValue here as in real world the value would not exceed int64 range
 		cpuValueCore := float64(cpuValueMilli) / 1000.0
 		quantityStr = fmt.Sprintf("%.2f", cpuValueCore)
-		// if cpuValueCore is less than 0 then show in milli core only
-		if cpuValueCore < 0 {
+		// if cpuValueCore is less than 1 then show in milli core only
+		if cpuValueCore < 1 {
 			return fmt.Sprintf("%dm", cpuValueMilli)
 		}
 		// if the core value is a whole number then returning int else float
