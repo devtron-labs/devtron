@@ -87,12 +87,16 @@ func (impl *FullModeDeploymentServiceImpl) GenerateManifest(installAppVersionReq
 		impl.Logger.Errorw("Error in building chart while generating manifest", "err", err)
 		return manifestResponse, err
 	}
-	if chartCreateResponse != nil && chartCreateResponse.ChartMetaData == nil {
-		chartCreateResponse.ChartMetaData.Dependencies = dependencies
+	var chartMetaData *chart.Metadata
+	if chartCreateResponse != nil {
+		if chartCreateResponse.ChartMetaData != nil {
+			chartCreateResponse.ChartMetaData.Dependencies = dependencies
+		}
+		chartMetaData = chartCreateResponse.ChartMetaData
 	}
 	// valuesConfig and chartMetaDataConfig's ChartConfig object contains ChartRepoName which is extracted from gitOpsRepoUrl
 	// that resides in the db and not from the current orchestrator cm prefix and appName.
-	valuesConfig, chartMetaDataConfig, err := impl.getValuesAndChartMetaDataForGitConfig(installAppVersionRequest, values, chartCreateResponse.ChartMetaData)
+	valuesConfig, chartMetaDataConfig, err := impl.getValuesAndChartMetaDataForGitConfig(installAppVersionRequest, values, chartMetaData)
 	if err != nil {
 		impl.Logger.Errorw("error in getting values and requirements config for git commit", "err", err)
 		return manifestResponse, err
@@ -357,6 +361,11 @@ func (impl *FullModeDeploymentServiceImpl) getValuesAndRequirement(installAppVer
 // getValuesAndChartMetaDataForGitConfig will return chart values(*git.ChartConfig) and requirements(*git.ChartConfig) for git commit
 func (impl *FullModeDeploymentServiceImpl) getValuesAndChartMetaDataForGitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO,
 	values map[string]map[string]any, chartMetaData *chart.Metadata) (*git.ChartConfig, *git.ChartConfig, error) {
+	if chartMetaData == nil || values == nil {
+		err := fmt.Errorf("chartMetaData or values cannot be nil")
+		impl.Logger.Errorw("error in getting chartMetaData or values for git commit", "err", err)
+		return nil, nil, err
+	}
 	valuesContent, err := json.Marshal(values)
 	if err != nil {
 		impl.Logger.Errorw("error in marshalling values content", "err", err)
