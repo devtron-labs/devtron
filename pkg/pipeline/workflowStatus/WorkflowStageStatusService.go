@@ -2,11 +2,17 @@ package workflowStatus
 
 import (
 	"encoding/json"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	bean3 "github.com/devtron-labs/devtron/pkg/bean"
+	envRepository "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus/adapter"
@@ -16,9 +22,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"slices"
-	"strings"
-	"time"
 )
 
 type WorkFlowStageStatusService interface {
@@ -35,6 +38,7 @@ type WorkFlowStageStatusServiceImpl struct {
 	workflowStatusRepository repository.WorkflowStageRepository
 	ciWorkflowRepository     pipelineConfig.CiWorkflowRepository
 	cdWorkflowRepository     pipelineConfig.CdWorkflowRepository
+	envRepository            envRepository.EnvironmentRepository
 	transactionManager       sql.TransactionWrapper
 	config                   *types.CiConfig
 }
@@ -43,6 +47,7 @@ func NewWorkflowStageFlowStatusServiceImpl(logger *zap.SugaredLogger,
 	workflowStatusRepository repository.WorkflowStageRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
+	envRepository envRepository.EnvironmentRepository,
 	transactionManager sql.TransactionWrapper,
 ) *WorkFlowStageStatusServiceImpl {
 	wfStageServiceImpl := &WorkFlowStageStatusServiceImpl{
@@ -50,6 +55,7 @@ func NewWorkflowStageFlowStatusServiceImpl(logger *zap.SugaredLogger,
 		workflowStatusRepository: workflowStatusRepository,
 		ciWorkflowRepository:     ciWorkflowRepository,
 		cdWorkflowRepository:     cdWorkflowRepository,
+		envRepository:            envRepository,
 		transactionManager:       transactionManager,
 	}
 	ciConfig, err := types.GetCiConfig()
@@ -109,9 +115,32 @@ func (impl *WorkFlowStageStatusServiceImpl) updatePodStages(currentWorkflowStage
 	//update pod stage status by using convertPodStatusToDevtronStatus
 	for _, stage := range currentWorkflowStages {
 		if stage.StatusFor == bean2.WORKFLOW_STAGE_STATUS_TYPE_POD {
-			// add pod name in stage metadata if not empty
+			// add pod name and clusterId in stage metadata if not empty
 			if len(podName) > 0 {
-				marshalledMetadata, _ := json.Marshal(map[string]string{"podName": podName})
+				metadata := map[string]string{"podName": podName}
+
+				// Try to get clusterId from the workflow
+				if stage.WorkflowType == bean.CI_WORKFLOW_TYPE.String() {
+					// For CI workflows, get clusterId from environment
+					ciWorkflow, err := impl.ciWorkflowRepository.FindById(stage.WorkflowId)
+					if err == nil && ciWorkflow.EnvironmentId != 0 {
+						env, err := impl.envRepository.FindById(ciWorkflow.EnvironmentId)
+						if err == nil && env != nil && env.Cluster != nil {
+							metadata["clusterId"] = strconv.Itoa(env.Cluster.Id)
+						}
+					}
+				} else if stage.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE.String() || stage.WorkflowType == bean.CD_WORKFLOW_TYPE_POST.String() || stage.WorkflowType == bean.CD_WORKFLOW_TYPE_DEPLOY.String() {
+					// For CD workflows, get clusterId from environment
+					cdWorkflowRunner, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(stage.WorkflowId)
+					if err == nil && cdWorkflowRunner != nil && cdWorkflowRunner.CdWorkflow != nil && cdWorkflowRunner.CdWorkflow.Pipeline != nil {
+						env, err := impl.envRepository.FindById(cdWorkflowRunner.CdWorkflow.Pipeline.EnvironmentId)
+						if err == nil && env != nil && env.Cluster != nil {
+							metadata["clusterId"] = strconv.Itoa(env.Cluster.Id)
+						}
+					}
+				}
+
+				marshalledMetadata, _ := json.Marshal(metadata)
 				stage.Metadata = string(marshalledMetadata)
 			}
 			switch podStatus {

@@ -19,14 +19,15 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
-	"net/http"
-	"strings"
-	"time"
 
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/devtron-labs/devtron/client/grafana"
@@ -73,6 +74,14 @@ func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*bean.ClusterB
 		bean.Config = map[string]string{commonBean.BearerToken: ""}
 	}
 	return beans, nil
+}
+
+func (impl *ClusterServiceImplExtended) FindByIdsWithoutConfig(ids []int) ([]*bean.ClusterBean, error) {
+	beans, err := impl.ClusterServiceImpl.FindByIdsWithoutConfig(ids)
+	if err != nil {
+		return nil, err
+	}
+	return impl.GetClusterFullModeDTO(beans)
 }
 
 func (impl *ClusterServiceImplExtended) GetClusterFullModeDTO(beans []*bean.ClusterBean) ([]*bean.ClusterBean, error) {

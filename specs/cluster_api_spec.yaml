@@ -49,13 +49,24 @@ paths:
           required: true
           schema:
             type: integer
+        - name: clusterId
+          in: query
+          description: comma-separated list of cluster IDs to filter clusters. If not provided, returns all clusters.
+          required: false
+          schema:
+            type: string
+            example: "1,2,3"
       responses:
         '200':
-          description: Successfully get cluster
+          description: Successfully get cluster(s)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ClusterBean'
+                oneOf:
+                  - $ref: '#/components/schemas/ClusterBean'
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/ClusterBean'
         '400':
           description: Bad Request. Input Validation(decode) error/wrong request body.
           content:
