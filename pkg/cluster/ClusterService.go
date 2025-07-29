@@ -20,6 +20,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
+	"net/url"
+	"sync"
+	"time"
+
 	"github.com/devtron-labs/common-lib/async"
 	informerBean "github.com/devtron-labs/common-lib/informer"
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
@@ -32,10 +37,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/read"
 	cronUtil "github.com/devtron-labs/devtron/util/cron"
 	"github.com/robfig/cron/v3"
-	"log"
-	"net/url"
-	"sync"
-	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/common-lib/utils/k8s"
@@ -75,6 +76,7 @@ type ClusterService interface {
 	FindById(id int) (*bean.ClusterBean, error)
 	FindByIdWithoutConfig(id int) (*bean.ClusterBean, error)
 	FindByIds(id []int) ([]bean.ClusterBean, error)
+	FindByIdsWithoutConfig(ids []int) ([]*bean.ClusterBean, error)
 	Update(ctx context.Context, bean *bean.ClusterBean, userId int32) (*bean.ClusterBean, error)
 	Delete(bean *bean.ClusterBean, userId int32) error
 
@@ -351,6 +353,21 @@ func (impl *ClusterServiceImpl) FindByIds(ids []int) ([]bean.ClusterBean, error)
 	for _, model := range models {
 		bean := adapter.GetClusterBean(model)
 		beans = append(beans, bean)
+	}
+	return beans, nil
+}
+
+func (impl *ClusterServiceImpl) FindByIdsWithoutConfig(ids []int) ([]*bean.ClusterBean, error) {
+	models, err := impl.clusterRepository.FindByIds(ids)
+	if err != nil {
+		return nil, err
+	}
+	var beans []*bean.ClusterBean
+	for _, model := range models {
+		bean := adapter.GetClusterBean(model)
+		//empty bearer token as it will be hidden for user
+		bean.Config = map[string]string{commonBean.BearerToken: ""}
+		beans = append(beans, &bean)
 	}
 	return beans, nil
 }
@@ -640,6 +657,11 @@ func (impl *ClusterServiceImpl) GetAllClusterNamespaces() map[string][]string {
 	return result
 }
 
+const (
+	// Cluster connectivity error constants
+	ErrClusterNotReachable = "cluster is not reachable"
+)
+
 func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int, isActionUserSuperAdmin bool) ([]string, error) {
 	result := make([]string, 0)
 	clusterBean, err := impl.clusterReadService.FindById(clusterId)
@@ -647,6 +669,13 @@ func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int
 		impl.logger.Errorw("failed to find cluster for id", "error", err, "clusterId", clusterId)
 		return nil, err
 	}
+
+	// Check if cluster has connection errors
+	if len(clusterBean.ErrorInConnecting) > 0 {
+		impl.logger.Errorw("cluster is not reachable", "clusterId", clusterId, "clusterName", clusterBean.ClusterName, "error", clusterBean.ErrorInConnecting)
+		return nil, fmt.Errorf("%s: %s", ErrClusterNotReachable, clusterBean.ErrorInConnecting)
+	}
+
 	namespaceListGroupByCLuster := impl.K8sInformerFactory.GetLatestNamespaceListGroupByCLuster()
 	namespaces := namespaceListGroupByCLuster[clusterBean.ClusterName]
 	if len(namespaces) == 0 {
