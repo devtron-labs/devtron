@@ -492,11 +492,26 @@ func (impl *FullModeDeploymentServiceImpl) shouldMigrateProxyChartDependencies(p
 	}
 	impl.Logger.Debugw("dependencies found in chart.yaml file, validating against requirements.yaml", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "chartDependencies", chartMetadata.Dependencies)
 	// validate if chart.yaml dependencies are present in requirements.yaml
-	latestDependencies := sliceUtil.NewSliceFromFuncExec(chartMetadata.Dependencies, func(dependency *chart.Dependency) string {
-		return fmt.Sprintf("%s-%s-%s", strings.TrimSpace(dependency.Name), strings.TrimSpace(dependency.Version), strings.TrimSpace(dependency.Repository))
+	latestDependencies := sliceUtil.NewMapFromFuncExec(chartMetadata.Dependencies, func(dependency *chart.Dependency) string {
+		return getUniqueKeyFromDependency(dependency)
 	})
-	previousDependencies := sliceUtil.NewSliceFromFuncExec(dependencies.Dependencies, func(dependency *chart.Dependency) string {
-		return fmt.Sprintf("%s-%s-%s", strings.TrimSpace(dependency.Name), strings.TrimSpace(dependency.Version), strings.TrimSpace(dependency.Repository))
+	previousDependencies := sliceUtil.NewMapFromFuncExec(dependencies.Dependencies, func(dependency *chart.Dependency) string {
+		return getUniqueKeyFromDependency(dependency)
 	})
-	return sliceUtil.CompareTwoSlices(latestDependencies, previousDependencies), nil
+	for key := range latestDependencies {
+		if _, ok := previousDependencies[key]; !ok {
+			impl.Logger.Debugw("dependency found in chart.yaml but not in requirements.yaml, need to migrate proxy chart dependencies", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "dependency", key)
+			return true, nil
+		}
+	}
+	impl.Logger.Debugw("all dependencies found in chart.yaml and requirements.yaml, no migration required", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName)
+	return false, nil
+}
+
+func getUniqueKeyFromDependency(dependency *chart.Dependency) string {
+	// return unique key for dependency
+	return fmt.Sprintf("%s-%s-%s",
+		strings.ToLower(strings.TrimSpace(dependency.Name)),
+		strings.ToLower(strings.TrimSpace(dependency.Version)),
+		strings.ToLower(strings.TrimSpace(dependency.Repository)))
 }
