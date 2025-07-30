@@ -40,6 +40,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sigs.k8s.io/yaml"
 	"strconv"
 	"strings"
 )
@@ -453,7 +454,12 @@ func (impl *FullModeDeploymentServiceImpl) shouldMigrateProxyChartDependencies(p
 		return false, err
 	}
 	dependencies := appStoreBean.Dependencies{}
-	err = json.Unmarshal(requirementsYamlContent, &dependencies)
+	requirementsJsonContent, err := yaml.YAMLToJSON(requirementsYamlContent)
+	if err != nil {
+		impl.Logger.Errorw("error in converting requirements.yaml to json", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
+		return false, err
+	}
+	err = json.Unmarshal(requirementsJsonContent, &dependencies)
 	if err != nil {
 		impl.Logger.Errorw("error in unmarshalling requirements.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
 		return false, err
