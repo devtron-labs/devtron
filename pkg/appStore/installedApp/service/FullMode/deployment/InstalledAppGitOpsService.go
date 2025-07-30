@@ -377,12 +377,17 @@ func (impl *FullModeDeploymentServiceImpl) getValuesAndChartMetaDataForGitConfig
 		impl.Logger.Errorw("error in creating values config for git", "err", err)
 		return nil, nil, err
 	}
-	chartMetaDataContent, err := json.Marshal(chartMetaData)
+	chartMetaJsonContent, err := json.Marshal(chartMetaData)
 	if err != nil {
 		impl.Logger.Errorw("error in marshalling chartMetaData content", "err", err)
 		return nil, nil, err
 	}
-	chartMetaDataConfig, err := impl.getGitCommitConfig(installAppVersionRequest, string(chartMetaDataContent), chartRefBean.CHART_YAML_FILE)
+	chartMetaYamlContent, err := yaml.JSONToYAML(chartMetaJsonContent)
+	if err != nil {
+		impl.Logger.Errorw("error in converting chartMetaData json to yaml", "err", err)
+		return nil, nil, err
+	}
+	chartMetaDataConfig, err := impl.getGitCommitConfig(installAppVersionRequest, string(chartMetaYamlContent), chartRefBean.CHART_YAML_FILE)
 	if err != nil {
 		impl.Logger.Errorw("error in creating dependency config for git", "err", err)
 		return nil, nil, err
