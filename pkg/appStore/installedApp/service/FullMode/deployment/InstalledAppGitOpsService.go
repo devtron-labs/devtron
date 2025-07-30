@@ -476,7 +476,12 @@ func (impl *FullModeDeploymentServiceImpl) shouldMigrateProxyChartDependencies(p
 		return false, err
 	}
 	chartMetadata := &chart.Metadata{}
-	err = json.Unmarshal(chartYamlContent, chartMetadata)
+	chartJsonContent, err := yaml.YAMLToJSON(chartYamlContent)
+	if err != nil {
+		impl.Logger.Errorw("error in converting chart.yaml to json", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
+		return false, err
+	}
+	err = json.Unmarshal(chartJsonContent, chartMetadata)
 	if err != nil {
 		impl.Logger.Errorw("error in unmarshalling chart.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
 		return false, err
