@@ -39,6 +39,7 @@ type TeamRepository interface {
 	GetConnection() *pg.DB
 	FindByIds(ids []*int) ([]*Team, error)
 	FindAllActiveTeamNames() ([]string, error)
+	TeamRepositoryEnt
 }
 type TeamRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -95,18 +96,15 @@ func (impl TeamRepositoryImpl) MarkTeamDeleted(team *Team, tx *pg.Tx) error {
 	return err
 }
 
-func (repo TeamRepositoryImpl) FindByIds(ids []*int) ([]*Team, error) {
+func (impl TeamRepositoryImpl) FindByIds(ids []*int) ([]*Team, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
 	var objects []*Team
-	err := repo.dbConnection.Model(&objects).Where("active = ?", true).Where("id in (?)", pg.In(ids)).Select()
+	err := impl.dbConnection.Model(&objects).Where("active = ?", true).Where("id in (?)", pg.In(ids)).Select()
 	return objects, err
 }
 
-func (repo TeamRepositoryImpl) GetConnection() *pg.DB {
-	return repo.dbConnection
-}
-
-type TeamRbacObjects struct {
-	AppName  string `json:"appName"`
-	TeamName string `json:"teamName"`
-	AppId    int    `json:"appId"`
+func (impl TeamRepositoryImpl) GetConnection() *pg.DB {
+	return impl.dbConnection
 }

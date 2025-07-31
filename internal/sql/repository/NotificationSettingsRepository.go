@@ -628,7 +628,7 @@ func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingsWithRule
 
 	query := impl.dbConnection.
 		Model(&notificationSettings).
-		Column("notification_settings.*", "NotificationRule").
+		Column("notification_settings.*").
 		Where("notification_settings.pipeline_type = ?", req.PipelineType).
 		Where("notification_settings.event_type_id = ?", eventId).
 		WhereGroup(settingsFilerConditions)

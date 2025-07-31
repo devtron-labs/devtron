@@ -2,9 +2,13 @@ openapi: "3.0.2"
 info:
   title: version api
   version: "1.0"
+servers:
+  - url: https://example.com/api  
 paths:
   /orchestrator/version:
     get:
+      summary: Get Devtron server version information  
+      security: []
       responses:
         "200":
           description: meta info about devtron server

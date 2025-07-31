@@ -2,10 +2,22 @@ openapi: "3.0.0"
 info:
   version: 1.0.0
   title: Devtron Labs
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://api.yourdomain.com
+    description: Production server
+security:
+  - ApiKeyAuth: []
 paths:
   /orchestrator/app:
     post:
+      summary: Create a new application
+      operationId: createApplication
       description: create new application
+      security:
+        - ApiKeyAuth: []
       requestBody:
         description: json as request body
         required: true
@@ -38,6 +50,12 @@ paths:
                         required:
                           - id
                       - $ref: '#/components/schemas/App'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         default:
           description: unexpected error
           content:
@@ -46,7 +64,11 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
   /orchestrator/app/edit:
     post:
+      summary: Update application projects and labels
+      operationId: updateApplicationProjectsAndLabels
       description: update application projects and labels
+      security:
+        - ApiKeyAuth: []
       requestBody:
         description: json as request body
         required: true
@@ -79,6 +101,12 @@ paths:
                         required:
                           - id
                       - $ref: '#/components/schemas/App'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         default:
           description: unexpected error
           content:
@@ -88,7 +116,11 @@ paths:
 
   /orchestrator/app/list:
     post:
+      summary: List applications
+      operationId: listApplications
       description: app listing, collection of deployed applications or undeployed or incomplete configured apps.
+      security:
+        - ApiKeyAuth: []
       requestBody:
         description: json as request body
         required: true
@@ -129,6 +161,12 @@ paths:
                         type: object
                         description: deployment group
                         $ref: '#/components/schemas/DeploymentGroup'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         default:
           description: unexpected error
           content:
@@ -138,7 +176,11 @@ paths:
 
   /orchestrator/app/edit/projects:
     post:
+      summary: Update project for app
+      operationId: updateProjectForApp
       description: update project for app
+      security:
+        - ApiKeyAuth: []
       requestBody:
         description: json as request body
         required: true
@@ -163,7 +205,12 @@ paths:
                     type: object
                     description: string
                     $ref: '#/components/schemas/AppProjectUpdateRequest'
-
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         default:
           description: unexpected error
           content:
@@ -172,6 +219,11 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 # components mentioned below
 components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
   schemas:
     AppLabel:
       type: object
@@ -363,35 +415,36 @@ components:
 
 
     ErrorResponse:
-      required:
-        - code
-        - status
+      type: object
       properties:
         code:
           type: integer
           format: int32
-          description: Error code
         status:
           type: string
-          description: Error message
+        result:
+          type: object
+          nullable: true
         errors:
           type: array
-          description: errors
           items:
-            $ref: '#/components/schemas/Error'
+            type: object
+            properties:
+              userMessage:
+                type: string
+                nullable: true
+              internalMessage:
+                type: string
+                nullable: true
 
     Error:
       required:
         - code
-        - status
+        - message
       properties:
         code:
           type: integer
-          format: int32
-          description: Error internal code
-        internalMessage:
+          description: Error code
+        message:
           type: string
-          description: Error internal message
-        userMessage:
-          type: string
-          description: Error user message
+          description: Error message
