@@ -143,7 +143,7 @@ func (impl *FullModeDeploymentServiceImpl) UpdateAppGitOpsOperations(manifest *b
 		gitHash, _, valuesCommitErr = impl.gitOperationService.CommitValues(ctx, manifest.ValuesConfig)
 	} else {
 		cloneChartToGitRequest := adapter.ParseChartGitPushRequest(installAppVersionRequest, "")
-		migrateDependencies, err := impl.shouldMigrateProxyChartDependencies(cloneChartToGitRequest)
+		migrateDependencies, err := impl.shouldMigrateProxyChartDependencies(cloneChartToGitRequest, manifest.ChartMetaDataConfig.FileContent)
 		if err != nil {
 			impl.Logger.Errorw("error in checking if proxy chart dependencies should be migrated", "err", err)
 			return nil, err
@@ -427,7 +427,7 @@ func (impl *FullModeDeploymentServiceImpl) CreateArgoRepoSecretIfNeeded(appStore
 	return nil
 }
 
-func (impl *FullModeDeploymentServiceImpl) shouldMigrateProxyChartDependencies(pushChartToGitRequest *gitBean.PushChartToGitRequestDTO) (bool, error) {
+func (impl *FullModeDeploymentServiceImpl) shouldMigrateProxyChartDependencies(pushChartToGitRequest *gitBean.PushChartToGitRequestDTO, expectedChartYamlContent string) (bool, error) {
 	clonedDir, err := impl.gitOperationService.CloneChartForHelmApp(pushChartToGitRequest.AppName, pushChartToGitRequest.RepoURL, pushChartToGitRequest.TargetRevision)
 	if err != nil {
 		impl.Logger.Errorw("error in cloning chart for helm app", "appName", pushChartToGitRequest.AppName, "repoUrl", pushChartToGitRequest.RepoURL, "err", err)
@@ -436,14 +436,6 @@ func (impl *FullModeDeploymentServiceImpl) shouldMigrateProxyChartDependencies(p
 	defer impl.chartTemplateService.CleanDir(clonedDir)
 	gitOpsChartLocation := fmt.Sprintf("%s-%s", pushChartToGitRequest.AppName, pushChartToGitRequest.EnvName)
 	dir := filepath.Join(clonedDir, gitOpsChartLocation)
-	requirementsYamlPath := filepath.Join(dir, appStoreBean.REQUIREMENTS_YAML_FILE)
-	if _, err := os.Stat(requirementsYamlPath); os.IsNotExist(err) {
-		impl.Logger.Debugw("requirements.yaml not found in cloned repo from git-ops, no migrations required", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName)
-		return false, nil
-	} else if err != nil {
-		impl.Logger.Errorw("error in checking requirements.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
-		return false, err
-	}
 	chartYamlPath := filepath.Join(dir, chartRefBean.CHART_YAML_FILE)
 	if _, err := os.Stat(chartYamlPath); os.IsNotExist(err) {
 		impl.Logger.Debugw("chart.yaml not found in cloned repo from git-ops, no migrations required", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName)
@@ -452,28 +444,22 @@ func (impl *FullModeDeploymentServiceImpl) shouldMigrateProxyChartDependencies(p
 		impl.Logger.Errorw("error in checking chart.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
 		return false, err
 	}
-	// load requirements.yaml file to check if it has dependencies
-	requirementsYamlContent, err := os.ReadFile(requirementsYamlPath)
-	if err != nil {
-		impl.Logger.Errorw("error in reading requirements.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
-		return false, err
-	}
-	dependencies := appStoreBean.Dependencies{}
-	requirementsJsonContent, err := yaml.YAMLToJSON(requirementsYamlContent)
+	expectedChartMetaData := &chart.Metadata{}
+	expectedChartJsonContent, err := yaml.YAMLToJSON([]byte(expectedChartYamlContent))
 	if err != nil {
 		impl.Logger.Errorw("error in converting requirements.yaml to json", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
 		return false, err
 	}
-	err = json.Unmarshal(requirementsJsonContent, &dependencies)
+	err = json.Unmarshal(expectedChartJsonContent, &expectedChartMetaData)
 	if err != nil {
 		impl.Logger.Errorw("error in unmarshalling requirements.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
 		return false, err
 	}
-	if len(dependencies.Dependencies) == 0 {
+	if len(expectedChartMetaData.Dependencies) == 0 {
 		impl.Logger.Debugw("no dependencies found in requirements.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName)
 		return false, nil
 	}
-	impl.Logger.Debugw("dependencies found in requirements.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "dependencies", dependencies.Dependencies)
+	impl.Logger.Debugw("dependencies found in requirements.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "dependencies", expectedChartMetaData.Dependencies)
 	// check if chart.yaml file has dependencies
 	chartYamlContent, err := os.ReadFile(chartYamlPath)
 	if err != nil {
@@ -500,7 +486,7 @@ func (impl *FullModeDeploymentServiceImpl) shouldMigrateProxyChartDependencies(p
 	latestDependencies := sliceUtil.NewMapFromFuncExec(chartMetadata.Dependencies, func(dependency *chart.Dependency) string {
 		return getUniqueKeyFromDependency(dependency)
 	})
-	previousDependencies := sliceUtil.NewMapFromFuncExec(dependencies.Dependencies, func(dependency *chart.Dependency) string {
+	previousDependencies := sliceUtil.NewMapFromFuncExec(expectedChartMetaData.Dependencies, func(dependency *chart.Dependency) string {
 		return getUniqueKeyFromDependency(dependency)
 	})
 	for key := range latestDependencies {

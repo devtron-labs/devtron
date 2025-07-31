@@ -31,7 +31,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/util"
-	"helm.sh/helm/v3/pkg/chart"
 	"slices"
 	"time"
 )
@@ -334,10 +333,6 @@ type AppNames struct {
 	Name          string `json:"name,omitempty"`
 	Exists        bool   `json:"exists"`
 	SuggestedName string `json:"suggestedName,omitempty"`
-}
-
-type Dependencies struct {
-	Dependencies []*chart.Dependency `json:"dependencies"`
 }
 
 const REFERENCE_TYPE_DEFAULT string = "DEFAULT"
