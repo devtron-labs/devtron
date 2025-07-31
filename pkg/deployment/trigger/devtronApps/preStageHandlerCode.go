@@ -312,7 +312,7 @@ func (impl *HandlerServiceImpl) createStartingWfAndRunner(request bean.CdTrigger
 		ReferenceId:           request.TriggerContext.ReferenceId,
 	}
 	_, span := otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.SaveWorkFlowRunner")
-	_, err = impl.cdWorkflowRunnerService.SaveCDWorkflowRunnerWithStage(runner)
+	_, err = impl.cdWorkflowRunnerService.SaveCDWorkflowRunnerWithStage(runner, cdWf, pipeline)
 	span.End()
 	if err != nil {
 		return nil, nil, err

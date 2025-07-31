@@ -56,6 +56,7 @@ func (impl *HandlerServiceImpl) TriggerPostStage(request bean.CdTriggerRequest) 
 			return nil, err
 		}
 	}
+	request.Artifact = cdWf.CiArtifact
 
 	// Migration of deprecated DataSource Type
 	if cdWf.CiArtifact.IsMigrationRequired() {

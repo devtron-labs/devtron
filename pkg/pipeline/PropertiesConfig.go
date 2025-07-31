@@ -620,44 +620,7 @@ func (impl *PropertiesConfigServiceImpl) GetAppIdByChartEnvId(chartEnvId int) (*
 }
 
 func (impl *PropertiesConfigServiceImpl) GetLatestEnvironmentProperties(appId, environmentId int) (environmentProperties *bean.EnvironmentProperties, err error) {
-	env, err := impl.environmentRepository.FindById(environmentId)
-	if err != nil {
-		return nil, err
-	}
-	// step 1
-	envOverride, err := impl.envConfigOverrideReadService.ActiveEnvConfigOverride(appId, environmentId)
-	if err != nil {
-		return nil, err
-	}
-	if envOverride.Id == 0 {
-		//return nil, errors.New("No env config exists with tag latest for given appId and envId")
-		impl.logger.Warnw("No env config exists with tag latest for given appId and envId", "envId", environmentId)
-	} else {
-		r := json.RawMessage("{}")
-		err = r.UnmarshalJSON([]byte(envOverride.EnvOverrideValues))
-		if err != nil {
-			return nil, err
-		}
-		environmentProperties = &bean.EnvironmentProperties{
-			Id:                envOverride.Id,
-			Status:            envOverride.Status,
-			EnvOverrideValues: r,
-			ManualReviewed:    envOverride.ManualReviewed,
-			Active:            envOverride.Active,
-			Namespace:         env.Namespace,
-			Description:       env.Description,
-			EnvironmentId:     environmentId,
-			EnvironmentName:   env.Name,
-			Latest:            envOverride.Latest,
-			ChartRefId:        envOverride.Chart.ChartRefId,
-			IsOverride:        envOverride.IsOverride,
-			IsBasicViewLocked: envOverride.IsBasicViewLocked,
-			CurrentViewEditor: envOverride.CurrentViewEditor,
-			MergeStrategy:     envOverride.MergeStrategy,
-			ClusterId:         env.ClusterId,
-		}
-	}
-	return environmentProperties, nil
+	return impl.chartService.GetLatestEnvironmentProperties(appId, environmentId)
 }
 
 func (impl *PropertiesConfigServiceImpl) ResetEnvironmentProperties(id int, userId int32) (bool, error) {

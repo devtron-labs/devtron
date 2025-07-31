@@ -20,13 +20,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
-	"github.com/devtron-labs/devtron/pkg/cluster/environment"
-	"github.com/devtron-labs/devtron/pkg/cluster/rbac"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	"github.com/devtron-labs/devtron/pkg/cluster/rbac"
 
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -60,6 +61,7 @@ type ClusterRestHandler interface {
 	GetClusterNamespaces(w http.ResponseWriter, r *http.Request)
 	GetAllClusterNamespaces(w http.ResponseWriter, r *http.Request)
 	FindAllForClusterPermission(w http.ResponseWriter, r *http.Request)
+	FindByIds(w http.ResponseWriter, r *http.Request)
 }
 
 type ClusterRestHandlerImpl struct {
@@ -294,6 +296,59 @@ func (impl ClusterRestHandlerImpl) FindAll(w http.ResponseWriter, r *http.Reques
 	//RBAC enforcer Ends
 
 	common.WriteJsonResp(w, err, result, http.StatusOK)
+}
+
+func (impl ClusterRestHandlerImpl) FindByIds(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+
+	// Parse clusterId query parameter
+	clusterIdsStr := r.URL.Query().Get("clusterId")
+	if clusterIdsStr == "" {
+		// If no clusterId parameter, return all clusters (same as FindAll)
+		impl.FindAll(w, r)
+		return
+	}
+
+	// Parse comma-separated cluster IDs
+	var clusterIds []int
+	clusterIdStrs := strings.Split(clusterIdsStr, ",")
+	for _, idStr := range clusterIdStrs {
+		idStr = strings.TrimSpace(idStr)
+		if idStr == "" {
+			continue
+		}
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			impl.logger.Errorw("request err, FindByIds", "error", err, "clusterId", idStr)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		clusterIds = append(clusterIds, id)
+	}
+
+	if len(clusterIds) == 0 {
+		// If no valid cluster IDs, return empty result
+		common.WriteJsonResp(w, nil, []*bean2.ClusterBean{}, http.StatusOK)
+		return
+	}
+
+	clusterList, err := impl.clusterService.FindByIdsWithoutConfig(clusterIds)
+	if err != nil {
+		impl.logger.Errorw("service err, FindByIds", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	// RBAC enforcer applying
+	var result []*bean2.ClusterBean
+	for _, item := range clusterList {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, item.ClusterName); ok {
+			result = append(result, item)
+		}
+	}
+	//RBAC enforcer Ends
+
+	common.WriteJsonResp(w, nil, result, http.StatusOK)
 }
 
 func (impl ClusterRestHandlerImpl) FindById(w http.ResponseWriter, r *http.Request) {
@@ -671,7 +726,14 @@ func (impl ClusterRestHandlerImpl) GetClusterNamespaces(w http.ResponseWriter, r
 
 	allClusterNamespaces, err := impl.clusterService.FindAllNamespacesByUserIdAndClusterId(userId, clusterId, isActionUserSuperAdmin)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		// Check if it's a cluster connectivity error and return appropriate status code
+		if err.Error() == cluster.ErrClusterNotReachable {
+			impl.logger.Errorw("cluster connectivity error in GetClusterNamespaces", "error", err, "clusterId", clusterId)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		} else {
+			impl.logger.Errorw("error in GetClusterNamespaces", "error", err, "clusterId", clusterId)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		}
 		return
 	}
 	common.WriteJsonResp(w, nil, allClusterNamespaces, http.StatusOK)

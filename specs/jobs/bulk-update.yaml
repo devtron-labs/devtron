@@ -113,36 +113,33 @@ components:
     BulkUpdateSeeExampleResponse:
       type: object
       required:
-        - Script
+        - script
       properties:
         operation:
           type: string
           description: Resource from url path, i.e. {apiVersion} & {kind}
         script:
           $ref: '#/components/schemas/BulkUpdateScript'
-          description: Input Script for bulk update
         readMe:
           type: string
           description: Readme for bulk update
     BulkUpdateScript:
       type: object
+      description: Input Script for bulk edit
       required:
-        - ApiVersion
-        - Kind
-        - Spec
+        - apiVersion
+        - kind
+        - spec
       properties:
         apiVersion:
           type: string
-          description: Api version from url
-          example:
-            - v1beta1
+          enum: [ "batch/v1beta1" ]
         kind:
           type: string
-          description: Kind
-          example:
-            - application
+          enum: [ "Application" ]
         spec:
           $ref: '#/components/schemas/BulkUpdatePayload'
+
     BulkUpdatePayload:
       type: object
       properties:
@@ -154,9 +151,11 @@ components:
           type: array
           items:
             type: integer
-          description: All Env Id's for updating dependent apps
+            exclusiveMinimum: 0
+          description: Array of Environment Ids of dependent apps
         global:
           type: boolean
+<<<<<<<< HEAD:specs/jobs/bulk-update.yaml
           description: Global flag for updating dependent apps
         deploymentTemplate:
           $ref: '#/components/schemas/Tasks'
@@ -189,12 +188,44 @@ components:
         patchData:
           type: string
           description: string with details of the patch to be used for updating
+========
+          description: Flag for updating base Configurations of dependent apps
+        deploymentTemplate:
+          $ref: '#/components/schemas/Spec'
+        configMap:
+          type: object
+          properties:
+            allOf:
+              $ref: '#/components/schemas/Spec'
+            names:
+              type: array
+              items:
+                type: string
+                pattern: "^[a-z]+[a-z0-9\\-\\?]*[a-z0-9]+$"
+              description: Name of all ConfigMaps to be updated
+        secret:
+          type: object
+          properties:
+            allOf:
+              $ref: '#/components/schemas/Spec'
+            names:
+              type: array
+              items:
+                type: string
+              description: Name of all Secrets to be updated
+
+>>>>>>>> develop:specs/bulkEdit/v1beta1/bulk_edit.yaml
     Spec:
       type: object
       properties:
         patchData:
           type: string
+<<<<<<<< HEAD:specs/jobs/bulk-update.yaml
           description: string with details of the patch to be used for updating
+========
+          description: String with details of the patch to be used for updating
+
+>>>>>>>> develop:specs/bulkEdit/v1beta1/bulk_edit.yaml
     NameIncludesExcludes:
       type: object
       properties:
@@ -202,7 +233,8 @@ components:
           type: array
           items:
             type: string
-          description: All strings of app names to be included/excluded
+            pattern: "^[a-z%]+[a-z0-9%\\-\\?]*[a-z0-9%]+$"
+          description: Array of application names to be included
     ImpactedObjectsResponse:
       type: object
       properties:
