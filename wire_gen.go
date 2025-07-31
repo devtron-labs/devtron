@@ -97,7 +97,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
-	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
 	repository9 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
@@ -158,6 +157,7 @@ import (
 	pipeline2 "github.com/devtron-labs/devtron/pkg/build/pipeline"
 	read14 "github.com/devtron-labs/devtron/pkg/build/pipeline/read"
 	"github.com/devtron-labs/devtron/pkg/build/trigger"
+	repository30 "github.com/devtron-labs/devtron/pkg/bulkAction/repository"
 	service8 "github.com/devtron-labs/devtron/pkg/bulkAction/service"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
@@ -959,10 +959,11 @@ func InitializeApp() (*App, error) {
 	}
 	telemetryRestHandlerImpl := restHandler.NewTelemetryRestHandlerImpl(sugaredLogger, telemetryEventClientImplExtended, enforcerImpl, userServiceImpl)
 	telemetryRouterImpl := router.NewTelemetryRouterImpl(sugaredLogger, telemetryRestHandlerImpl)
-	bulkUpdateRepositoryImpl := bulkUpdate.NewBulkUpdateRepository(db, sugaredLogger)
+	bulkEditRepositoryImpl := repository30.NewBulkEditRepository(db, sugaredLogger)
 	deployedAppServiceImpl := deployedApp.NewDeployedAppServiceImpl(sugaredLogger, k8sCommonServiceImpl, devtronAppsHandlerServiceImpl, environmentRepositoryImpl, pipelineRepositoryImpl, cdWorkflowRepositoryImpl)
-	bulkUpdateServiceImpl := service8.NewBulkUpdateServiceImpl(bulkUpdateRepositoryImpl, sugaredLogger, environmentRepositoryImpl, pipelineRepositoryImpl, appRepositoryImpl, deploymentTemplateHistoryServiceImpl, configMapHistoryServiceImpl, pipelineBuilderImpl, enforcerUtilImpl, ciHandlerImpl, ciPipelineRepositoryImpl, appWorkflowRepositoryImpl, appWorkflowServiceImpl, scopedVariableManagerImpl, deployedAppMetricsServiceImpl, chartRefServiceImpl, deployedAppServiceImpl, cdPipelineEventPublishServiceImpl, handlerServiceImpl)
-	bulkUpdateRestHandlerImpl := restHandler.NewBulkUpdateRestHandlerImpl(pipelineBuilderImpl, sugaredLogger, bulkUpdateServiceImpl, chartServiceImpl, propertiesConfigServiceImpl, userServiceImpl, teamServiceImpl, enforcerImpl, ciHandlerImpl, validate, clientImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl, enforcerUtilImpl, environmentServiceImpl, gitRegistryConfigImpl, dockerRegistryConfigImpl, cdHandlerImpl, appCloneServiceImpl, appWorkflowServiceImpl, materialRepositoryImpl)
+	bulkUpdateServiceEntImpl := service8.NewBulkUpdateServiceEntImpl()
+	bulkUpdateServiceImpl := service8.NewBulkUpdateServiceImpl(bulkEditRepositoryImpl, sugaredLogger, environmentRepositoryImpl, pipelineRepositoryImpl, appRepositoryImpl, deploymentTemplateHistoryServiceImpl, configMapHistoryServiceImpl, pipelineBuilderImpl, enforcerUtilImpl, ciHandlerImpl, ciPipelineRepositoryImpl, appWorkflowRepositoryImpl, appWorkflowServiceImpl, scopedVariableManagerImpl, deployedAppMetricsServiceImpl, chartRefServiceImpl, deployedAppServiceImpl, cdPipelineEventPublishServiceImpl, handlerServiceImpl, bulkUpdateServiceEntImpl)
+	bulkUpdateRestHandlerImpl := restHandler.NewBulkUpdateRestHandlerImpl(pipelineBuilderImpl, sugaredLogger, bulkUpdateServiceImpl, chartServiceImpl, propertiesConfigServiceImpl, userServiceImpl, enforcerImpl, ciHandlerImpl, validate, clientImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl, enforcerUtilImpl, environmentServiceImpl, gitRegistryConfigImpl, dockerRegistryConfigImpl, cdHandlerImpl, appCloneServiceImpl, appWorkflowServiceImpl, materialRepositoryImpl)
 	bulkUpdateRouterImpl := router.NewBulkUpdateRouterImpl(bulkUpdateRestHandlerImpl)
 	webhookSecretValidatorImpl := gitWebhook.NewWebhookSecretValidatorImpl(sugaredLogger)
 	webhookEventDataRepositoryImpl := repository2.NewWebhookEventDataRepositoryImpl(db)

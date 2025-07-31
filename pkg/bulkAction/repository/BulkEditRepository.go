@@ -1,0 +1,335 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package repository
+
+import (
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	"github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
+	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
+	"go.uber.org/zap"
+)
+
+// DEPRECATED: Use BulkEditConfig instead of BulkUpdateReadme.
+// TODO: Remove this table in future versions.
+type BulkUpdateReadme struct {
+	tableName struct{} `sql:"bulk_update_readme" pg:",discard_unknown_columns"`
+	Id        int      `sql:"id"`
+	Resource  string   `sql:"resource"`
+	Script    string   `sql:"script"`
+	Readme    string   `sql:"readme"`
+}
+
+// BulkEditConfig is used to store the configuration for bulk edit operations.
+type BulkEditConfig struct {
+	tableName  struct{} `sql:"bulk_edit_config" pg:",discard_unknown_columns"`
+	Id         int      `sql:"id,pk"`
+	ApiVersion string   `sql:"api_version,notnull"`
+	Kind       string   `sql:"kind,notnull"`
+	Readme     string   `sql:"readme"`
+	Schema     string   `sql:"schema"`
+}
+
+type BulkEditRepository interface {
+	FindBulkEditConfig(apiVersion, kind string) (*BulkEditConfig, error)
+
+	// methods for Deployment Template :
+
+	FindDeploymentTemplateBulkAppNameForGlobal(appNameIncludes []string, appNameExcludes []string) ([]*app.App, error)
+	FindDeploymentTemplateBulkAppNameForEnv(appNameIncludes []string, appNameExcludes []string, envId int) ([]*app.App, error)
+	FindAppByChartId(chartId int) (*app.App, error)
+	FindAppByChartEnvId(chartEnvId int) (*app.App, error)
+	FindBulkChartsByAppNameSubstring(appNameIncludes []string, appNameExcludes []string) ([]*chartRepoRepository.Chart, error)
+	FindBulkChartsEnvByAppNameSubstring(appNameIncludes []string, appNameExcludes []string, envId int) ([]*chartConfig.EnvConfigOverride, error)
+	BulkUpdateChartsValuesYamlAndGlobalOverrideById(id int, patchValuesYml string, patchGlobalOverrideYml string) error
+	BulkUpdateChartsEnvYamlOverrideById(id int, patch string) error
+
+	// methods for ConfigMap & Secret :
+
+	FindCMBulkAppModelForGlobal(appNameIncludes []string, appNameExcludes []string, configMapNames []string) ([]*chartConfig.ConfigMapAppModel, error)
+	FindSecretBulkAppModelForGlobal(appNameIncludes []string, appNameExcludes []string, secretNames []string) ([]*chartConfig.ConfigMapAppModel, error)
+	FindCMBulkAppModelForEnv(appNameIncludes []string, appNameExcludes []string, envId int, configMapNames []string) ([]*chartConfig.ConfigMapEnvModel, error)
+	FindSecretBulkAppModelForEnv(appNameIncludes []string, appNameExcludes []string, envId int, secretNames []string) ([]*chartConfig.ConfigMapEnvModel, error)
+	BulkUpdateConfigMapDataForGlobalById(id int, patch string) error
+	BulkUpdateSecretDataForGlobalById(id int, patch string) error
+	BulkUpdateConfigMapDataForEnvById(id int, patch string) error
+	BulkUpdateSecretDataForEnvById(id int, patch string) error
+
+	// BulkEditRepositoryEnt is used for ent-specific operations.
+	BulkEditRepositoryEnt
+}
+
+func NewBulkEditRepository(dbConnection *pg.DB,
+	logger *zap.SugaredLogger) *BulkEditRepositoryImpl {
+	return &BulkEditRepositoryImpl{dbConnection: dbConnection,
+		logger: logger}
+}
+
+type BulkEditRepositoryImpl struct {
+	dbConnection *pg.DB
+	logger       *zap.SugaredLogger
+}
+
+func appendBuildAppNameQuery(q *orm.Query, appNameIncludes []string, appNameExcludes []string) *orm.Query {
+	if len(appNameIncludes) != 0 {
+		q = q.Where("app.app_name LIKE ANY (array[?])", pg.In(appNameIncludes))
+	}
+	if len(appNameExcludes) != 0 {
+		q = q.Where("app.app_name NOT LIKE ALL (array[?])", pg.In(appNameExcludes))
+	}
+	return q
+
+}
+
+func appendBuildCMNameLikeQuery(q *orm.Query, configMapNames []string) *orm.Query {
+	// replacing configMapName with "%configMapName%"
+	configMapNamesLikeClause := sliceUtil.NewSliceFromFuncExec(configMapNames, func(secretName string) string {
+		return util.GetLIKEClauseQueryParam(secretName)
+	})
+	return appendBuildCMNameQuery(q, configMapNamesLikeClause, nil)
+}
+
+func appendBuildCMNameQuery(q *orm.Query, configMapNameIncludes, configMapNameExcludes []string) *orm.Query {
+	if len(configMapNameIncludes) != 0 {
+		q = q.Where("config_map_data LIKE ANY (array[?])", pg.In(configMapNameIncludes))
+	}
+	if len(configMapNameExcludes) != 0 {
+		q = q.Where("config_map_data NOT LIKE ALL (array[?])", pg.In(configMapNameExcludes))
+	}
+	return q
+}
+
+func appendBuildSecretNameLikeQuery(q *orm.Query, secretNames []string) *orm.Query {
+	// replacing secretName with "%secretName%"
+	secretNamesLikeClause := sliceUtil.NewSliceFromFuncExec(secretNames, func(secretName string) string {
+		return util.GetLIKEClauseQueryParam(secretName)
+	})
+	return appendBuildSecretNameQuery(q, secretNamesLikeClause, nil)
+}
+
+func appendBuildSecretNameQuery(q *orm.Query, secretNameIncludes, secretNameExcludes []string) *orm.Query {
+	if len(secretNameIncludes) != 0 {
+		q = q.Where("secret_data LIKE ANY (array[?])", pg.In(secretNameIncludes))
+	}
+	if len(secretNameExcludes) != 0 {
+		q = q.Where("secret_data NOT LIKE ALL (array[?])", pg.In(secretNameExcludes))
+	}
+	return q
+}
+
+func (repositoryImpl BulkEditRepositoryImpl) FindBulkEditConfig(apiVersion, kind string) (*BulkEditConfig, error) {
+	bulkEditConfig := &BulkEditConfig{}
+	err := repositoryImpl.dbConnection.
+		Model(bulkEditConfig).
+		Where("api_version = ?", apiVersion).
+		Where("kind = ?", kind).
+		Select()
+	return bulkEditConfig, err
+}
+
+func (repositoryImpl BulkEditRepositoryImpl) FindDeploymentTemplateBulkAppNameForGlobal(appNameIncludes []string, appNameExcludes []string) ([]*app.App, error) {
+	apps := []*app.App{}
+	q := repositoryImpl.dbConnection.
+		Model(&apps).Join("INNER JOIN charts ch ON app.id = ch.app_id").
+		Where("app.active = ?", true).
+		Where("ch.latest = ?", true)
+	q = appendBuildAppNameQuery(q, appNameIncludes, appNameExcludes)
+	err := q.Select()
+	return apps, err
+}
+
+func (repositoryImpl BulkEditRepositoryImpl) FindDeploymentTemplateBulkAppNameForEnv(appNameIncludes []string, appNameExcludes []string, envId int) ([]*app.App, error) {
+	apps := []*app.App{}
+	q := repositoryImpl.dbConnection.
+		Model(&apps).Join("INNER JOIN charts ch ON app.id = ch.app_id").
+		Join("INNER JOIN chart_env_config_override ON ch.id = chart_env_config_override.chart_id").
+		Where("app.active = ?", true).
+		Where("chart_env_config_override.target_environment = ? ", envId).
+		Where("chart_env_config_override.latest = ?", true)
+	q = appendBuildAppNameQuery(q, appNameIncludes, appNameExcludes)
+	err := q.Select()
+	return apps, err
+}
+func (repositoryImpl BulkEditRepositoryImpl) FindCMBulkAppModelForGlobal(appNameIncludes []string, appNameExcludes []string, configMapNames []string) ([]*chartConfig.ConfigMapAppModel, error) {
+	CmAndSecretAppModel := []*chartConfig.ConfigMapAppModel{}
+	q := repositoryImpl.dbConnection.
+		Model(&CmAndSecretAppModel).Join("INNER JOIN app ON app.id = config_map_app_model.app_id").
+		Where("app.active = ?", true)
+	q = appendBuildAppNameQuery(q, appNameIncludes, appNameExcludes)
+	q = appendBuildCMNameLikeQuery(q, configMapNames)
+	err := q.Select()
+	return CmAndSecretAppModel, err
+}
+func (repositoryImpl BulkEditRepositoryImpl) FindSecretBulkAppModelForGlobal(appNameIncludes []string, appNameExcludes []string, secretNames []string) ([]*chartConfig.ConfigMapAppModel, error) {
+	CmAndSecretAppModel := []*chartConfig.ConfigMapAppModel{}
+	q := repositoryImpl.dbConnection.
+		Model(&CmAndSecretAppModel).Join("INNER JOIN app ON app.id = config_map_app_model.app_id").
+		Where("app.active = ?", true)
+	q = appendBuildAppNameQuery(q, appNameIncludes, appNameExcludes)
+	q = appendBuildSecretNameLikeQuery(q, secretNames)
+	err := q.Select()
+	return CmAndSecretAppModel, err
+}
+func (repositoryImpl BulkEditRepositoryImpl) FindCMBulkAppModelForEnv(appNameIncludes []string, appNameExcludes []string, envId int, configMapNames []string) ([]*chartConfig.ConfigMapEnvModel, error) {
+	CmAndSecretEnvModel := []*chartConfig.ConfigMapEnvModel{}
+	q := repositoryImpl.dbConnection.
+		Model(&CmAndSecretEnvModel).Join("INNER JOIN app ON app.id = config_map_env_model.app_id").
+		Where("app.active = ?", true).
+		Where("config_map_env_model.environment_id = ? ", envId)
+	q = appendBuildAppNameQuery(q, appNameIncludes, appNameExcludes)
+	q = appendBuildCMNameLikeQuery(q, configMapNames)
+	err := q.Select()
+	return CmAndSecretEnvModel, err
+}
+func (repositoryImpl BulkEditRepositoryImpl) FindSecretBulkAppModelForEnv(appNameIncludes []string, appNameExcludes []string, envId int, secretNames []string) ([]*chartConfig.ConfigMapEnvModel, error) {
+	CmAndSecretEnvModel := []*chartConfig.ConfigMapEnvModel{}
+	q := repositoryImpl.dbConnection.
+		Model(&CmAndSecretEnvModel).Join("INNER JOIN app ON app.id = config_map_env_model.app_id").
+		Where("app.active = ?", true).
+		Where("config_map_env_model.environment_id = ? ", envId)
+	q = appendBuildAppNameQuery(q, appNameIncludes, appNameExcludes)
+	q = appendBuildSecretNameLikeQuery(q, secretNames)
+	err := q.Select()
+	return CmAndSecretEnvModel, err
+}
+func (repositoryImpl BulkEditRepositoryImpl) FindAppByChartId(chartId int) (*app.App, error) {
+	app := &app.App{}
+	err := repositoryImpl.dbConnection.
+		Model(app).Join("INNER JOIN charts ch ON app.id = ch.app_id").
+		Where("ch.id = ?", chartId).
+		Where("app.active = ?", true).
+		Where("ch.latest = ?", true).
+		Select()
+	return app, err
+}
+func (repositoryImpl BulkEditRepositoryImpl) FindAppByChartEnvId(chartEnvId int) (*app.App, error) {
+	app := &app.App{}
+	err := repositoryImpl.dbConnection.
+		Model(app).Join("INNER JOIN charts ch ON app.id = ch.app_id").
+		Join("INNER JOIN chart_env_config_override ON ch.id = chart_env_config_override.chart_id").
+		Where("app.active = ?", true).
+		Where("chart_env_config_override.id = ? ", chartEnvId).
+		Where("chart_env_config_override.latest = ?", true).
+		Select()
+	return app, err
+}
+func (repositoryImpl BulkEditRepositoryImpl) FindBulkChartsByAppNameSubstring(appNameIncludes []string, appNameExcludes []string) ([]*chartRepoRepository.Chart, error) {
+	charts := []*chartRepoRepository.Chart{}
+	q := repositoryImpl.dbConnection.
+		Model(&charts).Join("INNER JOIN app ON app.id=app_id ").
+		Where("app.active = ?", true).
+		Where("latest = ?", true)
+	q = appendBuildAppNameQuery(q, appNameIncludes, appNameExcludes)
+	err := q.Select()
+	return charts, err
+}
+
+func (repositoryImpl BulkEditRepositoryImpl) FindBulkChartsEnvByAppNameSubstring(appNameIncludes []string, appNameExcludes []string, envId int) ([]*chartConfig.EnvConfigOverride, error) {
+	charts := []*chartConfig.EnvConfigOverride{}
+	q := repositoryImpl.dbConnection.
+		Model(&charts).Join("INNER JOIN charts ch ON ch.id=env_config_override.chart_id").
+		Join("INNER JOIN app ON app.id=ch.app_id").
+		Where("app.active = ?", true).
+		Where("env_config_override.target_environment = ?", envId).
+		Where("env_config_override.latest = ?", true).
+		Column("env_config_override.*", "Chart")
+	q = appendBuildAppNameQuery(q, appNameIncludes, appNameExcludes)
+	err := q.Select()
+	return charts, err
+}
+func (repositoryImpl BulkEditRepositoryImpl) BulkUpdateChartsValuesYamlAndGlobalOverrideById(id int, patchValuesYml string, patchGlobalOverrideYml string) error {
+	chart := &chartRepoRepository.Chart{}
+	_, err := repositoryImpl.dbConnection.
+		Model(chart).
+		Set("values_yaml = ?", patchValuesYml).
+		Set("global_override = ?", patchGlobalOverrideYml).
+		Where("id = ?", id).
+		Update()
+	if err != nil {
+		repositoryImpl.logger.Errorw("error in bulk updating deployment template for charts", "err", err)
+		return err
+	}
+	return nil
+}
+func (repositoryImpl BulkEditRepositoryImpl) BulkUpdateChartsEnvYamlOverrideById(id int, patch string) error {
+	chartEnv := &chartConfig.EnvConfigOverride{}
+	_, err := repositoryImpl.dbConnection.
+		Model(chartEnv).
+		Set("env_override_yaml = ?", patch).
+		Where("id = ?", id).
+		Update()
+	if err != nil {
+		repositoryImpl.logger.Errorw("error in bulk updating deployment template charts(for env)", "err", err)
+		return err
+	}
+	return nil
+}
+func (repositoryImpl BulkEditRepositoryImpl) BulkUpdateConfigMapDataForGlobalById(id int, patch string) error {
+	CmAppModel := &chartConfig.ConfigMapAppModel{}
+	_, err := repositoryImpl.dbConnection.
+		Model(CmAppModel).
+		Set("config_map_data = ?", patch).
+		Where("id = ?", id).
+		Update()
+	if err != nil {
+		repositoryImpl.logger.Errorw("error in bulk updating config_map_data", "err", err)
+		return err
+	}
+	return nil
+}
+func (repositoryImpl BulkEditRepositoryImpl) BulkUpdateSecretDataForGlobalById(id int, patch string) error {
+	SecretAppModel := &chartConfig.ConfigMapAppModel{}
+	_, err := repositoryImpl.dbConnection.
+		Model(SecretAppModel).
+		Set("secret_data = ?", patch).
+		Where("id = ?", id).
+		Update()
+	if err != nil {
+		repositoryImpl.logger.Errorw("error in bulk updating secret_data", "err", err)
+		return err
+	}
+	return nil
+}
+func (repositoryImpl BulkEditRepositoryImpl) BulkUpdateConfigMapDataForEnvById(id int, patch string) error {
+	CmEnvModel := &chartConfig.ConfigMapEnvModel{}
+	_, err := repositoryImpl.dbConnection.
+		Model(CmEnvModel).
+		Set("config_map_data = ?", patch).
+		Where("id = ?", id).
+		Update()
+	if err != nil {
+		repositoryImpl.logger.Errorw("error in bulk updating config_map_data", "err", err)
+		return err
+	}
+	return nil
+}
+func (repositoryImpl BulkEditRepositoryImpl) BulkUpdateSecretDataForEnvById(id int, patch string) error {
+	SecretEnvModel := &chartConfig.ConfigMapEnvModel{}
+	_, err := repositoryImpl.dbConnection.
+		Model(SecretEnvModel).
+		Set("secret_data = ?", patch).
+		Where("id = ?", id).
+		Update()
+	if err != nil {
+		repositoryImpl.logger.Errorw("error in bulk updating secret_data", "err", err)
+		return err
+	}
+	return nil
+}

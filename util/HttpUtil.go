@@ -17,7 +17,6 @@
 package util
 
 import (
-	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -157,14 +156,4 @@ func getTLSKeyFileName() string {
 func getCertFileName() string {
 	randomName := fmt.Sprintf("%v.crt", GetRandomName())
 	return randomName
-}
-
-func GetTokenFromContext(ctx context.Context) string {
-	token, _ := ctx.Value(TokenKey).(string)
-	return token
-}
-
-func GetEmailFromContext(ctx context.Context) string {
-	email, _ := ctx.Value(EmailId).(string)
-	return email
 }
