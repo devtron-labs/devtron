@@ -5,7 +5,7 @@ info:
 servers:
   - url: http://petstore.swagger.io/api
 paths:
-  /user/v2:
+  /orchestrator/user/v2:
     get:
       summary: Returns all users
       description: Returns a paginated list of users with optional filtering and sorting
@@ -73,7 +73,7 @@ paths:
         '500':
           description: Internal server error
 
-  /user:
+  /orchestrator/user:
     get:
       summary: Returns all users (deprecated)
       description: Returns all users (deprecated, use /user/v2 instead)
@@ -147,33 +147,7 @@ paths:
         '500':
           description: Internal server error
 
-  /user/email:
-    get:
-      summary: Search user by email
-      description: Search for a user by their email address
-      operationId: findUserByEmail
-      parameters:
-        - name: email-id
-          in: query
-          description: Email ID of the user to search for
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: User details
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/User'
-        '400':
-          description: Bad request
-        '401':
-          description: Unauthorized
-        '500':
-          description: Internal server error
-
-  /user/{id}:
+  /orchestrator/user/{id}:
     get:
       summary: Get user by ID
       description: Returns user details with role filters
@@ -219,11 +193,11 @@ paths:
               schema:
                 type: boolean
         '400':
-          description: Bad request
+          description: Bad request - validation error or invalid request format
         '401':
           description: Unauthorized
         '403':
-          description: Forbidden
+          description: Forbidden - insufficient permissions
         '500':
           description: Internal server error
 

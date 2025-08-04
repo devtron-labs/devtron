@@ -16,7 +16,7 @@ servers:
 
 paths:
   # Chart Provider APIs
-  /chart-provider/list:
+  /orchestrator/app-store/chart-provider/list:
     get:
       description: Get list of all chart providers
       operationId: GetChartProviderList
@@ -48,7 +48,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /chart-provider/update:
+  /orchestrator/app-store/chart-provider/update:
     post:
       description: Toggle chart provider status
       operationId: ToggleChartProvider
@@ -94,7 +94,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /chart-provider/sync-chart:
+  /orchestrator/app-store/chart-provider/sync-chart:
     post:
       description: Sync chart provider
       operationId: SyncChartProvider
@@ -141,7 +141,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
   # Chart Repository APIs
-  /chart-repo/{id}:
+  /orchestrator/chart-repo/{id}:
     get:
       description: Get chart repository by ID
       operationId: GetChartRepoById
@@ -185,7 +185,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /chart-repo/list:
+  /orchestrator/chart-repo/list:
     get:
       description: Get list of all chart repositories
       operationId: GetChartRepoList
@@ -217,7 +217,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /chart-repo:
+  /orchestrator/chart-repo:
     post:
       description: Create a new chart repository
       operationId: CreateChartRepo
@@ -299,7 +299,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /chart-repo/validate:
+  /orchestrator/chart-repo/validate:
     post:
       description: Validate chart repository configuration
       operationId: ValidateChartRepo
@@ -345,7 +345,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /chart-repo/sync:
+  /orchestrator/chart-repo/sync:
     post:
       description: Trigger manual chart repository sync
       operationId: TriggerChartSyncManual
@@ -380,7 +380,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
   # Chart Group APIs
-  /chart-group:
+  /orchestrator/chart-group:
     post:
       description: Create a new chart group
       operationId: CreateChartGroup
@@ -462,7 +462,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /chart-group/entries:
+  /orchestrator/chart-group/entries:
     post:
       description: Save chart group entries
       operationId: SaveChartGroupEntries
@@ -508,7 +508,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /chart-group/list:
+  /orchestrator/chart-group/list:
     get:
       description: Get list of all chart groups
       operationId: GetChartGroupList
@@ -540,7 +540,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /chart-group/{id}:
+  /orchestrator/chart-group/{id}:
     delete:
       description: Delete a chart group
       operationId: DeleteChartGroup

@@ -14,7 +14,7 @@ info:
 servers:
   - url: http://localhost:8080
 paths:
-  /deployment/template/validate:
+  /orchestrator/deployment/template/validate:
     post:
       description: upload template file from this api to validate.
       requestBody:
@@ -43,6 +43,14 @@ paths:
                     description: status
                   result:
                     $ref: '#/components/schemas/UploadTemplateResponse'
+        '400':
+          description: Bad request - validation error, unsupported format, or file parsing error
+        '401':
+          description: Unauthorized user
+        '403':
+          description: Forbidden - insufficient permissions
+        '500':
+          description: Internal server error
         default:
           description: unexpected error
           content:
@@ -50,7 +58,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /deployment/template/upload:
+  /orchestrator/deployment/template/upload:
     put:
       description: upload template file from this api.
       requestBody:
@@ -76,6 +84,14 @@ paths:
                   result:
                     type: string
                     description: result
+        '400':
+          description: Bad request - validation error
+        '401':
+          description: Unauthorized user
+        '403':
+          description: Forbidden - insufficient permissions
+        '500':
+          description: Internal server error
         default:
           description: unexpected error
           content:
@@ -83,7 +99,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /deployment/template/fetch:
+  /orchestrator/deployment/template/fetch:
     get:
       summary: Returns all charts
       description: all the chart template uploaded by user
@@ -105,6 +121,10 @@ paths:
                     description: list of charts
                     items:
                       $ref: '#/components/schemas/Chart'
+        '401':
+          description: Unauthorized user
+        '500':
+          description: Internal server error
         default:
           description: unexpected error
           content:

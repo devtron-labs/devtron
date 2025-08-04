@@ -17,12 +17,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ClusterCapacityDetail'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
         '401':
           description: Unauthorized
           content:
@@ -56,12 +50,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ClusterCapacityDetail'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
         '401':
           description: Unauthorized
           content:
@@ -101,7 +89,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ClusterCapacityDetail'
         '400':
-          description: Bad request
+          description: Bad request - invalid clusterId format
           content:
             application/json:
               schema:
@@ -147,7 +135,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/NodeCapacityDetail'
         '400':
-          description: Bad request
+          description: Bad request - invalid clusterId format
           content:
             application/json:
               schema:
@@ -197,7 +185,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/NodeCapacityDetail'
         '400':
-          description: Bad request
+          description: Bad request - invalid clusterId format or missing name
           content:
             application/json:
               schema:
@@ -239,7 +227,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/NodeManifestUpdateResponse'
         '400':
-          description: Bad request
+          description: Bad request - invalid request body
           content:
             application/json:
               schema:
@@ -281,7 +269,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/NodeManifestUpdateResponse'
         '400':
-          description: Bad request
+          description: Bad request - invalid request body
           content:
             application/json:
               schema:
@@ -324,7 +312,7 @@ paths:
               schema:
                 type: string
         '400':
-          description: Bad request
+          description: Bad request - invalid request body
           content:
             application/json:
               schema:
@@ -367,7 +355,7 @@ paths:
               schema:
                 type: string
         '400':
-          description: Bad request
+          description: Bad request - invalid request body
           content:
             application/json:
               schema:
@@ -410,7 +398,7 @@ paths:
               schema:
                 type: string
         '400':
-          description: Bad request
+          description: Bad request - invalid request body
           content:
             application/json:
               schema:

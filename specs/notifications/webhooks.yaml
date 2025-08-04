@@ -16,7 +16,7 @@ servers:
 
 paths:
   # Git Webhook APIs
-  /webhook/git:
+  /orchestrator/webhook/git:
     post:
       description: Handle Git webhook events
       operationId: HandleGitWebhook
@@ -62,7 +62,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /webhook/git/{gitHostId}:
+  /orchestrator/webhook/git/{gitHostId}:
     post:
       description: Handle Git webhook events for a specific Git host
       operationId: HandleGitWebhookForHost
@@ -115,7 +115,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /webhook/git/{gitHostId}/{secret}:
+  /orchestrator/webhook/git/{gitHostId}/{secret}:
     post:
       description: Handle Git webhook events with secret validation
       operationId: HandleGitWebhookWithSecret
@@ -175,7 +175,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
   # CI/CD Webhook APIs
-  /webhook/ci/workflow:
+  /orchestrator/webhook/ci/workflow:
     post:
       description: Handle CI/CD workflow webhook events
       operationId: HandleWorkflowWebhook
@@ -221,7 +221,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /webhook/ext-ci/{externalCiId}:
+  /orchestrator/webhook/ext-ci/{externalCiId}:
     post:
       description: Handle external CI webhook events
       operationId: HandleExternalCiWebhook
@@ -276,7 +276,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
   # Notification Webhook APIs
-  /webhook/notification:
+  /orchestrator/webhook/notification:
     post:
       description: Create or update notification webhook configuration
       operationId: SaveNotificationWebhook
@@ -322,7 +322,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /webhook/notification/{id}:
+  /orchestrator/webhook/notification/{id}:
     get:
       description: Get notification webhook configuration by ID
       operationId: GetNotificationWebhook
@@ -366,7 +366,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /webhook/notification/variables:
+  /orchestrator/webhook/notification/variables:
     get:
       description: Get available webhook variables
       operationId: GetWebhookVariables

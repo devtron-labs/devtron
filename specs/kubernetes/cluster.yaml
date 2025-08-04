@@ -14,7 +14,7 @@ info:
 servers:
   - url: http://localhost:8080
 paths:
-  /cluster:
+  /orchestrator/cluster:
     put:
       description: Update Cluster
       operationId: UpdateCluster
@@ -96,7 +96,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /cluster/auth-list:
+  /orchestrator/cluster/auth-list:
     get:
       description: list of accessible cluster
       responses:

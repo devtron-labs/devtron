@@ -14,7 +14,7 @@ info:
 servers:
   - url: http://localhost:8080
 paths:
-  /user/v2:
+  /orchestrator/user/v2:
     get:
       description: Get all users with filters
       parameters:
@@ -82,7 +82,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /user:
+  /orchestrator/user:
     post:
       description: Create a new user
       requestBody:
@@ -164,7 +164,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /user/{id}:
+  /orchestrator/user/{id}:
     get:
       description: Get user details by ID
       parameters:
@@ -246,7 +246,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /user/bulk:
+  /orchestrator/user/bulk:
     delete:
       description: Delete multiple users in bulk
       requestBody:

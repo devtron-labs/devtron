@@ -14,7 +14,7 @@ info:
 servers:
   - url: http://localhost:8080/orchestrator
 paths:
-  /notification:
+  /orchestrator/notification:
     get:
       summary: Returns all notification settings
       description: Returns all notification settings
@@ -118,7 +118,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /notification/recipient:
+  /orchestrator/notification/recipient:
     get:
       summary: used to fetch providers(recipients)
       description: recipients fetch by string search, it will return slacks providers and email ids
@@ -140,7 +140,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /notification/channel:
+  /orchestrator/notification/channel:
     get:
       summary: get all NotificationSettingConfig list
       description: get all NotificationSettingConfig list

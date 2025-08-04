@@ -14,7 +14,7 @@ info:
 servers:
   - url: http://localhost:8080/orchestrator/k8s
 paths:
-  /resource/inception/info:
+  /orchestrator/resource/inception/info:
     get:
       description: Get inception pod info, such as pod name
       responses:
@@ -33,7 +33,7 @@ paths:
                   result:
                     $ref: '#/components/schemas/ResourceInfo'
 
-  /resource:
+  /orchestrator/resource:
     post:
       description: Get Kubernetes resource details
       requestBody:
@@ -58,7 +58,7 @@ paths:
                   result:
                     $ref: '#/components/schemas/ManifestResponse'
 
-  /resource/create:
+  /orchestrator/resource/create:
     post:
       description: Create Kubernetes resource
       requestBody:
@@ -83,7 +83,7 @@ paths:
                   result:
                     $ref: '#/components/schemas/ManifestResponse'
 
-  /resource/update:
+  /orchestrator/resource/update:
     put:
       description: Update Kubernetes resource
       requestBody:
@@ -108,7 +108,7 @@ paths:
                   result:
                     $ref: '#/components/schemas/ManifestResponse'
 
-  /resource/delete:
+  /orchestrator/resource/delete:
     delete:
       description: Delete Kubernetes resource
       requestBody:
@@ -133,7 +133,7 @@ paths:
                   result:
                     $ref: '#/components/schemas/ManifestResponse'
 
-  /api-resources/{clusterId}:
+  /orchestrator/api-resources/{clusterId}:
     get:
       description: Get all API resources for a cluster
       parameters:
@@ -160,7 +160,7 @@ paths:
                     items:
                       $ref: '#/components/schemas/K8sApiResource'
 
-  /resource/urls:
+  /orchestrator/resource/urls:
     get:
       description: Get host URLs by batch
       parameters:

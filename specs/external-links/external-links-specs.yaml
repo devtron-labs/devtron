@@ -3,7 +3,7 @@ info:
   version: 1.0.0
   title: External links APIs
 paths:
-  /orchestrator/external-link/tools:
+  /orchestrator/external-links/tools:
     get:
       description: Get all available monitoring tools for external links
       responses:
@@ -15,7 +15,7 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/ExternalLinkMonitoringTool"
-  /orchestrator/external-link:
+  /orchestrator/external-links:
     get:
       description: Get All active External links (If query parameter is not supplied
         then it will give all external links otherwise it will give external links

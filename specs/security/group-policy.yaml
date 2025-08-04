@@ -3,7 +3,7 @@ info:
   version: 1.0.0
   title: Devtron
 paths:
-  /user/role/group/v2:
+  /orchestrator/user/role/group/v2:
     get:
       summary: Returns all role groups
       description: all the template group policies
@@ -126,7 +126,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /user/role/group:
+  /orchestrator/user/role/group:
     get:
       summary: Returns all role groups
       description: Returns all role groups in the system
@@ -203,7 +203,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /user/role/group/search:
+  /orchestrator/user/role/group/search:
     get:
       summary: Search role groups by name
       description: Search role groups by their name
@@ -231,7 +231,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /user/role/group/{id}:
+  /orchestrator/user/role/group/{id}:
     get:
       summary: Get a role group by ID
       description: Get detailed information about a specific role group
@@ -283,7 +283,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /user/role/group/bulk:
+  /orchestrator/user/role/group/bulk:
     delete:
       summary: Delete multiple role groups
       description: Delete multiple role groups in bulk
@@ -308,7 +308,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /user/role/group/detailed/get:
+  /orchestrator/user/role/group/detailed/get:
     get:
       summary: Returns detailed information about all role groups
       description: Returns detailed information about all role groups including their permissions

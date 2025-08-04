@@ -17,15 +17,17 @@ paths:
                   $ref: '#/components/schemas/ApiToken'
                 type: array
           description: Successfully fetched active API tokens links
+        "401":
+          description: Unauthorized user
+        "500":
+          description: Internal server error
     post:
       description: Create api-token
       requestBody:
         content:
           application/json:
             schema:
-              items:
-                $ref: '#/components/schemas/CreateApiTokenRequest'
-              type: array
+              $ref: '#/components/schemas/CreateApiTokenRequest'
         required: true
       responses:
         "200":
@@ -34,6 +36,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/CreateApiTokenResponse'
           description: Api-token creation response
+        "400":
+          description: Bad request - validation error or name cannot be blank
+        "401":
+          description: Unauthorized user
+        "403":
+          description: Forbidden - insufficient permissions
+        "500":
+          description: Internal server error
   /orchestrator/api-token/{id}:
     delete:
       description: Delete api-token
@@ -54,6 +64,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ActionResponse'
           description: Api-token delete response
+        "400":
+          description: Bad request - invalid ID format
+        "401":
+          description: Unauthorized user
+        "403":
+          description: Forbidden - insufficient permissions
+        "500":
+          description: Internal server error
     put:
       description: Update api-token
       parameters:
@@ -79,6 +97,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/UpdateApiTokenResponse'
           description: Api-token update response
+        "400":
+          description: Bad request - validation error or invalid ID format
+        "401":
+          description: Unauthorized user
+        "403":
+          description: Forbidden - insufficient permissions
+        "500":
+          description: Internal server error
   /orchestrator/api-token/webhook:
     get:
       description: Get all api tokens which have given permission
@@ -116,6 +142,10 @@ paths:
                   $ref: '#/components/schemas/ApiToken'
                 type: array
           description: Successfully fetched active API tokens links
+        "401":
+          description: Unauthorized user
+        "500":
+          description: Internal server error
 
 components:
   schemas:
