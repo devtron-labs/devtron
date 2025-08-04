@@ -877,52 +877,6 @@ func (impl *CiHandlerImpl) removeDuplicateInts(slice []int) []int {
 	return result
 }
 
-//
-//// mapWorkflowsToLinkedPipelines maps parent pipeline workflows back to linked pipelines
-//func (impl *CiHandlerImpl) mapWorkflowsToLinkedPipelines(
-//	workflows []*pipelineConfig.CiWorkflow,
-//	pipelines []*pipelineConfig.CiPipeline,
-//	pipelineIdForStatus map[int]int,
-//	targetPipelineIds []int,
-//) []*pipelineConfig.CiWorkflow {
-//	// Create workflow map for quick lookup
-//	workflowMap := make(map[int]*pipelineConfig.CiWorkflow)
-//	for _, workflow := range workflows {
-//		workflowMap[workflow.CiPipelineId] = workflow
-//	}
-//
-//	var result []*pipelineConfig.CiWorkflow
-//	for _, pipeline := range pipelines {
-//		parentPipelineId := pipelineIdForStatus[pipeline.Id]
-//		if parentWorkflow, exists := workflowMap[parentPipelineId]; exists {
-//			// For linked CI, create a workflow entry for the linked pipeline
-//			linkedWorkflow := &pipelineConfig.CiWorkflow{
-//				Id:                 parentWorkflow.Id,
-//				Name:               parentWorkflow.Name,
-//				Status:             parentWorkflow.Status,
-//				PodStatus:          parentWorkflow.PodStatus,
-//				Message:            parentWorkflow.Message,
-//				StartedOn:          parentWorkflow.StartedOn,
-//				FinishedOn:         parentWorkflow.FinishedOn,
-//				CiPipelineId:       pipeline.Id, // Use linked pipeline ID
-//				Namespace:          parentWorkflow.Namespace,
-//				LogLocation:        parentWorkflow.LogLocation,
-//				GitTriggers:        parentWorkflow.GitTriggers,
-//				CiArtifactLocation: parentWorkflow.CiArtifactLocation,
-//				TriggeredBy:        parentWorkflow.TriggeredBy,
-//				CiArtifactId:       parentWorkflow.CiArtifactId,
-//				BlobStorageEnabled: parentWorkflow.BlobStorageEnabled,
-//				RefCiWorkflowId:    parentWorkflow.RefCiWorkflowId,
-//				PodName:            parentWorkflow.PodName,
-//				TargetPlatforms:    parentWorkflow.TargetPlatforms,
-//				CiPipeline:         pipeline, // Use linked pipeline object
-//			}
-//			result = append(result, linkedWorkflow)
-//		}
-//	}
-//	return result
-//}
-
 func (impl *CiHandlerImpl) FetchCiStatusForTriggerView(appId int) ([]*pipelineConfig.CiWorkflowStatus, error) {
 	var ciWorkflowStatuses []*pipelineConfig.CiWorkflowStatus
 
