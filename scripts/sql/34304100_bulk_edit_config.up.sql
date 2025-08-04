@@ -5,7 +5,7 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_bulk_edit_config;
 
 -- Create a new table
 CREATE TABLE IF NOT EXISTS "public"."bulk_edit_config" (
-    "id"            INTEGER             NOT NULL DEFAULT nextval('id_seq_workflow_config_snapshot'::regclass),
+    "id"            INTEGER             NOT NULL DEFAULT nextval('id_seq_bulk_edit_config'::regclass),
     "api_version"   VARCHAR(255) NOT NULL,
     "kind"          VARCHAR(255) NOT NULL,
     "readme"        TEXT,
@@ -226,7 +226,7 @@ The script provides selectors for choosing the project, application, and environ
 
 ### Tree Structure of the Bulk Edit Script
 
-Below is the visual structure of the script. Refer [Examples](#examples-with-full-script) and [YAML Template](#combined-yaml-template) to know more.
+Below is the visual structure of the script. Refer [Examples](#examples-with-full-script-) and [YAML Template](#combined-yaml-template) to know more.
 
 ```yaml
 v1beta2 Script
