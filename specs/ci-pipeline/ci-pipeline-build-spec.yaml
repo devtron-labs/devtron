@@ -16,7 +16,7 @@ servers:
     description: Devtron Orchestrator API Server
 
 paths:
-  /app/commit-info/{ciPipelineMaterialId}/{gitHash}:
+  /commit-info/{ciPipelineMaterialId}/{gitHash}:
     get:
       tags:
         - Commit
@@ -77,23 +77,13 @@ paths:
       security:
         - bearerAuth: []
           
-  /app/workflow/trigger/{pipelineId}:
+  /ci-pipeline/trigger:
     post:
       tags:
         - Workflow
       summary: Trigger CI workflow
       description: Triggers a new CI workflow for the specified pipeline
       operationId: triggerWorkflow
-      parameters:
-        - name: pipelineId
-          in: path
-          description: ID of the CI pipeline to trigger
-          required: true
-          schema:
-            type: integer
-            format: int32
-            minimum: 1
-          example: 456
       requestBody:
         description: Workflow trigger payload
         required: true
@@ -129,7 +119,7 @@ paths:
       security:
         - bearerAuth: []
 
-  /app/workflow/{workflowId}:
+  /{appId}/ci-pipeline/{pipelineId}/workflow/{workflowId}:
     get:
       tags:
         - Workflow
@@ -137,6 +127,24 @@ paths:
       description: Retrieves details of a specific workflow
       operationId: getWorkflow
       parameters:
+        - name: appId
+          in: path
+          description: ID of the application
+          required: true
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+          example: 123
+        - name: pipelineId
+          in: path
+          description: ID of the CI pipeline
+          required: true
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+          example: 456
         - name: workflowId
           in: path
           description: ID of the workflow
@@ -212,22 +220,89 @@ components:
     WorkflowTriggerRequest:
       type: object
       required:
-        - commitHash
+        - pipelineId
+        - ciPipelineMaterials
       properties:
-        commitHash:
+        pipelineId:
+          type: integer
+          description: ID of the CI pipeline to trigger
+          example: 123
+        ciPipelineMaterials:
+          type: array
+          description: CI pipeline materials configuration
+          items:
+            $ref: '#/components/schemas/CiPipelineMaterial'
+        triggeredBy:
+          type: integer
+          description: User ID who triggered the pipeline
+          example: 1
+        invalidateCache:
+          type: boolean
+          description: Whether to invalidate cache
+          default: false
+        environmentId:
+          type: integer
+          description: Environment ID for the pipeline
+          example: 456
+        pipelineType:
           type: string
-          description: Specific commit hash to build (optional, defaults to latest)
-          example: "a1b2c3d4e5"
-        branchName:
+          description: Type of pipeline
+          example: "CI"
+        ciArtifactLastFetch:
           type: string
-          description: Branch name (required if commitHash not provided)
+          format: date-time
+          description: Last fetch time for CI artifacts
+
+    CiPipelineMaterial:
+      type: object
+      properties:
+        Id:
+          type: integer
+          description: Material ID
+          example: 1
+        GitMaterialId:
+          type: integer
+          description: Git material ID
+          example: 2
+        Type:
+          type: string
+          description: Type of material
+          example: "GIT"
+        Value:
+          type: string
+          description: Material value
           example: "main"
-        ciBuildConfig:
-          $ref: '#/components/schemas/CIBuildConfig'
-        ciBuildType:
+        Active:
+          type: boolean
+          description: Whether material is active
+          default: true
+        GitCommit:
+          $ref: '#/components/schemas/GitCommit'
+        GitTag:
           type: string
-          enum: [SELF_DOCKERFILE_BUILD_TYPE, MANIFEST_PUSH, SKIP_BUILD]
-          default: "SELF_DOCKERFILE_BUILD_TYPE"
+          description: Git tag
+          example: "v1.0.0"
+
+    GitCommit:
+      type: object
+      properties:
+        Commit:
+          type: string
+          description: Commit hash
+          example: "a1b2c3d4e5"
+        Author:
+          type: string
+          description: Author name
+          example: "John Doe"
+        Date:
+          type: string
+          format: date-time
+          description: Commit date
+          example: "2023-01-15T14:30:22Z"
+        Message:
+          type: string
+          description: Commit message
+          example: "Update README"
 
     CIBuildConfig:
       type: object

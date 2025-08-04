@@ -24,7 +24,7 @@ paths:
           multipart/form-data:
             schema:
               properties:
-                binaryFile:
+                BinaryFile:
                   type: string
                   format: binary
                   description: zipped chart template file

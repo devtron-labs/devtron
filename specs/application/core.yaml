@@ -19,6 +19,14 @@ servers:
   - url: /orchestrator
     description: Devtron Orchestrator API Server
 
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
+
 tags:
   - name: Applications
     description: Operations related to application management
@@ -35,6 +43,8 @@ paths:
       summary: Create a new application
       description: Creates a new application in the Devtron system with the provided configuration.
       operationId: createApplication
+      security:
+        - bearerAuth: []
       requestBody:
         description: Application creation request
         required: true
@@ -54,27 +64,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ApiError'
         '401':
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ApiError'
         '409':
           description: Application with the same name already exists
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ApiError'
         '500':
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
+                $ref: '#/components/schemas/ApiError'
 
   /app/edit:
     post:
@@ -507,3 +515,19 @@ components:
             type: integer
             format: int64
           description: IDs of projects to associate with the application
+
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 404
+        message:
+          type: string
+          example: "Resource not found"
+        details:
+          type: array
+          items:
+            type: string
+          example: ["Application not found in the system"]

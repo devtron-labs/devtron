@@ -21,6 +21,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"regexp"
+	"strconv"
+	"strings"
+
 	apiBean "github.com/devtron-labs/devtron/api/restHandler/app/pipeline/configure/bean"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
@@ -29,11 +35,6 @@ import (
 	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/util/stringsUtil"
 	"golang.org/x/exp/maps"
-	"io"
-	"net/http"
-	"regexp"
-	"strconv"
-	"strings"
 
 	"github.com/devtron-labs/devtron/util/response/pagination"
 	"github.com/gorilla/schema"
@@ -683,19 +684,25 @@ func (handler *PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseW
 		return
 	}
 
+	// Validate required fields
+	if ciTriggerRequest.PipelineId == 0 {
+		common.WriteMissingRequiredFieldError(w, "pipelineId")
+		return
+	}
+
 	token := r.Header.Get("token")
 	// RBAC block starts
 	err := handler.validateCiTriggerRBAC(token, ciTriggerRequest.PipelineId, ciTriggerRequest.EnvironmentId)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		handler.Logger.Errorw("RBAC validation failed for CI trigger", "err", err, "pipelineId", ciTriggerRequest.PipelineId)
+		common.WriteForbiddenError(w, "trigger", "CI pipeline")
 		return
 	}
 	// RBAC block ends
 
 	if !handler.validForMultiMaterial(ciTriggerRequest) {
 		handler.Logger.Errorw("invalid req, commit hash not present for multi-git", "payload", ciTriggerRequest)
-		common.WriteJsonResp(w, errors.New("invalid req, commit hash not present for multi-git"),
-			nil, http.StatusBadRequest)
+		common.WriteValidationError(w, "ciPipelineMaterials", "Commit hash is required for multi-git repositories")
 		return
 	}
 
@@ -706,18 +713,18 @@ func (handler *PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseW
 	resp, err := handler.ciHandlerService.HandleCIManual(ciTriggerRequest)
 	if errors.Is(err, bean1.ErrImagePathInUse) {
 		handler.Logger.Errorw("service err duplicate image tag, TriggerCiPipeline", "err", err, "payload", ciTriggerRequest)
-		common.WriteJsonResp(w, err, err, http.StatusConflict)
+		common.WriteSpecificErrorResponse(w, "IMAGE_TAG_IN_USE", "Image tag is already in use", []string{"The specified image tag is already being used by another pipeline"}, http.StatusConflict)
 		return
 	}
 
 	if err != nil {
 		handler.Logger.Errorw("service err, TriggerCiPipeline", "err", err, "payload", ciTriggerRequest)
-		common.WriteJsonResp(w, err, response, http.StatusInternalServerError)
+		common.WriteSpecificErrorResponse(w, "CI_TRIGGER_FAILED", "Failed to trigger CI pipeline", []string{err.Error()}, http.StatusInternalServerError)
 		return
 	}
 
 	response["apiResponse"] = strconv.Itoa(resp)
-	common.WriteJsonResp(w, err, response, http.StatusOK)
+	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 
 func (handler *PipelineConfigRestHandlerImpl) FetchMaterials(w http.ResponseWriter, r *http.Request) {
@@ -740,7 +747,12 @@ func (handler *PipelineConfigRestHandlerImpl) FetchMaterials(w http.ResponseWrit
 	ciPipeline, err := handler.ciPipelineRepository.FindById(pipelineId)
 	if err != nil {
 		handler.Logger.Errorw("service err, FindById", "err", err, "pipelineId", pipelineId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		// Check if it's a "not found" error
+		if util.IsErrNoRows(err) {
+			common.WritePipelineNotFoundError(w, pipelineId)
+		} else {
+			common.WriteDatabaseError(w, "fetch CI pipeline", err)
+		}
 		return
 	}
 
@@ -753,7 +765,7 @@ func (handler *PipelineConfigRestHandlerImpl) FetchMaterials(w http.ResponseWrit
 	resp, err := handler.ciHandler.FetchMaterialsByPipelineId(pipelineId, showAll)
 	if err != nil {
 		handler.Logger.Errorw("service err", "err", err, "context", "FetchMaterials", "data", map[string]interface{}{"pipelineId": pipelineId})
-		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
+		common.WriteSpecificErrorResponse(w, "FETCH_MATERIALS_FAILED", "Failed to fetch materials for pipeline", []string{err.Error()}, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)

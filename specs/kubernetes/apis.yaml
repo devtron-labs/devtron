@@ -2,8 +2,29 @@ openapi: "3.0.3"
 info:
   version: 1.0.0
   title: Devtron Labs
+  description: API for managing Kubernetes resources and operations
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Support
+    email: support@devtron.ai
+    url: https://devtron.ai/support
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
 paths:
-  /orchestrator/k8s/resource:
+  /k8s/resource:
     post:
       summary: Get Kubernetes resource manifest
       description: Fetches the manifest for a specified Kubernetes resource
@@ -54,7 +75,7 @@ paths:
           description: Forbidden
         "500":
           description: Internal server error
-  /orchestrator/k8s/resource/create:
+  /k8s/resource/create:
     post:
       summary: Create Kubernetes resource
       description: Creates a new Kubernetes resource
@@ -80,7 +101,7 @@ paths:
           description: Forbidden
         "500":
           description: Internal server error
-  /orchestrator/k8s/resource/delete:
+  /k8s/resource/delete:
     post:
       summary: Delete Kubernetes resource
       description: Deletes a Kubernetes resource
@@ -106,7 +127,7 @@ paths:
           description: Forbidden
         "500":
           description: Internal server error
-  /orchestrator/k8s/events:
+  /k8s/events:
     post:
       summary: Get Kubernetes events
       description: Fetches events for Kubernetes resources
@@ -132,7 +153,7 @@ paths:
           description: Forbidden
         "500":
           description: Internal server error
-  /orchestrator/k8s/pods/logs/{podName}:
+  /k8s/pods/logs/{podName}:
     get:
       summary: Get pod logs
       description: Fetches logs for a container in a pod
@@ -191,7 +212,7 @@ paths:
           description: Forbidden
         "500":
           description: Internal server error
-  /orchestrator/k8s/pod/exec/session/{identifier}/{namespace}/{pod}/{shell}/{container}:
+  /k8s/pod/exec/session/{identifier}/{namespace}/{pod}/{shell}/{container}:
     get:
       summary: Get terminal session
       description: Gets a terminal session for a pod
@@ -248,7 +269,7 @@ paths:
           description: Forbidden
         "500":
           description: Internal server error
-  /orchestrator/k8s/api-resources/{clusterId}:
+  /k8s/api-resources/{clusterId}:
     get:
       summary: Get API resources
       description: Gets all API resources for a given cluster
@@ -276,7 +297,7 @@ paths:
           description: Forbidden
         "500":
           description: Internal server error
-  /orchestrator/k8s/resource/list:
+  /k8s/resource/list:
     post:
       summary: List resources
       description: Lists Kubernetes resources
@@ -496,3 +517,19 @@ components:
           items:
             type: string
           description: Available verbs
+
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 404
+        message:
+          type: string
+          example: "Resource not found"
+        details:
+          type: array
+          items:
+            type: string
+          example: ["Kubernetes resource not found"]

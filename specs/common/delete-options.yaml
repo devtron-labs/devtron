@@ -2,11 +2,34 @@ openapi: "3.0.0"
 info:
   version: 1.0.0
   title: Delete Option support for various components
+  description: API for deleting various components in Devtron including clusters, environments, teams, and other resources
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Support
+    email: support@devtron.ai
+    url: https://devtron.ai/support
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
 paths:
-  /orchestrator/cluster/delete:
+  /cluster/delete:
     post:
       description: Delete Cluster
       operationId: DeleteFromDb
+      security:
+        - bearerAuth: []
       requestBody:
         description: A JSON object containing the cluster config
         required: true
@@ -27,23 +50,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ApiError'
         '401':
           description: Unauthorized User
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-  /orchestrator/env/delete:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /env/delete:
     post:
       description: Delete Environment
       operationId: Delete
+      security:
+        - bearerAuth: []
       requestBody:
         description: A JSON object containing the env config
         required: true
@@ -64,6 +89,103 @@ paths:
           content:
             application/json:
               schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /team:
+    post:
+      description: Create Project
+      operationId: SaveTeam
+      security:
+        - bearerAuth: []
+      requestBody:
+        description: A JSON object containing the project config
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamRequest'
+      responses:
+        '200':
+          description: Successfully created the project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamRequest'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    get:
+      description: Get All Projects
+      operationId: FetchAll
+      responses:
+        '200':
+          description: Successfully retrieved all projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TeamRequest'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      description: Update Project
+      operationId: UpdateTeam
+      requestBody:
+        description: A JSON object containing the project config
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamRequest'
+      responses:
+        '200':
+          description: Successfully updated the project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamRequest'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
                 $ref: '#/components/schemas/Error'
         '500':
           description: Internal Server Error
@@ -77,8 +199,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/team/delete:
-    post:
+    delete:
       description: Delete Project
       operationId: DeleteTeam
       requestBody:
@@ -114,7 +235,68 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/git/provider/delete:
+  /team/autocomplete:
+    get:
+      description: Get Projects for Autocomplete
+      operationId: FetchForAutocomplete
+      responses:
+        '200':
+          description: Successfully retrieved projects for autocomplete
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TeamRequest'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /team/{id}:
+    get:
+      description: Get Project by ID
+      operationId: FetchOne
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Project ID
+      responses:
+        '200':
+          description: Successfully retrieved the project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamRequest'
+        '400':
+          description: Bad Request. Invalid ID format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /git/provider/delete:
     post:
       description: Delete Git Provider
       operationId: DeleteGitRepoConfig
@@ -151,7 +333,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/docker/registry/delete:
+  /docker/registry/delete:
     post:
       description: Delete Docker Registry
       operationId: DeleteDockerRegistryConfig
@@ -188,7 +370,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/app-store/repo/delete:
+  /app-store/repo/delete:
     post:
       description: Delete Chart Repo
       operationId: DeleteChartRepo
@@ -225,7 +407,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/app/material/delete:
+  /app/material/delete:
     post:
       description: Delete Git Material
       operationId: DeleteMaterial
@@ -262,7 +444,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/chart-group/delete:
+  /chart-group/delete:
     post:
       description: Delete Chart Group
       operationId: DeleteChartgroup
@@ -299,7 +481,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/notification/channel/delete:
+  /notification/channel/delete:
     post:
       description: Delete Notification Channel
       operationId: DeleteNotificationChannelConfig
@@ -647,3 +829,19 @@ components:
         message:
           type: string
           description: Error message
+
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 404
+        message:
+          type: string
+          example: "Resource not found"
+        details:
+          type: array
+          items:
+            type: string
+          example: ["Resource not found in the system"]

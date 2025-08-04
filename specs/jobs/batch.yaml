@@ -12,11 +12,22 @@ info:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
 servers:
-  - url: http://localhost:8080/orchestrator
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
 paths:
-  /operate:
+  /batch/operate:
     post:
       description: Execute batch operations on applications and workflows
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -39,16 +50,30 @@ paths:
                   result:
                     type: string
                     description: operation result
-        default:
-          description: unexpected error
+        '400':
+          description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
 
-  /bulk/v1beta1/application/dryrun:
+  /batch/bulk/v1beta1/application/dryrun:
     post:
       description: Get impacted apps for bulk update (dry run)
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -70,10 +95,24 @@ paths:
                     description: status
                   result:
                     $ref: '#/components/schemas/ImpactedObjectsResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
 
-  /bulk/v1beta1/application:
+  /batch/bulk/v1beta1/application:
     post:
       description: Execute bulk update on applications
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -95,6 +134,18 @@ paths:
                     description: status
                   result:
                     $ref: '#/components/schemas/BulkUpdateResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
 
 components:
   schemas:
@@ -406,6 +457,22 @@ components:
           type: array
           items:
             type: object
+
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 404
+        message:
+          type: string
+          example: "Resource not found"
+        details:
+          type: array
+          items:
+            type: string
+          example: ["Batch operation failed"]
 
 
 

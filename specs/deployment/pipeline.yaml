@@ -14,7 +14,7 @@ info:
 servers:
   - url: http://localhost:8080
 paths:
-  /deployment/pipeline/configure:
+  /orchestrator/deployment/pipeline/configure:
     post:
       description: Configure deployment pipeline for an application
       requestBody:
@@ -56,7 +56,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /deployment/pipeline/trigger:
+  /orchestrator/deployment/pipeline/trigger:
     post:
       description: Trigger a deployment pipeline
       requestBody:
@@ -98,7 +98,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /deployment/pipeline/rollback:
+  /orchestrator/deployment/pipeline/rollback:
     post:
       description: Rollback a deployment pipeline
       requestBody:
@@ -140,7 +140,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /deployment/pipeline/history:
+  /orchestrator/deployment/pipeline/history:
     get:
       description: Get deployment pipeline history
       parameters:
