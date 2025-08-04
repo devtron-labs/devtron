@@ -15,8 +15,8 @@ func main() {
 		serverURL = flag.String("server", "http://localhost:8080", "Server URL to test against")
 		specsDir  = flag.String("specs", "../../../specs", "Directory containing API specs")
 		outputDir = flag.String("output", "./reports", "Output directory for reports")
-		authToken = flag.String("token", "", "Authentication token (optional)")
 		verbose   = flag.Bool("verbose", false, "Enable verbose logging")
+		token     = flag.String("token", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTQzOTM3MzQsImp0aSI6ImRiODUxYzg5LTg0YjUtNDhiOS1hYTcyLWQ0ZTA0MjRjN2U4MSIsImlhdCI6MTc1NDMwNzMzNCwiaXNzIjoiYXJnb2NkIiwibmJmIjoxNzU0MzA3MzM0LCJzdWIiOiJhZG1pbiJ9.wYGmONdpNUEjtAxXz_mViW44Rxh0YU3dax_SEuoAH5c", "Authentication token")
 	)
 	flag.Parse()
 
@@ -37,9 +37,11 @@ func main() {
 	validator := api_spec_validation.NewAPISpecValidator(*serverURL, logger)
 
 	// Set auth token if provided
-	if *authToken != "" {
-		validator.SetAuthToken(*authToken)
+	if *token != "" {
+		validator.SetToken(*token)
 	}
+
+	validator.SetAdditionalCookie("test", "test")
 
 	// Load specs
 	logger.Infow("Loading specs from directory", "dir", *specsDir)

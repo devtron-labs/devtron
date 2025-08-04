@@ -77,8 +77,102 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/team/delete:
+  /orchestrator/team:
     post:
+      description: Create Project
+      operationId: SaveTeam
+      requestBody:
+        description: A JSON object containing the project config
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamRequest'
+      responses:
+        '200':
+          description: Successfully created the project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamRequest'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      description: Get All Projects
+      operationId: FetchAll
+      responses:
+        '200':
+          description: Successfully retrieved all projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TeamRequest'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      description: Update Project
+      operationId: UpdateTeam
+      requestBody:
+        description: A JSON object containing the project config
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamRequest'
+      responses:
+        '200':
+          description: Successfully updated the project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamRequest'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
       description: Delete Project
       operationId: DeleteTeam
       requestBody:
@@ -98,6 +192,67 @@ paths:
                 example: "Project deleted successfully."
         '400':
           description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/team/autocomplete:
+    get:
+      description: Get Projects for Autocomplete
+      operationId: FetchForAutocomplete
+      responses:
+        '200':
+          description: Successfully retrieved projects for autocomplete
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TeamRequest'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/team/{id}:
+    get:
+      description: Get Project by ID
+      operationId: FetchOne
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Project ID
+      responses:
+        '200':
+          description: Successfully retrieved the project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamRequest'
+        '400':
+          description: Bad Request. Invalid ID format.
           content:
             application/json:
               schema:

@@ -12,12 +12,11 @@ import (
 
 func main() {
 	var (
-		serverURL   = flag.String("server", "https://devtron-ent-2.devtron.info", "Server URL to test against")
-		specsDir    = flag.String("specs", "../../../specs", "Directory containing API specs")
-		outputDir   = flag.String("output", "./reports", "Output directory for reports")
-		authToken   = flag.String("token", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6IkFQSS1UT0tFTjphZG1pbiIsInZlcnNpb24iOiIxIiwiaXNzIjoiYXBpVG9rZW5Jc3N1ZXIiLCJleHAiOjE3NTY1NTc1NzR9.ZHhQdhXpGygCOiO7rDah0mBB7zZYZ3y9WlJL9egRfq4", "Authentication token")
-		argoCDToken = flag.String("argocd-token", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTQwNTE5NjMsImp0aSI6ImQwZjU0OGYyLWIzNDItNGUxNy05MzRhLWU0MzY3ZTE2ZTRlZCIsImlhdCI6MTc1Mzk2NTU2MywiaXNzIjoiYXJnb2NkIiwibmJmIjoxNzUzOTY1NTYzLCJzdWIiOiJhZG1pbiJ9.dbLq_5lnKnUKI55bg3dIkcIdLj5hVUKSwfU95Aajm7g", "ArgoCD token for cookie authentication")
-		verbose     = flag.Bool("verbose", true, "Enable verbose logging")
+		serverURL = flag.String("server", "https://devtron-ent-2.devtron.info", "Server URL to test against")
+		specsDir  = flag.String("specs", "../../../specs", "Directory containing API specs")
+		outputDir = flag.String("output", "./reports", "Output directory for reports")
+		token     = flag.String("token", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTQzOTM3MzQsImp0aSI6ImRiODUxYzg5LTg0YjUtNDhiOS1hYTcyLWQ0ZTA0MjRjN2U4MSIsImlhdCI6MTc1NDMwNzMzNCwiaXNzIjoiYXJnb2NkIiwibmJmIjoxNzU0MzA3MzM0LCJzdWIiOiJhZG1pbiJ9.wYGmONdpNUEjtAxXz_mViW44Rxh0YU3dax_SEuoAH5c", "Authentication token")
+		verbose   = flag.Bool("verbose", true, "Enable verbose logging")
 	)
 	flag.Parse()
 
@@ -37,17 +36,12 @@ func main() {
 	// Create validator
 	validator := api_spec_validation.NewAPISpecValidator(*serverURL, logger)
 
-	// Set auth token
-	if *authToken != "" {
-		validator.SetAuthToken(*authToken)
-		logger.Info("Authentication token set")
+	// Set auth token if provided
+	if *token != "" {
+		validator.SetToken(*token)
 	}
 
-	// Set ArgoCD token
-	if *argoCDToken != "" {
-		validator.SetArgoCDToken(*argoCDToken)
-		logger.Info("ArgoCD token set")
-	}
+	validator.SetAdditionalCookie("test", "test")
 
 	// Load specs
 	logger.Infow("Loading specs from directory", "dir", *specsDir)

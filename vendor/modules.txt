@@ -686,8 +686,8 @@ github.com/gammazero/deque
 # github.com/gammazero/workerpool v1.1.3
 ## explicit; go 1.18
 github.com/gammazero/workerpool
-# github.com/getkin/kin-openapi v0.128.0
-## explicit; go 1.20
+# github.com/getkin/kin-openapi v0.132.0
+## explicit; go 1.22.5
 github.com/getkin/kin-openapi/openapi3
 # github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 ## explicit
@@ -1012,9 +1012,6 @@ github.com/inconshreveable/mousetrap
 # github.com/invopop/jsonschema v0.7.0
 ## explicit; go 1.16
 github.com/invopop/jsonschema
-# github.com/invopop/yaml v0.3.1
-## explicit; go 1.14
-github.com/invopop/yaml
 # github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99
 ## explicit
 github.com/jbenet/go-context/io
@@ -1134,6 +1131,12 @@ github.com/nats-io/nuid
 github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen
 github.com/oapi-codegen/oapi-codegen/v2/pkg/codegen
 github.com/oapi-codegen/oapi-codegen/v2/pkg/util
+# github.com/oasdiff/yaml v0.0.0-20250309154309-f31be36b4037
+## explicit; go 1.22.5
+github.com/oasdiff/yaml
+# github.com/oasdiff/yaml3 v0.0.0-20250309153720-d2182401db90
+## explicit; go 1.22.5
+github.com/oasdiff/yaml3
 # github.com/opencontainers/go-digest v1.0.0
 ## explicit; go 1.13
 github.com/opencontainers/go-digest

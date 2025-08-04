@@ -16,13 +16,13 @@ import (
 
 // APISpecValidator handles validation of API specs against actual server implementation
 type APISpecValidator struct {
-	serverURL   string
-	httpClient  *http.Client
-	specs       map[string]*openapi3.T
-	authToken   string
-	argoCDToken string
-	logger      *zap.SugaredLogger
-	results     []ValidationResult
+	serverURL         string
+	token             string
+	httpClient        *http.Client
+	specs             map[string]*openapi3.T
+	additionalCookies map[string]string // For storing additional cookies
+	logger            *zap.SugaredLogger
+	results           []ValidationResult
 }
 
 // ValidationResult represents the result of validating a single endpoint
@@ -55,9 +55,10 @@ func NewAPISpecValidator(serverURL string, logger *zap.SugaredLogger) *APISpecVa
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		specs:   make(map[string]*openapi3.T),
-		logger:  logger,
-		results: make([]ValidationResult, 0),
+		specs:             make(map[string]*openapi3.T),
+		additionalCookies: make(map[string]string),
+		logger:            logger,
+		results:           make([]ValidationResult, 0),
 	}
 }
 
@@ -189,13 +190,15 @@ func (v *APISpecValidator) validateEndpoint(path, method string, operation *open
 
 // testEndpoint makes an actual HTTP request to test the endpoint
 func (v *APISpecValidator) testEndpoint(result *ValidationResult, path, method string, operation *openapi3.Operation) error {
-	// Build the full URL
-	url := v.serverURL + path
+	// Process path parameters and build the full URL
+	processedPath, err := v.processPathParameters(path, operation)
+	if err != nil {
+		return fmt.Errorf("failed to process path parameters: %w", err)
+	}
+	url := v.serverURL + processedPath
 
 	// Create request
 	var req *http.Request
-	var err error
-
 	if method == "GET" {
 		req, err = http.NewRequest(method, url, nil)
 	} else {
@@ -208,16 +211,21 @@ func (v *APISpecValidator) testEndpoint(result *ValidationResult, path, method s
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// Add headers
+	// Add headers similar to the curl request
 	req.Header.Set("Content-Type", "application/json")
-	if v.authToken != "" {
-		req.Header.Set("Authorization", "Bearer "+v.authToken)
-	}
+	req.Header.Set("Accept", "*/*")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9,hi;q=0.8")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36")
+	req.Header.Set("Sec-Ch-Ua", `"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"`)
+	req.Header.Set("Sec-Ch-Ua-Mobile", "?0")
+	req.Header.Set("Sec-Ch-Ua-Platform", `"macOS"`)
+	req.Header.Set("Sec-Fetch-Dest", "empty")
+	req.Header.Set("Sec-Fetch-Mode", "cors")
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	req.Header.Set("Priority", "u=1, i")
 
-	// Add ArgoCD token as cookie if available
-	if v.argoCDToken != "" {
-		req.Header.Set("Cookie", "argocd.token="+v.argoCDToken)
-	}
+	// Set authentication - cookie-based only as per curl request pattern
+	v.setAuthentication(req)
 
 	// Add query parameters if specified in the spec
 	if operation.Parameters != nil {
@@ -299,25 +307,158 @@ func (v *APISpecValidator) validateResponse(result *ValidationResult, operation 
 	}
 }
 
-// generateSampleValue generates a sample value for a parameter
+// generateSampleValue generates a sample value for a parameter based on its schema
 func (v *APISpecValidator) generateSampleValue(schema *openapi3.SchemaRef) string {
 	if schema == nil || schema.Value == nil {
-		return ""
+		return "sample_value"
 	}
 
-	// For now, return a simple string value
-	// In a full implementation, you would properly check the schema type
-	return "sample_value"
+	schemaValue := schema.Value
+
+	// Use example if provided
+	if schemaValue.Example != nil {
+		return fmt.Sprintf("%v", schemaValue.Example)
+	}
+
+	// Generate based on type
+	if schemaValue.Type != nil && schemaValue.Type.Is(openapi3.TypeInteger) {
+		// Use minimum if specified, otherwise default to 1
+		if schemaValue.Min != nil && *schemaValue.Min >= 1 {
+			return fmt.Sprintf("%.0f", *schemaValue.Min)
+		}
+		return "1"
+	} else if schemaValue.Type != nil && schemaValue.Type.Is(openapi3.TypeNumber) {
+		if schemaValue.Min != nil {
+			return fmt.Sprintf("%g", *schemaValue.Min)
+		}
+		return "1.0"
+	} else if schemaValue.Type != nil && schemaValue.Type.Is(openapi3.TypeBoolean) {
+		return "true"
+	} else if schemaValue.Type != nil && schemaValue.Type.Is(openapi3.TypeString) {
+		// Handle specific string formats
+		switch schemaValue.Format {
+		case "uuid":
+			return "123e4567-e89b-12d3-a456-426614174000"
+		case "email":
+			return "test@example.com"
+		case "date":
+			return "2023-01-01"
+		case "date-time":
+			return "2023-01-01T00:00:00Z"
+		default:
+			// Check for pattern-based strings (like git hash)
+			if schemaValue.Pattern != "" {
+				return v.generatePatternValue(schemaValue.Pattern)
+			}
+			return "sample_string"
+		}
+	} else if schemaValue.Type != nil && schemaValue.Type.Is(openapi3.TypeArray) {
+		return "[]"
+	} else if schemaValue.Type != nil && schemaValue.Type.Is(openapi3.TypeObject) {
+		return "{}"
+	} else {
+		return "sample_value"
+	}
 }
 
-// SetAuthToken sets the authentication token for requests
-func (v *APISpecValidator) SetAuthToken(token string) {
-	v.authToken = token
+// generatePatternValue generates a sample value based on a regex pattern
+func (v *APISpecValidator) generatePatternValue(pattern string) string {
+	// Handle common patterns
+	switch pattern {
+	case "^[a-f0-9]{7,40}$": // Git hash pattern
+		return "a1b2c3d4e5f6789"
+	case "^[0-9]+$": // Numeric string
+		return "123"
+	case "^[a-zA-Z0-9]+$": // Alphanumeric
+		return "abc123"
+	default:
+		// For unknown patterns, return a generic string
+		return "sample_pattern_value"
+	}
 }
 
-// SetArgoCDToken sets the ArgoCD token for cookie-based authentication
-func (v *APISpecValidator) SetArgoCDToken(token string) {
-	v.argoCDToken = token
+// processPathParameters replaces path parameters in the URL with sample values
+func (v *APISpecValidator) processPathParameters(path string, operation *openapi3.Operation) (string, error) {
+	if operation.Parameters == nil {
+		return path, nil
+	}
+
+	processedPath := path
+	for _, param := range operation.Parameters {
+		if param.Value != nil && param.Value.In == "path" {
+			placeholder := "{" + param.Value.Name + "}"
+			sampleValue := v.generateSampleValue(param.Value.Schema)
+			processedPath = strings.ReplaceAll(processedPath, placeholder, sampleValue)
+
+			v.logger.Debugw("Replaced path parameter",
+				"parameter", param.Value.Name,
+				"placeholder", placeholder,
+				"value", sampleValue)
+		}
+	}
+
+	return processedPath, nil
+}
+
+// SetToken sets the authentication token for requests
+func (v *APISpecValidator) SetToken(token string) {
+	v.token = token
+}
+
+// SetAdditionalCookie sets an additional cookie for authentication
+func (v *APISpecValidator) SetAdditionalCookie(name, value string) {
+	v.additionalCookies[name] = value
+}
+
+// setAuthentication sets cookie-based authentication only
+func (v *APISpecValidator) setAuthentication(req *http.Request) {
+	// Set cookies as per the curl request pattern
+	v.BuildAndSetCookies(req)
+}
+
+// BuildAndSetCookies builds and sets the Cookie header similar to the curl request
+func (v *APISpecValidator) BuildAndSetCookies(req *http.Request) {
+	var cookies []string
+
+	// Add auth token as cookie by default if available
+	if v.token != "" {
+		cookies = append(cookies, "argocd.token="+v.token)
+	}
+
+	// Add additional cookies
+	for name, value := range v.additionalCookies {
+		cookies = append(cookies, name+"="+value)
+	}
+
+	// Set the Cookie header if we have any cookies
+	if len(cookies) > 0 {
+		req.Header.Set("Cookie", strings.Join(cookies, "; "))
+	}
+}
+
+// SetCookiesFromString parses a cookie string (like from curl -b flag) and sets the cookies
+// Example: "_ga=GA1.1.654831891.1739442610; _ga_5WWMF8TQVE=GS1.1.1742452726.1.1.1742452747.0.0.0"
+func (v *APISpecValidator) SetCookiesFromString(cookieString string) {
+	if cookieString == "" {
+		return
+	}
+
+	// Split by semicolon and parse each cookie
+	cookiePairs := strings.Split(cookieString, ";")
+	for _, pair := range cookiePairs {
+		pair = strings.TrimSpace(pair)
+		if pair == "" {
+			continue
+		}
+
+		// Split by first equals sign
+		parts := strings.SplitN(pair, "=", 2)
+		if len(parts) == 2 {
+			name := strings.TrimSpace(parts[0])
+			value := strings.TrimSpace(parts[1])
+			v.SetAdditionalCookie(name, value)
+		}
+	}
 }
 
 // GetResults returns all validation results
