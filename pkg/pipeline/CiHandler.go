@@ -660,7 +660,33 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewV1(appId int) ([]*pipeline
 		return []*pipelineConfig.CiWorkflowStatus{}, nil
 	}
 
-	latestStatusEntries, err := impl.workflowStatusLatestService.GetCiWorkflowStatusLatestByPipelineIds(allPipelineIds)
+	// Get pipeline details to identify linked CI pipelines
+	pipelines, err := impl.ciPipelineRepository.FindByIdsIn(allPipelineIds)
+	if err != nil {
+		impl.Logger.Errorw("error in getting ci pipelines by ids, falling back to old method", "pipelineIds", allPipelineIds, "err", err)
+		return impl.ciWorkflowRepository.FIndCiWorkflowStatusesByAppId(appId)
+	}
+
+	// Map to track which pipeline ID to use for status lookup
+	pipelineIdForStatus := make(map[int]int) // linkedPipelineId -> parentPipelineId (or self if not linked)
+	var statusLookupPipelineIds []int
+
+	for _, pipeline := range pipelines {
+		if pipeline.ParentCiPipeline > 0 {
+			// Linked CI pipeline - use parent pipeline ID for status lookup
+			pipelineIdForStatus[pipeline.Id] = pipeline.ParentCiPipeline
+			statusLookupPipelineIds = append(statusLookupPipelineIds, pipeline.ParentCiPipeline)
+		} else {
+			// Regular CI pipeline - use its own ID
+			pipelineIdForStatus[pipeline.Id] = pipeline.Id
+			statusLookupPipelineIds = append(statusLookupPipelineIds, pipeline.Id)
+		}
+	}
+
+	// Remove duplicates from statusLookupPipelineIds
+	statusLookupPipelineIds = impl.removeDuplicateInts(statusLookupPipelineIds)
+
+	latestStatusEntries, err := impl.workflowStatusLatestService.GetCiWorkflowStatusLatestByPipelineIds(statusLookupPipelineIds)
 	if err != nil {
 		impl.Logger.Errorw("error in checking latest status table, falling back to old method", "appId", appId, "err", err)
 		return impl.ciWorkflowRepository.FIndCiWorkflowStatusesByAppId(appId)
@@ -674,11 +700,31 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewV1(appId int) ([]*pipeline
 			impl.Logger.Errorw("error in fetching ci workflow status from latest ci workflow entries ", "latestStatusEntries", latestStatusEntries, "err", err)
 			return nil, err
 		} else {
-			allStatuses = append(allStatuses, statusesFromLatestTable...)
+			// Map statuses back to original pipeline IDs
+			statusMap := make(map[int]*pipelineConfig.CiWorkflowStatus)
+			for _, status := range statusesFromLatestTable {
+				statusMap[status.CiPipelineId] = status
+			}
+
+			// Create statuses for all original pipelines
+			for _, pipeline := range pipelines {
+				parentPipelineId := pipelineIdForStatus[pipeline.Id]
+				if parentStatus, exists := statusMap[parentPipelineId]; exists {
+					// Create a copy with the correct pipeline ID and name
+					linkedStatus := &pipelineConfig.CiWorkflowStatus{
+						CiPipelineId:      pipeline.Id,
+						CiPipelineName:    pipeline.Name,
+						CiStatus:          parentStatus.CiStatus,
+						StorageConfigured: parentStatus.StorageConfigured,
+						CiWorkflowId:      parentStatus.CiWorkflowId,
+					}
+					allStatuses = append(allStatuses, linkedStatus)
+				}
+			}
 		}
 	}
 
-	pipelinesNotInLatestTable := impl.getPipelineIdsNotInLatestTable(allPipelineIds, latestStatusEntries)
+	pipelinesNotInLatestTable := impl.getPipelineIdsNotInLatestTable(statusLookupPipelineIds, latestStatusEntries)
 
 	if len(pipelinesNotInLatestTable) > 0 {
 		statusesFromOldQuery, err := impl.fetchCiStatusUsingFallbackMethod(pipelinesNotInLatestTable)
@@ -686,7 +732,28 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewV1(appId int) ([]*pipeline
 			impl.Logger.Errorw("error in fetching using fallback method by pipelineIds", "pipelineIds", pipelinesNotInLatestTable, "err", err)
 			return nil, err
 		} else {
-			allStatuses = append(allStatuses, statusesFromOldQuery...)
+			// Map statuses back to original pipeline IDs
+			statusMap := make(map[int]*pipelineConfig.CiWorkflowStatus)
+			for _, status := range statusesFromOldQuery {
+				statusMap[status.CiPipelineId] = status
+			}
+
+			// Create statuses for pipelines not found in latest table
+			for _, pipeline := range pipelines {
+				parentPipelineId := pipelineIdForStatus[pipeline.Id]
+				if parentStatus, exists := statusMap[parentPipelineId]; exists {
+					// Create a copy with the correct pipeline ID and name
+					linkedStatus := &pipelineConfig.CiWorkflowStatus{
+						CiPipelineId:      pipeline.Id,
+						CiPipelineName:    pipeline.Name,
+						CiStatus:          parentStatus.CiStatus,
+						StorageConfigured: parentStatus.StorageConfigured,
+						CiWorkflowId:      parentStatus.CiWorkflowId,
+					}
+					allStatuses = append(allStatuses, linkedStatus)
+				}
+
+			}
 		}
 	}
 
@@ -748,7 +815,33 @@ func (impl *CiHandlerImpl) fetchLastTriggeredWorkflowsHybrid(pipelineIds []int) 
 		return []*pipelineConfig.CiWorkflow{}, nil
 	}
 
-	latestStatusEntries, err := impl.workflowStatusLatestService.GetCiWorkflowStatusLatestByPipelineIds(pipelineIds)
+	// Get pipeline details to identify linked CI pipelines
+	pipelines, err := impl.ciPipelineRepository.FindByIdsIn(pipelineIds)
+	if err != nil {
+		impl.Logger.Errorw("error in getting ci pipelines by ids, falling back to complex query", "pipelineIds", pipelineIds, "err", err)
+		return impl.ciWorkflowRepository.FindLastTriggeredWorkflowByCiIds(pipelineIds)
+	}
+
+	// Map to track which pipeline ID to use for status lookup
+	pipelineIdForStatus := make(map[int]int) // linkedPipelineId -> parentPipelineId (or self if not linked)
+	var statusLookupPipelineIds []int
+
+	for _, pipeline := range pipelines {
+		if pipeline.ParentCiPipeline > 0 {
+			// Linked CI pipeline - use parent pipeline ID for status lookup
+			pipelineIdForStatus[pipeline.Id] = pipeline.ParentCiPipeline
+			statusLookupPipelineIds = append(statusLookupPipelineIds, pipeline.ParentCiPipeline)
+		} else {
+			// Regular CI pipeline - use its own ID
+			pipelineIdForStatus[pipeline.Id] = pipeline.Id
+			statusLookupPipelineIds = append(statusLookupPipelineIds, pipeline.Id)
+		}
+	}
+
+	// Remove duplicates from statusLookupPipelineIds
+	statusLookupPipelineIds = impl.removeDuplicateInts(statusLookupPipelineIds)
+
+	latestStatusEntries, err := impl.workflowStatusLatestService.GetCiWorkflowStatusLatestByPipelineIds(statusLookupPipelineIds)
 	if err != nil {
 		impl.Logger.Errorw("error in checking latest status table, falling back to complex query", "pipelineIds", pipelineIds, "err", err)
 		return impl.ciWorkflowRepository.FindLastTriggeredWorkflowByCiIds(pipelineIds)
@@ -799,6 +892,19 @@ func (impl *CiHandlerImpl) getPipelineIdsNotInLatestTable(allPipelineIds []int, 
 		}
 	}
 	return missingPipelineIds
+}
+
+// Helper function to remove duplicate integers from slice
+func (impl *CiHandlerImpl) removeDuplicateInts(slice []int) []int {
+	keys := make(map[int]bool)
+	var result []int
+	for _, item := range slice {
+		if !keys[item] {
+			keys[item] = true
+			result = append(result, item)
+		}
+	}
+	return result
 }
 
 func (impl *CiHandlerImpl) FetchCiStatusForTriggerView(appId int) ([]*pipelineConfig.CiWorkflowStatus, error) {
