@@ -675,7 +675,6 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewV1(appId int) ([]*pipeline
 			impl.Logger.Errorw("error in fetching ci workflow status from latest ci workflow entries ", "latestStatusEntries", latestStatusEntries, "err", err)
 			return nil, err
 		} else {
-			// Map statuses back to original pipeline IDs using common function
 			mappedStatuses := impl.mapStatusesToLinkedPipelines(statusesFromLatestTable, pipelines, pipelineIdForStatus)
 			allStatuses = append(allStatuses, mappedStatuses...)
 		}
@@ -689,7 +688,6 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewV1(appId int) ([]*pipeline
 			impl.Logger.Errorw("error in fetching using fallback method by pipelineIds", "pipelineIds", pipelinesNotInLatestTable, "err", err)
 			return nil, err
 		} else {
-			// Map statuses back to original pipeline IDs using common function
 			mappedStatuses := impl.mapStatusesToLinkedPipelines(statusesFromOldQuery, pipelines, pipelineIdForStatus)
 			allStatuses = append(allStatuses, mappedStatuses...)
 		}
@@ -850,7 +848,6 @@ func (impl *CiHandlerImpl) mapStatusesToLinkedPipelines(
 	pipelines []*pipelineConfig.CiPipeline,
 	pipelineIdForStatus map[int]int,
 ) []*pipelineConfig.CiWorkflowStatus {
-	// Create status map for quick lookup
 	statusMap := make(map[int]*pipelineConfig.CiWorkflowStatus)
 	for _, status := range statuses {
 		statusMap[status.CiPipelineId] = status
