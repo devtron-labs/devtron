@@ -786,33 +786,27 @@ func (impl *CiHandlerImpl) fetchLastTriggeredWorkflowsHybrid(pipelineIds []int) 
 
 // preparePipelineStatusLookup prepares pipeline mapping for linked CI pipelines and returns status lookup data
 func (impl *CiHandlerImpl) preparePipelineStatusLookup(pipelineIds []int) (pipelines []*pipelineConfig.CiPipeline, pipelineIdForStatus map[int]int, statusLookupPipelineIds []int, latestStatusEntries []*pipelineConfig.CiWorkflowStatusLatest, err error) {
-	// Get pipeline details to identify linked CI pipelines
 	pipelines, err = impl.ciPipelineRepository.FindByIdsIn(pipelineIds)
 	if err != nil {
 		impl.Logger.Errorw("error in getting ci pipelines by ids", "pipelineIds", pipelineIds, "err", err)
 		return nil, nil, nil, nil, err
 	}
 
-	// Map to track which pipeline ID to use for status lookup
 	pipelineIdForStatus = make(map[int]int, len(pipelines)) // linkedPipelineId -> parentPipelineId (or self if not linked)
 	statusLookupPipelineIds = make([]int, 0, len(pipelines))
 
 	for _, pipeline := range pipelines {
 		if pipeline.ParentCiPipeline > 0 {
-			// Linked CI pipeline - use parent pipeline ID for status lookup
+			// linked CI pipeline - use parent pipeline ID for status lookup
 			pipelineIdForStatus[pipeline.Id] = pipeline.ParentCiPipeline
 			statusLookupPipelineIds = append(statusLookupPipelineIds, pipeline.ParentCiPipeline)
 		} else {
-			// Regular CI pipeline - use its own ID
+			// regular CI pipeline - use its own ID
 			pipelineIdForStatus[pipeline.Id] = pipeline.Id
 			statusLookupPipelineIds = append(statusLookupPipelineIds, pipeline.Id)
 		}
 	}
-
-	// Remove duplicates from statusLookupPipelineIds
 	statusLookupPipelineIds = impl.removeDuplicateInts(statusLookupPipelineIds)
-
-	// Get latest status entries
 	latestStatusEntries, err = impl.workflowStatusLatestService.GetCiWorkflowStatusLatestByPipelineIds(statusLookupPipelineIds)
 	if err != nil {
 		impl.Logger.Errorw("error in checking latest status table", "statusLookupPipelineIds", statusLookupPipelineIds, "err", err)
@@ -857,7 +851,6 @@ func (impl *CiHandlerImpl) mapStatusesToLinkedPipelines(
 	for _, pipeline := range pipelines {
 		parentPipelineId := pipelineIdForStatus[pipeline.Id]
 		if parentStatus, exists := statusMap[parentPipelineId]; exists {
-			// Create a copy with the correct pipeline ID and name
 			linkedStatus := &pipelineConfig.CiWorkflowStatus{
 				CiPipelineId:      pipeline.Id,
 				CiPipelineName:    pipeline.Name,
