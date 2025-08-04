@@ -1,7 +1,7 @@
 openapi: "3.0.0"
 info:
   version: 1.0.0
-  title: Devtron Labs
+  title: Kubernetes Cluster Management
   description: Devtron API for cluster management
   termsOfService: https://devtron.ai/terms/
   contact:

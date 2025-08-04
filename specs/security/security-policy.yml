@@ -1,11 +1,11 @@
 openapi: '3.0.2'
 info:
-  title: API Title
+  title: Security Policy Management
   version: '1.0'
 servers:
   - url: http://localhost:3000/orchestrator
 paths:
-  /security/cve/control/list:
+  /orchestrator/security/cve/control/list:
     get:
       description: Fetch current security policy for global, cluster, environment and application level.
       operationId: FetchPolicy

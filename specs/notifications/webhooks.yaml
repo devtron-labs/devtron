@@ -1,7 +1,7 @@
 openapi: "3.0.0"
 info:
   version: 1.0.0
-  title: Devtron Labs
+  title: Webhook Notification Management
   description: Devtron API for webhook management including Git webhooks, CI/CD webhooks, and notification webhooks
   termsOfService: https://devtron.ai/terms/
   contact:

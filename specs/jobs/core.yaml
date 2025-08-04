@@ -1,6 +1,6 @@
 openapi: "3.0.0"
 info:
-  title: Devtron Labs
+  title: Job Pipeline Management
   description: Devtron API for job management
   version: "1.0"
   termsOfService: https://devtron.ai/terms/
@@ -38,7 +38,7 @@ paths:
                     description: status
                   result:
                     $ref: "#/components/schemas/ActionResponse"
-  /job/list:
+  /orchestrator/job/list:
     post:
       description: Get the list of all the jobs by applying filter
       requestBody:
@@ -62,7 +62,7 @@ paths:
                     description: status
                   result:
                     $ref: "#/components/schemas/JobListResponse"
-  /job/ci-pipeline/list/{jobId}:
+  /orchestrator/job/ci-pipeline/list/{jobId}:
     get:
       description: fetch details of job ci-pipelines for the overview page
       parameters:

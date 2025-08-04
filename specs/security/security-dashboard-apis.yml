@@ -1,6 +1,6 @@
 openapi: '3.0.2'
 info:
-  title: API Title
+  title: Security Scan API
   version: '1.0'
 servers:
   - url: https://api.server.test/v1
