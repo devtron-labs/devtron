@@ -3,7 +3,7 @@ info:
   version: 1.0.0
   title: Devtron Labs
 paths:
-  /app/autocomplete:
+  /orchestrator/app/autocomplete:
     get:
       description: list of namespaces group by clusters
       parameters:

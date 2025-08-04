@@ -5,7 +5,7 @@ info:
 servers:
   - url: http://localhost:3000/orchestrator/batch
 paths:
-  /{apiVersion}/{kind}/readme:
+  /orchestrator/{apiVersion}/{kind}/readme:
     get:
       description: Returns Readme for bulk update for different resource in the url
       operationId: FindBulkUpdateReadme

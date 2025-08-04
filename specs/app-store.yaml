@@ -14,7 +14,7 @@ info:
 servers:
   - url: http://localhost:8080
 paths:
-  /app-store/discover:
+  /orchestrator/app-store/discover:
     get:
       description: Get all charts from chart repositories
       parameters:

@@ -84,7 +84,7 @@ tags:
 - name: GitOps Validation
   x-displayName: GitOps Validation
 paths:
-  /resource/history/deployment/cd-pipeline/v1:
+  /orchestrator/resource/history/deployment/cd-pipeline/v1:
     get:
       summary: Get Deployment History
       description: Retrieves the deployment history for a specific CD pipeline based
@@ -1075,7 +1075,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
       tags:
       - Applications
-  /app/labels/list:
+  /orchestrator/app/labels/list:
     get:
       summary: List Application Labels
       description: "Retrieves a list of application labels. By default, returns all\
@@ -1231,7 +1231,7 @@ paths:
                   message:
                     type: string
                     example: An unexpected error occurred
-  /batch/{apiVersion}/{kind}/readme:
+  /orchestrator/batch/{apiVersion}/{kind}/readme:
     get:
       summary: Get Readme for Bulk Update
       description: Returns Readme for bulk update for different resource in the url
@@ -1271,7 +1271,7 @@ paths:
                 $ref: '#/components/schemas/Error'
       tags:
       - bulk_other
-  /batch/v1beta1/application/dryrun:
+  /orchestrator/batch/v1beta1/application/dryrun:
     post:
       summary: Dry Run for Bulk Application Update
       description: Returns details(id, name, envId) of all apps to be impacted with
@@ -1315,7 +1315,7 @@ paths:
                 $ref: '#/components/schemas/Error'
       tags:
       - bulk_other
-  /batch/v1beta1/hibernate:
+  /orchestrator/batch/v1beta1/hibernate:
     post:
       summary: Bulk Hibernate Applications
       description: Bulk Hibernates applications
@@ -1357,7 +1357,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /batch/v1beta1/unhibernate:
+  /orchestrator/batch/v1beta1/unhibernate:
     post:
       summary: Bulk Un-Hibernate Applications
       description: Bulk Un-Hibernates applications
@@ -1399,7 +1399,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /batch/v1beta1/deploy:
+  /orchestrator/batch/v1beta1/deploy:
     post:
       summary: Bulk Deploy Applications
       description: Bulk Triggers deployment of applications
@@ -1440,7 +1440,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /batch/v1beta1/build:
+  /orchestrator/batch/v1beta1/build:
     post:
       summary: Bulk Trigger Application Builds
       description: Bulk Triggers build of applications
@@ -1481,7 +1481,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /batch/v1beta1/application:
+  /orchestrator/batch/v1beta1/application:
     post:
       summary: Bulk Edit Applications
       description: Bulk Updates (Edit) all impacted apps. This endpoint can be used
@@ -1525,7 +1525,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /sso/create:
+  /orchestrator/sso/create:
     post:
       tags:
       - SSO Configuration
@@ -1546,7 +1546,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security: []
       
-  /sso/update:
+  /orchestrator/sso/update:
     put:
       tags:
       - SSO Configuration
@@ -1567,7 +1567,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security: []
       
-  /sso/list:
+  /orchestrator/sso/list:
     get:
       tags:
       - SSO Configuration
@@ -1586,7 +1586,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security: []
       
-  /sso/{id}:
+  /orchestrator/sso/{id}:
     get:
       tags:
       - SSO Configuration
@@ -1613,7 +1613,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security: []
       
-  /sso:
+  /orchestrator/sso:
     get:
       tags:
       - SSO Configuration
@@ -1643,7 +1643,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security: []
       
-  /rbac/roles/default:
+  /orchestrator/rbac/roles/default:
     get:
       tags:
       - RBAC
@@ -1666,7 +1666,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security: []
       
-  /api/v1/session:
+  /orchestrator/api/v1/session:
     post:
       tags:
       - Authentication
@@ -1719,7 +1719,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
       security: []
       
-  /refresh:
+  /orchestrator/refresh:
     get:
       tags:
       - Authentication
@@ -1733,7 +1733,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
       security: []
       
-  /admin/policy/default:
+  /orchestrator/admin/policy/default:
     post:
       tags:
       - Policy Management
@@ -1775,7 +1775,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security: []
       
-  /devtron/auth/verify:
+  /orchestrator/devtron/auth/verify:
     get:
       tags:
       - Authentication
@@ -1792,7 +1792,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security: []
       
-  /devtron/auth/verify/v2:
+  /orchestrator/devtron/auth/verify/v2:
     get:
       tags:
       - Authentication
@@ -1816,7 +1816,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security: []
       
-  /user/v2:
+  /orchestrator/user/v2:
     get:
       tags:
       - User Management
@@ -1889,7 +1889,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security: []
       
-  /user:
+  /orchestrator/user:
     get:
       tags:
       - User Management
@@ -1954,7 +1954,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security: []
       
-  /user/{id}:
+  /orchestrator/user/{id}:
     get:
       tags:
       - User Management
@@ -2005,7 +2005,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security: []
       
-  /user/v2/{id}:
+  /orchestrator/user/v2/{id}:
     get:
       tags:
       - User Management
@@ -2030,7 +2030,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security: []
       
-  /user/bulk:
+  /orchestrator/user/bulk:
     delete:
       tags:
       - User Management
@@ -2049,7 +2049,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security: []
       
-  /user/detail/get:
+  /orchestrator/user/detail/get:
     get:
       tags:
       - User Management
@@ -2072,7 +2072,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security: []
       
-  /user/role/group/v2:
+  /orchestrator/user/role/group/v2:
     get:
       tags:
       - Role Group Management
@@ -2141,7 +2141,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security: []
       
-  /user/role/group:
+  /orchestrator/user/role/group:
     get:
       tags:
       - Role Group Management
@@ -2202,7 +2202,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security: []
       
-  /user/role/group/{id}:
+  /orchestrator/user/role/group/{id}:
     get:
       tags:
       - Role Group Management
@@ -2249,7 +2249,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security: []
       
-  /user/role/group/v2/{id}:
+  /orchestrator/user/role/group/v2/{id}:
     get:
       tags:
       - Role Group Management
@@ -2272,7 +2272,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security: []
       
-  /user/role/group/detailed/get:
+  /orchestrator/user/role/group/detailed/get:
     get:
       tags:
       - Role Group Management
@@ -2289,7 +2289,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security: []
       
-  /user/role/group/search:
+  /orchestrator/user/role/group/search:
     get:
       tags:
       - Role Group Management
@@ -2317,7 +2317,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security: []
       
-  /user/role/group/bulk:
+  /orchestrator/user/role/group/bulk:
     delete:
       tags:
       - Role Group Management
@@ -2336,7 +2336,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security: []
       
-  /user/check/roles:
+  /orchestrator/user/check/roles:
     get:
       tags:
       - Authentication
@@ -2379,7 +2379,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security: []
       
-  /user/sync/orchestratortocasbin:
+  /orchestrator/user/sync/orchestratortocasbin:
     get:
       tags:
       - Policy Management
@@ -2400,7 +2400,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security: []
       
-  /user/update/trigger/terminal:
+  /orchestrator/user/update/trigger/terminal:
     put:
       tags:
       - Policy Management
@@ -2423,7 +2423,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security: []
       
-  /user/role/cache:
+  /orchestrator/user/role/cache:
     get:
       tags:
       - Cache Management
@@ -2441,7 +2441,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
       security: []
       
-  /user/role/cache/invalidate:
+  /orchestrator/user/role/cache/invalidate:
     get:
       tags:
       - Cache Management
@@ -2459,7 +2459,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
       security: []
       
-  /login:
+  /orchestrator/login:
     get:
       tags:
       - Authentication
@@ -2471,7 +2471,7 @@ paths:
           description: Redirect to OIDC provider.
       security: []
       
-  /auth/login:
+  /orchestrator/auth/login:
     get:
       tags:
       - Authentication
@@ -2483,7 +2483,7 @@ paths:
           description: Redirect to OIDC provider.
       security: []
       
-  /auth/callback:
+  /orchestrator/auth/callback:
     get:
       tags:
       - Authentication
@@ -2500,7 +2500,7 @@ paths:
           description: Server error during OIDC callback.
       security: []
       
-  /api/dex/{path}:
+  /orchestrator/api/dex/{path}:
     get:
       tags:
       - Authentication
@@ -2525,7 +2525,7 @@ paths:
           description: Response from Dex.
       security: []
       
-  /env:
+  /orchestrator/env:
     post:
       summary: Create Environment
       description: Create a new environment within a cluster.
@@ -2658,7 +2658,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /cluster/delete:
+  /orchestrator/cluster/delete:
     post:
       summary: Delete Cluster
       description: Delete an existing cluster.
@@ -2703,7 +2703,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /env/delete:
+  /orchestrator/env/delete:
     post:
       summary: Delete Environment (via POST)
       description: Delete an existing environment using POST method.
@@ -2748,7 +2748,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /env/clusters:
+  /orchestrator/env/clusters:
     get:
       summary: List clusters with their environments
       description: Provides a list of all clusters and the environments within each.
@@ -2778,7 +2778,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /cluster/{cluster_id}/env:
+  /orchestrator/cluster/{cluster_id}/env:
     get:
       summary: List environments for a specific cluster
       description: Provides a list of all environments for a given cluster ID.
@@ -2833,7 +2833,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /cluster:
+  /orchestrator/cluster:
     put:
       summary: Update Cluster
       description: Update an existing cluster's configuration.
@@ -2920,7 +2920,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /cluster/auth-list:
+  /orchestrator/cluster/auth-list:
     get:
       summary: List Accessible Clusters
       description: list of clusters accessible to the authenticated user.
@@ -2954,7 +2954,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /cluster/validate:
+  /orchestrator/cluster/validate:
     post:
       summary: Validate Cluster Configuration
       description: Validate a cluster configuration using kubeconfig.

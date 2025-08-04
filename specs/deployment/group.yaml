@@ -14,7 +14,7 @@ info:
 servers:
   - url: http://localhost:8080
 paths:
-  /deployment-group/create:
+  /orchestrator/deployment-group/create:
     post:
       description: Create a new deployment group
       requestBody:

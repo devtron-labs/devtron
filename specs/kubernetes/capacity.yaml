@@ -24,7 +24,7 @@ components:
       bearerFormat: JWT
       description: JWT token for authentication
 paths:
-  /k8s/capacity/cluster/list/raw:
+  /orchestrator/k8s/capacity/cluster/list/raw:
     get:
       summary: Get cluster list
       description: Returns a list of clusters with basic information

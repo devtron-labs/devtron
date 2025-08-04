@@ -14,7 +14,7 @@ info:
 servers:
   - url: http://localhost:8080/orchestrator/batch
 paths:
-  /v1beta1/hibernate:
+  /orchestrator/v1beta1/hibernate:
     post:
       description: Bulk Hibernate all apps for specific environment
       operationId: BulkHibernate

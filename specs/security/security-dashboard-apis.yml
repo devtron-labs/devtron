@@ -5,7 +5,7 @@ info:
 servers:
   - url: https://api.server.test/v1
 paths:
-  /security/scan/executionDetail:
+  /orchestrator/security/scan/executionDetail:
     get:
       summary: fetch image scan execution result, by multiple ways for different use case
       description: params are option but at least one is required

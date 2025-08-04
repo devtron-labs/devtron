@@ -3,7 +3,7 @@ info:
   version: 1.0.0
   title: Devtron Labs
 paths:
-  /api-token:
+  /orchestrator/api-token:
     get:
       description: Get All active Api Tokens
       responses:

@@ -5,7 +5,7 @@ info:
 servers:
   - url: http://localhost:3000/orchestrator/chart-repo
 paths:
-  /validate:
+  /orchestrator/validate:
     post:
       description: Validate helm repo by checking index file
       operationId: ValidateChartRepo

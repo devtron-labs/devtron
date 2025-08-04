@@ -7,7 +7,7 @@ servers:
   - url: 'https'
 
 paths:
-  /infra-config/profile:
+  /orchestrator/infra-config/profile:
     get:
       description: Get Infra Profile by name
       parameters:
@@ -149,7 +149,7 @@ servers:
   - url: 'https'
 
 paths:
-  /infra-config/profile:
+  /orchestrator/infra-config/profile:
     get:
       description: Get Infra Profile by name
       parameters:

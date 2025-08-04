@@ -25,7 +25,7 @@ components:
       description: JWT token for authentication
 
 paths:
-  /cluster:
+  /orchestrator/cluster:
     post:
       summary: Create a new cluster
       operationId: CreateCluster

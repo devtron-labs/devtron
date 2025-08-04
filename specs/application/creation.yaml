@@ -3,7 +3,7 @@ info:
   version: 1.0.0
   title: Create App Api
 paths:
-  /core/v1beta1/application/{appId}:
+  /orchestrator/core/v1beta1/application/{appId}:
     get:
       description: Get all details of an app by appId. These details include - metadata(appName, projectNamr, labels), gitMaterials, docker config, templates, workflows, configMaps, secrets, environment override configurations.
       operationId: GetAppAllDetail
