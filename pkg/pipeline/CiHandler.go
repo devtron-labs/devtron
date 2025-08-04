@@ -29,6 +29,7 @@ import (
 	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
+	util2 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
 	"github.com/devtron-labs/devtron/pkg/workflow/workflowStatusLatest"
 	"regexp"
@@ -806,7 +807,7 @@ func (impl *CiHandlerImpl) preparePipelineStatusLookup(pipelineIds []int) (pipel
 			statusLookupPipelineIds = append(statusLookupPipelineIds, pipeline.Id)
 		}
 	}
-	statusLookupPipelineIds = impl.removeDuplicateInts(statusLookupPipelineIds)
+	statusLookupPipelineIds = util2.RemoveDuplicateInts(statusLookupPipelineIds)
 	latestStatusEntries, err = impl.workflowStatusLatestService.GetCiWorkflowStatusLatestByPipelineIds(statusLookupPipelineIds)
 	if err != nil {
 		impl.Logger.Errorw("error in checking latest status table", "statusLookupPipelineIds", statusLookupPipelineIds, "err", err)
@@ -859,19 +860,6 @@ func (impl *CiHandlerImpl) mapStatusesToLinkedPipelines(
 				CiWorkflowId:      parentStatus.CiWorkflowId,
 			}
 			result = append(result, linkedStatus)
-		}
-	}
-	return result
-}
-
-// Helper function to remove duplicate integers from slice
-func (impl *CiHandlerImpl) removeDuplicateInts(slice []int) []int {
-	keys := make(map[int]bool)
-	var result []int
-	for _, item := range slice {
-		if !keys[item] {
-			keys[item] = true
-			result = append(result, item)
 		}
 	}
 	return result

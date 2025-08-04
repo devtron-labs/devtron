@@ -41,3 +41,16 @@ func GetWorkflowCacheConfigWithBackwardCompatibility(WorkflowCacheConfig common.
 		}
 	}
 }
+
+// RemoveDuplicateInts helper function to remove duplicate integers from slice
+func RemoveDuplicateInts(slice []int) []int {
+	keys := make(map[int]bool)
+	var result []int
+	for _, item := range slice {
+		if !keys[item] {
+			keys[item] = true
+			result = append(result, item)
+		}
+	}
+	return result
+}
