@@ -25,7 +25,7 @@ components:
 
 paths:
   # User Management APIs
-  /user/v2:
+  /orchestrator/user/v2:
     get:
       description: Get all users with optional filters
       operationId: GetAllUsers
@@ -96,7 +96,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApiError'
 
-  /user:
+  /orchestrator/user:
     post:
       description: Create a new user
       operationId: CreateUser

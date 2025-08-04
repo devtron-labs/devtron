@@ -24,7 +24,7 @@ components:
       bearerFormat: JWT
       description: JWT token for authentication
 paths:
-  /cluster/delete:
+  /orchestrator/cluster/delete:
     post:
       description: Delete Cluster
       operationId: DeleteFromDb

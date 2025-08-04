@@ -5,7 +5,7 @@ info:
 servers:
   - url: http://localhost:3000/orchestrator/gitops
 paths:
-  /validate:
+  /orchestrator/validate:
     post:
       description: Validate GitOps configuration
       operationId: GitOpsValidator

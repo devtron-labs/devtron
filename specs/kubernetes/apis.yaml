@@ -24,7 +24,7 @@ components:
       bearerFormat: JWT
       description: JWT token for authentication
 paths:
-  /k8s/resource:
+  /orchestrator/k8s/resource:
     post:
       summary: Get Kubernetes resource manifest
       description: Fetches the manifest for a specified Kubernetes resource

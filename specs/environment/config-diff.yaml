@@ -25,7 +25,7 @@ components:
       description: JWT token for authentication
 
 paths:
-  /config/autocomplete:
+  /orchestrator/config/autocomplete:
     get:
       summary: Get configuration autocomplete data
       operationId: ConfigAutoComplete

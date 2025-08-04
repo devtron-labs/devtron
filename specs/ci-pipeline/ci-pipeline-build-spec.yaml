@@ -16,7 +16,7 @@ servers:
     description: Devtron Orchestrator API Server
 
 paths:
-  /commit-info/{ciPipelineMaterialId}/{gitHash}:
+  /orchestrator/commit-info/{ciPipelineMaterialId}/{gitHash}:
     get:
       tags:
         - Commit

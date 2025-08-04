@@ -14,7 +14,7 @@ info:
 servers:
   - url: http://localhost:8080/orchestrator
 paths:
-  /job:
+  /orchestrator/job:
     post:
       description: Create and clones a job
       requestBody:

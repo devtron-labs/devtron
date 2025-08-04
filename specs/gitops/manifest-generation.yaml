@@ -24,7 +24,7 @@ components:
       bearerFormat: JWT
       description: JWT token for authentication
 paths:
-  /app/deployments/{app-id}/{env-id}:
+  /orchestrator/app/deployments/{app-id}/{env-id}:
     get:
       summary: Fetch Deployment Template Comparison List
       description: Returns a list of deployment templates that can be compared

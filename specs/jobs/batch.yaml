@@ -23,7 +23,7 @@ components:
       bearerFormat: JWT
       description: JWT token for authentication
 paths:
-  /batch/operate:
+  /orchestrator/batch/operate:
     post:
       description: Execute batch operations on applications and workflows
       security:
