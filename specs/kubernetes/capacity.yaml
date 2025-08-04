@@ -2,8 +2,29 @@ openapi: "3.0.0"
 info:
   title: Kubernetes Capacity
   version: "1.0"
+  description: API for managing Kubernetes cluster capacity and node operations
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Support
+    email: support@devtron.ai
+    url: https://devtron.ai/support
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
 paths:
-  /orchestrator/k8s/capacity/cluster/list/raw:
+  /k8s/capacity/cluster/list/raw:
     get:
       summary: Get cluster list
       description: Returns a list of clusters with basic information
@@ -36,7 +57,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /orchestrator/k8s/capacity/cluster/list:
+  /k8s/capacity/cluster/list:
     get:
       summary: Get cluster list with details
       description: Returns a list of clusters with detailed capacity information
@@ -69,7 +90,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /orchestrator/k8s/capacity/cluster/{clusterId}:
+  /k8s/capacity/cluster/{clusterId}:
     get:
       summary: Get cluster details
       description: Returns detailed capacity information for a specific cluster
@@ -113,7 +134,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /orchestrator/k8s/capacity/node/list:
+  /k8s/capacity/node/list:
     get:
       summary: Get node list
       description: Returns a list of nodes in a cluster
@@ -159,7 +180,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /orchestrator/k8s/capacity/node:
+  /k8s/capacity/node:
     get:
       summary: Get node details
       description: Returns detailed information for a specific node
@@ -293,7 +314,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /orchestrator/k8s/capacity/node/cordon:
+  /k8s/capacity/node/cordon:
     put:
       summary: Cordon or uncordon node
       description: Marks a node as unschedulable or schedulable
@@ -336,7 +357,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /orchestrator/k8s/capacity/node/drain:
+  /k8s/capacity/node/drain:
     put:
       summary: Drain node
       description: Safely evicts all pods from a node
@@ -379,7 +400,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /orchestrator/k8s/capacity/node/taints/edit:
+  /k8s/capacity/node/taints/edit:
     put:
       summary: Edit node taints
       description: Updates the taints on a node
@@ -668,3 +689,19 @@ components:
           type: string
         message:
           type: string
+
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 404
+        message:
+          type: string
+          example: "Resource not found"
+        details:
+          type: array
+          items:
+            type: string
+          example: ["Kubernetes resource not found"]

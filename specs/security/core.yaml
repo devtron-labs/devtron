@@ -12,14 +12,25 @@ info:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
 servers:
-  - url: http://localhost:8080
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
 
 paths:
   # User Management APIs
-  /orchestrator/user/v2:
+  /user/v2:
     get:
       description: Get all users with optional filters
       operationId: GetAllUsers
+      security:
+        - bearerAuth: []
       parameters:
         - name: searchKey
           in: query
@@ -71,24 +82,26 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ApiError'
         '403':
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ApiError'
         '500':
           description: Internal Server Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ApiError'
 
-  /orchestrator/user:
+  /user:
     post:
       description: Create a new user
       operationId: CreateUser
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -808,4 +821,20 @@ components:
           description: Error code
         message:
           type: string
-          description: Error message 
+          description: Error message
+
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 404
+        message:
+          type: string
+          example: "Resource not found"
+        details:
+          type: array
+          items:
+            type: string
+          example: ["User not found in the system"] 

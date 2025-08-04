@@ -11,6 +11,8 @@ paths:
     put:
       description: Migrate plugin data to the latest schema
       operationId: MigratePluginData
+      security:
+        - bearerAuth: []
       responses:
         '200':
           description: Successfully migrated plugin data
@@ -41,6 +43,8 @@ paths:
     post:
       description: Create a new plugin or plugin version
       operationId: CreatePlugin
+      security:
+        - bearerAuth: []
       parameters:
         - name: appId
           in: query
@@ -89,6 +93,8 @@ paths:
     get:
       description: Get detailed information of all available plugins
       operationId: GetAllDetailedPluginInfo
+      security:
+        - bearerAuth: []
       responses:
         '200':
           description: Successfully retrieved all plugin details
@@ -570,3 +576,12 @@ components:
         message:
           type: string
           description: Error message
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >-
+        JWT token for authentication. 
+        Include the token in the Authorization header as: 'Bearer {token}'

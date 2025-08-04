@@ -2,12 +2,35 @@ openapi: 3.0.3
 info:
   title: App Deployment API
   version: 1.0.0
+  description: API for GitOps manifest generation and deployment template management
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Support
+    email: support@devtron.ai
+    url: https://devtron.ai/support
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
 paths:
-  /orchestrator/app/deployments/{app-id}/{env-id}:
+  /app/deployments/{app-id}/{env-id}:
     get:
       summary: Fetch Deployment Template Comparison List
       description: Returns a list of deployment templates that can be compared
       operationId: FetchDeploymentsWithChartRefs
+      security:
+        - bearerAuth: []
       parameters:
         - name: app-id
           in: path
@@ -37,31 +60,33 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ApiError'
         '401':
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ApiError'
         '403':
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ApiError'
         '500':
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ApiError'
 
-  /orchestrator/app/deployment/template/data:
+  /app/deployment/template/data:
     post:
       summary: Get Values and Manifest for Deployment Template
       description: Returns the values and manifest for a deployment template
       operationId: GetDeploymentTemplate
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -80,19 +105,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ApiError'
         '401':
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ApiError'
         '403':
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ApiError'
         '500':
           description: Internal server error
           content:
@@ -214,3 +239,19 @@ components:
         message:
           type: string
           description: Error message
+
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 404
+        message:
+          type: string
+          example: "Resource not found"
+        details:
+          type: array
+          items:
+            type: string
+          example: ["Deployment template not found"]
