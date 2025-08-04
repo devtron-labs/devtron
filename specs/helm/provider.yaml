@@ -1,7 +1,7 @@
 openapi: "3.0.0"
 info:
   version: 1.0.0
-  title: Devtron Labs
+  title: Helm Chart Provider Management
   description: Devtron API for chart provider management including chart repositories, chart groups, and chart provider configuration
   termsOfService: https://devtron.ai/terms/
   contact:

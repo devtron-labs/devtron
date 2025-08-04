@@ -1,7 +1,7 @@
 openapi: "3.0.0"
 info:
   version: 1.0.0
-  title: Devtron Labs
+  title: Security & Access Management API
   description: Devtron API for security management including user management, role groups, cluster access policies, and API token management
   termsOfService: https://devtron.ai/terms/
   contact:

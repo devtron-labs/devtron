@@ -1,76 +1,22 @@
 # API Spec Validation Report
 
-Generated: 2025-08-05T03:54:12+05:30
+Generated: 2025-08-05T04:50:26+05:30
 
 ## Summary
 
-- Total Endpoints: 178
-- Passed: 47
-- Failed: 131
+- Total Endpoints: 172
+- Passed: 45
+- Failed: 127
 - Warnings: 0
-- Success Rate: 26.40%
+- Success Rate: 26.16%
 
 ## Detailed Results
 
-### ❌ POST /orchestrator/app/cd-pipeline/patch/deployment
+### ❌ POST /config
 
 - **Status**: FAIL
-- **Duration**: 592.461708ms
-- **Spec File**: ../../specs/deployment/app-type-change.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ❌ POST /orchestrator/deployment/template/validate
-
-- **Status**: FAIL
-- **Duration**: 112.239416ms
-- **Spec File**: ../../specs/deployment/core.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ✅ GET /orchestrator/deployment/template/fetch
-
-- **Status**: PASS
-- **Duration**: 125.824791ms
-- **Spec File**: ../../specs/deployment/core.yaml
-- **Response Code**: 200
-
----
-
-### ✅ PUT /orchestrator/deployment/template/upload
-
-- **Status**: PASS
-- **Duration**: 148.201958ms
-- **Spec File**: ../../specs/deployment/core.yaml
-- **Response Code**: 200
-
----
-
-### ❌ POST /orchestrator/external-links
-
-- **Status**: FAIL
-- **Duration**: 113.378458ms
-- **Spec File**: ../../specs/external-links/external-links-specs.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ❌ PUT /orchestrator/external-links
-
-- **Status**: FAIL
-- **Duration**: 144.546333ms
-- **Spec File**: ../../specs/external-links/external-links-specs.yaml
+- **Duration**: 353.701875ms
+- **Spec File**: ../../specs/gitops/validation.yaml
 - **Response Code**: 404
 
 **Issues:**
@@ -78,11 +24,11 @@ Generated: 2025-08-05T03:54:12+05:30
 
 ---
 
-### ❌ DELETE /orchestrator/external-links
+### ❌ PUT /config
 
 - **Status**: FAIL
-- **Duration**: 111.005708ms
-- **Spec File**: ../../specs/external-links/external-links-specs.yaml
+- **Duration**: 107.269959ms
+- **Spec File**: ../../specs/gitops/validation.yaml
 - **Response Code**: 404
 
 **Issues:**
@@ -90,1399 +36,11 @@ Generated: 2025-08-05T03:54:12+05:30
 
 ---
 
-### ✅ GET /orchestrator/external-links
+### ❌ GET /gitops/config
 
-- **Status**: PASS
-- **Duration**: 122.927333ms
-- **Spec File**: ../../specs/external-links/external-links-specs.yaml
-- **Response Code**: 200
-
----
-
-### ✅ GET /orchestrator/external-links/tools
-
-- **Status**: PASS
-- **Duration**: 115.142458ms
-- **Spec File**: ../../specs/external-links/external-links-specs.yaml
-- **Response Code**: 200
-
----
-
-### ✅ GET /orchestrator/app/ci-pipeline/{appId}
-
-- **Status**: PASS
-- **Duration**: 121.844959ms
-- **Spec File**: ../../specs/infrastructure/docker-build.yaml
-- **Response Code**: 200
-
----
-
-### ✅ GET /orchestrator/app/wf/all/component-names/{appId}
-
-- **Status**: PASS
-- **Duration**: 132.803333ms
-- **Spec File**: ../../specs/infrastructure/docker-build.yaml
-- **Response Code**: 200
-
----
-
-### ❌ POST /orchestrator/app/ci-pipeline/patch
-
-- **Status**: FAIL
-- **Duration**: 123.335584ms
-- **Spec File**: ../../specs/infrastructure/docker-build.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ✅ GET /orchestrator/cluster/auth-list
-
-- **Status**: PASS
-- **Duration**: 116.018084ms
-- **Spec File**: ../../specs/kubernetes/cluster.yaml
-- **Response Code**: 200
-
----
-
-### ✅ GET /orchestrator/cluster
-
-- **Status**: PASS
-- **Duration**: 122.421666ms
-- **Spec File**: ../../specs/kubernetes/cluster.yaml
-- **Response Code**: 200
-
----
-
-### ❌ PUT /orchestrator/cluster
-
-- **Status**: FAIL
-- **Duration**: 117.259834ms
-- **Spec File**: ../../specs/kubernetes/cluster.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ❌ PUT /orchestrator/application/rollback
-
-- **Status**: FAIL
-- **Duration**: 114.139042ms
-- **Spec File**: ../../specs/openapiClient/api/openapi.yaml
-- **Response Code**: 500
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 500
-
----
-
-### ❌ POST /orchestrator/application/template-chart
-
-- **Status**: FAIL
-- **Duration**: 112.322625ms
-- **Spec File**: ../../specs/openapiClient/api/openapi.yaml
-- **Response Code**: 500
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 500
-
----
-
-### ❌ POST /orchestrtor/batch/v1beta1/cd-pipeline
-
-- **Status**: FAIL
-- **Duration**: 117.474292ms
-- **Spec File**: ../../specs/environment/bulk-delete.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ POST /orchestrator/gitops/validate
-
-- **Status**: FAIL
-- **Duration**: 113.63525ms
-- **Spec File**: ../../specs/gitops/core.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ✅ GET /orchestrator/gitops/config
-
-- **Status**: PASS
-- **Duration**: 113.7205ms
-- **Spec File**: ../../specs/gitops/core.yaml
-- **Response Code**: 200
-
----
-
-### ❌ POST /orchestrator/gitops/config
-
-- **Status**: FAIL
-- **Duration**: 115.272291ms
-- **Spec File**: ../../specs/gitops/core.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ❌ PUT /orchestrator/gitops/config
-
-- **Status**: FAIL
-- **Duration**: 134.292375ms
-- **Spec File**: ../../specs/gitops/core.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ GET /orchestrator/gitops/config-by-provider
-
-- **Status**: FAIL
-- **Duration**: 111.126333ms
-- **Spec File**: ../../specs/gitops/core.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ✅ GET /orchestrator/gitops/config/{id}
-
-- **Status**: PASS
-- **Duration**: 117.179167ms
-- **Spec File**: ../../specs/gitops/core.yaml
-- **Response Code**: 200
-
----
-
-### ✅ GET /orchestrator/gitops/configured
-
-- **Status**: PASS
-- **Duration**: 114.632292ms
-- **Spec File**: ../../specs/gitops/core.yaml
-- **Response Code**: 200
-
----
-
-### ❌ PATCH /orchestrator/app/env/patch
-
-- **Status**: FAIL
-- **Duration**: 114.003834ms
-- **Spec File**: ../../specs/helm/deployment-chart-type.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ❌ DELETE /orchestrator/k8s/resources/ephemeralContainers
-
-- **Status**: FAIL
-- **Duration**: 112.676667ms
-- **Spec File**: ../../specs/kubernetes/ephemeral-containers.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ POST /orchestrator/k8s/resources/ephemeralContainers
-
-- **Status**: FAIL
-- **Duration**: 110.972959ms
-- **Spec File**: ../../specs/kubernetes/ephemeral-containers.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ POST /orchestrator/webhook/git
-
-- **Status**: FAIL
-- **Duration**: 111.615459ms
-- **Spec File**: ../../specs/notifications/webhooks.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ POST /orchestrator/webhook/git/{gitHostId}
-
-- **Status**: FAIL
-- **Duration**: 113.51275ms
-- **Spec File**: ../../specs/notifications/webhooks.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ POST /orchestrator/webhook/git/{gitHostId}/{secret}
-
-- **Status**: FAIL
-- **Duration**: 112.676791ms
-- **Spec File**: ../../specs/notifications/webhooks.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ POST /orchestrator/webhook/notification
-
-- **Status**: FAIL
-- **Duration**: 112.179375ms
-- **Spec File**: ../../specs/notifications/webhooks.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ GET /orchestrator/webhook/notification/variables
-
-- **Status**: FAIL
-- **Duration**: 112.968833ms
-- **Spec File**: ../../specs/notifications/webhooks.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ GET /orchestrator/webhook/notification/{id}
-
-- **Status**: FAIL
-- **Duration**: 112.124209ms
-- **Spec File**: ../../specs/notifications/webhooks.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ POST /orchestrator/webhook/ci/workflow
-
-- **Status**: FAIL
-- **Duration**: 118.022292ms
-- **Spec File**: ../../specs/notifications/webhooks.yaml
-- **Response Code**: 500
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 500
-
----
-
-### ❌ POST /orchestrator/webhook/ext-ci/{externalCiId}
-
-- **Status**: FAIL
-- **Duration**: 113.444875ms
-- **Spec File**: ../../specs/notifications/webhooks.yaml
-- **Response Code**: 401
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 401
-
----
-
-### ❌ PUT /orchestrator/user
-
-- **Status**: FAIL
-- **Duration**: 113.827209ms
-- **Spec File**: ../../specs/security/policy.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ✅ GET /orchestrator/user
-
-- **Status**: PASS
-- **Duration**: 115.4865ms
-- **Spec File**: ../../specs/security/policy.yaml
-- **Response Code**: 200
-
----
-
-### ❌ POST /orchestrator/user
-
-- **Status**: FAIL
-- **Duration**: 114.079167ms
-- **Spec File**: ../../specs/security/policy.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ❌ DELETE /orchestrator/user/bulk
-
-- **Status**: FAIL
-- **Duration**: 112.769875ms
-- **Spec File**: ../../specs/security/policy.yaml
-- **Response Code**: 500
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 500
-
----
-
-### ✅ GET /orchestrator/user/v2
-
-- **Status**: PASS
-- **Duration**: 117.102166ms
-- **Spec File**: ../../specs/security/policy.yaml
-- **Response Code**: 200
-
----
-
-### ✅ GET /orchestrator/user/{id}
-
-- **Status**: PASS
-- **Duration**: 116.190167ms
-- **Spec File**: ../../specs/security/policy.yaml
-- **Response Code**: 200
-
----
-
-### ❌ POST /orchestrator/user/resource/options/{kind}/{version}
-
-- **Status**: FAIL
-- **Duration**: 112.233584ms
-- **Spec File**: ../../specs/userResource/userResource.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ GET /orchestrator/app/template/default/{appId}/{chartRefId}
-
-- **Status**: FAIL
-- **Duration**: 117.922166ms
-- **Spec File**: ../../specs/environment/templates.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ GET /orchestrator/app-store/installed-app/notes/{installed-app-id}/{env-id}
-
-- **Status**: FAIL
-- **Duration**: 112.32275ms
-- **Spec File**: ../../specs/helm/charts.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ✅ GET /orchestrator/app-store/installed-app
-
-- **Status**: PASS
-- **Duration**: 116.553584ms
-- **Spec File**: ../../specs/helm/charts.yaml
-- **Response Code**: 200
-
----
-
-### ❌ GET /job/ci-pipeline/list/{jobId}
-
-- **Status**: FAIL
-- **Duration**: 112.10325ms
-- **Spec File**: ../../specs/jobs/core.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ POST /job/list
-
-- **Status**: FAIL
-- **Duration**: 111.273042ms
-- **Spec File**: ../../specs/jobs/core.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ POST /orchestrator/job
-
-- **Status**: FAIL
-- **Duration**: 118.348583ms
-- **Spec File**: ../../specs/jobs/core.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ❌ POST /orchestrator/cluster/access
-
-- **Status**: FAIL
-- **Duration**: 111.00925ms
-- **Spec File**: ../../specs/kubernetes/access-policy.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ PUT /orchestrator/cluster/access
-
-- **Status**: FAIL
-- **Duration**: 109.616542ms
-- **Spec File**: ../../specs/kubernetes/access-policy.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ GET /orchestrator/cluster/access/list
-
-- **Status**: FAIL
-- **Duration**: 111.602042ms
-- **Spec File**: ../../specs/kubernetes/access-policy.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ DELETE /orchestrator/cluster/access/{id}
-
-- **Status**: FAIL
-- **Duration**: 111.861042ms
-- **Spec File**: ../../specs/kubernetes/access-policy.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-- **RESPONSE_FORMAT_ERROR**: Response is not valid JSON: invalid character 'p' after top-level value
-
----
-
-### ❌ GET /orchestrator/cluster/access/{id}
-
-- **Status**: FAIL
-- **Duration**: 110.685667ms
-- **Spec File**: ../../specs/kubernetes/access-policy.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-- **RESPONSE_FORMAT_ERROR**: Response is not valid JSON: invalid character 'p' after top-level value
-
----
-
-### ❌ GET /app-store/discover/application/{appStoreId}/version/autocomplete
-
-- **Status**: FAIL
-- **Duration**: 112.451958ms
-- **Spec File**: ../../specs/app-store.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ GET /app-store/discover/application/{id}
-
-- **Status**: FAIL
-- **Duration**: 114.302167ms
-- **Spec File**: ../../specs/app-store.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ GET /app-store/discover/search
-
-- **Status**: FAIL
-- **Duration**: 112.556625ms
-- **Spec File**: ../../specs/app-store.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ✅ GET /orchestrator/app-store/discover
-
-- **Status**: PASS
-- **Duration**: 806.034625ms
-- **Spec File**: ../../specs/app-store.yaml
-- **Response Code**: 200
-
----
-
-### ❌ GET /app-store/discover/application/chartInfo/{appStoreApplicationVersionId}
-
-- **Status**: FAIL
-- **Duration**: 110.322584ms
-- **Spec File**: ../../specs/app-store.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ GET /orchestrator/app/history/deployed-component/detail/{appId}/{pipelineId}/{id}
-
-- **Status**: FAIL
-- **Duration**: 120.983542ms
-- **Spec File**: ../../specs/audit/definitions.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ❌ GET /orchestrator/app/history/deployed-component/list/{appId}/{pipelineId}
-
-- **Status**: FAIL
-- **Duration**: 113.998667ms
-- **Spec File**: ../../specs/audit/definitions.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ✅ GET /orchestrator/app/history/deployed-configuration/{appId}/{pipelineId}/{wfrId}
-
-- **Status**: PASS
-- **Duration**: 118.987084ms
-- **Spec File**: ../../specs/audit/definitions.yaml
-- **Response Code**: 200
-
----
-
-### ❌ GET /orchestrator/flux-application
-
-- **Status**: FAIL
-- **Duration**: 117.885ms
-- **Spec File**: ../../specs/gitops/fluxcd.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ❌ GET /orchestrator/flux-application/app
-
-- **Status**: FAIL
-- **Duration**: 110.391042ms
-- **Spec File**: ../../specs/gitops/fluxcd.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ POST /orchestrator/app-store/chart-provider/update
-
-- **Status**: FAIL
-- **Duration**: 115.451166ms
-- **Spec File**: ../../specs/helm/provider.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ✅ GET /orchestrator/chart-repo/{id}
-
-- **Status**: PASS
-- **Duration**: 113.059625ms
-- **Spec File**: ../../specs/helm/provider.yaml
-- **Response Code**: 200
-
----
-
-### ✅ GET /orchestrator/app-store/chart-provider/list
-
-- **Status**: PASS
-- **Duration**: 119.446042ms
-- **Spec File**: ../../specs/helm/provider.yaml
-- **Response Code**: 200
-
----
-
-### ❌ DELETE /orchestrator/chart-group/{id}
-
-- **Status**: FAIL
-- **Duration**: 109.725292ms
-- **Spec File**: ../../specs/helm/provider.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ✅ GET /orchestrator/chart-repo/list
-
-- **Status**: PASS
-- **Duration**: 152.787417ms
-- **Spec File**: ../../specs/helm/provider.yaml
-- **Response Code**: 200
-
----
-
-### ❌ POST /orchestrator/chart-repo/validate
-
-- **Status**: FAIL
-- **Duration**: 113.295125ms
-- **Spec File**: ../../specs/helm/provider.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ❌ POST /orchestrator/app-store/chart-provider/sync-chart
-
-- **Status**: FAIL
-- **Duration**: 116.090292ms
-- **Spec File**: ../../specs/helm/provider.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ❌ POST /orchestrator/chart-group
-
-- **Status**: FAIL
-- **Duration**: 224.847ms
-- **Spec File**: ../../specs/helm/provider.yaml
-- **Response Code**: 405
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 405
-
----
-
-### ❌ PUT /orchestrator/chart-group
-
-- **Status**: FAIL
-- **Duration**: 224.263125ms
-- **Spec File**: ../../specs/helm/provider.yaml
-- **Response Code**: 405
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 405
-
----
-
-### ❌ POST /orchestrator/chart-repo/sync
-
-- **Status**: FAIL
-- **Duration**: 111.693167ms
-- **Spec File**: ../../specs/helm/provider.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ POST /orchestrator/chart-group/entries
-
-- **Status**: FAIL
-- **Duration**: 110.718584ms
-- **Spec File**: ../../specs/helm/provider.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ✅ GET /orchestrator/chart-group/list
-
-- **Status**: PASS
-- **Duration**: 114.002708ms
-- **Spec File**: ../../specs/helm/provider.yaml
-- **Response Code**: 200
-
----
-
-### ❌ POST /orchestrator/chart-repo
-
-- **Status**: FAIL
-- **Duration**: 111.598125ms
-- **Spec File**: ../../specs/helm/provider.yaml
-- **Response Code**: 405
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 405
-
----
-
-### ❌ PUT /orchestrator/chart-repo
-
-- **Status**: FAIL
-- **Duration**: 111.930208ms
-- **Spec File**: ../../specs/helm/provider.yaml
-- **Response Code**: 405
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 405
-
----
-
-### ❌ PUT /orchestrator/resource/update
-
-- **Status**: FAIL
-- **Duration**: 111.209375ms
-- **Spec File**: ../../specs/kubernetes/resources.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ GET /orchestrator/resource/urls
-
-- **Status**: FAIL
-- **Duration**: 110.179459ms
-- **Spec File**: ../../specs/kubernetes/resources.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ GET /orchestrator/api-resources/{clusterId}
-
-- **Status**: FAIL
-- **Duration**: 112.701333ms
-- **Spec File**: ../../specs/kubernetes/resources.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ POST /orchestrator/resource
-
-- **Status**: FAIL
-- **Duration**: 112.640708ms
-- **Spec File**: ../../specs/kubernetes/resources.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ POST /orchestrator/resource/create
-
-- **Status**: FAIL
-- **Duration**: 111.785ms
-- **Spec File**: ../../specs/kubernetes/resources.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ DELETE /orchestrator/resource/delete
-
-- **Status**: FAIL
-- **Duration**: 110.440166ms
-- **Spec File**: ../../specs/kubernetes/resources.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ GET /orchestrator/resource/inception/info
-
-- **Status**: FAIL
-- **Duration**: 112.074583ms
-- **Spec File**: ../../specs/kubernetes/resources.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ❌ POST /orchestrator/user
-
-- **Status**: FAIL
-- **Duration**: 117.504708ms
-- **Spec File**: ../../specs/security/user-management.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ❌ PUT /orchestrator/user
-
-- **Status**: FAIL
-- **Duration**: 114.06075ms
-- **Spec File**: ../../specs/security/user-management.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ❌ DELETE /orchestrator/user/bulk
-
-- **Status**: FAIL
-- **Duration**: 115.207125ms
-- **Spec File**: ../../specs/security/user-management.yaml
-- **Response Code**: 500
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 500
-
----
-
-### ✅ GET /orchestrator/user/v2
-
-- **Status**: PASS
-- **Duration**: 116.514166ms
-- **Spec File**: ../../specs/security/user-management.yaml
-- **Response Code**: 200
-
----
-
-### ❌ DELETE /orchestrator/user/{id}
-
-- **Status**: FAIL
-- **Duration**: 116.741375ms
-- **Spec File**: ../../specs/security/user-management.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ✅ GET /orchestrator/user/{id}
-
-- **Status**: PASS
-- **Duration**: 116.933042ms
-- **Spec File**: ../../specs/security/user-management.yaml
-- **Response Code**: 200
-
----
-
-### ❌ GET /orchestrator/app/ci-pipeline/{ciPipelineId}/linked-ci/downstream/env
-
-- **Status**: FAIL
-- **Duration**: 114.435583ms
-- **Spec File**: ../../specs/ci-pipeline/ciPipelineDownstream/downstream-linked-ci-view-spec.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ❌ GET /orchestrator/app/ci-pipeline/{ciPipelineId}/linked-ci/downstream/cd
-
-- **Status**: FAIL
-- **Duration**: 167.021542ms
-- **Spec File**: ../../specs/ci-pipeline/ciPipelineDownstream/downstream-linked-ci-view-spec.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ❌ GET /orchestrator/notification/recipient
-
-- **Status**: FAIL
-- **Duration**: 110.201167ms
-- **Spec File**: ../../specs/notifications/core.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ✅ DELETE /orchestrator/notification
-
-- **Status**: PASS
-- **Duration**: 115.023292ms
-- **Spec File**: ../../specs/notifications/core.yaml
-- **Response Code**: 200
-
----
-
-### ❌ GET /orchestrator/notification
-
-- **Status**: FAIL
-- **Duration**: 112.179916ms
-- **Spec File**: ../../specs/notifications/core.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ POST /orchestrator/notification
-
-- **Status**: FAIL
-- **Duration**: 113.874083ms
-- **Spec File**: ../../specs/notifications/core.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ❌ PUT /orchestrator/notification
-
-- **Status**: FAIL
-- **Duration**: 113.772084ms
-- **Spec File**: ../../specs/notifications/core.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ✅ GET /orchestrator/notification/channel
-
-- **Status**: PASS
-- **Duration**: 115.087167ms
-- **Spec File**: ../../specs/notifications/core.yaml
-- **Response Code**: 200
-
----
-
-### ❌ POST /orchestrator/notification/channel
-
-- **Status**: FAIL
-- **Duration**: 113.912083ms
-- **Spec File**: ../../specs/notifications/core.yaml
-- **Response Code**: 200
-
-**Issues:**
-- **RESPONSE_FORMAT_ERROR**: Response is not valid JSON: unexpected end of JSON input
-
----
-
-### ❌ DELETE /orchestrator/configmap/global/{appId}/{id}
-
-- **Status**: FAIL
-- **Duration**: 111.968291ms
-- **Spec File**: ../../specs/plugins/config-maps.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ POST /orchestrator/configmap/global
-
-- **Status**: FAIL
-- **Duration**: 110.30525ms
-- **Spec File**: ../../specs/plugins/config-maps.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ GET /orchestrator/configmap/global/edit/{appId}/{id}
-
-- **Status**: FAIL
-- **Duration**: 111.148625ms
-- **Spec File**: ../../specs/plugins/config-maps.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ GET /orchestrator/configmap/global/{appId}
-
-- **Status**: FAIL
-- **Duration**: 112.163875ms
-- **Spec File**: ../../specs/plugins/config-maps.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ POST /orchestrator/configmap/bulk/patch
-
-- **Status**: FAIL
-- **Duration**: 111.880167ms
-- **Spec File**: ../../specs/plugins/config-maps.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ POST /orchestrator/configmap/environment
-
-- **Status**: FAIL
-- **Duration**: 110.15075ms
-- **Spec File**: ../../specs/plugins/config-maps.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ GET /orchestrator/configmap/environment/{appId}/{envId}
-
-- **Status**: FAIL
-- **Duration**: 111.130875ms
-- **Spec File**: ../../specs/plugins/config-maps.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ DELETE /orchestrator/configmap/environment/{appId}/{envId}/{id}
-
-- **Status**: FAIL
-- **Duration**: 113.93825ms
-- **Spec File**: ../../specs/plugins/config-maps.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ GET /orchestrator/configmap/environment/edit/{appId}/{envId}/{id}
-
-- **Status**: FAIL
-- **Duration**: 110.965792ms
-- **Spec File**: ../../specs/plugins/config-maps.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ GET /orchestrator/app/history/deployed-component/detail/{appId}/{pipelineId}/{id}
-
-- **Status**: FAIL
-- **Duration**: 115.659708ms
-- **Spec File**: ../../specs/audit/api-changes.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ❌ GET /orchestrator/app/history/deployed-component/list/{appId}/{pipelineId}
-
-- **Status**: FAIL
-- **Duration**: 205.195041ms
-- **Spec File**: ../../specs/audit/api-changes.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ✅ GET /orchestrator/app/history/deployed-configuration/{appId}/{pipelineId}/{wfrId}
-
-- **Status**: PASS
-- **Duration**: 116.101875ms
-- **Spec File**: ../../specs/audit/api-changes.yaml
-- **Response Code**: 200
-
----
-
-### ❌ GET /orchestrator/env/namespace/autocomplete
-
-- **Status**: FAIL
-- **Duration**: 114.127167ms
-- **Spec File**: ../../specs/environment/core.yaml
-- **Response Code**: 500
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 500
-
----
-
-### ❌ GET /orchestrator/git/host/event/{eventId}
-
-- **Status**: FAIL
-- **Duration**: 115.216375ms
-- **Spec File**: ../../specs/gitops/submodules.yaml
-- **Response Code**: 500
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 500
-
----
-
-### ❌ GET /orchestrator/git/host/webhook-meta-config/{gitProviderId}
-
-- **Status**: FAIL
-- **Duration**: 116.038042ms
-- **Spec File**: ../../specs/gitops/submodules.yaml
-- **Response Code**: 500
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 500
-
----
-
-### ❌ GET /orchestrator/git/host/{id}
-
-- **Status**: FAIL
-- **Duration**: 116.05425ms
-- **Spec File**: ../../specs/gitops/submodules.yaml
-- **Response Code**: 500
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 500
-
----
-
-### ❌ GET /orchestrator/git/host/{id}/event
-
-- **Status**: FAIL
-- **Duration**: 115.660708ms
-- **Spec File**: ../../specs/gitops/submodules.yaml
-- **Response Code**: 500
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 500
-
----
-
-### ✅ GET /orchestrator/git/host
-
-- **Status**: PASS
-- **Duration**: 304.190292ms
-- **Spec File**: ../../specs/gitops/submodules.yaml
-- **Response Code**: 200
-
----
-
-### ❌ POST /orchestrator/git/host
-
-- **Status**: FAIL
-- **Duration**: 114.101208ms
-- **Spec File**: ../../specs/gitops/submodules.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ✅ GET /orchestrator/chartref/autocomplete/{appId}
-
-- **Status**: PASS
-- **Duration**: 117.620542ms
-- **Spec File**: ../../specs/helm/dynamic-charts.yaml
-- **Response Code**: 200
-
----
-
-### ❌ POST /orchestrator/validate
-
-- **Status**: FAIL
-- **Duration**: 111.261833ms
-- **Spec File**: ../../specs/helm/repo-validation.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ POST /update
-
-- **Status**: FAIL
-- **Duration**: 110.614625ms
-- **Spec File**: ../../specs/helm/repo-validation.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ POST /create
-
-- **Status**: FAIL
-- **Duration**: 110.755625ms
-- **Spec File**: ../../specs/helm/repo-validation.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ✅ GET /orchestrator/module
-
-- **Status**: PASS
-- **Duration**: 119.152666ms
-- **Spec File**: ../../specs/modularisation/v1.yaml
-- **Response Code**: 200
-
----
-
-### ❌ POST /orchestrator/module
-
-- **Status**: FAIL
-- **Duration**: 115.881833ms
-- **Spec File**: ../../specs/modularisation/v1.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ✅ GET /orchestrator/server
-
-- **Status**: PASS
-- **Duration**: 191.671541ms
-- **Spec File**: ../../specs/modularisation/v1.yaml
-- **Response Code**: 200
-
----
-
-### ❌ POST /orchestrator/server
-
-- **Status**: FAIL
-- **Duration**: 117.230167ms
-- **Spec File**: ../../specs/modularisation/v1.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ❌ GET /orchestrator/app/helm/meta/info/{appId}
-
-- **Status**: FAIL
-- **Duration**: 116.306917ms
-- **Spec File**: ../../specs/application/labels.yaml
-- **Response Code**: 500
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 500
-
----
-
-### ✅ GET /orchestrator/app/labels/list
-
-- **Status**: PASS
-- **Duration**: 112.628625ms
-- **Spec File**: ../../specs/application/labels.yaml
-- **Response Code**: 200
-
----
-
-### ✅ GET /orchestrator/app/meta/info/{appId}
-
-- **Status**: PASS
-- **Duration**: 119.800959ms
-- **Spec File**: ../../specs/application/labels.yaml
-- **Response Code**: 200
-
----
-
-### ❌ GET /orchestrator/app/deployment-status/timeline/{appId}/{envId}
-
 - **Status**: FAIL
-- **Duration**: 115.772833ms
-- **Spec File**: ../../specs/deployment/timeline.yaml
+- **Duration**: 108.011083ms
+- **Spec File**: ../../specs/gitops/validation.yaml
 - **Response Code**: 404
 
 **Issues:**
@@ -1493,7 +51,7 @@ Generated: 2025-08-05T03:54:12+05:30
 ### ❌ GET /gitops/config-by-provider
 
 - **Status**: FAIL
-- **Duration**: 112.206042ms
+- **Duration**: 106.48525ms
 - **Spec File**: ../../specs/gitops/validation.yaml
 - **Response Code**: 404
 
@@ -1506,7 +64,7 @@ Generated: 2025-08-05T03:54:12+05:30
 ### ❌ GET /gitops/config/{id}
 
 - **Status**: FAIL
-- **Duration**: 112.919375ms
+- **Duration**: 108.703708ms
 - **Spec File**: ../../specs/gitops/validation.yaml
 - **Response Code**: 404
 
@@ -1519,7 +77,7 @@ Generated: 2025-08-05T03:54:12+05:30
 ### ❌ GET /gitops/configured
 
 - **Status**: FAIL
-- **Duration**: 113.529416ms
+- **Duration**: 108.450333ms
 - **Spec File**: ../../specs/gitops/validation.yaml
 - **Response Code**: 404
 
@@ -1531,7 +89,7 @@ Generated: 2025-08-05T03:54:12+05:30
 ### ❌ POST /orchestrator/validate
 
 - **Status**: FAIL
-- **Duration**: 110.182625ms
+- **Duration**: 155.382708ms
 - **Spec File**: ../../specs/gitops/validation.yaml
 - **Response Code**: 404
 
@@ -1540,11 +98,11 @@ Generated: 2025-08-05T03:54:12+05:30
 
 ---
 
-### ❌ POST /config
+### ❌ POST /orchestrator/cluster/access
 
 - **Status**: FAIL
-- **Duration**: 111.050583ms
-- **Spec File**: ../../specs/gitops/validation.yaml
+- **Duration**: 205.509125ms
+- **Spec File**: ../../specs/kubernetes/access-policy.yaml
 - **Response Code**: 404
 
 **Issues:**
@@ -1552,11 +110,11 @@ Generated: 2025-08-05T03:54:12+05:30
 
 ---
 
-### ❌ PUT /config
+### ❌ PUT /orchestrator/cluster/access
 
 - **Status**: FAIL
-- **Duration**: 114.023834ms
-- **Spec File**: ../../specs/gitops/validation.yaml
+- **Duration**: 107.53025ms
+- **Spec File**: ../../specs/kubernetes/access-policy.yaml
 - **Response Code**: 404
 
 **Issues:**
@@ -1564,11 +122,11 @@ Generated: 2025-08-05T03:54:12+05:30
 
 ---
 
-### ❌ GET /gitops/config
+### ❌ GET /orchestrator/cluster/access/list
 
 - **Status**: FAIL
-- **Duration**: 111.492666ms
-- **Spec File**: ../../specs/gitops/validation.yaml
+- **Duration**: 107.685375ms
+- **Spec File**: ../../specs/kubernetes/access-policy.yaml
 - **Response Code**: 404
 
 **Issues:**
@@ -1576,28 +134,637 @@ Generated: 2025-08-05T03:54:12+05:30
 
 ---
 
-### ✅ PUT /orchestrator/plugin/global/migrate
+### ❌ DELETE /orchestrator/cluster/access/{id}
+
+- **Status**: FAIL
+- **Duration**: 105.775041ms
+- **Spec File**: ../../specs/kubernetes/access-policy.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+- **RESPONSE_FORMAT_ERROR**: Response is not valid JSON: invalid character 'p' after top-level value
+
+---
+
+### ❌ GET /orchestrator/cluster/access/{id}
+
+- **Status**: FAIL
+- **Duration**: 108.046917ms
+- **Spec File**: ../../specs/kubernetes/access-policy.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+- **RESPONSE_FORMAT_ERROR**: Response is not valid JSON: invalid character 'p' after top-level value
+
+---
+
+### ✅ GET /orchestrator/cluster/auth-list
 
 - **Status**: PASS
-- **Duration**: 118.168208ms
-- **Spec File**: ../../specs/plugins/global.yaml
+- **Duration**: 110.035625ms
+- **Spec File**: ../../specs/kubernetes/cluster.yaml
 - **Response Code**: 200
 
 ---
 
-### ✅ GET /orchestrator/plugin/global/list/v2
+### ✅ GET /orchestrator/cluster
 
 - **Status**: PASS
-- **Duration**: 279.7585ms
-- **Spec File**: ../../specs/plugins/global.yaml
+- **Duration**: 116.716417ms
+- **Spec File**: ../../specs/kubernetes/cluster.yaml
 - **Response Code**: 200
+
+---
+
+### ❌ PUT /orchestrator/cluster
+
+- **Status**: FAIL
+- **Duration**: 108.857875ms
+- **Spec File**: ../../specs/kubernetes/cluster.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ❌ DELETE /orchestrator/k8s/resources/ephemeralContainers
+
+- **Status**: FAIL
+- **Duration**: 106.304958ms
+- **Spec File**: ../../specs/kubernetes/ephemeral-containers.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ POST /orchestrator/k8s/resources/ephemeralContainers
+
+- **Status**: FAIL
+- **Duration**: 107.189042ms
+- **Spec File**: ../../specs/kubernetes/ephemeral-containers.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ GET /orchestrator/app/helm/meta/info/{appId}
+
+- **Status**: FAIL
+- **Duration**: 112.853917ms
+- **Spec File**: ../../specs/application/labels.yaml
+- **Response Code**: 500
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 500
+
+---
+
+### ✅ GET /orchestrator/app/labels/list
+
+- **Status**: PASS
+- **Duration**: 112.008083ms
+- **Spec File**: ../../specs/application/labels.yaml
+- **Response Code**: 200
+
+---
+
+### ✅ GET /orchestrator/app/meta/info/{appId}
+
+- **Status**: PASS
+- **Duration**: 114.030375ms
+- **Spec File**: ../../specs/application/labels.yaml
+- **Response Code**: 200
+
+---
+
+### ❌ GET /orchestrator/app/history/deployed-component/detail/{appId}/{pipelineId}/{id}
+
+- **Status**: FAIL
+- **Duration**: 112.222917ms
+- **Spec File**: ../../specs/audit/definitions.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ❌ GET /orchestrator/app/history/deployed-component/list/{appId}/{pipelineId}
+
+- **Status**: FAIL
+- **Duration**: 109.726625ms
+- **Spec File**: ../../specs/audit/definitions.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ✅ GET /orchestrator/app/history/deployed-configuration/{appId}/{pipelineId}/{wfrId}
+
+- **Status**: PASS
+- **Duration**: 113.006375ms
+- **Spec File**: ../../specs/audit/definitions.yaml
+- **Response Code**: 200
+
+---
+
+### ✅ GET /orchestrator/version
+
+- **Status**: PASS
+- **Duration**: 110.260167ms
+- **Spec File**: ../../specs/common/version.yaml
+- **Response Code**: 200
+
+---
+
+### ❌ POST /orchestrator/external-links
+
+- **Status**: FAIL
+- **Duration**: 111.016583ms
+- **Spec File**: ../../specs/external-links/external-links-specs.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ❌ PUT /orchestrator/external-links
+
+- **Status**: FAIL
+- **Duration**: 113.349416ms
+- **Spec File**: ../../specs/external-links/external-links-specs.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ DELETE /orchestrator/external-links
+
+- **Status**: FAIL
+- **Duration**: 108.321125ms
+- **Spec File**: ../../specs/external-links/external-links-specs.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+- **RESPONSE_FORMAT_ERROR**: Response is not valid JSON: invalid character 'p' after top-level value
+
+---
+
+### ✅ GET /orchestrator/external-links
+
+- **Status**: PASS
+- **Duration**: 111.410833ms
+- **Spec File**: ../../specs/external-links/external-links-specs.yaml
+- **Response Code**: 200
+
+---
+
+### ✅ GET /orchestrator/external-links/tools
+
+- **Status**: PASS
+- **Duration**: 111.780125ms
+- **Spec File**: ../../specs/external-links/external-links-specs.yaml
+- **Response Code**: 200
+
+---
+
+### ❌ GET /orchestrator/flux-application
+
+- **Status**: FAIL
+- **Duration**: 107.910583ms
+- **Spec File**: ../../specs/gitops/fluxcd.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ❌ GET /orchestrator/flux-application/app
+
+- **Status**: FAIL
+- **Duration**: 110.859291ms
+- **Spec File**: ../../specs/gitops/fluxcd.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ✅ GET /orchestrator/app-store/installed-app
+
+- **Status**: PASS
+- **Duration**: 111.527542ms
+- **Spec File**: ../../specs/helm/charts.yaml
+- **Response Code**: 200
+
+---
+
+### ❌ GET /orchestrator/app-store/installed-app/notes/{installed-app-id}/{env-id}
+
+- **Status**: FAIL
+- **Duration**: 107.263458ms
+- **Spec File**: ../../specs/helm/charts.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ PATCH /orchestrator/app/env/patch
+
+- **Status**: FAIL
+- **Duration**: 108.838291ms
+- **Spec File**: ../../specs/helm/deployment-chart-type.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ❌ GET /job/ci-pipeline/list/{jobId}
+
+- **Status**: FAIL
+- **Duration**: 105.015459ms
+- **Spec File**: ../../specs/jobs/core.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ POST /job/list
+
+- **Status**: FAIL
+- **Duration**: 106.130125ms
+- **Spec File**: ../../specs/jobs/core.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ POST /orchestrator/job
+
+- **Status**: FAIL
+- **Duration**: 109.302417ms
+- **Spec File**: ../../specs/jobs/core.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ❌ GET /orchestrator/app/template/default/{appId}/{chartRefId}
+
+- **Status**: FAIL
+- **Duration**: 112.209375ms
+- **Spec File**: ../../specs/environment/templates.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ✅ GET /orchestrator/chartref/autocomplete/{appId}
+
+- **Status**: PASS
+- **Duration**: 113.8465ms
+- **Spec File**: ../../specs/helm/dynamic-charts.yaml
+- **Response Code**: 200
+
+---
+
+### ✅ GET /orchestrator/chart-group/list
+
+- **Status**: PASS
+- **Duration**: 110.537167ms
+- **Spec File**: ../../specs/helm/provider.yaml
+- **Response Code**: 200
+
+---
+
+### ❌ POST /orchestrator/app-store/chart-provider/sync-chart
+
+- **Status**: FAIL
+- **Duration**: 108.65575ms
+- **Spec File**: ../../specs/helm/provider.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ❌ POST /orchestrator/chart-group
+
+- **Status**: FAIL
+- **Duration**: 218.447583ms
+- **Spec File**: ../../specs/helm/provider.yaml
+- **Response Code**: 405
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 405
+
+---
+
+### ❌ PUT /orchestrator/chart-group
+
+- **Status**: FAIL
+- **Duration**: 217.249ms
+- **Spec File**: ../../specs/helm/provider.yaml
+- **Response Code**: 405
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 405
+
+---
+
+### ❌ DELETE /orchestrator/chart-group/{id}
+
+- **Status**: FAIL
+- **Duration**: 106.797458ms
+- **Spec File**: ../../specs/helm/provider.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ POST /orchestrator/app-store/chart-provider/update
+
+- **Status**: FAIL
+- **Duration**: 108.443791ms
+- **Spec File**: ../../specs/helm/provider.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ❌ POST /orchestrator/chart-repo/sync
+
+- **Status**: FAIL
+- **Duration**: 106.316916ms
+- **Spec File**: ../../specs/helm/provider.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ POST /orchestrator/chart-repo/validate
+
+- **Status**: FAIL
+- **Duration**: 109.972375ms
+- **Spec File**: ../../specs/helm/provider.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ✅ GET /orchestrator/chart-repo/{id}
+
+- **Status**: PASS
+- **Duration**: 116.77625ms
+- **Spec File**: ../../specs/helm/provider.yaml
+- **Response Code**: 200
+
+---
+
+### ✅ GET /orchestrator/app-store/chart-provider/list
+
+- **Status**: PASS
+- **Duration**: 111.705084ms
+- **Spec File**: ../../specs/helm/provider.yaml
+- **Response Code**: 200
+
+---
+
+### ❌ POST /orchestrator/chart-group/entries
+
+- **Status**: FAIL
+- **Duration**: 107.436667ms
+- **Spec File**: ../../specs/helm/provider.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ POST /orchestrator/chart-repo
+
+- **Status**: FAIL
+- **Duration**: 105.782083ms
+- **Spec File**: ../../specs/helm/provider.yaml
+- **Response Code**: 405
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 405
+
+---
+
+### ❌ PUT /orchestrator/chart-repo
+
+- **Status**: FAIL
+- **Duration**: 107.05875ms
+- **Spec File**: ../../specs/helm/provider.yaml
+- **Response Code**: 405
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 405
+
+---
+
+### ✅ GET /orchestrator/chart-repo/list
+
+- **Status**: PASS
+- **Duration**: 113.838417ms
+- **Spec File**: ../../specs/helm/provider.yaml
+- **Response Code**: 200
+
+---
+
+### ✅ GET /orchestrator/server
+
+- **Status**: PASS
+- **Duration**: 111.269542ms
+- **Spec File**: ../../specs/modularisation/v1.yaml
+- **Response Code**: 200
+
+---
+
+### ❌ POST /orchestrator/server
+
+- **Status**: FAIL
+- **Duration**: 110.200208ms
+- **Spec File**: ../../specs/modularisation/v1.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ✅ GET /orchestrator/module
+
+- **Status**: PASS
+- **Duration**: 115.464708ms
+- **Spec File**: ../../specs/modularisation/v1.yaml
+- **Response Code**: 200
+
+---
+
+### ❌ POST /orchestrator/module
+
+- **Status**: FAIL
+- **Duration**: 106.159417ms
+- **Spec File**: ../../specs/modularisation/v1.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ GET /orchestrator/configmap/environment/edit/{appId}/{envId}/{id}
+
+- **Status**: FAIL
+- **Duration**: 105.543333ms
+- **Spec File**: ../../specs/plugins/config-maps.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ GET /orchestrator/configmap/global/edit/{appId}/{id}
+
+- **Status**: FAIL
+- **Duration**: 108.917542ms
+- **Spec File**: ../../specs/plugins/config-maps.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ POST /orchestrator/configmap/environment
+
+- **Status**: FAIL
+- **Duration**: 106.030459ms
+- **Spec File**: ../../specs/plugins/config-maps.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ GET /orchestrator/configmap/environment/{appId}/{envId}
+
+- **Status**: FAIL
+- **Duration**: 107.560542ms
+- **Spec File**: ../../specs/plugins/config-maps.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ POST /orchestrator/configmap/global
+
+- **Status**: FAIL
+- **Duration**: 108.363042ms
+- **Spec File**: ../../specs/plugins/config-maps.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ POST /orchestrator/configmap/bulk/patch
+
+- **Status**: FAIL
+- **Duration**: 109.529042ms
+- **Spec File**: ../../specs/plugins/config-maps.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ DELETE /orchestrator/configmap/environment/{appId}/{envId}/{id}
+
+- **Status**: FAIL
+- **Duration**: 106.907417ms
+- **Spec File**: ../../specs/plugins/config-maps.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ GET /orchestrator/configmap/global/{appId}
+
+- **Status**: FAIL
+- **Duration**: 106.291625ms
+- **Spec File**: ../../specs/plugins/config-maps.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ DELETE /orchestrator/configmap/global/{appId}/{id}
+
+- **Status**: FAIL
+- **Duration**: 108.37075ms
+- **Spec File**: ../../specs/plugins/config-maps.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
 
 ---
 
 ### ❌ POST /orchestrator/plugin/global/create
 
 - **Status**: FAIL
-- **Duration**: 142.18425ms
+- **Duration**: 110.451792ms
 - **Spec File**: ../../specs/plugins/global.yaml
 - **Response Code**: 400
 
@@ -1609,7 +776,7 @@ Generated: 2025-08-05T03:54:12+05:30
 ### ✅ GET /orchestrator/plugin/global/detail/all
 
 - **Status**: PASS
-- **Duration**: 929.797083ms
+- **Duration**: 715.67825ms
 - **Spec File**: ../../specs/plugins/global.yaml
 - **Response Code**: 200
 
@@ -1618,7 +785,37 @@ Generated: 2025-08-05T03:54:12+05:30
 ### ✅ GET /orchestrator/plugin/global/detail/{pluginId}
 
 - **Status**: PASS
-- **Duration**: 164.005791ms
+- **Duration**: 113.228958ms
+- **Spec File**: ../../specs/plugins/global.yaml
+- **Response Code**: 200
+
+---
+
+### ❌ GET /orchestrator/plugin/global/list/global-variable
+
+- **Status**: FAIL
+- **Duration**: 113.434167ms
+- **Spec File**: ../../specs/plugins/global.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ✅ GET /orchestrator/plugin/global/list/v2/min
+
+- **Status**: PASS
+- **Duration**: 111.267083ms
+- **Spec File**: ../../specs/plugins/global.yaml
+- **Response Code**: 200
+
+---
+
+### ✅ PUT /orchestrator/plugin/global/migrate
+
+- **Status**: PASS
+- **Duration**: 109.501291ms
 - **Spec File**: ../../specs/plugins/global.yaml
 - **Response Code**: 200
 
@@ -1627,7 +824,7 @@ Generated: 2025-08-05T03:54:12+05:30
 ### ❌ POST /orchestrator/plugin/global/list/detail/v2
 
 - **Status**: FAIL
-- **Duration**: 113.46175ms
+- **Duration**: 110.023375ms
 - **Spec File**: ../../specs/plugins/global.yaml
 - **Response Code**: 400
 
@@ -1639,26 +836,26 @@ Generated: 2025-08-05T03:54:12+05:30
 ### ✅ GET /orchestrator/plugin/global/list/tags
 
 - **Status**: PASS
-- **Duration**: 115.619667ms
+- **Duration**: 109.743333ms
 - **Spec File**: ../../specs/plugins/global.yaml
 - **Response Code**: 200
 
 ---
 
-### ✅ GET /orchestrator/plugin/global/list/v2/min
+### ✅ GET /orchestrator/plugin/global/list/v2
 
 - **Status**: PASS
-- **Duration**: 115.185292ms
+- **Duration**: 133.480292ms
 - **Spec File**: ../../specs/plugins/global.yaml
 - **Response Code**: 200
 
 ---
 
-### ❌ GET /orchestrator/plugin/global/list/global-variable
+### ❌ DELETE /orchestrator/user/{id}
 
 - **Status**: FAIL
-- **Duration**: 116.283334ms
-- **Spec File**: ../../specs/plugins/global.yaml
+- **Duration**: 110.997ms
+- **Spec File**: ../../specs/security/user-management.yaml
 - **Response Code**: 400
 
 **Issues:**
@@ -1666,11 +863,44 @@ Generated: 2025-08-05T03:54:12+05:30
 
 ---
 
-### ❌ DELETE /orchestrator/user/role/group/bulk
+### ✅ GET /orchestrator/user/{id}
+
+- **Status**: PASS
+- **Duration**: 114.191ms
+- **Spec File**: ../../specs/security/user-management.yaml
+- **Response Code**: 200
+
+---
+
+### ❌ POST /orchestrator/user
 
 - **Status**: FAIL
-- **Duration**: 115.871ms
-- **Spec File**: ../../specs/security/group-policy.yaml
+- **Duration**: 113.658958ms
+- **Spec File**: ../../specs/security/user-management.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ❌ PUT /orchestrator/user
+
+- **Status**: FAIL
+- **Duration**: 108.74775ms
+- **Spec File**: ../../specs/security/user-management.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ❌ DELETE /orchestrator/user/bulk
+
+- **Status**: FAIL
+- **Duration**: 111.610458ms
+- **Spec File**: ../../specs/security/user-management.yaml
 - **Response Code**: 500
 
 **Issues:**
@@ -1678,104 +908,56 @@ Generated: 2025-08-05T03:54:12+05:30
 
 ---
 
-### ✅ GET /orchestrator/user/role/group/detailed/get
+### ✅ GET /orchestrator/user/v2
 
 - **Status**: PASS
-- **Duration**: 114.933708ms
-- **Spec File**: ../../specs/security/group-policy.yaml
+- **Duration**: 240.401542ms
+- **Spec File**: ../../specs/security/user-management.yaml
 - **Response Code**: 200
 
 ---
 
-### ❌ GET /orchestrator/user/role/group/search
-
-- **Status**: FAIL
-- **Duration**: 113.84825ms
-- **Spec File**: ../../specs/security/group-policy.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ❌ PUT /orchestrator/user/role/group/v2
-
-- **Status**: FAIL
-- **Duration**: 116.088ms
-- **Spec File**: ../../specs/security/group-policy.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ✅ GET /orchestrator/user/role/group/v2
+### ✅ GET /orchestrator/app-store/discover
 
 - **Status**: PASS
-- **Duration**: 114.557291ms
-- **Spec File**: ../../specs/security/group-policy.yaml
+- **Duration**: 700.572ms
+- **Spec File**: ../../specs/app-store.yaml
 - **Response Code**: 200
 
 ---
 
-### ❌ POST /orchestrator/user/role/group/v2
-
-- **Status**: FAIL
-- **Duration**: 115.944209ms
-- **Spec File**: ../../specs/security/group-policy.yaml
-- **Response Code**: 500
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 500
-
----
-
-### ✅ DELETE /orchestrator/user/role/group/{id}
+### ✅ GET /orchestrator/app-store/discover/application/chartInfo/{appStoreApplicationVersionId}
 
 - **Status**: PASS
-- **Duration**: 118.599459ms
-- **Spec File**: ../../specs/security/group-policy.yaml
+- **Duration**: 122.80725ms
+- **Spec File**: ../../specs/app-store.yaml
 - **Response Code**: 200
 
 ---
 
-### ❌ GET /orchestrator/user/role/group/{id}
-
-- **Status**: FAIL
-- **Duration**: 114.106ms
-- **Spec File**: ../../specs/security/group-policy.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ✅ GET /orchestrator/user/role/group
+### ✅ GET /orchestrator/app-store/discover/application/{appStoreId}/version/autocomplete
 
 - **Status**: PASS
-- **Duration**: 121.693917ms
-- **Spec File**: ../../specs/security/group-policy.yaml
+- **Duration**: 110.490333ms
+- **Spec File**: ../../specs/app-store.yaml
 - **Response Code**: 200
 
 ---
 
-### ✅ POST /orchestrator/user/role/group
+### ✅ GET /orchestrator/app-store/discover/application/{id}
 
 - **Status**: PASS
-- **Duration**: 120.096542ms
-- **Spec File**: ../../specs/security/group-policy.yaml
+- **Duration**: 216.85375ms
+- **Spec File**: ../../specs/app-store.yaml
 - **Response Code**: 200
 
 ---
 
-### ❌ PUT /orchestrator/user/role/group
+### ❌ GET /orchestrator/app-store/discover/search
 
 - **Status**: FAIL
-- **Duration**: 115.228417ms
-- **Spec File**: ../../specs/security/group-policy.yaml
+- **Duration**: 105.242625ms
+- **Spec File**: ../../specs/app-store.yaml
 - **Response Code**: 404
 
 **Issues:**
@@ -1783,23 +965,11 @@ Generated: 2025-08-05T03:54:12+05:30
 
 ---
 
-### ❌ PATCH /orchestrator/app/ci-pipeline/patch-source
+### ❌ POST /orchestrtor/batch/v1beta1/cd-pipeline
 
 - **Status**: FAIL
-- **Duration**: 160.191875ms
-- **Spec File**: ../../specs/ci-pipeline/ci-pipeline-change-source.yaml
-- **Response Code**: 500
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 500
-
----
-
-### ❌ POST /orchestrator/deployment/pipeline/rollback
-
-- **Status**: FAIL
-- **Duration**: 115.220458ms
-- **Spec File**: ../../specs/deployment/pipeline.yaml
+- **Duration**: 106.503791ms
+- **Spec File**: ../../specs/environment/bulk-delete.yaml
 - **Response Code**: 404
 
 **Issues:**
@@ -1807,80 +977,20 @@ Generated: 2025-08-05T03:54:12+05:30
 
 ---
 
-### ❌ POST /orchestrator/deployment/pipeline/trigger
-
-- **Status**: FAIL
-- **Duration**: 110.1175ms
-- **Spec File**: ../../specs/deployment/pipeline.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ POST /orchestrator/deployment/pipeline/configure
-
-- **Status**: FAIL
-- **Duration**: 112.404166ms
-- **Spec File**: ../../specs/deployment/pipeline.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ GET /orchestrator/deployment/pipeline/history
-
-- **Status**: FAIL
-- **Duration**: 110.430833ms
-- **Spec File**: ../../specs/deployment/pipeline.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ GET /orchestrator/app/deployment-configuration/all/latest/{appId}/{pipelineId}
-
-- **Status**: FAIL
-- **Duration**: 112.422708ms
-- **Spec File**: ../../specs/deployment/rollback.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ GET /orchestrator/app/history/deployed-configuration/all/latest/{appId}/{pipelineId}
-
-- **Status**: FAIL
-- **Duration**: 121.035042ms
-- **Spec File**: ../../specs/deployment/rollback.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ✅ GET /orchestrator/app/history/deployed-configuration/all/{appId}/{pipelineId}/{wfrId}
+### ✅ GET /orchestrator/app/wf/all/component-names/{appId}
 
 - **Status**: PASS
-- **Duration**: 124.03875ms
-- **Spec File**: ../../specs/deployment/rollback.yaml
+- **Duration**: 114.080333ms
+- **Spec File**: ../../specs/infrastructure/docker-build.yaml
 - **Response Code**: 200
 
 ---
 
-### ❌ POST /orchestrator/v1beta1/hibernate
+### ❌ POST /orchestrator/app/ci-pipeline/patch
 
 - **Status**: FAIL
-- **Duration**: 110.511416ms
-- **Spec File**: ../../specs/jobs/bulk-actions.yaml
+- **Duration**: 112.509375ms
+- **Spec File**: ../../specs/infrastructure/docker-build.yaml
 - **Response Code**: 404
 
 **Issues:**
@@ -1888,56 +998,11 @@ Generated: 2025-08-05T03:54:12+05:30
 
 ---
 
-### ❌ POST /v1beta1/deploy
-
-- **Status**: FAIL
-- **Duration**: 114.206042ms
-- **Spec File**: ../../specs/jobs/bulk-actions.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ❌ POST /v1beta1/unhibernate
-
-- **Status**: FAIL
-- **Duration**: 112.251417ms
-- **Spec File**: ../../specs/jobs/bulk-actions.yaml
-- **Response Code**: 404
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
-
----
-
-### ✅ GET /orchestrator/api-token
+### ✅ GET /orchestrator/app/ci-pipeline/{appId}
 
 - **Status**: PASS
-- **Duration**: 117.086792ms
-- **Spec File**: ../../specs/openapiClient/api/apiToken_api-openapi.yaml
-- **Response Code**: 200
-
----
-
-### ❌ POST /orchestrator/api-token
-
-- **Status**: FAIL
-- **Duration**: 113.402416ms
-- **Spec File**: ../../specs/openapiClient/api/apiToken_api-openapi.yaml
-- **Response Code**: 400
-
-**Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
-
----
-
-### ✅ GET /orchestrator/api-token/webhook
-
-- **Status**: PASS
-- **Duration**: 113.790916ms
-- **Spec File**: ../../specs/openapiClient/api/apiToken_api-openapi.yaml
+- **Duration**: 114.319958ms
+- **Spec File**: ../../specs/infrastructure/docker-build.yaml
 - **Response Code**: 200
 
 ---
@@ -1945,7 +1010,7 @@ Generated: 2025-08-05T03:54:12+05:30
 ### ❌ DELETE /orchestrator/api-token/{id}
 
 - **Status**: FAIL
-- **Duration**: 115.381833ms
+- **Duration**: 111.788125ms
 - **Spec File**: ../../specs/openapiClient/api/apiToken_api-openapi.yaml
 - **Response Code**: 500
 
@@ -1957,7 +1022,7 @@ Generated: 2025-08-05T03:54:12+05:30
 ### ❌ PUT /orchestrator/api-token/{id}
 
 - **Status**: FAIL
-- **Duration**: 114.127917ms
+- **Duration**: 112.53125ms
 - **Spec File**: ../../specs/openapiClient/api/apiToken_api-openapi.yaml
 - **Response Code**: 400
 
@@ -1966,10 +1031,879 @@ Generated: 2025-08-05T03:54:12+05:30
 
 ---
 
+### ✅ GET /orchestrator/api-token
+
+- **Status**: PASS
+- **Duration**: 111.617708ms
+- **Spec File**: ../../specs/openapiClient/api/apiToken_api-openapi.yaml
+- **Response Code**: 200
+
+---
+
+### ❌ POST /orchestrator/api-token
+
+- **Status**: FAIL
+- **Duration**: 109.674792ms
+- **Spec File**: ../../specs/openapiClient/api/apiToken_api-openapi.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ✅ GET /orchestrator/api-token/webhook
+
+- **Status**: PASS
+- **Duration**: 111.081125ms
+- **Spec File**: ../../specs/openapiClient/api/apiToken_api-openapi.yaml
+- **Response Code**: 200
+
+---
+
+### ❌ PUT /orchestrator/application/rollback
+
+- **Status**: FAIL
+- **Duration**: 111.942125ms
+- **Spec File**: ../../specs/openapiClient/api/openapi.yaml
+- **Response Code**: 500
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 500
+
+---
+
+### ❌ POST /orchestrator/application/template-chart
+
+- **Status**: FAIL
+- **Duration**: 109.004625ms
+- **Spec File**: ../../specs/openapiClient/api/openapi.yaml
+- **Response Code**: 500
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 500
+
+---
+
+### ❌ GET /orchestrator/app/history/deployed-component/detail/{appId}/{pipelineId}/{id}
+
+- **Status**: FAIL
+- **Duration**: 108.8525ms
+- **Spec File**: ../../specs/audit/api-changes.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ❌ GET /orchestrator/app/history/deployed-component/list/{appId}/{pipelineId}
+
+- **Status**: FAIL
+- **Duration**: 109.662125ms
+- **Spec File**: ../../specs/audit/api-changes.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ✅ GET /orchestrator/app/history/deployed-configuration/{appId}/{pipelineId}/{wfrId}
+
+- **Status**: PASS
+- **Duration**: 111.565583ms
+- **Spec File**: ../../specs/audit/api-changes.yaml
+- **Response Code**: 200
+
+---
+
+### ❌ GET /orchestrator/app/ci-pipeline/{ciPipelineId}/linked-ci/downstream/cd
+
+- **Status**: FAIL
+- **Duration**: 123.199958ms
+- **Spec File**: ../../specs/ci-pipeline/ciPipelineDownstream/downstream-linked-ci-view-spec.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ❌ GET /orchestrator/app/ci-pipeline/{ciPipelineId}/linked-ci/downstream/env
+
+- **Status**: FAIL
+- **Duration**: 113.205708ms
+- **Spec File**: ../../specs/ci-pipeline/ciPipelineDownstream/downstream-linked-ci-view-spec.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ❌ PUT /orchestrator/notification
+
+- **Status**: FAIL
+- **Duration**: 351.622709ms
+- **Spec File**: ../../specs/notifications/core.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ✅ DELETE /orchestrator/notification
+
+- **Status**: PASS
+- **Duration**: 112.449667ms
+- **Spec File**: ../../specs/notifications/core.yaml
+- **Response Code**: 200
+
+---
+
+### ❌ GET /orchestrator/notification
+
+- **Status**: FAIL
+- **Duration**: 108.9995ms
+- **Spec File**: ../../specs/notifications/core.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+- **RESPONSE_FORMAT_ERROR**: Response is not valid JSON: invalid character 'p' after top-level value
+
+---
+
+### ❌ POST /orchestrator/notification
+
+- **Status**: FAIL
+- **Duration**: 108.678917ms
+- **Spec File**: ../../specs/notifications/core.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ✅ GET /orchestrator/notification/channel
+
+- **Status**: PASS
+- **Duration**: 111.810167ms
+- **Spec File**: ../../specs/notifications/core.yaml
+- **Response Code**: 200
+
+---
+
+### ❌ POST /orchestrator/notification/channel
+
+- **Status**: FAIL
+- **Duration**: 109.512708ms
+- **Spec File**: ../../specs/notifications/core.yaml
+- **Response Code**: 200
+
+**Issues:**
+- **RESPONSE_FORMAT_ERROR**: Response is not valid JSON: unexpected end of JSON input
+
+---
+
+### ❌ GET /orchestrator/notification/recipient
+
+- **Status**: FAIL
+- **Duration**: 109.236709ms
+- **Spec File**: ../../specs/notifications/core.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+- **RESPONSE_FORMAT_ERROR**: Response is not valid JSON: invalid character 'p' after top-level value
+
+---
+
+### ❌ POST /orchestrator/webhook/ci/workflow
+
+- **Status**: FAIL
+- **Duration**: 111.211166ms
+- **Spec File**: ../../specs/notifications/webhooks.yaml
+- **Response Code**: 500
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 500
+
+---
+
+### ❌ POST /orchestrator/webhook/ext-ci/{externalCiId}
+
+- **Status**: FAIL
+- **Duration**: 117.109667ms
+- **Spec File**: ../../specs/notifications/webhooks.yaml
+- **Response Code**: 401
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 401
+
+---
+
+### ❌ POST /orchestrator/webhook/git
+
+- **Status**: FAIL
+- **Duration**: 108.754834ms
+- **Spec File**: ../../specs/notifications/webhooks.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ POST /orchestrator/webhook/git/{gitHostId}
+
+- **Status**: FAIL
+- **Duration**: 108.967792ms
+- **Spec File**: ../../specs/notifications/webhooks.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ POST /orchestrator/webhook/git/{gitHostId}/{secret}
+
+- **Status**: FAIL
+- **Duration**: 106.062834ms
+- **Spec File**: ../../specs/notifications/webhooks.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ POST /orchestrator/webhook/notification
+
+- **Status**: FAIL
+- **Duration**: 106.070375ms
+- **Spec File**: ../../specs/notifications/webhooks.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ GET /orchestrator/webhook/notification/variables
+
+- **Status**: FAIL
+- **Duration**: 106.968708ms
+- **Spec File**: ../../specs/notifications/webhooks.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ GET /orchestrator/webhook/notification/{id}
+
+- **Status**: FAIL
+- **Duration**: 106.813792ms
+- **Spec File**: ../../specs/notifications/webhooks.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ POST /orchestrator/app/cd-pipeline/patch/deployment
+
+- **Status**: FAIL
+- **Duration**: 111.383833ms
+- **Spec File**: ../../specs/deployment/app-type-change.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ❌ GET /orchestrator/app/history/deployed-configuration/all/latest/{appId}/{pipelineId}
+
+- **Status**: FAIL
+- **Duration**: 110.711541ms
+- **Spec File**: ../../specs/deployment/rollback.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ✅ GET /orchestrator/app/history/deployed-configuration/all/{appId}/{pipelineId}/{wfrId}
+
+- **Status**: PASS
+- **Duration**: 118.646ms
+- **Spec File**: ../../specs/deployment/rollback.yaml
+- **Response Code**: 200
+
+---
+
+### ❌ GET /orchestrator/app/deployment-configuration/all/latest/{appId}/{pipelineId}
+
+- **Status**: FAIL
+- **Duration**: 106.786666ms
+- **Spec File**: ../../specs/deployment/rollback.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ POST /create
+
+- **Status**: FAIL
+- **Duration**: 105.261917ms
+- **Spec File**: ../../specs/helm/repo-validation.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ POST /orchestrator/validate
+
+- **Status**: FAIL
+- **Duration**: 107.325709ms
+- **Spec File**: ../../specs/helm/repo-validation.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ POST /update
+
+- **Status**: FAIL
+- **Duration**: 108.351917ms
+- **Spec File**: ../../specs/helm/repo-validation.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ POST /orchestrator/user/resource/options/{kind}/{version}
+
+- **Status**: FAIL
+- **Duration**: 107.601958ms
+- **Spec File**: ../../specs/userResource/userResource.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ✅ PUT /orchestrator/deployment/template/upload
+
+- **Status**: PASS
+- **Duration**: 109.281875ms
+- **Spec File**: ../../specs/deployment/core.yaml
+- **Response Code**: 200
+
+---
+
+### ❌ POST /orchestrator/deployment/template/validate
+
+- **Status**: FAIL
+- **Duration**: 109.825667ms
+- **Spec File**: ../../specs/deployment/core.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ✅ GET /orchestrator/deployment/template/fetch
+
+- **Status**: PASS
+- **Duration**: 117.576875ms
+- **Spec File**: ../../specs/deployment/core.yaml
+- **Response Code**: 200
+
+---
+
+### ❌ POST /orchestrator/deployment/pipeline/rollback
+
+- **Status**: FAIL
+- **Duration**: 104.515208ms
+- **Spec File**: ../../specs/deployment/pipeline.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ POST /orchestrator/deployment/pipeline/trigger
+
+- **Status**: FAIL
+- **Duration**: 104.593209ms
+- **Spec File**: ../../specs/deployment/pipeline.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ POST /orchestrator/deployment/pipeline/configure
+
+- **Status**: FAIL
+- **Duration**: 107.128833ms
+- **Spec File**: ../../specs/deployment/pipeline.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ GET /orchestrator/deployment/pipeline/history
+
+- **Status**: FAIL
+- **Duration**: 113.479375ms
+- **Spec File**: ../../specs/deployment/pipeline.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ GET /orchestrator/app/deployment-status/timeline/{appId}/{envId}
+
+- **Status**: FAIL
+- **Duration**: 110.030041ms
+- **Spec File**: ../../specs/deployment/timeline.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ✅ GET /orchestrator/gitops/config/{id}
+
+- **Status**: PASS
+- **Duration**: 112.203209ms
+- **Spec File**: ../../specs/gitops/core.yaml
+- **Response Code**: 200
+
+---
+
+### ✅ GET /orchestrator/gitops/configured
+
+- **Status**: PASS
+- **Duration**: 112.755541ms
+- **Spec File**: ../../specs/gitops/core.yaml
+- **Response Code**: 200
+
+---
+
+### ❌ POST /orchestrator/gitops/validate
+
+- **Status**: FAIL
+- **Duration**: 109.076666ms
+- **Spec File**: ../../specs/gitops/core.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ POST /orchestrator/gitops/config
+
+- **Status**: FAIL
+- **Duration**: 113.294333ms
+- **Spec File**: ../../specs/gitops/core.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ❌ PUT /orchestrator/gitops/config
+
+- **Status**: FAIL
+- **Duration**: 109.022666ms
+- **Spec File**: ../../specs/gitops/core.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ✅ GET /orchestrator/gitops/config
+
+- **Status**: PASS
+- **Duration**: 108.868583ms
+- **Spec File**: ../../specs/gitops/core.yaml
+- **Response Code**: 200
+
+---
+
+### ❌ GET /orchestrator/gitops/config-by-provider
+
+- **Status**: FAIL
+- **Duration**: 108.030167ms
+- **Spec File**: ../../specs/gitops/core.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ✅ GET /orchestrator/git/host
+
+- **Status**: PASS
+- **Duration**: 112.078084ms
+- **Spec File**: ../../specs/gitops/submodules.yaml
+- **Response Code**: 200
+
+---
+
+### ❌ POST /orchestrator/git/host
+
+- **Status**: FAIL
+- **Duration**: 109.338334ms
+- **Spec File**: ../../specs/gitops/submodules.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ❌ GET /orchestrator/git/host/event/{eventId}
+
+- **Status**: FAIL
+- **Duration**: 109.330667ms
+- **Spec File**: ../../specs/gitops/submodules.yaml
+- **Response Code**: 500
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 500
+
+---
+
+### ❌ GET /orchestrator/git/host/webhook-meta-config/{gitProviderId}
+
+- **Status**: FAIL
+- **Duration**: 110.980792ms
+- **Spec File**: ../../specs/gitops/submodules.yaml
+- **Response Code**: 500
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 500
+
+---
+
+### ❌ GET /orchestrator/git/host/{id}
+
+- **Status**: FAIL
+- **Duration**: 111.852916ms
+- **Spec File**: ../../specs/gitops/submodules.yaml
+- **Response Code**: 500
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 500
+
+---
+
+### ❌ GET /orchestrator/git/host/{id}/event
+
+- **Status**: FAIL
+- **Duration**: 112.090417ms
+- **Spec File**: ../../specs/gitops/submodules.yaml
+- **Response Code**: 500
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 500
+
+---
+
+### ❌ POST /orchestrator/v1beta1/hibernate
+
+- **Status**: FAIL
+- **Duration**: 107.047875ms
+- **Spec File**: ../../specs/jobs/bulk-actions.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ POST /v1beta1/deploy
+
+- **Status**: FAIL
+- **Duration**: 106.763375ms
+- **Spec File**: ../../specs/jobs/bulk-actions.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ POST /v1beta1/unhibernate
+
+- **Status**: FAIL
+- **Duration**: 105.952917ms
+- **Spec File**: ../../specs/jobs/bulk-actions.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ DELETE /orchestrator/resource/delete
+
+- **Status**: FAIL
+- **Duration**: 107.468083ms
+- **Spec File**: ../../specs/kubernetes/resources.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ GET /orchestrator/resource/inception/info
+
+- **Status**: FAIL
+- **Duration**: 108.627167ms
+- **Spec File**: ../../specs/kubernetes/resources.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ❌ PUT /orchestrator/resource/update
+
+- **Status**: FAIL
+- **Duration**: 106.858542ms
+- **Spec File**: ../../specs/kubernetes/resources.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ GET /orchestrator/resource/urls
+
+- **Status**: FAIL
+- **Duration**: 118.894125ms
+- **Spec File**: ../../specs/kubernetes/resources.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ GET /orchestrator/api-resources/{clusterId}
+
+- **Status**: FAIL
+- **Duration**: 108.601959ms
+- **Spec File**: ../../specs/kubernetes/resources.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ POST /orchestrator/resource
+
+- **Status**: FAIL
+- **Duration**: 108.28525ms
+- **Spec File**: ../../specs/kubernetes/resources.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ POST /orchestrator/resource/create
+
+- **Status**: FAIL
+- **Duration**: 105.939791ms
+- **Spec File**: ../../specs/kubernetes/resources.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ✅ GET /orchestrator/user/role/group
+
+- **Status**: PASS
+- **Duration**: 112.132416ms
+- **Spec File**: ../../specs/security/group-policy.yaml
+- **Response Code**: 200
+
+---
+
+### ❌ POST /orchestrator/user/role/group
+
+- **Status**: FAIL
+- **Duration**: 112.686208ms
+- **Spec File**: ../../specs/security/group-policy.yaml
+- **Response Code**: 500
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 500
+
+---
+
+### ❌ PUT /orchestrator/user/role/group
+
+- **Status**: FAIL
+- **Duration**: 110.8235ms
+- **Spec File**: ../../specs/security/group-policy.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ DELETE /orchestrator/user/role/group/bulk
+
+- **Status**: FAIL
+- **Duration**: 109.1565ms
+- **Spec File**: ../../specs/security/group-policy.yaml
+- **Response Code**: 500
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 500
+
+---
+
+### ✅ GET /orchestrator/user/role/group/detailed/get
+
+- **Status**: PASS
+- **Duration**: 110.999875ms
+- **Spec File**: ../../specs/security/group-policy.yaml
+- **Response Code**: 200
+
+---
+
+### ❌ GET /orchestrator/user/role/group/search
+
+- **Status**: FAIL
+- **Duration**: 332.173292ms
+- **Spec File**: ../../specs/security/group-policy.yaml
+- **Response Code**: 400
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 400
+
+---
+
+### ✅ GET /orchestrator/user/role/group/v2
+
+- **Status**: PASS
+- **Duration**: 111.488667ms
+- **Spec File**: ../../specs/security/group-policy.yaml
+- **Response Code**: 200
+
+---
+
+### ❌ POST /orchestrator/user/role/group/v2
+
+- **Status**: FAIL
+- **Duration**: 111.048125ms
+- **Spec File**: ../../specs/security/group-policy.yaml
+- **Response Code**: 500
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 500
+
+---
+
+### ❌ PUT /orchestrator/user/role/group/v2
+
+- **Status**: FAIL
+- **Duration**: 111.935959ms
+- **Spec File**: ../../specs/security/group-policy.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ GET /orchestrator/user/role/group/{id}
+
+- **Status**: FAIL
+- **Duration**: 109.071375ms
+- **Spec File**: ../../specs/security/group-policy.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ DELETE /orchestrator/user/role/group/{id}
+
+- **Status**: FAIL
+- **Duration**: 109.803708ms
+- **Spec File**: ../../specs/security/group-policy.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
+### ❌ POST /ci-pipeline/trigger
+
+- **Status**: FAIL
+- **Duration**: 105.007125ms
+- **Spec File**: ../../specs/ci-pipeline/ci-pipeline-build-spec.yaml
+- **Response Code**: 404
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+
+---
+
 ### ❌ GET /orchestrator/commit-info/{ciPipelineMaterialId}/{gitHash}
 
 - **Status**: FAIL
-- **Duration**: 111.071ms
+- **Duration**: 130.658292ms
 - **Spec File**: ../../specs/ci-pipeline/ci-pipeline-build-spec.yaml
 - **Response Code**: 404
 
@@ -1982,7 +1916,7 @@ Generated: 2025-08-05T03:54:12+05:30
 ### ❌ GET /{appId}/ci-pipeline/{pipelineId}/workflow/{workflowId}
 
 - **Status**: FAIL
-- **Duration**: 109.867916ms
+- **Duration**: 109.001ms
 - **Spec File**: ../../specs/ci-pipeline/ci-pipeline-build-spec.yaml
 - **Response Code**: 404
 
@@ -1992,24 +1926,27 @@ Generated: 2025-08-05T03:54:12+05:30
 
 ---
 
-### ❌ POST /ci-pipeline/trigger
+### ❌ PATCH /orchestrator/app/ci-pipeline/patch-source
 
 - **Status**: FAIL
-- **Duration**: 111.912375ms
-- **Spec File**: ../../specs/ci-pipeline/ci-pipeline-build-spec.yaml
-- **Response Code**: 404
+- **Duration**: 109.047916ms
+- **Spec File**: ../../specs/ci-pipeline/ci-pipeline-change-source.yaml
+- **Response Code**: 500
 
 **Issues:**
-- **STATUS_CODE_MISMATCH**: Expected status 200, got 404
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 500
 
 ---
 
-### ✅ GET /orchestrator/version
+### ❌ GET /orchestrator/env/namespace/autocomplete
 
-- **Status**: PASS
-- **Duration**: 113.113083ms
-- **Spec File**: ../../specs/common/version.yaml
-- **Response Code**: 200
+- **Status**: FAIL
+- **Duration**: 144.192875ms
+- **Spec File**: ../../specs/environment/core.yaml
+- **Response Code**: 500
+
+**Issues:**
+- **STATUS_CODE_MISMATCH**: Expected status 200, got 500
 
 ---
 

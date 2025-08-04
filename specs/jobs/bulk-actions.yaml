@@ -1,7 +1,7 @@
 openapi: "3.0.0"
 info:
   version: 1.0.0
-  title: Devtron Labs
+  title: Job Bulk Actions
   description: Devtron API for bulk actions - Hibernate, UnHibernate, Deploy Latest Builds
   termsOfService: https://devtron.ai/terms/
   contact:
@@ -14,7 +14,7 @@ info:
 servers:
   - url: http://localhost:8080/orchestrator/batch
 paths:
-  /orchestrator/v1beta1/hibernate:
+  /orchestrator/batch/v1beta1/hibernate:
     post:
       description: Bulk Hibernate all apps for specific environment
       operationId: BulkHibernate

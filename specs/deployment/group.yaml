@@ -1,7 +1,7 @@
 openapi: "3.0.0"
 info:
   version: 1.0.0
-  title: Devtron Labs
+  title: Deployment Group Management
   description: Devtron API for deployment group management
   termsOfService: https://devtron.ai/terms/
   contact:

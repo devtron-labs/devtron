@@ -1,7 +1,7 @@
 openapi: "3.0.3"
 info:
   version: 1.0.0
-  title: Devtron Labs
+  title: Kubernetes Resource Management
   description: API for managing Kubernetes resources and operations
   termsOfService: https://devtron.ai/terms/
   contact:

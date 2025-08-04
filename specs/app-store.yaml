@@ -1,7 +1,7 @@
 openapi: "3.0.0"
 info:
   version: 1.0.0
-  title: Devtron Labs
+  title: App Store Management
   description: Devtron API for app store management
   termsOfService: https://devtron.ai/terms/
   contact:
@@ -86,7 +86,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /app-store/discover/application/{id}:
+  /orchestrator/app-store/discover/application/{id}:
     get:
       description: Get chart details for a specific version
       parameters:
@@ -128,7 +128,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /app-store/discover/application/{appStoreId}/version/autocomplete:
+  /orchestrator/app-store/discover/application/{appStoreId}/version/autocomplete:
     get:
       description: Get chart versions for an app store application
       parameters:
@@ -172,7 +172,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /app-store/discover/application/chartInfo/{appStoreApplicationVersionId}:
+  /orchestrator/app-store/discover/application/chartInfo/{appStoreApplicationVersionId}:
     get:
       description: Get chart information for a specific version
       parameters:
@@ -214,7 +214,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /app-store/discover/search:
+  /orchestrator/app-store/discover/search:
     get:
       description: Search app store charts by name
       parameters:

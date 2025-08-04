@@ -1,7 +1,7 @@
 openapi: "3.0.3"
 info:
   version: 1.0.0
-  title: Devtron Labs
+  title: Common API Utilities
 paths:
   /orchestrator/application/rollback:
     put:
