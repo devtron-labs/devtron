@@ -62,6 +62,35 @@ func NewAPISpecValidator(serverURL string, logger *zap.SugaredLogger) *APISpecVa
 	}
 }
 
+func (v *APISpecValidator) buildCurlCommand(req *http.Request) string {
+	var cmd strings.Builder
+
+	cmd.WriteString("curl --location '")
+	cmd.WriteString(req.URL.String())
+	cmd.WriteString("' \\\n")
+
+	// Add headers
+	for key, values := range req.Header {
+		for _, value := range values {
+			cmd.WriteString(fmt.Sprintf("  --header '%s: %s' \\\n", key, value))
+		}
+	}
+
+	// Add cookies
+	if len(v.additionalCookies) > 0 {
+		cmd.WriteString("  --cookie '")
+		for name, value := range v.additionalCookies {
+			cmd.WriteString(name)
+			cmd.WriteString("=")
+			cmd.WriteString(value)
+			cmd.WriteString("; ")
+		}
+		cmd.WriteString("' \\\n")
+	}
+
+	return cmd.String()
+}
+
 // LoadSpecs loads all OpenAPI specs from the specs directory
 func (v *APISpecValidator) LoadSpecs(specsDir string) error {
 	v.logger.Infow("Loading API specs from directory", "dir", specsDir)
@@ -215,14 +244,6 @@ func (v *APISpecValidator) testEndpoint(result *ValidationResult, path, method s
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9,hi;q=0.8")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36")
-	req.Header.Set("Sec-Ch-Ua", `"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"`)
-	req.Header.Set("Sec-Ch-Ua-Mobile", "?0")
-	req.Header.Set("Sec-Ch-Ua-Platform", `"macOS"`)
-	req.Header.Set("Sec-Fetch-Dest", "empty")
-	req.Header.Set("Sec-Fetch-Mode", "cors")
-	req.Header.Set("Sec-Fetch-Site", "same-origin")
-	req.Header.Set("Priority", "u=1, i")
 
 	// Set authentication - cookie-based only as per curl request pattern
 	v.setAuthentication(req)
@@ -236,6 +257,9 @@ func (v *APISpecValidator) testEndpoint(result *ValidationResult, path, method s
 			}
 		}
 	}
+
+	// print the curl command for debugging
+	v.logger.Debugw("Curl command", "command", v.buildCurlCommand(req))
 
 	// Make the request
 	resp, err := v.httpClient.Do(req)

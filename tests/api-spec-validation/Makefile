@@ -12,7 +12,6 @@ help:
 # Build the validator
 build:
 	@echo "Building API spec validator..."
-	go mod vendor
 	go build -o bin/validator cmd/validator/main.go
 	go build -o bin/live-test cmd/live-test/main.go
 
@@ -44,7 +43,7 @@ test-live: build
 		--server=https://devtron-ent-2.devtron.info \
 		--specs=../../specs \
 		--output=./reports \
-		--token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6IkFQSS1UT0tFTjphZG1pbiIsInZlcnNpb24iOiIxIiwiaXNzIjoiYXBpVG9rZW5Jc3N1ZXIiLCJleHAiOjE3NTY1NTc1NzR9.ZHhQdhXpGygCOiO7rDah0mBB7zZYZ3y9WlJL9egRfq4 \
+		--token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTQzOTM3MzQsImp0aSI6ImRiODUxYzg5LTg0YjUtNDhiOS1hYTcyLWQ0ZTA0MjRjN2U4MSIsImlhdCI6MTc1NDMwNzMzNCwiaXNzIjoiYXJnb2NkIiwibmJmIjoxNzU0MzA3MzM0LCJzdWIiOiJhZG1pbiJ9.wYGmONdpNUEjtAxXz_mViW44Rxh0YU3dax_SEuoAH5c \
 		--verbose
 
 # Compare specs with REST handlers
