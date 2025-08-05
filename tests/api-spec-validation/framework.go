@@ -226,14 +226,19 @@ func (v *APISpecValidator) testEndpoint(result *ValidationResult, path, method s
 	}
 	url := v.serverURL + processedPath
 
-	// Create request
+	// Create request with proper body
 	var req *http.Request
-	if method == "GET" {
+	if method == "GET" || method == "DELETE" {
 		req, err = http.NewRequest(method, url, nil)
 	} else {
-		// For other methods, we'll need to generate appropriate request bodies
-		// This is a simplified version - in practice, you'd generate proper test data
-		req, err = http.NewRequest(method, url, strings.NewReader("{}"))
+		// Generate appropriate request body based on OpenAPI schema
+		requestBody, err := v.generateRequestBody(operation, path, method)
+		if err != nil {
+			v.logger.Warnw("Failed to generate request body, using empty object", "error", err)
+			req, err = http.NewRequest(method, url, strings.NewReader("{}"))
+		} else {
+			req, err = http.NewRequest(method, url, requestBody)
+		}
 	}
 
 	if err != nil {
@@ -589,4 +594,473 @@ func (v *APISpecValidator) GenerateReport() string {
 	}
 
 	return report.String()
+}
+
+// generateRequestBody generates a proper request body based on OpenAPI operation schema
+func (v *APISpecValidator) generateRequestBody(operation *openapi3.Operation, path, method string) (io.Reader, error) {
+	if operation.RequestBody == nil || operation.RequestBody.Value == nil {
+		return nil, nil
+	}
+
+	// First try specialized payloads for known problematic endpoints
+	if specialPayload := v.generateSpecializedPayload(path, method); specialPayload != nil {
+		jsonBytes, err := json.MarshalIndent(specialPayload, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal specialized payload: %w", err)
+		}
+		v.logger.Debugw("Generated specialized request body", "path", path, "method", method, "payload", string(jsonBytes))
+		return strings.NewReader(string(jsonBytes)), nil
+	}
+
+	// Look for JSON content type
+	content := operation.RequestBody.Value.Content
+	if content == nil {
+		return nil, nil
+	}
+
+	var schema *openapi3.SchemaRef
+
+	// Try different content types
+	if jsonContent, exists := content["application/json"]; exists && jsonContent.Schema != nil {
+		schema = jsonContent.Schema
+	} else if formContent, exists := content["multipart/form-data"]; exists && formContent.Schema != nil {
+		// For multipart/form-data, we'll skip for now as it requires special handling
+		return strings.NewReader("{}"), nil
+	} else {
+		// No suitable content type found
+		return strings.NewReader("{}"), nil
+	}
+
+	// Generate JSON payload from schema
+	payload := v.generateJSONFromSchema(schema)
+	if payload == nil {
+		return strings.NewReader("{}"), nil
+	}
+
+	jsonBytes, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal generated payload: %w", err)
+	}
+
+	v.logger.Debugw("Generated request body", "payload", string(jsonBytes))
+	return strings.NewReader(string(jsonBytes)), nil
+}
+
+// generateJSONFromSchema generates a JSON object/value from an OpenAPI schema
+func (v *APISpecValidator) generateJSONFromSchema(schema *openapi3.SchemaRef) interface{} {
+	if schema == nil || schema.Value == nil {
+		return nil
+	}
+
+	schemaValue := schema.Value
+
+	// Use example if provided
+	if schemaValue.Example != nil {
+		return schemaValue.Example
+	}
+
+	// Handle different schema types
+	if schemaValue.Type != nil {
+		switch {
+		case schemaValue.Type.Is(openapi3.TypeObject):
+			return v.generateObjectFromSchema(schemaValue)
+		case schemaValue.Type.Is(openapi3.TypeArray):
+			return v.generateArrayFromSchema(schemaValue)
+		case schemaValue.Type.Is(openapi3.TypeString):
+			return v.generateStringFromSchema(schemaValue)
+		case schemaValue.Type.Is(openapi3.TypeInteger):
+			return v.generateIntegerFromSchema(schemaValue)
+		case schemaValue.Type.Is(openapi3.TypeNumber):
+			return v.generateNumberFromSchema(schemaValue)
+		case schemaValue.Type.Is(openapi3.TypeBoolean):
+			return true
+		}
+	}
+
+	// Handle references to other schemas
+	if schemaValue.AllOf != nil && len(schemaValue.AllOf) > 0 {
+		// For allOf, merge all schemas (simplified approach)
+		result := make(map[string]interface{})
+		for _, subSchema := range schemaValue.AllOf {
+			if subObj := v.generateJSONFromSchema(subSchema); subObj != nil {
+				if objMap, ok := subObj.(map[string]interface{}); ok {
+					for k, v := range objMap {
+						result[k] = v
+					}
+				}
+			}
+		}
+		return result
+	}
+
+	// Default fallback
+	return "sample_value"
+}
+
+// generateObjectFromSchema generates a JSON object from an OpenAPI object schema
+func (v *APISpecValidator) generateObjectFromSchema(schema *openapi3.Schema) map[string]interface{} {
+	result := make(map[string]interface{})
+
+	// Handle required fields first
+	for _, requiredField := range schema.Required {
+		if propSchema, exists := schema.Properties[requiredField]; exists {
+			result[requiredField] = v.generateJSONFromSchema(propSchema)
+		} else {
+			// If required field doesn't have a schema, provide a default
+			result[requiredField] = v.getDefaultValueForRequiredField(requiredField)
+		}
+	}
+
+	// Add some optional fields for completeness (but limit to avoid huge payloads)
+	optionalCount := 0
+	maxOptional := 3
+	for propName, propSchema := range schema.Properties {
+		if _, exists := result[propName]; !exists && optionalCount < maxOptional {
+			result[propName] = v.generateJSONFromSchema(propSchema)
+			optionalCount++
+		}
+	}
+
+	return result
+}
+
+// generateArrayFromSchema generates a JSON array from an OpenAPI array schema
+func (v *APISpecValidator) generateArrayFromSchema(schema *openapi3.Schema) []interface{} {
+	if schema.Items == nil {
+		return []interface{}{}
+	}
+
+	// Generate 1-2 items for the array
+	result := make([]interface{}, 0, 2)
+
+	// Generate first item
+	item := v.generateJSONFromSchema(schema.Items)
+	if item != nil {
+		result = append(result, item)
+	}
+
+	// For some cases, add a second item with slight variation
+	if len(result) > 0 {
+		if itemMap, ok := item.(map[string]interface{}); ok {
+			// Create a variant of the first item
+			secondItem := make(map[string]interface{})
+			for k, v := range itemMap {
+				secondItem[k] = v
+			}
+			// Modify some fields to create variation
+			if _, exists := secondItem["id"]; exists {
+				secondItem["id"] = 2
+			}
+			if _, exists := secondItem["name"]; exists {
+				secondItem["name"] = "sample-item-2"
+			}
+			result = append(result, secondItem)
+		}
+	}
+
+	return result
+}
+
+// generateStringFromSchema generates a string value from an OpenAPI string schema
+func (v *APISpecValidator) generateStringFromSchema(schema *openapi3.Schema) string {
+	// Use example if provided
+	if schema.Example != nil {
+		if str, ok := schema.Example.(string); ok {
+			return str
+		}
+	}
+
+	// Handle specific string formats
+	switch schema.Format {
+	case "uuid":
+		return "123e4567-e89b-12d3-a456-426614174000"
+	case "email":
+		return "test@example.com"
+	case "date":
+		return "2023-01-01"
+	case "date-time":
+		return "2023-01-01T00:00:00Z"
+	case "uri":
+		return "https://example.com"
+	case "password":
+		return "password123"
+	default:
+		// Handle enum values
+		if len(schema.Enum) > 0 {
+			if str, ok := schema.Enum[0].(string); ok {
+				return str
+			}
+		}
+
+		// Check for pattern-based strings
+		if schema.Pattern != "" {
+			return v.generatePatternValue(schema.Pattern)
+		}
+
+		// Default string value
+		return "sample_string"
+	}
+}
+
+// generateIntegerFromSchema generates an integer value from an OpenAPI integer schema
+func (v *APISpecValidator) generateIntegerFromSchema(schema *openapi3.Schema) int64 {
+	// Use example if provided
+	if schema.Example != nil {
+		if num, ok := schema.Example.(float64); ok {
+			return int64(num)
+		}
+		if num, ok := schema.Example.(int64); ok {
+			return num
+		}
+		if num, ok := schema.Example.(int); ok {
+			return int64(num)
+		}
+	}
+
+	// Use minimum if specified and >= 1
+	if schema.Min != nil && *schema.Min >= 1 {
+		return int64(*schema.Min)
+	}
+
+	// Use maximum if specified and reasonable
+	if schema.Max != nil && *schema.Max > 0 && *schema.Max <= 1000 {
+		return int64(*schema.Max)
+	}
+
+	// Default to 1
+	return 1
+}
+
+// generateNumberFromSchema generates a number value from an OpenAPI number schema
+func (v *APISpecValidator) generateNumberFromSchema(schema *openapi3.Schema) float64 {
+	// Use example if provided
+	if schema.Example != nil {
+		if num, ok := schema.Example.(float64); ok {
+			return num
+		}
+		if num, ok := schema.Example.(int64); ok {
+			return float64(num)
+		}
+		if num, ok := schema.Example.(int); ok {
+			return float64(num)
+		}
+	}
+
+	// Use minimum if specified
+	if schema.Min != nil {
+		return *schema.Min
+	}
+
+	// Default to 1.0
+	return 1.0
+}
+
+// getDefaultValueForRequiredField provides sensible defaults for common required field names
+func (v *APISpecValidator) getDefaultValueForRequiredField(fieldName string) interface{} {
+	switch strings.ToLower(fieldName) {
+	case "id":
+		return 1
+	case "name":
+		return "sample-name"
+	case "email", "emailid":
+		return "test@example.com"
+	case "url":
+		return "https://example.com"
+	case "description":
+		return "Sample description"
+	case "type":
+		return "sample-type"
+	case "provider":
+		return "GITHUB"
+	case "authmode":
+		return "ANONYMOUS"
+	case "active":
+		return true
+	case "monitoringtoolid":
+		return 1
+	case "clusterid":
+		return 1
+	case "appid":
+		return 1
+	case "envid":
+		return 1
+	case "pipelineid":
+		return 1
+	case "action":
+		return "CREATE"
+	case "username":
+		return "sample-user"
+	case "password":
+		return "password123"
+	case "token":
+		return "sample-token"
+	case "host":
+		return "https://github.com"
+	case "port":
+		return "443"
+	case "region":
+		return "us-east-1"
+	case "accesskey":
+		return "sample-access-key"
+	case "secretkey":
+		return "sample-secret-key"
+	case "fromemail":
+		return "noreply@example.com"
+	case "webhookurl":
+		return "https://hooks.slack.com/services/sample"
+	case "configname":
+		return "sample-config"
+	case "identifier":
+		return "1"
+	case "clustername":
+		return "sample-cluster"
+	case "expireatinms":
+		return 1735689600000 // Future timestamp
+	default:
+		return "sample-value"
+	}
+}
+
+// generateSpecializedPayload creates specialized payloads for known problematic endpoints
+func (v *APISpecValidator) generateSpecializedPayload(path, method string) interface{} {
+	// External Links endpoints
+	if strings.Contains(path, "/external-links") && method == "POST" {
+		return []map[string]interface{}{
+			{
+				"id":               0,
+				"monitoringToolId": 1,
+				"name":             "sample-external-link",
+				"url":              "https://grafana.example.com",
+				"type":             "appLevel",
+				"identifiers": []map[string]interface{}{
+					{
+						"type":       "devtron-app",
+						"identifier": "1",
+						"clusterId":  1,
+					},
+				},
+				"description": "Sample external link for testing",
+				"isEditable":  true,
+			},
+		}
+	}
+
+	// External Links PUT endpoint
+	if strings.Contains(path, "/external-links") && method == "PUT" {
+		return map[string]interface{}{
+			"id":               1,
+			"monitoringToolId": 1,
+			"name":             "updated-external-link",
+			"url":              "https://grafana-updated.example.com",
+			"type":             "appLevel",
+			"identifiers": []map[string]interface{}{
+				{
+					"type":       "devtron-app",
+					"identifier": "1",
+					"clusterId":  1,
+				},
+			},
+			"description": "Updated external link for testing",
+			"isEditable":  true,
+		}
+	}
+
+	// User management endpoints
+	if strings.Contains(path, "/user") && (method == "POST" || method == "PUT") {
+		return map[string]interface{}{
+			"emailId":     "test@example.com",
+			"groups":      []interface{}{},
+			"roleFilters": []interface{}{},
+			"superAdmin":  false,
+		}
+	}
+
+	// API Token endpoints
+	if strings.Contains(path, "/api-token") && method == "POST" {
+		return map[string]interface{}{
+			"name":         "sample-api-token",
+			"description":  "Sample API token for testing",
+			"expireAtInMs": 1735689600000,
+		}
+	}
+
+	if strings.Contains(path, "/api-token") && method == "PUT" {
+		return map[string]interface{}{
+			"id":          1,
+			"name":        "updated-api-token",
+			"description": "Updated API token for testing",
+		}
+	}
+
+	// Chart Repository endpoints
+	if strings.Contains(path, "/chart-repo") && (method == "POST" || method == "PUT") {
+		return map[string]interface{}{
+			"name":                      "sample-chart-repo",
+			"url":                       "https://charts.example.com",
+			"authMode":                  "ANONYMOUS",
+			"active":                    true,
+			"default":                   false,
+			"allow_insecure_connection": false,
+		}
+	}
+
+	// GitOps Config endpoints
+	if strings.Contains(path, "/gitops/config") && method == "POST" {
+		return map[string]interface{}{
+			"provider":       "GITHUB",
+			"username":       "sample-user",
+			"token":          "sample-token",
+			"gitLabGroupId":  "",
+			"gitHubOrgId":    "sample-org",
+			"host":           "https://github.com",
+			"active":         true,
+			"azureProjectId": "",
+		}
+	}
+
+	// Deployment App Type Change
+	if strings.Contains(path, "/deployment") && strings.Contains(path, "/patch") {
+		return map[string]interface{}{
+			"appId":            1,
+			"envId":            1,
+			"targetChartRefId": 1,
+		}
+	}
+
+	// Server Action endpoints
+	if strings.Contains(path, "/server") && method == "POST" {
+		return map[string]interface{}{
+			"action": "RESTART",
+		}
+	}
+
+	// Module endpoints
+	if strings.Contains(path, "/module") && method == "POST" {
+		return map[string]interface{}{
+			"name":   "sample-module",
+			"action": "INSTALL",
+		}
+	}
+
+	// Notification endpoints
+	if strings.Contains(path, "/notification") && (method == "POST" || method == "PUT") {
+		return map[string]interface{}{
+			"notificationConfigRequest": map[string]interface{}{
+				"teamId":       1,
+				"appId":        1,
+				"envId":        1,
+				"pipelineId":   1,
+				"pipelineType": "CI",
+				"eventTypeIds": []int{1},
+				"providers": []map[string]interface{}{
+					{
+						"dest":     "test@example.com",
+						"configId": 1,
+					},
+				},
+			},
+		}
+	}
+
+	return nil
 }
