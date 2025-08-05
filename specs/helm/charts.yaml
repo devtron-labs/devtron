@@ -2,151 +2,227 @@ openapi: "3.0.0"
 info:
   version: 1.0.0
   title: Helm Chart Store Management
+  description: API for managing Helm chart deployments and operations
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
 paths:
-  /orchestrator/app-store/installed-app:
+  /app-store/installed-app:
     get:
-      description: deployed chart listing, with search filters
+      summary: List deployed charts
+      operationId: listDeployedCharts
+      description: Deployed chart listing with search filters
+      security:
+        - bearerAuth: []
       parameters:
         - name: envIds
           in: query
-          description: environment ids
+          description: Environment IDs
           required: false
           schema:
-            type: string
+            type: array
+            items:
+              type: string
         - name: clusterIds
           in: query
-          description: cluster ids
+          description: Cluster IDs
           required: false
           schema:
-            type: string
+            type: array
+            items:
+              type: string
         - name: chartRepoId
           in: query
-          description: chart repo ids
+          description: Chart repository IDs
           required: false
           schema:
-            type: string
+            type: array
+            items:
+              type: string
         - name: appStoreName
           in: query
-          description: chart name
+          description: Chart name
           required: false
           schema:
             type: string
         - name: appName
           in: query
-          description: chart name as app name for devtron
+          description: Chart name as app name for devtron
           required: false
           schema:
             type: string
         - name: onlyDeprecated
           in: query
-          description: show only deprecated or all
+          description: Show only deprecated charts or all
           required: false
           schema:
             type: boolean
         - name: offset
           in: query
-          description: offset for result set
+          description: Offset for result set (pagination)
           required: false
           schema:
             type: integer
         - name: size
           in: query
-          description: total request size.
+          description: Total request size (pagination)
           required: false
           schema:
             type: integer
         - name: appStatuses
           in: query
-          description: app statuses filter
+          description: Application statuses filter
           required: false
           schema:
-            type: string
+            type: array
+            items:
+              type: string
       responses:
         '200':
-          description: deployed chart listing, with search filters
+          description: Deployed chart listing with search filters
           content:
             application/json:
               schema:
+                type: object
                 properties:
                   code:
                     type: integer
-                    description: status code
+                    description: Status code
                   status:
                     type: string
-                    description: status
+                    description: Status
                   result:
                     $ref: '#/components/schemas/AppListDetail'
-        default:
-          description: unexpected error
+        '400':
+          description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  /orchestrator/app-store/installed-app/notes/{installed-app-id}/{env-id}:
+                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+      tags:
+        - Helm Charts
+  /app-store/installed-app/notes:
     get:
-      description: Used to fetch notes.txt for helm charts deployed via gitOps
+      summary: Fetch notes.txt for deployed helm charts
+      operationId: fetchNotesTxt
+      description: Used to fetch notes.txt for helm charts deployed via GitOps
+      security:
+        - bearerAuth: []
       parameters:
         - name: env-id
-          in: path
-          description: it is an environment id of app
+          in: query
+          description: Environment ID of app
           required: true
           schema:
             type: integer
         - name: installed-app-id
-          in: path
-          description: it is a installed application id
+          in: query
+          description: Installed application ID
           required: true
           schema:
             type: integer
       responses:
         '200':
-          description: if it is able to fetch the notes.txt then status will be ok
+          description: Successfully fetched notes.txt
           content:
             application/json:
               schema:
+                type: object
                 properties:
                   code:
                     type: integer
-                    description: status code
+                    description: Status code
                   status:
                     type: string
-                    description: status
+                    description: Status
                   result:
                     $ref: '#/components/schemas/Notes'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+        '404':
+          description: Chart or notes not found
+          content:
+            application/json:
+              schema:
+                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
         '500':
-          description: error while fetching notes.txt
+          description: Error while fetching notes.txt
+          content:
+            application/json:
+              schema:
+                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+      tags:
+        - Helm Charts
 
 
 
-# components mentioned below
-components:
   schemas:
     AppListDetail:
       type: object
       properties:
         clusterIds:
           type: array
-          description: clusters to which result corresponds
+          description: Clusters to which result corresponds
           items:
             type: integer
         applicationType:
           type: string
-          description: application type inside the array
+          description: Application type inside the array
           enum: [DEVTRON-CHART-STORE, DEVTRON-APP, HELM-APP]
         errored:
           type: boolean
-          description: if data fetch for that cluster produced error
+          description: If data fetch for that cluster produced error
         errorMsg:
           type: string
-          description: error msg if client failed to fetch
+          description: Error message if client failed to fetch
         helmApps:
           type: array
-          description: all helm app list
+          description: All helm app list
           items:
             $ref: '#/components/schemas/HelmAppDetails'
         devtronApps:
           type: array
-          description: all devtron app list
+          description: All devtron app list
           items:
             type: object
 
@@ -156,84 +232,54 @@ components:
         lastDeployedAt:
           type: string
           format: date-time
-          description: time when this application was last deployed/updated
+          description: Time when this application was last deployed/updated
         appName:
           type: string
-          description: name of the helm application/helm release name
+          description: Name of the helm application/helm release name
         appId:
           type: string
-          description: unique identifier for app
+          description: Unique identifier for app
         chartName:
           type: string
-          description: name of the chart
+          description: Name of the chart
         chartAvatar:
           type: string
-          description: url/location of the chart icon
+          description: URL/location of the chart icon
         projectId:
           type: integer
-          description: unique identifier for the project, APP with no project will have id 0
+          description: Unique identifier for the project, APP with no project will have id 0
         chartVersion:
           type: string
-          description: chart version
+          description: Chart version
         environmentDetail:
           $ref: '#/components/schemas/EnvironmentDetails'
         appStatus:
           type: string
-          description: application status
+          description: Application status
 
     EnvironmentDetails:
       type: object
       properties:
         clusterName:
           type: string
-          description: cluster corresponding to the environment where application is deployed
+          description: Cluster corresponding to the environment where application is deployed
         clusterId:
           type: integer
-          description: clusterId corresponding to the environment where application is deployed
+          description: Cluster ID corresponding to the environment where application is deployed
         namespace:
           type: string
-          description: namespace where application is deployed
+          description: Namespace where application is deployed
         isVirtualEnvironment:
           type: boolean
-          description: whether environment is virtual or not
+          description: Whether environment is virtual or not
 
     Notes:
       type: object
       properties:
         gitOpsNotes:
           type: string
-          description: notes content
+          description: Notes content
 
-    ErrorResponse:
-      required:
-        - code
-        - status
-      properties:
-        code:
-          type: integer
-          format: int32
-          description: Error code
-        status:
-          type: string
-          description: Error message
-        errors:
-          type: array
-          description: errors
-          items:
-            $ref: '#/components/schemas/Error'
-
-    Error:
-      required:
-        - code
-        - status
-      properties:
-        code:
-          type: integer
-          format: int32
-          description: Error internal code
-        internalMessage:
-          type: string
-          description: Error internal message
-        userMessage:
-          type: string
-          description: Error user message
+tags:
+  - name: Helm Charts
+    description: Helm chart deployment management and operations

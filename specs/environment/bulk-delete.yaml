@@ -3,7 +3,7 @@ info:
   version: 1.0.0
   title: Environment Bulk Operations
 paths:
-  /orchestrtor/batch/v1beta1/cd-pipeline:
+  /orchestrator/batch/v1beta1/cd-pipeline:
     post:
       description: perform bulk actions on cd pipelines
       parameters:

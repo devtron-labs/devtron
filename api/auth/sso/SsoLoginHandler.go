@@ -59,7 +59,7 @@ func NewSsoLoginRestHandlerImpl(validator *validator.Validate,
 func (handler SsoLoginRestHandlerImpl) CreateSSOLoginConfig(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -91,7 +91,7 @@ func (handler SsoLoginRestHandlerImpl) CreateSSOLoginConfig(w http.ResponseWrite
 func (handler SsoLoginRestHandlerImpl) UpdateSSOLoginConfig(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -134,7 +134,7 @@ func (handler SsoLoginRestHandlerImpl) GetAllSSOLoginConfig(w http.ResponseWrite
 func (handler SsoLoginRestHandlerImpl) GetSSOLoginConfig(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -164,7 +164,7 @@ func (handler SsoLoginRestHandlerImpl) GetSSOLoginConfig(w http.ResponseWriter, 
 func (handler SsoLoginRestHandlerImpl) GetSSOLoginConfigByName(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 

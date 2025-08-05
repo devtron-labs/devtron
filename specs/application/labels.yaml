@@ -2,84 +2,262 @@ openapi: "3.0.0"
 info:
   version: 1.0.0
   title: Application Labels Management
+  description: API for managing application labels and metadata
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
 paths:
-  /orchestrator/app/labels/list:
+  /app/labels/list:
     get:
-      description: this api will return all the labels available in database.
-      parameters: [ ]
+      summary: List Application Labels
+      description: |
+        Retrieves a list of application labels. By default, returns all labels.
+        Use the `showPropagatedOnly` parameter to filter for labels where propagate = true.
+
+        **Required Token Permission:**
+        - Must have **View** access to the applications in scope.
+      operationId: getAppLabels
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: showPropagatedOnly
+          in: query
+          description: |
+            If true, only returns labels where propagate = true.
+            If false or not provided, all labels are returned.
+          required: false
+          schema:
+            type: boolean
+            default: false
+          example: false
       responses:
         '200':
-          description: list response
+          description: Successfully retrieved labels list
           content:
             application/json:
               schema:
+                type: object
                 properties:
                   code:
                     type: integer
-                    description: status code
+                    description: HTTP status code
+                    example: 200
                   status:
                     type: string
-                    description: status
+                    description: Response status message
+                    example: OK
                   result:
                     type: array
+                    description: Array of label objects
                     items:
-                      $ref: '#/components/schemas/AppLabel'
-        default:
-          description: unexpected error
+                      allOf:
+                        - type: object
+                          properties:
+                            appId:
+                              type: integer
+                              description: unique application id
+                            appName:
+                              type: string
+                              description: The name of the application
+                          required:
+                            - appId
+                            - appName
+                        - $ref: '../common/schemas.yaml#/components/schemas/AppLabel'
+              examples:
+                all_labels:
+                  summary: All labels response
+                  description: Example response when showPropagatedOnly is false or not provided
+                  value:
+                    code: 200
+                    status: OK
+                    result:
+                      - key: environment
+                        value: production
+                        propagate: true
+                        appId: 1234
+                        appName: web-service
+                      - key: team
+                        value: backend
+                        propagate: false
+                        appId: 1234
+                        appName: web-service
+                propagated_only:
+                  summary: Propagated labels only
+                  description: Example response when showPropagatedOnly is true
+                  value:
+                    code: 200
+                    status: OK
+                    result:
+                      - key: environment
+                        value: production
+                        propagate: true
+                        appId: 1234
+                        appName: web-service
+        '400':
+          description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required or token invalid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 401
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: Authentication token is required
+        '403':
+          description: Insufficient permissions to access the resource
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 403
+                  status:
+                    type: string
+                    example: Forbidden
+                  message:
+                    type: string
+                    example: Token does not have View access to the applications in scope
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 500
+                  status:
+                    type: string
+                    example: Internal Server Error
+                  message:
+                    type: string
+                    example: An unexpected error occurred
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+      tags:
+        - Application Labels
 
-  /orchestrator/app/meta/info/{appId}:
+  /app/meta/info/{appId}:
     get:
-      description: application basic info, projects and labels
+      summary: Get Application Meta Info
+      description: Retrieves application basic info, projects and labels
+      operationId: getAppMetaInfo
+      security:
+        - bearerAuth: []
       parameters:
         - name: appId
           in: path
-          description: application id
+          description: Application ID
           required: true
           schema:
             type: integer
             format: int64
       responses:
         '200':
-          description: application basic info, projects and labels
+          description: Application basic info, projects and labels
           content:
             application/json:
               schema:
+                type: object
                 properties:
                   code:
                     type: integer
-                    description: status code
+                    description: Status code
                   status:
                     type: string
-                    description: status
+                    description: Status
                   result:
                     allOf:
-                      - $ref: '#/components/schemas/AppMetaInfo'
+                      - $ref: '../common/schemas.yaml#/components/schemas/AppMetaInfo'
                       - type: object
                         properties:
                           gitMaterials:
                             type: array
                             items:
-                              $ref: '#/components/schemas/GitMaterialMeta'
+                              $ref: '../common/schemas.yaml#/components/schemas/GitMaterialMeta'
                           templateConfig:
-                            $ref: '#/components/schemas/TemplateConfig'
-        default:
-          description: unexpected error
+                            $ref: '../common/schemas.yaml#/components/schemas/TemplateConfig'
+        '400':
+          description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+        '404':
+          description: Application not found
+          content:
+            application/json:
+              schema:
+                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+      tags:
+        - Application Metadata
 
-  /orchestrator/app/helm/meta/info/{appId}:
+  /helm/meta/info/{appId}:
     get:
-      description: application info for all types of helm apps
+      summary: Get Helm Application Meta Info
+      description: Retrieves application info for all types of Helm apps
+      operationId: getHelmAppMetaInfo
+      security:
+        - bearerAuth: []
       parameters:
         - name: appId
           in: path
-          description: application id
+          description: Application ID
           required: true
           schema:
             type: string
@@ -89,193 +267,62 @@ paths:
           content:
             application/json:
               schema:
+                type: object
                 properties:
                   code:
                     type: integer
-                    description: status code
+                    description: Status code
                   status:
                     type: string
-                    description: status
+                    description: Status
                   result:
                     allOf:
-                      - $ref: '#/components/schemas/AppMetaInfo'
+                      - $ref: '../common/schemas.yaml#/components/schemas/AppMetaInfo'
                       - type: object
                         properties:
                           chartUsed:
-                            $ref: '#/components/schemas/ChartUsed'
+                            $ref: '../common/schemas.yaml#/components/schemas/ChartUsed'
                           gitMaterials:
                             type: array
                             items:
-                              $ref: '#/components/schemas/GitMaterialMeta'
-        default:
-          description: unexpected error
+                              $ref: '../common/schemas.yaml#/components/schemas/GitMaterialMeta'
+        '400':
+          description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+        '404':
+          description: Application not found
+          content:
+            application/json:
+              schema:
+                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+      tags:
+        - Helm Application Metadata
 
-# components mentioned below
-components:
-  schemas:
-    AppLabel:
-      type: object
-      required:
-        - key
-        - value
-        - propagate
-      properties:
-        key:
-          type: string
-          description: label key
-        value:
-          type: string
-          description: label value
-        propagate:
-          type: boolean
-          description: Whether to propagate to kubernetes resources
-
-    AppMetaInfo:
-      type: object
-      required:
-        - appId
-        - projectId
-        - appName
-        - projectName
-        - createdOn
-        - createdBy
-        - active
-      properties:
-        appId:
-          type: integer
-          description: app id
-        projectId:
-          type: integer
-          description: team/project id
-        appName:
-          type: string
-          description: app name
-        projectName:
-          type: string
-          description: team/project name
-        description:
-          type: string
-          description: app description
-        labels:
-          type: array
-          items:
-            $ref: '#/components/schemas/AppLabel'
-        createdOn:
-          type: string
-          format: date-time
-          description: app creation date
-        createdBy:
-          type: string
-          description: app created by
-        active:
-          type: boolean
-          description: whether app is active
-        note:
-          $ref: '#/components/schemas/GenericNoteResponse'
-
-    ChartUsed:
-      type: object
-      properties:
-        appStoreChartName:
-          type: string
-          description: Name of the chart from app store
-        appStoreChartId:
-          type: integer
-          description: ID of the chart from app store
-        appStoreAppName:
-          type: string
-          description: Name of the app in app store
-        appStoreAppVersion:
-          type: string
-          description: Version of the app in app store
-        chartAvatar:
-          type: string
-          description: Avatar/icon of the chart
-
-    GitMaterialMeta:
-      type: object
-      properties:
-        displayName:
-          type: string
-          description: Display name of the git material
-        redirectionUrl:
-          type: string
-          description: HTTPS URL for redirection
-        originalUrl:
-          type: string
-          description: Original git URL
-
-    TemplateConfig:
-      type: object
-      properties:
-        id:
-          type: integer
-          description: Template config ID
-        identifier:
-          type: string
-          description: Template identifier
-        name:
-          type: string
-          description: Template name
-
-    GenericNoteResponse:
-      type: object
-      properties:
-        id:
-          type: integer
-          description: Note ID
-        description:
-          type: string
-          description: Note content/description
-        createdOn:
-          type: string
-          format: date-time
-          description: Creation timestamp
-        createdBy:
-          type: string
-          description: Creator's email
-        updatedOn:
-          type: string
-          format: date-time
-          description: Last update timestamp
-        updatedBy:
-          type: string
-          description: Last updater's email
-
-    ErrorResponse:
-      required:
-        - code
-        - status
-      properties:
-        code:
-          type: integer
-          format: int32
-          description: Error code
-        status:
-          type: string
-          description: Error message
-        errors:
-          type: array
-          description: errors
-          items:
-            $ref: '#/components/schemas/Error'
-
-    Error:
-      required:
-        - code
-        - status
-      properties:
-        code:
-          type: integer
-          format: int32
-          description: Error internal code
-        internalMessage:
-          type: string
-          description: Error internal message
-        userMessage:
-          type: string
-          description: Error user message
+tags:
+  - name: Application Labels
+    description: Operations related to application labels
+  - name: Application Metadata
+    description: Operations related to application metadata
+  - name: Helm Application Metadata
+    description: Operations related to Helm application metadata

@@ -5,7 +5,7 @@ info:
   version: "1.0"
 
 paths:
-  /orchestrator/configmap/global:
+  /orchestrator/config/global/cm:
     post:
       description: Create or update a global ConfigMap
       operationId: CMGlobalAddUpdate
@@ -47,7 +47,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /orchestrator/configmap/environment:
+  /orchestrator/config/environment/cm:
     post:
       description: Create or update an environment-specific ConfigMap
       operationId: CMEnvironmentAddUpdate
@@ -89,7 +89,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /orchestrator/configmap/global/{appId}:
+  /orchestrator/config/global/cm/{appId}:
     get:
       description: Get all global ConfigMaps for an application
       operationId: CMGlobalFetch
@@ -131,7 +131,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /orchestrator/configmap/environment/{appId}/{envId}:
+  /orchestrator/config/environment/cm/{appId}/{envId}:
     get:
       description: Get all environment-specific ConfigMaps for an application
       operationId: CMEnvironmentFetch
@@ -178,7 +178,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /orchestrator/configmap/global/edit/{appId}/{id}:
+  /orchestrator/config/global/cm/edit/{appId}/{id}:
     get:
       description: Get a global ConfigMap for editing
       operationId: CMGlobalFetchForEdit
@@ -230,7 +230,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /orchestrator/configmap/environment/edit/{appId}/{envId}/{id}:
+  /orchestrator/config/environment/cm/edit/{appId}/{envId}/{id}:
     get:
       description: Get an environment-specific ConfigMap for editing
       operationId: CMEnvironmentFetchForEdit
@@ -287,7 +287,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /orchestrator/configmap/global/{appId}/{id}:
+  /orchestrator/config/global/cm/{appId}/{id}:
     delete:
       description: Delete a global ConfigMap
       operationId: CMGlobalDelete
@@ -339,7 +339,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /orchestrator/configmap/environment/{appId}/{envId}/{id}:
+  /orchestrator/config/environment/cm/{appId}/{envId}/{id}:
     delete:
       description: Delete an environment-specific ConfigMap
       operationId: CMEnvironmentDelete
@@ -396,7 +396,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /orchestrator/configmap/bulk/patch:
+  /orchestrator/config/bulk/patch:
     post:
       description: Bulk patch ConfigMaps and Secrets
       operationId: ConfigSecretBulkPatch

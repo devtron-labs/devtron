@@ -84,7 +84,7 @@ func (handler *GlobalPluginRestHandlerImpl) patchPlugin(w http.ResponseWriter, r
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var pluginDataDto bean.PluginMetadataDto
@@ -115,7 +115,7 @@ func (handler *GlobalPluginRestHandlerImpl) patchPlugin(w http.ResponseWriter, r
 func (handler *GlobalPluginRestHandlerImpl) GetDetailedPluginInfoByPluginId(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -144,7 +144,7 @@ func (handler *GlobalPluginRestHandlerImpl) GetDetailedPluginInfoByPluginId(w ht
 func (handler *GlobalPluginRestHandlerImpl) GetAllDetailedPluginInfo(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	// RBAC enforcer applying
@@ -442,7 +442,7 @@ func (handler *GlobalPluginRestHandlerImpl) MigratePluginData(w http.ResponseWri
 func (handler *GlobalPluginRestHandlerImpl) CreatePlugin(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")

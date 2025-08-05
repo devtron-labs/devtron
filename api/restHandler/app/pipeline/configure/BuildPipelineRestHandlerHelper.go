@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"net/http"
@@ -33,18 +34,27 @@ import (
 func (handler *PipelineConfigRestHandlerImpl) getUserIdOrUnauthorized(w http.ResponseWriter, r *http.Request) (int32, bool) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return 0, false
 	}
 	return userId, true
 }
 
 // getIntPathParam gets an integer path parameter from the request
+// DEPRECATED: Use common.ExtractIntPathParamWithContext() for new code
 func (handler *PipelineConfigRestHandlerImpl) getIntPathParam(w http.ResponseWriter, vars map[string]string, paramName string) (int, bool) {
 	paramValue, err := strconv.Atoi(vars[paramName])
 	if err != nil {
-		handler.Logger.Errorw("request err, invalid path param", "err", err, "paramName", paramName)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		// Use enhanced error handling
+		apiErr := util.NewInvalidPathParameterError(paramName, vars[paramName])
+		handler.Logger.Errorw("Invalid path parameter", "paramName", paramName, "paramValue", vars[paramName], "err", err)
+		common.WriteJsonResp(w, apiErr, nil, apiErr.HttpStatusCode)
+		return 0, false
+	}
+	if paramValue <= 0 {
+		apiErr := util.NewValidationErrorForField(paramName, "must be a positive integer")
+		handler.Logger.Errorw("Invalid path parameter value", "paramName", paramName, "paramValue", paramValue)
+		common.WriteJsonResp(w, apiErr, nil, apiErr.HttpStatusCode)
 		return 0, false
 	}
 	return paramValue, true

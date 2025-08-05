@@ -12,9 +12,9 @@ info:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
 servers:
-  - url: http://localhost:8080/orchestrator/k8s
+  - url: http://localhost:8080
 paths:
-  /orchestrator/resource/inception/info:
+  /orchestrator/k8s/resource/inception/info:
     get:
       description: Get inception pod info, such as pod name
       responses:
@@ -33,7 +33,7 @@ paths:
                   result:
                     $ref: '#/components/schemas/ResourceInfo'
 
-  /orchestrator/resource:
+  /orchestrator/k8s/resource:
     post:
       description: Get Kubernetes resource details
       requestBody:
@@ -58,7 +58,7 @@ paths:
                   result:
                     $ref: '#/components/schemas/ManifestResponse'
 
-  /orchestrator/resource/create:
+  /orchestrator/k8s/resource/create:
     post:
       description: Create Kubernetes resource
       requestBody:
@@ -83,7 +83,7 @@ paths:
                   result:
                     $ref: '#/components/schemas/ManifestResponse'
 
-  /orchestrator/resource/update:
+  /orchestrator/k8s/resource:
     put:
       description: Update Kubernetes resource
       requestBody:
@@ -108,8 +108,8 @@ paths:
                   result:
                     $ref: '#/components/schemas/ManifestResponse'
 
-  /orchestrator/resource/delete:
-    delete:
+  /orchestrator/k8s/resource/delete:
+    post:
       description: Delete Kubernetes resource
       requestBody:
         required: true
@@ -133,7 +133,7 @@ paths:
                   result:
                     $ref: '#/components/schemas/ManifestResponse'
 
-  /orchestrator/api-resources/{clusterId}:
+  /orchestrator/k8s/api-resources/{clusterId}:
     get:
       description: Get all API resources for a cluster
       parameters:
@@ -160,7 +160,7 @@ paths:
                     items:
                       $ref: '#/components/schemas/K8sApiResource'
 
-  /orchestrator/resource/urls:
+  /orchestrator/k8s/resource/urls:
     get:
       description: Get host URLs by batch
       parameters:
