@@ -290,6 +290,7 @@ func (impl ClusterRestHandlerImpl) FindAll(w http.ResponseWriter, r *http.Reques
 	var result []*bean2.ClusterBean
 	for _, item := range clusterList {
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, item.ClusterName); ok {
+			item.SetClusterStatus()
 			result = append(result, item)
 		}
 	}
@@ -343,8 +344,10 @@ func (impl ClusterRestHandlerImpl) FindByIds(w http.ResponseWriter, r *http.Requ
 	var result []*bean2.ClusterBean
 	for _, item := range clusterList {
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, item.ClusterName); ok {
+			item.SetClusterStatus()
 			result = append(result, item)
 		}
+
 	}
 	//RBAC enforcer Ends
 
