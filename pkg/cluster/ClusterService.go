@@ -293,6 +293,7 @@ func (impl *ClusterServiceImpl) FindAll() ([]*bean.ClusterBean, error) {
 	var beans []*bean.ClusterBean
 	for _, model := range models {
 		bean := adapter.GetClusterBean(model)
+		bean.SetClusterStatus()
 		beans = append(beans, &bean)
 	}
 	return beans, nil
