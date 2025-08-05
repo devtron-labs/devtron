@@ -539,6 +539,43 @@ func (v *APISpecValidator) GenerateReport() string {
 
 		if result.StatusCode != 0 {
 			report.WriteString(fmt.Sprintf("- **Response Code**: %d\n", result.StatusCode))
+
+			// Add error message if response contains error information
+			if result.Response != nil {
+				responseStr, ok := result.Response.(string)
+				if ok && responseStr != "" {
+					// Try to extract error message from JSON response
+					var responseData map[string]interface{}
+					if err := json.Unmarshal([]byte(responseStr), &responseData); err == nil {
+						// Look for common error message fields
+						if msg, exists := responseData["message"]; exists {
+							report.WriteString(fmt.Sprintf("- **Error/Msg**: %v\n", msg))
+						} else if msg, exists := responseData["error"]; exists {
+							report.WriteString(fmt.Sprintf("- **Error/Msg**: %v\n", msg))
+						} else if msg, exists := responseData["msg"]; exists {
+							report.WriteString(fmt.Sprintf("- **Error/Msg**: %v\n", msg))
+						} else {
+							// If no structured error found, show the raw response (truncated if too long)
+							if len(responseStr) > 200 {
+								report.WriteString(fmt.Sprintf("- **Error/Msg**: %s...\n", responseStr[:200]))
+							} else {
+								report.WriteString(fmt.Sprintf("- **Error/Msg**: %s\n", responseStr))
+							}
+						}
+					} else {
+						// If not JSON, show the raw response (truncated if too long)
+						if len(responseStr) > 200 {
+							report.WriteString(fmt.Sprintf("- **Error/Msg**: %s...\n", responseStr[:200]))
+						} else {
+							report.WriteString(fmt.Sprintf("- **Error/Msg**: %s\n", responseStr))
+						}
+					}
+				} else {
+					report.WriteString("- **Error/Msg**: {}\n")
+				}
+			} else {
+				report.WriteString("- **Error/Msg**: {}\n")
+			}
 		}
 
 		if len(result.Issues) > 0 {

@@ -15,7 +15,7 @@ func main() {
 		serverURL = flag.String("server", "https://devtron-ent-2.devtron.info", "Server URL to test against")
 		specsDir  = flag.String("specs", "../../../specs", "Directory containing API specs")
 		outputDir = flag.String("output", "./reports", "Output directory for reports")
-		token     = flag.String("token", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTQzOTM3MzQsImp0aSI6ImRiODUxYzg5LTg0YjUtNDhiOS1hYTcyLWQ0ZTA0MjRjN2U4MSIsImlhdCI6MTc1NDMwNzMzNCwiaXNzIjoiYXJnb2NkIiwibmJmIjoxNzU0MzA3MzM0LCJzdWIiOiJhZG1pbiJ9.wYGmONdpNUEjtAxXz_mViW44Rxh0YU3dax_SEuoAH5c", "Authentication token")
+		token     = flag.String("token", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTQ0OTE5NzMsImp0aSI6IjI3YWI0ZDE5LTdmNGYtNDg5YS1iZDg5LTVmYjU5MjNjNWE4YSIsImlhdCI6MTc1NDQwNTU3MywiaXNzIjoiYXJnb2NkIiwibmJmIjoxNzU0NDA1NTczLCJzdWIiOiJhZG1pbiJ9.ckHWRP_Lqr-RDzsM8H7Fcs7nICho-PZcgIOTppH1tLE", "Authentication token")
 		verbose   = flag.Bool("verbose", true, "Enable verbose logging")
 	)
 	flag.Parse()
