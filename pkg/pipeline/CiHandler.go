@@ -1061,6 +1061,10 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(request res
 		appObjectArr = append(appObjectArr, object)
 	}
 	appResults, _ := request.CheckAuthBatch(token, appObjectArr, []string{})
+
+	linkedPipelineDetails := make(map[int]*pipelineConfig.CiPipeline) // linkedPipelineId -> pipeline object
+	parentToLinkedMap := make(map[int][]int)                          // parentPipelineId -> []linkedPipelineId
+
 	for _, ciPipeline := range ciPipelines {
 		appObject := objects[ciPipeline.Id] // here only app permission have to check
 		if !appResults[appObject] {
@@ -1069,7 +1073,15 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(request res
 		}
 		ciPipelineId := impl.getPipelineIdForTriggerView(ciPipeline)
 		ciPipelineIds = append(ciPipelineIds, ciPipelineId)
+
+		// Store mapping for linked CI pipelines
+		if ciPipeline.ParentCiPipeline > 0 {
+			linkedPipelineDetails[ciPipeline.Id] = ciPipeline
+			// Add to slice of linked pipelines for this parent
+			parentToLinkedMap[ciPipelineId] = append(parentToLinkedMap[ciPipelineId], ciPipeline.Id)
+		}
 	}
+
 	if len(ciPipelineIds) == 0 {
 		return ciWorkflowStatuses, nil
 	}
@@ -1079,24 +1091,34 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(request res
 		return ciWorkflowStatuses, err
 	}
 
-	notTriggeredWorkflows := make(map[int]bool)
+	// create workflow map for quick lookup
+	workflowMap := make(map[int]*pipelineConfig.CiWorkflow)
+	for _, workflow := range latestCiWorkflows {
+		workflowMap[workflow.CiPipelineId] = workflow
+	}
+
+	triggeredWorkflows := make(map[int]bool)
 
 	for _, ciWorkflow := range latestCiWorkflows {
-		ciWorkflowStatus := &pipelineConfig.CiWorkflowStatus{}
-		ciWorkflowStatus.CiPipelineId = ciWorkflow.CiPipelineId
-		ciWorkflowStatus.CiPipelineName = ciWorkflow.CiPipeline.Name
-		ciWorkflowStatus.CiStatus = ciWorkflow.Status
-		ciWorkflowStatus.StorageConfigured = ciWorkflow.BlobStorageEnabled
-		ciWorkflowStatus.CiWorkflowId = ciWorkflow.Id
-		ciWorkflowStatuses = append(ciWorkflowStatuses, ciWorkflowStatus)
-		notTriggeredWorkflows[ciWorkflowStatus.CiPipelineId] = true
+		// check if this workflow belongs to a parent pipeline that has linked CIs
+		if linkedPipelineIds, isParentOfLinked := parentToLinkedMap[ciWorkflow.CiPipelineId]; isParentOfLinked {
+			// create workflow status for each linked pipeline
+			for _, linkedPipelineId := range linkedPipelineIds {
+				ciWorkflowStatus := adapter.GetCiWorkflowStatusForLinkedCiPipeline(linkedPipelineId, linkedPipelineDetails[linkedPipelineId].Name, ciWorkflow)
+				ciWorkflowStatuses = append(ciWorkflowStatuses, ciWorkflowStatus)
+			}
+		} else {
+			ciWorkflowStatus := adapter.GetCiWorkflowStatusFromCiWorkflow(ciWorkflow)
+			ciWorkflowStatuses = append(ciWorkflowStatuses, ciWorkflowStatus)
+		}
+		triggeredWorkflows[ciWorkflow.CiPipelineId] = true
 	}
 
 	for _, ciPipelineId := range ciPipelineIds {
-		if _, ok := notTriggeredWorkflows[ciPipelineId]; !ok {
+		if _, ok := triggeredWorkflows[ciPipelineId]; !ok {
 			ciWorkflowStatus := &pipelineConfig.CiWorkflowStatus{}
 			ciWorkflowStatus.CiPipelineId = ciPipelineId
-			ciWorkflowStatus.CiStatus = "Not Triggered"
+			ciWorkflowStatus.CiStatus = pipelineConfigBean.NotTriggered
 			ciWorkflowStatuses = append(ciWorkflowStatuses, ciWorkflowStatus)
 		}
 	}

@@ -416,3 +416,13 @@ func GetCiWorkflowStatusFromCiWorkflow(ciWorkflow *pipelineConfig.CiWorkflow) *p
 		CiWorkflowId:      ciWorkflow.Id,
 	}
 }
+
+func GetCiWorkflowStatusForLinkedCiPipeline(linkedCiPipelineId int, linkedCiPipelineName string, ciWorkflow *pipelineConfig.CiWorkflow) *pipelineConfig.CiWorkflowStatus {
+	return &pipelineConfig.CiWorkflowStatus{
+		CiPipelineId:      linkedCiPipelineId,
+		CiPipelineName:    linkedCiPipelineName,
+		CiStatus:          ciWorkflow.Status,
+		StorageConfigured: ciWorkflow.BlobStorageEnabled,
+		CiWorkflowId:      ciWorkflow.Id,
+	}
+}
