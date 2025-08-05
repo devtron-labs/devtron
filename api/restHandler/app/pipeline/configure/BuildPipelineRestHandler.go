@@ -241,7 +241,7 @@ func (handler *PipelineConfigRestHandlerImpl) UpdateBranchCiPipelinesWithRegex(w
 func (handler *PipelineConfigRestHandlerImpl) parseSourceChangeRequest(w http.ResponseWriter, r *http.Request) (*bean.CiMaterialPatchRequest, int32, error) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return nil, 0, err
 	}
 
@@ -260,7 +260,7 @@ func (handler *PipelineConfigRestHandlerImpl) parseSourceChangeRequest(w http.Re
 func (handler *PipelineConfigRestHandlerImpl) parseBulkSourceChangeRequest(w http.ResponseWriter, r *http.Request) (*bean.CiMaterialBulkPatchRequest, int32, error) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return nil, 0, err
 	}
 
@@ -359,7 +359,7 @@ func (handler *PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWr
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var patchRequest bean.CiPatchRequest
@@ -1003,7 +1003,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetHistoricBuildLogs(w http.Respon
 func (handler *PipelineConfigRestHandlerImpl) GetBuildHistory(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -1090,7 +1090,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildHistory(w http.ResponseWri
 func (handler *PipelineConfigRestHandlerImpl) GetBuildLogs(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -1169,7 +1169,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildLogs(w http.ResponseWriter
 func (handler *PipelineConfigRestHandlerImpl) FetchMaterialInfo(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -1332,7 +1332,7 @@ func (handler *PipelineConfigRestHandlerImpl) CreateMaterial(w http.ResponseWrit
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var createMaterialDto bean.CreateMaterialDTO
@@ -1385,7 +1385,7 @@ func (handler *PipelineConfigRestHandlerImpl) UpdateMaterial(w http.ResponseWrit
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var updateMaterialDto bean.UpdateMaterialDTO
@@ -1435,7 +1435,7 @@ func (handler *PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWrit
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var deleteMaterial bean.UpdateMaterialDTO
@@ -1518,7 +1518,7 @@ func (handler *PipelineConfigRestHandlerImpl) ValidateGitMaterialUrl(gitProvider
 func (handler *PipelineConfigRestHandlerImpl) CancelWorkflow(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	queryVars := r.URL.Query()
@@ -1602,7 +1602,7 @@ func (handler *PipelineConfigRestHandlerImpl) CancelWorkflow(w http.ResponseWrit
 func (handler *PipelineConfigRestHandlerImpl) FetchChanges(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -1660,7 +1660,7 @@ func (handler *PipelineConfigRestHandlerImpl) FetchChanges(w http.ResponseWriter
 func (handler *PipelineConfigRestHandlerImpl) GetCommitMetadataForPipelineMaterial(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -1706,7 +1706,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetCommitMetadataForPipelineMateri
 func (handler *PipelineConfigRestHandlerImpl) FetchWorkflowDetails(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -1757,7 +1757,7 @@ func (handler *PipelineConfigRestHandlerImpl) FetchWorkflowDetails(w http.Respon
 func (handler *PipelineConfigRestHandlerImpl) GetArtifactsForCiJob(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -1804,7 +1804,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetCiPipelineByEnvironment(w http.
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	envId, err := strconv.Atoi(vars["envId"])
@@ -1862,7 +1862,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetCiPipelineByEnvironmentMin(w ht
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	envId, err := strconv.Atoi(vars["envId"])
@@ -1919,7 +1919,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetExternalCiByEnvironment(w http.
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	envId, err := strconv.Atoi(vars["envId"])
@@ -1976,7 +1976,7 @@ func (handler *PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Re
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
@@ -2069,7 +2069,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetImageTaggingData(w http.Respons
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	artifactId, err := strconv.Atoi(vars["artifactId"])
@@ -2181,7 +2181,7 @@ func (handler *PipelineConfigRestHandlerImpl) checkAppSpecificAccess(token, acti
 func (handler *PipelineConfigRestHandlerImpl) GetSourceCiDownStreamFilters(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -2218,7 +2218,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetSourceCiDownStreamInfo(w http.R
 	decoder := schema.NewDecoder()
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -2274,7 +2274,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetAppMetadataListByEnvironment(w 
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	envId, err := strconv.Atoi(vars["envId"])

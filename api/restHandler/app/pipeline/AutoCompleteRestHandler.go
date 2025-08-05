@@ -85,7 +85,7 @@ func NewDevtronAppAutoCompleteRestHandlerImpl(
 func (handler DevtronAppAutoCompleteRestHandlerImpl) GetAppListForAutocomplete(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -244,10 +244,10 @@ func (handler DevtronAppAutoCompleteRestHandlerImpl) GitListAutocomplete(w http.
 
 func (handler DevtronAppAutoCompleteRestHandlerImpl) RegistriesListAutocomplete(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
-	vars := mux.Vars(r)
-	appId, err := strconv.Atoi(vars["appId"])
+	// Use enhanced parameter parsing with context
+	appId, err := common.ExtractIntPathParamWithContext(w, r, "appId", "application")
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		// Error already written by ExtractIntPathParamWithContext
 		return
 	}
 	v := r.URL.Query()

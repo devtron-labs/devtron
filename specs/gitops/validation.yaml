@@ -47,7 +47,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /config:
+  /orchestrator/gitops/config:
     post:
       description: Create a new GitOps configuration
       operationId: CreateGitOpsConfig
@@ -130,7 +130,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /gitops/config:
     get:
       description: Get all GitOps configurations
       operationId: GetAllGitOpsConfig
@@ -161,7 +160,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /gitops/config/{id}:
+  /orchestrator/gitops/config/{id}:
     get:
       description: Get GitOps configuration by ID
       operationId: GetGitOpsConfigById
@@ -203,7 +202,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /gitops/config-by-provider:
+  /orchestrator/gitops/config-by-provider:
     get:
       description: Get GitOps configuration by provider
       operationId: GetGitOpsConfigByProvider
@@ -245,7 +244,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /gitops/configured:
+  /orchestrator/gitops/configured:
     get:
       description: Check if GitOps is configured
       operationId: GitOpsConfigured

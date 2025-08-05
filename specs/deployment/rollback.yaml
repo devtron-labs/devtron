@@ -93,48 +93,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/app/deployment-configuration/all/latest/{appId}/{pipelineId}:
-    get:
-      operationId: FetchDeploymentConfiguration
-      description: Fetch latest deployment configuration i.e. currently saved in the system and marked as active
-      parameters:
-        - name: appId
-          in: path
-          required: true
-          schema:
-            type: integer
-            description: ID of the application
-        - name: pipelineId
-          in: path
-          required: true
-          schema:
-            type: integer
-            description: ID of the pipeline
-      responses:
-        '200':
-          description: Successfully return configuration detail
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HistoryConfigurationDetailDto'
-        '400':
-          description: Bad Request. Input Validation error/wrong request body.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Unauthorized User
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
 
 components:
   schemas:

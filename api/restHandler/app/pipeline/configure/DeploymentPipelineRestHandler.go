@@ -127,7 +127,7 @@ func (handler *PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var templateRequest bean3.TemplateRequest
@@ -194,7 +194,7 @@ func (handler *PipelineConfigRestHandlerImpl) CreateCdPipeline(w http.ResponseWr
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var cdPipeline bean.CdPipelines
@@ -280,7 +280,7 @@ func (handler *PipelineConfigRestHandlerImpl) PatchCdPipeline(w http.ResponseWri
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var cdPipeline bean.CDPatchRequest
@@ -373,7 +373,7 @@ func (handler *PipelineConfigRestHandlerImpl) HandleChangeDeploymentRequest(w ht
 	// Auth check
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -436,7 +436,7 @@ func (handler *PipelineConfigRestHandlerImpl) HandleChangeDeploymentTypeRequest(
 
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -491,7 +491,7 @@ func (handler *PipelineConfigRestHandlerImpl) HandleTriggerDeploymentAfterTypeCh
 
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -548,7 +548,7 @@ func (handler *PipelineConfigRestHandlerImpl) HandleTriggerDeploymentAfterTypeCh
 func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -618,7 +618,7 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -696,7 +696,7 @@ func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Res
 	// userId := getLoggedInUser(r)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var envConfigProperties pipelineBean.EnvironmentProperties
@@ -810,7 +810,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetTemplateComparisonMetadata(w ht
 	vars := mux.Vars(r)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -865,7 +865,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetDeploymentTemplateData(w http.R
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		handler.Logger.Errorw("request err, userId", "err", err, "payload", userId)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
@@ -887,7 +887,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetDeploymentTemplateData(w http.R
 func (handler *PipelineConfigRestHandlerImpl) GetRestartWorkloadData(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	envId, err := common.ExtractIntQueryParam(w, r, "envId", 0)
@@ -1097,7 +1097,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Re
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -1297,7 +1297,7 @@ func (handler *PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseW
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -1363,7 +1363,7 @@ func (handler *PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseW
 func (handler *PipelineConfigRestHandlerImpl) GetArtifactsForRollback(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -1449,7 +1449,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetArtifactsForRollback(w http.Res
 func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideReset(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -1508,7 +1508,7 @@ func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideReset(w http.Resp
 func (handler *PipelineConfigRestHandlerImpl) ListDeploymentHistory(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -1583,7 +1583,7 @@ func (handler *PipelineConfigRestHandlerImpl) ListDeploymentHistory(w http.Respo
 func (handler *PipelineConfigRestHandlerImpl) GetPrePostDeploymentLogs(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -1667,7 +1667,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetPrePostDeploymentLogs(w http.Re
 func (handler *PipelineConfigRestHandlerImpl) FetchCdWorkflowDetails(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -1719,7 +1719,7 @@ func (handler *PipelineConfigRestHandlerImpl) FetchCdWorkflowDetails(w http.Resp
 func (handler *PipelineConfigRestHandlerImpl) DownloadArtifacts(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -1779,7 +1779,7 @@ func (handler *PipelineConfigRestHandlerImpl) DownloadArtifacts(w http.ResponseW
 func (handler *PipelineConfigRestHandlerImpl) GetStageStatus(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -1826,7 +1826,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetStageStatus(w http.ResponseWrit
 func (handler *PipelineConfigRestHandlerImpl) GetConfigmapSecretsForDeploymentStages(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -1898,7 +1898,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetCdPipelineById(w http.ResponseW
 func (handler *PipelineConfigRestHandlerImpl) CancelStage(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -2013,7 +2013,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetDefaultDeploymentPipelineStrate
 func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideCreateNamespace(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -2106,7 +2106,7 @@ func (handler *PipelineConfigRestHandlerImpl) IsReadyToTrigger(w http.ResponseWr
 func (handler *PipelineConfigRestHandlerImpl) UpgradeForAllApps(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -2211,7 +2211,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironment(w http
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	envId, err := strconv.Atoi(vars["envId"])
@@ -2268,7 +2268,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironmentMin(w h
 	vars := mux.Vars(r)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -2339,7 +2339,7 @@ func (handler *PipelineConfigRestHandlerImpl) SaveGitOpsConfiguration(w http.Res
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var appGitOpsConfigRequest devtronAppGitOpConfigBean.AppGitOpsConfigRequest
@@ -2387,7 +2387,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetGitOpsConfiguration(w http.Resp
 
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -2446,7 +2446,7 @@ func (handler *PipelineConfigRestHandlerImpl) ValidateExternalAppLinkRequest(w h
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var request pipelineBean.MigrateReleaseValidationRequest
