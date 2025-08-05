@@ -110,7 +110,7 @@ func (impl EnvironmentRestHandlerImpl) Create(w http.ResponseWriter, r *http.Req
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var bean bean2.EnvironmentBean
@@ -206,7 +206,7 @@ func (impl EnvironmentRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Req
 
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -261,7 +261,7 @@ func (impl EnvironmentRestHandlerImpl) Update(w http.ResponseWriter, r *http.Req
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -303,16 +303,18 @@ func (impl EnvironmentRestHandlerImpl) Update(w http.ResponseWriter, r *http.Req
 }
 
 func (impl EnvironmentRestHandlerImpl) FindById(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	envId, err := strconv.Atoi(vars["id"])
+	// Use enhanced parameter parsing with context
+	envId, err := common.ExtractIntPathParamWithContext(w, r, "id", "environment")
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		// Error already written by ExtractIntPathParamWithContext
 		return
 	}
+
 	bean, err := impl.environmentClusterMappingsService.FindById(envId)
 	if err != nil {
-		impl.logger.Errorw("service err, FindById", "err", err, "envId", envId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		impl.logger.Errorw("Failed to find environment", "envId", envId, "err", err)
+		// Use enhanced error response with resource context
+		common.WriteJsonRespWithResourceContextFromId(w, err, nil, 0, "environment", envId)
 		return
 	}
 
@@ -330,7 +332,7 @@ func (impl EnvironmentRestHandlerImpl) FindById(w http.ResponseWriter, r *http.R
 func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	start := time.Now()
@@ -363,7 +365,7 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDown(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -385,7 +387,7 @@ func (impl EnvironmentRestHandlerImpl) DeleteEnvironment(w http.ResponseWriter, 
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var bean bean2.EnvironmentBean
@@ -423,7 +425,7 @@ func (impl EnvironmentRestHandlerImpl) DeleteEnvironment(w http.ResponseWriter, 
 func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDownByClusterIds(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	v := r.URL.Query()
@@ -468,7 +470,7 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentConnection(w http.ResponseW
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		impl.logger.Errorw("user not authorized", "error", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	bean, err := impl.environmentClusterMappingsService.FindById(envId)

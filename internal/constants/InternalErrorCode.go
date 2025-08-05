@@ -170,6 +170,21 @@ const (
 )
 
 const (
+	// Generic API Errors Start --------------
+	// Sequence 11000-11999
+
+	InvalidPathParameter  string = "11001"
+	InvalidRequestBody    string = "11002"
+	InvalidQueryParameter string = "11003"
+	ValidationFailed      string = "11004"
+	MissingRequiredField  string = "11005"
+	ResourceNotFound      string = "11006"
+	DuplicateResource     string = "11007"
+
+	// Generic API Errors End ----------------
+)
+
+const (
 	// Not Processed Internal Errors Start ---
 	// Sequence 11000-11999
 

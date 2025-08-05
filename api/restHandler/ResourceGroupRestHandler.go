@@ -103,7 +103,7 @@ func (handler ResourceGroupRestHandlerImpl) GetActiveResourceGroupList(w http.Re
 //	func (handler ResourceGroupRestHandlerImpl) GetApplicationsForResourceGroup(w http.ResponseWriter, r *http.Request) {
 //		userId, err := handler.userService.GetLoggedInUser(r)
 //		if userId == 0 || err != nil {
-//			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+//			common.HandleUnauthorized(w, r)
 //			return
 //		}
 //		token := r.Header.Get("token")
@@ -129,7 +129,7 @@ func (handler ResourceGroupRestHandlerImpl) CreateResourceGroup(w http.ResponseW
 	token := r.Header.Get("token")
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -193,7 +193,7 @@ func (handler ResourceGroupRestHandlerImpl) UpdateResourceGroup(w http.ResponseW
 	token := r.Header.Get("token")
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -266,7 +266,7 @@ func (handler ResourceGroupRestHandlerImpl) CheckResourceGroupPermissions(w http
 
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)

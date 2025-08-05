@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: Devtron Labs
+  title: OpenAPI Client Management
   version: 1.0.0
 servers:
 - url: /

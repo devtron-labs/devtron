@@ -77,7 +77,7 @@ func (impl GitOpsConfigRestHandlerImpl) CreateGitOpsConfig(w http.ResponseWriter
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	// RBAC enforcer applying
@@ -116,7 +116,7 @@ func (impl GitOpsConfigRestHandlerImpl) UpdateGitOpsConfig(w http.ResponseWriter
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	// RBAC enforcer applying
@@ -164,7 +164,7 @@ func (impl GitOpsConfigRestHandlerImpl) GetGitOpsConfigById(w http.ResponseWrite
 	vars := mux.Vars(r)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	id, err := strconv.Atoi(vars["id"])
@@ -194,7 +194,7 @@ func (impl GitOpsConfigRestHandlerImpl) GetGitOpsConfigById(w http.ResponseWrite
 func (impl GitOpsConfigRestHandlerImpl) GitOpsConfigured(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	result, err := impl.gitOpsConfigService.GetAllGitOpsConfig()
@@ -223,7 +223,7 @@ func (impl GitOpsConfigRestHandlerImpl) GitOpsConfigured(w http.ResponseWriter, 
 func (impl GitOpsConfigRestHandlerImpl) GetAllGitOpsConfig(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	result, err := impl.gitOpsConfigService.GetAllGitOpsConfig()
@@ -247,7 +247,7 @@ func (impl GitOpsConfigRestHandlerImpl) GetAllGitOpsConfig(w http.ResponseWriter
 func (impl GitOpsConfigRestHandlerImpl) GetGitOpsConfigByProvider(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -274,7 +274,7 @@ func (impl GitOpsConfigRestHandlerImpl) GitOpsValidator(w http.ResponseWriter, r
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	// RBAC enforcer applying

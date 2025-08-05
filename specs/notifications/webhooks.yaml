@@ -1,0 +1,541 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Webhook Notification Management
+  description: Devtron API for webhook management including Git webhooks, CI/CD webhooks, and notification webhooks
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Labs
+    email: support@devtron.ai
+    url: https://devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: http://localhost:8080
+
+paths:
+  # Git Webhook APIs
+  /orchestrator/webhook/git:
+    post:
+      description: Handle Git webhook events
+      operationId: HandleGitWebhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GitWebhookPayload'
+      responses:
+        '200':
+          description: Webhook processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Success status
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/webhook/git/{gitHostId}:
+    post:
+      description: Handle Git webhook events for a specific Git host
+      operationId: HandleGitWebhookForHost
+      parameters:
+        - name: gitHostId
+          in: path
+          description: Git host ID or name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GitWebhookPayload'
+      responses:
+        '200':
+          description: Webhook processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Success status
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/webhook/git/{gitHostId}/{secret}:
+    post:
+      description: Handle Git webhook events with secret validation
+      operationId: HandleGitWebhookWithSecret
+      parameters:
+        - name: gitHostId
+          in: path
+          description: Git host ID or name
+          required: true
+          schema:
+            type: string
+        - name: secret
+          in: path
+          description: Webhook secret for validation
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GitWebhookPayload'
+      responses:
+        '200':
+          description: Webhook processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Success status
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # CI/CD Webhook APIs
+  /orchestrator/webhook/ci/workflow:
+    post:
+      description: Handle CI/CD workflow webhook events
+      operationId: HandleWorkflowWebhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CiCdStatus'
+      responses:
+        '200':
+          description: Webhook processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Success status
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/webhook/ext-ci/{externalCiId}:
+    post:
+      description: Handle external CI webhook events
+      operationId: HandleExternalCiWebhook
+      parameters:
+        - name: externalCiId
+          in: path
+          description: External CI ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExternalCiWebhookDto'
+      responses:
+        '200':
+          description: Webhook processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Success status
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+
+
+
+
+components:
+  schemas:
+    GitWebhookPayload:
+      type: object
+      properties:
+        after:
+          type: string
+          description: Commit hash after the event
+        before:
+          type: string
+          description: Commit hash before the event
+        commits:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookCommit'
+          description: List of commits in the event
+        compare:
+          type: string
+          description: URL to compare changes
+        created:
+          type: boolean
+          description: Whether the event created a new reference
+        deleted:
+          type: boolean
+          description: Whether the event deleted a reference
+        forced:
+          type: boolean
+          description: Whether the event was forced
+        head_commit:
+          $ref: '#/components/schemas/WebhookCommit'
+          description: The head commit of the event
+        pusher:
+          $ref: '#/components/schemas/User'
+          description: User who pushed the changes
+        ref:
+          type: string
+          description: Git reference (branch/tag)
+        repository:
+          $ref: '#/components/schemas/Repository'
+          description: Repository information
+        sender:
+          $ref: '#/components/schemas/User'
+          description: User who triggered the event
+
+    WebhookCommit:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Commit hash
+        message:
+          type: string
+          description: Commit message
+        timestamp:
+          type: string
+          format: date-time
+          description: Commit timestamp
+        author:
+          $ref: '#/components/schemas/User'
+          description: Commit author
+        committer:
+          $ref: '#/components/schemas/User'
+          description: Commit committer
+        added:
+          type: array
+          items:
+            type: string
+          description: List of added files
+        removed:
+          type: array
+          items:
+            type: string
+          description: List of removed files
+        modified:
+          type: array
+          items:
+            type: string
+          description: List of modified files
+
+    User:
+      type: object
+      properties:
+        name:
+          type: string
+          description: User's name
+        email:
+          type: string
+          description: User's email
+        username:
+          type: string
+          description: User's username
+
+    Repository:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Repository ID
+        name:
+          type: string
+          description: Repository name
+        full_name:
+          type: string
+          description: Full repository name (owner/repo)
+        private:
+          type: boolean
+          description: Whether the repository is private
+        html_url:
+          type: string
+          description: Repository URL
+        description:
+          type: string
+          description: Repository description
+        fork:
+          type: boolean
+          description: Whether the repository is a fork
+        url:
+          type: string
+          description: Repository API URL
+        default_branch:
+          type: string
+          description: Default branch name
+
+    CiCdStatus:
+      type: object
+      required:
+        - pipelineId
+        - status
+      properties:
+        pipelineId:
+          type: integer
+          description: Pipeline ID
+        status:
+          type: string
+          description: Pipeline status
+          enum: [SUCCESS, FAILED, RUNNING, CANCELLED]
+        message:
+          type: string
+          description: Status message
+        startedOn:
+          type: string
+          format: date-time
+          description: Pipeline start time
+        finishedOn:
+          type: string
+          format: date-time
+          description: Pipeline end time
+
+    ExternalCiWebhookDto:
+      type: object
+      required:
+        - pipelineId
+        - status
+      properties:
+        pipelineId:
+          type: integer
+          description: External CI pipeline ID
+        status:
+          type: string
+          description: Pipeline status
+          enum: [SUCCESS, FAILED, RUNNING, CANCELLED]
+        message:
+          type: string
+          description: Status message
+        startedOn:
+          type: string
+          format: date-time
+          description: Pipeline start time
+        finishedOn:
+          type: string
+          format: date-time
+          description: Pipeline end time
+        triggeredBy:
+          type: integer
+          description: User ID who triggered the pipeline
+
+    WebhookChannelConfig:
+      type: object
+      required:
+        - webhookConfigDtos
+      properties:
+        webhookConfigDtos:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookConfigDto'
+          description: List of webhook configurations
+
+    WebhookConfigDto:
+      type: object
+      required:
+        - name
+        - url
+      properties:
+        id:
+          type: integer
+          description: Webhook configuration ID
+        name:
+          type: string
+          description: Webhook name
+        url:
+          type: string
+          description: Webhook URL
+        secret:
+          type: string
+          description: Webhook secret for validation
+        events:
+          type: array
+          items:
+            type: string
+          description: List of events to trigger the webhook
+        active:
+          type: boolean
+          description: Whether the webhook is active
+        createdBy:
+          type: integer
+          description: User ID who created the webhook
+        updatedBy:
+          type: integer
+          description: User ID who last updated the webhook
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        message:
+          type: string
+          description: Error message
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error'
+          description: List of errors
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        message:
+          type: string
+          description: Error message 

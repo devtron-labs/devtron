@@ -55,7 +55,7 @@ func NewPProfRestHandler(userService user.UserService,
 func (p PProfRestHandlerImpl) Index(w http.ResponseWriter, r *http.Request) {
 	userId, err := p.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -70,7 +70,7 @@ func (p PProfRestHandlerImpl) Index(w http.ResponseWriter, r *http.Request) {
 func (p PProfRestHandlerImpl) Cmdline(w http.ResponseWriter, r *http.Request) {
 	userId, err := p.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -85,7 +85,7 @@ func (p PProfRestHandlerImpl) Cmdline(w http.ResponseWriter, r *http.Request) {
 func (p PProfRestHandlerImpl) Profile(w http.ResponseWriter, r *http.Request) {
 	userId, err := p.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -100,7 +100,7 @@ func (p PProfRestHandlerImpl) Profile(w http.ResponseWriter, r *http.Request) {
 func (p PProfRestHandlerImpl) Symbol(w http.ResponseWriter, r *http.Request) {
 	userId, err := p.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -115,7 +115,7 @@ func (p PProfRestHandlerImpl) Symbol(w http.ResponseWriter, r *http.Request) {
 func (p PProfRestHandlerImpl) Trace(w http.ResponseWriter, r *http.Request) {
 	userId, err := p.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -130,7 +130,7 @@ func (p PProfRestHandlerImpl) Trace(w http.ResponseWriter, r *http.Request) {
 func (p PProfRestHandlerImpl) Goroutine(w http.ResponseWriter, r *http.Request) {
 	userId, err := p.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -145,7 +145,7 @@ func (p PProfRestHandlerImpl) Goroutine(w http.ResponseWriter, r *http.Request) 
 func (p PProfRestHandlerImpl) Threadcreate(w http.ResponseWriter, r *http.Request) {
 	userId, err := p.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -160,7 +160,7 @@ func (p PProfRestHandlerImpl) Threadcreate(w http.ResponseWriter, r *http.Reques
 func (p PProfRestHandlerImpl) Heap(w http.ResponseWriter, r *http.Request) {
 	userId, err := p.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -175,7 +175,7 @@ func (p PProfRestHandlerImpl) Heap(w http.ResponseWriter, r *http.Request) {
 func (p PProfRestHandlerImpl) Block(w http.ResponseWriter, r *http.Request) {
 	userId, err := p.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -190,7 +190,7 @@ func (p PProfRestHandlerImpl) Block(w http.ResponseWriter, r *http.Request) {
 func (p PProfRestHandlerImpl) Mutex(w http.ResponseWriter, r *http.Request) {
 	userId, err := p.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -205,7 +205,7 @@ func (p PProfRestHandlerImpl) Mutex(w http.ResponseWriter, r *http.Request) {
 func (p PProfRestHandlerImpl) Allocs(w http.ResponseWriter, r *http.Request) {
 	userId, err := p.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")

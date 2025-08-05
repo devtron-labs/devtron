@@ -50,7 +50,7 @@ func NewCommonRestHandlerImpl(
 func (impl CommonRestHandlerImpl) GlobalChecklist(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	res, err := impl.commonService.GlobalChecklist()
@@ -66,7 +66,7 @@ func (impl CommonRestHandlerImpl) GlobalChecklist(w http.ResponseWriter, r *http
 func (impl CommonRestHandlerImpl) EnvironmentVariableList(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	// TODO: ADD RBAC (if required)

@@ -1,0 +1,123 @@
+openapi: "3.0.3"
+info:
+  version: 1.0.0
+  title: Default Template Values API
+  description: API for managing default template values for applications
+
+paths:
+  /orchestrator/app/template/default/{appId}/{chartRefId}:
+    get:
+      summary: Get default template values
+      operationId: GetDefaultDeploymentTemplate
+      description: Get default values of template by appId and chartRefId
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: The application ID
+        - name: chartRefId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: The chart reference ID
+        - name: token
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Authentication token
+      responses:
+        '200':
+          description: Successfully retrieved default template values
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    description: HTTP status code
+                  status:
+                    type: string
+                    description: Status message
+                  result:
+                    type: object
+                    properties:
+                      appOverride:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            Key:
+                              type: string
+                              description: The configuration key
+                            Value:
+                              type: string
+                              description: The configuration value
+                      isAppMetricsEnabled:
+                        type: boolean
+                        description: Whether application metrics are enabled
+                  errors:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ApiError'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Error message
+        internalMessage:
+          type: string
+          description: Internal error message for debugging
+        userMessage:
+          type: string
+          description: User-friendly error message
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Error code
+          example: E100
+        message:
+          type: string
+          description: Error message
+          example: User is not authenticated

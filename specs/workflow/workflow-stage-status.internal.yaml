@@ -3,7 +3,7 @@ info:
   title: Workflow Status API for showing execution stage
   version: 1.0.0
 paths:
-  /workflow/status: #this is not real API, only for sharing purpose
+  /orchestrator/workflow/status: #this is not real API, only for sharing purpose
     get:
       summary: Get Workflow Status
       responses:

@@ -62,7 +62,7 @@ func NewApiTokenRestHandlerImpl(logger *zap.SugaredLogger, apiTokenService apiTo
 func (impl ApiTokenRestHandlerImpl) GetAllApiTokens(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -86,7 +86,7 @@ func (impl ApiTokenRestHandlerImpl) GetAllApiTokens(w http.ResponseWriter, r *ht
 func (impl ApiTokenRestHandlerImpl) CreateApiToken(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -132,7 +132,7 @@ func (impl ApiTokenRestHandlerImpl) CreateApiToken(w http.ResponseWriter, r *htt
 func (impl ApiTokenRestHandlerImpl) UpdateApiToken(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -182,7 +182,7 @@ func (impl ApiTokenRestHandlerImpl) UpdateApiToken(w http.ResponseWriter, r *htt
 func (impl ApiTokenRestHandlerImpl) DeleteApiToken(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -221,7 +221,7 @@ func (handler ApiTokenRestHandlerImpl) checkManagerAuth(resource, token, object 
 func (impl ApiTokenRestHandlerImpl) GetAllApiTokensForWebhook(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 

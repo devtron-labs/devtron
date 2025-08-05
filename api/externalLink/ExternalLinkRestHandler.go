@@ -67,7 +67,7 @@ func NewExternalLinkRestHandlerImpl(logger *zap.SugaredLogger,
 func (impl ExternalLinkRestHandlerImpl) roleCheckHelper(w http.ResponseWriter, r *http.Request, action string) (int32, string, error) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return userId, "", fmt.Errorf("unauthorized error")
 	}
 	userRole := ""
@@ -78,8 +78,9 @@ func (impl ExternalLinkRestHandlerImpl) roleCheckHelper(w http.ResponseWriter, r
 	if v.Has("appId") {
 		id, err := strconv.Atoi(appId)
 		if err != nil {
-			impl.logger.Errorw("error occurred while converting appId to integer", "err", err, "appId", appId)
-			common.WriteJsonResp(w, errors.New("Invalid request"), nil, http.StatusBadRequest)
+			impl.logger.Errorw("Invalid appId query parameter", "err", err, "appId", appId)
+			// Use enhanced error handling for query parameter validation
+			common.HandleParameterError(w, r, "appId", appId)
 			return userId, "", fmt.Errorf("invalid request query param appId = %s", appId)
 		}
 		object := impl.enforcerUtil.GetAppRBACNameByAppId(id)
@@ -122,7 +123,7 @@ func (impl ExternalLinkRestHandlerImpl) CreateExternalLinks(w http.ResponseWrite
 func (impl ExternalLinkRestHandlerImpl) GetExternalLinkMonitoringTools(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -139,7 +140,7 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinkMonitoringTools(w http.Re
 func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -198,7 +199,7 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, 
 func (impl ExternalLinkRestHandlerImpl) GetExternalLinksV2(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
