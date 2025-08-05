@@ -2,10 +2,9 @@ openapi: "3.0.0"
 info:
   version: 1.0.0
   title: Helm Chart Repo Validation
-servers:
-  - url: http://localhost:3000/orchestrator/chart-repo
+
 paths:
-  /orchestrator/validate:
+  /orchestrator/chart-repo/validate:
     post:
       description: Validate helm repo by checking index file
       operationId: ValidateChartRepo
@@ -47,7 +46,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /create:
+  /orchestrator/chart-repo/create:
     post:
       description: Validate chart repo config and save if successfully validated
       operationId: ValidateAndCreateChartRepo
@@ -89,7 +88,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /update:
+  /orchestrator/chart-repo/update:
     post:
       description: Validate configuration and update them if validation is successful
       operationId: ValidateAndUpdateChartRepo
