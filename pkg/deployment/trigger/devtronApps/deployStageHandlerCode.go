@@ -173,7 +173,7 @@ func (impl *HandlerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		}
 		return 0, "", nil, err
 	}
-	envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(cdPipeline.AppId, cdPipeline.EnvironmentId)
+	envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(nil, cdPipeline.AppId, cdPipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", cdPipeline.AppId, "envId", cdPipeline.EnvironmentId, "err", err)
 		return 0, "", nil, err
@@ -269,7 +269,20 @@ func (impl *HandlerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			}
 			cdWorkflowId = cdWf.Id
 		}
-
+		tx, err := impl.cdWorkflowRepository.GetConnection().Begin()
+		if err != nil {
+			impl.logger.Errorw("error in getting connection for cdWorkflowRepository, ManualCdTrigger", "err", err)
+			return 0, "", nil, err
+		}
+		isRollbackNeeded := true
+		defer func() {
+			if isRollbackNeeded {
+				err = tx.Rollback()
+				if err != nil {
+					impl.logger.Errorw("error in rolling back transaction for cdWorkflowRunner, ManualCdTrigger", "cdWorkflowId", cdWorkflowId, "err", err)
+				}
+			}
+		}()
 		runner := &pipelineConfig.CdWorkflowRunner{
 			Name:         cdPipeline.Name,
 			WorkflowType: bean3.CD_WORKFLOW_TYPE_DEPLOY,
@@ -282,11 +295,26 @@ func (impl *HandlerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
 			ReferenceId:  triggerContext.ReferenceId,
 		}
-		err = impl.cdWorkflowRunnerService.SaveWfr(nil, runner)
+
+		err = impl.cdWorkflowRunnerService.SaveWfr(tx, runner)
 		if err != nil {
 			impl.logger.Errorw("err in creating cdWorkflowRunner, ManualCdTrigger", "cdWorkflowId", cdWorkflowId, "err", err)
 			return 0, "", nil, err
 		}
+
+		err = impl.workflowStatusLatestService.SaveCdWorkflowStatusLatest(tx, overrideRequest.PipelineId, overrideRequest.AppId, overrideRequest.EnvId, runner.Id, runner.WorkflowType.String(), overrideRequest.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in updating workflow status latest, ManualCdTrigger", "runnerId", overrideRequest.WfrId, "err", err)
+			return 0, "", nil, err
+		}
+
+		isRollbackNeeded = false
+		err = tx.Commit()
+		if err != nil {
+			impl.logger.Errorw("error in committing transaction for cdWorkflowRunner, ManualCdTrigger", "cdWorkflowId", cdWorkflowId, "err", err)
+			return 0, "", nil, err
+		}
+
 		runner.CdWorkflow = &pipelineConfig.CdWorkflow{
 			Pipeline: cdPipeline,
 		}
@@ -407,6 +435,22 @@ func (impl *HandlerServiceImpl) TriggerAutomaticDeployment(request bean.CdTrigge
 		}
 	}
 
+	tx, err := impl.cdWorkflowRepository.GetConnection().Begin()
+	if err != nil {
+		impl.logger.Errorw("error in getting connection for cdWorkflowRepository, ManualCdTrigger", "err", err)
+		return err
+	}
+
+	isRollbackNeeded := true
+	defer func() {
+		if isRollbackNeeded {
+			err = tx.Rollback()
+			if err != nil {
+				impl.logger.Errorw("error in rolling back transaction for cdWorkflowRunner, ManualCdTrigger", "cdWorkflowId", cdWf.Id, "err", err)
+			}
+		}
+	}()
+
 	runner := &pipelineConfig.CdWorkflowRunner{
 		Name:         pipeline.Name,
 		WorkflowType: bean3.CD_WORKFLOW_TYPE_DEPLOY,
@@ -419,10 +463,23 @@ func (impl *HandlerServiceImpl) TriggerAutomaticDeployment(request bean.CdTrigge
 		AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggeredAt, UpdatedBy: triggeredBy},
 		ReferenceId:  request.TriggerContext.ReferenceId,
 	}
-	err := impl.cdWorkflowRunnerService.SaveWfr(nil, runner)
+	err = impl.cdWorkflowRunnerService.SaveWfr(tx, runner)
 	if err != nil {
 		return err
 	}
+
+	err = impl.workflowStatusLatestService.SaveCdWorkflowStatusLatest(tx, pipeline.Id, pipeline.AppId, pipeline.EnvironmentId, runner.Id, runner.WorkflowType.String(), request.TriggeredBy)
+	if err != nil {
+		impl.logger.Errorw("error in updating workflow status latest, ManualCdTrigger", "runnerId", runner.Id, "err", err)
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction for cdWorkflowRunner, ManualCdTrigger", "cdWorkflowId", cdWf.Id, "err", err)
+		return err
+	}
+	isRollbackNeeded = false
 	runner.CdWorkflow = &pipelineConfig.CdWorkflow{
 		Pipeline: pipeline,
 	}
@@ -438,7 +495,7 @@ func (impl *HandlerServiceImpl) TriggerAutomaticDeployment(request bean.CdTrigge
 	if err != nil {
 		impl.logger.Errorw("error in creating timeline status for deployment initiation", "err", err, "timeline", timeline)
 	}
-	envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(pipeline.AppId, pipeline.EnvironmentId)
+	envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(nil, pipeline.AppId, pipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
 		return err
@@ -581,7 +638,7 @@ func (impl *HandlerServiceImpl) handleCDTriggerRelease(ctx context.Context, over
 		return userDeploymentRequestId, manifestPushTemplate, err
 	}
 	if envDeploymentConfig.IsEmpty() {
-		deploymentConfig, dbErr := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(overrideRequest.AppId, overrideRequest.EnvId)
+		deploymentConfig, dbErr := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(nil, overrideRequest.AppId, overrideRequest.EnvId)
 		if dbErr != nil {
 			impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "err", dbErr)
 			return releaseNo, manifestPushTemplate, dbErr
@@ -1356,7 +1413,7 @@ func (impl *HandlerServiceImpl) getReferenceChartByteForHelmTypeApp(envOverride 
 		ch.ReferenceChart = refChartByte
 		ch.UpdatedOn = time.Now()
 		ch.UpdatedBy = overrideRequest.UserId
-		err = impl.chartRepository.Update(ch)
+		err = impl.chartRepository.Update(nil, ch)
 		if err != nil {
 			impl.logger.Errorw("chart update error", "err", err, "req", overrideRequest)
 			return nil, err

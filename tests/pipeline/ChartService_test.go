@@ -17,12 +17,14 @@
 package pipeline
 
 import (
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
 	"github.com/devtron-labs/devtron/internal/util"
+	userUtil "github.com/devtron-labs/devtron/pkg/auth/user/util"
 	"github.com/devtron-labs/devtron/pkg/bulkAction/bean"
+	"github.com/devtron-labs/devtron/pkg/bulkAction/repository"
 	"github.com/devtron-labs/devtron/pkg/bulkAction/service"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	jsonpatch "github.com/evanphx/json-patch"
@@ -35,16 +37,15 @@ import (
 )
 
 var bulkUpdateService *service.BulkUpdateServiceImpl
-var bulkUpdateRepository bulkUpdate.BulkUpdateRepositoryImpl
 
 func setup() {
 	config, _ := sql.GetConfig()
 	logger, _ := util.NewSugardLogger()
 	dbConnection, _ := sql.NewDbConnection(config, logger)
-	bulkUpdateRepository := bulkUpdate.NewBulkUpdateRepository(dbConnection, logger)
+	bulkUpdateRepository := repository.NewBulkEditRepository(dbConnection, logger)
 	bulkUpdateService = service.NewBulkUpdateServiceImpl(bulkUpdateRepository, nil, nil, nil, nil, nil,
 		nil, nil, nil, nil, nil, nil, nil,
-		nil, nil, nil, nil, nil)
+		nil, nil, nil, nil, nil, nil)
 }
 
 func TestBulkUpdateDeploymentTemplate(t *testing.T) {
@@ -108,7 +109,7 @@ func TestBulkUpdateDeploymentTemplate(t *testing.T) {
 	for _, tt := range tests {
 		testname := fmt.Sprintf("%s,%s", tt.Payload.Includes, tt.Payload.Excludes)
 		t.Run(testname, func(t *testing.T) {
-			got := bulkUpdateService.BulkUpdateDeploymentTemplate(tt.Payload)
+			got := bulkUpdateService.BulkUpdateDeploymentTemplate(context.Background(), tt.Payload, userUtil.GetUserMetadata(context.Background(), 1, true))
 			if got != tt.want {
 				t.Errorf("got %s, want %s", got, tt.want)
 			}

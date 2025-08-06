@@ -21,6 +21,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/common-lib/async"
 	"github.com/devtron-labs/common-lib/utils"
@@ -71,10 +76,6 @@ import (
 	util2 "github.com/devtron-labs/devtron/util/event"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/rest"
-	"net/http"
-	"strings"
-	"sync"
-	"time"
 
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -158,7 +159,7 @@ type WorkflowDagExecutorImpl struct {
 	workflowService             executor.WorkflowService
 	ciHandlerService            trigger.HandlerService
 	workflowTriggerAuditService auditService.WorkflowTriggerAuditService
-	fluxApplicationService fluxApplication.FluxApplicationService
+	fluxApplicationService      fluxApplication.FluxApplicationService
 }
 
 func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -230,8 +231,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		workflowService:               workflowService,
 		ciHandlerService:              ciHandlerService,
 		workflowTriggerAuditService:   workflowTriggerAuditService,
-		fluxApplicationService:        fluxApplicationService,
-	}
+		fluxApplicationService:        fluxApplicationService}
 	config, err := types.GetCdConfig()
 	if err != nil {
 		return nil
@@ -538,7 +538,7 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.
 			if util4.IsTerminalRunnerStatus(cdWfr.Status) {
 				appId := cdWfr.CdWorkflow.Pipeline.AppId
 				envId := cdWfr.CdWorkflow.Pipeline.EnvironmentId
-				envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
+				envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(nil, appId, envId)
 				if err != nil {
 					impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
 				}
@@ -583,7 +583,7 @@ func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncInstallRequest(cdAsyncIn
 			return err
 		}
 	}
-	envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(overrideRequest.AppId, overrideRequest.EnvId)
+	envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(nil, overrideRequest.AppId, overrideRequest.EnvId)
 	if err != nil {
 		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "err", err)
 		return err
@@ -939,7 +939,6 @@ func (impl *WorkflowDagExecutorImpl) UpdateCiWorkflowForCiSuccess(request *bean2
 		impl.logger.Errorw("update wf failed for id ", "err", err)
 		return err
 	}
-
 	return nil
 }
 

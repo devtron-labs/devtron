@@ -64,7 +64,7 @@ func NewDevtronAppStrategyServiceImpl(
 
 func (impl *DevtronAppStrategyServiceImpl) FetchCDPipelineStrategy(appId int) (PipelineStrategiesResponse, error) {
 	pipelineStrategiesResponse := PipelineStrategiesResponse{}
-	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
+	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(nil, appId)
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in fetching chart for app", "appId", appId, "err", err)
 		return pipelineStrategiesResponse, err

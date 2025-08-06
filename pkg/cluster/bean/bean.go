@@ -38,6 +38,18 @@ type ClusterBean struct {
 	IsVirtualCluster        bool                       `json:"isVirtualCluster"`
 	ClusterUpdated          bool                       `json:"clusterUpdated"`
 	IsProd                  bool                       `json:"isProd"`
+	ClusterStatus           ClusterStatus              `json:"clusterStatus,omitempty"`
+}
+
+// TODO: fix duplicate
+func (bean *ClusterBean) SetClusterStatus() {
+	if len(bean.ErrorInConnecting) > 0 {
+		// if there's an error in connecting, cluster status is connection failed
+		bean.ClusterStatus = ClusterStatusConnectionFailed
+	} else {
+		// if no connection error, cluster status is healthy
+		bean.ClusterStatus = ClusterStatusHealthy
+	}
 }
 
 func (bean ClusterBean) GetClusterConfig() *k8s.ClusterConfig {
@@ -89,4 +101,13 @@ type DefaultClusterComponent struct {
 const (
 	DefaultNamespace = "default"
 	CmFieldUpdatedOn = "updated_on"
+)
+
+type ClusterStatus string
+
+// TODO: fix duplicate
+const (
+	ClusterStatusHealthy          ClusterStatus = "healthy"
+	ClusterStatusUnHealthy        ClusterStatus = "unhealthy"
+	ClusterStatusConnectionFailed ClusterStatus = "connection failed"
 )
