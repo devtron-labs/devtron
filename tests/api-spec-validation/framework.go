@@ -100,7 +100,8 @@ func (v *APISpecValidator) LoadSpecs(specsDir string) error {
 			return err
 		}
 
-		if info.IsDir() || !strings.HasSuffix(info.Name(), ".yaml") {
+		// Skip directories and files that are not OpenAPI specs
+		if info.IsDir() || (!strings.HasSuffix(info.Name(), ".yaml") && !strings.HasSuffix(info.Name(), ".yml") && !strings.HasSuffix(info.Name(), ".json")) {
 			return nil
 		}
 
