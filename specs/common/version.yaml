@@ -7,10 +7,20 @@ servers:
 paths:
   /orchestrator/version:
     get:
-      summary: Get Devtron server version information  
-      security: []
+      tags:
+        - Devtron Server version
+      summary: Get Devtron server version information
+      description: Get Devtron server version information
+      operationId: getDevtronVersion
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
       responses:
-        "200":
+        '200':
           description: meta info about devtron server
           content:
             application/json:
@@ -33,4 +43,31 @@ paths:
                     enum:
                       - FULL
                       - EA_ONLY
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    description: Error code
+                  message:
+                    type: string
+                    description: Error message
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    description: Error code
+                  message:
+                    type: string
+                    description: Error message
+      security: []
 

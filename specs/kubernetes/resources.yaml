@@ -57,6 +57,29 @@ paths:
                     description: status
                   result:
                     $ref: '#/components/schemas/ManifestResponse'
+    put:
+      description: Update Kubernetes resource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestBean'
+      responses:
+        "200":
+          description: Resource updated successfully
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/ManifestResponse'
 
   /orchestrator/k8s/resource/create:
     post:
@@ -83,30 +106,7 @@ paths:
                   result:
                     $ref: '#/components/schemas/ManifestResponse'
 
-  /orchestrator/k8s/resource:
-    put:
-      description: Update Kubernetes resource
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ResourceRequestBean'
-      responses:
-        "200":
-          description: Resource updated successfully
-          content:
-            application/json:
-              schema:
-                properties:
-                  code:
-                    type: integer
-                    description: status code
-                  status:
-                    type: string
-                    description: status
-                  result:
-                    $ref: '#/components/schemas/ManifestResponse'
+
 
   /orchestrator/k8s/resource/delete:
     post:
@@ -191,6 +191,109 @@ paths:
                     type: array
                     items:
                       type: string
+
+  /orchestrator/k8s/resources/apply:
+    post:
+      tags:
+        - K8s Resource
+      summary: Apply Resources
+      description: This API is used to apply (create or update) Kubernetes resources in a cluster.
+      operationId: applyResources
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      requestBody:
+        description: JSON payload containing the manifest of resources to apply.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplyResourcesRequest'
+      responses:
+        "200":
+          description: Response array indicating the status of application for each resource.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApplyResourcesResponse'
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/k8s/resources/rotate:
+    post:
+      tags:
+        - K8s Resource
+      summary: Rotates the Pods
+      description: This API is used to rotate (restart) pods in a deployment.
+      operationId: rotatePods
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      requestBody:
+        description: JSON payload containing the details of pods to rotate.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RotatePodsRequest'
+      responses:
+        "200":
+          description: Pod rotation completed successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Operation success status
+                  message:
+                    type: string
+                    description: Success message
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   schemas:
@@ -279,3 +382,55 @@ components:
         resource:
           type: string
           description: resource name
+
+    ApplyResourcesRequest:
+      type: object
+      properties:
+        clusterId:
+          type: integer
+          description: Cluster ID
+        manifest:
+          type: string
+          description: Kubernetes manifest YAML
+        namespace:
+          type: string
+          description: Target namespace
+
+    ApplyResourcesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Operation success status
+        message:
+          type: string
+          description: Response message
+        resourceName:
+          type: string
+          description: Name of the resource
+        kind:
+          type: string
+          description: Resource kind
+
+    RotatePodsRequest:
+      type: object
+      properties:
+        clusterId:
+          type: integer
+          description: Cluster ID
+        namespace:
+          type: string
+          description: Namespace
+        deploymentName:
+          type: string
+          description: Deployment name to rotate pods
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message

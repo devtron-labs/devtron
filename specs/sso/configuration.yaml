@@ -1,0 +1,365 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: SSO Configuration API
+  description: Devtron API for SSO configuration management
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Labs
+    email: support@devtron.ai
+    url: https://devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: http://localhost:8080
+paths:
+  /sso:
+    get:
+      tags:
+        - SSO Configuration
+      summary: Get SSO Login Configuration by Name
+      description: Get SSO login configuration by provider name.
+      operationId: GetSSOLoginConfigByName
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+        - name: name
+          in: query
+          required: true
+          description: Name of the SSO provider.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: SSO configuration retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  status:
+                    type: string
+                    example: "OK"
+                  result:
+                    $ref: '#/components/schemas/SSOLoginDto'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: SSO configuration not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /sso/create:
+    post:
+      tags:
+        - SSO Configuration
+      summary: Create SSO Login Configuration
+      description: Create a new SSO login configuration.
+      operationId: CreateSSOLoginConfig
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      requestBody:
+        description: SSO configuration details
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SSOLoginDto'
+      responses:
+        '200':
+          description: SSO configuration created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  status:
+                    type: string
+                    example: "OK"
+                  result:
+                    $ref: '#/components/schemas/SSOLoginDto'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: SSO configuration already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /sso/list:
+    get:
+      tags:
+        - SSO Configuration
+      summary: Get All SSO Login Configurations
+      description: Get all SSO login configurations.
+      operationId: GetAllSSOLoginConfigs
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: SSO configurations retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  status:
+                    type: string
+                    example: "OK"
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SSOLoginDto'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /sso/update:
+    put:
+      tags:
+        - SSO Configuration
+      summary: Update SSO Login Configuration
+      description: Update an existing SSO login configuration.
+      operationId: UpdateSSOLoginConfig
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      requestBody:
+        description: Updated SSO configuration details
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SSOLoginDto'
+      responses:
+        '200':
+          description: SSO configuration updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  status:
+                    type: string
+                    example: "OK"
+                  result:
+                    $ref: '#/components/schemas/SSOLoginDto'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: SSO configuration not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /sso/{id}:
+    get:
+      tags:
+        - SSO Configuration
+      summary: Get SSO Login Configuration by ID
+      description: Get SSO login configuration by ID.
+      operationId: GetSSOLoginConfigById
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          description: ID of the SSO configuration.
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: SSO configuration retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  status:
+                    type: string
+                    example: "OK"
+                  result:
+                    $ref: '#/components/schemas/SSOLoginDto'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: SSO configuration not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+components:
+  schemas:
+    SSOLoginDto:
+      type: object
+      required:
+        - name
+        - url
+        - config
+        - active
+      properties:
+        id:
+          type: integer
+          format: int32
+          readOnly: true
+          description: Unique identifier for the SSO configuration
+        name:
+          type: string
+          description: Type of auth ie google/github
+        label:
+          type: string
+          nullable: true
+          description: Display label for the SSO provider
+        url:
+          type: string
+          format: url
+          description: Devtron Dashboard Url
+          example: "https://devtron.example.com/orchestrator"
+          nullable: true
+        config:
+          type: object
+          description: Configuration for the SSO provider (Dex connector config). Structure varies.
+        active:
+          type: boolean
+          description: Whether the SSO configuration is active
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message
+        details:
+          type: array
+          items:
+            type: string
+          description: Additional error details

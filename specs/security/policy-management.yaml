@@ -1,0 +1,233 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Policy Management API
+  description: Devtron API for policy management
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Labs
+    email: support@devtron.ai
+    url: https://devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: http://localhost:8080
+paths:
+  /admin/policy/default:
+    post:
+      tags:
+        - Policy Management
+      summary: Add Default Policy and Roles
+      description: Add default policy and roles to the system.
+      operationId: AddDefaultPolicyAndRoles
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      requestBody:
+        description: Default policy configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                policies:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/PolicyConfig'
+                  description: List of default policies to add
+                roles:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/RoleConfig'
+                  description: List of default roles to add
+      responses:
+        '200':
+          description: Default policies and roles added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Operation success status
+                  message:
+                    type: string
+                    description: Success message
+                  addedPolicies:
+                    type: integer
+                    description: Number of policies added
+                  addedRoles:
+                    type: integer
+                    description: Number of roles added
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /validate:
+    post:
+      tags:
+        - GitOps Validation
+      summary: Validate gitops configuration by dry run
+      description: Validate gitops configuration by performing a dry run.
+      operationId: ValidateGitOpsConfig
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      requestBody:
+        description: GitOps configuration to validate
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                gitOpsConfig:
+                  type: object
+                  description: GitOps configuration to validate
+                dryRun:
+                  type: boolean
+                  description: Whether to perform dry run validation
+                  default: true
+      responses:
+        '200':
+          description: Validation completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+                    description: Whether the configuration is valid
+                  message:
+                    type: string
+                    description: Validation message
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    description: List of validation errors
+                  warnings:
+                    type: array
+                    items:
+                      type: string
+                    description: List of validation warnings
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+components:
+  schemas:
+    PolicyConfig:
+      type: object
+      required:
+        - name
+        - rules
+      properties:
+        name:
+          type: string
+          description: Policy name
+        description:
+          type: string
+          description: Policy description
+        rules:
+          type: array
+          items:
+            type: object
+            properties:
+              resource:
+                type: string
+                description: Resource type
+              action:
+                type: string
+                description: Action allowed
+              effect:
+                type: string
+                enum: [allow, deny]
+                description: Policy effect
+          description: Policy rules
+
+    RoleConfig:
+      type: object
+      required:
+        - name
+        - policies
+      properties:
+        name:
+          type: string
+          description: Role name
+        description:
+          type: string
+          description: Role description
+        policies:
+          type: array
+          items:
+            type: string
+          description: List of policy names associated with this role
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message
+        details:
+          type: array
+          items:
+            type: string
+          description: Additional error details
