@@ -196,7 +196,7 @@ func (impl *WorkflowStatusServiceImpl) CheckHelmAppStatusPeriodicallyAndUpdateIn
 		}
 		appId := wfr.CdWorkflow.Pipeline.AppId
 		envId := wfr.CdWorkflow.Pipeline.EnvironmentId
-		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
+		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(nil, appId, envId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
 			return err
@@ -213,8 +213,6 @@ func (impl *WorkflowStatusServiceImpl) CheckHelmAppStatusPeriodicallyAndUpdateIn
 				impl.logger.Errorw("error on handling deployment success event", "wfr", wfr, "err", err)
 				return err
 			}
-		} else if wfr.Status == cdWorkflow2.WorkflowTimedOut {
-			impl.deploymentEventHandler.WriteCDNotificationEventAsync(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride, util.Fail)
 		}
 	}
 	return nil
@@ -240,7 +238,7 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 
 		// this should only be called when we have git-ops configured
 		// try fetching status from argo cd
-		dc, err := impl.deploymentConfigService.GetConfigForDevtronApps(pipeline.AppId, pipeline.EnvironmentId)
+		dc, err := impl.deploymentConfigService.GetConfigForDevtronApps(nil, pipeline.AppId, pipeline.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", pipeline.AppId, "environmentId", pipeline.EnvironmentId, "err", err)
 			return nil, isTimelineUpdated
@@ -651,7 +649,7 @@ func (impl *WorkflowStatusServiceImpl) CheckFluxAppStatusPeriodicallyAndUpdateIn
 
 		appId := wfr.CdWorkflow.Pipeline.AppId
 		envId := wfr.CdWorkflow.Pipeline.EnvironmentId
-		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
+		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(nil, appId, envId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
 			return err
@@ -674,8 +672,6 @@ func (impl *WorkflowStatusServiceImpl) CheckFluxAppStatusPeriodicallyAndUpdateIn
 				impl.logger.Errorw("error on handling deployment success event", "wfr", wfr, "err", err)
 				return err
 			}
-		} else if wfr.Status == cdWorkflow2.WorkflowTimedOut {
-			impl.deploymentEventHandler.WriteCDNotificationEventAsync(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride, util.Fail)
 		}
 	}
 	return nil

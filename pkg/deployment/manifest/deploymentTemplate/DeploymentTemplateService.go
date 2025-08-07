@@ -137,7 +137,7 @@ func (impl *DeploymentTemplateServiceImpl) autoHealChartLocationInChart(ctx cont
 	// update chart in DB
 	chart.ChartLocation = newChartLocation
 	_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.Update")
-	err = impl.chartRepository.Update(chart)
+	err = impl.chartRepository.Update(nil, chart)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("error occurred while saving chart into DB", "chartId", chartId, "err", err)
