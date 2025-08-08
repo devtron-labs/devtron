@@ -229,18 +229,37 @@ func (v *APISpecValidator) testEndpoint(result *ValidationResult, path, method s
 
 	// Create request with proper body
 	var req *http.Request
+	var requestPayload string
+
 	if method == "GET" || method == "DELETE" {
 		req, err = http.NewRequest(method, url, nil)
+		requestPayload = "" // No body for GET/DELETE
 	} else {
 		// Generate appropriate request body based on OpenAPI schema
 		requestBody, err := v.generateRequestBody(operation, path, method)
 		if err != nil {
 			v.logger.Warnw("Failed to generate request body, using empty object", "error", err)
+			requestPayload = "{}"
 			req, err = http.NewRequest(method, url, strings.NewReader("{}"))
+		} else if requestBody != nil {
+			// Read the request body to capture it for reporting
+			bodyBytes, readErr := io.ReadAll(requestBody)
+			if readErr != nil {
+				v.logger.Warnw("Failed to read request body for reporting", "error", readErr)
+				requestPayload = "{unknown}"
+			} else {
+				requestPayload = string(bodyBytes)
+			}
+			// Create a new reader for the actual request
+			req, err = http.NewRequest(method, url, strings.NewReader(requestPayload))
 		} else {
-			req, err = http.NewRequest(method, url, requestBody)
+			requestPayload = ""
+			req, err = http.NewRequest(method, url, nil)
 		}
 	}
+
+	// Store the request payload in the result
+	result.Request = requestPayload
 
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
@@ -542,6 +561,29 @@ func (v *APISpecValidator) GenerateReport() string {
 		report.WriteString(fmt.Sprintf("- **Status**: %s\n", result.Status))
 		report.WriteString(fmt.Sprintf("- **Duration**: %s\n", result.Duration))
 		report.WriteString(fmt.Sprintf("- **Spec File**: %s\n", result.SpecFile))
+
+		// Add request payload information
+		if result.Request != nil && result.Request != "" {
+			requestStr, ok := result.Request.(string)
+			if ok && requestStr != "" {
+				// Pretty print JSON if possible
+				var requestData interface{}
+				if err := json.Unmarshal([]byte(requestStr), &requestData); err == nil {
+					if prettyJSON, err := json.MarshalIndent(requestData, "", "  "); err == nil {
+						report.WriteString(fmt.Sprintf("- **Request Payload**:\n```json\n%s\n```\n", string(prettyJSON)))
+					} else {
+						report.WriteString(fmt.Sprintf("- **Request Payload**: %s\n", requestStr))
+					}
+				} else {
+					// Not JSON, display as-is
+					report.WriteString(fmt.Sprintf("- **Request Payload**: %s\n", requestStr))
+				}
+			} else {
+				report.WriteString("- **Request Payload**: (empty)\n")
+			}
+		} else {
+			report.WriteString("- **Request Payload**: (none)\n")
+		}
 
 		if result.StatusCode != 0 {
 			report.WriteString(fmt.Sprintf("- **Response Code**: %d\n", result.StatusCode))

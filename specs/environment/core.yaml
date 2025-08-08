@@ -40,7 +40,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /cluster:
+  /orchestrator/cluster:
     put:
       tags:
         - Cluster Management
@@ -139,7 +139,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
       security: []
 
-  /cluster/delete:
+  /orchestrator/cluster/delete:
     post:
       tags:
         - Cluster Management
@@ -207,7 +207,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
       security: []
 
-  /cluster/{cluster_id}/env:
+  /orchestrator/cluster/{cluster_id}/env:
     get:
       tags:
         - Cluster Environment
@@ -271,7 +271,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
       security: []
 
-  /env:
+  /orchestrator/env:
     post:
       tags:
         - Environment Management
@@ -428,7 +428,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
       security: []
 
-  /env/clusters:
+  /orchestrator/env/clusters:
     get:
       tags:
         - Cluster Environment

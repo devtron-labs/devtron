@@ -14,7 +14,7 @@ info:
 servers:
   - url: http://localhost:8080
 paths:
-  /admin/policy/default:
+  /orchestrator/admin/policy/default:
     post:
       tags:
         - Policy Management
@@ -92,7 +92,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
       security: []
 
-  /validate:
+  /orchestrator/validate:
     post:
       tags:
         - GitOps Validation

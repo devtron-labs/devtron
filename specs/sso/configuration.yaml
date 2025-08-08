@@ -14,7 +14,7 @@ info:
 servers:
   - url: http://localhost:8080
 paths:
-  /sso:
+  /orchestrator/sso:
     get:
       tags:
         - SSO Configuration
@@ -76,7 +76,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
       security: []
 
-  /sso/create:
+  /orchestrator/sso/create:
     post:
       tags:
         - SSO Configuration
@@ -139,7 +139,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
       security: []
 
-  /sso/list:
+  /orchestrator/sso/list:
     get:
       tags:
         - SSO Configuration
@@ -185,7 +185,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
       security: []
 
-  /sso/update:
+  /orchestrator/sso/update:
     put:
       tags:
         - SSO Configuration
@@ -248,7 +248,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
       security: []
 
-  /sso/{id}:
+  /orchestrator/sso/{id}:
     get:
       tags:
         - SSO Configuration

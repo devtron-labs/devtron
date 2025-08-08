@@ -43,7 +43,7 @@ test-live: build
 		--server=https://devtron-ent-2.devtron.info \
 		--specs=../../specs \
 		--output=./reports \
-		--token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTQ0OTE5NzMsImp0aSI6IjI3YWI0ZDE5LTdmNGYtNDg5YS1iZDg5LTVmYjU5MjNjNWE4YSIsImlhdCI6MTc1NDQwNTU3MywiaXNzIjoiYXJnb2NkIiwibmJmIjoxNzU0NDA1NTczLCJzdWIiOiJhZG1pbiJ9.ckHWRP_Lqr-RDzsM8H7Fcs7nICho-PZcgIOTppH1tLE \
+		--token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTQ3MTc1NzEsImp0aSI6Ijk5Nzk3OTQ3LWZmMjEtNDFjZi1hYzJlLWQ2Mjc0M2IxYzIwZiIsImlhdCI6MTc1NDYzMTE3MSwiaXNzIjoiYXJnb2NkIiwibmJmIjoxNzU0NjMxMTcxLCJzdWIiOiJhZG1pbiJ9.T_GAXU8b96GqfvSHnl-0T26KWk0cY1ry0840p74cdGA \
 		--verbose
 
 # Compare specs with REST handlers

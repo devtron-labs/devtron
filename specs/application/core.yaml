@@ -363,7 +363,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApiError'
 
-  /app/edit:
+  /orchestrator/app/edit:
     post:
       tags:
         - Applications
@@ -411,7 +411,7 @@ paths:
       security:
         - bearerAuth: []
 
-  /app/list:
+  /orchestrator/app/list:
     post:
       tags:
         - Applications
@@ -455,7 +455,7 @@ paths:
       security:
         - bearerAuth: []
 
-  /app/details/{appId}:
+  /orchestrator/app/details/{appId}:
     get:
       tags:
         - Applications
@@ -500,7 +500,7 @@ paths:
       security:
         - bearerAuth: []
 
-  /app/edit/projects:
+  /orchestrator/app/edit/projects:
     post:
       tags:
         - Applications
