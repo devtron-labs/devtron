@@ -659,7 +659,7 @@ func (impl *ChartRefServiceImpl) ExtractChartIfMissing(chartData []byte, refChar
 func (impl *ChartRefServiceImpl) readChartMetaDataForLocation(chartDir string, fileName string) (*bean.ChartYamlStruct, error) {
 	chartLocation := filepath.Clean(filepath.Join(chartDir, fileName))
 
-	chartYamlPath := filepath.Clean(filepath.Join(chartLocation, "Chart.yaml"))
+	chartYamlPath := filepath.Clean(filepath.Join(chartLocation, bean.CHART_YAML_FILE))
 	if _, err := os.Stat(chartYamlPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("Chart.yaml file not present in the directory")
 	}

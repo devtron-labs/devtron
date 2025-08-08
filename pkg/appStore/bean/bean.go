@@ -298,7 +298,6 @@ func (chart *InstallAppVersionDTO) GetFluxDeploymentConfig() *bean2.DeploymentCo
 	}
 }
 
-// /
 type RefChartProxyDir string
 
 const (
@@ -334,15 +333,6 @@ type AppNames struct {
 	Name          string `json:"name,omitempty"`
 	Exists        bool   `json:"exists"`
 	SuggestedName string `json:"suggestedName,omitempty"`
-}
-
-type Dependencies struct {
-	Dependencies []Dependency `json:"dependencies"`
-}
-type Dependency struct {
-	Name       string `json:"name"`
-	Version    string `json:"version"`
-	Repository string `json:"repository"`
 }
 
 const REFERENCE_TYPE_DEFAULT string = "DEFAULT"

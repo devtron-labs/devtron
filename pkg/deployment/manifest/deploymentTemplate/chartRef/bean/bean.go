@@ -142,3 +142,5 @@ type PipelineStrategy struct {
 	Config             json.RawMessage                        `json:"config"`
 	Default            bool                                   `json:"default"`
 }
+
+var CHART_YAML_FILE = "Chart.yaml"
