@@ -1278,6 +1278,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkFluxAppRequest(ctx context.
 
 	if helmRelease != nil {
 		chartLocation = helmRelease.Spec.Chart.Spec.Chart
+		response.FluxReleaseMetadata.Destination.Namespace = helmRelease.GetReleaseNamespace()
 	}
 	if gitRepository != nil {
 		requestedGitUrl = gitRepository.Spec.URL
