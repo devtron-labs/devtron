@@ -71,6 +71,9 @@ tags:
   x-displayName: Get Deployment History (ENT)
   description: Retrieves the deployment history for a specific CD pipeline based on
     various filter criteria.
+- name: Resource Recommendation
+  x-displayName: Resource Recommendation (ENT)
+  description: Operations related to resource recommendations for Kubernetes workloads.
 - name: K8s Resource
   description: APIs for managing Kubernetes resources (get, create, update, delete,
     list).
@@ -3500,6 +3503,93 @@ paths:
                   $ref: '#/components/schemas/ApplyResourcesResponse'
       tags:
       - K8s Resource
+  /k8s/resource/recommended:
+    post:
+      summary: Get Resource Recommendation for a particular resource
+      description: This API will fetch resource recommendations for a specific Kubernetes resource
+      operationId: GetResourceRecommendation
+      security: [ ]
+      requestBody:
+        description: A JSON object containing the details required to fetch cluster resource recommendations
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestObject'
+      responses:
+        '200':
+          description: Resource recommendation response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceGetResponse'
+  /k8s/resource/recommendation/sync:
+    post:
+      summary: Sync Cluster Resource Recommendations
+      description: This API will be used to sync resource recommendations for a cluster
+      operationId: SyncClusterResourceRecommendations
+      security: [ ]
+      requestBody:
+        description: A JSON object containing the details required to sync cluster resource recommendations
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncResourceRecommendation'
+      responses:
+        '200':
+          description: Cluster resource recommendation sync response
+          content:
+            application/json:
+              schema:
+                type: string
+                description: A message indicating the sync status
+      tags:
+        - Resource Recommendation
+  /k8s/resource/{clusterId}/recommendation/details:
+    get:
+      summary: Get Cluster Resource Recommendation Details
+      description: This API will fetch resource recommendations metadata for a cluster
+      operationId: GetClusterResourceRecommendationDetails
+      security: [ ]
+      parameters:
+        - name: clusterId
+          in: path
+          required: true
+          description: ID of the target cluster
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Cluster resource recommendation details response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceRecommendationDetails'
+      tags:
+        - Resource Recommendation
+  /k8s/resource/recommendation/list:
+    post:
+      summary: Get Cluster Resource Recommendation List
+      description: This API will be used for fetching all workloads and their resource recommendations
+      operationId: GetClusterResourceRecommendationList
+      security: [ ]
+      requestBody:
+        description: A JSON object containing the details required to fetch cluster resource recommendations
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestObject'
+      responses:
+        '200':
+          description: Cluster resource recommendation list response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterResourceRecommendationList'
+      tags:
+        - Resource Recommendation
   /app/workflow:
     post:
       summary: Create an application workflow
@@ -3860,9 +3950,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
     delete:
-      summary: delete NotificationSetting
-      description: delete NotificationSetting.
-      operationId: deleteNotificationSetting
+      summary: Delete NotificationSetting
+      description: delete notification setting.
+      operationId: DeleteNotificationSetting
       requestBody:
         description: json as request body
         required: true
@@ -4181,8 +4271,8 @@ components:
     AppLabel:
       type: object
       required:
-      - key
-      - value
+        - key
+        - value
       properties:
         key:
           type: string
@@ -4196,8 +4286,8 @@ components:
     AppLabels:
       type: object
       required:
-      - appId
-      - labels
+        - appId
+        - labels
       properties:
         appId:
           type: integer
@@ -4209,13 +4299,13 @@ components:
     AppMetaInfo:
       type: object
       required:
-      - appId
-      - projectId
-      - appName
-      - projectName
-      - createdOn
-      - createdBy
-      - labels
+        - appId
+        - projectId
+        - appName
+        - projectName
+        - createdOn
+        - createdBy
+        - labels
       properties:
         appId:
           type: integer
@@ -4263,8 +4353,8 @@ components:
                 nullable: true
     Error:
       required:
-      - code
-      - message
+        - code
+        - message
       properties:
         code:
           type: integer
@@ -4349,16 +4439,16 @@ components:
             type: integer
           description: used to give the project id
           example:
-          - 1
-          - 2
+            - 1
+            - 2
         appStatuses:
           type: array
           items:
             type: string
           description: used to give the filter of app ci-build status
           example:
-          - Succeeded
-          - Starting
+            - Succeeded
+            - Starting
         sortBy:
           type: string
           description: used to give the sort by constraint
@@ -4431,18 +4521,18 @@ components:
     ChartInfo:
       type: object
       required:
-      - installedAppId
-      - environmentId
-      - installedAppVersionId
-      - appStoreApplicationVersionId
-      - appStoreApplicationName
-      - status
-      - appName
-      - environmentName
-      - deployedAt
-      - deployedBy
-      - readme
-      - deprecated
+        - installedAppId
+        - environmentId
+        - installedAppVersionId
+        - appStoreApplicationVersionId
+        - appStoreApplicationName
+        - status
+        - appName
+        - environmentName
+        - deployedAt
+        - deployedBy
+        - readme
+        - deprecated
       properties:
         installedAppId:
           type: integer
@@ -4489,9 +4579,9 @@ components:
     App:
       type: object
       required:
-      - appName
-      - teamId
-      - templateId
+        - appName
+        - teamId
+        - templateId
       properties:
         appName:
           type: string
@@ -4511,8 +4601,8 @@ components:
     AppProjectUpdateRequest:
       type: object
       required:
-      - teamId
-      - appId
+        - teamId
+        - appId
       properties:
         teamId:
           type: integer
@@ -4524,7 +4614,9 @@ components:
             type: integer
     AppListingRequest:
       type: object
-      required: []
+      required:
+        - offset
+        - size
       properties:
         appNameSearch:
           type: string
@@ -4564,9 +4656,9 @@ components:
     AppContainer:
       type: object
       required:
-      - appId
-      - appName
-      - environments
+        - appId
+        - appName
+        - environments
       properties:
         appId:
           type: integer
@@ -4581,10 +4673,10 @@ components:
     EnvContainer:
       type: object
       required:
-      - appId
-      - appName
-      - environmentId
-      - environmentName
+        - appId
+        - appName
+        - environmentId
+        - environmentName
       properties:
         appId:
           type: integer
@@ -4632,7 +4724,7 @@ components:
     DeploymentGroup:
       type: object
       required:
-      - id
+        - id
       properties:
         id:
           type: integer
@@ -4655,7 +4747,7 @@ components:
     BulkUpdateSeeExampleResponse:
       type: object
       required:
-      - Script
+        - Script
       properties:
         resource:
           type: string
@@ -4669,20 +4761,20 @@ components:
     BulkUpdateScript:
       type: object
       required:
-      - ApiVersion
-      - Kind
-      - Spec
+        - ApiVersion
+        - Kind
+        - Spec
       properties:
         apiVersion:
           type: string
           description: Api version from url
           example:
-          - v1beta1
+            - v1beta1
         kind:
           type: string
           description: Kind
           example:
-          - application
+            - application
         spec:
           $ref: '#/components/schemas/BulkUpdatePayload'
     BulkUpdatePayload:
@@ -4932,7 +5024,7 @@ components:
     BulkDeployRequest:
       type: object
       required:
-      - envIds
+        - envIds
       properties:
         includes:
           $ref: '#/components/schemas/NameIncludesExcludes'
@@ -4966,7 +5058,7 @@ components:
     BulkBuildTriggerRequest:
       type: object
       required:
-      - ciPipelineId
+        - ciPipelineId
       properties:
         includes:
           $ref: '#/components/schemas/NameIncludesExcludes'
@@ -5012,10 +5104,10 @@ components:
         active:
           type: boolean
       required:
-      - name
-      - url
-      - config
-      - active
+        - name
+        - url
+        - config
+        - active
     UserInfo:
       type: object
       properties:
@@ -5066,7 +5158,7 @@ components:
           readOnly: true
           description: The time the user last logged in.
       required:
-      - email_id
+        - email_id
     RoleGroup:
       type: object
       properties:
@@ -5090,8 +5182,8 @@ components:
           type: boolean
           description: Indicates if this role group grants super admin privileges.
       required:
-      - name
-      - roleFilters
+        - name
+        - roleFilters
     RoleFilter:
       type: object
       description: Defines a specific permission filter for a role.
@@ -5101,10 +5193,10 @@ components:
           description: The type of entity this filter applies to (e.g., apps, jobs,
             chart-group, cluster).
           enum:
-          - apps
-          - jobs
-          - chart-group
-          - cluster
+            - apps
+            - jobs
+            - chart-group
+            - cluster
         team:
           type: string
           description: Team associated with this permission. Can be empty for some
@@ -5129,9 +5221,9 @@ components:
           description: Access type, typically for distinguishing app types like devtron-app
             or helm-app.
           enum:
-          - devtron-app
-          - helm-app
-          - ''
+            - devtron-app
+            - helm-app
+            - ''
           nullable: true
         cluster:
           type: string
@@ -5158,8 +5250,8 @@ components:
           description: Workflow name, applicable if entity is 'jobs'.
           nullable: true
       required:
-      - entity
-      - action
+        - entity
+        - action
     UserRoleGroup:
       type: object
       description: Associates a user with a role group.
@@ -5182,10 +5274,10 @@ components:
         entity:
           type: string
           enum:
-          - apps
-          - cluster
-          - chart-group
-          - jobs
+            - apps
+            - cluster
+            - chart-group
+            - jobs
         accessType:
           type: string
           nullable: true
@@ -5201,7 +5293,7 @@ components:
         listingRequest:
           $ref: '#/components/schemas/ListingRequest'
       required:
-      - ids
+        - ids
     ListingRequest:
       type: object
       properties:
@@ -5211,8 +5303,8 @@ components:
         sortOrder:
           type: string
           enum:
-          - ASC
-          - DESC
+            - ASC
+            - DESC
           nullable: true
         sortBy:
           type: string
@@ -5235,8 +5327,8 @@ components:
     EnvironmentCreateRequest:
       type: object
       required:
-      - environment_name
-      - cluster_id
+        - environment_name
+        - cluster_id
       properties:
         environment_name:
           type: string
@@ -5271,14 +5363,14 @@ components:
           items:
             type: string
             enum:
-            - helm
-            - argo_cd
+              - helm
+              - argo_cd
     EnvironmentUpdateRequest:
       type: object
       required:
-      - id
-      - environment_name
-      - cluster_id
+        - id
+        - environment_name
+        - cluster_id
       properties:
         id:
           type: integer
@@ -5312,8 +5404,8 @@ components:
           items:
             type: string
             enum:
-            - helm
-            - argo_cd
+              - helm
+              - argo_cd
     EnvironmentDetail:
       type: object
       properties:
@@ -5353,8 +5445,8 @@ components:
           items:
             type: string
             enum:
-            - helm
-            - argo_cd
+              - helm
+              - argo_cd
     ClusterWithEnvironments:
       type: object
       properties:
@@ -5452,8 +5544,8 @@ components:
     ValidateClusterBean:
       type: object
       required:
-      - cluster_name
-      - server_url
+        - cluster_name
+        - server_url
       properties:
         userInfos:
           type: object
@@ -5524,8 +5616,8 @@ components:
         type:
           type: string
           enum:
-          - basic
-          - bearer
+            - basic
+            - bearer
         basic:
           type: object
           properties:
@@ -5583,8 +5675,8 @@ components:
         type:
           type: string
           enum:
-          - yaml
-          - json
+            - yaml
+            - json
     CloneApplicationWorkflowRequest:
       type: object
       properties:
@@ -5617,15 +5709,15 @@ components:
           type: string
           description: Status of the operation
           enum:
-          - SUCCESS
-          - FAILED
-          - SKIPPED
+            - SUCCESS
+            - FAILED
+            - SKIPPED
         message:
           type: string
           description: Detailed message about the operation result
       required:
-      - status
-      - message
+        - status
+        - message
     StandardResponse:
       type: object
       properties:
@@ -5644,23 +5736,23 @@ components:
               type: string
               description: Status of the operation
               enum:
-              - SUCCESS
-              - FAILED
-              - SKIPPED
+                - SUCCESS
+                - FAILED
+                - SKIPPED
             message:
               type: string
               description: Detailed message about the operation result
           required:
-          - status
-          - message
+            - status
+            - message
       required:
-      - code
-      - status
-      - result
+        - code
+        - status
+        - result
     ResourceInfo:
       type: object
       required:
-      - podName
+        - podName
       properties:
         podName:
           type: string
@@ -5696,6 +5788,104 @@ components:
           example: 1
         k8sRequest:
           $ref: '#/components/schemas/K8sRequestObject'
+    SyncResourceRecommendation:
+      type: object
+      description: Request object for syncing resource recommendations for a cluster
+      required:
+        - clusterId
+      properties:
+        clusterId:
+          type: number
+          description: ID of the target cluster
+    ResourceRecommendationDetails:
+      type: object
+      description: Details of resource recommendations for a cluster
+      required:
+        - supportedGVKs
+      properties:
+        supportedGVKs:
+          type: array
+          description: List of supported workload Group, Version, and Kind (GVK) for resource recommendations
+          items:
+            $ref: '#/components/schemas/GroupVersionKind'
+        lastScannedOn:
+          type: string
+          format: date-time
+          description: Timestamp of the last scan for resource recommendations
+    ClusterResourceRecommendationList:
+      type: object
+      properties:
+        headers:
+          type: array
+          items:
+            type: string
+            enum:
+              - name
+              - namespace
+              - kind
+              - apiVersion
+              - containerName
+              - cpuRequest
+              - cpuLimit
+              - memoryRequest
+              - memoryLimit
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                description: name of the workload resource
+              namespace:
+                type: string
+                description: namespace of the workload resource
+              kind:
+                type: string
+                description: kind of the workload resource
+              apiVersion:
+                type: string
+                description: apiVersion of the workload resource
+              containerName:
+                type: string
+                description: name of the container in the workload resource
+              cpuRequest:
+                $ref: '#/components/schemas/ResourceRecommendation'
+              cpuLimit:
+                $ref: '#/components/schemas/ResourceRecommendation'
+              memoryRequest:
+                $ref: '#/components/schemas/ResourceRecommendation'
+              memoryLimit:
+                $ref: '#/components/schemas/ResourceRecommendation'
+    ResourceRecommendation:
+      type: object
+      description: Resource recommendation details for a workload
+      required:
+        - current
+      properties:
+        delta:
+          type: number
+          format: float64
+          description: percentage of change in resource recommendation
+        current:
+          type: string
+          description: current value of the resource recommendation
+        recommended:
+          type: string
+          description: recommended value of the resource recommendation
+    K8sManifest:
+      type: object
+      description: Kubernetes manifest of the resource
+      additionalProperties: true
+    ManifestResponse:
+      type: object
+      required:
+        - manifest
+      properties:
+        recommendedManifest:
+          $ref: '#/components/schemas/K8sManifest'
+        manifest:
+          $ref: '#/components/schemas/K8sManifest'
     K8sRequestObject:
       type: object
       properties:
@@ -5713,8 +5903,8 @@ components:
               description: Name of the resource.
               example: my-deployment
           required:
-          - name
-          - groupVersionKind
+            - name
+            - groupVersionKind
         podLogsRequest:
           type: object
           properties:
@@ -5734,29 +5924,11 @@ components:
         secretViewAccess:
           type: boolean
           description: 'Indicates whether a user can see obscured secret values or
-            not. True if the user has permission, false otherwise.
-
-            '
+            not. True if the user has permission, false otherwise.'
           example: true
       required:
-      - manifestResponse
-      - secretViewAccess
-    ManifestResponse:
-      type: object
-      properties:
-        manifest:
-          type: object
-          description: The Kubernetes resource manifest.
-          additionalProperties: true
-          example:
-            apiVersion: v1
-            kind: ConfigMap
-            metadata:
-              name: my-config
-              namespace: default
-            data:
-              key1: value1
-              key2: value2
+        - manifestResponse
+        - secretViewAccess
     EventsResponseObject:
       type: object
       description: Represents a Kubernetes Event object.
@@ -5893,9 +6065,9 @@ components:
           description: Kind of the API resource.
           example: Deployment
       required:
-      - group
-      - version
-      - kind
+        - group
+        - version
+        - kind
     ClusterResourceListResponse:
       type: object
       description: Represents a list of resources with dynamic headers and corresponding
@@ -5908,10 +6080,10 @@ components:
           description: An array of strings representing the column headers for the
             resource list.
           example:
-          - NAME
-          - NAMESPACE
-          - KIND
-          - AGE
+            - NAME
+            - NAMESPACE
+            - KIND
+            - AGE
         data:
           type: array
           items:
@@ -5924,14 +6096,14 @@ components:
 
               '
             example:
-            - NAME: my-pod-1
-              NAMESPACE: default
-              KIND: Pod
-              AGE: 2d
-            - NAME: my-service-abc
-              NAMESPACE: kube-system
-              KIND: Service
-              AGE: 10h
+              - NAME: my-pod-1
+                NAMESPACE: default
+                KIND: Pod
+                AGE: 2d
+              - NAME: my-service-abc
+                NAMESPACE: kube-system
+                KIND: Service
+                AGE: 10h
     RotatePodRequest:
       type: object
       properties:
@@ -5955,12 +6127,12 @@ components:
                 description: Name of the resource (e.g., Deployment, StatefulSet name).
                 example: my-app-deployment
             required:
-            - name
-            - groupVersionKind
-            - namespace
+              - name
+              - groupVersionKind
+              - namespace
       required:
-      - clusterId
-      - resources
+        - clusterId
+        - resources
     RotatePodResponse:
       type: object
       properties:
@@ -6008,8 +6180,8 @@ components:
             \  app: my-app\n    spec:\n      containers:\n      - name: nginx\n  \
             \      image: nginx\n"
       required:
-      - clusterId
-      - manifest
+        - clusterId
+        - manifest
     ApplyResourcesResponse:
       type: object
       properties:
@@ -6033,9 +6205,9 @@ components:
             no change).
           example: true
       required:
-      - kind
-      - name
-      - isUpdate
+        - kind
+        - name
+        - isUpdate
     AppWorkflowDto:
       type: object
       properties:
@@ -6138,7 +6310,7 @@ components:
     NotificationSetting:
       type: object
       required:
-      - configName
+        - configName
       properties:
         id:
           type: integer
@@ -6171,7 +6343,7 @@ components:
     providers:
       type: object
       required:
-      - dest
+        - dest
       properties:
         dest:
           type: string
@@ -6185,14 +6357,14 @@ components:
     NotificationConfig:
       type: object
       required:
-      - channel
+        - channel
       properties:
         channel:
           type: string
           description: channel type
           enum:
-          - slack
-          - ses
+            - slack
+            - ses
         configs:
           type: array
           items:
@@ -6214,8 +6386,8 @@ components:
     configs:
       type: object
       required:
-      - type
-      - configName
+        - type
+        - configName
       properties:
         id:
           type: integer
@@ -6305,10 +6477,10 @@ components:
         name:
           type: string
           enum:
-          - DEPLOYMENT_TEMPLATE
-          - CONFIGMAP
-          - SECRET
-          - PIPELINE_STRATEGY
+            - DEPLOYMENT_TEMPLATE
+            - CONFIGMAP
+            - SECRET
+            - PIPELINE_STRATEGY
         childList:
           type: array
           items:
@@ -6453,8 +6625,8 @@ components:
       schema:
         type: string
         enum:
-        - ASC
-        - DESC
+          - ASC
+          - DESC
     SortByQueryUser:
       name: sortBy
       in: query
@@ -6463,8 +6635,8 @@ components:
       schema:
         type: string
         enum:
-        - email_id
-        - last_login
+          - email_id
+          - last_login
     SortByQueryRoleGroup:
       name: sortBy
       in: query
@@ -6473,7 +6645,7 @@ components:
       schema:
         type: string
         enum:
-        - name
+          - name
     OffsetQuery:
       name: offset
       in: query
@@ -6518,6 +6690,7 @@ x-tagGroups:
   - Clone Workflow
   - Deployment History
   - K8s Resource
+  - Resource Recommendation
   - Workflow Management
   - Devtron Server version
   - GitOps Validation
