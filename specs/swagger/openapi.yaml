@@ -6690,6 +6690,7 @@ x-tagGroups:
   - Clone Workflow
   - Deployment History
   - K8s Resource
+  - Resource Recommendation
   - Workflow Management
   - Devtron Server version
   - GitOps Validation
