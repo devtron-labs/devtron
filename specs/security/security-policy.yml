@@ -241,3 +241,11 @@ components:
           type: string
         action:
           $ref: '#/components/schemas/VulnerabilityAction'
+    ResourceLevel:
+      description: Resource Level can be one of global, cluster, environment, application
+      type: string
+      enum:
+        - Global
+        - Cluster
+        - Environment
+        - Application

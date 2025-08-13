@@ -155,7 +155,6 @@ components:
           description: Array of Environment Ids of dependent apps
         global:
           type: boolean
-<<<<<<<< HEAD:specs/jobs/bulk-update.yaml
           description: Global flag for updating dependent apps
         deploymentTemplate:
           $ref: '#/components/schemas/Tasks'
@@ -187,8 +186,6 @@ components:
           description: Names of all configmaps/secrets to be updated
         patchData:
           type: string
-          description: string with details of the patch to be used for updating
-========
           description: Flag for updating base Configurations of dependent apps
         deploymentTemplate:
           $ref: '#/components/schemas/Spec'
@@ -213,19 +210,12 @@ components:
               items:
                 type: string
               description: Name of all Secrets to be updated
-
->>>>>>>> develop:specs/bulkEdit/v1beta1/bulk_edit.yaml
     Spec:
       type: object
       properties:
         patchData:
           type: string
-<<<<<<<< HEAD:specs/jobs/bulk-update.yaml
           description: string with details of the patch to be used for updating
-========
-          description: String with details of the patch to be used for updating
-
->>>>>>>> develop:specs/bulkEdit/v1beta1/bulk_edit.yaml
     NameIncludesExcludes:
       type: object
       properties:

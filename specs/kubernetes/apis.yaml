@@ -23,6 +23,215 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: JWT token for authentication
+  schemas:
+    ResourceRequestObject:
+          type: object
+          required:
+            - clusterId
+            - k8sRequest
+          properties:
+            clusterId:
+              type: integer
+              description: Cluster ID
+            appId:
+              type: string
+              description: Application ID
+            k8sRequest:
+              $ref: '#/components/schemas/K8sRequest'
+            appType:
+              type: string
+              description: Application type
+            appIdentifier:
+              $ref: '#/components/schemas/AppIdentifier'
+            devtronAppIdentifier:
+              $ref: '#/components/schemas/DevtronAppIdentifier'
+    K8sRequest:
+      type: object
+      required:
+        - resourceIdentifier
+      properties:
+        resourceIdentifier:
+          $ref: '#/components/schemas/ResourceIdentifier'
+        patch:
+          type: string
+          description: JSON patch for update operations
+    ResourceIdentifier:
+      type: object
+      required:
+        - name
+        - namespace
+        - groupVersionKind
+      properties:
+        name:
+          type: string
+          description: Resource name
+        namespace:
+          type: string
+          description: Resource namespace
+        groupVersionKind:
+          $ref: '#/components/schemas/GroupVersionKind'
+    GroupVersionKind:
+      type: object
+      required:
+        - group
+        - version
+        - kind
+      properties:
+        group:
+          type: string
+          description: API group
+        version:
+          type: string
+          description: API version
+        kind:
+          type: string
+          description: Resource kind
+    AppIdentifier:
+      type: object
+      required:
+        - clusterId
+        - namespace
+        - releaseName
+      properties:
+        clusterId:
+          type: integer
+          description: Cluster ID
+        namespace:
+          type: string
+          description: Namespace
+        releaseName:
+          type: string
+          description: Release name
+    DevtronAppIdentifier:
+      type: object
+      required:
+        - clusterId
+        - namespace
+        - appName
+      properties:
+        clusterId:
+          type: integer
+          description: Cluster ID
+        namespace:
+          type: string
+          description: Namespace
+        appName:
+          type: string
+          description: Application name
+    ResourceGetResponse:
+      type: object
+      properties:
+        manifestResponse:
+          $ref: '#/components/schemas/ManifestResponse'
+        secretViewAccess:
+          type: boolean
+          description: Whether user has access to view secrets
+    ManifestResponse:
+      type: object
+      properties:
+        manifest:
+          type: string
+          description: Resource manifest in YAML format
+        ephemeralContainers:
+          type: array
+          items:
+            $ref: '#/components/schemas/EphemeralContainer'
+          description: List of ephemeral containers
+    EphemeralContainer:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Container name
+        image:
+          type: string
+          description: Container image
+        status:
+          type: string
+          description: Container status
+    EventsResponseObject:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/Event'
+          description: List of events
+    Event:
+      type: object
+      properties:
+        type:
+          type: string
+          description: Event type
+        reason:
+          type: string
+          description: Event reason
+        message:
+          type: string
+          description: Event message
+        lastTimestamp:
+          type: string
+          format: date-time
+          description: Last occurrence timestamp
+    LogsResponseObject:
+      type: object
+      properties:
+        logs:
+          type: string
+          description: Container logs
+    TerminalMessage:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          description: Terminal session ID
+        status:
+          type: string
+          description: Session status
+    GetAllApiResourcesResponse:
+      type: object
+      properties:
+        apiResources:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApiResource'
+          description: List of API resources
+    ApiResource:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Resource name
+        singularName:
+          type: string
+          description: Singular resource name
+        namespaced:
+          type: boolean
+          description: Whether resource is namespaced
+        kind:
+          type: string
+          description: Resource kind
+        verbs:
+          type: array
+          items:
+            type: string
+          description: Available verbs
+
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 404
+        message:
+          type: string
+          example: "Resource not found"
+        details:
+          type: array
+          items:
+            type: string
+          example: ["Kubernetes resource not found"]
 paths:
   /orchestrator/k8s/resource:
     post:
@@ -323,213 +532,3 @@ paths:
           description: Forbidden
         "500":
           description: Internal server error
-components:
-  schemas:
-    ResourceRequestObject:
-      type: object
-      required:
-        - clusterId
-        - k8sRequest
-      properties:
-        clusterId:
-          type: integer
-          description: Cluster ID
-        appId:
-          type: string
-          description: Application ID
-        k8sRequest:
-          $ref: '#/components/schemas/K8sRequest'
-        appType:
-          type: string
-          description: Application type
-        appIdentifier:
-          $ref: '#/components/schemas/AppIdentifier'
-        devtronAppIdentifier:
-          $ref: '#/components/schemas/DevtronAppIdentifier'
-    K8sRequest:
-      type: object
-      required:
-        - resourceIdentifier
-      properties:
-        resourceIdentifier:
-          $ref: '#/components/schemas/ResourceIdentifier'
-        patch:
-          type: string
-          description: JSON patch for update operations
-    ResourceIdentifier:
-      type: object
-      required:
-        - name
-        - namespace
-        - groupVersionKind
-      properties:
-        name:
-          type: string
-          description: Resource name
-        namespace:
-          type: string
-          description: Resource namespace
-        groupVersionKind:
-          $ref: '#/components/schemas/GroupVersionKind'
-    GroupVersionKind:
-      type: object
-      required:
-        - group
-        - version
-        - kind
-      properties:
-        group:
-          type: string
-          description: API group
-        version:
-          type: string
-          description: API version
-        kind:
-          type: string
-          description: Resource kind
-    AppIdentifier:
-      type: object
-      required:
-        - clusterId
-        - namespace
-        - releaseName
-      properties:
-        clusterId:
-          type: integer
-          description: Cluster ID
-        namespace:
-          type: string
-          description: Namespace
-        releaseName:
-          type: string
-          description: Release name
-    DevtronAppIdentifier:
-      type: object
-      required:
-        - clusterId
-        - namespace
-        - appName
-      properties:
-        clusterId:
-          type: integer
-          description: Cluster ID
-        namespace:
-          type: string
-          description: Namespace
-        appName:
-          type: string
-          description: Application name
-    ResourceGetResponse:
-      type: object
-      properties:
-        manifestResponse:
-          $ref: '#/components/schemas/ManifestResponse'
-        secretViewAccess:
-          type: boolean
-          description: Whether user has access to view secrets
-    ManifestResponse:
-      type: object
-      properties:
-        manifest:
-          type: string
-          description: Resource manifest in YAML format
-        ephemeralContainers:
-          type: array
-          items:
-            $ref: '#/components/schemas/EphemeralContainer'
-          description: List of ephemeral containers
-    EphemeralContainer:
-      type: object
-      properties:
-        name:
-          type: string
-          description: Container name
-        image:
-          type: string
-          description: Container image
-        status:
-          type: string
-          description: Container status
-    EventsResponseObject:
-      type: object
-      properties:
-        events:
-          type: array
-          items:
-            $ref: '#/components/schemas/Event'
-          description: List of events
-    Event:
-      type: object
-      properties:
-        type:
-          type: string
-          description: Event type
-        reason:
-          type: string
-          description: Event reason
-        message:
-          type: string
-          description: Event message
-        lastTimestamp:
-          type: string
-          format: date-time
-          description: Last occurrence timestamp
-    LogsResponseObject:
-      type: object
-      properties:
-        logs:
-          type: string
-          description: Container logs
-    TerminalMessage:
-      type: object
-      properties:
-        sessionId:
-          type: string
-          description: Terminal session ID
-        status:
-          type: string
-          description: Session status
-    GetAllApiResourcesResponse:
-      type: object
-      properties:
-        apiResources:
-          type: array
-          items:
-            $ref: '#/components/schemas/ApiResource'
-          description: List of API resources
-    ApiResource:
-      type: object
-      properties:
-        name:
-          type: string
-          description: Resource name
-        singularName:
-          type: string
-          description: Singular resource name
-        namespaced:
-          type: boolean
-          description: Whether resource is namespaced
-        kind:
-          type: string
-          description: Resource kind
-        verbs:
-          type: array
-          items:
-            type: string
-          description: Available verbs
-
-    ApiError:
-      type: object
-      properties:
-        code:
-          type: integer
-          format: int32
-          example: 404
-        message:
-          type: string
-          example: "Resource not found"
-        details:
-          type: array
-          items:
-            type: string
-          example: ["Kubernetes resource not found"]

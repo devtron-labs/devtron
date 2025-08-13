@@ -17,6 +17,89 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  schemas:
+    AppListDetail:
+      type: object
+      properties:
+        clusterIds:
+          type: array
+          description: Clusters to which result corresponds
+          items:
+            type: integer
+        applicationType:
+          type: string
+          description: Application type inside the array
+          enum: [DEVTRON-CHART-STORE, DEVTRON-APP, HELM-APP]
+        errored:
+          type: boolean
+          description: If data fetch for that cluster produced error
+        errorMsg:
+          type: string
+          description: Error message if client failed to fetch
+        helmApps:
+          type: array
+          description: All helm app list
+          items:
+            $ref: '#/components/schemas/HelmAppDetails'
+        devtronApps:
+          type: array
+          description: All devtron app list
+          items:
+            type: object
+
+    HelmAppDetails:
+      type: object
+      properties:
+        lastDeployedAt:
+          type: string
+          format: date-time
+          description: Time when this application was last deployed/updated
+        appName:
+          type: string
+          description: Name of the helm application/helm release name
+        appId:
+          type: string
+          description: Unique identifier for app
+        chartName:
+          type: string
+          description: Name of the chart
+        chartAvatar:
+          type: string
+          description: URL/location of the chart icon
+        projectId:
+          type: integer
+          description: Unique identifier for the project, APP with no project will have id 0
+        chartVersion:
+          type: string
+          description: Chart version
+        environmentDetail:
+          $ref: '#/components/schemas/EnvironmentDetails'
+        appStatus:
+          type: string
+          description: Application status
+
+    EnvironmentDetails:
+      type: object
+      properties:
+        clusterName:
+          type: string
+          description: Cluster corresponding to the environment where application is deployed
+        clusterId:
+          type: integer
+          description: Cluster ID corresponding to the environment where application is deployed
+        namespace:
+          type: string
+          description: Namespace where application is deployed
+        isVirtualEnvironment:
+          type: boolean
+          description: Whether environment is virtual or not
+
+    Notes:
+      type: object
+      properties:
+        gitOpsNotes:
+          type: string
+          description: Notes content
 
 paths:
   /app-store/installed-app:
@@ -194,91 +277,6 @@ paths:
       tags:
         - Helm Charts
 
-
-
-  schemas:
-    AppListDetail:
-      type: object
-      properties:
-        clusterIds:
-          type: array
-          description: Clusters to which result corresponds
-          items:
-            type: integer
-        applicationType:
-          type: string
-          description: Application type inside the array
-          enum: [DEVTRON-CHART-STORE, DEVTRON-APP, HELM-APP]
-        errored:
-          type: boolean
-          description: If data fetch for that cluster produced error
-        errorMsg:
-          type: string
-          description: Error message if client failed to fetch
-        helmApps:
-          type: array
-          description: All helm app list
-          items:
-            $ref: '#/components/schemas/HelmAppDetails'
-        devtronApps:
-          type: array
-          description: All devtron app list
-          items:
-            type: object
-
-    HelmAppDetails:
-      type: object
-      properties:
-        lastDeployedAt:
-          type: string
-          format: date-time
-          description: Time when this application was last deployed/updated
-        appName:
-          type: string
-          description: Name of the helm application/helm release name
-        appId:
-          type: string
-          description: Unique identifier for app
-        chartName:
-          type: string
-          description: Name of the chart
-        chartAvatar:
-          type: string
-          description: URL/location of the chart icon
-        projectId:
-          type: integer
-          description: Unique identifier for the project, APP with no project will have id 0
-        chartVersion:
-          type: string
-          description: Chart version
-        environmentDetail:
-          $ref: '#/components/schemas/EnvironmentDetails'
-        appStatus:
-          type: string
-          description: Application status
-
-    EnvironmentDetails:
-      type: object
-      properties:
-        clusterName:
-          type: string
-          description: Cluster corresponding to the environment where application is deployed
-        clusterId:
-          type: integer
-          description: Cluster ID corresponding to the environment where application is deployed
-        namespace:
-          type: string
-          description: Namespace where application is deployed
-        isVirtualEnvironment:
-          type: boolean
-          description: Whether environment is virtual or not
-
-    Notes:
-      type: object
-      properties:
-        gitOpsNotes:
-          type: string
-          description: Notes content
 
 tags:
   - name: Helm Charts

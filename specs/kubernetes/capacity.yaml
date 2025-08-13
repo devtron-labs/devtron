@@ -23,6 +23,267 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: JWT token for authentication
+  schemas:
+    ClusterCapacityDetail:
+          type: object
+          properties:
+            id:
+              type: integer
+              format: int64
+            name:
+              type: string
+            errorInNodeListing:
+              type: string
+            nodeCount:
+              type: integer
+            nodeDetails:
+              type: array
+              items:
+                $ref: '#/components/schemas/NodeDetails'
+            nodeErrors:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+            nodeK8sVersions:
+              type: array
+              items:
+                type: string
+            serverVersion:
+              type: string
+            cpu:
+              $ref: '#/components/schemas/ResourceDetailObject'
+            memory:
+              $ref: '#/components/schemas/ResourceDetailObject'
+            isVirtualCluster:
+              type: boolean
+            isProd:
+              type: boolean
+
+    NodeCapacityDetail:
+      type: object
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+        kind:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        k8sVersion:
+          type: string
+        cpu:
+          $ref: '#/components/schemas/ResourceDetailObject'
+        memory:
+          $ref: '#/components/schemas/ResourceDetailObject'
+        age:
+          type: string
+        status:
+          type: string
+        podCount:
+          type: integer
+        errors:
+          type: object
+          additionalProperties:
+            type: string
+        internalIp:
+          type: string
+        externalIp:
+          type: string
+        unschedulable:
+          type: boolean
+        createdAt:
+          type: string
+        labels:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabelAnnotationTaintObject'
+        annotations:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabelAnnotationTaintObject'
+        taints:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabelAnnotationTaintObject'
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/NodeConditionObject'
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResourceDetailObject'
+        pods:
+          type: array
+          items:
+            $ref: '#/components/schemas/PodCapacityDetail'
+        manifest:
+          type: object
+        clusterName:
+          type: string
+        nodeGroup:
+          type: string
+
+    NodeUpdateRequestDto:
+      type: object
+      required:
+        - clusterId
+        - name
+      properties:
+        clusterId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        manifestPatch:
+          type: string
+        version:
+          type: string
+        kind:
+          type: string
+        taints:
+          type: array
+          items:
+            $ref: '#/components/schemas/Taint'
+        nodeCordonOptions:
+          $ref: '#/components/schemas/NodeCordonHelper'
+        nodeDrainOptions:
+          $ref: '#/components/schemas/NodeDrainHelper'
+
+    NodeCordonHelper:
+      type: object
+      properties:
+        unschedulableDesired:
+          type: boolean
+
+    NodeDrainHelper:
+      type: object
+      required:
+        - force
+        - deleteEmptyDirData
+        - gracePeriodSeconds
+        - ignoreAllDaemonSets
+        - disableEviction
+      properties:
+        force:
+          type: boolean
+        deleteEmptyDirData:
+          type: boolean
+        gracePeriodSeconds:
+          type: integer
+        ignoreAllDaemonSets:
+          type: boolean
+        disableEviction:
+          type: boolean
+
+    NodeDetails:
+      type: object
+      properties:
+        nodeName:
+          type: string
+        nodeGroup:
+          type: string
+        taints:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabelAnnotationTaintObject'
+
+    LabelAnnotationTaintObject:
+      type: object
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+        effect:
+          type: string
+
+    NodeConditionObject:
+      type: object
+      properties:
+        type:
+          type: string
+        status:
+          type: string
+        lastHeartbeatTime:
+          type: string
+        lastTransitionTime:
+          type: string
+        reason:
+          type: string
+        message:
+          type: string
+
+    ResourceDetailObject:
+      type: object
+      properties:
+        capacity:
+          type: string
+        usage:
+          type: string
+        usagePercentage:
+          type: number
+        requests:
+          type: string
+        limits:
+          type: string
+
+    PodCapacityDetail:
+      type: object
+      properties:
+        name:
+          type: string
+        namespace:
+          type: string
+        cpu:
+          $ref: '#/components/schemas/ResourceDetailObject'
+        memory:
+          $ref: '#/components/schemas/ResourceDetailObject'
+
+    Taint:
+      type: object
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+        effect:
+          type: string
+
+    NodeManifestUpdateResponse:
+      type: object
+      properties:
+        manifest:
+          type: object
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 404
+        message:
+          type: string
+          example: "Resource not found"
+        details:
+          type: array
+          items:
+            type: string
+          example: ["Kubernetes resource not found"]
 paths:
   /orchestrator/k8s/capacity/cluster/list/raw:
     get:
@@ -443,265 +704,3 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-components:
-  schemas:
-    ClusterCapacityDetail:
-      type: object
-      properties:
-        id:
-          type: integer
-          format: int64
-        name:
-          type: string
-        errorInNodeListing:
-          type: string
-        nodeCount:
-          type: integer
-        nodeDetails:
-          type: array
-          items:
-            $ref: '#/components/schemas/NodeDetails'
-        nodeErrors:
-          type: object
-          additionalProperties:
-            type: array
-            items:
-              type: string
-        nodeK8sVersions:
-          type: array
-          items:
-            type: string
-        serverVersion:
-          type: string
-        cpu:
-          $ref: '#/components/schemas/ResourceDetailObject'
-        memory:
-          $ref: '#/components/schemas/ResourceDetailObject'
-        isVirtualCluster:
-          type: boolean
-        isProd:
-          type: boolean
-
-    NodeCapacityDetail:
-      type: object
-      properties:
-        name:
-          type: string
-        version:
-          type: string
-        kind:
-          type: string
-        roles:
-          type: array
-          items:
-            type: string
-        k8sVersion:
-          type: string
-        cpu:
-          $ref: '#/components/schemas/ResourceDetailObject'
-        memory:
-          $ref: '#/components/schemas/ResourceDetailObject'
-        age:
-          type: string
-        status:
-          type: string
-        podCount:
-          type: integer
-        errors:
-          type: object
-          additionalProperties:
-            type: string
-        internalIp:
-          type: string
-        externalIp:
-          type: string
-        unschedulable:
-          type: boolean
-        createdAt:
-          type: string
-        labels:
-          type: array
-          items:
-            $ref: '#/components/schemas/LabelAnnotationTaintObject'
-        annotations:
-          type: array
-          items:
-            $ref: '#/components/schemas/LabelAnnotationTaintObject'
-        taints:
-          type: array
-          items:
-            $ref: '#/components/schemas/LabelAnnotationTaintObject'
-        conditions:
-          type: array
-          items:
-            $ref: '#/components/schemas/NodeConditionObject'
-        resources:
-          type: array
-          items:
-            $ref: '#/components/schemas/ResourceDetailObject'
-        pods:
-          type: array
-          items:
-            $ref: '#/components/schemas/PodCapacityDetail'
-        manifest:
-          type: object
-        clusterName:
-          type: string
-        nodeGroup:
-          type: string
-
-    NodeUpdateRequestDto:
-      type: object
-      required:
-        - clusterId
-        - name
-      properties:
-        clusterId:
-          type: integer
-          format: int64
-        name:
-          type: string
-        manifestPatch:
-          type: string
-        version:
-          type: string
-        kind:
-          type: string
-        taints:
-          type: array
-          items:
-            $ref: '#/components/schemas/Taint'
-        nodeCordonOptions:
-          $ref: '#/components/schemas/NodeCordonHelper'
-        nodeDrainOptions:
-          $ref: '#/components/schemas/NodeDrainHelper'
-
-    NodeCordonHelper:
-      type: object
-      properties:
-        unschedulableDesired:
-          type: boolean
-
-    NodeDrainHelper:
-      type: object
-      required:
-        - force
-        - deleteEmptyDirData
-        - gracePeriodSeconds
-        - ignoreAllDaemonSets
-        - disableEviction
-      properties:
-        force:
-          type: boolean
-        deleteEmptyDirData:
-          type: boolean
-        gracePeriodSeconds:
-          type: integer
-        ignoreAllDaemonSets:
-          type: boolean
-        disableEviction:
-          type: boolean
-
-    NodeDetails:
-      type: object
-      properties:
-        nodeName:
-          type: string
-        nodeGroup:
-          type: string
-        taints:
-          type: array
-          items:
-            $ref: '#/components/schemas/LabelAnnotationTaintObject'
-
-    LabelAnnotationTaintObject:
-      type: object
-      properties:
-        key:
-          type: string
-        value:
-          type: string
-        effect:
-          type: string
-
-    NodeConditionObject:
-      type: object
-      properties:
-        type:
-          type: string
-        status:
-          type: string
-        lastHeartbeatTime:
-          type: string
-        lastTransitionTime:
-          type: string
-        reason:
-          type: string
-        message:
-          type: string
-
-    ResourceDetailObject:
-      type: object
-      properties:
-        capacity:
-          type: string
-        usage:
-          type: string
-        usagePercentage:
-          type: number
-        requests:
-          type: string
-        limits:
-          type: string
-
-    PodCapacityDetail:
-      type: object
-      properties:
-        name:
-          type: string
-        namespace:
-          type: string
-        cpu:
-          $ref: '#/components/schemas/ResourceDetailObject'
-        memory:
-          $ref: '#/components/schemas/ResourceDetailObject'
-
-    Taint:
-      type: object
-      properties:
-        key:
-          type: string
-        value:
-          type: string
-        effect:
-          type: string
-
-    NodeManifestUpdateResponse:
-      type: object
-      properties:
-        manifest:
-          type: object
-
-    Error:
-      type: object
-      properties:
-        code:
-          type: string
-        message:
-          type: string
-
-    ApiError:
-      type: object
-      properties:
-        code:
-          type: integer
-          format: int32
-          example: 404
-        message:
-          type: string
-          example: "Resource not found"
-        details:
-          type: array
-          items:
-            type: string
-          example: ["Kubernetes resource not found"]

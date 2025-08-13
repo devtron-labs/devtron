@@ -22,6 +22,145 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  schemas:
+    CreateJob:
+      type: object
+      required:
+        - appName
+        - teamId
+        - isJob
+      properties:
+        appName:
+          type: string
+          description: Name of the job
+          example: my-job-1
+        isJob:
+          type: boolean
+          description: States whether it's a job or an app
+          example: true
+        teamId:
+          type: integer
+          description: Project ID
+          example: 1
+        templateId:
+          type: integer
+          description: ID of the job to clone from
+          example: 18
+        labels:
+          type: array
+          items:
+            $ref: '../common/schemas.yaml#/components/schemas/AppLabel'
+        description:
+          type: string
+          description: Description of the job
+          example: This is my first Job
+
+    ActionResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID of job once created
+          example: 25
+        appName:
+          type: string
+          description: Name of job once created
+          example: my-job-1
+        material:
+          type: array
+          items:
+            $ref: '../common/schemas.yaml#/components/schemas/GitMaterial'
+        teamId:
+          type: integer
+          description: Team ID
+          example: 1
+        templateId:
+          type: integer
+          description: Template ID
+          example: 0
+        description:
+          type: string
+          description: Description of the job
+          example: This is my first Job
+        isJob:
+          type: boolean
+          description: Whether it is a job or an app
+          example: true
+
+    JobListRequest:
+      type: object
+      properties:
+        teams:
+          type: array
+          items:
+            type: integer
+          description: Project IDs to filter by
+          example: [1, 2]
+        appStatuses:
+          type: array
+          items:
+            type: string
+          description: CI build status filter
+          example: [Succeeded, Starting]
+        sortBy:
+          type: string
+          description: Sort by constraint
+          example: appNameSort
+        sortOrder:
+          type: string
+          description: Sort order
+          example: ASC
+        offset:
+          type: integer
+          description: Number from which to start the job list (pagination)
+          example: 0
+        size:
+          type: integer
+          description: Number of jobs to return
+          example: 20
+
+    JobListResponse:
+      type: object
+      properties:
+        jobContainers:
+          type: array
+          items:
+            $ref: "#/components/schemas/JobContainer"
+        jobCount:
+          type: integer
+          description: Total number of jobs
+
+    JobContainer:
+      type: object
+      properties:
+        jobId:
+          type: integer
+        jobName:
+          type: string
+        description:
+          type: string
+        ciPipelines:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobCiPipeline'
+
+    JobCiPipeline:
+      type: object
+      properties:
+        ciPipelineId:
+          type: integer
+        status:
+          type: string
+        lastRunAt:
+          type: string
+          format: date-time
+        lastSuccessAt:
+          type: string
+          format: date-time
+
+  tags:
+    - name: Jobs
+      description: Job management operations for creating, cloning, and retrieving jobs
 
 paths:
   /job:
@@ -181,142 +320,3 @@ paths:
                 $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
       tags:
         - Jobs
-  schemas:
-    CreateJob:
-      type: object
-      required:
-        - appName
-        - teamId
-        - isJob
-      properties:
-        appName:
-          type: string
-          description: Name of the job
-          example: my-job-1
-        isJob:
-          type: boolean
-          description: States whether it's a job or an app
-          example: true
-        teamId:
-          type: integer
-          description: Project ID
-          example: 1
-        templateId:
-          type: integer
-          description: ID of the job to clone from
-          example: 18
-        labels:
-          type: array
-          items:
-            $ref: '../common/schemas.yaml#/components/schemas/AppLabel'
-        description:
-          type: string
-          description: Description of the job
-          example: This is my first Job
-
-    ActionResponse:
-      type: object
-      properties:
-        id:
-          type: integer
-          description: ID of job once created
-          example: 25
-        appName:
-          type: string
-          description: Name of job once created
-          example: my-job-1
-        material:
-          type: array
-          items:
-            $ref: '../common/schemas.yaml#/components/schemas/GitMaterial'
-        teamId:
-          type: integer
-          description: Team ID
-          example: 1
-        templateId:
-          type: integer
-          description: Template ID
-          example: 0
-        description:
-          type: string
-          description: Description of the job
-          example: This is my first Job
-        isJob:
-          type: boolean
-          description: Whether it is a job or an app
-          example: true
-
-    JobListRequest:
-      type: object
-      properties:
-        teams:
-          type: array
-          items:
-            type: integer
-          description: Project IDs to filter by
-          example: [1, 2]
-        appStatuses:
-          type: array
-          items:
-            type: string
-          description: CI build status filter
-          example: [Succeeded, Starting]
-        sortBy:
-          type: string
-          description: Sort by constraint
-          example: appNameSort
-        sortOrder:
-          type: string
-          description: Sort order
-          example: ASC
-        offset:
-          type: integer
-          description: Number from which to start the job list (pagination)
-          example: 0
-        size:
-          type: integer
-          description: Number of jobs to return
-          example: 20
-
-    JobListResponse:
-      type: object
-      properties:
-        jobContainers:
-          type: array
-          items:
-            $ref: '#/components/schemas/JobContainer'
-        jobCount:
-          type: integer
-          description: Total number of jobs
-
-    JobContainer:
-      type: object
-      properties:
-        jobId:
-          type: integer
-        jobName:
-          type: string
-        description:
-          type: string
-        ciPipelines:
-          type: array
-          items:
-            $ref: '#/components/schemas/JobCiPipeline'
-
-    JobCiPipeline:
-      type: object
-      properties:
-        ciPipelineId:
-          type: integer
-        status:
-          type: string
-        lastRunAt:
-          type: string
-          format: date-time
-        lastSuccessAt:
-          type: string
-          format: date-time
-
-tags:
-  - name: Jobs
-    description: Job management operations for creating, cloning, and retrieving jobs

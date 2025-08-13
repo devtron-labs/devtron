@@ -23,6 +23,171 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: JWT token for authentication
+  schemas:
+    ConfigProperty:
+          type: object
+          properties:
+            name:
+              type: string
+              description: Name of the configuration
+              example: cm-1
+              nullable: true
+            configState:
+              $ref: '#/components/schemas/ConfigStateEnum'
+            type:
+              $ref: '#/components/schemas/ResourceTypeEnum'
+
+    ConfigStateEnum:
+      type: integer
+      enum: [1, 2, 3]
+      description: State of configuration (1 = draft, 2 = approval pending, 3 = published)
+
+    ResourceTypeEnum:
+      type: string
+      enum: [ConfigMap, Secret, Deployment Template]
+      description: Type of resource
+
+    ConfigDataResponse:
+      type: object
+      properties:
+        resourceConfig:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfigProperty'
+        isAppAdmin:
+          type: boolean
+          description: Whether the user has admin access to the application
+
+    ComparisonRequestDto:
+      type: object
+      properties:
+        comparisonItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComparisonItemRequestDto'
+
+    ComparisonItemRequestDto:
+      type: object
+      properties:
+        index:
+          type: integer
+          description: Index of the comparison item
+        appName:
+          type: string
+          description: Name of the application
+        envName:
+          type: string
+          description: Name of the environment
+        configType:
+          type: string
+          description: Type of configuration
+        identifierId:
+          type: integer
+          description: Identifier ID
+        pipelineId:
+          type: integer
+          description: Pipeline ID
+        resourceName:
+          type: string
+          description: Resource name
+        resourceType:
+          type: string
+          description: Resource type
+        resourceId:
+          type: integer
+          description: Resource ID
+        wfrId:
+          type: integer
+          description: Workflow run ID
+        configArea:
+          type: string
+          description: Configuration area
+
+    ComparisonResponseDto:
+      type: object
+      properties:
+        comparisonItemResponse:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeploymentAndCmCsConfigDto'
+
+    DeploymentAndCmCsConfigDto:
+      type: object
+      properties:
+        configData:
+          type: object
+          description: Configuration data
+        deploymentTemplate:
+          type: object
+          description: Deployment template data
+        pipelineStrategy:
+          type: object
+          description: Pipeline strategy data
+
+    ManifestRequest:
+      type: object
+      required:
+        - values
+        - resourceType
+        - appId
+      properties:
+        values:
+          type: object
+          description: Configuration values
+        mergeStrategy:
+          type: string
+          description: Strategy for merging configurations
+        resourceType:
+          type: string
+          description: Type of resource
+        resourceId:
+          type: integer
+          description: Resource ID
+        resourceName:
+          type: string
+          description: Resource name
+        appId:
+          type: integer
+          description: Application ID
+        environmentId:
+          type: integer
+          description: Environment ID
+
+    ManifestResponse:
+      type: object
+      properties:
+        manifest:
+          type: string
+          description: Generated manifest
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message
+
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 404
+        message:
+          type: string
+          example: "Resource not found"
+        details:
+          type: array
+          items:
+            type: string
+          example: ["Configuration not found in the system"]
 
 paths:
   /orchestrator/config/autocomplete:
@@ -267,170 +432,4 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-components:
-  schemas:
-    ConfigProperty:
-      type: object
-      properties:
-        name:
-          type: string
-          description: Name of the configuration
-          example: cm-1
-          nullable: true
-        configState:
-          $ref: '#/components/schemas/ConfigStateEnum'
-        type:
-          $ref: '#/components/schemas/ResourceTypeEnum'
-
-    ConfigStateEnum:
-      type: integer
-      enum: [1, 2, 3]
-      description: State of configuration (1 = draft, 2 = approval pending, 3 = published)
-
-    ResourceTypeEnum:
-      type: string
-      enum: [ConfigMap, Secret, Deployment Template]
-      description: Type of resource
-
-    ConfigDataResponse:
-      type: object
-      properties:
-        resourceConfig:
-          type: array
-          items:
-            $ref: '#/components/schemas/ConfigProperty'
-        isAppAdmin:
-          type: boolean
-          description: Whether the user has admin access to the application
-
-    ComparisonRequestDto:
-      type: object
-      properties:
-        comparisonItems:
-          type: array
-          items:
-            $ref: '#/components/schemas/ComparisonItemRequestDto'
-
-    ComparisonItemRequestDto:
-      type: object
-      properties:
-        index:
-          type: integer
-          description: Index of the comparison item
-        appName:
-          type: string
-          description: Name of the application
-        envName:
-          type: string
-          description: Name of the environment
-        configType:
-          type: string
-          description: Type of configuration
-        identifierId:
-          type: integer
-          description: Identifier ID
-        pipelineId:
-          type: integer
-          description: Pipeline ID
-        resourceName:
-          type: string
-          description: Resource name
-        resourceType:
-          type: string
-          description: Resource type
-        resourceId:
-          type: integer
-          description: Resource ID
-        wfrId:
-          type: integer
-          description: Workflow run ID
-        configArea:
-          type: string
-          description: Configuration area
-
-    ComparisonResponseDto:
-      type: object
-      properties:
-        comparisonItemResponse:
-          type: array
-          items:
-            $ref: '#/components/schemas/DeploymentAndCmCsConfigDto'
-
-    DeploymentAndCmCsConfigDto:
-      type: object
-      properties:
-        configData:
-          type: object
-          description: Configuration data
-        deploymentTemplate:
-          type: object
-          description: Deployment template data
-        pipelineStrategy:
-          type: object
-          description: Pipeline strategy data
-
-    ManifestRequest:
-      type: object
-      required:
-        - values
-        - resourceType
-        - appId
-      properties:
-        values:
-          type: object
-          description: Configuration values
-        mergeStrategy:
-          type: string
-          description: Strategy for merging configurations
-        resourceType:
-          type: string
-          description: Type of resource
-        resourceId:
-          type: integer
-          description: Resource ID
-        resourceName:
-          type: string
-          description: Resource name
-        appId:
-          type: integer
-          description: Application ID
-        environmentId:
-          type: integer
-          description: Environment ID
-
-    ManifestResponse:
-      type: object
-      properties:
-        manifest:
-          type: string
-          description: Generated manifest
-
-    Error:
-      type: object
-      required:
-        - code
-        - message
-      properties:
-        code:
-          type: integer
-          description: Error code
-        message:
-          type: string
-          description: Error message
-
-    ApiError:
-      type: object
-      properties:
-        code:
-          type: integer
-          format: int32
-          example: 404
-        message:
-          type: string
-          example: "Resource not found"
-        details:
-          type: array
-          items:
-            type: string
-          example: ["Configuration not found in the system"]
 

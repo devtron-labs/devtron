@@ -22,6 +22,262 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: JWT token for authentication
+  schemas:
+    User:
+          type: object
+          required:
+            - email_id
+          properties:
+            id:
+              type: integer
+              description: Unique ID of user
+            email_id:
+              type: string
+              description: Unique valid email ID of user
+            userRoleGroups:
+              type: array
+              items:
+                $ref: '#/components/schemas/UserRoleGroup'
+            roleFilters:
+              type: array
+              items:
+                $ref: '#/components/schemas/RoleFilter'
+              description: Role filters objects
+
+    UserRoleGroup:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Role group ID
+        name:
+          type: string
+          description: Role group name
+        description:
+          type: string
+          description: Role group description
+
+    RoleGroup:
+      type: object
+      required:
+        - name
+      properties:
+        id:
+          type: integer
+          description: Unique ID of role group
+        name:
+          type: string
+          description: Unique name of group
+        description:
+          type: string
+          description: Group description
+        roleFilters:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleFilter'
+          description: Role filters objects
+
+    RoleFilter:
+      type: object
+      required:
+        - action
+      properties:
+        cluster:
+          type: string
+          description: Cluster name
+        namespace:
+          type: string
+          description: Namespace names (comma-separated for multiple, empty for all)
+        group:
+          type: string
+          description: Group names (comma-separated for multiple, empty for all)
+        kind:
+          type: string
+          description: Kind names (comma-separated for multiple, empty for all)
+        resource:
+          type: string
+          description: Resource names (comma-separated for multiple, empty for all)
+        action:
+          type: string
+          description: Action type (view, edit, admin)
+          enum: [view, edit, admin]
+
+    UserListingResponse:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+          description: List of users
+        totalCount:
+          type: integer
+          description: Total number of users
+
+    RoleGroupListingResponse:
+      type: object
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleGroup'
+          description: List of role groups
+        totalCount:
+          type: integer
+          description: Total number of role groups
+
+    BulkDeleteRequest:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+          description: List of IDs to delete
+
+    ApiToken:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: API token ID
+        userId:
+          type: integer
+          description: User ID associated with the token
+        userIdentifier:
+          type: string
+          description: Email ID of the token user
+        name:
+          type: string
+          description: Token name
+        description:
+          type: string
+          description: Token description
+        expireAtInMs:
+          type: integer
+          format: int64
+          description: Expiration time in milliseconds
+        token:
+          type: string
+          description: Token value
+        lastUsedAt:
+          type: string
+          description: Last used timestamp
+        lastUsedByIp:
+          type: string
+          description: Last used IP address
+        updatedAt:
+          type: string
+          description: Last update timestamp
+
+    CreateApiTokenRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Token name
+        description:
+          type: string
+          description: Token description
+        expireAtInMs:
+          type: integer
+          format: int64
+          description: Expiration time in milliseconds
+
+    UpdateApiTokenRequest:
+      type: object
+      properties:
+        description:
+          type: string
+          description: Token description
+        expireAtInMs:
+          type: integer
+          format: int64
+          description: Expiration time in milliseconds
+
+    CreateApiTokenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Success status
+        token:
+          type: string
+          description: Generated token
+        userId:
+          type: integer
+          description: User ID
+        userIdentifier:
+          type: string
+          description: User email ID
+
+    UpdateApiTokenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Success status
+        token:
+          type: string
+          description: Updated token
+
+    ActionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Success status
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        message:
+          type: string
+          description: Error message
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error'
+          description: List of errors
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        message:
+          type: string
+          description: Error message
+
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 404
+        message:
+          type: string
+          example: "Resource not found"
+        details:
+          type: array
+          items:
+            type: string
+          example: ["User not found in the system"]
 
 paths:
   # User Management APIs
@@ -580,261 +836,3 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
-components:
-  schemas:
-    User:
-      type: object
-      required:
-        - email_id
-      properties:
-        id:
-          type: integer
-          description: Unique ID of user
-        email_id:
-          type: string
-          description: Unique valid email ID of user
-        userRoleGroups:
-          type: array
-          items:
-            $ref: '#/components/schemas/UserRoleGroup'
-        roleFilters:
-          type: array
-          items:
-            $ref: '#/components/schemas/RoleFilter'
-          description: Role filters objects
-
-    UserRoleGroup:
-      type: object
-      properties:
-        id:
-          type: integer
-          description: Role group ID
-        name:
-          type: string
-          description: Role group name
-        description:
-          type: string
-          description: Role group description
-
-    RoleGroup:
-      type: object
-      required:
-        - name
-      properties:
-        id:
-          type: integer
-          description: Unique ID of role group
-        name:
-          type: string
-          description: Unique name of group
-        description:
-          type: string
-          description: Group description
-        roleFilters:
-          type: array
-          items:
-            $ref: '#/components/schemas/RoleFilter'
-          description: Role filters objects
-
-    RoleFilter:
-      type: object
-      required:
-        - action
-      properties:
-        cluster:
-          type: string
-          description: Cluster name
-        namespace:
-          type: string
-          description: Namespace names (comma-separated for multiple, empty for all)
-        group:
-          type: string
-          description: Group names (comma-separated for multiple, empty for all)
-        kind:
-          type: string
-          description: Kind names (comma-separated for multiple, empty for all)
-        resource:
-          type: string
-          description: Resource names (comma-separated for multiple, empty for all)
-        action:
-          type: string
-          description: Action type (view, edit, admin)
-          enum: [view, edit, admin]
-
-    UserListingResponse:
-      type: object
-      properties:
-        users:
-          type: array
-          items:
-            $ref: '#/components/schemas/User'
-          description: List of users
-        totalCount:
-          type: integer
-          description: Total number of users
-
-    RoleGroupListingResponse:
-      type: object
-      properties:
-        groups:
-          type: array
-          items:
-            $ref: '#/components/schemas/RoleGroup'
-          description: List of role groups
-        totalCount:
-          type: integer
-          description: Total number of role groups
-
-    BulkDeleteRequest:
-      type: object
-      properties:
-        ids:
-          type: array
-          items:
-            type: integer
-          description: List of IDs to delete
-
-    ApiToken:
-      type: object
-      properties:
-        id:
-          type: integer
-          description: API token ID
-        userId:
-          type: integer
-          description: User ID associated with the token
-        userIdentifier:
-          type: string
-          description: Email ID of the token user
-        name:
-          type: string
-          description: Token name
-        description:
-          type: string
-          description: Token description
-        expireAtInMs:
-          type: integer
-          format: int64
-          description: Expiration time in milliseconds
-        token:
-          type: string
-          description: Token value
-        lastUsedAt:
-          type: string
-          description: Last used timestamp
-        lastUsedByIp:
-          type: string
-          description: Last used IP address
-        updatedAt:
-          type: string
-          description: Last update timestamp
-
-    CreateApiTokenRequest:
-      type: object
-      required:
-        - name
-      properties:
-        name:
-          type: string
-          description: Token name
-        description:
-          type: string
-          description: Token description
-        expireAtInMs:
-          type: integer
-          format: int64
-          description: Expiration time in milliseconds
-
-    UpdateApiTokenRequest:
-      type: object
-      properties:
-        description:
-          type: string
-          description: Token description
-        expireAtInMs:
-          type: integer
-          format: int64
-          description: Expiration time in milliseconds
-
-    CreateApiTokenResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          description: Success status
-        token:
-          type: string
-          description: Generated token
-        userId:
-          type: integer
-          description: User ID
-        userIdentifier:
-          type: string
-          description: User email ID
-
-    UpdateApiTokenResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          description: Success status
-        token:
-          type: string
-          description: Updated token
-
-    ActionResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          description: Success status
-
-    ErrorResponse:
-      type: object
-      required:
-        - code
-        - message
-      properties:
-        code:
-          type: integer
-          format: int32
-          description: Error code
-        message:
-          type: string
-          description: Error message
-        errors:
-          type: array
-          items:
-            $ref: '#/components/schemas/Error'
-          description: List of errors
-
-    Error:
-      type: object
-      required:
-        - code
-        - message
-      properties:
-        code:
-          type: integer
-          format: int32
-          description: Error code
-        message:
-          type: string
-          description: Error message
-
-    ApiError:
-      type: object
-      properties:
-        code:
-          type: integer
-          format: int32
-          example: 404
-        message:
-          type: string
-          example: "Resource not found"
-        details:
-          type: array
-          items:
-            type: string
-          example: ["User not found in the system"] 

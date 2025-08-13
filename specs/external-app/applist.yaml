@@ -878,4 +878,14 @@ components:
           type: string
           description: values YAML of deployment
           example: "abcd"
-
+    UpdateReleaseResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: success or failure
+          example: true
+        errorMessage:
+          type: string
+          description: error message if any
+          example: ""

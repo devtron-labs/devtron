@@ -23,6 +23,135 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: JWT token for authentication
+  schemas:
+    DeploymentTemplateComparisonMetadata:
+          type: object
+          properties:
+            chartId:
+              type: integer
+              format: int64
+              description: The ID of the chart reference
+            chartVersion:
+              type: string
+              description: The version of the chart
+            chartType:
+              type: string
+              description: The type of the chart
+            environmentId:
+              type: integer
+              format: int64
+              description: The ID of the environment
+            environmentName:
+              type: string
+              description: The name of the environment
+            pipelineConfigOverrideId:
+              type: integer
+              format: int64
+              description: The ID of the pipeline configuration override
+            startedOn:
+              type: string
+              format: date-time
+              description: The timestamp when the deployment started
+            finishedOn:
+              type: string
+              format: date-time
+              description: The timestamp when the deployment finished
+            status:
+              type: string
+              description: The status of the deployment
+            type:
+              type: integer
+              enum: [1, 2, 3, 4]
+              description: The type of deployment template (1=DefaultVersions, 2=PublishedOnEnvironments, 3=DeployedOnSelfEnvironment, 4=DeployedOnOtherEnvironment)
+
+    DeploymentTemplateRequest:
+      type: object
+      required:
+        - appId
+        - chartRefId
+        - type
+      properties:
+        appId:
+          type: integer
+          format: int64
+          description: The ID of the application
+        chartRefId:
+          type: integer
+          format: int64
+          description: The ID of the chart reference
+        getValues:
+          type: boolean
+          description: Whether to include values in the response
+        type:
+          type: integer
+          enum: [1, 2, 3, 4]
+          description: The type of deployment template (1=DefaultVersions, 2=PublishedOnEnvironments, 3=DeployedOnSelfEnvironment, 4=DeployedOnOtherEnvironment)
+        values:
+          type: string
+          description: The values to use for the template
+        pipelineConfigOverrideId:
+          type: integer
+          format: int64
+          description: The ID of the pipeline configuration override
+        environmentId:
+          type: integer
+          format: int64
+          description: The ID of the environment
+        requestDataMode:
+          type: string
+          enum: [Values, Manifest]
+          description: The mode of data to return (Values or Manifest)
+
+    DeploymentTemplateResponse:
+      type: object
+      properties:
+        data:
+          type: string
+          description: The raw template data
+        resolvedData:
+          type: string
+          description: The resolved template data with variables replaced
+        variableSnapshot:
+          type: object
+          additionalProperties:
+            type: string
+          description: Map of variable names to their resolved values
+        manifest:
+          type: string
+          description: The generated manifest
+        values:
+          type: string
+          description: The values used for the template
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        message:
+          type: string
+          description: Error message
+
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 404
+        message:
+          type: string
+          example: "Resource not found"
+        details:
+          type: array
+          items:
+            type: string
+          example: ["Deployment template not found"]
 paths:
   /orchestrator/app/deployments/{app-id}/{env-id}:
     get:
@@ -125,133 +254,3 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-components:
-  schemas:
-    DeploymentTemplateComparisonMetadata:
-      type: object
-      properties:
-        chartId:
-          type: integer
-          format: int64
-          description: The ID of the chart reference
-        chartVersion:
-          type: string
-          description: The version of the chart
-        chartType:
-          type: string
-          description: The type of the chart
-        environmentId:
-          type: integer
-          format: int64
-          description: The ID of the environment
-        environmentName:
-          type: string
-          description: The name of the environment
-        pipelineConfigOverrideId:
-          type: integer
-          format: int64
-          description: The ID of the pipeline configuration override
-        startedOn:
-          type: string
-          format: date-time
-          description: The timestamp when the deployment started
-        finishedOn:
-          type: string
-          format: date-time
-          description: The timestamp when the deployment finished
-        status:
-          type: string
-          description: The status of the deployment
-        type:
-          type: integer
-          enum: [1, 2, 3, 4]
-          description: The type of deployment template (1=DefaultVersions, 2=PublishedOnEnvironments, 3=DeployedOnSelfEnvironment, 4=DeployedOnOtherEnvironment)
-
-    DeploymentTemplateRequest:
-      type: object
-      required:
-        - appId
-        - chartRefId
-        - type
-      properties:
-        appId:
-          type: integer
-          format: int64
-          description: The ID of the application
-        chartRefId:
-          type: integer
-          format: int64
-          description: The ID of the chart reference
-        getValues:
-          type: boolean
-          description: Whether to include values in the response
-        type:
-          type: integer
-          enum: [1, 2, 3, 4]
-          description: The type of deployment template (1=DefaultVersions, 2=PublishedOnEnvironments, 3=DeployedOnSelfEnvironment, 4=DeployedOnOtherEnvironment)
-        values:
-          type: string
-          description: The values to use for the template
-        pipelineConfigOverrideId:
-          type: integer
-          format: int64
-          description: The ID of the pipeline configuration override
-        environmentId:
-          type: integer
-          format: int64
-          description: The ID of the environment
-        requestDataMode:
-          type: string
-          enum: [Values, Manifest]
-          description: The mode of data to return (Values or Manifest)
-
-    DeploymentTemplateResponse:
-      type: object
-      properties:
-        data:
-          type: string
-          description: The raw template data
-        resolvedData:
-          type: string
-          description: The resolved template data with variables replaced
-        variableSnapshot:
-          type: object
-          additionalProperties:
-            type: string
-          description: Map of variable names to their resolved values
-        manifest:
-          type: string
-          description: The generated manifest
-        values:
-          type: string
-          description: The values used for the template
-
-    Error:
-      type: object
-      required:
-        - code
-        - message
-      properties:
-        code:
-          type: integer
-          format: int32
-          description: Error code
-        message:
-          type: string
-          description: Error message
-
-    ApiError:
-      type: object
-      properties:
-        code:
-          type: integer
-          format: int32
-          example: 404
-        message:
-          type: string
-          example: "Resource not found"
-        details:
-          type: array
-          items:
-            type: string
-          example: ["Deployment template not found"]

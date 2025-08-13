@@ -20,25 +20,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DetailedError'
+                $ref: '#/components/schemas/DetailedErrorGitOpsConfigResponse'
         '400':
           description: Bad Request. Input Validation error/wrong request body.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal Server Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
         '403':
           description: Unauthorized User
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
   /orchestrator/gitops/config:
     post:
       description: create/save new configuration and validate them before saving
@@ -56,25 +56,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DetailedError'
+                $ref: '#/components/schemas/DetailedErrorGitOpsConfigResponse'
         '400':
           description: Bad Request. Input Validation error/wrong request body.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal Server Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
         '403':
           description: Unauthorized User
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
     put:
       description: update configuration and validate them before saving
       operationId: UpdateGitOpsConfig
@@ -91,25 +91,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DetailedError'
+                $ref: '#/components/schemas/DetailedErrorGitOpsConfigResponse'
         '400':
           description: Bad Request. Input Validation error/wrong request body.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal Server Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
         '403':
           description: Unauthorized User
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   schemas:
