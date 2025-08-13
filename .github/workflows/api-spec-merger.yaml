@@ -23,8 +23,8 @@ jobs:
 
       - name: Run specs bundling script
         run: |
-          chmod +x script/generate-api-docs.sh 
-          script/generate-api-docs.sh 
+          chmod +x scripts/generate-api-docs.sh 
+          scripts/generate-api-docs.sh 
 
       - name: Commit and push changes
         uses: ad-m/github-push-action@master
