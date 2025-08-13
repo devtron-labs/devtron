@@ -74,7 +74,7 @@ paths:
                           required:
                             - appId
                             - appName
-                        - $ref: '../common/schemas.yaml#/components/schemas/AppLabel'
+                        - $ref: '../common/delete-options.yaml#/components/schemas/AppLabel'
               examples:
                 all_labels:
                   summary: All labels response
@@ -110,7 +110,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
         '401':
           description: Authentication required or token invalid
           content:
@@ -148,7 +148,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
         '500':
           description: Internal server error
           content:
@@ -170,7 +170,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
       tags:
         - Application Labels
 
@@ -205,45 +205,45 @@ paths:
                     description: Status
                   result:
                     allOf:
-                      - $ref: '../common/schemas.yaml#/components/schemas/AppMetaInfo'
+                      - $ref: '../common/delete-options.yaml#/components/schemas/AppMetaInfo'
                       - type: object
                         properties:
                           gitMaterials:
                             type: array
                             items:
-                              $ref: '../common/schemas.yaml#/components/schemas/GitMaterialMeta'
+                              $ref: '../common/delete-options.yaml#/components/schemas/GitMaterialMeta'
                           templateConfig:
-                            $ref: '../common/schemas.yaml#/components/schemas/TemplateConfig'
+                            $ref: '../common/delete-options.yaml#/components/schemas/TemplateConfig'
         '400':
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
         '401':
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
         '404':
           description: Application not found
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
         '500':
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
         default:
           description: Unexpected error
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
       tags:
         - Application Metadata
 
@@ -277,45 +277,45 @@ paths:
                     description: Status
                   result:
                     allOf:
-                      - $ref: '../common/schemas.yaml#/components/schemas/AppMetaInfo'
+                      - $ref: '../common/delete-options.yaml#/components/schemas/AppMetaInfo'
                       - type: object
                         properties:
                           chartUsed:
-                            $ref: '../common/schemas.yaml#/components/schemas/ChartUsed'
+                            $ref: '../common/delete-options.yaml#/components/schemas/ChartUsed'
                           gitMaterials:
                             type: array
                             items:
-                              $ref: '../common/schemas.yaml#/components/schemas/GitMaterialMeta'
+                              $ref: '../common/delete-options.yaml#/components/schemas/GitMaterialMeta'
         '400':
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
         '401':
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
         '404':
           description: Application not found
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
         '500':
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
         default:
           description: Unexpected error
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
       tags:
         - Helm Application Metadata
 
