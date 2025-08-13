@@ -5,7 +5,7 @@ info:
 paths:
   /orchestrator/app/autocomplete:
     get:
-      description: list of namespaces group by clusters - TEST2
+      description: list of namespaces group by clusters - TEST1
       parameters:
         - in: query
           name: appName

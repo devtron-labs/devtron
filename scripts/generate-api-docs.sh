@@ -3,7 +3,7 @@
 # Script to generate HTML documentation from all API specs using Redocly
 # This will convert all .yaml and .yml files in the specs directory to HTML
 
-set -e
+set -ex
 
 # Colors for output
 RED='\033[0;31m'
