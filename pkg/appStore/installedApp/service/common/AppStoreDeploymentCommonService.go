@@ -36,6 +36,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
+	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chartutil"
 	"k8s.io/utils/pointer"
 	"net/http"
@@ -47,9 +48,9 @@ import (
 
 type AppStoreDeploymentCommonService interface {
 	// GetValuesString will return values string from the given valuesOverrideYaml
-	GetValuesString(appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion, valuesOverrideYaml string) (string, error)
-	// GetRequirementsString will return requirement dependencies for the given appStoreVersionId
-	GetRequirementsString(appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) (string, error)
+	GetProxyChartValues(appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion, valuesOverrideYaml string) (valuesMap map[string]map[string]any, err error)
+	// GetProxyChartRequirements will return requirement dependencies for the given appStoreVersionId
+	GetProxyChartRequirements(appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) (dependencies []*chart.Dependency, err error)
 	// CreateChartProxyAndGetPath parse chart in local directory and returns path of local dir and values.yaml
 	CreateChartProxyAndGetPath(chartCreateRequest *util.ChartCreateRequest) (*util.ChartCreateResponse, error)
 	GetDeploymentHistoryFromDB(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*gRPC.HelmAppDeploymentHistory, error)
@@ -169,28 +170,22 @@ func (impl *AppStoreDeploymentCommonServiceImpl) GetDeploymentHistoryInfoFromDB(
 	return values, err
 }
 
-func (impl AppStoreDeploymentCommonServiceImpl) GetValuesString(appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion, valuesOverrideYaml string) (string, error) {
-
-	ValuesOverrideByte, err := yaml.YAMLToJSON([]byte(valuesOverrideYaml))
+func (impl *AppStoreDeploymentCommonServiceImpl) GetProxyChartValues(appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion, valuesOverrideYaml string) (valuesMap map[string]map[string]any, err error) {
+	valuesMap = make(map[string]map[string]any)
+	valuesOverrideByte, err := yaml.YAMLToJSON([]byte(valuesOverrideYaml))
 	if err != nil {
-		impl.logger.Errorw("")
+		impl.logger.Errorw("error in converting values override yaml to json", "err", err)
+		return valuesMap, err
 	}
-
-	var dat map[string]interface{}
-	err = json.Unmarshal(ValuesOverrideByte, &dat)
+	var dat map[string]any
+	err = json.Unmarshal(valuesOverrideByte, &dat)
 	if err != nil {
 		impl.logger.Errorw("error in unmarshalling values override byte", "err", err)
-		return "", err
+		return valuesMap, err
 	}
-
-	valuesMap := make(map[string]map[string]interface{})
-	valuesMap[GetChartNameFromAppStoreApplicationVersion(appStoreApplicationVersion)] = dat
-	valuesByte, err := json.Marshal(valuesMap)
-	if err != nil {
-		impl.logger.Errorw("error in marshaling", "err", err)
-		return "", err
-	}
-	return string(valuesByte), nil
+	chartName := GetChartNameFromAppStoreApplicationVersion(appStoreAppVersion)
+	valuesMap[chartName] = dat
+	return valuesMap, nil
 }
 
 func GetChartNameFromAppStoreApplicationVersion(appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) string {
@@ -201,9 +196,8 @@ func GetChartNameFromAppStoreApplicationVersion(appStoreApplicationVersion *appS
 	}
 }
 
-func (impl AppStoreDeploymentCommonServiceImpl) GetRequirementsString(appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) (string, error) {
-
-	dependency := appStoreBean.Dependency{
+func (impl *AppStoreDeploymentCommonServiceImpl) GetProxyChartRequirements(appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) (dependencies []*chart.Dependency, err error) {
+	dependency := &chart.Dependency{
 		Name:    GetChartNameFromAppStoreApplicationVersion(appStoreAppVersion),
 		Version: appStoreAppVersion.Version,
 	}
@@ -213,25 +207,13 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetRequirementsString(appStoreAp
 		repositoryURL, repositoryName, err := sanitizeRepoNameAndURLForOCIRepo(appStoreAppVersion.AppStore.DockerArtifactStore.RegistryURL, appStoreAppVersion.AppStore.Name)
 		if err != nil {
 			impl.logger.Errorw("error in getting sanitized repository name and url", "repositoryURL", repositoryURL, "repositoryName", repositoryName, "err", err)
-			return "", err
+			return dependencies, err
 		}
 		dependency.Repository = repositoryURL
 	}
 
-	var dependencies []appStoreBean.Dependency
 	dependencies = append(dependencies, dependency)
-	requirementDependencies := &appStoreBean.Dependencies{
-		Dependencies: dependencies,
-	}
-	requirementDependenciesByte, err := json.Marshal(requirementDependencies)
-	if err != nil {
-		return "", err
-	}
-	requirementDependenciesByte, err = yaml.JSONToYAML(requirementDependenciesByte)
-	if err != nil {
-		return "", err
-	}
-	return string(requirementDependenciesByte), nil
+	return dependencies, nil
 }
 
 func sanitizeRepoNameAndURLForOCIRepo(repositoryURL, repositoryName string) (string, string, error) {
@@ -262,14 +244,17 @@ func sanitizeRepoNameAndURLForOCIRepo(repositoryURL, repositoryName string) (str
 	return repositoryURL, repositoryName, nil
 }
 
-func (impl AppStoreDeploymentCommonServiceImpl) CreateChartProxyAndGetPath(chartCreateRequest *util.ChartCreateRequest) (*util.ChartCreateResponse, error) {
-	ChartCreateResponse := &util.ChartCreateResponse{}
+func (impl *AppStoreDeploymentCommonServiceImpl) CreateChartProxyAndGetPath(chartCreateRequest *util.ChartCreateRequest) (*util.ChartCreateResponse, error) {
+	chartCreateResponse := &util.ChartCreateResponse{}
 	valid, err := chartutil.IsChartDir(chartCreateRequest.ChartPath)
-	if err != nil || !valid {
-		impl.logger.Errorw("invalid base chart", "dir", chartCreateRequest.ChartPath, "err", err)
-		return ChartCreateResponse, err
+	if err != nil {
+		impl.logger.Errorw("error in checking if chart path is valid", "dir", chartCreateRequest.ChartPath, "err", err)
+		return chartCreateResponse, err
+	} else if !valid {
+		impl.logger.Errorw("invalid base chart", "dir", chartCreateRequest.ChartPath)
+		return chartCreateResponse, err
 	}
-	chartCreateResponse, err := impl.chartTemplateService.BuildChartProxyForHelmApps(chartCreateRequest)
+	chartCreateResponse, err = impl.chartTemplateService.BuildChartProxyForHelmApps(chartCreateRequest)
 	if err != nil {
 		impl.logger.Errorw("Error in building chart proxy", "err", err)
 		return chartCreateResponse, err
