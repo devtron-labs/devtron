@@ -45,16 +45,16 @@ convert_spec_to_html() {
     local relative_path="${spec_file#$SPECS_DIR/}"
     local filename=$(basename "$spec_file")
     local name_without_ext="${filename%.*}"
-    
+
     # Create output filename
     local output_file="$OUTPUT_DIR/${relative_path%.*}.html"
-    
+
     # Create output directory if it doesn't exist
     local output_dir=$(dirname "$output_file")
     mkdir -p "$output_dir"
-    
+
     echo -e "${BLUE}📄 Converting: $spec_file${NC}"
-    
+
     # Capture both stdout and stderr to check for errors
     if redocly build-docs "$spec_file" -o "$output_file" 2>&1; then
         echo -e "${GREEN}✅ Success: $output_file${NC}"
@@ -222,31 +222,13 @@ cat > "$INDEX_FILE" << 'EOF'
         <div class="description">
             Comprehensive API documentation for Devtron - Kubernetes-native software delivery platform
         </div>
-        
-        <div class="stats">
-            <h2>📊 Documentation Statistics</h2>
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <div class="stat-number" id="total-apis">0</div>
-                    <div class="stat-label">Total APIs</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-number" id="categories-count">0</div>
-                    <div class="stat-label">Categories</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-number" id="success-count">0</div>
-                    <div class="stat-label">Successfully Generated</div>
-                </div>
-            </div>
-        </div>
-        
+
         <div class="categories" id="categories">
             <!-- Categories will be populated by JavaScript -->
         </div>
-        
+
         <div class="footer">
-            <p>Generated using <a href="https://redocly.com/" target="_blank">Redocly</a></p>
+            <p><a href="/https://devtron.ai/" target="_blank">Devtron</a></p>
             <p class="timestamp">Last updated: <span id="timestamp"></span></p>
         </div>
     </div>
@@ -269,21 +251,21 @@ for spec_file in $spec_files; do
     filename=$(basename "$spec_file")
     name_without_ext="${filename%.*}"
     category=$(dirname "$relative_path")
-    
+
     # Skip if it's the root specs directory
     if [ "$category" = "." ]; then
         category="root"
     fi
-    
+
     # Clean up category name for display
     display_category=$(echo "$category" | sed 's/-/ /g' | sed 's/_/ /g' | sed 's/\b\w/\U&/g')
-    
+
     # Get the title from the spec file (first line with 'title:')
     title=$(grep -m 1 "^  title:" "$spec_file" | sed 's/^  title: //' | tr -d '"' || echo "$name_without_ext")
-    
+
     # Create the output filename
     output_file="${relative_path%.*}.html"
-    
+
     # Check if the HTML file was actually created successfully
     if [ -f "$OUTPUT_DIR/$output_file" ]; then
         # Add to JavaScript data
@@ -309,7 +291,7 @@ cat >> "$INDEX_FILE" << 'EOF'
         function populatePage() {
             const categoriesContainer = document.getElementById('categories');
             const categories = {};
-            
+
             // Group APIs by category
             Object.values(apiData).forEach(api => {
                 if (!categories[api.category]) {
@@ -317,19 +299,19 @@ cat >> "$INDEX_FILE" << 'EOF'
                 }
                 categories[api.category].push(api);
             });
-            
+
             // Create category sections
             Object.keys(categories).sort().forEach(category => {
                 const categoryDiv = document.createElement('div');
                 categoryDiv.className = 'category';
-                
+
                 const categoryTitle = document.createElement('h3');
                 categoryTitle.textContent = category;
                 categoryDiv.appendChild(categoryTitle);
-                
+
                 const apiList = document.createElement('ul');
                 apiList.className = 'api-list';
-                
+
                 // Sort APIs within category by title
                 categories[category].sort((a, b) => a.title.localeCompare(b.title)).forEach(api => {
                     const listItem = document.createElement('li');
@@ -340,18 +322,16 @@ cat >> "$INDEX_FILE" << 'EOF'
                     listItem.appendChild(link);
                     apiList.appendChild(listItem);
                 });
-                
+
                 categoryDiv.appendChild(apiList);
                 categoriesContainer.appendChild(categoryDiv);
             });
-            
+
             // Update statistics
-            document.getElementById('total-apis').textContent = Object.keys(apiData).length;
-            document.getElementById('categories-count').textContent = Object.keys(categories).length;
-            document.getElementById('success-count').textContent = Object.keys(apiData).length;
+
             document.getElementById('timestamp').textContent = new Date().toLocaleString();
         }
-        
+
         // Initialize the page
         document.addEventListener('DOMContentLoaded', populatePage);
     </script>

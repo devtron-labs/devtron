@@ -1,0 +1,34 @@
+name: API Specs Merger
+
+on:
+  push:
+    paths:
+      - 'specs/**'
+
+permissions:
+  contents: write  # This is correct and grants the necessary permissions.
+
+jobs:
+  lint-and-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}
+
+      - name: Set up Redocly CLI
+        run: npm install -g @redocly/cli
+
+      - name: Run specs bundling script
+        run: |
+          chmod +x script/generate-docs.sh
+          script/generate-docs.sh
+
+      - name: Commit and push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }} # Use the correct, built-in secret
+          branch: ${{ github.ref }}
+          message: "docs: generate API documentation"
