@@ -49,7 +49,7 @@ components:
         labels:
           type: array
           items:
-            $ref: '../common/schemas.yaml#/components/schemas/AppLabel'
+            $ref: '../common/delete-options.yaml#/components/schemas/AppLabel'
         description:
           type: string
           description: Description of the job
@@ -69,7 +69,7 @@ components:
         material:
           type: array
           items:
-            $ref: '../common/schemas.yaml#/components/schemas/GitMaterial'
+            $ref: '../common/delete-options.yaml#/components/schemas/GitMaterial'
         teamId:
           type: integer
           description: Team ID
@@ -197,19 +197,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
         '401':
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
         '500':
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
       tags:
         - Jobs
   /job/list:
@@ -246,19 +246,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
         '401':
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
         '500':
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
       tags:
         - Jobs
 
@@ -299,24 +299,24 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
         '401':
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
         '404':
           description: Job not found
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
         '500':
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
       tags:
         - Jobs

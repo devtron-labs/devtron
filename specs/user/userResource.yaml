@@ -1,6 +1,6 @@
 openapi: 3.0.0
 info:
-  title: OPI Orchestrator API
+  title: User Resource Options API
   description: API for fetching user resource options based on kind and version.
   version: 1.0.0
 

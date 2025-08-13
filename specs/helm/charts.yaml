@@ -193,25 +193,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
         '401':
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
         '500':
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
         default:
           description: Unexpected error
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
       tags:
         - Helm Charts
   /app-store/installed-app/notes:
@@ -255,25 +255,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
         '401':
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
         '404':
           description: Chart or notes not found
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
         '500':
           description: Error while fetching notes.txt
           content:
             application/json:
               schema:
-                $ref: '../common/schemas.yaml#/components/schemas/ErrorResponse'
+                $ref: '../common/delete-options.yaml#/components/schemas/ErrorResponse'
       tags:
         - Helm Charts
 
