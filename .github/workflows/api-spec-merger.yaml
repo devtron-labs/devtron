@@ -22,9 +22,10 @@ jobs:
         run: npm install -g @redocly/cli
 
       - name: Run specs bundling script
+        working-directory: ${{ github.workspace }}
         run: |
-          chmod +x scripts/generate-api-docs.sh 
-          scripts/generate-api-docs.sh 
+          chmod +x scripts/generate-api-docs.sh
+          ./scripts/generate-api-docs.sh
 
       - name: Commit and push changes
         uses: ad-m/github-push-action@master
