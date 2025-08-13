@@ -1,6 +1,6 @@
 openapi: "3.0.2"
 info:
-  title: "Plugin System Integration - CI stages"
+  title: "Global Plugin Management"
   description: >-
     Provide functionality to user to use plugins in pre/post ci steps.
   version: "1.0.0"
