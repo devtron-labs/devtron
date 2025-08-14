@@ -31,9 +31,19 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
 
-          # Copy generated docs
-          git add docs/api-docs/
+          # Fetch the gh-pages-test branch
+          git fetch origin gh-pages-test
 
+          # Create a separate worktree for the branch
+          git worktree add /tmp/gh-pages-test gh-pages-test
+
+          # Copy generated docs into the worktree
+          mkdir -p /tmp/gh-pages-test/docs/api-docs
+          cp -r docs/api-docs/* /tmp/gh-pages-test/docs/api-docs/ || true
+
+          cd /tmp/gh-pages-test
+
+          git add .
           if git diff --staged --quiet; then
             echo "✅ No changes to commit"
           else
