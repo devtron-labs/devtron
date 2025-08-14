@@ -1,3 +1,4 @@
+```bash
 #!/bin/bash
 
 # Script to generate HTML documentation from all API specs using Redocly
@@ -72,29 +73,123 @@ cat > "$INDEX_FILE" << 'EOF'
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Devtron API Documentation</title>
 <style>
-body { font-family: Arial, sans-serif; margin: 20px; background: #f8f9fa; color: #333; }
-h1 { text-align: center; color: #2c3e50; }
-h2 { text-align: center; margin-top: 40px; color: #34495e; }
-.container { max-width: 1200px; margin: auto; }
-.grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; margin-top: 20px; }
-.card { background: #fff; border-radius: 8px; padding: 15px; width: calc(25% - 20px); box-shadow: 0 2px 6px rgba(0,0,0,0.1); text-align: center; }
-.card a { text-decoration: none; color: #1a73e8; font-weight: bold; }
-.card a:hover { text-decoration: underline; }
-.footer { margin-top: 40px; font-size: 0.9rem; color: #666; text-align: center; }
-.footer a { color: #1a73e8; text-decoration: none; }
-.footer a:hover { text-decoration: underline; }
-.timestamp { font-style: italic; }
-@media(max-width: 1024px){ .card { width: calc(33.33% - 20px); } }
-@media(max-width: 768px){ .card { width: calc(50% - 20px); } }
-@media(max-width: 480px){ .card { width: 100%; } }
+/* General body and container styles */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f0f2f5;
+    color: #2c3e50;
+}
+.container {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 0 20px;
+}
+/* Header styles */
+.header {
+    background-color: #ffffff;
+    padding: 20px;
+    border-bottom: 1px solid #dfe3e8;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+.header-title {
+    font-size: 2.5rem;
+    font-weight: 600;
+    color: #3b5998;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.header-title img {
+    height: 40px;
+    margin-right: 10px;
+}
+.header-subtitle {
+    font-size: 1rem;
+    color: #606770;
+    margin-top: 10px;
+}
+/* Grid and card styles */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+.card {
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    padding: 20px;
+}
+.card-header {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #3b5998;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+    border-bottom: 2px solid #3b5998;
+}
+.card-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.card-list li {
+    margin-bottom: 10px;
+}
+.card-list a {
+    text-decoration: none;
+    color: #1877f2;
+    font-size: 1rem;
+    transition: color 0.2s ease-in-out;
+}
+.card-list a:hover {
+    color: #3b5998;
+    text-decoration: underline;
+}
+/* Footer styles */
+.footer {
+    margin-top: 40px;
+    padding: 20px 0;
+    text-align: center;
+    border-top: 1px solid #dfe3e8;
+    color: #606770;
+}
+.footer a {
+    color: #1877f2;
+    text-decoration: none;
+}
+.footer a:hover {
+    text-decoration: underline;
+}
+.timestamp {
+    font-style: italic;
+    font-size: 0.9rem;
+    color: #8d949e;
+}
 </style>
 </head>
 <body>
+<div class="header">
+    <h1 class="header-title">
+        <img src="https://devtron.ai/assets/icons/logo-full.svg" alt="Devtron Logo">
+        Devtron API Documentation
+    </h1>
+    <p class="header-subtitle">Comprehensive API documentation for Devtron - Kubernetes-native software delivery platform</p>
+</div>
 <div class="container">
-<h1>🚀 Devtron API Documentation</h1>
-<div id="categories"></div>
+<div class="grid" id="categories"></div>
 <div class="footer">
-<p><a href="https://devtron.ai/" target="_blank">Devtron</a></p>
+<p>
+    <a href="https://devtron.ai/" target="_blank">Devtron</a> |
+    <a href="https://docs.devtron.ai/" target="_blank">Documentation</a> |
+    <a href="https://github.com/devtron-labs/devtron" target="_blank">GitHub</a>
+</p>
 <p class="timestamp">Last updated: <span id="timestamp"></span></p>
 </div>
 </div>
@@ -132,26 +227,28 @@ function populatePage() {
     });
 
     Object.keys(categories).sort().forEach(cat => {
-        const heading = document.createElement('h2');
-        heading.textContent = cat;
-        container.appendChild(heading);
+        const card = document.createElement('div');
+        card.className = "card";
 
-        const grid = document.createElement('div');
-        grid.className = "grid";
+        const cardHeader = document.createElement('div');
+        cardHeader.className = "card-header";
+        cardHeader.textContent = cat;
+        card.appendChild(cardHeader);
 
-        categories[cat].sort((a,b)=>a.title.localeCompare(b.title)).forEach(api => {
-            const card = document.createElement('div');
-            card.className = "card";
+        const list = document.createElement('ul');
+        list.className = "card-list";
 
+        categories[cat].sort((a, b) => a.title.localeCompare(b.title)).forEach(api => {
+            const listItem = document.createElement('li');
             const a = document.createElement('a');
             a.href = api.filename;
             a.textContent = api.title;
-
-            card.appendChild(a);
-            grid.appendChild(card);
+            listItem.appendChild(a);
+            list.appendChild(listItem);
         });
 
-        container.appendChild(grid);
+        card.appendChild(list);
+        container.appendChild(card);
     });
 
     document.getElementById('timestamp').textContent = new Date().toLocaleString();
@@ -182,3 +279,4 @@ EOF
 
 echo -e "${GREEN}✅ README created: $OUTPUT_DIR/README.md${NC}"
 echo -e "${GREEN}🎉 API documentation generation complete!${NC}"
+```
