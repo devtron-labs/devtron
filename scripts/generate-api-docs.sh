@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Script to generate HTML documentation from all API specs using Redocly
-# This will convert all .yaml and .yml files in the specs directory to HTML
+# Preserves folder structure under docs/api-docs and generates index.html with correct links
 
 set -ex
 set -o pipefail
@@ -27,8 +27,8 @@ rm -rf "$OUTPUT_DIR"
 mkdir -p "$OUTPUT_DIR"
 
 # Check if redocly is installed
-if ! command -v redocly &> /dev/null; then
-    echo -e "${RED}❌ Redocly is not installed. Please install it first:${NC}"
+if ! command -v redocly &>/dev/null; then
+    echo -e "${RED}❌ Redocly CLI not found. Install it with:${NC}"
     echo "npm install -g @redocly/cli"
     exit 1
 fi
@@ -45,8 +45,6 @@ error_count=0
 convert_spec_to_html() {
     local spec_file="$1"
     local relative_path="${spec_file#$SPECS_DIR/}"
-    local filename=$(basename "$spec_file")
-    local name_without_ext="${filename%.*}"
     local output_file="$OUTPUT_DIR/${relative_path%.*}.html"
 
     # Create output directory if it doesn't exist
@@ -86,19 +84,32 @@ cat > "$INDEX_FILE" << 'EOF'
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Devtron API Documentation</title>
 <style>
-body { font-family: Arial, sans-serif; margin: 20px; }
-h1 { color: #333; }
-h3 { margin-top: 20px; }
+body { font-family: Arial, sans-serif; margin: 20px; background: #f8f9fa; color: #333; }
+h1 { color: #2c3e50; }
+h3 { margin-top: 20px; border-bottom: 1px solid #ccc; padding-bottom: 5px; color: #34495e; }
 ul { list-style: none; padding-left: 0; }
 li { margin: 5px 0; }
-a { text-decoration: none; color: #0366d6; }
+a { text-decoration: none; color: #1a73e8; }
 a:hover { text-decoration: underline; }
+.container { max-width: 900px; margin: auto; }
+.description { margin-bottom: 20px; font-size: 1rem; color: #555; }
+.category { margin-bottom: 20px; padding: 10px; background: #fff; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.api-list li { padding: 3px 0; }
+.footer { margin-top: 40px; font-size: 0.9rem; color: #666; }
+.footer a { color: #1a73e8; text-decoration: none; }
+.footer a:hover { text-decoration: underline; }
+.timestamp { font-style: italic; }
 </style>
 </head>
 <body>
 <div class="container">
 <h1>🚀 Devtron API Documentation</h1>
+<div class="description">
+Comprehensive API documentation for Devtron - Kubernetes-native software delivery platform
+</div>
+
 <div class="categories" id="categories"></div>
+
 <div class="footer">
 <p><a href="https://devtron.ai/" target="_blank">Devtron</a></p>
 <p class="timestamp">Last updated: <span id="timestamp"></span></p>
@@ -108,14 +119,14 @@ a:hover { text-decoration: underline; }
 const apiData = {
 EOF
 
-# Populate apiData
+# Populate apiData preserving folder structure
 for spec_file in "${spec_files[@]}"; do
     relative_path="${spec_file#$SPECS_DIR/}"
     html_file="${relative_path%.*}.html"
     category=$(dirname "$relative_path")
-    [[ "$category" == "." ]] && category="root"
+    [[ "$category" == "." ]] && category="Root"
 
-    # Capitalise each word and split camelCase
+    # Capitalize words and split camelCase
     display_category=$(echo "$category" | sed 's/[-_]/ /g' | sed 's/\([a-z]\)\([A-Z]\)/\1 \2/g' | sed 's/\b\w/\U&/g')
 
     # Get title or fallback
@@ -143,6 +154,7 @@ function populatePage() {
 
     Object.keys(categories).sort().forEach(cat => {
         const section = document.createElement('div');
+        section.className = "category";
         const h3 = document.createElement('h3');
         h3.textContent = cat;
         section.appendChild(h3);
@@ -151,7 +163,7 @@ function populatePage() {
         categories[cat].sort((a,b)=>a.title.localeCompare(b.title)).forEach(api => {
             const li = document.createElement('li');
             const a = document.createElement('a');
-            a.href = api.filename;
+            a.href = api.filename; // links preserve folder structure
             a.textContent = api.title;
             li.appendChild(a);
             ul.appendChild(li);
@@ -174,10 +186,9 @@ echo -e "${GREEN}✅ Index page generated: $INDEX_FILE${NC}"
 
 # === FINAL SUMMARY ===
 echo -e "${BLUE}📊 Final Summary:${NC}"
-echo -e "${GREEN}✅ Successfully converted: $success_count files${NC}"
-if [ $error_count -gt 0 ]; then
-    echo -e "${RED}❌ Failed to convert: $error_count files${NC}"
-    echo -e "${YELLOW}📝 Check $ERROR_LOG for details${NC}"
+echo -e "${GREEN}✅ Successfully converted: $success_count specs${NC}"
+if (( error_count > 0 )); then
+    echo -e "${RED}❌ Failed to convert: $error_count (see $ERROR_LOG)${NC}"
 fi
 echo -e "${BLUE}📁 Output directory: $OUTPUT_DIR${NC}"
 echo -e "${BLUE}🌐 Main index: $INDEX_FILE${NC}"
