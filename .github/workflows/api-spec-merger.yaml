@@ -31,13 +31,21 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          
-          git add docs/api-docs/
+
+          # Fetch the target branch so Git knows about it
+          git fetch origin gh-pages-test
+
+          # Switch to it
+          git checkout gh-pages-test
+
+          # Copy generated docs
+          git add docs/api-docs/ specs/swagger/openapi.html specs/swagger/openapi.yaml
 
           if git diff --staged --quiet; then
             echo "✅ No changes to commit"
           else
             git commit -m "📄 Update API documentation"
             git push origin gh-pages-test
-            echo "🚀 Documentation pushed to gh-pages branch!"
+            echo "🚀 Documentation pushed to gh-pages-test branch!"
           fi
+      
