@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Resource Recommender
   description: Analyzes the history of resource usage (such as CPU and memory) for Kubernetes workloads in a specific cluster and generates data-backed recommendations for optimal resource allocation.
-  version: 0.0.2
+  version: 0.0.1
 servers:
   - url: http://localhost:8080/orchestrator
     description: Devtron API Server
