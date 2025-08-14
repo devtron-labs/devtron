@@ -12,6 +12,13 @@ metadata:
     chart: {{ template ".Chart.Name .chart" $ }}
     release: {{ $.Release.Name }}
     releaseVersion: {{ $.Values.releaseVersion | quote }}
+{{- if .Values.cronJobLabels }}
+{{ toYaml .Values.cronJobLabels | indent 4 }}
+{{- end }}
+{{- if .Values.cronJobAnnotations }}
+  annotations:
+{{ toYaml .Values.cronJobAnnotations | indent 4 }}
+{{- end }}
 spec:
   {{- if $.Values.cronjobConfigs }}
   {{- if $.Values.cronjobConfigs.timeZone }}
