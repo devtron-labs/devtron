@@ -1,17 +1,17 @@
 #!/bin/bash
 
 # Script to generate HTML documentation from all API specs using Redocly
-# Preserves folder structure under docs/api-docs and generates index.html with correct links
+# Preserves folder structure and generates a card-based index page
 
 set -ex
 set -o pipefail
 
-# Colors for output
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 # Directories
 SPECS_DIR="specs"
@@ -21,61 +21,49 @@ ERROR_LOG="$OUTPUT_DIR/errors.log"
 
 echo -e "${BLUE}🚀 Starting API documentation generation...${NC}"
 
-# === CLEAN OUTPUT DIRECTORY ===
-echo -e "${YELLOW}🧹 Cleaning output folder...${NC}"
+# Clean output folder
 rm -rf "$OUTPUT_DIR"
 mkdir -p "$OUTPUT_DIR"
 
-# Check if redocly is installed
+# Check Redocly
 if ! command -v redocly &>/dev/null; then
-    echo -e "${RED}❌ Redocly CLI not found. Install it with:${NC}"
+    echo -e "${RED}❌ Redocly CLI not found. Install it:${NC}"
     echo "npm install -g @redocly/cli"
     exit 1
 fi
 echo -e "${GREEN}✅ Redocly found: $(redocly --version)${NC}"
 
-# Counters
 success_count=0
 error_count=0
-
-# Clear error log
 > "$ERROR_LOG"
 
-# Function to convert a spec file to HTML
 convert_spec_to_html() {
     local spec_file="$1"
     local relative_path="${spec_file#$SPECS_DIR/}"
     local output_file="$OUTPUT_DIR/${relative_path%.*}.html"
-
-    # Create output directory if it doesn't exist
     mkdir -p "$(dirname "$output_file")"
 
     echo -e "${BLUE}📄 Converting: $spec_file${NC}"
-
     if redocly build-docs "$spec_file" -o "$output_file" >/dev/null 2>&1; then
         echo -e "${GREEN}✅ Success: $output_file${NC}"
         ((success_count++))
-        return 0
     else
         echo -e "${RED}❌ Failed: $spec_file${NC}"
         echo "$spec_file" >> "$ERROR_LOG"
         ((error_count++))
-        return 1
     fi
 }
 
-# === FIND AND CONVERT SPEC FILES ===
-echo -e "${YELLOW}🔍 Finding all spec files...${NC}"
+# Find spec files
 mapfile -t spec_files < <(find "$SPECS_DIR" -type f \( -name "*.yaml" -o -name "*.yml" \) | sort)
-echo -e "${BLUE}📊 Found ${#spec_files[@]} spec files${NC}"
+echo -e "${BLUE}📊 Found ${#spec_files[@]} specs${NC}"
 
+# Convert specs
 for spec_file in "${spec_files[@]}"; do
     convert_spec_to_html "$spec_file" || true
 done
 
-# === GENERATE INDEX.HTML ===
-echo -e "${YELLOW}📝 Generating index page...${NC}"
-
+# Generate index.html
 cat > "$INDEX_FILE" << 'EOF'
 <!DOCTYPE html>
 <html lang="en">
@@ -85,31 +73,26 @@ cat > "$INDEX_FILE" << 'EOF'
 <title>Devtron API Documentation</title>
 <style>
 body { font-family: Arial, sans-serif; margin: 20px; background: #f8f9fa; color: #333; }
-h1 { color: #2c3e50; }
-h3 { margin-top: 20px; border-bottom: 1px solid #ccc; padding-bottom: 5px; color: #34495e; }
-ul { list-style: none; padding-left: 0; }
-li { margin: 5px 0; }
-a { text-decoration: none; color: #1a73e8; }
-a:hover { text-decoration: underline; }
-.container { max-width: 900px; margin: auto; }
-.description { margin-bottom: 20px; font-size: 1rem; color: #555; }
-.category { margin-bottom: 20px; padding: 10px; background: #fff; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-.api-list li { padding: 3px 0; }
-.footer { margin-top: 40px; font-size: 0.9rem; color: #666; }
+h1 { text-align: center; color: #2c3e50; }
+h2 { text-align: center; margin-top: 40px; color: #34495e; }
+.container { max-width: 1200px; margin: auto; }
+.grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; margin-top: 20px; }
+.card { background: #fff; border-radius: 8px; padding: 15px; width: calc(25% - 20px); box-shadow: 0 2px 6px rgba(0,0,0,0.1); text-align: center; }
+.card a { text-decoration: none; color: #1a73e8; font-weight: bold; }
+.card a:hover { text-decoration: underline; }
+.footer { margin-top: 40px; font-size: 0.9rem; color: #666; text-align: center; }
 .footer a { color: #1a73e8; text-decoration: none; }
 .footer a:hover { text-decoration: underline; }
 .timestamp { font-style: italic; }
+@media(max-width: 1024px){ .card { width: calc(33.33% - 20px); } }
+@media(max-width: 768px){ .card { width: calc(50% - 20px); } }
+@media(max-width: 480px){ .card { width: 100%; } }
 </style>
 </head>
 <body>
 <div class="container">
 <h1>🚀 Devtron API Documentation</h1>
-<div class="description">
-Comprehensive API documentation for Devtron - Kubernetes-native software delivery platform
-</div>
-
-<div class="categories" id="categories"></div>
-
+<div id="categories"></div>
 <div class="footer">
 <p><a href="https://devtron.ai/" target="_blank">Devtron</a></p>
 <p class="timestamp">Last updated: <span id="timestamp"></span></p>
@@ -126,10 +109,7 @@ for spec_file in "${spec_files[@]}"; do
     category=$(dirname "$relative_path")
     [[ "$category" == "." ]] && category="Root"
 
-    # Capitalize words and split camelCase
     display_category=$(echo "$category" | sed 's/[-_]/ /g' | sed 's/\([a-z]\)\([A-Z]\)/\1 \2/g' | sed 's/\b\w/\U&/g')
-
-    # Get title or fallback
     title=$(grep -m 1 '^[[:space:]]*title:' "$spec_file" | sed 's/^[[:space:]]*title:[[:space:]]*//' | tr -d '"' || echo "${relative_path%.*}")
 
     if [[ -f "$OUTPUT_DIR/$html_file" ]]; then
@@ -137,7 +117,6 @@ for spec_file in "${spec_files[@]}"; do
     fi
 done
 
-# Remove trailing comma
 sed -i '$ s/,$//' "$INDEX_FILE"
 
 cat >> "$INDEX_FILE" << 'EOF'
@@ -153,24 +132,26 @@ function populatePage() {
     });
 
     Object.keys(categories).sort().forEach(cat => {
-        const section = document.createElement('div');
-        section.className = "category";
-        const h3 = document.createElement('h3');
-        h3.textContent = cat;
-        section.appendChild(h3);
+        const heading = document.createElement('h2');
+        heading.textContent = cat;
+        container.appendChild(heading);
 
-        const ul = document.createElement('ul');
+        const grid = document.createElement('div');
+        grid.className = "grid";
+
         categories[cat].sort((a,b)=>a.title.localeCompare(b.title)).forEach(api => {
-            const li = document.createElement('li');
+            const card = document.createElement('div');
+            card.className = "card";
+
             const a = document.createElement('a');
-            a.href = api.filename; // links preserve folder structure
+            a.href = api.filename;
             a.textContent = api.title;
-            li.appendChild(a);
-            ul.appendChild(li);
+
+            card.appendChild(a);
+            grid.appendChild(card);
         });
 
-        section.appendChild(ul);
-        container.appendChild(section);
+        container.appendChild(grid);
     });
 
     document.getElementById('timestamp').textContent = new Date().toLocaleString();
@@ -182,13 +163,13 @@ document.addEventListener('DOMContentLoaded', populatePage);
 </html>
 EOF
 
-echo -e "${GREEN}✅ Index page generated: $INDEX_FILE${NC}"
+echo -e "${GREEN}✅ Card-based index page generated: $INDEX_FILE${NC}"
 
-# === FINAL SUMMARY ===
+# === SUMMARY ===
 echo -e "${BLUE}📊 Final Summary:${NC}"
 echo -e "${GREEN}✅ Successfully converted: $success_count specs${NC}"
 if (( error_count > 0 )); then
-    echo -e "${RED}❌ Failed to convert: $error_count (see $ERROR_LOG)${NC}"
+    echo -e "${RED}❌ Failed: $error_count (see $ERROR_LOG)${NC}"
 fi
 echo -e "${BLUE}📁 Output directory: $OUTPUT_DIR${NC}"
 echo -e "${BLUE}🌐 Main index: $INDEX_FILE${NC}"
