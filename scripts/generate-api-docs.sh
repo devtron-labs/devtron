@@ -261,7 +261,11 @@ for spec_file in $spec_files; do
     display_category=$(echo "$category" | sed 's/-/ /g' | sed 's/_/ /g' | sed 's/\b\w/\U&/g')
 
     # Get the title from the spec file (first line with 'title:')
-    title=$(grep -m 1 '^[[:space:]]*title:' "$spec_file" | sed 's/^[[:space:]]*title:[[:space:]]*//' | tr -d '"' || echo "$name_without_ext")
+    title=$(grep -m 1 '^[[:space:]]*title:' "$spec_file" \
+        | sed 's/^[[:space:]]*title:[[:space:]]*//' \
+        | tr -d '"' \
+        || echo "$name_without_ext")
+
 
     # Create the output filename
     output_file="${relative_path%.*}.html"
