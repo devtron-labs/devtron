@@ -15,7 +15,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           ref: ${{ github.ref }}
 
       - name: Set up Redocly CLI
@@ -31,12 +30,6 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-
-          # Fetch the target branch so Git knows about it
-          git fetch origin gh-pages-test
-
-          # Switch to it
-          git checkout gh-pages-test
 
           # Copy generated docs
           git add docs/api-docs/ specs/swagger/openapi.html specs/swagger/openapi.yaml
