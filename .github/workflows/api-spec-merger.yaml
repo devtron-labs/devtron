@@ -32,7 +32,7 @@ jobs:
           git config --local user.name "GitHub Action"
 
           # Copy generated docs
-          git add docs/api-docs/ specs/swagger/openapi.html specs/swagger/openapi.yaml
+          git add docs/api-docs/
 
           if git diff --staged --quiet; then
             echo "✅ No changes to commit"
