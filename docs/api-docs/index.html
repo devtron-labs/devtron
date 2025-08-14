@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Devtron API Documentation</title>
+    <style>
+        /* styles omitted for brevity — keep your existing CSS here */
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Devtron API Documentation</h1>
+        <div class="description">
+            Comprehensive API documentation for Devtron - Kubernetes-native software delivery platform
+        </div>
+
+        <div class="categories" id="categories">
+            <!-- Categories will be populated by JavaScript -->
+        </div>
+
+        <div class="footer">
+            <p><a href="/https://devtron.ai/" target="_blank">Devtron</a></p>
+            <p class="timestamp">Last updated: <span id="timestamp"></span></p>
+        </div>
+    </div>
+
+    <script>
+        const apiData = {
+            "application_core": {
+                "category": "Application",
+                "title": "Devtron Application Management API",
+                "filename": "application/core.html",
+                "original_file": "application/core.yaml"
+            },
+            "application_creation": {
+                "category": "Application",
+                "title": "Create App Api",
+                "filename": "application/creation.html",
+                "original_file": "application/creation.yaml"
+            },
+            "application_labels": {
+                "category": "Application",
+                "title": "Application Labels Management",
+                "filename": "application/labels.html",
+                "original_file": "application/labels.yaml"
+            },
+            "application_listing": {
+                "category": "Application",
+                "title": "Application Listing & Discovery",
+                "filename": "application/listing.html",
+                "original_file": "application/listing.yaml"
+            },
+            "audit_definitions": {
+                "category": "Audit",
+                "title": "Historical Task definitions",
+                "filename": "audit/definitions.html",
+                "original_file": "audit/definitions.yaml"
+            },
+            "authentication_authentication": {
+                "category": "Authentication",
+                "title": "Authentication API",
+                "filename": "authentication/authentication.html",
+                "original_file": "authentication/authentication.yaml"
+            },
+            "buildInfraConfig_build-infra-config": {
+                "category": "BuildInfraConfig",
+                "title": "Infra Config",
+                "filename": "buildInfraConfig/build-infra-config.html",
+                "original_file": "buildInfraConfig/build-infra-config.yaml"
+            },
+            "ci-pipeline_ci-pipeline-build-spec": {
+                "category": "Ci Pipeline",
+                "title": "CI Pipeline Build API",
+                "filename": "ci-pipeline/ci-pipeline-build-spec.html",
+                "original_file": "ci-pipeline/ci-pipeline-build-spec.yaml"
+            },
+            "ci-pipeline_ci-pipeline-change-source": {
+                "category": "Ci Pipeline",
+                "title": "CiPipeline material change source",
+                "filename": "ci-pipeline/ci-pipeline-change-source.html",
+                "original_file": "ci-pipeline/ci-pipeline-change-source.yaml"
+            },
+            "ci-pipeline_docker-build": {
+                "category": "Ci Pipeline",
+                "title": "Docker Build Config Override API",
+                "filename": "ci-pipeline/docker-build.html",
+                "original_file": "ci-pipeline/docker-build.yaml"
+            },
+            "ci-pipeline_downstream-linked-ci-view-spec": {
+                "category": "Ci Pipeline",
+                "title": "Modularisation v1 APIs",
+                "filename": "ci-pipeline/downstream-linked-ci-view-spec.html",
+                "original_file": "ci-pipeline/downstream-linked-ci-view-spec.yaml"
+            },
+            "ci-pipeline_workflow-stage-status.internal": {
+                "category": "Ci Pipeline",
+                "title": "Workflow Status API for showing execution stage",
+                "filename": "ci-pipeline/workflow-stage-status.internal.html",
+                "original_file": "ci-pipeline/workflow-stage-status.internal.yaml"
+            },
+            "common_delete-options": {
+                "category": "Common",
+                "title": "Delete Option support for various components",
+                "filename": "common/delete-options.html",
+                "original_file": "common/delete-options.yaml"
+            },
+            "deployment_app-type-change": {
+                "category": "Deployment",
+                "title": "Application Type Change API",
+                "filename": "deployment/app-type-change.html",
+                "original_file": "deployment/app-type-change.yaml"
+            },
+            "deployment_core": {
+                "category": "Deployment",
+                "title": "Deployment Template Management",
+                "filename": "deployment/core.html",
+                "original_file": "deployment/core.yaml"
+            },
+            "deployment_group": {
+                "category": "Deployment",
+                "title": "Deployment Group Management",
+                "filename": "deployment/group.html",
+                "original_file": "deployment/group.yaml"
+            },
+            "deployment_history": {
+                "category": "Deployment",
+                "title": "Deployment History API",
+                "filename": "deployment/history.html",
+                "original_file": "deployment/history.yaml"
+            },
+            "deployment_pipeline": {
+                "category": "Deployment",
+                "title": "Deployment Pipeline Management",
+                "filename": "deployment/pipeline.html",
+                "original_file": "deployment/pipeline.yaml"
+            },
+            "deployment_rollback": {
+                "category": "Deployment",
+                "title": "Rollback API",
+                "filename": "deployment/rollback.html",
+                "original_file": "deployment/rollback.yaml"
+            },
+            "deployment_timeline": {
+                "category": "Deployment",
+                "title": "Pipeline Status Timeline API",
+                "filename": "deployment/timeline.html",
+                "original_file": "deployment/timeline.yaml"
+            },
+            "environment_bulk-delete": {
+                "category": "Environment",
+                "title": "Environment Bulk Operations",
+                "filename": "environment/bulk-delete.html",
+                "original_file": "environment/bulk-delete.yaml"
+            },
+            "environment_config-diff": {
+                "category": "Environment",
+                "title": "Configuration Diff View API",
+                "filename": "environment/config-diff.html",
+                "original_file": "environment/config-diff.yaml"
+            },
+            "environment_core": {
+                "category": "Environment",
+                "title": "Environment & Namespace Management",
+                "filename": "environment/core.html",
+                "original_file": "environment/core.yaml"
+            },
+            "external-app_applist": {
+                "category": "External App",
+                "title": "External Application Management",
+                "filename": "external-app/applist.html",
+                "original_file": "external-app/applist.yaml"
+            },
+            "external-app_external-links-specs": {
+                "category": "External App",
+                "title": "External links APIs",
+                "filename": "external-app/external-links-specs.html",
+                "original_file": "external-app/external-links-specs.yaml"
+            },
+            "gitops_bitbucket": {
+                "category": "Gitops",
+                "title": "GitOps bitbucket support",
+                "filename": "gitops/bitbucket.html",
+                "original_file": "gitops/bitbucket.yaml"
+            },
+            "gitops_core": {
+                "category": "Gitops",
+                "title": "GitOps Configuration Management",
+                "filename": "gitops/core.html",
+                "original_file": "gitops/core.yaml"
+            },
+            "gitops_fluxcd": {
+                "category": "Gitops",
+                "title": "Flux Application Orchestrator API",
+                "filename": "gitops/fluxcd.html",
+                "original_file": "gitops/fluxcd.yaml"
+            },
+            "gitops_manifest-generation": {
+                "category": "Gitops",
+                "title": "App Deployment API",
+                "filename": "gitops/manifest-generation.html",
+                "original_file": "gitops/manifest-generation.yaml"
+            },
+            "gitops_submodules": {
+                "category": "Gitops",
+                "title": "Git Submodules support in CI",
+                "filename": "gitops/submodules.html",
+                "original_file": "gitops/submodules.yaml"
+            },
+            "gitops_validation": {
+                "category": "Gitops",
+                "title": "GitOps Validation",
+                "filename": "gitops/validation.html",
+                "original_file": "gitops/validation.yaml"
+            },
+            "global-config_v1": {
+                "category": "Global Config",
+                "title": "Modularisation v1 APIs",
+                "filename": "global-config/v1.html",
+                "original_file": "global-config/v1.yaml"
+            },
+            "global-config_version": {
+                "category": "Global Config",
+                "title": "version api",
+                "filename": "global-config/version.html",
+                "original_file": "global-config/version.yaml"
+            },
+            "helm_app-store": {
+                "category": "Helm",
+                "title": "App Store Management",
+                "filename": "helm/app-store.html",
+                "original_file": "helm/app-store.yaml"
+            },
+            "helm_charts": {
+                "category": "Helm",
+                "title": "Helm Chart Store Management",
+                "filename": "helm/charts.html",
+                "original_file": "helm/charts.yaml"
+            },
+            "helm_deployment-chart-type": {
+                "category": "Helm",
+                "title": "Helm Deployment Chart Types",
+                "filename": "helm/deployment-chart-type.html",
+                "original_file": "helm/deployment-chart-type.yaml"
+            },
+            "helm_deployment-history-api-spec": {
+                "category": "Helm",
+                "title": "Helm App Deployment History",
+                "filename": "helm/deployment-history-api-spec.html",
+                "original_file": "helm/deployment-history-api-spec.yaml"
+            },
+            "helm_dynamic-charts": {
+                "category": "Helm",
+                "title": "Plugin System Integration - CI stages",
+                "filename": "helm/dynamic-charts.html",
+                "original_file": "helm/dynamic-charts.yaml"
+            },
+            "helm_provider": {
+                "category": "Helm",
+                "title": "Helm Chart Provider Management",
+                "filename": "helm/provider.html",
+                "original_file": "helm/provider.yaml"
+            },
+            "helm_repo-validation": {
+                "category": "Helm",
+                "title": "Helm Chart Repo Validation",
+                "filename": "helm/repo-validation.html",
+                "original_file": "helm/repo-validation.yaml"
+            },
+            "helm_webhook_helm-api-spec": {
+                "category": "Helm",
+                "title": "Helm Webhook Management",
+                "filename": "helm/webhook_helm-api-spec.html",
+                "original_file": "helm/webhook_helm-api-spec.yaml"
+            },
+            "jobs_batch": {
+                "category": "Jobs",
+                "title": "Batch Job Operations",
+                "filename": "jobs/batch.html",
+                "original_file": "jobs/batch.yaml"
+            },
+            "jobs_bulk-actions": {
+                "category": "Jobs",
+                "title": "Job Bulk Actions",
+                "filename": "jobs/bulk-actions.html",
+                "original_file": "jobs/bulk-actions.yaml"
+            },
+            "jobs_bulk-operations": {
+                "category": "Jobs",
+                "title": "Bulk Operations API",
+                "filename": "jobs/bulk-operations.html",
+                "original_file": "jobs/bulk-operations.yaml"
+            },
+            "jobs_bulk-update": {
+                "category": "Jobs",
+                "title": "Bulk Update - Deployment Template, ConfigMaps, Secrets",
+                "filename": "jobs/bulk-update.html",
+                "original_file": "jobs/bulk-update.yaml"
+            },
+            "jobs_core": {
+                "category": "Jobs",
+                "title": "Job Pipeline Management",
+                "filename": "jobs/core.html",
+                "original_file": "jobs/core.yaml"
+            },
+            "kubernetes_apis": {
+                "category": "Kubernetes",
+                "title": "Kubernetes Resource Management",
+                "filename": "kubernetes/apis.html",
+                "original_file": "kubernetes/apis.yaml"
+            },
+            "kubernetes_capacity": {
+                "category": "Kubernetes",
+                "title": "Kubernetes Capacity",
+                "filename": "kubernetes/capacity.html",
+                "original_file": "kubernetes/capacity.yaml"
+            },
+            "kubernetes_cluster-management": {
+                "category": "Kubernetes",
+                "title": "Cluster Management API",
+                "filename": "kubernetes/cluster-management.html",
+                "original_file": "kubernetes/cluster-management.yaml"
+            },
+            "kubernetes_cluster": {
+                "category": "Kubernetes",
+                "title": "Kubernetes Cluster Management",
+                "filename": "kubernetes/cluster.html",
+                "original_file": "kubernetes/cluster.yaml"
+            },
+            "kubernetes_ephemeral-containers": {
+                "category": "Kubernetes",
+                "title": "Orchestrator K8s API",
+                "filename": "kubernetes/ephemeral-containers.html",
+                "original_file": "kubernetes/ephemeral-containers.yaml"
+            },
+            "kubernetes_resources": {
+                "category": "Kubernetes",
+                "title": "Kubernetes Resource Operations",
+                "filename": "kubernetes/resources.html",
+                "original_file": "kubernetes/resources.yaml"
+            },
+            "notifications_core": {
+                "category": "Notifications",
+                "title": "Notification Management",
+                "filename": "notifications/core.html",
+                "original_file": "notifications/core.yaml"
+            },
+            "notifications_webhooks": {
+                "category": "Notifications",
+                "title": "Webhook Notification Management",
+                "filename": "notifications/webhooks.html",
+                "original_file": "notifications/webhooks.yaml"
+            },
+            "plugin_core": {
+                "category": "Plugin",
+                "title": "Global Plugin Management",
+                "filename": "plugin/core.html",
+                "original_file": "plugin/core.yaml"
+            },
+            "plugin_global": {
+                "category": "Plugin",
+                "title": "Plugin System Integration - CI Stages",
+                "filename": "plugin/global.html",
+                "original_file": "plugin/global.yaml"
+            },
+            "plugin_plugin-creation": {
+                "category": "Plugin",
+                "title": "Plugin Creation",
+                "filename": "plugin/plugin-creation.html",
+                "original_file": "plugin/plugin-creation.yaml"
+            },
+            "resourceRecommendation_ClusterResourceRecommendation": {
+                "category": "ResourceRecommendation",
+                "title": "Resource Recommender",
+                "filename": "resourceRecommendation/ClusterResourceRecommendation.html",
+                "original_file": "resourceRecommendation/ClusterResourceRecommendation.yaml"
+            },
+            "security_security-dashboard-apis": {
+                "category": "Security",
+                "title": "Security Scan API",
+                "filename": "security/security-dashboard-apis.html",
+                "original_file": "security/security-dashboard-apis.yml"
+            },
+            "security_security-policy": {
+                "category": "Security",
+                "title": "Security Policy Management",
+                "filename": "security/security-policy.html",
+                "original_file": "security/security-policy.yml"
+            },
+            "template_config-maps": {
+                "category": "Template",
+                "title": "Global ConfigMap and Secret Management",
+                "filename": "template/config-maps.html",
+                "original_file": "template/config-maps.yaml"
+            },
+            "template_templates": {
+                "category": "Template",
+                "title": "Default Template Values API",
+                "filename": "template/templates.html",
+                "original_file": "template/templates.yaml"
+            },
+            "user_api-tokens": {
+                "category": "User",
+                "title": "API Token Management",
+                "filename": "user/api-tokens.html",
+                "original_file": "user/api-tokens.yaml"
+            },
+            "user_core": {
+                "category": "User",
+                "title": "Security & Access Management API",
+                "filename": "user/core.html",
+                "original_file": "user/core.yaml"
+            },
+            "user_group-policy": {
+                "category": "User",
+                "title": "User Role Group Management API",
+                "filename": "user/group-policy.html",
+                "original_file": "user/group-policy.yaml"
+            },
+            "user_policy-management": {
+                "category": "User",
+                "title": "Policy Management API",
+                "filename": "user/policy-management.html",
+                "original_file": "user/policy-management.yaml"
+            },
+            "user_sso-configuration": {
+                "category": "User",
+                "title": "SSO Configuration API",
+                "filename": "user/sso-configuration.html",
+                "original_file": "user/sso-configuration.yaml"
+            },
+            "user_user-management": {
+                "category": "User",
+                "title": "User Management API",
+                "filename": "user/user-management.html",
+                "original_file": "user/user-management.yaml"
+            },
+            "user_userResource": {
+                "category": "User",
+                "title": "User Resource Options API",
+                "filename": "user/userResource.html",
+                "original_file": "user/userResource.yaml"
+            }
+        };
+
+        function populatePage() {
+            const categoriesContainer = document.getElementById('categories');
+            const categories = {};
+
+            Object.values(apiData).forEach(api => {
+                if (!categories[api.category]) {
+                    categories[api.category] = [];
+                }
+                categories[api.category].push(api);
+            });
+
+            Object.keys(categories).sort().forEach(category => {
+                const categoryDiv = document.createElement('div');
+                categoryDiv.className = 'category';
+
+                const categoryTitle = document.createElement('h3');
+                categoryTitle.textContent = category;
+                categoryDiv.appendChild(categoryTitle);
+
+                const apiList = document.createElement('ul');
+                apiList.className = 'api-list';
+
+                categories[category].sort((a, b) => a.title.localeCompare(b.title)).forEach(api => {
+                    const listItem = document.createElement('li');
+                    const link = document.createElement('a');
+                    link.href = api.filename;
+                    link.textContent = api.title;
+                    link.target = '_blank';
+                    listItem.appendChild(link);
+                    apiList.appendChild(listItem);
+                });
+
+                categoryDiv.appendChild(apiList);
+                categoriesContainer.appendChild(categoryDiv);
+            });
+
+            document.getElementById('timestamp').textContent = new Date().toLocaleString();
+        }
+
+        document.addEventListener('DOMContentLoaded', populatePage);
+    </script>
+</body>
+</html>
