@@ -1,0 +1,1400 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Notification Management
+  description: Devtron API for notification management including settings, channels, and configurations
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Labs
+    email: support@devtron.ai
+    url: https://devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: http://localhost:8080/orchestrator
+paths:
+  /orchestrator/notification:
+    get:
+      summary: Get all notification settings
+      description: Returns paginated list of all notification settings
+      operationId: getAllNotificationSettings
+      parameters:
+        - name: offset
+          in: query
+          description: Number of records to skip for pagination
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          example: 0
+        - name: size
+          in: query
+          description: Number of records to return per page
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          example: 20
+      responses:
+        '200':
+          description: Notification settings retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSettingsViewResponse'
+        '400':
+          description: Bad request - invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Create notification settings
+      description: Create new notification settings configuration
+      operationId: saveNotificationSettingsV2
+      requestBody:
+        description: Notification settings request
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationRequest'
+            example:
+              notificationConfigRequest:
+                - pipelineType: "CI"
+                  eventTypeIds: [1, 2, 3]
+                  teamId: [1]
+                  providers:
+                    - dest: "slack"
+                      configId: 1
+                      recipient: "#general"
+      responses:
+        '200':
+          description: Notification settings created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSettingsResponse'
+        '400':
+          description: Bad request - invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Update notification settings
+      description: Update existing notification settings configuration
+      operationId: updateNotificationSettings
+      requestBody:
+        description: Notification update request
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationUpdateRequest'
+            example:
+              updateType: "events"
+              notificationConfigRequest:
+                - id: 1
+                  pipelineType: "CI"
+                  eventTypeIds: [1, 2]
+                  teamId: [1]
+      responses:
+        '200':
+          description: Notification settings updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSettingsResponse'
+        '400':
+          description: Bad request - invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Notification setting not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete notification settings
+      description: Delete notification settings by IDs
+      operationId: deleteNotificationSettings
+      requestBody:
+        description: Delete request with notification setting IDs
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NSDeleteRequest'
+            example:
+              id: [1, 2, 3]
+      responses:
+        '200':
+          description: Notification settings deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Deletion success status
+        '400':
+          description: Bad request - invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Notification setting not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/notification/v2:
+    post:
+      summary: Create notification settings (v2)
+      description: Create new notification settings configuration (v2 endpoint)
+      operationId: saveNotificationSettingsV2Alt
+      requestBody:
+        description: Notification settings request
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationRequest'
+      responses:
+        '200':
+          description: Notification settings created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSettingsResponse'
+        '400':
+          description: Bad request - invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/notification/recipient:
+    get:
+      summary: Get recipient suggestions
+      description: Get recipient suggestions by search value, returns slack channels and email addresses
+      operationId: getRecipientListingSuggestion
+      parameters:
+        - name: value
+          in: query
+          description: Search value for recipient suggestions
+          required: true
+          schema:
+            type: string
+            minLength: 1
+          example: "test"
+      responses:
+        '200':
+          description: List of recipient suggestions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NotificationRecipientListingResponse'
+        '400':
+          description: Bad request - invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/notification/channel:
+    get:
+      summary: Get all notification channel configurations
+      description: Get all notification channel configurations (Slack, SES, SMTP, Webhook)
+      operationId: findAllNotificationConfig
+      responses:
+        '200':
+          description: Notification channel configurations retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelResponseDTO'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Create notification channel configuration
+      description: Create notification channel configuration (Slack, SES, SMTP, or Webhook)
+      operationId: saveNotificationChannelConfig
+      requestBody:
+        description: Channel configuration request
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/SlackChannelConfig'
+                - $ref: '#/components/schemas/SESChannelConfig'
+                - $ref: '#/components/schemas/SMTPChannelConfig'
+                - $ref: '#/components/schemas/WebhookChannelConfig'
+              discriminator:
+                propertyName: channel
+                mapping:
+                  slack: '#/components/schemas/SlackChannelConfig'
+                  ses: '#/components/schemas/SESChannelConfig'
+                  smtp: '#/components/schemas/SMTPChannelConfig'
+                  webhook: '#/components/schemas/WebhookChannelConfig'
+            examples:
+              slack:
+                summary: Slack channel configuration
+                value:
+                  channel: "slack"
+                  configs:
+                    - teamId: 1
+                      webhookUrl: "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
+                      configName: "slack-config-1"
+                      description: "Slack notifications for team 1"
+              ses:
+                summary: SES channel configuration
+                value:
+                  channel: "ses"
+                  configs:
+                    - region: "us-east-1"
+                      accessKey: "AKIAIOSFODNN7EXAMPLE"
+                      secretKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+                      fromEmail: "noreply@example.com"
+                      configName: "ses-config-1"
+                      description: "SES notifications"
+      responses:
+        '200':
+          description: Channel configuration created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Creation success status
+        '400':
+          description: Bad request - invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete notification channel configuration
+      description: Delete notification channel configuration (Slack, SES, SMTP, or Webhook)
+      operationId: deleteNotificationChannelConfig
+      requestBody:
+        description: Channel configuration delete request
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/SlackConfigDto'
+                - $ref: '#/components/schemas/SESConfigDto'
+                - $ref: '#/components/schemas/SMTPConfigDto'
+                - $ref: '#/components/schemas/WebhookConfigDto'
+              discriminator:
+                propertyName: channel
+      responses:
+        '200':
+          description: Channel configuration deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Success message
+        '400':
+          description: Bad request - invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/notification/channel/ses/{id}:
+    get:
+      summary: Get SES configuration by ID
+      description: Get SES notification configuration by ID
+      operationId: findSESConfig
+      parameters:
+        - name: id
+          in: path
+          description: SES configuration ID
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: SES configuration retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SESConfigDto'
+        '400':
+          description: Bad request - invalid ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: SES configuration not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/notification/channel/slack/{id}:
+    get:
+      summary: Get Slack configuration by ID
+      description: Get Slack notification configuration by ID
+      operationId: findSlackConfig
+      parameters:
+        - name: id
+          in: path
+          description: Slack configuration ID
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Slack configuration retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlackConfigDto'
+        '400':
+          description: Bad request - invalid ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Slack configuration not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/notification/channel/smtp/{id}:
+    get:
+      summary: Get SMTP configuration by ID
+      description: Get SMTP notification configuration by ID
+      operationId: findSMTPConfig
+      parameters:
+        - name: id
+          in: path
+          description: SMTP configuration ID
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: SMTP configuration retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SMTPConfigDto'
+        '400':
+          description: Bad request - invalid ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: SMTP configuration not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/notification/channel/webhook/{id}:
+    get:
+      summary: Get Webhook configuration by ID
+      description: Get Webhook notification configuration by ID
+      operationId: findWebhookConfig
+      parameters:
+        - name: id
+          in: path
+          description: Webhook configuration ID
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Webhook configuration retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookConfigDto'
+        '400':
+          description: Bad request - invalid ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Webhook configuration not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/notification/variables:
+    get:
+      summary: Get webhook variables
+      description: Get available webhook variables for notification templates
+      operationId: getWebhookVariables
+      responses:
+        '200':
+          description: Webhook variables retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                  description: Available webhook variable
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/notification/channel/autocomplete/{type}:
+    get:
+      summary: Get notification channel autocomplete suggestions
+      description: Get autocomplete suggestions for notification channels by type
+      operationId: findAllNotificationConfigAutocomplete
+      parameters:
+        - name: type
+          in: path
+          description: Channel type (slack, ses, smtp, webhook)
+          required: true
+          schema:
+            type: string
+            enum: [slack, ses, smtp, webhook]
+      responses:
+        '200':
+          description: Autocomplete suggestions retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NotificationChannelAutoResponse'
+        '400':
+          description: Bad request - invalid type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/notification/search:
+    post:
+      summary: Get notification settings options
+      description: Get options for notification settings based on search criteria
+      operationId: getOptionsForNotificationSettings
+      requestBody:
+        description: Search request for notification settings options
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+            example:
+              teamId: [1, 2]
+              appId: [1]
+              pipelineName: "test-pipeline"
+      responses:
+        '200':
+          description: Notification settings options retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SearchFilterResponse'
+        '400':
+          description: Bad request - invalid search criteria
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    # Main notification request/response schemas
+    NotificationRequest:
+      type: object
+      required:
+        - notificationConfigRequest
+      properties:
+        updateType:
+          type: string
+          enum: [events, recipients]
+          description: Type of update operation
+        providers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Provider'
+          description: List of notification providers
+        notificationConfigRequest:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationConfigRequest'
+          description: List of notification configuration requests
+        sesConfigId:
+          type: integer
+          description: SES configuration ID (deprecated)
+
+    NotificationUpdateRequest:
+      type: object
+      required:
+        - notificationConfigRequest
+      properties:
+        updateType:
+          type: string
+          enum: [events, recipients]
+          description: Type of update operation
+        notificationConfigRequest:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationConfigRequest'
+          description: List of notification configuration requests
+
+    NotificationConfigRequest:
+      type: object
+      required:
+        - pipelineType
+        - eventTypeIds
+      properties:
+        id:
+          type: integer
+          description: Configuration ID
+        teamId:
+          type: array
+          items:
+            type: integer
+          description: List of team IDs
+        appId:
+          type: array
+          items:
+            type: integer
+          description: List of application IDs
+        envId:
+          type: array
+          items:
+            type: integer
+          description: List of environment IDs
+        clusterId:
+          type: array
+          items:
+            type: integer
+          description: List of cluster IDs
+        pipelineId:
+          type: integer
+          description: Pipeline ID
+        pipelineType:
+          type: string
+          enum: [CI, CD]
+          description: Pipeline type
+        eventTypeIds:
+          type: array
+          items:
+            type: integer
+          description: List of event type IDs
+        providers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Provider'
+          description: List of notification providers
+
+    Provider:
+      type: object
+      required:
+        - dest
+        - configId
+      properties:
+        dest:
+          type: string
+          enum: [slack, ses, smtp, webhook]
+          description: Destination channel type
+        rule:
+          type: string
+          description: Notification rule
+        configId:
+          type: integer
+          description: Configuration ID
+        recipient:
+          type: string
+          description: Recipient information
+
+    NSDeleteRequest:
+      type: object
+      properties:
+        id:
+          type: array
+          items:
+            type: integer
+          description: List of notification setting IDs to delete
+
+    NotificationSettingsViewResponse:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total number of notification settings
+        settings:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationSettingsResponse'
+          description: List of notification settings
+
+    NotificationSettingsResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Notification setting ID
+        configName:
+          type: string
+          description: Configuration name
+        team:
+          type: array
+          items:
+            $ref: '#/components/schemas/TeamResponse'
+          description: Associated teams
+        app:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppResponse'
+          description: Associated applications
+        environment:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnvResponse'
+          description: Associated environments
+        cluster:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClusterResponse'
+          description: Associated clusters
+        pipeline:
+          $ref: '#/components/schemas/PipelineResponse'
+          description: Associated pipeline
+        pipelineType:
+          type: string
+          description: Pipeline type
+        providerConfigs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProvidersConfig'
+          description: Provider configurations
+        eventTypes:
+          type: array
+          items:
+            type: integer
+          description: Event type IDs
+
+    # Channel configuration schemas
+    ChannelResponseDTO:
+      type: object
+      properties:
+        slackConfigs:
+          type: array
+          items:
+            $ref: '#/components/schemas/SlackConfigDto'
+          description: Slack configurations
+        webhookConfigs:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookConfigDto'
+          description: Webhook configurations
+        sesConfigs:
+          type: array
+          items:
+            $ref: '#/components/schemas/SESConfigDto'
+          description: SES configurations
+        smtpConfigs:
+          type: array
+          items:
+            $ref: '#/components/schemas/SMTPConfigDto'
+          description: SMTP configurations
+
+    SlackChannelConfig:
+      type: object
+      required:
+        - channel
+        - configs
+      properties:
+        channel:
+          type: string
+          enum: [slack]
+          description: Channel type
+        configs:
+          type: array
+          items:
+            $ref: '#/components/schemas/SlackConfigDto'
+          description: Slack configurations
+
+    SlackConfigDto:
+      type: object
+      required:
+        - teamId
+        - webhookUrl
+        - configName
+      properties:
+        id:
+          type: integer
+          description: Configuration ID
+        userId:
+          type: integer
+          description: User ID
+        teamId:
+          type: integer
+          description: Team ID
+        webhookUrl:
+          type: string
+          description: Slack webhook URL
+        configName:
+          type: string
+          description: Configuration name
+        description:
+          type: string
+          description: Configuration description
+
+    SESChannelConfig:
+      type: object
+      required:
+        - channel
+        - configs
+      properties:
+        channel:
+          type: string
+          enum: [ses]
+          description: Channel type
+        configs:
+          type: array
+          items:
+            $ref: '#/components/schemas/SESConfigDto'
+          description: SES configurations
+
+    SESConfigDto:
+      type: object
+      required:
+        - region
+        - accessKey
+        - secretKey
+        - fromEmail
+        - configName
+      properties:
+        id:
+          type: integer
+          description: Configuration ID
+        ownerId:
+          type: integer
+          description: Owner user ID
+        teamId:
+          type: integer
+          description: Team ID
+        region:
+          type: string
+          description: AWS region
+        accessKey:
+          type: string
+          description: AWS access key
+        secretKey:
+          type: string
+          description: AWS secret key
+        fromEmail:
+          type: string
+          format: email
+          description: From email address
+        toEmail:
+          type: string
+          description: To email address
+        sessionToken:
+          type: string
+          description: AWS session token
+        configName:
+          type: string
+          description: Configuration name
+        description:
+          type: string
+          description: Configuration description
+        default:
+          type: boolean
+          description: Whether this is the default configuration
+
+    SMTPChannelConfig:
+      type: object
+      required:
+        - channel
+        - configs
+      properties:
+        channel:
+          type: string
+          enum: [smtp]
+          description: Channel type
+        configs:
+          type: array
+          items:
+            $ref: '#/components/schemas/SMTPConfigDto'
+          description: SMTP configurations
+
+    SMTPConfigDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Configuration ID
+        port:
+          type: string
+          description: SMTP port
+        host:
+          type: string
+          description: SMTP host
+        authType:
+          type: string
+          description: Authentication type
+        authUser:
+          type: string
+          description: Authentication username
+        authPassword:
+          type: string
+          description: Authentication password
+        fromEmail:
+          type: string
+          format: email
+          description: From email address
+        configName:
+          type: string
+          description: Configuration name
+        description:
+          type: string
+          description: Configuration description
+        ownerId:
+          type: integer
+          description: Owner user ID
+        default:
+          type: boolean
+          description: Whether this is the default configuration
+        deleted:
+          type: boolean
+          description: Whether this configuration is deleted
+
+    WebhookChannelConfig:
+      type: object
+      required:
+        - channel
+        - configs
+      properties:
+        channel:
+          type: string
+          enum: [webhook]
+          description: Channel type
+        configs:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookConfigDto'
+          description: Webhook configurations
+
+    WebhookConfigDto:
+      type: object
+      required:
+        - webhookUrl
+        - configName
+      properties:
+        id:
+          type: integer
+          description: Configuration ID
+        userId:
+          type: integer
+          description: User ID
+        webhookUrl:
+          type: string
+          format: uri
+          description: Webhook URL
+        configName:
+          type: string
+          description: Configuration name
+        header:
+          type: object
+          additionalProperties: true
+          description: HTTP headers for webhook
+        payload:
+          type: string
+          description: Webhook payload template
+        description:
+          type: string
+          description: Configuration description
+
+    # Response schemas for entities
+    TeamResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Team ID
+        name:
+          type: string
+          description: Team name
+
+    AppResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Application ID
+        name:
+          type: string
+          description: Application name
+
+    EnvResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Environment ID
+        name:
+          type: string
+          description: Environment name
+
+    ClusterResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Cluster ID
+        name:
+          type: string
+          description: Cluster name
+
+    PipelineResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Pipeline ID
+        name:
+          type: string
+          description: Pipeline name
+        environmentName:
+          type: string
+          description: Environment name
+        appName:
+          type: string
+          description: Application name
+        branches:
+          type: array
+          items:
+            type: string
+          description: Git branches
+        clusterName:
+          type: string
+          description: Cluster name
+
+    ProvidersConfig:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Provider configuration ID
+        dest:
+          type: string
+          description: Destination channel
+        name:
+          type: string
+          description: Configuration name
+        recipient:
+          type: string
+          description: Recipient information
+
+    # Utility schemas
+    NotificationRecipientListingResponse:
+      type: object
+      properties:
+        dest:
+          type: string
+          enum: [slack, ses, smtp, webhook]
+          description: Destination channel type
+        configId:
+          type: integer
+          description: Configuration ID
+        recipient:
+          type: string
+          description: Recipient information
+
+    NotificationChannelAutoResponse:
+      type: object
+      properties:
+        configName:
+          type: string
+          description: Configuration name
+        id:
+          type: integer
+          description: Configuration ID
+
+    SearchRequest:
+      type: object
+      properties:
+        teamId:
+          type: array
+          items:
+            type: integer
+          description: List of team IDs
+        envId:
+          type: array
+          items:
+            type: integer
+          description: List of environment IDs
+        appId:
+          type: array
+          items:
+            type: integer
+          description: List of application IDs
+        clusterId:
+          type: array
+          items:
+            type: integer
+          description: List of cluster IDs
+        pipelineName:
+          type: string
+          description: Pipeline name filter
+
+    SearchFilterResponse:
+      type: object
+      properties:
+        team:
+          type: array
+          items:
+            $ref: '#/components/schemas/TeamResponse'
+          description: Team options
+        app:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppResponse'
+          description: Application options
+        environment:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnvResponse'
+          description: Environment options
+        cluster:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClusterResponse'
+          description: Cluster options
+        pipeline:
+          $ref: '#/components/schemas/PipelineResponse'
+          description: Pipeline options
+        pipelineType:
+          type: string
+          description: Pipeline type
+
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        message:
+          type: string
+          description: Error message

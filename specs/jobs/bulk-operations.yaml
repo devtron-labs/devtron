@@ -1,0 +1,469 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Bulk Operations API
+  description: Devtron API for bulk operations on applications
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Labs
+    email: support@devtron.ai
+    url: https://devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: http://localhost:8080
+paths:
+  /orchestrator/batch/v1beta1/application:
+    post:
+      tags:
+        - BulkUpdate
+      summary: Bulk Edit Applications
+      description: Perform bulk edit operations on multiple applications.
+      operationId: BulkEditApplications
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      requestBody:
+        description: Bulk edit request payload
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkUpdatePayload'
+      responses:
+        '200':
+          description: Bulk edit operation completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkUpdateResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /orchestrator/batch/v1beta1/application/dryrun:
+    post:
+      tags:
+        - bulk_other
+      summary: Dry Run for Bulk Application Update
+      description: Perform a dry run of bulk application update to see what would be changed.
+      operationId: BulkEditApplicationsDryRun
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      requestBody:
+        description: Bulk edit dry run request payload
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkUpdatePayload'
+      responses:
+        '200':
+          description: Dry run completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImpactedObjectsResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /orchestrator/batch/v1beta1/build:
+    post:
+      tags:
+        - BulkUpdate
+      summary: Bulk Trigger Application Builds
+      description: Trigger builds for multiple applications in bulk.
+      operationId: BulkTriggerBuilds
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      requestBody:
+        description: Bulk build trigger request payload
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkBuildRequest'
+      responses:
+        '200':
+          description: Bulk build trigger completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkOperationResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /orchestrator/batch/v1beta1/deploy:
+    post:
+      tags:
+        - BulkUpdate
+      summary: Bulk Deploy Applications
+      description: Deploy multiple applications in bulk.
+      operationId: BulkDeployApplications
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      requestBody:
+        description: Bulk deploy request payload
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkDeployRequest'
+      responses:
+        '200':
+          description: Bulk deploy operation completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkOperationResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /orchestrator/batch/v1beta1/hibernate:
+    post:
+      tags:
+        - BulkUpdate
+      summary: Bulk Hibernate Applications
+      description: Hibernate multiple applications in bulk.
+      operationId: BulkHibernateApplications
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      requestBody:
+        description: Bulk hibernate request payload
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkHibernateRequest'
+      responses:
+        '200':
+          description: Bulk hibernate operation completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkOperationResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /orchestrator/batch/v1beta1/unhibernate:
+    post:
+      tags:
+        - BulkUpdate
+      summary: Bulk Un-Hibernate Applications
+      description: Un-hibernate multiple applications in bulk.
+      operationId: BulkUnHibernateApplications
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      requestBody:
+        description: Bulk un-hibernate request payload
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkHibernateRequest'
+      responses:
+        '200':
+          description: Bulk un-hibernate operation completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkOperationResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /orchestrator/batch/{apiVersion}/{kind}/readme:
+    get:
+      tags:
+        - bulk_other
+      summary: Get Readme for Bulk Update
+      description: Get readme information for bulk update operations.
+      operationId: GetBulkUpdateReadme
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+        - name: apiVersion
+          in: path
+          required: true
+          description: API version
+          schema:
+            type: string
+        - name: kind
+          in: path
+          required: true
+          description: Resource kind
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Readme information retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  readme:
+                    type: string
+                    description: Readme content
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Readme not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+components:
+  schemas:
+    BulkUpdatePayload:
+      type: object
+      properties:
+        includes:
+          type: array
+          items:
+            type: object
+          description: Resources to include in bulk operation
+        excludes:
+          type: array
+          items:
+            type: object
+          description: Resources to exclude from bulk operation
+        filter:
+          type: object
+          description: Filter criteria for bulk operation
+
+    BulkUpdateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Operation success status
+        message:
+          type: string
+          description: Response message
+        results:
+          type: array
+          items:
+            type: object
+          description: Operation results
+
+    ImpactedObjectsResponse:
+      type: object
+      properties:
+        impactedObjects:
+          type: array
+          items:
+            type: object
+          description: Objects that would be impacted by the operation
+
+    BulkBuildRequest:
+      type: object
+      properties:
+        applications:
+          type: array
+          items:
+            type: integer
+          description: Application IDs to build
+
+    BulkDeployRequest:
+      type: object
+      properties:
+        applications:
+          type: array
+          items:
+            type: integer
+          description: Application IDs to deploy
+
+    BulkHibernateRequest:
+      type: object
+      properties:
+        applications:
+          type: array
+          items:
+            type: integer
+          description: Application IDs to hibernate/un-hibernate
+
+    BulkOperationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Operation success status
+        message:
+          type: string
+          description: Response message
+        results:
+          type: array
+          items:
+            type: object
+          description: Operation results for each application
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message
+        details:
+          type: array
+          items:
+            type: string
+          description: Additional error details

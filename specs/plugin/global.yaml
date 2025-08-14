@@ -1,0 +1,587 @@
+openapi: "3.0.3"
+info:
+  title: "Plugin System Integration - CI Stages"
+  description: |
+    This API facilitates the management of plugins used in pre/post CI or CD steps,
+    enhancing the customization and automation capabilities of CI/CD pipelines.
+  version: "1.0.0"
+
+paths:
+  /orchestrator/plugin/global/migrate:
+    put:
+      description: Migrate plugin data to the latest schema
+      operationId: MigratePluginData
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successfully migrated plugin data
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/plugin/global/create:
+    post:
+      description: Create a new plugin or plugin version
+      operationId: CreatePlugin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: appId
+          in: query
+          required: false
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PluginParentMetadataDto'
+      responses:
+        '200':
+          description: Successfully created plugin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PluginMinDto'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/plugin/global/detail/all:
+    get:
+      description: Get detailed information of all available plugins
+      operationId: GetAllDetailedPluginInfo
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successfully retrieved all plugin details
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PluginMetaDataDto'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/plugin/global/detail/{pluginId}:
+    get:
+      description: Get detailed information of a specific plugin by ID
+      operationId: GetDetailedPluginInfoByPluginId
+      parameters:
+        - name: pluginId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully retrieved plugin details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PluginMetaDataDto'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/plugin/global/list/global-variable:
+    get:
+      description: Get list of all global variables
+      operationId: GetAllGlobalVariables
+      parameters:
+        - name: appId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully retrieved global variables
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GlobalVariable'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/plugin/global/list/v2:
+    get:
+      description: Get list of all plugins with filtering options
+      operationId: ListAllPluginsV2
+      parameters:
+        - name: appId
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: searchKey
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: tag
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: fetchAllVersionDetails
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Successfully retrieved filtered plugins
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PluginMetaDataDto'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/plugin/global/list/detail/v2:
+    post:
+      description: Get detailed information for multiple plugins
+      operationId: GetPluginDetailByIds
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GlobalPluginDetailsRequest'
+      responses:
+        '200':
+          description: Successfully retrieved plugin details
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PluginMetaDataDto'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/plugin/global/list/tags:
+    get:
+      description: Get all unique tags used in plugins
+      operationId: GetAllUniqueTags
+      parameters:
+        - name: appId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully retrieved unique tags
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/plugin/global/list/v2/min:
+    get:
+      description: Get minimal data for all plugins
+      operationId: GetAllPluginMinData
+      parameters:
+        - name: appId
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [SHARED, PRESET]
+      responses:
+        '200':
+          description: Successfully retrieved minimal plugin data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PluginMinDto'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    PluginMetaDataDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the plugin
+        name:
+          type: string
+          description: Name of the plugin
+        description:
+          type: string
+          description: Detailed description of what the plugin does
+        type:
+          type: string
+          enum: [SHARED, PRESET]
+          description: Type of the plugin indicating whether it's a SHARED plugin accessible by user or a PRESET plugin provided by the system
+        icon:
+          type: string
+          description: URL or a base64 encoded string representing an icon for the plugin
+        tags:
+          type: array
+          items:
+            type: string
+          description: List of tags associated with the plugin
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PluginVersionDto'
+        createdOn:
+          type: string
+          format: date-time
+          description: Timestamp when the plugin was created
+        updatedOn:
+          type: string
+          format: date-time
+          description: Timestamp when the plugin was last updated
+        createdBy:
+          type: integer
+          description: ID of the user who created the plugin
+        updatedBy:
+          type: integer
+          description: ID of the user who last updated the plugin
+
+    PluginVersionDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the plugin version
+        version:
+          type: string
+          description: Version number of the plugin
+        description:
+          type: string
+          description: Description of changes in this version
+        createdOn:
+          type: string
+          format: date-time
+          description: Timestamp when the version was created
+        updatedOn:
+          type: string
+          format: date-time
+          description: Timestamp when the version was last updated
+        createdBy:
+          type: integer
+          description: ID of the user who created this version
+        updatedBy:
+          type: integer
+          description: ID of the user who last updated this version
+
+    PluginParentMetadataDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the plugin
+        name:
+          type: string
+          description: Name of the plugin
+        description:
+          type: string
+          description: Detailed description of what the plugin does
+        type:
+          type: string
+          enum: [SHARED, PRESET]
+          description: Type of the plugin
+        icon:
+          type: string
+          description: URL or base64 encoded icon
+        tags:
+          type: array
+          items:
+            type: string
+          description: List of tags
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PluginVersionDto'
+
+    PluginMinDto:
+      type: object
+      properties:
+        pluginVersionId:
+          type: integer
+          description: ID of the plugin version
+
+    GlobalPluginDetailsRequest:
+      type: object
+      properties:
+        appId:
+          type: integer
+          description: ID of the application
+        parentPluginIdentifiers:
+          type: array
+          items:
+            type: string
+          description: List of parent plugin identifiers
+
+    GlobalVariable:
+      type: object
+      required:
+        - name
+        - format
+        - description
+        - stageType
+      properties:
+        name:
+          type: string
+          description: The name of the global variable
+        value:
+          type: string
+          description: The value of the global variable
+        format:
+          type: string
+          description: The format of the value
+        description:
+          type: string
+          description: A description of the global variable and its purpose
+        stageType:
+          type: string
+          description: The type of stage this global variable is associated with
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >-
+        JWT token for authentication. 
+        Include the token in the Authorization header as: 'Bearer {token}'

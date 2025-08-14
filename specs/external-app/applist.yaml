@@ -1,7 +1,7 @@
 openapi: "3.0.3"
 info:
   version: 1.0.0
-  title: Devtron Labs
+  title: External Application Management
 paths:
   /orchestrator/application:
     post:
@@ -878,4 +878,14 @@ components:
           type: string
           description: values YAML of deployment
           example: "abcd"
-
+    UpdateReleaseResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: success or failure
+          example: true
+        errorMessage:
+          type: string
+          description: error message if any
+          example: ""

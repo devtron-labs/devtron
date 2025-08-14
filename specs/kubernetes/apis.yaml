@@ -1,0 +1,534 @@
+openapi: "3.0.3"
+info:
+  version: 1.0.0
+  title: Kubernetes Resource Management
+  description: API for managing Kubernetes resources and operations
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Support
+    email: support@devtron.ai
+    url: https://devtron.ai/support
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
+  schemas:
+    ResourceRequestObject:
+          type: object
+          required:
+            - clusterId
+            - k8sRequest
+          properties:
+            clusterId:
+              type: integer
+              description: Cluster ID
+            appId:
+              type: string
+              description: Application ID
+            k8sRequest:
+              $ref: '#/components/schemas/K8sRequest'
+            appType:
+              type: string
+              description: Application type
+            appIdentifier:
+              $ref: '#/components/schemas/AppIdentifier'
+            devtronAppIdentifier:
+              $ref: '#/components/schemas/DevtronAppIdentifier'
+    K8sRequest:
+      type: object
+      required:
+        - resourceIdentifier
+      properties:
+        resourceIdentifier:
+          $ref: '#/components/schemas/ResourceIdentifier'
+        patch:
+          type: string
+          description: JSON patch for update operations
+    ResourceIdentifier:
+      type: object
+      required:
+        - name
+        - namespace
+        - groupVersionKind
+      properties:
+        name:
+          type: string
+          description: Resource name
+        namespace:
+          type: string
+          description: Resource namespace
+        groupVersionKind:
+          $ref: '#/components/schemas/GroupVersionKind'
+    GroupVersionKind:
+      type: object
+      required:
+        - group
+        - version
+        - kind
+      properties:
+        group:
+          type: string
+          description: API group
+        version:
+          type: string
+          description: API version
+        kind:
+          type: string
+          description: Resource kind
+    AppIdentifier:
+      type: object
+      required:
+        - clusterId
+        - namespace
+        - releaseName
+      properties:
+        clusterId:
+          type: integer
+          description: Cluster ID
+        namespace:
+          type: string
+          description: Namespace
+        releaseName:
+          type: string
+          description: Release name
+    DevtronAppIdentifier:
+      type: object
+      required:
+        - clusterId
+        - namespace
+        - appName
+      properties:
+        clusterId:
+          type: integer
+          description: Cluster ID
+        namespace:
+          type: string
+          description: Namespace
+        appName:
+          type: string
+          description: Application name
+    ResourceGetResponse:
+      type: object
+      properties:
+        manifestResponse:
+          $ref: '#/components/schemas/ManifestResponse'
+        secretViewAccess:
+          type: boolean
+          description: Whether user has access to view secrets
+    ManifestResponse:
+      type: object
+      properties:
+        manifest:
+          type: string
+          description: Resource manifest in YAML format
+        ephemeralContainers:
+          type: array
+          items:
+            $ref: '#/components/schemas/EphemeralContainer'
+          description: List of ephemeral containers
+    EphemeralContainer:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Container name
+        image:
+          type: string
+          description: Container image
+        status:
+          type: string
+          description: Container status
+    EventsResponseObject:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/Event'
+          description: List of events
+    Event:
+      type: object
+      properties:
+        type:
+          type: string
+          description: Event type
+        reason:
+          type: string
+          description: Event reason
+        message:
+          type: string
+          description: Event message
+        lastTimestamp:
+          type: string
+          format: date-time
+          description: Last occurrence timestamp
+    LogsResponseObject:
+      type: object
+      properties:
+        logs:
+          type: string
+          description: Container logs
+    TerminalMessage:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          description: Terminal session ID
+        status:
+          type: string
+          description: Session status
+    GetAllApiResourcesResponse:
+      type: object
+      properties:
+        apiResources:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApiResource'
+          description: List of API resources
+    ApiResource:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Resource name
+        singularName:
+          type: string
+          description: Singular resource name
+        namespaced:
+          type: boolean
+          description: Whether resource is namespaced
+        kind:
+          type: string
+          description: Resource kind
+        verbs:
+          type: array
+          items:
+            type: string
+          description: Available verbs
+
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 404
+        message:
+          type: string
+          example: "Resource not found"
+        details:
+          type: array
+          items:
+            type: string
+          example: ["Kubernetes resource not found"]
+paths:
+  /orchestrator/k8s/resource:
+    post:
+      summary: Get Kubernetes resource manifest
+      description: Fetches the manifest for a specified Kubernetes resource
+      operationId: GetResource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestObject'
+      responses:
+        "200":
+          description: Resource manifest
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceGetResponse'
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal server error
+    put:
+      summary: Update Kubernetes resource
+      description: Updates an existing Kubernetes resource manifest
+      operationId: UpdateResource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestObject'
+      responses:
+        "200":
+          description: Updated resource manifest
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceGetResponse'
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal server error
+  /k8s/resource/create:
+    post:
+      summary: Create Kubernetes resource
+      description: Creates a new Kubernetes resource
+      operationId: CreateResource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestObject'
+      responses:
+        "200":
+          description: Created resource manifest
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceGetResponse'
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal server error
+  /k8s/resource/delete:
+    post:
+      summary: Delete Kubernetes resource
+      description: Deletes a Kubernetes resource
+      operationId: DeleteResource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestObject'
+      responses:
+        "200":
+          description: Deleted resource manifest
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceGetResponse'
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal server error
+  /k8s/events:
+    post:
+      summary: Get Kubernetes events
+      description: Fetches events for Kubernetes resources
+      operationId: ListEvents
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestObject'
+      responses:
+        "200":
+          description: Resource events
+          content:
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/EventsResponseObject"
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal server error
+  /k8s/pods/logs/{podName}:
+    get:
+      summary: Get pod logs
+      description: Fetches logs for a container in a pod
+      operationId: GetPodLogs
+      parameters:
+        - name: podName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: containerName
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: appId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: clusterId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: namespace
+          in: query
+          description: Required when clusterId is provided
+          required: false
+          schema:
+            type: string
+        - name: follow
+          in: query
+          schema:
+            type: boolean
+        - name: sinceSeconds
+          in: query
+          schema:
+            type: integer
+        - name: tailLines
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Pod logs
+          content:
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/LogsResponseObject"
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal server error
+  /k8s/pod/exec/session/{identifier}/{namespace}/{pod}/{shell}/{container}:
+    get:
+      summary: Get terminal session
+      description: Gets a terminal session for a pod
+      operationId: GetTerminalSession
+      parameters:
+        - in: path
+          name: identifier
+          schema:
+            type: string
+          required: true
+          description: Application ID or cluster ID
+          example: "2|devtroncd|devtron or 3"
+        - in: path
+          name: namespace
+          schema:
+            type: string
+          required: true
+          description: Namespace name
+          example: "devtroncd"
+        - in: path
+          name: pod
+          schema:
+            type: string
+          required: true
+          description: Pod name
+          example: "inception-58d44d99fd-tfw4s"
+        - in: path
+          name: shell
+          schema:
+            type: string
+            enum: ["bash", "sh", "powershell", "cmd"]
+          required: true
+          description: Shell to invoke
+          example: "bash"
+        - in: path
+          name: container
+          schema:
+            type: string
+          required: true
+          description: Container name
+          example: "devtron"
+      responses:
+        "200":
+          description: Terminal session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TerminalMessage"
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal server error
+  /k8s/api-resources/{clusterId}:
+    get:
+      summary: Get API resources
+      description: Gets all API resources for a given cluster
+      operationId: GetAllApiResources
+      parameters:
+        - name: clusterId
+          in: path
+          description: Cluster ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: API resources
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetAllApiResourcesResponse"
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal server error
+  /k8s/resource/list:
+    post:
+      summary: List resources
+      description: Lists Kubernetes resources
+      operationId: GetResourceList
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestObject'
+      responses:
+        "200":
+          description: List of resources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceGetResponse'
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal server error

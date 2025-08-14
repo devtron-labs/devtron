@@ -1,0 +1,73 @@
+openapi: "3.0.2"
+info:
+  title: version api
+  version: "1.0"
+servers:
+  - url: https://example.com/api  
+paths:
+  /orchestrator/version:
+    get:
+      tags:
+        - Devtron Server version
+      summary: Get Devtron server version information
+      description: Get Devtron server version information
+      operationId: getDevtronVersion
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: meta info about devtron server
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  gitCommit:
+                    type: string
+                    example: d252aa3e
+                    description: git hash from which code was compiled
+                  buildTime:
+                    type: string
+                    format: date-time
+                    example: "2021-12-15T05:44:05Z"
+                    description: time when code was complied
+                  serverMode:
+                    type: string
+                    example: FULL
+                    description: "server mode FULL/EA_ONLY"
+                    enum:
+                      - FULL
+                      - EA_ONLY
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    description: Error code
+                  message:
+                    type: string
+                    description: Error message
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    description: Error code
+                  message:
+                    type: string
+                    description: Error message
+      security: []
+

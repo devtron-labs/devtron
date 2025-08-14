@@ -1,0 +1,389 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: GitOps Validation
+servers:
+  - url: http://localhost:3000/orchestrator/gitops
+paths:
+  /orchestrator/validate:
+    post:
+      description: Validate GitOps configuration
+      operationId: GitOpsValidator
+      requestBody:
+        description: A JSON object containing the gitops configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GitOpsConfigDto'
+      responses:
+        '200':
+          description: Successfully validated GitOps configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailedErrorGitOpsConfigResponse'
+        '400':
+          description: Bad Request - Invalid input or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - User not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - User lacks required permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /orchestrator/gitops/config:
+    post:
+      description: Create a new GitOps configuration
+      operationId: CreateGitOpsConfig
+      requestBody:
+        description: A JSON object containing the gitops configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GitOpsConfigDto'
+      responses:
+        '200':
+          description: Successfully created and validated GitOps configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailedErrorGitOpsConfigResponse'
+        '400':
+          description: Bad Request - Invalid input or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - User not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - User lacks required permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      description: Update an existing GitOps configuration
+      operationId: UpdateGitOpsConfig
+      requestBody:
+        description: A JSON object containing the gitops configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GitOpsConfigDto'
+      responses:
+        '200':
+          description: Successfully updated and validated GitOps configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailedErrorGitOpsConfigResponse'
+        '400':
+          description: Bad Request - Invalid input or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - User not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - User lacks required permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      description: Get all GitOps configurations
+      operationId: GetAllGitOpsConfig
+      responses:
+        '200':
+          description: Successfully retrieved all GitOps configurations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GitOpsConfigDto'
+        '401':
+          description: Unauthorized - User not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - User lacks required permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /orchestrator/gitops/config/{id}:
+    get:
+      description: Get GitOps configuration by ID
+      operationId: GetGitOpsConfigById
+      parameters:
+        - name: id
+          in: path
+          description: ID of the GitOps configuration
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully retrieved GitOps configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitOpsConfigDto'
+        '401':
+          description: Unauthorized - User not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - User lacks required permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: GitOps configuration not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /orchestrator/gitops/config-by-provider:
+    get:
+      description: Get GitOps configuration by provider
+      operationId: GetGitOpsConfigByProvider
+      parameters:
+        - name: provider
+          in: query
+          description: Git provider (e.g., GITHUB, GITLAB, BITBUCKET)
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved GitOps configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitOpsConfigDto'
+        '401':
+          description: Unauthorized - User not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - User lacks required permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: GitOps configuration not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /orchestrator/gitops/configured:
+    get:
+      description: Check if GitOps is configured
+      operationId: GitOpsConfigured
+      responses:
+        '200':
+          description: Successfully checked GitOps configuration status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  exists:
+                    type: boolean
+                    description: Whether GitOps is configured
+                  allowCustomRepository:
+                    type: boolean
+                    description: Whether custom repositories are allowed
+        '401':
+          description: Unauthorized - User not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - User lacks required permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    GitOpsConfigDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: GitOps configuration ID
+        provider:
+          type: string
+          description: Git provider
+          enum: [GITLAB, GITHUB, AZURE_DEVOPS, BITBUCKET_CLOUD]
+        username:
+          type: string
+          description: Git username
+        token:
+          type: string
+          description: Git access token
+        gitLabGroupId:
+          type: string
+          description: GitLab group ID
+        gitHubOrgId:
+          type: string
+          description: GitHub organization ID
+        host:
+          type: string
+          description: Git host URL
+        active:
+          type: boolean
+          description: Whether this configuration is active
+        azureProjectName:
+          type: string
+          description: Azure DevOps project name
+        bitBucketWorkspaceId:
+          type: string
+          description: Bitbucket workspace ID
+        bitBucketProjectKey:
+          type: string
+          description: Bitbucket project key
+        allowCustomRepository:
+          type: boolean
+          description: Whether custom repositories are allowed
+        enableTLSVerification:
+          type: boolean
+          description: Whether TLS verification is enabled
+        tlsConfig:
+          $ref: '#/components/schemas/TLSConfig'
+        isCADataPresent:
+          type: boolean
+          description: Whether CA data is present
+        isTLSCertDataPresent:
+          type: boolean
+          description: Whether TLS certificate data is present
+        isTLSKeyDataPresent:
+          type: boolean
+          description: Whether TLS key data is present
+
+    TLSConfig:
+      type: object
+      properties:
+        caData:
+          type: string
+          description: CA certificate data
+        tlsCertData:
+          type: string
+          description: TLS certificate data
+        tlsKeyData:
+          type: string
+          description: TLS key data
+
+    DetailedErrorGitOpsConfigResponse:
+      type: object
+      properties:
+        successfulStages:
+          type: array
+          items:
+            type: string
+          description: List of successfully completed validation stages
+        stageErrorMap:
+          type: object
+          additionalProperties:
+            type: string
+          description: Map of stage names to error messages
+        validatedOn:
+          type: string
+          format: date-time
+          description: Timestamp of validation
+        deleteRepoFailed:
+          type: boolean
+          description: Whether repository deletion failed
+        validationSkipped:
+          type: boolean
+          description: Whether validation was skipped
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+        message:
+          type: string
+          description: Error message

@@ -1,0 +1,436 @@
+openapi: "3.0.2"
+info:
+  title: Kubernetes Resource Operations
+  description: Devtron API for Kubernetes resource management
+  version: "1.0"
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Labs
+    email: support@devtron.ai
+    url: https://devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: http://localhost:8080
+paths:
+  /orchestrator/k8s/resource/inception/info:
+    get:
+      description: Get inception pod info, such as pod name
+      responses:
+        "200":
+          description: this api give you inception pod info, such as pod name
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/ResourceInfo'
+
+  /orchestrator/k8s/resource:
+    post:
+      description: Get Kubernetes resource details
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestBean'
+      responses:
+        "200":
+          description: Resource details
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/ManifestResponse'
+    put:
+      description: Update Kubernetes resource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestBean'
+      responses:
+        "200":
+          description: Resource updated successfully
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/ManifestResponse'
+
+  /orchestrator/k8s/resource/create:
+    post:
+      description: Create Kubernetes resource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestBean'
+      responses:
+        "200":
+          description: Resource created successfully
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/ManifestResponse'
+
+
+
+  /orchestrator/k8s/resource/delete:
+    post:
+      description: Delete Kubernetes resource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestBean'
+      responses:
+        "200":
+          description: Resource deleted successfully
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/ManifestResponse'
+
+  /orchestrator/k8s/api-resources/{clusterId}:
+    get:
+      description: Get all API resources for a cluster
+      parameters:
+        - name: clusterId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: API resources list
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/K8sApiResource'
+
+  /orchestrator/k8s/resource/urls:
+    get:
+      description: Get host URLs by batch
+      parameters:
+        - name: appId
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: appType
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Host URLs
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    items:
+                      type: string
+
+  /orchestrator/k8s/resources/apply:
+    post:
+      tags:
+        - K8s Resource
+      summary: Apply Resources
+      description: This API is used to apply (create or update) Kubernetes resources in a cluster.
+      operationId: applyResources
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      requestBody:
+        description: JSON payload containing the manifest of resources to apply.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplyResourcesRequest'
+      responses:
+        "200":
+          description: Response array indicating the status of application for each resource.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApplyResourcesResponse'
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/k8s/resources/rotate:
+    post:
+      tags:
+        - K8s Resource
+      summary: Rotates the Pods
+      description: This API is used to rotate (restart) pods in a deployment.
+      operationId: rotatePods
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      requestBody:
+        description: JSON payload containing the details of pods to rotate.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RotatePodsRequest'
+      responses:
+        "200":
+          description: Pod rotation completed successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Operation success status
+                  message:
+                    type: string
+                    description: Success message
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    ResourceInfo:
+      type: object
+      required:
+        - podName
+      properties:
+        podName:
+          type: string
+          description: pod name
+
+    ResourceRequestBean:
+      type: object
+      properties:
+        appId:
+          type: integer
+          description: application id
+        k8sRequest:
+          $ref: '#/components/schemas/K8sRequestDto'
+
+    K8sRequestDto:
+      type: object
+      properties:
+        resourceIdentifier:
+          $ref: '#/components/schemas/ResourceIdentifier'
+        patch:
+          type: string
+          description: patch data for update operations
+
+    ResourceIdentifier:
+      type: object
+      properties:
+        name:
+          type: string
+          description: resource name
+        namespace:
+          type: string
+          description: resource namespace
+        groupVersionKind:
+          $ref: '#/components/schemas/GroupVersionKind'
+
+    GroupVersionKind:
+      type: object
+      properties:
+        group:
+          type: string
+          description: API group
+        version:
+          type: string
+          description: API version
+        kind:
+          type: string
+          description: resource kind
+
+    ManifestResponse:
+      type: object
+      properties:
+        manifest:
+          type: object
+          description: Kubernetes manifest
+        success:
+          type: boolean
+          description: operation success status
+
+    K8sApiResource:
+      type: object
+      properties:
+        gvk:
+          $ref: '#/components/schemas/GroupVersionKind'
+        gvr:
+          $ref: '#/components/schemas/GroupVersionResource'
+        namespaced:
+          type: boolean
+          description: whether resource is namespaced
+
+    GroupVersionResource:
+      type: object
+      properties:
+        group:
+          type: string
+          description: API group
+        version:
+          type: string
+          description: API version
+        resource:
+          type: string
+          description: resource name
+
+    ApplyResourcesRequest:
+      type: object
+      properties:
+        clusterId:
+          type: integer
+          description: Cluster ID
+        manifest:
+          type: string
+          description: Kubernetes manifest YAML
+        namespace:
+          type: string
+          description: Target namespace
+
+    ApplyResourcesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Operation success status
+        message:
+          type: string
+          description: Response message
+        resourceName:
+          type: string
+          description: Name of the resource
+        kind:
+          type: string
+          description: Resource kind
+
+    RotatePodsRequest:
+      type: object
+      properties:
+        clusterId:
+          type: integer
+          description: Cluster ID
+        namespace:
+          type: string
+          description: Namespace
+        deploymentName:
+          type: string
+          description: Deployment name to rotate pods
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message
