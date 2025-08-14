@@ -1,2 +1,2 @@
 # Devtron API Documentation
-... (keep your existing README text here)
+This folder contains the HTML documentation generated from the OpenAPI specs in the `specs` directory.
