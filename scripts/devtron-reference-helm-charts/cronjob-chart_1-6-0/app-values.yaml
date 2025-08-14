@@ -1,5 +1,5 @@
 # Mandatory configs
-kind: Job
+kind: CronJob
 
 jobConfigs:
   backoffLimit: 5
@@ -17,7 +17,32 @@ cronjobConfigs:
   failedJobsHistoryLimit: 1
   restartPolicy: OnFailure
   timeZone: "UTC"
-
+cronJobAnnotations: {}
+cronJobLabels: {}
+LivenessProbe:
+  Path: ""
+  command: []
+  failureThreshold: 3
+  httpHeaders: []
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  port: 8080
+  scheme: ""
+  successThreshold: 1
+  tcp: false
+  timeoutSeconds: 5
+ReadinessProbe:
+  Path: ""
+  command: []
+  failureThreshold: 3
+  httpHeaders: []
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  port: 8080
+  scheme: ""
+  successThreshold: 1
+  tcp: false
+  timeoutSeconds: 5
 kedaAutoscaling:
   envSourceContainerName: "" 
   minReplicaCount: 1 

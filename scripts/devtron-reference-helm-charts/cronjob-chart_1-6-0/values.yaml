@@ -30,6 +30,30 @@ ContainerPort:
   #   port: 8090
   #   servicePort: 8080
   #   useGRPC: true
+LivenessProbe:
+  Path: ""
+  command: []
+  failureThreshold: 3
+  httpHeaders: []
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  port: 8080
+  scheme: ""
+  successThreshold: 1
+  tcp: false
+  timeoutSeconds: 5
+ReadinessProbe:
+  Path: "/"
+  command: []
+  failureThreshold: 3
+  httpHeaders: []
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  port: 8080
+  scheme: ""
+  successThreshold: 1
+  tcp: false
+  timeoutSeconds: 5
 
 pauseForSecondsBeforeSwitchActive: 30
 waitForSecondsBeforeScalingDown: 30
