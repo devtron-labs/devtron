@@ -22,6 +22,10 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/ModuleInfo"
+        "401":
+          description: Unauthorized user
+        "500":
+          description: Internal server error
     post:
       description: some action on module (for eg - install/upgrade/etc..)
       parameters:
@@ -44,6 +48,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ActionResponse"
+        "400":
+          description: Bad request - validation error or missing module name
+        "401":
+          description: Unauthorized user
+        "403":
+          description: Forbidden - insufficient permissions
+        "500":
+          description: Internal server error
   /orchestrator/server:
     get:
       description: Get server info
@@ -54,6 +66,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerInfo"
+        "401":
+          description: Unauthorized user
+        "500":
+          description: Internal server error
     post:
       description: some action on server (for eg - install/upgrade/etc..)
       requestBody:
@@ -69,6 +85,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ActionResponse"
+        "400":
+          description: Bad request - validation error
+        "401":
+          description: Unauthorized user
+        "403":
+          description: Forbidden - insufficient permissions
+        "500":
+          description: Internal server error
 
 # Components
 components:

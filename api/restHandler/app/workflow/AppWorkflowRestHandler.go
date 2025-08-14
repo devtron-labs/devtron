@@ -306,7 +306,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAllWorkflowsForApps(w http.ResponseWr
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -337,7 +337,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflowByEnvironment(w http.Respo
 	token := r.Header.Get("token")
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 

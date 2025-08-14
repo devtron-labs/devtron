@@ -69,23 +69,27 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 	var err error
 	var gitHostName string
 	var gitHost *bean3.GitHostRequest
+
+	// Try to parse gitHostId as integer first, fallback to name-based lookup
 	if gitHostId, err = strconv.Atoi(vars["gitHostId"]); err != nil {
 		gitHostName = vars["gitHostId"]
-		// get git host from DB
+		// get git host from DB by name
 		gitHost, err = impl.gitHostReadService.GetByName(gitHostName)
 		if err != nil {
-			impl.logger.Errorw("Error in getting git host from DB by Name", "err", err, "gitHostName", gitHostName)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			impl.logger.Errorw("Git host not found by name", "err", err, "gitHostName", gitHostName)
+			// Use enhanced error handling with resource context
+			common.WriteJsonRespWithResourceContext(w, err, nil, 0, "git host", gitHostName)
 			return
 		}
 		gitHostId = gitHost.Id
 
 	} else {
-		// get git host from DB
+		// get git host from DB by ID
 		gitHost, err = impl.gitHostReadService.GetById(gitHostId)
 		if err != nil {
-			impl.logger.Errorw("Error in getting git host from DB by Id", "err", err, "gitHostId", gitHostId)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			impl.logger.Errorw("Git host not found by ID", "err", err, "gitHostId", gitHostId)
+			// Use enhanced error handling with resource context
+			common.WriteJsonRespWithResourceContextFromId(w, err, nil, 0, "git host", gitHostId)
 			return
 		}
 	}

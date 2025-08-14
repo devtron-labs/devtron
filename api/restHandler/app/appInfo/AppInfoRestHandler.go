@@ -84,7 +84,7 @@ func NewAppInfoRestHandlerImpl(logger *zap.SugaredLogger, appService app.AppCrud
 func (handler AppInfoRestHandlerImpl) GetAllLabels(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	propagatedLabelsOnlyStr := r.URL.Query().Get("showPropagatedOnly")
@@ -122,14 +122,13 @@ func (handler AppInfoRestHandlerImpl) GetAllLabels(w http.ResponseWriter, r *htt
 func (handler AppInfoRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
-	vars := mux.Vars(r)
-	appId, err := strconv.Atoi(vars["appId"])
+	// Use enhanced parameter parsing with context
+	appId, err := common.ExtractIntPathParamWithContext(w, r, "appId", "application")
 	if err != nil {
-		handler.logger.Errorw("request err, GetAppMetaInfo", "err", err, "appId", appId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		// Error already written by ExtractIntPathParamWithContext
 		return
 	}
 
@@ -155,7 +154,7 @@ func (handler AppInfoRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r *h
 func (handler AppInfoRestHandlerImpl) GetHelmAppMetaInfo(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -208,7 +207,7 @@ func (handler AppInfoRestHandlerImpl) GetHelmAppMetaInfo(w http.ResponseWriter, 
 func (handler AppInfoRestHandlerImpl) UpdateApp(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -262,7 +261,7 @@ func (handler AppInfoRestHandlerImpl) UpdateApp(w http.ResponseWriter, r *http.R
 func (handler AppInfoRestHandlerImpl) UpdateProjectForApps(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -306,7 +305,7 @@ func (handler AppInfoRestHandlerImpl) UpdateProjectForApps(w http.ResponseWriter
 func (handler AppInfoRestHandlerImpl) GetAppListByTeamIds(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	//vars := mux.Vars(r)
@@ -349,7 +348,7 @@ func (handler AppInfoRestHandlerImpl) UpdateAppNote(w http.ResponseWriter, r *ht
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		handler.logger.Errorw("service err, Update", "error", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var bean repository.GenericNote

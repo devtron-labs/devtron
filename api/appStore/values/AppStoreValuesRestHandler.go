@@ -59,7 +59,7 @@ func (handler AppStoreValuesRestHandlerImpl) CreateAppStoreVersionValues(w http.
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var request appStoreBean.AppStoreVersionValuesDTO
@@ -84,7 +84,7 @@ func (handler AppStoreValuesRestHandlerImpl) UpdateAppStoreVersionValues(w http.
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var request appStoreBean.AppStoreVersionValuesDTO
@@ -108,7 +108,7 @@ func (handler AppStoreValuesRestHandlerImpl) UpdateAppStoreVersionValues(w http.
 func (handler AppStoreValuesRestHandlerImpl) FindValuesById(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -161,7 +161,7 @@ func (handler AppStoreValuesRestHandlerImpl) DeleteAppStoreVersionValues(w http.
 func (handler AppStoreValuesRestHandlerImpl) FindValuesByAppStoreIdAndReferenceType(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -185,7 +185,7 @@ func (handler AppStoreValuesRestHandlerImpl) FindValuesByAppStoreIdAndReferenceT
 func (handler AppStoreValuesRestHandlerImpl) FetchTemplateValuesByAppStoreId(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -221,7 +221,7 @@ func (handler AppStoreValuesRestHandlerImpl) FetchTemplateValuesByAppStoreId(w h
 func (handler AppStoreValuesRestHandlerImpl) GetSelectedChartMetadata(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)

@@ -65,7 +65,7 @@ func (impl *DeploymentGroupRestHandlerImpl) CreateDeploymentGroup(w http.Respons
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var bean deploymentGroup.DeploymentGroupRequest
@@ -109,7 +109,7 @@ func (impl *DeploymentGroupRestHandlerImpl) CreateDeploymentGroup(w http.Respons
 func (impl *DeploymentGroupRestHandlerImpl) FetchParentCiForDG(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -145,7 +145,7 @@ func (impl *DeploymentGroupRestHandlerImpl) FetchParentCiForDG(w http.ResponseWr
 func (impl *DeploymentGroupRestHandlerImpl) FetchEnvApplicationsForDG(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -196,7 +196,7 @@ func (impl *DeploymentGroupRestHandlerImpl) FetchEnvApplicationsForDG(w http.Res
 func (impl *DeploymentGroupRestHandlerImpl) FetchAllDeploymentGroups(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -230,7 +230,7 @@ func (impl *DeploymentGroupRestHandlerImpl) FetchAllDeploymentGroups(w http.Resp
 func (impl *DeploymentGroupRestHandlerImpl) DeleteDeploymentGroup(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -270,7 +270,7 @@ func (impl *DeploymentGroupRestHandlerImpl) DeleteDeploymentGroup(w http.Respons
 func (impl *DeploymentGroupRestHandlerImpl) TriggerReleaseForDeploymentGroup(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var bean *deploymentGroup.DeploymentGroupTriggerRequest
@@ -318,7 +318,7 @@ func (impl *DeploymentGroupRestHandlerImpl) UpdateDeploymentGroup(w http.Respons
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var bean deploymentGroup.DeploymentGroupRequest

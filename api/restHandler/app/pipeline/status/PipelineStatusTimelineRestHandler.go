@@ -117,7 +117,7 @@ func (handler *PipelineStatusTimelineRestHandlerImpl) ManualSyncAcdPipelineDeplo
 	vars := mux.Vars(r)
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	appId, err := strconv.Atoi(vars["appId"])

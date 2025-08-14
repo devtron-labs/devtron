@@ -116,8 +116,9 @@ func (handler *HelmAppRestHandlerImpl) ListApplications(w http.ResponseWriter, r
 		}
 		j, err := strconv.Atoi(is)
 		if err != nil {
-			handler.logger.Errorw("request err, CreateUser", "err", err, "payload", clusterIds)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			handler.logger.Errorw("Invalid cluster ID in list", "err", err, "clusterId", is, "clusterIdString", clusterIdString)
+			// Use enhanced error handling for parameter validation
+			common.HandleParameterError(w, r, "clusterIds", clusterIdString)
 			return
 		}
 		clusterIds = append(clusterIds, j)
@@ -190,7 +191,8 @@ func (handler *HelmAppRestHandlerImpl) Hibernate(w http.ResponseWriter, r *http.
 	} else {
 		appType, err = strconv.Atoi(appTypeString)
 		if err != nil {
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			handler.logger.Errorw("Invalid app type parameter", "err", err, "appType", appTypeString)
+			common.HandleParameterError(w, r, "appType", appTypeString)
 			return
 		}
 	}
@@ -446,7 +448,7 @@ func (handler *HelmAppRestHandlerImpl) GetDesiredManifest(w http.ResponseWriter,
 func (handler *HelmAppRestHandlerImpl) DeleteApplication(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -529,7 +531,7 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 func (handler *HelmAppRestHandlerImpl) TemplateChart(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	request := &openapi2.TemplateChartRequest{}

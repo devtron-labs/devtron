@@ -99,7 +99,7 @@ func getResourceScanQueryParams(w http.ResponseWriter, r *http.Request) (*bean.R
 func (impl ScanningResultRestHandlerImpl) ScanResults(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	resourceScanQueryParams, err := getResourceScanQueryParams(w, r)

@@ -1,0 +1,445 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Docker Build Config Override API
+paths:
+  /orchestrator/app/wf/all/component-names/{appId}:
+    get:
+      description: Get names of all workflows and included pipelines
+      operationId: GetWorkflowDetail
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Successfully return all details of the workflow.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CiConfigRequest"
+        "400":
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /orchestrator/app/ci-pipeline/{appId}:
+    get:
+      description: Get ci pipeline
+      operationId: GetCiPipeline
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Successfully return all details of the ci pipelines.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CiConfigRequest"
+        "400":
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /orchestrator/app/ci-pipeline/patch:
+    post:
+      description: Create/Update CI pipeline with docker build config override
+      operationId: PatchCiPipeline
+      requestBody:
+        description: A JSON object containing the pipeline configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CiPatchRequest"
+      responses:
+        "200":
+          description: Successfully updated CI pipeline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CiConfigRequest"
+        "400":
+          description: Bad Request. Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  schemas:
+    WorkflowsDto:
+      type: object
+      properties:
+        workflows:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkflowDetail"
+    WorkflowDetail:
+      type: object
+      properties:
+        name:
+          type: string
+        id:
+          type: integer
+        ciPipelineName:
+          type: string
+        ciPipelineId:
+          type: integer
+        cdPipelines:
+          type: array
+          items:
+            type: string
+    CiPatchRequest:
+      type: object
+      required:
+        - appId
+        - ciPipeline
+      properties:
+        action:
+          type: integer
+          description: Action type for the patch operation
+        appId:
+          type: integer
+          description: ID of the application
+        appWorkflowId:
+          type: integer
+          description: ID of the application workflow
+        ciPipeline:
+          $ref: "#/components/schemas/CiPipeline"
+        userId:
+          type: integer
+          description: ID of the user performing the operation
+        isJob:
+          type: boolean
+          description: Whether this is a CI job
+        isCloneJob:
+          type: boolean
+          description: Whether this is a cloned CI job
+    CiPipeline:
+      type: object
+      required:
+        - name
+        - isManual
+        - isExternal
+        - scanEnabled
+      properties:
+        id:
+          type: integer
+          description: ID of the CI pipeline
+        name:
+          type: string
+          description: Name of the CI pipeline
+        isManual:
+          type: boolean
+          description: Whether the pipeline is manual
+        isExternal:
+          type: boolean
+          description: Whether the pipeline is external
+        scanEnabled:
+          type: boolean
+          description: Whether security scanning is enabled
+        isDockerConfigOverridden:
+          type: boolean
+          description: Whether docker config is overridden
+        dockerConfigOverride:
+          $ref: "#/components/schemas/DockerConfigOverride"
+        ciMaterial:
+          type: array
+          items:
+            $ref: "#/components/schemas/CiPipelineMaterial"
+        beforeDockerBuildScripts:
+          type: array
+          items:
+            $ref: "#/components/schemas/BuildScript"
+        afterDockerBuildScripts:
+          type: array
+          items:
+            $ref: "#/components/schemas/BuildScript"
+        pipelineType:
+          type: string
+          enum: [CI, CI_JOB]
+          description: Type of the pipeline
+    DockerConfigOverride:
+      type: object
+      properties:
+        dockerRegistry:
+          type: string
+          description: ID of the docker registry
+        dockerRepository:
+          type: string
+          description: Name of the docker repository
+        ciBuildConfig:
+          $ref: "#/components/schemas/CiBuildConfigBean"
+    CiBuildConfigBean:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID of the build config
+        gitMaterialId:
+          type: integer
+          description: ID of the git material
+        buildContextGitMaterialId:
+          type: integer
+          description: ID of the build context git material
+        useRootBuildContext:
+          type: boolean
+          description: Whether to use root build context
+        ciBuildType:
+          type: string
+          enum: [SELF_DOCKERFILE_BUILD_TYPE, MANAGED_DOCKERFILE_BUILD_TYPE, SKIP_BUILD_TYPE]
+          description: Type of CI build
+        dockerBuildConfig:
+          $ref: "#/components/schemas/DockerBuildConfig"
+        buildPackConfig:
+          $ref: "#/components/schemas/BuildPackConfig"
+    DockerBuildConfig:
+      type: object
+      properties:
+        dockerfilePath:
+          type: string
+          description: Path to the Dockerfile
+        dockerfileContent:
+          type: string
+          description: Content of the Dockerfile
+        args:
+          type: object
+          additionalProperties:
+            type: string
+          description: Docker build arguments
+        targetPlatform:
+          type: string
+          description: Target platform for the build
+        language:
+          type: string
+          description: Programming language
+        languageFramework:
+          type: string
+          description: Language framework
+        dockerBuildOptions:
+          type: object
+          additionalProperties:
+            type: string
+          description: Docker build options
+        buildContext:
+          type: string
+          description: Build context path
+        useBuildx:
+          type: boolean
+          description: Whether to use buildx
+        buildxProvenanceMode:
+          type: string
+          description: Buildx provenance mode
+        buildxK8sDriverOptions:
+          type: array
+          items:
+            type: object
+            additionalProperties:
+              type: string
+          description: Buildx k8s driver options
+    BuildPackConfig:
+      type: object
+      properties:
+        builderId:
+          type: string
+          description: ID of the builder
+        language:
+          type: string
+          description: Programming language
+        languageVersion:
+          type: string
+          description: Language version
+        buildPacks:
+          type: array
+          items:
+            type: string
+          description: List of buildpacks
+        args:
+          type: object
+          additionalProperties:
+            type: string
+          description: Buildpack arguments
+        projectPath:
+          type: string
+          description: Project path
+    BuildScript:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the script
+        script:
+          type: string
+          description: Script content
+        index:
+          type: integer
+          description: Index of the script
+    CiPipelineMaterial:
+      type: object
+      properties:
+        gitMaterialId:
+          type: integer
+          description: ID of the git material
+        type:
+          type: string
+          description: Type of the material
+        value:
+          type: string
+          description: Value of the material
+        active:
+          type: boolean
+          description: Whether the material is active
+    CiConfigRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        scanEnabled:
+          type: boolean
+        appId:
+          type: integer
+        appName:
+          type: string
+        dockerBuildConfig:
+          $ref: "#/components/schemas/DockerBuildConfig"
+        ciPipelines:
+          type: array
+          items:
+            $ref: "#/components/schemas/CiPipelineDetails"
+        dockerRegistry:
+          type: string
+        dockerRepository:
+          type: string
+        materials:
+          type: array
+          items:
+            $ref: "#/components/schemas/GitMaterial"
+    GitMaterial:
+      type: object
+      properties:
+        gitProviderUrl:
+          type: string
+        gitRepoUrl:
+          type: string
+        checkoutPath:
+          type: string
+        fetchSubmodules:
+          type: boolean
+    DockerConfig:
+      type: object
+      properties:
+        dockerRegistry:
+          type: string
+        dockerRepository:
+          type: string
+        dockerBuildConfig:
+          $ref: "#/components/schemas/DockerBuildConfig"
+    CiPipelineDetails:
+      type: object
+      properties:
+        isDockerConfigOverridden:
+          type: boolean
+        dockerConfigOverride:
+          $ref: "#/components/schemas/DockerBuildConfig"
+        name:
+          type: string
+        isManual:
+          type: boolean
+        scanEnabled:
+          type: boolean
+        isExternal:
+          type: boolean
+        parentAppId:
+          type: integer
+        parentCiPipeline:
+          type: integer
+        linkedCount:
+          type: integer
+        ciMaterials:
+          type: array
+          items:
+            $ref: "#/components/schemas/CiPipelineMaterialConfig"
+        dockerArgs:
+          type: array
+          items:
+            type: object
+            properties:
+              Key:
+                type: string
+              Value:
+                type: string
+          description: map of docker arguments, i.e. key-value pairs
+        beforeDockerBuildScripts:
+          type: array
+          items:
+            $ref: "#/components/schemas/BuildScript"
+        afterDockerbuildScripts:
+          type: array
+          items:
+            $ref: "#/components/schemas/BuildScript"
+    CiPipelineMaterialConfig:
+      type: object
+      properties:
+        type:
+          type: string
+        value:
+          type: string
+        checkoutPath:
+          type: string
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        status:
+          type: string
+          description: Error message
+        userDetailedMessage:
+          type: string
+          description: Detailed error message for user

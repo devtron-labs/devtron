@@ -241,7 +241,7 @@ func (handler *PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -283,7 +283,7 @@ func (handler *PipelineConfigRestHandlerImpl) DeleteACDAppWithNonCascade(w http.
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -358,7 +358,7 @@ func (handler *PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var createRequest bean.CreateAppDTO
@@ -591,7 +591,7 @@ func (handler *PipelineConfigRestHandlerImpl) sendData(event []byte, w http.Resp
 func (handler *PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerView(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -691,7 +691,7 @@ func (handler *PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVi
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -808,7 +808,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetApplicationsByEnvironment(w htt
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	envId, err := strconv.Atoi(vars["envId"])
@@ -862,7 +862,7 @@ func (handler *PipelineConfigRestHandlerImpl) FetchAppDeploymentStatusForEnviron
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)

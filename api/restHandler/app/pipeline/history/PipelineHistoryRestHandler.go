@@ -79,7 +79,7 @@ func NewPipelineHistoryRestHandlerImpl(logger *zap.SugaredLogger, userAuthServic
 func (handler *PipelineHistoryRestHandlerImpl) FetchDeployedConfigurationsForWorkflow(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -124,7 +124,7 @@ func (handler *PipelineHistoryRestHandlerImpl) FetchDeployedConfigurationsForWor
 func (handler *PipelineHistoryRestHandlerImpl) FetchDeployedHistoryComponentList(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -183,7 +183,7 @@ func (handler *PipelineHistoryRestHandlerImpl) FetchDeployedHistoryComponentList
 func (handler *PipelineHistoryRestHandlerImpl) FetchDeployedHistoryComponentDetail(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -246,7 +246,7 @@ func (handler *PipelineHistoryRestHandlerImpl) FetchDeployedHistoryComponentDeta
 func (handler *PipelineHistoryRestHandlerImpl) GetAllDeployedConfigurationHistoryForLatestWfrIdForPipeline(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -290,7 +290,7 @@ func (handler *PipelineHistoryRestHandlerImpl) GetAllDeployedConfigurationHistor
 	// trigger is mapped by wfr (help for method name)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)

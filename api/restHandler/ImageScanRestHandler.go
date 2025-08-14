@@ -73,7 +73,7 @@ func NewImageScanRestHandlerImpl(logger *zap.SugaredLogger,
 func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -209,7 +209,7 @@ func (impl ImageScanRestHandlerImpl) getAuthorisedImageScanDeployInfoIds(token s
 func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	v := r.URL.Query()
@@ -360,7 +360,7 @@ func (impl ImageScanRestHandlerImpl) FetchMinScanResultByAppIdAndEnvId(w http.Re
 func (impl ImageScanRestHandlerImpl) VulnerabilityExposure(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 

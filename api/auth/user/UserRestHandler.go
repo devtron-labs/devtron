@@ -98,7 +98,7 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var userInfo bean2.UserInfo
@@ -162,7 +162,7 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var userInfo bean2.UserInfo
@@ -205,21 +205,22 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
-	vars := mux.Vars(r)
-	/* #nosec */
-	id, err := strconv.Atoi(vars["id"])
+
+	// Use enhanced parameter parsing with context
+	id, err := common.ExtractIntPathParamWithContext(w, r, "id", "user")
 	if err != nil {
-		handler.logger.Errorw("request err, GetById", "err", err, "id", id)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		// Error already written by ExtractIntPathParamWithContext
 		return
 	}
+
 	res, err := handler.userService.GetByIdWithoutGroupClaims(int32(id))
 	if err != nil {
-		handler.logger.Errorw("service err, GetById", "err", err, "id", id)
-		common.WriteJsonResp(w, err, "Failed to get by id", http.StatusInternalServerError)
+		handler.logger.Errorw("Failed to get user by ID", "userId", id, "err", err)
+		// Use enhanced error response with resource context
+		common.WriteJsonRespWithResourceContextFromId(w, err, nil, 0, "user", id)
 		return
 	}
 
@@ -237,7 +238,7 @@ func (handler UserRestHandlerImpl) GetAllV2(w http.ResponseWriter, r *http.Reque
 	var decoder = schema.NewDecoder()
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -274,7 +275,7 @@ func (handler UserRestHandlerImpl) GetAllV2(w http.ResponseWriter, r *http.Reque
 func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -303,7 +304,7 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 func (handler UserRestHandlerImpl) GetAllDetailedUsers(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -328,21 +329,22 @@ func (handler UserRestHandlerImpl) GetAllDetailedUsers(w http.ResponseWriter, r 
 func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
-	vars := mux.Vars(r)
-	/* #nosec */
-	id, err := strconv.Atoi(vars["id"])
+
+	// Use enhanced parameter parsing with context
+	id, err := common.ExtractIntPathParamWithContext(w, r, "id", "user")
 	if err != nil {
-		handler.logger.Errorw("request err, DeleteUser", "err", err, "id", id)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		// Error already written by ExtractIntPathParamWithContext
 		return
 	}
-	handler.logger.Infow("request payload, DeleteUser", "err", err, "id", id)
+
+	handler.logger.Infow("Delete user request", "userId", id, "requestedBy", userId)
 	user, err := handler.userService.GetByIdWithoutGroupClaims(int32(id))
 	if err != nil {
-		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		handler.logger.Errorw("Failed to get user for deletion", "userId", id, "err", err)
+		common.WriteJsonRespWithResourceContextFromId(w, err, nil, 0, "user", id)
 		return
 	}
 
@@ -376,7 +378,7 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 func (handler UserRestHandlerImpl) BulkDeleteUsers(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -424,18 +426,17 @@ func (handler UserRestHandlerImpl) BulkDeleteUsers(w http.ResponseWriter, r *htt
 }
 
 func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	/* #nosec */
-	id, err := strconv.Atoi(vars["id"])
+	// Use enhanced parameter parsing with context
+	id, err := common.ExtractIntPathParamWithContext(w, r, "id", "role group")
 	if err != nil {
-		handler.logger.Errorw("request err, FetchRoleGroupById", "err", err, "id", id)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		// Error already written by ExtractIntPathParamWithContext
 		return
 	}
+
 	res, err := handler.roleGroupService.FetchRoleGroupsById(int32(id))
 	if err != nil {
-		handler.logger.Errorw("service err, FetchRoleGroupById", "err", err, "id", id)
-		common.WriteJsonResp(w, err, "Failed to get by id", http.StatusInternalServerError)
+		handler.logger.Errorw("Failed to fetch role group by ID", "roleGroupId", id, "err", err)
+		common.WriteJsonRespWithResourceContextFromId(w, err, nil, 0, "role group", id)
 		return
 	}
 
@@ -454,7 +455,7 @@ func (handler UserRestHandlerImpl) CreateRoleGroup(w http.ResponseWriter, r *htt
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var request bean2.RoleGroup
@@ -507,7 +508,7 @@ func (handler UserRestHandlerImpl) UpdateRoleGroup(w http.ResponseWriter, r *htt
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var request bean2.RoleGroup
@@ -552,7 +553,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroupsV2(w http.ResponseWriter, r *h
 	var decoder = schema.NewDecoder()
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	// RBAC enforcer applying
@@ -588,7 +589,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroupsV2(w http.ResponseWriter, r *h
 func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	// RBAC enforcer applying
@@ -615,7 +616,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *htt
 func (handler UserRestHandlerImpl) FetchDetailedRoleGroups(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -640,7 +641,7 @@ func (handler UserRestHandlerImpl) FetchDetailedRoleGroups(w http.ResponseWriter
 func (handler UserRestHandlerImpl) FetchRoleGroupsByName(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -658,7 +659,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroupsByName(w http.ResponseWriter, 
 func (handler UserRestHandlerImpl) DeleteRoleGroup(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -701,7 +702,7 @@ func (handler UserRestHandlerImpl) DeleteRoleGroup(w http.ResponseWriter, r *htt
 func (handler UserRestHandlerImpl) BulkDeleteRoleGroups(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -745,7 +746,7 @@ func (handler UserRestHandlerImpl) BulkDeleteRoleGroups(w http.ResponseWriter, r
 func (handler UserRestHandlerImpl) CheckUserRoles(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	roles, err := handler.userService.CheckUserRoles(userId, "")
@@ -804,7 +805,7 @@ func (handler UserRestHandlerImpl) CheckUserRoles(w http.ResponseWriter, r *http
 func (handler UserRestHandlerImpl) SyncOrchestratorToCasbin(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	userEmailId, err := handler.userService.GetActiveEmailById(userId)
@@ -830,7 +831,7 @@ func (handler UserRestHandlerImpl) UpdateTriggerPolicyForTerminalAccess(w http.R
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		handler.logger.Errorw("unauthorized user, UpdateTriggerPolicyForTerminalAccess", "userId", userId)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 

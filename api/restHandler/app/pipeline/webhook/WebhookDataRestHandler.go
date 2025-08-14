@@ -65,7 +65,7 @@ func (impl WebhookDataRestHandlerImpl) GetWebhookPayloadDataForPipelineMaterialI
 
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -134,7 +134,7 @@ func (impl WebhookDataRestHandlerImpl) GetWebhookPayloadFilterDataForPipelineMat
 
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 

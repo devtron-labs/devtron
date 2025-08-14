@@ -71,7 +71,7 @@ func NewInfraConfigRestHandlerImpl(logger *zap.SugaredLogger, infraProfileServic
 func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -129,7 +129,7 @@ func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *
 func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -176,7 +176,7 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWri
 func (handler *InfraConfigRestHandlerImpl) GetProfileV0(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -238,7 +238,7 @@ func (handler *InfraConfigRestHandlerImpl) GetProfileV0(w http.ResponseWriter, r
 func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfileV0(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")

@@ -77,7 +77,7 @@ func NewUserTerminalAccessRestHandlerImpl(logger *zap.SugaredLogger, userTermina
 func (handler UserTerminalAccessRestHandlerImpl) ValidateShell(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.UserService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -113,7 +113,7 @@ func (handler UserTerminalAccessRestHandlerImpl) ValidateShell(w http.ResponseWr
 func (handler UserTerminalAccessRestHandlerImpl) StartTerminalSession(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.UserService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -155,7 +155,7 @@ func (handler UserTerminalAccessRestHandlerImpl) StartTerminalSession(w http.Res
 func (handler UserTerminalAccessRestHandlerImpl) UpdateTerminalSession(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.UserService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -197,7 +197,7 @@ func (handler UserTerminalAccessRestHandlerImpl) UpdateTerminalSession(w http.Re
 func (handler UserTerminalAccessRestHandlerImpl) UpdateTerminalShellSession(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.UserService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -238,7 +238,7 @@ func (handler UserTerminalAccessRestHandlerImpl) UpdateTerminalShellSession(w ht
 func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalStatus(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.UserService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -275,7 +275,7 @@ func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalStatus(w http.Resp
 func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalPodEvents(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.UserService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -310,7 +310,7 @@ func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalPodEvents(w http.R
 func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalPodManifest(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.UserService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -345,7 +345,7 @@ func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalPodManifest(w http
 func (handler UserTerminalAccessRestHandlerImpl) DisconnectTerminalSession(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.UserService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -379,7 +379,7 @@ func (handler UserTerminalAccessRestHandlerImpl) DisconnectTerminalSession(w htt
 func (handler UserTerminalAccessRestHandlerImpl) StopTerminalSession(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.UserService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -408,7 +408,7 @@ func (handler UserTerminalAccessRestHandlerImpl) StopTerminalSession(w http.Resp
 func (handler UserTerminalAccessRestHandlerImpl) DisconnectAllTerminalSessionAndRetry(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.UserService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -451,7 +451,7 @@ func (handler UserTerminalAccessRestHandlerImpl) DisconnectAllTerminalSessionAnd
 func (handler UserTerminalAccessRestHandlerImpl) EditPodManifest(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.UserService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 

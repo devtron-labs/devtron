@@ -177,7 +177,7 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppOverview(w http.ResponseWrit
 func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	v := r.URL.Query()
@@ -343,7 +343,7 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 func (handler *InstalledAppRestHandlerImpl) DeployBulk(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -512,7 +512,7 @@ func (handler *InstalledAppRestHandlerImpl) getChartGroupInstallMetadata(req *ch
 func (handler *InstalledAppRestHandlerImpl) CheckAppExists(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -538,7 +538,7 @@ func (impl *InstalledAppRestHandlerImpl) DefaultComponentInstallation(w http.Res
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		impl.Logger.Errorw("service err, DefaultComponentInstallation", "error", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -885,7 +885,7 @@ func (handler *InstalledAppRestHandlerImpl) fetchResourceTreeWithHibernateForACD
 func (handler *InstalledAppRestHandlerImpl) MigrateDeploymentTypeForChartStore(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -929,7 +929,7 @@ func (handler *InstalledAppRestHandlerImpl) MigrateDeploymentTypeForChartStore(w
 func (handler *InstalledAppRestHandlerImpl) TriggerChartStoreAppAfterMigration(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
