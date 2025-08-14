@@ -6,7 +6,7 @@ on:
       - 'specs/**'
 
 permissions:
-  contents: write  # This is correct and grants the necessary permissions.
+  contents: write
 
 jobs:
   lint-and-bundle:
@@ -27,9 +27,17 @@ jobs:
           chmod +x scripts/generate-api-docs.sh
           ./scripts/generate-api-docs.sh
 
-      - name: Commit and push changes
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }} # Use the correct, built-in secret
-          branch: ${{ github.ref }}
-          message: "docs: generate API documentation"
+      - name: Commit and push documentation
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          git add docs/api-docs/
+
+          if git diff --staged --quiet; then
+            echo "✅ No changes to commit"
+          else
+            git commit -m "📄 Update API documentation"
+            git push origin gh-pages-test
+            echo "🚀 Documentation pushed to gh-pages branch!"
+          fi
