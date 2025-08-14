@@ -1,0 +1,838 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Security & Access Management API
+  description: Devtron API for security management including user management, role groups, cluster access policies, and API token management
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Labs
+    email: support@devtron.ai
+    url: https://devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
+  schemas:
+    User:
+          type: object
+          required:
+            - email_id
+          properties:
+            id:
+              type: integer
+              description: Unique ID of user
+            email_id:
+              type: string
+              description: Unique valid email ID of user
+            userRoleGroups:
+              type: array
+              items:
+                $ref: '#/components/schemas/UserRoleGroup'
+            roleFilters:
+              type: array
+              items:
+                $ref: '#/components/schemas/RoleFilter'
+              description: Role filters objects
+
+    UserRoleGroup:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Role group ID
+        name:
+          type: string
+          description: Role group name
+        description:
+          type: string
+          description: Role group description
+
+    RoleGroup:
+      type: object
+      required:
+        - name
+      properties:
+        id:
+          type: integer
+          description: Unique ID of role group
+        name:
+          type: string
+          description: Unique name of group
+        description:
+          type: string
+          description: Group description
+        roleFilters:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleFilter'
+          description: Role filters objects
+
+    RoleFilter:
+      type: object
+      required:
+        - action
+      properties:
+        cluster:
+          type: string
+          description: Cluster name
+        namespace:
+          type: string
+          description: Namespace names (comma-separated for multiple, empty for all)
+        group:
+          type: string
+          description: Group names (comma-separated for multiple, empty for all)
+        kind:
+          type: string
+          description: Kind names (comma-separated for multiple, empty for all)
+        resource:
+          type: string
+          description: Resource names (comma-separated for multiple, empty for all)
+        action:
+          type: string
+          description: Action type (view, edit, admin)
+          enum: [view, edit, admin]
+
+    UserListingResponse:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+          description: List of users
+        totalCount:
+          type: integer
+          description: Total number of users
+
+    RoleGroupListingResponse:
+      type: object
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleGroup'
+          description: List of role groups
+        totalCount:
+          type: integer
+          description: Total number of role groups
+
+    BulkDeleteRequest:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+          description: List of IDs to delete
+
+    ApiToken:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: API token ID
+        userId:
+          type: integer
+          description: User ID associated with the token
+        userIdentifier:
+          type: string
+          description: Email ID of the token user
+        name:
+          type: string
+          description: Token name
+        description:
+          type: string
+          description: Token description
+        expireAtInMs:
+          type: integer
+          format: int64
+          description: Expiration time in milliseconds
+        token:
+          type: string
+          description: Token value
+        lastUsedAt:
+          type: string
+          description: Last used timestamp
+        lastUsedByIp:
+          type: string
+          description: Last used IP address
+        updatedAt:
+          type: string
+          description: Last update timestamp
+
+    CreateApiTokenRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Token name
+        description:
+          type: string
+          description: Token description
+        expireAtInMs:
+          type: integer
+          format: int64
+          description: Expiration time in milliseconds
+
+    UpdateApiTokenRequest:
+      type: object
+      properties:
+        description:
+          type: string
+          description: Token description
+        expireAtInMs:
+          type: integer
+          format: int64
+          description: Expiration time in milliseconds
+
+    CreateApiTokenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Success status
+        token:
+          type: string
+          description: Generated token
+        userId:
+          type: integer
+          description: User ID
+        userIdentifier:
+          type: string
+          description: User email ID
+
+    UpdateApiTokenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Success status
+        token:
+          type: string
+          description: Updated token
+
+    ActionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Success status
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        message:
+          type: string
+          description: Error message
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error'
+          description: List of errors
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        message:
+          type: string
+          description: Error message
+
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 404
+        message:
+          type: string
+          example: "Resource not found"
+        details:
+          type: array
+          items:
+            type: string
+          example: ["User not found in the system"]
+
+paths:
+  # User Management APIs
+  /orchestrator/user/v2:
+    get:
+      description: Get all users with optional filters
+      operationId: GetAllUsers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: searchKey
+          in: query
+          description: Search key for user listing
+          required: false
+          schema:
+            type: string
+        - name: sortOrder
+          in: query
+          description: Sorting order (ASC or DESC)
+          required: false
+          schema:
+            type: string
+            enum: [ASC, DESC]
+        - name: sortBy
+          in: query
+          description: Sorting by email_id or last_login
+          required: false
+          schema:
+            type: string
+            enum: [email_id, last_login]
+        - name: offset
+          in: query
+          description: Offset for paginating the results
+          required: false
+          schema:
+            type: integer
+        - name: size
+          in: query
+          description: Size of the result set
+          required: false
+          schema:
+            type: integer
+        - name: showAll
+          in: query
+          description: Show all users
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListingResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /orchestrator/user:
+    post:
+      description: Create a new user
+      operationId: CreateUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '200':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      description: Update an existing user
+      operationId: UpdateUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/user/bulk:
+    delete:
+      description: Delete multiple users in bulk
+      operationId: BulkDeleteUsers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkDeleteRequest'
+      responses:
+        '200':
+          description: Users deleted successfully
+          content:
+            application/json:
+              schema:
+                type: boolean
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Role Group Management APIs
+  /orchestrator/user/role/group/v2:
+    get:
+      description: Get all role groups with optional filters
+      operationId: GetAllRoleGroups
+      parameters:
+        - name: searchKey
+          in: query
+          description: Search key for group listing
+          required: false
+          schema:
+            type: string
+        - name: sortOrder
+          in: query
+          description: Sorting order (ASC or DESC)
+          required: false
+          schema:
+            type: string
+            enum: [ASC, DESC]
+        - name: sortBy
+          in: query
+          description: Sorting by name
+          required: false
+          schema:
+            type: string
+            enum: [name]
+        - name: offset
+          in: query
+          description: Offset for paginating the results
+          required: false
+          schema:
+            type: integer
+        - name: size
+          in: query
+          description: Size of the result set
+          required: false
+          schema:
+            type: integer
+        - name: showAll
+          in: query
+          description: Show all role groups
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of role groups
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleGroupListingResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/user/role/group:
+    post:
+      description: Create a new role group
+      operationId: CreateRoleGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleGroup'
+      responses:
+        '200':
+          description: Role group created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleGroup'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      description: Update an existing role group
+      operationId: UpdateRoleGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleGroup'
+      responses:
+        '200':
+          description: Role group updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleGroup'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/user/role/group/bulk:
+    delete:
+      description: Delete multiple role groups in bulk
+      operationId: BulkDeleteRoleGroups
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkDeleteRequest'
+      responses:
+        '200':
+          description: Role groups deleted successfully
+          content:
+            application/json:
+              schema:
+                type: boolean
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # API Token Management APIs
+  /orchestrator/api-token:
+    get:
+      description: Get all active API tokens
+      operationId: GetAllApiTokens
+      responses:
+        '200':
+          description: List of active API tokens
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApiToken'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      description: Create a new API token
+      operationId: CreateApiToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApiTokenRequest'
+      responses:
+        '200':
+          description: API token created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateApiTokenResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/api-token/{id}:
+    put:
+      description: Update an existing API token
+      operationId: UpdateApiToken
+      parameters:
+        - name: id
+          in: path
+          description: API token ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateApiTokenRequest'
+      responses:
+        '200':
+          description: API token updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateApiTokenResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      description: Delete an API token
+      operationId: DeleteApiToken
+      parameters:
+        - name: id
+          in: path
+          description: API token ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: API token deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

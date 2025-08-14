@@ -1,0 +1,499 @@
+openapi: "3.0.3"
+info:
+  version: 1.0.0
+  title: API Token Management
+
+paths:
+  /orchestrator/api-token:
+    get:
+      description: Get All active Api Tokens
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/ApiToken'
+                type: array
+          description: Successfully fetched active API tokens links
+
+        "401":
+          description: Unauthorized user
+
+          content:
+            application/json:
+                          schema:
+                            $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+
+          content:
+            application/json:
+                          schema:
+                            $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      description: Create api-token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApiTokenRequest'
+
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateApiTokenResponse'
+
+          description: Api-token creation response
+        "400":
+          description: Bad request - validation error or name cannot be blank
+
+          content:
+            application/json:
+                          schema:
+                            $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized user
+
+          content:
+            application/json:
+                          schema:
+                            $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - insufficient permissions
+
+          content:
+            application/json:
+                          schema:
+                            $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+
+          content:
+            application/json:
+                          schema:
+                            $ref: "#/components/schemas/ErrorResponse"
+  /orchestrator/api-token/{id}:
+    delete:
+      description: Delete api-token
+      parameters:
+        - description: api-token Id
+          explode: false
+          in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+          style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionResponse'
+          description: Api-token delete response
+        "400":
+          description: Bad request - invalid ID format
+        "401":
+          description: Unauthorized user
+        "403":
+          description: Forbidden - insufficient permissions
+        "500":
+          description: Internal server error
+    put:
+      description: Update api-token
+      parameters:
+        - description: api-token Id
+          explode: false
+          in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+          style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateApiTokenRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateApiTokenResponse'
+          description: Api-token update response
+        "400":
+          description: Bad request - validation error or invalid ID format
+        "401":
+          description: Unauthorized user
+        "403":
+          description: Forbidden - insufficient permissions
+        "500":
+          description: Internal server error
+  /orchestrator/api-token/webhook:
+    get:
+      description: Get all api tokens which have given permission
+      parameters:
+        - in: query
+          name: appName
+          example: "abc"
+          description: app name
+          required: false
+          allowEmptyValue: true
+          schema:
+            type: string
+        - in: query
+          name: environmentName
+          example: "abc"
+          description: environment name, comma separated in case multi environment, it will take environment identifier
+          required: false
+          allowEmptyValue: true
+          schema:
+            type: string
+        - in: query
+          name: projectName
+          example: "abc"
+          description: project name
+          required: false
+          allowEmptyValue: false
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/ApiToken'
+                type: array
+          description: Successfully fetched active API tokens links
+        "401":
+          description: Unauthorized user
+        "500":
+          description: Internal server error
+  /api-token/{id}:
+    put:
+          description: Update api-token
+          parameters:
+            - name: id
+              in: path
+              description: api-token Id
+              required: true
+              schema:
+                type: integer
+                format: int64
+          requestBody:
+            required: true
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/UpdateApiTokenRequest"
+          responses:
+            "200":
+              description: Api-token update response
+              content:
+                application/json:
+                  schema:
+                    $ref: "#/components/schemas/UpdateApiTokenResponse"
+            "400":
+              description: Bad Request
+              content:
+                application/json:
+                  schema:
+                    $ref: "#/components/schemas/ErrorResponse"
+            "401":
+              description: Unauthorized
+              content:
+                application/json:
+                  schema:
+                    $ref: "#/components/schemas/ErrorResponse"
+            "403":
+              description: Forbidden
+              content:
+                application/json:
+                  schema:
+                    $ref: "#/components/schemas/ErrorResponse"
+            "500":
+              description: Internal Server Error
+              content:
+                application/json:
+                  schema:
+                    $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      description: Delete api-token
+      parameters:
+        - name: id
+          in: path
+          description: api-token Id
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: Api-token delete response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api-token/webhook:
+    get:
+          description: Get all api tokens which have given permission
+          parameters:
+            - name: projectName
+              in: query
+              description: Project name
+              schema:
+                type: string
+            - name: environmentName
+              in: query
+              description: Environment name
+              schema:
+                type: string
+            - name: appName
+              in: query
+              description: Application name
+              schema:
+                type: string
+          responses:
+            "200":
+              description: Successfully fetched API tokens for webhook
+              content:
+                application/json:
+                  schema:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ApiToken"
+            "401":
+              description: Unauthorized
+              content:
+                application/json:
+                  schema:
+                    $ref: "#/components/schemas/ErrorResponse"
+            "403":
+              description: Forbidden
+              content:
+                application/json:
+                  schema:
+                    $ref: "#/components/schemas/ErrorResponse"
+            "500":
+              description: Internal Server Error
+              content:
+                application/json:
+                  schema:
+                    $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    ApiToken:
+      example:
+        userIdentifier: some email
+        expireAtInMs: 12344546
+        lastUsedAt: some date
+        lastUsedByIp: some ip
+        name: some name
+        description: some description
+        id: 1
+        userId: 1
+        token: some token
+        updatedAt: some date
+      properties:
+        id:
+          description: Id of api-token
+          example: 1
+          nullable: false
+          type: integer
+        userId:
+          description: User Id associated with api-token
+          example: 1
+          nullable: false
+          type: integer
+        userIdentifier:
+          description: EmailId of that api-token user
+
+          nullable: false
+          type: string
+          example: "some email"
+        name:
+          description: Name of api-token
+
+          nullable: false
+          type: string
+          example: "some name"
+        description:
+          description: Description of api-token
+
+          nullable: false
+          type: string
+          example: "some description"
+        expireAtInMs:
+          description: Expiration time of api-token in milliseconds
+
+          format: int64
+          type: integer
+          example: "12344546"
+        token:
+          description: Token of that api-token
+
+          nullable: false
+          type: string
+          example: "some token"
+        lastUsedAt:
+          description: Date of Last used of this token
+
+          type: string
+          example: "some date"
+        lastUsedByIp:
+          description: token last used by IP
+
+          type: string
+          example: "some ip"
+        updatedAt:
+          description: token last updatedAt
+
+          type: string
+          example: "some date"
+      type: object
+    CreateApiTokenRequest:
+      example:
+        expireAtInMs: 12344546
+        name: some name
+        description: some description
+      properties:
+        name:
+          description: Name of api-token
+
+          nullable: false
+          type: string
+          example: "some name"
+        description:
+          description: Description of api-token
+
+          nullable: false
+          type: string
+          example: "some description"
+        expireAtInMs:
+          description: Expiration time of api-token in milliseconds
+
+          format: int64
+          type: integer
+          example: "12344546"
+      type: object
+      required:
+        - name
+    UpdateApiTokenRequest:
+      example:
+        expireAtInMs: 12344546
+        description: some description
+      properties:
+        description:
+          description: Description of api-token
+
+          nullable: false
+          type: string
+          example: "some description"
+        expireAtInMs:
+          description: Expiration time of api-token in milliseconds
+
+          format: int64
+          type: integer
+          example: "12344546"
+      type: object
+    ActionResponse:
+      example:
+        success: true
+      properties:
+        success:
+          description: success or failure
+          example: true
+          type: boolean
+      type: object
+    CreateApiTokenResponse:
+      example:
+        userIdentifier: some email
+        success: true
+        userId: 1
+        token: some token
+      properties:
+        success:
+          description: success or failure
+          example: true
+          type: boolean
+        token:
+          description: Token of that api-token
+          example: some token
+          type: string
+
+        userId:
+          description: User Id associated with api-token
+          example: 1
+          type: integer
+        userIdentifier:
+          description: EmailId of that api-token user
+
+          type: string
+          example: "some email"
+      type: object
+    UpdateApiTokenResponse:
+      example:
+        success: true
+        token: some token
+      properties:
+        success:
+          description: success or failure
+          example: true
+          type: boolean
+        token:
+          description: Token of that api-token
+
+          type: string
+          example: "some token"
+      type: object
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+          example: 400
+        message:
+          type: string
+          description: Error message
+          example: "Bad Request"

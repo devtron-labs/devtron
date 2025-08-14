@@ -1,11 +1,11 @@
 openapi: '3.0.2'
 info:
-  title: API Title
+  title: Security Policy Management
   version: '1.0'
 servers:
   - url: http://localhost:3000/orchestrator
 paths:
-  /security/cve/control/list:
+  /orchestrator/security/cve/control/list:
     get:
       description: Fetch current security policy for global, cluster, environment and application level.
       operationId: FetchPolicy
@@ -241,3 +241,11 @@ components:
           type: string
         action:
           $ref: '#/components/schemas/VulnerabilityAction'
+    ResourceLevel:
+      description: Resource Level can be one of global, cluster, environment, application
+      type: string
+      enum:
+        - Global
+        - Cluster
+        - Environment
+        - Application

@@ -1,20 +1,21 @@
 openapi: 3.1.0
 info:
-  title: Title
-  description: Title
-  version: 1.0.0
+  title: Resource Recommender
+  description: Analyzes the history of resource usage (such as CPU and memory) for Kubernetes workloads in a specific cluster and generates data-backed recommendations for optimal resource allocation.
+  version: 0.0.1
 servers:
   - url: http://localhost:8080/orchestrator
     description: Devtron API Server
+
 paths:
   /k8s/resource/recommended:
     post:
       summary: Get Resource Recommendation for a particular resource
-      description: This API will fetch resource recommendations for a specific Kubernetes resource
+      description: Fetch resource recommendations for a specific Kubernetes resource.
       operationId: GetResourceRecommendation
-      security: [ ]
+      security: []
       requestBody:
-        description: A JSON object containing the details required to fetch cluster resource recommendations
+        description: JSON containing details required to fetch cluster resource recommendations.
         required: true
         content:
           application/json:
@@ -27,14 +28,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ResourceGetResponse'
+      tags:
+        - Resource Recommendation
+
   /k8s/resource/recommendation/sync:
     post:
       summary: Sync Cluster Resource Recommendations
-      description: This API will be used to sync resource recommendations for a cluster
+      description: Sync resource recommendations for a cluster.
       operationId: SyncClusterResourceRecommendations
-      security: [ ]
+      security: []
       requestBody:
-        description: A JSON object containing the details required to sync cluster resource recommendations
+        description: JSON containing details required to sync cluster resource recommendations.
         required: true
         content:
           application/json:
@@ -47,39 +51,41 @@ paths:
             application/json:
               schema:
                 type: string
-                description: A message indicating the sync status
+                description: Message indicating sync status
       tags:
         - Resource Recommendation
+
   /k8s/resource/{clusterId}/recommendation/details:
     get:
       summary: Get Cluster Resource Recommendation Details
-      description: This API will fetch resource recommendations metadata for a cluster
+      description: Fetch metadata of resource recommendations for a cluster.
       operationId: GetClusterResourceRecommendationDetails
-      security: [ ]
+      security: []
       parameters:
         - name: clusterId
           in: path
           required: true
-          description: ID of the target cluster
+          description: ID of the target cluster.
           schema:
-              type: number
+            type: number
       responses:
         '200':
           description: Cluster resource recommendation details response
           content:
             application/json:
               schema:
-                  $ref: '#/components/schemas/ResourceRecommendationDetails'
+                $ref: '#/components/schemas/ResourceRecommendationDetails'
       tags:
-          - Resource Recommendation
+        - Resource Recommendation
+
   /k8s/resource/recommendation/list:
     post:
       summary: Get Cluster Resource Recommendation List
-      description: This API will be used for fetching all workloads and their resource recommendations
+      description: Fetch all workloads and their resource recommendations.
       operationId: GetClusterResourceRecommendationList
-      security: [ ]
+      security: []
       requestBody:
-        description: A JSON object containing the details required to fetch cluster resource recommendations
+        description: JSON containing details required to fetch cluster resource recommendations.
         required: true
         content:
           application/json:
@@ -103,35 +109,38 @@ components:
         - manifest
       properties:
         recommendedManifest:
-          description: Recommended manifest for the resource
+          description: Recommended manifest for the resource.
           $ref: '#/components/schemas/K8sManifest'
         manifest:
-          description: Current manifest for the resource
+          description: Current manifest for the resource.
           $ref: '#/components/schemas/K8sManifest'
+
     SyncResourceRecommendation:
       type: object
-      description: Request object for syncing resource recommendations for a cluster
+      description: Request object for syncing resource recommendations for a cluster.
       required:
-          - clusterId
+        - clusterId
       properties:
-          clusterId:
-            type: number
-            description: ID of the target cluster
+        clusterId:
+          type: number
+          description: ID of the target cluster.
+
     ResourceRecommendationDetails:
       type: object
-      description: Details of resource recommendations for a cluster
+      description: Details of resource recommendations for a cluster.
       required:
         - supportedGVKs
       properties:
         supportedGVKs:
           type: array
-          description: List of supported workload Group, Version, and Kind (GVK) for resource recommendations
+          description: List of supported workload GVKs for resource recommendations.
           items:
             $ref: '#/components/schemas/GroupVersionKind'
         lastScannedOn:
           type: string
           format: date-time
-          description: Timestamp of the last scan for resource recommendations
+          description: Timestamp of the last scan for resource recommendations.
+
     ResourceRequestObject:
       type: object
       required:
@@ -139,35 +148,38 @@ components:
       properties:
         clusterId:
           type: number
-          description: id of the target cluster
+          description: ID of the target cluster.
         k8sRequest:
           $ref: '#/components/schemas/K8sRequestObject'
+
     K8sRequestObject:
       type: object
-      description: Kubernetes request object containing resource identifiers for filtering
+      description: Kubernetes request object containing resource identifiers for filtering.
       properties:
         resourceIdentifier:
           type: object
-          description: Resource identifier filter for the Kubernetes resource
+          description: Resource identifier filter for the Kubernetes resource.
           allOf:
             - $ref: '#/components/schemas/GroupVersionKind'
           properties:
             namespace:
               type: string
-              description: Namespace of the Kubernetes resource for filtering
+              description: Namespace of the Kubernetes resource for filtering.
+
     GroupVersionKind:
       type: object
-      description: Group, Version, and Kind of the Kubernetes resource
+      description: Group, Version, and Kind of the Kubernetes resource.
       properties:
         group:
           type: string
-          description: Group of the Kubernetes resource
+          description: Group of the Kubernetes resource.
         version:
           type: string
-          description: Version of the Kubernetes resource
+          description: Version of the Kubernetes resource.
         kind:
           type: string
-          description: Kind of the Kubernetes resource
+          description: Kind of the Kubernetes resource.
+
     ClusterResourceRecommendationList:
       type: object
       properties:
@@ -192,19 +204,19 @@ components:
             properties:
               name:
                 type: string
-                description: name of the workload resource
+                description: Name of the workload resource.
               namespace:
                 type: string
-                description: namespace of the workload resource
+                description: Namespace of the workload resource.
               kind:
                 type: string
-                description: kind of the workload resource
+                description: Kind of the workload resource.
               apiVersion:
                 type: string
-                description: apiVersion of the workload resource
+                description: API version of the workload resource.
               containerName:
                 type: string
-                description: name of the container in the workload resource
+                description: Name of the container in the workload resource.
               cpuRequest:
                 $ref: '#/components/schemas/ResourceRecommendation'
               cpuLimit:
@@ -213,45 +225,37 @@ components:
                 $ref: '#/components/schemas/ResourceRecommendation'
               memoryLimit:
                 $ref: '#/components/schemas/ResourceRecommendation'
+
     ResourceRecommendation:
       type: object
-      description: Resource recommendation details for a workload
+      description: Resource recommendation details for a workload.
       required:
         - current
       properties:
         delta:
           type: number
           format: float64
-          description: percentage of change in resource recommendation
+          description: Percentage change in resource recommendation.
         current:
           type: string
-          description: current value of the resource recommendation
+          description: Current value of the resource recommendation.
         recommended:
           type: string
-          description: recommended value of the resource recommendation
+          description: Recommended value of the resource recommendation.
+
     ResourceGetResponse:
       type: object
+      required:
+        - manifestResponse
+        - secretViewAccess
       properties:
         manifestResponse:
           $ref: '#/components/schemas/ManifestResponse'
         secretViewAccess:
           type: boolean
-          description: Indicates whether a user can see obscured secret values or not.
-      required:
-        - manifestResponse
-        - secretViewAccess
-    ManifestResponse:
-      type: object
-      required:
-        - manifest
-      properties:
-        recommendedManifest:
-          description: Recommended manifest for the resource
-          $ref: '#/components/schemas/K8sManifest'
-        manifest:
-          description: Current manifest for the resource
-          $ref: '#/components/schemas/K8sManifest'
+          description: Whether a user can see obscured secret values.
+
     K8sManifest:
       type: object
-      description: Kubernetes manifest of the resource
+      description: Kubernetes manifest of the resource.
       additionalProperties: true

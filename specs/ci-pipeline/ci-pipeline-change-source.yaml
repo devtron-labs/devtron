@@ -5,40 +5,332 @@ info:
 paths:
   /orchestrator/app/ci-pipeline/patch-source:
     patch:
-      description: update source of a ci-matrial
+      summary: Update CI material source (branch/regex) for a specific app and environment
+      description: |
+        Updates the source configuration of a CI material for a specific application and environment.
+        This endpoint allows changing the branch name or regex pattern that triggers CI builds.
+        
+        **Supported Source Types:**
+        - `SOURCE_TYPE_BRANCH_FIXED`: Fixed branch name (e.g., "main", "develop")
+        - `SOURCE_TYPE_BRANCH_REGEX`: Regex pattern for branch matching (e.g., "feature-*")
+        
+        **Prerequisites:**
+        - User must have UPDATE permission on the application
+        - Application must be a custom app (not job or external app)
+        - Pipeline must exist for the given appId and environmentId
+      security:
+        - BearerAuth: []
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               $ref: "#/components/schemas/RequestBody"
+            examples:
+              branch_fixed:
+                summary: Change to fixed branch
+                description: Update CI material to use a fixed branch name
+                value:
+                  appId: 16
+                  environmentId: 1
+                  source:
+                    type: "SOURCE_TYPE_BRANCH_FIXED"
+                    value: "main"
+                    regex: ""
+              branch_regex:
+                summary: Change to regex pattern
+                description: Update CI material to use a regex pattern for branch matching
+                value:
+                  appId: 16
+                  environmentId: 1
+                  source:
+                    type: "SOURCE_TYPE_BRANCH_REGEX"
+                    value: "feature-*"
+                    regex: "feature-*"
+              develop_branch:
+                summary: Switch to develop branch
+                description: Update CI material to use develop branch
+                value:
+                  appId: 25
+                  environmentId: 3
+                  source:
+                    type: "SOURCE_TYPE_BRANCH_FIXED"
+                    value: "develop"
+                    regex: ""
+              hotfix_pattern:
+                summary: Use hotfix pattern
+                description: Update CI material to match hotfix branches
+                value:
+                  appId: 30
+                  environmentId: 2
+                  source:
+                    type: "SOURCE_TYPE_BRANCH_REGEX"
+                    value: "hotfix/*"
+                    regex: "hotfix/*"
       responses:
         "200":
-          description: Successfully fetched commit info. if CommitInfo is null, then commit is not found.
+          description: Successfully updated CI material source
           content:
             application/json:
               schema:
-                type: object
+                $ref: "#/components/schemas/SuccessResponse"
+              examples:
+                success_branch_fixed:
+                  summary: Success - Branch Fixed
+                  description: Successfully updated to fixed branch
+                  value:
+                    code: 200
+                    status: "OK"
+                    result:
+                      appId: 16
+                      environmentId: 1
+                      source:
+                        type: "SOURCE_TYPE_BRANCH_FIXED"
+                        value: "main"
+                        regex: ""
+                success_branch_regex:
+                  summary: Success - Branch Regex
+                  description: Successfully updated to regex pattern
+                  value:
+                    code: 200
+                    status: "OK"
+                    result:
+                      appId: 16
+                      environmentId: 1
+                      source:
+                        type: "SOURCE_TYPE_BRANCH_REGEX"
+                        value: "feature-*"
+                        regex: "feature-*"
+        "400":
+          description: Bad Request - Invalid request data or validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalid_source_type:
+                  summary: Invalid Source Type
+                  description: Unsupported source type provided
+                  value:
+                    code: 400
+                    status: "Bad Request"
+                    errors:
+                      - code: "400"
+                        internalMessage: "source.type not supported"
+                        userMessage: "source.type not supported"
+                missing_required_fields:
+                  summary: Missing Required Fields
+                  description: Required fields are missing from request
+                  value:
+                    code: 400
+                    status: "Bad Request"
+                    errors:
+                      - code: "400"
+                        internalMessage: "Key: 'CiMaterialPatchRequest.AppId' Error:Field validation for 'AppId' failed on the 'required' tag"
+                        userMessage: "AppId is required"
+                non_custom_app:
+                  summary: Non-Custom App
+                  description: Only custom applications are supported
+                  value:
+                    code: 400
+                    status: "Bad Request"
+                    errors:
+                      - code: "400"
+                        internalMessage: "only custom apps supported"
+                        userMessage: "only custom apps supported"
+        "401":
+          description: Unauthorized - Invalid or missing authentication token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                missing_token:
+                  summary: Missing Authentication Token
+                  description: No authentication token provided
+                  value:
+                    code: 401
+                    status: "Unauthorized"
+                    errors:
+                      - code: "401"
+                        internalMessage: "Unauthorized User"
+                        userMessage: "Unauthorized User"
+                invalid_token:
+                  summary: Invalid Token
+                  description: Provided authentication token is invalid
+                  value:
+                    code: 401
+                    status: "Unauthorized"
+                    errors:
+                      - code: "401"
+                        internalMessage: "Invalid token"
+                        userMessage: "Invalid authentication token"
+        "403":
+          description: Forbidden - User doesn't have permission to update this app
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                insufficient_permissions:
+                  summary: Insufficient Permissions
+                  description: User lacks UPDATE permission on the application
+                  value:
+                    code: 403
+                    status: "Forbidden"
+                    errors:
+                      - code: "403"
+                        internalMessage: "unauthorized user"
+                        userMessage: "Unauthorized User"
+        "500":
+          description: Internal Server Error - Pipeline not found or other server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                pipeline_not_found:
+                  summary: Pipeline Not Found
+                  description: No pipeline exists for the given appId and environmentId
+                  value:
+                    code: 500
+                    status: "Internal Server Error"
+                    errors:
+                      - code: "000"
+                        internalMessage: "[{unique pipeline was not found, for the given appId and environmentId}]"
+                        userMessage: "unique pipeline was not found, for the given appId and environmentId"
+                multiple_pipelines:
+                  summary: Multiple Pipelines Found
+                  description: Multiple pipelines found for the given appId and environmentId
+                  value:
+                    code: 500
+                    status: "Internal Server Error"
+                    errors:
+                      - code: "000"
+                        internalMessage: "[{multiple pipelines found for the given appId and environmentId}]"
+                        userMessage: "multiple pipelines found for the given appId and environmentId"
+                database_error:
+                  summary: Database Error
+                  description: Database operation failed
+                  value:
+                    code: 500
+                    status: "Internal Server Error"
+                    errors:
+                      - code: "000"
+                        internalMessage: "[{database connection error}]"
+                        userMessage: "Database operation failed"
 
-#{"appId": 16, "environmentId": 1, "source": {"type":"SOURCE_TYPE_BRANCH_FIXED", "value": "main1", "regex":""}}
 # Components
 components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication. Include in Authorization header as 'Bearer <token>'
+
   schemas:
     RequestBody:
       type: object
+      required:
+        - appId
+        - environmentId
+        - source
       properties:
         appId:
           type: integer
+          description: Application ID - must be a custom application (not job or external app)
+          example: 16
+          minimum: 1
         environmentId:
           type: integer
+          description: Environment ID where the CI pipeline is configured
+          example: 1
+          minimum: 1
         source:
-          type: object
-          properties:
-            type:
-              type: string
-              description: "SOURCE_TYPE_BRANCH_FIXED / SOURCE_TYPE_BRANCH_REGEX"
-            value:
-              type: string
-              description: "name of the branch"
-            regex:
-              type: string
-              description: "regular expression when type is SOURCE_TYPE_BRANCH_REGEX"
+          $ref: "#/components/schemas/SourceTypeConfig"
+
+    SourceTypeConfig:
+      type: object
+      required:
+        - type
+        - value
+      properties:
+        type:
+          type: string
+          enum:
+            - SOURCE_TYPE_BRANCH_FIXED
+            - SOURCE_TYPE_BRANCH_REGEX
+          description: |
+            Source type for CI material.
+            - `SOURCE_TYPE_BRANCH_FIXED`: Use a specific branch name
+            - `SOURCE_TYPE_BRANCH_REGEX`: Use a regex pattern to match multiple branches
+          example: "SOURCE_TYPE_BRANCH_FIXED"
+        value:
+          type: string
+          description: |
+            Branch name or regex pattern.
+            - For `SOURCE_TYPE_BRANCH_FIXED`: The exact branch name (e.g., "main", "develop")
+            - For `SOURCE_TYPE_BRANCH_REGEX`: The regex pattern to match branches (e.g., "feature-*", "hotfix/*")
+          example: "main"
+          minLength: 1
+        regex:
+          type: string
+          description: |
+            Regular expression pattern (only used when type is SOURCE_TYPE_BRANCH_REGEX).
+            Must match the value field for regex type.
+          example: "feature-*"
+          default: ""
+
+    SuccessResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+          example: 200
+        status:
+          type: string
+          description: Status message
+          example: "OK"
+        result:
+          $ref: "#/components/schemas/RequestBody"
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+          example: 500
+        status:
+          type: string
+          description: Error status message
+          example: "Internal Server Error"
+        errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/Error"
+
+    Error:
+      type: object
+      required:
+        - code
+        - internalMessage
+        - userMessage
+      properties:
+        code:
+          type: string
+          description: Error code for internal tracking
+          example: "000"
+        internalMessage:
+          type: string
+          description: Internal error message for debugging (not shown to end users)
+          example: "[{unique pipeline was not found, for the given appId and environmentId}]"
+        userMessage:
+          type: string
+          description: User-friendly error message that can be displayed to end users
+          example: "unique pipeline was not found, for the given appId and environmentId"

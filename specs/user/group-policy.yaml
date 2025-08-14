@@ -1,0 +1,441 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: User Role Group Management API
+paths:
+  /orchestrator/user/role/group/v2:
+    get:
+      summary: Returns all role groups
+      description: all the template group policies
+      operationId: findGroupPolicy
+      parameters:
+        - name: searchKey
+          in: query
+          description: Search key for group listing
+          required: false
+          schema:
+            type: string
+
+        - name: sortOrder
+          in: query
+          description: Sorting order (ASC or DESC)
+          required: false
+          schema:
+            type: string
+            enum:
+              - ASC
+              - DESC
+
+        - name: sortBy
+          in: query
+          description: Sorting by name
+          required: false
+          schema:
+            type: string
+            enum:
+              - name
+
+        - name: offset
+          in: query
+          description: Offset for paginating the results
+          required: false
+          schema:
+            type: integer
+
+        - name: size
+          in: query
+          description: Size of the result set
+          required: false
+          schema:
+            type: integer
+
+        - name: showAll
+          in: query
+          description: Show all Role groups (boolean)
+          required: false
+          schema:
+            type: boolean
+
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleGroupListingResponse'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Creates a new Role Group
+      description: Creates a new role group with the provided configuration
+      operationId: createRoleGroupV2
+      requestBody:
+        description: Role group configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleGroup'
+      responses:
+        '200':
+          description: Role group created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleGroup'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Updates an existing Role Group
+      description: Updates an existing role group with the provided configuration
+      operationId: updateRoleGroupV2
+      requestBody:
+        description: Role group configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/RoleGroup'
+                - type: object
+                  required:
+                    - id
+                  properties:
+                    id:
+                      type: integer
+                      format: int64
+      responses:
+        '200':
+          description: Role group updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleGroup'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/user/role/group:
+    get:
+      summary: Returns all role groups
+      description: Returns all role groups in the system
+      operationId: fetchRoleGroups
+      responses:
+        '200':
+          description: List of role groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoleGroup'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Creates a new Role Group
+      description: Creates a new role group with the provided configuration
+      operationId: createRoleGroup
+      requestBody:
+        description: Role group configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleGroup'
+      responses:
+        '200':
+          description: Role group created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleGroup'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Updates an existing Role Group
+      description: Updates an existing role group with the provided configuration
+      operationId: updateRoleGroup
+      requestBody:
+        description: Role group configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/RoleGroup'
+                - type: object
+                  required:
+                    - id
+                  properties:
+                    id:
+                      type: integer
+                      format: int64
+      responses:
+        '200':
+          description: Role group updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleGroup'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/user/role/group/search:
+    get:
+      summary: Search role groups by name
+      description: Search role groups by their name
+      operationId: findRoleGroupByName
+      parameters:
+        - name: name
+          in: query
+          description: Name of the role group to search for
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of matching role groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoleGroup'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/user/role/group/{id}:
+    get:
+      summary: Get a role group by ID
+      description: Get detailed information about a specific role group
+      operationId: getRoleGroupById
+      parameters:
+        - name: id
+          in: path
+          description: ID of the role group
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Role group details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleGroup'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete a role group
+      description: Delete a role group by its ID
+      operationId: deleteRoleGroup
+      parameters:
+        - name: id
+          in: path
+          description: ID of the role group to delete
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Role group deleted successfully
+          content:
+            application/json:
+              schema:
+                type: boolean
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/user/role/group/bulk:
+    delete:
+      summary: Delete multiple role groups
+      description: Delete multiple role groups in bulk
+      operationId: bulkDeleteRoleGroups
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkDeleteRequest'
+      responses:
+        '200':
+          description: Role groups deleted successfully
+          content:
+            application/json:
+              schema:
+                type: boolean
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/user/role/group/detailed/get:
+    get:
+      summary: Returns detailed information about all role groups
+      description: Returns detailed information about all role groups including their permissions
+      operationId: fetchDetailedRoleGroups
+      responses:
+        '200':
+          description: List of detailed role groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoleGroup'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    RoleGroup:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        description:
+          type: string
+        roleFilters:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleFilter'
+        superAdmin:
+          type: boolean
+      required:
+        - name
+
+    RoleFilter:
+      type: object
+      properties:
+        entity:
+          type: string
+        team:
+          type: string
+        entityName:
+          type: string
+        environment:
+          type: string
+        action:
+          type: string
+        accessType:
+          type: string
+        cluster:
+          type: string
+        namespace:
+          type: string
+        group:
+          type: string
+        kind:
+          type: string
+        resource:
+          type: string
+        workflow:
+          type: string
+
+    BulkDeleteRequest:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+            format: int64
+        listingRequest:
+          $ref: '#/components/schemas/ListingRequest'
+      required:
+        - ids
+
+    ListingRequest:
+      type: object
+      properties:
+        searchKey:
+          type: string
+        sortOrder:
+          type: string
+          enum:
+            - ASC
+            - DESC
+        sortBy:
+          type: string
+          enum:
+            - name
+        offset:
+          type: integer
+        size:
+          type: integer
+        showAll:
+          type: boolean
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+        status:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+
+    RoleGroupListingResponse:
+      type: object
+      properties:
+        roleGroups:
+          items:
+            $ref: '#/components/schemas/RoleGroup'
+          description: role groups listing
+        totalCount:
+          type: integer
+          description: total number of results satisfying the conditions

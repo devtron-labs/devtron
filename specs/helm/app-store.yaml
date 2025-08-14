@@ -1,0 +1,436 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: App Store Management
+  description: Devtron API for app store management
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Labs
+    email: support@devtron.ai
+    url: https://devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: http://localhost:8080
+paths:
+  /orchestrator/app-store/discover:
+    get:
+      description: Get all charts from chart repositories
+      parameters:
+        - name: includeDeprecated
+          in: query
+          description: Include deprecated charts
+          required: false
+          schema:
+            type: boolean
+        - name: chartRepoId
+          in: query
+          description: Chart repository IDs (comma separated)
+          required: false
+          schema:
+            type: string
+        - name: registryId
+          in: query
+          description: Registry IDs (comma separated)
+          required: false
+          schema:
+            type: string
+        - name: appStoreName
+          in: query
+          description: App store name filter
+          required: false
+          schema:
+            type: string
+        - name: offset
+          in: query
+          description: Offset for pagination
+          required: false
+          schema:
+            type: integer
+        - name: size
+          in: query
+          description: Size for pagination
+          required: false
+          schema:
+            type: integer
+        - name: chartCategoryId
+          in: query
+          description: Chart category IDs (comma separated)
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of app store applications with versions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppStoreListingResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/app-store/discover/application/{id}:
+    get:
+      description: Get chart details for a specific version
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            description: App store application version ID
+      responses:
+        '200':
+          description: Chart details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppStoreApplicationVersion'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/app-store/discover/application/{appStoreId}/version/autocomplete:
+    get:
+      description: Get chart versions for an app store application
+      parameters:
+        - name: appStoreId
+          in: path
+          required: true
+          schema:
+            type: integer
+            description: App store application ID
+      responses:
+        '200':
+          description: List of chart versions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AppStoreApplicationVersion'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/app-store/discover/application/chartInfo/{appStoreApplicationVersionId}:
+    get:
+      description: Get chart information for a specific version
+      parameters:
+        - name: appStoreApplicationVersionId
+          in: path
+          required: true
+          schema:
+            type: integer
+            description: App store application version ID
+      responses:
+        '200':
+          description: Chart information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChartInfo'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/app-store/discover/search:
+    get:
+      description: Search app store charts by name
+      parameters:
+        - name: chartName
+          in: query
+          required: true
+          schema:
+            type: string
+            description: Chart name to search for
+      responses:
+        '200':
+          description: List of matching charts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AppStoreApplication'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    AppStoreApplication:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: App store application ID
+        name:
+          type: string
+          description: App store application name
+        chartRepoId:
+          type: integer
+          description: Chart repository ID
+        active:
+          type: boolean
+          description: Whether the application is active
+        chartGitLocation:
+          type: string
+          description: Chart Git repository location
+        createdOn:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updatedOn:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        appStoreApplicationVersions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppStoreApplicationVersion'
+          description: List of application versions
+
+    AppStoreApplicationVersion:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Version ID
+        version:
+          type: string
+          description: Version number
+        appVersion:
+          type: string
+          description: Application version
+        created:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        deprecated:
+          type: boolean
+          description: Whether the version is deprecated
+        description:
+          type: string
+          description: Version description
+        digest:
+          type: string
+          description: Chart digest
+        icon:
+          type: string
+          description: Icon URL
+        name:
+          type: string
+          description: Chart name
+        chartName:
+          type: string
+          description: Chart name
+        appStoreApplicationName:
+          type: string
+          description: App store application name
+        home:
+          type: string
+          description: Home URL
+        source:
+          type: string
+          description: Source URL
+        valuesYaml:
+          type: string
+          description: Values YAML
+        chartYaml:
+          type: string
+          description: Chart YAML
+        appStoreId:
+          type: integer
+          description: App store ID
+        latest:
+          type: boolean
+          description: Whether this is the latest version
+        createdOn:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        rawValues:
+          type: string
+          description: Raw values
+        readme:
+          type: string
+          description: README content
+        valuesSchemaJson:
+          type: string
+          description: Values schema in JSON format
+        notes:
+          type: string
+          description: Release notes
+
+    ChartInfo:
+      type: object
+      properties:
+        chartName:
+          type: string
+          description: Chart name
+        chartVersion:
+          type: string
+          description: Chart version
+        valuesYaml:
+          type: string
+          description: Values YAML
+        chartYaml:
+          type: string
+          description: Chart YAML
+        readme:
+          type: string
+          description: README content
+        notes:
+          type: string
+          description: Release notes
+
+    AppStoreListingResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Status code
+        status:
+          type: string
+          description: Status message
+        result:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppStoreApplication'
+          description: List of app store applications
+
+    ErrorResponse:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        status:
+          type: string
+          description: Error message
+        errors:
+          type: array
+          description: List of errors
+          items:
+            $ref: '#/components/schemas/Error'
+
+    Error:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error internal code
+        internalMessage:
+          type: string
+          description: Error internal message
+        userMessage:
+          type: string
+          description: Error user message

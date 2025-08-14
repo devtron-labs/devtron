@@ -1,0 +1,514 @@
+openapi: 3.0.0
+info:
+  title: Cluster Management API
+  version: 1.0.0
+  description: API for managing Kubernetes clusters
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Support
+    email: support@devtron.ai
+    url: https://devtron.ai/support
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
+  schemas:
+    ClusterBean:
+          type: object
+          required:
+            - cluster_name
+            - server_url
+          properties:
+            id:
+              type: integer
+              description: Unique identifier for the cluster
+            cluster_name:
+              type: string
+              description: Name of the cluster
+            server_url:
+              type: string
+              description: URL of the Kubernetes API server
+            prometheus_url:
+              type: string
+              description: URL of the Prometheus server
+            active:
+              type: boolean
+              description: Whether the cluster is active
+            config:
+              type: object
+              properties:
+                bearer_token:
+                  type: string
+                  description: Bearer token for authentication
+                tls_key:
+                  type: string
+                  description: TLS key for secure communication
+                cert_data:
+                  type: string
+                  description: Certificate data
+                cert_auth_data:
+                  type: string
+                  description: Certificate authority data
+            prometheusAuth:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum: [basic, bearer]
+                basic:
+                  type: object
+                  properties:
+                    username:
+                      type: string
+                    password:
+                      type: string
+                bearer:
+                  type: object
+                  properties:
+                    token:
+                      type: string
+            defaultClusterComponent:
+              type: array
+              items:
+                $ref: '#/components/schemas/DefaultClusterComponent'
+            agentInstallationStage:
+              type: integer
+              description: Stage of agent installation
+            k8sVersion:
+              type: string
+              description: Kubernetes version
+            userName:
+              type: string
+              description: Name of the user who created/updated the cluster
+            insecure-skip-tls-verify:
+              type: boolean
+              description: Whether to skip TLS verification
+            errorInConnecting:
+              type: string
+              description: Error message if connection fails
+            clusterUpdated:
+              type: boolean
+              description: Whether the cluster was updated
+
+    DefaultClusterComponent:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        version:
+          type: string
+        status:
+          type: string
+        configuration:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [yaml, json]
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message
+
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 404
+        message:
+          type: string
+          example: "Resource not found"
+        details:
+          type: array
+          items:
+            type: string
+          example: ["Cluster not found in the system"]
+
+paths:
+  /orchestrator/cluster:
+    post:
+      summary: Create a new cluster
+      operationId: CreateCluster
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClusterBean'
+      responses:
+        '200':
+          description: Successfully created cluster
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterBean'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    get:
+      summary: List all clusters
+      operationId: ListClusters
+      responses:
+        '200':
+          description: Successfully retrieved clusters
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClusterBean'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update a cluster
+      operationId: UpdateCluster
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClusterBean'
+      responses:
+        '200':
+          description: Successfully updated cluster
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterBean'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete a cluster
+      operationId: DeleteCluster
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClusterBean'
+      responses:
+        '200':
+          description: Successfully deleted cluster
+          content:
+            application/json:
+              schema:
+                type: string
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /cluster/saveClusters:
+    post:
+      summary: Save multiple clusters
+      operationId: SaveClusters
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/ClusterBean'
+      responses:
+        '200':
+          description: Successfully saved clusters
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClusterBean'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /cluster/validate:
+    post:
+      summary: Validate cluster configuration
+      operationId: ValidateCluster
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - kubeconfig
+              properties:
+                kubeconfig:
+                  type: string
+      responses:
+        '200':
+          description: Successfully validated cluster
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterBean'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /cluster/namespaces/{clusterId}:
+    get:
+      summary: Get namespaces for a cluster
+      operationId: GetClusterNamespaces
+      parameters:
+        - name: clusterId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully retrieved cluster namespaces
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /cluster/namespaces:
+    get:
+      summary: Get namespaces for all clusters
+      operationId: GetAllClusterNamespaces
+      responses:
+        '200':
+          description: Successfully retrieved all cluster namespaces
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    type: string
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /cluster/auth-list:
+    get:
+      summary: Get clusters with authentication details
+      operationId: GetClustersWithAuth
+      responses:
+        '200':
+          description: Successfully retrieved clusters with auth details
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClusterBean'
+        '401':
+          description: Unauthorized user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+
+
+
+
+
