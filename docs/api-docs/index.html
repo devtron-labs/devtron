@@ -5,19 +5,32 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Devtron API Documentation</title>
 <style>
-body { font-family: Arial, sans-serif; margin: 20px; }
-h1 { color: #333; }
-h3 { margin-top: 20px; }
+body { font-family: Arial, sans-serif; margin: 20px; background: #f8f9fa; color: #333; }
+h1 { color: #2c3e50; }
+h3 { margin-top: 20px; border-bottom: 1px solid #ccc; padding-bottom: 5px; color: #34495e; }
 ul { list-style: none; padding-left: 0; }
 li { margin: 5px 0; }
-a { text-decoration: none; color: #0366d6; }
+a { text-decoration: none; color: #1a73e8; }
 a:hover { text-decoration: underline; }
+.container { max-width: 900px; margin: auto; }
+.description { margin-bottom: 20px; font-size: 1rem; color: #555; }
+.category { margin-bottom: 20px; padding: 10px; background: #fff; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.api-list li { padding: 3px 0; }
+.footer { margin-top: 40px; font-size: 0.9rem; color: #666; }
+.footer a { color: #1a73e8; text-decoration: none; }
+.footer a:hover { text-decoration: underline; }
+.timestamp { font-style: italic; }
 </style>
 </head>
 <body>
 <div class="container">
 <h1>🚀 Devtron API Documentation</h1>
+<div class="description">
+Comprehensive API documentation for Devtron - Kubernetes-native software delivery platform
+</div>
+
 <div class="categories" id="categories"></div>
+
 <div class="footer">
 <p><a href="https://devtron.ai/" target="_blank">Devtron</a></p>
 <p class="timestamp">Last updated: <span id="timestamp"></span></p>
@@ -107,6 +120,7 @@ function populatePage() {
 
     Object.keys(categories).sort().forEach(cat => {
         const section = document.createElement('div');
+        section.className = "category";
         const h3 = document.createElement('h3');
         h3.textContent = cat;
         section.appendChild(h3);
@@ -115,7 +129,7 @@ function populatePage() {
         categories[cat].sort((a,b)=>a.title.localeCompare(b.title)).forEach(api => {
             const li = document.createElement('li');
             const a = document.createElement('a');
-            a.href = api.filename;
+            a.href = api.filename; // links preserve folder structure
             a.textContent = api.title;
             li.appendChild(a);
             ul.appendChild(li);
