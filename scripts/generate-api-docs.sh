@@ -277,7 +277,6 @@ for spec_file in $spec_files; do
                 "original_file": "${relative_path}"
             },
 EOF
-        ((total_apis++))
     fi
 done
 
