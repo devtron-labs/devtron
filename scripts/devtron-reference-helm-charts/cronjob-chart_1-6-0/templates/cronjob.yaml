@@ -12,6 +12,13 @@ metadata:
     chart: {{ template ".Chart.Name .chart" $ }}
     release: {{ $.Release.Name }}
     releaseVersion: {{ $.Values.releaseVersion | quote }}
+{{- if .Values.cronJobLabels }}
+{{ toYaml .Values.cronJobLabels | indent 4 }}
+{{- end }}
+{{- if .Values.cronJobAnnotations }}
+  annotations:
+{{ toYaml .Values.cronJobAnnotations | indent 4 }}
+{{- end }}
 spec:
   {{- if $.Values.cronjobConfigs }}
   {{- if $.Values.cronjobConfigs.timeZone }}
@@ -26,10 +33,8 @@ spec:
   {{- if $.Values.cronjobConfigs.concurrencyPolicy }}
   concurrencyPolicy: {{ $.Values.cronjobConfigs.concurrencyPolicy }}
   {{- end }}
-  {{- if semverCompare ">1.20" .Capabilities.KubeVersion.GitVersion }}
-  {{- if $.Values.cronjobConfigs.suspend }}
-  suspend: {{ $.Values.cronjobConfigs.suspend }}
-  {{- end }}
+  {{- if semverCompare ">1.20.0-0" .Capabilities.KubeVersion.Version }}
+  suspend: {{ $.Values.cronjobConfigs.suspend | default false }}
   {{- end }}
   {{- if $.Values.cronjobConfigs.successfulJobsHistoryLimit }}
   successfulJobsHistoryLimit: {{ $.Values.cronjobConfigs.successfulJobsHistoryLimit }}
