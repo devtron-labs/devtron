@@ -163,6 +163,44 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /app/material/delete:
+    post:
+      description: Delete Git Material
+      operationId: DeleteMaterial
+      requestBody:
+        description: A JSON object containing the material config
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMaterialDTO'
+      responses:
+        '200':
+          description: Successfully delete the git material
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "Git material deleted successfully."
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
 components:
   schemas:
     App:
@@ -204,6 +242,14 @@ components:
           description: app labels
           items:
             $ref: '#/components/schemas/AppLabel'
+
+    UpdateMaterialDTO:
+      type: object
+      properties:
+        appId:
+          type: integer
+        material:
+          $ref: '#/components/schemas/GitMaterial'
     AppLabel:
       type: object
       properties:
