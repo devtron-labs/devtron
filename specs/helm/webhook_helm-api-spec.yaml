@@ -20,7 +20,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/HelmAppCreateUpdateResponse"
         "401":
-          description: If the user is not authenicated, then this error is thrown
+          description: If the user is not authenticated, then this error is thrown
           content:
             application/json:
               schema:

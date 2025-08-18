@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: App Deployment API
   version: 1.0.0
-  description: API for GitOps manifest generation and deployment template management
+  description: API for manifest generation and deployment template management
   termsOfService: https://devtron.ai/terms/
   contact:
     name: Devtron Support

@@ -1,7 +1,7 @@
 openapi: "3.0.0"
 info:
   version: 1.0.0
-  title: Historical Task definitions
+  title: Deployment History API
 paths:
   /orchestrator/app/history/deployed-component/detail/{appId}/{pipelineId}/{id}:
     get:
