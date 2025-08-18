@@ -22,7 +22,11 @@ cronjobConfigs:
 cronJobAnnotations:
   example.com/dummy: "true"                 
 cronJobLabels:
-  example.com/dummy: "true"                
+  example.com/dummy: "true"     
+jobAnnotations:
+  example.com/dummy: "true"                 
+jobLabels:
+  example.com/dummy: "true"               
 LivenessProbe:
   Path: "/"
   command: []
