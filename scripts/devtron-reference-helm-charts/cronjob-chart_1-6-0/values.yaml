@@ -43,7 +43,7 @@ LivenessProbe:
   tcp: false
   timeoutSeconds: 5
 ReadinessProbe:
-  Path: "/"
+  Path: ""
   command: []
   failureThreshold: 3
   httpHeaders: []

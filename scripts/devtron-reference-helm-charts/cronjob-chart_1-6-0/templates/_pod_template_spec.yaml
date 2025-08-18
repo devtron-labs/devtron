@@ -150,6 +150,7 @@ containers:
 {{- if $.Values.containerExtraSpecs }}	
 {{ toYaml .Values.containerExtraSpecs | indent 4 }}	
 {{- end }}
+    {{- if $.Values.LivenessProbe }}
     {{- if or $.Values.LivenessProbe.Path $.Values.LivenessProbe.command $.Values.LivenessProbe.tcp $.Values.LivenessProbe.grpc }}
     livenessProbe:
     {{- if $.Values.LivenessProbe.Path }}
@@ -184,6 +185,8 @@ containers:
     {{ toYaml .Values.LivenessProbe.grpc | indent 14 }}
     {{- end }}
     {{- end }}
+    {{- end }}
+    {{- if $.Values.ReadinessProbe }}
     {{- if or $.Values.ReadinessProbe.Path  $.Values.ReadinessProbe.command $.Values.ReadinessProbe.tcp $.Values.ReadinessProbe.grpc }}
     readinessProbe:
     {{- if $.Values.ReadinessProbe.Path }}
@@ -217,6 +220,7 @@ containers:
       grpc:
     {{ toYaml .Values.ReadinessProbe.grpc | indent 14 }}
       {{- end}}
+    {{- end }}
     {{- end }}
 
 {{- if $.Values.privileged }}
