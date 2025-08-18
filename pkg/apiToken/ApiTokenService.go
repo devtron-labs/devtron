@@ -19,12 +19,13 @@ package apiToken
 import (
 	"errors"
 	"fmt"
-	"github.com/caarlos0/env"
-	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/caarlos0/env"
+	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 
 	"github.com/devtron-labs/authenticator/middleware"
 	openapi "github.com/devtron-labs/devtron/api/openapi/openapiClient"
@@ -221,8 +222,16 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 		tokenVersion = 1
 	}
 
-	// step-3 - Build token
-	token, err := impl.createApiJwtToken(email, tokenVersion, *request.ExpireAtInMs)
+	// step-3 - Build token with proper expiration handling
+	var expireAtInMs int64
+	if request.ExpireAtInMs != nil {
+		expireAtInMs = *request.ExpireAtInMs
+	} else {
+		// Set default expiration to 1 year from now if not specified
+		expireAtInMs = time.Now().AddDate(1, 0, 0).UnixMilli()
+	}
+
+	token, err := impl.createApiJwtToken(email, tokenVersion, expireAtInMs)
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +258,7 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 		UserId:       userId,
 		Name:         name,
 		Description:  *request.Description,
-		ExpireAtInMs: *request.ExpireAtInMs,
+		ExpireAtInMs: expireAtInMs,
 		Token:        token,
 		Version:      tokenVersion,
 		AuditLog:     sql.AuditLog{UpdatedOn: time.Now()},
@@ -291,7 +300,6 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 		Token:          &token,
 		UserId:         &userId,
 		UserIdentifier: &email,
-		HideApiToken:   impl.TokenVariableConfig.HideApiTokens,
 	}, nil
 }
 
@@ -411,9 +419,13 @@ func (impl ApiTokenServiceImpl) setRegisteredClaims(expireAtInMs int64) (jwt.Reg
 		Issuer: middleware.ApiTokenClaimIssuer,
 	}
 
+	// Only set expiration if expireAtInMs is greater than 0
+	// This prevents the 1970 timestamp issue
 	if expireAtInMs > 0 {
 		registeredClaims.ExpiresAt = jwt.NewNumericDate(time.Unix(expireAtInMs/1000, 0))
 	}
+	// If expireAtInMs is 0 or negative, no expiration is set (token never expires)
+
 	return registeredClaims, secretByteArr, nil
 }
 
