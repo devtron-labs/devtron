@@ -306,17 +306,11 @@ components:
             type: object
           description: Workflow tree structure
 
-tags:
-  - name: Applications
-    description: Operations related to application management
-  - name: Environments
-    description: Operations related to application environments
-  - name: Deployments
-    description: Operations related to application deployments
-
 paths:
   /orchestrator/core/v1beta1/application/workflow:
     post:
+      tags:
+        - Workflow Creation
       description: Creates a new workflow for the configurations provided.
       operationId: CreateAppWorkflow
       requestBody:

@@ -1,87 +1,157 @@
 openapi: '3.0.2'
 info:
   title: Security Policy Management
-  version: '1.0'
+  version: '2.0'
+  description: API for managing security policies and vulnerability controls
 servers:
-  - url: http://localhost:3000/orchestrator
+  - url: https://api.server.test/v1
 paths:
-  /orchestrator/security/cve/control/list:
-    get:
-      description: Fetch current security policy for global, cluster, environment and application level.
-      operationId: FetchPolicy
-      parameters:
-        - name: level
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/ResourceLevel'
-        - name: id
-          in: query
-          required: false
-          schema:
-            type: integer
-      responses:
-        'default':
-          description: Error or security policy for global, cluster, environment and application.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GetVulnerabilityPolicyResponse'
-    delete:
-      description: Delete policy
-      operationId: DeletePolicy
-      parameters:
-        - name: id
-          in: query
-          required: true
-          schema:
-            type: integer
-      responses:
-        'default':
-          description: Deleted response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DeleteVulnerabilityPolicyResponse'
+  /orchestrator/security/policy/save:
     post:
-      description: Update policy
-      operationId: UpdatePolicy
-      parameters:
-        - name: id
-          in: query
-          required: true
-          schema:
-            type: integer
-        - name: action
-          in: query
-          required: true
-          schema:
-            type: string
-            enum:
-              - block
-              - allow
-      responses:
-        'default':
-          description: Update response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UpdateVulnerabilityPolicyResponse'
-    put:
-      description: create policy
-      operationId: CreatePolicy
+      summary: Create a new security policy
+      description: Create a new vulnerability policy for global, cluster, environment, or application level
+      operationId: savePolicy
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateVulnerabilityPolicyRequest'
       responses:
-        'default':
-          description: Create response
+        '200':
+          description: Policy created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CreateVulnerabilityPolicyResponse'
+                $ref: '#/components/schemas/IdVulnerabilityPolicyResult'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/security/policy/update:
+    post:
+      summary: Update an existing security policy
+      description: Update an existing vulnerability policy action
+      operationId: updatePolicy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePolicyParams'
+      responses:
+        '200':
+          description: Policy updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdVulnerabilityPolicyResult'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/security/policy/list:
+    get:
+      summary: Get security policies
+      description: Fetch current security policy for global, cluster, environment and application level
+      operationId: getPolicy
+      parameters:
+        - name: level
+          in: query
+          required: true
+          description: Resource level for policy retrieval
+          schema:
+            $ref: '#/components/schemas/ResourceLevel'
+        - name: id
+          in: query
+          required: false
+          description: Specific ID to filter policies (cluster, environment, or app ID based on level)
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Security policies retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetVulnerabilityPolicyResult'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/security/policy/verify/webhook:
+    post:
+      summary: Verify image against security policies
+      description: Webhook endpoint to verify if an image passes security policy checks
+      operationId: verifyImage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyImageRequest'
+      responses:
+        '200':
+          description: Image verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyImageResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   schemas:
     Error:
@@ -98,20 +168,77 @@ components:
         message:
           type: string
           description: Error message
-    PolicyLevel:
-      description: Policy Level can be one of global, cluster, environment, application
+
+    CreateVulnerabilityPolicyRequest:
+      description: Request object for creating vulnerability policy. For global policy don't set clusterId, envId and appId. For cluster set clusterId, for environment set envId, for app set appId and envId. Only one of severity or cveId should be set.
+      type: object
+      properties:
+        action:
+          $ref: '#/components/schemas/VulnerabilityAction'
+        appId:
+          type: integer
+          description: Application ID (required for app-level policies)
+        clusterId:
+          type: integer
+          description: Cluster ID (required for cluster-level policies)
+        cveId:
+          type: string
+          description: CVE ID for specific CVE policies
+        envId:
+          type: integer
+          description: Environment ID (required for environment and app-level policies)
+        severity:
+          type: string
+          description: Severity level for severity-based policies
+          enum:
+            - critical
+            - high
+            - medium
+            - low
+
+    UpdatePolicyParams:
+      description: Parameters for updating a policy
+      type: object
+      required:
+        - id
+        - action
+      properties:
+        id:
+          type: integer
+          description: Policy ID to update
+        action:
+          type: string
+          description: New action for the policy
+          enum:
+            - block
+            - allow
+
+    IdVulnerabilityPolicyResult:
+      description: Result containing policy ID
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: integer
+          description: Policy ID
+
+    ResourceLevel:
+      description: Resource Level can be one of Global, Cluster, Environment, Application
       type: string
       enum:
         - Global
-        - Gluster
+        - Cluster
         - Environment
         - Application
+
     VulnerabilityAction:
-      description: actions which can be taken on vulnerabilities
+      description: Actions which can be taken on vulnerabilities
       type: string
       enum:
         - block
         - allow
+
     VulnerabilityPermission:
       description: Whether vulnerability is allowed or blocked and is it inherited or is it overridden
       type: object
@@ -122,10 +249,13 @@ components:
           $ref: '#/components/schemas/VulnerabilityAction'
         inherited:
           type: boolean
+          description: Whether the policy is inherited from a higher level
         isOverriden:
           type: boolean
+          description: Whether the policy overrides a higher level policy
+
     SeverityPolicy:
-      description: Severity related information
+      description: Severity related policy information
       type: object
       required:
         - severity
@@ -135,26 +265,32 @@ components:
       properties:
         id:
           type: integer
+          description: Policy ID
         severity:
           type: string
+          description: Vulnerability severity level
           enum:
+            - critical
             - high
             - medium
             - low
         policyOrigin:
           type: string
+          description: Origin of the policy
         policy:
           $ref: '#/components/schemas/VulnerabilityPermission'
     CvePolicy:
-      description: CVE related information
+      description: CVE related policy information
       allOf:
         - $ref: '#/components/schemas/SeverityPolicy'
         - type: object
           properties:
             name:
-              description: In case of CVE policy this is same as cve name else it is blank
+              description: In case of CVE policy this is same as CVE name else it is blank
               type: string
+
     VulnerabilityPolicy:
+      description: Vulnerability policy for a specific scope (global, cluster, environment, or application)
       type: object
       required:
         - severities
@@ -162,19 +298,29 @@ components:
       properties:
         name:
           type: string
-          description: Is name of cluster or environment or application/environment
+          description: Name of cluster, environment, or application/environment
         envId:
           type: integer
-          description: environment id in case of application
+          description: Environment ID in case of application-level policy
+        appId:
+          type: integer
+          description: Application ID (internal use)
+        clusterId:
+          type: integer
+          description: Cluster ID (internal use)
         severities:
           type: array
+          description: Severity-based policies
           items:
             $ref: '#/components/schemas/SeverityPolicy'
         cves:
           type: array
+          description: CVE-specific policies
           items:
             $ref: '#/components/schemas/CvePolicy'
+
     GetVulnerabilityPolicyResult:
+      description: Result containing vulnerability policies
       type: object
       required:
         - level
@@ -186,66 +332,36 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/VulnerabilityPolicy'
-    GetVulnerabilityPolicyResponse:
-      description: Only one of result or error will be present
+
+    VerifyImageRequest:
+      description: Request for image verification against security policies
       type: object
       properties:
-        result:
-          $ref: '#/components/schemas/GetVulnerabilityPolicyResult'
-        error:
-          $ref: '#/components/schemas/Error'
-    IdVulnerabilityPolicyResult:
-      type: object
-      required:
-        - id
-      properties:
-        id:
-          type: integer
-    DeleteVulnerabilityPolicyResponse:
-      description: Only one of result or error will be present
-      type: object
-      properties:
-        result:
-          $ref: '#/components/schemas/IdVulnerabilityPolicyResult'
-        error:
-          $ref: '#/components/schemas/Error'
-    UpdateVulnerabilityPolicyResponse:
-      description: Only one of result or error will be present
-      type: object
-      properties:
-        result:
-          $ref: '#/components/schemas/IdVulnerabilityPolicyResult'
-        error:
-          $ref: '#/components/schemas/Error'
-    CreateVulnerabilityPolicyResponse:
-      description: Only one of result or error will be present
-      type: object
-      properties:
-        result:
-          $ref: '#/components/schemas/IdVulnerabilityPolicyResult'
-        error:
-          $ref: '#/components/schemas/Error'
-    CreateVulnerabilityPolicyRequest:
-      description: Request object for vulnerability policy. For global policy dont set clusterId, envId and appId. For cluster set clusterId, for environment set envId, for app set appId and envId. Only one of severity or cve should be set.
-      type: object
-      properties:
-        clusterId:
-          type: integer
-        envId:
-          type: integer
+        image:
+          type: string
+          description: Image name to verify
         appId:
           type: integer
-        severity:
+          description: Application ID
+        envId:
+          type: integer
+          description: Environment ID
+        clusterId:
+          type: integer
+          description: Cluster ID
+
+    VerifyImageResponse:
+      description: Response containing image verification results
+      type: object
+      properties:
+        allowed:
+          type: boolean
+          description: Whether the image is allowed
+        blockedCves:
+          type: array
+          description: List of blocked CVEs found in the image
+          items:
+            type: string
+        message:
           type: string
-        cveId:
-          type: string
-        action:
-          $ref: '#/components/schemas/VulnerabilityAction'
-    ResourceLevel:
-      description: Resource Level can be one of global, cluster, environment, application
-      type: string
-      enum:
-        - Global
-        - Cluster
-        - Environment
-        - Application
+          description: Verification message
