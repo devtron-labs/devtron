@@ -1,5 +1,5 @@
 # Mandatory configs
-kind: CronJob
+kind: Job
 
 jobConfigs:
   backoffLimit: 5
