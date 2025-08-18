@@ -9,6 +9,14 @@ metadata:
     release: {{ $.Release.Name }}
     releaseVersion: {{ $.Values.releaseVersion | quote }}
     pipelineName: {{ .Values.pipelineName }}
+{{- if .Values.jobLabels }}
+{{ toYaml .Values.jobLabels | indent 4 }}
+{{- end }}
+{{- if .Values.jobAnnotations }}
+  annotations:
+{{ toYaml .Values.jobAnnotations | indent 4 }}
+{{- end }}
+
 spec:
   {{- include "job-template-spec" . | indent 2 }}
 {{ end }}
