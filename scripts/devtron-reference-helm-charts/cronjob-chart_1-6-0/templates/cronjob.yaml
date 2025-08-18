@@ -33,7 +33,7 @@ spec:
   {{- if $.Values.cronjobConfigs.concurrencyPolicy }}
   concurrencyPolicy: {{ $.Values.cronjobConfigs.concurrencyPolicy }}
   {{- end }}
-  {{- if semverCompare ">1.20" .Capabilities.KubeVersion.GitVersion }}
+  {{- if semverCompare ">1.20.0-0" .Capabilities.KubeVersion.GitVersion }}
   {{- if $.Values.cronjobConfigs.suspend }}
   suspend: {{ $.Values.cronjobConfigs.suspend }}
   {{- end }}
