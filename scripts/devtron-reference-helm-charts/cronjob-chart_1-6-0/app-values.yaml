@@ -15,7 +15,6 @@ cronjobConfigs:
   suspend: false
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 1
-  restartPolicy: OnFailure
   timeZone: "UTC"
 cronJobAnnotations: {}
 cronJobLabels: {}
@@ -43,6 +42,7 @@ ReadinessProbe:
   successThreshold: 1
   tcp: false
   timeoutSeconds: 5
+restartPolicy: OnFailure
 kedaAutoscaling:
   envSourceContainerName: "" 
   minReplicaCount: 1 
