@@ -1,7 +1,7 @@
 openapi: "3.0.0"
 info:
   version: 1.0.0
-  title: Modularisation v1 APIs
+  title: Module details APIs
 paths:
   /orchestrator/module:
     get:
