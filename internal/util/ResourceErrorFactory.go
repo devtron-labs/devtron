@@ -89,3 +89,13 @@ func NewGenericResourceNotFoundError() *ApiError {
 	).WithCode(constants.ResourceNotFound).
 		WithUserDetailMessage("The requested resource does not exist or has been deleted.")
 }
+
+// NewGenericDuplicateResourceError creates a generic conflict error when a resource already exists
+func NewGenericDuplicateResourceError() *ApiError {
+	return NewApiError(
+		http.StatusConflict,
+		"Resource already exists",
+		"resource already exists",
+	).WithCode(constants.DuplicateResource).
+		WithUserDetailMessage("The resource you are trying to create already exists. Please use a different name or identifier.")
+}

@@ -18,11 +18,6 @@ package apiToken
 
 import (
 	"encoding/json"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
-
 	openapi "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/apiToken"
@@ -32,6 +27,8 @@ import (
 	"github.com/juju/errors"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
+	"net/http"
+	"strconv"
 )
 
 type ApiTokenRestHandler interface {
@@ -105,70 +102,23 @@ func (impl ApiTokenRestHandlerImpl) CreateApiToken(w http.ResponseWriter, r *htt
 	err = decoder.Decode(&request)
 	if err != nil {
 		impl.logger.Errorw("err in decoding request in CreateApiToken", "err", err)
-		common.WriteJsonResp(w, errors.New("invalid JSON payload"), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New("invalid JSON payload "+err.Error()), nil, http.StatusBadRequest)
 		return
 	}
 
 	// validate request structure
 	err = impl.validator.Struct(request)
 	if err != nil {
-		impl.logger.Errorw("validation err in CreateApiToken", "err", err, "request", request)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		impl.logger.Errorw("validation err in CreateApiToken ", "err", err, "request", request)
+		common.HandleValidationErrors(w, r, err)
 		return
-	}
-
-	// Comprehensive validation with specific error messages
-	if request.Name == nil || *request.Name == "" {
-		common.WriteJsonResp(w, errors.New("name field is required and cannot be empty"), nil, http.StatusBadRequest)
-		return
-	}
-
-	// Check name length (max 100 characters)
-	if len(*request.Name) > 100 {
-		common.WriteJsonResp(w, errors.New("name field cannot exceed 100 characters"), nil, http.StatusBadRequest)
-		return
-	}
-
-	// Check for invalid characters in name (spaces, commas)
-	if strings.Contains(*request.Name, " ") || strings.Contains(*request.Name, ",") {
-		common.WriteJsonResp(w, errors.New("name field cannot contain spaces or commas"), nil, http.StatusBadRequest)
-		return
-	}
-
-	// Check description length (max 350 characters as per UI)
-	if request.Description != nil && len(*request.Description) > 350 {
-		common.WriteJsonResp(w, errors.New("description field cannot exceed 350 characters"), nil, http.StatusBadRequest)
-		return
-	}
-
-	// Validate expireAtInMs field
-	if request.ExpireAtInMs != nil {
-		// Check if it's a valid positive timestamp
-		if *request.ExpireAtInMs <= 0 {
-			common.WriteJsonResp(w, errors.New("expireAtInMs must be a positive timestamp in milliseconds"), nil, http.StatusBadRequest)
-			return
-		}
-
-		// Check if it's not in the past (allow 1 minute buffer for clock skew)
-		currentTime := time.Now().UnixMilli()
-		if *request.ExpireAtInMs < (currentTime - 60000) {
-			common.WriteJsonResp(w, errors.New("expireAtInMs cannot be in the past"), nil, http.StatusBadRequest)
-			return
-		}
-
-		// Check if it's not too far in the future (max 10 years)
-		maxFutureTime := currentTime + (10 * 365 * 24 * 60 * 60 * 1000)
-		if *request.ExpireAtInMs > maxFutureTime {
-			common.WriteJsonResp(w, errors.New("expireAtInMs cannot be more than 10 years in the future"), nil, http.StatusBadRequest)
-			return
-		}
 	}
 
 	// service call
 	res, err := impl.apiTokenService.CreateApiToken(request, userId, impl.checkManagerAuth)
 	if err != nil {
 		impl.logger.Errorw("service err, CreateApiToken", "err", err, "payload", request)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonRespV2(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)

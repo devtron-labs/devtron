@@ -17,9 +17,11 @@
 package common
 
 import (
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/middleware"
 	"github.com/devtron-labs/devtron/internal/util"
+	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
 )
@@ -225,4 +227,42 @@ func HandleForbidden(w http.ResponseWriter, r *http.Request, resource string) {
 func HandleValidationError(w http.ResponseWriter, r *http.Request, fieldName, message string) {
 	apiErr := util.NewValidationErrorForField(fieldName, message)
 	WriteJsonResp(w, apiErr, nil, apiErr.HttpStatusCode)
+}
+
+// HandleValidationErrors handles multiple validation errors
+func HandleValidationErrors(w http.ResponseWriter, r *http.Request, err error) {
+	// validator.ValidationErrors is a slice
+	var vErrs validator.ValidationErrors
+	if errors.As(err, &vErrs) {
+		for _, fe := range vErrs {
+			field := fe.Field()
+			message := validationMessage(fe)
+			HandleValidationError(w, r, field, message)
+			return
+		}
+	}
+
+	// fallback: generic
+	HandleValidationError(w, r, "request", "invalid request payload")
+}
+func validationMessage(fe validator.FieldError) string {
+	switch fe.Tag() {
+	// validation tag for api token name
+	case "validate-api-token-name":
+		return fmt.Sprintf(
+			"%s must start and end with a lowercase letter or digit; may only contain lowercase letters, digits, '_' or '-' (no spaces or commas)",
+			fe.Field(),
+		)
+
+	// if a certain validator tag is not included in switch case then,
+	// we will parse the error as generic validator error,
+	// and further divide them on basis of parametric and non-parametric validation tags
+	default:
+		if fe.Param() != "" {
+			// generic parametric fallback (e.g., min=3, max=50)
+			return fmt.Sprintf("%s failed validation rule '%s=%s'", fe.Field(), fe.Tag(), fe.Param())
+		}
+		// generic non-parametric fallback (e.g., required, email, uuid)
+		return fmt.Sprintf("%s failed validation rule '%s'", fe.Field(), fe.Tag())
+	}
 }

@@ -127,6 +127,120 @@ func WriteJsonResp(w http.ResponseWriter, err error, respBody interface{}, statu
 
 }
 
+// This version will have more cases handled for like for 409(till now)
+// can be used in multiple places for suitable status code in response
+// Made a new version for backwards compatibility
+func WriteJsonRespV2(w http.ResponseWriter, err error, respBody interface{}, status int) {
+	response := Response{}
+	if err == nil {
+		response.Result = respBody
+	} else if apiErr, ok := err.(*util.ApiError); ok {
+		response.Errors = []*util.ApiError{apiErr}
+		if apiErr.HttpStatusCode != 0 {
+			status = apiErr.HttpStatusCode
+		}
+	} else if validationErrs, ok := err.(validator.ValidationErrors); ok {
+		var valErrors []*util.ApiError
+		for _, validationErr := range validationErrs {
+			//validationErr
+			valErr := &util.ApiError{
+				UserMessage:     fmt.Sprint(validationErr),
+				InternalMessage: fmt.Sprint(validationErr),
+			}
+			valErrors = append(valErrors, valErr)
+		}
+		response.Errors = valErrors
+	} else if util.IsErrNoRows(err) {
+		status = http.StatusNotFound
+		// Try to extract resource context from respBody for better error messages
+		resourceType, resourceId := extractResourceContext(respBody)
+		if resourceType != "" && resourceId != "" {
+			// Create context-aware resource not found error
+			apiErr := util.NewResourceNotFoundError(resourceType, resourceId)
+			response.Errors = []*util.ApiError{apiErr}
+		} else {
+			// Fallback to generic not found error (no more "pg: no rows in result set")
+			apiErr := util.NewGenericResourceNotFoundError()
+			response.Errors = []*util.ApiError{apiErr}
+		}
+	} else if util.IsResourceConflictError(err) {
+		// Handles response for error due to resource with the same identifier already exists.
+		status = http.StatusConflict
+		// Try to extract resource context from respBody for better error messages
+		resourceType, resourceId := extractResourceContext(respBody)
+		if resourceType != "" && resourceId != "" {
+			// Create context-aware resource duplicate error
+			apiErr := util.NewDuplicateResourceError(resourceType, resourceId)
+			response.Errors = []*util.ApiError{apiErr}
+		} else {
+			// Fallback to generic resource duplicate error
+			apiErr := util.NewGenericDuplicateResourceError()
+			response.Errors = []*util.ApiError{apiErr}
+		}
+	} else if multiErr, ok := err.(*multierror.Error); ok {
+		var errorsResp []*util.ApiError
+		for _, e := range multiErr.Errors {
+			errorResp := &util.ApiError{
+				UserMessage:     e.Error(),
+				InternalMessage: e.Error(),
+			}
+			errorsResp = append(errorsResp, errorResp)
+		}
+		response.Errors = errorsResp
+	} else if errStatus, ok := err.(*errors2.StatusError); ok {
+		apiErr := &util.ApiError{}
+		apiErr.Code = strconv.Itoa(int(errStatus.ErrStatus.Code))
+		apiErr.InternalMessage = errStatus.Error()
+		apiErr.UserMessage = errStatus.Error()
+		response.Errors = []*util.ApiError{apiErr}
+	} else if unexpectedObjectError, ok := err.(*errors2.UnexpectedObjectError); ok {
+		apiErr := &util.ApiError{}
+		apiErr.InternalMessage = unexpectedObjectError.Error()
+		apiErr.UserMessage = unexpectedObjectError.Error()
+		response.Errors = []*util.ApiError{apiErr}
+	} else {
+		apiErr := &util.ApiError{}
+		apiErr.Code = "000" // 000=unknown
+		apiErr.InternalMessage = errors.Details(err)
+		if respBody != nil {
+			apiErr.UserMessage = respBody
+		} else {
+			apiErr.UserMessage = err.Error()
+		}
+		response.Errors = []*util.ApiError{apiErr}
+	}
+	response.Code = status //TODO : discuss with prashant about http status header
+	response.Status = http.StatusText(status)
+
+	b, err := json.Marshal(response)
+	if err != nil {
+		util.GetLogger().Errorw("error in marshaling err object", "err", err)
+		status = 500
+
+		response := Response{}
+		apiErr := &util.ApiError{}
+		apiErr.Code = "0000" // 000=unknown
+		apiErr.InternalMessage = errors.Details(err)
+		apiErr.UserMessage = "response marshaling error"
+		response.Errors = []*util.ApiError{apiErr}
+		b, err = json.Marshal(response)
+		if err != nil {
+			b = []byte("response marshaling error")
+			util.GetLogger().Errorw("Unexpected error in apiError", "err", err)
+		}
+	}
+	if status > 299 || err != nil {
+		util.GetLogger().Infow("ERROR RES", "TYPE", "API-ERROR", "RES", response.Code, "err", err)
+	}
+	w.Header().Set(CONTENT_TYPE, APPLICATION_JSON)
+	w.WriteHeader(status)
+	_, err = w.Write(b)
+	if err != nil {
+		util.GetLogger().Error(err)
+	}
+
+}
+
 // global response body used across api
 type Response struct {
 	Code   int              `json:"code,omitempty"`

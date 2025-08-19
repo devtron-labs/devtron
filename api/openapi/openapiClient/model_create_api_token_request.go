@@ -18,11 +18,11 @@ import (
 // CreateApiTokenRequest struct for CreateApiTokenRequest
 type CreateApiTokenRequest struct {
 	// Name of api-token
-	Name *string `json:"name,omitempty,notnull" validate:"required"`
+	Name *string `json:"name,omitempty" validate:"required,min=3,max=50,validate-api-token-name"`
 	// Description of api-token
-	Description *string `json:"description,omitempty,notnull" validate:"required"`
+	Description *string `json:"description,omitempty,notnull" validate:"required,max=350"`
 	// Expiration time of api-token in milliseconds
-	ExpireAtInMs *int64 `json:"expireAtInMs,omitempty"`
+	ExpireAtInMs *int64 `json:"expireAtInMs,omitempty" validate:"required,gt=0"`
 }
 
 // NewCreateApiTokenRequest instantiates a new CreateApiTokenRequest object
@@ -187,5 +187,3 @@ func (v *NullableCreateApiTokenRequest) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-
