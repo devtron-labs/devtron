@@ -1,6 +1,6 @@
 openapi: "3.0.2"
 info:
-  title: "Global Plugin Management"
+  title: "Global Plugin Discovery"
   description: >-
     Provide functionality to user to use plugins in pre/post ci steps.
   version: "1.0.0"
@@ -96,54 +96,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/plugin/global/{pluginId}:
-    get:
-      description: Get plugin by Id
-      operationId: GetPluginById
-      parameters:
-        - name: pluginId
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: appId
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Successfully return detail of the plugin
-          content:
-            application/json:
-              schema:
-                properties:
-                  code:
-                    type: integer
-                    description: status code
-                  status:
-                    type: string
-                    description: status
-                  result:
-                    $ref: '#/components/schemas/PluginDetailDto'
-        '400':
-          description: Bad Request. Input Validation error/wrong request body.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Unauthorized User
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+
   /orchestrator/plugin/global/list/filter/options:
     get:
       description: Get list of all filter options for plugins, i.e. tags and types
