@@ -118,7 +118,7 @@ func (impl ApiTokenRestHandlerImpl) CreateApiToken(w http.ResponseWriter, r *htt
 	res, err := impl.apiTokenService.CreateApiToken(request, userId, impl.checkManagerAuth)
 	if err != nil {
 		impl.logger.Errorw("service err, CreateApiToken", "err", err, "payload", request)
-		common.WriteJsonRespV2(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
