@@ -20,9 +20,9 @@ type CreateApiTokenRequest struct {
 	// Name of api-token
 	Name *string `json:"name,omitempty" validate:"required,min=3,max=50,validate-api-token-name"`
 	// Description of api-token
-	Description *string `json:"description,omitempty,notnull" validate:"required,max=350"`
+	Description *string `json:"description,omitempty,notnull" validate:"max=350"`
 	// Expiration time of api-token in milliseconds
-	ExpireAtInMs *int64 `json:"expireAtInMs,omitempty" validate:"required,gt=0"`
+	ExpireAtInMs *int64 `json:"expireAtInMs,omitempty" validate:"gte=0"`
 }
 
 // NewCreateApiTokenRequest instantiates a new CreateApiTokenRequest object
