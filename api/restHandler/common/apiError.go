@@ -63,6 +63,20 @@ func WriteJsonResp(w http.ResponseWriter, err error, respBody interface{}, statu
 			apiErr := util.NewGenericResourceNotFoundError()
 			response.Errors = []*util.ApiError{apiErr}
 		}
+	} else if util.IsResourceConflictError(err) {
+		// Handles response for error due to resource with the same identifier already exists.
+		status = http.StatusConflict
+		// Try to extract resource context from respBody for better error messages
+		resourceType, resourceId := extractResourceContext(respBody)
+		if resourceType != "" && resourceId != "" {
+			// Create context-aware resource duplicate error
+			apiErr := util.NewDuplicateResourceError(resourceType, resourceId)
+			response.Errors = []*util.ApiError{apiErr}
+		} else {
+			// Fallback to generic resource duplicate error
+			apiErr := util.NewGenericDuplicateResourceError()
+			response.Errors = []*util.ApiError{apiErr}
+		}
 	} else if multiErr, ok := err.(*multierror.Error); ok {
 		var errorsResp []*util.ApiError
 		for _, e := range multiErr.Errors {

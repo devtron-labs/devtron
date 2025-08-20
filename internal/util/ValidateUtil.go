@@ -107,6 +107,7 @@ func IntValidator() (*validator.Validate, error) {
 	if err != nil {
 		return v, err
 	}
+	err = v.RegisterValidation("validate-api-token-name", validateApiTokenName)
 	return v, err
 }
 
@@ -137,6 +138,12 @@ func validateDockerImage(fl validator.FieldLevel) bool {
 func validateGlobalEntityName(fl validator.FieldLevel) bool {
 	// ^[a-z0-9]+(?:[-._]+[a-z0-9]+)*$
 	hostnameRegexString := `^[a-z0-9]+(?:[-._]+[a-z0-9]+)*$`
+	hostnameRegexRFC952 := regexp.MustCompile(hostnameRegexString)
+	return hostnameRegexRFC952.MatchString(fl.Field().String())
+}
+
+func validateApiTokenName(fl validator.FieldLevel) bool {
+	hostnameRegexString := `^[a-z0-9][a-z0-9_-]*[a-z0-9]$`
 	hostnameRegexRFC952 := regexp.MustCompile(hostnameRegexString)
 	return hostnameRegexRFC952.MatchString(fl.Field().String())
 }

@@ -313,7 +313,7 @@ func (impl ApiTokenServiceImpl) UpdateApiToken(apiTokenId int, request *openapi.
 		return nil, err
 	}
 	if apiToken == nil || apiToken.Id == 0 {
-		return nil, errors.New(fmt.Sprintf("api-token corresponds to apiTokenId '%d' is not found", apiTokenId))
+		return nil, pg.ErrNoRows
 	}
 
 	previousTokenVersion := apiToken.Version
@@ -361,7 +361,7 @@ func (impl ApiTokenServiceImpl) DeleteApiToken(apiTokenId int, deletedBy int32) 
 		return nil, err
 	}
 	if apiToken == nil || apiToken.Id == 0 {
-		return nil, errors.New(fmt.Sprintf("api-token corresponds to apiTokenId '%d' is not found", apiTokenId))
+		return nil, pg.ErrNoRows
 	}
 
 	apiToken.ExpireAtInMs = time.Now().UnixMilli()
