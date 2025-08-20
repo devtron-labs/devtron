@@ -1,0 +1,66 @@
+openapi: 3.0.3
+
+servers:
+  - url: 'http://127.0.0.1:8080'
+
+info:
+  title: Environment Variables List
+  description: >-
+    API SPEC for server side environment variables list
+  version: 1.0.1
+  license:
+    name: Apache-2.0
+    url: 'https://www.apache.org/licenses/LICENSE-2.0.html'
+
+tags:
+  - name: environment-variable-list
+    description: Get Server Side Environment Variables List
+
+paths:
+  /orchestrator/global/environment-variables:
+    get:
+      description: server side environment variables list
+      tags:
+        - environment-variable-list
+      summary: Get Server Side Environment Variables List
+      operationId: EnvironmentVariableList
+
+      responses:
+        "200":
+          description: Successfully fetch all active mandatory plugin policies
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvironmentVariableList"
+
+# Components
+components:
+  schemas:
+    EnvironmentVariableList:
+      type: object
+      properties:
+        featureGitOpsFlags:
+          type: object
+          description: |
+              featureGitOpsFlags is a object to check the gitops feature flags
+          properties:
+            isFeatureGitOpsEnabled:
+              type: boolean
+              description: |
+                  feature flag to check if the gitops feature is enabled or not. If enabled, then the global gitops configuration will be allowed.
+            isFeatureUserDefinedGitOpsEnabled:
+              type: boolean
+              description: |
+                  feature flag to check if directory management feature is enabled for gitops or not. If enabled, then the user defined gitops configuration will be allowed.
+            isFeatureArgoCdMigrationEnabled:
+              type: boolean
+              description: |
+                  feature flag to check if the argocd migration feature is enabled or not. If enabled, then migrate argocd application will be allowed.
+        isAirGapEnvironment:
+          type: boolean
+          description: |
+            isAirGapEnvironment is a boolean flag to check if the environment is air gap or not
+        isManifestScanningEnabled:
+            type: boolean
+            description: |
+              isManifestScanningEnabled is a boolean flag to check if the manifest scanning is enabled or not

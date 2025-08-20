@@ -1,0 +1,505 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Authentication API
+  description: Devtron API for authentication and authorization
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Labs
+    email: support@devtron.ai
+    url: https://devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: http://localhost:8080
+paths:
+  /orchestrator/api/dex/{path}:
+    get:
+      tags:
+        - Authentication
+      summary: Dex Proxy (Informational)
+      description: Proxies requests to the Dex IdP. Handled by the Dex proxy mechanism.
+      operationId: DexProxyHandler
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+        - name: path
+          in: path
+          required: true
+          description: Path to be proxied to Dex.
+          schema:
+            type: string
+      responses:
+        default:
+          description: Response from Dex.
+      security: []
+
+  /orchestrator/api/v1/session:
+    post:
+      tags:
+        - Authentication
+      summary: User Login
+      description: Authenticate user and create a session.
+      operationId: UserLogin
+      requestBody:
+        description: Login credentials
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  description: Username or email
+                password:
+                  type: string
+                  description: User password
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: Authentication token
+                  userInfo:
+                    type: object
+                    description: User information
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /orchestrator/auth/callback:
+    get:
+      tags:
+        - Authentication
+      summary: OIDC Callback (Informational)
+      description: Handles OIDC callback from identity provider.
+      operationId: OIDCCallback
+      parameters:
+        - name: code
+          in: query
+          required: false
+          description: Authorization code from OIDC provider
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          description: State parameter for OIDC flow
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to application
+        '400':
+          description: Invalid callback parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /orchestrator/auth/login:
+    get:
+      tags:
+        - Authentication
+      summary: OIDC Login Redirect (Informational - Alternate Path)
+      description: Redirects to OIDC provider for authentication.
+      operationId: OIDCLoginRedirect
+      responses:
+        '302':
+          description: Redirect to OIDC provider
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /orchestrator/login:
+    get:
+      tags:
+        - Authentication
+      summary: OIDC Login Redirect (Informational)
+      description: Redirects to OIDC provider for authentication.
+      operationId: OIDCLogin
+      responses:
+        '302':
+          description: Redirect to OIDC provider
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /orchestrator/devtron/auth/verify:
+    get:
+      tags:
+        - Authentication
+      summary: Verify Authentication Status
+      description: Verify if the current user is authenticated.
+      operationId: VerifyAuth
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Authentication verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  authenticated:
+                    type: boolean
+                    description: Authentication status
+                  userInfo:
+                    type: object
+                    description: User information
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /devtron/auth/verify/v2:
+    get:
+      tags:
+        - Authentication
+      summary: Verify Authentication Status (V2)
+      description: Verify if the current user is authenticated (V2).
+      operationId: VerifyAuthV2
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Authentication verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  authenticated:
+                    type: boolean
+                    description: Authentication status
+                  userInfo:
+                    type: object
+                    description: User information
+                  permissions:
+                    type: array
+                    items:
+                      type: string
+                    description: User permissions
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /orchestrator/refresh:
+    get:
+      tags:
+        - Authentication
+      summary: Refresh Session Token
+      description: Refresh the authentication token.
+      operationId: RefreshToken
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Current authentication token.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: New authentication token
+                  expiresAt:
+                    type: string
+                    format: date-time
+                    description: Token expiration time
+        '401':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /orchestrator/user/check/roles:
+    get:
+      tags:
+        - Authentication
+      summary: Check Logged-in User's Roles
+      description: Check the roles and permissions of the currently logged-in user.
+      operationId: CheckUserRoles
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User roles retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  roles:
+                    type: array
+                    items:
+                      type: string
+                    description: User roles
+                  permissions:
+                    type: array
+                    items:
+                      type: string
+                    description: User permissions
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /orchestrator/user/role/cache:
+    get:
+      tags:
+        - Authentication
+      summary: Get Role Cache Dump
+      description: Get the current role cache dump for debugging purposes.
+      operationId: GetRoleCache
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Role cache retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cache:
+                    type: object
+                    description: Role cache data
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /orchestrator/user/role/cache/invalidate:
+    get:
+      tags:
+        - Authentication
+      summary: Invalidate Role Cache
+      description: Invalidate the role cache to force refresh.
+      operationId: InvalidateRoleCache
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Role cache invalidated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Operation success status
+                  message:
+                    type: string
+                    description: Success message
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /orchestrator/rbac/roles/default:
+    get:
+      tags:
+        - Authentication
+      summary: Get All Default Roles
+      description: Get all default roles available in the system.
+      operationId: GetDefaultRoles
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Default roles retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  roles:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          description: Role ID
+                        name:
+                          type: string
+                          description: Role name
+                        description:
+                          type: string
+                          description: Role description
+                        permissions:
+                          type: array
+                          items:
+                            type: string
+                          description: Role permissions
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message
+        details:
+          type: array
+          items:
+            type: string
+          description: Additional error details

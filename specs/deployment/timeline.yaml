@@ -1,0 +1,154 @@
+openapi: "3.0.0"
+info:
+  title: Pipeline Status Timeline API
+  version: "1.0"
+paths:
+  /orchestrator/app/deployment-status/timeline/{appId}/{envId}:
+    get:
+      description: Get all timelines of a deployment trigger
+      operationId: GetPipelineStatusTimelines
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the application
+        - name: envId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the environment
+        - name: wfrId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: ID of the workflow runner. If not provided, latest workflow runner will be used
+        - name: showTimeline
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Whether to show detailed timeline information
+      responses:
+        '200':
+          description: Successfully returns deployment timeline status of a pipeline
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineTimelineDetailDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    PipelineTimelineDetailDto:
+      type: object
+      properties:
+        deploymentStartedOn:
+          type: string
+          format: date-time
+          description: Time when the deployment started
+        deploymentFinishedOn:
+          type: string
+          format: date-time
+          description: Time when the deployment finished
+        triggeredBy:
+          type: string
+          description: Email ID of the user who triggered the deployment
+        timelines:
+          type: array
+          items:
+            $ref: '#/components/schemas/PipelineStatusTimelineDto'
+          description: List of timeline events
+        statusLastFetchedAt:
+          type: string
+          format: date-time
+          description: Last time when the status was fetched
+        statusFetchCount:
+          type: integer
+          description: Number of times status has been fetched
+        wfrStatus:
+          type: string
+          description: Status of the workflow runner
+        deploymentAppDeleteRequest:
+          type: boolean
+          description: Whether the deployment app delete request is pending
+    PipelineStatusTimelineDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the timeline event
+        installedAppVersionHistoryId:
+          type: integer
+          description: ID of the installed app version history (for Helm apps)
+        cdWorkflowRunnerId:
+          type: integer
+          description: ID of the CD workflow runner
+        status:
+          type: string
+          description: Status of the timeline event
+        statusDetail:
+          type: string
+          description: Detailed status message
+        statusTime:
+          type: string
+          format: date-time
+          description: Time when the status was recorded
+        resourceDetails:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyncStageResourceDetailDto'
+          description: Details of resources being synced
+    SyncStageResourceDetailDto:
+      type: object
+      properties:
+        resourceName:
+          type: string
+          description: Name of the resource
+        resourceKind:
+          type: string
+          description: Kind of the resource
+        resourceGroup:
+          type: string
+          description: Group of the resource
+        resourceStatus:
+          type: string
+          description: Status of the resource
+        statusMessage:
+          type: string
+          description: Status message for the resource
+        resourcePhase:
+          type: string
+          description: Phase of the resource (e.g. Sync, PreSync, PostSync)
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        message:
+          type: string
+          description: Error message
+        userDetailedMessage:
+          type: string
+          description: Detailed error message for the user
