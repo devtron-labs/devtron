@@ -55,12 +55,47 @@ paths:
 
           description: Api-token creation response
         "400":
-          description: Bad request - validation error or name cannot be blank
-
+          description: Bad request - validation error
           content:
             application/json:
-                          schema:
-                            $ref: "#/components/schemas/ErrorResponse"
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalid_name:
+                  summary: Invalid name field
+                  value:
+                    code: 400
+                    message: "name field cannot contain spaces or commas"
+                name_too_long:
+                  summary: Name too long
+                  value:
+                    code: 400
+                    message: "name field cannot exceed 100 characters"
+                description_too_long:
+                  summary: Description too long
+                  value:
+                    code: 400
+                    message: "description field cannot exceed 350 characters"
+                invalid_expiration:
+                  summary: Invalid expiration time
+                  value:
+                    code: 400
+                    message: "expireAtInMs must be a positive timestamp in milliseconds"
+                past_expiration:
+                  summary: Expiration in the past
+                  value:
+                    code: 400
+                    message: "expireAtInMs cannot be in the past"
+                future_expiration_too_far:
+                  summary: Expiration too far in future
+                  value:
+                    code: 400
+                    message: "expireAtInMs cannot be more than 10 years in the future"
+                invalid_json:
+                  summary: Invalid JSON payload
+                  value:
+                    code: 400
+                    message: "invalid JSON payload"
         "401":
           description: Unauthorized user
 
@@ -393,31 +428,32 @@ components:
       type: object
     CreateApiTokenRequest:
       example:
-        expireAtInMs: 12344546
-        name: some name
-        description: some description
+        expireAtInMs: 1735689600000
+        name: "my-api-token"
+        description: "API token for external integrations"
       properties:
         name:
-          description: Name of api-token
-
+          description: Name of api-token (max 100 characters, no spaces or commas allowed)
           nullable: false
           type: string
-          example: "some name"
+          example: "my-api-token"
+          maxLength: 100
         description:
-          description: Description of api-token
-
+          description: Description of api-token (max 350 characters)
           nullable: false
           type: string
-          example: "some description"
+          example: "API token for external integrations"
+          maxLength: 350
         expireAtInMs:
-          description: Expiration time of api-token in milliseconds
-
+          description: Expiration time of api-token in milliseconds (optional, if not provided defaults to 1 year from creation)
           format: int64
           type: integer
-          example: "12344546"
+          example: 1735689600000
+          minimum: 0
       type: object
       required:
         - name
+        - description
     UpdateApiTokenRequest:
       example:
         expireAtInMs: 12344546

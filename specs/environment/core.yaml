@@ -376,6 +376,64 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       security: []
+    delete:
+      tags:
+        - Environment Management
+      summary: Delete Environment
+      description: Delete an environment.
+      operationId: DeleteEnvironment
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+        - name: id
+          in: query
+          required: true
+          description: Environment ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Environment deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Deletion success status
+                  message:
+                    type: string
+                    description: Success message
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Environment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
     get:
       tags:
         - Environment Management
@@ -676,3 +734,19 @@ components:
         updated_by:
           type: string
           description: Last updater's name
+
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 404
+        message:
+          type: string
+          example: "Resource not found"
+        details:
+          type: array
+          items:
+            type: string
+          example: ["Resource not found in the system"]

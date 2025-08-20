@@ -317,15 +317,10 @@ tags:
 paths:
   /orchestrator/core/v1beta1/application:
     post:
-      tags:
-        - Applications
-      summary: Create a new application
-      description: Creates a new application in the Devtron system with the provided configuration.
-      operationId: createApplication
-      security:
-        - bearerAuth: []
+      description: Creates a new app for the configurations provided. The input json object is the same we get in response of GET method for fetching all details of an app
+      operationId: CreateApp
       requestBody:
-        description: Application creation request
+        description: A JSON object containing the app configuration
         required: true
         content:
           application/json:
@@ -333,31 +328,35 @@ paths:
               $ref: '#/components/schemas/CreateAppRequest'
       responses:
         '200':
-          description: Application created successfully
+          description: Successfully created the application
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    description: HTTP status code
+                  status:
+                    type: string
+                    description: Status message
+                  result:
+                    type: string
+                    description: Success message
         '400':
-          description: Invalid request format or missing required fields
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiError'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiError'
-        '409':
-          description: Application with the same name already exists
+          description: Bad Request. Validation error/wrong request body.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
         '500':
-          description: Internal server error
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '403':
+          description: Unauthorized User
           content:
             application/json:
               schema:
@@ -613,255 +612,3 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
-  /orchestrator/app/autocomplete:
-    get:
-      tags:
-        - Applications
-      summary: List application autocomplete
-      description: list of namespaces group by clusters
-      operationId: listAppAutocomplete
-      parameters:
-        - name: token
-          in: header
-          required: true
-          description: Authentication token.
-          schema:
-            type: string
-        - in: query
-          name: appName
-          example: "abc"
-          description: app name, wildcard query
-          required: false
-          allowEmptyValue: true
-          schema:
-            type: string
-        - in: query
-          name: teamId
-          example: 1
-          description: project id
-          required: false
-          allowEmptyValue: false
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: list response
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  code:
-                    type: integer
-                    description: status code
-                  status:
-                    type: string
-                    description: status
-                  result:
-                    type: array
-                    description: app list
-                    items:
-                      type: object
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      security: []
-
-  /orchestrator/app/workflow:
-    post:
-      tags:
-        - Workflow Management
-      summary: Create an application workflow
-      description: Creates a new workflow for a given application.
-      operationId: CreateAppWorkflow
-      parameters:
-        - name: token
-          in: header
-          required: true
-          description: Authentication token.
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AppWorkflowDto'
-      responses:
-        '200':
-          description: Successfully created workflow.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AppWorkflowDto'
-        '400':
-          description: Bad Request. Validation error or wrong request body.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Unauthorized User.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '403':
-          description: Forbidden.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      security: []
-
-  /orchestrator/app/workflow/clone:
-    post:
-      tags:
-        - Clone Workflow
-      summary: Clone Application Workflow
-      description: Clone an existing application workflow.
-      operationId: CloneAppWorkflow
-      parameters:
-        - name: token
-          in: header
-          required: true
-          description: Authentication token.
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                sourceAppId:
-                  type: integer
-                  description: Source application ID to clone from
-                targetAppId:
-                  type: integer
-                  description: Target application ID to clone to
-                workflowName:
-                  type: string
-                  description: Name for the cloned workflow
-      responses:
-        '200':
-          description: Successfully cloned workflow.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AppWorkflowDto'
-        '400':
-          description: Bad Request.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Unauthorized.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Source workflow not found.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      security: []
-
-  /orchestrator/app/workflow/{app-wf-id}/app/{app-id}:
-    delete:
-      tags:
-        - Workflow Management
-      summary: Delete an application workflow
-      description: Delete an application workflow by workflow ID and app ID.
-      operationId: DeleteAppWorkflow
-      parameters:
-        - name: token
-          in: header
-          required: true
-          description: Authentication token.
-          schema:
-            type: string
-        - name: app-wf-id
-          in: path
-          required: true
-          description: Application workflow ID
-          schema:
-            type: integer
-        - name: app-id
-          in: path
-          required: true
-          description: Application ID
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Successfully deleted workflow.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    description: Deletion success status
-                  message:
-                    type: string
-                    description: Success message
-        '400':
-          description: Bad Request.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Unauthorized.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Workflow not found.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      security: []
-

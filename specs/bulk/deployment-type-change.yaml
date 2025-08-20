@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   version: 1.0.0
-  title: Application Type Change API
+  title: Bulk Deployment Type Change API
 paths:
   /orchestrator/app/cd-pipeline/patch/deployment:
     post:

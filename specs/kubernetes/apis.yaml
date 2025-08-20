@@ -24,6 +24,157 @@ components:
       bearerFormat: JWT
       description: JWT token for authentication
   schemas:
+    ResourceInfo:
+      type: object
+      required:
+        - podName
+      properties:
+        podName:
+          type: string
+          description: pod name
+
+    ResourceRequestBean:
+      type: object
+      properties:
+        appId:
+          type: integer
+          description: application id
+        k8sRequest:
+          $ref: '#/components/schemas/K8sRequestDto'
+
+    K8sRequestDto:
+      type: object
+      properties:
+        resourceIdentifier:
+          $ref: '#/components/schemas/ResourceIdentifier'
+        patch:
+          type: string
+          description: patch data for update operations
+
+    ResourceIdentifier:
+      type: object
+      properties:
+        name:
+          type: string
+          description: resource name
+        namespace:
+          type: string
+          description: resource namespace
+        groupVersionKind:
+          $ref: '#/components/schemas/GroupVersionKind'
+      required:
+        - name
+                - namespace
+                - groupVersionKind
+
+    GroupVersionKind:
+      type: object
+      properties:
+        group:
+          type: string
+          description: API group
+        version:
+          type: string
+          description: API version
+        kind:
+          type: string
+          description: resource kind
+      required:
+        - group
+                - version
+                - kind
+
+    ManifestResponse:
+      type: object
+      properties:
+        manifest:
+          description: Kubernetes manifest
+          type: string
+        success:
+          type: boolean
+          description: operation success status
+        ephemeralContainers:
+          type: array
+          items:
+            $ref: '#/components/schemas/EphemeralContainer'
+          description: List of ephemeral containers
+
+    K8sApiResource:
+      type: object
+      properties:
+        gvk:
+          $ref: '#/components/schemas/GroupVersionKind'
+        gvr:
+          $ref: '#/components/schemas/GroupVersionResource'
+        namespaced:
+          type: boolean
+          description: whether resource is namespaced
+
+    GroupVersionResource:
+      type: object
+      properties:
+        group:
+          type: string
+          description: API group
+        version:
+          type: string
+          description: API version
+        resource:
+          type: string
+          description: resource name
+
+    ApplyResourcesRequest:
+      type: object
+      properties:
+        clusterId:
+          type: integer
+          description: Cluster ID
+        manifest:
+          type: string
+          description: Kubernetes manifest YAML
+        namespace:
+          type: string
+          description: Target namespace
+
+    ApplyResourcesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Operation success status
+        message:
+          type: string
+          description: Response message
+        resourceName:
+          type: string
+          description: Name of the resource
+        kind:
+          type: string
+          description: Resource kind
+
+    RotatePodsRequest:
+      type: object
+      properties:
+        clusterId:
+          type: integer
+          description: Cluster ID
+        namespace:
+          type: string
+          description: Namespace
+        deploymentName:
+          type: string
+          description: Deployment name to rotate pods
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message
+
     ResourceRequestObject:
           type: object
           required:
@@ -55,37 +206,8 @@ components:
         patch:
           type: string
           description: JSON patch for update operations
-    ResourceIdentifier:
-      type: object
-      required:
-        - name
-        - namespace
-        - groupVersionKind
-      properties:
-        name:
-          type: string
-          description: Resource name
-        namespace:
-          type: string
-          description: Resource namespace
-        groupVersionKind:
-          $ref: '#/components/schemas/GroupVersionKind'
-    GroupVersionKind:
-      type: object
-      required:
-        - group
-        - version
-        - kind
-      properties:
-        group:
-          type: string
-          description: API group
-        version:
-          type: string
-          description: API version
-        kind:
-          type: string
-          description: Resource kind
+
+
     AppIdentifier:
       type: object
       required:
@@ -126,17 +248,7 @@ components:
         secretViewAccess:
           type: boolean
           description: Whether user has access to view secrets
-    ManifestResponse:
-      type: object
-      properties:
-        manifest:
-          type: string
-          description: Resource manifest in YAML format
-        ephemeralContainers:
-          type: array
-          items:
-            $ref: '#/components/schemas/EphemeralContainer'
-          description: List of ephemeral containers
+
     EphemeralContainer:
       type: object
       properties:
@@ -284,7 +396,7 @@ paths:
           description: Forbidden
         "500":
           description: Internal server error
-  /k8s/resource/create:
+  /orchestrator/k8s/resource/create:
     post:
       summary: Create Kubernetes resource
       description: Creates a new Kubernetes resource
@@ -310,7 +422,7 @@ paths:
           description: Forbidden
         "500":
           description: Internal server error
-  /k8s/resource/delete:
+  /orchestrator/k8s/resource/delete:
     post:
       summary: Delete Kubernetes resource
       description: Deletes a Kubernetes resource
@@ -336,7 +448,7 @@ paths:
           description: Forbidden
         "500":
           description: Internal server error
-  /k8s/events:
+  /orchestrator/k8s/events:
     post:
       summary: Get Kubernetes events
       description: Fetches events for Kubernetes resources
@@ -362,7 +474,7 @@ paths:
           description: Forbidden
         "500":
           description: Internal server error
-  /k8s/pods/logs/{podName}:
+  /orchestrator/k8s/pods/logs/{podName}:
     get:
       summary: Get pod logs
       description: Fetches logs for a container in a pod
@@ -421,7 +533,7 @@ paths:
           description: Forbidden
         "500":
           description: Internal server error
-  /k8s/pod/exec/session/{identifier}/{namespace}/{pod}/{shell}/{container}:
+  /orchestrator/k8s/pod/exec/session/{identifier}/{namespace}/{pod}/{shell}/{container}:
     get:
       summary: Get terminal session
       description: Gets a terminal session for a pod
@@ -478,7 +590,7 @@ paths:
           description: Forbidden
         "500":
           description: Internal server error
-  /k8s/api-resources/{clusterId}:
+  /orchestrator/k8s/api-resources/{clusterId}:
     get:
       summary: Get API resources
       description: Gets all API resources for a given cluster
@@ -506,7 +618,7 @@ paths:
           description: Forbidden
         "500":
           description: Internal server error
-  /k8s/resource/list:
+  /orchestrator/k8s/resource/list:
     post:
       summary: List resources
       description: Lists Kubernetes resources
@@ -532,3 +644,159 @@ paths:
           description: Forbidden
         "500":
           description: Internal server error
+
+  /orchestrator/k8s/resource/inception/info:
+    get:
+      description: Get inception pod info, such as pod name
+      responses:
+        "200":
+          description: this api give you inception pod info, such as pod name
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/ResourceInfo'
+
+
+
+  /orchestrator/k8s/resource/urls:
+    get:
+      description: Get host URLs by batch
+      parameters:
+        - name: appId
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: appType
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Host URLs
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    items:
+                      type: string
+
+  /orchestrator/k8s/resources/apply:
+    post:
+      tags:
+        - K8s Resource
+      summary: Apply Resources
+      description: This API is used to apply (create or update) Kubernetes resources in a cluster.
+      operationId: applyResources
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      requestBody:
+        description: JSON payload containing the manifest of resources to apply.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplyResourcesRequest'
+      responses:
+        "200":
+          description: Response array indicating the status of application for each resource.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApplyResourcesResponse'
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/k8s/resources/rotate:
+    post:
+      tags:
+        - K8s Resource
+      summary: Rotates the Pods
+      description: This API is used to rotate (restart) pods in a deployment.
+      operationId: rotatePods
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      requestBody:
+        description: JSON payload containing the details of pods to rotate.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RotatePodsRequest'
+      responses:
+        "200":
+          description: Pod rotation completed successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Operation success status
+                  message:
+                    type: string
+                    description: Success message
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

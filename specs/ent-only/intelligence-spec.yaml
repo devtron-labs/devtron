@@ -1,0 +1,33 @@
+openapi: "3.0.0"
+info:
+  title: Devtron Intelligence API
+  version: 1.0.0
+paths:
+  /orchestrator/intelligence:
+    post:
+      summary: Ask a question about the cluster
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ask:
+                  type: string
+                  example: "How many namespaces are there in this cluster?"
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: "There are 5 namespaces in this cluster."
+        '400':
+          description: Bad request
+        '500':
+          description: Internal server error

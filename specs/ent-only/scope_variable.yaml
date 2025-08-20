@@ -1,0 +1,144 @@
+openapi: 3.0.0
+info:
+  title: Scope Variables API
+  version: 1.0.0
+  description: API for managing scope variables across environments.
+
+servers:
+  - url: http://api.example.com
+
+paths:
+  /orchestrator/global/variables/summary:
+    get:
+      summary: Get scope variables for all environments
+      responses:
+        '200':
+          description: A list of scope variables for all environments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        envName:
+                          type: string
+                          example: nane
+                        clusterName:
+                          type: string
+                          example: faef
+                        variableCount:
+                          type: integer
+                          example: 23
+                        missingVariableCount:
+                          type: integer
+                          example: 4
+
+  /orchestrator/global/variables/filter:
+    get:
+      summary: Get scope variables for a specific environment
+      parameters:
+        - in: query
+          name: environment
+          required: true
+          schema:
+            type: string
+          description: environment Name
+      responses:
+        '200':
+          description: Scope variables for the specified environment
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        key:
+                          type: string
+                          example: key
+                        value:
+                          type: string
+                          example: "stringified \"nane"
+                        isMandatory:
+                          type: boolean
+                          example: false
+
+
+  /orchestrator/global/variables:
+    put:
+      summary: Update scope variables for a specific environment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                environment:
+                  type: string
+                  example: devtron-demo
+                data:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      key:
+                        type: string
+                        example: key
+                      value:
+                        type: string
+                        example: "stringified \"nane"
+      responses:
+        '200':
+          description: Scope variables updated successfully
+          content:
+            application/json:
+              schema:
+                type: string
+        '400':
+          description: Bad Request. Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+
+components:
+  schemas:
+    RuntimeParameters:
+      type: object
+      properties:
+        envVariables:
+          type: object
+          description: env variables need to be injected at runtime in ci, pre/post cd processes
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        message:
+          type: string
+          description: Error message

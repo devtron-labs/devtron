@@ -174,17 +174,21 @@ components:
       type: object
       required:
         - name
+        - description
       properties:
         name:
           type: string
-          description: Token name
+          description: Token name (max 100 characters, no spaces or commas allowed)
+          maxLength: 100
         description:
           type: string
-          description: Token description
+          description: Token description (max 350 characters)
+          maxLength: 350
         expireAtInMs:
           type: integer
           format: int64
-          description: Expiration time in milliseconds
+          description: Expiration time in milliseconds (optional, if not provided defaults to 1 year from creation)
+          minimum: 0
 
     UpdateApiTokenRequest:
       type: object

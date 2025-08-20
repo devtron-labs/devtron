@@ -1,6 +1,6 @@
 openapi: "3.0.3"
 info:
-  title: "Plugin System Integration - CI Stages"
+  title: "Global Plugin Management"
   description: |
     This API facilitates the management of plugins used in pre/post CI or CD steps,
     enhancing the customization and automation capabilities of CI/CD pipelines.

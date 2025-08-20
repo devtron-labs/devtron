@@ -1,7 +1,7 @@
 openapi: "3.0.0"
 info:
   version: 1.0.0
-  title: Historical Task definitions
+  title: Deployment History API
 paths:
   /orchestrator/app/history/deployed-component/detail/{appId}/{pipelineId}/{id}:
     get:
@@ -178,6 +178,97 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+
+  /orchestrator/resource/history/deployment/cd-pipeline/v1:
+    get:
+      tags:
+        - Deployment History
+      summary: Get Deployment History
+      description: Retrieves the deployment history for a specific CD pipeline based on various filter criteria.
+      operationId: getDeploymentHistory
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+        - name: filterCriteria
+          in: query
+          required: true
+          schema:
+            type: array
+            items:
+              type: string
+          description: |
+            Filter criteria for deployment history. Example:
+            - application/devtron-application|id|1064
+            - environment|id|146
+            - release|id|203
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: The starting point for fetching records (pagination).
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: The number of records to return (pagination).
+      responses:
+        '200':
+          description: Successful retrieval of deployment history.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  status:
+                    type: string
+                    example: "OK"
+                  result:
+                    type: object
+                    properties:
+                      cdWorkflows:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CdWorkflow'
+                      tagsEditable:
+                        type: boolean
+                        example: false
+                      appReleaseTagNames:
+                        type: array
+                        items:
+                          type: string
+                        example: [ ]
+                      hideImageTaggingHardDelete:
+                        type: boolean
+                        example: false
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: [ ]
+
 components:
   schemas:
     HistoryComponentDetailDto:
@@ -297,3 +388,180 @@ components:
         message:
           type: string
           description: Error message
+
+    CdWorkflow:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 19767
+        cd_workflow_id:
+          type: integer
+          example: 19576
+        name:
+          type: string
+          example: "cd-1064-nu4s"
+        status:
+          type: string
+          example: "Succeeded"
+        pod_status:
+          type: string
+          example: ""
+        message:
+          type: string
+          example: ""
+        started_on:
+          type: string
+          format: date-time
+          example: "2024-07-25T08:36:42.414376Z"
+        finished_on:
+          type: string
+          format: date-time
+          example: "2024-07-25T08:40:03.455303Z"
+        pipeline_id:
+          type: integer
+          example: 2082
+        namespace:
+          type: string
+          example: "devtron-cd"
+        log_file_path:
+          type: string
+          example: ""
+        triggered_by:
+          type: integer
+          example: 23
+        email_id:
+          type: string
+          example: "deepak@devtron.ai"
+        image:
+          type: string
+          example: "devtroninc.azurecr.io/test:8a0c2298-fc94fa4b-956-18655"
+        ci_artifact_id:
+          type: integer
+          example: 14593
+        workflow_type:
+          type: string
+          example: "DEPLOY"
+        blobStorageEnabled:
+          type: boolean
+          example: true
+        userApprovalMetadata:
+          type: object
+          nullable: true
+        gitTriggers:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/GitTrigger'
+        ciMaterials:
+          type: array
+          items:
+            $ref: '#/components/schemas/CiMaterial'
+
+    GitTrigger:
+      type: object
+      properties:
+        Commit:
+          type: string
+          example: "8a0c22983ae7acae10abe7569026ae25d889e159"
+        Author:
+          type: string
+          example: "jatin-jangir-0220 <122791251+jatin-jangir-0220@users.noreply.github.com>"
+        Date:
+          type: string
+          format: date-time
+          example: "2024-04-29T18:49:39Z"
+        Message:
+          type: string
+          example: "Update Dockerfile (#19)\n\n"
+        Changes:
+          type: string
+          nullable: true
+        WebhookData:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 0
+            eventActionType:
+              type: string
+              example: ""
+            data:
+              type: string
+              nullable: true
+        CiConfigureSourceValue:
+          type: string
+          example: "main"
+        GitRepoUrl:
+          type: string
+          example: "https://github.com/devtron-labs/casbin-enterprise"
+        GitRepoName:
+          type: string
+          example: "casbin-enterprise"
+        CiConfigureSourceType:
+          type: string
+          example: "SOURCE_TYPE_BRANCH_FIXED"
+
+    CiMaterial:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1013
+        gitMaterialId:
+          type: integer
+          example: 411
+        gitMaterialUrl:
+          type: string
+          example: ""
+        gitMaterialName:
+          type: string
+          example: "casbin-enterprise"
+        type:
+          type: string
+          example: "SOURCE_TYPE_BRANCH_FIXED"
+        value:
+          type: string
+          example: "main"
+        active:
+          type: boolean
+          example: true
+        lastFetchTime:
+          type: string
+          format: date-time
+          example: "0001-01-01T00:00:00Z"
+        isRepoError:
+          type: boolean
+          example: false
+        repoErrorMsg:
+          type: string
+          example: ""
+        isBranchError:
+          type: boolean
+          example: false
+        branchErrorMsg:
+          type: string
+          example: ""
+        url:
+          type: string
+          example: "https://github.com/devtron-labs/casbin-enterprise"
+        regex:
+          type: string
+          example: ""
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message
+        details:
+          type: array
+          items:
+            type: string
+          description: Additional error details

@@ -304,7 +304,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /cluster/saveClusters:
+  /orchestrator/cluster/saveClusters:
     post:
       summary: Save multiple clusters
       operationId: SaveClusters
@@ -350,7 +350,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /cluster/validate:
+  /orchestrator/cluster/validate:
     post:
       summary: Validate cluster configuration
       operationId: ValidateCluster
@@ -397,7 +397,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /cluster/namespaces/{clusterId}:
+  /orchestrator/cluster/namespaces/{clusterId}:
     get:
       summary: Get namespaces for a cluster
       operationId: GetClusterNamespaces
@@ -441,7 +441,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /cluster/namespaces:
+  /orchestrator/cluster/namespaces:
     get:
       summary: Get namespaces for all clusters
       operationId: GetAllClusterNamespaces
@@ -475,7 +475,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /cluster/auth-list:
+  /orchestrator/cluster/auth-list:
     get:
       summary: Get clusters with authentication details
       operationId: GetClustersWithAuth

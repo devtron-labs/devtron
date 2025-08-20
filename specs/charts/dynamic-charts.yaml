@@ -1,8 +1,8 @@
 openapi: "3.0.2"
 info:
-  title: "Plugin System Integration - CI stages"
+  title: "Chart Ref Autocomplete"
   description: >-
-    Provide functionality to user to use plugins in pre/post ci steps.
+    API for chart reference autocomplete for an application
   version: "1.0.0"
 
 paths:
