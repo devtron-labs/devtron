@@ -1,0 +1,151 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Runtime parameters
+paths:
+  /orchestrator/app/ci-pipeline/runtime-params:
+    get:
+      description: Get runtime parameters for a ci pipeline
+      operationId: GetCIRuntimeParams
+      parameters:
+        - name: pipelineId
+          in: query
+          description: CI pipeline Id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: successful fetch of all runtime parameters associated with the requested ci pipeline
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuntimeParameters'
+        '400':
+          description: Bad Request
+        '403':
+          description: Forbidden, received in case of unauthorised user
+        '500':
+          description: Internal Server Error
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    RuntimeParameters:
+      type: object
+      properties:
+        runtimePluginVariables:
+          $ref: '#/components/schemas/RuntimePluginVariables'
+        envVariables:
+          type: object
+          description: key value pair of env variables need to be injected at runtime in ci, pre/post cd processes
+
+    RuntimePluginVariables:
+      type: object
+      description: input variables need to be injected at runtime in ci, pre/post cd processes
+      properties:
+        name:
+          type: string
+          description: The name of the plugin variable.
+        format:
+          type: string
+          description: The format of the variable value.
+          enum:
+            - STRING
+            - NUMBER
+            - BOOL
+            - DATE
+          example:
+            - STRING
+        value:
+          type: string
+          description: for file type variable, value is the file name.
+        fileMountDir:
+          type: string
+          description: The directory where the file is mounted. required for file type variable.
+        fileReferenceId:
+          type: integer
+          description: The unique identifier of the value constraint.
+        variableStepScope:
+          type: string
+          enum:
+            - GLOBAL
+            - PIPELINE_STAGE
+          description: |
+            The scope of the variable.
+            GLOBAL: The variable is available at the global scope of the pipeline execution.
+            PIPELINE_STAGE: The variable is available at a pipeline task scope of the pipeline execution.
+        valueConstraint:
+          $ref: '#/components/schemas/ValueConstraint'
+        stepVariableId:
+          type: integer
+          description: The unique identifier of the plugin variable.
+        valueType:
+          type: string
+          description: The type of the runtime plugin variable value.
+          enum:
+            - NEW
+            - GLOBAL
+          example:
+            - NEW
+        refPluginId:
+          type: integer
+          description: The unique identifier of the plugin.
+        stepName:
+          type: string
+          description: The name of the step.
+        stepType:
+          type: string
+          description: The type of the step.
+          enum:
+            - INLINE
+            - REF_PLUGIN
+          example:
+            - INLINE
+        isRequired:
+          type: boolean
+          description: Indicates whether the variable value is required or not.
+
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        message:
+          type: string
+          description: Error message
+
+    ValueConstraint:
+      type: object
+      description: The constraints set for the variable. It defines the enum values for the variable.
+      properties:
+        choices:
+          type: array
+          items:
+            type: string
+        allowCustomValue:
+          type: boolean
+          description: Indicates whether a custom value (outside of valueChoices) is allowed for the variable or not.
+        constraint:
+          type: object
+          properties:
+            fileProperty:
+              type: object
+              properties:
+                allowedExtensions:
+                  type: array
+                  description: The allowed file extensions for the file that can be uploaded.
+                  items:
+                    type: string
+                maxUploadSize:
+                  type: integer
+                  description: The maximum size of the file that can be uploaded in bytes.

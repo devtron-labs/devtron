@@ -1,0 +1,84 @@
+openapi: 3.0.3
+info:
+  title: License API
+  description: API for handling license data
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+    description: Local server
+paths:
+  /orchestrator/license/data:
+    post:
+      summary: Upload License Data
+      operationId: uploadLicenseData
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                license:
+                  type: string
+                  format: byte
+                  description: Base64 encoded JSON string of LicenseData
+      responses:
+        "200":
+          description: Successfully uploaded license data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LicenseUploadResponse"
+    get:
+      summary: Get License Data
+      operationId: getLicenseData
+      responses:
+        "200":
+          description: Successfully retrieved license data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LicenseGetResponse"
+components:
+  schemas:
+    LicenseGetResponse:
+      type: object
+      properties:
+        license:
+          type: string
+          description: Base64 encoded JSON string of LicenseData
+        fingerprint:
+          type: string
+          description: installation fingerprint of devtron
+        isTrial:
+          type: boolean
+          description: denoting if the license is a trial license
+        expiry:
+          type: string
+          format: date-time
+          description: Time at which the license is going to expire in UTC
+        ttl:
+          type: integer
+          description: Time to live in seconds
+        gracePeriod:
+          type: integer
+          description: Grace period in seconds
+        reminderThreshold:
+          type: integer
+          description: reminder threshold signifies time after which reminder to be shown in days
+        organisationMetadata:
+          type: object
+          description: metadata of the organisation
+          properties:
+            name:
+              type: string
+              description: name of the organisation
+            domain:
+              type: string
+              description: domain of the organisation
+    LicenseUploadResponse:
+      type: object
+      properties:
+        message:
+          type : string
+          description: user messsage on operation success
