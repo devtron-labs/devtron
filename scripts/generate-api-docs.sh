@@ -58,7 +58,18 @@ convert_spec_to_html() {
 }
 
 # Find spec files
-mapfile -t spec_files < <(find "$SPECS_DIR" -type f \( -name "*.yaml" -o -name "*.yml" \) | sort)
+spec_files=()
+while IFS= read -r -d '' file; do
+    spec_files+=("$file")
+done < <(find "$SPECS_DIR" -type f \( -name "*.yaml" -o -name "*.yml" \) -print0 | sort -z)
+
+# Fallback if the above doesn't work
+if [ ${#spec_files[@]} -eq 0 ]; then
+    while IFS= read -r file; do
+        spec_files+=("$file")
+    done < <(find "$SPECS_DIR" -type f \( -name "*.yaml" -o -name "*.yml" \) | sort)
+fi
+
 echo -e "${BLUE}📊 Found ${#spec_files[@]} specs${NC}"
 
 # Convert specs
@@ -77,115 +88,192 @@ cat > "$INDEX_FILE" << 'EOF'
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Devtron API Documentation</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #f8f9fa; color: #333; }
-        h1 { text-align: center; color: #2c3e50; margin-bottom: 40px; }
-        .container { max-width: 1200px; margin: auto; }
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', 'Roboto', 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f9f9f9;
+            min-height: 100vh;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        h1 {
+            text-align: left;
+            color: #333;
+            margin: 0 0 32px 0;
+            font-weight: 600;
+            font-size: 2.5rem;
+            border-bottom: 3px solid rgb(0, 102, 204);
+            padding-bottom: 16px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 32px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
         .categories-grid {
             display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 30px;
-            margin-top: 20px;
-            align-items: stretch; /* Ensures all cards stretch to same height */
-        }
-
-        /* Single card centering */
-        .categories-grid.single-card {
-            justify-content: center;
-            max-width: 400px;
-            margin: 20px auto;
-        }
-
-        /* Category Cards */
-        .category-card {
-            background: #fff;
-            border-radius: 12px;
-            padding: 25px;
-            width: calc(33.33% - 30px);
-            min-width: 300px;
-            max-width: 400px;
-            height: auto;
-            min-height: 300px; /* Minimum height for consistency */
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            border: 1px solid #e1e5e9;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            display: flex;
             flex-direction: column;
-        }
-        .category-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+            gap: 16px;
+            margin-top: 24px;
         }
 
-        /* Single card styling */
-        .category-card.single {
-            width: 100%;
-            max-width: 400px;
+        /* Category Sections */
+        .category-section {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: white;
+            overflow: hidden;
         }
 
-        /* Category Headers */
-        .category-header {
-            color: #2c3e50;
-            font-size: 1.4em;
-            font-weight: bold;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #3498db;
-            text-align: center;
-        }
-
-        /* API Links within Categories */
-        .api-links {
+        .category-summary {
+            padding: 16px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e5e7eb;
+            cursor: pointer;
             display: flex;
-            flex-direction: column;
-            gap: 8px;
-            flex-grow: 1; /* Takes up remaining space in the card */
-            overflow-y: auto; /* Allows scrolling if too many links */
-            max-height: 400px; /* Maximum height before scrolling */
+            align-items: center;
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            transition: background-color 0.2s ease;
+            user-select: none;
         }
+
+        .category-summary:hover {
+            background: #eef5ff;
+        }
+
+        .category-icon {
+            margin-right: 12px;
+            font-size: 18px;
+        }
+
+        .category-toggle {
+            margin-left: auto;
+            font-size: 14px;
+            color: #666;
+            transition: transform 0.2s ease;
+        }
+
+        .category-section[open] .category-toggle {
+            transform: rotate(180deg);
+        }
+
+        .category-content {
+            padding: 0;
+        }
+
+        .api-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .api-item {
+            border-bottom: 1px solid #f1f3f4;
+        }
+
+        .api-item:last-child {
+            border-bottom: none;
+        }
+
         .api-link {
             display: block;
-            padding: 8px 12px;
-            background: #f8f9fa;
-            border-radius: 6px;
+            padding: 16px 20px;
             text-decoration: none;
-            color: #1a73e8;
-            font-weight: 500;
+            color: #333;
+            font-size: 16px;
+            font-weight: 400;
             transition: all 0.2s ease;
             border-left: 3px solid transparent;
+            position: relative;
         }
+
         .api-link:hover {
-            background: #e3f2fd;
-            border-left-color: #1a73e8;
-            text-decoration: none;
-            transform: translateX(5px);
+            background: #eef5ff;
+            border-left-color: rgb(0, 102, 204);
+            color: #333;
+            padding-left: 24px;
         }
+
+        .api-link:active {
+            background: #dbeafe;
+        }
+
+
 
         /* Footer */
         .footer {
-            margin-top: 50px;
-            font-size: 0.9rem;
+            margin-top: 40px;
+            font-size: 0.85rem;
             color: #666;
             text-align: center;
-            padding-top: 20px;
-            border-top: 1px solid #e1e5e9;
+            padding: 20px 0;
+            border-top: 1px solid #e5e7eb;
         }
-        .footer a { color: #1a73e8; text-decoration: none; }
-        .footer a:hover { text-decoration: underline; }
-        .timestamp { font-style: italic; }
+
+        .footer a {
+            color: rgb(0, 102, 204);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        .timestamp {
+            font-style: italic;
+            opacity: 0.7;
+        }
 
         /* Responsive Design */
-        @media(max-width: 1024px){
-            .category-card { width: calc(50% - 30px); }
-            .categories-grid.single-card { max-width: 500px; }
-        }
         @media(max-width: 768px){
-            .category-card { width: 100%; min-width: unset; max-width: none; }
-            .categories-grid.single-card { max-width: 100%; margin: 20px 0; }
+            .container {
+                padding: 20px;
+                margin: 10px;
+            }
+            h1 {
+                font-size: 2rem;
+                margin-bottom: 24px;
+            }
+            .category-summary {
+                padding: 12px;
+                font-size: 18px;
+            }
+            .api-link {
+                padding: 12px 16px;
+                font-size: 15px;
+            }
         }
+
         @media(max-width: 480px){
-            .category-card { margin: 0 10px; }
-            .categories-grid { gap: 20px; }
+            .container {
+                padding: 16px;
+                margin: 5px;
+            }
+            h1 {
+                font-size: 1.75rem;
+            }
+            .category-summary {
+                padding: 10px;
+                font-size: 16px;
+            }
+            .api-link {
+                padding: 10px 14px;
+                font-size: 14px;
+            }
         }
     </style>
 </head>
@@ -222,12 +310,40 @@ for spec_file in "${spec_files[@]}"; do
     fi
 done
 
-sed -i '$ s/,$//' "$INDEX_FILE"
+# Remove trailing comma from last line
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS sed
+    sed -i '' '$ s/,$//' "$INDEX_FILE"
+else
+    # Linux sed
+    sed -i '$ s/,$//' "$INDEX_FILE"
+fi
 
 
 
 cat >> "$INDEX_FILE" << 'EOF'
         };
+
+        function getCategoryIcon(categoryName) {
+            const icons = {
+                'application': '📦',
+                'audit': '📝',
+                'authentication': '🔑',
+                'bulk': '📋',
+                'charts': '📊',
+                'cluster': '🖥️',
+                'deployment': '🚀',
+                'ent-only': '🏢',
+                'environment': '🌍',
+                'external-app': '🔗',
+                'fluxcd': '🔄',
+                'gitops': '🔀',
+                'global-config': '⚙️',
+                'helm': '⚓',
+                'bulkedit': '✏️'
+            };
+            return icons[categoryName.toLowerCase()] || '📄';
+        }
 
         function populatePage() {
             const container = document.getElementById('categories');
@@ -241,55 +357,61 @@ cat >> "$INDEX_FILE" << 'EOF'
 
             const categoryNames = Object.keys(categories).sort();
 
-            // Add class for single card centering
-            if (categoryNames.length === 1) {
-                container.classList.add('single-card');
-            }
-
-            // Create category cards
+            // Create category sections
             categoryNames.forEach(categoryName => {
-                // Create category card
-                const categoryCard = document.createElement('div');
-                categoryCard.className = 'category-card';
+                // Create details element for accordion
+                const categorySection = document.createElement('details');
+                categorySection.className = 'category-section';
+                categorySection.open = true; // Open by default
 
-                // Add single class if only one card
-                if (categoryNames.length === 1) {
-                    categoryCard.classList.add('single');
-                }
+                // Create summary (header)
+                const categorySummary = document.createElement('summary');
+                categorySummary.className = 'category-summary';
 
-                // Create category header
-                const categoryHeader = document.createElement('div');
-                categoryHeader.className = 'category-header';
-                categoryHeader.textContent = categoryName;
-                categoryCard.appendChild(categoryHeader);
+                const categoryIcon = document.createElement('span');
+                categoryIcon.className = 'category-icon';
+                categoryIcon.textContent = getCategoryIcon(categoryName);
 
-                // Create links container
-                const linksContainer = document.createElement('div');
-                linksContainer.className = 'api-links';
+                const categoryTitle = document.createElement('span');
+                categoryTitle.textContent = categoryName.charAt(0).toUpperCase() + categoryName.slice(1);
 
-                // Add API links to this category
-                categories[categoryName]
-                    .sort((a, b) => a.title.localeCompare(b.title))
-                    .forEach(api => {
-                        const apiLink = document.createElement('a');
-                        // Ensure proper relative path
-                        apiLink.href = api.filename;
-                        apiLink.textContent = api.title;
-                        apiLink.className = 'api-link';
-                        apiLink.title = `View ${api.title} API documentation`;
+                const toggleIcon = document.createElement('span');
+                toggleIcon.className = 'category-toggle';
+                toggleIcon.textContent = '▼';
 
-                        // Add click handler to check if file exists
-                        apiLink.addEventListener('click', function(e) {
-                            // Let the browser handle the navigation normally
-                            // This is just for debugging - remove in production if needed
-                            console.log(`Navigating to: ${api.filename}`);
-                        });
+                categorySummary.appendChild(categoryIcon);
+                categorySummary.appendChild(categoryTitle);
+                categorySummary.appendChild(toggleIcon);
 
-                        linksContainer.appendChild(apiLink);
-                    });
+                // Create content container
+                const categoryContent = document.createElement('div');
+                categoryContent.className = 'category-content';
 
-                categoryCard.appendChild(linksContainer);
-                container.appendChild(categoryCard);
+                // Create API list
+                const apiList = document.createElement('ul');
+                apiList.className = 'api-list';
+
+                // Sort APIs and add to list
+                const sortedApis = categories[categoryName].sort((a, b) => a.title.localeCompare(b.title));
+
+                sortedApis.forEach(api => {
+                    const apiItem = document.createElement('li');
+                    apiItem.className = 'api-item';
+
+                    const apiLink = document.createElement('a');
+                    apiLink.href = api.filename;
+                    apiLink.textContent = api.title;
+                    apiLink.className = 'api-link';
+                    apiLink.title = `View ${api.title} API documentation`;
+
+                    apiItem.appendChild(apiLink);
+                    apiList.appendChild(apiItem);
+                });
+
+                categoryContent.appendChild(apiList);
+                categorySection.appendChild(categorySummary);
+                categorySection.appendChild(categoryContent);
+                container.appendChild(categorySection);
             });
 
             document.getElementById('timestamp').textContent = new Date().toLocaleString();
