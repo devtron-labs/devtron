@@ -71,7 +71,7 @@ func convertToIntWithContext(w http.ResponseWriter, paramValue, paramName, resou
 		return 0, apiErr
 	}
 
-	if paramIntValue <= 0 {
+	if paramIntValue < 0 {
 		apiErr := util.NewValidationErrorForField(paramName, "must be a positive integer")
 		WriteJsonResp(w, apiErr, nil, apiErr.HttpStatusCode)
 		return 0, apiErr
