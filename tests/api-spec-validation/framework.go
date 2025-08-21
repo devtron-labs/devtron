@@ -275,12 +275,14 @@ func (v *APISpecValidator) testEndpoint(result *ValidationResult, path, method s
 
 	// Add query parameters if specified in the spec
 	if operation.Parameters != nil {
+		q := req.URL.Query()
 		for _, param := range operation.Parameters {
 			if param.Value != nil && param.Value.In == "query" {
 				// Add sample query parameters
-				req.URL.Query().Set(param.Value.Name, v.generateSampleValue(param.Value.Schema))
+				q.Set(param.Value.Name, v.generateSampleValue(param.Value.Schema))
 			}
 		}
+		req.URL.RawQuery = q.Encode()
 	}
 
 	// print the curl command for debugging

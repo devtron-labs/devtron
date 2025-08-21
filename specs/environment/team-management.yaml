@@ -71,7 +71,7 @@ components:
           description: Error user message
 
 paths:
-  /team:
+  /orchestrator/team:
     post:
       description: Create Project
       operationId: SaveTeam
@@ -205,7 +205,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /team/autocomplete:
+  /orchestrator/team/autocomplete:
     get:
       description: Get Projects for Autocomplete
       operationId: FetchForAutocomplete
@@ -231,7 +231,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /team/{id}:
+  /orchestrator/team/{id}:
     get:
       description: Get Project by ID
       operationId: FetchOne

@@ -173,3 +173,4 @@ func validateSSOConfigName(fl validator.FieldLevel) bool {
 	}
 	return false
 }
+
