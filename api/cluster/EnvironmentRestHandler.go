@@ -293,6 +293,16 @@ func (impl EnvironmentRestHandlerImpl) Update(w http.ResponseWriter, r *http.Req
 	}
 	//RBAC enforcer Ends
 
+	// checkImmutable fields
+	if modifiedEnvironment.Environment != bean.Environment {
+		common.WriteJsonResp(w, errors.New("environment name cannot be changed"), nil, http.StatusConflict)
+		return
+	}
+	if modifiedEnvironment.Namespace != bean.Namespace {
+		common.WriteJsonResp(w, errors.New("namespace cannot be changed"), nil, http.StatusConflict)
+		return
+	}
+
 	res, err := impl.environmentClusterMappingsService.Update(&bean, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, Update", "err", err, "payload", bean)
