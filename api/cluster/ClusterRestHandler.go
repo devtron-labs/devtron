@@ -462,6 +462,20 @@ func (impl ClusterRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request
 	if util2.IsBaseStack() {
 		ctx = context.WithValue(ctx, "token", token)
 	}
+
+	// checkImmutable fields - cluster name
+	modifiedCluster, err := impl.clusterService.FindByIdWithoutConfig(bean.Id)
+	if err != nil {
+		impl.logger.Errorw("err finding cluster name", "error", err, "clusterId", bean.Id)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	if bean.ClusterName != modifiedCluster.ClusterName {
+		common.WriteJsonResp(w, errors.New("cluster name cannot be changed"), nil, http.StatusConflict)
+		return
+	}
+
 	_, err = impl.clusterService.Update(ctx, &bean, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, Update", "error", err, "payload", bean)
@@ -708,7 +722,7 @@ func (impl ClusterRestHandlerImpl) GetClusterNamespaces(w http.ResponseWriter, r
 
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		impl.logger.Errorw("user not authorized", "error", err, "userId", userId)
+		impl.logger.Error("user not authorized", "error", err, "userId", userId)
 		common.HandleUnauthorized(w, r)
 		return
 	}
@@ -719,8 +733,8 @@ func (impl ClusterRestHandlerImpl) GetClusterNamespaces(w http.ResponseWriter, r
 	}
 	clusterId, err := strconv.Atoi(clusterIdString)
 	if err != nil {
-		impl.logger.Errorw("failed to extract clusterId from param", "error", err, "clusterId", clusterIdString)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		impl.logger.Errorw("failed to extract clusterId from param must be integer", "error", err, "clusterId", clusterIdString)
+		common.HandleParameterError(w, r, "clusterIdString", clusterIdString)
 		return
 	}
 
