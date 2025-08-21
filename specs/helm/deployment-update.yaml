@@ -1,0 +1,360 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: App Store Deployment Update
+  description: Devtron API for updating app store deployed applications
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Labs
+    email: support@devtron.ai
+    url: https://devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+paths:
+  /orchestrator/app-store/deployment/application/update:
+    put:
+      tags:
+        - App Store Deployment
+      summary: Update App Store Deployed Application
+      description: |
+        Updates an existing app store deployed application with new configuration,
+        values, or chart version. This endpoint allows updating Helm applications
+        that were deployed from the Devtron app store.
+        
+        **Key Features:**
+        - Update application values (values.yaml)
+        - Change chart version
+        - Update reference values
+        - Modify deployment configuration
+        
+        **Authentication:**
+        - Requires valid user session
+        - User must have update permissions for the application
+      operationId: UpdateInstalledApp
+      requestBody:
+        description: |
+          App store deployment update request containing the new configuration
+          and values for the installed application.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstallAppVersionDTO'
+            examples:
+              basic_update:
+                summary: Basic application update
+                description: Update application with new values
+                value:
+                  installedAppId: 123
+                  appStoreVersion: 456
+                  valuesOverrideYaml: |
+                    replicaCount: 2
+                    image:
+                      tag: "v2.0.0"
+                    service:
+                      type: ClusterIP
+                  referenceValueId: 1
+                  referenceValueKind: "DEFAULT"
+              version_update:
+                summary: Chart version update
+                description: Update to a new chart version with custom values
+                value:
+                  installedAppId: 123
+                  appStoreVersion: 789
+                  valuesOverrideYaml: |
+                    replicaCount: 3
+                    resources:
+                      limits:
+                        memory: "512Mi"
+                        cpu: "500m"
+                  referenceValueId: 2
+                  referenceValueKind: "TEMPLATE"
+      responses:
+        '200':
+          description: |
+            Application updated successfully. The response contains the updated
+            application configuration and deployment status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstallAppVersionResponse'
+              examples:
+                success:
+                  summary: Successful update
+                  value:
+                    code: 200
+                    status: "OK"
+                    result:
+                      installedAppId: 123
+                      appStoreVersion: 456
+                      success: true
+                      deploymentStatus: "DEPLOYED"
+        '400':
+          description: |
+            Bad Request - Invalid request payload or validation errors.
+            Common causes:
+            - Missing required fields (installedAppId, referenceValueId, referenceValueKind)
+            - Invalid referenceValueKind value
+            - Invalid YAML format in valuesOverrideYaml
+            - Invalid chart version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missing_required_field:
+                  summary: Missing required field
+                  value:
+                    code: 400
+                    status: "Bad Request"
+                    errors:
+                      - internalMessage: "Key: 'InstallAppVersionDTO.ReferenceValueId' Error:Field validation for 'ReferenceValueId' failed on the 'required' tag"
+                        userMessage: "ReferenceValueId is required"
+                invalid_reference_kind:
+                  summary: Invalid reference value kind
+                  value:
+                    code: 400
+                    status: "Bad Request"
+                    errors:
+                      - internalMessage: "Key: 'InstallAppVersionDTO.ReferenceValueKind' Error:Field validation for 'ReferenceValueKind' failed on the 'oneof' tag"
+                        userMessage: "ReferenceValueKind must be one of: DEFAULT, TEMPLATE, DEPLOYED, EXISTING"
+        '401':
+          description: |
+            Unauthorized - User not authenticated or session expired.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                unauthorized:
+                  summary: User not authenticated
+                  value:
+                    code: 401
+                    status: "Unauthorized"
+                    errors:
+                      - internalMessage: "unauthorized user"
+                        userMessage: "Please login to continue"
+        '403':
+          description: |
+            Forbidden - User lacks permissions to update this application.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                insufficient_permissions:
+                  summary: Insufficient permissions
+                  value:
+                    code: 403
+                    status: "Forbidden"
+                    errors:
+                      - internalMessage: "unauthorized user"
+                        userMessage: "Insufficient permissions to update this application"
+        '404':
+          description: |
+            Not Found - Application or chart version not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                app_not_found:
+                  summary: Application not found
+                  value:
+                    code: 404
+                    status: "Not Found"
+                    errors:
+                      - internalMessage: "installed app not found"
+                        userMessage: "Application not found"
+        '500':
+          description: |
+            Internal Server Error - Server error during application update.
+            May include Helm deployment errors or chart validation issues.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                deployment_error:
+                  summary: Deployment error
+                  value:
+                    code: 500
+                    status: "Internal Server Error"
+                    errors:
+                      - internalMessage: "application spec is invalid"
+                        userMessage: "Application spec is invalid, please check provided chart values"
+
+components:
+  schemas:
+    InstallAppVersionDTO:
+      type: object
+      required:
+        - installedAppId
+        - referenceValueId
+        - referenceValueKind
+      properties:
+        installedAppId:
+          type: integer
+          description: |
+            ID of the installed application to update. This is the unique identifier
+            for the deployed app store application.
+          example: 123
+          minimum: 1
+        appStoreVersion:
+          type: integer
+          description: |
+            App store application version ID. Use this to update to a different
+            chart version. If not provided, keeps the current version.
+          example: 456
+          minimum: 1
+        valuesOverrideYaml:
+          type: string
+          description: |
+            YAML string containing the values to override the default chart values.
+            This should be valid YAML format.
+          example: |
+            replicaCount: 2
+            image:
+              tag: "v2.0.0"
+            service:
+              type: ClusterIP
+              port: 80
+        referenceValueId:
+          type: integer
+          description: |
+            Reference value ID for the chart values. This is required and indicates
+            which set of reference values to use as a base.
+          example: 1
+          minimum: 1
+        referenceValueKind:
+          type: string
+          description: |
+            Kind of reference values to use. Must be one of the predefined values.
+            - DEFAULT: Use default chart values
+            - TEMPLATE: Use template values
+            - DEPLOYED: Use currently deployed values
+            - EXISTING: Use existing saved values
+          example: "DEFAULT"
+          enum: ["DEFAULT", "TEMPLATE", "DEPLOYED", "EXISTING"]
+        appName:
+          type: string
+          description: |
+            Name of the application. Optional field for identification purposes.
+          example: "my-app"
+          maxLength: 100
+        teamId:
+          type: integer
+          description: |
+            Team/Project ID associated with the application. Optional field.
+          example: 1
+          minimum: 1
+        environmentId:
+          type: integer
+          description: |
+            Environment ID where the application is deployed. Optional field.
+          example: 1
+          minimum: 1
+      example:
+        installedAppId: 123
+        appStoreVersion: 456
+        valuesOverrideYaml: |
+          replicaCount: 2
+          image:
+            tag: "v2.0.0"
+          service:
+            type: ClusterIP
+        referenceValueId: 1
+        referenceValueKind: "DEFAULT"
+        appName: "my-app"
+        teamId: 1
+        environmentId: 1
+
+    InstallAppVersionResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+          example: 200
+        status:
+          type: string
+          description: Response status
+          example: "OK"
+        result:
+          $ref: '#/components/schemas/InstallAppVersionResult'
+      example:
+        code: 200
+        status: "OK"
+        result:
+          installedAppId: 123
+          success: true
+
+    InstallAppVersionResult:
+      type: object
+      properties:
+        installedAppId:
+          type: integer
+          description: ID of the updated installed application
+          example: 123
+        appStoreVersion:
+          type: integer
+          description: Updated app store version ID
+          example: 456
+        success:
+          type: boolean
+          description: Whether the update was successful
+          example: true
+        deploymentStatus:
+          type: string
+          description: Current deployment status
+          example: "DEPLOYED"
+          enum: ["DEPLOYED", "FAILED", "PROGRESSING", "UNKNOWN"]
+      example:
+        installedAppId: 123
+        appStoreVersion: 456
+        success: true
+        deploymentStatus: "DEPLOYED"
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+          example: 400
+        status:
+          type: string
+          description: Error status
+          example: "Bad Request"
+        errors:
+          type: array
+          description: List of error details
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+      example:
+        code: 400
+        status: "Bad Request"
+        errors:
+          - internalMessage: "validation failed"
+            userMessage: "Invalid request parameters"
+
+    ErrorDetail:
+      type: object
+      properties:
+        internalMessage:
+          type: string
+          description: Internal error message for debugging
+          example: "validation failed for field 'referenceValueId': required"
+        userMessage:
+          type: string
+          description: User-friendly error message
+          example: "Reference value ID is required"
+      example:
+        internalMessage: "validation failed for field 'referenceValueId': required"
+        userMessage: "Reference value ID is required"
