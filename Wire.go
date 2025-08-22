@@ -92,6 +92,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/version"
 	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/client/dashboard"
+	"github.com/devtron-labs/devtron/client/insightgrid"
 	eClient "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/fluxcd"
 	"github.com/devtron-labs/devtron/client/gitSensor"
@@ -198,6 +199,7 @@ func InitializeApp() (*App, error) {
 		sso.SsoConfigWireSet,
 		cluster.ClusterWireSet,
 		dashboard.DashboardWireSet,
+		insightgrid.InsightGridWireSet,
 		proxy.ProxyWireSet,
 		client.HelmAppWireSet,
 		k8s.K8sApplicationWireSet,

@@ -48,6 +48,7 @@ import (
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/client/dashboard"
+	"github.com/devtron-labs/devtron/client/insightgrid"
 	"github.com/devtron-labs/devtron/client/proxy"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/pkg/terminal"
@@ -89,6 +90,7 @@ type MuxRouter struct {
 	userAttributesRouter               UserAttributesRouter
 	commonRouter                       CommonRouter
 	grafanaRouter                      GrafanaRouter
+	insightGridRouter                  insightgrid.InsightGridRouter
 	ssoLoginRouter                     sso.SsoLoginRouter
 	telemetryRouter                    TelemetryRouter
 	telemetryWatcher                   telemetry.TelemetryEventClient
@@ -138,7 +140,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter chartGroup.ChartGroupRouter, imageScanRouter ImageScanRouter,
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter dashboard.DashboardRouter, attributesRouter AttributesRouter, userAttributesRouter UserAttributesRouter,
-	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter sso.SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appRouter app.AppRouter,
+	commonRouter CommonRouter, grafanaRouter GrafanaRouter, insightGridRouter insightgrid.InsightGridRouter, ssoLoginRouter sso.SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appRouter app.AppRouter,
 	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter, k8sApplicationRouter application.K8sApplicationRouter,
 	pProfRouter PProfRouter, deploymentConfigRouter deployment.DeploymentConfigRouter, dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter,
 	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter, externalLinkRouter externalLink.ExternalLinkRouter,
@@ -190,6 +192,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 		proxyRouter:                        proxyRouter,
 		commonRouter:                       commonRouter,
 		grafanaRouter:                      grafanaRouter,
+		insightGridRouter:                  insightGridRouter,
 		ssoLoginRouter:                     ssoLoginRouter,
 		telemetryRouter:                    telemetryRouter,
 		telemetryWatcher:                   telemetryWatcher,
@@ -352,6 +355,9 @@ func (r MuxRouter) Init() {
 
 	grafanaRouter := r.Router.PathPrefix("/grafana").Subrouter()
 	r.grafanaRouter.initGrafanaRouter(grafanaRouter)
+
+	insightGridRouter := r.Router.PathPrefix("/insightgrid").Subrouter()
+	r.insightGridRouter.InitInsightGridRouter(insightGridRouter)
 
 	r.Router.Path("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		http.Redirect(writer, request, "/dashboard", 301)
