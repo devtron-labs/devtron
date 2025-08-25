@@ -1,0 +1,461 @@
+openapi: 3.0.0
+info:
+  title: Cost Analysis API
+  version: 1.0.0
+  description: APIs for cost summaries, breakdowns, top-N analysis, recommendations, and efficient resources.
+
+paths:
+  /cost/summary/{resource}:
+    get:
+      summary: Get cost summary
+      description: >
+        Generic cost summary API. Supports resources: cluster, environment, project, application.  
+        Filter and aggregator work independently. For each passed aggregator/filter separate summary will be returned.
+      parameters:
+        - name: resource
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [cluster, environment, application, project]
+        - name: resourceName
+          in: query
+          schema:
+            type: string
+        - name: filter
+          in: query
+          schema:
+            type: string
+            enum: [prodCluster, nonProdCluster, prodEnvironment, nonProdEnvironment]
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: subResource
+          description:  "Can have multiple comma separated subresources. For each subresource separate summary will be returned."
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [namespace,node,application,environment,pod,deployment,daemonSets,jobs,rollouts,statefulSets,container]
+          style: form
+          explode: false
+      responses:
+        "200":
+          description: Cost summary response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SummaryResponse"
+  /cost/breakdown/{resource}:
+    get:
+      summary: Get cost breakdown by resource type or for specific subresources of resource
+      parameters:
+        - name: resource
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [cluster, environment, project, application]
+        - name: resourceName
+          in: query
+          schema:
+            type: string
+        - name: filter
+          in: query
+          schema:
+            type: string
+            enum: [prodCluster, nonProdCluster, prodEnvironment, nonProdEnvironment]
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [totalCost, cpuCost, gpuCost, memoryCost, storageCost, potentialSavings]
+        - name: searchByName
+          in: query
+          description: "name of sub resource to search for"
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: subResource
+          description:  "Can have multiple comma separated subresources. For each subresource separate summary will be returned."
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [namespace,node,application,environment,pod,deployment,daemonSets,jobs,rollouts,statefulSets,container]
+          style: form
+          explode: false
+      responses:
+        "200":
+          description: Cost breakdown response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BreakdownResponse"
+  /cost/module:
+    post:
+      description: enable/disable cost module for a cluster
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/CostModuleDetail"
+      responses:
+        "200":
+          description: External links creation response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResponse"
+    get:
+      parameters:
+        - in: query
+          name: clusterName
+          example: 1
+          description: clusterName
+          required: true
+          schema:
+            type: string
+      description: get details of cost module in a cluster
+      responses:
+        "200":
+          description: "details about cost module for cluster"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostModuleDetail"
+  /cost/custom-view:
+    post:
+      summary: Create a custom view
+      description: Creates a custom view that aggregates resources using label filters. Filters are applied with AND logic.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomViewCreate'
+            examples:
+              logisticsBU:
+                value:
+                  name: "Logistics BU"
+                  description: "Aggregates resources operationalizing logistics services"
+                  filters:
+                    - key: business-unit
+                      operator: "!="
+                      value: operations
+                    - key: project
+                      operator: "=="
+                      value: logistics
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomView'
+    get:
+      summary: List custom views
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string }
+          description: Filter by name (contains, case-insensitive)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/CustomView' }
+components:
+  schemas:
+    Summary:
+      type: object
+      properties:
+        totalCost: { type: number }
+        recommendedCost: { type: number }
+        potentialSavingsPercentage: { type: number }
+        trendPercent: { type: number}
+        trend:
+          type: array
+          items:
+            type: object
+            properties:
+              date: { type: string, format: date }
+              cost: { type: number }
+        cpu: { $ref: "#/components/schemas/MetricCost" }
+        memory: { $ref: "#/components/schemas/MetricCost" }
+        gpu: { $ref: "#/components/schemas/MetricCost" }
+        storage: { $ref: "#/components/schemas/MetricCost" }
+
+    MetricCost:
+      type: object
+      properties:
+        totalCost: { type: number }
+        potentialSavingsPercentage: { type: number }
+        potentialSavings: { type: number }
+        trendPercent: { type: number }
+    SummaryResponse:
+      type: object
+      properties:
+        summary: { $ref: "#/components/schemas/Summary" }
+        subResourceSummary:
+          type: object
+          description: |
+            Cost summary grouped by subResource.
+            Each property key is a subResource name (e.g. "namespace", "node", "application").
+            The value is summary for that subresource
+          additionalProperties:
+            type: object
+            properties:
+              summary: { $ref: "#/components/schemas/Summary" }
+          example:
+            namespace:
+              summary:
+                totalCost: 40000
+                recommendedCost: 15000
+                potentialSavingsPercentage: 10
+                potentialSavings: 200
+                trendPercent: 10
+                cpu:
+                  totalCost: 10000
+                  potentialSavingsPercentage: 8
+                  potentialSavings: 800
+                  trendPercent: 3
+                memory:
+                  totalCost: 12000
+                  potentialSavingsPercentage: 12
+                  potentialSavings: 1440
+                  trendPercent: 4
+                gpu:
+                  totalCost: 8000
+                  potentialSavingsPercentage: 5
+                  potentialSavings: 400
+                  trendPercent: -2
+                storage:
+                  totalCost: 10000
+                  potentialSavingsPercentage: 15
+                  potentialSavings: 1500
+                  trendPercent: 6
+            node:
+              summary:
+                totalCost: 40000
+                recommendedCost: 15000
+                potentialSavingsPercentage: 10
+                potentialSavings: 200
+                trendPercent: 10
+                cpu:
+                  totalCost: 10000
+                  potentialSavingsPercentage: 8
+                  potentialSavings: 800
+                  trendPercent: 3
+                memory:
+                  totalCost: 12000
+                  potentialSavingsPercentage: 12
+                  potentialSavings: 1440
+                  trendPercent: 4
+                gpu:
+                  totalCost: 8000
+                  potentialSavingsPercentage: 5
+                  potentialSavings: 400
+                  trendPercent: -2
+                storage:
+                  totalCost: 10000
+                  potentialSavingsPercentage: 15
+                  potentialSavings: 1500
+                  trendPercent: 6
+            application:
+              summary:
+                totalCost: 40000
+                recommendedCost: 15000
+                potentialSavingsPercentage: 10
+                potentialSavings: 200
+                trendPercent: 10
+                cpu:
+                  totalCost: 10000
+                  potentialSavingsPercentage: 8
+                  potentialSavings: 800
+                  trendPercent: 3
+                memory:
+                  totalCost: 12000
+                  potentialSavingsPercentage: 12
+                  potentialSavings: 1440
+                  trendPercent: 4
+                gpu:
+                  totalCost: 8000
+                  potentialSavingsPercentage: 5
+                  potentialSavings: 400
+                  trendPercent: -2
+                storage:
+                  totalCost: 10000
+                  potentialSavingsPercentage: 15
+                  potentialSavings: 1500
+                  trendPercent: 6
+    BreakdownResponse:
+      type: object
+      properties:
+        meta:
+          type: object
+          properties:
+            resource: { type: string }
+            resourceName: { type: string }
+            timeRange:
+              type: object
+              properties:
+                from: { type: string, format: date }
+                to: { type: string, format: date }
+            aggregatedBy:
+              type: array
+              items: { type: string }
+            filteredBy:
+              type: array
+              items: { type: string }
+            provider: { type: string }
+            type: { type: string }
+        overallBreakdown:
+          type: array
+          items: { $ref: "#/components/schemas/BreakdownItem" }
+        breakdownsBySubResource:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: "#/components/schemas/BreakdownItem"
+          description: |
+            Cost breakdowns grouped by subResource.
+            Each property key is a subResource name (e.g. "namespace", "node", "application"). The value is an array of BreakdownItem objects.
+          example:
+            namespace:
+              - name: "namespace-a"
+                cpuCost: 1000
+                memoryCost: 2000
+                gpuCost: 0
+                storageCost: 500
+                totalCost: 3500
+                potentialSavings: 400
+                savingsPercent: 11
+                metadata:
+                  clusterId: "cluster-123"
+                  envCount: 5
+                  clusterType: "prod"
+            node:
+              - name: "node-1"
+                cpuCost: 1200
+                memoryCost: 1800
+                gpuCost: 200
+                storageCost: 700
+                totalCost: 3900
+                potentialSavings: 300
+                savingsPercent: 8
+                metadata:
+                  clusterId: "cluster-123"
+                  applicationCount: 12
+                  clusterProvider: "eks"
+    BreakdownItem:
+      type: object
+      properties:
+        name: { type: string }
+        cpuCost: { type: number }
+        memoryCost: { type: number }
+        gpuCost: { type: number }
+        storageCost: { type: number }
+        totalCost: { type: number }
+        potentialSavings: { type: number }
+        savingsPercent: { type: number }
+        metadata:
+          type: object
+          description: Additional metadata specific to the resource
+          additionalProperties: true
+          example:
+            clusterId: "cluster-123"
+            "applicationCount": 10
+            "envCount": 5
+            "clusterType": "prod"
+            "clusterProvider": "eks"
+    CostModuleDetail:
+      type: object
+      properties:
+        clusterName: {type: string}
+        enableCostTracking : {type: boolean}
+        cloudProviderApiKey: {type: string}
+        prometheusURL: {type: string}
+    ActionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: success or failure
+          example: true
+    CustomViewCreate:
+      type: object
+      required: [ name, filters ]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        filters:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [ key, operator, value ]
+            properties:
+              key:
+                type: string
+                description: Label key to match.
+                example: project
+              operator:
+                type: string
+                description: Comparison operator.
+                enum: [ "==", "!=" ]
+                example: "=="
+              value:
+                type: string
+                description: Label value to compare against.
+                example: logistics
+    CustomView:
+      allOf:
+        - $ref: '#/components/schemas/CustomViewCreate'
+        - type: object
+          required: [ id, createdAt ]
+          properties:
+            id:
+              type: integer
+              example: 1
