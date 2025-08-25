@@ -1,0 +1,366 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Deployment Pipeline Management
+  description: Devtron API for deployment pipeline management
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Labs
+    email: support@devtron.ai
+    url: https://devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: http://localhost:8080
+paths:
+  /orchestrator/deployment/pipeline/configure:
+    post:
+      description: Configure deployment pipeline for an application
+      requestBody:
+        description: Pipeline configuration details
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PipelineConfig'
+      responses:
+        '200':
+          description: Pipeline configured successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineConfigResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/deployment/pipeline/trigger:
+    post:
+      description: Trigger a deployment pipeline
+      requestBody:
+        description: Pipeline trigger details
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PipelineTrigger'
+      responses:
+        '200':
+          description: Pipeline triggered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineTriggerResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/deployment/pipeline/rollback:
+    post:
+      description: Rollback a deployment pipeline
+      requestBody:
+        description: Pipeline rollback details
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PipelineRollback'
+      responses:
+        '200':
+          description: Pipeline rollback initiated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineRollbackResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/deployment/pipeline/history:
+    get:
+      description: Get deployment pipeline history
+      parameters:
+        - name: appId
+          in: query
+          required: true
+          schema:
+            type: integer
+            description: Application ID
+        - name: envId
+          in: query
+          required: true
+          schema:
+            type: integer
+            description: Environment ID
+      responses:
+        '200':
+          description: Pipeline history retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineHistory'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    PipelineConfig:
+      type: object
+      required:
+        - appId
+        - envId
+      properties:
+        appId:
+          type: integer
+          description: Application ID
+        envId:
+          type: integer
+          description: Environment ID
+        pipelineName:
+          type: string
+          description: Name of the pipeline
+        triggerType:
+          type: string
+          enum: [AUTOMATIC, MANUAL]
+          description: Type of pipeline trigger
+        deploymentType:
+          type: string
+          enum: [HELM, ARGOCD]
+          description: Type of deployment
+        deploymentStrategy:
+          type: string
+          enum: [ROLLING, BLUE_GREEN, RECREATE]
+          description: Deployment strategy
+        preDeploymentScript:
+          type: string
+          description: Pre-deployment script
+        postDeploymentScript:
+          type: string
+          description: Post-deployment script
+
+    PipelineConfigResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Status code
+        status:
+          type: string
+          description: Status message
+        result:
+          type: object
+          properties:
+            pipelineId:
+              type: integer
+              description: ID of the created pipeline
+            pipelineName:
+              type: string
+              description: Name of the pipeline
+
+    PipelineTrigger:
+      type: object
+      required:
+        - pipelineId
+      properties:
+        pipelineId:
+          type: integer
+          description: Pipeline ID
+        artifactId:
+          type: integer
+          description: Artifact ID to deploy
+        triggeredBy:
+          type: integer
+          description: User ID who triggered the pipeline
+
+    PipelineTriggerResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Status code
+        status:
+          type: string
+          description: Status message
+        result:
+          type: object
+          properties:
+            pipelineId:
+              type: integer
+              description: Pipeline ID
+            workflowId:
+              type: integer
+              description: Workflow ID
+
+    PipelineRollback:
+      type: object
+      required:
+        - pipelineId
+        - version
+      properties:
+        pipelineId:
+          type: integer
+          description: Pipeline ID
+        version:
+          type: string
+          description: Version to rollback to
+        triggeredBy:
+          type: integer
+          description: User ID who triggered the rollback
+
+    PipelineRollbackResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Status code
+        status:
+          type: string
+          description: Status message
+        result:
+          type: object
+          properties:
+            pipelineId:
+              type: integer
+              description: Pipeline ID
+            workflowId:
+              type: integer
+              description: Workflow ID
+
+    PipelineHistory:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Status code
+        status:
+          type: string
+          description: Status message
+        result:
+          type: array
+          items:
+            type: object
+            properties:
+              pipelineId:
+                type: integer
+                description: Pipeline ID
+              workflowId:
+                type: integer
+                description: Workflow ID
+              status:
+                type: string
+                description: Pipeline status
+              startedOn:
+                type: string
+                format: date-time
+                description: Start time
+              finishedOn:
+                type: string
+                format: date-time
+                description: End time
+              triggeredBy:
+                type: string
+                description: User who triggered the pipeline
+              artifactId:
+                type: integer
+                description: Artifact ID
+              version:
+                type: string
+                description: Deployed version
+
+    ErrorResponse:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message 

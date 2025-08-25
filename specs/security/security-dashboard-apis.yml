@@ -1,43 +1,178 @@
 openapi: '3.0.2'
 info:
-  title: API Title
-  version: '1.0'
+  title: Security Scan API
+  version: '2.0'
+  description: API for managing security scans and vulnerability assessments
 servers:
   - url: https://api.server.test/v1
 paths:
-  /security/scan/executionDetail:
+  /orchestrator/security/scan/list:
+    post:
+      summary: Get list of scan executions
+      description: Fetch scan execution history with filtering options
+      operationId: scanExecutionList
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImageScanRequest'
+      responses:
+        '200':
+          description: List of scan executions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageScanHistoryListingResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/security/scan/executionDetail:
     get:
-      summary: fetch image scan execution result, by multiple ways for different use case
-      description: params are option but at least one is required
-      operationId: executionDetail
+      summary: Fetch image scan execution result
+      description: Get detailed scan results by multiple ways for different use cases. At least one parameter is required.
+      operationId: fetchExecutionDetail
       parameters:
-        - name: scanExecutionId
+        - name: imageScanDeployInfoId
           in: query
-          description: scan execution history id, optional for fetch.
+          description: Image scan deploy info ID for fetching scan result
           required: false
           schema:
             type: integer
         - name: artifactId
           in: query
-          description: ci artifact id, to fetch scan result for image, option for fetch.
+          description: CI artifact ID to fetch scan result for image
+          required: false
+          schema:
+            type: integer
+        - name: appId
+          in: query
+          description: Application ID for fetching scan result
+          required: false
+          schema:
+            type: integer
+        - name: envId
+          in: query
+          description: Environment ID for fetching scan result
           required: false
           schema:
             type: integer
         - name: image
           in: query
-          description: to fetch scan result for image, option for fetch.
+          description: Image name to fetch scan result for
           required: false
           schema:
             type: string
       responses:
         '200':
-          description: list response
+          description: Scan execution details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImageScanResponse'
-        default:
-          description: unexpected error
+                $ref: '#/components/schemas/ImageScanExecutionDetail'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/security/scan/executionDetail/min:
+    get:
+      summary: Fetch minimal scan result by app and environment ID
+      description: Get minimal scan result information for a specific app and environment
+      operationId: fetchMinScanResult
+      parameters:
+        - name: appId
+          in: query
+          description: Application ID
+          required: true
+          schema:
+            type: integer
+        - name: envId
+          in: query
+          description: Environment ID
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Minimal scan execution details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageScanExecutionDetail'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/security/scan/cve/exposure:
+    post:
+      summary: Get vulnerability exposure information
+      description: Fetch vulnerability exposure data across applications and environments
+      operationId: vulnerabilityExposure
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VulnerabilityRequest'
+      responses:
+        '200':
+          description: Vulnerability exposure data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VulnerabilityExposureListingResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Internal server error
           content:
             application/json:
               schema:
@@ -58,17 +193,280 @@ components:
         message:
           type: string
           description: Error message
+
     ImageScanRequest:
-      description: Resource Level can be one of global, cluster, environment, application
-      type: string
-      enum:
-        - global
-        - cluster
-        - environment
-        - application
-    ImageScanResponse:
-      description: Whether CVE is allowed or not
-      type: string
-      enum:
-        - BLOCK
-        - ALLOW
+      description: Request object for image scan operations
+      type: object
+      properties:
+        scanExecutionId:
+          type: integer
+          description: Scan execution ID
+        imageScanDeployInfoId:
+          type: integer
+          description: Image scan deploy info ID
+        appId:
+          type: integer
+          description: Application ID
+        envId:
+          type: integer
+          description: Environment ID
+        objectId:
+          type: integer
+          description: Object ID
+        artifactId:
+          type: integer
+          description: Artifact ID
+        image:
+          type: string
+          description: Image name
+        offset:
+          type: integer
+          description: Pagination offset
+        size:
+          type: integer
+          description: Page size
+
+    ImageScanHistoryListingResponse:
+      description: Response containing list of scan history
+      type: object
+      properties:
+        offset:
+          type: integer
+          description: Pagination offset
+        size:
+          type: integer
+          description: Page size
+        total:
+          type: integer
+          description: Total number of records
+        scanList:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImageScanHistoryResponse'
+
+    ImageScanHistoryResponse:
+      description: Individual scan history item
+      type: object
+      properties:
+        imageScanDeployInfoId:
+          type: integer
+          description: Image scan deploy info ID
+        appId:
+          type: integer
+          description: Application ID
+        envId:
+          type: integer
+          description: Environment ID
+        name:
+          type: string
+          description: Name of the scanned resource
+        type:
+          type: string
+          description: Type of the scanned resource
+        environment:
+          type: string
+          description: Environment name
+        lastChecked:
+          type: string
+          format: date-time
+          description: Last scan timestamp
+        image:
+          type: string
+          description: Image name
+        severityCount:
+          $ref: '#/components/schemas/SeverityCount'
+
+    ImageScanExecutionDetail:
+      description: Detailed scan execution result
+      type: object
+      properties:
+        imageScanDeployInfoId:
+          type: integer
+          description: Image scan deploy info ID
+        appId:
+          type: integer
+          description: Application ID
+        envId:
+          type: integer
+          description: Environment ID
+        appName:
+          type: string
+          description: Application name
+        envName:
+          type: string
+          description: Environment name
+        pod:
+          type: string
+          description: Pod name
+        replicaSet:
+          type: string
+          description: ReplicaSet name
+        image:
+          type: string
+          description: Image name
+        vulnerabilities:
+          type: array
+          items:
+            $ref: '#/components/schemas/Vulnerability'
+        severityCount:
+          $ref: '#/components/schemas/SeverityCount'
+        executionTime:
+          type: string
+          format: date-time
+          description: Scan execution time
+        scanEnabled:
+          type: boolean
+          description: Whether scanning is enabled
+        scanned:
+          type: boolean
+          description: Whether the image has been scanned
+        objectType:
+          type: string
+          description: Type of the scanned object
+        scanToolId:
+          type: integer
+          description: ID of the scan tool used
+        scanToolName:
+          type: string
+          description: Name of the scan tool
+        scanToolUrl:
+          type: string
+          description: URL of the scan tool
+        status:
+          type: string
+          description: Scan execution status
+          enum:
+            - RUNNING
+            - COMPLETED
+            - FAILED
+            - CANCELLED
+
+    SeverityCount:
+      description: Count of vulnerabilities by severity
+      type: object
+      properties:
+        critical:
+          type: integer
+          description: Number of critical vulnerabilities
+        high:
+          type: integer
+          description: Number of high severity vulnerabilities
+        medium:
+          type: integer
+          description: Number of medium severity vulnerabilities
+        low:
+          type: integer
+          description: Number of low severity vulnerabilities
+        unknown:
+          type: integer
+          description: Number of unknown severity vulnerabilities
+
+    Vulnerability:
+      description: Individual vulnerability details
+      type: object
+      properties:
+        cveName:
+          type: string
+          description: CVE identifier
+        severity:
+          type: string
+          description: Vulnerability severity
+          enum:
+            - CRITICAL
+            - HIGH
+            - MEDIUM
+            - LOW
+            - UNKNOWN
+        package:
+          type: string
+          description: Affected package name
+        currentVersion:
+          type: string
+          description: Current version of the package
+        fixedVersion:
+          type: string
+          description: Version where the vulnerability is fixed
+        permission:
+          type: string
+          description: Permission level
+        target:
+          type: string
+          description: Target of the vulnerability
+        class:
+          type: string
+          description: Vulnerability class
+        type:
+          type: string
+          description: Vulnerability type
+
+    VulnerabilityRequest:
+      description: Request for vulnerability exposure data
+      type: object
+      properties:
+        appName:
+          type: string
+          description: Application name filter
+        cveName:
+          type: string
+          description: CVE name filter
+        envIds:
+          type: array
+          items:
+            type: integer
+          description: Environment IDs to filter by
+        clusterIds:
+          type: array
+          items:
+            type: integer
+          description: Cluster IDs to filter by
+        offset:
+          type: integer
+          description: Pagination offset
+        size:
+          type: integer
+          description: Page size
+
+    VulnerabilityExposureListingResponse:
+      description: Response containing vulnerability exposure data
+      type: object
+      properties:
+        offset:
+          type: integer
+          description: Pagination offset
+        size:
+          type: integer
+          description: Page size
+        total:
+          type: integer
+          description: Total number of records
+        list:
+          type: array
+          items:
+            $ref: '#/components/schemas/VulnerabilityExposure'
+
+    VulnerabilityExposure:
+      description: Vulnerability exposure information
+      type: object
+      properties:
+        appName:
+          type: string
+          description: Application name
+        envName:
+          type: string
+          description: Environment name
+        appId:
+          type: integer
+          description: Application ID
+        envId:
+          type: integer
+          description: Environment ID
+        appType:
+          type: string
+          description: Application type
+          enum:
+            - DEVTRON_APP
+            - HELM_APP
+            - EXTERNAL_HELM_APP
+        blocked:
+          type: boolean
+          description: Whether the vulnerability is blocked

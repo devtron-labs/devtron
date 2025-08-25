@@ -150,6 +150,79 @@ containers:
 {{- if $.Values.containerExtraSpecs }}	
 {{ toYaml .Values.containerExtraSpecs | indent 4 }}	
 {{- end }}
+    {{- if $.Values.LivenessProbe }}
+    {{- if or $.Values.LivenessProbe.Path $.Values.LivenessProbe.command $.Values.LivenessProbe.tcp $.Values.LivenessProbe.grpc }}
+    livenessProbe:
+    {{- if $.Values.LivenessProbe.Path }}
+      httpGet:
+        path: {{ $.Values.LivenessProbe.Path  }}
+        port: {{ $.Values.LivenessProbe.port }}
+        scheme: {{ $.Values.LivenessProbe.scheme }}
+      {{- if $.Values.LivenessProbe.httpHeaders }}
+        httpHeaders:
+        {{- range $.Values.LivenessProbe.httpHeaders}}
+          - name: {{.name}}
+            value: {{.value}}
+        {{- end}}
+    {{- end }}
+    {{- end }}
+    {{- if $.Values.LivenessProbe.command }}
+      exec:
+        command:
+    {{ toYaml .Values.LivenessProbe.command | indent 16 }}
+    {{- end}}
+    {{- if and $.Values.LivenessProbe.tcp }}
+      tcpSocket:
+        port: {{ $.Values.LivenessProbe.port }}
+    {{- end}}
+      initialDelaySeconds: {{ $.Values.LivenessProbe.initialDelaySeconds  }}
+      periodSeconds: {{ $.Values.LivenessProbe.periodSeconds  }}
+      successThreshold: {{ $.Values.LivenessProbe.successThreshold  }}
+      timeoutSeconds: {{ $.Values.LivenessProbe.timeoutSeconds  }}
+      failureThreshold: {{ $.Values.LivenessProbe.failureThreshold  }}
+    {{- if $.Values.LivenessProbe.grpc }}
+      grpc:
+    {{ toYaml .Values.LivenessProbe.grpc | indent 14 }}
+    {{- end }}
+    {{- end }}
+    {{- end }}
+    {{- if $.Values.ReadinessProbe }}
+    {{- if or $.Values.ReadinessProbe.Path  $.Values.ReadinessProbe.command $.Values.ReadinessProbe.tcp $.Values.ReadinessProbe.grpc }}
+    readinessProbe:
+    {{- if $.Values.ReadinessProbe.Path }}
+      httpGet:
+        path: {{ $.Values.ReadinessProbe.Path  }}
+        port: {{ $.Values.ReadinessProbe.port }}
+        scheme: {{ $.Values.ReadinessProbe.scheme }}
+      {{- if $.Values.ReadinessProbe.httpHeaders }}
+        httpHeaders:
+        {{- range $.Values.ReadinessProbe.httpHeaders}}
+          - name: {{.name}}
+            value: {{.value}}
+        {{- end}}
+    {{- end }}
+    {{- end }}
+    {{- if $.Values.ReadinessProbe.command }}
+      exec:
+        command:
+    {{ toYaml .Values.ReadinessProbe.command | indent 16 }}
+    {{- end}}
+    {{- if and $.Values.ReadinessProbe.tcp }}
+      tcpSocket:
+        port: {{ $.Values.ReadinessProbe.port }}
+    {{- end}}
+      initialDelaySeconds: {{ $.Values.ReadinessProbe.initialDelaySeconds  }}
+      periodSeconds: {{ $.Values.ReadinessProbe.periodSeconds  }}
+      successThreshold: {{ $.Values.ReadinessProbe.successThreshold  }}
+      timeoutSeconds: {{ $.Values.ReadinessProbe.timeoutSeconds  }}
+      failureThreshold: {{ $.Values.ReadinessProbe.failureThreshold  }}
+    {{- if $.Values.ReadinessProbe.grpc }}
+      grpc:
+    {{ toYaml .Values.ReadinessProbe.grpc | indent 14 }}
+      {{- end}}
+    {{- end }}
+    {{- end }}
+
 {{- if $.Values.privileged }}
     securityContext:
       privileged: true

@@ -71,7 +71,7 @@ func (impl PolicyRestHandlerImpl) SavePolicy(w http.ResponseWriter, r *http.Requ
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var req bean.CreateVulnerabilityPolicyRequest
@@ -135,7 +135,7 @@ func (impl PolicyRestHandlerImpl) UpdatePolicy(w http.ResponseWriter, r *http.Re
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var req bean.UpdatePolicyParams
@@ -204,7 +204,7 @@ func (impl PolicyRestHandlerImpl) UpdatePolicy(w http.ResponseWriter, r *http.Re
 func (impl PolicyRestHandlerImpl) GetPolicy(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	req := bean.FetchPolicyParams{}

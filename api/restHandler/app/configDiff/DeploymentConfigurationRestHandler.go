@@ -50,7 +50,7 @@ func NewDeploymentConfigurationRestHandlerImpl(logger *zap.SugaredLogger,
 func (handler *DeploymentConfigurationRestHandlerImpl) ConfigAutoComplete(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	appId, err := common.ExtractIntQueryParam(w, r, "appId", 0)
@@ -84,7 +84,7 @@ func (handler *DeploymentConfigurationRestHandlerImpl) ConfigAutoComplete(w http
 func (handler *DeploymentConfigurationRestHandlerImpl) GetConfigData(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	configDataQueryParams, err := getConfigDataQueryParams(r)
@@ -122,7 +122,7 @@ func (handler *DeploymentConfigurationRestHandlerImpl) GetConfigData(w http.Resp
 func (handler *DeploymentConfigurationRestHandlerImpl) GetManifest(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -191,7 +191,7 @@ func getConfigDataQueryParams(r *http.Request) (*bean.ConfigDataQueryParams, err
 func (handler *DeploymentConfigurationRestHandlerImpl) CompareCategoryWiseConfigData(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)

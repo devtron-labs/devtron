@@ -77,7 +77,7 @@ func (impl GitHostRestHandlerImpl) GetGitHosts(w http.ResponseWriter, r *http.Re
 	// check if user is logged in or not
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -107,7 +107,7 @@ func (impl GitHostRestHandlerImpl) GetGitHostById(w http.ResponseWriter, r *http
 	// check if user is logged in or not
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -136,7 +136,7 @@ func (impl GitHostRestHandlerImpl) CreateGitHost(w http.ResponseWriter, r *http.
 	// check if user is logged in or not
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -182,7 +182,7 @@ func (impl GitHostRestHandlerImpl) GetAllWebhookEventConfig(w http.ResponseWrite
 	// check if user is logged in or not
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -224,7 +224,7 @@ func (impl GitHostRestHandlerImpl) GetWebhookEventConfig(w http.ResponseWriter, 
 	// check if user is logged in or not
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -258,7 +258,7 @@ func (impl GitHostRestHandlerImpl) GetWebhookDataMetaConfig(w http.ResponseWrite
 	// check if user is logged in or not
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 

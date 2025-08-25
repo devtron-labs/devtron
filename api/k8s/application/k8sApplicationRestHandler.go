@@ -466,7 +466,7 @@ func (handler *K8sApplicationRestHandlerImpl) handleRbac(r *http.Request, w http
 func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var request bean3.ResourceRequestBean
@@ -771,7 +771,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 	token := r.Header.Get("token")
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	request, resourceRequestBean, err := handler.k8sApplicationService.ValidateTerminalRequestQuery(r)
@@ -837,7 +837,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 func (handler *K8sApplicationRestHandlerImpl) GetResourceInfo(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -856,7 +856,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResourceInfo(w http.ResponseWri
 func (handler *K8sApplicationRestHandlerImpl) GetAllApiResourceGVKWithoutAuthorization(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -883,7 +883,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetAllApiResourceGVKWithoutAuthori
 func (handler *K8sApplicationRestHandlerImpl) GetAllApiResources(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -991,7 +991,7 @@ func (handler *K8sApplicationRestHandlerImpl) CreateEphemeralContainer(w http.Re
 	token := r.Header.Get("token")
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -1041,7 +1041,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteEphemeralContainer(w http.Re
 	token := r.Header.Get("token")
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)

@@ -1,0 +1,269 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Team/Project Management API
+  description: API for managing teams and projects in Devtron
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Support
+    email: support@devtron.ai
+    url: https://devtron.ai/support
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
+  schemas:
+    TeamRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        active:
+          type: boolean
+
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 404
+        message:
+          type: string
+          example: "Resource not found"
+        details:
+          type: array
+          items:
+            type: string
+          example: ["Resource not found in the system"]
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error internal code
+        message:
+          type: string
+          description: Error message
+        internalMessage:
+          type: string
+          description: Error internal message
+        userMessage:
+          type: string
+          description: Error user message
+
+paths:
+  /orchestrator/team:
+    post:
+      description: Create Project
+      operationId: SaveTeam
+      security:
+        - bearerAuth: []
+      requestBody:
+        description: A JSON object containing the project config
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamRequest'
+      responses:
+        '200':
+          description: Successfully created the project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamRequest'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    get:
+      description: Get All Projects
+      operationId: FetchAll
+      responses:
+        '200':
+          description: Successfully retrieved all projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TeamRequest'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      description: Update Project
+      operationId: UpdateTeam
+      requestBody:
+        description: A JSON object containing the project config
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamRequest'
+      responses:
+        '200':
+          description: Successfully updated the project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamRequest'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      description: Delete Project
+      operationId: DeleteTeam
+      requestBody:
+        description: A JSON object containing the project config
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamRequest'
+      responses:
+        '200':
+          description: Successfully delete the project
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "Project deleted successfully."
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/team/autocomplete:
+    get:
+      description: Get Projects for Autocomplete
+      operationId: FetchForAutocomplete
+      responses:
+        '200':
+          description: Successfully retrieved projects for autocomplete
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TeamRequest'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/team/{id}:
+    get:
+      description: Get Project by ID
+      operationId: FetchOne
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Project ID
+      responses:
+        '200':
+          description: Successfully retrieved the project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamRequest'
+        '400':
+          description: Bad Request. Invalid ID format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

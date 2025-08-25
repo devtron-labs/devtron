@@ -1,0 +1,752 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Environment & Namespace Management
+paths:
+  /orchestrator/env/namespace/autocomplete:
+    get:
+      description: list of namespaces group by clusters
+      parameters:
+        - in: query
+          name: ids
+          example: "1,2"
+          description: cluster ids
+          required: false
+          allowEmptyValue: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    description: namespace list group by cluster
+                    items:
+                      $ref: '#/components/schemas/ClusterEnvDto'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/cluster:
+    put:
+      tags:
+        - Cluster Management
+      summary: Update Cluster
+      description: Update an existing cluster configuration.
+      operationId: UpdateCluster
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      requestBody:
+        description: A JSON object containing the cluster config
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClusterBean'
+      responses:
+        '200':
+          description: Successfully update the cluster
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterBean'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+    get:
+      tags:
+        - Cluster Management
+      summary: Get Cluster
+      description: Get cluster configuration by ID.
+      operationId: GetCluster
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+        - name: id
+          in: query
+          required: true
+          description: Cluster ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully retrieved the cluster
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterBean'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Cluster not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /orchestrator/cluster/delete:
+    post:
+      tags:
+        - Cluster Management
+      summary: Delete Cluster
+      description: Delete a cluster from the system.
+      operationId: DeleteCluster
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      requestBody:
+        description: Cluster deletion request
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: Cluster ID to delete
+                forceDelete:
+                  type: boolean
+                  description: Force delete even if cluster has dependencies
+      responses:
+        '200':
+          description: Cluster deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Deletion success status
+                  message:
+                    type: string
+                    description: Success message
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Cluster has dependencies and cannot be deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /orchestrator/cluster/{cluster_id}/env:
+    get:
+      tags:
+        - Cluster Environment
+      summary: List environments for a specific cluster
+      description: Get all environments associated with a specific cluster.
+      operationId: GetClusterEnvironments
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+        - name: cluster_id
+          in: path
+          required: true
+          description: Cluster ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Environments retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  status:
+                    type: string
+                    example: "OK"
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EnvironmentBean'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Cluster not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /orchestrator/env:
+    post:
+      tags:
+        - Environment Management
+      summary: Create Environment
+      description: Create a new environment within a cluster.
+      operationId: CreateEnvironment
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      requestBody:
+        description: Environment details
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnvironmentBean'
+      responses:
+        '200':
+          description: Environment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentBean'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Environment already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+    put:
+      tags:
+        - Environment Management
+      summary: Update Environment
+      description: Update an existing environment.
+      operationId: UpdateEnvironment
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      requestBody:
+        description: Updated environment details
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnvironmentBean'
+      responses:
+        '200':
+          description: Environment updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentBean'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Environment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+    delete:
+      tags:
+        - Environment Management
+      summary: Delete Environment
+      description: Delete an environment.
+      operationId: DeleteEnvironment
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+        - name: id
+          in: query
+          required: true
+          description: Environment ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Environment deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Deletion success status
+                  message:
+                    type: string
+                    description: Success message
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Environment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      tags:
+        - Environment Management
+      summary: Get Environment by ID
+      description: Get environment details by ID.
+      operationId: GetEnvironment
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+        - name: id
+          in: query
+          required: true
+          description: Environment ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Environment retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentBean'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Environment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /orchestrator/env/clusters:
+    get:
+      tags:
+        - Cluster Environment
+      summary: List clusters with their environments
+      description: Get all clusters along with their associated environments.
+      operationId: GetClustersWithEnvironments
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Clusters with environments retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  status:
+                    type: string
+                    example: "OK"
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ClusterEnvDto'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+# components mentioned below
+components:
+  schemas:
+    ClusterEnvDto:
+      type: object
+      properties:
+        clusterId:
+          type: integer
+          description: cluster id
+        clusterName:
+          type: string
+          description: cluster name
+        environments:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnvDto'
+        isVirtualCluster:
+          type: boolean
+          description: whether cluster is virtual or not
+        clusterServerUrl:
+          type: string
+          description: cluster server URL
+        clusterConfig:
+          type: object
+          description: cluster configuration
+          properties:
+            bearerToken:
+              type: string
+              description: bearer token for cluster access
+            tlsConfig:
+              type: object
+              description: TLS configuration
+              properties:
+                insecureSkipTLSVerify:
+                  type: boolean
+                  description: whether to skip TLS verification
+    EnvDto:
+      type: object
+      properties:
+        environmentId:
+          type: integer
+          description: environment id
+        environmentName:
+          type: string
+          description: environment name
+        namespace:
+          type: string
+          description: namespace
+        environmentIdentifier:
+          type: string
+          description: environment identifier
+        description:
+          type: string
+          description: environment description
+        isVirtualEnvironment:
+          type: boolean
+          description: whether environment is virtual or not
+        default:
+          type: boolean
+          description: whether environment is default or not
+        clusterId:
+          type: integer
+          description: cluster id
+        clusterName:
+          type: string
+          description: cluster name
+        active:
+          type: boolean
+          description: whether environment is active
+        createdOn:
+          type: string
+          format: date-time
+          description: creation timestamp
+        updatedOn:
+          type: string
+          format: date-time
+          description: last update timestamp
+        createdBy:
+          type: string
+          description: creator's name
+        updatedBy:
+          type: string
+          description: last updater's name
+
+    ErrorResponse:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        status:
+          type: string
+          description: Error message
+        errors:
+          type: array
+          description: errors
+          items:
+            $ref: '#/components/schemas/Error'
+
+    Error:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error internal code
+        internalMessage:
+          type: string
+          description: Error internal message
+        userMessage:
+          type: string
+          description: Error user message
+
+    ClusterBean:
+      type: object
+      required:
+        - cluster_name
+        - server_url
+      properties:
+        id:
+          type: integer
+          description: Cluster ID
+        cluster_name:
+          type: string
+          description: Name of the cluster
+        server_url:
+          type: string
+          description: Kubernetes API server URL
+        config:
+          type: object
+          description: Cluster configuration
+        active:
+          type: boolean
+          description: Whether cluster is active
+        cd_argo_setup:
+          type: boolean
+          description: Whether ArgoCD is set up
+        prometheus_url:
+          type: string
+          description: Prometheus URL for monitoring
+        created_on:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        created_by:
+          type: string
+          description: Creator's name
+        updated_on:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        updated_by:
+          type: string
+          description: Last updater's name
+
+    EnvironmentBean:
+      type: object
+      required:
+        - environment_name
+        - cluster_id
+        - namespace
+      properties:
+        id:
+          type: integer
+          description: Environment ID
+        environment_name:
+          type: string
+          description: Name of the environment
+        cluster_id:
+          type: integer
+          description: ID of the cluster this environment belongs to
+        namespace:
+          type: string
+          description: Kubernetes namespace
+        active:
+          type: boolean
+          description: Whether environment is active
+        default:
+          type: boolean
+          description: Whether this is the default environment
+        description:
+          type: string
+          description: Environment description
+        created_on:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        created_by:
+          type: string
+          description: Creator's name
+        updated_on:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        updated_by:
+          type: string
+          description: Last updater's name
+
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 404
+        message:
+          type: string
+          example: "Resource not found"
+        details:
+          type: array
+          items:
+            type: string
+          example: ["Resource not found in the system"]

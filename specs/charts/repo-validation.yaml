@@ -1,0 +1,210 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Helm Chart Repo Validation
+
+paths:
+  /orchestrator/chart-repo/validate:
+    post:
+      description: Validate helm repo by checking index file
+      operationId: ValidateChartRepo
+      requestBody:
+        description: A JSON object containing the chart repo configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChartRepoDto'
+      responses:
+        '200':
+          description: Successfully validated chart repo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailedErrorHelmRepoValidation'
+        '400':
+          description: Bad Request - Invalid input or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - User not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - User lacks required permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /orchestrator/chart-repo/create:
+    post:
+      description: Validate chart repo config and save if successfully validated
+      operationId: ValidateAndCreateChartRepo
+      requestBody:
+        description: A JSON object containing the chart repo configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChartRepoDto'
+      responses:
+        '200':
+          description: Successfully created and validated chart repo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChartRepoDto'
+        '400':
+          description: Bad Request - Invalid input or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - User not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - User lacks required permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /orchestrator/chart-repo/update:
+    post:
+      description: Validate configuration and update them if validation is successful
+      operationId: ValidateAndUpdateChartRepo
+      requestBody:
+        description: A JSON object containing the chart repo configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChartRepoDto'
+      responses:
+        '200':
+          description: Successfully updated and validated chart repo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChartRepoDto'
+        '400':
+          description: Bad Request - Invalid input or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - User not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - User lacks required permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    ChartRepoDto:
+      type: object
+      required:
+        - name
+        - authMode
+      properties:
+        id:
+          type: integer
+          description: Chart repo ID
+        name:
+          type: string
+          description: Chart repo name
+          minLength: 3
+        url:
+          type: string
+          description: Chart repo URL
+        userName:
+          type: string
+          description: Username for authentication
+        password:
+          type: string
+          description: Password for authentication
+        sshKey:
+          type: string
+          description: SSH key for authentication
+        accessToken:
+          type: string
+          description: Access token for authentication
+        authMode:
+          type: string
+          description: Authentication mode
+          enum: [USERNAME_PASSWORD, SSH, ACCESS_TOKEN, ANONYMOUS]
+        active:
+          type: boolean
+          description: Whether the repo is active
+        default:
+          type: boolean
+          description: Whether this is the default repo
+        allowInsecureConnection:
+          type: boolean
+          description: Whether to allow insecure connections
+
+    DetailedErrorHelmRepoValidation:
+      type: object
+      properties:
+        customErrMsg:
+          type: string
+          description: User-friendly error message
+        actualErrMsg:
+          type: string
+          description: Technical error message
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+        message:
+          type: string
+          description: Error message
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message
