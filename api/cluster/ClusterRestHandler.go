@@ -721,7 +721,7 @@ func (impl ClusterRestHandlerImpl) GetClusterNamespaces(w http.ResponseWriter, r
 
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		impl.logger.Error("user not authorized", "userId", userId, "error", err)
+		impl.logger.Errorw("user not authorized", "userId", userId, "error", err)
 		common.HandleUnauthorized(w, r)
 		return
 	}
