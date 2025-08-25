@@ -96,9 +96,28 @@ type ClusterCapacityDetail struct {
 	ServerVersion     string                                `json:"serverVersion,omitempty"`
 	Cpu               *ResourceDetailObject                 `json:"cpu"`
 	Memory            *ResourceDetailObject                 `json:"memory"`
+	Status            ClusterStatus                         `json:"status,omitempty"`
 	IsVirtualCluster  bool                                  `json:"isVirtualCluster"`
 	IsProd            bool                                  `json:"isProd"`
 }
+
+func (details *ClusterCapacityDetail) SetStatus(nodeErrors map[corev1.NodeConditionType][]string) {
+	if len(nodeErrors) > 0 {
+		// if any node has error then cluster status is unhealthy
+		details.Status = ClusterStatusUnHealthy
+	} else {
+		details.Status = ClusterStatusHealthy
+	}
+
+}
+
+type ClusterStatus string
+
+const (
+	ClusterStatusHealthy          ClusterStatus = "healthy"
+	ClusterStatusUnHealthy        ClusterStatus = "unhealthy"
+	ClusterStatusConnectionFailed ClusterStatus = "connection failed"
+)
 
 type NodeCapacityDetail struct {
 	Name          string                              `json:"name"`

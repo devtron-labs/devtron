@@ -87,12 +87,14 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailList(ctx context.Con
 		var err error
 		if len(cluster.ErrorInConnecting) > 0 {
 			clusterCapacityDetail.ErrorInConnection = cluster.ErrorInConnecting
+			clusterCapacityDetail.Status = bean.ClusterStatusConnectionFailed
 		} else {
 			clusterCapacityDetail, err = impl.GetClusterCapacityDetail(ctx, cluster, true)
 			if err != nil {
 				impl.logger.Errorw("error in getting cluster capacity details by id", "clusterID", cluster.Id, "err", err)
 				clusterCapacityDetail = &bean.ClusterCapacityDetail{
 					ErrorInConnection: err.Error(),
+					Status:            bean.ClusterStatusConnectionFailed,
 				}
 			}
 		}
@@ -189,6 +191,7 @@ func (impl *K8sCapacityServiceImpl) setBasicClusterDetails(nodeList *corev1.Node
 	clusterDetail.NodeErrors = nodeErrors
 	clusterDetail.NodeK8sVersions = nodesK8sVersion
 	clusterDetail.NodeDetails = clusterNodeDetails
+	clusterDetail.SetStatus(nodeErrors)
 	clusterDetail.Cpu = &bean.ResourceDetailObject{
 		Capacity: getResourceString(clusterCpuCapacity, corev1.ResourceCPU),
 	}
