@@ -717,12 +717,11 @@ func (impl ClusterRestHandlerImpl) HandleRbacForClusterNamespace(userId int32, t
 
 func (impl ClusterRestHandlerImpl) GetClusterNamespaces(w http.ResponseWriter, r *http.Request) {
 	//token := r.Header.Get("token")
-	vars := mux.Vars(r)
-	clusterIdString := vars["clusterId"]
+	//vars := mux.Vars(r)
 
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		impl.logger.Error("user not authorized", "error", err, "userId", userId)
+		impl.logger.Error("user not authorized", "userId", userId, "error", err)
 		common.HandleUnauthorized(w, r)
 		return
 	}
@@ -731,10 +730,10 @@ func (impl ClusterRestHandlerImpl) GetClusterNamespaces(w http.ResponseWriter, r
 	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
 		isActionUserSuperAdmin = true
 	}
-	clusterId, err := strconv.Atoi(clusterIdString)
+	// extract cluster and handle response on error
+	clusterId, err := common.ExtractIntPathParamWithContext(w, r, "clusterId", "cluster")
 	if err != nil {
-		impl.logger.Errorw("failed to extract clusterId from param must be integer", "error", err, "clusterId", clusterIdString)
-		common.HandleParameterError(w, r, "clusterIdString", clusterIdString)
+		impl.logger.Error("error in parsing clusterId", "clusterId", clusterId, "err", err)
 		return
 	}
 
