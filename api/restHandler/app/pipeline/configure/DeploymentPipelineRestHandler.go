@@ -987,13 +987,13 @@ func (handler *PipelineConfigRestHandlerImpl) GetDefaultDeploymentTemplate(w htt
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
 		handler.Logger.Error("error in getting appId path param, GetDefaultDeploymentTemplate", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.HandleParameterError(w, r, "appId", vars["appId"])
 		return
 	}
 	chartRefId, err := strconv.Atoi(vars["chartRefId"])
 	if err != nil {
 		handler.Logger.Error("error in getting chartRefId path param, GetDefaultDeploymentTemplate", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.HandleParameterError(w, r, "chartRefId", vars["chartRefId"])
 		return
 	}
 	token := r.Header.Get("token")

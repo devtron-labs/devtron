@@ -70,7 +70,12 @@ func (handler SsoLoginRestHandlerImpl) CreateSSOLoginConfig(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	err = handler.validator.Struct(dto)
+	if err != nil {
+		handler.logger.Errorw("validation err in CreateSSOLoginConfig", "err", err, "payload", dto)
+		common.HandleValidationErrors(w, r, err)
+		return
+	}
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
@@ -103,7 +108,12 @@ func (handler SsoLoginRestHandlerImpl) UpdateSSOLoginConfig(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	err = handler.validator.Struct(dto)
+	if err != nil {
+		handler.logger.Errorw("validation err in CreateSSOLoginConfig", "err", err, "payload", dto)
+		common.HandleValidationErrors(w, r, err)
+		return
+	}
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)

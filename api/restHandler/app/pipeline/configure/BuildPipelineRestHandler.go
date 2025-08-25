@@ -1664,9 +1664,11 @@ func (handler *PipelineConfigRestHandlerImpl) GetCommitMetadataForPipelineMateri
 		return
 	}
 	vars := mux.Vars(r)
-	ciPipelineMaterialId, err := strconv.Atoi(vars["ciPipelineMaterialId"])
+	ciPipelineMaterialIdString := vars["ciPipelineMaterialId"]
+	ciPipelineMaterialId, err := strconv.Atoi(ciPipelineMaterialIdString)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.Logger.Errorw("failed to extract ciPipelineMaterialId from param must be integer", "error", err, "ciPipelineMaterialId", ciPipelineMaterialIdString)
+		common.HandleParameterError(w, r, "ciPipelineMaterialId", ciPipelineMaterialIdString)
 		return
 	}
 

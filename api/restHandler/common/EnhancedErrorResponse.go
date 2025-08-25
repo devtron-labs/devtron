@@ -253,7 +253,12 @@ func validationMessage(fe validator.FieldError) string {
 			"%s must start and end with a lowercase letter or digit; may only contain lowercase letters, digits, '_' or '-' (no spaces or commas)",
 			fe.Field(),
 		)
-
+		// validation tag for sso config name
+	case "validate-sso-config-name":
+		return fmt.Sprintf(
+			"%s must be one of [google, github, gitlab, microsoft, ldap, oidc, openshift]",
+			fe.Field(),
+		)
 	// if a certain validator tag is not included in switch case then,
 	// we will parse the error as generic validator error,
 	// and further divide them on basis of parametric and non-parametric validation tags

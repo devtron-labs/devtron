@@ -108,6 +108,13 @@ func IntValidator() (*validator.Validate, error) {
 		return v, err
 	}
 	err = v.RegisterValidation("validate-api-token-name", validateApiTokenName)
+	if err != nil {
+		return v, err
+	}
+	err = v.RegisterValidation("validate-sso-config-name", validateSSOConfigName)
+	if err != nil {
+		return v, err
+	}
 	return v, err
 }
 
@@ -147,3 +154,23 @@ func validateApiTokenName(fl validator.FieldLevel) bool {
 	hostnameRegexRFC952 := regexp.MustCompile(hostnameRegexString)
 	return hostnameRegexRFC952.MatchString(fl.Field().String())
 }
+
+func validateSSOConfigName(fl validator.FieldLevel) bool {
+	allowedSSOConfigNames := []string{
+		"google",
+		"github",
+		"gitlab",
+		"microsoft",
+		"ldap",
+		"oidc",
+		"openshift",
+	}
+	value := fl.Field().String()
+	for _, v := range allowedSSOConfigNames {
+		if value == v {
+			return true
+		}
+	}
+	return false
+}
+
