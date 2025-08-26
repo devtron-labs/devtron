@@ -32,11 +32,18 @@ paths:
           schema:
             type: string
             format: date
+            description: If timeWindow param is provided, it will be given preference
         - name: to
           in: query
           schema:
             type: string
             format: date
+            description: If timeWindow param is provided, it will be given preference
+        - name: timeWindow
+          in: query
+          schema:
+            type: string
+            enum: [ today, week, month, quarter, lastWeek, lastMonth ]
         - name: subResource
           description:  "Can have multiple comma separated subresources. For each subresource separate summary will be returned."
           in: query
@@ -78,22 +85,34 @@ paths:
           schema:
             type: string
             format: date
+            description: If timeWindow param is provided, it will be given preference
         - name: to
           in: query
           schema:
             type: string
             format: date
+            description: If timeWindow param is provided, it will be given preference
+        - name: timeWindow
+          in: query
+          schema:
+            type: string
+            enum: [today, week, month, quarter, lastWeek, lastMonth]
         - name: sortBy
           in: query
           schema:
             type: string
             enum: [totalCost, cpuCost, gpuCost, memoryCost, storageCost, potentialSavings]
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
         - name: searchByName
           in: query
           description: "name of sub resource to search for"
           schema:
             type: string
-        - name: limit
+        - name: size
           in: query
           schema:
             type: integer
@@ -349,43 +368,59 @@ components:
             type: { type: string }
         overallBreakdown:
           type: array
-          items: { $ref: "#/components/schemas/BreakdownItem" }
+          items: { $ref: "#/components/schemas/BreakdownList" }
         breakdownsBySubResource:
           type: object
           additionalProperties:
-            type: array
+            type: object
             items:
-              $ref: "#/components/schemas/BreakdownItem"
+              $ref: "#/components/schemas/BreakdownList"
           description: |
             Cost breakdowns grouped by subResource.
             Each property key is a subResource name (e.g. "namespace", "node", "application"). The value is an array of BreakdownItem objects.
           example:
             namespace:
-              - name: "namespace-a"
-                cpuCost: 1000
-                memoryCost: 2000
-                gpuCost: 0
-                storageCost: 500
-                totalCost: 3500
-                potentialSavings: 400
-                savingsPercent: 11
-                metadata:
-                  clusterId: "cluster-123"
-                  envCount: 5
-                  clusterType: "prod"
+              items:
+                - name: "namespace-a"
+                  cpuCost: 1000
+                  memoryCost: 2000
+                  gpuCost: 0
+                  storageCost: 500
+                  totalCost: 3500
+                  potentialSavings: 400
+                  savingsPercent: 11
+                  metadata:
+                    clusterId: "cluster-123"
+                    envCount: 5
+                    clusterType: "prod"
+              totalCount: 42
             node:
-              - name: "node-1"
-                cpuCost: 1200
-                memoryCost: 1800
-                gpuCost: 200
-                storageCost: 700
-                totalCost: 3900
-                potentialSavings: 300
-                savingsPercent: 8
-                metadata:
-                  clusterId: "cluster-123"
-                  applicationCount: 12
-                  clusterProvider: "eks"
+              items:
+                - name: "node-1"
+                  cpuCost: 1200
+                  memoryCost: 1800
+                  gpuCost: 200
+                  storageCost: 700
+                  totalCost: 3900
+                  potentialSavings: 300
+                  savingsPercent: 8
+                  metadata:
+                    clusterId: "cluster-123"
+                    applicationCount: 12
+                    clusterProvider: "eks"
+              totalCount: 17
+    BreakdownList:
+      type: object
+      required: [items, totalCount]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/BreakdownItem"
+        totalCount:
+          type: integer
+          minimum: 0
+          description: Total number of items matching the query (before pagination)
     BreakdownItem:
       type: object
       properties:
@@ -406,7 +441,7 @@ components:
             "applicationCount": 10
             "envCount": 5
             "clusterType": "prod"
-            "clusterProvider": "eks"
+            "clusterProvider": "EKS,AKS,GCP,OCI,Other"
     CostModuleDetail:
       type: object
       properties:
@@ -444,8 +479,8 @@ components:
               operator:
                 type: string
                 description: Comparison operator.
-                enum: [ "==", "!=" ]
-                example: "=="
+                enum: [ "Equality", "Inequality","Contains","NotContains","ContainsPrefix","NotContainsPrefix","ContainsSuffix","NotContainsSuffix"]
+                example: "Equality"
               value:
                 type: string
                 description: Label value to compare against.
