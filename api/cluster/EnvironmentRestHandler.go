@@ -447,11 +447,15 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDownByCl
 			id, err := strconv.Atoi(clusterId)
 			if err != nil {
 				impl.logger.Errorw("request err, GetCombinedEnvironmentListForDropDownByClusterIds", "err", err, "clusterIdString", clusterIdString)
-				common.WriteJsonResp(w, err, "please send valid cluster Ids", http.StatusBadRequest)
+				common.HandleParameterError(w, r, "ids", clusterIdString)
 				return
 			}
 			clusterIds = append(clusterIds, id)
 		}
+	} else {
+		impl.logger.Errorw("request err empty query param, GetCombinedEnvironmentListForDropDownByClusterIds", "err", err, "clusterIdString", clusterIdString)
+		common.HandleParameterError(w, r, "ids", clusterIdString)
+		return
 	}
 	token := r.Header.Get("token")
 	clusters, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDownByClusterIds(token, clusterIds, impl.rbacEnforcementUtil.CheckAuthorizationForGlobalEnvironment)
