@@ -2507,7 +2507,7 @@ func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter
 	if size > 0 {
 		if offset+size <= len(beans) {
 			beans = beans[offset : offset+size]
-		} else {
+		} else if len(beans) != 0 {
 			beans = beans[offset:]
 		}
 	}

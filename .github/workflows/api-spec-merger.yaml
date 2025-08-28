@@ -2,14 +2,15 @@ name: API Specs Merger
 
 on:
   push:
+    branches:
+      - main
     paths:
       - 'specs/**'
-
 permissions:
   contents: write
 
 jobs:
-  lint-and-bundle:
+  lint-bundle-host:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -27,28 +28,30 @@ jobs:
           ./scripts/generate-api-docs.sh
 
       - name: Commit and push documentation
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_SYSTEMSDT_TOKEN }}
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
 
-          # Fetch the gh-pages-test branch
-          git fetch origin gh-pages-test
+          # Fetch the gh-pages branch
+          git fetch origin gh-pages
 
           # Create a separate worktree for the branch
-          git worktree add /tmp/gh-pages-test gh-pages-test
+          git worktree add /tmp/gh-pages gh-pages
 
           # Copy generated docs into the worktree
-          mkdir -p /tmp/gh-pages-test/docs/api-docs
-          cp -r docs/api-docs/* /tmp/gh-pages-test/docs/api-docs/ || true
+          mkdir -p /tmp/gh-pages/docs/api-docs
+          cp -r docs/api-docs/* /tmp/gh-pages/docs/api-docs/ || true
 
-          cd /tmp/gh-pages-test
+          cd /tmp/gh-pages
 
           git add .
           if git diff --staged --quiet; then
             echo "✅ No changes to commit"
           else
             git commit -m "📄 Update API documentation"
-            git push origin gh-pages-test
-            echo "🚀 Documentation pushed to gh-pages-test branch!"
+            git push origin gh-pages
+            echo "🚀 Documentation pushed to gh-pages branch!"
           fi
       
