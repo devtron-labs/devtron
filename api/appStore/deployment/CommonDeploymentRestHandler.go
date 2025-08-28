@@ -103,7 +103,7 @@ func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppI
 			installedAppDto.AppOfferingMode = appOfferingMode
 			appIdentifier, err := handler.helmAppService.DecodeAppId(appId)
 			if err != nil {
-				err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "invalid app id"}
+				err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "invalid app id, expected format clusterId|namespace|releaseName"}
 				return appOfferingMode, installedAppDto, err
 			}
 			installedAppDto.ClusterId = appIdentifier.ClusterId
