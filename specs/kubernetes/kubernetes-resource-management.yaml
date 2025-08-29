@@ -1,0 +1,645 @@
+openapi: 3.0.3
+info:
+  version: 1.0.0
+  title: Devtron Orchestrator Kubernetes & Resource Management API
+  description: |
+    API specifications for Devtron orchestrator Kubernetes and resource management
+    including cluster management, namespace operations, pod status, and resource scaling.
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Support
+    email: support@devtron.ai
+    url: https://devtron.ai/support
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
+
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+        status:
+          type: string
+          description: Status message
+        result:
+          type: object
+          description: Response result data
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Error code
+        status:
+          type: string
+          description: Error status
+        errors:
+          type: array
+          items:
+            type: string
+          description: List of error messages
+
+    Cluster:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Cluster ID
+        clusterName:
+          type: string
+          description: Cluster name
+        serverUrl:
+          type: string
+          description: Kubernetes API server URL
+        active:
+          type: boolean
+          description: Whether the cluster is active
+        config:
+          type: object
+          description: Cluster configuration
+        prometheusUrl:
+          type: string
+          description: Prometheus URL for metrics
+        cd_argo_setup:
+          type: boolean
+          description: Whether ArgoCD is set up
+        errorInConnecting:
+          type: string
+          description: Error message if connection failed
+        isVirtualCluster:
+          type: boolean
+          description: Whether this is a virtual cluster
+
+    Namespace:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Namespace name
+        clusterId:
+          type: integer
+          format: int64
+          description: Cluster ID
+        clusterName:
+          type: string
+          description: Cluster name
+        active:
+          type: boolean
+          description: Whether the namespace is active
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+          description: Namespace labels
+        annotations:
+          type: object
+          additionalProperties:
+            type: string
+          description: Namespace annotations
+        creationTimestamp:
+          type: string
+          format: date-time
+          description: Namespace creation timestamp
+
+    PodStatus:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Pod name
+        namespace:
+          type: string
+          description: Pod namespace
+        clusterId:
+          type: integer
+          format: int64
+          description: Cluster ID
+        status:
+          type: string
+          enum: [Running, Pending, Succeeded, Failed, Unknown]
+          description: Pod status
+        phase:
+          type: string
+          description: Pod phase
+        ready:
+          type: string
+          description: Ready status (e.g., "2/2")
+        restarts:
+          type: integer
+          description: Number of restarts
+        age:
+          type: string
+          description: Pod age
+        node:
+          type: string
+          description: Node name where pod is running
+        containers:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContainerStatus'
+          description: Container statuses
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+          description: Pod labels
+        creationTimestamp:
+          type: string
+          format: date-time
+          description: Pod creation timestamp
+
+    ContainerStatus:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Container name
+        ready:
+          type: boolean
+          description: Whether container is ready
+        restartCount:
+          type: integer
+          description: Container restart count
+        image:
+          type: string
+          description: Container image
+        state:
+          type: object
+          description: Container state
+        lastState:
+          type: object
+          description: Last container state
+
+    ResourceScalingRequest:
+      type: object
+      required:
+        - clusterId
+        - namespace
+        - resourceType
+        - resourceName
+        - replicas
+      properties:
+        clusterId:
+          type: integer
+          format: int64
+          description: Cluster ID
+        namespace:
+          type: string
+          description: Kubernetes namespace
+        resourceType:
+          type: string
+          enum: [Deployment, StatefulSet, ReplicaSet]
+          description: Type of Kubernetes resource to scale
+        resourceName:
+          type: string
+          description: Name of the resource to scale
+        replicas:
+          type: integer
+          minimum: 0
+          description: Desired number of replicas
+
+    ResourceScalingResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Whether scaling was successful
+        currentReplicas:
+          type: integer
+          description: Current number of replicas
+        desiredReplicas:
+          type: integer
+          description: Desired number of replicas
+        message:
+          type: string
+          description: Scaling operation message
+
+    ClusterCapacity:
+      type: object
+      properties:
+        clusterId:
+          type: integer
+          format: int64
+          description: Cluster ID
+        clusterName:
+          type: string
+          description: Cluster name
+        nodeCount:
+          type: integer
+          description: Total number of nodes
+        cpu:
+          $ref: '#/components/schemas/ResourceCapacity'
+        memory:
+          $ref: '#/components/schemas/ResourceCapacity'
+        storage:
+          $ref: '#/components/schemas/ResourceCapacity'
+        pods:
+          $ref: '#/components/schemas/ResourceCapacity'
+
+    ResourceCapacity:
+      type: object
+      properties:
+        allocatable:
+          type: string
+          description: Allocatable capacity
+        capacity:
+          type: string
+          description: Total capacity
+        usage:
+          type: string
+          description: Current usage
+        usagePercentage:
+          type: number
+          format: float
+          description: Usage percentage
+
+    NodeInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Node name
+        clusterId:
+          type: integer
+          format: int64
+          description: Cluster ID
+        status:
+          type: string
+          enum: [Ready, NotReady, Unknown]
+          description: Node status
+        roles:
+          type: array
+          items:
+            type: string
+          description: Node roles
+        age:
+          type: string
+          description: Node age
+        version:
+          type: string
+          description: Kubernetes version
+        internalIP:
+          type: string
+          description: Internal IP address
+        externalIP:
+          type: string
+          description: External IP address
+        capacity:
+          $ref: '#/components/schemas/ResourceCapacity'
+        allocatable:
+          $ref: '#/components/schemas/ResourceCapacity'
+        conditions:
+          type: array
+          items:
+            type: object
+          description: Node conditions
+
+tags:
+  - name: Cluster Management
+    description: Operations for managing Kubernetes clusters
+  - name: Namespace Management
+    description: Operations for managing Kubernetes namespaces
+  - name: Pod Management
+    description: Operations for managing and monitoring pods
+  - name: Resource Scaling
+    description: Operations for scaling Kubernetes resources
+
+paths:
+  /cluster/list:
+    get:
+      tags:
+        - Cluster Management
+      summary: Get list of Kubernetes clusters
+      description: Retrieves a list of all configured Kubernetes clusters
+      operationId: getClusterList
+      parameters:
+        - name: active
+          in: query
+          description: Filter by active status
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Cluster list retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Cluster'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /cluster/{clusterId}:
+    get:
+      tags:
+        - Cluster Management
+      summary: Get cluster details
+      description: Retrieves detailed information about a specific cluster
+      operationId: getClusterDetails
+      parameters:
+        - name: clusterId
+          in: path
+          description: Cluster ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      responses:
+        '200':
+          description: Cluster details retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/Cluster'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Cluster not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /namespace/list:
+    get:
+      tags:
+        - Namespace Management
+      summary: Get list of Kubernetes namespaces
+      description: Retrieves a list of namespaces across all clusters or for a specific cluster
+      operationId: getNamespaceList
+      parameters:
+        - name: clusterId
+          in: query
+          description: Filter by cluster ID
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: active
+          in: query
+          description: Filter by active status
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Namespace list retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Namespace'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /cluster/namespaces/{clusterId}:
+    get:
+      tags:
+        - Namespace Management
+      summary: Get namespaces for specific cluster
+      description: Retrieves all namespaces for a specific cluster
+      operationId: getClusterNamespaces
+      parameters:
+        - name: clusterId
+          in: path
+          description: Cluster ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      responses:
+        '200':
+          description: Cluster namespaces retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Namespace'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Cluster not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /pods/status:
+    get:
+      tags:
+        - Pod Management
+      summary: Get pod status and resource usage
+      description: Retrieves pod status and resource usage information
+      operationId: getPodStatus
+      parameters:
+        - name: clusterId
+          in: query
+          description: Filter by cluster ID
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: namespace
+          in: query
+          description: Filter by namespace
+          required: false
+          schema:
+            type: string
+        - name: appId
+          in: query
+          description: Filter by application ID
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: environmentId
+          in: query
+          description: Filter by environment ID
+          required: false
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Pod status retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/PodStatus'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /resource/scale:
+    post:
+      tags:
+        - Resource Scaling
+      summary: Scale Kubernetes resources
+      description: Scales Kubernetes resources (Deployments, StatefulSets, ReplicaSets)
+      operationId: scaleKubernetesResource
+      requestBody:
+        description: Resource scaling request
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceScalingRequest'
+      responses:
+        '200':
+          description: Resource scaled successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/ResourceScalingResponse'
+        '400':
+          description: Invalid request format or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
