@@ -29,7 +29,7 @@ import (
 func DecodeExternalAppAppId(appId string) (*bean.AppIdentifier, error) {
 	component := strings.Split(appId, "|")
 	if len(component) != 3 {
-		return nil, fmt.Errorf("malformed appId,  appId: %s", appId)
+		return nil, fmt.Errorf("malformed appId,  appId: %s, expected format clusterId|namespace|releaseName", appId)
 	}
 	clusterId, err := strconv.Atoi(component[0])
 	if err != nil {

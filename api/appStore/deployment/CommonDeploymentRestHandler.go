@@ -87,12 +87,12 @@ func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppI
 	if len(appId) > 0 {
 		appIdentifier, err := handler.helmAppService.DecodeAppId(appId)
 		if err != nil {
-			err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "invalid app id"}
+			// err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "invalid app id"}
 			return appOfferingMode, installedAppDto, err
 		}
 		installedAppDto, err = handler.installedAppService.GetInstalledAppByClusterNamespaceAndName(appIdentifier)
 		if err != nil {
-			err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "unable to find app in database"}
+			// err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "unable to find app in database"}
 			return appOfferingMode, installedAppDto, err
 		}
 		// this is the case when hyperion apps does not linked yet
@@ -103,7 +103,7 @@ func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppI
 			installedAppDto.AppOfferingMode = appOfferingMode
 			appIdentifier, err := handler.helmAppService.DecodeAppId(appId)
 			if err != nil {
-				err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "invalid app id, expected format clusterId|namespace|releaseName"}
+				// err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "invalid app id, expected format clusterId|namespace|releaseName"}
 				return appOfferingMode, installedAppDto, err
 			}
 			installedAppDto.ClusterId = appIdentifier.ClusterId
@@ -113,16 +113,17 @@ func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppI
 	} else if len(installedAppId) > 0 {
 		installedAppId, err := strconv.Atoi(installedAppId)
 		if err != nil {
-			err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "invalid installed app id"}
+			handler.Logger.Errorw("Invalid installedAppId expected int value", "installedAppId", installedAppId, "err", err)
 			return appOfferingMode, installedAppDto, err
 		}
 		installedAppDto, err = handler.installedAppService.GetInstalledAppByInstalledAppId(installedAppId)
 		if err != nil {
-			err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "unable to find app in database"}
+			// err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "unable to find app in database"}
 			return appOfferingMode, installedAppDto, err
 		}
 	} else {
 		err := &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "app id missing in request"}
+		handler.Logger.Errorw("appId is missing and is a required field", "appId", appId, "err", err)
 		return appOfferingMode, installedAppDto, err
 	}
 	if installedAppDto != nil && installedAppDto.InstalledAppId > 0 {
@@ -188,6 +189,7 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w htt
 	v := r.URL.Query()
 	installedAppId := v.Get("installedAppId")
 	appId := v.Get("appId")
+
 	appOfferingMode, installedAppDto, err := handler.getAppOfferingMode(installedAppId, appId)
 	if err != nil {
 		common.WriteJsonResp(w, err, "bad request", http.StatusBadRequest)
