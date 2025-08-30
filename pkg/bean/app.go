@@ -151,6 +151,7 @@ type CiPipeline struct {
 	CustomTagObject          *CustomTagData         `json:"customTag,omitempty"`
 	DefaultTag               []string               `json:"defaultTag,omitempty"`
 	EnableCustomTag          bool                   `json:"enableCustomTag"`
+	AutoAbortPreviousBuilds  bool                   `json:"autoAbortPreviousBuilds"`
 }
 
 func (ciPipeline *CiPipeline) IsLinkedCi() bool {
