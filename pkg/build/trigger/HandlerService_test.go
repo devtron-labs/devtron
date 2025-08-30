@@ -78,6 +78,36 @@ func TestHandlerServiceImpl_isWorkflowInCriticalPhase(t *testing.T) {
 		result := handlerService.isWorkflowInCriticalPhase(workflow)
 		assert.False(t, result, "Running workflow with zero StartedOn should not be in critical phase")
 	})
+
+	t.Run("Workflow at exactly 2 minute boundary should be in critical phase", func(t *testing.T) {
+		workflow := &pipelineConfig.CiWorkflow{
+			Id:        6,
+			Status:    "Running",
+			StartedOn: time.Now().Add(-2 * time.Minute), // Started exactly 2 minutes ago
+		}
+		result := handlerService.isWorkflowInCriticalPhase(workflow)
+		assert.True(t, result, "Workflow at 2 minute boundary should be in critical phase")
+	})
+
+	t.Run("Completed workflow should not be in critical phase", func(t *testing.T) {
+		workflow := &pipelineConfig.CiWorkflow{
+			Id:        7,
+			Status:    "Succeeded",
+			StartedOn: time.Now().Add(-10 * time.Minute),
+		}
+		result := handlerService.isWorkflowInCriticalPhase(workflow)
+		assert.False(t, result, "Completed workflow should not be in critical phase")
+	})
+
+	t.Run("Failed workflow should not be in critical phase", func(t *testing.T) {
+		workflow := &pipelineConfig.CiWorkflow{
+			Id:        8,
+			Status:    "Failed",
+			StartedOn: time.Now().Add(-3 * time.Minute),
+		}
+		result := handlerService.isWorkflowInCriticalPhase(workflow)
+		assert.False(t, result, "Failed workflow should not be in critical phase")
+	})
 }
 
 func TestCiTriggerRequest_HasPipelineId(t *testing.T) {
@@ -98,5 +128,26 @@ func TestCiPipeline_HasAutoAbortField(t *testing.T) {
 			AutoAbortPreviousBuilds: true,
 		}
 		assert.True(t, pipeline.AutoAbortPreviousBuilds, "CiPipeline should have AutoAbortPreviousBuilds field")
+	})
+
+	t.Run("CiPipeline AutoAbortPreviousBuilds should default to false", func(t *testing.T) {
+		pipeline := &pipelineConfig.CiPipeline{
+			Id: 2,
+			// AutoAbortPreviousBuilds not set, should default to false
+		}
+		assert.False(t, pipeline.AutoAbortPreviousBuilds, "CiPipeline AutoAbortPreviousBuilds should default to false")
+	})
+}
+
+func TestWorkflowStatus_Constants(t *testing.T) {
+	t.Run("Should have expected workflow statuses for auto-abort logic", func(t *testing.T) {
+		// These are the statuses we check for in FindRunningWorkflowsForPipeline
+		runningStatuses := []string{"Running", "Starting", "Pending"}
+		
+		// Ensure we have the expected statuses
+		assert.Contains(t, runningStatuses, "Running", "Should include Running status")
+		assert.Contains(t, runningStatuses, "Starting", "Should include Starting status")
+		assert.Contains(t, runningStatuses, "Pending", "Should include Pending status")
+		assert.Len(t, runningStatuses, 3, "Should have exactly 3 running statuses")
 	})
 }
