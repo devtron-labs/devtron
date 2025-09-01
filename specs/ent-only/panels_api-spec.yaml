@@ -8,7 +8,7 @@ servers:
   - url: https://api.example.com/v1
 
 paths:
-  /cluster/{cluster_id}/panels:
+  /orchestrator/cluster/{cluster_id}/panels:
     get:
       summary: List panels for a specific cluster
       parameters:
@@ -27,7 +27,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Panel'
-  /cluster/{cluster_id}/panel:
+  /orchestrator/cluster/{cluster_id}/panel:
     post:
       summary: Create a new panel for a specific cluster
       parameters:
@@ -50,7 +50,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Panel'
 
-  /clusters/{cluster_id}/panel/{panel_id}:
+  /orchestrator/clusters/{cluster_id}/panel/{panel_id}:
     get:
       summary: Get details of a specific panel
       parameters:

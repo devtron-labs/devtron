@@ -149,7 +149,7 @@ func (handler AppListingRestHandlerImpl) FetchAllDevtronManagedApps(w http.Respo
 	token := r.Header.Get("token")
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	handler.logger.Infow("got request to fetch all devtron managed apps ", "userId", userId)
@@ -168,7 +168,7 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		handler.logger.Errorw("request err, userId", "err", err, "payload", userId)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -241,7 +241,7 @@ func (handler AppListingRestHandlerImpl) FetchJobOverviewCiPipelines(w http.Resp
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		handler.logger.Errorw("request err, userId", "err", err, "payload", userId)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -287,7 +287,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 	userId, err := handler.userService.GetLoggedInUser(r)
 	span.End()
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	newCtx, span = otel.Tracer("userService").Start(newCtx, "GetById")
@@ -411,7 +411,7 @@ func (handler AppListingRestHandlerImpl) FetchOverviewAppsByEnvironment(w http.R
 	vars := mux.Vars(r)
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -475,7 +475,7 @@ func (handler AppListingRestHandlerImpl) FetchOverviewAppsByEnvironment(w http.R
 func (handler AppListingRestHandlerImpl) FetchAppDetailsV2(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)

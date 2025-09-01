@@ -120,7 +120,7 @@ func NewNotificationRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistry
 func (impl NotificationRestHandlerImpl) SaveNotificationSettingsV2(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var notificationSetting beans.NotificationRequest
@@ -159,7 +159,7 @@ func (impl NotificationRestHandlerImpl) SaveNotificationSettingsV2(w http.Respon
 func (impl NotificationRestHandlerImpl) UpdateNotificationSettings(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var notificationSetting beans.NotificationUpdateRequest
@@ -219,17 +219,16 @@ func (impl NotificationRestHandlerImpl) DeleteNotificationSettings(w http.Respon
 }
 
 func (impl NotificationRestHandlerImpl) GetAllNotificationSettings(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	size, err := strconv.Atoi(vars["size"])
+	// Use enhanced parameter parsing with context
+	size, err := common.ExtractIntPathParamWithContext(w, r, "size", "pagination")
 	if err != nil {
-		impl.logger.Errorw("request err, GetAllNotificationSettings", "err", err, "payload", size)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		// Error already written by ExtractIntPathParamWithContext
 		return
 	}
-	offset, err := strconv.Atoi(vars["offset"])
+
+	offset, err := common.ExtractIntPathParamWithContext(w, r, "offset", "pagination")
 	if err != nil {
-		impl.logger.Errorw("request err, GetAllNotificationSettings", "err", err, "payload", offset)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		// Error already written by ExtractIntPathParamWithContext
 		return
 	}
 
@@ -265,7 +264,7 @@ func (impl NotificationRestHandlerImpl) GetAllNotificationSettings(w http.Respon
 func (impl NotificationRestHandlerImpl) SaveNotificationChannelConfig(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -430,7 +429,7 @@ type ChannelResponseDTO struct {
 func (impl NotificationRestHandlerImpl) FindAllNotificationConfig(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -518,14 +517,14 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfig(w http.Respons
 func (impl NotificationRestHandlerImpl) FindSESConfig(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
-	vars := mux.Vars(r)
-	id, err := strconv.Atoi(vars["id"])
+
+	// Use enhanced parameter parsing with context
+	id, err := common.ExtractIntPathParamWithContext(w, r, "id", "SES config")
 	if err != nil {
-		impl.logger.Errorw("request err, FindSESConfig", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		// Error already written by ExtractIntPathParamWithContext
 		return
 	}
 	token := r.Header.Get("token")
@@ -547,14 +546,14 @@ func (impl NotificationRestHandlerImpl) FindSESConfig(w http.ResponseWriter, r *
 func (impl NotificationRestHandlerImpl) FindSlackConfig(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
-	vars := mux.Vars(r)
-	id, err := strconv.Atoi(vars["id"])
+
+	// Use enhanced parameter parsing with context
+	id, err := common.ExtractIntPathParamWithContext(w, r, "id", "Slack config")
 	if err != nil {
-		impl.logger.Errorw("request err, FindSlackConfig", "err", err, "id", id)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		// Error already written by ExtractIntPathParamWithContext
 		return
 	}
 
@@ -572,7 +571,7 @@ func (impl NotificationRestHandlerImpl) FindSlackConfig(w http.ResponseWriter, r
 func (impl NotificationRestHandlerImpl) FindSMTPConfig(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -599,7 +598,7 @@ func (impl NotificationRestHandlerImpl) FindSMTPConfig(w http.ResponseWriter, r 
 func (impl NotificationRestHandlerImpl) FindWebhookConfig(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -623,7 +622,7 @@ func (impl NotificationRestHandlerImpl) FindWebhookConfig(w http.ResponseWriter,
 func (impl NotificationRestHandlerImpl) GetWebhookVariables(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -641,7 +640,7 @@ func (impl NotificationRestHandlerImpl) GetWebhookVariables(w http.ResponseWrite
 func (impl NotificationRestHandlerImpl) RecipientListingSuggestion(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -671,7 +670,7 @@ func (impl NotificationRestHandlerImpl) RecipientListingSuggestion(w http.Respon
 func (impl NotificationRestHandlerImpl) FindAllNotificationConfigAutocomplete(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -749,7 +748,7 @@ func (impl NotificationRestHandlerImpl) GetOptionsForNotificationSettings(w http
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var request repository.SearchRequest
@@ -783,7 +782,7 @@ func (impl NotificationRestHandlerImpl) GetOptionsForNotificationSettings(w http
 func (impl NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 

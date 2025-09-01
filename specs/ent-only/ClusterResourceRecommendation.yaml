@@ -8,7 +8,7 @@ servers:
     description: Devtron API Server
 
 paths:
-  /k8s/resource/recommended:
+  /orchestrator/k8s/resource/recommended:
     post:
       summary: Get Resource Recommendation for a particular resource
       description: Fetch resource recommendations for a specific Kubernetes resource.
@@ -31,7 +31,7 @@ paths:
       tags:
         - Resource Recommendation
 
-  /k8s/resource/recommendation/sync:
+  /orchestrator/k8s/resource/recommendation/sync:
     post:
       summary: Sync Cluster Resource Recommendations
       description: Sync resource recommendations for a cluster.
@@ -55,7 +55,7 @@ paths:
       tags:
         - Resource Recommendation
 
-  /k8s/resource/{clusterId}/recommendation/details:
+  /orchestrator/k8s/resource/{clusterId}/recommendation/details:
     get:
       summary: Get Cluster Resource Recommendation Details
       description: Fetch metadata of resource recommendations for a cluster.
@@ -78,7 +78,7 @@ paths:
       tags:
         - Resource Recommendation
 
-  /k8s/resource/recommendation/list:
+  /orchestrator/k8s/resource/recommendation/list:
     post:
       summary: Get Cluster Resource Recommendation List
       description: Fetch all workloads and their resource recommendations.

@@ -82,7 +82,7 @@ func NewAppFilteringRestHandlerImpl(logger *zap.SugaredLogger,
 func (handler AppFilteringRestHandlerImpl) GetClusterTeamAndEnvListForAutocomplete(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	clusterMapping := make(map[string]bean3.ClusterBean)

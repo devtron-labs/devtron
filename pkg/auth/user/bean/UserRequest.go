@@ -112,7 +112,7 @@ type RoleData struct {
 
 type SSOLoginDto struct {
 	Id     int32           `json:"id"`
-	Name   string          `json:"name,omitempty"`
+	Name   string          `json:"name,omitempty," validate:"validate-sso-config-name"`
 	Label  string          `json:"label,omitempty"`
 	Url    string          `json:"url,omitempty"`
 	Config json.RawMessage `json:"config,omitempty"`
