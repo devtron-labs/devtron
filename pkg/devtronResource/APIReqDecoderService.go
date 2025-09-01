@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 // APIReqDecoderService is common service used for getting decoded devtronResource and history related api params.
@@ -52,11 +53,26 @@ func (impl *APIReqDecoderServiceImpl) GetFilterCriteriaParamsForDeploymentHistor
 		return nil, &util2.ApiError{
 			HttpStatusCode:  http.StatusBadRequest,
 			Code:            "400",
-			InternalMessage: "invalid format filter criteria!",
-			UserMessage:     "invalid format filter criteria!",
+			InternalMessage: "missing required identifiers: either (appId and envId) or pipelineId must be provided to fetch history",
+			UserMessage:     "Please provide either both App ID and Env ID, or a Pipeline ID to view history.",
 		}
 	}
 	if resp.PipelineId == 0 {
+		missingResources := []string{}
+		if resp.AppId == 0 {
+			missingResources = append(missingResources, "appId")
+		}
+		if resp.EnvId == 0 {
+			missingResources = append(missingResources, "EnvId")
+		}
+		if len(missingResources) > 0 {
+			return nil, &util2.ApiError{
+				HttpStatusCode:  http.StatusBadRequest,
+				Code:            "400",
+				InternalMessage: "missing required resources: " + strings.Join(missingResources, ", "),
+				UserMessage:     "missing required resources: " + strings.Join(missingResources, ", "),
+			}
+		}
 		pipelineObj, err := impl.pipelineRepository.FindActiveByAppIdAndEnvId(resp.AppId, resp.EnvId)
 		if err != nil {
 			impl.logger.Errorw("error in getting pipeline", "appId", resp.AppId, "envId", resp.EnvId, "err", err)
