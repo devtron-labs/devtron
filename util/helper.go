@@ -176,6 +176,33 @@ func CheckForMissingFiles(chartLocation string) error {
 }
 
 func ExtractTarGz(gzipStream io.Reader, chartDir string) error {
+	// Helper to safely join and validate tar entry names
+	safeJoin := func(destDir, filePath string) (string, error) {
+		cleanName := filepath.Clean(filePath)
+		// Prevent absolute paths
+		if filepath.IsAbs(cleanName) {
+			return "", fmt.Errorf("tar entry %q is absolute path", filePath)
+		}
+		// Prevent path traversal
+		if strings.Contains(cleanName, "..") {
+			return "", fmt.Errorf("tar entry %q contains parent directory traversal", filePath)
+		}
+		fullPath := filepath.Join(destDir, cleanName)
+		// Ensure the resulting path is within destDir
+		absDest, err := filepath.Abs(destDir)
+		if err != nil {
+			return "", err
+		}
+		absFull, err := filepath.Abs(fullPath)
+		if err != nil {
+			return "", err
+		}
+		if !strings.HasPrefix(absFull, absDest+string(os.PathSeparator)) && absFull != absDest {
+			return "", fmt.Errorf("tar entry %q escapes target directory", filePath)
+		}
+		return fullPath, nil
+	}
+
 	uncompressedStream, err := gzip.NewReader(gzipStream)
 	if err != nil {
 		return err
@@ -192,10 +219,16 @@ func ExtractTarGz(gzipStream io.Reader, chartDir string) error {
 		if err != nil {
 			return err
 		}
+
+		outPath, err := safeJoin(chartDir, header.Name)
+		if err != nil {
+			return err
+		}
+
 		switch header.Typeflag {
 		case tar.TypeDir:
-			if _, err := os.Stat(filepath.Join(chartDir, header.Name)); os.IsNotExist(err) {
-				if err := os.MkdirAll(filepath.Join(chartDir, header.Name), 0755); err != nil {
+			if _, err := os.Stat(outPath); os.IsNotExist(err) {
+				if err := os.MkdirAll(outPath, 0755); err != nil {
 					return err
 				}
 			} else {
@@ -203,14 +236,18 @@ func ExtractTarGz(gzipStream io.Reader, chartDir string) error {
 			}
 
 		case tar.TypeReg:
-			outFile, err := os.Create(filepath.Join(chartDir, header.Name))
+			outFile, err := os.Create(outPath)
 			if err != nil {
 				dirName := filepath.Dir(header.Name)
-				if _, err1 := os.Stat(filepath.Join(chartDir, dirName)); os.IsNotExist(err1) {
-					if err1 = os.MkdirAll(filepath.Join(chartDir, dirName), 0755); err1 != nil {
+				dirPath, dirErr := safeJoin(chartDir, dirName)
+				if dirErr != nil {
+					return dirErr
+				}
+				if _, err1 := os.Stat(dirPath); os.IsNotExist(err1) {
+					if err1 = os.MkdirAll(dirPath, 0755); err1 != nil {
 						return err1
 					}
-					outFile, err = os.Create(filepath.Join(chartDir, header.Name))
+					outFile, err = os.Create(outPath)
 					if err != nil {
 						return err
 					}
