@@ -200,7 +200,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
       security: []
 
-  /devtron/auth/verify/v2:
+  /orchestrator/devtron/auth/verify/v2:
     get:
       tags:
         - Authentication

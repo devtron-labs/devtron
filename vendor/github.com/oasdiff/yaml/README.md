@@ -5,6 +5,11 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/invopop/yaml)](https://goreportcard.com/report/github.com/invopop/yaml)
 ![Latest Tag](https://img.shields.io/github/v/tag/invopop/yaml)
 
+## Fork
+This fork is an improved version of the invopop/yaml package, designed to include line and column location information for YAML elements during unmarshalling.  
+To include location information use ```UnmarshalWithOrigin``` instead of ```Unmarshal```.  
+The heavy lifting is done by the underlying [oasdiff/yaml3](https://github.com/oasdiff/yaml3) package.
+
 ## Introduction
 
 A wrapper around [go-yaml](https://github.com/go-yaml/yaml) designed to enable a better way of handling YAML when marshaling to and from structs.

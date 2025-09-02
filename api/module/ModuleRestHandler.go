@@ -64,7 +64,7 @@ func NewModuleRestHandlerImpl(logger *zap.SugaredLogger,
 func (impl ModuleRestHandlerImpl) GetModuleConfig(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -90,7 +90,7 @@ func (impl ModuleRestHandlerImpl) GetModuleInfo(w http.ResponseWriter, r *http.R
 	// check if user is logged in or not
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -121,7 +121,7 @@ func (impl ModuleRestHandlerImpl) HandleModuleAction(w http.ResponseWriter, r *h
 	// check if user is logged in or not
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -171,7 +171,7 @@ func (impl ModuleRestHandlerImpl) EnableModule(w http.ResponseWriter, r *http.Re
 	// check if user is logged in or not
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 

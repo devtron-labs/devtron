@@ -4,7 +4,7 @@ info:
   description: API to fetch metadata for cluster charts
   version: 1.0.0
 paths:
-  /infrastructure/chart/metadata:
+  /orchestrator/infrastructure/chart/metadata:
     get:
       summary: Retrieve infra chart metadata
       description: Fetch metadata about the charts needed for cluster installation
@@ -41,7 +41,7 @@ paths:
           description: Bad Request. Invalid or missing parameters.
         '500':
           description: Internal Server Error.
-  /infrastructure/installations/v1:
+  /orchestrator/infrastructure/installations/v1:
     post:
       summary: Create or Update cluster infrastructure
       description: Submit metadata and YAML values to configure a cluster infrastructure.
@@ -97,7 +97,7 @@ paths:
                   status: "succeeded"
                   name: "cluster-dev"
                   isProd: false
-  /infrastructure/installation-status/{installationId}:
+  /orchestrator/infrastructure/installation-status/{installationId}:
     get:
       summary: Get installation status conditions of an installation
       parameters:

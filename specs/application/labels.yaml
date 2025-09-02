@@ -818,7 +818,7 @@ components:
       bearerFormat: JWT
 
 paths:
-  /app/labels/list:
+  /orchestrator/app/labels/list:
     get:
       summary: List Application Labels
       description: |
@@ -973,7 +973,7 @@ paths:
       tags:
         - Application Labels
 
-  /app/meta/info/{appId}:
+  /orchestrator/app/meta/info/{appId}:
     get:
       summary: Get Application Meta Info
       description: Retrieves application basic info, projects and labels
@@ -1046,7 +1046,7 @@ paths:
       tags:
         - Application Metadata
 
-  /helm/meta/info/{appId}:
+  /orchestrator/app/helm/meta/info/{appId}:
     get:
       summary: Get Helm Application Meta Info
       description: Retrieves application info for all types of Helm apps
