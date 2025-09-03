@@ -352,7 +352,7 @@ paths:
         - Workflow Management
       summary: Create an application workflow
       description: Creates a new workflow for a given application.
-      operationId: CreateAppWorkflow
+      operationId: CreateAppWorkflowV2
       parameters:
         - name: token
           in: header
@@ -405,7 +405,7 @@ paths:
         - Clone Workflow
       summary: Clone Application Workflow
       description: Clone an existing application workflow.
-      operationId: CloneAppWorkflow
+      operationId: CloneApplicationWorkflow
       parameters:
         - name: token
           in: header

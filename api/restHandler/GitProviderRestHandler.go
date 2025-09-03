@@ -81,7 +81,7 @@ func (impl GitProviderRestHandlerImpl) SaveGitRepoConfig(w http.ResponseWriter, 
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var bean bean.GitRegistry
@@ -110,8 +110,9 @@ func (impl GitProviderRestHandlerImpl) SaveGitRepoConfig(w http.ResponseWriter, 
 
 	res, err := impl.gitRegistryConfig.Create(&bean)
 	if err != nil {
-		impl.logger.Errorw("service err, SaveGitRepoConfig", "err", err, "payload", bean)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		impl.logger.Errorw("Failed to create git provider", "gitProviderName", bean.Name, "err", err)
+		// Use enhanced error response with resource context
+		common.WriteJsonRespWithResourceContext(w, err, nil, 0, "git provider", bean.Name)
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
@@ -120,8 +121,9 @@ func (impl GitProviderRestHandlerImpl) SaveGitRepoConfig(w http.ResponseWriter, 
 func (impl GitProviderRestHandlerImpl) GetGitProviders(w http.ResponseWriter, r *http.Request) {
 	res, err := impl.gitProviderReadService.GetAll()
 	if err != nil {
-		impl.logger.Errorw("service err, GetGitProviders", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		impl.logger.Errorw("Failed to get git providers", "err", err)
+		// Use enhanced error response for service errors
+		common.WriteJsonRespWithResourceContext(w, err, nil, 0, "git providers", "all")
 		return
 	}
 
@@ -174,7 +176,7 @@ func (impl GitProviderRestHandlerImpl) UpdateGitRepoConfig(w http.ResponseWriter
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var bean bean.GitRegistry
@@ -213,7 +215,7 @@ func (impl GitProviderRestHandlerImpl) DeleteGitRepoConfig(w http.ResponseWriter
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var bean bean.GitRegistry

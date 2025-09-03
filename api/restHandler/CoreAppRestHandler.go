@@ -21,6 +21,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	app2 "github.com/devtron-labs/devtron/api/restHandler/app/pipeline/configure"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	appWorkflowBean "github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
@@ -34,10 +39,6 @@ import (
 	read5 "github.com/devtron-labs/devtron/pkg/chart/read"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	read3 "github.com/devtron-labs/devtron/pkg/team/read"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 
 	appBean "github.com/devtron-labs/devtron/api/appbean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -150,15 +151,15 @@ func (handler CoreAppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *
 
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteUnauthorizedError(w)
 		return
 	}
 
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
-		handler.logger.Errorw("request err, GetAppAllDetail", "err", err, "appId", appId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.logger.Errorw("request err, GetAppAllDetail", "err", err, "appId", vars["appId"])
+		common.WriteInvalidAppIdError(w, vars["appId"])
 		return
 	}
 
@@ -167,7 +168,7 @@ func (handler CoreAppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {
 		handler.logger.Errorw("Unauthorized User for app update action", "err", err, "appId", appId)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		common.WriteForbiddenError(w, "update", "application")
 		return
 	}
 	//rbac implementation ends here for app
@@ -260,7 +261,7 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -447,13 +448,17 @@ func (handler CoreAppRestHandlerImpl) buildAppMetadata(appId int) (*appBean.AppM
 	appMetaInfo, err := handler.appCrudOperationService.GetAppMetaInfo(appId, app.ZERO_INSTALLED_APP_ID, app.ZERO_ENVIRONMENT_ID)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAppMetaInfo in GetAppAllDetail", "err", err, "appId", appId)
+		// Check if it's a "not found" error
+		if util2.IsErrNoRows(err) {
+			return nil, err, http.StatusNotFound
+		}
 		return nil, err, http.StatusInternalServerError
 	}
 
 	if appMetaInfo == nil {
 		err = errors.New("invalid appId - appMetaInfo is null")
 		handler.logger.Errorw("Validation error ", "err", err, "appId", appId)
-		return nil, err, http.StatusBadRequest
+		return nil, err, http.StatusNotFound
 	}
 
 	var appLabelsRes []*appBean.AppLabel
@@ -2243,7 +2248,7 @@ func (handler CoreAppRestHandlerImpl) CreateAppWorkflow(w http.ResponseWriter, r
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -2321,7 +2326,7 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflow(w http.ResponseWriter, r *h
 
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -2377,7 +2382,7 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflowAndOverridesSample(w http.Re
 
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)

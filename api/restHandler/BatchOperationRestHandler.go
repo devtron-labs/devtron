@@ -66,7 +66,7 @@ func (handler BatchOperationRestHandlerImpl) Operate(w http.ResponseWriter, r *h
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var data map[string]interface{}

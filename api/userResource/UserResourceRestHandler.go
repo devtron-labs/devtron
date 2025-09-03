@@ -34,7 +34,7 @@ func NewUserResourceRestHandler(logger *zap.SugaredLogger,
 func (handler *RestHandlerImpl) GetResourceOptions(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 

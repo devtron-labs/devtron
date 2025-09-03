@@ -16,7 +16,7 @@ import (
 	"reflect"
 	"strconv"
 
-	"gopkg.in/yaml.v3"
+	"github.com/oasdiff/yaml3"
 )
 
 // Marshal the object into JSON then converts JSON to YAML and returns the
@@ -38,10 +38,20 @@ func Marshal(o interface{}) ([]byte, error) {
 // JSONOpt is a decoding option for decoding from JSON format.
 type JSONOpt func(*json.Decoder) *json.Decoder
 
+// YAMLOpt is a decoding option for decoding from YAML format.
+type YAMLOpt func(*yaml.Decoder) *yaml.Decoder
+
 // Unmarshal converts YAML to JSON then uses JSON to unmarshal into an object,
 // optionally configuring the behavior of the JSON unmarshal.
 func Unmarshal(y []byte, o interface{}, opts ...JSONOpt) error {
+	return UnmarshalWithOrigin(y, o, false, opts...)
+}
+
+// UnmarshalWithOrigin is like Unmarshal but if withOrigin is true, it will
+// include the origin information in the output.
+func UnmarshalWithOrigin(y []byte, o interface{}, withOrigin bool, opts ...JSONOpt) error {
 	dec := yaml.NewDecoder(bytes.NewReader(y))
+	dec.Origin(withOrigin)
 	return unmarshal(dec, o, opts)
 }
 

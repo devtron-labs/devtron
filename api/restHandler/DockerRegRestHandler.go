@@ -196,7 +196,7 @@ func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWri
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var bean types.DockerArtifactStoreBean
@@ -295,7 +295,7 @@ func (impl DockerRegRestHandlerImpl) ValidateDockerRegistryConfig(w http.Respons
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var bean types.DockerArtifactStoreBean
@@ -428,12 +428,21 @@ func (impl DockerRegRestHandlerExtendedImpl) FetchAllDockerAccounts(w http.Respo
 }
 
 func (impl DockerRegRestHandlerImpl) FetchOneDockerAccounts(w http.ResponseWriter, r *http.Request) {
+	// Use enhanced error response builder
+	errorBuilder := common.NewErrorResponseBuilder(w, r).
+		WithOperation("fetch docker registry").
+		WithResource("docker registry", "")
+
 	params := mux.Vars(r)
 	id := params["id"]
+
+	// Update resource context with actual ID
+	errorBuilder = errorBuilder.WithResource("docker registry", id)
+
 	res, err := impl.dockerRegistryConfig.FetchOneDockerAccount(id)
 	if err != nil {
-		impl.logger.Errorw("service err, FetchOneDockerAccounts", "err", err, "id", id)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		impl.logger.Errorw("Failed to fetch docker registry", "registryId", id, "err", err)
+		errorBuilder.HandleError(err)
 		return
 	}
 	res.DisabledFields = make([]types.DisabledFields, 0)
@@ -446,12 +455,13 @@ func (impl DockerRegRestHandlerImpl) FetchOneDockerAccounts(w http.ResponseWrite
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionGet, res.Id); !ok {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		impl.logger.Warnw("Unauthorized access to docker registry", "registryId", id, "userId", token)
+		common.HandleForbidden(w, r, "docker registry")
 		return
 	}
 	//RBAC enforcer Ends
 
-	common.WriteJsonResp(w, err, res, http.StatusOK)
+	errorBuilder.HandleSuccess(res)
 }
 
 func (impl DockerRegRestHandlerExtendedImpl) FetchOneDockerAccounts(w http.ResponseWriter, r *http.Request) {
@@ -488,7 +498,7 @@ func (impl DockerRegRestHandlerImpl) UpdateDockerRegistryConfig(w http.ResponseW
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var bean types.DockerArtifactStoreBean
@@ -597,7 +607,7 @@ func (impl DockerRegRestHandlerImpl) DeleteDockerRegistryConfig(w http.ResponseW
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var bean types.DockerArtifactStoreBean
@@ -636,7 +646,7 @@ func (impl DockerRegRestHandlerExtendedImpl) DeleteDockerRegistryConfig(w http.R
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var bean types.DockerArtifactStoreBean

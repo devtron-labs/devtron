@@ -17,6 +17,7 @@
 package common
 
 import (
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/gorilla/mux"
 	"net/http"
 	"strconv"
@@ -35,12 +36,47 @@ func ExtractIntPathParam(w http.ResponseWriter, r *http.Request, paramName strin
 	return paramIntValue, nil
 }
 
+// ExtractIntPathParamWithContext provides enhanced error messages with resource context
+func ExtractIntPathParamWithContext(w http.ResponseWriter, r *http.Request, paramName string, resourceType string) (int, error) {
+	vars := mux.Vars(r)
+	paramValue := vars[paramName]
+	paramIntValue, err := convertToIntWithContext(w, paramValue, paramName, resourceType)
+	if err != nil {
+		return 0, err
+	}
+	return paramIntValue, nil
+}
+
 func convertToInt(w http.ResponseWriter, paramValue string) (int, error) {
 	paramIntValue, err := strconv.Atoi(paramValue)
 	if err != nil {
 		WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return 0, err
 	}
+	return paramIntValue, nil
+}
+
+// convertToIntWithContext provides better error messages for parameter conversion
+func convertToIntWithContext(w http.ResponseWriter, paramValue, paramName, resourceType string) (int, error) {
+	if paramValue == "" {
+		apiErr := util.NewMissingRequiredFieldError(paramName)
+		WriteJsonResp(w, apiErr, nil, apiErr.HttpStatusCode)
+		return 0, apiErr
+	}
+
+	paramIntValue, err := strconv.Atoi(paramValue)
+	if err != nil {
+		apiErr := util.NewInvalidPathParameterError(paramName, paramValue)
+		WriteJsonResp(w, apiErr, nil, apiErr.HttpStatusCode)
+		return 0, apiErr
+	}
+
+	if paramIntValue < 0 {
+		apiErr := util.NewValidationErrorForField(paramName, "must be a positive integer")
+		WriteJsonResp(w, apiErr, nil, apiErr.HttpStatusCode)
+		return 0, apiErr
+	}
+
 	return paramIntValue, nil
 }
 

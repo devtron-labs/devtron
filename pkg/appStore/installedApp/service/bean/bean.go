@@ -23,9 +23,9 @@ import (
 )
 
 type AppStoreManifestResponse struct {
-	ChartResponse      *util.ChartCreateResponse
-	ValuesConfig       *git.ChartConfig
-	RequirementsConfig *git.ChartConfig
+	ChartResponse       *util.ChartCreateResponse
+	ValuesConfig        *git.ChartConfig
+	ChartMetaDataConfig *git.ChartConfig
 }
 
 type AppStoreGitOpsResponse struct {
