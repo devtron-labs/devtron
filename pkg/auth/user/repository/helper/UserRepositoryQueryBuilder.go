@@ -18,6 +18,7 @@ package helper
 
 import (
 	"fmt"
+
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/util"
 )
@@ -83,11 +84,27 @@ func GetQueryForGroupListingWithFilters(req *bean2.ListingRequest) (string, []in
 
 	orderCondition := ""
 	if len(req.SortBy) > 0 && !req.CountCheck {
-		orderCondition += " order by  "
+		// Validate SortBy to prevent SQL injection - only allow safe column names
+		var sortColumn string
+		switch req.SortBy {
+		case bean2.GroupName:
+			sortColumn = "name"
+		case "id":
+			sortColumn = "id"
+		case "created_on":
+			sortColumn = "created_on"
+		case "updated_on":
+			sortColumn = "updated_on"
+		default:
+			// Default to name if invalid sort field provided
+			sortColumn = "name"
+		}
+
+		orderCondition += " order by " + sortColumn
 		if req.SortOrder == bean2.Desc {
-			orderCondition += fmt.Sprintf(" %s %s ", req.SortBy, bean2.Desc)
+			orderCondition += " DESC"
 		} else {
-			orderCondition += fmt.Sprintf(" %s ", req.SortBy)
+			orderCondition += " ASC"
 		}
 	}
 	if req.Size > 0 && !req.CountCheck && !req.ShowAll {
