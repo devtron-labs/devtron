@@ -1209,15 +1209,21 @@ func (handler *PipelineConfigRestHandlerImpl) FetchMaterialInfo(w http.ResponseW
 
 func (handler *PipelineConfigRestHandlerImpl) GetCIPipelineById(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
-	vars := mux.Vars(r)
-	appId, err := strconv.Atoi(vars["appId"])
+	// vars := mux.Vars(r)
+	//appId, err := strconv.Atoi(vars["appId"])
+	appId, err := common.ExtractIntPathParamWithContext(w, r, "appId", "app")
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		// response already written by ExtractIntPathParamWithContext
+		//common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.Logger.Error("request err getting , GetCIPipelineById", "appId", appId, "err", err)
 		return
 	}
-	pipelineId, err := strconv.Atoi(vars["pipelineId"])
+	//pipelineId, err := strconv.Atoi(vars["pipelineId"])
+	pipelineId, err := common.ExtractIntPathParamWithContext(w, r, "pipelineId", "pipeline")
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		// response already written by ExtractIntPathParamWithContext
+		// common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.Logger.Error("request err getting , GetCIPipelineById", "pipelineId", pipelineId, "err", err)
 		return
 	}
 
@@ -1711,20 +1717,29 @@ func (handler *PipelineConfigRestHandlerImpl) FetchWorkflowDetails(w http.Respon
 		common.HandleUnauthorized(w, r)
 		return
 	}
-	vars := mux.Vars(r)
-	appId, err := strconv.Atoi(vars["appId"])
+	// vars := mux.Vars(r)
+	// appId, err = strconv.Atoi(vars["appId"])
+	appId, err := common.ExtractIntPathParamWithContext(w, r, "appId", "app")
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		// response already written by ExtractIntPathParamWithContext
+		// common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.Logger.Error("request err getting , FetchWorkflowDetails", "appId", appId, "err", err)
 		return
 	}
-	pipelineId, err := strconv.Atoi(vars["pipelineId"])
+	// pipelineId, err := strconv.Atoi(vars["pipelineId"])
+	pipelineId, err := common.ExtractIntPathParamWithContext(w, r, "pipelineId", "pipeline")
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		// response already written by ExtractIntPathParamWithContext
+		// common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.Logger.Error("request err getting , FetchWorkflowDetails", "pipelineId", pipelineId, "err", err)
 		return
 	}
-	buildId, err := strconv.Atoi(vars["workflowId"])
+	// buildId, err := strconv.Atoi(vars["workflowId"])
+	buildId, err := common.ExtractIntPathParamWithContext(w, r, "workflowId", "workflow")
 	if err != nil || buildId == 0 {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		// response already written by ExtractIntPathParamWithContext
+		// common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.Logger.Error("request err getting , FetchWorkflowDetails", "buildId", buildId, "err", err)
 		return
 	}
 	handler.Logger.Infow("request payload, FetchWorkflowDetails", "appId", appId, "pipelineId", pipelineId, "buildId", buildId, "buildId", buildId)
