@@ -523,7 +523,7 @@ github.com/davecgh/go-spew/spew
 # github.com/deckarep/golang-set v1.8.0
 ## explicit; go 1.17
 github.com/deckarep/golang-set
-# github.com/devtron-labs/authenticator v0.4.35-0.20240809073103-6e11da8083f8 => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250806142853-d5a47198188d
+# github.com/devtron-labs/authenticator v0.4.35-0.20240809073103-6e11da8083f8 => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250903065916-8e6032eb99c7
 ## explicit; go 1.24.0
 github.com/devtron-labs/authenticator/apiToken
 github.com/devtron-labs/authenticator/client
@@ -2654,5 +2654,5 @@ xorm.io/xorm/log
 xorm.io/xorm/names
 xorm.io/xorm/schemas
 xorm.io/xorm/tags
-# github.com/devtron-labs/authenticator => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250806142853-d5a47198188d
+# github.com/devtron-labs/authenticator => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250903065916-8e6032eb99c7
 # github.com/devtron-labs/common-lib => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250806142853-d5a47198188d
