@@ -415,6 +415,10 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 	handler.Logger.Debugw("request payload, UpdateInstalledApp", "payload", request)
 	installedApp, err := handler.appStoreDeploymentDBService.GetInstalledApp(request.InstalledAppId)
 	if err != nil {
+		if util.IsErrNoRows(err) {
+			common.HandleResourceNotFound(w, r, "installedApp", strconv.Itoa(request.InstalledAppVersionId))
+			return
+		}
 		handler.Logger.Errorw("service err, UpdateInstalledApp", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -461,6 +465,8 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 	if err != nil {
 		if strings.Contains(err.Error(), "application spec is invalid") {
 			err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "application spec is invalid, please check provided chart values"}
+		} else if util.IsErrNoRows(err) {
+			handler.Logger.Errorw("installed app not found", "err", err, "payload", request)
 		}
 		handler.Logger.Errorw("service err, UpdateInstalledApp", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
