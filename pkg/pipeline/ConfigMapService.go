@@ -993,8 +993,10 @@ func (impl ConfigMapServiceImpl) CMGlobalDelete(name string, id int, userId int3
 			return false, err
 		}
 	} else {
-		impl.logger.Debugw("no config map found for delete with this name", "name", name)
-
+		// impl.logger.Debugw("no config map found for delete with this name", "name", name)
+		// this should return false as no config map found
+		impl.logger.Errorw("config map does not exist", "name", name, "id", id)
+		return false, err
 	}
 
 	return true, nil
@@ -1049,7 +1051,10 @@ func (impl ConfigMapServiceImpl) CMEnvironmentDelete(name string, id int, userId
 			return false, err
 		}
 	} else {
-		impl.logger.Debugw("no config map found for delete with this name", "name", name)
+		// impl.logger.Debugw("no config map found for delete with this name", "name", name)
+		// this should return false as no config map found
+		impl.logger.Errorw("config map does not exist", "name", name, "id", id)
+		return false, err
 	}
 	return true, nil
 }
@@ -1103,8 +1108,10 @@ func (impl ConfigMapServiceImpl) CSGlobalDelete(name string, id int, userId int3
 			return false, err
 		}
 	} else {
-		impl.logger.Debugw("no config map found for delete with this name", "name", name)
-
+		// impl.logger.Debugw("no config map found for delete with this name", "name", name)
+		// this should return false as no config map found
+		impl.logger.Errorw("cs does not exist", "name", name, "id", id)
+		return false, err
 	}
 
 	return true, nil
@@ -1158,7 +1165,10 @@ func (impl ConfigMapServiceImpl) CSEnvironmentDelete(name string, id int, userId
 			return false, err
 		}
 	} else {
-		impl.logger.Debugw("no config map found for delete with this name", "name", name)
+		// impl.logger.Debugw("no config map found for delete with this name", "name", name)
+		// this should return false as no config map found
+		impl.logger.Errorw("cs does not exist", "name", name, "id", id)
+		return false, err
 	}
 
 	return true, nil
@@ -1209,8 +1219,10 @@ func (impl ConfigMapServiceImpl) CMGlobalDeleteByAppId(name string, appId int, u
 			return false, err
 		}
 	} else {
-		impl.logger.Debugw("no config map found for delete with this name", "name", name)
-
+		// impl.logger.Debugw("no config map found for delete with this name", "name", name)
+		// this should return false as no config map found
+		impl.logger.Errorw("cnfog map does not exist", "name", name)
+		return false, err
 	}
 
 	return true, nil

@@ -520,7 +520,11 @@ func (handler ConfigMapRestHandlerImpl) CMGlobalDelete(w http.ResponseWriter, r 
 		return
 	}
 	name := vars["name"]
-	handler.Logger.Errorw("request payload, CMGlobalDelete", "appId", appId, "id", id, "name", name)
+	if name == "" || len(name) == 0 {
+		// handler.Logger.Errorw("request payload, CMGlobalDelete", "appId", appId, "id", id, "name", name)
+		common.WriteMissingRequiredFieldError(w, "name")
+		return
+	}
 
 	//RBAC START
 	token := r.Header.Get("token")
@@ -574,7 +578,11 @@ func (handler ConfigMapRestHandlerImpl) CMEnvironmentDelete(w http.ResponseWrite
 		return
 	}
 	name := vars["name"]
-	handler.Logger.Errorw("request payload, CMEnvironmentDelete", "appId", appId, "envId", envId, "id", id, "name", name)
+	if name == "" || len(name) == 0 {
+		// handler.Logger.Errorw("request payload, CMGlobalDelete", "appId", appId, "id", id, "name", name)
+		common.WriteMissingRequiredFieldError(w, "name")
+		return
+	}
 
 	//RBAC START
 	token := r.Header.Get("token")
@@ -630,7 +638,11 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalDelete(w http.ResponseWriter, r 
 		return
 	}
 	name := vars["name"]
-	handler.Logger.Errorw("request payload, CSGlobalDelete", "appId", appId, "id", id, "name", name)
+	if name == "" || len(name) == 0 {
+		// handler.Logger.Errorw("request payload, CMGlobalDelete", "appId", appId, "id", id, "name", name)
+		common.WriteMissingRequiredFieldError(w, "name")
+		return
+	}
 
 	//RBAC START
 	token := r.Header.Get("token")
@@ -684,7 +696,11 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentDelete(w http.ResponseWrite
 		return
 	}
 	name := vars["name"]
-	handler.Logger.Errorw("request payload, CSEnvironmentDelete", "appId", appId, "envId", envId, "id", id, "name", name)
+	if name == "" || len(name) == 0 {
+		// handler.Logger.Errorw("request payload, CMGlobalDelete", "appId", appId, "id", id, "name", name)
+		common.WriteMissingRequiredFieldError(w, "name")
+		return
+	}
 
 	//RBAC START
 	token := r.Header.Get("token")
