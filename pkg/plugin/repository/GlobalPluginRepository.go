@@ -18,7 +18,6 @@ package repository
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -947,19 +946,23 @@ func (impl *GlobalPluginRepositoryImpl) GetAllFilteredPluginParentMetadata(searc
 	var plugins []*PluginParentMetadata
 	query := "select ppm.id, ppm.identifier,ppm.name,ppm.description,ppm.type,ppm.icon,ppm.deleted,ppm.created_by, ppm.created_on,ppm.updated_by,ppm.updated_on from plugin_parent_metadata ppm" +
 		" inner join plugin_metadata pm on pm.plugin_parent_metadata_id=ppm.id"
-	whereCondition := fmt.Sprintf(" where ppm.deleted=false AND pm.deleted=false AND pm.is_latest=true AND pm.is_deprecated=false AND pm.is_exposed=true AND ppm.is_exposed=true")
+	var queryParams []interface{}
+	whereCondition := " where ppm.deleted=false AND pm.deleted=false AND pm.is_latest=true AND pm.is_deprecated=false AND pm.is_exposed=true AND ppm.is_exposed=true"
+
 	if len(tags) > 0 {
-		tagFilterSubQuery := fmt.Sprintf("select ptr.plugin_id from plugin_tag_relation ptr inner join plugin_tag pt on ptr.tag_id =pt.id where pt.deleted =false and  pt.name in (%s) group by ptr.plugin_id having count(ptr.plugin_id )=%d", helper.GetCommaSepratedStringWithComma(tags), len(tags))
-		whereCondition += fmt.Sprintf(" AND pm.id in (%s)", tagFilterSubQuery)
+		tagFilterSubQuery := "select ptr.plugin_id from plugin_tag_relation ptr inner join plugin_tag pt on ptr.tag_id =pt.id where pt.deleted =false and pt.name in (?) group by ptr.plugin_id having count(ptr.plugin_id )=?"
+		whereCondition += " AND pm.id in (" + tagFilterSubQuery + ")"
+		queryParams = append(queryParams, pg.In(tags), len(tags))
 	}
 	if len(searchKey) > 0 {
+		whereCondition += " AND (pm.description ilike ? or pm.name ilike ?)"
 		searchKeyLike := "%" + searchKey + "%"
-		whereCondition += fmt.Sprintf(" AND (pm.description ilike '%s' or pm.name ilike '%s')", searchKeyLike, searchKeyLike)
+		queryParams = append(queryParams, searchKeyLike, searchKeyLike)
 	}
 	orderCondition := " ORDER BY ppm.name asc;"
 
 	query += whereCondition + orderCondition
-	_, err := impl.dbConnection.Query(&plugins, query)
+	_, err := impl.dbConnection.Query(&plugins, query, queryParams...)
 	if err != nil {
 		return nil, err
 	}

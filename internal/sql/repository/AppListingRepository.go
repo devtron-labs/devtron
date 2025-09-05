@@ -197,9 +197,9 @@ func (impl *AppListingRepositoryImpl) FetchJobsLastSucceededOn(CiPipelineIDs []i
 	if len(CiPipelineIDs) == 0 {
 		return lastSucceededTimeArray, nil
 	}
-	jobsLastFinishedOnQuery := impl.appListingRepositoryQueryBuilder.JobsLastSucceededOnTimeQuery(CiPipelineIDs)
+	jobsLastFinishedOnQuery, queryParams := impl.appListingRepositoryQueryBuilder.JobsLastSucceededOnTimeQuery(CiPipelineIDs)
 	impl.Logger.Debugw("basic app detail query: ", jobsLastFinishedOnQuery)
-	_, appsErr := impl.dbConnection.Query(&lastSucceededTimeArray, jobsLastFinishedOnQuery)
+	_, appsErr := impl.dbConnection.Query(&lastSucceededTimeArray, jobsLastFinishedOnQuery, queryParams...)
 	if appsErr != nil {
 		impl.Logger.Errorw("error in fetching lastSucceededTimeArray", "error", appsErr, jobsLastFinishedOnQuery)
 		return lastSucceededTimeArray, appsErr

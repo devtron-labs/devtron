@@ -17,9 +17,7 @@
 package repository
 
 import (
-	"fmt"
 	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 )
@@ -108,9 +106,8 @@ func (impl GenericNoteRepositoryImpl) GetDescriptionFromAppIds(appIds []int) ([]
 	if len(appIds) == 0 {
 		return nil, nil
 	}
-	query := fmt.Sprintf("SELECT * "+
-		"FROM app WHERE id IN (%s)", helper.GetCommaSepratedString(appIds))
-	_, err := impl.dbConnection.Query(&apps, query)
+	// Use parameterized query to prevent SQL injection
+	err := impl.dbConnection.Model(&apps).Where("id IN (?)", pg.In(appIds)).Select()
 	if err != nil {
 		return nil, err
 	}

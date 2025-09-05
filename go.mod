@@ -1,13 +1,13 @@
 module github.com/devtron-labs/devtron
 
-go 1.24.0
+go 1.24.6
 
-toolchain go1.24.2
+toolchain go1.24.7
 
 require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/Pallinder/go-randomdata v1.2.0
-	github.com/argoproj/argo-cd/v2 v2.14.13
+	github.com/argoproj/argo-cd/v2 v2.14.17
 	github.com/argoproj/argo-workflows/v3 v3.5.13
 	github.com/argoproj/gitops-engine v0.7.1-0.20250521000818-c08b0a72c1f1
 	github.com/aws/aws-sdk-go v1.55.7

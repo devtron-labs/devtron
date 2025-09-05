@@ -70,15 +70,18 @@ func (impl DefaultAuthPolicyRepositoryImpl) UpdatePolicyByRoleType(policy string
 
 func (impl DefaultAuthPolicyRepositoryImpl) GetPolicyByRoleTypeAndEntity(roleType bean.RoleType, accessType string, entity string) (policy string, err error) {
 	var model DefaultAuthPolicy
-	query := "SELECT * FROM default_auth_policy WHERE role_type = ? "
-	query += " and entity = '" + entity + "' "
+	var queryParams []interface{}
+	query := "SELECT * FROM default_auth_policy WHERE role_type = ? AND entity = ? "
+	queryParams = append(queryParams, roleType, entity)
+
 	if accessType == "" {
-		query += "and access_type IS NULL ;"
+		query += "AND access_type IS NULL ;"
 	} else {
-		query += "and access_type ='" + accessType + "' ;"
+		query += "AND access_type = ? ;"
+		queryParams = append(queryParams, accessType)
 	}
 
-	_, err = impl.dbConnection.Query(&model, query, roleType)
+	_, err = impl.dbConnection.Query(&model, query, queryParams...)
 	if err != nil {
 		impl.logger.Error("error in getting policy by roleType", "err", err, "roleType", roleType, "entity", entity)
 		return "", err

@@ -19,7 +19,6 @@ package repository
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util"
 	"golang.org/x/exp/slices"
@@ -419,9 +418,9 @@ func (impl CiArtifactRepositoryImpl) GetLatestArtifactTimeByCiPipelineIds(ciPipe
 		"(SELECT  pipeline_id, MAX(created_on) created_on " +
 		"FROM ci_artifact " +
 		"GROUP BY pipeline_id) cws " +
-		"where cws.pipeline_id IN (" + helper.GetCommaSepratedString(ciPipelineIds) + "); "
+		"where cws.pipeline_id IN (?); "
 
-	_, err := impl.dbConnection.Query(&artifacts, query)
+	_, err := impl.dbConnection.Query(&artifacts, query, pg.In(ciPipelineIds))
 	if err != nil {
 		return nil, err
 	}
@@ -779,8 +778,8 @@ func (impl CiArtifactRepositoryImpl) FindArtifactByListFilter(listingFilterOptio
 	var ciArtifactsResp []CiArtifactWithExtraData
 	ciArtifacts := make([]*CiArtifact, 0)
 	totalCount := 0
-	finalQuery := BuildQueryForArtifactsForCdStage(*listingFilterOptions)
-	_, err := impl.dbConnection.Query(&ciArtifactsResp, finalQuery)
+	finalQuery, queryParams := BuildQueryForArtifactsForCdStage(*listingFilterOptions)
+	_, err := impl.dbConnection.Query(&ciArtifactsResp, finalQuery, queryParams...)
 	if err == pg.ErrNoRows || len(ciArtifactsResp) == 0 {
 		return ciArtifacts, totalCount, nil
 	}
@@ -821,8 +820,8 @@ func (impl CiArtifactRepositoryImpl) FindArtifactByListFilter(listingFilterOptio
 func (impl CiArtifactRepositoryImpl) FetchArtifactsByCdPipelineIdV2(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CiArtifactWithExtraData, int, error) {
 	var wfrList []CiArtifactWithExtraData
 	totalCount := 0
-	finalQuery := BuildQueryForArtifactsForRollback(listingFilterOptions)
-	_, err := impl.dbConnection.Query(&wfrList, finalQuery)
+	finalQuery, queryParams := BuildQueryForArtifactsForRollback(listingFilterOptions)
+	_, err := impl.dbConnection.Query(&wfrList, finalQuery, queryParams...)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting Wfrs and ci artifacts by pipelineId", "err", err, "pipelineId", listingFilterOptions.PipelineId)
 		return nil, totalCount, err

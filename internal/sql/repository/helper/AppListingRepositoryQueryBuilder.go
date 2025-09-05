@@ -111,16 +111,16 @@ func (impl AppListingRepositoryQueryBuilder) OverviewCiPipelineQuery() string {
 }
 
 // use this query with atleast 1 cipipeline id
-func (impl AppListingRepositoryQueryBuilder) JobsLastSucceededOnTimeQuery(ciPipelineIDs []int) string {
+func (impl AppListingRepositoryQueryBuilder) JobsLastSucceededOnTimeQuery(ciPipelineIDs []int) (string, []interface{}) {
 	// use this query with atleast 1 cipipeline id
 	query := "select cw.ci_pipeline_id,cw.finished_on " +
 		"as last_succeeded_on from ci_workflow cw inner join " +
 		"(SELECT  ci_pipeline_id, MAX(finished_on) finished_on " +
 		"FROM ci_workflow WHERE ci_workflow.status = 'Succeeded'" +
 		"GROUP BY ci_pipeline_id) cws on cw.ci_pipeline_id = cws.ci_pipeline_id and cw.finished_on = cws.finished_on " +
-		"where cw.ci_pipeline_id IN (" + GetCommaSepratedString(ciPipelineIDs) + "); "
+		"where cw.ci_pipeline_id IN (?); "
 
-	return query
+	return query, []interface{}{pg.In(ciPipelineIDs)}
 }
 
 func getAppListingCommonQueryString() string {
