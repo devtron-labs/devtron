@@ -140,10 +140,7 @@ func (handler DevtronAppAutoCompleteRestHandlerImpl) GetAppListForAutocomplete(w
 		if err != nil {
 			// Error already written by ExtractIntPathParamWithContext
 			return
-		}
-		if err != nil {
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
+
 		} else {
 			apps, err = handler.devtronAppConfigService.FindAppsByTeamId(teamIdInt)
 			if err != nil {
