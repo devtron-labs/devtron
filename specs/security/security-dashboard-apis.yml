@@ -1,198 +1,46 @@
-openapi: '3.0.2'
+openapi: 3.0.3
 info:
-  title: Security Scan API
-  version: '2.0'
-  description: API for managing security scans and vulnerability assessments
+  version: 1.0.0
+  title: Devtron Security Scan API
+  description: |
+    API for managing security scans and vulnerability assessments in Devtron.
+    Provides endpoints for scanning container images, retrieving scan results,
+    and managing vulnerability exposure across applications and environments.
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Support
+    email: support@devtron.ai
+    url: https://devtron.ai/support
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
 servers:
-  - url: https://api.server.test/v1
-paths:
-  /orchestrator/security/scan/list:
-    post:
-      summary: Get list of scan executions
-      description: Fetch scan execution history with filtering options
-      operationId: scanExecutionList
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ImageScanRequest'
-      responses:
-        '200':
-          description: List of scan executions
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ImageScanHistoryListingResponse'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-        '403':
-          description: Forbidden
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
 
-  /orchestrator/security/scan/executionDetail:
-    get:
-      summary: Fetch image scan execution result
-      description: Get detailed scan results by multiple ways for different use cases. At least one parameter is required.
-      operationId: fetchExecutionDetail
-      parameters:
-        - name: imageScanDeployInfoId
-          in: query
-          description: Image scan deploy info ID for fetching scan result
-          required: false
-          schema:
-            type: integer
-        - name: artifactId
-          in: query
-          description: CI artifact ID to fetch scan result for image
-          required: false
-          schema:
-            type: integer
-        - name: appId
-          in: query
-          description: Application ID for fetching scan result
-          required: false
-          schema:
-            type: integer
-        - name: envId
-          in: query
-          description: Environment ID for fetching scan result
-          required: false
-          schema:
-            type: integer
-        - name: image
-          in: query
-          description: Image name to fetch scan result for
-          required: false
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Scan execution details
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ImageScanExecutionDetail'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-        '403':
-          description: Forbidden
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /orchestrator/security/scan/executionDetail/min:
-    get:
-      summary: Fetch minimal scan result by app and environment ID
-      description: Get minimal scan result information for a specific app and environment
-      operationId: fetchMinScanResult
-      parameters:
-        - name: appId
-          in: query
-          description: Application ID
-          required: true
-          schema:
-            type: integer
-        - name: envId
-          in: query
-          description: Environment ID
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Minimal scan execution details
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ImageScanExecutionDetail'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-        '403':
-          description: Forbidden
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /orchestrator/security/scan/cve/exposure:
-    post:
-      summary: Get vulnerability exposure information
-      description: Fetch vulnerability exposure data across applications and environments
-      operationId: vulnerabilityExposure
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/VulnerabilityRequest'
-      responses:
-        '200':
-          description: Vulnerability exposure data
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/VulnerabilityExposureListingResponse'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-        '403':
-          description: Forbidden
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
   schemas:
     Error:
-      description: Error object
-      type: object
-      required:
-        - code
-        - message
-      properties:
-        code:
-          type: integer
-          format: int32
-          description: Error code
-        message:
-          type: string
-          description: Error message
+          description: Error object
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: integer
+              format: int32
+              description: Error code
+            message:
+              type: string
+              description: Error message
 
     ImageScanRequest:
       description: Request object for image scan operations
@@ -470,3 +318,192 @@ components:
         blocked:
           type: boolean
           description: Whether the vulnerability is blocked
+
+paths:
+  /orchestrator/security/scan/list:
+    post:
+      tags:
+        - Security Scanning
+      summary: Get list of scan executions
+      description: Fetch scan execution history with filtering options
+      operationId: scanExecutionList
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImageScanRequest'
+      responses:
+        '200':
+          description: List of scan executions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageScanHistoryListingResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/security/scan/executionDetail:
+    get:
+      tags:
+        - Security Scanning
+      summary: Fetch image scan execution result
+      description: Get detailed scan results by multiple ways for different use cases. At least one parameter is required.
+      operationId: fetchExecutionDetail
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: imageScanDeployInfoId
+          in: query
+          description: Image scan deploy info ID for fetching scan result
+          required: false
+          schema:
+            type: integer
+        - name: artifactId
+          in: query
+          description: CI artifact ID to fetch scan result for image
+          required: false
+          schema:
+            type: integer
+        - name: appId
+          in: query
+          description: Application ID for fetching scan result
+          required: false
+          schema:
+            type: integer
+        - name: envId
+          in: query
+          description: Environment ID for fetching scan result
+          required: false
+          schema:
+            type: integer
+        - name: image
+          in: query
+          description: Image name to fetch scan result for
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Scan execution details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageScanExecutionDetail'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/security/scan/executionDetail/min:
+    get:
+      tags:
+        - Security Scanning
+      summary: Fetch minimal scan result by app and environment ID
+      description: Get minimal scan result information for a specific app and environment
+      operationId: fetchMinScanResult
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: appId
+          in: query
+          description: Application ID
+          required: true
+          schema:
+            type: integer
+        - name: envId
+          in: query
+          description: Environment ID
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Minimal scan execution details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageScanExecutionDetail'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/security/scan/cve/exposure:
+    post:
+      tags:
+        - Security Scanning
+      summary: Get vulnerability exposure information
+      description: Fetch vulnerability exposure data across applications and environments
+      operationId: vulnerabilityExposure
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VulnerabilityRequest'
+      responses:
+        '200':
+          description: Vulnerability exposure data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VulnerabilityExposureListingResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

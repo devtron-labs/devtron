@@ -17,11 +17,12 @@
 package common
 
 import (
-	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/gorilla/mux"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/gorilla/mux"
 )
 
 const TokenHeaderKey = "token"
