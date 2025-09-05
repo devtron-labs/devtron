@@ -66,7 +66,7 @@ func (handler *GlobalCMCSRestHandlerImpl) CreateGlobalCMCSConfig(w http.Response
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var bean pipelineBean.GlobalCMCSDto
@@ -106,7 +106,7 @@ func (handler *GlobalCMCSRestHandlerImpl) UpdateGlobalCMCSDataById(w http.Respon
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var bean pipeline.GlobalCMCSDataUpdateDto
@@ -146,7 +146,7 @@ func (handler *GlobalCMCSRestHandlerImpl) GetGlobalCMCSDataByConfigTypeAndName(w
 
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -174,7 +174,7 @@ func (handler *GlobalCMCSRestHandlerImpl) GetGlobalCMCSDataByConfigTypeAndName(w
 func (handler *GlobalCMCSRestHandlerImpl) GetAllGlobalCMCSData(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -205,7 +205,7 @@ func (handler *GlobalCMCSRestHandlerImpl) DeleteByID(w http.ResponseWriter, r *h
 
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")

@@ -151,7 +151,7 @@ components:
           type: array
           items:
             type: integer
-            exclusiveMinimum: 0
+            minimum: 1
           description: Array of Environment Ids of dependent apps
         global:
           type: boolean

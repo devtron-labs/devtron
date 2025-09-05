@@ -318,7 +318,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /k8s/capacity/cluster/list:
+  /orchestrator/k8s/capacity/cluster/list:
     get:
       summary: Get cluster list with details
       description: Returns a list of clusters with detailed capacity information
@@ -351,7 +351,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /k8s/capacity/cluster/{clusterId}:
+  /orchestrator/k8s/capacity/cluster/{clusterId}:
     get:
       summary: Get cluster details
       description: Returns detailed capacity information for a specific cluster
@@ -395,7 +395,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /k8s/capacity/node/list:
+  /orchestrator/k8s/capacity/node/list:
     get:
       summary: Get node list
       description: Returns a list of nodes in a cluster
@@ -441,7 +441,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /k8s/capacity/node:
+  /orchestrator/k8s/capacity/node:
     get:
       summary: Get node details
       description: Returns detailed information for a specific node
@@ -575,7 +575,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /k8s/capacity/node/cordon:
+  /orchestrator/k8s/capacity/node/cordon:
     put:
       summary: Cordon or uncordon node
       description: Marks a node as unschedulable or schedulable
@@ -618,7 +618,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /k8s/capacity/node/drain:
+  /orchestrator/k8s/capacity/node/drain:
     put:
       summary: Drain node
       description: Safely evicts all pods from a node
@@ -661,7 +661,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /k8s/capacity/node/taints/edit:
+  /orchestrator/k8s/capacity/node/taints/edit:
     put:
       summary: Edit node taints
       description: Updates the taints on a node

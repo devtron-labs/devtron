@@ -112,7 +112,7 @@ func (handler *UserAttributesRestHandlerImpl) PatchUserAttributes(w http.Respons
 func (handler *UserAttributesRestHandlerImpl) validateUserAttributesRequest(w http.ResponseWriter, r *http.Request, operation string) (*bean.UserAttributesDto, bool) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return nil, false
 	}
 
@@ -147,7 +147,7 @@ func (handler *UserAttributesRestHandlerImpl) validateUserAttributesRequest(w ht
 func (handler *UserAttributesRestHandlerImpl) GetUserAttribute(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
