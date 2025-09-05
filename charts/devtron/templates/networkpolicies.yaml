@@ -28,7 +28,7 @@ kind: NetworkPolicy
 metadata:
   labels:
     app: postgresql
-  name: netpol-devtron-postgress
+  name: netpol-devtron-postgres
   namespace: devtroncd
 spec:
   policyTypes:
@@ -42,8 +42,8 @@ spec:
         - port: 5432
   podSelector:
     matchLabels:
-      app: postgresql
-      release: devtron
+      app.kubernetes.io/name: postgres
+      app.kubernetes.io/instance: devtron
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -231,5 +231,19 @@ spec:
     matchLabels:
         app.kubernetes.io/name: nats
         app.kubernetes.io/instance: devtron-nats
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-all-ingress-in-devtron
+  namespace: devtroncd
+spec:
+  podSelector:
+    matchLabels:
+      app: devtron
+  policyTypes:
+    - Ingress
+  ingress:
+    - {}
 {{- end }}
 {{- end }}
