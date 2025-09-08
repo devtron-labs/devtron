@@ -22,7 +22,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
-
+	"fmt"
 	"github.com/devtron-labs/common-lib/cloud-provider-identifier/bean"
 	"go.uber.org/zap"
 )
@@ -41,6 +41,10 @@ func (impl *IdentifyAmazon) Identify() (string, error) {
 	if err != nil {
 		impl.Logger.Errorw("error while reading file", "error", err)
 		return bean.Unknown, err
+	}
+	if data == nil{
+		fmt.Println("2588 error test")
+		return bean.Unknown, nil
 	}
 	if strings.Contains(string(data), bean.AmazonIdentifierString) {
 		return bean.Amazon, nil
