@@ -18,10 +18,11 @@ package repository
 
 import (
 	"fmt"
+	"time"
+
 	repoBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util"
-	"time"
 
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -238,10 +239,11 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithObject(request *r
 		 				INNER JOIN cve_store cs on cs.name= res.cve_store_name `
 	}
 
-	query = query + ` INNER JOIN environment env on env.id=info.env_id 
-	 				  INNER JOIN cluster c on c.id=env.cluster_id 
-					  WHERE info.scan_object_meta_id > 0 and env.active=true and info.image_scan_execution_history_id[1] != -1 
- 					  AND a.app_name like '%` + request.AppName + `%' `
+	query = query + ` INNER JOIN environment env on env.id=info.env_id
+	 				  INNER JOIN cluster c on c.id=env.cluster_id
+					  WHERE info.scan_object_meta_id > 0 and env.active=true and info.image_scan_execution_history_id[1] != -1
+ 					  AND a.app_name like ? `
+	queryParams = append(queryParams, "%"+request.AppName+"%")
 
 	if len(deployInfoIds) > 0 {
 		query += " AND info.id IN (?) "

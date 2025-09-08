@@ -118,6 +118,8 @@ github.com/apparentlymart/go-textseg/v13 v13.0.0 h1:Y+KvPE1NYz0xl601PVImeQfFyEy6
 github.com/apparentlymart/go-textseg/v13 v13.0.0/go.mod h1:ZK2fH7c4NqDTLtiYLvIkEghdlcqw7yxLeM89kiTRPUo=
 github.com/argoproj/argo-cd/v2 v2.14.13 h1:oSLPHV9Gon6mEqVkyBOuLJ7T16ShZv6xSjkCiquzEDM=
 github.com/argoproj/argo-cd/v2 v2.14.13/go.mod h1:P72XxcRigWQpQsuAgaXyHPFYkSPE4sdACA5g/s3Si1I=
+github.com/argoproj/argo-cd/v2 v2.14.17 h1:r/CkYKzHoPjGgJ/4/fdubUVpG+LBj6AtOigbitNHgy4=
+github.com/argoproj/argo-cd/v2 v2.14.17/go.mod h1:CF9GX0CjKiszpAnvYNCLV5tLSVqgfOgn/tcOt2VHTQo=
 github.com/argoproj/gitops-engine v0.7.1-0.20250521000818-c08b0a72c1f1 h1:Ze4U6kV49vSzlUBhH10HkO52bYKAIXS4tHr/MlNDfdU=
 github.com/argoproj/gitops-engine v0.7.1-0.20250521000818-c08b0a72c1f1/go.mod h1:WsnykM8idYRUnneeT31cM/Fq/ZsjkefCbjiD8ioCJkU=
 github.com/argoproj/pkg v0.13.7-0.20230627120311-a4dd357b057e h1:kuLQvJqwwRMQTheT4MFyKVM8Txncu21CHT4yBWUl1Mk=
