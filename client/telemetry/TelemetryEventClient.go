@@ -132,6 +132,11 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 }
 
 func (impl *TelemetryEventClientImpl) GetCloudProvider() (string, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered from panic GetCloudProvider", r)
+		}
+	}()
 	// assumption: the IMDS server will be reachable on startup
 	if len(impl.telemetryConfig.cloudProvider) == 0 {
 		provider, err := impl.cloudProviderIdentifierService.IdentifyProvider()
