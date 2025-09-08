@@ -7,6 +7,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/devtron-labs/authenticator/apiToken"
 	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/authenticator/middleware"
@@ -145,6 +146,12 @@ import (
 // Injectors from wire.go:
 
 func InitializeApp() (*App, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered from panic InitializeApp", r)
+			return
+		}
+	}()
 	sqlConfig, err := sql.GetConfig()
 	if err != nil {
 		return nil, err

@@ -146,6 +146,7 @@ func (impl *TelemetryEventClientImpl) GetCloudProvider() (string, error) {
 		}
 		impl.telemetryConfig.cloudProvider = provider
 	}
+	impl.logger.Infow("panic not received, GetCloudProvider", "cloudProvider", impl.telemetryConfig.cloudProvider)
 	return impl.telemetryConfig.cloudProvider, nil
 }
 

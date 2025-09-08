@@ -27,6 +27,7 @@ import (
 func main() {
 	app, err := InitializeApp()
 	if err != nil {
+		log.Println("error while initializing app", "err", err)
 		log.Panic(err)
 	}
 	go app.Start()
