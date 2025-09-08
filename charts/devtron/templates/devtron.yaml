@@ -10,7 +10,6 @@ metadata:
   annotations:
     "helm.sh/resource-policy": keep
 data:
-  GRPC_ENFORCE_ALPN_ENABLED: "false"
   DEVTRON_HELM_RELEASE_NAME: {{ $.Release.Name }}
   DEVTRON_HELM_RELEASE_NAMESPACE: {{ $.Release.Namespace }}
   FEATURE_MIGRATE_ARGOCD_APPLICATION_ENABLE: "true"
