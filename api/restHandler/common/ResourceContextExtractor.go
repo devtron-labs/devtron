@@ -18,10 +18,11 @@ package common
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/util"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/devtron-labs/devtron/internal/util"
 )
 
 // extractResourceContext tries to extract resource type and ID from response body
@@ -105,10 +106,5 @@ func WriteDatabaseError(w http.ResponseWriter, operation string, err error) {
 func WriteUnauthorizedError(w http.ResponseWriter) {
 	apiErr := util.NewApiError(http.StatusUnauthorized, "Unauthorized access", "unauthorized").
 		WithCode("11010")
-	WriteJsonResp(w, apiErr, nil, apiErr.HttpStatusCode)
-}
-
-func WriteInvalidAppIdError(w http.ResponseWriter, appId string) {
-	apiErr := util.NewInvalidPathParameterError("appId", appId)
 	WriteJsonResp(w, apiErr, nil, apiErr.HttpStatusCode)
 }

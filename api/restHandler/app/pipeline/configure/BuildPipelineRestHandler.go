@@ -1211,7 +1211,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetCIPipelineById(w http.ResponseW
 	token := r.Header.Get("token")
 	// vars := mux.Vars(r)
 	//appId, err := strconv.Atoi(vars["appId"])
-	appId, err := common.ExtractIntPathParamWithContext(w, r, "appId", "app")
+	appId, err := common.ExtractIntPathParamWithContext(w, r, "appId")
 	if err != nil {
 		// response already written by ExtractIntPathParamWithContext
 		//common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -1219,7 +1219,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetCIPipelineById(w http.ResponseW
 		return
 	}
 	//pipelineId, err := strconv.Atoi(vars["pipelineId"])
-	pipelineId, err := common.ExtractIntPathParamWithContext(w, r, "pipelineId", "pipeline")
+	pipelineId, err := common.ExtractIntPathParamWithContext(w, r, "pipelineId")
 	if err != nil {
 		// response already written by ExtractIntPathParamWithContext
 		// common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -1719,7 +1719,7 @@ func (handler *PipelineConfigRestHandlerImpl) FetchWorkflowDetails(w http.Respon
 	}
 	// vars := mux.Vars(r)
 	// appId, err = strconv.Atoi(vars["appId"])
-	appId, err := common.ExtractIntPathParamWithContext(w, r, "appId", "app")
+	appId, err := common.ExtractIntPathParamWithContext(w, r, "appId")
 	if err != nil {
 		// response already written by ExtractIntPathParamWithContext
 		// common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -1727,7 +1727,7 @@ func (handler *PipelineConfigRestHandlerImpl) FetchWorkflowDetails(w http.Respon
 		return
 	}
 	// pipelineId, err := strconv.Atoi(vars["pipelineId"])
-	pipelineId, err := common.ExtractIntPathParamWithContext(w, r, "pipelineId", "pipeline")
+	pipelineId, err := common.ExtractIntPathParamWithContext(w, r, "pipelineId")
 	if err != nil {
 		// response already written by ExtractIntPathParamWithContext
 		// common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -1735,7 +1735,7 @@ func (handler *PipelineConfigRestHandlerImpl) FetchWorkflowDetails(w http.Respon
 		return
 	}
 	// buildId, err := strconv.Atoi(vars["workflowId"])
-	buildId, err := common.ExtractIntPathParamWithContext(w, r, "workflowId", "workflow")
+	buildId, err := common.ExtractIntPathParamWithContext(w, r, "workflowId")
 	if err != nil || buildId == 0 {
 		// response already written by ExtractIntPathParamWithContext
 		// common.WriteJsonResp(w, err, nil, http.StatusBadRequest)

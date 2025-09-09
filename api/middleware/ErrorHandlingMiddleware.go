@@ -19,12 +19,11 @@ package middleware
 import (
 	"context"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/util"
+	"net/http"
+	"time"
+
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
-	"net/http"
-	"strconv"
-	"time"
 )
 
 // ErrorHandlingMiddleware provides enhanced error handling and logging for REST handlers
@@ -155,48 +154,4 @@ func GetRequestContext(r *http.Request) *RequestContext {
 		}
 	}
 	return nil
-}
-
-// LogError logs an error with request context for better debugging
-func (m *ErrorHandlingMiddleware) LogError(r *http.Request, err error, operation string) {
-	reqCtx := GetRequestContext(r)
-	if reqCtx != nil {
-		m.logger.Errorw("Request error",
-			"requestId", reqCtx.RequestID,
-			"operation", operation,
-			"error", err,
-			"method", reqCtx.Method,
-			"path", reqCtx.Path,
-			"resourceType", reqCtx.ResourceType,
-			"resourceId", reqCtx.ResourceID,
-		)
-	} else {
-		m.logger.Errorw("Request error",
-			"operation", operation,
-			"error", err,
-			"method", r.Method,
-			"path", r.URL.Path,
-		)
-	}
-}
-
-// ValidateIntPathParam validates and extracts an integer path parameter with enhanced error handling
-func ValidateIntPathParam(r *http.Request, paramName string) (int, *util.ApiError) {
-	vars := mux.Vars(r)
-	paramValue := vars[paramName]
-
-	if paramValue == "" {
-		return 0, util.NewMissingRequiredFieldError(paramName)
-	}
-
-	id, err := strconv.Atoi(paramValue)
-	if err != nil {
-		return 0, util.NewInvalidPathParameterError(paramName, paramValue)
-	}
-
-	if id <= 0 {
-		return 0, util.NewValidationErrorForField(paramName, "must be a positive integer")
-	}
-
-	return id, nil
 }
