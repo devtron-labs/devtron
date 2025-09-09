@@ -199,7 +199,7 @@ components:
       volumeSize: "20Gi"
   gitsensor:
     registry: ""
-    image: "git-sensor:f21e02cb-200-34529"
+    image: "git-sensor:880420ac-200-36032"
     imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
