@@ -128,7 +128,7 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 	err = handler.validator.Struct(overrideRequest)
 	if err != nil {
 		handler.logger.Errorw("request err, OverrideConfig", "err", err, "payload", overrideRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.HandleValidationErrors(w, r, err)
 		return
 	}
 	token := r.Header.Get("token")
@@ -178,7 +178,7 @@ func (handler PipelineTriggerRestHandlerImpl) RotatePods(w http.ResponseWriter, 
 	err = handler.validator.Struct(podRotateRequest)
 	if err != nil {
 		handler.logger.Errorw("validation err, RotatePods", "err", err, "payload", podRotateRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.HandleValidationErrors(w, r, err)
 		return
 	}
 	token := r.Header.Get("token")
@@ -227,7 +227,7 @@ func (handler PipelineTriggerRestHandlerImpl) StartStopApp(w http.ResponseWriter
 	err = handler.validator.Struct(overrideRequest)
 	if err != nil {
 		handler.logger.Errorw("validation err, StartStopApp", "err", err, "payload", overrideRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.HandleValidationErrors(w, r, err)
 		return
 	}
 	token := r.Header.Get("token")
