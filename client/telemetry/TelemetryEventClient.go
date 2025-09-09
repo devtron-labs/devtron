@@ -22,6 +22,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"time"
+
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	posthogTelemetry "github.com/devtron-labs/common-lib/telemetry"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
@@ -30,8 +33,6 @@ import (
 	ucidService "github.com/devtron-labs/devtron/pkg/ucid"
 	cron3 "github.com/devtron-labs/devtron/util/cron"
 	"go.opentelemetry.io/otel"
-	"net/http"
-	"time"
 
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -137,7 +138,6 @@ func (impl *TelemetryEventClientImpl) GetCloudProvider() (string, error) {
 		provider, err := impl.cloudProviderIdentifierService.IdentifyProvider()
 		if err != nil {
 			impl.logger.Errorw("exception while getting cluster provider", "error", err)
-			return "", err
 		}
 		impl.telemetryConfig.cloudProvider = provider
 	}
