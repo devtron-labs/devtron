@@ -160,3 +160,15 @@ func convertStringArrayToIntArray(strArr []string) ([]int, error) {
 	}
 	return paramValues, nil
 }
+
+func ExtractPaginationParameterOrSetDefault(r *http.Request, paramName string, defaultValue int) (int, error) {
+	paginationParamString := r.URL.Query().Get(paramName)
+	if paginationParamString == "" {
+		return defaultValue, nil
+	}
+	paginationParam, err := strconv.Atoi(paginationParamString)
+	if err != nil {
+		return 0, err
+	}
+	return paginationParam, nil
+}

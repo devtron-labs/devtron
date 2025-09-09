@@ -1513,33 +1513,39 @@ func (handler *PipelineConfigRestHandlerImpl) ListDeploymentHistory(w http.Respo
 	}
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
-	appId, err := strconv.Atoi(vars["appId"])
+	appIdStr := vars["appId"]
+	appId, err := strconv.Atoi(appIdStr)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.Logger.Errorw("invalid appId", "err", err, "appId", appIdStr)
+		common.HandleParameterError(w, r, "appId", appIdStr)
 		return
 	}
-	pipelineId, err := strconv.Atoi(vars["pipelineId"])
+	pipelineIdStr := vars["pipelineId"]
+	pipelineId, err := strconv.Atoi(pipelineIdStr)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.Logger.Errorw("invalid pipelineId", "err", err, "pipelineId", pipelineIdStr)
+		common.HandleParameterError(w, r, "pipelineId", pipelineIdStr)
+		return
+	}
+	environmentIdStr := vars["environmentId"]
+	environmentId, err := strconv.Atoi(environmentIdStr)
+	if err != nil {
+		handler.Logger.Errorw("invalid environmentId", "err", err, "environmentId", environmentIdStr)
+		common.HandleParameterError(w, r, "environmentId", environmentIdStr)
 		return
 	}
 
-	environmentId, err := strconv.Atoi(vars["environmentId"])
+	//offsetQueryParam := r.URL.Query().Get("offset")
+	offset, err := common.ExtractPaginationParameterOrSetDefault(r, "offset", 0)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	offsetQueryParam := r.URL.Query().Get("offset")
-	offset, err := strconv.Atoi(offsetQueryParam)
-	if offsetQueryParam == "" || err != nil {
 		handler.Logger.Errorw("request err, ListDeploymentHistory", "err", err, "appId", appId, "environmentId", environmentId, "pipelineId", pipelineId, "offset", offset)
 		common.WriteJsonResp(w, err, "invalid offset", http.StatusBadRequest)
 		return
 	}
 	sizeQueryParam := r.URL.Query().Get("size")
-	limit, err := strconv.Atoi(sizeQueryParam)
-	if sizeQueryParam == "" || err != nil {
+
+	limit, err := common.ExtractPaginationParameterOrSetDefault(r, "limit", 20)
+	if err != nil {
 		handler.Logger.Errorw("request err, ListDeploymentHistory", "err", err, "appId", appId, "environmentId", environmentId, "pipelineId", pipelineId, "sizeQueryParam", sizeQueryParam)
 		common.WriteJsonResp(w, err, "invalid size", http.StatusBadRequest)
 		return
