@@ -1818,14 +1818,18 @@ func (handler *PipelineConfigRestHandlerImpl) GetStageStatus(w http.ResponseWrit
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
 
-	appId, err := strconv.Atoi(vars["appId"])
+	appIdStr := vars["appId"]
+	appId, err := strconv.Atoi(appIdStr)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.Logger.Errorw("invalid appId", "err", err, "appId", appId)
+		common.HandleParameterError(w, r, "appId", appIdStr)
 		return
 	}
-	pipelineId, err := strconv.Atoi(vars["pipelineId"])
+	pipelineIdStr := vars["pipelineId"]
+	pipelineId, err := strconv.Atoi(pipelineIdStr)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.Logger.Errorw("invalid pipelineId", "err", err, "pipelineId", pipelineId)
+		common.HandleParameterError(w, r, "pipelineId", pipelineIdStr)
 		return
 	}
 	handler.Logger.Infow("request payload, GetStageStatus", "err", err, "appId", appId, "pipelineId", pipelineId)
