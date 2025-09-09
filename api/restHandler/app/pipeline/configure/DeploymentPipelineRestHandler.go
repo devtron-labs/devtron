@@ -1594,33 +1594,42 @@ func (handler *PipelineConfigRestHandlerImpl) GetPrePostDeploymentLogs(w http.Re
 	}
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
-	appId, err := strconv.Atoi(vars["appId"])
+	appIdStr := vars["appId"]
+	appId, err := strconv.Atoi(appIdStr)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.Logger.Errorw("invalid appId", "err", err, "appId", appId)
+		common.HandleParameterError(w, r, "appId", appIdStr)
 		return
 	}
-	environmentId, err := strconv.Atoi(vars["environmentId"])
+	environmentIdStr := vars["environmentId"]
+	environmentId, err := strconv.Atoi(environmentIdStr)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.Logger.Errorw("invalid environmentId", "err", err, "environmentId", environmentId)
+		common.HandleParameterError(w, r, "environmentId", environmentIdStr)
 		return
 	}
-	pipelineId, err := strconv.Atoi(vars["pipelineId"])
+	pipelineIdStr := vars["pipelineId"]
+	pipelineId, err := strconv.Atoi(pipelineIdStr)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.Logger.Errorw("invalid pipelineId", "err", err, "pipelineId", pipelineId)
+		common.HandleParameterError(w, r, "pipelineId", pipelineIdStr)
 		return
 	}
-
-	workflowId, err := strconv.Atoi(vars["workflowId"])
+	workflowRunnerIdStr := vars["workflowRunnerId"]
+	workflowId, err := strconv.Atoi(workflowRunnerIdStr)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.Logger.Errorw("invalid workflowId", "err", err, "workflowId", workflowId)
+		common.HandleParameterError(w, r, "workflowId", workflowRunnerIdStr)
 		return
 	}
 	followLogs := true
 	if ok := r.URL.Query().Has("followLogs"); ok {
 		followLogsStr := r.URL.Query().Get("followLogs")
-		follow, err := strconv.ParseBool(followLogsStr)
+		//follow, err := strconv.ParseBool(followLogsStr)
+		follow, err := common.ExtractBoolQueryParam(r, "followLogs")
 		if err != nil {
-			common.WriteJsonResp(w, err, "followLogs is not a valid bool", http.StatusBadRequest)
+			handler.Logger.Errorw("followLogs is not a valid bool", "err", err, "followLogs", followLogsStr)
+			common.HandleParameterError(w, r, "followLogs", followLogsStr)
 			return
 		}
 		followLogs = follow
