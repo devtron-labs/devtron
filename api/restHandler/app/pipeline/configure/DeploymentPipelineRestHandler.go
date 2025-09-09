@@ -1687,24 +1687,36 @@ func (handler *PipelineConfigRestHandlerImpl) FetchCdWorkflowDetails(w http.Resp
 	}
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
-	appId, err := strconv.Atoi(vars["appId"])
+	appIdStr := vars["appId"]
+	appId, err := strconv.Atoi(appIdStr)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.Logger.Errorw("invalid appId", "err", err, "appId", appId)
+		common.HandleParameterError(w, r, "appId", appIdStr)
 		return
 	}
-	environmentId, err := strconv.Atoi(vars["environmentId"])
+	environmentIdStr := vars["environmentId"]
+	environmentId, err := strconv.Atoi(environmentIdStr)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.Logger.Errorw("invalid environmentId", "err", err, "environmentId", environmentId)
+		common.HandleParameterError(w, r, "environmentId", environmentIdStr)
 		return
 	}
-	pipelineId, err := strconv.Atoi(vars["pipelineId"])
+	pipelineIdStr := vars["pipelineId"]
+	pipelineId, err := strconv.Atoi(pipelineIdStr)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.Logger.Errorw("invalid pipelineId", "err", err, "pipelineId", pipelineId)
+		common.HandleParameterError(w, r, "pipelineId", pipelineIdStr)
 		return
 	}
-	buildId, err := strconv.Atoi(vars["workflowRunnerId"])
+	workflowRunnerIdStr := vars["workflowRunnerId"]
+	buildId, err := strconv.Atoi(workflowRunnerIdStr)
 	if err != nil || buildId == 0 {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		if err != nil {
+			handler.Logger.Errorw("invalid workflowRunnerId", "err", err, "workflowRunnerId", workflowRunnerIdStr)
+			common.HandleParameterError(w, r, "workflowRunnerId", workflowRunnerIdStr)
+			return
+		}
+		common.HandleValidationErrors(w, r, fmt.Errorf("workflowRunnerId is required should be greater than 0, workflowRunnerId: %s", workflowRunnerIdStr))
 		return
 	}
 	handler.Logger.Infow("request payload, FetchCdWorkflowDetails", "err", err, "appId", appId, "environmentId", environmentId, "pipelineId", pipelineId, "buildId", buildId)
@@ -1739,19 +1751,25 @@ func (handler *PipelineConfigRestHandlerImpl) DownloadArtifacts(w http.ResponseW
 	}
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
-	appId, err := strconv.Atoi(vars["appId"])
+	appIdStr := vars["appId"]
+	appId, err := strconv.Atoi(appIdStr)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.Logger.Errorw("invalid appId", "err", err, "appId", appId)
+		common.HandleParameterError(w, r, "appId", appIdStr)
 		return
 	}
-	pipelineId, err := strconv.Atoi(vars["pipelineId"])
+	pipelineIdStr := vars["pipelineId"]
+	pipelineId, err := strconv.Atoi(pipelineIdStr)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.Logger.Errorw("invalid pipelineId", "err", err, "pipelineId", pipelineId)
+		common.HandleParameterError(w, r, "pipelineId", pipelineIdStr)
 		return
 	}
-	buildId, err := strconv.Atoi(vars["workflowRunnerId"])
+	workflowRunnerIdStr := vars["workflowRunnerId"]
+	buildId, err := strconv.Atoi(workflowRunnerIdStr)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.Logger.Errorw("invalid workflowRunnerId", "err", err, "workflowRunnerId", workflowRunnerIdStr)
+		common.HandleParameterError(w, r, "workflowRunnerId", workflowRunnerIdStr)
 		return
 	}
 	handler.Logger.Infow("request payload, DownloadArtifacts", "err", err, "appId", appId, "pipelineId", pipelineId, "buildId", buildId)
@@ -1799,6 +1817,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetStageStatus(w http.ResponseWrit
 	}
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
+
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
