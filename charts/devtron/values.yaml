@@ -139,7 +139,7 @@ components:
       #      - devtron.example.com
   ciRunner:
     registry: ""
-    image: "ci-runner:f21e02cb-138-34532"
+    image: "ci-runner:880420ac-138-36030"
     # Add annotations for ci-runner & cd-runner serviceAccount. 
     annotations: {}
   argocdDexServer:
