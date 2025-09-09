@@ -40,7 +40,7 @@ components:
         ENABLE_RESOURCE_SCAN: "true"
         FEATURE_CODE_MIRROR_ENABLE: "true"
     registry: ""
-    image: "dashboard:3646fa5d-690-34658"
+    image: "dashboard:5196e935-690-36024"
     imagePullPolicy: IfNotPresent
     healthPort: 8080
   devtron:
