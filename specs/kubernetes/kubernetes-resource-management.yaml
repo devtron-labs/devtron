@@ -15,8 +15,8 @@ info:
     url: https://www.apache.org/licenses/LICENSE-2.0.html
 
 servers:
-  - url: /orchestrator
-    description: Devtron Orchestrator API Server
+  - url: /orchestrator/k8s
+    description: Devtron Kubernetes API Server
 
 components:
   securitySchemes:
@@ -187,6 +187,69 @@ components:
           type: object
           description: Last container state
 
+    ResourceRequest:
+      type: object
+      required:
+        - clusterId
+        - k8sRequest
+      properties:
+        clusterId:
+          type: integer
+          format: int64
+          description: Cluster ID
+        k8sRequest:
+          type: object
+          description: Kubernetes resource request object
+          properties:
+            resourceIdentifier:
+              type: object
+              properties:
+                name:
+                  type: string
+                namespace:
+                  type: string
+                groupVersionKind:
+                  type: object
+                  properties:
+                    group:
+                      type: string
+                    version:
+                      type: string
+                    kind:
+                      type: string
+            patch:
+              type: string
+              description: JSON patch for resource updates
+
+    ResourceListRequest:
+      type: object
+      required:
+        - clusterId
+        - k8sRequest
+      properties:
+        clusterId:
+          type: integer
+          format: int64
+          description: Cluster ID
+        k8sRequest:
+          type: object
+          description: Kubernetes resource list request
+          properties:
+            resourceIdentifier:
+              type: object
+              properties:
+                groupVersionKind:
+                  type: object
+                  properties:
+                    group:
+                      type: string
+                    version:
+                      type: string
+                    kind:
+                      type: string
+                namespace:
+                  type: string
+
     ResourceScalingRequest:
       type: object
       required:
@@ -322,315 +385,312 @@ tags:
     description: Operations for scaling Kubernetes resources
 
 paths:
-  /cluster/list:
-    get:
-      tags:
-        - Cluster Management
-      summary: Get list of Kubernetes clusters
-      description: Retrieves a list of all configured Kubernetes clusters
-      operationId: getClusterList
-      parameters:
-        - name: active
-          in: query
-          description: Filter by active status
-          required: false
-          schema:
-            type: boolean
-      responses:
-        '200':
-          description: Cluster list retrieved successfully
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
-                  - type: object
-                    properties:
-                      result:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/Cluster'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
-
-  /cluster/{clusterId}:
-    get:
-      tags:
-        - Cluster Management
-      summary: Get cluster details
-      description: Retrieves detailed information about a specific cluster
-      operationId: getClusterDetails
-      parameters:
-        - name: clusterId
-          in: path
-          description: Cluster ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-            minimum: 1
-      responses:
-        '200':
-          description: Cluster details retrieved successfully
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
-                  - type: object
-                    properties:
-                      result:
-                        $ref: '#/components/schemas/Cluster'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Cluster not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
-
-  /namespace/list:
-    get:
-      tags:
-        - Namespace Management
-      summary: Get list of Kubernetes namespaces
-      description: Retrieves a list of namespaces across all clusters or for a specific cluster
-      operationId: getNamespaceList
-      parameters:
-        - name: clusterId
-          in: query
-          description: Filter by cluster ID
-          required: false
-          schema:
-            type: integer
-            format: int64
-        - name: active
-          in: query
-          description: Filter by active status
-          required: false
-          schema:
-            type: boolean
-      responses:
-        '200':
-          description: Namespace list retrieved successfully
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
-                  - type: object
-                    properties:
-                      result:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/Namespace'
-        '400':
-          description: Invalid request parameters
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
-
-  /cluster/namespaces/{clusterId}:
-    get:
-      tags:
-        - Namespace Management
-      summary: Get namespaces for specific cluster
-      description: Retrieves all namespaces for a specific cluster
-      operationId: getClusterNamespaces
-      parameters:
-        - name: clusterId
-          in: path
-          description: Cluster ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-            minimum: 1
-      responses:
-        '200':
-          description: Cluster namespaces retrieved successfully
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
-                  - type: object
-                    properties:
-                      result:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/Namespace'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Cluster not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
-
-  /pods/status:
-    get:
-      tags:
-        - Pod Management
-      summary: Get pod status and resource usage
-      description: Retrieves pod status and resource usage information
-      operationId: getPodStatus
-      parameters:
-        - name: clusterId
-          in: query
-          description: Filter by cluster ID
-          required: false
-          schema:
-            type: integer
-            format: int64
-        - name: namespace
-          in: query
-          description: Filter by namespace
-          required: false
-          schema:
-            type: string
-        - name: appId
-          in: query
-          description: Filter by application ID
-          required: false
-          schema:
-            type: integer
-            format: int64
-        - name: environmentId
-          in: query
-          description: Filter by environment ID
-          required: false
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '200':
-          description: Pod status retrieved successfully
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
-                  - type: object
-                    properties:
-                      result:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/PodStatus'
-        '400':
-          description: Invalid request parameters
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
-
-  /resource/scale:
+  /resource:
     post:
       tags:
-        - Resource Scaling
-      summary: Scale Kubernetes resources
-      description: Scales Kubernetes resources (Deployments, StatefulSets, ReplicaSets)
-      operationId: scaleKubernetesResource
+        - Resource Management
+      summary: Get Kubernetes resource
+      description: Retrieves a specific Kubernetes resource
+      operationId: getResource
       requestBody:
-        description: Resource scaling request
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ResourceScalingRequest'
+              $ref: '#/components/schemas/ResourceRequest'
       responses:
         '200':
-          description: Resource scaled successfully
+          description: Resource retrieved successfully
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
-                  - type: object
-                    properties:
-                      result:
-                        $ref: '#/components/schemas/ResourceScalingResponse'
-        '400':
-          description: Invalid request format or validation error
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Unauthorized
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+    put:
+      tags:
+        - Resource Management
+      summary: Update Kubernetes resource
+      description: Updates a specific Kubernetes resource
+      operationId: updateResource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequest'
+      responses:
+        '200':
+          description: Resource updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /resource/create:
+    post:
+      tags:
+        - Resource Management
+      summary: Create Kubernetes resource
+      description: Creates a new Kubernetes resource
+      operationId: createResource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequest'
+      responses:
+        '200':
+          description: Resource created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /resource/delete:
+    post:
+      tags:
+        - Resource Management
+      summary: Delete Kubernetes resource
+      description: Deletes a specific Kubernetes resource
+      operationId: deleteResource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequest'
+      responses:
+        '200':
+          description: Resource deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /resource/list:
+    post:
+      tags:
+        - Resource Management
+      summary: List Kubernetes resources
+      description: Lists Kubernetes resources based on criteria
+      operationId: getResourceList
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceListRequest'
+      responses:
+        '200':
+          description: Resource list retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /api-resources/{clusterId}:
+    get:
+      tags:
+        - Resource Management
+      summary: Get API resources for cluster
+      description: Retrieves all available API resources for a specific cluster
+      operationId: getAllApiResources
+      parameters:
+        - name: clusterId
+          in: path
+          description: Cluster ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      responses:
+        '200':
+          description: API resources retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Cluster not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /pods/logs/{podName}:
+    get:
+      tags:
+        - Pod Management
+      summary: Get pod logs
+      description: Retrieves logs from a specific pod and container
+      operationId: getPodLogs
+      parameters:
+        - name: podName
+          in: path
+          description: Pod name
+          required: true
+          schema:
+            type: string
+        - name: containerName
+          in: query
+          description: Container name
+          required: true
+          schema:
+            type: string
+        - name: follow
+          in: query
+          description: Follow log stream
+          required: true
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Pod logs retrieved successfully
+          content:
+            text/plain:
+              schema:
+                type: string
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Pod not found
           content:
             application/json:
               schema:
