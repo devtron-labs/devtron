@@ -25,7 +25,7 @@ quay.io/devtron/k8s-utils:tutum-curl
 quay.io/devtron/k9s-k8s-utils:latest
 quay.io/devtron/kubectl:latest
 quay.io/devtron/kubelink:f21e02cb-564-34528
-quay.io/devtron/kubewatch:f21e02cb-419-34527
+quay.io/devtron/kubewatch:880420ac-419-36026
 quay.io/devtron/lens:880420ac-333-36029
 quay.io/devtron/migrator:v4.16.2
 quay.io/devtron/minideb:latest
