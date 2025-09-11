@@ -42,6 +42,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	resourcehelper "k8s.io/kubectl/pkg/util/resource"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -86,12 +87,14 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailList(ctx context.Con
 		var err error
 		if len(cluster.ErrorInConnecting) > 0 {
 			clusterCapacityDetail.ErrorInConnection = cluster.ErrorInConnecting
+			clusterCapacityDetail.Status = bean.ClusterStatusConnectionFailed
 		} else {
 			clusterCapacityDetail, err = impl.GetClusterCapacityDetail(ctx, cluster, true)
 			if err != nil {
 				impl.logger.Errorw("error in getting cluster capacity details by id", "clusterID", cluster.Id, "err", err)
 				clusterCapacityDetail = &bean.ClusterCapacityDetail{
 					ErrorInConnection: err.Error(),
+					Status:            bean.ClusterStatusConnectionFailed,
 				}
 			}
 		}
@@ -188,6 +191,7 @@ func (impl *K8sCapacityServiceImpl) setBasicClusterDetails(nodeList *corev1.Node
 	clusterDetail.NodeErrors = nodeErrors
 	clusterDetail.NodeK8sVersions = nodesK8sVersion
 	clusterDetail.NodeDetails = clusterNodeDetails
+	clusterDetail.SetStatus(nodeErrors)
 	clusterDetail.Cpu = &bean.ResourceDetailObject{
 		Capacity: getResourceString(clusterCpuCapacity, corev1.ResourceCPU),
 	}
@@ -931,30 +935,51 @@ func getResourceString(quantity resource.Quantity, resourceName corev1.ResourceN
 		//not a standard resource, we do not know if conversion would be valid or not
 		//for example - pods: "250", this is not in bytes but an integer so conversion is invalid
 		return quantity.String()
-	} else {
+		// exempting CPU resource as CPU's resource unit is in cores
+	} else if resourceName != corev1.ResourceCPU {
 		var quantityStr string
 		value := quantity.Value()
-		valueGi := value / bean.Gibibyte
-		//allowing remainder 0 only, because for Gi rounding off will be highly erroneous
-		if valueGi > 1 && value%bean.Gibibyte == 0 {
-			quantityStr = fmt.Sprintf("%dGi", valueGi)
-		} else {
-			valueMi := value / bean.Mebibyte
-			if valueMi > 10 {
-				if value%bean.Mebibyte != 0 {
-					valueMi++
-				}
-				quantityStr = fmt.Sprintf("%dMi", valueMi)
-			} else if value > 1000 {
-				valueKi := value / bean.Kibibyte
-				if value%bean.Kibibyte != 0 {
-					valueKi++
-				}
-				quantityStr = fmt.Sprintf("%dKi", valueKi)
+		//allowing remainder 0 only, because for Gi rounding off will be highly erroneous -
+		//despite rounding allowing decimal value upto 2 decimal places
+
+		// first check for Gi
+		valueGi := float64(value) / (bean.Gibibyte * 1.0)
+		if valueGi >= 1 {
+			if valueGi == math.Floor(valueGi) { // if the converted value is a whole number
+				quantityStr = fmt.Sprintf("%dGi", int64(valueGi))
 			} else {
-				quantityStr = fmt.Sprintf("%dm", quantity.MilliValue())
+				quantityStr = fmt.Sprintf("%.2fGi", valueGi)
 			}
+		} else if value >= bean.Mebibyte { // fall back to check for Mi
+			valueMi := value / bean.Mebibyte
+			if value%bean.Mebibyte != 0 {
+				valueMi++
+			}
+			quantityStr = fmt.Sprintf("%dMi", valueMi)
+		} else if value >= bean.Kibibyte { // fall back to check for Ki
+			valueKi := value / bean.Kibibyte
+			if value%bean.Kibibyte != 0 {
+				valueKi++
+			}
+			quantityStr = fmt.Sprintf("%dKi", valueKi)
+		} else { // else better to show in Bytes
+			quantityStr = fmt.Sprintf("%dB", value)
 		}
+		return quantityStr
+	} else {
+		var quantityStr string
+		cpuValueMilli := quantity.MilliValue() // it is safe to use MilliValue here as in real world the value would not exceed int64 range
+		cpuValueCore := float64(cpuValueMilli) / 1000.0
+		quantityStr = fmt.Sprintf("%.2f", cpuValueCore)
+		// if cpuValueCore is less than 1 then show in milli core only
+		if cpuValueCore < 1 {
+			return fmt.Sprintf("%dm", cpuValueMilli)
+		}
+		// if the core value is a whole number then returning int else float
+		if cpuValueCore == math.Floor(cpuValueCore) {
+			return fmt.Sprintf("%d", int64(cpuValueCore))
+		}
+		// showing values in cores upto 2 decimal value
 		return quantityStr
 	}
 }

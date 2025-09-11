@@ -1,0 +1,288 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Helm Deployment Chart Types
+paths:
+  /orchestrator/app/env/patch:
+    patch:
+      tags:
+        - Environment Configuration
+      summary: Change Chart Reference for Environment
+      description: |
+        Changes the deployment chart reference for a specific application and environment.
+        This endpoint allows switching between different chart versions or types for
+        environment-specific deployments.
+
+        **Prerequisites:**
+        - The environment must have an existing override configuration
+        - User must have appropriate permissions for the application
+        - The target chart reference must be valid and available
+
+        **Use Cases:**
+        - Upgrade/downgrade chart version for specific environment
+        - Switch between different chart types
+        - Update deployment template configuration
+      operationId: ChangeChartRef
+      requestBody:
+        description: |
+          Chart reference change request containing the application, environment,
+          and target chart reference information.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChartRefChangeRequest'
+            examples:
+              basic_chart_change:
+                summary: Basic chart reference change
+                description: Change chart reference for an application environment
+                value:
+                  appId: 123
+                  envId: 456
+                  targetChartRefId: 789
+              chart_upgrade:
+                summary: Chart version upgrade
+                description: Upgrade to a newer chart version
+                value:
+                  appId: 123
+                  envId: 456
+                  targetChartRefId: 790
+      responses:
+        '200':
+          description: |
+            Chart reference changed successfully. The environment configuration
+            has been updated with the new chart reference.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChartRefChangeResponse'
+              examples:
+                success:
+                  summary: Successful chart reference change
+                  value:
+                    code: 200
+                    status: "OK"
+                    result:
+                      success: true
+                      message: "Chart reference updated successfully"
+        '400':
+          description: |
+            Bad Request - Invalid request payload or missing required fields.
+            Common causes:
+            - Missing required fields (appId, envId, targetChartRefId)
+            - Invalid field values (zero or negative IDs)
+            - Malformed JSON payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missing_required_field:
+                  summary: Missing required field
+                  value:
+                    code: 400
+                    status: "Bad Request"
+                    errors:
+                      - internalMessage: "request err, ChangeChartRef"
+                        userMessage: "Invalid request payload"
+                invalid_field_values:
+                  summary: Invalid field values
+                  value:
+                    code: 400
+                    status: "Bad Request"
+                    errors:
+                      - internalMessage: "envId, targetChartRefId, or appId cannot be zero"
+                        userMessage: "All ID fields must be greater than zero"
+        '401':
+          description: |
+            Unauthorized - User not authenticated or session expired.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                unauthorized:
+                  summary: User not authenticated
+                  value:
+                    code: 401
+                    status: "Unauthorized"
+                    errors:
+                      - internalMessage: "unauthorized user"
+                        userMessage: "Please login to continue"
+        '404':
+          description: |
+            Not Found - Environment properties not found or environment not overridden.
+            This occurs when the environment doesn't have override configuration.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                env_properties_not_found:
+                  summary: Environment properties not found
+                  value:
+                    code: 404
+                    status: "Not Found"
+                    errors:
+                      - internalMessage: "env properties not found"
+                        userMessage: "Environment configuration not found"
+        '422':
+          description: |
+            Unprocessable Entity - Environment is not overridden.
+            The specific environment must be overridden before chart reference can be changed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                env_not_overridden:
+                  summary: Environment not overridden
+                  value:
+                    code: 422
+                    status: "Unprocessable Entity"
+                    errors:
+                      - internalMessage: "isOverride is not true"
+                        userMessage: "Specific environment is not overridden"
+        '500':
+          description: |
+            Internal Server Error - Server error during chart reference change.
+            May include validation errors or deployment configuration issues.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validation_error:
+                  summary: Validation error
+                  value:
+                    code: 500
+                    status: "Internal Server Error"
+                    errors:
+                      - internalMessage: "validation err, ChangeChartRef"
+                        userMessage: "Chart reference validation failed"
+                service_error:
+                  summary: Service error
+                  value:
+                    code: 500
+                    status: "Internal Server Error"
+                    errors:
+                      - internalMessage: "service err, ChangeChartRef"
+                        userMessage: "Failed to update chart reference"
+
+components:
+  schemas:
+    ChartRefChangeRequest:
+      type: object
+      required:
+        - appId
+        - envId
+        - targetChartRefId
+      properties:
+        appId:
+          type: integer
+          description: |
+            ID of the application for which to change the chart reference.
+            Must be a valid application ID that the user has access to.
+          example: 123
+          minimum: 1
+        envId:
+          type: integer
+          description: |
+            ID of the environment where the chart reference should be changed.
+            The environment must have override configuration enabled.
+          example: 456
+          minimum: 1
+        targetChartRefId:
+          type: integer
+          description: |
+            ID of the target chart reference to switch to. This should be a valid
+            chart reference ID available in the system.
+          example: 789
+          minimum: 1
+      example:
+        appId: 123
+        envId: 456
+        targetChartRefId: 789
+
+    ChartRefChangeResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+          example: 200
+        status:
+          type: string
+          description: Response status
+          example: "OK"
+        result:
+          $ref: '#/components/schemas/ChartRefChangeResult'
+      example:
+        code: 200
+        status: "OK"
+        result:
+          success: true
+          message: "Chart reference updated successfully"
+
+    ChartRefChangeResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Whether the chart reference change was successful
+          example: true
+        message:
+          type: string
+          description: Success message
+          example: "Chart reference updated successfully"
+        envConfigOverrideId:
+          type: integer
+          description: ID of the updated environment configuration override
+          example: 123
+        chartRefId:
+          type: integer
+          description: ID of the new chart reference
+          example: 789
+      example:
+        success: true
+        message: "Chart reference updated successfully"
+        envConfigOverrideId: 123
+        chartRefId: 789
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+          example: 400
+        status:
+          type: string
+          description: Error status
+          example: "Bad Request"
+        errors:
+          type: array
+          description: List of error details
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+      example:
+        code: 400
+        status: "Bad Request"
+        errors:
+          - internalMessage: "validation failed"
+            userMessage: "Invalid request parameters"
+
+    ErrorDetail:
+      type: object
+      properties:
+        internalMessage:
+          type: string
+          description: Internal error message for debugging
+          example: "validation failed for field 'appId': required"
+        userMessage:
+          type: string
+          description: User-friendly error message
+          example: "Application ID is required"
+      example:
+        internalMessage: "validation failed for field 'appId': required"
+        userMessage: "Application ID is required"

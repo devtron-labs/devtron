@@ -19,11 +19,13 @@ package apiToken
 import (
 	"errors"
 	"fmt"
-	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/caarlos0/env"
+	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 
 	"github.com/devtron-labs/authenticator/middleware"
 	openapi "github.com/devtron-labs/devtron/api/openapi/openapiClient"
@@ -48,17 +50,41 @@ type ApiTokenServiceImpl struct {
 	userService           user2.UserService
 	userAuditService      user2.UserAuditService
 	apiTokenRepository    ApiTokenRepository
+	TokenVariableConfig   *TokenVariableConfig
 }
 
-func NewApiTokenServiceImpl(logger *zap.SugaredLogger, apiTokenSecretService ApiTokenSecretService, userService user2.UserService, userAuditService user2.UserAuditService,
-	apiTokenRepository ApiTokenRepository) *ApiTokenServiceImpl {
-	return &ApiTokenServiceImpl{
+func NewApiTokenServiceImpl(logger *zap.SugaredLogger,
+	apiTokenSecretService ApiTokenSecretService,
+	userService user2.UserService,
+	userAuditService user2.UserAuditService,
+	apiTokenRepository ApiTokenRepository,
+) (*ApiTokenServiceImpl, error) {
+	apiTokenService := &ApiTokenServiceImpl{
 		logger:                logger,
 		apiTokenSecretService: apiTokenSecretService,
 		userService:           userService,
 		userAuditService:      userAuditService,
 		apiTokenRepository:    apiTokenRepository,
 	}
+
+	cfg, err := GetTokenConfig()
+	if err != nil {
+		apiTokenService.logger.Errorw("error while getting token config ", "error", err)
+		return nil, err
+	}
+	apiTokenService.TokenVariableConfig = cfg
+
+	return apiTokenService, nil
+}
+
+func GetTokenConfig() (*TokenVariableConfig, error) {
+	cfg := &TokenVariableConfig{}
+	err := env.Parse(cfg)
+	return cfg, err
+}
+
+type TokenVariableConfig struct {
+	HideApiTokens bool `env:"HIDE_API_TOKENS" envDefault:"false" description:"Boolean flag for should the api tokens generated be hidden from the UI"`
 }
 
 var invalidCharsInApiTokenName = regexp.MustCompile("[,\\s]")
@@ -104,8 +130,10 @@ func (impl ApiTokenServiceImpl) GetAllApiTokensForWebhook(projectName string, en
 				Name:           &apiTokenFromDb.Name,
 				Description:    &apiTokenFromDb.Description,
 				ExpireAtInMs:   &apiTokenFromDb.ExpireAtInMs,
-				Token:          &apiTokenFromDb.Token,
 				UpdatedAt:      &updatedAtStr,
+			}
+			if !impl.TokenVariableConfig.HideApiTokens {
+				apiToken.Token = &apiTokenFromDb.Token
 			}
 			apiTokens = append(apiTokens, apiToken)
 		}
@@ -140,8 +168,10 @@ func (impl ApiTokenServiceImpl) GetAllActiveApiTokens() ([]*openapi.ApiToken, er
 			Name:           &apiTokenFromDb.Name,
 			Description:    &apiTokenFromDb.Description,
 			ExpireAtInMs:   &apiTokenFromDb.ExpireAtInMs,
-			Token:          &apiTokenFromDb.Token,
 			UpdatedAt:      &updatedAtStr,
+		}
+		if !impl.TokenVariableConfig.HideApiTokens {
+			apiToken.Token = &apiTokenFromDb.Token
 		}
 		if latestAuditLog != nil {
 			lastUsedAtStr := latestAuditLog.CreatedOn.String()
@@ -192,8 +222,16 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 		tokenVersion = 1
 	}
 
-	// step-3 - Build token
-	token, err := impl.createApiJwtToken(email, tokenVersion, *request.ExpireAtInMs)
+	// step-3 - Build token with proper expiration handling
+	var expireAtInMs int64
+	if request.ExpireAtInMs != nil {
+		expireAtInMs = *request.ExpireAtInMs
+	} else {
+		// Set default expiration to 1 year from now if not specified
+		expireAtInMs = time.Now().AddDate(1, 0, 0).UnixMilli()
+	}
+
+	token, err := impl.createApiJwtToken(email, tokenVersion, expireAtInMs)
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +258,7 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 		UserId:       userId,
 		Name:         name,
 		Description:  *request.Description,
-		ExpireAtInMs: *request.ExpireAtInMs,
+		ExpireAtInMs: expireAtInMs,
 		Token:        token,
 		Version:      tokenVersion,
 		AuditLog:     sql.AuditLog{UpdatedOn: time.Now()},
@@ -275,7 +313,7 @@ func (impl ApiTokenServiceImpl) UpdateApiToken(apiTokenId int, request *openapi.
 		return nil, err
 	}
 	if apiToken == nil || apiToken.Id == 0 {
-		return nil, errors.New(fmt.Sprintf("api-token corresponds to apiTokenId '%d' is not found", apiTokenId))
+		return nil, pg.ErrNoRows
 	}
 
 	previousTokenVersion := apiToken.Version
@@ -307,8 +345,9 @@ func (impl ApiTokenServiceImpl) UpdateApiToken(apiTokenId int, request *openapi.
 
 	success := true
 	return &openapi.UpdateApiTokenResponse{
-		Success: &success,
-		Token:   &apiToken.Token,
+		Success:      &success,
+		Token:        &apiToken.Token,
+		HideApiToken: impl.TokenVariableConfig.HideApiTokens,
 	}, nil
 }
 
@@ -322,7 +361,7 @@ func (impl ApiTokenServiceImpl) DeleteApiToken(apiTokenId int, deletedBy int32) 
 		return nil, err
 	}
 	if apiToken == nil || apiToken.Id == 0 {
-		return nil, errors.New(fmt.Sprintf("api-token corresponds to apiTokenId '%d' is not found", apiTokenId))
+		return nil, pg.ErrNoRows
 	}
 
 	apiToken.ExpireAtInMs = time.Now().UnixMilli()
@@ -380,9 +419,13 @@ func (impl ApiTokenServiceImpl) setRegisteredClaims(expireAtInMs int64) (jwt.Reg
 		Issuer: middleware.ApiTokenClaimIssuer,
 	}
 
+	// Only set expiration if expireAtInMs is greater than 0
+	// This prevents the 1970 timestamp issue
 	if expireAtInMs > 0 {
 		registeredClaims.ExpiresAt = jwt.NewNumericDate(time.Unix(expireAtInMs/1000, 0))
 	}
+	// If expireAtInMs is 0 or negative, no expiration is set (token never expires)
+
 	return registeredClaims, secretByteArr, nil
 }
 

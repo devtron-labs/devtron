@@ -1,0 +1,267 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Job Bulk Actions
+  description: Devtron API for bulk actions - Hibernate, UnHibernate, Deploy Latest Builds
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Labs
+    email: support@devtron.ai
+    url: https://devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+paths:
+  /orchestrator/batch/v1beta1/hibernate:
+    post:
+      description: Bulk Hibernate all apps for specific environment
+      operationId: BulkHibernate
+      requestBody:
+        description: bulk hibernate
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkApplicationForEnvironmentPayload'
+      responses:
+        '200':
+          description: Successfully hibernated all impacted apps.
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/BulkApplicationHibernateUnhibernateForEnvironmentResponse'
+        '400':
+          description: Bad Request. Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/batch/v1beta1/unhibernate:
+    post:
+      description: Bulk Unhibernate all apps for specific environment
+      operationId: BulkUnhibernate
+      requestBody:
+        description: bulk unhibernate
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkApplicationForEnvironmentPayload'
+      responses:
+        '200':
+          description: Successfully unhibernated all impacted apps.
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/BulkApplicationHibernateUnhibernateForEnvironmentResponse'
+        '400':
+          description: Bad Request. Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/batch/v1beta1/deploy:
+    post:
+      description: Bulk Deploy all apps to the latest build image for specific environment
+      operationId: BulkDeploy
+      requestBody:
+        description: bulk deploy
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkApplicationForEnvironmentPayload'
+      responses:
+        '200':
+          description: Successfully deploy all impacted apps.
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/BulkApplicationForEnvironmentResponse'
+        '400':
+          description: Bad Request. Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+
+components:
+  schemas:
+    BulkApplicationForEnvironmentPayload:
+      type: object
+      properties:
+        appIdIncludes:
+          type: array
+          items:
+            type: integer
+          description: app ids to include
+        appIdExcludes:
+          type: array
+          items:
+            type: integer
+          description: app ids to exclude
+        envId:
+          type: integer
+          description: environment id
+        envName:
+          type: string
+          description: environment name
+        appNamesIncludes:
+          type: array
+          items:
+            type: string
+          description: app names to include
+        appNamesExcludes:
+          type: array
+          items:
+            type: string
+          description: app names to exclude
+        invalidateCache:
+          type: boolean
+          description: whether to invalidate cache
+        deployLatestEligibleArtifact:
+          type: boolean
+          description: whether to deploy latest eligible artifact
+
+    BulkApplicationHibernateUnhibernateForEnvironmentResponse:
+      type: object
+      properties:
+        appIdIncludes:
+          type: array
+          items:
+            type: integer
+        appIdExcludes:
+          type: array
+          items:
+            type: integer
+        envId:
+          type: integer
+        envName:
+          type: string
+        appNamesIncludes:
+          type: array
+          items:
+            type: string
+        appNamesExcludes:
+          type: array
+          items:
+            type: string
+        invalidateCache:
+          type: boolean
+        deployLatestEligibleArtifact:
+          type: boolean
+        response:
+          type: array
+          description: response array with operation results
+          items:
+            type: object
+            additionalProperties: true
+
+    BulkApplicationForEnvironmentResponse:
+      type: object
+      properties:
+        appIdIncludes:
+          type: array
+          items:
+            type: integer
+        appIdExcludes:
+          type: array
+          items:
+            type: integer
+        envId:
+          type: integer
+        envName:
+          type: string
+        appNamesIncludes:
+          type: array
+          items:
+            type: string
+        appNamesExcludes:
+          type: array
+          items:
+            type: string
+        invalidateCache:
+          type: boolean
+        deployLatestEligibleArtifact:
+          type: boolean
+        response:
+          type: object
+          description: response map with operation results
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: boolean
+
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message

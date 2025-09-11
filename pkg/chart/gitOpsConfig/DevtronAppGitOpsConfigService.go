@@ -203,7 +203,7 @@ func (impl *DevtronAppGitOpConfigServiceImpl) GetAppLevelGitOpsConfiguration(app
 }
 
 func (impl *DevtronAppGitOpConfigServiceImpl) isGitRepoUrlPresent(appId int) bool {
-	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, 0)
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(nil, appId, 0)
 	if err != nil {
 		impl.logger.Errorw("error fetching git repo url from deploymentConfig for latest chart")
 		return false

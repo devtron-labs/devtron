@@ -1,0 +1,173 @@
+openapi: 3.0.0
+info:
+  title: Drift Detection API
+  description: API to detect configuration drifts in an application environment.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+    description: Local server
+
+paths:
+  /orchestrator/drift/managed-resources:
+    get:
+      summary: Get Managed Resources
+      operationId: getManagedResources
+      parameters:
+        - name: app-id
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: env-id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManagedResourcesResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not found
+        '500':
+          description: Internal server error
+
+  /orchestrator/drift/managed-resource:
+    post:
+      summary: Get managed resource details
+      description: Returns the managed resource details including desired and live states for a given application and environment.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                AppId:
+                  type: string
+                  description: ID of the application.
+                ClusterId:
+                  type: integer
+                  description: ID of the cluster.
+                AppType:
+                  type: string
+                  enum:
+                    - DevtronAppType
+                    - HelmAppType
+                    - ArgoAppType
+                    - FluxAppType
+                  description: Type of the application.
+                K8sRequest:
+                  type: object
+                  properties:
+                    ResourceIdentifier:
+                      type: object
+                      properties:
+                        GroupVersionKind:
+                          type: object
+                          properties:
+                            Group:
+                              type: string
+                              description: API group of the Kubernetes resource.
+                            Version:
+                              type: string
+                              description: API version of the Kubernetes resource.
+                            Kind:
+                              type: string
+                              description: Kind of the Kubernetes resource.
+                DevtronAppIdentifier:
+                  type: object
+                  properties:
+                    AppId:
+                      type: string
+                      description: ID of the Devtron application.
+                    EnvId:
+                      type: string
+                      description: ID of the environment.
+      responses:
+        '200':
+          description: Successfully retrieved managed resource details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  DesiredState:
+                    type: object
+                    description: The desired state of the resource.
+                  LiveState:
+                    type: object
+                    description: The live state of the resource.
+                  NormalizedLiveState:
+                    type: object
+                    description: The normalized live state of the resource.
+                  PredictedLiveState:
+                    type: object
+                    description: The predicted live state of the resource.
+                  Modified:
+                    type: boolean
+                    description: Indicates if the resource has been modified.
+        '400':
+          description: Invalid input, missing or incorrect parameters
+        '403':
+          description: Unauthorized access
+        '500':
+          description: Internal server error
+components:
+  schemas:
+    ResourceRequestBean:
+      type: object
+      properties:
+        AppId:
+          type: string
+        ClusterId:
+          type: integer
+    ManagedResource:
+      type: object
+      properties:
+        DesiredState:
+          type: string
+        LiveState:
+          type: string
+        NormalizedLiveState:
+          type: object
+        PredictedLiveState:
+          type: object
+        HasDrift:
+          type: boolean
+    ManagedResourcesResponse:
+      type: object
+      properties:
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/ManagedResource'
+    ManifestComparison:
+      type: object
+      properties:
+        drift:
+          type: boolean
+          description: Indicates if there is a drift.
+        liveManifest:
+          type: string
+          description: The live manifest data.
+        storedManifest:
+          type: string
+          description: The stored manifest data.
+        kind:
+          type: string
+          description: The Kubernetes resource kind.
+        name:
+          type: string
+          description: The name of the resource.
+        namespace:
+          type: string
+          description: The namespace of the resource.
+

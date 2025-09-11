@@ -133,15 +133,27 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 
 func (impl *TelemetryEventClientImpl) GetCloudProvider() (string, error) {
 	// assumption: the IMDS server will be reachable on startup
+	// Return cached value or "unknown" if identification is still in progress
 	if len(impl.telemetryConfig.cloudProvider) == 0 {
-		provider, err := impl.cloudProviderIdentifierService.IdentifyProvider()
-		if err != nil {
-			impl.logger.Errorw("exception while getting cluster provider", "error", err)
-			return "", err
-		}
-		impl.telemetryConfig.cloudProvider = provider
+		// Return unknown for now, background identification will update this
+		return "unknown", nil
 	}
 	return impl.telemetryConfig.cloudProvider, nil
+}
+
+// identifyCloudProviderAsync runs cloud provider identification in background
+func (impl *TelemetryEventClientImpl) identifyCloudProviderAsync() {
+	impl.logger.Info("Starting cloud provider identification in background")
+
+	provider, err := impl.cloudProviderIdentifierService.IdentifyProvider()
+	if err != nil {
+		impl.logger.Errorw("exception while getting cluster provider", "error", err)
+		impl.telemetryConfig.cloudProvider = "unknown"
+		return
+	}
+
+	impl.telemetryConfig.cloudProvider = provider
+	impl.logger.Infow("Cloud provider identified", "provider", provider)
 }
 
 func (impl *TelemetryEventClientImpl) StopCron() {
@@ -341,6 +353,10 @@ func (impl *TelemetryEventClientImpl) GetTelemetryMetaInfo() (*TelemetryMetaInfo
 
 func (impl *TelemetryEventClientImpl) SendTelemetryInstallEventEA() (*TelemetryEventType, error) {
 	ucid, err := impl.getUCIDAndCheckIsOptedOut(context.Background())
+
+	// Start cloud provider identification in background to avoid blocking startup
+	go impl.identifyCloudProviderAsync()
+
 	if err != nil {
 		impl.logger.Errorw("exception while getting unique client id", "error", err)
 		return nil, err

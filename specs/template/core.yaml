@@ -1,0 +1,203 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Deployment Template Management
+  description: Devtron API for deployment template management
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Labs
+    email: support@devtron.ai
+    url: https://devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: http://localhost:8080
+paths:
+  /orchestrator/deployment/template/validate:
+    post:
+      description: upload template file from this api to validate.
+      requestBody:
+        description: form-data as request body
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              properties:
+                BinaryFile:
+                  type: string
+                  format: binary
+                  description: zipped chart template file
+      responses:
+        '200':
+          description: template file upload response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/UploadTemplateResponse'
+        '400':
+          description: Bad request - validation error, unsupported format, or file parsing error
+        '401':
+          description: Unauthorized user
+        '403':
+          description: Forbidden - insufficient permissions
+        '500':
+          description: Internal server error
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/deployment/template/upload:
+    put:
+      description: upload template file from this api.
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadTemplateRequest'
+      responses:
+        '200':
+          description: template file upload response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: string
+                    description: result
+        '400':
+          description: Bad request - validation error
+        '401':
+          description: Unauthorized user
+        '403':
+          description: Forbidden - insufficient permissions
+        '500':
+          description: Internal server error
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/deployment/template/fetch:
+    get:
+      summary: Returns all charts
+      description: all the chart template uploaded by user
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    description: list of charts
+                    items:
+                      $ref: '#/components/schemas/Chart'
+        '401':
+          description: Unauthorized user
+        '500':
+          description: Internal server error
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    UploadTemplateRequest:
+      type: object
+      properties:
+        fileId:
+          type: string
+          description: ID of the uploaded file
+        action:
+          type: string
+          description: Action to perform (e.g. "upload", "validate")
+    UploadTemplateResponse:
+      type: object
+      properties:
+        chartName:
+          type: string
+          description: Name of the chart
+        description:
+          type: string
+          description: Chart description
+        fileId:
+          type: string
+          description: ID of the uploaded file
+        action:
+          type: string
+          description: Action performed
+        message:
+          type: string
+          description: Response message
+    Chart:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Chart name
+        description:
+          type: string
+          description: Chart description
+        count:
+          type: integer
+          description: Number of deployments using this chart
+        version:
+          type: string
+          description: Chart version
+        createdOn:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        createdBy:
+          type: string
+          description: Creator's name
+        updatedOn:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        updatedBy:
+          type: string
+          description: Last updater's name
+    ErrorResponse:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message

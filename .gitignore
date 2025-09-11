@@ -4,5 +4,6 @@
 .env
 /cmd/external-app/devtron-ea
 devtron
-
+/tests/api-spec-validation/bin
+/tests/api-spec-validation/reports
 .qodo

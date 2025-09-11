@@ -1,0 +1,132 @@
+openapi: "3.0.2"
+info:
+  title: "Chart Ref Autocomplete"
+  description: >-
+    API for chart reference autocomplete for an application
+  version: "1.0.0"
+
+paths:
+  /orchestrator/chartref/autocomplete/{appId}:
+    get:
+      description: Get list of all charts
+      operationId: ChartRefAutocompleteForApp
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+            description: Application ID
+      responses:
+        '200':
+          description: Successfully return all charts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    description: HTTP status code
+                  status:
+                    type: string
+                    description: Status message
+                  result:
+                    $ref: '#/components/schemas/ChartRefAutocompleteResponse'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    ChartRefAutocompleteResponse:
+      type: object
+      properties:
+        chartRefs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChartRefAutocompleteDto'
+        latestChartRef:
+          type: integer
+          description: ID of the latest chart reference
+        latestAppChartRef:
+          type: integer
+          description: ID of the latest chart reference for the application
+        latestEnvChartRef:
+          type: integer
+          description: ID of the latest chart reference for the environment
+        chartMetadata:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/ChartRefMetaData'
+          description: Map of chart name to metadata
+        compatibleChartTypes:
+          type: array
+          items:
+            type: string
+          description: List of compatible chart types
+
+    ChartRefAutocompleteDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Chart reference ID
+        version:
+          type: string
+          description: Chart version
+        name:
+          type: string
+          description: Chart name
+        description:
+          type: string
+          description: Chart description
+        userUploaded:
+          type: boolean
+          description: Whether the chart was uploaded by a user
+        isAppMetricsSupported:
+          type: boolean
+          description: Whether the chart supports application metrics
+
+    ChartRefMetaData:
+      type: object
+      properties:
+        chartDescription:
+          type: string
+          description: Description of the chart
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Error code
+          example: E100
+        message:
+          type: string
+          description: Error message
+          example: User is not authenticated
+        internalMessage:
+          type: string
+          description: Internal error message for debugging
+        userMessage:
+          type: string
+          description: User-friendly error message

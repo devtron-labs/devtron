@@ -28,9 +28,12 @@ import (
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
 	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
 	bean5 "github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus/bean"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
+	"github.com/devtron-labs/devtron/pkg/workflow/cd/read"
+	"github.com/devtron-labs/devtron/pkg/workflow/workflowStatusLatest"
 	"slices"
 	"strconv"
 	"strings"
@@ -89,6 +92,9 @@ type CdHandlerImpl struct {
 	deploymentConfigService      common2.DeploymentConfigService
 	workflowStageStatusService   workflowStatus.WorkFlowStageStatusService
 	cdWorkflowRunnerService      cd.CdWorkflowRunnerService
+	WorkflowStatusLatestService  workflowStatusLatest.WorkflowStatusLatestService
+	pipelineStageRepository      repository2.PipelineStageRepository
+	cdWorkflowRunnerReadService  read.CdWorkflowRunnerReadService
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
@@ -103,6 +109,9 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
 	deploymentConfigService common2.DeploymentConfigService,
 	workflowStageStatusService workflowStatus.WorkFlowStageStatusService,
 	cdWorkflowRunnerService cd.CdWorkflowRunnerService,
+	WorkflowStatusLatestService workflowStatusLatest.WorkflowStatusLatestService,
+	pipelineStageRepository repository2.PipelineStageRepository,
+	cdWorkflowRunnerReadService read.CdWorkflowRunnerReadService,
 ) *CdHandlerImpl {
 	cdh := &CdHandlerImpl{
 		Logger:                       Logger,
@@ -121,6 +130,9 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
 		deploymentConfigService:      deploymentConfigService,
 		workflowStageStatusService:   workflowStageStatusService,
 		cdWorkflowRunnerService:      cdWorkflowRunnerService,
+		WorkflowStatusLatestService:  WorkflowStatusLatestService,
+		pipelineStageRepository:      pipelineStageRepository,
+		cdWorkflowRunnerReadService:  cdWorkflowRunnerReadService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -178,7 +190,7 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus eventProcessorBean.CiCd
 		}
 		appId := savedWorkflow.CdWorkflow.Pipeline.AppId
 		envId := savedWorkflow.CdWorkflow.Pipeline.EnvironmentId
-		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
+		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(nil, appId, envId)
 		if err != nil {
 			impl.Logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
 			return savedWorkflow.Id, savedWorkflow.Status, true, "", err
@@ -594,16 +606,18 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerView(appId int) ([]*p
 		return cdWorkflowStatus, nil
 	}
 
-	cdMap := make(map[int]*pipelineConfig.CdWorkflowStatus)
-	result, err := impl.cdWorkflowRepository.FetchAllCdStagesLatestEntity(pipelineIds)
+	result, err := impl.cdWorkflowRunnerReadService.GetWfrStatusForLatestRunners(pipelineIds, pipelines)
 	if err != nil {
+		impl.Logger.Errorw("error in fetching wfrIds", "pipelineIds", pipelineIds, "err", err)
 		return cdWorkflowStatus, err
 	}
+
 	var wfrIds []int
 	for _, item := range result {
 		wfrIds = append(wfrIds, item.WfrId)
 	}
 
+	var cdMap = make(map[int]*pipelineConfig.CdWorkflowStatus)
 	statusMap := make(map[int]string)
 	if len(wfrIds) > 0 {
 		wfrList, err := impl.cdWorkflowRepository.FetchAllCdStagesLatestEntityStatus(wfrIds)
@@ -753,11 +767,15 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(re
 	if len(pipelineIds) == 0 {
 		return cdWorkflowStatus, nil
 	}
+
 	cdMap := make(map[int]*pipelineConfig.CdWorkflowStatus)
-	wfrStatus, err := impl.cdWorkflowRepository.FetchAllCdStagesLatestEntity(pipelineIds)
+
+	wfrStatus, err := impl.cdWorkflowRunnerReadService.GetWfrStatusForLatestRunners(pipelineIds, pipelines)
 	if err != nil {
+		impl.Logger.Errorw("error in fetching wfrIds", "pipelineIds", pipelineIds, "err", err)
 		return cdWorkflowStatus, err
 	}
+
 	var wfrIds []int
 	for _, item := range wfrStatus {
 		wfrIds = append(wfrIds, item.WfrId)
@@ -904,7 +922,7 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(request resou
 		return deploymentStatuses, nil
 	}
 	_, span = otel.Tracer("orchestrator").Start(request.Ctx, "pipelineBuilder.FetchAllCdStagesLatestEntity")
-	result, err := impl.cdWorkflowRepository.FetchAllCdStagesLatestEntity(pipelineIds)
+	result, err := impl.cdWorkflowRunnerReadService.GetWfrStatusForLatestRunners(pipelineIds, cdPipelines)
 	span.End()
 	if err != nil {
 		return deploymentStatuses, err

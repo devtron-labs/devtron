@@ -20,13 +20,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
-	"github.com/devtron-labs/devtron/pkg/cluster/environment"
-	"github.com/devtron-labs/devtron/pkg/cluster/rbac"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	"github.com/devtron-labs/devtron/pkg/cluster/rbac"
 
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -60,6 +61,7 @@ type ClusterRestHandler interface {
 	GetClusterNamespaces(w http.ResponseWriter, r *http.Request)
 	GetAllClusterNamespaces(w http.ResponseWriter, r *http.Request)
 	FindAllForClusterPermission(w http.ResponseWriter, r *http.Request)
+	FindByIds(w http.ResponseWriter, r *http.Request)
 }
 
 type ClusterRestHandlerImpl struct {
@@ -104,7 +106,7 @@ func (impl ClusterRestHandlerImpl) SaveClusters(w http.ResponseWriter, r *http.R
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	beans := []*bean2.ClusterBean{}
@@ -167,7 +169,7 @@ func (impl ClusterRestHandlerImpl) Save(w http.ResponseWriter, r *http.Request) 
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	bean := new(bean2.ClusterBean)
@@ -228,7 +230,7 @@ func (impl ClusterRestHandlerImpl) ValidateKubeconfig(w http.ResponseWriter, r *
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	bean := &bean2.Kubeconfig{}
@@ -288,6 +290,7 @@ func (impl ClusterRestHandlerImpl) FindAll(w http.ResponseWriter, r *http.Reques
 	var result []*bean2.ClusterBean
 	for _, item := range clusterList {
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, item.ClusterName); ok {
+			item.SetClusterStatus()
 			result = append(result, item)
 		}
 	}
@@ -296,19 +299,74 @@ func (impl ClusterRestHandlerImpl) FindAll(w http.ResponseWriter, r *http.Reques
 	common.WriteJsonResp(w, err, result, http.StatusOK)
 }
 
-func (impl ClusterRestHandlerImpl) FindById(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-	i, err := strconv.Atoi(id)
-	if err != nil {
-		impl.logger.Errorw("request err, FindById", "error", err, "clusterId", id)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+func (impl ClusterRestHandlerImpl) FindByIds(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+
+	// Parse clusterId query parameter
+	clusterIdsStr := r.URL.Query().Get("clusterId")
+	if clusterIdsStr == "" {
+		// If no clusterId parameter, return all clusters (same as FindAll)
+		impl.FindAll(w, r)
 		return
 	}
-	bean, err := impl.clusterService.FindByIdWithoutConfig(i)
+
+	// Parse comma-separated cluster IDs
+	var clusterIds []int
+	clusterIdStrs := strings.Split(clusterIdsStr, ",")
+	for _, idStr := range clusterIdStrs {
+		idStr = strings.TrimSpace(idStr)
+		if idStr == "" {
+			continue
+		}
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			impl.logger.Errorw("request err, FindByIds", "error", err, "clusterId", idStr)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		clusterIds = append(clusterIds, id)
+	}
+
+	if len(clusterIds) == 0 {
+		// If no valid cluster IDs, return empty result
+		common.WriteJsonResp(w, nil, []*bean2.ClusterBean{}, http.StatusOK)
+		return
+	}
+
+	clusterList, err := impl.clusterService.FindByIdsWithoutConfig(clusterIds)
 	if err != nil {
-		impl.logger.Errorw("service err, FindById", "err", err, "clusterId", id)
+		impl.logger.Errorw("service err, FindByIds", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	// RBAC enforcer applying
+	var result []*bean2.ClusterBean
+	for _, item := range clusterList {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, item.ClusterName); ok {
+			item.SetClusterStatus()
+			result = append(result, item)
+		}
+
+	}
+	//RBAC enforcer Ends
+
+	common.WriteJsonResp(w, nil, result, http.StatusOK)
+}
+
+func (impl ClusterRestHandlerImpl) FindById(w http.ResponseWriter, r *http.Request) {
+	// Use enhanced parameter parsing with context
+	clusterId, err := common.ExtractIntPathParamWithContext(w, r, "id", "cluster")
+	if err != nil {
+		// Error already written by ExtractIntPathParamWithContext
+		return
+	}
+
+	bean, err := impl.clusterService.FindByIdWithoutConfig(clusterId)
+	if err != nil {
+		impl.logger.Errorw("Failed to find cluster", "clusterId", clusterId, "err", err)
+		// Use enhanced error response with resource context
+		common.WriteJsonRespWithResourceContextFromId(w, err, nil, 0, "cluster", clusterId)
 		return
 	}
 
@@ -326,7 +384,7 @@ func (impl ClusterRestHandlerImpl) FindById(w http.ResponseWriter, r *http.Reque
 func (impl ClusterRestHandlerImpl) FindNoteByClusterId(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -370,7 +428,7 @@ func (impl ClusterRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		impl.logger.Errorw("service err, Update", "error", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var bean bean2.ClusterBean
@@ -407,6 +465,20 @@ func (impl ClusterRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request
 	if util2.IsBaseStack() {
 		ctx = context.WithValue(ctx, "token", token)
 	}
+
+	// checkImmutable fields - cluster name
+	modifiedCluster, err := impl.clusterService.FindByIdWithoutConfig(bean.Id)
+	if err != nil {
+		impl.logger.Errorw("err finding cluster name", "error", err, "clusterId", bean.Id)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	if bean.ClusterName != modifiedCluster.ClusterName {
+		common.WriteJsonResp(w, errors.New("cluster name cannot be changed"), nil, http.StatusConflict)
+		return
+	}
+
 	_, err = impl.clusterService.Update(ctx, &bean, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, Update", "error", err, "payload", bean)
@@ -423,7 +495,7 @@ func (impl ClusterRestHandlerImpl) UpdateClusterDescription(w http.ResponseWrite
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		impl.logger.Errorw("service err, Update", "error", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var bean bean2.ClusterBean
@@ -463,7 +535,7 @@ func (impl ClusterRestHandlerImpl) UpdateClusterNote(w http.ResponseWriter, r *h
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		impl.logger.Errorw("service err, Update", "error", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var bean repository.GenericNote
@@ -553,7 +625,7 @@ func (impl ClusterRestHandlerImpl) DeleteCluster(w http.ResponseWriter, r *http.
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		impl.logger.Errorw("service err, Delete", "error", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var bean bean2.DeleteClusterBean
@@ -592,7 +664,7 @@ func (impl ClusterRestHandlerImpl) GetAllClusterNamespaces(w http.ResponseWriter
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		impl.logger.Errorw("err, GetAllClusterNamespaces", "error", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	clusterNamespaces := impl.clusterService.GetAllClusterNamespaces()
@@ -648,13 +720,12 @@ func (impl ClusterRestHandlerImpl) HandleRbacForClusterNamespace(userId int32, t
 
 func (impl ClusterRestHandlerImpl) GetClusterNamespaces(w http.ResponseWriter, r *http.Request) {
 	//token := r.Header.Get("token")
-	vars := mux.Vars(r)
-	clusterIdString := vars["clusterId"]
+	//vars := mux.Vars(r)
 
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		impl.logger.Errorw("user not authorized", "error", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		impl.logger.Errorw("user not authorized", "userId", userId, "error", err)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -662,16 +733,23 @@ func (impl ClusterRestHandlerImpl) GetClusterNamespaces(w http.ResponseWriter, r
 	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
 		isActionUserSuperAdmin = true
 	}
-	clusterId, err := strconv.Atoi(clusterIdString)
+	// extract cluster and handle response on error
+	clusterId, err := common.ExtractIntPathParamWithContext(w, r, "clusterId", "cluster")
 	if err != nil {
-		impl.logger.Errorw("failed to extract clusterId from param", "error", err, "clusterId", clusterIdString)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		impl.logger.Error("error in parsing clusterId", "clusterId", clusterId, "err", err)
 		return
 	}
 
 	allClusterNamespaces, err := impl.clusterService.FindAllNamespacesByUserIdAndClusterId(userId, clusterId, isActionUserSuperAdmin)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		// Check if it's a cluster connectivity error and return appropriate status code
+		if err.Error() == cluster.ErrClusterNotReachable {
+			impl.logger.Errorw("cluster connectivity error in GetClusterNamespaces", "error", err, "clusterId", clusterId)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		} else {
+			impl.logger.Errorw("error in GetClusterNamespaces", "error", err, "clusterId", clusterId)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		}
 		return
 	}
 	common.WriteJsonResp(w, nil, allClusterNamespaces, http.StatusOK)
@@ -681,7 +759,7 @@ func (impl ClusterRestHandlerImpl) FindAllForClusterPermission(w http.ResponseWr
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		impl.logger.Errorw("user not authorized", "error", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")

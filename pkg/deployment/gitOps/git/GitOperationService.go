@@ -18,8 +18,8 @@ package git
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils/retryFunc"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -27,8 +27,8 @@ import (
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
+	chartRefBean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	globalUtil "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/retryFunc"
 	dirCopy "github.com/otiai10/copy"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -50,7 +50,8 @@ type GitOperationService interface {
 
 	CommitValues(ctx context.Context, chartGitAttr *ChartConfig) (commitHash string, commitTime time.Time, err error)
 	PushChartToGitRepo(ctx context.Context, gitOpsRepoName, chartLocation, tempReferenceTemplateDir, repoUrl, targetRevision string, userId int32) (err error)
-	PushChartToGitOpsRepoForHelmApp(ctx context.Context, pushChartToGitRequest *bean.PushChartToGitRequestDTO, requirementsConfig, valuesConfig *ChartConfig) (*commonBean.ChartGitAttribute, string, error)
+	CloneChartForHelmApp(helmAppName, gitRepoUrl, targetRevision string) (string, error)
+	PushChartToGitOpsRepoForHelmApp(ctx context.Context, pushChartToGitRequest *bean.PushChartToGitRequestDTO, valuesConfig *ChartConfig) (*commonBean.ChartGitAttribute, string, error)
 
 	CreateRepository(ctx context.Context, dto *apiBean.GitOpsConfigDto, userId int32) (string, bool, bool, error)
 
@@ -152,7 +153,7 @@ func (impl *GitOperationServiceImpl) PushChartToGitRepo(ctx context.Context, git
 		// auto-healing : data corruption fix - sometimes reference chart contents are not pushed in git-ops repo.
 		// copying content from reference template dir to cloned dir (if Chart.yaml file is not found)
 		// if Chart.yaml file is not found, we are assuming here that reference chart contents are not pushed in git-ops repo
-		if _, err := os.Stat(filepath.Join(dir, "Chart.yaml")); os.IsNotExist(err) {
+		if _, err := os.Stat(filepath.Join(dir, chartRefBean.CHART_YAML_FILE)); os.IsNotExist(err) {
 			impl.logger.Infow("auto-healing: Chart.yaml not found in cloned repo from git-ops. copying content", "from", tempReferenceTemplateDir, "to", dir)
 			err = dirCopy.Copy(tempReferenceTemplateDir, dir)
 			if err != nil {
@@ -284,10 +285,7 @@ func (impl *GitOperationServiceImpl) CommitValues(ctx context.Context, chartGitA
 }
 
 func (impl *GitOperationServiceImpl) isRetryableGitCommitError(err error) bool {
-	if retryErr := (&retryFunc.RetryableError{}); errors.As(err, &retryErr) {
-		return true
-	}
-	return false
+	return retryFunc.IsRetryableError(err)
 }
 
 func (impl *GitOperationServiceImpl) CreateRepository(ctx context.Context, dto *apiBean.GitOpsConfigDto, userId int32) (string, bool, bool, error) {
@@ -307,26 +305,36 @@ func (impl *GitOperationServiceImpl) CreateRepository(ctx context.Context, dto *
 	return repoUrl, isNew, isEmpty, nil
 }
 
-// PushChartToGitOpsRepoForHelmApp pushes built chart to GitOps repo (Specific implementation for Helm Apps)
-// TODO refactoring: Make a common method for both PushChartToGitRepo and PushChartToGitOpsRepoForHelmApp
-func (impl *GitOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(ctx context.Context, pushChartToGitRequest *bean.PushChartToGitRequestDTO, requirementsConfig, valuesConfig *ChartConfig) (*commonBean.ChartGitAttribute, string, error) {
-	chartDir := fmt.Sprintf("%s-%s", pushChartToGitRequest.AppName, impl.chartTemplateService.GetDir())
+func (impl *GitOperationServiceImpl) CloneChartForHelmApp(helmAppName, gitRepoUrl, targetRevision string) (string, error) {
+	chartDir := fmt.Sprintf("%s-%s", helmAppName, impl.chartTemplateService.GetDir())
 	clonedDir := impl.gitFactory.GitOpsHelper.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
-		clonedDir, err = impl.gitFactory.GitOpsHelper.Clone(pushChartToGitRequest.RepoURL, chartDir, pushChartToGitRequest.TargetRevision)
+		clonedDir, err = impl.gitFactory.GitOpsHelper.Clone(gitRepoUrl, chartDir, targetRevision)
 		if err != nil {
-			impl.logger.Errorw("error in cloning repo", "url", pushChartToGitRequest.RepoURL, "err", err)
-			return nil, "", err
+			impl.logger.Errorw("error in cloning repo", "url", targetRevision, "err", err)
+			return clonedDir, err
 		}
 	} else {
-		err = impl.GitPull(clonedDir, pushChartToGitRequest.RepoURL, pushChartToGitRequest.TargetRevision)
+		err = impl.GitPull(clonedDir, gitRepoUrl, targetRevision)
 		if err != nil {
-			return nil, "", err
+			return clonedDir, err
 		}
 	}
+	return clonedDir, nil
+}
+
+// PushChartToGitOpsRepoForHelmApp pushes built chart to GitOps repo (Specific implementation for Helm Apps)
+// TODO refactoring: Make a common method for both PushChartToGitRepo and PushChartToGitOpsRepoForHelmApp
+func (impl *GitOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(ctx context.Context, pushChartToGitRequest *bean.PushChartToGitRequestDTO, valuesConfig *ChartConfig) (*commonBean.ChartGitAttribute, string, error) {
+	clonedDir, err := impl.CloneChartForHelmApp(pushChartToGitRequest.AppName, pushChartToGitRequest.RepoURL, pushChartToGitRequest.TargetRevision)
+	if err != nil {
+		impl.logger.Errorw("error in cloning chart for helm app", "appName", pushChartToGitRequest.AppName, "repoUrl", pushChartToGitRequest.RepoURL, "err", err)
+		return nil, "", err
+	}
+	defer impl.chartTemplateService.CleanDir(clonedDir)
 	gitOpsChartLocation := fmt.Sprintf("%s-%s", pushChartToGitRequest.AppName, pushChartToGitRequest.EnvName)
 	dir := filepath.Join(clonedDir, gitOpsChartLocation)
-	err := os.MkdirAll(dir, os.ModePerm)
+	err = os.MkdirAll(dir, os.ModePerm)
 	if err != nil {
 		impl.logger.Errorw("error in making dir", "err", err)
 		return nil, "", err
@@ -334,11 +342,6 @@ func (impl *GitOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(ctx context
 	err = dirCopy.Copy(pushChartToGitRequest.TempChartRefDir, dir)
 	if err != nil {
 		impl.logger.Errorw("error copying dir", "err", err)
-		return nil, "", err
-	}
-	err = impl.addConfigFileToChart(requirementsConfig, dir, clonedDir)
-	if err != nil {
-		impl.logger.Errorw("error in adding requirements.yaml to chart", "appName", pushChartToGitRequest.AppName, "err", err)
 		return nil, "", err
 	}
 	err = impl.addConfigFileToChart(valuesConfig, dir, clonedDir)
@@ -368,7 +371,6 @@ func (impl *GitOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(ctx context
 		}
 	}
 	impl.logger.Debugw("template committed", "url", pushChartToGitRequest.RepoURL, "commit", commit)
-	defer impl.chartTemplateService.CleanDir(clonedDir)
 	return &commonBean.ChartGitAttribute{
 		RepoUrl:        pushChartToGitRequest.RepoURL,
 		ChartLocation:  gitOpsChartLocation,

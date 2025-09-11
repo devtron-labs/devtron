@@ -16,8 +16,6 @@
 
 package bean
 
-import "errors"
-
 type NameIncludesExcludes struct {
 	Names []string `json:"names"`
 }
@@ -49,7 +47,7 @@ type BulkUpdateScript struct {
 	Kind       string             `json:"kind" validate:"required"`
 	Spec       *BulkUpdatePayload `json:"spec" validate:"required"`
 }
-type BulkUpdateSeeExampleResponse struct {
+type BulkEditConfigResponse struct {
 	Operation string            `json:"operation"`
 	Script    *BulkUpdateScript `json:"script" validate:"required"`
 	ReadMe    string            `json:"readme"`
@@ -161,5 +159,3 @@ type PipelineAndWfBulkActionResponseDto struct {
 	CiPipelineRespDtos  []*CiBulkActionResponseDto `json:"ciPipelines"`
 	AppWfRespDtos       []*WfBulkActionResponseDto `json:"appWorkflows"`
 }
-
-var ErrConfigProtectionEnabled = errors.New("config protection enabled")

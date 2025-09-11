@@ -1,0 +1,706 @@
+openapi: "3.0.0"
+info:
+  title: Kubernetes Capacity
+  version: "1.0"
+  description: API for managing Kubernetes cluster capacity and node operations
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Support
+    email: support@devtron.ai
+    url: https://devtron.ai/support
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
+  schemas:
+    ClusterCapacityDetail:
+          type: object
+          properties:
+            id:
+              type: integer
+              format: int64
+            name:
+              type: string
+            errorInNodeListing:
+              type: string
+            nodeCount:
+              type: integer
+            nodeDetails:
+              type: array
+              items:
+                $ref: '#/components/schemas/NodeDetails'
+            nodeErrors:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+            nodeK8sVersions:
+              type: array
+              items:
+                type: string
+            serverVersion:
+              type: string
+            cpu:
+              $ref: '#/components/schemas/ResourceDetailObject'
+            memory:
+              $ref: '#/components/schemas/ResourceDetailObject'
+            isVirtualCluster:
+              type: boolean
+            isProd:
+              type: boolean
+
+    NodeCapacityDetail:
+      type: object
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+        kind:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        k8sVersion:
+          type: string
+        cpu:
+          $ref: '#/components/schemas/ResourceDetailObject'
+        memory:
+          $ref: '#/components/schemas/ResourceDetailObject'
+        age:
+          type: string
+        status:
+          type: string
+        podCount:
+          type: integer
+        errors:
+          type: object
+          additionalProperties:
+            type: string
+        internalIp:
+          type: string
+        externalIp:
+          type: string
+        unschedulable:
+          type: boolean
+        createdAt:
+          type: string
+        labels:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabelAnnotationTaintObject'
+        annotations:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabelAnnotationTaintObject'
+        taints:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabelAnnotationTaintObject'
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/NodeConditionObject'
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResourceDetailObject'
+        pods:
+          type: array
+          items:
+            $ref: '#/components/schemas/PodCapacityDetail'
+        manifest:
+          type: object
+        clusterName:
+          type: string
+        nodeGroup:
+          type: string
+
+    NodeUpdateRequestDto:
+      type: object
+      required:
+        - clusterId
+        - name
+      properties:
+        clusterId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        manifestPatch:
+          type: string
+        version:
+          type: string
+        kind:
+          type: string
+        taints:
+          type: array
+          items:
+            $ref: '#/components/schemas/Taint'
+        nodeCordonOptions:
+          $ref: '#/components/schemas/NodeCordonHelper'
+        nodeDrainOptions:
+          $ref: '#/components/schemas/NodeDrainHelper'
+
+    NodeCordonHelper:
+      type: object
+      properties:
+        unschedulableDesired:
+          type: boolean
+
+    NodeDrainHelper:
+      type: object
+      required:
+        - force
+        - deleteEmptyDirData
+        - gracePeriodSeconds
+        - ignoreAllDaemonSets
+        - disableEviction
+      properties:
+        force:
+          type: boolean
+        deleteEmptyDirData:
+          type: boolean
+        gracePeriodSeconds:
+          type: integer
+        ignoreAllDaemonSets:
+          type: boolean
+        disableEviction:
+          type: boolean
+
+    NodeDetails:
+      type: object
+      properties:
+        nodeName:
+          type: string
+        nodeGroup:
+          type: string
+        taints:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabelAnnotationTaintObject'
+
+    LabelAnnotationTaintObject:
+      type: object
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+        effect:
+          type: string
+
+    NodeConditionObject:
+      type: object
+      properties:
+        type:
+          type: string
+        status:
+          type: string
+        lastHeartbeatTime:
+          type: string
+        lastTransitionTime:
+          type: string
+        reason:
+          type: string
+        message:
+          type: string
+
+    ResourceDetailObject:
+      type: object
+      properties:
+        capacity:
+          type: string
+        usage:
+          type: string
+        usagePercentage:
+          type: number
+        requests:
+          type: string
+        limits:
+          type: string
+
+    PodCapacityDetail:
+      type: object
+      properties:
+        name:
+          type: string
+        namespace:
+          type: string
+        cpu:
+          $ref: '#/components/schemas/ResourceDetailObject'
+        memory:
+          $ref: '#/components/schemas/ResourceDetailObject'
+
+    Taint:
+      type: object
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+        effect:
+          type: string
+
+    NodeManifestUpdateResponse:
+      type: object
+      properties:
+        manifest:
+          type: object
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 404
+        message:
+          type: string
+          example: "Resource not found"
+        details:
+          type: array
+          items:
+            type: string
+          example: ["Kubernetes resource not found"]
+paths:
+  /orchestrator/k8s/capacity/cluster/list/raw:
+    get:
+      summary: Get cluster list
+      description: Returns a list of clusters with basic information
+      operationId: GetClusterListRaw
+      responses:
+        '200':
+          description: List of clusters
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClusterCapacityDetail'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/k8s/capacity/cluster/list:
+    get:
+      summary: Get cluster list with details
+      description: Returns a list of clusters with detailed capacity information
+      operationId: GetClusterListWithDetail
+      responses:
+        '200':
+          description: List of clusters with details
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClusterCapacityDetail'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/k8s/capacity/cluster/{clusterId}:
+    get:
+      summary: Get cluster details
+      description: Returns detailed capacity information for a specific cluster
+      operationId: GetClusterDetail
+      parameters:
+        - name: clusterId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Cluster details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterCapacityDetail'
+        '400':
+          description: Bad request - invalid clusterId format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/k8s/capacity/node/list:
+    get:
+      summary: Get node list
+      description: Returns a list of nodes in a cluster
+      operationId: GetNodeList
+      parameters:
+        - name: clusterId
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: List of nodes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NodeCapacityDetail'
+        '400':
+          description: Bad request - invalid clusterId format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/k8s/capacity/node:
+    get:
+      summary: Get node details
+      description: Returns detailed information for a specific node
+      operationId: GetNodeDetail
+      parameters:
+        - name: clusterId
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+            description: Name of the node
+      responses:
+        '200':
+          description: Node details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NodeCapacityDetail'
+        '400':
+          description: Bad request - invalid clusterId format or missing name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update node manifest
+      description: Updates the manifest for a specific node
+      operationId: UpdateNodeManifest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NodeUpdateRequestDto'
+      responses:
+        '200':
+          description: Updated node manifest
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NodeManifestUpdateResponse'
+        '400':
+          description: Bad request - invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete node
+      description: Deletes a specific node
+      operationId: DeleteNode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NodeUpdateRequestDto'
+      responses:
+        '200':
+          description: Node deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NodeManifestUpdateResponse'
+        '400':
+          description: Bad request - invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/k8s/capacity/node/cordon:
+    put:
+      summary: Cordon or uncordon node
+      description: Marks a node as unschedulable or schedulable
+      operationId: CordonOrUnCordonNode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NodeUpdateRequestDto'
+      responses:
+        '200':
+          description: Node cordoned/uncordoned successfully
+          content:
+            application/json:
+              schema:
+                type: string
+        '400':
+          description: Bad request - invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/k8s/capacity/node/drain:
+    put:
+      summary: Drain node
+      description: Safely evicts all pods from a node
+      operationId: DrainNode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NodeUpdateRequestDto'
+      responses:
+        '200':
+          description: Node drained successfully
+          content:
+            application/json:
+              schema:
+                type: string
+        '400':
+          description: Bad request - invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/k8s/capacity/node/taints/edit:
+    put:
+      summary: Edit node taints
+      description: Updates the taints on a node
+      operationId: EditNodeTaints
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NodeUpdateRequestDto'
+      responses:
+        '200':
+          description: Node taints updated successfully
+          content:
+            application/json:
+              schema:
+                type: string
+        '400':
+          description: Bad request - invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+

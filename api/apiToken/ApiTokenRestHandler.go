@@ -18,9 +18,6 @@ package apiToken
 
 import (
 	"encoding/json"
-	"net/http"
-	"strconv"
-
 	openapi "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/apiToken"
@@ -30,6 +27,8 @@ import (
 	"github.com/juju/errors"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
+	"net/http"
+	"strconv"
 )
 
 type ApiTokenRestHandler interface {
@@ -62,7 +61,7 @@ func NewApiTokenRestHandlerImpl(logger *zap.SugaredLogger, apiTokenService apiTo
 func (impl ApiTokenRestHandlerImpl) GetAllApiTokens(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -86,7 +85,7 @@ func (impl ApiTokenRestHandlerImpl) GetAllApiTokens(w http.ResponseWriter, r *ht
 func (impl ApiTokenRestHandlerImpl) CreateApiToken(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -103,19 +102,15 @@ func (impl ApiTokenRestHandlerImpl) CreateApiToken(w http.ResponseWriter, r *htt
 	err = decoder.Decode(&request)
 	if err != nil {
 		impl.logger.Errorw("err in decoding request in CreateApiToken", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New("invalid JSON payload "+err.Error()), nil, http.StatusBadRequest)
 		return
 	}
 
-	// validate request
+	// validate request structure
 	err = impl.validator.Struct(request)
 	if err != nil {
-		impl.logger.Errorw("validation err in CreateApiToken", "err", err, "request", request)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	if len(*request.Name) == 0 {
-		common.WriteJsonResp(w, errors.New("name cannot be blank in the request"), nil, http.StatusBadRequest)
+		impl.logger.Errorw("validation err in CreateApiToken ", "err", err, "request", request)
+		common.HandleValidationErrors(w, r, err)
 		return
 	}
 
@@ -132,7 +127,7 @@ func (impl ApiTokenRestHandlerImpl) CreateApiToken(w http.ResponseWriter, r *htt
 func (impl ApiTokenRestHandlerImpl) UpdateApiToken(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -182,7 +177,7 @@ func (impl ApiTokenRestHandlerImpl) UpdateApiToken(w http.ResponseWriter, r *htt
 func (impl ApiTokenRestHandlerImpl) DeleteApiToken(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -221,7 +216,7 @@ func (handler ApiTokenRestHandlerImpl) checkManagerAuth(resource, token, object 
 func (impl ApiTokenRestHandlerImpl) GetAllApiTokensForWebhook(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 

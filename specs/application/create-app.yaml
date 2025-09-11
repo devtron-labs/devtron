@@ -1,0 +1,614 @@
+openapi: 3.0.3
+info:
+  version: 1.0.0
+  title: Devtron Application Management API
+  description: |
+    This API provides functionality for managing applications in Devtron, including
+    creating, updating, and listing applications, as well as managing application
+    configurations, environments, and deployments.
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Support
+    email: support@devtron.ai
+    url: https://devtron.ai/support
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
+  schemas:
+    ApiResponse:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: Status code
+            status:
+              type: string
+              description: Status message
+            result:
+              type: object
+              description: Response result data
+
+    ErrorResponse:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: Error code
+            status:
+              type: string
+              description: Error status
+            errors:
+              type: array
+              items:
+                type: string
+              description: List of error messages
+
+    AppLabel:
+      type: object
+      required:
+        - key
+        - value
+      properties:
+        key:
+          type: string
+          description: Label key
+        value:
+          type: string
+          description: Label value
+        propagate:
+          type: boolean
+          description: Whether to propagate to kubernetes resources
+
+    App:
+      type: object
+      required:
+        - appName
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Application ID
+        appName:
+          type: string
+          description: Name of the application
+        teamId:
+          type: integer
+          format: int64
+          description: Team ID
+        labels:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppLabel'
+          description: Application labels
+        description:
+          type: string
+          description: Application description
+        projectIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: IDs of projects this application belongs to
+
+    CreateAppRequest:
+      type: object
+      required:
+        - metadata
+      properties:
+        metadata:
+          $ref: '#/components/schemas/App'
+        appWorkflows:
+          type: array
+          description: App workflows
+          items:
+            type: object
+        environmentOverrides:
+          type: array
+          description: Environment overrides
+          items:
+            type: object
+
+    AppListingRequest:
+      type: object
+      properties:
+        teamIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: Filter by team IDs
+        environmentIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: Filter by environment IDs
+        statuses:
+          type: array
+          items:
+            type: string
+            enum: [Healthy, Degraded, Failed, Progressing]
+          description: Filter by application statuses
+        appNameSearch:
+          type: string
+          description: Search term for application name
+        offset:
+          type: integer
+          description: Pagination offset
+        size:
+          type: integer
+          description: Page size
+        projectIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: Filter by project IDs
+
+    AppListResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Status code
+        status:
+          type: string
+          description: Status message
+        result:
+          type: object
+          properties:
+            appCount:
+              type: integer
+              description: Total number of applications matching the filters
+            appContainers:
+              type: array
+              items:
+                $ref: '#/components/schemas/AppContainer'
+            deploymentGroup:
+              $ref: '#/components/schemas/DeploymentGroup'
+
+    AppContainer:
+      type: object
+      properties:
+        appId:
+          type: integer
+          format: int64
+          description: Application ID
+        appName:
+          type: string
+          description: Application name
+        environments:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppEnvironment'
+          description: Environments where the application is deployed
+
+    AppEnvironment:
+      type: object
+      properties:
+        environmentId:
+          type: integer
+          format: int64
+          description: Environment ID
+        environmentName:
+          type: string
+          description: Environment name
+        status:
+          type: string
+          enum: [Healthy, Degraded, Failed, Progressing]
+          description: Application status in this environment
+        lastDeployed:
+          type: string
+          format: date-time
+          description: Last deployment timestamp
+
+    DeploymentGroup:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Deployment group ID
+        name:
+          type: string
+          description: Deployment group name
+        applications:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: IDs of applications in this deployment group
+
+    AppDetails:
+      type: object
+      properties:
+        app:
+          $ref: '#/components/schemas/App'
+        environments:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppEnvironment'
+          description: Environments where the application is deployed
+        ciConfig:
+          type: object
+          description: CI configuration
+        cdConfig:
+          type: object
+          description: CD configuration
+
+    AppProjectUpdateRequest:
+      type: object
+      required:
+        - appId
+        - projectIds
+      properties:
+        appId:
+          type: integer
+          format: int64
+          description: Application ID
+        projectIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: IDs of projects to associate with the application
+
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 404
+        message:
+          type: string
+          example: "Resource not found"
+        details:
+          type: array
+          items:
+            type: string
+          example: ["Application not found in the system"]
+    AppWorkflowDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Workflow ID
+        name:
+          type: string
+          description: Workflow name
+        appId:
+          type: integer
+          description: Application ID
+        ciPipeline:
+          type: object
+          description: CI pipeline configuration
+        cdPipelines:
+          type: array
+          items:
+            type: object
+          description: CD pipeline configurations
+        tree:
+          type: array
+          items:
+            type: object
+          description: Workflow tree structure
+
+tags:
+  - name: Applications
+    description: Operations related to application management
+  - name: Environments
+    description: Operations related to application environments
+  - name: Deployments
+    description: Operations related to application deployments
+
+paths:
+  /orchestrator/core/v1beta1/application:
+    post:
+      description: Creates a new app for the configurations provided. The input json object is the same we get in response of GET method for fetching all details of an app
+      operationId: CreateApp
+      requestBody:
+        description: A JSON object containing the app configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAppRequest'
+      responses:
+        '200':
+          description: Successfully created the application
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    description: HTTP status code
+                  status:
+                    type: string
+                    description: Status message
+                  result:
+                    type: string
+                    description: Success message
+        '400':
+          description: Bad Request. Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /orchestrator/app/edit:
+    post:
+      tags:
+        - Applications
+      summary: Update application
+      description: Updates an existing application's configuration including projects and labels.
+      operationId: updateApplication
+      requestBody:
+        description: Application update request
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/App'
+      responses:
+        '200':
+          description: Application updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: Invalid request format or missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Application not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /orchestrator/app/list:
+    post:
+      tags:
+        - Applications
+      summary: List applications
+      description: |
+        Retrieves a paginated list of applications based on the provided filters.
+        Can return deployed applications, unDeployed applications, or applications with incomplete configurations.
+      operationId: listApplications
+      requestBody:
+        description: Application listing filters
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppListingRequest'
+      responses:
+        '200':
+          description: List of applications retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppListResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /orchestrator/app/details/{appId}:
+    get:
+      tags:
+        - Applications
+      summary: Get application details
+      description: Retrieves detailed information about a specific application including its configurations and status.
+      operationId: getApplicationDetails
+      parameters:
+        - name: appId
+          in: path
+          description: ID of the application to retrieve
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          example: 12345
+      responses:
+        '200':
+          description: Application details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Application not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /orchestrator/app/edit/projects:
+    post:
+      tags:
+        - Applications
+      summary: Update application projects
+      description: Updates the projects associated with an application
+      operationId: updateApplicationProjects
+      requestBody:
+        description: Application project update request
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppProjectUpdateRequest'
+      responses:
+        '200':
+          description: Projects updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: Invalid request format or missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Application not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /orchestrator/app:
+    post:
+      tags:
+        - Applications
+      summary: Create a new application
+      description: Create new application
+      operationId: createApplicationV2
+      security: []
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/App'
+      responses:
+        '200':
+          description: App create response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: object
+                    description: Application creation result
+                    allOf:
+                      - type: object
+                        properties:
+                          id:
+                            type: integer
+                            description: unique application id
+                        required:
+                          - id
+                      - $ref: '#/components/schemas/App'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Application already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

@@ -1,0 +1,356 @@
+openapi: "3.0.0"
+info:
+  title: Job Pipeline Management
+  description: Devtron API for job management operations including creation, cloning, and listing
+  version: "1.0"
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Labs
+    email: support@devtron.ai
+    url: https://devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    CreateJob:
+      type: object
+      required:
+        - appName
+        - teamId
+        - isJob
+      properties:
+        appName:
+          type: string
+          description: Name of the job
+          example: my-job-1
+        isJob:
+          type: boolean
+          description: States whether it's a job or an app
+          example: true
+        teamId:
+          type: integer
+          description: Project ID
+          example: 1
+        templateId:
+          type: integer
+          description: ID of the job to clone from
+          example: 18
+        labels:
+          type: array
+          items:
+            $ref: 'labels.yaml#/components/schemas/AppLabel'
+        description:
+          type: string
+          description: Description of the job
+          example: This is my first Job
+
+    ActionResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID of job once created
+          example: 25
+        appName:
+          type: string
+          description: Name of job once created
+          example: my-job-1
+        material:
+          type: array
+          items:
+            $ref: 'labels.yaml#/components/schemas/GitMaterial'
+        teamId:
+          type: integer
+          description: Team ID
+          example: 1
+        templateId:
+          type: integer
+          description: Template ID
+          example: 0
+        description:
+          type: string
+          description: Description of the job
+          example: This is my first Job
+        isJob:
+          type: boolean
+          description: Whether it is a job or an app
+          example: true
+
+    JobListRequest:
+      type: object
+      properties:
+        teams:
+          type: array
+          items:
+            type: integer
+          description: Project IDs to filter by
+          example: [1, 2]
+        appStatuses:
+          type: array
+          items:
+            type: string
+          description: CI build status filter
+          example: [Succeeded, Starting]
+        sortBy:
+          type: string
+          description: Sort by constraint
+          example: appNameSort
+        sortOrder:
+          type: string
+          description: Sort order
+          example: ASC
+        offset:
+          type: integer
+          description: Number from which to start the job list (pagination)
+          example: 0
+        size:
+          type: integer
+          description: Number of jobs to return
+          example: 20
+
+    JobListResponse:
+      type: object
+      properties:
+        jobContainers:
+          type: array
+          items:
+            $ref: "#/components/schemas/JobContainer"
+        jobCount:
+          type: integer
+          description: Total number of jobs
+
+    JobContainer:
+      type: object
+      properties:
+        jobId:
+          type: integer
+        jobName:
+          type: string
+        description:
+          type: string
+        ciPipelines:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobCiPipeline'
+
+    JobCiPipeline:
+      type: object
+      properties:
+        ciPipelineId:
+          type: integer
+        status:
+          type: string
+        lastRunAt:
+          type: string
+          format: date-time
+        lastSuccessAt:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        status:
+          type: string
+          description: Error message
+        errors:
+          type: array
+          description: List of errors
+          items:
+            $ref: '#/components/schemas/Error'
+
+    Error:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error internal code
+        internalMessage:
+          type: string
+          description: Error internal message
+        userMessage:
+          type: string
+          description: Error user message
+
+  tags:
+    - name: Jobs
+      description: Job management operations for creating, cloning, and retrieving jobs
+
+paths:
+  /job:
+    post:
+      summary: Create or clone a job
+      description: Create and clone a job
+      operationId: createOrCloneJob
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateJob"
+      responses:
+        '200':
+          description: Job created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    description: Status code
+                  status:
+                    type: string
+                    description: Status
+                  result:
+                    $ref: "#/components/schemas/ActionResponse"
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+        - Jobs
+  /job/list:
+    post:
+      summary: List jobs
+      description: Get the list of all the jobs by applying filter
+      operationId: listJobs
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JobListRequest"
+      responses:
+        '200':
+          description: List of jobs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    description: Status code
+                  status:
+                    type: string
+                    description: Status
+                  result:
+                    $ref: "#/components/schemas/JobListResponse"
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+        - Jobs
+
+  /job/ci-pipeline/list/{jobId}:
+    get:
+      summary: Get job CI pipeline list
+      description: Fetch details of job CI-pipelines for the overview page
+      operationId: getJobCiPipelineList
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          description: Job ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Job CI pipeline list retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    description: Status code
+                  status:
+                    type: string
+                    description: Status
+                  result:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/JobCiPipeline"
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+        - Jobs

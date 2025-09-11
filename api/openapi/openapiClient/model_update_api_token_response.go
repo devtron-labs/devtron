@@ -20,6 +20,8 @@ type UpdateApiTokenResponse struct {
 	Success *bool `json:"success,omitempty"`
 	// Token of that api-token
 	Token *string `json:"token,omitempty"`
+	// HideApiToken boolean flag that indicates if the api token should be hidden from the UI
+	HideApiToken bool `json:"hideApiToken,omitempty"`
 }
 
 // NewUpdateApiTokenResponse instantiates a new UpdateApiTokenResponse object
@@ -103,6 +105,29 @@ func (o *UpdateApiTokenResponse) SetToken(v string) {
 	o.Token = &v
 }
 
+// GetHideApiToken returns the HideApiToken field value.
+func (o *UpdateApiTokenResponse) GetHideApiToken() bool {
+	if o == nil {
+		var ret bool
+		return ret
+	}
+	return o.HideApiToken
+}
+
+// GetHideApiTokenOk returns a tuple with the HideApiToken field value
+// and a boolean to check if the value has been set.
+func (o *UpdateApiTokenResponse) GetHideApiTokenOk() (*bool, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.HideApiToken, true
+}
+
+// SetHideApiToken sets field value.
+func (o *UpdateApiTokenResponse) SetHideApiToken(v bool) {
+	o.HideApiToken = v
+}
+
 func (o UpdateApiTokenResponse) MarshalJSON() ([]byte, error) {
 	toSerialize := map[string]interface{}{}
 	if o.Success != nil {
@@ -111,6 +136,7 @@ func (o UpdateApiTokenResponse) MarshalJSON() ([]byte, error) {
 	if o.Token != nil {
 		toSerialize["token"] = o.Token
 	}
+	toSerialize["hideApiToken"] = o.HideApiToken
 	return json.Marshal(toSerialize)
 }
 
@@ -149,5 +175,3 @@ func (v *NullableUpdateApiTokenResponse) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

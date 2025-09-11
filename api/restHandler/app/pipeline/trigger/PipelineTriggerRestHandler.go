@@ -113,7 +113,7 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var overrideRequest bean.ValuesOverrideRequest
@@ -163,7 +163,7 @@ func (handler PipelineTriggerRestHandlerImpl) RotatePods(w http.ResponseWriter, 
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var podRotateRequest bean2.PodRotateRequest
@@ -212,7 +212,7 @@ func (handler PipelineTriggerRestHandlerImpl) StartStopApp(w http.ResponseWriter
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var overrideRequest bean2.StopAppRequest
@@ -266,7 +266,7 @@ func (handler PipelineTriggerRestHandlerImpl) StartStopDeploymentGroup(w http.Re
 
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var stopDeploymentGroupRequest bean4.StopDeploymentGroupRequest
@@ -325,7 +325,7 @@ func (handler PipelineTriggerRestHandlerImpl) ReleaseStatusUpdate(w http.Respons
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var releaseStatusUpdateRequest bean.ReleaseStatusUpdateRequest
@@ -354,7 +354,7 @@ func (handler PipelineTriggerRestHandlerImpl) ReleaseStatusUpdate(w http.Respons
 func (handler PipelineTriggerRestHandlerImpl) GetAllLatestDeploymentConfiguration(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	handler.logger.Infow("request payload, GetAllLatestDeploymentConfiguration")
