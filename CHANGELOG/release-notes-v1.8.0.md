@@ -9,6 +9,7 @@
 - feat: Audit ci trigger, precd and post cd trigger so that retrigger can happen from last failed config snapshot  (#6659)
 - feat: optimize ci cd workflow (#6744)
 - feat: automate API specs workflow and documentation (#6786)
+  
 ## Bugs
 - fix: argo sync (#6718)
 - fix: cluster delete (#6706)
