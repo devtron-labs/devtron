@@ -39,6 +39,7 @@ components:
         FEATURE_USER_DEFINED_GITOPS_REPO_ENABLE: "true"
         ENABLE_RESOURCE_SCAN: "true"
         FEATURE_CODE_MIRROR_ENABLE: "true"
+        FEATURE_GROUPED_APP_LIST_FILTERS_ENABLE: "true"
     registry: ""
     image: "dashboard:5196e935-690-36024"
     imagePullPolicy: IfNotPresent
