@@ -2,14 +2,14 @@
 
 ## Enhancements
 - feat: added the plugin for aws ecr retagging (#6695)
+- feat:  Argo version update v2.13.3(#6817)
+- feat: ArgoCD v2.13.3 support for private chart providers (#6766)
 - feat: flux cd deployment  (#6660)
 - feat: add app name in labels list api (#6688)
 - feat: Audit ci trigger, precd and post cd trigger so that retrigger can happen from last failed config snapshot  (#6659)
 - feat: optimize ci cd workflow (#6744)
 - feat: build edit v1beta2 (#6694)
-- feat: ArgoCD v2.13.3 support for private chart providers (#6766)
 - feat: automate API specs workflow and documentation (#6786)
-
 ## Bugs
 - fix: argo sync (#6718)
 - fix: cluster delete (#6706)
@@ -19,7 +19,6 @@
 - fix: Fix scanning optimisation (#6683)
 - fix: panic in logs api (#6684)
 - fix: Empty migration seq (#6673)
-- fix: Removing default value of idleReplicaCount (#6722) 
 - fix: Removing default value of idleReplicaCount (#6721)
 - fix: send HideApiToken env var in api token create and update response (#6727)
 - fix: removed timeout notification (#6760)
@@ -55,4 +54,4 @@
 - misc: added support for cronjob annotations and probes (#6787)
 - misc: Validation on payload and Error handling, API Specs revised (#6790)
 - misc: sql query param refacter (#6810)
-- misc: Argo version update (#6817)
+  
