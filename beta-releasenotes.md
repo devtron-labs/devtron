@@ -1,5 +1,4 @@
-## Enhancements
+
 ## Bugs
-- fix: detect EKS  (#6820)
-## Others
-- misc: eks detection (#6826)
+- fix: unsaved changes popup showing after saving manifest ([#2922](https://github.com/devtron-labs/dashboard/pull/2922))
+
