@@ -15,7 +15,7 @@ global:
     PG_DATABASE: orchestrator
 extraManifests: []
 installer:
-  release: "v1.8.0"
+  release: "v1.8.1"
   registry: ""
   image: "inception"
   tag: "473deaa4-185-21582"
