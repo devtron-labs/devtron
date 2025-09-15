@@ -42,7 +42,7 @@ nfs:
 extraManifests: []
 installer:
   repo: "devtron-labs/devtron"
-  release: "v1.8.0"
+  release: "v1.8.1"
   registry: ""
   image: inception
   tag: 473deaa4-185-21582
@@ -97,7 +97,7 @@ components:
         FEATURE_CODE_MIRROR_ENABLE: "true"
         FEATURE_GROUPED_APP_LIST_FILTERS_ENABLE: "true"
     registry: ""
-    image: "dashboard:5196e935-690-36024"
+    image: "dashboard:6618ce43-690-36167"
     imagePullPolicy: IfNotPresent
     healthPort: 8080
   devtron:
