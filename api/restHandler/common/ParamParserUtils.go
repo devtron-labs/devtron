@@ -38,6 +38,28 @@ func ExtractIntPathParamWithContext(w http.ResponseWriter, r *http.Request, para
 	return paramIntValue, nil
 }
 
+// ExtractStringPathParamWithContext provides enhanced error messages for string path parameters
+func ExtractStringPathParamWithContext(w http.ResponseWriter, r *http.Request, paramName string) (string, error) {
+	vars := mux.Vars(r)
+	paramValue := vars[paramName]
+
+	if paramValue == "" {
+		apiErr := util.NewMissingRequiredFieldError(paramName)
+		WriteJsonResp(w, apiErr, nil, apiErr.HttpStatusCode)
+		return "", apiErr
+	}
+
+	// Trim whitespace and validate
+	paramValue = strings.TrimSpace(paramValue)
+	if paramValue == "" {
+		apiErr := util.NewValidationErrorForField(paramName, "cannot be empty or contain only whitespace")
+		WriteJsonResp(w, apiErr, nil, apiErr.HttpStatusCode)
+		return "", apiErr
+	}
+
+	return paramValue, nil
+}
+
 func convertToInt(w http.ResponseWriter, paramValue string) (int, error) {
 	paramIntValue, err := strconv.Atoi(paramValue)
 	if err != nil {
