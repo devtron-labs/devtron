@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2025. Devtron Inc.
  */
-
+BEGIN;
 
 -- Update the existing entry is_latest false for terrfaorm plugin
 UPDATE plugin_metadata SET is_latest = false WHERE id = (SELECT id FROM plugin_metadata WHERE name= 'Terraform CLI v1.0.0' and is_latest= true);
@@ -52,6 +52,4 @@ VALUES
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Terraform CLI v1.0.0' and ps."index"=1 and p.plugin_version='1.0.1' and ps.deleted=false),'ARGS','STRING','Specifies Terraform CLI commands to run. Example: plan -var-file=myvars.tfvars','t','t','--help',null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Terraform CLI v1.0.0' and ps."index"=1 and p.plugin_version='1.0.1' and ps.deleted=false),'RUN_TERRAFORM_INIT','BOOL','Determines whether to run the Terraform initialization command.','t','t','TRUE',null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Terraform CLI v1.0.0' and ps."index"=1 and p.plugin_version='1.0.1' and ps.deleted=false),'ADDITIONALPARAMS','STRING','Provides key-value pairs to inject into the Terraform container.Example: VAR1=value1 VAR2=value2c','t','t',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
-
-
-
+COMMIT;
