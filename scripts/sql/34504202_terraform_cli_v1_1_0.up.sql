@@ -40,7 +40,7 @@ echo "docker run -v $PWD:$PWD -w $PWD/$WORKINGDIR --env-file devtron-custom-valu
 docker run -v $PWD:$PWD -w $PWD/$WORKINGDIR  --env-file devtron-custom-values.env -e HTTP_PROXY=$HTTP_PROXY -e HTTPS_PROXY=$HTTPS_PROXY -e NO_PROXY=$NO_PROXY $DEFAULT_TF_IMAGE $ARGS','SHELL','f','now()',1,'now()',1);
 
 INSERT INTO "plugin_step" ("id", "plugin_id","name","description","index","step_type","script_id","deleted", "created_on", "created_by", "updated_on", "updated_by")
-VALUES (nextval('id_seq_plugin_step'), (SELECT id FROM plugin_metadata WHERE name='Terraform CLI v1.0.0' and plugin_version='1.0.1),'Step 1','Step 1 - Terraform CLI v1.0.0','1','INLINE',(SELECT last_value FROM id_seq_plugin_pipeline_script),'f','now()', 1, 'now()', 1);
+VALUES (nextval('id_seq_plugin_step'), (SELECT id FROM plugin_metadata WHERE name='Terraform CLI v1.0.0' and plugin_version='1.0.1'),'Step 1','Step 1 - Terraform CLI v1.0.0','1','INLINE',(SELECT last_value FROM id_seq_plugin_pipeline_script),'f','now()', 1, 'now()', 1);
 
 INSERT INTO plugin_step_variable (id,plugin_step_id,name,format,description,is_exposed,allow_empty_value,default_value,value,variable_type,value_type,previous_step_index,variable_step_index,variable_step_index_in_plugin,reference_variable_name,deleted,created_on,created_by,updated_on,updated_by) 
 VALUES
