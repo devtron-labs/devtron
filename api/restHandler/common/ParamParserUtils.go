@@ -27,21 +27,11 @@ import (
 
 const TokenHeaderKey = "token"
 
-func ExtractIntPathParam(w http.ResponseWriter, r *http.Request, paramName string) (int, error) {
-	vars := mux.Vars(r)
-	paramValue := vars[paramName]
-	paramIntValue, err := convertToInt(w, paramValue)
-	if err != nil {
-		return 0, err
-	}
-	return paramIntValue, nil
-}
-
 // ExtractIntPathParamWithContext provides enhanced error messages with resource context
-func ExtractIntPathParamWithContext(w http.ResponseWriter, r *http.Request, paramName string, resourceType string) (int, error) {
+func ExtractIntPathParamWithContext(w http.ResponseWriter, r *http.Request, paramName string) (int, error) {
 	vars := mux.Vars(r)
 	paramValue := vars[paramName]
-	paramIntValue, err := convertToIntWithContext(w, paramValue, paramName, resourceType)
+	paramIntValue, err := convertToIntWithContext(w, paramValue, paramName)
 	if err != nil {
 		return 0, err
 	}
@@ -58,7 +48,7 @@ func convertToInt(w http.ResponseWriter, paramValue string) (int, error) {
 }
 
 // convertToIntWithContext provides better error messages for parameter conversion
-func convertToIntWithContext(w http.ResponseWriter, paramValue, paramName, resourceType string) (int, error) {
+func convertToIntWithContext(w http.ResponseWriter, paramValue, paramName string) (int, error) {
 	if paramValue == "" {
 		apiErr := util.NewMissingRequiredFieldError(paramName)
 		WriteJsonResp(w, apiErr, nil, apiErr.HttpStatusCode)
