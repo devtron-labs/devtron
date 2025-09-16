@@ -223,61 +223,204 @@ paths:
 
   /orchestrator/webhook/ext-ci/{externalCiId}:
     post:
-      description: Handle external CI webhook events
+      tags:
+        - External CI Webhooks
+      summary: Handle External CI Webhook
+      description: |
+        Handles webhook events from external CI systems to trigger Devtron pipelines.
+        This endpoint is used by external CI tools (like Jenkins, GitLab CI, etc.) to
+        notify Devtron when a build is complete and provide the built Docker image details.
+
+        **Authentication:**
+        - Requires `api-token` header for authentication
+        - User must have appropriate permissions for the pipeline
+
+        **Use Cases:**
+        - External CI system completes a build and pushes Docker image
+        - Notify Devtron to trigger CD pipeline with the new image
+        - Provide build metadata and project details
       operationId: HandleExternalCiWebhook
       parameters:
         - name: externalCiId
           in: path
-          description: External CI ID
+          description: |
+            External CI pipeline ID. This is the ID of the external CI configuration
+            in Devtron that corresponds to the external CI system.
           required: true
           schema:
             type: integer
             format: int64
+            example: 123
+            minimum: 1
+        - name: api-token
+          in: header
+          description: |
+            API token for authentication. This token is provided when setting up
+            the external CI configuration in Devtron.
+          required: true
+          schema:
+            type: string
+            example: "your-api-token-here"
       requestBody:
+        description: |
+          External CI webhook payload containing build results and Docker image information.
+          The payload must include the Docker image that was built and optionally
+          project details and build metrics.
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ExternalCiWebhookDto'
+            examples:
+              minimal_payload:
+                summary: Minimal required payload
+                description: Minimum required fields for external CI webhook
+                value:
+                  dockerImage: "myregistry.com/myapp:v1.2.3"
+              complete_payload:
+                summary: Complete payload with all fields
+                description: Full payload with project details and metrics
+                value:
+                  dockerImage: "myregistry.com/myapp:v1.2.3"
+                  digest: "sha256:abcd1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab"
+                  ciProjectDetails:
+                    - gitRepository: "https://github.com/myorg/myapp.git"
+                      materialName: "main-repo"
+                      checkoutPath: "./src"
+                      fetchSubmodules: false
+                      commitHash: "abc123def456"
+                      gitTag: "v1.2.3"
+                      commitTime: "2023-12-01T10:30:00Z"
+                      type: "SOURCE_TYPE_BRANCH_FIXED"
+                      message: "Fix critical bug in authentication"
+                      author: "John Doe <john@example.com>"
+                      sourceType: "SOURCE_TYPE_BRANCH_FIXED"
+                      sourceValue: "main"
+                  metrics:
+                    totalDuration: 300.5
+                    buildDuration: 250.0
+                    preCiDuration: 30.0
+                    postCiDuration: 20.5
+                  appName: "my-application"
+                  isArtifactUploaded: true
       responses:
         '200':
-          description: Webhook processed successfully
+          description: |
+            Webhook processed successfully. The external CI event has been received
+            and processed. This may trigger downstream CD pipelines if configured.
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    description: Success status
+                $ref: '#/components/schemas/SuccessResponse'
+              examples:
+                success:
+                  summary: Successful processing
+                  value:
+                    code: 200
+                    status: "OK"
+                    result: null
         '400':
-          description: Bad Request
+          description: |
+            Bad Request - Invalid payload or missing required fields.
+            Common causes:
+            - Missing required dockerImage field
+            - Invalid Docker image format
+            - Invalid JSON payload
+            - Validation errors in request fields
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missing_docker_image:
+                  summary: Missing Docker image
+                  value:
+                    code: 400
+                    message: "Bad Request"
+                    errors:
+                      - code: 400
+                        message: "Docker image is required"
+                invalid_docker_image:
+                  summary: Invalid Docker image format
+                  value:
+                    code: 400
+                    message: "Bad Request"
+                    errors:
+                      - code: 400
+                        message: "Invalid Docker image format"
         '401':
-          description: Unauthorized
+          description: |
+            Unauthorized - Invalid or missing API token.
+            Ensure the api-token header is provided and valid.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                no_token:
+                  summary: Missing API token
+                  value:
+                    code: 401
+                    message: "Unauthorized"
+                    errors:
+                      - code: 6005
+                        message: "API token is required"
+                invalid_token:
+                  summary: Invalid API token
+                  value:
+                    code: 401
+                    message: "Unauthorized"
+                    errors:
+                      - code: 401
+                        message: "Invalid API token"
         '403':
-          description: Forbidden
+          description: |
+            Forbidden - User lacks permissions for this external CI pipeline.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                insufficient_permissions:
+                  summary: Insufficient permissions
+                  value:
+                    code: 403
+                    message: "Forbidden"
+                    errors:
+                      - code: 403
+                        message: "Insufficient permissions for this pipeline"
+        '404':
+          description: |
+            Not Found - External CI configuration not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                pipeline_not_found:
+                  summary: Pipeline not found
+                  value:
+                    code: 404
+                    message: "Not Found"
+                    errors:
+                      - code: 11006
+                        message: "External CI pipeline not found"
         '500':
-          description: Internal Server Error
+          description: |
+            Internal Server Error - Server error while processing webhook.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
-
-
-
+              examples:
+                server_error:
+                  summary: Internal server error
+                  value:
+                    code: 500
+                    message: "Internal Server Error"
+                    errors:
+                      - code: 500
+                        message: "Internal server error"
 
 components:
   schemas:
@@ -430,30 +573,327 @@ components:
     ExternalCiWebhookDto:
       type: object
       required:
-        - pipelineId
-        - status
+        - dockerImage
       properties:
+        ciProjectDetails:
+          type: array
+          description: |
+            List of CI project details containing git repository information and build context.
+            Each entry represents a git material used in the build.
+          items:
+            $ref: '#/components/schemas/CiProjectDetails'
+          example:
+            - gitRepository: "https://github.com/myorg/myapp.git"
+              materialName: "main-repo"
+              checkoutPath: "./src"
+              fetchSubmodules: false
+              commitHash: "abc123def456"
+              gitTag: "v1.2.3"
+              commitTime: "2023-12-01T10:30:00Z"
+              type: "SOURCE_TYPE_BRANCH_FIXED"
+              message: "Fix critical bug in authentication"
+              author: "John Doe <john@example.com>"
+              sourceType: "SOURCE_TYPE_BRANCH_FIXED"
+              sourceValue: "main"
+        dockerImage:
+          type: string
+          description: |
+            Docker image built by the external CI system. Must be a valid Docker image
+            reference including registry, repository, and tag.
+          example: "myregistry.com/myapp:v1.2.3"
+          pattern: '^[a-zA-Z0-9._-]+(/[a-zA-Z0-9._-]+)*:[a-zA-Z0-9._-]+$'
+        digest:
+          type: string
+          description: |
+            SHA256 digest of the Docker image. Optional but recommended for image verification.
+          example: "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+          pattern: '^sha256:[a-f0-9]{64}$'
         pipelineId:
           type: integer
-          description: External CI pipeline ID
-        status:
-          type: string
-          description: Pipeline status
-          enum: [SUCCESS, FAILED, RUNNING, CANCELLED]
-        message:
-          type: string
-          description: Status message
-        startedOn:
-          type: string
-          format: date-time
-          description: Pipeline start time
-        finishedOn:
-          type: string
-          format: date-time
-          description: Pipeline end time
+          description: |
+            Internal pipeline ID. This field is typically set by the system and may not
+            be required in the webhook payload.
+          example: 123
+          minimum: 1
+        workflowId:
+          type: integer
+          description: |
+            Workflow ID associated with this build. Optional field for tracking purposes.
+          example: 456
+          minimum: 1
         triggeredBy:
           type: integer
-          description: User ID who triggered the pipeline
+          description: |
+            User ID who triggered the build. This field is typically set by the system
+            based on the authentication token.
+          example: 789
+          minimum: 1
+        pipelineName:
+          type: string
+          description: |
+            Name of the CI pipeline. Optional field for identification purposes.
+          example: "my-app-ci-pipeline"
+        dataSource:
+          type: string
+          description: |
+            Source of the build data. Used for tracking and auditing purposes.
+          example: "external-ci"
+        materialType:
+          type: string
+          description: |
+            Type of material used in the build (e.g., git, docker).
+          example: "git"
+        metrics:
+          $ref: '#/components/schemas/CIMetrics'
+          description: |
+            Build metrics and timing information. Optional but useful for performance tracking.
+        appName:
+          type: string
+          description: |
+            Name of the application being built. Optional field for identification.
+          example: "my-application"
+        isArtifactUploaded:
+          type: boolean
+          description: |
+            Indicates whether the build artifact (Docker image) has been uploaded to the registry.
+          example: true
+          default: false
+        failureReason:
+          type: string
+          description: |
+            Reason for build failure. Only relevant if the build failed.
+          example: "Unit tests failed"
+        imageDetailsFromCR:
+          type: object
+          description: |
+            Additional image details from container registry. Raw JSON object with registry-specific information.
+          additionalProperties: true
+          example:
+            registry: "myregistry.com"
+            repository: "myapp"
+            tag: "v1.2.3"
+            size: 123456789
+        pluginRegistryArtifactDetails:
+          type: object
+          description: |
+            Plugin registry artifact details. Map of plugin names to artifact lists.
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            "security-scanner": ["vulnerability-report.json"]
+            "code-quality": ["sonar-report.xml"]
+        pluginArtifactStage:
+          type: string
+          description: |
+            Stage at which plugin artifacts were generated.
+          example: "post-ci"
+      example:
+        dockerImage: "myregistry.com/myapp:v1.2.3"
+        digest: "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+        ciProjectDetails:
+          - gitRepository: "https://github.com/myorg/myapp.git"
+            materialName: "main-repo"
+            checkoutPath: "./src"
+            fetchSubmodules: false
+            commitHash: "abc123def456"
+            gitTag: "v1.2.3"
+            commitTime: "2023-12-01T10:30:00Z"
+            type: "SOURCE_TYPE_BRANCH_FIXED"
+            message: "Fix critical bug in authentication"
+            author: "John Doe <john@example.com>"
+            sourceType: "SOURCE_TYPE_BRANCH_FIXED"
+            sourceValue: "main"
+        metrics:
+          totalDuration: 300.5
+          buildDuration: 250.0
+          preCiDuration: 30.0
+          postCiDuration: 20.5
+        appName: "my-application"
+        isArtifactUploaded: true
+
+    CiProjectDetails:
+      type: object
+      required:
+        - gitRepository
+        - commitHash
+      properties:
+        gitRepository:
+          type: string
+          description: Git repository URL
+          example: "https://github.com/myorg/myapp.git"
+          format: uri
+        materialName:
+          type: string
+          description: Name of the git material in Devtron
+          example: "main-repo"
+        checkoutPath:
+          type: string
+          description: Path where the repository is checked out
+          example: "./src"
+          default: "./"
+        fetchSubmodules:
+          type: boolean
+          description: Whether to fetch git submodules
+          example: false
+          default: false
+        commitHash:
+          type: string
+          description: Git commit hash
+          example: "abc123def456789"
+          pattern: '^[a-f0-9]{7,40}$'
+        gitTag:
+          type: string
+          description: Git tag associated with the commit
+          example: "v1.2.3"
+        commitTime:
+          type: string
+          format: date-time
+          description: Timestamp of the commit
+          example: "2023-12-01T10:30:00Z"
+        type:
+          type: string
+          description: Type of git source
+          example: "SOURCE_TYPE_BRANCH_FIXED"
+          enum:
+            - "SOURCE_TYPE_BRANCH_FIXED"
+            - "SOURCE_TYPE_BRANCH_REGEX"
+            - "SOURCE_TYPE_TAG_ANY"
+            - "SOURCE_TYPE_TAG_REGEX"
+        message:
+          type: string
+          description: Git commit message
+          example: "Fix critical bug in authentication"
+        author:
+          type: string
+          description: Git commit author
+          example: "John Doe <john@example.com>"
+        sourceType:
+          type: string
+          description: Source type for the material
+          example: "SOURCE_TYPE_BRANCH_FIXED"
+        sourceValue:
+          type: string
+          description: Source value (branch name, tag pattern, etc.)
+          example: "main"
+      example:
+        gitRepository: "https://github.com/myorg/myapp.git"
+        materialName: "main-repo"
+        checkoutPath: "./src"
+        fetchSubmodules: false
+        commitHash: "abc123def456789"
+        gitTag: "v1.2.3"
+        commitTime: "2023-12-01T10:30:00Z"
+        type: "SOURCE_TYPE_BRANCH_FIXED"
+        message: "Fix critical bug in authentication"
+        author: "John Doe <john@example.com>"
+        sourceType: "SOURCE_TYPE_BRANCH_FIXED"
+        sourceValue: "main"
+
+    CIMetrics:
+      type: object
+      description: CI build metrics and timing information
+      properties:
+        cacheDownDuration:
+          type: number
+          format: float
+          description: Duration for cache download in seconds
+          example: 30.5
+          minimum: 0
+        preCiDuration:
+          type: number
+          format: float
+          description: Duration for pre-CI steps in seconds
+          example: 45.2
+          minimum: 0
+        buildDuration:
+          type: number
+          format: float
+          description: Duration for build step in seconds
+          example: 180.7
+          minimum: 0
+        postCiDuration:
+          type: number
+          format: float
+          description: Duration for post-CI steps in seconds
+          example: 25.3
+          minimum: 0
+        cacheUpDuration:
+          type: number
+          format: float
+          description: Duration for cache upload in seconds
+          example: 15.8
+          minimum: 0
+        totalDuration:
+          type: number
+          format: float
+          description: Total build duration in seconds
+          example: 297.5
+          minimum: 0
+        cacheDownStartTime:
+          type: string
+          format: date-time
+          description: Start time of cache download
+          example: "2023-12-01T10:00:00Z"
+        preCiStartTime:
+          type: string
+          format: date-time
+          description: Start time of pre-CI steps
+          example: "2023-12-01T10:00:30Z"
+        buildStartTime:
+          type: string
+          format: date-time
+          description: Start time of build step
+          example: "2023-12-01T10:01:15Z"
+        postCiStartTime:
+          type: string
+          format: date-time
+          description: Start time of post-CI steps
+          example: "2023-12-01T10:04:16Z"
+        cacheUpStartTime:
+          type: string
+          format: date-time
+          description: Start time of cache upload
+          example: "2023-12-01T10:04:41Z"
+        totalStartTime:
+          type: string
+          format: date-time
+          description: Start time of entire build
+          example: "2023-12-01T10:00:00Z"
+      example:
+        cacheDownDuration: 30.5
+        preCiDuration: 45.2
+        buildDuration: 180.7
+        postCiDuration: 25.3
+        cacheUpDuration: 15.8
+        totalDuration: 297.5
+        cacheDownStartTime: "2023-12-01T10:00:00Z"
+        preCiStartTime: "2023-12-01T10:00:30Z"
+        buildStartTime: "2023-12-01T10:01:15Z"
+        postCiStartTime: "2023-12-01T10:04:16Z"
+        cacheUpStartTime: "2023-12-01T10:04:41Z"
+        totalStartTime: "2023-12-01T10:00:00Z"
+
+    SuccessResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+          example: 200
+        status:
+          type: string
+          description: Response status
+          example: "OK"
+        result:
+          description: Response data (null for webhook endpoints)
+          nullable: true
+          example: null
+      example:
+        code: 200
+        status: "OK"
+        result: null
 
     WebhookChannelConfig:
       type: object
@@ -538,4 +978,4 @@ components:
           description: Error code
         message:
           type: string
-          description: Error message 
+          description: Error message

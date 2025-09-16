@@ -57,7 +57,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  orchestrator/batch/v1beta1/unhibernate:
+  /orchestrator/batch/v1beta1/unhibernate:
     post:
       description: Bulk Unhibernate all apps for specific environment
       operationId: BulkUnhibernate
@@ -101,7 +101,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  orchestrator/batch/v1beta1/deploy:
+  /orchestrator/batch/v1beta1/deploy:
     post:
       description: Bulk Deploy all apps to the latest build image for specific environment
       operationId: BulkDeploy

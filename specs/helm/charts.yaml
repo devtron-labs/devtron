@@ -114,7 +114,7 @@ components:
           description: Error message
 
 paths:
-  /app-store/installed-app:
+  /orchestrator/app-store/installed-app:
     get:
       summary: List deployed charts
       operationId: listDeployedCharts
@@ -226,7 +226,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
       tags:
         - Helm Charts
-  /app-store/installed-app/notes:
+  /orchestrator/app-store/installed-app/notes:
     get:
       summary: Fetch notes.txt for deployed helm charts
       operationId: fetchNotesTxt

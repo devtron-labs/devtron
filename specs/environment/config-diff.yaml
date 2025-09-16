@@ -243,7 +243,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /config/data:
+  /orchestrator/config/data:
     get:
       summary: Get configuration data
       operationId: GetConfigData
@@ -340,7 +340,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /config/compare/{resource}:
+  /orchestrator/config/compare/{resource}:
     get:
       summary: Compare configuration data
       operationId: CompareCategoryWiseConfigData
@@ -390,7 +390,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /config/manifest:
+  /orchestrator/config/manifest:
     post:
       summary: Get manifest for configuration
       operationId: GetManifest
