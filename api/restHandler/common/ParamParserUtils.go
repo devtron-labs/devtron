@@ -142,3 +142,45 @@ func ExtractBoolQueryParam(r *http.Request, paramName string) (bool, error) {
 
 	return boolValue, nil
 }
+
+// ExtractIntArrayFromQueryParam returns list of all ids in []int extracted from query param
+// use this method over ExtractIntArrayQueryParam if there is list of query params
+func ExtractIntArrayFromQueryParam(r *http.Request, paramName string) ([]int, error) {
+	queryParams := r.URL.Query()
+	paramValue := queryParams[paramName]
+	paramIntValues := make([]int, 0)
+	var err error
+	if paramValue != nil && len(paramValue) > 0 {
+		if strings.Contains(paramValue[0], ",") {
+			paramIntValues, err = convertToIntArray(paramValue[0])
+		} else {
+			paramIntValues, err = convertStringArrayToIntArray(paramValue)
+		}
+	}
+
+	return paramIntValues, err
+}
+
+func convertStringArrayToIntArray(strArr []string) ([]int, error) {
+	var paramValues []int
+	for _, item := range strArr {
+		paramIntValue, err := strconv.Atoi(item)
+		if err != nil {
+			return paramValues, err
+		}
+		paramValues = append(paramValues, paramIntValue)
+	}
+	return paramValues, nil
+}
+
+func ExtractPaginationParameterOrSetDefault(r *http.Request, paramName string, defaultValue int) (int, error) {
+	paginationParamString := r.URL.Query().Get(paramName)
+	if paginationParamString == "" {
+		return defaultValue, nil
+	}
+	paginationParam, err := strconv.Atoi(paginationParamString)
+	if err != nil {
+		return 0, err
+	}
+	return paginationParam, nil
+}

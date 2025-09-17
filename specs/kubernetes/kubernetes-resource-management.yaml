@@ -1,22 +1,21 @@
-openapi: 3.0.3
+openapi: "3.0.3"
 info:
-  version: 1.0.0
-  title: Devtron Orchestrator Kubernetes & Resource Management API
-  description: |
-    API specifications for Devtron orchestrator Kubernetes and resource management
-    including cluster management, namespace operations, pod status, and resource scaling.
-  termsOfService: https://devtron.ai/terms/
+  title: Devtron Pod and Resource Management API
+  description: API specifications for pod logs, resource rotation, and Kubernetes resource management
+  version: "1.0.0"
   contact:
     name: Devtron Support
     email: support@devtron.ai
-    url: https://devtron.ai/support
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
 
 servers:
-  - url: /orchestrator/k8s
-    description: Devtron Kubernetes API Server
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+security:
+  - bearerAuth: []
 
 components:
   securitySchemes:
@@ -24,7 +23,6 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: JWT token for authentication
 
   schemas:
     ApiResponse:
@@ -32,644 +30,93 @@ components:
       properties:
         code:
           type: integer
-          description: HTTP status code
         status:
           type: string
-          description: Status message
         result:
           type: object
-          description: Response result data
 
     ErrorResponse:
       type: object
       properties:
         code:
           type: integer
-          description: Error code
         status:
           type: string
-          description: Error status
         errors:
           type: array
           items:
             type: string
-          description: List of error messages
 
-    Cluster:
+    PodRotateRequest:
       type: object
       properties:
-        id:
-          type: integer
-          format: int64
-          description: Cluster ID
-        clusterName:
-          type: string
-          description: Cluster name
-        serverUrl:
-          type: string
-          description: Kubernetes API server URL
-        active:
-          type: boolean
-          description: Whether the cluster is active
-        config:
-          type: object
-          description: Cluster configuration
-        prometheusUrl:
-          type: string
-          description: Prometheus URL for metrics
-        cd_argo_setup:
-          type: boolean
-          description: Whether ArgoCD is set up
-        errorInConnecting:
-          type: string
-          description: Error message if connection failed
-        isVirtualCluster:
-          type: boolean
-          description: Whether this is a virtual cluster
-
-    Namespace:
-      type: object
-      properties:
-        name:
-          type: string
-          description: Namespace name
-        clusterId:
-          type: integer
-          format: int64
-          description: Cluster ID
-        clusterName:
-          type: string
-          description: Cluster name
-        active:
-          type: boolean
-          description: Whether the namespace is active
-        labels:
-          type: object
-          additionalProperties:
-            type: string
-          description: Namespace labels
-        annotations:
-          type: object
-          additionalProperties:
-            type: string
-          description: Namespace annotations
-        creationTimestamp:
-          type: string
-          format: date-time
-          description: Namespace creation timestamp
-
-    PodStatus:
-      type: object
-      properties:
-        name:
-          type: string
-          description: Pod name
-        namespace:
-          type: string
-          description: Pod namespace
-        clusterId:
-          type: integer
-          format: int64
-          description: Cluster ID
-        status:
-          type: string
-          enum: [Running, Pending, Succeeded, Failed, Unknown]
-          description: Pod status
-        phase:
-          type: string
-          description: Pod phase
-        ready:
-          type: string
-          description: Ready status (e.g., "2/2")
-        restarts:
-          type: integer
-          description: Number of restarts
-        age:
-          type: string
-          description: Pod age
-        node:
-          type: string
-          description: Node name where pod is running
-        containers:
+        resources:
           type: array
           items:
-            $ref: '#/components/schemas/ContainerStatus'
-          description: Container statuses
-        labels:
-          type: object
-          additionalProperties:
-            type: string
-          description: Pod labels
-        creationTimestamp:
-          type: string
-          format: date-time
-          description: Pod creation timestamp
+            $ref: '#/components/schemas/ResourceIdentifier'
 
-    ContainerStatus:
+    ResourceIdentifier:
       type: object
       properties:
-        name:
+        Group:
           type: string
-          description: Container name
-        ready:
-          type: boolean
-          description: Whether container is ready
-        restartCount:
-          type: integer
-          description: Container restart count
-        image:
+          example: ""
+        Version:
           type: string
-          description: Container image
-        state:
-          type: object
-          description: Container state
-        lastState:
-          type: object
-          description: Last container state
+          example: "v1"
+        Kind:
+          type: string
+          example: "Pod"
+        Name:
+          type: string
+          example: "my-pod"
+        Namespace:
+          type: string
+          example: "default"
 
-    ResourceRequest:
-      type: object
-      required:
-        - clusterId
-        - k8sRequest
-      properties:
-        clusterId:
-          type: integer
-          format: int64
-          description: Cluster ID
-        k8sRequest:
-          type: object
-          description: Kubernetes resource request object
-          properties:
-            resourceIdentifier:
-              type: object
-              properties:
-                name:
-                  type: string
-                namespace:
-                  type: string
-                groupVersionKind:
-                  type: object
-                  properties:
-                    group:
-                      type: string
-                    version:
-                      type: string
-                    kind:
-                      type: string
-            patch:
-              type: string
-              description: JSON patch for resource updates
-
-    ResourceListRequest:
-      type: object
-      required:
-        - clusterId
-        - k8sRequest
-      properties:
-        clusterId:
-          type: integer
-          format: int64
-          description: Cluster ID
-        k8sRequest:
-          type: object
-          description: Kubernetes resource list request
-          properties:
-            resourceIdentifier:
-              type: object
-              properties:
-                groupVersionKind:
-                  type: object
-                  properties:
-                    group:
-                      type: string
-                    version:
-                      type: string
-                    kind:
-                      type: string
-                namespace:
-                  type: string
-
-    ResourceScalingRequest:
-      type: object
-      required:
-        - clusterId
-        - namespace
-        - resourceType
-        - resourceName
-        - replicas
-      properties:
-        clusterId:
-          type: integer
-          format: int64
-          description: Cluster ID
-        namespace:
-          type: string
-          description: Kubernetes namespace
-        resourceType:
-          type: string
-          enum: [Deployment, StatefulSet, ReplicaSet]
-          description: Type of Kubernetes resource to scale
-        resourceName:
-          type: string
-          description: Name of the resource to scale
-        replicas:
-          type: integer
-          minimum: 0
-          description: Desired number of replicas
-
-    ResourceScalingResponse:
+    ResourceRotateRequest:
       type: object
       properties:
-        success:
-          type: boolean
-          description: Whether scaling was successful
-        currentReplicas:
-          type: integer
-          description: Current number of replicas
-        desiredReplicas:
-          type: integer
-          description: Desired number of replicas
-        message:
+        resourceId:
           type: string
-          description: Scaling operation message
-
-    ClusterCapacity:
-      type: object
-      properties:
-        clusterId:
-          type: integer
-          format: int64
-          description: Cluster ID
-        clusterName:
-          type: string
-          description: Cluster name
-        nodeCount:
-          type: integer
-          description: Total number of nodes
-        cpu:
-          $ref: '#/components/schemas/ResourceCapacity'
-        memory:
-          $ref: '#/components/schemas/ResourceCapacity'
-        storage:
-          $ref: '#/components/schemas/ResourceCapacity'
-        pods:
-          $ref: '#/components/schemas/ResourceCapacity'
-
-    ResourceCapacity:
-      type: object
-      properties:
-        allocatable:
-          type: string
-          description: Allocatable capacity
-        capacity:
-          type: string
-          description: Total capacity
-        usage:
-          type: string
-          description: Current usage
-        usagePercentage:
-          type: number
-          format: float
-          description: Usage percentage
-
-    NodeInfo:
-      type: object
-      properties:
-        name:
-          type: string
-          description: Node name
-        clusterId:
-          type: integer
-          format: int64
-          description: Cluster ID
-        status:
-          type: string
-          enum: [Ready, NotReady, Unknown]
-          description: Node status
-        roles:
-          type: array
-          items:
-            type: string
-          description: Node roles
-        age:
-          type: string
-          description: Node age
-        version:
-          type: string
-          description: Kubernetes version
-        internalIP:
-          type: string
-          description: Internal IP address
-        externalIP:
-          type: string
-          description: External IP address
-        capacity:
-          $ref: '#/components/schemas/ResourceCapacity'
-        allocatable:
-          $ref: '#/components/schemas/ResourceCapacity'
-        conditions:
-          type: array
-          items:
-            type: object
-          description: Node conditions
+          example: "res-123"
 
 tags:
-  - name: Cluster Management
-    description: Operations for managing Kubernetes clusters
-  - name: Namespace Management
-    description: Operations for managing Kubernetes namespaces
-  - name: Pod Management
-    description: Operations for managing and monitoring pods
-  - name: Resource Scaling
-    description: Operations for scaling Kubernetes resources
+  - name: Pod Logs
+    description: Pod log retrieval operations
+  - name: Resource Management
+    description: Kubernetes resource management operations
+  - name: Pod Rotation
+    description: Pod rotation and restart operations
 
 paths:
-  /resource:
-    post:
-      tags:
-        - Resource Management
-      summary: Get Kubernetes resource
-      description: Retrieves a specific Kubernetes resource
-      operationId: getResource
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ResourceRequest'
-      responses:
-        '200':
-          description: Resource retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
-    put:
-      tags:
-        - Resource Management
-      summary: Update Kubernetes resource
-      description: Updates a specific Kubernetes resource
-      operationId: updateResource
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ResourceRequest'
-      responses:
-        '200':
-          description: Resource updated successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
-
-  /resource/create:
-    post:
-      tags:
-        - Resource Management
-      summary: Create Kubernetes resource
-      description: Creates a new Kubernetes resource
-      operationId: createResource
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ResourceRequest'
-      responses:
-        '200':
-          description: Resource created successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
-
-  /resource/delete:
-    post:
-      tags:
-        - Resource Management
-      summary: Delete Kubernetes resource
-      description: Deletes a specific Kubernetes resource
-      operationId: deleteResource
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ResourceRequest'
-      responses:
-        '200':
-          description: Resource deleted successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Resource not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
-
-  /resource/list:
-    post:
-      tags:
-        - Resource Management
-      summary: List Kubernetes resources
-      description: Lists Kubernetes resources based on criteria
-      operationId: getResourceList
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ResourceListRequest'
-      responses:
-        '200':
-          description: Resource list retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
-
-  /api-resources/{clusterId}:
+  /k8s/pods/logs/{podName}:
     get:
       tags:
-        - Resource Management
-      summary: Get API resources for cluster
-      description: Retrieves all available API resources for a specific cluster
-      operationId: getAllApiResources
-      parameters:
-        - name: clusterId
-          in: path
-          description: Cluster ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-            minimum: 1
-      responses:
-        '200':
-          description: API resources retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Cluster not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
-
-  /pods/logs/{podName}:
-    get:
-      tags:
-        - Pod Management
+        - Pod Logs
       summary: Get pod logs
-      description: Retrieves logs from a specific pod and container
+      description: Retrieves logs from the specified pod and container
       operationId: getPodLogs
       parameters:
         - name: podName
           in: path
-          description: Pod name
           required: true
           schema:
             type: string
+          example: "my-app-pod-123"
         - name: containerName
           in: query
-          description: Container name
           required: true
           schema:
             type: string
+          example: "main-container"
         - name: follow
           in: query
-          description: Follow log stream
-          required: true
+          required: false
           schema:
             type: boolean
+            default: false
+          example: false
       responses:
         '200':
           description: Pod logs retrieved successfully
@@ -677,6 +124,12 @@ paths:
             text/plain:
               schema:
                 type: string
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Unauthorized
           content:
@@ -701,5 +154,234 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
+
+  /k8s/pods/logs/download/{podName}:
+    get:
+      tags:
+        - Pod Logs
+      summary: Download pod logs
+      description: Downloads logs from the specified pod and container as a file
+      operationId: downloadPodLogs
+      parameters:
+        - name: podName
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "my-app-pod-123"
+        - name: containerName
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "main-container"
+      responses:
+        '200':
+          description: Pod logs file download
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Pod not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /k8s/resource/rotate:
+    post:
+      tags:
+        - Resource Management
+      summary: Rotate Kubernetes resource
+      description: Rotates the specified Kubernetes resource
+      operationId: rotateKubernetesResource
+      parameters:
+        - name: appId
+          in: query
+          required: true
+          schema:
+            type: integer
+          example: 123
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRotateRequest'
+            example:
+              resourceId: "res-123"
+      responses:
+        '200':
+          description: Resource rotated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /app/rotate-pods:
+    post:
+      tags:
+        - Pod Rotation
+      summary: Rotate pods
+      description: Rotates the specified pods using resource identifiers
+      operationId: rotatePods
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PodRotateRequest'
+            example:
+              resources:
+                - Group: ""
+                  Version: "v1"
+                  Kind: "Pod"
+                  Name: "my-pod"
+                  Namespace: "default"
+      responses:
+        '200':
+          description: Pods rotated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /cluster/list:
+    get:
+      tags:
+        - Resource Management
+      summary: Get cluster list
+      description: Retrieves a list of all available clusters
+      operationId: getClusterList
+      responses:
+        '200':
+          description: List of clusters retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /cluster/namespaces:
+    get:
+      tags:
+        - Resource Management
+      summary: Get all cluster namespaces
+      description: Retrieves namespaces from all clusters
+      operationId: getAllClusterNamespaces
+      responses:
+        '200':
+          description: All cluster namespaces retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

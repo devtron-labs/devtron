@@ -134,7 +134,6 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 	err = handler.validator.Struct(overrideRequest)
 	if err != nil {
 		handler.logger.Errorw("validation error", "err", err, "payload", overrideRequest)
-		// Enhanced validation error handling
 		common.HandleValidationErrors(w, r, err)
 		return
 	}
@@ -199,7 +198,6 @@ func (handler PipelineTriggerRestHandlerImpl) RotatePods(w http.ResponseWriter, 
 	err = handler.validator.Struct(podRotateRequest)
 	if err != nil {
 		handler.logger.Errorw("validation error", "err", err, "payload", podRotateRequest)
-		// Enhanced validation error handling
 		common.HandleValidationErrors(w, r, err)
 		return
 	}
@@ -262,7 +260,6 @@ func (handler PipelineTriggerRestHandlerImpl) StartStopApp(w http.ResponseWriter
 	err = handler.validator.Struct(overrideRequest)
 	if err != nil {
 		handler.logger.Errorw("validation error", "err", err, "payload", overrideRequest)
-		// Enhanced validation error handling
 		common.HandleValidationErrors(w, r, err)
 		return
 	}
