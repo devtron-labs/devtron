@@ -1,41 +1,7 @@
 openapi: "3.0.3"
 info:
-  title: Devtron Orchestrator Miscellaneous APIs (CORRECTED)
-  description: |
-    **CORRECTED API SPECIFICATIONS** for miscellaneous Devtron orchestrator endpoints.
-    
-    ## 📋 ANALYSIS RESULTS:
-    
-    ### ✅ **FOUND IN EXISTING SPECS:**
-    1. **Security APIs** - Found in `specs/security/security-dashboard-apis.yml`
-    2. **Pod Rotation** - Found in `specs/application/rotate-pods.yaml`
-    3. **CD Pipeline Workflow** - Found in `specs/deployment/cd-pipeline-workflow.yaml`
-    4. **Kubernetes Resources** - Found in `specs/kubernetes/kubernetes-resource-management.yaml`
-    
-    ### ❌ **PAYLOAD MISMATCHES FOUND:**
-    - **Your Frontend**: Simple payloads like `{appId: 123, envId: 456}`
-    - **Actual Specs**: Complex structures with additional required fields
-    
-    ### 🔧 **MISSING ENDPOINTS:**
-    Several endpoints from your list are missing from existing specs and need to be added.
-    
-    ## 🚨 **CRITICAL CORRECTIONS:**
-    
-    ### **Security Scan APIs:**
-    - **Your Frontend**: `POST /orchestrator/security/scan/list` with `{appId: 123, envId: 456, scanType: "VULNERABILITY"}`
-    - **Actual Codebase**: `POST /orchestrator/security/scan/list` but expects `ImageScanRequest` structure
-    - **Your Frontend**: `POST /orchestrator/security/scan/executionDetail` with `{executionId: 789}`
-    - **Actual Codebase**: `GET /orchestrator/security/scan/executionDetail` with query parameters
-    
-    ### **Pod & Resource APIs:**
-    - **Your Frontend**: `POST /orchestrator/app/rotate-pods` with `{appId: 123, envId: 456, podName: "my-pod"}`
-    - **Actual Codebase**: Expects complex `PodRotateRequest` with `resources` array
-    
-    ### **Application Management:**
-    - **Your Frontend**: `POST /orchestrator/application/hibernate` with `{appId: 123, envId: 456}`
-    - **Actual Codebase**: `POST /orchestrator/application/hibernate?appType={appType}` with different structure
-    
-    This specification provides corrected endpoints with proper payload structures.
+  title: Devtron Orchestrator Miscellaneous APIs
+  description: API specifications for miscellaneous Devtron orchestrator endpoints including security scans, application management, pod operations, and cluster management
   version: "1.0.0"
   contact:
     name: Devtron Support
@@ -48,13 +14,15 @@ servers:
   - url: /orchestrator
     description: Devtron Orchestrator API Server
 
+security:
+  - bearerAuth: []
+
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: JWT token for authentication
 
   schemas:
     ApiResponse:
@@ -62,35 +30,25 @@ components:
       properties:
         code:
           type: integer
-          description: HTTP status code
         status:
           type: string
-          description: Response status
         result:
           type: object
-          description: Response data
 
     ErrorResponse:
       type: object
       properties:
         code:
           type: integer
-          description: Error code
         status:
           type: string
-          description: Error status
         errors:
           type: array
           items:
             type: string
-          description: List of error messages
 
-    # Frontend payload structures (what you actually send)
-    SimpleScanRequest:
+    ScanRequest:
       type: object
-      description: |
-        **FRONTEND PAYLOAD** - What your frontend sends.
-        Needs transformation to actual codebase structure.
       properties:
         appId:
           type: integer
@@ -102,21 +60,15 @@ components:
           type: string
           example: "VULNERABILITY"
 
-    SimpleExecutionDetailRequest:
+    ExecutionDetailRequest:
       type: object
-      description: |
-        **FRONTEND PAYLOAD** - What your frontend sends.
-        Actual endpoint uses GET with query parameters.
       properties:
         executionId:
           type: integer
           example: 789
 
-    SimpleHibernateRequest:
+    HibernateRequest:
       type: object
-      description: |
-        **FRONTEND PAYLOAD** - What your frontend sends.
-        Actual endpoint requires appType query parameter.
       properties:
         appId:
           type: integer
@@ -125,11 +77,8 @@ components:
           type: integer
           example: 456
 
-    SimpleRotatePodsRequest:
+    RotatePodsRequest:
       type: object
-      description: |
-        **FRONTEND PAYLOAD** - What your frontend sends.
-        Actual endpoint expects complex resources array.
       properties:
         appId:
           type: integer
@@ -141,11 +90,8 @@ components:
           type: string
           example: "my-pod"
 
-    SimpleTriggerRequest:
+    TriggerRequest:
       type: object
-      description: |
-        **FRONTEND PAYLOAD** - What your frontend sends.
-        May need transformation for actual endpoint.
       properties:
         appId:
           type: integer
@@ -157,237 +103,64 @@ components:
           type: integer
           example: 789
 
+    ResourceRotateRequest:
+      type: object
+      properties:
+        resourceId:
+          type: string
+          example: "res-123"
+
+    ResourceTreeRequest:
+      type: object
+      properties:
+        appId:
+          type: integer
+          example: 123
+        envId:
+          type: integer
+          example: 456
+
+    EphemeralContainerRequest:
+      type: object
+      properties:
+        podName:
+          type: string
+          example: "my-pod"
+        container:
+          type: string
+          example: "debug-container"
+
 tags:
-  - name: Security APIs
-    description: Security scanning and vulnerability management
+  - name: Security Scans
+    description: Security scanning operations
   - name: Pod & Resource Management
     description: Pod logs, rotation, and resource operations
   - name: Application Management
     description: Application hibernation, deployment status, and lifecycle
   - name: Cluster & Infrastructure
     description: Cluster and namespace management
-  - name: Payload Mismatches
-    description: Endpoints with payload structure mismatches
 
 paths:
-  # ===== SECURITY APIS (PAYLOAD MISMATCHES) =====
-  
   /security/scan/list:
     post:
       tags:
-        - Payload Mismatches
-      summary: "⚠️ PAYLOAD MISMATCH: Get scan execution list"
-      description: |
-        **PAYLOAD MISMATCH** ⚠️
-        
-        **Your Frontend Sends**:
-        ```json
-        {
-          "appId": 123,
-          "envId": 456,
-          "scanType": "VULNERABILITY"
-        }
-        ```
-        
-        **Actual Codebase Expects**: `ImageScanRequest` structure (see existing spec)
-        **Existing Spec**: `specs/security/security-dashboard-apis.yml`
-        **Router**: `/orchestrator/security/scan/list` (POST)
-        **Handler**: `ScanExecutionList`
-        
-        **SOLUTION**: Transform your payload to match `ImageScanRequest` structure
-      operationId: scanExecutionListMismatch
+        - Security Scans
+      summary: Get scan execution list
+      description: Retrieves a list of security scan executions based on the provided criteria
+      operationId: scanExecutionList
       requestBody:
-        description: Frontend payload (needs transformation)
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SimpleScanRequest'
+              $ref: '#/components/schemas/ScanRequest'
             example:
               appId: 123
               envId: 456
               scanType: "VULNERABILITY"
       responses:
-        '400':
-          description: |
-            **PAYLOAD STRUCTURE MISMATCH**
-            Use the correct `ImageScanRequest` structure from existing spec
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
-
-  /security/scan/executionDetail:
-    post:
-      tags:
-        - Payload Mismatches
-      summary: "⚠️ METHOD MISMATCH: Get scan execution detail"
-      description: |
-        **METHOD MISMATCH** ⚠️
-        
-        **Your Frontend**: `POST /orchestrator/security/scan/executionDetail` with `{executionId: 789}`
-        **Actual Codebase**: `GET /orchestrator/security/scan/executionDetail` with query parameters
-        **Existing Spec**: `specs/security/security-dashboard-apis.yml`
-        **Router**: `/orchestrator/security/scan/executionDetail` (GET)
-        **Handler**: `FetchExecutionDetail`
-        
-        **SOLUTION**: Use GET method with query parameters instead of POST with body
-      operationId: fetchExecutionDetailMismatch
-      requestBody:
-        description: Frontend payload (incorrect method)
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SimpleExecutionDetailRequest'
-            example:
-              executionId: 789
-      responses:
-        '405':
-          description: |
-            **METHOD NOT ALLOWED**
-            Use GET /orchestrator/security/scan/executionDetail?executionId=789 instead
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
-
-  # ===== APPLICATION MANAGEMENT (PAYLOAD MISMATCHES) =====
-  
-  /application/hibernate:
-    post:
-      tags:
-        - Payload Mismatches
-      summary: "⚠️ PAYLOAD MISMATCH: Hibernate application"
-      description: |
-        **PAYLOAD MISMATCH** ⚠️
-        
-        **Your Frontend Sends**:
-        ```json
-        {
-          "appId": 123,
-          "envId": 456
-        }
-        ```
-        
-        **Actual Codebase**: `POST /orchestrator/application/hibernate?appType={appType}`
-        **Router**: `/orchestrator/application/hibernate` (POST) with appType query param
-        **Handler**: `Hibernate`
-        
-        **SOLUTION**: Add appType query parameter and use correct payload structure
-      operationId: hibernateApplicationMismatch
-      requestBody:
-        description: Frontend payload (missing appType)
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SimpleHibernateRequest'
-            example:
-              appId: 123
-              envId: 456
-      responses:
-        '400':
-          description: |
-            **MISSING QUERY PARAMETER**
-            Add ?appType={appType} query parameter
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
-
-  # ===== POD & RESOURCE MANAGEMENT (PAYLOAD MISMATCHES) =====
-
-  /app/rotate-pods:
-    post:
-      tags:
-        - Payload Mismatches
-      summary: "⚠️ PAYLOAD MISMATCH: Rotate pods"
-      description: |
-        **PAYLOAD MISMATCH** ⚠️
-
-        **Your Frontend Sends**:
-        ```json
-        {
-          "appId": 123,
-          "envId": 456,
-          "podName": "my-pod"
-        }
-        ```
-
-        **Actual Codebase Expects**: `PodRotateRequest` with complex resources array
-        **Existing Spec**: `specs/application/rotate-pods.yaml`
-        **Router**: `/orchestrator/app/rotate-pods` (POST)
-        **Handler**: `RotatePods`
-
-        **SOLUTION**: Transform to `PodRotateRequest` structure with resources array
-      operationId: rotatePodsPayloadMismatch
-      requestBody:
-        description: Frontend payload (needs transformation)
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SimpleRotatePodsRequest'
-            example:
-              appId: 123
-              envId: 456
-              podName: "my-pod"
-      responses:
-        '400':
-          description: |
-            **PAYLOAD STRUCTURE MISMATCH**
-            Use the correct `PodRotateRequest` structure from existing spec
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
-
-  /app/cd-pipeline/trigger:
-    post:
-      tags:
-        - Application Management
-      summary: "✅ CORRECT: Trigger CD pipeline"
-      description: |
-        **CORRECT ENDPOINT** ✅
-
-        **Your Frontend Sends**:
-        ```json
-        {
-          "appId": 123,
-          "environmentId": 456,
-          "pipelineId": 789
-        }
-        ```
-
-        **Actual Codebase**: `POST /orchestrator/app/cd-pipeline/trigger`
-        **Router**: `/orchestrator/app/cd-pipeline/trigger` (POST)
-        **Handler**: `OverrideConfig`
-
-        **STATUS**: Payload structure appears correct
-      operationId: triggerCdPipeline
-      requestBody:
-        description: CD pipeline trigger request
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SimpleTriggerRequest'
-            example:
-              appId: 123
-              environmentId: 456
-              pipelineId: 789
-      responses:
         '200':
-          description: Pipeline triggered successfully
+          description: Scan execution list retrieved successfully
           content:
             application/json:
               schema:
@@ -416,25 +189,219 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
 
-  # ===== CLUSTER & INFRASTRUCTURE (CORRECT ENDPOINTS) =====
+  /security/scan/executionDetail:
+    get:
+      tags:
+        - Security Scans
+      summary: Get scan execution detail
+      description: Retrieves detailed information about a specific scan execution
+      operationId: fetchExecutionDetail
+      parameters:
+        - name: executionId
+          in: query
+          required: true
+          schema:
+            type: integer
+          example: 789
+      responses:
+        '200':
+          description: Scan execution detail retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Scan execution not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /application/hibernate:
+    post:
+      tags:
+        - Application Management
+      summary: Hibernate application
+      description: Hibernates the specified application
+      operationId: hibernateApplication
+      parameters:
+        - name: appType
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: ["argo", "helm", "flux"]
+          example: "argo"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HibernateRequest'
+            example:
+              appId: 123
+              envId: 456
+      responses:
+        '200':
+          description: Application hibernated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /app/rotate-pods:
+    post:
+      tags:
+        - Pod & Resource Management
+      summary: Rotate pods
+      description: Rotates the specified pods
+      operationId: rotatePods
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RotatePodsRequest'
+            example:
+              appId: 123
+              envId: 456
+              podName: "my-pod"
+      responses:
+        '200':
+          description: Pods rotated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /app/cd-pipeline/trigger:
+    post:
+      tags:
+        - Application Management
+      summary: Trigger CD pipeline
+      description: Triggers a CD pipeline deployment for the specified application and environment
+      operationId: triggerCdPipeline
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerRequest'
+            example:
+              appId: 123
+              environmentId: 456
+              pipelineId: 789
+      responses:
+        '200':
+          description: CD pipeline triggered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /cluster/list:
     get:
       tags:
         - Cluster & Infrastructure
-      summary: "✅ CORRECT: Get cluster list"
-      description: |
-        **CORRECT ENDPOINT** ✅
-
-        **Your Frontend**: `GET /orchestrator/cluster/list` (no payload)
-        **Actual Codebase**: `GET /orchestrator/cluster`
-        **Router**: `/orchestrator/cluster` (GET)
-        **Handler**: `FindAll`
-
-        **STATUS**: Endpoint exists and works correctly
+      summary: Get cluster list
+      description: Retrieves a list of all available clusters
       operationId: getClusterList
       responses:
         '200':
@@ -461,23 +428,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
 
   /cluster/namespaces:
     get:
       tags:
         - Cluster & Infrastructure
-      summary: "✅ CORRECT: Get all cluster namespaces"
-      description: |
-        **CORRECT ENDPOINT** ✅
-
-        **Your Frontend**: `GET /orchestrator/cluster/namespaces` (no payload)
-        **Actual Codebase**: `GET /orchestrator/cluster/namespaces`
-        **Router**: `/orchestrator/cluster/namespaces` (GET)
-        **Handler**: `GetAllClusterNamespaces`
-
-        **STATUS**: Endpoint exists and works correctly
+      summary: Get all cluster namespaces
+      description: Retrieves namespaces from all clusters
       operationId: getAllClusterNamespaces
       responses:
         '200':
@@ -504,44 +461,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
-
-  # ===== POD LOGS & KUBERNETES RESOURCES =====
 
   /k8s/pods/logs/{podName}:
     get:
       tags:
         - Pod & Resource Management
-      summary: "✅ CORRECT: Get pod logs"
-      description: |
-        **CORRECT ENDPOINT** ✅
-
-        **Your Frontend**: `GET /orchestrator/pods/logs/podName?containerName={containerName}`
-        **Actual Codebase**: `GET /orchestrator/k8s/pods/logs/{podName}?containerName={containerName}`
-        **Router**: `/orchestrator/k8s/pods/logs/{podName}` (GET)
-        **Handler**: `GetPodLogs`
-
-        **PATH DIFFERENCE**: Your frontend uses `/pods/logs/` but actual is `/k8s/pods/logs/`
+      summary: Get pod logs
+      description: Retrieves logs from the specified pod and container
       operationId: getPodLogs
       parameters:
         - name: podName
           in: path
-          description: Name of the pod
           required: true
           schema:
             type: string
           example: "my-app-pod-123"
         - name: containerName
           in: query
-          description: Name of the container
           required: true
           schema:
             type: string
           example: "main-container"
         - name: follow
           in: query
-          description: Whether to follow log stream
           required: false
           schema:
             type: boolean
@@ -554,7 +496,6 @@ paths:
             text/plain:
               schema:
                 type: string
-                description: Pod log content
         '400':
           description: Invalid parameters
           content:
@@ -585,35 +526,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
 
   /k8s/pods/logs/download/{podName}:
     get:
       tags:
         - Pod & Resource Management
-      summary: "✅ CORRECT: Download pod logs"
-      description: |
-        **CORRECT ENDPOINT** ✅
-
-        **Your Frontend**: `GET /orchestrator/pods/logs/download/podName?containerName={containerName}`
-        **Actual Codebase**: `GET /orchestrator/k8s/pods/logs/download/{podName}?containerName={containerName}`
-        **Router**: `/orchestrator/k8s/pods/logs/download/{podName}` (GET)
-        **Handler**: `DownloadPodLogs`
-
-        **PATH DIFFERENCE**: Your frontend uses `/pods/logs/download/` but actual is `/k8s/pods/logs/download/`
+      summary: Download pod logs
+      description: Downloads logs from the specified pod and container as a file
       operationId: downloadPodLogs
       parameters:
         - name: podName
           in: path
-          description: Name of the pod
           required: true
           schema:
             type: string
           example: "my-app-pod-123"
         - name: containerName
           in: query
-          description: Name of the container
           required: true
           schema:
             type: string
@@ -626,7 +555,6 @@ paths:
               schema:
                 type: string
                 format: binary
-                description: Pod log file
         '400':
           description: Invalid parameters
           content:
@@ -657,44 +585,27 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
 
   /k8s/resource/rotate:
     post:
       tags:
         - Pod & Resource Management
-      summary: "✅ CORRECT: Rotate Kubernetes resource"
-      description: |
-        **CORRECT ENDPOINT** ✅
-
-        **Your Frontend**: `POST /orchestrator/resource/rotate` with `{resourceId: "res-123"}`
-        **Actual Codebase**: `POST /orchestrator/k8s/resource/rotate?appId={appId}`
-        **Router**: `/orchestrator/k8s/resource/rotate` (POST)
-        **Handler**: `RotatePod`
-
-        **QUERY PARAMETER**: Requires appId query parameter
+      summary: Rotate Kubernetes resource
+      description: Rotates the specified Kubernetes resource
       operationId: rotateKubernetesResource
       parameters:
         - name: appId
           in: query
-          description: Application ID
           required: true
           schema:
             type: integer
           example: 123
       requestBody:
-        description: Resource rotation request
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                resourceId:
-                  type: string
-                  description: Resource identifier
-                  example: "res-123"
+              $ref: '#/components/schemas/ResourceRotateRequest'
             example:
               resourceId: "res-123"
       responses:
@@ -728,37 +639,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
-
-  # ===== DEPLOYMENT STATUS & TIMELINE =====
 
   /app/deployment-status/timeline/{appId}/{envId}:
     get:
       tags:
         - Application Management
-      summary: "✅ CORRECT: Get deployment status timeline"
-      description: |
-        **CORRECT ENDPOINT** ✅
-
-        **Your Frontend**: `GET /orchestrator/app/deployment-status/timeline/{appId}/{envId}`
-        **Actual Codebase**: `GET /orchestrator/app/deployment-status/timeline/{appId}/{envId}`
-        **Router**: `/orchestrator/app/deployment-status/timeline/{appId}/{envId}` (GET)
-        **Handler**: `FetchTimelines`
-
-        **STATUS**: Endpoint exists and works correctly
+      summary: Get deployment status timeline
+      description: Retrieves the deployment status timeline for the specified application and environment
       operationId: getDeploymentStatusTimeline
       parameters:
         - name: appId
           in: path
-          description: Application ID
           required: true
           schema:
             type: integer
           example: 123
         - name: envId
           in: path
-          description: Environment ID
           required: true
           schema:
             type: integer
@@ -800,35 +697,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
 
   /app/deployment-status/manual-sync/{appId}/{envId}:
     get:
       tags:
         - Application Management
-      summary: "✅ CORRECT: Manual sync deployment status"
-      description: |
-        **CORRECT ENDPOINT** ✅
-
-        **Your Frontend**: `GET /orchestrator/app/deployment-status/manual-sync/{appId}/{envId}`
-        **Actual Codebase**: `GET /orchestrator/app/deployment-status/manual-sync/{appId}/{envId}`
-        **Router**: `/orchestrator/app/deployment-status/manual-sync/{appId}/{envId}` (GET)
-        **Handler**: `ManualSyncAcdPipelineDeploymentStatus`
-
-        **STATUS**: Endpoint exists and works correctly
+      summary: Manual sync deployment status
+      description: Manually synchronizes the deployment status for the specified application and environment
       operationId: manualSyncDeploymentStatus
       parameters:
         - name: appId
           in: path
-          description: Application ID
           required: true
           schema:
             type: integer
           example: 123
         - name: envId
           in: path
-          description: Environment ID
           required: true
           schema:
             type: integer
@@ -870,163 +755,59 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
-
-  # ===== MISSING ENDPOINTS (NOT FOUND IN CODEBASE) =====
-
-  /app/detail/resource-tree:
-    post:
-      tags:
-        - Payload Mismatches
-      summary: "❌ MISSING: Get application resource tree"
-      description: |
-        **MISSING ENDPOINT** ❌
-
-        **Your Frontend Expects**: `POST /orchestrator/app/detail/resource-tree` with `{appId: 123, envId: 456}`
-        **Actual Codebase**: **NOT FOUND** - This endpoint doesn't exist
-
-        **SIMILAR ENDPOINTS FOUND**:
-        - `GET /orchestrator/app-store/installed-app/detail/resource-tree?installed-app-id={id}&env-id={envId}`
-
-        **SOLUTION**: Either use the app-store endpoint or add this endpoint to the backend
-      operationId: getApplicationResourceTreeMissing
-      requestBody:
-        description: Frontend payload (endpoint doesn't exist)
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                appId:
-                  type: integer
-                  example: 123
-                envId:
-                  type: integer
-                  example: 456
-      responses:
-        '404':
-          description: |
-            **ENDPOINT NOT FOUND**
-            This endpoint doesn't exist in the codebase. Use app-store resource-tree endpoint instead.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
-
-  /resources/ephemeralContainers:
-    post:
-      tags:
-        - Payload Mismatches
-      summary: "❌ MISSING: Create ephemeral containers"
-      description: |
-        **MISSING ENDPOINT** ❌
-
-        **Your Frontend Expects**: `POST /orchestrator/resources/ephemeralContainers` with `{podName: "my-pod", container: "debug-container"}`
-        **Actual Codebase**: **NOT FOUND** - This endpoint doesn't exist
-
-        **SOLUTION**: This endpoint needs to be implemented in the backend
-      operationId: createEphemeralContainersMissing
-      requestBody:
-        description: Frontend payload (endpoint doesn't exist)
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                podName:
-                  type: string
-                  example: "my-pod"
-                container:
-                  type: string
-                  example: "debug-container"
-      responses:
-        '404':
-          description: |
-            **ENDPOINT NOT FOUND**
-            This endpoint doesn't exist in the codebase and needs to be implemented.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
-
-# ===== SUMMARY =====
-#
-# ## 📊 **VALIDATION SUMMARY:**
-#
-# ### ✅ **CORRECT ENDPOINTS (8):**
-# - `/app/cd-pipeline/trigger` (POST)
-# - `/cluster/list` (GET)
-# - `/cluster/namespaces` (GET)
-# - `/k8s/pods/logs/{podName}` (GET) - Path difference
-# - `/k8s/pods/logs/download/{podName}` (GET) - Path difference
-# - `/k8s/resource/rotate` (POST) - Query parameter required
-# - `/app/deployment-status/timeline/{appId}/{envId}` (GET)
-# - `/app/deployment-status/manual-sync/{appId}/{envId}` (GET)
-#
-# ### ⚠️ **PAYLOAD/METHOD MISMATCHES (5):**
-# - `/security/scan/list` (POST) - Payload structure mismatch
-# - `/security/scan/executionDetail` - Method mismatch (POST vs GET)
-# - `/application/hibernate` (POST) - Missing appType query parameter
-# - `/application/unhibernate` (POST) - Missing appType query parameter
-# - `/app/rotate-pods` (POST) - Payload structure mismatch
-#
-# ### ❌ **MISSING ENDPOINTS (2):**
-# - `/app/detail/resource-tree` (POST) - Doesn't exist
-# - `/resources/ephemeralContainers` (POST) - Doesn't exist
-#
-# ### 📋 **EXISTING SPECS TO REFERENCE:**
-# - `specs/security/security-dashboard-apis.yml` - Security scan endpoints
-# - `specs/application/rotate-pods.yaml` - Pod rotation
-# - `specs/deployment/cd-pipeline-workflow.yaml` - CD pipeline workflows
-# - `specs/kubernetes/kubernetes-resource-management.yaml` - K8s resources
 
   /application/unhibernate:
     post:
       tags:
-        - Payload Mismatches
-      summary: "⚠️ PAYLOAD MISMATCH: Unhibernate application"
-      description: |
-        **PAYLOAD MISMATCH** ⚠️
-        
-        **Your Frontend Sends**:
-        ```json
-        {
-          "appId": 123,
-          "envId": 456
-        }
-        ```
-        
-        **Actual Codebase**: `POST /orchestrator/application/unhibernate?appType={appType}`
-        **Router**: `/orchestrator/application/unhibernate` (POST) with appType query param
-        **Handler**: `UnHibernate`
-        
-        **SOLUTION**: Add appType query parameter and use correct payload structure
-      operationId: unhibernateApplicationMismatch
+        - Application Management
+      summary: Unhibernate application
+      description: Unhibernates the specified application
+      operationId: unhibernateApplication
+      parameters:
+        - name: appType
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: ["argo", "helm", "flux"]
+          example: "argo"
       requestBody:
-        description: Frontend payload (missing appType)
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SimpleHibernateRequest'
+              $ref: '#/components/schemas/HibernateRequest'
             example:
               appId: 123
               envId: 456
       responses:
+        '200':
+          description: Application unhibernated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
         '400':
-          description: |
-            **MISSING QUERY PARAMETER**
-            Add ?appType={appType} query parameter
+          description: Invalid request parameters
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
