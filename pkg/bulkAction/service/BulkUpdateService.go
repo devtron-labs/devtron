@@ -1387,6 +1387,7 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(ctx *util2.RequestCtx, request *bea
 	userMetadata *bean6.UserMetadata) (*bean4.BulkApplicationForEnvironmentResponse, error) {
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
+	missingPipelineApss := []int{} // store missing ids
 
 	if len(request.AppNamesIncludes) > 0 {
 		r, err := impl.appRepository.FindIdsByNames(request.AppNamesIncludes)
@@ -1425,6 +1426,26 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(ctx *util2.RequestCtx, request *bea
 	}
 	if len(request.AppIdIncludes) > 0 {
 		pipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIdIncludes)
+		if len(request.AppIdIncludes) != len(pipelines) {
+			requestedAppId := request.AppIdIncludes
+			pipelinesAppId := []int{}
+			for _, pipeline := range pipelines {
+				pipelinesAppId = append(pipelinesAppId, pipeline.AppId)
+			}
+
+			// put arr2 elements into a map for fast lookup
+			lookup := make(map[int]bool)
+			for _, v := range requestedAppId {
+				lookup[v] = true
+			}
+
+			// check which elements of arr1 are not in arr2
+			for _, v := range pipelinesAppId {
+				if !lookup[v] {
+					missingPipelineApss = append(missingPipelineApss, v)
+				}
+			}
+		}
 	} else if len(request.AppIdExcludes) > 0 {
 		pipelines, err = impl.pipelineRepository.FindActiveByNotFilter(request.EnvId, request.AppIdExcludes)
 	} else {
@@ -1514,6 +1535,19 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(ctx *util2.RequestCtx, request *bea
 		pipelineResponse := response[appKey]
 		pipelineResponse[pipelineKey] = success
 		response[appKey] = pipelineResponse
+	}
+	if len(missingPipelineApss) > 0 {
+		for _, appId := range missingPipelineApss {
+			appKey := utils.GenerateIdentifierKey(appId, bean2.NOT_FOUND)
+			pipelineKey := utils.GenerateIdentifierKey(-1, bean2.NOT_FOUND)
+
+			pResponse := make(map[string]bool)
+			pResponse[pipelineKey] = false
+			response[appKey] = pResponse
+			pipelineResponse := response[appKey]
+			pipelineResponse[pipelineKey] = false
+			response[appKey] = pipelineResponse
+		}
 	}
 	bulkOperationResponse := &bean4.BulkApplicationForEnvironmentResponse{}
 	bulkOperationResponse.BulkApplicationForEnvironmentPayload = *request
