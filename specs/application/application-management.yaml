@@ -306,6 +306,143 @@ components:
           enum: [helm, argo_cd]
           description: Deployment application type
 
+    CreateAppDTO:
+      type: object
+      description: Complete application configuration data transfer object returned by the get app endpoint
+      required:
+        - appName
+        - teamId
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Application ID (auto-generated)
+          example: 123
+        appName:
+          type: string
+          description: Name of the application
+          pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
+          minLength: 1
+          maxLength: 100
+          example: "sample-app"
+        description:
+          type: string
+          description: Application description
+          example: "Sample application for demonstration"
+        teamId:
+          type: integer
+          format: int64
+          description: Team/Project ID that owns this application
+          example: 1
+        templateId:
+          type: integer
+          format: int64
+          description: Template ID used for application creation (0 for no template)
+          example: 0
+        appType:
+          type: integer
+          description: |
+            Application type identifier:
+            - 0: Devtron App (native Devtron application)
+            - 1: Helm App (Helm-based application)
+            - 2: Argo App (ArgoCD-based application)
+          enum: [0, 1, 2]
+          example: 0
+        material:
+          type: array
+          description: Git materials/repositories associated with the application
+          items:
+            $ref: '#/components/schemas/GitMaterial'
+        labels:
+          type: array
+          description: Application labels for categorization and Kubernetes resource propagation
+          items:
+            $ref: '#/components/schemas/AppLabel'
+        genericNote:
+          $ref: '#/components/schemas/GenericNoteResponseBean'
+          description: Application notes and documentation
+
+    GitMaterial:
+      type: object
+      description: Git repository configuration for the application
+      required:
+        - url
+        - gitProviderId
+        - checkoutPath
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Git material ID
+          example: 1
+        name:
+          type: string
+          description: Display name for the git material
+          example: "sample-app-main"
+        url:
+          type: string
+          format: uri
+          description: Git repository URL
+          example: "https://github.com/user/sample-app.git"
+        gitProviderId:
+          type: integer
+          format: int64
+          description: Git provider configuration ID
+          minimum: 1
+          example: 1
+        checkoutPath:
+          type: string
+          description: Path where the repository should be checked out
+          pattern: '^[./].*'
+          example: "./"
+        fetchSubmodules:
+          type: boolean
+          description: Whether to fetch git submodules
+          default: false
+          example: false
+        isUsedInCiConfig:
+          type: boolean
+          description: Whether this material is used in CI configuration
+          example: true
+        filterPattern:
+          type: array
+          description: File patterns to include/exclude during build
+          items:
+            type: string
+          example: ["**"]
+        createBackup:
+          type: boolean
+          description: Whether to create backup of this material
+          default: false
+          example: false
+
+    GenericNoteResponseBean:
+      type: object
+      description: Application notes and documentation metadata
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Note ID
+          example: 1
+        description:
+          type: string
+          description: Note content/description
+          example: "This is a sample application"
+        updatedBy:
+          type: string
+          description: Username who last updated the note
+          example: "admin"
+        updatedOn:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-01-15T10:30:00Z"
+        createdBy:
+          type: string
+          description: Username who created the note
+          example: "admin"
+
 tags:
   - name: Application Management
     description: Operations for managing applications in Devtron orchestrator
@@ -458,6 +595,130 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /get/{appId}:
+    get:
+      tags:
+        - Application Management
+      summary: Get application configuration details
+      description: |
+        Retrieves comprehensive configuration details for a specific application including:
+        - Basic application metadata (ID, name, description, team)
+        - Git materials configuration (repositories, checkout paths, filter patterns)
+        - Application labels with propagation settings
+        - Template configuration and app type information
+        - Generic notes and descriptions
+
+        This endpoint is primarily used for application management and configuration display.
+      operationId: getApplicationConfig
+      parameters:
+        - name: appId
+          in: path
+          description: ID of the application to retrieve configuration for
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          example: 123
+      responses:
+        '200':
+          description: Application configuration retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/CreateAppDTO'
+              examples:
+                devtron_app:
+                  summary: Devtron Application Example
+                  value:
+                    code: 200
+                    status: "OK"
+                    result:
+                      id: 123
+                      appName: "sample-app"
+                      description: "Sample application for demonstration"
+                      teamId: 1
+                      templateId: 0
+                      appType: 0
+                      material:
+                        - id: 1
+                          name: "sample-app-main"
+                          url: "https://github.com/user/sample-app.git"
+                          gitProviderId: 1
+                          checkoutPath: "./"
+                          fetchSubmodules: false
+                          filterPattern: ["**"]
+                      labels:
+                        - key: "environment"
+                          value: "development"
+                          propagate: true
+                        - key: "team"
+                          value: "backend"
+                          propagate: false
+                      genericNote:
+                        id: 1
+                        description: "This is a sample application"
+                        updatedBy: "admin"
+                        updatedOn: "2024-01-15T10:30:00Z"
+                        createdBy: "admin"
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 400
+                status: "Bad Request"
+                errors: ["Invalid appId format"]
+        '401':
+          description: Unauthorized - Invalid or missing authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 401
+                status: "Unauthorized"
+                errors: ["Authentication required"]
+        '403':
+          description: Forbidden - User lacks permission to access this application
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 403
+                status: "Forbidden"
+                errors: ["Unauthorized User"]
+        '404':
+          description: Application not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 404
+                status: "Not Found"
+                errors: ["Application not found"]
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 500
+                status: "Internal Server Error"
+                errors: ["Internal server error occurred"]
       security:
         - bearerAuth: []
 
