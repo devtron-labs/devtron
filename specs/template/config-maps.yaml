@@ -1,23 +1,7 @@
 openapi: "3.0.3"
 info:
   title: Devtron ConfigMap and Secret Management API
-  description: |
-    API for managing global and environment-specific ConfigMaps and Secrets in Devtron.
-
-    **IMPORTANT PATH CORRECTIONS:**
-    - Frontend uses: `/orchestrator/global/cm/{appId}`
-    - Actual codebase: `/orchestrator/config/global/cm/{appId}`
-    - Frontend uses: `/orchestrator/global/cs/{appId}`
-    - Actual codebase: `/orchestrator/config/global/cs/{appId}`
-
-    **MISSING PUT METHODS:**
-    - The codebase only has POST methods for create/update (CMGlobalAddUpdate, CSGlobalAddUpdate)
-    - PUT methods for individual updates don't exist in the current implementation
-    - Frontend expects PUT methods for `/global/cm/{appId}/{id}` and `/global/cs/{appId}/{id}`
-
-    **PAYLOAD STRUCTURE MISMATCH:**
-    - Frontend sends: `{name: "string", data: {key: "value"}}`
-    - Codebase expects: `ConfigDataRequest` with complex nested `ConfigData` arrays
+  description: API specifications for ConfigMap and Secret management in Devtron orchestrator
   version: "1.0.0"
   contact:
     name: Devtron Support
@@ -30,865 +14,61 @@ servers:
   - url: /orchestrator
     description: Devtron Orchestrator API Server
 
+security:
+  - bearerAuth: []
+
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: JWT token for authentication
 
-paths:
-  # ===== ACTUAL CODEBASE ENDPOINTS =====
-  /config/global/cm:
-    post:
-      description: Create or update a global ConfigMap
-      operationId: CMGlobalAddUpdate
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ConfigDataRequest'
-      responses:
-        '200':
-          description: Successfully created/updated ConfigMap
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ConfigDataRequest'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized user
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden, user is not authorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /config/environment/cm:
-    post:
-      description: Create or update an environment-specific ConfigMap
-      operationId: CMEnvironmentAddUpdate
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ConfigDataRequest'
-      responses:
-        '200':
-          description: Successfully created/updated ConfigMap
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ConfigDataRequest'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized user
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden, user is not authorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /orchestrator/config/global/cm/{appId}:
-    get:
-      description: Get all global ConfigMaps for an application
-      operationId: CMGlobalFetch
-      parameters:
-        - name: appId
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Successfully retrieved ConfigMaps
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ConfigDataRequest'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized user
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden, user is not authorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /orchestrator/config/environment/cm/{appId}/{envId}:
-    get:
-      description: Get all environment-specific ConfigMaps for an application
-      operationId: CMEnvironmentFetch
-      parameters:
-        - name: appId
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: envId
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Successfully retrieved ConfigMaps
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ConfigDataRequest'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized user
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden, user is not authorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /orchestrator/config/global/cm/edit/{appId}/{id}:
-    get:
-      description: Get a global ConfigMap for editing
-      operationId: CMGlobalFetchForEdit
-      parameters:
-        - name: appId
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: name
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Successfully retrieved ConfigMap
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ConfigDataRequest'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized user
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden, user is not authorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /orchestrator/config/environment/cm/edit/{appId}/{envId}/{id}:
-    get:
-      description: Get an environment-specific ConfigMap for editing
-      operationId: CMEnvironmentFetchForEdit
-      parameters:
-        - name: appId
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: envId
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: name
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Successfully retrieved ConfigMap
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ConfigDataRequest'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized user
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden, user is not authorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /orchestrator/config/global/cm/{appId}/{id}:
-    delete:
-      description: Delete a global ConfigMap
-      operationId: CMGlobalDelete
-      parameters:
-        - name: appId
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: name
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Successfully deleted ConfigMap
-          content:
-            application/json:
-              schema:
-                type: boolean
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized user
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden, user is not authorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /orchestrator/config/environment/cm/{appId}/{envId}/{id}:
-    delete:
-      description: Delete an environment-specific ConfigMap
-      operationId: CMEnvironmentDelete
-      parameters:
-        - name: appId
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: envId
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: name
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Successfully deleted ConfigMap
-          content:
-            application/json:
-              schema:
-                type: boolean
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized user
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden, user is not authorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /orchestrator/config/global/cs:
-    post:
-      description: Create or update a global Secret
-      operationId: CSGlobalAddUpdate
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ConfigDataRequest'
-      responses:
-        '200':
-          description: Successfully created/updated Secret
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ConfigDataRequest'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized user
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden, user is not authorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /orchestrator/config/environment/cs:
-    post:
-      description: Create or update an environment-specific Secret
-      operationId: CSEnvironmentAddUpdate
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ConfigDataRequest'
-      responses:
-        '200':
-          description: Successfully created/updated Secret
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ConfigDataRequest'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized user
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden, user is not authorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /orchestrator/config/global/cs/{appId}:
-    get:
-      description: Get all global Secrets for an application
-      operationId: CSGlobalFetch
-      parameters:
-        - name: appId
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Successfully retrieved Secrets
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ConfigDataRequest'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized user
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden, user is not authorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /orchestrator/config/environment/cs/{appId}/{envId}:
-    get:
-      description: Get all environment-specific Secrets for an application
-      operationId: CSEnvironmentFetch
-      parameters:
-        - name: appId
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: envId
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Successfully retrieved Secrets
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ConfigDataRequest'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized user
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden, user is not authorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /orchestrator/config/global/cs/edit/{appId}/{id}:
-    get:
-      description: Get a global Secret for editing
-      operationId: CSGlobalFetchForEdit
-      parameters:
-        - name: appId
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: name
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Successfully retrieved Secret
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ConfigDataRequest'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized user
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden, user is not authorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /orchestrator/config/environment/cs/edit/{appId}/{envId}/{id}:
-    get:
-      description: Get an environment-specific Secret for editing
-      operationId: CSEnvironmentFetchForEdit
-      parameters:
-        - name: appId
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: envId
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: name
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Successfully retrieved Secret
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ConfigDataRequest'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized user
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden, user is not authorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /orchestrator/config/global/cs/{appId}/{id}:
-    delete:
-      description: Delete a global Secret
-      operationId: CSGlobalDelete
-      parameters:
-        - name: appId
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: name
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Successfully deleted Secret
-          content:
-            application/json:
-              schema:
-                type: boolean
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized user
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden, user is not authorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /orchestrator/config/environment/cs/{appId}/{envId}/{id}:
-    delete:
-      description: Delete an environment-specific Secret
-      operationId: CSEnvironmentDelete
-      parameters:
-        - name: appId
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: envId
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: name
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Successfully deleted Secret
-          content:
-            application/json:
-              schema:
-                type: boolean
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized user
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden, user is not authorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /orchestrator/config/bulk/patch:
-    post:
-      description: Bulk patch ConfigMaps and Secrets
-      operationId: ConfigSecretBulkPatch
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/BulkPatchRequest'
-      responses:
-        '200':
-          description: Successfully patched ConfigMaps and Secrets
-          content:
-            application/json:
-              schema:
-                type: boolean
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized user
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden, user is not authorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-components:
   schemas:
+    ApiResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+        status:
+          type: string
+        result:
+          type: object
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+        status:
+          type: string
+        errors:
+          type: array
+          items:
+            type: string
+
     ConfigDataRequest:
       type: object
       required:
         - appId
-        - userId
         - configData
       properties:
         id:
           type: integer
-          description: ID of the ConfigMap/Secret
+          example: 0
         appId:
           type: integer
-          description: ID of the application
-        userId:
-          type: integer
-          description: ID of the user making the request
+          example: 123
         environmentId:
           type: integer
-          description: ID of the environment (for environment-specific ConfigMaps/Secrets)
+          example: 456
         configData:
           type: array
           items:
             $ref: '#/components/schemas/ConfigData'
+        isDeletable:
+          type: boolean
+          default: true
 
     ConfigData:
       type: object
@@ -896,96 +76,285 @@ components:
         - name
         - type
       properties:
-        id:
-          type: integer
-          description: ID of the ConfigMap/Secret
         name:
           type: string
-          description: Name of the ConfigMap/Secret
+          example: "global-configmap"
         type:
           type: string
-          enum: [CONFIGMAP, SECRET]
-          description: Type of the configuration (ConfigMap or Secret)
+          enum: ["CONFIGMAP", "SECRET"]
+          example: "CONFIGMAP"
         external:
           type: boolean
-          description: Whether this is an external ConfigMap/Secret
+          default: false
+        mountPath:
+          type: string
+          example: "/etc/config"
         data:
           type: object
           additionalProperties:
             type: string
-          description: Key-value pairs for the ConfigMap/Secret
-        mountPath:
-          type: string
-          description: Path where the ConfigMap/Secret should be mounted
-        subPath:
-          type: string
-          description: Subpath within the mount path
-        filePermission:
-          type: string
-          description: File permissions for the mounted ConfigMap/Secret
-        externalSecretType:
-          type: string
-          description: Type of external secret (for Secrets only)
-        roleARN:
-          type: string
-          description: ARN of the role to use for external secrets (for Secrets only)
-        externalSecret:
-          type: array
-          items:
-            $ref: '#/components/schemas/ExternalSecret'
-          description: External secret configuration (for Secrets only)
-
-    ExternalSecret:
-      type: object
-      required:
-        - name
-        - key
-      properties:
-        name:
-          type: string
-          description: Name of the external secret
-        key:
-          type: string
-          description: Key in the external secret store
-        property:
-          type: string
-          description: Property to extract from the external secret
-        isBinary:
-          type: boolean
-          description: Whether the secret value is binary
-
-    BulkPatchRequest:
-      type: object
-      required:
-        - userId
-        - global
-      properties:
-        userId:
-          type: integer
-          description: ID of the user making the request
+          example:
+            key1: "value1"
+            key2: "value2"
         global:
           type: boolean
-          description: Whether to patch global or environment-specific ConfigMaps/Secrets
-        appId:
-          type: integer
-          description: ID of the application
-        environmentId:
-          type: integer
-          description: ID of the environment (for environment-specific patches)
-        configData:
+          default: true
+        subPath:
+          type: boolean
+          default: false
+        filePermission:
+          type: string
+          example: "0644"
+
+    ConfigsList:
+      type: object
+      properties:
+        maps:
           type: array
           items:
             $ref: '#/components/schemas/ConfigData'
 
-    Error:
-      type: object
-      required:
-        - code
-        - message
-      properties:
-        code:
-          type: integer
-          description: Error code
-        message:
-          type: string
-          description: Error message
+tags:
+  - name: Global ConfigMaps
+    description: Global ConfigMap management
+  - name: Global Secrets
+    description: Global Secret management
+  - name: Environment ConfigMaps
+    description: Environment-specific ConfigMap operations
+  - name: Environment Secrets
+    description: Environment-specific Secret operations
+
+paths:
+  /config/global/cm:
+    post:
+      tags:
+        - Global ConfigMaps
+      summary: Create or update global ConfigMap
+      description: Creates a new global ConfigMap or updates an existing one
+      operationId: CMGlobalAddUpdate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigDataRequest'
+            example:
+              id: 0
+              appId: 123
+              configData:
+                - name: "global-configmap"
+                  type: "CONFIGMAP"
+                  external: false
+                  mountPath: "/etc/config"
+                  data:
+                    key1: "value1"
+                    key2: "value2"
+                  global: true
+                  subPath: false
+                  filePermission: "0644"
+              isDeletable: true
+      responses:
+        '200':
+          description: ConfigMap created/updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /config/global/cs:
+    post:
+      tags:
+        - Global Secrets
+      summary: Create or update global Secret
+      description: Creates a new global Secret or updates an existing one
+      operationId: CSGlobalAddUpdate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigDataRequest'
+            example:
+              id: 0
+              appId: 123
+              configData:
+                - name: "global-secret"
+                  type: "SECRET"
+                  external: false
+                  mountPath: "/etc/secrets"
+                  data:
+                    username: "admin"
+                    password: "s3cr3t"
+                  global: true
+                  subPath: false
+                  filePermission: "0600"
+              isDeletable: true
+      responses:
+        '200':
+          description: Secret created/updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /config/global/cm/{appId}:
+    get:
+      tags:
+        - Global ConfigMaps
+      summary: Get global ConfigMaps for application
+      description: Retrieves all global ConfigMaps for the specified application
+      operationId: CMGlobalFetch
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 123
+      responses:
+        '200':
+          description: Global ConfigMaps retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/ConfigsList'
+        '400':
+          description: Invalid application ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Application not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /config/global/cs/{appId}:
+    get:
+      tags:
+        - Global Secrets
+      summary: Get global Secrets for application
+      description: Retrieves all global Secrets for the specified application
+      operationId: CSGlobalFetch
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 123
+      responses:
+        '200':
+          description: Global Secrets retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/ConfigsList'
+        '400':
+          description: Invalid application ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Application not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

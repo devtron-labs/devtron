@@ -1513,39 +1513,33 @@ func (handler *PipelineConfigRestHandlerImpl) ListDeploymentHistory(w http.Respo
 	}
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
-	appIdStr := vars["appId"]
-	appId, err := strconv.Atoi(appIdStr)
+	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
-		handler.Logger.Errorw("invalid appId", "err", err, "appId", appIdStr)
-		common.HandleParameterError(w, r, "appId", appIdStr)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	pipelineIdStr := vars["pipelineId"]
-	pipelineId, err := strconv.Atoi(pipelineIdStr)
+	pipelineId, err := strconv.Atoi(vars["pipelineId"])
 	if err != nil {
-		handler.Logger.Errorw("invalid pipelineId", "err", err, "pipelineId", pipelineIdStr)
-		common.HandleParameterError(w, r, "pipelineId", pipelineIdStr)
-		return
-	}
-	environmentIdStr := vars["environmentId"]
-	environmentId, err := strconv.Atoi(environmentIdStr)
-	if err != nil {
-		handler.Logger.Errorw("invalid environmentId", "err", err, "environmentId", environmentIdStr)
-		common.HandleParameterError(w, r, "environmentId", environmentIdStr)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
-	//offsetQueryParam := r.URL.Query().Get("offset")
-	offset, err := common.ExtractPaginationParameterOrSetDefault(r, "offset", 0)
+	environmentId, err := strconv.Atoi(vars["environmentId"])
 	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	offsetQueryParam := r.URL.Query().Get("offset")
+	offset, err := strconv.Atoi(offsetQueryParam)
+	if offsetQueryParam == "" || err != nil {
 		handler.Logger.Errorw("request err, ListDeploymentHistory", "err", err, "appId", appId, "environmentId", environmentId, "pipelineId", pipelineId, "offset", offset)
 		common.WriteJsonResp(w, err, "invalid offset", http.StatusBadRequest)
 		return
 	}
 	sizeQueryParam := r.URL.Query().Get("size")
-
-	limit, err := common.ExtractPaginationParameterOrSetDefault(r, "limit", 20)
-	if err != nil {
+	limit, err := strconv.Atoi(sizeQueryParam)
+	if sizeQueryParam == "" || err != nil {
 		handler.Logger.Errorw("request err, ListDeploymentHistory", "err", err, "appId", appId, "environmentId", environmentId, "pipelineId", pipelineId, "sizeQueryParam", sizeQueryParam)
 		common.WriteJsonResp(w, err, "invalid size", http.StatusBadRequest)
 		return
@@ -1594,42 +1588,33 @@ func (handler *PipelineConfigRestHandlerImpl) GetPrePostDeploymentLogs(w http.Re
 	}
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
-	appIdStr := vars["appId"]
-	appId, err := strconv.Atoi(appIdStr)
+	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
-		handler.Logger.Errorw("invalid appId", "err", err, "appId", appId)
-		common.HandleParameterError(w, r, "appId", appIdStr)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	environmentIdStr := vars["environmentId"]
-	environmentId, err := strconv.Atoi(environmentIdStr)
+	environmentId, err := strconv.Atoi(vars["environmentId"])
 	if err != nil {
-		handler.Logger.Errorw("invalid environmentId", "err", err, "environmentId", environmentId)
-		common.HandleParameterError(w, r, "environmentId", environmentIdStr)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	pipelineIdStr := vars["pipelineId"]
-	pipelineId, err := strconv.Atoi(pipelineIdStr)
+	pipelineId, err := strconv.Atoi(vars["pipelineId"])
 	if err != nil {
-		handler.Logger.Errorw("invalid pipelineId", "err", err, "pipelineId", pipelineId)
-		common.HandleParameterError(w, r, "pipelineId", pipelineIdStr)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	workflowRunnerIdStr := vars["workflowRunnerId"]
-	workflowId, err := strconv.Atoi(workflowRunnerIdStr)
+
+	workflowId, err := strconv.Atoi(vars["workflowId"])
 	if err != nil {
-		handler.Logger.Errorw("invalid workflowId", "err", err, "workflowId", workflowId)
-		common.HandleParameterError(w, r, "workflowId", workflowRunnerIdStr)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	followLogs := true
 	if ok := r.URL.Query().Has("followLogs"); ok {
 		followLogsStr := r.URL.Query().Get("followLogs")
-		//follow, err := strconv.ParseBool(followLogsStr)
-		follow, err := common.ExtractBoolQueryParam(r, "followLogs")
+		follow, err := strconv.ParseBool(followLogsStr)
 		if err != nil {
-			handler.Logger.Errorw("followLogs is not a valid bool", "err", err, "followLogs", followLogsStr)
-			common.HandleParameterError(w, r, "followLogs", followLogsStr)
+			common.WriteJsonResp(w, err, "followLogs is not a valid bool", http.StatusBadRequest)
 			return
 		}
 		followLogs = follow
@@ -1687,36 +1672,24 @@ func (handler *PipelineConfigRestHandlerImpl) FetchCdWorkflowDetails(w http.Resp
 	}
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
-	appIdStr := vars["appId"]
-	appId, err := strconv.Atoi(appIdStr)
+	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
-		handler.Logger.Errorw("invalid appId", "err", err, "appId", appId)
-		common.HandleParameterError(w, r, "appId", appIdStr)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	environmentIdStr := vars["environmentId"]
-	environmentId, err := strconv.Atoi(environmentIdStr)
+	environmentId, err := strconv.Atoi(vars["environmentId"])
 	if err != nil {
-		handler.Logger.Errorw("invalid environmentId", "err", err, "environmentId", environmentId)
-		common.HandleParameterError(w, r, "environmentId", environmentIdStr)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	pipelineIdStr := vars["pipelineId"]
-	pipelineId, err := strconv.Atoi(pipelineIdStr)
+	pipelineId, err := strconv.Atoi(vars["pipelineId"])
 	if err != nil {
-		handler.Logger.Errorw("invalid pipelineId", "err", err, "pipelineId", pipelineId)
-		common.HandleParameterError(w, r, "pipelineId", pipelineIdStr)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	workflowRunnerIdStr := vars["workflowRunnerId"]
-	buildId, err := strconv.Atoi(workflowRunnerIdStr)
+	buildId, err := strconv.Atoi(vars["workflowRunnerId"])
 	if err != nil || buildId == 0 {
-		if err != nil {
-			handler.Logger.Errorw("invalid workflowRunnerId", "err", err, "workflowRunnerId", workflowRunnerIdStr)
-			common.HandleParameterError(w, r, "workflowRunnerId", workflowRunnerIdStr)
-			return
-		}
-		common.HandleValidationErrors(w, r, fmt.Errorf("workflowRunnerId is required should be greater than 0, workflowRunnerId: %s", workflowRunnerIdStr))
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	handler.Logger.Infow("request payload, FetchCdWorkflowDetails", "err", err, "appId", appId, "environmentId", environmentId, "pipelineId", pipelineId, "buildId", buildId)
@@ -1751,25 +1724,19 @@ func (handler *PipelineConfigRestHandlerImpl) DownloadArtifacts(w http.ResponseW
 	}
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
-	appIdStr := vars["appId"]
-	appId, err := strconv.Atoi(appIdStr)
+	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
-		handler.Logger.Errorw("invalid appId", "err", err, "appId", appId)
-		common.HandleParameterError(w, r, "appId", appIdStr)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	pipelineIdStr := vars["pipelineId"]
-	pipelineId, err := strconv.Atoi(pipelineIdStr)
+	pipelineId, err := strconv.Atoi(vars["pipelineId"])
 	if err != nil {
-		handler.Logger.Errorw("invalid pipelineId", "err", err, "pipelineId", pipelineId)
-		common.HandleParameterError(w, r, "pipelineId", pipelineIdStr)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	workflowRunnerIdStr := vars["workflowRunnerId"]
-	buildId, err := strconv.Atoi(workflowRunnerIdStr)
+	buildId, err := strconv.Atoi(vars["workflowRunnerId"])
 	if err != nil {
-		handler.Logger.Errorw("invalid workflowRunnerId", "err", err, "workflowRunnerId", workflowRunnerIdStr)
-		common.HandleParameterError(w, r, "workflowRunnerId", workflowRunnerIdStr)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	handler.Logger.Infow("request payload, DownloadArtifacts", "err", err, "appId", appId, "pipelineId", pipelineId, "buildId", buildId)
@@ -1817,19 +1784,14 @@ func (handler *PipelineConfigRestHandlerImpl) GetStageStatus(w http.ResponseWrit
 	}
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
-
-	appIdStr := vars["appId"]
-	appId, err := strconv.Atoi(appIdStr)
+	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
-		handler.Logger.Errorw("invalid appId", "err", err, "appId", appId)
-		common.HandleParameterError(w, r, "appId", appIdStr)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	pipelineIdStr := vars["pipelineId"]
-	pipelineId, err := strconv.Atoi(pipelineIdStr)
+	pipelineId, err := strconv.Atoi(vars["pipelineId"])
 	if err != nil {
-		handler.Logger.Errorw("invalid pipelineId", "err", err, "pipelineId", pipelineId)
-		common.HandleParameterError(w, r, "pipelineId", pipelineIdStr)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	handler.Logger.Infow("request payload, GetStageStatus", "err", err, "appId", appId, "pipelineId", pipelineId)
