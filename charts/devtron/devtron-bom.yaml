@@ -15,7 +15,7 @@ global:
     PG_DATABASE: orchestrator
 extraManifests: []
 installer:
-  release: "v1.7.0"
+  release: "v1.8.0"
   registry: ""
   image: "inception"
   tag: "473deaa4-185-21582"
@@ -39,14 +39,15 @@ components:
         FEATURE_USER_DEFINED_GITOPS_REPO_ENABLE: "true"
         ENABLE_RESOURCE_SCAN: "true"
         FEATURE_CODE_MIRROR_ENABLE: "true"
+        FEATURE_GROUPED_APP_LIST_FILTERS_ENABLE: "true"
     registry: ""
-    image: "dashboard:a85f2624-690-33873"
+    image: "dashboard:5196e935-690-36024"
     imagePullPolicy: IfNotPresent
     healthPort: 8080
   devtron:
     registry: ""
-    image: "hyperion:c8e75fb3-280-33879"
-    cicdImage: "devtron:c8e75fb3-434-33854"
+    image: "hyperion:1ae65fbb-280-36074"
+    cicdImage: "devtron:1ae65fbb-434-36069"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     podSecurityContext:
@@ -60,7 +61,7 @@ components:
     healthPort: 8080
   ciRunner:
     registry: ""
-    image: "ci-runner:a4fc9044-138-33875"
+    image: "ci-runner:880420ac-138-36030"
   argocdDexServer:
     registry: ""
     image: "dex:v2.30.2"
@@ -69,7 +70,7 @@ components:
       authenticator: "authenticator:e414faff-393-13273"
   kubelink:
     registry: ""
-    image: "kubelink:a4fc9044-564-33855"
+    image: "kubelink:880420ac-564-36036"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
@@ -92,7 +93,7 @@ components:
     healthPort: 50052
   kubewatch:
     registry: ""
-    image: "kubewatch:a4fc9044-419-33852"
+    image: "kubewatch:880420ac-419-36026"
     imagePullPolicy: IfNotPresent
     healthPort: 8080
     configs:
@@ -116,7 +117,7 @@ components:
       image: postgres_exporter:v0.10.1
   gitsensor:
     registry: ""
-    image: "git-sensor:a4fc9044-200-33872"
+    image: "git-sensor:880420ac-200-36032"
     imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
@@ -134,7 +135,7 @@ components:
   # Values for lens
   lens:
     registry: ""
-    image: "lens:a4fc9044-333-33874"
+    image: "lens:880420ac-333-36029"
     imagePullPolicy: IfNotPresent
     configs:
       GIT_SENSOR_PROTOCOL: GRPC
@@ -169,7 +170,7 @@ components:
     entMigratorImage: "devtron-utils:geni-v1.1.4"
   chartSync:
     registry: ""
-    image: chart-sync:a4fc9044-836-33878
+    image: chart-sync:880420ac-836-36037
     schedule: "0 19 * * *"
     podSecurityContext:
       fsGroup: 1001
@@ -186,9 +187,18 @@ argo-cd:
       # -- If defined, a repository applied to all Argo CD deployments
       repository: quay.io/argoproj/argocd
       # -- Overrides the global Argo CD image tag whose default is the chart appVersion
-      tag: "v2.5.2"
+      tag: "v2.13.3"
       # -- If defined, a imagePullPolicy applied to all Argo CD deployments
       imagePullPolicy: IfNotPresent
+  configs:
+    cm:
+      create: false
+    # argocd-rbac-cm
+    rbac:
+      create: true
+      policy.default: role:admin
+  applicationSet:
+    replicas: 0
 # Change below values for workflow controller
 workflowController:
   registry: "quay.io/argoproj"
@@ -198,7 +208,7 @@ workflowController:
   IMDSv1ExecutorImage: "argoexec:v3.0.7"
 security:
   imageScanner:
-    image: "image-scanner:a4fc9044-141-33877"
+    image: "image-scanner:f21e02cb-141-34534"
     healthPort: 8080
     configs:
       TRIVY_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-db
@@ -209,7 +219,7 @@ security:
       tag: 4.3.6
 # Values for notifier integration
 notifier:
-  image: "notifier:19d654ff-372-33876"
+  image: "notifier:00f17215-372-36041"
   healthPort: 3000
 minio:
   image: "minio:RELEASE.2021-02-14T04-01-33Z"
