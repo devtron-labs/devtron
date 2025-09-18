@@ -292,9 +292,6 @@ func (impl ChartTemplateServiceImpl) overrideChartMetaDataInDir(chartDir string,
 		impl.logger.Errorw("error in loading template chart", "chartPath", chartDir, "err", err)
 		return nil, err
 	}
-	if len(chartMetaData.APIVersion) > 0 {
-		chart.Metadata.APIVersion = chartMetaData.APIVersion
-	}
 	if len(chartMetaData.Name) > 0 {
 		chart.Metadata.Name = chartMetaData.Name
 	}
