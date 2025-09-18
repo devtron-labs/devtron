@@ -333,33 +333,93 @@ components:
 
     EnvironmentConfigRequest:
       type: object
-      description: Environment configuration request
+      description: Environment configuration request for deployment template override
       required:
-        - appId
-        - envId
+        - chartRefId
+        - isAppMetricsEnabled
+        - saveEligibleChanges
+        - resourceName
+        - environmentId
+        - IsOverride
+        - envOverrideValues
+        - mergeStrategy
       properties:
-        appId:
+        chartRefId:
           type: integer
-          format: int64
-          description: Application ID
-          example: 123
-        envId:
+          description: Chart version reference ID
+          example: 789
+        isAppMetricsEnabled:
+          type: boolean
+          description: Whether application metrics are enabled
+          example: true
+        saveEligibleChanges:
+          type: boolean
+          description: Whether to save eligible changes
+          example: true
+        readme:
+          type: string
+          description: Optional readme content
+          example: "Deployment configuration for production environment"
+        schema:
+          type: object
+          description: Optional schema definitions
+          additionalProperties:
+            type: string
+          example:
+            version: "v1.0.0"
+            type: "deployment"
+        resourceName:
+          type: string
+          description: Name of the resource
+          example: "my-app-deployment"
+        isExpressEdit:
+          type: boolean
+          description: Whether this is an express edit operation
+          example: false
+        environmentId:
           type: integer
-          format: int64
           description: Environment ID
           example: 456
-        config:
+        IsOverride:
+          type: boolean
+          description: Whether this is an override configuration
+          example: true
+        isDraftOverriden:
+          type: boolean
+          description: Whether draft is overridden
+          example: false
+        globalConfig:
           type: object
-          description: Environment configuration
-          properties:
-            namespace:
-              type: string
-              description: Kubernetes namespace
-              example: "dev"
-            active:
-              type: boolean
-              description: Whether environment is active
-              example: true
+          description: Optional global configuration values
+          additionalProperties:
+            type: string
+          example:
+            region: "us-west-2"
+            cluster: "production"
+        envOverrideValues:
+          type: object
+          description: Environment-specific override values
+          additionalProperties: true
+          example:
+            replicaCount: 3
+            image:
+              tag: "v1.2.3"
+            resources:
+              limits:
+                cpu: "500m"
+                memory: "512Mi"
+        mergeStrategy:
+          type: string
+          description: Override merge strategy type
+          enum: ["replace", "merge", "strategic-merge"]
+          example: "merge"
+        environmentConfig:
+          type: object
+          description: Optional environment configuration from DeploymentTemplateEditorDataStateType
+          additionalProperties: true
+          example:
+            namespace: "production"
+            active: true
 
     EnvironmentValuesRequest:
       type: object
@@ -393,36 +453,73 @@ components:
 
     CreateEnvironmentRequest:
       type: object
-      description: Request to create environment configuration
+      description: Request to create environment configuration based on EnvironmentBean structure
       required:
-        - appId
-        - envName
+        - environment_name
+        - cluster_id
         - namespace
-        - clusterId
       properties:
-        appId:
+        id:
           type: integer
-          format: int64
-          description: Application ID
-          example: 123
-        envName:
+          description: Environment ID (optional for creation)
+          example: 0
+        environment_name:
           type: string
           description: Environment name
+          maxLength: 50
           example: "staging"
-        namespace:
-          type: string
-          description: Kubernetes namespace
-          example: "staging-ns"
-        clusterId:
+        cluster_id:
           type: integer
-          format: int64
           description: Cluster ID
           example: 1
+        clusterName:
+          type: string
+          description: Cluster name (read-only)
+          example: "production-cluster"
         active:
           type: boolean
           description: Whether environment is active
           default: true
           example: true
+        default:
+          type: boolean
+          description: Whether this is the default environment
+          default: false
+          example: false
+        prometheus_endpoint:
+          type: string
+          description: Prometheus endpoint URL
+          example: "http://prometheus.monitoring.svc.cluster.local:9090"
+        namespace:
+          type: string
+          description: Kubernetes namespace
+          maxLength: 50
+          example: "staging-ns"
+        isClusterCdActive:
+          type: boolean
+          description: Whether cluster CD is active
+          example: true
+        environmentIdentifier:
+          type: string
+          description: Environment identifier
+          example: "staging-env-001"
+        description:
+          type: string
+          description: Environment description
+          maxLength: 40
+          example: "Staging environment for testing"
+        isVirtualEnvironment:
+          type: boolean
+          description: Whether this is a virtual environment
+          default: false
+          example: false
+        allowedDeploymentTypes:
+          type: array
+          description: Allowed deployment types for this environment
+          items:
+            type: string
+            enum: ["helm", "argo_cd", "flux_cd"]
+          example: ["argo_cd", "helm"]
 
 tags:
   - name: Deployment Templates
@@ -1368,105 +1465,57 @@ paths:
         - bearerAuth: []
 
   /app/env:
-    post:
-      tags:
-        - Environment Configuration
-      summary: Create new environment configuration
-      description: |
-        Creates a new environment configuration for an application including:
-        - Environment name and namespace setup
-        - Cluster association
-        - Environment activation status
-        - Initial configuration values
-      operationId: createEnvironmentConfig
-      requestBody:
-        description: Create environment request
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateEnvironmentRequest'
-            examples:
-              staging_environment:
-                summary: Staging environment creation
-                value:
-                  appId: 123
-                  envName: "staging"
-                  namespace: "staging-ns"
-                  clusterId: 1
-                  active: true
-      responses:
-        '200':
-          description: Environment created successfully
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
-                  - type: object
-                    properties:
-                      result:
-                        $ref: '#/components/schemas/EnvironmentConfig'
-        '400':
-          description: Invalid request format or validation error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '409':
-          description: Environment already exists
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
-
     put:
       tags:
         - Environment Configuration
-      summary: Update environment configuration
+      summary: Update environment deployment template configuration
       description: |
-        Updates existing environment configuration including:
-        - Environment settings modification
-        - Namespace changes
-        - Activation status updates
-        - Configuration value updates
+        Updates environment-specific deployment template configuration including:
+        - Chart version reference updates
+        - Application metrics configuration
+        - Environment override values
+        - Merge strategy configuration
+        - Resource name and configuration updates
+        - Global and environment-specific configuration values
       operationId: envConfigOverrideUpdate
       requestBody:
-        description: Environment configuration update request
+        description: Environment deployment template configuration update request
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/EnvironmentConfigRequest'
             examples:
-              update_environment:
-                summary: Update environment configuration
+              update_deployment_config:
+                summary: Update environment deployment configuration
                 value:
-                  appId: 123
-                  envId: 456
-                  config:
-                    namespace: "updated-dev"
-                    active: false
+                  chartRefId: 789
+                  isAppMetricsEnabled: true
+                  saveEligibleChanges: true
+                  readme: "Production deployment configuration"
+                  schema:
+                    version: "v1.2.3"
+                    type: "deployment"
+                  resourceName: "my-app-production"
+                  isExpressEdit: false
+                  environmentId: 456
+                  IsOverride: true
+                  isDraftOverriden: false
+                  globalConfig:
+                    region: "us-west-2"
+                    cluster: "production"
+                  envOverrideValues:
+                    replicaCount: 3
+                    image:
+                      tag: "v1.2.3"
+                    resources:
+                      limits:
+                        cpu: "1000m"
+                        memory: "1Gi"
+                  mergeStrategy: "merge"
+                  environmentConfig:
+                    namespace: "production"
+                    active: true
       responses:
         '200':
           description: Environment configuration updated successfully
