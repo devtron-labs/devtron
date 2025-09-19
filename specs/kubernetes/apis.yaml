@@ -35,21 +35,43 @@ components:
 
     ResourceRequestBean:
       type: object
+      required:
+        - k8sRequest
       properties:
         appId:
+          type: string
+          description: Application ID (string format)
+          example: "123"
+        appType:
           type: integer
-          description: application id
+          description: "Application type: 0=DevtronApp, 1=HelmApp, 2=ArgoApp, 3=FluxApp"
+          example: 1
+        deploymentType:
+          type: integer
+          description: "Deployment type: 0=DevtronApp, 1=HelmApp"
+          example: 1
+        clusterId:
+          type: integer
+          description: Cluster ID for direct cluster operations
+          example: 1
+        externalArgoApplicationName:
+          type: string
+          description: External Argo application name
+          example: "my-argo-app"
         k8sRequest:
           $ref: '#/components/schemas/K8sRequestDto'
 
     K8sRequestDto:
       type: object
+      required:
+        - resourceIdentifier
       properties:
         resourceIdentifier:
           $ref: '#/components/schemas/ResourceIdentifier'
         patch:
           type: string
-          description: patch data for update operations
+          description: JSON patch data for update operations
+          example: '[{"op": "replace", "path": "/spec/replicas", "value": 3}]'
 
     ResourceIdentifier:
       type: object
@@ -64,25 +86,28 @@ components:
           $ref: '#/components/schemas/GroupVersionKind'
       required:
         - name
-                - namespace
-                - groupVersionKind
+        - namespace
+        - groupVersionKind
 
     GroupVersionKind:
       type: object
+      required:
+        - group
+        - version
+        - kind
       properties:
         group:
           type: string
           description: API group
+          example: "apps"
         version:
           type: string
           description: API version
+          example: "v1"
         kind:
           type: string
-          description: resource kind
-      required:
-        - group
-                - version
-                - kind
+          description: Resource kind
+          example: "Deployment"
 
     ManifestResponse:
       type: object
@@ -355,7 +380,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ResourceRequestObject'
+              $ref: '#/components/schemas/ResourceRequestBean'
       responses:
         "200":
           description: Resource manifest
@@ -406,7 +431,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ResourceRequestObject'
+              $ref: '#/components/schemas/ResourceRequestBean'
       responses:
         "200":
           description: Created resource manifest
@@ -432,7 +457,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ResourceRequestObject'
+              $ref: '#/components/schemas/ResourceRequestBean'
       responses:
         "200":
           description: Deleted resource manifest

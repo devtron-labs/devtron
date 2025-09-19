@@ -121,9 +121,6 @@ components:
         podName:
           type: string
           description: Name of the pod
-        userId:
-          type: integer
-          description: User ID
         externalArgoApplicationName:
           type: string
           description: Name of the external Argo application (if applicable)
