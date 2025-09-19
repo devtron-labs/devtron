@@ -123,9 +123,10 @@ paths:
           in: query
           required: true
           schema:
-            type: string
-            enum: ["argo", "helm", "flux"]
-          example: "argo"
+            type: integer
+            enum: [1, 2, 3]
+            description: "App type identifier: 1=Helm, 2=Argo, 3=Flux"
+          example: 2
       requestBody:
         required: true
         content:
@@ -191,9 +192,10 @@ paths:
           in: query
           required: true
           schema:
-            type: string
-            enum: ["argo", "helm", "flux"]
-          example: "argo"
+            type: integer
+            enum: [1, 2, 3]
+            description: "App type identifier: 1=Helm, 2=Argo, 3=Flux"
+          example: 2
       requestBody:
         required: true
         content:
