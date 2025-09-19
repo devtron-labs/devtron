@@ -106,6 +106,9 @@ components:
   schemas:
     EphemeralContainerRequest:
       type: object
+      description: |
+        Request to create an ephemeral container. Either basicData or advancedData is required.
+        If both are provided, advancedData takes priority over basicData.
       properties:
         basicData:
           $ref: "#/components/schemas/EphemeralContainerBasicData"
@@ -128,6 +131,9 @@ components:
         - namespace
         - clusterId
         - podName
+      anyOf:
+        - required: ["basicData"]
+        - required: ["advancedData"]
     EphemeralContainerBasicData:
       type: object
       properties:
@@ -146,10 +152,16 @@ components:
         - image
     EphemeralContainerAdvancedData:
       type: object
+      description: |
+        Advanced configuration for ephemeral container using Kubernetes EphemeralContainer specification.
+        For complete field reference, see: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#ephemeralcontainer-v1-core
       properties:
         manifest:
           type: string
-          description: Kubernetes manifest for the ephemeral container
+          description: |
+            Kubernetes manifest for the ephemeral container in JSON format.
+            Should conform to the EphemeralContainer v1 core specification.
+            Reference: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#ephemeralcontainer-v1-core
     PodContainerList:
       type: object
       properties:

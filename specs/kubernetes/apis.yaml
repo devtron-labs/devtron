@@ -35,29 +35,10 @@ components:
 
     ResourceRequestBean:
       type: object
-      required:
-        - k8sRequest
       properties:
         appId:
-          type: string
-          description: Application ID (string format)
-          example: "123"
-        appType:
           type: integer
-          description: "Application type: 0=DevtronApp, 1=HelmApp, 2=ArgoApp, 3=FluxApp"
-          example: 1
-        deploymentType:
-          type: integer
-          description: "Deployment type: 0=DevtronApp, 1=HelmApp"
-          example: 1
-        clusterId:
-          type: integer
-          description: Cluster ID for direct cluster operations
-          example: 1
-        externalArgoApplicationName:
-          type: string
-          description: External Argo application name
-          example: "my-argo-app"
+          description: application id
         k8sRequest:
           $ref: '#/components/schemas/K8sRequestDto'
 
@@ -70,8 +51,17 @@ components:
           $ref: '#/components/schemas/ResourceIdentifier'
         patch:
           type: string
-          description: JSON patch data for update operations
-          example: '[{"op": "replace", "path": "/spec/replicas", "value": 3}]'
+          description: |
+            JSON patch data for update operations. Contains the complete Kubernetes manifest
+            for the resource being updated/edited.
+          example: '{"apiVersion":"v1","kind":"Pod","metadata":{"name":"my-pod","namespace":"default"},"spec":{"containers":[{"name":"nginx","image":"nginx:1.25"}]}}'
+        forceDelete:
+          type: boolean
+          nullable: true
+          description: |
+            Force delete the resource. When true, the resource will be deleted immediately
+            without waiting for graceful termination. Only applicable for delete operations.
+          example: false
 
     ResourceIdentifier:
       type: object
@@ -92,22 +82,22 @@ components:
     GroupVersionKind:
       type: object
       required:
-        - group
-        - version
-        - kind
+        - Group
+        - Version
+        - Kind
       properties:
-        group:
+        Group:
           type: string
-          description: API group
-          example: "apps"
-        version:
+          description: API group (capitalized field name as per Kubernetes API)
+          example: ""
+        Version:
           type: string
-          description: API version
+          description: API version (capitalized field name as per Kubernetes API)
           example: "v1"
-        kind:
+        Kind:
           type: string
-          description: Resource kind
-          example: "Deployment"
+          description: Resource kind (capitalized field name as per Kubernetes API)
+          example: "Pod"
 
     ManifestResponse:
       type: object
@@ -380,7 +370,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ResourceRequestBean'
+              $ref: '#/components/schemas/ResourceRequestObject'
       responses:
         "200":
           description: Resource manifest
@@ -398,14 +388,14 @@ paths:
           description: Internal server error
     put:
       summary: Update Kubernetes resource
-      description: Updates an existing Kubernetes resource manifest
+      description: Updates an existing Kubernetes resource manifest using patch data
       operationId: UpdateResource
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ResourceRequestObject'
+              $ref: '#/components/schemas/ResourceRequestBean'
       responses:
         "200":
           description: Updated resource manifest
@@ -431,7 +421,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ResourceRequestBean'
+              $ref: '#/components/schemas/ResourceRequestObject'
       responses:
         "200":
           description: Created resource manifest
@@ -457,7 +447,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ResourceRequestBean'
+              $ref: '#/components/schemas/ResourceRequestObject'
       responses:
         "200":
           description: Deleted resource manifest
@@ -479,11 +469,11 @@ paths:
       description: Fetches events for Kubernetes resources
       operationId: ListEvents
       requestBody:
-        required: false
+        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ResourceRequestObject'
+              $ref: '#/components/schemas/ResourceRequestBean'
       responses:
         "200":
           description: Resource events
