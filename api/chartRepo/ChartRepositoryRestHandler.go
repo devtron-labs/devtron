@@ -85,7 +85,7 @@ func (handler *ChartRepositoryRestHandlerImpl) GetChartRepoById(w http.ResponseW
 	}
 
 	// Use enhanced parameter parsing with context
-	id, err := common.ExtractIntPathParamWithContext(w, r, "id", "chart repository")
+	id, err := common.ExtractIntPathParamWithContext(w, r, "id")
 	if err != nil {
 		// Error already written by ExtractIntPathParamWithContext
 		return

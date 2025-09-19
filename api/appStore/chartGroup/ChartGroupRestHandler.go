@@ -191,7 +191,7 @@ func (impl *ChartGroupRestHandlerImpl) GetChartGroupWithChartMetaData(w http.Res
 	}
 
 	// Use enhanced parameter parsing with context
-	chartGroupId, err := common.ExtractIntPathParamWithContext(w, r, "chartGroupId", "chart group")
+	chartGroupId, err := common.ExtractIntPathParamWithContext(w, r, "chartGroupId")
 	if err != nil {
 		// Error already written by ExtractIntPathParamWithContext
 		return
@@ -223,7 +223,7 @@ func (impl *ChartGroupRestHandlerImpl) GetChartGroupInstallationDetail(w http.Re
 	}
 
 	// Use enhanced parameter parsing with context
-	chartGroupId, err := common.ExtractIntPathParamWithContext(w, r, "chartGroupId", "chart group")
+	chartGroupId, err := common.ExtractIntPathParamWithContext(w, r, "chartGroupId")
 	if err != nil {
 		// Error already written by ExtractIntPathParamWithContext
 		return

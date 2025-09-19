@@ -444,3 +444,66 @@ spec:
 {{- end }}
 {{- end }}
 {{- end }}
+{{- if and $.Values.global.externalPostgres $.Values.global.externalPostgres.enabled }}
+---
+{{- if $.Capabilities.APIVersions.Has "batch/v1/Job" }}
+apiVersion: batch/v1
+{{- else }}
+apiVersion: batch/v1beta1
+{{- end }}
+kind: Job
+metadata:
+  namespace: devtroncd
+  name: postgresql-create-databases-{{ randAlphaNum 5 | lower }}
+  annotations:
+    "helm.sh/hook": pre-install
+spec:
+  activeDeadlineSeconds: 1500
+  ttlSecondsAfterFinished: 1000
+  backoffLimit: 20
+  completions: 1
+  parallelism: 1
+  template:
+    metadata:
+      labels:
+        app: database-creator
+    spec:
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.migrator.nodeSelector "tolerations" $.Values.components.migrator.tolerations "imagePullSecrets" $.Values.components.migrator.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      serviceAccountName: devtron-default-sa
+      containers:
+        - command:
+            - /bin/sh
+            - -c
+            - |
+              # Create databases
+              export PGPASSWORD="${DB_PASSWORD}"
+
+              echo "Creating database: orchestrator"
+              psql -h ${PG_ADDR} -p ${PG_PORT} -U ${PG_USER} -d postgres -c "CREATE DATABASE orchestrator;" || echo "Database orchestrator already exists or failed to create"
+
+              echo "Creating database: git_sensor"
+              psql -h ${PG_ADDR} -p ${PG_PORT} -U ${PG_USER} -d postgres -c "CREATE DATABASE git_sensor;" || echo "Database git_sensor already exists or failed to create"
+
+              echo "Creating database: lens"
+              psql -h ${PG_ADDR} -p ${PG_PORT} -U ${PG_USER} -d postgres -c "CREATE DATABASE lens;" || echo "Database lens already exists or failed to create"
+
+              echo "Creating database: casbin"
+              psql -h ${PG_ADDR} -p ${PG_PORT} -U ${PG_USER} -d postgres -c "CREATE DATABASE casbin;" || echo "Database casbin already exists or failed to create"
+
+              echo "Creating database: clairv4"
+              psql -h ${PG_ADDR} -p ${PG_PORT} -U ${PG_USER} -d postgres -c "CREATE DATABASE clairv4;" || echo "Database clairv4 already exists or failed to create"
+
+              echo "All databases created successfully"
+          envFrom:
+            - secretRef:
+                name: postgresql-migrator
+            - configMapRef:
+                name: devtron-cm
+            - configMapRef:
+                name: devtron-custom-cm
+            - configMapRef:
+                name: devtron-common-cm
+          image: {{ include "common.image" (dict "component" $.Values.components.postgres "global" $.Values.global "extraImage" $.Values.components.postgres.image ) }}
+          name: postgresql-database-creator
+      restartPolicy: OnFailure
+{{- end }}

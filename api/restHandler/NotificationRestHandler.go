@@ -220,13 +220,13 @@ func (impl NotificationRestHandlerImpl) DeleteNotificationSettings(w http.Respon
 
 func (impl NotificationRestHandlerImpl) GetAllNotificationSettings(w http.ResponseWriter, r *http.Request) {
 	// Use enhanced parameter parsing with context
-	size, err := common.ExtractIntPathParamWithContext(w, r, "size", "pagination")
+	size, err := common.ExtractIntPathParamWithContext(w, r, "size")
 	if err != nil {
 		// Error already written by ExtractIntPathParamWithContext
 		return
 	}
 
-	offset, err := common.ExtractIntPathParamWithContext(w, r, "offset", "pagination")
+	offset, err := common.ExtractIntPathParamWithContext(w, r, "offset")
 	if err != nil {
 		// Error already written by ExtractIntPathParamWithContext
 		return
@@ -522,7 +522,7 @@ func (impl NotificationRestHandlerImpl) FindSESConfig(w http.ResponseWriter, r *
 	}
 
 	// Use enhanced parameter parsing with context
-	id, err := common.ExtractIntPathParamWithContext(w, r, "id", "SES config")
+	id, err := common.ExtractIntPathParamWithContext(w, r, "id")
 	if err != nil {
 		// Error already written by ExtractIntPathParamWithContext
 		return
@@ -551,7 +551,7 @@ func (impl NotificationRestHandlerImpl) FindSlackConfig(w http.ResponseWriter, r
 	}
 
 	// Use enhanced parameter parsing with context
-	id, err := common.ExtractIntPathParamWithContext(w, r, "id", "Slack config")
+	id, err := common.ExtractIntPathParamWithContext(w, r, "id")
 	if err != nil {
 		// Error already written by ExtractIntPathParamWithContext
 		return

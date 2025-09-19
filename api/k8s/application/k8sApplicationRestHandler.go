@@ -1002,12 +1002,17 @@ func (handler *K8sApplicationRestHandlerImpl) CreateEphemeralContainer(w http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if err = handler.validator.Struct(request); err != nil || (request.BasicData == nil && request.AdvancedData == nil) {
-		if err != nil {
-			err = errors.New("invalid request payload")
-		}
-		handler.logger.Errorw("invalid request payload", "err", err, "payload", request)
+	if request.BasicData == nil && request.AdvancedData == nil {
+		err = errors.New("invalid request payload, neither basic data nor advanced data provided")
+		handler.logger.Errorw("invalid request payload missing basic data and invalid data", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	err = handler.validator.Struct(request)
+	if err != nil {
+		handler.logger.Errorw("invalid request payload", "err", err, "payload", request)
+		//common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.HandleValidationErrors(w, r, err)
 		return
 	}
 	// check for super admin

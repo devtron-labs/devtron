@@ -144,7 +144,7 @@ func (impl TeamRestHandlerImpl) FetchAll(w http.ResponseWriter, r *http.Request)
 
 func (impl TeamRestHandlerImpl) FetchOne(w http.ResponseWriter, r *http.Request) {
 	// Use enhanced parameter parsing with context
-	teamId, err := common.ExtractIntPathParamWithContext(w, r, "id", "team")
+	teamId, err := common.ExtractIntPathParamWithContext(w, r, "id")
 	if err != nil {
 		// Error already written by ExtractIntPathParamWithContext
 		return

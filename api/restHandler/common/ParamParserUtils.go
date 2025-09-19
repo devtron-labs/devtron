@@ -17,34 +17,47 @@
 package common
 
 import (
-	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/gorilla/mux"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/gorilla/mux"
 )
 
 const TokenHeaderKey = "token"
 
-func ExtractIntPathParam(w http.ResponseWriter, r *http.Request, paramName string) (int, error) {
+// ExtractIntPathParamWithContext provides enhanced error messages with resource context
+func ExtractIntPathParamWithContext(w http.ResponseWriter, r *http.Request, paramName string) (int, error) {
 	vars := mux.Vars(r)
 	paramValue := vars[paramName]
-	paramIntValue, err := convertToInt(w, paramValue)
+	paramIntValue, err := convertToIntWithContext(w, paramValue, paramName)
 	if err != nil {
 		return 0, err
 	}
 	return paramIntValue, nil
 }
 
-// ExtractIntPathParamWithContext provides enhanced error messages with resource context
-func ExtractIntPathParamWithContext(w http.ResponseWriter, r *http.Request, paramName string, resourceType string) (int, error) {
+// ExtractStringPathParamWithContext provides enhanced error messages for string path parameters
+func ExtractStringPathParamWithContext(w http.ResponseWriter, r *http.Request, paramName string) (string, error) {
 	vars := mux.Vars(r)
 	paramValue := vars[paramName]
-	paramIntValue, err := convertToIntWithContext(w, paramValue, paramName, resourceType)
-	if err != nil {
-		return 0, err
+
+	if paramValue == "" {
+		apiErr := util.NewMissingRequiredFieldError(paramName)
+		WriteJsonResp(w, apiErr, nil, apiErr.HttpStatusCode)
+		return "", apiErr
 	}
-	return paramIntValue, nil
+
+	// Trim whitespace and validate
+	paramValue = strings.TrimSpace(paramValue)
+	if paramValue == "" {
+		apiErr := util.NewValidationErrorForField(paramName, "cannot be empty or contain only whitespace")
+		WriteJsonResp(w, apiErr, nil, apiErr.HttpStatusCode)
+		return "", apiErr
+	}
+
+	return paramValue, nil
 }
 
 func convertToInt(w http.ResponseWriter, paramValue string) (int, error) {
@@ -57,7 +70,7 @@ func convertToInt(w http.ResponseWriter, paramValue string) (int, error) {
 }
 
 // convertToIntWithContext provides better error messages for parameter conversion
-func convertToIntWithContext(w http.ResponseWriter, paramValue, paramName, resourceType string) (int, error) {
+func convertToIntWithContext(w http.ResponseWriter, paramValue, paramName string) (int, error) {
 	if paramValue == "" {
 		apiErr := util.NewMissingRequiredFieldError(paramName)
 		WriteJsonResp(w, apiErr, nil, apiErr.HttpStatusCode)
@@ -158,4 +171,16 @@ func convertStringArrayToIntArray(strArr []string) ([]int, error) {
 		paramValues = append(paramValues, paramIntValue)
 	}
 	return paramValues, nil
+}
+
+func ExtractPaginationParameterOrSetDefault(r *http.Request, paramName string, defaultValue int) (int, error) {
+	paginationParamString := r.URL.Query().Get(paramName)
+	if paginationParamString == "" {
+		return defaultValue, nil
+	}
+	paginationParam, err := strconv.Atoi(paginationParamString)
+	if err != nil {
+		return 0, err
+	}
+	return paginationParam, nil
 }

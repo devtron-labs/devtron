@@ -1,0 +1,295 @@
+openapi: 3.0.3
+info:
+  version: 1.0.0
+  title: Devtron Scan Result Management API
+  description: |
+    API for managing vulnerability scan results and triggering rescans in Devtron.
+    Provides endpoints for retrieving scan results for applications, environments,
+    and installed apps, as well as triggering rescans on Software Bill of Materials.
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Support
+    email: support@devtron.ai
+    url: https://devtron.ai/support
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
+  schemas:
+    Error:
+          description: Error object
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: integer
+              format: int32
+              description: Error code
+            message:
+              type: string
+              description: Error message
+
+    ScanResultResponse:
+      description: Response containing scan results data
+      type: object
+      properties:
+        scanResults:
+          type: array
+          description: List of scan results
+          items:
+            $ref: '#/components/schemas/ScanResult'
+        metadata:
+          $ref: '#/components/schemas/ScanResultMetadata'
+
+    ScanResult:
+      description: Individual scan result information
+      type: object
+      properties:
+        imageScanHistoryId:
+          type: integer
+          description: Image scan history ID
+        imageScanDeployInfoId:
+          type: integer
+          description: Image scan deploy info ID
+        appId:
+          type: integer
+          description: Application ID
+        envId:
+          type: integer
+          description: Environment ID
+        appName:
+          type: string
+          description: Application name
+        envName:
+          type: string
+          description: Environment name
+        image:
+          type: string
+          description: Scanned image name
+        vulnerabilities:
+          type: array
+          description: List of vulnerabilities found
+          items:
+            $ref: '#/components/schemas/Vulnerability'
+        severityCount:
+          $ref: '#/components/schemas/SeverityCount'
+        scanExecutionTime:
+          type: string
+          format: date-time
+          description: When the scan was executed
+        scanEnabled:
+          type: boolean
+          description: Whether scanning is enabled for this resource
+        scanned:
+          type: boolean
+          description: Whether the resource has been scanned
+        scanToolId:
+          type: integer
+          description: ID of the scan tool used
+        scanToolName:
+          type: string
+          description: Name of the scan tool
+        status:
+          type: string
+          description: Scan status
+          enum:
+            - RUNNING
+            - COMPLETED
+            - FAILED
+            - CANCELLED
+
+    ScanResultMetadata:
+      description: Metadata about scan results
+      type: object
+      properties:
+        imageScanHistoryIds:
+          type: array
+          description: List of image scan history IDs
+          items:
+            type: integer
+        rescannedImageScanHistoryIds:
+          type: array
+          description: List of rescanned image scan history IDs
+          items:
+            type: integer
+        isImageScanEnabled:
+          type: boolean
+          description: Whether image scanning is enabled
+        materialInfo:
+          type: array
+          description: CI material information
+          items:
+            $ref: '#/components/schemas/MaterialInfo'
+
+    MaterialInfo:
+      description: CI material information
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Material ID
+        gitCommit:
+          type: string
+          description: Git commit hash
+        gitUrl:
+          type: string
+          description: Git repository URL
+        author:
+          type: string
+          description: Commit author
+        message:
+          type: string
+          description: Commit message
+        date:
+          type: string
+          format: date-time
+          description: Commit date
+
+    SeverityCount:
+      description: Count of vulnerabilities by severity
+      type: object
+      properties:
+        critical:
+          type: integer
+          description: Number of critical vulnerabilities
+        high:
+          type: integer
+          description: Number of high severity vulnerabilities
+        medium:
+          type: integer
+          description: Number of medium severity vulnerabilities
+        low:
+          type: integer
+          description: Number of low severity vulnerabilities
+        unknown:
+          type: integer
+          description: Number of unknown severity vulnerabilities
+
+    Vulnerability:
+      description: Individual vulnerability details
+      type: object
+      properties:
+        cveName:
+          type: string
+          description: CVE identifier
+        severity:
+          type: string
+          description: Vulnerability severity
+          enum:
+            - CRITICAL
+            - HIGH
+            - MEDIUM
+            - LOW
+            - UNKNOWN
+        package:
+          type: string
+          description: Affected package name
+        currentVersion:
+          type: string
+          description: Current version of the package
+        fixedVersion:
+          type: string
+          description: Version where the vulnerability is fixed
+        permission:
+          type: string
+          description: Permission level
+        target:
+          type: string
+          description: Target of the vulnerability
+        class:
+          type: string
+          description: Vulnerability class
+        type:
+          type: string
+          description: Vulnerability type
+
+    RescanResponse:
+      description: Response for rescan operation
+      type: object
+      properties:
+        message:
+          type: string
+          description: Success message
+        rescannedCount:
+          type: integer
+          description: Number of items queued for rescan
+paths:
+  /orchestrator/scan-result:
+    get:
+      tags:
+        - Scan Results
+      summary: Get scan results
+      description: Retrieve vulnerability scan results for applications, environments, or installed apps
+      operationId: getScanResults
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: appId
+          in: query
+          description: Application ID to get scan results for
+          required: false
+          schema:
+            type: integer
+        - name: envId
+          in: query
+          description: Environment ID to get scan results for
+          required: false
+          schema:
+            type: integer
+        - name: installedAppId
+          in: query
+          description: Installed application ID (for Helm apps)
+          required: false
+          schema:
+            type: integer
+        - name: installedAppVersionHistoryId
+          in: query
+          description: Installed app version history ID
+          required: false
+          schema:
+            type: integer
+        - name: artifactId
+          in: query
+          description: Artifact ID to get scan results for
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Scan results retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanResultResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+
+

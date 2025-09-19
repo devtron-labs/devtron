@@ -314,7 +314,7 @@ func (impl EnvironmentRestHandlerImpl) Update(w http.ResponseWriter, r *http.Req
 
 func (impl EnvironmentRestHandlerImpl) FindById(w http.ResponseWriter, r *http.Request) {
 	// Use enhanced parameter parsing with context
-	envId, err := common.ExtractIntPathParamWithContext(w, r, "id", "environment")
+	envId, err := common.ExtractIntPathParamWithContext(w, r, "id")
 	if err != nil {
 		// Error already written by ExtractIntPathParamWithContext
 		return
