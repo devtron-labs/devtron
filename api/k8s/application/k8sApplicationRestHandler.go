@@ -1084,6 +1084,13 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteEphemeralContainer(w http.Re
 	_, err = handler.k8sApplicationService.TerminatePodEphemeralContainer(request)
 	if err != nil {
 		handler.logger.Errorw("error occurred in terminating ephemeral container", "err", err, "requestPayload", request)
+		if err.Error() == "externally created ephemeral containers cannot be removed" {
+			common.WriteJsonResp(w, err, nil, http.StatusForbidden)
+			return
+		} else if err.Error() == "either container is not found or is not running" {
+			common.WriteJsonResp(w, err, nil, http.StatusNotFound)
+			return
+		}
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

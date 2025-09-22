@@ -1102,7 +1102,7 @@ func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req bean5.
 			impl.logger.Errorw("error in saving ephemeral container data", "err", err)
 			return true, err
 		}
-		return true, nil
+		return true, errors.New("either container is not found or is not running")
 	}
 	containerKillCommand := fmt.Sprintf("kill -16 $(pgrep -f '%s' -o)", fmt.Sprintf(k8sObjectUtils.EphemeralContainerStartingShellScriptFileName, terminalReq.ContainerName))
 	cmds := []string{"sh", "-c", containerKillCommand}
