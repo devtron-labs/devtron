@@ -69,10 +69,14 @@ func NewProxyRouterImpl(logger *zap.SugaredLogger, proxyCfg *Config, enforcer ca
 	if err != nil {
 		logger.Warnw("bad env value for PROXY_SERVICE_CONFIG", "err", err)
 	}
-
+	logger.Infow("proxy connection config", "proxyConnection", proxyConnection)
 	proxy := make(map[string]func(writer http.ResponseWriter, request *http.Request))
 	for s, connection := range proxyConnection {
 		proxy[s], err = NewHTTPReverseProxy(fmt.Sprintf("http://%s:%s", connection.Host, connection.Port), client.Transport, enforcer)
+		if err != nil {
+			logger.Errorw("error in creating proxy", "err", err, "service", s, "connection", connection)
+		}
+		logger.Infow("proxy created", "service", s, "connection", connection)
 		if err != nil {
 			return nil, err
 		}
