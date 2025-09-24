@@ -116,6 +116,29 @@ paths:
         '204':
           description: Panel deleted successfully
 
+  /orchestrator/clusters/{cluster_id}/panel:
+    post:
+      summary: Create a new panel for a specific cluster (plural clusters path)
+      parameters:
+        - in: path
+          name: cluster_id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Panel'
+      responses:
+        '201':
+          description: Panel created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Panel'
+
 components:
   schemas:
     Panel:

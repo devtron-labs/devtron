@@ -126,7 +126,7 @@ func (handler AppInfoRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r *h
 		return
 	}
 	// Use enhanced parameter parsing with context
-	appId, err := common.ExtractIntPathParamWithContext(w, r, "appId", "application")
+	appId, err := common.ExtractIntPathParamWithContext(w, r, "appId")
 	if err != nil {
 		// Error already written by ExtractIntPathParamWithContext
 		return

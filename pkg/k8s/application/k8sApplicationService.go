@@ -1038,7 +1038,7 @@ func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req bean5.
 		return false, err
 	}
 	if container == nil {
-		return false, errors.New("externally created ephemeral containers cannot be removed")
+		return false, errors.New(bean5.EXTERNAL_EPHIMERAL_CONTAINER_ERR)
 	}
 	// Check if pod exists and is running before attempting to execute command
 	var v1Client *v1.CoreV1Client
@@ -1102,7 +1102,7 @@ func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req bean5.
 			impl.logger.Errorw("error in saving ephemeral container data", "err", err)
 			return true, err
 		}
-		return true, nil
+		return true, errors.New(bean5.EPHEMERAL_CONTAINER_NOT_FOUND_ERR)
 	}
 	containerKillCommand := fmt.Sprintf("kill -16 $(pgrep -f '%s' -o)", fmt.Sprintf(k8sObjectUtils.EphemeralContainerStartingShellScriptFileName, terminalReq.ContainerName))
 	cmds := []string{"sh", "-c", containerKillCommand}

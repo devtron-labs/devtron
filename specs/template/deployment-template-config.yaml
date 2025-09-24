@@ -1,0 +1,1615 @@
+openapi: 3.0.3
+info:
+  version: 1.0.0
+  title: Devtron Orchestrator Deployment Template & Configuration API
+  description: |
+    API specifications for Devtron orchestrator deployment template creation and 
+    environment/deployment configuration management endpoints.
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Support
+    email: support@devtron.ai
+    url: https://devtron.ai/support
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
+
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+        status:
+          type: string
+          description: Status message
+        result:
+          type: object
+          description: Response result data
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Error code
+        status:
+          type: string
+          description: Error status
+        errors:
+          type: array
+          items:
+            type: string
+          description: List of error messages
+
+    DeploymentTemplate:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Template ID
+        name:
+          type: string
+          description: Template name
+        description:
+          type: string
+          description: Template description
+        chartRefId:
+          type: integer
+          format: int64
+          description: Chart reference ID
+        version:
+          type: string
+          description: Template version
+        isAppMetricsEnabled:
+          type: boolean
+          description: Whether application metrics are enabled
+        defaultAppOverride:
+          type: object
+          description: Default application override values
+        globalConfig:
+          type: object
+          description: Global configuration
+        pipelineStrategy:
+          type: object
+          description: Pipeline strategy configuration
+        createdOn:
+          type: string
+          format: date-time
+          description: Template creation timestamp
+        createdBy:
+          type: integer
+          description: ID of user who created the template
+
+
+
+    EnvironmentConfig:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Environment configuration ID
+        environmentId:
+          type: integer
+          format: int64
+          description: Environment ID
+        environmentName:
+          type: string
+          description: Environment name
+        namespace:
+          type: string
+          description: Kubernetes namespace
+        clusterId:
+          type: integer
+          format: int64
+          description: Cluster ID
+        clusterName:
+          type: string
+          description: Cluster name
+        isProduction:
+          type: boolean
+          description: Whether this is a production environment
+        environmentType:
+          type: string
+          enum: [PRODUCTION, NON_PRODUCTION]
+          description: Environment type
+        description:
+          type: string
+          description: Environment description
+        active:
+          type: boolean
+          description: Whether the environment is active
+
+    DeploymentConfig:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Deployment configuration ID
+        appId:
+          type: integer
+          format: int64
+          description: Application ID
+        environmentId:
+          type: integer
+          format: int64
+          description: Environment ID
+        templateVersion:
+          type: string
+          description: Template version
+        pipelineStrategy:
+          type: object
+          description: Pipeline strategy configuration
+        configMapData:
+          type: object
+          description: ConfigMap data
+        secretData:
+          type: object
+          description: Secret data
+        envOverrideValues:
+          type: object
+          description: Environment override values
+        mergedValues:
+          type: object
+          description: Merged configuration values
+        status:
+          type: string
+          enum: [DRAFT, PUBLISHED]
+          description: Configuration status
+        createdOn:
+          type: string
+          format: date-time
+          description: Configuration creation timestamp
+        createdBy:
+          type: integer
+          description: ID of user who created the configuration
+
+    UpdateDeploymentConfigRequest:
+      type: object
+      required:
+        - appId
+        - environmentId
+      properties:
+        appId:
+          type: integer
+          format: int64
+          description: Application ID
+        environmentId:
+          type: integer
+          format: int64
+          description: Environment ID
+        templateVersion:
+          type: string
+          description: Template version
+        pipelineStrategy:
+          type: object
+          description: Pipeline strategy configuration
+        configMapData:
+          type: object
+          description: ConfigMap data
+        secretData:
+          type: object
+          description: Secret data
+        envOverrideValues:
+          type: object
+          description: Environment override values
+
+    TemplateValidationResponse:
+      type: object
+      properties:
+        isValid:
+          type: boolean
+          description: Whether the template is valid
+        errors:
+          type: array
+          items:
+            type: string
+          description: Validation error messages
+        warnings:
+          type: array
+          items:
+            type: string
+          description: Validation warning messages
+        chartInfo:
+          type: object
+          description: Chart information
+          properties:
+            name:
+              type: string
+              description: Chart name
+            version:
+              type: string
+              description: Chart version
+            description:
+              type: string
+              description: Chart description
+
+    StageConfig:
+      type: object
+      description: Pre/Post deployment stage configuration
+      properties:
+        triggerType:
+          type: string
+          enum: [AUTOMATIC, MANUAL]
+          description: Stage trigger type
+          example: "AUTOMATIC"
+        name:
+          type: string
+          description: Stage name
+          example: "pre-stage"
+        config:
+          type: string
+          description: Stage configuration as YAML string
+          example: "echo 'Pre-deployment stage'"
+
+    ConfigMapSecretNames:
+      type: object
+      description: ConfigMap and Secret names for stage configuration
+      properties:
+        configMaps:
+          type: array
+          items:
+            type: string
+          description: List of ConfigMap names
+          example: ["configMap1", "configMap2"]
+        secrets:
+          type: array
+          items:
+            type: string
+          description: List of Secret names
+          example: ["secret1", "secret2"]
+
+    AppTemplateRequest:
+      type: object
+      description: Request for creating/updating application deployment template
+      required:
+        - deploymentTemplate
+      properties:
+        appId:
+          type: integer
+          format: int64
+          description: Application ID (required for updates)
+          example: 123
+        deploymentTemplate:
+          type: string
+          description: Deployment template as YAML string
+          example: |
+            apiVersion: apps/v1
+            kind: Deployment
+            metadata:
+              name: sample-app
+        preStage:
+          $ref: '#/components/schemas/StageConfig'
+        postStage:
+          $ref: '#/components/schemas/StageConfig'
+        preStageConfigMapSecretNames:
+          $ref: '#/components/schemas/ConfigMapSecretNames'
+        postStageConfigMapSecretNames:
+          $ref: '#/components/schemas/ConfigMapSecretNames'
+        runPreStageInEnv:
+          type: boolean
+          description: Whether to run pre-stage in environment
+          default: true
+          example: true
+        runPostStageInEnv:
+          type: boolean
+          description: Whether to run post-stage in environment
+          default: false
+          example: false
+        isClusterCdActive:
+          type: boolean
+          description: Whether cluster CD is active
+          default: true
+          example: true
+
+    AppTemplateUpdateRequest:
+      allOf:
+        - $ref: '#/components/schemas/AppTemplateRequest'
+        - type: object
+          required:
+            - templateId
+          properties:
+            templateId:
+              type: integer
+              format: int64
+              description: Template ID to update
+              example: 1
+
+    EnvironmentConfigRequest:
+      type: object
+      description: Environment configuration request for deployment template override
+      required:
+        - chartRefId
+        - isAppMetricsEnabled
+        - saveEligibleChanges
+        - resourceName
+        - environmentId
+        - IsOverride
+        - envOverrideValues
+        - mergeStrategy
+      properties:
+        chartRefId:
+          type: integer
+          description: Chart version reference ID
+          example: 789
+        isAppMetricsEnabled:
+          type: boolean
+          description: Whether application metrics are enabled
+          example: true
+        saveEligibleChanges:
+          type: boolean
+          description: Whether to save eligible changes
+          example: true
+        readme:
+          type: string
+          description: Optional readme content
+          example: "Deployment configuration for production environment"
+        schema:
+          type: object
+          description: Optional schema definitions
+          additionalProperties:
+            type: string
+          example:
+            version: "v1.0.0"
+            type: "deployment"
+        resourceName:
+          type: string
+          description: Name of the resource
+          example: "my-app-deployment"
+        isExpressEdit:
+          type: boolean
+          description: Whether this is an express edit operation
+          example: false
+        environmentId:
+          type: integer
+          description: Environment ID
+          example: 456
+        IsOverride:
+          type: boolean
+          description: Whether this is an override configuration
+          example: true
+        isDraftOverriden:
+          type: boolean
+          description: Whether draft is overridden
+          example: false
+        globalConfig:
+          type: object
+          description: Optional global configuration values
+          additionalProperties:
+            type: string
+          example:
+            region: "us-west-2"
+            cluster: "production"
+        envOverrideValues:
+          type: object
+          description: Environment-specific override values
+          additionalProperties: true
+          example:
+            replicaCount: 3
+            image:
+              tag: "v1.2.3"
+            resources:
+              limits:
+                cpu: "500m"
+                memory: "512Mi"
+        mergeStrategy:
+          type: string
+          description: Override merge strategy type
+          enum: ["replace", "merge", "strategic-merge"]
+          example: "merge"
+        environmentConfig:
+          type: object
+          description: Optional environment configuration from DeploymentTemplateEditorDataStateType
+          additionalProperties: true
+          example:
+            namespace: "production"
+            active: true
+
+    EnvironmentValuesRequest:
+      type: object
+      description: Environment values configuration request
+      required:
+        - appId
+        - envId
+        - chartId
+      properties:
+        appId:
+          type: integer
+          format: int64
+          description: Application ID
+          example: 123
+        envId:
+          type: integer
+          format: int64
+          description: Environment ID
+          example: 456
+        chartId:
+          type: integer
+          format: int64
+          description: Chart ID
+          example: 789
+        values:
+          type: object
+          description: Helm chart values
+          example:
+            replicaCount: 2
+            image: "my-app:latest"
+
+    CreateEnvironmentRequest:
+      type: object
+      description: Request to create environment configuration based on EnvironmentBean structure
+      required:
+        - environment_name
+        - cluster_id
+        - namespace
+      properties:
+        id:
+          type: integer
+          description: Environment ID (optional for creation)
+          example: 0
+        environment_name:
+          type: string
+          description: Environment name
+          maxLength: 50
+          example: "staging"
+        cluster_id:
+          type: integer
+          description: Cluster ID
+          example: 1
+        clusterName:
+          type: string
+          description: Cluster name (read-only)
+          example: "production-cluster"
+        active:
+          type: boolean
+          description: Whether environment is active
+          default: true
+          example: true
+        default:
+          type: boolean
+          description: Whether this is the default environment
+          default: false
+          example: false
+        prometheus_endpoint:
+          type: string
+          description: Prometheus endpoint URL
+          example: "http://prometheus.monitoring.svc.cluster.local:9090"
+        namespace:
+          type: string
+          description: Kubernetes namespace
+          maxLength: 50
+          example: "staging-ns"
+        isClusterCdActive:
+          type: boolean
+          description: Whether cluster CD is active
+          example: true
+        environmentIdentifier:
+          type: string
+          description: Environment identifier
+          example: "staging-env-001"
+        description:
+          type: string
+          description: Environment description
+          maxLength: 40
+          example: "Staging environment for testing"
+        isVirtualEnvironment:
+          type: boolean
+          description: Whether this is a virtual environment
+          default: false
+          example: false
+        allowedDeploymentTypes:
+          type: array
+          description: Allowed deployment types for this environment
+          items:
+            type: string
+            enum: ["helm", "argo_cd", "flux_cd"]
+          example: ["argo_cd", "helm"]
+
+tags:
+  - name: Deployment Templates
+    description: |
+      Operations for managing deployment templates including:
+      - Application deployment template configuration
+      - Template creation and updates
+      - Pre/post deployment stage management
+      - ConfigMap and Secret integration
+  - name: Environment Configuration
+    description: |
+      Operations for managing environment configurations including:
+      - Environment-specific overrides
+      - Chart values configuration
+      - Environment creation and updates
+      - Namespace and cluster management
+  - name: Deployment Configuration
+    description: Operations for managing deployment configurations
+
+paths:
+  /app/template:
+    post:
+      tags:
+        - Deployment Templates
+      summary: Configure deployment template for application
+      description: |
+        Creates or configures a deployment template for an application including:
+        - Deployment template YAML configuration
+        - Pre-stage and post-stage configurations
+        - ConfigMap and Secret references for stages
+        - Environment execution settings
+        - Cluster CD activation settings
+      operationId: configureDeploymentTemplateForApp
+      requestBody:
+        description: Application template configuration request
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppTemplateRequest'
+            examples:
+              basic_template:
+                summary: Basic deployment template
+                value:
+                  deploymentTemplate: |
+                    apiVersion: apps/v1
+                    kind: Deployment
+                    metadata:
+                      name: sample-app
+                    spec:
+                      replicas: 2
+                      selector:
+                        matchLabels:
+                          app: sample-app
+                      template:
+                        metadata:
+                          labels:
+                            app: sample-app
+                        spec:
+                          containers:
+                          - name: app
+                            image: nginx:latest
+                  preStage:
+                    triggerType: "AUTOMATIC"
+                    name: "pre-stage"
+                    config: "echo 'Pre-deployment validation'"
+                  postStage:
+                    triggerType: "MANUAL"
+                    name: "post-stage"
+                    config: "echo 'Post-deployment cleanup'"
+                  preStageConfigMapSecretNames:
+                    configMaps: ["pre-config"]
+                    secrets: ["pre-secret"]
+                  postStageConfigMapSecretNames:
+                    configMaps: ["post-config"]
+                    secrets: ["post-secret"]
+                  runPreStageInEnv: true
+                  runPostStageInEnv: false
+                  isClusterCdActive: true
+      responses:
+        '200':
+          description: Template configured successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/DeploymentTemplate'
+              example:
+                code: 200
+                status: "OK"
+                result:
+                  id: 1
+                  name: "sample-app-template"
+                  chartRefId: 1
+                  isAppMetricsEnabled: true
+                  createdOn: "2024-01-15T10:30:00Z"
+                  createdBy: 1
+        '400':
+          description: Invalid request format or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 400
+                status: "Bad Request"
+                errors: ["Invalid deployment template YAML format"]
+        '401':
+          description: Unauthorized - Invalid or missing authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - User lacks permission to configure templates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /app/template/update:
+    post:
+      tags:
+        - Deployment Templates
+      summary: Update deployment template
+      description: |
+        Updates an existing deployment template configuration including:
+        - Modified deployment template YAML
+        - Updated pre/post stage configurations
+        - Changed ConfigMap and Secret references
+        - Modified environment execution settings
+      operationId: updateAppOverride
+      requestBody:
+        description: Template update request
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppTemplateUpdateRequest'
+            examples:
+              update_template:
+                summary: Update existing template
+                value:
+                  templateId: 1
+                  deploymentTemplate: |
+                    apiVersion: apps/v1
+                    kind: Deployment
+                    metadata:
+                      name: sample-app-updated
+                    spec:
+                      replicas: 3
+                  preStage:
+                    triggerType: "MANUAL"
+                    name: "updated-pre-stage"
+                    config: "echo 'Updated pre-deployment'"
+                  postStage:
+                    triggerType: "AUTOMATIC"
+                    name: "updated-post-stage"
+                    config: "echo 'Updated post-deployment'"
+                  runPreStageInEnv: false
+                  runPostStageInEnv: true
+                  isClusterCdActive: true
+      responses:
+        '200':
+          description: Template updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/DeploymentTemplate'
+        '400':
+          description: Invalid request format or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Template not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+
+
+  /deployment/template/validate:
+    post:
+      tags:
+        - Deployment Templates
+      summary: Validate deployment template chart file
+      description: |
+        Validates a deployment template chart file upload (.tgz format) including:
+        - Chart structure validation
+        - Template syntax validation
+        - Chart metadata verification
+        - File format validation
+
+        This endpoint is used for validating custom chart uploads before saving them.
+      operationId: validateDeploymentTemplate
+      requestBody:
+        description: Chart template file for validation
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - BinaryFile
+              properties:
+                BinaryFile:
+                  type: string
+                  format: binary
+                  description: Zipped chart template file (.tgz format)
+      responses:
+        '200':
+          description: Template validation completed successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/TemplateValidationResponse'
+              example:
+                code: 200
+                status: "OK"
+                result:
+                  isValid: true
+                  errors: []
+                  warnings: ["Chart version not specified"]
+                  chartInfo:
+                    name: "sample-chart"
+                    version: "1.0.0"
+                    description: "Sample deployment chart"
+        '400':
+          description: Invalid file format or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 400
+                status: "Bad Request"
+                errors: ["Unsupported format file is uploaded, please upload file with .tgz extension"]
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - User lacks global create permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /deployment/template/upload:
+    put:
+      tags:
+        - Deployment Templates
+      summary: Upload deployment template chart
+      description: |
+        Uploads and saves a validated deployment template chart including:
+        - Chart file processing and storage
+        - Chart metadata extraction
+        - Chart reference creation
+        - Template registration in system
+      operationId: saveDeploymentTemplate
+      requestBody:
+        description: Chart upload request
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - chartName
+                - chartVersion
+                - fileId
+                - action
+              properties:
+                chartName:
+                  type: string
+                  description: Chart name
+                  example: "sample-chart"
+                chartVersion:
+                  type: string
+                  description: Chart version
+                  example: "1.0.0"
+                description:
+                  type: string
+                  description: Chart description
+                  example: "Sample deployment chart"
+                fileId:
+                  type: string
+                  description: File ID from validation step
+                  example: "file-123"
+                action:
+                  type: string
+                  description: Action to perform
+                  example: "SAVE"
+                message:
+                  type: string
+                  description: Additional message
+                  example: "Chart uploaded successfully"
+      responses:
+        '200':
+          description: Chart uploaded and saved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        type: string
+                        example: "Processed successfully"
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /deployment/template/download/{chartRefId}:
+    get:
+      tags:
+        - Deployment Templates
+      summary: Download deployment template chart
+      description: Downloads a deployment template chart file by chart reference ID
+      operationId: downloadDeploymentTemplate
+      parameters:
+        - name: chartRefId
+          in: path
+          description: Chart reference ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          example: 123
+      responses:
+        '200':
+          description: Chart file downloaded successfully
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+                description: Chart file in .tgz format
+        '400':
+          description: Invalid chart reference ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Chart not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /deployment/template/fetch:
+    get:
+      tags:
+        - Deployment Templates
+      summary: Get uploaded deployment template charts
+      description: |
+        Retrieves a list of all uploaded deployment template charts including:
+        - Chart metadata and information
+        - Upload status and details
+        - Chart reference information
+        - Available chart versions
+      operationId: getUploadedCharts
+      responses:
+        '200':
+          description: Uploaded charts retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              format: int64
+                              description: Chart reference ID
+                            name:
+                              type: string
+                              description: Chart name
+                            version:
+                              type: string
+                              description: Chart version
+                            description:
+                              type: string
+                              description: Chart description
+                            createdOn:
+                              type: string
+                              format: date-time
+                              description: Upload timestamp
+                            createdBy:
+                              type: integer
+                              description: User ID who uploaded
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /config/environment:
+    get:
+      tags:
+        - Environment Configuration
+      summary: Get environment configuration
+      description: Retrieves environment configuration details
+      operationId: getEnvironmentConfiguration
+      parameters:
+        - name: environmentId
+          in: query
+          description: Environment ID to filter by
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: clusterId
+          in: query
+          description: Cluster ID to filter by
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: appId
+          in: query
+          description: Application ID to filter by
+          required: false
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Environment configuration retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/EnvironmentConfig'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /app/env/{appId}/{envId}:
+    get:
+      tags:
+        - Environment Configuration
+      summary: Get environment configuration override
+      description: |
+        Retrieves environment-specific configuration override for an application including:
+        - Environment deployment configuration
+        - ConfigMap and Secret overrides
+        - Deployment template overrides
+        - Environment-specific values
+      operationId: getEnvConfigOverride
+      parameters:
+        - name: appId
+          in: path
+          description: Application ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          example: 123
+        - name: envId
+          in: path
+          description: Environment ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          example: 456
+      responses:
+        '200':
+          description: Environment configuration retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/EnvironmentConfig'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Application or environment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+    post:
+      tags:
+        - Environment Configuration
+      summary: Create environment configuration override
+      description: |
+        Creates environment-specific configuration override for an application including:
+        - Environment deployment settings
+        - Namespace configuration
+        - Environment activation status
+        - Custom environment values
+      operationId: envConfigOverrideCreate
+      parameters:
+        - name: appId
+          in: path
+          description: Application ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          example: 123
+        - name: envId
+          in: path
+          description: Environment ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          example: 456
+      requestBody:
+        description: Environment configuration request
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnvironmentConfigRequest'
+            examples:
+              dev_environment:
+                summary: Development environment configuration
+                value:
+                  appId: 123
+                  envId: 456
+                  config:
+                    namespace: "dev"
+                    active: true
+      responses:
+        '200':
+          description: Environment configuration created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/EnvironmentConfig'
+        '400':
+          description: Invalid request format or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Environment configuration already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /app/env/{appId}/{envId}/{chartId}:
+    get:
+      tags:
+        - Environment Configuration
+      summary: Get environment configuration with chart details
+      description: |
+        Retrieves environment-specific configuration with chart details including:
+        - Chart-specific environment values
+        - Deployment template with chart reference
+        - Environment override values
+        - Chart version information
+      operationId: getEnvConfigOverrideWithChart
+      parameters:
+        - name: appId
+          in: path
+          description: Application ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          example: 123
+        - name: envId
+          in: path
+          description: Environment ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          example: 456
+        - name: chartId
+          in: path
+          description: Chart ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          example: 789
+      responses:
+        '200':
+          description: Environment configuration with chart details retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        allOf:
+                          - $ref: '#/components/schemas/EnvironmentConfig'
+                          - type: object
+                            properties:
+                              chartId:
+                                type: integer
+                                format: int64
+                                description: Chart ID
+                              chartVersion:
+                                type: string
+                                description: Chart version
+                              values:
+                                type: object
+                                description: Chart values
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Application, environment, or chart not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+    put:
+      tags:
+        - Environment Configuration
+      summary: Update environment configuration with chart values
+      description: |
+        Updates environment-specific configuration with chart values including:
+        - Modified chart values
+        - Updated environment settings
+        - Chart version changes
+        - Environment override updates
+      operationId: updateEnvConfigOverrideWithChart
+      parameters:
+        - name: appId
+          in: path
+          description: Application ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          example: 123
+        - name: envId
+          in: path
+          description: Environment ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          example: 456
+        - name: chartId
+          in: path
+          description: Chart ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          example: 789
+      requestBody:
+        description: Environment values configuration request
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnvironmentValuesRequest'
+            examples:
+              production_values:
+                summary: Production environment values
+                value:
+                  appId: 123
+                  envId: 456
+                  chartId: 789
+                  values:
+                    replicaCount: 3
+                    image: "my-app:v1.2.0"
+                    resources:
+                      limits:
+                        cpu: "500m"
+                        memory: "512Mi"
+                      requests:
+                        cpu: "250m"
+                        memory: "256Mi"
+      responses:
+        '200':
+          description: Environment configuration updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/EnvironmentConfig'
+        '400':
+          description: Invalid request format or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Application, environment, or chart not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /app/env:
+    put:
+      tags:
+        - Environment Configuration
+      summary: Update environment deployment template configuration
+      description: |
+        Updates environment-specific deployment template configuration including:
+        - Chart version reference updates
+        - Application metrics configuration
+        - Environment override values
+        - Merge strategy configuration
+        - Resource name and configuration updates
+        - Global and environment-specific configuration values
+      operationId: envConfigOverrideUpdate
+      requestBody:
+        description: Environment deployment template configuration update request
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnvironmentConfigRequest'
+            examples:
+              update_deployment_config:
+                summary: Update environment deployment configuration
+                value:
+                  chartRefId: 789
+                  isAppMetricsEnabled: true
+                  saveEligibleChanges: true
+                  readme: "Production deployment configuration"
+                  schema:
+                    version: "v1.2.3"
+                    type: "deployment"
+                  resourceName: "my-app-production"
+                  isExpressEdit: false
+                  environmentId: 456
+                  IsOverride: true
+                  isDraftOverriden: false
+                  globalConfig:
+                    region: "us-west-2"
+                    cluster: "production"
+                  envOverrideValues:
+                    replicaCount: 3
+                    image:
+                      tag: "v1.2.3"
+                    resources:
+                      limits:
+                        cpu: "1000m"
+                        memory: "1Gi"
+                  mergeStrategy: "merge"
+                  environmentConfig:
+                    namespace: "production"
+                    active: true
+      responses:
+        '200':
+          description: Environment configuration updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/EnvironmentConfig'
+        '400':
+          description: Invalid request format or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Environment configuration not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /config/update:
+    put:
+      tags:
+        - Deployment Configuration
+      summary: Update deployment configuration
+      description: Updates deployment configuration for an application in a specific environment
+      operationId: updateDeploymentConfiguration
+      requestBody:
+        description: Deployment configuration update request
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDeploymentConfigRequest'
+      responses:
+        '200':
+          description: Deployment configuration updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/DeploymentConfig'
+        '400':
+          description: Invalid request format or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Application or environment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []

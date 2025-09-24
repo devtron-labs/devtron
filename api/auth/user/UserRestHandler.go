@@ -210,7 +210,7 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Use enhanced parameter parsing with context
-	id, err := common.ExtractIntPathParamWithContext(w, r, "id", "user")
+	id, err := common.ExtractIntPathParamWithContext(w, r, "id")
 	if err != nil {
 		// Error already written by ExtractIntPathParamWithContext
 		return
@@ -334,7 +334,7 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 	}
 
 	// Use enhanced parameter parsing with context
-	id, err := common.ExtractIntPathParamWithContext(w, r, "id", "user")
+	id, err := common.ExtractIntPathParamWithContext(w, r, "id")
 	if err != nil {
 		// Error already written by ExtractIntPathParamWithContext
 		return
@@ -427,7 +427,7 @@ func (handler UserRestHandlerImpl) BulkDeleteUsers(w http.ResponseWriter, r *htt
 
 func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *http.Request) {
 	// Use enhanced parameter parsing with context
-	id, err := common.ExtractIntPathParamWithContext(w, r, "id", "role group")
+	id, err := common.ExtractIntPathParamWithContext(w, r, "id")
 	if err != nil {
 		// Error already written by ExtractIntPathParamWithContext
 		return

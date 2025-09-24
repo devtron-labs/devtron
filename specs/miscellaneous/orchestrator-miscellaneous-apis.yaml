@@ -1,0 +1,813 @@
+openapi: "3.0.3"
+info:
+  title: Devtron Orchestrator Miscellaneous APIs
+  description: API specifications for miscellaneous Devtron orchestrator endpoints including security scans, application management, pod operations, and cluster management
+  version: "1.0.0"
+  contact:
+    name: Devtron Support
+    email: support@devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+        status:
+          type: string
+        result:
+          type: object
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+        status:
+          type: string
+        errors:
+          type: array
+          items:
+            type: string
+
+    ScanRequest:
+      type: object
+      properties:
+        appId:
+          type: integer
+          example: 123
+        envId:
+          type: integer
+          example: 456
+        scanType:
+          type: string
+          example: "VULNERABILITY"
+
+    ExecutionDetailRequest:
+      type: object
+      properties:
+        executionId:
+          type: integer
+          example: 789
+
+    HibernateRequest:
+      type: object
+      properties:
+        appId:
+          type: integer
+          example: 123
+        envId:
+          type: integer
+          example: 456
+
+    RotatePodsRequest:
+      type: object
+      properties:
+        appId:
+          type: integer
+          example: 123
+        envId:
+          type: integer
+          example: 456
+        podName:
+          type: string
+          example: "my-pod"
+
+    TriggerRequest:
+      type: object
+      properties:
+        appId:
+          type: integer
+          example: 123
+        environmentId:
+          type: integer
+          example: 456
+        pipelineId:
+          type: integer
+          example: 789
+
+    ResourceRotateRequest:
+      type: object
+      properties:
+        resourceId:
+          type: string
+          example: "res-123"
+
+    ResourceTreeRequest:
+      type: object
+      properties:
+        appId:
+          type: integer
+          example: 123
+        envId:
+          type: integer
+          example: 456
+
+    EphemeralContainerRequest:
+      type: object
+      properties:
+        podName:
+          type: string
+          example: "my-pod"
+        container:
+          type: string
+          example: "debug-container"
+
+tags:
+  - name: Security Scans
+    description: Security scanning operations
+  - name: Pod & Resource Management
+    description: Pod logs, rotation, and resource operations
+  - name: Application Management
+    description: Application hibernation, deployment status, and lifecycle
+  - name: Cluster & Infrastructure
+    description: Cluster and namespace management
+
+paths:
+  /security/scan/list:
+    post:
+      tags:
+        - Security Scans
+      summary: Get scan execution list
+      description: Retrieves a list of security scan executions based on the provided criteria
+      operationId: scanExecutionList
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScanRequest'
+            example:
+              appId: 123
+              envId: 456
+              scanType: "VULNERABILITY"
+      responses:
+        '200':
+          description: Scan execution list retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /security/scan/executionDetail:
+    get:
+      tags:
+        - Security Scans
+      summary: Get scan execution detail
+      description: Retrieves detailed information about a specific scan execution
+      operationId: fetchExecutionDetail
+      parameters:
+        - name: executionId
+          in: query
+          required: true
+          schema:
+            type: integer
+          example: 789
+      responses:
+        '200':
+          description: Scan execution detail retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Scan execution not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /application/hibernate:
+    post:
+      tags:
+        - Application Management
+      summary: Hibernate application
+      description: Hibernates the specified application
+      operationId: hibernateApplication
+      parameters:
+        - name: appType
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: ["argo", "helm", "flux"]
+          example: "argo"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HibernateRequest'
+            example:
+              appId: 123
+              envId: 456
+      responses:
+        '200':
+          description: Application hibernated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /app/rotate-pods:
+    post:
+      tags:
+        - Pod & Resource Management
+      summary: Rotate pods
+      description: Rotates the specified pods
+      operationId: rotatePods
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RotatePodsRequest'
+            example:
+              appId: 123
+              envId: 456
+              podName: "my-pod"
+      responses:
+        '200':
+          description: Pods rotated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /app/cd-pipeline/trigger:
+    post:
+      tags:
+        - Application Management
+      summary: Trigger CD pipeline
+      description: Triggers a CD pipeline deployment for the specified application and environment
+      operationId: triggerCdPipeline
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerRequest'
+            example:
+              appId: 123
+              environmentId: 456
+              pipelineId: 789
+      responses:
+        '200':
+          description: CD pipeline triggered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /cluster/list:
+    get:
+      tags:
+        - Cluster & Infrastructure
+      summary: Get cluster list
+      description: Retrieves a list of all available clusters
+      operationId: getClusterList
+      responses:
+        '200':
+          description: List of clusters retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /cluster/namespaces:
+    get:
+      tags:
+        - Cluster & Infrastructure
+      summary: Get all cluster namespaces
+      description: Retrieves namespaces from all clusters
+      operationId: getAllClusterNamespaces
+      responses:
+        '200':
+          description: All cluster namespaces retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /k8s/pods/logs/{podName}:
+    get:
+      tags:
+        - Pod & Resource Management
+      summary: Get pod logs
+      description: Retrieves logs from the specified pod and container
+      operationId: getPodLogs
+      parameters:
+        - name: podName
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "my-app-pod-123"
+        - name: containerName
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "main-container"
+        - name: follow
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          example: false
+      responses:
+        '200':
+          description: Pod logs retrieved successfully
+          content:
+            text/plain:
+              schema:
+                type: string
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Pod not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /k8s/pods/logs/download/{podName}:
+    get:
+      tags:
+        - Pod & Resource Management
+      summary: Download pod logs
+      description: Downloads logs from the specified pod and container as a file
+      operationId: downloadPodLogs
+      parameters:
+        - name: podName
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "my-app-pod-123"
+        - name: containerName
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "main-container"
+      responses:
+        '200':
+          description: Pod logs file download
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Pod not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /k8s/resource/rotate:
+    post:
+      tags:
+        - Pod & Resource Management
+      summary: Rotate Kubernetes resource
+      description: Rotates the specified Kubernetes resource
+      operationId: rotateKubernetesResource
+      parameters:
+        - name: appId
+          in: query
+          required: true
+          schema:
+            type: integer
+          example: 123
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRotateRequest'
+            example:
+              resourceId: "res-123"
+      responses:
+        '200':
+          description: Resource rotated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /app/deployment-status/timeline/{appId}/{envId}:
+    get:
+      tags:
+        - Application Management
+      summary: Get deployment status timeline
+      description: Retrieves the deployment status timeline for the specified application and environment
+      operationId: getDeploymentStatusTimeline
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 123
+        - name: envId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 456
+      responses:
+        '200':
+          description: Deployment status timeline retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Application or environment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /app/deployment-status/manual-sync/{appId}/{envId}:
+    get:
+      tags:
+        - Application Management
+      summary: Manual sync deployment status
+      description: Manually synchronizes the deployment status for the specified application and environment
+      operationId: manualSyncDeploymentStatus
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 123
+        - name: envId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 456
+      responses:
+        '200':
+          description: Manual sync completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Application or environment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /application/unhibernate:
+    post:
+      tags:
+        - Application Management
+      summary: Unhibernate application
+      description: Unhibernates the specified application
+      operationId: unhibernateApplication
+      parameters:
+        - name: appType
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: ["argo", "helm", "flux"]
+          example: "argo"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HibernateRequest'
+            example:
+              appId: 123
+              envId: 456
+      responses:
+        '200':
+          description: Application unhibernated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

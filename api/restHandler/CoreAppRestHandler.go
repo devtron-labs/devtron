@@ -155,11 +155,9 @@ func (handler CoreAppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *
 		return
 	}
 
-	vars := mux.Vars(r)
-	appId, err := strconv.Atoi(vars["appId"])
+	appId, err := common.ExtractIntPathParamWithContext(w, r, "appId")
 	if err != nil {
-		handler.logger.Errorw("request err, GetAppAllDetail", "err", err, "appId", vars["appId"])
-		common.WriteInvalidAppIdError(w, vars["appId"])
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 

@@ -53,8 +53,8 @@ type SourceTypeConfig struct {
 
 type CreateAppDTO struct {
 	Id          int                            `json:"id,omitempty" validate:"number"`
-	AppName     string                         `json:"appName" validate:"name-component,max=100"`
-	Description string                         `json:"description"`
+	AppName     string                         `json:"appName" validate:"name-component,max=30"`
+	Description string                         `json:"description" validate:"max=350"`
 	UserId      int32                          `json:"-"` //not exposed to UI
 	Material    []*GitMaterial                 `json:"material" validate:"dive,min=1"`
 	TeamId      int                            `json:"teamId,omitempty" validate:"number,required"`

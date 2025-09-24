@@ -33,7 +33,7 @@ type ResourceRequestBean struct {
 	DevtronAppIdentifier        *bean.DevtronAppIdentifier `json:"-"`         // For Devtron App Resources
 	ClusterId                   int                        `json:"clusterId"` // clusterId is used when request is for direct cluster (not for helm release)
 	ExternalArgoApplicationName string                     `json:"externalArgoApplicationName,omitempty"`
-	ExternalFluxAppIdentifier   *bean2.FluxAppIdentifier   `json: "-"`
+	ExternalFluxAppIdentifier   *bean2.FluxAppIdentifier   `json:"-"`
 	ExternalArgoAppIdentifier   *bean3.ArgoAppIdentifier   `json:"-"`
 }
 

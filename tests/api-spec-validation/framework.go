@@ -186,7 +186,7 @@ func (v *APISpecValidator) validateEndpoint(path, method string, operation *open
 	}
 
 	// Test the endpoint
-	if err := v.testEndpoint(&result, path, method, operation); err != nil {
+	if err := v.testEndpoint(&result, path, method, operation, spec); err != nil {
 		result.Issues = append(result.Issues, ValidationIssue{
 			Type:     "REQUEST_ERROR",
 			Message:  err.Error(),
@@ -219,13 +219,30 @@ func (v *APISpecValidator) validateEndpoint(path, method string, operation *open
 }
 
 // testEndpoint makes an actual HTTP request to test the endpoint
-func (v *APISpecValidator) testEndpoint(result *ValidationResult, path, method string, operation *openapi3.Operation) error {
+func (v *APISpecValidator) testEndpoint(result *ValidationResult, path, method string, operation *openapi3.Operation, spec *openapi3.T) error {
 	// Process path parameters and build the full URL
 	processedPath, err := v.processPathParameters(path, operation)
 	if err != nil {
 		return fmt.Errorf("failed to process path parameters: %w", err)
 	}
-	url := v.serverURL + processedPath
+
+	// Build the full URL considering OpenAPI spec server URLs
+	baseURL := v.serverURL
+	if spec.Servers != nil && len(spec.Servers) > 0 {
+		// Use the first server URL from the spec and combine with base server URL
+		specServerURL := spec.Servers[0].URL
+		if specServerURL != "" {
+			// If spec server URL is relative (starts with /), append to base URL
+			if strings.HasPrefix(specServerURL, "/") {
+				baseURL = v.serverURL + specServerURL
+			} else {
+				// If spec server URL is absolute, use it as is (but this is rare for our case)
+				baseURL = specServerURL
+			}
+		}
+	}
+
+	url := baseURL + processedPath
 
 	// Create request with proper body
 	var req *http.Request

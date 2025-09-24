@@ -136,7 +136,7 @@ func (handler DevtronAppAutoCompleteRestHandlerImpl) GetAppListForAutocomplete(w
 			return
 		}
 	} else {
-		teamIdInt, err = common.ExtractIntPathParamWithContext(w, r, "teamId", teamId+" team")
+		teamIdInt, err = common.ExtractIntPathParamWithContext(w, r, "teamId")
 		if err != nil {
 			// Error already written by ExtractIntPathParamWithContext
 			return
@@ -246,7 +246,7 @@ func (handler DevtronAppAutoCompleteRestHandlerImpl) GitListAutocomplete(w http.
 func (handler DevtronAppAutoCompleteRestHandlerImpl) RegistriesListAutocomplete(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	// Use enhanced parameter parsing with context
-	appId, err := common.ExtractIntPathParamWithContext(w, r, "appId", "application")
+	appId, err := common.ExtractIntPathParamWithContext(w, r, "appId")
 	if err != nil {
 		// Error already written by ExtractIntPathParamWithContext
 		return
