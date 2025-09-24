@@ -1087,7 +1087,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteEphemeralContainer(w http.Re
 		if err.Error() == bean4.EXTERNAL_EPHIMERAL_CONTAINER_ERR {
 			common.WriteJsonResp(w, err, nil, http.StatusForbidden)
 			return
-		} else if err.Error() == "either container is not found or is not running" {
+		} else if err.Error() == bean4.EPHEMERAL_CONTAINER_NOT_FOUND_ERR {
 			common.WriteJsonResp(w, err, nil, http.StatusNotFound)
 			return
 		}

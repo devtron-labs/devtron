@@ -39,4 +39,5 @@ func (request EphemeralContainerRequest) GetContainerBean() repository.Ephemeral
 	}
 }
 
-const EXTERNAL_EPHIMERAL_CONTAINER_ERR string = "externally created ephemeral containers cannot be removed\""
+const EXTERNAL_EPHIMERAL_CONTAINER_ERR string = "externally created ephemeral containers cannot be removed"
+const EPHEMERAL_CONTAINER_NOT_FOUND_ERR string = "ephemeral container not found"
