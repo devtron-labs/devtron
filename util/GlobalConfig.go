@@ -65,6 +65,8 @@ type GlobalEnvVariables struct {
 	ExposeCiMetrics                   bool `env:"EXPOSE_CI_METRICS" envDefault:"false" description:"To expose CI metrics"`
 	ExecuteWireNilChecker             bool `env:"EXECUTE_WIRE_NIL_CHECKER" envDefault:"false" description:"checks for any nil pointer in wire.go"`
 	IsAirGapEnvironment               bool `json:"isAirGapEnvironment" env:"IS_AIR_GAP_ENVIRONMENT" envDefault:"false"`
+	EnableLinkedCiArtifactCopy        bool `env:"ENABLE_LINKED_CI_ARTIFACT_COPY" envDefault:"false" description:"Enable copying artifacts from parent CI pipeline to linked CI pipeline during creation"`
+	LinkedCiArtifactCopyLimit         int  `env:"LINKED_CI_ARTIFACT_COPY_LIMIT" envDefault:"10" description:"Maximum number of artifacts to copy from parent CI pipeline to linked CI pipeline"`
 }
 
 type GlobalClusterConfig struct {
