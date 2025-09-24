@@ -1038,7 +1038,7 @@ func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req bean5.
 		return false, err
 	}
 	if container == nil {
-		return false, errors.New("externally created ephemeral containers cannot be removed")
+		return false, errors.New(bean5.EXTERNAL_EPHIMERAL_CONTAINER_ERR)
 	}
 	// Check if pod exists and is running before attempting to execute command
 	var v1Client *v1.CoreV1Client

@@ -38,3 +38,5 @@ func (request EphemeralContainerRequest) GetContainerBean() repository.Ephemeral
 		IsExternallyCreated: false,
 	}
 }
+
+const EXTERNAL_EPHIMERAL_CONTAINER_ERR string = "externally created ephemeral containers cannot be removed\""
