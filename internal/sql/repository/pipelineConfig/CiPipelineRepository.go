@@ -50,6 +50,7 @@ type CiPipeline struct {
 	ScanEnabled              bool   `sql:"scan_enabled,notnull"`
 	IsDockerConfigOverridden bool   `sql:"is_docker_config_overridden, notnull"`
 	PipelineType             string `sql:"ci_pipeline_type"`
+	InfraProfileId           *int   `sql:"infra_profile_id"` // Optional pipeline-level infra profile
 	sql.AuditLog
 	CiPipelineMaterials []*CiPipelineMaterial
 	CiTemplate          *CiTemplate
@@ -146,6 +147,8 @@ type CiPipelineRepository interface {
 	GetLinkedCiPipelines(ctx context.Context, ciPipelineId int) ([]*CiPipeline, error)
 	GetDownStreamInfo(ctx context.Context, sourceCiPipelineId int,
 		appNameMatch, envNameMatch string, req *pagination.RepositoryRequest) ([]ciPipeline.LinkedCIDetails, int, error)
+	// GetInfraProfileIdByPipelineId gets the infra profile ID assigned to a specific CI pipeline
+	GetInfraProfileIdByPipelineId(pipelineId int) (*int, error)
 }
 
 type CiPipelineRepositoryImpl struct {
@@ -725,4 +728,20 @@ func (impl *CiPipelineRepositoryImpl) GetDownStreamInfo(ctx context.Context, sou
 		return nil, 0, err
 	}
 	return linkedCIDetails, totalCount, err
+}
+
+func (impl *CiPipelineRepositoryImpl) GetInfraProfileIdByPipelineId(pipelineId int) (*int, error) {
+	var infraProfileId *int
+	err := impl.dbConnection.Model((*CiPipeline)(nil)).
+		Where("id = ?", pipelineId).
+		Where("deleted = ?", false).
+		Column("infra_profile_id").
+		Select(&infraProfileId)
+	if err != nil {
+		if errors.Is(err, pg.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return infraProfileId, nil
 }
