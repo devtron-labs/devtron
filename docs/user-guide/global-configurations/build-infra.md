@@ -117,6 +117,27 @@ If you delete a profile attached to one or more applications, the [default profi
 
 If you need extra control on the build infra configuration apart from CPU, memory, and build timeout, feel free to open a [GitHub issue](https://github.com/devtron-labs/devtron/issues) for us to help you.
 
+### Pipeline-Level Build Infra Selection
+
+In addition to application-level build infra profiles, you can now assign specific build infrastructure profiles at the individual CI pipeline level. This provides more granular control for scenarios where:
+
+1. **Production pipelines** require different build infrastructure than development pipelines
+2. **Different build types** (e.g., security scanning vs. fast builds) need specific resource configurations
+3. **Environment-specific builds** require tailored infrastructure settings
+
+**How it works:**
+- When creating or editing a CI pipeline, you can optionally select a specific build infra profile
+- If a pipeline-level profile is selected, it takes priority over the application-level profile
+- If no pipeline-level profile is specified, the system falls back to the application-level profile
+- This maintains full backward compatibility with existing configurations
+
+**Use cases:**
+- Assign high-resource profiles to production CI pipelines while keeping development pipelines on standard resources
+- Use specialized build infrastructure for pipelines that include security scanning or extensive testing
+- Optimize costs by using appropriate infrastructure sizes for different types of builds
+
+This feature allows you to define build infrastructure for all production pipelines (CI pipelines attached to production environments) while providing flexibility to pass node-level selectors for development builds as needed.
+
 ---
 
 ## Extras
