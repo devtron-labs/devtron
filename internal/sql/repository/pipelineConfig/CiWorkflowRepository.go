@@ -38,6 +38,7 @@ type CiWorkflowRepository interface {
 	FindCiWorkflowGitTriggersById(id int) (workflow *CiWorkflow, err error)
 	FindCiWorkflowGitTriggersByIds(ids []int) ([]*CiWorkflow, error)
 	FindByName(name string) (*CiWorkflow, error)
+	FindRunningWorkflowsForPipeline(pipelineId int) ([]*CiWorkflow, error)
 
 	FindLastTriggeredWorkflowByCiIds(pipelineId []int) (ciWorkflow []*CiWorkflow, err error)
 	FindWorkflowsByCiWorkflowIds(ciWorkflowIds []int) (ciWorkflow []*CiWorkflow, err error)
@@ -183,6 +184,20 @@ func (impl *CiWorkflowRepositoryImpl) FindByStatusesIn(activeStatuses []string) 
 	err := impl.dbConnection.Model(&ciWorkFlows).
 		Column("ci_workflow.*").
 		Where("ci_workflow.status in (?)", pg.In(activeStatuses)).
+		Select()
+	return ciWorkFlows, err
+}
+
+func (impl *CiWorkflowRepositoryImpl) FindRunningWorkflowsForPipeline(pipelineId int) ([]*CiWorkflow, error) {
+	var ciWorkFlows []*CiWorkflow
+	// Status values for running/pending workflows that can be aborted
+	runningStatuses := []string{"Running", "Starting", "Pending"}
+	
+	err := impl.dbConnection.Model(&ciWorkFlows).
+		Column("ci_workflow.*", "CiPipeline").
+		Where("ci_workflow.ci_pipeline_id = ?", pipelineId).
+		Where("ci_workflow.status in (?)", pg.In(runningStatuses)).
+		Order("ci_workflow.started_on DESC").
 		Select()
 	return ciWorkFlows, err
 }

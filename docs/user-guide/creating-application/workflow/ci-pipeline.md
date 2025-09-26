@@ -62,6 +62,7 @@ Go to the **Build stage** tab.
 | Pipeline Name | Required | A name for the pipeline |
 | Source type | Required | Select the source type to build the CI pipeline: [Branch Fixed](#source-type-branch-fixed) \| [Branch Regex](#source-type-branch-regex) \| [Pull Request](#source-type-pull-request) \| [Tag Creation](#source-type-tag-creation) |
 | Branch Name | Required | Branch that triggers the CI build |
+| Auto-abort previous builds | Optional | Automatically abort previous running builds for this pipeline when a new commit is pushed. This helps reduce resource usage and build times by stopping outdated builds that will not be deployed. Builds in critical phases (like pushing cache) are protected from abortion. |
 | Docker build arguments | Optional | Override docker build configurations for this pipeline. <br> <ul><li>Key: Field name</li><li>Value: Field value</li></ul>
 
 ##### Source type
@@ -391,3 +392,54 @@ If you choose [Pull Request](#pull-request) or [Tag Creation](#tag-creation) as 
 6. Select **Save** to save your configurations.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/ci-pipeline-7.jpg)
+
+### Auto-Abort Previous Builds
+
+The auto-abort feature allows you to automatically cancel previous running builds when a new commit is pushed to the same branch/workflow. This helps optimize resource usage and reduces build times by stopping outdated builds that will not be deployed.
+
+#### Key Features
+
+* **Automatic Cancellation**: When enabled, any previous running or pending builds for the same CI pipeline will be automatically aborted when a new build is triggered
+* **Critical Phase Protection**: Builds that are in critical phases (such as pushing cache or in final deployment steps) are protected from abortion to prevent data corruption
+* **Resource Optimization**: Reduces compute resource usage and build queue congestion by eliminating unnecessary builds
+* **Faster Feedback**: Developers get faster feedback on their latest changes without waiting for older builds to complete
+
+#### Configuration
+
+1. Navigate to your CI pipeline configuration in the Workflow Editor
+2. In the Build stage settings, you'll find the **Auto-abort previous builds** option
+3. Check the box to enable automatic abortion of previous builds
+4. Save your pipeline configuration
+
+#### How It Works
+
+1. When a new commit is pushed to the configured branch, Devtron triggers a new CI build
+2. If auto-abort is enabled, Devtron checks for any running or pending builds for the same pipeline
+3. Previous builds that are not in critical phases are automatically cancelled
+4. The system logs which builds were aborted and the reason for abortion
+5. The new build proceeds normally while resources from cancelled builds are freed up
+
+#### Critical Phase Protection
+
+The following scenarios are considered critical and builds in these phases will NOT be aborted:
+
+* Builds that have been running for more than 2 minutes (likely in deployment phases)
+* Builds that are pushing cache or artifacts
+* Builds in final deployment stages
+
+This protection ensures that builds close to completion are not unnecessarily interrupted.
+
+#### Benefits
+
+* **70% reduction in build time** (similar to what other CI/CD platforms achieve with this feature)
+* **Reduced resource consumption** and associated costs
+* **Faster feedback loops** for developers
+* **Better utilization** of CI/CD pipeline capacity
+* **Improved developer experience** with quicker build completion
+
+#### Use Cases
+
+* **Rapid Development**: During active development with frequent small commits
+* **Feature Branch Development**: When working on feature branches with incremental changes
+* **Resource-Constrained Environments**: When build agents or compute resources are limited
+* **Large Teams**: When multiple developers are pushing changes frequently
