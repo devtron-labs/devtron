@@ -303,6 +303,240 @@ paths:
       security:
         - bearerAuth: []
 
+  /app/template/{appId}/{chartRefId}:
+    get:
+      tags:
+        - App Templates
+      summary: Get deployment template data by app ID and chart reference ID
+      description: |
+        Retrieves deployment template configuration data for a specific application and chart reference.
+        Returns template data including schema, readme, and configuration values.
+
+      operationId: getDeploymentTemplate
+      parameters:
+        - name: appId
+          in: path
+          description: Application ID
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          example: 12
+        - name: chartRefId
+          in: path
+          description: Chart reference ID
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          example: 45
+      responses:
+        '200':
+          description: Deployment template data retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        type: object
+                        description: App configuration response containing template data
+                        properties:
+                          globalConfig:
+                            oneOf:
+                              - type: object
+                                description: Template configuration when app has existing template
+                                properties:
+                                  id:
+                                    type: integer
+                                    description: Template ID
+                                    example: 1
+                                  appId:
+                                    type: integer
+                                    description: Application ID
+                                    example: 12
+                                  refChartTemplate:
+                                    type: string
+                                    description: Reference chart template name
+                                    example: "Deployment"
+                                  refChartTemplateVersion:
+                                    type: string
+                                    description: Reference chart template version
+                                    example: "5.0.0"
+                                  chartRepositoryId:
+                                    type: integer
+                                    description: Chart repository ID
+                                    example: 1
+                                  valuesOverride:
+                                    type: object
+                                    description: Values override configuration
+                                  defaultAppOverride:
+                                    type: object
+                                    description: Default app override values
+                                  latest:
+                                    type: boolean
+                                    description: Whether this is the latest template
+                                    example: true
+                                  chartRefId:
+                                    type: integer
+                                    description: Chart reference ID
+                                    example: 45
+                                  isAppMetricsEnabled:
+                                    type: boolean
+                                    description: Whether app metrics are enabled
+                                    example: false
+                                  schema:
+                                    type: string
+                                    format: byte
+                                    description: JSON schema for template validation (base64 encoded)
+                                  readme:
+                                    type: string
+                                    description: Readme content for the chart template
+                                  isBasicViewLocked:
+                                    type: boolean
+                                    description: Whether basic view is locked
+                                  currentViewEditor:
+                                    type: string
+                                    description: Current view editor type
+                                    enum: ["UNDEFINED", "BASIC", "ADVANCED"]
+                              - type: object
+                                description: Default template configuration when app has no existing template
+                                properties:
+                                  schema:
+                                    type: string
+                                    format: byte
+                                    description: JSON schema for template validation
+                                  readme:
+                                    type: string
+                                    description: Readme content for the chart template
+                              - type: "null"
+                                description: No configuration available
+              examples:
+                with_existing_template:
+                  summary: Response with existing template
+                  value:
+                    code: 200
+                    status: "OK"
+                    result:
+                      globalConfig:
+                        id: 1
+                        appId: 12
+                        refChartTemplate: "Deployment"
+                        refChartTemplateVersion: "5.0.0"
+                        chartRepositoryId: 1
+                        valuesOverride: {}
+                        latest: true
+                        chartRefId: 45
+                        isAppMetricsEnabled: false
+                        schema: "eyJ0eXBlIjogIm9iamVjdCJ9"
+                        readme: "# Deployment Template\n\nThis is a deployment template..."
+                        isBasicViewLocked: false
+                        currentViewEditor: "ADVANCED"
+                default_template:
+                  summary: Response with default template (no existing config)
+                  value:
+                    code: 200
+                    status: "OK"
+                    result:
+                      globalConfig:
+                        schema: "eyJ0eXBlIjogIm9iamVjdCJ9"
+                        readme: "# Default Template\n\nDefault deployment template..."
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_app_id:
+                  summary: Invalid appId parameter
+                  value:
+                    code: 400
+                    status: "Bad Request"
+                    errors:
+                      - code: "11001"
+                        userMessage: "Invalid path parameter 'appId': must be a valid integer"
+                        internalMessage: "strconv.Atoi: parsing \"abc\": invalid syntax"
+                invalid_chart_ref_id:
+                  summary: Invalid chartRefId parameter
+                  value:
+                    code: 400
+                    status: "Bad Request"
+                    errors:
+                      - code: "11001"
+                        userMessage: "Invalid path parameter 'chartRefId': must be a valid integer"
+                        internalMessage: "strconv.Atoi: parsing \"xyz\": invalid syntax"
+                app_not_found:
+                  summary: Application not found
+                  value:
+                    code: 400
+                    status: "Bad Request"
+                    errors:
+                      - code: "11006"
+                        userMessage: "Application with ID '12' not found"
+                        internalMessage: "pg: no rows in result set"
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                unauthorized:
+                  summary: Missing or invalid authentication token
+                  value:
+                    code: 401
+                    status: "Unauthorized"
+                    errors:
+                      - code: "11010"
+                        userMessage: "Authentication required"
+                        internalMessage: "unauthorized"
+        '403':
+          description: Forbidden - Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                forbidden:
+                  summary: User lacks permission to access this application
+                  value:
+                    code: 403
+                    status: "Forbidden"
+                    errors:
+                      - code: "11008"
+                        userMessage: "You do not have permission to view this application"
+                        internalMessage: "Unauthorized User"
+                chart_not_found:
+                  summary: Chart reference not found
+                  value:
+                    code: 403
+                    status: "Forbidden"
+                    errors:
+                      - code: "11006"
+                        userMessage: "Chart reference with ID '45' not found"
+                        internalMessage: "refChartDir Not Found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                internal_error:
+                  summary: Unexpected server error
+                  value:
+                    code: 500
+                    status: "Internal Server Error"
+                    errors:
+                      - code: "11009"
+                        userMessage: "An unexpected error occurred while retrieving template data"
+                        internalMessage: "database connection failed"
+      security:
+        - bearerAuth: []
+
   /app/env/{appId}/{envId}:
     get:
       tags:
