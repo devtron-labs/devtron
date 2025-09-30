@@ -1,3 +1,5 @@
+## v1.8.2
+
 ## Enhancements
 - feat: linked ci should have artifacts of parent ci (#6836)
 ## Bugs
@@ -7,3 +9,5 @@
 ## Others
 - misc: develop sync for specs (#6843)
 - misc: Api specs and validations added (#6807)
+
+

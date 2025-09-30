@@ -42,7 +42,7 @@ nfs:
 extraManifests: []
 installer:
   repo: "devtron-labs/devtron"
-  release: "v1.8.1"
+  release: "v1.8.2"
   registry: ""
   image: inception
   tag: 473deaa4-185-21582
