@@ -2,6 +2,12 @@ openapi: "3.0.0"
 info:
   version: 1.0.0
   title: Deployment History API
+  description: API for retrieving deployment history and component details
+
+servers:
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
 paths:
   /orchestrator/app/history/deployed-component/detail/{appId}/{pipelineId}/{id}:
     get:

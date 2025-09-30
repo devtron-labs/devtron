@@ -18,7 +18,8 @@ package trigger
 
 import (
 	"encoding/json"
-	"fmt"
+	"net/http"
+
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	bean5 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
@@ -27,14 +28,11 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	bean4 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
-	"net/http"
-	"strconv"
 
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/util"
-	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
 
 	"github.com/devtron-labs/devtron/api/bean"
@@ -99,43 +97,54 @@ func (handler PipelineTriggerRestHandlerImpl) validateCdTriggerRBAC(token string
 	// RBAC block starts from here
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
-		return util2.NewApiError(http.StatusForbidden, common.UnAuthorisedUser, common.UnAuthorisedUser)
+		return util2.NewApiError(http.StatusForbidden,
+			"Access denied for application trigger operation",
+			"forbidden").WithCode("11011")
 	}
 	object = handler.enforcerUtil.GetAppRBACByAppIdAndPipelineId(appId, cdPipelineId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, object); !ok {
-		return util2.NewApiError(http.StatusForbidden, common.UnAuthorisedUser, common.UnAuthorisedUser)
+		return util2.NewApiError(http.StatusForbidden,
+			"Access denied for environment trigger operation",
+			"forbidden").WithCode("11011")
 	}
 	// RBAC block ends here
 	return nil
 }
 
 func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
+	// 1. Authentication check
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.HandleUnauthorized(w, r)
 		return
 	}
+
+	// 2. Request body parsing
+	decoder := json.NewDecoder(r.Body)
 	var overrideRequest bean.ValuesOverrideRequest
 	err = decoder.Decode(&overrideRequest)
 	if err != nil {
-		handler.logger.Errorw("request err, OverrideConfig", "err", err, "payload", overrideRequest)
+		handler.logger.Errorw("request parsing error", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	overrideRequest.UserId = userId
-	handler.logger.Infow("request for OverrideConfig", "payload", overrideRequest)
+
+	// 3. Struct validation
 	err = handler.validator.Struct(overrideRequest)
 	if err != nil {
-		handler.logger.Errorw("request err, OverrideConfig", "err", err, "payload", overrideRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.logger.Errorw("validation error", "err", err, "payload", overrideRequest)
+		common.HandleValidationErrors(w, r, err)
 		return
 	}
+
+	// 4. RBAC validation
 	token := r.Header.Get("token")
 	if rbacErr := handler.validateCdTriggerRBAC(token, overrideRequest.AppId, overrideRequest.PipelineId); rbacErr != nil {
-		common.WriteJsonResp(w, rbacErr, nil, http.StatusForbidden)
+		common.WriteJsonResp(w, rbacErr, nil, rbacErr.(*util2.ApiError).HttpStatusCode)
 		return
 	}
+	// 5. Service call with enhanced error handling
 	ctx := r.Context()
 	_, span := otel.Tracer("orchestrator").Start(ctx, "workflowDagExecutor.ManualCdTrigger")
 	triggerContext := bean3.TriggerContext{
@@ -151,47 +160,60 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 	mergeResp, helmPackageName, _, err := handler.cdHandlerService.ManualCdTrigger(triggerContext, &overrideRequest, userMetadata)
 	span.End()
 	if err != nil {
-		handler.logger.Errorw("request err, OverrideConfig", "err", err, "payload", overrideRequest)
-		common.WriteJsonResp(w, err, err.Error(), http.StatusInternalServerError)
+		handler.logger.Errorw("service error", "err", err, "payload", overrideRequest)
+
+		// Use enhanced error response builder
+		errBuilder := common.NewErrorResponseBuilder(w, r).
+			WithOperation("CD pipeline trigger").
+			WithResourceFromId("pipeline", overrideRequest.PipelineId)
+		errBuilder.HandleError(err)
 		return
 	}
+
+	// 6. Success response
 	res := map[string]interface{}{"releaseId": mergeResp, "helmPackageName": helmPackageName}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
 func (handler PipelineTriggerRestHandlerImpl) RotatePods(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
+	// 1. Authentication check
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.HandleUnauthorized(w, r)
 		return
 	}
+
+	// 2. Request body parsing
+	decoder := json.NewDecoder(r.Body)
 	var podRotateRequest bean2.PodRotateRequest
 	err = decoder.Decode(&podRotateRequest)
 	if err != nil {
-		handler.logger.Errorw("request err, RotatePods", "err", err, "payload", podRotateRequest)
+		handler.logger.Errorw("request parsing error", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	podRotateRequest.UserId = userId
-	handler.logger.Infow("request payload, RotatePods", "err", err, "payload", podRotateRequest)
+
+	// 3. Struct validation
 	err = handler.validator.Struct(podRotateRequest)
 	if err != nil {
-		handler.logger.Errorw("validation err, RotatePods", "err", err, "payload", podRotateRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.logger.Errorw("validation error", "err", err, "payload", podRotateRequest)
+		common.HandleValidationErrors(w, r, err)
 		return
 	}
+	// 4. RBAC validation
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(podRotateRequest.AppId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteForbiddenError(w, "pod rotation", "application")
 		return
 	}
 	object = handler.enforcerUtil.GetEnvRBACNameByAppId(podRotateRequest.AppId, podRotateRequest.EnvironmentId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, object); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteForbiddenError(w, "pod rotation", "environment")
 		return
 	}
+	// 5. Service call with enhanced error handling
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 	userEmail := util.GetEmailFromContext(r.Context())
 	userMetadata := &bean5.UserMetadata{
@@ -201,48 +223,59 @@ func (handler PipelineTriggerRestHandlerImpl) RotatePods(w http.ResponseWriter, 
 	}
 	rotatePodResponse, err := handler.deployedAppService.RotatePods(r.Context(), &podRotateRequest, userMetadata)
 	if err != nil {
-		handler.logger.Errorw("service err, RotatePods", "err", err, "payload", podRotateRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		handler.logger.Errorw("service error", "err", err, "payload", podRotateRequest)
+
+		// Use enhanced error response builder
+		errBuilder := common.NewErrorResponseBuilder(w, r).
+			WithOperation("pod rotation").
+			WithResourceFromId("application", podRotateRequest.AppId)
+		errBuilder.HandleError(err)
 		return
 	}
+
+	// 6. Success response
 	common.WriteJsonResp(w, nil, rotatePodResponse, http.StatusOK)
 }
 
 func (handler PipelineTriggerRestHandlerImpl) StartStopApp(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
+	// 1. Authentication check
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.HandleUnauthorized(w, r)
 		return
 	}
+
+	// 2. Request body parsing
+	decoder := json.NewDecoder(r.Body)
 	var overrideRequest bean2.StopAppRequest
 	err = decoder.Decode(&overrideRequest)
 	if err != nil {
-		handler.logger.Errorw("request err, StartStopApp", "err", err, "payload", overrideRequest)
+		handler.logger.Errorw("request parsing error", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	overrideRequest.UserId = userId
-	handler.logger.Infow("request payload, StartStopApp", "err", err, "payload", overrideRequest)
+
+	// 3. Struct validation
 	err = handler.validator.Struct(overrideRequest)
 	if err != nil {
-		handler.logger.Errorw("validation err, StartStopApp", "err", err, "payload", overrideRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.logger.Errorw("validation error", "err", err, "payload", overrideRequest)
+		common.HandleValidationErrors(w, r, err)
 		return
 	}
+	// 4. RBAC validation
 	token := r.Header.Get("token")
-	//rbac block starts from here
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(overrideRequest.AppId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteForbiddenError(w, "start/stop", "application")
 		return
 	}
 	object = handler.enforcerUtil.GetEnvRBACNameByAppId(overrideRequest.AppId, overrideRequest.EnvironmentId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, object); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteForbiddenError(w, "start/stop", "environment")
 		return
 	}
-	//rback block ends here
+	// 5. Service call with enhanced error handling
 	ctx := r.Context()
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 	userEmail := util.GetEmailFromContext(ctx)
@@ -253,58 +286,72 @@ func (handler PipelineTriggerRestHandlerImpl) StartStopApp(w http.ResponseWriter
 	}
 	mergeResp, err := handler.deployedAppService.StopStartApp(ctx, &overrideRequest, userMetadata)
 	if err != nil {
-		handler.logger.Errorw("service err, StartStopApp", "err", err, "payload", overrideRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		handler.logger.Errorw("service error", "err", err, "payload", overrideRequest)
+
+		// Use enhanced error response builder
+		errBuilder := common.NewErrorResponseBuilder(w, r).
+			WithOperation("application start/stop").
+			WithResourceFromId("application", overrideRequest.AppId)
+		errBuilder.HandleError(err)
 		return
 	}
+
+	// 6. Success response
 	res := map[string]interface{}{"releaseId": mergeResp}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
 func (handler PipelineTriggerRestHandlerImpl) StartStopDeploymentGroup(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-
+	// 1. Authentication check
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.HandleUnauthorized(w, r)
 		return
 	}
+
+	// 2. Request body parsing
+	decoder := json.NewDecoder(r.Body)
 	var stopDeploymentGroupRequest bean4.StopDeploymentGroupRequest
 	err = decoder.Decode(&stopDeploymentGroupRequest)
 	if err != nil {
-		handler.logger.Errorw("request err, StartStopDeploymentGroup", "err", err, "payload", stopDeploymentGroupRequest)
+		handler.logger.Errorw("request parsing error", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	stopDeploymentGroupRequest.UserId = userId
+
+	// 3. Struct validation
 	err = handler.validator.Struct(stopDeploymentGroupRequest)
 	if err != nil {
-		handler.logger.Errorw("validation err, StartStopDeploymentGroup", "err", err, "payload", stopDeploymentGroupRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.logger.Errorw("validation error", "err", err, "payload", stopDeploymentGroupRequest)
+		// Enhanced validation error handling
+		common.HandleValidationErrors(w, r, err)
 		return
 	}
-	handler.logger.Infow("request payload, StartStopDeploymentGroup", "err", err, "payload", stopDeploymentGroupRequest)
 
-	//rbac block starts from here
+	// 4. Deployment group retrieval and RBAC validation
 	dg, err := handler.deploymentGroupService.GetDeploymentGroupById(stopDeploymentGroupRequest.DeploymentGroupId)
 	if err != nil {
-		handler.logger.Errorw("request err, StartStopDeploymentGroup", "err", err, "payload", stopDeploymentGroupRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		handler.logger.Errorw("deployment group retrieval error", "err", err, "deploymentGroupId", stopDeploymentGroupRequest.DeploymentGroupId)
+
+		// Use enhanced error response with resource context
+		common.WriteJsonRespWithResourceContextFromId(w, err, nil, 0, "deployment group", stopDeploymentGroupRequest.DeploymentGroupId)
 		return
 	}
+
 	token := r.Header.Get("token")
 	// RBAC enforcer applying
 	object := handler.enforcerUtil.GetTeamRBACByCiPipelineId(dg.CiPipelineId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteForbiddenError(w, "deployment group start/stop", "application")
 		return
 	}
 	object = handler.enforcerUtil.GetEnvRBACNameByCiPipelineIdAndEnvId(dg.CiPipelineId, dg.EnvironmentId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, object); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteForbiddenError(w, "deployment group start/stop", "environment")
 		return
 	}
-	//rback block ends here
+	// 5. Service call with enhanced error handling
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 	userEmail := util.GetEmailFromContext(r.Context())
 	userMetadata := &bean5.UserMetadata{
@@ -314,72 +361,93 @@ func (handler PipelineTriggerRestHandlerImpl) StartStopDeploymentGroup(w http.Re
 	}
 	res, err := handler.workflowEventPublishService.TriggerBulkHibernateAsync(stopDeploymentGroupRequest, userMetadata)
 	if err != nil {
-		handler.logger.Errorw("service err, StartStopDeploymentGroup", "err", err, "payload", stopDeploymentGroupRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		handler.logger.Errorw("service error", "err", err, "payload", stopDeploymentGroupRequest)
+
+		// Use enhanced error response builder
+		errBuilder := common.NewErrorResponseBuilder(w, r).
+			WithOperation("deployment group start/stop").
+			WithResourceFromId("deployment group", stopDeploymentGroupRequest.DeploymentGroupId)
+		errBuilder.HandleError(err)
 		return
 	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
+
+	// 6. Success response
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
 func (handler PipelineTriggerRestHandlerImpl) ReleaseStatusUpdate(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
+	// 1. Authentication check
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.HandleUnauthorized(w, r)
 		return
 	}
+
+	// 2. Request body parsing
+	decoder := json.NewDecoder(r.Body)
 	var releaseStatusUpdateRequest bean.ReleaseStatusUpdateRequest
 	err = decoder.Decode(&releaseStatusUpdateRequest)
 	if err != nil {
-		handler.logger.Errorw("request err, ReleaseStatusUpdate", "err", err, "payload", releaseStatusUpdateRequest)
+		handler.logger.Errorw("request parsing error", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	handler.logger.Infow("request payload, ReleaseStatusUpdate, override request ----", "err", err, "payload", releaseStatusUpdateRequest)
-	res, err := handler.appService.UpdateReleaseStatus(&releaseStatusUpdateRequest)
+
+	// 3. Struct validation (if validator is available for this struct)
+	err = handler.validator.Struct(releaseStatusUpdateRequest)
 	if err != nil {
-		handler.logger.Errorw("service err, ReleaseStatusUpdate", "err", err, "payload", releaseStatusUpdateRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		handler.logger.Errorw("validation error", "err", err, "payload", releaseStatusUpdateRequest)
+		// Enhanced validation error handling
+		common.HandleValidationErrors(w, r, err)
 		return
 	}
-	m := map[string]bool{
-		"status": res}
-	resJson, err := json.Marshal(m)
+
+	// 4. Service call with enhanced error handling
+	res, err := handler.appService.UpdateReleaseStatus(&releaseStatusUpdateRequest)
 	if err != nil {
-		handler.logger.Errorw("marshal err, ReleaseStatusUpdate", "err", err, "payload", m)
+		handler.logger.Errorw("service error", "err", err, "payload", releaseStatusUpdateRequest)
+
+		// Use enhanced error response builder
+		errBuilder := common.NewErrorResponseBuilder(w, r).
+			WithOperation("release status update")
+		errBuilder.HandleError(err)
+		return
 	}
-	common.WriteJsonResp(w, err, resJson, http.StatusOK)
+
+	// 5. Success response
+	response := map[string]bool{"status": res}
+	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 
 func (handler PipelineTriggerRestHandlerImpl) GetAllLatestDeploymentConfiguration(w http.ResponseWriter, r *http.Request) {
+	// 1. Authentication check
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.HandleUnauthorized(w, r)
 		return
 	}
-	handler.logger.Infow("request payload, GetAllLatestDeploymentConfiguration")
 
-	vars := mux.Vars(r)
-	appId, err := strconv.Atoi(vars["appId"])
+	// 2. Enhanced path parameter extraction
+	appId, err := common.ExtractIntPathParamWithContext(w, r, "appId")
 	if err != nil {
-		handler.logger.Errorw("request err, GetAllDeployedConfigurationHistoryForSpecificWfrIdForPipeline", "err", err, "appId", appId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		// Error already written by ExtractIntPathParamWithContext
 		return
 	}
-	pipelineId, err := strconv.Atoi(vars["pipelineId"])
+
+	pipelineId, err := common.ExtractIntPathParamWithContext(w, r, "pipelineId")
 	if err != nil {
-		handler.logger.Errorw("request err, GetAllDeployedConfigurationHistoryForSpecificWfrIdForPipeline", "err", err, "pipelineId", pipelineId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		// Error already written by ExtractIntPathParamWithContext
 		return
 	}
-	//RBAC START
+	// 3. RBAC validation
 	token := r.Header.Get("token")
 	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteForbiddenError(w, "view", "application deployment configuration")
 		return
 	}
-	//RBAC END
+
+	// 4. Service call with enhanced error handling
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	ctx := r.Context()
 	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
@@ -387,9 +455,13 @@ func (handler PipelineTriggerRestHandlerImpl) GetAllLatestDeploymentConfiguratio
 	userHasAdminAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName)
 	allDeploymentconfig, err := handler.deploymentConfigService.GetLatestDeploymentConfigurationByPipelineId(ctx, pipelineId, userHasAdminAccess)
 	if err != nil {
-		handler.logger.Errorw("error in getting latest deployment config, GetAllDeployedConfigurationHistoryForSpecificWfrIdForPipeline", "err", err, "pipelineId", pipelineId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		handler.logger.Errorw("service error", "err", err, "pipelineId", pipelineId)
+
+		// Use enhanced error response with resource context
+		common.WriteJsonRespWithResourceContextFromId(w, err, nil, 0, "pipeline", pipelineId)
 		return
 	}
+
+	// 5. Success response
 	common.WriteJsonResp(w, nil, allDeploymentconfig, http.StatusOK)
 }

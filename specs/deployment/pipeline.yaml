@@ -56,29 +56,66 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /orchestrator/deployment/pipeline/trigger:
+  /orchestrator/app/cd-pipeline/trigger:
     post:
-      description: Trigger a deployment pipeline
+      description: Trigger a CD pipeline deployment with configuration override
       requestBody:
-        description: Pipeline trigger details
+        description: CD pipeline trigger details with deployment configuration
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PipelineTrigger'
+              $ref: '#/components/schemas/CdPipelineTrigger'
+            examples:
+              manual_trigger:
+                summary: Manual deployment trigger
+                value:
+                  pipelineId: 789
+                  artifactId: 98765
+                  triggeredBy: 123
+                  deploymentType: "HELM"
+                  deploymentStrategy: "ROLLING"
+                  configOverrides:
+                    replicas: 3
+                    environment: "production"
+                  runtimeParameters:
+                    CPU_LIMIT: "500m"
+                    MEMORY_LIMIT: "512Mi"
       responses:
         '200':
-          description: Pipeline triggered successfully
+          description: CD pipeline triggered successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PipelineTriggerResponse'
+                $ref: '#/components/schemas/CdPipelineTriggerResponse'
+              examples:
+                successful_trigger:
+                  summary: Successful trigger
+                  value:
+                    code: 200
+                    status: "OK"
+                    result:
+                      workflowId: 12345
+                      workflowRunnerId: 67890
+                      pipelineId: 789
+                      status: "Starting"
+                      message: "CD pipeline triggered successfully"
         '400':
-          description: Bad Request
+          description: Bad Request - Invalid trigger parameters
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_pipeline:
+                  summary: Invalid pipeline ID
+                  value:
+                    code: 400
+                    status: "Bad Request"
+                    errors:
+                      - code: "000"
+                        internalMessage: "invalid pipelineId: pipeline not found"
+                        userMessage: "The specified pipeline does not exist"
         '401':
           description: Unauthorized
           content:
@@ -86,11 +123,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Forbidden
+          description: Forbidden - Insufficient permissions
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                insufficient_permissions:
+                  summary: Insufficient permissions
+                  value:
+                    code: 403
+                    status: "Forbidden"
+                    errors:
+                      - code: "000"
+                        internalMessage: "unauthorized user"
+                        userMessage: "Insufficient permissions to trigger this pipeline"
         '500':
           description: Internal Server Error
           content:
@@ -140,29 +187,88 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /orchestrator/deployment/pipeline/history:
-    get:
-      description: Get deployment pipeline history
-      parameters:
-        - name: appId
-          in: query
-          required: true
-          schema:
-            type: integer
-            description: Application ID
-        - name: envId
-          in: query
-          required: true
-          schema:
-            type: integer
-            description: Environment ID
+  /orchestrator/app/update-release-status:
+    post:
+      description: Update release status for a deployment
+      requestBody:
+        description: Release status update details
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReleaseStatusUpdate'
+            examples:
+              success_update:
+                summary: Mark release as successful
+                value:
+                  workflowRunnerId: 67890
+                  status: "SUCCESS"
+                  message: "Deployment completed successfully"
+                  updatedBy: 123
       responses:
         '200':
-          description: Pipeline history retrieved successfully
+          description: Release status updated successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PipelineHistory'
+                $ref: '#/components/schemas/ReleaseStatusResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/app/stop-start-app:
+    post:
+      description: Start or stop application pods
+      requestBody:
+        description: Application start/stop request
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppStartStopRequest'
+            examples:
+              stop_app:
+                summary: Stop application
+                value:
+                  appId: 123
+                  environmentId: 456
+                  action: "STOP"
+                  requestedBy: 789
+              start_app:
+                summary: Start application
+                value:
+                  appId: 123
+                  environmentId: 456
+                  action: "START"
+                  requestedBy: 789
+      responses:
+        '200':
+          description: Application start/stop operation initiated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppStartStopResponse'
         '400':
           description: Bad Request
           content:
@@ -243,39 +349,223 @@ components:
               type: string
               description: Name of the pipeline
 
-    PipelineTrigger:
+    CdPipelineTrigger:
       type: object
       required:
         - pipelineId
+        - artifactId
+        - triggeredBy
       properties:
         pipelineId:
           type: integer
-          description: Pipeline ID
+          description: CD Pipeline ID
+          minimum: 1
+          example: 789
         artifactId:
           type: integer
           description: Artifact ID to deploy
+          minimum: 1
+          example: 98765
         triggeredBy:
           type: integer
           description: User ID who triggered the pipeline
+          minimum: 1
+          example: 123
+        deploymentType:
+          type: string
+          description: Type of deployment
+          enum: ["HELM", "ARGOCD", "MANIFEST"]
+          example: "HELM"
+        deploymentStrategy:
+          type: string
+          description: Deployment strategy
+          enum: ["ROLLING", "BLUE_GREEN", "RECREATE", "CANARY"]
+          example: "ROLLING"
+        configOverrides:
+          type: object
+          description: Configuration overrides for this deployment
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: number
+              - type: boolean
+          example:
+            replicas: 3
+            environment: "production"
+            enableMetrics: true
+        runtimeParameters:
+          type: object
+          description: Runtime parameters for deployment
+          additionalProperties:
+            type: string
+          example:
+            CPU_LIMIT: "500m"
+            MEMORY_LIMIT: "512Mi"
+            LOG_LEVEL: "INFO"
+        preDeploymentScript:
+          type: string
+          description: Pre-deployment script to execute
+          example: "#!/bin/bash\necho 'Running pre-deployment checks...'"
+        postDeploymentScript:
+          type: string
+          description: Post-deployment script to execute
+          example: "#!/bin/bash\necho 'Running post-deployment validation...'"
 
-    PipelineTriggerResponse:
+    CdPipelineTriggerResponse:
       type: object
       properties:
         code:
           type: integer
-          description: Status code
+          description: HTTP status code
+          example: 200
         status:
           type: string
-          description: Status message
+          description: Response status
+          example: "OK"
         result:
           type: object
           properties:
-            pipelineId:
-              type: integer
-              description: Pipeline ID
             workflowId:
               type: integer
               description: Workflow ID
+              example: 12345
+            workflowRunnerId:
+              type: integer
+              description: Workflow Runner ID
+              example: 67890
+            pipelineId:
+              type: integer
+              description: Pipeline ID
+              example: 789
+            status:
+              type: string
+              description: Initial workflow status
+              enum: ["Starting", "Queued", "Failed"]
+              example: "Starting"
+            message:
+              type: string
+              description: Status message
+              example: "CD pipeline triggered successfully"
+
+    ReleaseStatusUpdate:
+      type: object
+      required:
+        - workflowRunnerId
+        - status
+        - updatedBy
+      properties:
+        workflowRunnerId:
+          type: integer
+          description: Workflow Runner ID
+          minimum: 1
+          example: 67890
+        status:
+          type: string
+          description: Release status
+          enum: ["SUCCESS", "FAILED", "CANCELLED", "TIMEOUT"]
+          example: "SUCCESS"
+        message:
+          type: string
+          description: Status message or failure reason
+          example: "Deployment completed successfully"
+        updatedBy:
+          type: integer
+          description: User ID who updated the status
+          minimum: 1
+          example: 123
+
+    ReleaseStatusResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+          example: 200
+        status:
+          type: string
+          description: Response status
+          example: "OK"
+        result:
+          type: object
+          properties:
+            workflowRunnerId:
+              type: integer
+              description: Workflow Runner ID
+              example: 67890
+            status:
+              type: string
+              description: Updated release status
+              example: "SUCCESS"
+            updatedAt:
+              type: string
+              format: date-time
+              description: Timestamp when status was updated
+              example: "2024-01-15T10:35:00Z"
+
+    AppStartStopRequest:
+      type: object
+      required:
+        - appId
+        - environmentId
+        - action
+        - requestedBy
+      properties:
+        appId:
+          type: integer
+          description: Application ID
+          minimum: 1
+          example: 123
+        environmentId:
+          type: integer
+          description: Environment ID
+          minimum: 1
+          example: 456
+        action:
+          type: string
+          description: Action to perform
+          enum: ["START", "STOP"]
+          example: "STOP"
+        requestedBy:
+          type: integer
+          description: User ID who requested the action
+          minimum: 1
+          example: 789
+
+    AppStartStopResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+          example: 200
+        status:
+          type: string
+          description: Response status
+          example: "OK"
+        result:
+          type: object
+          properties:
+            appId:
+              type: integer
+              description: Application ID
+              example: 123
+            environmentId:
+              type: integer
+              description: Environment ID
+              example: 456
+            action:
+              type: string
+              description: Action performed
+              example: "STOP"
+            status:
+              type: string
+              description: Operation status
+              enum: ["INITIATED", "IN_PROGRESS", "COMPLETED", "FAILED"]
+              example: "INITIATED"
+            message:
+              type: string
+              description: Operation message
+              example: "Application stop operation initiated successfully"
 
     PipelineRollback:
       type: object
