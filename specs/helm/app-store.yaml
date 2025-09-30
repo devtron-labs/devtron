@@ -258,6 +258,180 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /orchestrator/app-store/deployment/application/version/{installedAppVersionId}:
+    get:
+      tags:
+        - App Store Deployment
+      summary: Get installed app version details
+      description: |
+        Retrieves detailed information about a specific installed app version.
+        This endpoint returns the complete configuration, values, and metadata
+        for a deployed app store application version.
+
+        **Authentication & Authorization**:
+        - Requires valid user session
+        - User must have GET permission on the Helm app resource
+        - RBAC enforced based on cluster, namespace, and app name
+
+        **Use Cases**:
+        - View current deployment configuration
+        - Retrieve values.yaml for an installed app
+        - Get chart version and metadata
+        - Access deployment history reference
+      operationId: getInstalledAppVersion
+      parameters:
+        - name: installedAppVersionId
+          in: path
+          required: true
+          description: |
+            The ID of the installed app version to retrieve.
+            This is the unique identifier for a specific version of a deployed app.
+          schema:
+            type: integer
+            minimum: 1
+          example: 2
+      responses:
+        '200':
+          description: Installed app version details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    description: HTTP status code
+                    example: 200
+                  status:
+                    type: string
+                    description: Response status
+                    example: "OK"
+                  result:
+                    $ref: '#/components/schemas/InstallAppVersionDTO'
+              examples:
+                successful_response:
+                  summary: Successful retrieval of installed app version
+                  value:
+                    code: 200
+                    status: "OK"
+                    result:
+                      id: 2
+                      appId: 12
+                      appName: "my-app"
+                      teamId: 1
+                      teamName: "devtron-demo"
+                      environmentId: 1
+                      installedAppId: 5
+                      installedAppVersionId: 2
+                      appStoreVersion: 45
+                      valuesOverrideYaml: |
+                        replicaCount: 2
+                        image:
+                          tag: "v1.0.0"
+                      readme: "# Application README\n\nThis is the application documentation."
+                      referenceValueId: 1
+                      referenceValueKind: "DEFAULT"
+                      appStoreId: 10
+                      appStoreName: "nginx"
+                      deprecated: false
+                      clusterId: 1
+                      namespace: "default"
+                      appOfferingMode: "FULL"
+                      gitOpsPath: "my-app-default"
+                      deploymentAppType: "HELM"
+                      helmPackageName: "nginx-1.0.0"
+        '400':
+          description: Bad Request - Invalid installedAppVersionId parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_parameter:
+                  summary: Invalid installedAppVersionId
+                  value:
+                    code: 400
+                    status: "Bad Request"
+                    errors:
+                      - code: "11001"
+                        userMessage: "Invalid path parameter 'installedAppVersionId': must be a valid positive integer"
+                        internalMessage: "strconv.Atoi: parsing \"abc\": invalid syntax"
+                outdated_values:
+                  summary: Outdated values error
+                  value:
+                    code: 400
+                    status: "Bad Request"
+                    errors:
+                      - code: "400"
+                        userMessage: "values are outdated. please fetch the latest version and try again"
+                        internalMessage: "sql: no rows in result set"
+        '401':
+          description: Unauthorized - Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                unauthorized:
+                  summary: User not authenticated
+                  value:
+                    code: 401
+                    status: "Unauthorized"
+                    errors:
+                      - code: "11010"
+                        userMessage: "Authentication required. Please log in to continue."
+                        internalMessage: "unauthorized"
+        '403':
+          description: Forbidden - Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                forbidden:
+                  summary: User lacks permissions
+                  value:
+                    code: 403
+                    status: "Forbidden"
+                    errors:
+                      - code: "11008"
+                        userMessage: "Access denied. You do not have permission to view this installed app version."
+                        internalMessage: "unauthorized user"
+        '404':
+          description: Not Found - Installed app version does not exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                not_found:
+                  summary: Installed app version not found
+                  value:
+                    code: 404
+                    status: "Not Found"
+                    errors:
+                      - code: "11006"
+                        userMessage: "Installed app version with ID '2' not found"
+                        internalMessage: "sql: no rows in result set"
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                internal_error:
+                  summary: Unexpected server error
+                  value:
+                    code: 500
+                    status: "Internal Server Error"
+                    errors:
+                      - code: "11009"
+                        userMessage: "An unexpected error occurred while retrieving the installed app version"
+                        internalMessage: "database connection failed"
+      security:
+        - bearerAuth: []
+
 components:
   schemas:
     AppStoreApplication:
@@ -401,6 +575,136 @@ components:
             $ref: '#/components/schemas/AppStoreApplication'
           description: List of app store applications
 
+    InstallAppVersionDTO:
+      type: object
+      description: |
+        Complete details of an installed app version including configuration,
+        values, and deployment metadata.
+      properties:
+        id:
+          type: integer
+          description: Installed app version ID (same as installedAppVersionId)
+          example: 2
+        appId:
+          type: integer
+          description: Application ID
+          example: 12
+        appName:
+          type: string
+          description: Application name (can be display name for external apps)
+          example: "my-app"
+        teamId:
+          type: integer
+          description: Team/Project ID
+          example: 1
+        teamName:
+          type: string
+          description: Team/Project name
+          example: "devtron-demo"
+        environmentId:
+          type: integer
+          description: Environment ID where the app is deployed
+          example: 1
+        installedAppId:
+          type: integer
+          description: Installed app ID
+          example: 5
+        installedAppVersionId:
+          type: integer
+          description: Installed app version ID
+          example: 2
+        installedAppVersionHistoryId:
+          type: integer
+          description: Installed app version history ID (for rollback reference)
+          example: 10
+        appStoreVersion:
+          type: integer
+          description: App store application version ID (chart version reference)
+          example: 45
+        valuesOverrideYaml:
+          type: string
+          description: YAML string containing custom values that override chart defaults
+          example: |
+            replicaCount: 2
+            image:
+              tag: "v1.0.0"
+            service:
+              type: ClusterIP
+        readme:
+          type: string
+          description: README documentation for the chart
+          example: "# Application README\n\nThis is the application documentation."
+        referenceValueId:
+          type: integer
+          description: Reference value ID (points to template or deployed values)
+          example: 1
+        referenceValueKind:
+          type: string
+          description: Kind of reference value
+          enum: ["DEFAULT", "TEMPLATE", "DEPLOYED", "EXISTING"]
+          example: "DEFAULT"
+        appStoreId:
+          type: integer
+          description: App store application ID
+          example: 10
+        appStoreName:
+          type: string
+          description: App store application name (chart name)
+          example: "nginx"
+        deprecated:
+          type: boolean
+          description: Whether this chart version is deprecated
+          example: false
+        clusterId:
+          type: integer
+          description: Cluster ID where the app is deployed
+          example: 1
+        namespace:
+          type: string
+          description: Kubernetes namespace where the app is deployed
+          example: "default"
+        appOfferingMode:
+          type: string
+          description: App offering mode (FULL, EA_ONLY, etc.)
+          example: "FULL"
+        gitOpsPath:
+          type: string
+          description: GitOps repository path for this deployment
+          example: "my-app-default"
+        gitHash:
+          type: string
+          description: Git commit hash of the deployed version
+          example: "abc123def456"
+        deploymentAppType:
+          type: string
+          description: Deployment application type (HELM, GITOPS, etc.)
+          example: "HELM"
+        acdPartialDelete:
+          type: boolean
+          description: Whether ArgoCD partial delete is enabled
+          example: false
+        updatedOn:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-01-15T10:30:00Z"
+        isVirtualEnvironment:
+          type: boolean
+          description: Whether this is a virtual environment
+          example: false
+        helmPackageName:
+          type: string
+          description: Helm package name
+          example: "nginx-1.0.0"
+        gitRepoURL:
+          type: string
+          description: GitOps repository URL
+          example: "https://github.com/org/gitops-repo"
+        appStoreApplicationVersionId:
+          type: integer
+          description: App store application version ID
+          example: 45
+
     ErrorResponse:
       required:
         - code
@@ -434,3 +738,12 @@ components:
         userMessage:
           type: string
           description: Error user message
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token-based authentication. Include the token in the Authorization header
+        as: `Authorization: Bearer <token>`

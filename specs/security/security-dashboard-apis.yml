@@ -1,15 +1,129 @@
-openapi: '3.0.2'
+openapi: "3.0.3"
 info:
-  title: Security Scan API
-  version: '2.0'
-  description: API for managing security scans and vulnerability assessments
+  title: Devtron Security Scan API
+  description: API specifications for security scanning and vulnerability management in Devtron
+  version: "1.0.0"
+  contact:
+    name: Devtron Support
+    email: support@devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
 servers:
-  - url: https://api.server.test/v1
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+        status:
+          type: string
+        result:
+          type: object
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+        status:
+          type: string
+        errors:
+          type: array
+          items:
+            type: string
+
+    ImageScanRequest:
+      type: object
+      properties:
+        imageScanDeployInfoId:
+          type: integer
+          example: 123
+        image:
+          type: string
+          example: "nginx:latest"
+        artifactId:
+          type: integer
+          example: 456
+        appId:
+          type: integer
+          example: 789
+        envId:
+          type: integer
+          example: 101
+        size:
+          type: integer
+          example: 20
+        offset:
+          type: integer
+          example: 0
+
+    ImageScanHistoryResponse:
+      type: object
+      properties:
+        imageScanDeployInfoId:
+          type: integer
+        image:
+          type: string
+        tag:
+          type: string
+        appId:
+          type: integer
+        envId:
+          type: integer
+        executedOn:
+          type: string
+          format: date-time
+        executionHistory:
+          type: array
+          items:
+            type: object
+
+    ImageScanHistoryListingResponse:
+      type: object
+      properties:
+        imageScanHistoryResponse:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImageScanHistoryResponse'
+
+    VulnerabilityExposureRequest:
+      type: object
+      properties:
+        cveId:
+          type: string
+          example: "CVE-2025-1234"
+        appId:
+          type: integer
+          example: 123
+
+tags:
+  - name: Security Scans
+    description: Security scanning operations
+  - name: Vulnerability Management
+    description: Vulnerability exposure and policy management
+
 paths:
-  /orchestrator/security/scan/list:
+  /security/scan/list:
     post:
-      summary: Get list of scan executions
-      description: Fetch scan execution history with filtering options
+      tags:
+        - Security Scans
+      summary: Get scan execution list
+      description: Retrieves a list of security scan executions based on the provided criteria
       operationId: scanExecutionList
       requestBody:
         required: true
@@ -17,456 +131,246 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/ImageScanRequest'
+            example:
+              imageScanDeployInfoId: 123
+              image: "nginx:latest"
+              artifactId: 456
+              appId: 789
+              envId: 101
+              size: 20
+              offset: 0
       responses:
         '200':
-          description: List of scan executions
+          description: Scan execution list retrieved successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImageScanHistoryListingResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/ImageScanHistoryListingResponse'
         '400':
-          description: Bad request
+          description: Invalid request parameters
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '403':
           description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
 
-  /orchestrator/security/scan/executionDetail:
+  /security/scan/executionDetail:
     get:
-      summary: Fetch image scan execution result
-      description: Get detailed scan results by multiple ways for different use cases. At least one parameter is required.
+      tags:
+        - Security Scans
+      summary: Get scan execution detail
+      description: Retrieves detailed information about a specific scan execution
       operationId: fetchExecutionDetail
       parameters:
         - name: imageScanDeployInfoId
           in: query
-          description: Image scan deploy info ID for fetching scan result
           required: false
           schema:
             type: integer
-        - name: artifactId
-          in: query
-          description: CI artifact ID to fetch scan result for image
-          required: false
-          schema:
-            type: integer
-        - name: appId
-          in: query
-          description: Application ID for fetching scan result
-          required: false
-          schema:
-            type: integer
-        - name: envId
-          in: query
-          description: Environment ID for fetching scan result
-          required: false
-          schema:
-            type: integer
+          example: 123
         - name: image
           in: query
-          description: Image name to fetch scan result for
           required: false
           schema:
             type: string
+          example: "nginx:latest"
+        - name: artifactId
+          in: query
+          required: false
+          schema:
+            type: integer
+          example: 456
+        - name: appId
+          in: query
+          required: false
+          schema:
+            type: integer
+          example: 789
+        - name: envId
+          in: query
+          required: false
+          schema:
+            type: integer
+          example: 101
+        - name: executionId
+          in: query
+          required: false
+          schema:
+            type: integer
+          example: 999
       responses:
         '200':
-          description: Scan execution details
+          description: Scan execution detail retrieved successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImageScanExecutionDetail'
+                $ref: '#/components/schemas/ApiResponse'
         '400':
-          description: Bad request
+          description: Invalid request parameters
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '403':
           description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Scan execution not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
 
-  /orchestrator/security/scan/executionDetail/min:
+  /security/scan/executionDetail/min:
     get:
-      summary: Fetch minimal scan result by app and environment ID
-      description: Get minimal scan result information for a specific app and environment
-      operationId: fetchMinScanResult
+      tags:
+        - Security Scans
+      summary: Get minimal scan execution detail
+      description: Retrieves minimal scan result information by application and environment
+      operationId: fetchMinScanResultByAppIdAndEnvId
       parameters:
         - name: appId
           in: query
-          description: Application ID
           required: true
           schema:
             type: integer
+          example: 789
         - name: envId
           in: query
-          description: Environment ID
           required: true
           schema:
             type: integer
+          example: 101
       responses:
         '200':
-          description: Minimal scan execution details
+          description: Minimal scan result retrieved successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImageScanExecutionDetail'
+                $ref: '#/components/schemas/ApiResponse'
         '400':
-          description: Bad request
+          description: Invalid request parameters
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '403':
           description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Scan result not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
 
-  /orchestrator/security/scan/cve/exposure:
+  /security/scan/cve/exposure:
     post:
-      summary: Get vulnerability exposure information
-      description: Fetch vulnerability exposure data across applications and environments
+      tags:
+        - Vulnerability Management
+      summary: Get CVE vulnerability exposure
+      description: Retrieves vulnerability exposure information for a specific CVE
       operationId: vulnerabilityExposure
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/VulnerabilityRequest'
+              $ref: '#/components/schemas/VulnerabilityExposureRequest'
+            example:
+              cveId: "CVE-2025-1234"
+              appId: 123
       responses:
         '200':
-          description: Vulnerability exposure data
+          description: CVE exposure information retrieved successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/VulnerabilityExposureListingResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/ImageScanHistoryListingResponse'
         '400':
-          description: Bad request
+          description: Invalid request parameters
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '403':
           description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: CVE not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-components:
-  schemas:
-    Error:
-      description: Error object
-      type: object
-      required:
-        - code
-        - message
-      properties:
-        code:
-          type: integer
-          format: int32
-          description: Error code
-        message:
-          type: string
-          description: Error message
-
-    ImageScanRequest:
-      description: Request object for image scan operations
-      type: object
-      properties:
-        scanExecutionId:
-          type: integer
-          description: Scan execution ID
-        imageScanDeployInfoId:
-          type: integer
-          description: Image scan deploy info ID
-        appId:
-          type: integer
-          description: Application ID
-        envId:
-          type: integer
-          description: Environment ID
-        objectId:
-          type: integer
-          description: Object ID
-        artifactId:
-          type: integer
-          description: Artifact ID
-        image:
-          type: string
-          description: Image name
-        offset:
-          type: integer
-          description: Pagination offset
-        size:
-          type: integer
-          description: Page size
-
-    ImageScanHistoryListingResponse:
-      description: Response containing list of scan history
-      type: object
-      properties:
-        offset:
-          type: integer
-          description: Pagination offset
-        size:
-          type: integer
-          description: Page size
-        total:
-          type: integer
-          description: Total number of records
-        scanList:
-          type: array
-          items:
-            $ref: '#/components/schemas/ImageScanHistoryResponse'
-
-    ImageScanHistoryResponse:
-      description: Individual scan history item
-      type: object
-      properties:
-        imageScanDeployInfoId:
-          type: integer
-          description: Image scan deploy info ID
-        appId:
-          type: integer
-          description: Application ID
-        envId:
-          type: integer
-          description: Environment ID
-        name:
-          type: string
-          description: Name of the scanned resource
-        type:
-          type: string
-          description: Type of the scanned resource
-        environment:
-          type: string
-          description: Environment name
-        lastChecked:
-          type: string
-          format: date-time
-          description: Last scan timestamp
-        image:
-          type: string
-          description: Image name
-        severityCount:
-          $ref: '#/components/schemas/SeverityCount'
-
-    ImageScanExecutionDetail:
-      description: Detailed scan execution result
-      type: object
-      properties:
-        imageScanDeployInfoId:
-          type: integer
-          description: Image scan deploy info ID
-        appId:
-          type: integer
-          description: Application ID
-        envId:
-          type: integer
-          description: Environment ID
-        appName:
-          type: string
-          description: Application name
-        envName:
-          type: string
-          description: Environment name
-        pod:
-          type: string
-          description: Pod name
-        replicaSet:
-          type: string
-          description: ReplicaSet name
-        image:
-          type: string
-          description: Image name
-        vulnerabilities:
-          type: array
-          items:
-            $ref: '#/components/schemas/Vulnerability'
-        severityCount:
-          $ref: '#/components/schemas/SeverityCount'
-        executionTime:
-          type: string
-          format: date-time
-          description: Scan execution time
-        scanEnabled:
-          type: boolean
-          description: Whether scanning is enabled
-        scanned:
-          type: boolean
-          description: Whether the image has been scanned
-        objectType:
-          type: string
-          description: Type of the scanned object
-        scanToolId:
-          type: integer
-          description: ID of the scan tool used
-        scanToolName:
-          type: string
-          description: Name of the scan tool
-        scanToolUrl:
-          type: string
-          description: URL of the scan tool
-        status:
-          type: string
-          description: Scan execution status
-          enum:
-            - RUNNING
-            - COMPLETED
-            - FAILED
-            - CANCELLED
-
-    SeverityCount:
-      description: Count of vulnerabilities by severity
-      type: object
-      properties:
-        critical:
-          type: integer
-          description: Number of critical vulnerabilities
-        high:
-          type: integer
-          description: Number of high severity vulnerabilities
-        medium:
-          type: integer
-          description: Number of medium severity vulnerabilities
-        low:
-          type: integer
-          description: Number of low severity vulnerabilities
-        unknown:
-          type: integer
-          description: Number of unknown severity vulnerabilities
-
-    Vulnerability:
-      description: Individual vulnerability details
-      type: object
-      properties:
-        cveName:
-          type: string
-          description: CVE identifier
-        severity:
-          type: string
-          description: Vulnerability severity
-          enum:
-            - CRITICAL
-            - HIGH
-            - MEDIUM
-            - LOW
-            - UNKNOWN
-        package:
-          type: string
-          description: Affected package name
-        currentVersion:
-          type: string
-          description: Current version of the package
-        fixedVersion:
-          type: string
-          description: Version where the vulnerability is fixed
-        permission:
-          type: string
-          description: Permission level
-        target:
-          type: string
-          description: Target of the vulnerability
-        class:
-          type: string
-          description: Vulnerability class
-        type:
-          type: string
-          description: Vulnerability type
-
-    VulnerabilityRequest:
-      description: Request for vulnerability exposure data
-      type: object
-      properties:
-        appName:
-          type: string
-          description: Application name filter
-        cveName:
-          type: string
-          description: CVE name filter
-        envIds:
-          type: array
-          items:
-            type: integer
-          description: Environment IDs to filter by
-        clusterIds:
-          type: array
-          items:
-            type: integer
-          description: Cluster IDs to filter by
-        offset:
-          type: integer
-          description: Pagination offset
-        size:
-          type: integer
-          description: Page size
-
-    VulnerabilityExposureListingResponse:
-      description: Response containing vulnerability exposure data
-      type: object
-      properties:
-        offset:
-          type: integer
-          description: Pagination offset
-        size:
-          type: integer
-          description: Page size
-        total:
-          type: integer
-          description: Total number of records
-        list:
-          type: array
-          items:
-            $ref: '#/components/schemas/VulnerabilityExposure'
-
-    VulnerabilityExposure:
-      description: Vulnerability exposure information
-      type: object
-      properties:
-        appName:
-          type: string
-          description: Application name
-        envName:
-          type: string
-          description: Environment name
-        appId:
-          type: integer
-          description: Application ID
-        envId:
-          type: integer
-          description: Environment ID
-        appType:
-          type: string
-          description: Application type
-          enum:
-            - DEVTRON_APP
-            - HELM_APP
-            - EXTERNAL_HELM_APP
-        blocked:
-          type: boolean
-          description: Whether the vulnerability is blocked
+                $ref: '#/components/schemas/ErrorResponse'
