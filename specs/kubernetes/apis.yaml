@@ -44,12 +44,24 @@ components:
 
     K8sRequestDto:
       type: object
+      required:
+        - resourceIdentifier
       properties:
         resourceIdentifier:
           $ref: '#/components/schemas/ResourceIdentifier'
         patch:
           type: string
-          description: patch data for update operations
+          description: |
+            JSON patch data for update operations. Contains the complete Kubernetes manifest
+            for the resource being updated/edited.
+          example: '{"apiVersion":"v1","kind":"Pod","metadata":{"name":"my-pod","namespace":"default"},"spec":{"containers":[{"name":"nginx","image":"nginx:1.25"}]}}'
+        forceDelete:
+          type: boolean
+          nullable: true
+          description: |
+            Force delete the resource. When true, the resource will be deleted immediately
+            without waiting for graceful termination. Only applicable for delete operations.
+          example: false
 
     ResourceIdentifier:
       type: object
@@ -64,25 +76,28 @@ components:
           $ref: '#/components/schemas/GroupVersionKind'
       required:
         - name
-                - namespace
-                - groupVersionKind
+        - namespace
+        - groupVersionKind
 
     GroupVersionKind:
       type: object
-      properties:
-        group:
-          type: string
-          description: API group
-        version:
-          type: string
-          description: API version
-        kind:
-          type: string
-          description: resource kind
       required:
-        - group
-                - version
-                - kind
+        - Group
+        - Version
+        - Kind
+      properties:
+        Group:
+          type: string
+          description: API group (capitalized field name as per Kubernetes API)
+          example: ""
+        Version:
+          type: string
+          description: API version (capitalized field name as per Kubernetes API)
+          example: "v1"
+        Kind:
+          type: string
+          description: Resource kind (capitalized field name as per Kubernetes API)
+          example: "Pod"
 
     ManifestResponse:
       type: object
@@ -373,14 +388,14 @@ paths:
           description: Internal server error
     put:
       summary: Update Kubernetes resource
-      description: Updates an existing Kubernetes resource manifest
+      description: Updates an existing Kubernetes resource manifest using patch data
       operationId: UpdateResource
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ResourceRequestObject'
+              $ref: '#/components/schemas/ResourceRequestBean'
       responses:
         "200":
           description: Updated resource manifest
@@ -454,11 +469,11 @@ paths:
       description: Fetches events for Kubernetes resources
       operationId: ListEvents
       requestBody:
-        required: false
+        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ResourceRequestObject'
+              $ref: '#/components/schemas/ResourceRequestBean'
       responses:
         "200":
           description: Resource events
