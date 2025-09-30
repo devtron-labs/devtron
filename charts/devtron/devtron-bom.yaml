@@ -117,7 +117,7 @@ components:
       image: postgres_exporter:v0.10.1
   gitsensor:
     registry: ""
-    image: "git-sensor:880420ac-200-36032"
+    image: "git-sensor:b82f5fdb-200-36532"
     imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
