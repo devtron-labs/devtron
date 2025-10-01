@@ -187,6 +187,7 @@
  | ECR_REPO_NAME_PREFIX | string |test/ | Prefix for ECR repo to be created in does not exist |  | false |
  | ENABLE_ASYNC_ARGO_CD_INSTALL_DEVTRON_CHART | bool |false | To enable async installation of gitops application |  | false |
  | ENABLE_ASYNC_INSTALL_DEVTRON_CHART | bool |false | To enable async installation of no-gitops application |  | false |
+ | ENABLE_LINKED_CI_ARTIFACT_COPY | bool |false | Enable copying artifacts from parent CI pipeline to linked CI pipeline during creation |  | false |
  | EPHEMERAL_SERVER_VERSION_REGEX | string |v[1-9]\.\b(2[3-9]\|[3-9][0-9])\b.* | ephemeral containers support version regex that is compared with k8sServerVersion |  | false |
  | EVENT_URL | string |http://localhost:3000/notify | Notifier service url |  | false |
  | EXECUTE_WIRE_NIL_CHECKER | bool |false | checks for any nil pointer in wire.go |  | false |
@@ -225,6 +226,7 @@
  | LENS_URL | string |http://lens-milandevtron-service:80 | Lens micro-service URL |  | false |
  | LIMIT_CI_CPU | string |0.5 |  |  | false |
  | LIMIT_CI_MEM | string |3G |  |  | false |
+ | LINKED_CI_ARTIFACT_COPY_LIMIT | int |10 | Maximum number of artifacts to copy from parent CI pipeline to linked CI pipeline |  | false |
  | LOGGER_DEV_MODE | bool |false | Enables a different logger theme. |  | false |
  | LOG_LEVEL | int |-1 |  |  | false |
  | MAX_SESSION_PER_USER | int |5 | max no of cluster terminal pods can be created by an user |  | false |

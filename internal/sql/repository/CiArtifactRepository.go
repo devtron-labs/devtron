@@ -124,6 +124,7 @@ type CiArtifactRepository interface {
 	GetArtifactsByCDPipelineAndRunnerType(cdPipelineId int, runnerType bean.WorkflowType) ([]CiArtifact, error)
 	SaveAll(artifacts []*CiArtifact) ([]*CiArtifact, error)
 	GetArtifactsByCiPipelineId(ciPipelineId int) ([]CiArtifact, error)
+	GetLatestArtifactsByCiPipelineId(ciPipelineId, limit int) ([]CiArtifact, error)
 	GetArtifactsByCiPipelineIds(ciPipelineIds []int) ([]CiArtifact, error)
 	FinDByParentCiArtifactAndCiId(parentCiArtifact int, ciPipelineIds []int) ([]*CiArtifact, error)
 	GetLatest(cdPipelineId int) (int, error)
@@ -677,6 +678,19 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCiPipelineId(ciPipelineId int
 		Order("ci_artifact.id DESC").
 		Select()
 
+	return artifacts, err
+}
+
+func (impl CiArtifactRepositoryImpl) GetLatestArtifactsByCiPipelineId(ciPipelineId, limit int) ([]CiArtifact, error) {
+	var artifacts []CiArtifact
+	err := impl.dbConnection.
+		Model(&artifacts).
+		Column("ci_artifact.*").
+		Join("INNER JOIN ci_pipeline cp on cp.id=ci_artifact.pipeline_id").
+		Where("ci_artifact.pipeline_id = ?", ciPipelineId).
+		Where("cp.deleted = ?", false).
+		Order("ci_artifact.id DESC").Limit(limit).
+		Select()
 	return artifacts, err
 }
 

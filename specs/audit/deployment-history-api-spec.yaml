@@ -2,6 +2,12 @@ openapi: "3.0.3"
 info:
   version: 1.0.0
   title: Helm App Deployment History
+  description: API for retrieving deployment history information for Helm applications
+
+servers:
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
 paths:
   /orchestrator/application/deployment-history:
     get:
