@@ -145,6 +145,7 @@
     * [Devtron Job Trigger](user-guide/plugins/devtron-job-trigger.md)
     * [DockerSlim](user-guide/plugins/docker-slim.md)
     * [GoLang-migrate](user-guide/plugins/golang-migrate.md)
+    * [Image-Scan](user-guide/plugins/image-scan.md)
     * [Jenkins](user-guide/plugins/jenkins.md)
     * [Jira Issue Validator](user-guide/plugins/jira-validator.md)
     * [Jira Issue Updater](user-guide/plugins/jira-updater.md)
