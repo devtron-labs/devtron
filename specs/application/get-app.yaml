@@ -201,6 +201,58 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /orchestrator/app/other-env/min:
+    get:
+      description: Fetch minimal details of other environments for a specific application. Returns a list of environments where the application is deployed with minimal information including environment name, cluster details, and deployment status.
+      operationId: FetchMinDetailOtherEnvironment
+      parameters:
+        - name: app-id
+          in: query
+          required: true
+          description: The ID of the application to fetch environment details for
+          schema:
+            type: integer
+            example: 26
+      responses:
+        '200':
+          description: Successfully retrieved minimal environment details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    description: HTTP status code
+                    example: 200
+                  status:
+                    type: string
+                    description: Response status
+                    example: "OK"
+                  result:
+                    type: array
+                    description: List of environments with minimal details
+                    items:
+                      $ref: '#/components/schemas/EnvironmentMinDetail'
+        '400':
+          description: Bad Request. Invalid app-id parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden. User does not have permission to access this application.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   schemas:
     App:
@@ -828,3 +880,47 @@ components:
                 description: Name of environment
               Values:
                 $ref: '#/components/schemas/EnvironmentOverride'
+
+    EnvironmentMinDetail:
+      type: object
+      description: Minimal environment details for an application deployment
+      properties:
+        environmentId:
+          type: integer
+          description: Unique identifier for the environment
+          example: 1
+        environmentName:
+          type: string
+          description: Name of the environment
+          example: "production"
+        clusterId:
+          type: integer
+          description: ID of the cluster where environment is deployed
+          example: 1
+        prod:
+          type: boolean
+          description: Whether this is a production environment
+          example: true
+        description:
+          type: string
+          description: Description of the environment
+          maxLength: 40
+          example: "Production environment"
+        isVirtualEnvironment:
+          type: boolean
+          description: Whether this is a virtual environment
+          example: false
+        deploymentAppDeleteRequest:
+          type: boolean
+          description: Whether there is a pending delete request for the deployment
+          example: false
+        appMetrics:
+          type: boolean
+          nullable: true
+          description: Whether application metrics are enabled
+          example: true
+        infraMetrics:
+          type: boolean
+          nullable: true
+          description: Whether infrastructure metrics are enabled
+          example: true
