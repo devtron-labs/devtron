@@ -30,9 +30,9 @@ func ConvertGitRegistryDtoToBean(provider repository.GitProvider, withSensitiveD
 		IsTLSCertDataPresent: len(provider.TlsCert) > 0,
 	}
 	if withSensitiveData {
-		registryBean.Password = provider.Password
-		registryBean.AccessToken = provider.AccessToken
-		registryBean.SshPrivateKey = provider.SshPrivateKey
+		registryBean.Password = provider.Password.String()
+		registryBean.AccessToken = provider.AccessToken.String()
+		registryBean.SshPrivateKey = provider.SshPrivateKey.String()
 	}
 	return registryBean
 }

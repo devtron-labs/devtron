@@ -148,7 +148,7 @@ func (impl DockerRegistryIpsConfigServiceImpl) createOrUpdateDockerRegistryImage
 	impl.logger.Infow("creating/updating ips", "ipsName", ipsName, "clusterId", clusterId)
 
 	username := dockerRegistryBean.Username
-	password := dockerRegistryBean.Password
+	password := dockerRegistryBean.Password.String()
 	registryURL := dockerRegistryBean.RegistryURL
 	var email string
 
@@ -187,7 +187,7 @@ func (impl DockerRegistryIpsConfigServiceImpl) createOrUpdateDockerRegistryImage
 		}
 		// create credential for ecr
 		impl.logger.Info("creating ecr credential")
-		ecrUsername, ecrPassword, err := CreateCredentialForEcr(dockerRegistryBean.AWSRegion, awsAccessKeyId, awsSecretAccessKey)
+		ecrUsername, ecrPassword, err := CreateCredentialForEcr(dockerRegistryBean.AWSRegion, awsAccessKeyId, awsSecretAccessKey.String())
 		if err != nil {
 			impl.logger.Errorw("error in creating ecr credential", "clusterId", clusterId, "error", err)
 			return err
