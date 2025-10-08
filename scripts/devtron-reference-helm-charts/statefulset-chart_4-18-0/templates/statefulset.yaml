@@ -75,7 +75,7 @@ spec:
 {{ toYaml .Values.appLabels | indent 8 }}
         {{- end }}
         {{- if .Values.podLabels }}
-        {{ toYaml .Values.podLabels | indent 8 }}
+{{ toYaml .Values.podLabels | indent 8 }}
         {{- end }}
     spec:
 {{- if $.Values.podExtraSpecs }}	
