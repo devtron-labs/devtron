@@ -42,7 +42,7 @@ nfs:
 extraManifests: []
 installer:
   repo: "devtron-labs/devtron"
-  release: "v1.8.1"
+  release: "v1.8.2"
   registry: ""
   image: inception
   tag: 473deaa4-185-21582
@@ -97,13 +97,13 @@ components:
         FEATURE_CODE_MIRROR_ENABLE: "true"
         FEATURE_GROUPED_APP_LIST_FILTERS_ENABLE: "true"
     registry: ""
-    image: "dashboard:6618ce43-690-36167"
+    image: "dashboard:b00aa204-690-36533"
     imagePullPolicy: IfNotPresent
     healthPort: 8080
   devtron:
     registry: ""
-    image: "hyperion:1ae65fbb-280-36074"
-    cicdImage: "devtron:1ae65fbb-434-36069"
+    image: "hyperion:261df88d-280-36531"
+    cicdImage: "devtron:261df88d-434-36530"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     healthPort: 8080
@@ -200,7 +200,7 @@ components:
       volumeSize: "20Gi"
   gitsensor:
     registry: ""
-    image: "git-sensor:880420ac-200-36032"
+    image: "git-sensor:b82f5fdb-200-36532"
     imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
