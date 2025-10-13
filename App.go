@@ -48,6 +48,13 @@ import (
 	"go.uber.org/zap"
 )
 
+func init() {
+	err := securestore.SetEncryptionKey()
+	if err != nil {
+		log.Println("error in setting encryption key", "err", err)
+	}
+}
+
 type App struct {
 	MuxRouter     *router.MuxRouter
 	Logger        *zap.SugaredLogger
@@ -83,10 +90,6 @@ func NewApp(router *router.MuxRouter,
 	enforcerV2 *casbinv2.SyncedEnforcer,
 	userService user.UserService,
 ) *App {
-	err := securestore.SetEncryptionKey()
-	if err != nil {
-		Logger.Errorw("error in setting encryption key", "err", err)
-	}
 	//check argo connection
 	//todo - check argo-cd version on acd integration installation
 	app := &App{
