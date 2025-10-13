@@ -258,6 +258,185 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /orchestrator/app-store/installed-app/detail/v2:
+    get:
+      tags:
+        - App Store Deployment
+      summary: Get installed app details v2
+      description: |
+        Retrieves comprehensive details about a deployed app store application including
+        deployment information, environment details, and application metadata.
+
+        **Authentication & Authorization**:
+        - Requires valid user session
+        - User must have GET permission on the Helm app resource
+        - RBAC enforced based on cluster, namespace, and app name
+
+        **Use Cases**:
+        - View current deployment status and details
+        - Get application metadata and configuration
+        - Access environment and cluster information
+        - Retrieve deployment history and version information
+      operationId: fetchAppDetailsForInstalledAppV2
+      parameters:
+        - name: installed-app-id
+          in: query
+          required: true
+          description: |
+            The ID of the installed app to retrieve details for.
+            This is the unique identifier for a deployed app store application.
+          schema:
+            type: integer
+            minimum: 1
+          example: 2
+        - name: env-id
+          in: query
+          required: true
+          description: |
+            The environment ID where the app is deployed.
+            Used to identify the specific environment instance of the app.
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+      responses:
+        '200':
+          description: Installed app details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    description: HTTP status code
+                    example: 200
+                  status:
+                    type: string
+                    description: Response status
+                    example: "OK"
+                  result:
+                    $ref: '#/components/schemas/AppDetailContainer'
+              examples:
+                successful_response:
+                  summary: Successful retrieval of installed app details
+                  value:
+                    code: 200
+                    status: "OK"
+                    result:
+                      installedAppId: 2
+                      appId: 12
+                      appName: "my-nginx-app"
+                      environmentId: 1
+                      environmentName: "production"
+                      namespace: "default"
+                      clusterId: 1
+                      clusterName: "prod-cluster"
+                      appStoreChartName: "nginx"
+                      appStoreChartId: 10
+                      appStoreAppVersion: "1.21.0"
+                      lastDeployedTime: "2024-01-15T10:30:00Z"
+                      lastDeployedBy: "admin@example.com"
+                      status: "Healthy"
+                      deploymentAppType: "HELM"
+                      helmPackageName: "my-nginx-app-production-20240115"
+                      deprecated: false
+                      k8sVersion: "1.28"
+                      instanceDetail: []
+                      otherEnvironment: []
+                      linkOuts: []
+        '400':
+          description: Bad Request - Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_installed_app_id:
+                  summary: Invalid installed-app-id parameter
+                  value:
+                    code: 400
+                    status: "Bad Request"
+                    errors:
+                      - code: "11003"
+                        userMessage: "Invalid query parameter 'installed-app-id': must be a valid positive integer"
+                        internalMessage: "strconv.Atoi: parsing \"abc\": invalid syntax"
+                invalid_env_id:
+                  summary: Invalid env-id parameter
+                  value:
+                    code: 400
+                    status: "Bad Request"
+                    errors:
+                      - code: "11003"
+                        userMessage: "Invalid query parameter 'env-id': must be a valid positive integer"
+                        internalMessage: "strconv.Atoi: parsing \"xyz\": invalid syntax"
+        '401':
+          description: Unauthorized - Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                unauthorized:
+                  summary: User not authenticated
+                  value:
+                    code: 401
+                    status: "Unauthorized"
+                    errors:
+                      - code: "11010"
+                        userMessage: "Authentication required. Please log in to continue."
+                        internalMessage: "unauthorized"
+        '403':
+          description: Forbidden - Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                forbidden:
+                  summary: User lacks permissions
+                  value:
+                    code: 403
+                    status: "Forbidden"
+                    errors:
+                      - code: "11008"
+                        userMessage: "Access denied. You do not have permission to view this installed app."
+                        internalMessage: "unauthorized user"
+        '404':
+          description: Not Found - Installed app does not exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                not_found:
+                  summary: Installed app not found
+                  value:
+                    code: 404
+                    status: "Not Found"
+                    errors:
+                      - code: "11006"
+                        userMessage: "Installed app with ID '2' not found in environment '1'"
+                        internalMessage: "sql: no rows in result set"
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                internal_error:
+                  summary: Unexpected server error
+                  value:
+                    code: 500
+                    status: "Internal Server Error"
+                    errors:
+                      - code: "11009"
+                        userMessage: "An unexpected error occurred while retrieving the installed app details"
+                        internalMessage: "database connection failed"
+      security:
+        - bearerAuth: []
+
   /orchestrator/app-store/deployment/application/version/{installedAppVersionId}:
     get:
       tags:
@@ -704,6 +883,203 @@ components:
           type: integer
           description: App store application version ID
           example: 45
+
+    AppDetailContainer:
+      type: object
+      description: |
+        Comprehensive details about a deployed app store application including
+        deployment information, environment details, instance information, and resource tree.
+      properties:
+        installedAppId:
+          type: integer
+          description: Installed app ID
+          example: 2
+        appId:
+          type: integer
+          description: Application ID
+          example: 12
+        appName:
+          type: string
+          description: Application name
+          example: "my-nginx-app"
+        environmentId:
+          type: integer
+          description: Environment ID where the app is deployed
+          example: 1
+        environmentName:
+          type: string
+          description: Environment name
+          example: "production"
+        namespace:
+          type: string
+          description: Kubernetes namespace where the app is deployed
+          example: "default"
+        clusterId:
+          type: integer
+          description: Cluster ID where the app is deployed
+          example: 1
+        clusterName:
+          type: string
+          description: Cluster name
+          example: "prod-cluster"
+        appStoreChartName:
+          type: string
+          description: App store chart name
+          example: "nginx"
+        appStoreChartId:
+          type: integer
+          description: App store chart ID
+          example: 10
+        appStoreAppVersion:
+          type: string
+          description: App store application version
+          example: "1.21.0"
+        appStoreInstalledAppVersionId:
+          type: integer
+          description: App store installed app version ID
+          example: 5
+        lastDeployedTime:
+          type: string
+          description: Last deployment timestamp
+          example: "2024-01-15T10:30:00Z"
+        lastDeployedBy:
+          type: string
+          description: Email of user who last deployed the app
+          example: "admin@example.com"
+        status:
+          type: string
+          description: Application health status
+          example: "Healthy"
+        statusMessage:
+          type: string
+          description: Detailed status message
+          example: "All resources are healthy"
+        releaseVersion:
+          type: string
+          description: Helm release version
+          example: "1"
+        deploymentAppType:
+          type: string
+          description: Deployment application type (HELM, ACD, etc.)
+          example: "HELM"
+        helmPackageName:
+          type: string
+          description: Generated Helm package name
+          example: "my-nginx-app-production-20240115"
+        deprecated:
+          type: boolean
+          description: Whether the chart version is deprecated
+          example: false
+        k8sVersion:
+          type: string
+          description: Kubernetes version of the cluster
+          example: "1.28"
+        dataSource:
+          type: string
+          description: Data source for the application
+          example: "HELM"
+        default:
+          type: boolean
+          description: Whether this is the default environment
+          example: false
+        isVirtualEnvironment:
+          type: boolean
+          description: Whether this is a virtual environment
+          example: false
+        deploymentAppDeleteRequest:
+          type: boolean
+          description: Whether a delete request is pending
+          example: false
+        ipsAccessProvided:
+          type: boolean
+          description: Whether IPS access is provided
+          example: false
+        releaseMode:
+          type: string
+          description: Release mode (NORMAL, ROLLBACK, etc.)
+          example: "NORMAL"
+        instanceDetail:
+          type: array
+          description: List of pod instances with resource usage
+          items:
+            $ref: '#/components/schemas/InstanceDetail'
+        otherEnvironment:
+          type: array
+          description: List of other environments where this app is deployed
+          items:
+            $ref: '#/components/schemas/Environment'
+        linkOuts:
+          type: array
+          description: External links associated with the application
+          items:
+            $ref: '#/components/schemas/LinkOut'
+        resourceTree:
+          type: object
+          description: Kubernetes resource tree for the application
+          additionalProperties: true
+        notes:
+          type: string
+          description: Helm chart notes
+          example: "Application deployed successfully"
+
+    InstanceDetail:
+      type: object
+      description: Pod instance details with resource usage
+      properties:
+        podName:
+          type: string
+          description: Pod name
+          example: "my-nginx-app-7d8f9c5b6-abc12"
+        cpuUsage:
+          type: string
+          description: CPU usage percentage
+          example: "15%"
+        memoryUsage:
+          type: string
+          description: Memory usage percentage
+          example: "45%"
+        status:
+          type: string
+          description: Pod status
+          example: "Running"
+
+    Environment:
+      type: object
+      description: Environment information
+      properties:
+        environmentId:
+          type: integer
+          description: Environment ID
+          example: 2
+        environmentName:
+          type: string
+          description: Environment name
+          example: "staging"
+        namespace:
+          type: string
+          description: Kubernetes namespace
+          example: "staging"
+        clusterName:
+          type: string
+          description: Cluster name
+          example: "staging-cluster"
+
+    LinkOut:
+      type: object
+      description: External link configuration
+      properties:
+        name:
+          type: string
+          description: Link name
+          example: "Grafana Dashboard"
+        url:
+          type: string
+          description: Link URL
+          example: "https://grafana.example.com/d/app-dashboard"
+        description:
+          type: string
+          description: Link description
+          example: "Application monitoring dashboard"
 
     ErrorResponse:
       required:
