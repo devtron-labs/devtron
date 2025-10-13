@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"github.com/go-pg/pg/types"
 	"io"
-	"os"
 )
 
 var decryptionFailErr = fmt.Errorf("Decryption failed")
@@ -24,16 +23,6 @@ func DidDecryptionFail(err error) bool {
 }
 
 var encryptionKey []byte
-
-func init() {
-	keyBase64 := os.Getenv("ENCRYPTION_KEY")
-	var err error
-	keyBase64 = "2eHQI5xk+XqkqI1bZ2mPUFX9Ae1vP4CPCjq4o+q1L+0="
-	encryptionKey, err = base64.StdEncoding.DecodeString(keyBase64)
-	if err != nil || len(encryptionKey) != 32 {
-		panic("ENCRYPTION_KEY must be a 32-byte base64 string")
-	}
-}
 
 func encrypt(data []byte) (string, error) {
 	if len(data) == 0 {

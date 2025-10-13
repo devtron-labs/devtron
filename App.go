@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/middlewares"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
+	"github.com/devtron-labs/common-lib/securestore"
 	posthogTelemetry "github.com/devtron-labs/common-lib/telemetry"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/in"
@@ -82,6 +83,10 @@ func NewApp(router *router.MuxRouter,
 	enforcerV2 *casbinv2.SyncedEnforcer,
 	userService user.UserService,
 ) *App {
+	err := securestore.SetEncryptionKey()
+	if err != nil {
+		Logger.Errorw("error in setting encryption key", "err", err)
+	}
 	//check argo connection
 	//todo - check argo-cd version on acd integration installation
 	app := &App{

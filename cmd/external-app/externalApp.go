@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/common-lib/securestore"
 	"net/http"
 	"os"
 	"time"
@@ -53,6 +54,10 @@ func NewApp(db *pg.DB,
 	posthogClient *posthogTelemetry.PosthogClient,
 	Logger *zap.SugaredLogger,
 	userService user.UserService) *App {
+	err := securestore.SetEncryptionKey()
+	if err != nil {
+		Logger.Errorw("error in setting encryption key", "err", err)
+	}
 	return &App{
 		db:             db,
 		sessionManager: sessionManager,
