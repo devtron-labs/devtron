@@ -35,7 +35,8 @@ func Recovery(next http.Handler) http.Handler {
 				if errors.Is(err.(error), http.ErrAbortHandler) {
 					// suppress logging for http.ErrAbortHandler panic
 					// separate metric for reverse proxy panic recovery
-					metrics.IncReverseProxyPanicRecoveryCount("proxy", r.Host, r.Method, r.RequestURI)
+					//metrics.IncReverseProxyPanicRecoveryCount("proxy", r.Host, r.Method, r.RequestURI)
+					log.Print("Reverse Proxy Panic Recovery count increased ", "Host: ", r.Host, "Method: ", r.Method, "Path: ", r.RequestURI)
 				} else {
 					// log and increment panic recovery count
 					metrics.IncPanicRecoveryCount("handler", r.Host, r.Method, r.RequestURI)

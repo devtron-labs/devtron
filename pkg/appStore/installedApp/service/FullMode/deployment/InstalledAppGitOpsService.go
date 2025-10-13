@@ -414,7 +414,7 @@ func (impl *FullModeDeploymentServiceImpl) CreateArgoRepoSecretIfNeeded(appStore
 
 	err = impl.argoClientWrapperService.AddOrUpdateOCIRegistry(
 		dockerArtifactStore.Username,
-		dockerArtifactStore.Password,
+		dockerArtifactStore.Password.String(),
 		dockerArtifactStore.OCIRegistryConfig[0].Id,
 		dockerArtifactStore.RegistryURL,
 		appStore.Name,

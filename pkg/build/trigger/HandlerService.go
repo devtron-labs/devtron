@@ -1018,9 +1018,9 @@ func (impl *HandlerServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineCo
 			CommitTime:      commitHashForPipelineId.Date.Format(bean.LayoutRFC3339),
 			GitOptions: pipelineConfigBean.GitOptions{
 				UserName:              ciMaterial.GitMaterial.GitProvider.UserName,
-				Password:              ciMaterial.GitMaterial.GitProvider.Password,
-				SshPrivateKey:         ciMaterial.GitMaterial.GitProvider.SshPrivateKey,
-				AccessToken:           ciMaterial.GitMaterial.GitProvider.AccessToken,
+				Password:              ciMaterial.GitMaterial.GitProvider.Password.String(),
+				SshPrivateKey:         ciMaterial.GitMaterial.GitProvider.SshPrivateKey.String(),
+				AccessToken:           ciMaterial.GitMaterial.GitProvider.AccessToken.String(),
 				AuthMode:              ciMaterial.GitMaterial.GitProvider.AuthMode,
 				EnableTLSVerification: ciMaterial.GitMaterial.GitProvider.EnableTLSVerification,
 				TlsKey:                ciMaterial.GitMaterial.GitProvider.TlsKey,
@@ -1306,10 +1306,10 @@ func (impl *HandlerServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineCo
 		workflowRequest.DockerRepository = dockerRepository
 		workflowRequest.CheckoutPath = checkoutPath
 		workflowRequest.DockerUsername = dockerRegistry.Username
-		workflowRequest.DockerPassword = dockerRegistry.Password
+		workflowRequest.DockerPassword = dockerRegistry.Password.String()
 		workflowRequest.AwsRegion = dockerRegistry.AWSRegion
 		workflowRequest.AccessKey = dockerRegistry.AWSAccessKeyId
-		workflowRequest.SecretKey = dockerRegistry.AWSSecretAccessKey
+		workflowRequest.SecretKey = dockerRegistry.AWSSecretAccessKey.String()
 		workflowRequest.DockerConnection = dockerRegistry.Connection
 		workflowRequest.DockerCert = dockerRegistry.Cert
 

@@ -17,6 +17,7 @@
 package repository
 
 import (
+	"github.com/devtron-labs/common-lib/securestore"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -24,25 +25,25 @@ import (
 )
 
 type Cluster struct {
-	tableName              struct{}          `sql:"cluster" pg:",discard_unknown_columns"`
-	Id                     int               `sql:"id,pk"`
-	ClusterName            string            `sql:"cluster_name"`
-	Description            string            `sql:"description"`
-	ServerUrl              string            `sql:"server_url"`
-	PrometheusEndpoint     string            `sql:"prometheus_endpoint"`
-	Active                 bool              `sql:"active,notnull"`
-	CdArgoSetup            bool              `sql:"cd_argo_setup,notnull"`
-	Config                 map[string]string `sql:"config"`
-	PUserName              string            `sql:"p_username"`
-	PPassword              string            `sql:"p_password"`
-	PTlsClientCert         string            `sql:"p_tls_client_cert"`
-	PTlsClientKey          string            `sql:"p_tls_client_key"`
-	AgentInstallationStage int               `sql:"agent_installation_stage"`
-	K8sVersion             string            `sql:"k8s_version"`
-	ErrorInConnecting      string            `sql:"error_in_connecting"`
-	IsVirtualCluster       bool              `sql:"is_virtual_cluster"`
-	InsecureSkipTlsVerify  bool              `sql:"insecure_skip_tls_verify"`
-	IsProd                 bool              `sql:"is_prod"`
+	tableName              struct{}                 `sql:"cluster" pg:",discard_unknown_columns"`
+	Id                     int                      `sql:"id,pk"`
+	ClusterName            string                   `sql:"cluster_name"`
+	Description            string                   `sql:"description"`
+	ServerUrl              string                   `sql:"server_url"`
+	PrometheusEndpoint     string                   `sql:"prometheus_endpoint"`
+	Active                 bool                     `sql:"active,notnull"`
+	CdArgoSetup            bool                     `sql:"cd_argo_setup,notnull"`
+	Config                 securestore.EncryptedMap `sql:"config"`
+	PUserName              string                   `sql:"p_username"`
+	PPassword              string                   `sql:"p_password"`
+	PTlsClientCert         string                   `sql:"p_tls_client_cert"`
+	PTlsClientKey          string                   `sql:"p_tls_client_key"`
+	AgentInstallationStage int                      `sql:"agent_installation_stage"`
+	K8sVersion             string                   `sql:"k8s_version"`
+	ErrorInConnecting      string                   `sql:"error_in_connecting"`
+	IsVirtualCluster       bool                     `sql:"is_virtual_cluster"`
+	InsecureSkipTlsVerify  bool                     `sql:"insecure_skip_tls_verify"`
+	IsProd                 bool                     `sql:"is_prod"`
 	sql.AuditLog
 }
 
@@ -85,7 +86,11 @@ type ClusterRepositoryImpl struct {
 	logger       *zap.SugaredLogger
 }
 
-func (impl ClusterRepositoryImpl) Save(model *Cluster) error {
+func (impl ClusterRepositoryImpl) Save(model *Cluster) (err error) {
+	model.Config, err = securestore.EncryptMap(model.Config)
+	if err != nil {
+		return err
+	}
 	return impl.dbConnection.Insert(model)
 }
 
@@ -99,7 +104,13 @@ func (impl ClusterRepositoryImpl) FindOne(clusterName string) (*Cluster, error) 
 		Select()
 	return cluster, err
 }
-func (impl ClusterRepositoryImpl) SaveAll(models []*Cluster) error {
+func (impl ClusterRepositoryImpl) SaveAll(models []*Cluster) (err error) {
+	for i := range models {
+		models[i].Config, err = securestore.EncryptMap(models[i].Config)
+		if err != nil {
+			return err
+		}
+	}
 	return impl.dbConnection.Insert(models)
 }
 
@@ -179,7 +190,11 @@ func (impl ClusterRepositoryImpl) FindByIds(id []int) ([]Cluster, error) {
 	return cluster, err
 }
 
-func (impl ClusterRepositoryImpl) Update(model *Cluster) error {
+func (impl ClusterRepositoryImpl) Update(model *Cluster) (err error) {
+	model.Config, err = securestore.EncryptMap(model.Config)
+	if err != nil {
+		return err
+	}
 	return impl.dbConnection.Update(model)
 }
 
