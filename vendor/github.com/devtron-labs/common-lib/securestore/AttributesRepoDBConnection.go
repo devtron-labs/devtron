@@ -24,6 +24,7 @@ type config struct {
 	Database        string `env:"PG_DATABASE" envDefault:"orchestrator"`
 	ApplicationName string `env:"APP" envDefault:"orchestrator"`
 	bean.PgQueryMonitoringConfig
+	LocalDev bool `env:"RUNTIME_CONFIG_LOCAL_DEV" envDefault:"false"`
 }
 
 func getDbConfig(databaseName string) (*config, error) {
@@ -37,7 +38,9 @@ func getDbConfig(databaseName string) (*config, error) {
 		return cfg, err
 	}
 	cfg.PgQueryMonitoringConfig = monitoringCfg
-	cfg.Database = databaseName //overriding database
+	if !cfg.LocalDev {
+		cfg.Database = databaseName //overriding database
+	}
 	return cfg, err
 }
 
