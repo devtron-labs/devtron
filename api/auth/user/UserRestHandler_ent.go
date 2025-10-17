@@ -25,9 +25,16 @@ func (handler UserRestHandlerImpl) checkRBACForUserCreate(token string, requestS
 					isAuthorised = handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, filter.Team)
 				case filter.Entity == bean2.CLUSTER_ENTITIY:
 					isAuthorised = handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth)
-				case filter.Entity == bean2.CHART_GROUP_ENTITY && len(roleFilters) == 1: //if only chartGroup entity is present in request then access will be judged through super-admin access
-					isAuthorised = isActionUserSuperAdmin
-				case filter.Entity == bean2.CHART_GROUP_ENTITY && len(roleFilters) > 1: //if entities apart from chartGroup entity are present, not checking chartGroup access
+				case filter.Entity == bean2.CHART_GROUP_ENTITY && len(roleFilters) == 1:
+					// If only chart group in direct permissions, but user is assigning role groups too,
+					// defer the chart group authorization to the role group check
+					if len(roleGroups) > 0 {
+						isAuthorised = true // Will be validated in role group section
+					} else {
+						isAuthorised = isActionUserSuperAdmin
+					}
+				case filter.Entity == bean2.CHART_GROUP_ENTITY && len(roleFilters) > 1:
+					// If there are other entities in addition to chart group, ignore chart group check
 					isAuthorised = true
 				default:
 					isAuthorised = false
