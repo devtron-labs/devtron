@@ -3,6 +3,7 @@
 ## Bugs
 - fix: user manager fix (#6854)
 ## Others
+- sync: main sync 27 10 (#6855)
 - misc: migration unique constraint on mpc (#6851)
 - misc: helm app details API spec (#6850)
 - misc: api Spec Added for draft (#6849)
