@@ -159,7 +159,7 @@ func GenerateInstallAppVersionDTO(installedApp *repository.InstalledApps, instal
 			chartVersionApp.AppStore.DockerArtifactStore.RegistryURL,
 			chartVersionApp.AppStore.Name)
 		Username = chartVersionApp.AppStore.DockerArtifactStore.Username
-		Password = chartVersionApp.AppStore.DockerArtifactStore.Password
+		Password = chartVersionApp.AppStore.DockerArtifactStore.Password.String()
 	}
 	envBean := adapter2.NewEnvironmentBean(&installedApp.Environment)
 	installAppDto := &appStoreBean.InstallAppVersionDTO{

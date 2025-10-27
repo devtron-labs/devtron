@@ -561,9 +561,9 @@ func (impl *HandlerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 				Type:            string(m.Type),
 				GitOptions: pipelineConfigBean.GitOptions{
 					UserName:      gitMaterial.GitProvider.UserName,
-					Password:      gitMaterial.GitProvider.Password,
-					SshPrivateKey: gitMaterial.GitProvider.SshPrivateKey,
-					AccessToken:   gitMaterial.GitProvider.AccessToken,
+					Password:      gitMaterial.GitProvider.Password.String(),
+					SshPrivateKey: gitMaterial.GitProvider.SshPrivateKey.String(),
+					AccessToken:   gitMaterial.GitProvider.AccessToken.String(),
 					AuthMode:      gitMaterial.GitProvider.AuthMode,
 				},
 			}

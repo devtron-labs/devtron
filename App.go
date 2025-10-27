@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/middlewares"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
+	"github.com/devtron-labs/common-lib/securestore"
 	posthogTelemetry "github.com/devtron-labs/common-lib/telemetry"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/in"
@@ -46,6 +47,13 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 	"go.uber.org/zap"
 )
+
+func init() {
+	err := securestore.SetEncryptionKey()
+	if err != nil {
+		log.Println("error in setting encryption key", "err", err)
+	}
+}
 
 type App struct {
 	MuxRouter     *router.MuxRouter

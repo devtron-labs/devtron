@@ -157,10 +157,10 @@ func (impl *PipelineBuilderImpl) getGitMaterialsForApp(appId int) ([]*bean.GitMa
 			var password string
 			userName := material.GitProvider.UserName
 			if material.GitProvider.AuthMode == constants.AUTH_MODE_USERNAME_PASSWORD {
-				password = material.GitProvider.Password
+				password = material.GitProvider.Password.String()
 
 			} else if material.GitProvider.AuthMode == constants.AUTH_MODE_ACCESS_TOKEN {
-				password = material.GitProvider.AccessToken
+				password = material.GitProvider.AccessToken.String()
 				if userName == "" {
 					userName = "devtron-boat"
 				}

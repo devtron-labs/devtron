@@ -39,12 +39,12 @@ func GetDockerConfigBean(dockerRegistry *dockerRegistryRepository.DockerArtifact
 		RegistryType:       dockerRegistry.RegistryType,
 		RegistryURL:        dockerRegistry.RegistryURL,
 		Username:           dockerRegistry.Username,
-		Password:           dockerRegistry.Password,
+		Password:           dockerRegistry.Password.String(),
 		AWSRegion:          dockerRegistry.AWSRegion,
 		Connection:         dockerRegistry.Connection,
 		Cert:               dockerRegistry.Cert,
 		AWSAccessKeyId:     dockerRegistry.AWSAccessKeyId,
-		AWSSecretAccessKey: dockerRegistry.AWSSecretAccessKey,
+		AWSSecretAccessKey: dockerRegistry.AWSSecretAccessKey.String(),
 	}
 }
 

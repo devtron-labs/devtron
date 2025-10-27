@@ -18,6 +18,7 @@ package gitProvider
 
 import (
 	"context"
+	"github.com/devtron-labs/common-lib/securestore"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/constants"
 	constants2 "github.com/devtron-labs/devtron/internal/sql/constants"
@@ -79,9 +80,9 @@ func (impl GitRegistryConfigImpl) Create(request *bean2.GitRegistry) (*bean2.Git
 		Name:                  request.Name,
 		Url:                   request.Url,
 		UserName:              request.UserName,
-		Password:              request.Password,
-		SshPrivateKey:         request.SshPrivateKey,
-		AccessToken:           request.AccessToken,
+		Password:              securestore.ToEncryptedString(request.Password),
+		SshPrivateKey:         securestore.ToEncryptedString(request.SshPrivateKey),
+		AccessToken:           securestore.ToEncryptedString(request.AccessToken),
 		AuthMode:              request.AuthMode,
 		Active:                request.Active,
 		Deleted:               false,
@@ -127,7 +128,7 @@ func (impl GitRegistryConfigImpl) Create(request *bean2.GitRegistry) (*bean2.Git
 		}
 	}
 
-	provider.SshPrivateKey = ModifySshPrivateKey(provider.SshPrivateKey, provider.AuthMode)
+	provider.SshPrivateKey = securestore.ToEncryptedString(ModifySshPrivateKey(provider.SshPrivateKey.String(), provider.AuthMode))
 	err = impl.gitProviderRepo.Save(provider)
 	if err != nil {
 		impl.logger.Errorw("error in saving git repo config", "data", provider, "err", err)
@@ -179,23 +180,23 @@ func (impl GitRegistryConfigImpl) Update(request *bean2.GitRegistry) (*bean2.Git
 		return nil, err0
 	}
 	if request.Password == "" {
-		request.Password = existingProvider.Password
+		request.Password = existingProvider.Password.String()
 	}
 	if request.SshPrivateKey == "" {
-		request.SshPrivateKey = existingProvider.SshPrivateKey
+		request.SshPrivateKey = existingProvider.SshPrivateKey.String()
 	}
 	if request.AccessToken == "" {
-		request.AccessToken = existingProvider.AccessToken
+		request.AccessToken = existingProvider.AccessToken.String()
 	}
 	provider := &repository.GitProvider{
 		Name:                  request.Name,
 		Url:                   request.Url,
 		Id:                    request.Id,
 		AuthMode:              request.AuthMode,
-		Password:              request.Password,
+		Password:              securestore.ToEncryptedString(request.Password),
 		Active:                request.Active,
-		AccessToken:           request.AccessToken,
-		SshPrivateKey:         request.SshPrivateKey,
+		AccessToken:           securestore.ToEncryptedString(request.AccessToken),
+		SshPrivateKey:         securestore.ToEncryptedString(request.SshPrivateKey),
 		UserName:              request.UserName,
 		GitHostId:             request.GitHostId,
 		EnableTLSVerification: request.EnableTLSVerification,
@@ -251,7 +252,7 @@ func (impl GitRegistryConfigImpl) Update(request *bean2.GitRegistry) (*bean2.Git
 		}
 	}
 
-	provider.SshPrivateKey = ModifySshPrivateKey(provider.SshPrivateKey, provider.AuthMode)
+	provider.SshPrivateKey = securestore.ToEncryptedString(ModifySshPrivateKey(provider.SshPrivateKey.String(), provider.AuthMode))
 	err := impl.gitProviderRepo.Update(provider)
 	if err != nil {
 		impl.logger.Errorw("error in updating git repo config", "data", provider, "err", err)
@@ -311,9 +312,9 @@ func (impl GitRegistryConfigImpl) UpdateGitSensor(provider *repository.GitProvid
 		Name:                  provider.Name,
 		Url:                   provider.Url,
 		UserName:              provider.UserName,
-		Password:              provider.Password,
-		SshPrivateKey:         provider.SshPrivateKey,
-		AccessToken:           provider.AccessToken,
+		Password:              provider.Password.String(),
+		SshPrivateKey:         provider.SshPrivateKey.String(),
+		AccessToken:           provider.AccessToken.String(),
 		Active:                provider.Active,
 		AuthMode:              provider.AuthMode,
 		CaCert:                provider.CaCert,

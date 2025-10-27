@@ -19,6 +19,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/common-lib/securestore"
 	bean2 "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -90,10 +91,10 @@ func NewDockerArtifactStore(bean *types.DockerArtifactStoreBean, isActive bool, 
 		RegistryType:           bean.RegistryType,
 		IsOCICompliantRegistry: bean.IsOCICompliantRegistry,
 		AWSAccessKeyId:         bean.AWSAccessKeyId,
-		AWSSecretAccessKey:     bean.AWSSecretAccessKey,
+		AWSSecretAccessKey:     securestore.ToEncryptedString(bean.AWSSecretAccessKey),
 		AWSRegion:              bean.AWSRegion,
 		Username:               bean.Username,
-		Password:               bean.Password,
+		Password:               securestore.ToEncryptedString(bean.Password),
 		IsDefault:              bean.IsDefault,
 		Connection:             bean.Connection,
 		Cert:                   bean.Cert,
@@ -487,10 +488,10 @@ func (impl DockerRegistryConfigImpl) FetchOneDockerAccount(storeId string) (*typ
 		RegistryURL:            store.RegistryURL,
 		RegistryType:           store.RegistryType,
 		AWSAccessKeyId:         store.AWSAccessKeyId,
-		AWSSecretAccessKey:     store.AWSSecretAccessKey,
+		AWSSecretAccessKey:     store.AWSSecretAccessKey.String(),
 		AWSRegion:              store.AWSRegion,
 		Username:               store.Username,
-		Password:               store.Password,
+		Password:               store.Password.String(),
 		IsDefault:              store.IsDefault,
 		Connection:             store.Connection,
 		Cert:                   store.Cert,
@@ -536,11 +537,11 @@ func (impl DockerRegistryConfigImpl) Update(bean *types.DockerArtifactStoreBean)
 
 	// 3- update docker_registry_config
 	if bean.Password == "" {
-		bean.Password = existingStore.Password
+		bean.Password = existingStore.Password.String()
 	}
 
 	if bean.AWSSecretAccessKey == "" {
-		bean.AWSSecretAccessKey = existingStore.AWSSecretAccessKey
+		bean.AWSSecretAccessKey = existingStore.AWSSecretAccessKey.String()
 	}
 
 	if bean.Cert == "" {

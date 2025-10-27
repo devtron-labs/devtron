@@ -1,11 +1,11 @@
 openapi: "3.0.0"
 info:
-  version: 1.0.0
+  version: 2.0.0
   title: Resource Protection API
 paths:
   /orchestrator/protect:
     post:
-      description: enable/disable resource protection
+      description: enable/disable resource protection (deprecated)
       requestBody:
         description: A JSON object containing the app configuration
         required: true
@@ -34,6 +34,178 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+    get:
+      description: Get resource protection metadata for an application (v1)
+      parameters:
+        - name: appId
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Application ID
+      responses:
+        '200':
+          description: Successfully retrieved resource protection metadata
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ResourceProtectModel'
+        '400':
+          description: Bad Request. Invalid appId parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized. User not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden. User does not have access to this application.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/protect/env:
+    get:
+      description: Get resource protection metadata for all apps in an environment (v1)
+      parameters:
+        - name: envId
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Environment ID
+      responses:
+        '200':
+          description: Successfully retrieved resource protection status for apps in environment
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: boolean
+                description: Map of appId to protection enabled status
+        '400':
+          description: Bad Request. Invalid envId parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized. User not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden. User does not have access to any apps in this environment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/protect/v2:
+    get:
+      description: Get enhanced resource protection metadata for an application with approval configurations (v2)
+      parameters:
+        - name: appId
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Application ID
+      responses:
+        '200':
+          description: Successfully retrieved enhanced resource protection metadata
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ResourceProtectModel'
+        '400':
+          description: Bad Request. Invalid appId parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized. User not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden. User does not have access to this application.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/protect/v2/env:
+    get:
+      description: Get enhanced resource protection metadata for all apps in an environment with approval configurations (v2)
+      parameters:
+        - name: envId
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Environment ID
+      responses:
+        '200':
+          description: Successfully retrieved enhanced resource protection metadata for apps in environment
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ResourceProtectModel'
+        '400':
+          description: Bad Request. Invalid envId parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized. User not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden. User does not have access to any apps in this environment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   schemas:
     ResourceProtectRequest:
@@ -45,6 +217,119 @@ components:
           type: integer
         state:
           $ref: '#/components/schemas/ProtectionState'
+    ResourceProtectModel:
+      type: object
+      properties:
+        appId:
+          type: integer
+          description: Application identifier
+        envId:
+          type: integer
+          description: Environment identifier (-1 for app-level configurations)
+        state:
+          type: integer
+          description: Protection state (1=Enabled, 2=Disabled, 3=Migrated)
+          enum: [1, 2, 3]
+        approvalConfigurations:
+          type: array
+          description: List of approval configurations for different resource kinds
+          items:
+            $ref: '#/components/schemas/UserApprovalConfigDTO'
+    UserApprovalConfigDTO:
+      type: object
+      properties:
+        kind:
+          type: string
+          description: Resource kind requiring approval
+          enum:
+            - configuration/config-map
+            - configuration/config-secret
+            - configuration/deployment-template
+            - approval/deployment
+        requiredCount:
+          type: integer
+          description: Total number of approvals required
+        currentCount:
+          type: integer
+          description: Current number of approvals received
+        anyUserApprovedInfo:
+          $ref: '#/components/schemas/ApprovalUsersInfo'
+          nullable: true
+          description: Approval info for "any user" approvers
+        specificUsersApprovedInfo:
+          $ref: '#/components/schemas/ApprovalUsersInfo'
+          nullable: true
+          description: Approval info for specific users
+        userGroupsApprovedInfo:
+          $ref: '#/components/schemas/UserGroupsApprovalInfo'
+          nullable: true
+          description: Approval info for user groups
+        isExceptionUser:
+          type: boolean
+          description: Whether the current user is an exception user who can bypass approvals
+    ApprovalUsersInfo:
+      type: object
+      properties:
+        requiredCount:
+          type: integer
+          description: Number of approvals required from this category
+        currentCount:
+          type: integer
+          description: Current number of approvals from this category
+        approverList:
+          type: array
+          description: List of users who can approve
+          items:
+            $ref: '#/components/schemas/UserApprovalStatusInfo'
+    UserApprovalStatusInfo:
+      type: object
+      properties:
+        identifier:
+          type: string
+          description: User email or identifier
+        hasApproved:
+          type: boolean
+          description: Whether this user has already approved
+        canApprove:
+          type: boolean
+          description: Whether this user can approve
+        userDeleted:
+          type: boolean
+          description: Whether this user has been deleted
+    UserGroupsApprovalInfo:
+      type: object
+      properties:
+        requiredCount:
+          type: integer
+          description: Total approvals required from all groups
+        currentCount:
+          type: integer
+          description: Current approvals from all groups
+        userGroups:
+          type: array
+          description: List of user groups with approval info
+          items:
+            $ref: '#/components/schemas/UserGroupInfo'
+    UserGroupInfo:
+      type: object
+      properties:
+        groupName:
+          type: string
+          description: Display name of the user group
+        groupIdentifier:
+          type: string
+          description: Unique identifier of the user group
+        requiredCount:
+          type: integer
+          description: Approvals required from this group
+        currentCount:
+          type: integer
+          description: Current approvals from this group
+        approverList:
+          type: array
+          description: List of users in this group who can approve
+          items:
+            $ref: '#/components/schemas/UserApprovalStatusInfo'
     ProtectionState:
       description: 0 for enabled, 1 for disabled
       type: integer

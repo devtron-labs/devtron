@@ -1,0 +1,209 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Lock Configuration API
+  description: API for managing deployment template lock configurations that restrict which paths can be modified in deployment templates
+paths:
+  /orchestrator/config/lock:
+    get:
+      description: Get lock configuration for an application and environment. Returns paths that are locked or allowed for modification in deployment templates.
+      parameters:
+        - name: appId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Application ID. If not provided, returns global lock configuration.
+        - name: envId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Environment ID. If not provided with appId, returns app-level lock configuration. Use -1 for base deployment template.
+      responses:
+        '200':
+          description: Successfully retrieved lock configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LockConfigResponse'
+              examples:
+                withLockConfig:
+                  summary: Lock configuration exists
+                  value:
+                    id: 1
+                    allowed: true
+                    config:
+                      - "spec.replicas"
+                      - "spec.template.spec.containers[0].resources"
+                emptyLockConfig:
+                  summary: No lock configuration
+                  value:
+                    config: []
+        '400':
+          description: Bad Request. Invalid appId or envId parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized. User not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden. User does not have required permissions (must be admin/manager or have config approver access).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      description: Create or update lock configuration. Requires super admin permissions.
+      requestBody:
+        description: Lock configuration request
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LockConfigRequest'
+            examples:
+              allowSpecificPaths:
+                summary: Allow only specific paths to be modified
+                value:
+                  allowed: true
+                  config:
+                    - "spec.replicas"
+                    - "spec.template.spec.containers[0].image"
+              denySpecificPaths:
+                summary: Deny specific paths from being modified
+                value:
+                  allowed: false
+                  config:
+                    - "spec.template.spec.securityContext"
+                    - "spec.template.spec.serviceAccountName"
+      responses:
+        '200':
+          description: Successfully created/updated lock configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    description: ID of the created/updated lock configuration
+        '400':
+          description: Bad Request. Validation error or invalid request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized. User not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden. User does not have super admin permissions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      description: Delete active lock configuration. Requires super admin permissions.
+      responses:
+        '200':
+          description: Successfully deleted lock configuration
+        '401':
+          description: Unauthorized. User not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden. User does not have super admin permissions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    LockConfigRequest:
+      type: object
+      required:
+        - allowed
+        - config
+      properties:
+        allowed:
+          type: boolean
+          description: If true, only paths in 'config' can be modified (allowlist). If false, paths in 'config' cannot be modified (denylist).
+        config:
+          type: array
+          items:
+            type: string
+          description: List of JSON paths in the deployment template. Supports array indexing (e.g., "spec.containers[0].image")
+          example:
+            - "spec.replicas"
+            - "spec.template.spec.containers[0].resources.limits.cpu"
+            - "spec.template.spec.containers[0].resources.limits.memory"
+    LockConfigResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Lock configuration ID
+        allowed:
+          type: boolean
+          description: If true, only paths in 'config' can be modified (allowlist). If false, paths in 'config' cannot be modified (denylist).
+        config:
+          type: array
+          items:
+            type: string
+          description: List of JSON paths that are locked or allowed
+          example:
+            - "spec.replicas"
+            - "spec.template.spec.containers[0].resources"
+    LockValidateErrorResponse:
+      type: object
+      description: Response when lock configuration validation fails
+      properties:
+        isLockConfigError:
+          type: boolean
+          description: Indicates if the error is due to lock configuration violation
+        changedPaths:
+          type: array
+          items:
+            type: string
+          description: List of paths that were changed but are locked
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message
+
