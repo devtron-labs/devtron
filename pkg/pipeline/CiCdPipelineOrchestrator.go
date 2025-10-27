@@ -154,6 +154,7 @@ type CiCdPipelineOrchestratorImpl struct {
 	deploymentConfigReadService   read.DeploymentConfigReadService
 	workflowCacheConfig           types.WorkflowCacheConfig
 	chartReadService              read2.ChartReadService
+	globalEnvVariables            *util2.GlobalEnvVariables
 }
 
 func NewCiCdPipelineOrchestrator(
@@ -185,7 +186,8 @@ func NewCiCdPipelineOrchestrator(
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	deploymentConfigService common.DeploymentConfigService,
 	deploymentConfigReadService read.DeploymentConfigReadService,
-	chartReadService read2.ChartReadService) *CiCdPipelineOrchestratorImpl {
+	chartReadService read2.ChartReadService,
+	envVariables *util2.EnvironmentVariables) *CiCdPipelineOrchestratorImpl {
 	_, workflowCacheConfig, err := types.GetCiConfigWithWorkflowCacheConfig()
 	if err != nil {
 		logger.Errorw("Error in getting workflow cache config, continuing with default values", "err", err)
@@ -223,6 +225,7 @@ func NewCiCdPipelineOrchestrator(
 		deploymentConfigReadService:   deploymentConfigReadService,
 		workflowCacheConfig:           workflowCacheConfig,
 		chartReadService:              chartReadService,
+		globalEnvVariables:            envVariables.GlobalEnvVariables,
 	}
 }
 
@@ -1159,6 +1162,19 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			if ciMaterial != nil && ciMaterial.GitMaterial != nil {
 				r.GitMaterialName = ciMaterial.GitMaterial.Name[strings.Index(ciMaterial.GitMaterial.Name, "-")+1:]
 			}
+		}
+
+		// Copy artifacts from parent CI pipeline if this is a linked CI pipeline
+		if ciPipeline.ParentCiPipeline > 0 && ciPipeline.PipelineType == buildCommonBean.LINKED {
+			go func() {
+				err = impl.copyArtifactsFromParentCiPipeline(ciPipeline.ParentCiPipeline, ciPipeline.Id, createRequest.UserId)
+				if err != nil {
+					impl.logger.Errorw("error in copying artifacts from parent CI pipeline",
+						"parentCiPipelineId", ciPipeline.ParentCiPipeline,
+						"childCiPipelineId", ciPipeline.Id,
+						"err", err)
+				}
+			}()
 		}
 	}
 	return createRequest, nil
@@ -2252,7 +2268,7 @@ func (impl CiCdPipelineOrchestratorImpl) createDockerRepoIfNeeded(dockerRegistry
 		return err
 	}
 	if dockerArtifactStore.RegistryType == dockerRegistryRepository.REGISTRYTYPE_ECR {
-		err := impl.CreateEcrRepo(dockerRepository, dockerArtifactStore.AWSRegion, dockerArtifactStore.AWSAccessKeyId, dockerArtifactStore.AWSSecretAccessKey)
+		err := impl.CreateEcrRepo(dockerRepository, dockerArtifactStore.AWSRegion, dockerArtifactStore.AWSAccessKeyId, dockerArtifactStore.AWSSecretAccessKey.String())
 		if err != nil {
 			impl.logger.Errorw("ecr repo creation failed while updating ci template", "err", err, "repo", dockerRepository)
 			return err
@@ -2510,4 +2526,64 @@ func (impl *CiCdPipelineOrchestratorImpl) GetWorkflowCacheConfig(appType helper.
 			return util4.GetWorkflowCacheConfigWithBackwardCompatibility(pipelineWorkflowCacheConfig, impl.ciConfig.WorkflowCacheConfig, impl.workflowCacheConfig.IgnoreCI, impl.ciConfig.IgnoreDockerCacheForCI)
 		}
 	}
+}
+
+// copyArtifactsFromParentCiPipeline copies existing artifacts from parent CI pipeline to linked CI pipeline during pipeline creation
+func (impl *CiCdPipelineOrchestratorImpl) copyArtifactsFromParentCiPipeline(parentCiPipelineId, childCiPipelineId int, userId int32) error {
+	if !impl.globalEnvVariables.EnableLinkedCiArtifactCopy {
+		impl.logger.Debugw("Linked CI artifact copying is disabled", "parentCiPipelineId", parentCiPipelineId, "childCiPipelineId", childCiPipelineId)
+		return nil
+	}
+	limit := impl.globalEnvVariables.LinkedCiArtifactCopyLimit
+	if limit <= 0 {
+		return nil
+	}
+
+	impl.logger.Infow("Starting, copyArtifactsFromParentCiPipeline", "parentCiPipelineId", parentCiPipelineId,
+		"childCiPipelineId", childCiPipelineId, "limit", limit)
+
+	parentArtifacts, err := impl.CiArtifactRepository.GetLatestArtifactsByCiPipelineId(parentCiPipelineId, limit)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in fetching artifacts from parent CI pipeline", "parentCiPipelineId", parentCiPipelineId, "err", err)
+		return err
+	}
+
+	if len(parentArtifacts) == 0 {
+		impl.logger.Infow("No artifacts found in parent CI pipeline", "parentCiPipelineId", parentCiPipelineId)
+		return nil
+	}
+
+	var childArtifacts []*repository.CiArtifact
+	for i := len(parentArtifacts); i > 0; i-- {
+		parentArtifact := parentArtifacts[i-1] //reversing order into new array because postgres will save the array as it is thus causing our actual order to reverse
+		childArtifact := &repository.CiArtifact{
+			Image:              parentArtifact.Image,
+			ImageDigest:        parentArtifact.ImageDigest,
+			MaterialInfo:       parentArtifact.MaterialInfo,
+			DataSource:         parentArtifact.DataSource,
+			PipelineId:         childCiPipelineId,
+			ParentCiArtifact:   parentArtifact.Id,
+			IsArtifactUploaded: parentArtifact.IsArtifactUploaded, // for backward compatibility
+			ScanEnabled:        parentArtifact.ScanEnabled,
+			TargetPlatforms:    parentArtifact.TargetPlatforms,
+			AuditLog: sql.AuditLog{
+				CreatedOn: time.Now(),
+				CreatedBy: userId,
+				UpdatedOn: time.Now(),
+				UpdatedBy: userId,
+			},
+		}
+		if parentArtifact.ScanEnabled {
+			childArtifact.Scanned = parentArtifact.Scanned
+		}
+		childArtifacts = append(childArtifacts, childArtifact)
+	}
+	if len(childArtifacts) > 0 {
+		_, err = impl.CiArtifactRepository.SaveAll(childArtifacts)
+		if err != nil {
+			impl.logger.Errorw("error in saving copied artifacts for child ci pipeline", "childCiPipelineId", childCiPipelineId, "err", err)
+			return err
+		}
+	}
+	return nil
 }

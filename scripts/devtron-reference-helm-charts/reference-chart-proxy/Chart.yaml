@@ -1,2 +1,4 @@
+apiVersion: v2
+description: Proxy chart for devtron reference app
 name: sample
 version: 1.0.0

@@ -523,7 +523,7 @@ github.com/davecgh/go-spew/spew
 # github.com/deckarep/golang-set v1.8.0
 ## explicit; go 1.17
 github.com/deckarep/golang-set
-# github.com/devtron-labs/authenticator v0.4.35-0.20240809073103-6e11da8083f8 => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250910095456-9e49667d03f5
+# github.com/devtron-labs/authenticator v0.4.35-0.20240809073103-6e11da8083f8 => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20251027071349-2031d8107953
 ## explicit; go 1.24.0
 github.com/devtron-labs/authenticator/apiToken
 github.com/devtron-labs/authenticator/client
@@ -531,7 +531,7 @@ github.com/devtron-labs/authenticator/jwt
 github.com/devtron-labs/authenticator/middleware
 github.com/devtron-labs/authenticator/oidc
 github.com/devtron-labs/authenticator/password
-# github.com/devtron-labs/common-lib v0.18.1-0.20241001061923-eda545dc839e => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250910095456-9e49667d03f5
+# github.com/devtron-labs/common-lib v0.18.1-0.20241001061923-eda545dc839e => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20251027071349-2031d8107953
 ## explicit; go 1.24.0
 github.com/devtron-labs/common-lib/async
 github.com/devtron-labs/common-lib/blob-storage
@@ -548,6 +548,7 @@ github.com/devtron-labs/common-lib/middlewares
 github.com/devtron-labs/common-lib/pubsub-lib
 github.com/devtron-labs/common-lib/pubsub-lib/metrics
 github.com/devtron-labs/common-lib/pubsub-lib/model
+github.com/devtron-labs/common-lib/securestore
 github.com/devtron-labs/common-lib/telemetry
 github.com/devtron-labs/common-lib/utils
 github.com/devtron-labs/common-lib/utils/bean
@@ -562,6 +563,7 @@ github.com/devtron-labs/common-lib/utils/registry
 github.com/devtron-labs/common-lib/utils/remoteConnection/bean
 github.com/devtron-labs/common-lib/utils/retryFunc
 github.com/devtron-labs/common-lib/utils/runTime
+github.com/devtron-labs/common-lib/utils/sql
 github.com/devtron-labs/common-lib/utils/workFlow
 github.com/devtron-labs/common-lib/utils/yaml
 github.com/devtron-labs/common-lib/workflow
@@ -2671,5 +2673,5 @@ xorm.io/xorm/log
 xorm.io/xorm/names
 xorm.io/xorm/schemas
 xorm.io/xorm/tags
-# github.com/devtron-labs/authenticator => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250910095456-9e49667d03f5
-# github.com/devtron-labs/common-lib => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250910095456-9e49667d03f5
+# github.com/devtron-labs/authenticator => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20251027071349-2031d8107953
+# github.com/devtron-labs/common-lib => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20251027071349-2031d8107953

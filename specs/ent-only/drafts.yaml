@@ -3,7 +3,63 @@ info:
   version: 1.0.0
   title: Drafts Management API
 paths:
-  /orchestrator/drafts:
+  /orchestrator/draft:
+    get:
+      description: get draft by resource name, app, env and resource type
+      parameters:
+        - name: resourceName
+          required: true
+          in: query
+          schema:
+            type: string
+          description: Name of the resource (e.g., ConfigMap name, Secret name, or DeploymentTemplateOverride identifier)
+          example: "restart-env-DeploymentTemplateOverride"
+        - name: appId
+          required: true
+          in: query
+          schema:
+            type: integer
+          description: Application ID
+          example: 26
+        - name: envId
+          required: true
+          in: query
+          schema:
+            type: integer
+          description: Environment ID
+          example: 26
+        - name: resourceType
+          required: true
+          in: query
+          schema:
+            type: integer
+          description: Type of resource (0=ConfigMap, 1=Secret, 2=DeploymentTemplate, 3=DeploymentTemplateOverride)
+          example: 3
+      responses:
+        '200':
+          description: successfully return config draft response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigDraftResponse'
+        '400':
+          description: Bad Request. validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
       description: create drafts
       requestBody:
@@ -38,7 +94,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/drafts/{draftId}:
+  /orchestrator/draft/{draftId}:
     get:
       description: fetch draft metadata for draftId
       parameters:
@@ -72,7 +128,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/drafts/version:
+  /orchestrator/draft/version:
     put:
       description: add drafts version to a draft
       requestBody:
@@ -109,7 +165,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/drafts/version/comments:
+  /orchestrator/draft/version/comments:
     delete:
       description: delete comment of a user
       parameters:
@@ -144,7 +200,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/drafts/version/comments/{draftId}:
+  /orchestrator/draft/version/comments/{draftId}:
     get:
       description: get draft comments
       parameters:
@@ -178,7 +234,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/drafts/version/{draftId}:
+  /orchestrator/draft/version/{draftId}:
     get:
       description: get drafts version metadata
       parameters:
@@ -394,7 +450,7 @@ components:
       description: 0 for Init, 1 for Discarded, 2 for Published, 3 for AwaitApproval
     DraftResourceType:
       type: integer
-      description: 0 for Config Map, 1 for Secret and 2 for Deployment Template
+      description: 0 for Config Map, 1 for Secret, 2 for Deployment Template, and 3 for Deployment Template Override
     ConfigDraftRequest:
       type: object
       properties:
