@@ -20,6 +20,7 @@ import (
 	"github.com/devtron-labs/common-lib/securestore"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 )
 
@@ -56,15 +57,16 @@ type GitProviderRepository interface {
 }
 
 type GitProviderRepositoryImpl struct {
-	dbConnection *pg.DB
+	GlobalEnvVariables *globalUtil.GlobalEnvVariables
+	dbConnection       *pg.DB
 }
 
-func NewGitProviderRepositoryImpl(dbConnection *pg.DB) *GitProviderRepositoryImpl {
-	return &GitProviderRepositoryImpl{dbConnection: dbConnection}
+func NewGitProviderRepositoryImpl(dbConnection *pg.DB, envVariables *globalUtil.EnvironmentVariables) *GitProviderRepositoryImpl {
+	return &GitProviderRepositoryImpl{dbConnection: dbConnection, GlobalEnvVariables: envVariables.GlobalEnvVariables}
 }
 
 func (impl GitProviderRepositoryImpl) Save(gitProvider *GitProvider) error {
-	err := encryptFieldsInGitProvider(gitProvider)
+	err := impl.encryptFieldsInGitProvider(gitProvider)
 	if err != nil {
 		return err
 	}
@@ -120,7 +122,7 @@ func (impl GitProviderRepositoryImpl) FindByUrl(providerUrl string) (GitProvider
 }
 
 func (impl GitProviderRepositoryImpl) Update(gitProvider *GitProvider) error {
-	err := encryptFieldsInGitProvider(gitProvider)
+	err := impl.encryptFieldsInGitProvider(gitProvider)
 	if err != nil {
 		return err
 	}
@@ -133,19 +135,21 @@ func (impl GitProviderRepositoryImpl) MarkProviderDeleted(gitProvider *GitProvid
 	return impl.dbConnection.Update(gitProvider)
 }
 
-func encryptFieldsInGitProvider(gitProvider *GitProvider) error {
+func (impl GitProviderRepositoryImpl) encryptFieldsInGitProvider(gitProvider *GitProvider) error {
 	var err error
-	gitProvider.Password, err = securestore.EncryptString(gitProvider.Password.String())
-	if err != nil {
-		return err
-	}
-	gitProvider.AccessToken, err = securestore.EncryptString(gitProvider.AccessToken.String())
-	if err != nil {
-		return err
-	}
-	gitProvider.SshPrivateKey, err = securestore.EncryptString(gitProvider.SshPrivateKey.String())
-	if err != nil {
-		return err
+	if impl.GlobalEnvVariables.EnablePasswordEncryption {
+		gitProvider.Password, err = securestore.EncryptString(gitProvider.Password.String())
+		if err != nil {
+			return err
+		}
+		gitProvider.AccessToken, err = securestore.EncryptString(gitProvider.AccessToken.String())
+		if err != nil {
+			return err
+		}
+		gitProvider.SshPrivateKey, err = securestore.EncryptString(gitProvider.SshPrivateKey.String())
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

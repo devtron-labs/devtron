@@ -67,6 +67,7 @@ type GlobalEnvVariables struct {
 	IsAirGapEnvironment               bool `json:"isAirGapEnvironment" env:"IS_AIR_GAP_ENVIRONMENT" envDefault:"false"`
 	EnableLinkedCiArtifactCopy        bool `env:"ENABLE_LINKED_CI_ARTIFACT_COPY" envDefault:"false" description:"Enable copying artifacts from parent CI pipeline to linked CI pipeline during creation"`
 	LinkedCiArtifactCopyLimit         int  `env:"LINKED_CI_ARTIFACT_COPY_LIMIT" envDefault:"10" description:"Maximum number of artifacts to copy from parent CI pipeline to linked CI pipeline"`
+	EnablePasswordEncryption          bool `env:"ENABLE_PASSWORD_ENCRYPTION" envDefault:"true" description:"enable password encryption"`
 }
 
 type GlobalClusterConfig struct {
