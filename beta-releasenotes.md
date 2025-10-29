@@ -1,4 +1,5 @@
 ## Enhancements
+- feat: feature flag for encryption (#6856)
 - feat: encryption for db credentials (#6852)
 ## Bugs
 - fix: user manager fix (#6854)
