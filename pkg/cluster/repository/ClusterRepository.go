@@ -19,6 +19,7 @@ package repository
 import (
 	"github.com/devtron-labs/common-lib/securestore"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -74,22 +75,26 @@ type ClusterRepository interface {
 	FindByClusterURL(clusterURL string) (*Cluster, error)
 }
 
-func NewClusterRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *ClusterRepositoryImpl {
+func NewClusterRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, variables *globalUtil.EnvironmentVariables) *ClusterRepositoryImpl {
 	return &ClusterRepositoryImpl{
-		dbConnection: dbConnection,
-		logger:       logger,
+		dbConnection:       dbConnection,
+		logger:             logger,
+		GlobalEnvVariables: variables.GlobalEnvVariables,
 	}
 }
 
 type ClusterRepositoryImpl struct {
-	dbConnection *pg.DB
-	logger       *zap.SugaredLogger
+	dbConnection       *pg.DB
+	logger             *zap.SugaredLogger
+	GlobalEnvVariables *globalUtil.GlobalEnvVariables
 }
 
 func (impl ClusterRepositoryImpl) Save(model *Cluster) (err error) {
-	model.Config, err = securestore.EncryptMap(model.Config)
-	if err != nil {
-		return err
+	if impl.GlobalEnvVariables.EnablePasswordEncryption {
+		model.Config, err = securestore.EncryptMap(model.Config)
+		if err != nil {
+			return err
+		}
 	}
 	return impl.dbConnection.Insert(model)
 }
@@ -106,9 +111,11 @@ func (impl ClusterRepositoryImpl) FindOne(clusterName string) (*Cluster, error) 
 }
 func (impl ClusterRepositoryImpl) SaveAll(models []*Cluster) (err error) {
 	for i := range models {
-		models[i].Config, err = securestore.EncryptMap(models[i].Config)
-		if err != nil {
-			return err
+		if impl.GlobalEnvVariables.EnablePasswordEncryption {
+			models[i].Config, err = securestore.EncryptMap(models[i].Config)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return impl.dbConnection.Insert(models)
@@ -191,9 +198,11 @@ func (impl ClusterRepositoryImpl) FindByIds(id []int) ([]Cluster, error) {
 }
 
 func (impl ClusterRepositoryImpl) Update(model *Cluster) (err error) {
-	model.Config, err = securestore.EncryptMap(model.Config)
-	if err != nil {
-		return err
+	if impl.GlobalEnvVariables.EnablePasswordEncryption {
+		model.Config, err = securestore.EncryptMap(model.Config)
+		if err != nil {
+			return err
+		}
 	}
 	return impl.dbConnection.Update(model)
 }

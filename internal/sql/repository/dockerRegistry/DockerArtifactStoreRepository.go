@@ -99,11 +99,12 @@ type DockerArtifactStoreRepository interface {
 	FindInactive(storeId string) (bool, error)
 }
 type DockerArtifactStoreRepositoryImpl struct {
-	dbConnection *pg.DB
+	dbConnection       *pg.DB
+	GlobalEnvVariables *util.GlobalEnvVariables
 }
 
-func NewDockerArtifactStoreRepositoryImpl(dbConnection *pg.DB) *DockerArtifactStoreRepositoryImpl {
-	return &DockerArtifactStoreRepositoryImpl{dbConnection: dbConnection}
+func NewDockerArtifactStoreRepositoryImpl(dbConnection *pg.DB, environmentVariables *util.EnvironmentVariables) *DockerArtifactStoreRepositoryImpl {
+	return &DockerArtifactStoreRepositoryImpl{dbConnection: dbConnection, GlobalEnvVariables: environmentVariables.GlobalEnvVariables}
 }
 
 func (impl DockerArtifactStoreRepositoryImpl) GetConnection() *pg.DB {
@@ -111,15 +112,17 @@ func (impl DockerArtifactStoreRepositoryImpl) GetConnection() *pg.DB {
 }
 
 func (impl DockerArtifactStoreRepositoryImpl) Save(artifactStore *DockerArtifactStore, tx *pg.Tx) (err error) {
-	artifactStore.Password, err = securestore.EncryptString(artifactStore.Password.String())
-	if err != nil {
-		return err
-	}
-	artifactStore.AWSSecretAccessKey, err = securestore.EncryptString(artifactStore.AWSSecretAccessKey.String())
-	if err != nil {
-		return err
-	}
 
+	if impl.GlobalEnvVariables.EnablePasswordEncryption {
+		artifactStore.Password, err = securestore.EncryptString(artifactStore.Password.String())
+		if err != nil {
+			return err
+		}
+		artifactStore.AWSSecretAccessKey, err = securestore.EncryptString(artifactStore.AWSSecretAccessKey.String())
+		if err != nil {
+			return err
+		}
+	}
 	if util.IsBaseStack() {
 		return tx.Insert(artifactStore)
 	}
@@ -246,13 +249,15 @@ func (impl DockerArtifactStoreRepositoryImpl) FindOneInactive(storeId string) (*
 }
 
 func (impl DockerArtifactStoreRepositoryImpl) Update(artifactStore *DockerArtifactStore, tx *pg.Tx) (err error) {
-	artifactStore.Password, err = securestore.EncryptString(artifactStore.Password.String())
-	if err != nil {
-		return err
-	}
-	artifactStore.AWSSecretAccessKey, err = securestore.EncryptString(artifactStore.AWSSecretAccessKey.String())
-	if err != nil {
-		return err
+	if impl.GlobalEnvVariables.EnablePasswordEncryption {
+		artifactStore.Password, err = securestore.EncryptString(artifactStore.Password.String())
+		if err != nil {
+			return err
+		}
+		artifactStore.AWSSecretAccessKey, err = securestore.EncryptString(artifactStore.AWSSecretAccessKey.String())
+		if err != nil {
+			return err
+		}
 	}
 	//TODO check for unique default
 	//there can be only one default

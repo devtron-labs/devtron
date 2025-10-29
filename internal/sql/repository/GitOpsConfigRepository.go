@@ -19,6 +19,7 @@ package repository
 import (
 	"github.com/devtron-labs/common-lib/securestore"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -37,8 +38,9 @@ type GitOpsConfigRepository interface {
 }
 
 type GitOpsConfigRepositoryImpl struct {
-	dbConnection *pg.DB
-	logger       *zap.SugaredLogger
+	dbConnection       *pg.DB
+	logger             *zap.SugaredLogger
+	GlobalEnvVariables *globalUtil.GlobalEnvVariables
 }
 
 type GitOpsConfig struct {
@@ -63,8 +65,8 @@ type GitOpsConfig struct {
 	sql.AuditLog
 }
 
-func NewGitOpsConfigRepositoryImpl(logger *zap.SugaredLogger, dbConnection *pg.DB) *GitOpsConfigRepositoryImpl {
-	return &GitOpsConfigRepositoryImpl{dbConnection: dbConnection, logger: logger}
+func NewGitOpsConfigRepositoryImpl(logger *zap.SugaredLogger, dbConnection *pg.DB, variables *globalUtil.EnvironmentVariables) *GitOpsConfigRepositoryImpl {
+	return &GitOpsConfigRepositoryImpl{dbConnection: dbConnection, logger: logger, GlobalEnvVariables: variables.GlobalEnvVariables}
 }
 
 func (impl *GitOpsConfigRepositoryImpl) GetConnection() *pg.DB {
@@ -73,9 +75,11 @@ func (impl *GitOpsConfigRepositoryImpl) GetConnection() *pg.DB {
 
 func (impl *GitOpsConfigRepositoryImpl) CreateGitOpsConfig(model *GitOpsConfig, tx *pg.Tx) (*GitOpsConfig, error) {
 	var err error
-	model.Token, err = securestore.EncryptString(model.Token.String())
-	if err != nil {
-		return model, err
+	if impl.GlobalEnvVariables.EnablePasswordEncryption {
+		model.Token, err = securestore.EncryptString(model.Token.String())
+		if err != nil {
+			return model, err
+		}
 	}
 	err = tx.Insert(model)
 	if err != nil {
@@ -85,9 +89,11 @@ func (impl *GitOpsConfigRepositoryImpl) CreateGitOpsConfig(model *GitOpsConfig, 
 	return model, nil
 }
 func (impl *GitOpsConfigRepositoryImpl) UpdateGitOpsConfig(model *GitOpsConfig, tx *pg.Tx) (err error) {
-	model.Token, err = securestore.EncryptString(model.Token.String())
-	if err != nil {
-		return err
+	if impl.GlobalEnvVariables.EnablePasswordEncryption {
+		model.Token, err = securestore.EncryptString(model.Token.String())
+		if err != nil {
+			return err
+		}
 	}
 	err = tx.Update(model)
 	if err != nil {
