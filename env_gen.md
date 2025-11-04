@@ -188,6 +188,7 @@
  | ENABLE_ASYNC_ARGO_CD_INSTALL_DEVTRON_CHART | bool |false | To enable async installation of gitops application |  | false |
  | ENABLE_ASYNC_INSTALL_DEVTRON_CHART | bool |false | To enable async installation of no-gitops application |  | false |
  | ENABLE_LINKED_CI_ARTIFACT_COPY | bool |false | Enable copying artifacts from parent CI pipeline to linked CI pipeline during creation |  | false |
+ | ENABLE_PASSWORD_ENCRYPTION | bool |true | enable password encryption |  | false |
  | EPHEMERAL_SERVER_VERSION_REGEX | string |v[1-9]\.\b(2[3-9]\|[3-9][0-9])\b.* | ephemeral containers support version regex that is compared with k8sServerVersion |  | false |
  | EVENT_URL | string |http://localhost:3000/notify | Notifier service url |  | false |
  | EXECUTE_WIRE_NIL_CHECKER | bool |false | checks for any nil pointer in wire.go |  | false |
