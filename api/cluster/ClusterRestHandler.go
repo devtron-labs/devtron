@@ -356,7 +356,7 @@ func (impl ClusterRestHandlerImpl) FindByIds(w http.ResponseWriter, r *http.Requ
 
 func (impl ClusterRestHandlerImpl) FindById(w http.ResponseWriter, r *http.Request) {
 	// Use enhanced parameter parsing with context
-	clusterId, err := common.ExtractIntPathParamWithContext(w, r, "id", "cluster")
+	clusterId, err := common.ExtractIntPathParamWithContext(w, r, "id")
 	if err != nil {
 		// Error already written by ExtractIntPathParamWithContext
 		return
@@ -734,7 +734,7 @@ func (impl ClusterRestHandlerImpl) GetClusterNamespaces(w http.ResponseWriter, r
 		isActionUserSuperAdmin = true
 	}
 	// extract cluster and handle response on error
-	clusterId, err := common.ExtractIntPathParamWithContext(w, r, "clusterId", "cluster")
+	clusterId, err := common.ExtractIntPathParamWithContext(w, r, "clusterId")
 	if err != nil {
 		impl.logger.Error("error in parsing clusterId", "clusterId", clusterId, "err", err)
 		return

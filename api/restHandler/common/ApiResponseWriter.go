@@ -18,8 +18,9 @@ package common
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/internal/util"
 	"net/http"
+
+	"github.com/devtron-labs/devtron/internal/util"
 )
 
 type ApiResponse struct {

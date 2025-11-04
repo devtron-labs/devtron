@@ -1027,6 +1027,70 @@ paths:
       security:
         - bearerAuth: []
 
+  /config/environment:
+    get:
+      tags:
+        - Environment Configuration
+      summary: Get environment configuration
+      description: Retrieves environment configuration details
+      operationId: getEnvironmentConfiguration
+      parameters:
+        - name: environmentId
+          in: query
+          description: Environment ID to filter by
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: clusterId
+          in: query
+          description: Cluster ID to filter by
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: appId
+          in: query
+          description: Application ID to filter by
+          required: false
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Environment configuration retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/EnvironmentConfig'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
   /app/env/{appId}/{envId}:
     get:
       tags:
@@ -1292,6 +1356,114 @@ paths:
       security:
         - bearerAuth: []
 
+    put:
+      tags:
+        - Environment Configuration
+      summary: Update environment configuration with chart values
+      description: |
+        Updates environment-specific configuration with chart values including:
+        - Modified chart values
+        - Updated environment settings
+        - Chart version changes
+        - Environment override updates
+      operationId: updateEnvConfigOverrideWithChart
+      parameters:
+        - name: appId
+          in: path
+          description: Application ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          example: 123
+        - name: envId
+          in: path
+          description: Environment ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          example: 456
+        - name: chartId
+          in: path
+          description: Chart ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          example: 789
+      requestBody:
+        description: Environment values configuration request
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnvironmentValuesRequest'
+            examples:
+              production_values:
+                summary: Production environment values
+                value:
+                  appId: 123
+                  envId: 456
+                  chartId: 789
+                  values:
+                    replicaCount: 3
+                    image: "my-app:v1.2.0"
+                    resources:
+                      limits:
+                        cpu: "500m"
+                        memory: "512Mi"
+                      requests:
+                        cpu: "250m"
+                        memory: "256Mi"
+      responses:
+        '200':
+          description: Environment configuration updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/EnvironmentConfig'
+        '400':
+          description: Invalid request format or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Application, environment, or chart not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
   /app/env:
     put:
       tags:
@@ -1376,6 +1548,59 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Environment configuration not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /config/update:
+    put:
+      tags:
+        - Deployment Configuration
+      summary: Update deployment configuration
+      description: Updates deployment configuration for an application in a specific environment
+      operationId: updateDeploymentConfiguration
+      requestBody:
+        description: Deployment configuration update request
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDeploymentConfigRequest'
+      responses:
+        '200':
+          description: Deployment configuration updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/DeploymentConfig'
+        '400':
+          description: Invalid request format or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Application or environment not found
           content:
             application/json:
               schema:

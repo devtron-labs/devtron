@@ -1,13 +1,13 @@
 module github.com/devtron-labs/devtron
 
-go 1.24.0
+go 1.24.6
 
-toolchain go1.24.2
+toolchain go1.24.7
 
 require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/Pallinder/go-randomdata v1.2.0
-	github.com/argoproj/argo-cd/v2 v2.14.13
+	github.com/argoproj/argo-cd/v2 v2.14.17
 	github.com/argoproj/argo-workflows/v3 v3.5.13
 	github.com/argoproj/gitops-engine v0.7.1-0.20250521000818-c08b0a72c1f1
 	github.com/aws/aws-sdk-go v1.55.7
@@ -129,7 +129,7 @@ require (
 	github.com/casbin/govaluate v1.2.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
-	github.com/cloudflare/circl v1.3.7 // indirect
+	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/distribution/reference v0.6.0 // indirect
