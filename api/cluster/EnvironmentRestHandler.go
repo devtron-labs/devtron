@@ -49,6 +49,12 @@ import (
 
 const ENV_DELETE_SUCCESS_RESP = "Environment deleted successfully."
 
+var (
+	// Regex patterns for environment name validation
+	envNameAlphanumericRegex = regexp.MustCompile(`^[a-z0-9-]+$`)
+	envNameLengthRegex       = regexp.MustCompile(`^.{1,16}$`)
+)
+
 type EnvironmentRestHandler interface {
 	Create(w http.ResponseWriter, r *http.Request)
 	Get(w http.ResponseWriter, r *http.Request)
@@ -107,13 +113,6 @@ func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, environmentRe
 	}
 }
 
-var (
-	// Regex patterns for environment name validation
-	envNameAlphanumericRegex = regexp.MustCompile(`^[a-z0-9-]+$`)
-	envNameNoStartEndHyphen  = regexp.MustCompile(`^(?![-]).*[^-]$`)
-	envNameLengthRegex       = regexp.MustCompile(`^.{1,16}$`)
-)
-
 // validateEnvironmentName validates the environment name against multiple regex patterns
 // Note: Required validation is already handled by struct validation tag
 func (impl EnvironmentRestHandlerImpl) validateEnvironmentName(envName string) error {
@@ -123,7 +122,7 @@ func (impl EnvironmentRestHandlerImpl) validateEnvironmentName(envName string) e
 	}
 
 	// Validation 2: Cannot start/end with '-'
-	if !envNameNoStartEndHyphen.MatchString(envName) {
+	if strings.HasPrefix(envName, "-") || strings.HasSuffix(envName, "-") {
 		return errors.New("Cannot start/end with '-'")
 	}
 
