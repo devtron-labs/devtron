@@ -4,6 +4,7 @@
 ## Bugs
 - fix: user manager fix (#6854)
 ## Others
+- misc: added validation on create environment (#6859)
 - sync: Main sync  (#6857)
 - sync: main sync 27 10 (#6855)
 - misc: migration unique constraint on mpc (#6851)
