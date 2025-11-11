@@ -20,13 +20,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	util2 "github.com/devtron-labs/devtron/util/event"
 	"net/http"
 	"path"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	util2 "github.com/devtron-labs/devtron/util/event"
 
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
@@ -891,6 +892,30 @@ func (impl *HandlerServiceImpl) deployApp(ctx context.Context, overrideRequest *
 			return err
 		}
 	} else if util.IsHelmApp(overrideRequest.DeploymentAppType) {
+		// For Helm deployments, we also want to commit to GitOps repo to maintain consistency
+		// First perform GitOps operations if needed
+		if triggerEvent.PerformChartPush {
+			impl.logger.Debugw("performing GitOps operations for Helm deployment", "cdWfrId", overrideRequest.WfrId)
+			// Build the manifest template for GitOps
+			manifestPushTemplate, buildErr := impl.buildManifestPushTemplate(overrideRequest, valuesOverrideResponse, "")
+			if buildErr != nil {
+				impl.logger.Errorw("error in building manifest push template for Helm GitOps", "err", buildErr)
+				return buildErr
+			}
+
+			// Use GitOps manifest push service to commit to Git repo
+			manifestPushService := impl.getManifestPushService(triggerEvent.ManifestStorageType)
+			manifestPushResponse := manifestPushService.PushChart(newCtx, manifestPushTemplate)
+			if manifestPushResponse.Error != nil {
+				impl.logger.Errorw("error in pushing manifest to git for Helm deployment", "err", manifestPushResponse.Error, "git_repo_url", manifestPushTemplate.RepoUrl)
+				// We don't return error here as we still want to deploy the Helm app
+				// But we log the error for visibility
+			} else {
+				impl.logger.Debugw("successfully pushed Helm deployment changes to GitOps repo", "cdWfrId", overrideRequest.WfrId)
+			}
+		}
+
+		// Then deploy the Helm application
 		_, referenceChartByte, err = impl.createHelmAppForCdPipeline(newCtx, overrideRequest, valuesOverrideResponse)
 		if err != nil {
 			impl.logger.Errorw("error in creating or updating helm application for cd pipeline", "err", err)
