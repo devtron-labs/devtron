@@ -893,8 +893,9 @@ func (impl *HandlerServiceImpl) deployApp(ctx context.Context, overrideRequest *
 		}
 	} else if util.IsHelmApp(overrideRequest.DeploymentAppType) {
 		// For Helm deployments, we also want to commit to GitOps repo to maintain consistency
-		// First perform GitOps operations if needed
-		if triggerEvent.PerformChartPush {
+		// We need to ensure GitOps operations are performed for Helm deployments
+		// Check if GitOps is configured for this deployment
+		if valuesOverrideResponse.DeploymentConfig != nil && valuesOverrideResponse.DeploymentConfig.GetRepoURL() != "" {
 			impl.logger.Debugw("performing GitOps operations for Helm deployment", "cdWfrId", overrideRequest.WfrId)
 			// Build the manifest template for GitOps
 			manifestPushTemplate, buildErr := impl.buildManifestPushTemplate(overrideRequest, valuesOverrideResponse, "")
