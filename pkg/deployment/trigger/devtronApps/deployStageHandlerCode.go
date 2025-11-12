@@ -896,23 +896,28 @@ func (impl *HandlerServiceImpl) deployApp(ctx context.Context, overrideRequest *
 		// We need to ensure GitOps operations are performed for Helm deployments
 		// Check if GitOps is configured for this deployment
 		if valuesOverrideResponse.DeploymentConfig != nil && valuesOverrideResponse.DeploymentConfig.GetRepoURL() != "" {
+			// Only perform GitOps operations if this is a GitOps-enabled deployment
+			// For Helm deployments with GitOps configured, we want to push to GitOps repo
 			impl.logger.Debugw("performing GitOps operations for Helm deployment", "cdWfrId", overrideRequest.WfrId)
-			// Build the manifest template for GitOps
+
+			// Build the manifest template for GitOps using the existing function
+			// We use empty builtChartPath as we're only pushing values, not the chart itself
 			manifestPushTemplate, buildErr := impl.buildManifestPushTemplate(overrideRequest, valuesOverrideResponse, "")
 			if buildErr != nil {
 				impl.logger.Errorw("error in building manifest push template for Helm GitOps", "err", buildErr)
-				return buildErr
-			}
-
-			// Use GitOps manifest push service to commit to Git repo
-			manifestPushService := impl.getManifestPushService(triggerEvent.ManifestStorageType)
-			manifestPushResponse := manifestPushService.PushChart(newCtx, manifestPushTemplate)
-			if manifestPushResponse.Error != nil {
-				impl.logger.Errorw("error in pushing manifest to git for Helm deployment", "err", manifestPushResponse.Error, "git_repo_url", manifestPushTemplate.RepoUrl)
 				// We don't return error here as we still want to deploy the Helm app
 				// But we log the error for visibility
 			} else {
-				impl.logger.Debugw("successfully pushed Helm deployment changes to GitOps repo", "cdWfrId", overrideRequest.WfrId)
+				// Use GitOps manifest push service to commit to Git repo
+				manifestPushService := impl.getManifestPushService(triggerEvent.ManifestStorageType)
+				manifestPushResponse := manifestPushService.PushChart(newCtx, manifestPushTemplate)
+				if manifestPushResponse.Error != nil {
+					impl.logger.Errorw("error in pushing manifest to git for Helm deployment", "err", manifestPushResponse.Error, "git_repo_url", manifestPushTemplate.RepoUrl)
+					// We don't return error here as we still want to deploy the Helm app
+					// But we log the error for visibility
+				} else {
+					impl.logger.Debugw("successfully pushed Helm deployment changes to GitOps repo", "cdWfrId", overrideRequest.WfrId)
+				}
 			}
 		}
 
