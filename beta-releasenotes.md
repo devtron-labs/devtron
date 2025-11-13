@@ -2,6 +2,7 @@
 - feat: feature flag for encryption (#6856)
 - feat: encryption for db credentials (#6852)
 ## Bugs
+- fix: sql injection  (#6861)
 - fix: user manager fix (#6854)
 ## Others
 - misc: added validation on create environment (#6859)
