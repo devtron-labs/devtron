@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/go-pg/pg"
+	"github.com/pkg/errors"
 )
 
 type InfraConfigServiceEnt interface {
@@ -51,6 +52,34 @@ func (impl *InfraConfigServiceImpl) getDefaultBuildxDriverType() v1.BuildxDriver
 }
 
 func (impl *InfraConfigServiceImpl) getInfraProfileIdsByScope(scope *v1.Scope) ([]int, error) {
-	// for OSS, user can't create infra profiles so no need to fetch infra profiles
+	// First check if there's a pipeline-level infra profile
+	if scope.PipelineId > 0 {
+		pipelineInfraProfileId, err := impl.getPipelineInfraProfileId(scope.PipelineId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching pipeline-level infra profile", "pipelineId", scope.PipelineId, "error", err)
+			return make([]int, 0), err
+		}
+		if pipelineInfraProfileId != nil {
+			impl.logger.Debugw("found pipeline-level infra profile", "pipelineId", scope.PipelineId, "infraProfileId", *pipelineInfraProfileId)
+			return []int{*pipelineInfraProfileId}, nil
+		}
+	}
+	
+	// For OSS, user can't create infra profiles so no need to fetch infra profiles
+	// Falls back to global profile
 	return make([]int, 0), nil
+}
+
+func (impl *InfraConfigServiceImpl) getPipelineInfraProfileId(pipelineId int) (*int, error) {
+	// Query the ci_pipeline table directly for the infra_profile_id
+	var infraProfileId *int
+	query := `SELECT infra_profile_id FROM ci_pipeline WHERE id = ? AND deleted = false`
+	_, err := impl.infraProfileRepo.GetDbConnection().Query(&infraProfileId, query, pipelineId)
+	if err != nil {
+		if errors.Is(err, pg.ErrNoRows) {
+			return nil, nil // Pipeline not found, fall back to app-level profile
+		}
+		return nil, err
+	}
+	return infraProfileId, nil
 }
