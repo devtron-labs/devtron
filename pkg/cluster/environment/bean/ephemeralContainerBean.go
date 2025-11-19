@@ -23,8 +23,8 @@ type EphemeralContainerAdvancedData struct {
 
 type EphemeralContainerBasicData struct {
 	ContainerName       string `json:"containerName" validate:"required"`
-	TargetContainerName string `json:"targetContainerName" validate:"required"`
-	Image               string `json:"image" validate:"required"`
+	TargetContainerName string `json:"targetContainerName"`
+	Image               string `json:"image"`
 }
 
 func (request EphemeralContainerRequest) GetContainerBean() repository.EphemeralContainerBean {
