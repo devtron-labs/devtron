@@ -6,8 +6,8 @@ import (
 )
 
 type EphemeralContainerRequest struct {
-	BasicData                        *EphemeralContainerBasicData    `json:"basicData" validate:"dive"`
-	AdvancedData                     *EphemeralContainerAdvancedData `json:"advancedData" validate:"dive"`
+	BasicData                        *EphemeralContainerBasicData    `json:"basicData"`
+	AdvancedData                     *EphemeralContainerAdvancedData `json:"advancedData"`
 	Namespace                        string                          `json:"namespace" validate:"required"`
 	ClusterId                        int                             `json:"clusterId" validate:"gt=0"`
 	PodName                          string                          `json:"podName"   validate:"required"`
