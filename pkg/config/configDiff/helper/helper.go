@@ -67,3 +67,17 @@ func GetConfigDataRequestJsonRawMessage(configDataList []*bean.ConfigData) (json
 	}
 	return configDataJson, nil
 }
+
+func GetJsonRawMessageFromConfigDataRequest(configDataList []*bean.ConfigData) (json.RawMessage, error) {
+	configDataReq := &bean.ConfigDataRequest{ConfigData: configDataList}
+	// doing this because FE wants string version of resolved value
+	strReq, err := utils.ConvertToString(configDataReq)
+	if err != nil {
+		return nil, err
+	}
+	configDataJson, err := utils.ConvertToJsonRawMessage(strReq)
+	if err != nil {
+		return nil, err
+	}
+	return configDataJson, nil
+}

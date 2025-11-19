@@ -18,7 +18,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/common-lib/middlewares"
@@ -68,7 +67,6 @@ type App struct {
 	// eventProcessor.CentralEventProcessor is used to register event processors
 	centralEventProcessor *eventProcessor.CentralEventProcessor // do not remove this.
 	// used for local dev only
-	serveTls                   bool
 	sessionManager2            *authMiddleware.SessionManager
 	OtelTracingService         *otel.OtelTracingServiceImpl
 	loggingMiddleware          util.LoggingMiddleware
@@ -99,7 +97,6 @@ func NewApp(router *router.MuxRouter,
 		Enforcer:                   enforcer,
 		EnforcerV2:                 enforcerV2,
 		db:                         db,
-		serveTls:                   false,
 		sessionManager2:            sessionManager2,
 		posthogClient:              posthogClient,
 		OtelTracingService:         otel.NewOtelTracingServiceImpl(Logger),
@@ -132,22 +129,7 @@ func (app *App) Start() {
 		app.MuxRouter.Router.Use(otelmux.Middleware(otel.OTEL_ORCHESTRASTOR_SERVICE_NAME))
 	}
 	app.server = server
-	var err error
-	if app.serveTls {
-		cert, err := tls.LoadX509KeyPair(
-			"localhost.crt",
-			"localhost.key",
-		)
-		if err != nil {
-			log.Fatal(err)
-		}
-		server.TLSConfig = &tls.Config{
-			Certificates: []tls.Certificate{cert},
-		}
-		err = server.ListenAndServeTLS("", "")
-	} else {
-		err = server.ListenAndServe()
-	}
+	err := server.ListenAndServe()
 	//err := http.ListenAndServe(fmt.Sprintf(":%d", port), auth.Authorizer(app.Enforcer, app.sessionManager)(app.MuxRouter.Router))
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		app.Logger.Errorw("error in startup", "err", err)
