@@ -5,6 +5,7 @@
 - fix: sql injection  (#6861)
 - fix: user manager fix (#6854)
 ## Others
+- sync: release candidate v0.43.0 (#6866)
 - misc: added validation on create environment (#6859)
 - sync: Main sync  (#6857)
 - sync: main sync 27 10 (#6855)
