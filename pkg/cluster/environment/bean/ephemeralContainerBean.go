@@ -18,11 +18,11 @@ type EphemeralContainerRequest struct {
 }
 
 type EphemeralContainerAdvancedData struct {
-	Manifest string `json:"manifest"`
+	Manifest string `json:"manifest" validate:"required"`
 }
 
 type EphemeralContainerBasicData struct {
-	ContainerName       string `json:"containerName"`
+	ContainerName       string `json:"containerName" validate:"required"`
 	TargetContainerName string `json:"targetContainerName"`
 	Image               string `json:"image"`
 }
@@ -38,3 +38,6 @@ func (request EphemeralContainerRequest) GetContainerBean() repository.Ephemeral
 		IsExternallyCreated: false,
 	}
 }
+
+const EXTERNAL_EPHIMERAL_CONTAINER_ERR string = "externally created ephemeral containers cannot be removed"
+const EPHEMERAL_CONTAINER_NOT_FOUND_ERR string = "ephemeral container not found"

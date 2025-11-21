@@ -18,10 +18,11 @@ package repository
 
 import (
 	"fmt"
+	"time"
+
 	repoBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util"
-	"time"
 
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
