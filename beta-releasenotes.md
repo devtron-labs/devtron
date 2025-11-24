@@ -1,4 +1,5 @@
 ## Enhancements
+- feat: Added namespace support for virtualService and destinationRule (#6868)
 - feat: feature flag for encryption (#6856)
 - feat: encryption for db credentials (#6852)
 ## Bugs
