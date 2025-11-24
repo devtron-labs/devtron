@@ -407,16 +407,17 @@ func (r EnvConfigOverrideRepositoryImpl) GetDbConnection() *pg.DB {
 }
 
 func (r EnvConfigOverrideRepositoryImpl) UpdateEmptyNamespaceInChartEnvConfigOverride(userId int32) (int, error) {
-	query := `UPDATE chart_env_config_override ce
+	query := `UPDATE chart_env_config_override
 		SET namespace = e.namespace,
 		    updated_by = ?,
 		    updated_on = ?
 		FROM charts c
 		INNER JOIN app a ON a.id = c.app_id
+		INNER JOIN chart_env_config_override ce ON ce.chart_id = c.id
 		INNER JOIN environment e ON e.id = ce.target_environment
-		WHERE ce.chart_id = c.id
-		  AND a.active = true
-		  AND ce.namespace = ''`
+		WHERE a.active = true
+		  AND ce.namespace = ''
+		  AND chart_env_config_override.id = ce.id`
 
 	result, err := r.dbConnection.Exec(query, userId, time.Now())
 	if err != nil {
