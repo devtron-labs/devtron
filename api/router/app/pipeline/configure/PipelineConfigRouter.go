@@ -123,7 +123,9 @@ func (router PipelineConfigRouterImpl) InitPipelineConfigRouter(configRouter *mu
 
 	configRouter.Path("/env/reset/{appId}/{environmentId}/{id}").HandlerFunc(router.restHandler.EnvConfigOverrideReset).Methods("DELETE")
 	configRouter.Path("/env/namespace/{appId}/{environmentId}").HandlerFunc(router.restHandler.EnvConfigOverrideCreateNamespace).Methods("POST")
-	configRouter.Path("/env/namespace/update-empty-environment").HandlerFunc(router.restHandler.UpdateEmptyNamespaceInChartEnvConfigOverride).Methods("GET")
+
+	// this api was made for issue :- https://github.com/devtron-labs/sprint-tasks/issues/2692
+	configRouter.Path("/env/namespace/populate-empty").HandlerFunc(router.restHandler.UpdateEmptyNamespaceInChartEnvConfigOverride).Methods("GET")
 
 	configRouter.Path("/cd-pipeline/workflow/history/{appId}/{environmentId}/{pipelineId}").HandlerFunc(router.restHandler.ListDeploymentHistory).Methods("GET")
 	configRouter.Path("/cd-pipeline/workflow/logs/{appId}/{environmentId}/{pipelineId}/{workflowId}").HandlerFunc(router.restHandler.GetPrePostDeploymentLogs).Methods("GET")
