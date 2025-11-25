@@ -115,6 +115,10 @@ func IntValidator() (*validator.Validate, error) {
 	if err != nil {
 		return v, err
 	}
+	err = v.RegisterValidation("validate-devtron-entity-name", validateDevtronEntityName)
+	if err != nil {
+		return v, err
+	}
 	return v, err
 }
 
@@ -174,3 +178,8 @@ func validateSSOConfigName(fl validator.FieldLevel) bool {
 	return false
 }
 
+func validateDevtronEntityName(fl validator.FieldLevel) bool {
+	hostnameRegexString := `^[a-z0-9]+(-[a-z0-9]+)*$`
+	hostnameRegexRFC952 := regexp.MustCompile(hostnameRegexString)
+	return hostnameRegexRFC952.MatchString(fl.Field().String())
+}
