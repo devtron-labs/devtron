@@ -7,6 +7,7 @@
 - fix: sql injection  (#6861)
 - fix: user manager fix (#6854)
 ## Others
+- misc: Vc empty ns fix (#6871)
 - sync: release candidate v0.43.0 (#6866)
 - misc: added validation on create environment (#6859)
 - sync: Main sync  (#6857)
