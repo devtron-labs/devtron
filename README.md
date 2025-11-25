@@ -56,7 +56,9 @@ Out of the box, Devtron's Kubernetes Dashboard includes:
 - [Single Sign On (SSO)](https://docs.dashboard.devtron.ai/operator-guide/authorization/sso-login-services) to simplify onboarding and authenticating team members.
 - [Fine Grained RBAC](https://docs.dashboard.devtron.ai/operator-guide/authorization) to control the level of access users have to different Dashboard and Cluster resources.
 
-[Devtron](#install-devtron) helps you deploy, observe, manage & debug existing Helm apps in all your clusters.
+[Devtron](#devtron-platform) helps you deploy, observe, manage & debug existing Helm apps in all your clusters.
+
+---
 
 ## Devtron Dashboard 
 
@@ -113,6 +115,8 @@ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}
 
 Please refer to the document for more information on how to [access the Devtron Dashboard](https://docs.dashboard.devtron.ai/getting-started/install-devtron-dashboard).
 
+---
+
 ## Devtron Platform
 
 The Devtron Platform provides a complete solution for all DevOps requirements, helping to create a single centralized DevOps Platform for managing all applications across Kubernetes clusters. <br>
@@ -157,11 +161,35 @@ helm install devtron devtron/devtron-operator --namespace devtroncd \
 --set security.enabled=true  --set notifier.enabled=true  \
 --set security.trivy.enabled=true --set monitoring.grafana.enabled=true
 ```
-## :blue_heart: Technology
+
+---
+
+## Core Tools and Technologies
  
-Devtron is built on some of the most trusted and loved technologies:
-<br>
-<p align="center"><img width="70%" height="70%" src="./assets/we-support.jpg"></p>
+Here are the components that Devtron uses internally as part of its own architecture:
+
+| Logo     | Tool     | Purpose    | GitHub Repository   |
+| -------- | -------- | ---------- | ------------------- |
+| <img src="./assets/readme-logos/clair.jpg" width="64px">                | **Clair**                       | Vulnerability Static Analysis for Containers  | [Link](https://github.com/quay/clair)                                               |
+| <img src="./assets/readme-logos/trivy.jpg" width="64px">                | **Trivy**                       | Find vulnerabilities, misconfigurations, secrets, SBOM in containers, Kubernetes, code repositories, clouds and more | [Link](https://github.com/aquasecurity/trivy)                               |
+| <img src="./assets/readme-logos/nats.jpg" width="64px">                 | **NATS**                        | High-Performance server for NATS.io, the cloud and edge native messaging system.        | [Link](https://github.com/nats-io/nats-server)                             |
+| <img src="./assets/readme-logos/helm.jpg" width="64px">                 | **Helm**                        | Kubernetes package manager                                 | [Link](https://github.com/helm/helm)                                                 |
+
+---
+
+## External Components
+
+Here are some of the optional components that Devtron supports:
+
+| Logo     | Tool     | Purpose    | GitHub Repository   |
+| -------- | -------- | ---------- | ------------------- |
+| <img src="./assets/readme-logos/argo.jpg" width="64px">                 | **Argo CD / Argo Workflows**    | GitOps deployment and workflow automation                  | [Link](https://github.com/argoproj/argo-cd)                                   |
+| <img src="./assets/readme-logos/keda.jpg" width="64px">                 | **KEDA**                        | Event driven autoscaling for Kubernetes workloads          | [Link](https://github.com/kedacore/keda)                                         |
+| <img src="./assets/readme-logos/k8s_external_secrets.jpg" width="64px"> | **Kubernetes External Secrets** | Sync secrets from external secret stores                   | [Link](https://github.com/external-secrets/external-secrets) |
+| <img src="./assets/readme-logos/prometheus.jpg" width="64px">           | **Prometheus**                  | Metrics collection and alerting                            | [Link](https://github.com/prometheus/prometheus)                         |
+| <img src="./assets/readme-logos/grafana.jpg" width="64px">              | **Grafana**                     | Monitoring dashboards and visualization                    | [Link](https://github.com/grafana/grafana)                                     |
+
+---
 
 ## :question: FAQs & Troubleshooting
  
@@ -185,6 +213,8 @@ Get updates on Devtron's development and chat with project maintainers, contribu
 </a>
 </p>
 
+---
+
 ## :handshake: Contribute
  
 Check out our [contributing guidelines](CONTRIBUTING.md). Included, are directions for opening issues, coding standards, and notes on our development processes. We deeply appreciate your contribution.
@@ -198,10 +228,14 @@ We are deeply grateful to all our amazing contributors!
 <a href="https://github.com/devtron-labs/devtron/graphs/contributors">
  <img src="https://contrib.rocks/image?repo=devtron-labs/devtron" />
 </a>
+
+---
  
 ## :bug: Vulnerability Reporting
  
 We at Devtron, take security and our users' trust very seriously. If you believe you have found a security issue, please report it to <b>security@devtron.ai</b>.
+
+---
  
 ## :bookmark: License
  
