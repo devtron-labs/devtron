@@ -416,7 +416,7 @@ func (r EnvConfigOverrideRepositoryImpl) UpdateEmptyNamespaceInChartEnvConfigOve
 		INNER JOIN chart_env_config_override ce ON ce.chart_id = c.id
 		INNER JOIN environment e ON e.id = ce.target_environment
 		WHERE a.active = true
-		  AND ce.namespace = ''
+		  AND (ce.namespace = '' OR ce.namespace IS NULL)
 		  AND chart_env_config_override.id = ce.id`
 
 	result, err := r.dbConnection.Exec(query, userId, time.Now())
