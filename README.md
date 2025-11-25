@@ -12,7 +12,7 @@ Note: We have restructured the readme. If you are looking for Devtron's CI/CD ca
  
 <p align="center">
 <br>
-<a href="https://docs.dashboard.devtron.ai/" rel="nofollow"><strong>«Explore Documentation»</strong></a> <strong>||</strong>
+<a href="https://docs.devtron.ai/" rel="nofollow"><strong>«Explore Documentation»</strong></a> <strong>||</strong>
 <a href="https://preview.devtron.ai/dashboard/" rel="nofollow"><strong>«Try Devtron Demo»</strong></a>
 <br>
 <a href="https://devtron.ai/">Website</a>
