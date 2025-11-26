@@ -170,13 +170,13 @@ Here are the components that Devtron uses internally as part of its own architec
 
 | Logo     | Tool     | Purpose    | GitHub Repository   | License |
 | -------- | -------- | ---------- | ------------------- | ------- |
-| <img src="./assets/readme-logos/kubernetes.jpg" width="64px"> | **Kubernetes** | Container orchestration foundation powering Devtron | [Repo Link](https://github.com/kubernetes/kubernetes) | [License Link](https://github.com/kubernetes/kubernetes/blob/master/LICENSE) |
-| <img src="./assets/readme-logos/golang.jpg" width="64px">     | **Golang**     | Programming language used to build Devtron | [Repo Link](https://github.com/golang/go) | [License Link](https://github.com/golang/go/blob/master/LICENSE) |
-| <img src="./assets/readme-logos/helm.jpg" width="64px">       | **Helm**       | Kubernetes package manager  | [Repo Link](https://github.com/helm/helm)  | [License Link](https://github.com/helm/helm/blob/main/LICENSE)                             |
-| <img src="./assets/readme-logos/trivy.jpg" width="64px">      | **Trivy**      | Find vulnerabilities, misconfigurations, secrets, SBOM in containers, Kubernetes, code repositories, clouds and more | [Repo Link](https://github.com/aquasecurity/trivy) | [License Link](https://github.com/aquasecurity/trivy/blob/main/LICENSE) |
-| <img src="./assets/readme-logos/nats.jpg" width="64px">       | **NATS**       | High-performance server for NATS.io, the cloud and edge native messaging system | [Repo Link](https://github.com/nats-io/nats-server)    | [License Link](https://github.com/nats-io/nats-server/blob/main/LICENSE)  |
-| <img src="./assets/readme-logos/dex.jpg" width="64px">        | **Dex**        | Identity service used for authentication (SSO) | [Repo Link](https://github.com/dexidp/dex) | [License Link](https://github.com/dexidp/dex/blob/master/LICENSE)  |
-| <img src="./assets/readme-logos/casbin.jpg" width="64px">     | **Casbin**     | Access control library for authorization (RBAC)  | [Repo Link](https://github.com/casbin/casbin) | [License Link](https://github.com/casbin/casbin/blob/master/LICENSE) |
+| <img src="./assets/readme-logos/kubernetes.jpg" width="64px"> | **Kubernetes** | Core orchestration platform managing deployments, scaling, and container lifecycle automation.                                                                         | [kubernetes/kubernetes](https://github.com/kubernetes/kubernetes) | [Apache License 2.0](https://github.com/kubernetes/kubernetes/blob/master/LICENSE) |
+| <img src="./assets/readme-logos/golang.jpg" width="64px">     | **Golang**     | Backend language powering high-performance, scalable Devtron core services.                                                                           | [golang/go](https://github.com/golang/go)                         | [BSD 3-Clause License](https://github.com/golang/go/blob/master/LICENSE)           |
+| <img src="./assets/readme-logos/helm.jpg" width="64px">       | **Helm**       | Manages Kubernetes application packaging, versioning, and consistent deployment workflows.                                                                                           | [helm/helm](https://github.com/helm/helm)                         | [Apache License 2.0](https://github.com/helm/helm/blob/main/LICENSE)               |
+| <img src="./assets/readme-logos/trivy.jpg" width="64px">      | **Trivy**      | Ensures security by scanning vulnerabilities, misconfigurations, secrets, and SBOMs. | [aquasecurity/trivy](https://github.com/aquasecurity/trivy)       | [Apache License 2.0](https://github.com/aquasecurity/trivy/blob/main/LICENSE)      |
+| <img src="./assets/readme-logos/nats.jpg" width="64px">       | **NATS**       | Enables reliable, high-speed messaging between Devtron microservices and workflows.                                                     | [nats-io/nats-server](https://github.com/nats-io/nats-server)     | [Apache License 2.0](https://github.com/nats-io/nats-server/blob/main/LICENSE)     |
+| <img src="./assets/readme-logos/dex.jpg" width="64px">        | **Dex**        | Provides secure SSO integration with enterprise identity providers.                                                                       | [dexidp/dex](https://github.com/dexidp/dex)                       | [Apache License 2.0](https://github.com/dexidp/dex/blob/master/LICENSE)              |
+| <img src="./assets/readme-logos/casbin.jpg" width="64px">     | **Casbin**     | Enforces fine-grained RBAC policies for secure user authorization.                                                                             | [casbin/casbin](https://github.com/casbin/casbin)                 | [Apache License 2.0](https://github.com/casbin/casbin/blob/master/LICENSE)         |
 
 
 ---
@@ -185,14 +185,13 @@ Here are the components that Devtron uses internally as part of its own architec
 
 Here are some of the optional components that Devtron supports:
 
-| Logo     | Tool     | Purpose    |
-| -------- | -------- | ---------- |
-| <img src="./assets/readme-logos/argo.jpg" width="64px">  | [**Argo CD / Argo Workflows**](https://github.com/argoproj/argo-cd) | GitOps deployment and workflow automation | 
-| <img src="./assets/readme-logos/clair.jpg" width="64px"> | [**Clair**](https://github.com/quay/clair)   | Vulnerability Static Analysis for Containers |
-| <img src="./assets/readme-logos/keda.jpg" width="64px">  | [**KEDA**](https://github.com/kedacore/keda) | Event driven autoscaling for Kubernetes workloads |  
-| <img src="./assets/readme-logos/k8s_external_secrets.jpg" width="64px"> | [**Kubernetes External Secrets**](https://github.com/external-secrets/external-secrets) | Sync secrets from external secret stores     | 
-| <img src="./assets/readme-logos/prometheus.jpg" width="64px">  | [**Prometheus**](https://github.com/prometheus/prometheus) | Metrics collection and alerting |
-| <img src="./assets/readme-logos/grafana.jpg" width="64px">     | [**Grafana**](https://github.com/grafana/grafana) | Monitoring dashboards and visualization  | 
+| Logo     | Tool     | Purpose    | GitHub Repository   | License |
+| -------- | -------- | ---------- | ------------------- | ------- |
+| <img src="./assets/readme-logos/argo.jpg" width="64px">                 | **Argo CD / Argo Workflows**       | Enables GitOps-based deployments and workflow automation within Devtron          | [argoproj/argo-cd](https://github.com/argoproj/argo-cd)                   | [Apache License 2.0](https://github.com/argoproj/argo-cd/blob/master/LICENSE)       |
+| <img src="./assets/readme-logos/clair.jpg" width="64px">                | **Clair**                          | Scans container images for known security vulnerabilities                    | [quay/clair](https://github.com/quay/clair)                               | [Apache License 2.0](https://github.com/quay/clair/blob/main/LICENSE)                 |
+| <img src="./assets/readme-logos/keda.jpg" width="64px">                 | **KEDA**                           | Enables event-driven autoscaling for Kubernetes applications                       | [kedacore/keda](https://github.com/kedacore/keda)                         | [Apache License 2.0](https://github.com/kedacore/keda/blob/main/LICENSE)            |
+| <img src="./assets/readme-logos/k8s_external_secrets.jpg" width="64px"> | **Kubernetes External Secrets**    | Syncs external secrets securely into Kubernetes clusters                           | [external-secrets/external-secrets](https://github.com/external-secrets/external-secrets) | [Apache License 2.0](https://github.com/external-secrets/external-secrets/blob/main/LICENSE) |
+| <img src="./assets/readme-logos/prometheus.jpg" width="64px">           | **Prometheus**                     | Collects metrics for monitoring, alerting, and performance insights               | [prometheus/prometheus](https://github.com/prometheus/prometheus)         | [Apache License 2.0](https://github.com/prometheus/prometheus/blob/main/LICENSE)      |
 
 ---
 
