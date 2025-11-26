@@ -181,7 +181,7 @@ Here are the components that Devtron uses internally as part of its own architec
 
 ---
 
-## External Components
+## Optional Components
 
 Here are some of the optional components that Devtron supports:
 
