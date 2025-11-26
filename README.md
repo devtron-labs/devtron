@@ -7,7 +7,7 @@ Note: We have restructured the readme. If you are looking for Devtron's CI/CD ca
   <source media="(prefers-color-scheme: light)"  srcset="./assets/devtron-lightmode-logo.png">
   <img width="333.333" height="260" src="./assets/devtron-logo-dark-light.png">
 </picture>
-<h1 align= "center">Kubernetes Dashboard for a Centralized DevOps Hub</h1>
+<h1 align= "center">The Kubernetes Platform That Eliminates Operational Chaos</h1>
 </p>
  
 <p align="center">
@@ -168,12 +168,16 @@ helm install devtron devtron/devtron-operator --namespace devtroncd \
  
 Here are the components that Devtron uses internally as part of its own architecture:
 
-| Logo     | Tool     | Purpose    | GitHub Repository   |
-| -------- | -------- | ---------- | ------------------- |
-| <img src="./assets/readme-logos/clair.jpg" width="64px">                | **Clair**                       | Vulnerability Static Analysis for Containers  | [Link](https://github.com/quay/clair)                                               |
-| <img src="./assets/readme-logos/trivy.jpg" width="64px">                | **Trivy**                       | Find vulnerabilities, misconfigurations, secrets, SBOM in containers, Kubernetes, code repositories, clouds and more | [Link](https://github.com/aquasecurity/trivy)                               |
-| <img src="./assets/readme-logos/nats.jpg" width="64px">                 | **NATS**                        | High-Performance server for NATS.io, the cloud and edge native messaging system.        | [Link](https://github.com/nats-io/nats-server)                             |
-| <img src="./assets/readme-logos/helm.jpg" width="64px">                 | **Helm**                        | Kubernetes package manager                                 | [Link](https://github.com/helm/helm)                                                 |
+| Logo     | Tool     | Purpose    | GitHub Repository   | License |
+| -------- | -------- | ---------- | ------------------- | ------- |
+| <img src="./assets/readme-logos/kubernetes.jpg" width="64px"> | **Kubernetes** | Container orchestration foundation powering Devtron | [Repo Link](https://github.com/kubernetes/kubernetes) | [License Link](https://github.com/kubernetes/kubernetes/blob/master/LICENSE) |
+| <img src="./assets/readme-logos/golang.jpg" width="64px">     | **Golang**     | Programming language used to build Devtron | [Repo Link](https://github.com/golang/go) | [License Link](https://github.com/golang/go/blob/master/LICENSE) |
+| <img src="./assets/readme-logos/helm.jpg" width="64px">       | **Helm**       | Kubernetes package manager  | [Repo Link](https://github.com/helm/helm)  | [License Link](https://github.com/helm/helm/blob/main/LICENSE)                             |
+| <img src="./assets/readme-logos/trivy.jpg" width="64px">      | **Trivy**      | Find vulnerabilities, misconfigurations, secrets, SBOM in containers, Kubernetes, code repositories, clouds and more | [Repo Link](https://github.com/aquasecurity/trivy) | [License Link](https://github.com/aquasecurity/trivy/blob/main/LICENSE) |
+| <img src="./assets/readme-logos/nats.jpg" width="64px">       | **NATS**       | High-performance server for NATS.io, the cloud and edge native messaging system | [Repo Link](https://github.com/nats-io/nats-server)    | [License Link](https://github.com/nats-io/nats-server/blob/main/LICENSE)  |
+| <img src="./assets/readme-logos/dex.jpg" width="64px">        | **Dex**        | Identity service used for authentication (SSO) | [Repo Link](https://github.com/dexidp/dex) | [License Link](https://github.com/dexidp/dex/blob/master/LICENSE)  |
+| <img src="./assets/readme-logos/casbin.jpg" width="64px">     | **Casbin**     | Access control library for authorization (RBAC)  | [Repo Link](https://github.com/casbin/casbin) | [License Link](https://github.com/casbin/casbin/blob/master/LICENSE) |
+
 
 ---
 
@@ -181,13 +185,14 @@ Here are the components that Devtron uses internally as part of its own architec
 
 Here are some of the optional components that Devtron supports:
 
-| Logo     | Tool     | Purpose    | GitHub Repository   |
-| -------- | -------- | ---------- | ------------------- |
-| <img src="./assets/readme-logos/argo.jpg" width="64px">                 | **Argo CD / Argo Workflows**    | GitOps deployment and workflow automation                  | [Link](https://github.com/argoproj/argo-cd)                                   |
-| <img src="./assets/readme-logos/keda.jpg" width="64px">                 | **KEDA**                        | Event driven autoscaling for Kubernetes workloads          | [Link](https://github.com/kedacore/keda)                                         |
-| <img src="./assets/readme-logos/k8s_external_secrets.jpg" width="64px"> | **Kubernetes External Secrets** | Sync secrets from external secret stores                   | [Link](https://github.com/external-secrets/external-secrets) |
-| <img src="./assets/readme-logos/prometheus.jpg" width="64px">           | **Prometheus**                  | Metrics collection and alerting                            | [Link](https://github.com/prometheus/prometheus)                         |
-| <img src="./assets/readme-logos/grafana.jpg" width="64px">              | **Grafana**                     | Monitoring dashboards and visualization                    | [Link](https://github.com/grafana/grafana)                                     |
+| Logo     | Tool     | Purpose    |
+| -------- | -------- | ---------- |
+| <img src="./assets/readme-logos/argo.jpg" width="64px">  | [**Argo CD / Argo Workflows**](https://github.com/argoproj/argo-cd) | GitOps deployment and workflow automation | 
+| <img src="./assets/readme-logos/clair.jpg" width="64px"> | [**Clair**](https://github.com/quay/clair)   | Vulnerability Static Analysis for Containers |
+| <img src="./assets/readme-logos/keda.jpg" width="64px">  | [**KEDA**](https://github.com/kedacore/keda) | Event driven autoscaling for Kubernetes workloads |  
+| <img src="./assets/readme-logos/k8s_external_secrets.jpg" width="64px"> | [**Kubernetes External Secrets**](https://github.com/external-secrets/external-secrets) | Sync secrets from external secret stores     | 
+| <img src="./assets/readme-logos/prometheus.jpg" width="64px">  | [**Prometheus**](https://github.com/prometheus/prometheus) | Metrics collection and alerting |
+| <img src="./assets/readme-logos/grafana.jpg" width="64px">     | [**Grafana**](https://github.com/grafana/grafana) | Monitoring dashboards and visualization  | 
 
 ---
 
