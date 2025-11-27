@@ -3,6 +3,7 @@
 - feat: feature flag for encryption (#6856)
 - feat: encryption for db credentials (#6852)
 ## Bugs
+- fix: dependabot fixes (#6874)
 - fix: validation on team name (#6872)
 - fix: sql injection  (#6861)
 - fix: user manager fix (#6854)
