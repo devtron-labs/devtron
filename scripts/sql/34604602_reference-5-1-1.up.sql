@@ -2,16 +2,18 @@
 INSERT INTO "public"."chart_ref" (
     "location", "version", "deployment_strategy_path", 
     "is_default", "active", "created_on", "created_by", 
-    "updated_on", "updated_by"
+    "updated_on", "updated_by", "name"
 )
 SELECT 
     'reference-chart_5-1-1', '5.1.1', 'pipeline-values.yaml', 
-    'f', 't', now(), 1, now(), 1
+    'f', 't', now(), 1, now(), 1,
+    'Rollout Deployment'
 WHERE NOT EXISTS (
     SELECT 1 
     FROM "public"."chart_ref" 
     WHERE "version" = '5.1.1' 
     AND "location" = 'reference-chart_5-1-1'
+    AND "name" = 'Rollout Deployment'
 );
 
 -- 2. Insert mappings based on the chart_ref above
@@ -28,7 +30,7 @@ FROM
     "public"."chart_ref" cr,
     (VALUES (1), (2), (3), (4)) AS m_ids(id) 
 WHERE 
-    cr.version = '5.1.1' AND cr.name IS NULL
+    cr.version = '5.1.1' AND cr.name = 'Rollout Deployment'
     AND NOT EXISTS (
         SELECT 1 
         FROM global_strategy_metadata_chart_ref_mapping existing
