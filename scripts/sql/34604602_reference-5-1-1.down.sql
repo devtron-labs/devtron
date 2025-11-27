@@ -4,7 +4,7 @@ WHERE chart_ref_id IN (
     FROM "public"."chart_ref" 
     WHERE "version" = '5.1.0' 
     AND "location" = 'reference-chart_5-1-0'
-    AND "name" IS NULL
+    AND "name" = 'Rollout Deployment'
 )
 AND global_strategy_metadata_id IN (1, 2, 3, 4);
 
@@ -12,4 +12,4 @@ AND global_strategy_metadata_id IN (1, 2, 3, 4);
 DELETE FROM "public"."chart_ref"
 WHERE "version" = '5.1.0' 
 AND "location" = 'reference-chart_5-1-0'
-AND "name" IS NULL;
+AND "name" = 'Rollout Deployment';
