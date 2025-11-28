@@ -6,7 +6,7 @@ import (
 
 type TeamRequest struct {
 	Id        int       `json:"id,omitempty" validate:"number"`
-	Name      string    `json:"name,omitempty" validate:"required,max=20,validate-devtron-entity-name"`
+	Name      string    `json:"name,omitempty" validate:"required,max=25,validate-devtron-entity-name"`
 	Active    bool      `json:"active"`
 	UserId    int32     `json:"-"`
 	CreatedOn time.Time `json:"-"`
