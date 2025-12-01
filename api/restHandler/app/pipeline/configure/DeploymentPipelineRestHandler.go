@@ -21,18 +21,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	models2 "github.com/devtron-labs/devtron/internal/sql/models"
 	bean4 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	util3 "github.com/devtron-labs/devtron/pkg/auth/user/util"
 	bean3 "github.com/devtron-labs/devtron/pkg/chart/bean"
 
-	devtronAppGitOpConfigBean "github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig/bean"
-	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	devtronAppGitOpConfigBean "github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -107,6 +109,7 @@ type DevtronAppDeploymentConfigRestHandler interface {
 	GetDefaultDeploymentPipelineStrategy(w http.ResponseWriter, r *http.Request)
 
 	EnvConfigOverrideCreateNamespace(w http.ResponseWriter, r *http.Request)
+	UpdateEmptyNamespaceInChartEnvConfigOverride(w http.ResponseWriter, r *http.Request)
 
 	DevtronAppDeploymentConfigRestHandlerEnt
 }
@@ -2060,6 +2063,36 @@ func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideCreateNamespace(w
 		return
 	}
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
+}
+
+func (handler *PipelineConfigRestHandlerImpl) UpdateEmptyNamespaceInChartEnvConfigOverride(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.HandleUnauthorized(w, r)
+		return
+	}
+	token := r.Header.Get("token")
+
+	// Check if user is super admin - this is a global operation
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	handler.Logger.Infow("request received, UpdateEmptyNamespaceInChartEnvConfigOverride", "userId", userId)
+
+	count, err := handler.propertiesConfigService.UpdateEmptyNamespaceInChartEnvConfigOverride(userId)
+	if err != nil {
+		handler.Logger.Errorw("service err, UpdateEmptyNamespaceInChartEnvConfigOverride", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]interface{}{
+		"message":      "Namespace updated successfully from environment table",
+		"updatedCount": count,
+	}
+	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 
 func (handler *PipelineConfigRestHandlerImpl) IsReadyToTrigger(w http.ResponseWriter, r *http.Request) {
