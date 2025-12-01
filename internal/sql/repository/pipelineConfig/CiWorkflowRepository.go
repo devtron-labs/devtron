@@ -17,11 +17,13 @@
 package pipelineConfig
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
+	"github.com/devtron-labs/devtron/pkg/overview/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -53,6 +55,49 @@ type CiWorkflowRepository interface {
 
 	MigrateIsArtifactUploaded(wfId int, isArtifactUploaded bool)
 	MigrateCiArtifactLocation(wfId int, artifactLocation string)
+
+	// Overview methods
+	GetTriggeredCIPipelines(from, to *time.Time, sortOrder bean.SortOrder, limit, offset int) ([]PipelineUsageData, int, error)
+	GetCiBuildCountInTimeRange(from, to *time.Time) (int, error)
+	GetSuccessfulCIBuildsForBuildTime(from, to *time.Time) ([]WorkflowBuildTime, error)
+	GetCIBuildsForStatusTrend(from, to *time.Time) ([]WorkflowStatusData, error)
+}
+
+// Data structures for overview queries
+type PipelineUsageData struct {
+	AppID        int    `json:"appId"`           // Required for both CI and CD pipelines
+	EnvID        int    `json:"envId,omitempty"` // Only for deployment pipelines
+	PipelineID   int    `json:"pipelineId"`
+	PipelineName string `json:"pipelineName"`
+	AppName      string `json:"appName"`
+	EnvName      string `json:"envName,omitempty"` // Only for deployment pipelines
+	TriggerCount int    `json:"triggerCount"`
+}
+
+type ActivityData struct {
+	ID             int       `json:"id"`
+	Type           string    `json:"type"`
+	AppName        string    `json:"appName"`
+	EnvName        string    `json:"envName,omitempty"`
+	CiPipelineName string    `json:"ciPipelineName,omitempty"`
+	Status         string    `json:"status"`
+	TriggeredAt    time.Time `json:"triggeredAt"`
+	TriggeredBy    int       `json:"triggeredBy"`
+}
+
+type WorkflowDetails struct {
+	Name      string    `json:"name"`
+	CreatedOn time.Time `json:"createdOn"`
+}
+
+type WorkflowBuildTime struct {
+	StartedOn  time.Time `db:"started_on"`
+	FinishedOn time.Time `db:"finished_on"`
+}
+
+type WorkflowStatusData struct {
+	StartedOn time.Time `db:"started_on"`
+	Status    string    `db:"status"`
 }
 
 type CiWorkflowRepositoryImpl struct {
@@ -422,4 +467,124 @@ func (impl *CiWorkflowRepositoryImpl) MigrateCiArtifactLocation(wfId int, artifa
 	if err != nil {
 		impl.logger.Errorw("error occurred while updating ci_artifact_location", "wfId", wfId, "err", err)
 	}
+}
+
+// Overview methods implementation
+func (impl *CiWorkflowRepositoryImpl) GetTriggeredCIPipelines(from, to *time.Time, sortOrder bean.SortOrder, limit, offset int) ([]PipelineUsageData, int, error) {
+	var results []PipelineUsageData
+	var totalCount int
+
+	// First get the total count
+	countQuery := `
+		SELECT COUNT(DISTINCT cp.id)
+		FROM ci_pipeline cp
+		INNER JOIN app a ON cp.app_id = a.id
+		LEFT JOIN ci_workflow cw ON cp.id = cw.ci_pipeline_id
+			AND cw.started_on >= ? AND cw.started_on <= ?
+		WHERE cp.deleted = false AND a.app_type = 0 AND a.active = true
+	`
+
+	_, err := impl.dbConnection.Query(&totalCount, countQuery, from, to)
+	if err != nil {
+		impl.logger.Errorw("error getting total count of CI pipelines", "from", from, "to", to, "err", err)
+		return nil, 0, err
+	}
+
+	// Build the main query with sorting and pagination
+	orderClause := "ORDER BY trigger_count DESC, cp.id DESC"
+	if sortOrder == bean.ASC {
+		orderClause = "ORDER BY trigger_count ASC, cp.id ASC"
+	}
+
+	query := fmt.Sprintf(`
+		SELECT
+			a.id as app_id,
+			cp.id as pipeline_id,
+			cp.name as pipeline_name,
+			a.app_name,
+			COALESCE(COUNT(cw.id), 0) as trigger_count
+		FROM ci_pipeline cp
+		INNER JOIN app a ON cp.app_id = a.id
+		LEFT JOIN ci_workflow cw ON cp.id = cw.ci_pipeline_id
+			AND cw.started_on >= ? AND cw.started_on <= ?
+		WHERE cp.deleted = false AND a.app_type = 0 AND a.active = true
+		GROUP BY a.id, cp.id, cp.name, a.app_name
+		%s
+		LIMIT ? OFFSET ?
+	`, orderClause)
+
+	_, err = impl.dbConnection.Query(&results, query, from, to, limit, offset)
+	if err != nil {
+		impl.logger.Errorw("error getting triggered CI pipelines", "from", from, "to", to, "sortOrder", sortOrder, "limit", limit, "offset", offset, "err", err)
+		return nil, 0, err
+	}
+
+	return results, totalCount, nil
+}
+
+func (impl *CiWorkflowRepositoryImpl) GetCiBuildCountInTimeRange(from, to *time.Time) (int, error) {
+	var count int
+	query := `
+		SELECT COUNT(*)
+		FROM ci_workflow cw
+		INNER JOIN ci_pipeline cp ON cw.ci_pipeline_id = cp.id
+		INNER JOIN app a ON cp.app_id = a.id
+		WHERE cw.started_on >= ? AND cw.started_on <= ?
+		AND cp.ci_pipeline_type = 'CI_BUILD'
+	`
+
+	_, err := impl.dbConnection.Query(&count, query, from, to)
+	if err != nil {
+		impl.logger.Errorw("error getting CI_BUILD pipeline count in time range", "from", from, "to", to, "err", err)
+		return 0, err
+	}
+
+	return count, nil
+}
+
+func (impl *CiWorkflowRepositoryImpl) GetSuccessfulCIBuildsForBuildTime(from, to *time.Time) ([]WorkflowBuildTime, error) {
+	var workflows []WorkflowBuildTime
+
+	query := `
+		SELECT cw.started_on, cw.finished_on
+		FROM ci_workflow cw
+		INNER JOIN ci_pipeline cp ON cw.ci_pipeline_id = cp.id
+		INNER JOIN app a ON cp.app_id = a.id
+		WHERE cw.started_on >= ? AND cw.started_on <= ?
+			AND cw.finished_on IS NOT NULL
+			AND cw.status = 'Succeeded'
+			AND cp.ci_pipeline_type = 'CI_BUILD'
+		ORDER BY cw.started_on
+	`
+
+	_, err := impl.dbConnection.Query(&workflows, query, from, to)
+	if err != nil {
+		impl.logger.Errorw("error fetching successful CI builds for build time", "from", from, "to", to, "err", err)
+		return nil, err
+	}
+
+	return workflows, nil
+}
+
+// GetCIBuildsForStatusTrend returns all CI builds in the date range including builds of deleted pipelines
+func (impl *CiWorkflowRepositoryImpl) GetCIBuildsForStatusTrend(from, to *time.Time) ([]WorkflowStatusData, error) {
+	var workflows []WorkflowStatusData
+
+	query := `
+		SELECT cw.started_on, cw.status
+		FROM ci_workflow cw
+		INNER JOIN ci_pipeline cp ON cw.ci_pipeline_id = cp.id
+		INNER JOIN app a ON cp.app_id = a.id
+		WHERE cw.started_on >= ? AND cw.started_on <= ?
+			AND cp.ci_pipeline_type = 'CI_BUILD'
+		ORDER BY cw.started_on
+	`
+
+	_, err := impl.dbConnection.Query(&workflows, query, from, to)
+	if err != nil {
+		impl.logger.Errorw("error fetching CI builds for status trend", "from", from, "to", to, "err", err)
+		return nil, err
+	}
+
+	return workflows, nil
 }
