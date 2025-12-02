@@ -92,6 +92,7 @@ type ClusterService interface {
 	ConvertClusterBeanObjectToCluster(bean *bean.ClusterBean) *v1alpha1.Cluster
 
 	GetClusterConfigByClusterId(clusterId int) (*k8s.ClusterConfig, error)
+	FindActiveClustersExcludingVirtual() ([]bean.ClusterBean, error)
 }
 
 type ClusterServiceImpl struct {
@@ -1089,4 +1090,17 @@ func (impl *ClusterServiceImpl) GetClusterConfigByClusterId(clusterId int) (*k8s
 	rq := *clusterBean
 	clusterConfig := rq.GetClusterConfig()
 	return clusterConfig, nil
+}
+
+func (impl *ClusterServiceImpl) FindActiveClustersExcludingVirtual() ([]bean.ClusterBean, error) {
+	models, err := impl.clusterRepository.FindAllActiveExceptVirtual()
+	if err != nil {
+		return nil, err
+	}
+	var beans []bean.ClusterBean
+	for _, model := range models {
+		bean := adapter.GetClusterBean(model)
+		beans = append(beans, bean)
+	}
+	return beans, nil
 }

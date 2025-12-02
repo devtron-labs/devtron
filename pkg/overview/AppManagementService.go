@@ -17,7 +17,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/overview/bean"
 	"github.com/devtron-labs/devtron/pkg/overview/constants"
-	overviewUtil "github.com/devtron-labs/devtron/pkg/overview/util"
 	workflowStageRepository "github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus/repository"
 	teamRepository "github.com/devtron-labs/devtron/pkg/team/repository"
 	"go.uber.org/zap"
@@ -41,7 +40,6 @@ type AppManagementServiceImpl struct {
 	teamRepository             teamRepository.TeamRepository
 	workflowStageRepository    workflowStageRepository.WorkflowStageRepository
 	deploymentConfigRepository deploymentConfigRepo.Repository
-	trendCalculator            *overviewUtil.TrendCalculator
 }
 
 func NewAppManagementServiceImpl(
@@ -67,7 +65,6 @@ func NewAppManagementServiceImpl(
 		teamRepository:             teamRepository,
 		workflowStageRepository:    workflowStageRepository,
 		deploymentConfigRepository: deploymentConfigRepository,
-		trendCalculator:            overviewUtil.NewTrendCalculator(),
 	}
 }
 

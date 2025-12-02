@@ -1,6 +1,3 @@
-//go:build wireinject
-// +build wireinject
-
 /*
  * Copyright (c) 2024. Devtron Inc.
  */
@@ -23,9 +20,6 @@ var OverviewWireSet = wire.NewSet(
 
 	NewDoraMetricsServiceImpl,
 	wire.Bind(new(DoraMetricsService), new(*DoraMetricsServiceImpl)),
-
-	NewApprovalPolicyServiceImpl,
-	wire.Bind(new(ApprovalPolicyService), new(*ApprovalPolicyServiceImpl)),
 
 	NewInsightsServiceImpl,
 	wire.Bind(new(InsightsService), new(*InsightsServiceImpl)),
