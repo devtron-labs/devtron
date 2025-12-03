@@ -796,6 +796,7 @@ func (impl *CiPipelineRepositoryImpl) GetScanEnabledCiPipelineCount() (int, erro
 		Where("active = ?", true).
 		Where("deleted = ?", false).
 		Where("scan_enabled = ?", true).
+		Where("ci_pipeline_type = ?", buildCommonBean.CI_BUILD.ToString()).
 		Count()
 
 	if err != nil {
