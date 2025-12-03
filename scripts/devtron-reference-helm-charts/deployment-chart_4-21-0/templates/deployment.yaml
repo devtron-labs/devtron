@@ -179,7 +179,7 @@ spec:
       initContainers:
 {{- range $i, $c := .Values.initContainers }}
 {{- if .reuseContainerImage}}
-        - name: {{ $.Chart.Name }}-init-{{ add1 $i }}
+        - name: {{ template ".Chart.Name .name" $ }}-init-{{ add1 $i }}
           image: "{{ $.Values.server.deployment.image }}:{{ $.Values.server.deployment.image_tag }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
 {{- if .securityContext }}
@@ -209,7 +209,7 @@ spec:
 {{- end}}
 {{- end}}
       containers:
-        - name: {{ $.Chart.Name }}
+        - name: {{ template ".Chart.Name .name" $ }}
           image: "{{ .Values.server.deployment.image }}:{{ .Values.server.deployment.image_tag }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
           {{- if $.Values.containerSpec.lifecycle.enabled }}
@@ -540,7 +540,7 @@ spec:
 {{- if $.Values.containers }}
 {{- range $i, $c := .Values.containers }}
 {{- if .reuseContainerImage}}
-        - name: {{ $.Chart.Name }}-sidecontainer-{{ add1 $i }}
+        - name: {{ template ".Chart.Name .name" $ }}-sidecontainer-{{ add1 $i }}
           image: "{{ $.Values.server.deployment.image }}:{{ $.Values.server.deployment.image_tag }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
 {{- if .env }}
@@ -795,7 +795,7 @@ spec:
       initContainers:
 {{- range $i, $c := .Values.initContainers }}
 {{- if .reuseContainerImage}}
-        - name: {{ $.Chart.Name }}-init-{{ add1 $i }}
+        - name: {{ template ".Chart.Name .name" $ }}-init-{{ add1 $i }}
           image: "{{ $.Values.server.deployment.image }}:{{ $.Values.server.deployment.image_tag }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
 {{- if .securityContext }}
@@ -825,7 +825,7 @@ spec:
 {{- end}}
 {{- end}}
       containers:
-        - name: {{ $.Chart.Name }}
+        - name: {{ template ".Chart.Name .name" $ }}
           image: "{{ .Values.server.deployment.image }}:{{ .Values.server.deployment.image_tag }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
           {{- if $.Values.containerSpec.lifecycle.enabled }}
@@ -1156,7 +1156,7 @@ spec:
 {{- if $.Values.containers }}
 {{- range $i, $c := .Values.containers }}
 {{- if .reuseContainerImage}}
-        - name: {{ $.Chart.Name }}-sidecontainer-{{ add1 $i }}
+        - name: {{ template ".Chart.Name .name" $ }}-sidecontainer-{{ add1 $i }}
           image: "{{ $.Values.server.deployment.image }}:{{ $.Values.server.deployment.image_tag }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
 {{- if .env }}
