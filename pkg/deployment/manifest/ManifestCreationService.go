@@ -982,7 +982,7 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 
 	hpaResourceRequest := helper.GetAutoScalingReplicaCount(templateMap, appName)
 	impl.logger.Debugw("autoscalingCheckBeforeTrigger", "pipelineId", pipelineId, "hpaResourceRequest", hpaResourceRequest)
-	if hpaResourceRequest.IsEnable {
+	if hpaResourceRequest != nil && hpaResourceRequest.IsEnable {
 		var resourceManifest map[string]interface{}
 
 		resourceManifest, err = impl.getK8sHPAResourceManifest(newCtx, clusterId, namespace, hpaResourceRequest)
@@ -991,7 +991,11 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 		}
 
 		if len(resourceManifest) > 0 {
-			statusMap := resourceManifest["status"].(map[string]interface{})
+			statusMap, ok := resourceManifest["status"].(map[string]interface{})
+			if !ok {
+				impl.logger.Warnw("error occurred while parsing hpa resource manifest, status is not a map", "resourceManifestStatus", resourceManifest["status"])
+				return merged, nil
+			}
 			currentReplicaVal := statusMap["currentReplicas"]
 			// currentReplicas key might not be available in manifest while k8s is calculating replica count
 			// it's a valid case so, we are not throwing error
@@ -1016,7 +1020,7 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 		impl.logger.Debugw("autoscaling is not enabled", "pipelineId", pipelineId)
 	}
 
-	//check for custom chart support
+	// check for custom chart support
 	if autoscalingEnabledPath, ok := templateMap[appBean.CustomAutoScalingEnabledPathKey]; ok {
 		if deploymentType == models.DEPLOYMENTTYPE_STOP {
 			merged, err = helper.SetScalingValues(templateMap, appBean.CustomAutoScalingEnabledPathKey, merged, false)
