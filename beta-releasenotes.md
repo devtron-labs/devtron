@@ -1,4 +1,5 @@
 ## Enhancements
+- feat: Added support to override container name (#6880)
 - feat: Increase max length for TeamRequest name field (#6876)
 - feat: Added namespace support for virtualService and destinationRule (#6868)
 - feat: feature flag for encryption (#6856)
