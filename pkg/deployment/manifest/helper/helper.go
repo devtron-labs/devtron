@@ -77,6 +77,9 @@ func SetScalingValues(templateMap map[string]interface{}, customScalingKey strin
 		return merged, errors.New(fmt.Sprintf("no json path found for [%s]", customScalingKey))
 	}
 	autoscalingJsonPathKey := autoscalingJsonPath.(string)
+	if len(autoscalingJsonPathKey) == 0 {
+		return merged, nil
+	}
 	mergedRes, err := sjson.Set(string(merged), autoscalingJsonPathKey, value)
 	if err != nil {
 		return merged, err
