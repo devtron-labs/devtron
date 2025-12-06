@@ -52,15 +52,31 @@ func WriteJsonResp(w http.ResponseWriter, err error, respBody interface{}, statu
 		response.Errors = valErrors
 	} else if util.IsErrNoRows(err) {
 		status = http.StatusNotFound
-		apiErr := &util.ApiError{}
-		apiErr.Code = "000" // 000=unknown
-		apiErr.InternalMessage = errors.Details(err)
-		if respBody != nil {
-			apiErr.UserMessage = respBody
+		// Try to extract resource context from respBody for better error messages
+		resourceType, resourceId := extractResourceContext(respBody)
+		if resourceType != "" && resourceId != "" {
+			// Create context-aware resource not found error
+			apiErr := util.NewResourceNotFoundError(resourceType, resourceId)
+			response.Errors = []*util.ApiError{apiErr}
 		} else {
-			apiErr.UserMessage = err.Error()
+			// Fallback to generic not found error (no more "pg: no rows in result set")
+			apiErr := util.NewGenericResourceNotFoundError()
+			response.Errors = []*util.ApiError{apiErr}
 		}
-		response.Errors = []*util.ApiError{apiErr}
+	} else if util.IsResourceConflictError(err) {
+		// Handles response for error due to resource with the same identifier already exists.
+		status = http.StatusConflict
+		// Try to extract resource context from respBody for better error messages
+		resourceType, resourceId := extractResourceContext(respBody)
+		if resourceType != "" && resourceId != "" {
+			// Create context-aware resource duplicate error
+			apiErr := util.NewDuplicateResourceError(resourceType, resourceId)
+			response.Errors = []*util.ApiError{apiErr}
+		} else {
+			// Fallback to generic resource duplicate error
+			apiErr := util.NewGenericDuplicateResourceError()
+			response.Errors = []*util.ApiError{apiErr}
+		}
 	} else if multiErr, ok := err.(*multierror.Error); ok {
 		var errorsResp []*util.ApiError
 		for _, e := range multiErr.Errors {
@@ -114,7 +130,7 @@ func WriteJsonResp(w http.ResponseWriter, err error, respBody interface{}, statu
 		}
 	}
 	if status > 299 || err != nil {
-		util.GetLogger().Infow("ERROR RES", "TYPE", "API-ERROR", "RES", response.Code, "ERROR-MSG", response.Errors, "err", err)
+		util.GetLogger().Infow("ERROR RES", "TYPE", "API-ERROR", "RES", response.Code, "err", err)
 	}
 	w.Header().Set(CONTENT_TYPE, APPLICATION_JSON)
 	w.WriteHeader(status)

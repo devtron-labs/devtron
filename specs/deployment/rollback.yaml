@@ -1,0 +1,365 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Rollback API
+
+paths:
+  /orchestrator/application/rollback:
+    put:
+      description: Rollback application if the application is installed from the chartStore
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RollbackReleaseRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RollbackReleaseResponse'
+          description: application rollback response
+  /orchestrator/application/template-chart:
+    post:
+      description: Helm template chart
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateChartRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateChartResponse'
+          description: template chart response
+  /orchestrator/app/history/deployed-configuration/all/{appId}/{pipelineId}/{wfrId}:
+    get:
+          operationId: FetchHistoryDetail
+          description: Fetch history configuration for a particular trigger (by wfrId)
+          parameters:
+            - name: appId
+              in: path
+              required: true
+              schema:
+                type: integer
+                description: ID of the application
+            - name: pipelineId
+              in: path
+              required: true
+              schema:
+                type: integer
+                description: ID of the pipeline
+            - name: wfrId
+              in: path
+              required: true
+              schema:
+                type: integer
+                description: ID of the workflow runner
+          responses:
+            '200':
+              description: Successfully return history detail
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/HistoryConfigurationDetailDto'
+            '400':
+              description: Bad Request. Input Validation error/wrong request body.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/Error'
+            '500':
+              description: Internal Server Error
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/Error'
+            '403':
+              description: Unauthorized User
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/Error'
+  /orchestrator/app/history/deployed-configuration/all/latest/{appId}/{pipelineId}:
+    get:
+          operationId: FetchLatestHistoryDetail
+          description: Fetch latest deployed history configuration
+          parameters:
+            - name: appId
+              in: path
+              required: true
+              schema:
+                type: integer
+                description: ID of the application
+            - name: pipelineId
+              in: path
+              required: true
+              schema:
+                type: integer
+                description: ID of the pipeline
+          responses:
+            '200':
+              description: Successfully return history detail
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/HistoryConfigurationDetailDto'
+            '400':
+              description: Bad Request. Input Validation error/wrong request body.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/Error'
+            '500':
+              description: Internal Server Error
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/Error'
+            '403':
+              description: Unauthorized User
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    RollbackReleaseResponse:
+      example:
+        success: true
+      properties:
+        success:
+          description: success or failure
+          example: true
+          type: boolean
+      type: object
+    RollbackReleaseRequest:
+      example:
+        installedAppVersionId: 2
+        installedAppId: 1
+        hAppId: 1|default|someName
+        version: 10
+      properties:
+        installedAppId:
+          description: Installed App Id if the app is installed from chart store
+          example: 1
+          type: integer
+        installedAppVersionId:
+          description: Installed App Version Id if the app is installed from chart
+            store
+          example: 2
+          type: integer
+        hAppId:
+          description: helm App Id if the application is installed from using helm
+            (for example "clusterId|namespace|appName" )
+          example: 1|default|someName
+          type: string
+        version:
+          description: rollback to this version
+          example: 10
+          type: integer
+      type: object
+    TemplateChartRequest:
+      example:
+        appStoreApplicationVersionId: 10
+        valuesYaml: some values yaml
+        environmentId: 1
+        releaseName: some name
+        namespace: "1"
+        clusterId: 1
+      properties:
+        environmentId:
+          description: environment Id on which helm template would be performed
+          example: 1
+          type: integer
+        clusterId:
+          description: If environmentId is not provided, clusterId should be passed
+          example: 1
+          type: integer
+        namespace:
+          description: If environmentId is not provided, namespace should be passed
+          example: "1"
+          type: string
+        releaseName:
+          description: release name of helm app (if not provided, some random name
+            is picked)
+          example: some name
+          type: string
+        appStoreApplicationVersionId:
+          description: App store application version Id
+          example: 10
+          type: integer
+        valuesYaml:
+          description: Values yaml
+          example: some values yaml
+          type: string
+      type: object
+    TemplateChartResponse:
+      example:
+        manifest: some manifest
+      properties:
+        manifest:
+          description: helm generated manifest
+          example: some manifest
+          type: string
+      type: object
+    HistoryConfigurationDetailDto:
+      type: object
+      properties:
+        deploymentTemplate:
+          type: object
+          properties:
+            config:
+              type: object
+              properties:
+                codeEditorValue:
+                  type: object
+                  properties:
+                    value:
+                      type: string
+                      description: Template value
+                    displayName:
+                      type: string
+                      description: Display name of the template
+                isAppMetrics:
+                  type: boolean
+                  description: Whether app metrics are enabled
+                templateName:
+                  type: string
+                  description: Name of the template
+                templateVersion:
+                  type: string
+                  description: Version of the template
+        configMap:
+          type: object
+          properties:
+            childList:
+              type: array
+              items:
+                type: object
+                properties:
+                  componentName:
+                    type: string
+                    description: Name of the component
+                  config:
+                    type: object
+                    properties:
+                      codeEditorValue:
+                        type: object
+                        properties:
+                          value:
+                            type: string
+                            description: Config value
+                          displayName:
+                            type: string
+                            description: Display name of the config
+                      type:
+                        type: string
+                        description: Type of the config
+                      external:
+                        type: boolean
+                        description: Whether the config is external
+                      mountPath:
+                        type: string
+                        description: Mount path for the config
+                      externalType:
+                        type: string
+                        description: Type of external config
+                      roleARN:
+                        type: string
+                        description: ARN of the role
+                      subPath:
+                        type: string
+                        description: Sub path for the config
+                      filePermission:
+                        type: string
+                        description: File permissions
+        secret:
+          type: object
+          properties:
+            childList:
+              type: array
+              items:
+                type: object
+                properties:
+                  componentName:
+                    type: string
+                    description: Name of the component
+                  config:
+                    type: object
+                    properties:
+                      codeEditorValue:
+                        type: object
+                        properties:
+                          value:
+                            type: string
+                            description: Secret value
+                          displayName:
+                            type: string
+                            description: Display name of the secret
+                      type:
+                        type: string
+                        description: Type of the secret
+                      external:
+                        type: boolean
+                        description: Whether the secret is external
+                      mountPath:
+                        type: string
+                        description: Mount path for the secret
+                      externalType:
+                        type: string
+                        description: Type of external secret
+                      roleARN:
+                        type: string
+                        description: ARN of the role
+                      subPath:
+                        type: string
+                        description: Sub path for the secret
+                      filePermission:
+                        type: string
+                        description: File permissions
+                      externalSecretType:
+                        type: string
+                        description: Type of external secret
+                      esoSubPath:
+                        type: string
+                        description: ESO sub path
+        pipelineStrategy:
+          type: object
+          properties:
+            config:
+              type: object
+              properties:
+                codeEditorValue:
+                  type: object
+                  properties:
+                    value:
+                      type: string
+                      description: Strategy value
+                    displayName:
+                      type: string
+                      description: Display name of the strategy
+                pipelineTriggerType:
+                  type: string
+                  description: Type of pipeline trigger
+                strategy:
+                  type: string
+                  description: Deployment strategy
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        status:
+          type: string
+          description: Error message
+        userDetailedMessage:
+          type: string
+          description: Detailed error message for user
+

@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/helper"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/fluxApplication"
 	bean2 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
@@ -61,6 +62,7 @@ type HelmAppRestHandler interface {
 	UpdateApplication(w http.ResponseWriter, r *http.Request)
 	TemplateChart(w http.ResponseWriter, r *http.Request)
 	SaveHelmAppDetailsViewedTelemetryData(w http.ResponseWriter, r *http.Request)
+	ListHelmApplicationsForEnvironment(w http.ResponseWriter, r *http.Request)
 }
 
 const HELM_APP_ACCESS_COUNTER = "HelmAppAccessCounter"
@@ -114,8 +116,9 @@ func (handler *HelmAppRestHandlerImpl) ListApplications(w http.ResponseWriter, r
 		}
 		j, err := strconv.Atoi(is)
 		if err != nil {
-			handler.logger.Errorw("request err, CreateUser", "err", err, "payload", clusterIds)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			handler.logger.Errorw("Invalid cluster ID in list", "err", err, "clusterId", is, "clusterIdString", clusterIdString)
+			// Use enhanced error handling for parameter validation
+			common.HandleParameterError(w, r, "clusterIds", clusterIdString)
 			return
 		}
 		clusterIds = append(clusterIds, j)
@@ -159,7 +162,7 @@ func (handler *HelmAppRestHandlerImpl) GetApplicationDetail(w http.ResponseWrite
 		return
 	}
 
-	installedApp, err := handler.installedAppService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	installedApp, err := handler.installedAppService.GetInstalledAppByClusterNamespaceAndName(appIdentifier)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -188,7 +191,9 @@ func (handler *HelmAppRestHandlerImpl) Hibernate(w http.ResponseWriter, r *http.
 	} else {
 		appType, err = strconv.Atoi(appTypeString)
 		if err != nil {
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			handler.logger.Errorw("Invalid app type parameter", "err", err, "appType", appTypeString)
+			common.HandleParameterError(w, r, "appType", appTypeString)
+			return
 		}
 	}
 
@@ -280,6 +285,7 @@ func (handler *HelmAppRestHandlerImpl) UnHibernate(w http.ResponseWriter, r *htt
 		appType, err = strconv.Atoi(appTypeString)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
 		}
 	}
 	token := r.Header.Get("token")
@@ -442,7 +448,7 @@ func (handler *HelmAppRestHandlerImpl) GetDesiredManifest(w http.ResponseWriter,
 func (handler *HelmAppRestHandlerImpl) DeleteApplication(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -467,7 +473,7 @@ func (handler *HelmAppRestHandlerImpl) DeleteApplication(w http.ResponseWriter, 
 	// validate if the devtron-operator helm release, block that for deletion
 	if appIdentifier.ReleaseName == handler.serverEnvConfig.DevtronHelmReleaseName &&
 		appIdentifier.Namespace == handler.serverEnvConfig.DevtronHelmReleaseNamespace &&
-		appIdentifier.ClusterId == bean.DEFAULT_CLUSTER_ID {
+		appIdentifier.ClusterId == clusterBean.DefaultClusterId {
 		common.WriteJsonResp(w, errors.New("cannot delete this default helm app"), nil, http.StatusForbidden)
 		return
 	}
@@ -525,7 +531,7 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 func (handler *HelmAppRestHandlerImpl) TemplateChart(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	request := &openapi2.TemplateChartRequest{}
@@ -586,4 +592,47 @@ func (handler *HelmAppRestHandlerImpl) SaveHelmAppDetailsViewedTelemetryData(w h
 
 	common.WriteJsonResp(w, err, nil, http.StatusOK)
 
+}
+
+func (handler *HelmAppRestHandlerImpl) ListHelmApplicationsForEnvironment(w http.ResponseWriter, r *http.Request) {
+
+	query := r.URL.Query()
+
+	clusterIdString := query.Get("clusterId")
+	var (
+		clusterId int
+		envId     int
+		err       error
+	)
+
+	if len(clusterIdString) != 0 {
+		clusterId, err = strconv.Atoi(clusterIdString)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+
+	envIdString := query.Get("envId")
+	if len(envIdString) != 0 {
+		envId, err = strconv.Atoi(envIdString)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	releaseList, err := handler.helmAppService.ListHelmApplicationsForClusterOrEnv(r.Context(), clusterId, envId)
+	if err != nil {
+		handler.logger.Errorw("error in fetching helm release for given env", "err", err)
+		common.WriteJsonResp(w, err, "error in fetching helm release", http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, releaseList, http.StatusOK)
+	return
 }

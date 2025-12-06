@@ -19,6 +19,7 @@ package terminal
 import (
 	"encoding/json"
 	"errors"
+	"github.com/devtron-labs/devtron/pkg/cluster/rbac"
 	"net/http"
 	"strconv"
 
@@ -55,25 +56,28 @@ type validShellResponse struct {
 type UserTerminalAccessRestHandlerImpl struct {
 	Logger                    *zap.SugaredLogger
 	UserTerminalAccessService clusterTerminalAccess.UserTerminalAccessService
+	clusterRbacService        rbac.ClusterRbacService
 	Enforcer                  casbin.Enforcer
 	UserService               user.UserService
 	validator                 *validator.Validate
 }
 
 func NewUserTerminalAccessRestHandlerImpl(logger *zap.SugaredLogger, userTerminalAccessService clusterTerminalAccess.UserTerminalAccessService, Enforcer casbin.Enforcer,
-	UserService user.UserService, validator *validator.Validate) *UserTerminalAccessRestHandlerImpl {
+	UserService user.UserService, validator *validator.Validate,
+	clusterRbacService rbac.ClusterRbacService) *UserTerminalAccessRestHandlerImpl {
 	return &UserTerminalAccessRestHandlerImpl{
 		Logger:                    logger,
 		UserTerminalAccessService: userTerminalAccessService,
 		Enforcer:                  Enforcer,
 		UserService:               UserService,
 		validator:                 validator,
+		clusterRbacService:        clusterRbacService,
 	}
 }
 func (handler UserTerminalAccessRestHandlerImpl) ValidateShell(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.UserService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -88,7 +92,13 @@ func (handler UserTerminalAccessRestHandlerImpl) ValidateShell(w http.ResponseWr
 		return
 	}
 	token := r.Header.Get("token")
-	if ok := handler.Enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
+	authenticated, err := handler.clusterRbacService.CheckAuthorisationForNodeWithClusterId(token, clusterId, "", casbin.ActionCreate)
+	if err != nil {
+		handler.Logger.Errorw("error in CheckAuthorisationForNodeWithClusterId", "clusterId", clusterId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if !authenticated {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -103,7 +113,7 @@ func (handler UserTerminalAccessRestHandlerImpl) ValidateShell(w http.ResponseWr
 func (handler UserTerminalAccessRestHandlerImpl) StartTerminalSession(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.UserService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -123,7 +133,13 @@ func (handler UserTerminalAccessRestHandlerImpl) StartTerminalSession(w http.Res
 	}
 
 	token := r.Header.Get("token")
-	if ok := handler.Enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
+	authenticated, err := handler.clusterRbacService.CheckAuthorisationForNodeWithClusterId(token, request.ClusterId, request.NodeName, casbin.ActionCreate)
+	if err != nil {
+		handler.Logger.Errorw("error in CheckAuthorisationForNodeWithClusterId", "clusterId", request.ClusterId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if !authenticated {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -139,7 +155,7 @@ func (handler UserTerminalAccessRestHandlerImpl) StartTerminalSession(w http.Res
 func (handler UserTerminalAccessRestHandlerImpl) UpdateTerminalSession(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.UserService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -159,7 +175,13 @@ func (handler UserTerminalAccessRestHandlerImpl) UpdateTerminalSession(w http.Re
 	}
 
 	token := r.Header.Get("token")
-	if ok := handler.Enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+	authenticated, err := handler.clusterRbacService.CheckAuthorisationForNodeWithClusterId(token, request.ClusterId, request.NodeName, casbin.ActionUpdate)
+	if err != nil {
+		handler.Logger.Errorw("error in CheckAuthorisationForNodeWithClusterId", "clusterId", request.ClusterId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if !authenticated {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -175,7 +197,7 @@ func (handler UserTerminalAccessRestHandlerImpl) UpdateTerminalSession(w http.Re
 func (handler UserTerminalAccessRestHandlerImpl) UpdateTerminalShellSession(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.UserService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -194,7 +216,13 @@ func (handler UserTerminalAccessRestHandlerImpl) UpdateTerminalShellSession(w ht
 	}
 
 	token := r.Header.Get("token")
-	if ok := handler.Enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+	authenticated, err := handler.checkRbacForTerminalWithTerminalAccessId(token, request.TerminalAccessId)
+	if err != nil {
+		handler.Logger.Errorw("error in UpdateTerminalShellSession", "terminalAccessId", request.TerminalAccessId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if !authenticated {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -210,7 +238,7 @@ func (handler UserTerminalAccessRestHandlerImpl) UpdateTerminalShellSession(w ht
 func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalStatus(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.UserService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -225,7 +253,13 @@ func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalStatus(w http.Resp
 	}
 
 	token := r.Header.Get("token")
-	if ok := handler.Enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+	authenticated, err := handler.checkRbacForTerminalWithTerminalAccessId(token, terminalAccessId)
+	if err != nil {
+		handler.Logger.Errorw("error in FetchTerminalStatus", "terminalAccessId", terminalAccessId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if !authenticated {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -241,7 +275,7 @@ func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalStatus(w http.Resp
 func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalPodEvents(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.UserService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -253,7 +287,13 @@ func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalPodEvents(w http.R
 	}
 
 	token := r.Header.Get("token")
-	if ok := handler.Enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+	authenticated, err := handler.checkRbacForTerminalWithTerminalAccessId(token, terminalAccessId)
+	if err != nil {
+		handler.Logger.Errorw("error in FetchTerminalPodEvents", "terminalAccessId", terminalAccessId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if !authenticated {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -270,7 +310,7 @@ func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalPodEvents(w http.R
 func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalPodManifest(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.UserService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -282,7 +322,13 @@ func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalPodManifest(w http
 	}
 
 	token := r.Header.Get("token")
-	if ok := handler.Enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+	authenticated, err := handler.checkRbacForTerminalWithTerminalAccessId(token, terminalAccessId)
+	if err != nil {
+		handler.Logger.Errorw("error in FetchTerminalPodManifest", "terminalAccessId", terminalAccessId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if !authenticated {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -299,7 +345,7 @@ func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalPodManifest(w http
 func (handler UserTerminalAccessRestHandlerImpl) DisconnectTerminalSession(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.UserService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -311,7 +357,13 @@ func (handler UserTerminalAccessRestHandlerImpl) DisconnectTerminalSession(w htt
 	}
 
 	token := r.Header.Get("token")
-	if ok := handler.Enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+	authenticated, err := handler.checkRbacForTerminalWithTerminalAccessId(token, terminalAccessId)
+	if err != nil {
+		handler.Logger.Errorw("error in DisconnectTerminalSession", "terminalAccessId", terminalAccessId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if !authenticated {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -327,7 +379,7 @@ func (handler UserTerminalAccessRestHandlerImpl) DisconnectTerminalSession(w htt
 func (handler UserTerminalAccessRestHandlerImpl) StopTerminalSession(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.UserService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -339,7 +391,13 @@ func (handler UserTerminalAccessRestHandlerImpl) StopTerminalSession(w http.Resp
 	}
 
 	token := r.Header.Get("token")
-	if ok := handler.Enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+	authenticated, err := handler.checkRbacForTerminalWithTerminalAccessId(token, terminalAccessId)
+	if err != nil {
+		handler.Logger.Errorw("error in StopTerminalSession", "terminalAccessId", terminalAccessId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if !authenticated {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -350,7 +408,7 @@ func (handler UserTerminalAccessRestHandlerImpl) StopTerminalSession(w http.Resp
 func (handler UserTerminalAccessRestHandlerImpl) DisconnectAllTerminalSessionAndRetry(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.UserService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -370,7 +428,13 @@ func (handler UserTerminalAccessRestHandlerImpl) DisconnectAllTerminalSessionAnd
 	}
 
 	token := r.Header.Get("token")
-	if ok := handler.Enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+	authenticated, err := handler.clusterRbacService.CheckAuthorisationForNodeWithClusterId(token, request.ClusterId, request.NodeName, casbin.ActionUpdate)
+	if err != nil {
+		handler.Logger.Errorw("error in CheckAuthorisationForNodeWithClusterId", "clusterId", request.ClusterId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if !authenticated {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -387,7 +451,7 @@ func (handler UserTerminalAccessRestHandlerImpl) DisconnectAllTerminalSessionAnd
 func (handler UserTerminalAccessRestHandlerImpl) EditPodManifest(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.UserService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -401,7 +465,13 @@ func (handler UserTerminalAccessRestHandlerImpl) EditPodManifest(w http.Response
 	}
 
 	token := r.Header.Get("token")
-	if ok := handler.Enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+	authenticated, err := handler.clusterRbacService.CheckAuthorisationForNodeWithClusterId(token, request.ClusterId, request.NodeName, casbin.ActionUpdate)
+	if err != nil {
+		handler.Logger.Errorw("error in CheckAuthorisationForNodeWithClusterId", "clusterId", request.ClusterId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if !authenticated {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -413,4 +483,19 @@ func (handler UserTerminalAccessRestHandlerImpl) EditPodManifest(w http.Response
 		return
 	}
 	common.WriteJsonResp(w, nil, manifest, http.StatusOK)
+}
+
+func (handler UserTerminalAccessRestHandlerImpl) checkRbacForTerminalWithTerminalAccessId(token string, terminalAccessId int) (bool, error) {
+	terminalAccessSessionData, present := handler.UserTerminalAccessService.GetTerminalAccessSessionDataFromCacheById(terminalAccessId)
+	if !present {
+		return false, errors.New("terminal access session not found")
+	}
+
+	authenticated, err := handler.clusterRbacService.CheckAuthorisationForNodeWithClusterId(token, terminalAccessSessionData.ClusterId, terminalAccessSessionData.NodeName, casbin.ActionUpdate)
+	if err != nil {
+		handler.Logger.Errorw("error encountered in checkRbacForTerminalWithTerminalAccessId", "err", err)
+		return false, err
+
+	}
+	return authenticated, nil
 }

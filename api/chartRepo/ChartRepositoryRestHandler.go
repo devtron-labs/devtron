@@ -21,7 +21,6 @@ import (
 	"errors"
 	"mime/multipart"
 	"net/http"
-	"strconv"
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -30,7 +29,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
-	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 )
@@ -82,21 +80,22 @@ func NewChartRepositoryRestHandlerImpl(Logger *zap.SugaredLogger, userAuthServic
 func (handler *ChartRepositoryRestHandlerImpl) GetChartRepoById(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
-	vars := mux.Vars(r)
-	id, err := strconv.Atoi(vars["id"])
+
+	// Use enhanced parameter parsing with context
+	id, err := common.ExtractIntPathParamWithContext(w, r, "id")
 	if err != nil {
-		handler.Logger.Errorw("request err, GetChartRepoById", "err", err, "chart repo id", id)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		// Error already written by ExtractIntPathParamWithContext
 		return
 	}
-	handler.Logger.Infow("request payload, GetChartRepoById, app store", "chart repo id", id)
+
+	handler.Logger.Infow("Get chart repository request", "chartRepoId", id, "userId", userId)
 	res, err := handler.chartRepositoryService.GetChartRepoById(id)
 	if err != nil {
-		handler.Logger.Errorw("service err, GetChartRepoById, app store", "err", err, "userId", userId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		handler.Logger.Errorw("Failed to get chart repository", "chartRepoId", id, "userId", userId, "err", err)
+		common.WriteJsonRespWithResourceContextFromId(w, err, nil, 0, "chart repository", id)
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
@@ -147,7 +146,7 @@ func (handler *ChartRepositoryRestHandlerImpl) CreateChartRepo(w http.ResponseWr
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var request *chartRepo.ChartRepoDto
@@ -191,7 +190,7 @@ func (handler *ChartRepositoryRestHandlerImpl) UpdateChartRepo(w http.ResponseWr
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var request *chartRepo.ChartRepoDto
@@ -235,7 +234,7 @@ func (handler *ChartRepositoryRestHandlerImpl) ValidateChartRepo(w http.Response
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var request *chartRepo.ChartRepoDto
@@ -292,7 +291,7 @@ func (handler *ChartRepositoryRestHandlerImpl) DeleteChartRepo(w http.ResponseWr
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var request *chartRepo.ChartRepoDto

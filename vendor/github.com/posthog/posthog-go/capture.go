@@ -9,11 +9,15 @@ type Capture struct {
 	// This field is exported for serialization purposes and shouldn't be set by
 	// the application, its value is always overwritten by the library.
 	Type string
-
-	DistinctId string
-	Event      string
-	Timestamp  time.Time
-	Properties Properties
+	// You don't usually need to specify this field - Posthog will generate it automatically.
+	// Use it only when necessary - for example, to prevent duplicate events.
+	Uuid             string
+	DistinctId       string
+	Event            string
+	Timestamp        time.Time
+	Properties       Properties
+	Groups           Groups
+	SendFeatureFlags bool
 }
 
 func (msg Capture) internal() {
@@ -42,20 +46,21 @@ func (msg Capture) Validate() error {
 
 type CaptureInApi struct {
 	Type           string    `json:"type"`
+	Uuid           string    `json:"uuid"`
 	Library        string    `json:"library"`
 	LibraryVersion string    `json:"library_version"`
 	Timestamp      time.Time `json:"timestamp"`
 
-	DistinctId string     `json:"distinct_id"`
-	Event      string     `json:"event"`
-	Properties Properties `json:"properties"`
+	DistinctId       string     `json:"distinct_id"`
+	Event            string     `json:"event"`
+	Properties       Properties `json:"properties"`
+	SendFeatureFlags bool       `json:"send_feature_flags"`
 }
 
 func (msg Capture) APIfy() APIMessage {
-	library := "posthog-go"
 	libraryVersion := getVersion()
 
-	myProperties := Properties{}.Set("$lib", library).Set("$lib_version", libraryVersion)
+	myProperties := Properties{}.Set("$lib", SDKName).Set("$lib_version", libraryVersion)
 
 	if msg.Properties != nil {
 		for k, v := range msg.Properties {
@@ -63,9 +68,14 @@ func (msg Capture) APIfy() APIMessage {
 		}
 	}
 
+	if msg.Groups != nil {
+		myProperties.Set("$groups", msg.Groups)
+	}
+
 	apified := CaptureInApi{
 		Type:           msg.Type,
-		Library:        library,
+		Uuid:           msg.Uuid,
+		Library:        SDKName,
 		LibraryVersion: libraryVersion,
 		Timestamp:      msg.Timestamp,
 		DistinctId:     msg.DistinctId,

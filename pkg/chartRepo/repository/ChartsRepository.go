@@ -20,6 +20,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
+	"time"
 )
 
 type Chart struct {
@@ -31,14 +33,14 @@ type Chart struct {
 	ChartVersion            string                      `sql:"chart_version"`
 	ChartRepo               string                      `sql:"chart_repo"`
 	ChartRepoUrl            string                      `sql:"chart_repo_url"`
-	Values                  string                      `sql:"values_yaml"`       //json format // used at for release. this should be always updated
-	GlobalOverride          string                      `sql:"global_override"`   //json format    // global overrides visible to user only
-	ReleaseOverride         string                      `sql:"release_override"`  //json format   //image descriptor template used for injecting tigger metadata injection
-	PipelineOverride        string                      `sql:"pipeline_override"` //json format  // pipeline values -> strategy values
-	Status                  models.ChartStatus          `sql:"status"`            //(new , deployment-in-progress, deployed-To-production, error )
+	Values                  string                      `sql:"values_yaml"`              //json format // used at for release. this should be always updated
+	GlobalOverride          string                      `sql:"global_override"`          //json format    // global overrides visible to user only
+	ReleaseOverride         string                      `sql:"release_override,notnull"` //json format   //image descriptor template used for injecting tigger metadata injection
+	PipelineOverride        string                      `sql:"pipeline_override"`        //json format  // pipeline values -> strategy values
+	Status                  models.ChartStatus          `sql:"status"`                   //(new , deployment-in-progress, deployed-To-production, error )
 	Active                  bool                        `sql:"active"`
 	GitRepoUrl              string                      `sql:"git_repo_url"`   // Deprecated;  use deployment_config table instead   //git repository where chart is stored
-	ChartLocation           string                      `sql:"chart_location"` //location within git repo where current chart is pointing
+	ChartLocation           string                      `sql:"chart_location"` // Deprecated; location within git repo where current chart is pointing
 	ReferenceTemplate       string                      `sql:"reference_template"`
 	ImageDescriptorTemplate string                      `sql:"image_descriptor_template"`
 	ChartRefId              int                         `sql:"chart_ref_id"`
@@ -55,20 +57,21 @@ type Chart struct {
 type ChartRepository interface {
 	//ChartReleasedToProduction(chartRepo, appName, chartVersion string) (bool, error)
 	FindOne(chartRepo, appName, chartVersion string) (*Chart, error)
-	Save(*Chart) error
+	Save(tx *pg.Tx, chart *Chart) error
 	FindCurrentChartVersion(chartRepo, chartName, chartVersionPattern string) (string, error)
 	FindActiveChart(appId int) (chart *Chart, err error)
 	FindLatestByAppId(appId int) (chart *Chart, err error)
 	FindById(id int) (chart *Chart, err error)
-	Update(chart *Chart) error
+	Update(tx *pg.Tx, chart *Chart) error
 	UpdateAllInTx(tx *pg.Tx, charts []*Chart) error
 
 	FindActiveChartsByAppId(appId int) (charts []*Chart, err error)
-	FindLatestChartForAppByAppId(appId int) (chart *Chart, err error)
+	FindLatestChartForAppByAppId(tx *pg.Tx, appId int) (chart *Chart, err error)
 	FindLatestChartByAppIds(appId []int) (chart []*Chart, err error)
 	FindChartRefIdForLatestChartForAppByAppId(appId int) (int, error)
 	FindChartByAppIdAndRefId(appId int, chartRefId int) (chart *Chart, err error)
 	FindNoLatestChartForAppByAppId(appId int) ([]*Chart, error)
+	UpdateNoLatestChartForAppByAppId(tx *pg.Tx, appId, chartId int, updatedBy int32) ([]*Chart, error)
 	FindPreviousChartByAppId(appId int) (chart *Chart, err error)
 	FindNumberOfAppsWithDeploymentTemplate(appIds []int) (int, error)
 	FindChartByGitRepoUrl(gitRepoUrl string) (*Chart, error)
@@ -141,9 +144,14 @@ func (repositoryImpl ChartRepositoryImpl) FindActiveChartsByAppId(appId int) (ch
 	return activeCharts, err
 }
 
-func (repositoryImpl ChartRepositoryImpl) FindLatestChartForAppByAppId(appId int) (chart *Chart, err error) {
+func (repositoryImpl ChartRepositoryImpl) FindLatestChartForAppByAppId(tx *pg.Tx, appId int) (chart *Chart, err error) {
+	var connection orm.DB
+	connection = tx
+	if tx == nil {
+		connection = repositoryImpl.dbConnection
+	}
 	chart = &Chart{}
-	err = repositoryImpl.dbConnection.
+	err = connection.
 		Model(chart).
 		Where("app_id= ?", appId).
 		Where("latest= ?", true).
@@ -194,6 +202,21 @@ func (repositoryImpl ChartRepositoryImpl) FindNoLatestChartForAppByAppId(appId i
 	return charts, err
 }
 
+func (repositoryImpl ChartRepositoryImpl) UpdateNoLatestChartForAppByAppId(tx *pg.Tx, appId, chartId int, updatedBy int32) ([]*Chart, error) {
+	var charts []*Chart
+	_, err := tx.
+		Model(&charts).
+		Set("latest = ? ", false).
+		Set("previous = ? ", false).
+		Set("updated_on = ? ", time.Now()).
+		Set("updated_by = ? ", updatedBy).
+		Where("app_id = ?", appId).
+		Where("latest = ?", false).
+		Where("id != ?", chartId).
+		Update()
+	return charts, err
+}
+
 func (repositoryImpl ChartRepositoryImpl) FindLatestChartForAppByAppIdAndEnvId(appId int, envId int) (chart *Chart, err error) {
 	chart = &Chart{}
 	err = repositoryImpl.dbConnection.
@@ -214,12 +237,24 @@ func (repositoryImpl ChartRepositoryImpl) FindPreviousChartByAppId(appId int) (c
 	return chart, err
 }
 
-func (repositoryImpl ChartRepositoryImpl) Save(chart *Chart) error {
-	return repositoryImpl.dbConnection.Insert(chart)
+func (repositoryImpl ChartRepositoryImpl) Save(tx *pg.Tx, chart *Chart) error {
+	var connection orm.DB
+	connection = tx
+	if tx == nil {
+		connection = repositoryImpl.dbConnection
+	}
+	_, err := connection.Model(chart).Insert()
+	return err
+
 }
 
-func (repositoryImpl ChartRepositoryImpl) Update(chart *Chart) error {
-	_, err := repositoryImpl.dbConnection.Model(chart).WherePK().UpdateNotNull()
+func (repositoryImpl ChartRepositoryImpl) Update(tx *pg.Tx, chart *Chart) error {
+	var connection orm.DB
+	connection = tx
+	if tx == nil {
+		connection = repositoryImpl.dbConnection
+	}
+	_, err := connection.Model(chart).WherePK().UpdateNotNull()
 	return err
 }
 

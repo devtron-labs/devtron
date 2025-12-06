@@ -34,10 +34,10 @@ import (
 )
 
 type GrafanaClientConfig struct {
-	GrafanaUsername string `env:"GRAFANA_USERNAME" envDefault:"admin"`
-	GrafanaPassword string `env:"GRAFANA_PASSWORD" envDefault:"prom-operator"`
-	GrafanaOrgId    int    `env:"GRAFANA_ORG_ID" envDefault:"2"`
-	DestinationURL  string `env:"GRAFANA_URL" envDefault:""`
+	GrafanaUsername string `env:"GRAFANA_USERNAME" envDefault:"admin" description:"Username for grafana "`
+	GrafanaPassword string `env:"GRAFANA_PASSWORD" envDefault:"prom-operator" description:"Password for grafana dashboard"`
+	GrafanaOrgId    int    `env:"GRAFANA_ORG_ID" envDefault:"2" description:"Org ID for grafana for application metrics"`
+	DestinationURL  string `env:"GRAFANA_URL" envDefault:"" description:"Host URL for the grafana dashboard"`
 }
 
 const PromDatasource = "/api/datasources"
@@ -380,7 +380,7 @@ func (impl *GrafanaClientImpl) CreateDatasource(createDatasourceRequest CreateDa
 	url = fmt.Sprintf(url, impl.config.GrafanaUsername, impl.config.GrafanaPassword)
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(reqBody))
 	if err != nil {
-		// do not log url or req body as they contains sensitive data
+		// do not log url or req body as they contain sensitive data
 		impl.logger.Errorw("error while creating http request", "destinationURL", impl.config.DestinationURL, "err", err)
 		return nil, err
 	}

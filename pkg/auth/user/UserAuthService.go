@@ -37,7 +37,6 @@ import (
 
 	"github.com/caarlos0/env"
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/devtron-labs/devtron/api/bean"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -53,7 +52,7 @@ type UserAuthService interface {
 	HandleDexCallback(w http.ResponseWriter, r *http.Request)
 	HandleRefresh(w http.ResponseWriter, r *http.Request)
 
-	CreateRole(roleData *bean.RoleData) (bool, error)
+	CreateRole(roleData *userBean.RoleData) (bool, error)
 	AuthVerification(r *http.Request) (bool, string, error)
 	DeleteRoles(entityType string, entityName string, tx *pg.Tx, envIdentifier string, workflowName string) error
 }
@@ -95,18 +94,18 @@ var Claims struct {
 }
 
 type DexConfig struct {
-	RedirectURL          string `env:"DEX_RURL" envDefault:"http://127.0.0.1:8080/callback"`
-	ClientID             string `env:"DEX_CID" envDefault:"example-app"`
-	ClientSecret         string `env:"DEX_SECRET" `
-	DexURL               string `env:"DEX_URL" `
-	DexJwtKey            string `env:"DEX_JWTKEY" `
-	CStoreKey            string `env:"DEX_CSTOREKEY"`
-	CookieExpirationTime int    `env:"CExpirationTime" envDefault:"600"`
-	JwtExpirationTime    int    `env:"JwtExpirationTime" envDefault:"120"`
+	RedirectURL          string `env:"DEX_RURL" envDefault:"http://127.0.0.1:8080/callback" description:"Dex redirect URL(http://argocd-dex-server.devtroncd:8080/callback)"`
+	ClientID             string `env:"DEX_CID" envDefault:"example-app" description:"dex client id "`
+	ClientSecret         string `env:"DEX_SECRET" description:"Dex secret"`
+	DexURL               string `env:"DEX_URL" description:"Dex service endpoint with dex path(http://argocd-dex-server.devtroncd:5556/dex)"`
+	DexJwtKey            string `env:"DEX_JWTKEY" description:"DEX JWT key.  "`
+	CStoreKey            string `env:"DEX_CSTOREKEY" description:"DEX CSTOREKEY."`
+	CookieExpirationTime int    `env:"CExpirationTime" envDefault:"600" description:"Caching expiration time."`
+	JwtExpirationTime    int    `env:"JwtExpirationTime" envDefault:"120" description:"JWT expiration time."`
 }
 
 type WebhookToken struct {
-	WebhookToken string `env:"WEBHOOK_TOKEN" envDefault:""`
+	WebhookToken string `env:"WEBHOOK_TOKEN" envDefault:"" description:"If you want to continue using jenkins for CI then please provide this for authentication of requests"`
 }
 
 func NewUserAuthServiceImpl(userAuthRepository repository.UserAuthRepository, sessionManager *middleware.SessionManager,
@@ -433,7 +432,7 @@ func writeResponse(status int, message string, w http.ResponseWriter, err error)
 	}
 }
 
-func (impl UserAuthServiceImpl) CreateRole(roleData *bean.RoleData) (bool, error) {
+func (impl UserAuthServiceImpl) CreateRole(roleData *userBean.RoleData) (bool, error) {
 	roleModel := &repository.RoleModel{
 		Role:        roleData.Role,
 		Team:        roleData.Team,

@@ -32,6 +32,7 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
@@ -69,16 +70,23 @@ type OIDCStateStorage interface {
 }
 
 type Cache struct {
-	OidcState map[string]*OIDCState
+	OidcState sync.Map
 }
 
 func (c *Cache) GetOIDCState(key string) (*OIDCState, error) {
-	state := c.OidcState[key]
+	value, exists := c.OidcState.Load(key)
+	if !exists {
+		return nil, ErrCacheMiss
+	}
+	state, ok := value.(*OIDCState)
+	if !ok || state == nil {
+		return nil, ErrInvalidState
+	}
 	return state, nil
 }
 
 func (c *Cache) SetOIDCState(key string, state *OIDCState) error {
-	c.OidcState[key] = state
+	c.OidcState.Store(key, state)
 	return nil
 }
 
@@ -227,10 +235,38 @@ func NewClientApp(settings *Settings, cache OIDCStateStorage, baseHRef string, u
 	return &a, nil
 }
 
-func (a *ClientApp) oauth2Config(scopes []string) (*oauth2.Config, error) {
+func (a *ClientApp) oauth2Config(scopes []string, connectorId string) (*oauth2.Config, error) {
 	endpoint, err := a.provider.Endpoint()
 	if err != nil {
 		return nil, err
+	}
+	if len(connectorId) > 0 {
+		errored := false
+		authUrl, err := url.JoinPath(endpoint.AuthURL, connectorId)
+		if err != nil {
+			errored = true
+			//using default auth url in case error occurred
+			fmt.Println("error occurred while joining auth url with connectorId", err)
+		}
+
+		deviceAuthURL, err := url.JoinPath(endpoint.DeviceAuthURL, connectorId)
+		if err != nil {
+			errored = true
+			//using default auth url in case error occurred
+			fmt.Println("error occurred while joining auth url with connectorId", err)
+		}
+		tokenURL, err := url.JoinPath(endpoint.TokenURL, connectorId)
+		if err != nil {
+			errored = true
+			//using default auth url in case error occurred
+			fmt.Println("error occurred while joining auth url with connectorId", err)
+		}
+		if !errored {
+			endpoint.AuthURL = authUrl
+			endpoint.DeviceAuthURL = deviceAuthURL
+			endpoint.TokenURL = tokenURL
+		}
+
 	}
 	return &oauth2.Config{
 		ClientID:     a.clientID,
@@ -287,12 +323,15 @@ func (a *ClientApp) generateAppState(returnURL string) string {
 }
 
 var ErrCacheMiss = errors.New("cache: key is missing")
+var ErrInvalidState = errors.New("invalid app state")
 
 func (a *ClientApp) verifyAppState(state string) (*OIDCState, error) {
 	res, err := a.cache.GetOIDCState(state)
 	if err != nil {
-		if err == ErrCacheMiss {
+		if errors.Is(err, ErrCacheMiss) {
 			return nil, fmt.Errorf("unknown app state %s", state)
+		} else if errors.Is(err, ErrInvalidState) {
+			return nil, fmt.Errorf("invalid app state %s", state)
 		} else {
 			return nil, fmt.Errorf("failed to verify app state %s: %v", state, err)
 		}
@@ -360,7 +399,9 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	var opts []oauth2.AuthCodeOption
 	scopes = a.settings.OIDCConfig.RequestedScopes
 	opts = AppendClaimsAuthenticationRequestParameter(opts, a.settings.OIDCConfig.RequestedIDTokenClaims)
-	oauth2Config, err := a.oauth2Config(GetScopesOrDefault(scopes))
+	v := r.URL.Query()
+	connectorId := v.Get("connectorId")
+	oauth2Config, err := a.oauth2Config(GetScopesOrDefault(scopes), connectorId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -389,7 +430,7 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 // HandleCallback is the callback handler for an OAuth2 login flow
 func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
-	oauth2Config, err := a.oauth2Config(nil)
+	oauth2Config, err := a.oauth2Config(nil, "")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

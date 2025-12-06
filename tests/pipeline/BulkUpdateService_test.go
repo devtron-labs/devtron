@@ -17,10 +17,12 @@
 package pipeline
 
 import (
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/bulkAction"
+	"github.com/devtron-labs/devtron/pkg/auth/user/util"
+	"github.com/devtron-labs/devtron/pkg/bulkAction/bean"
 	"io"
 	"log"
 	"os"
@@ -34,7 +36,7 @@ func TestBulkUpdate(t *testing.T) {
 	type test struct {
 		ApiVersion             string
 		Kind                   string
-		Payload                *bulkAction.BulkUpdatePayload
+		Payload                *bean.BulkUpdatePayload
 		deploymentTemplateWant string
 		configMapWant          string
 		secretWant             string
@@ -65,28 +67,28 @@ func TestBulkUpdate(t *testing.T) {
 		}
 		namesIncludes := strings.Fields(record[2])
 		namesExcludes := strings.Fields(record[3])
-		includes := &bulkAction.NameIncludesExcludes{Names: namesIncludes}
-		excludes := &bulkAction.NameIncludesExcludes{Names: namesExcludes}
-		deploymentTemplateSpec := &bulkAction.DeploymentTemplateSpec{
+		includes := &bean.NameIncludesExcludes{Names: namesIncludes}
+		excludes := &bean.NameIncludesExcludes{Names: namesExcludes}
+		deploymentTemplateSpec := &bean.DeploymentTemplateSpec{
 			PatchJson: record[6]}
-		deploymentTemplateTask := &bulkAction.DeploymentTemplateTask{
+		deploymentTemplateTask := &bean.DeploymentTemplateTask{
 			Spec: deploymentTemplateSpec,
 		}
-		configMapSpec := &bulkAction.CmAndSecretSpec{
+		configMapSpec := &bean.CmAndSecretSpec{
 			Names:     strings.Fields(record[7]),
 			PatchJson: record[8],
 		}
-		configMapTask := &bulkAction.CmAndSecretTask{
+		configMapTask := &bean.CmAndSecretTask{
 			Spec: configMapSpec,
 		}
-		secretSpec := &bulkAction.CmAndSecretSpec{
+		secretSpec := &bean.CmAndSecretSpec{
 			Names:     strings.Fields(record[9]),
 			PatchJson: record[10],
 		}
-		secretTask := &bulkAction.CmAndSecretTask{
+		secretTask := &bean.CmAndSecretTask{
 			Spec: secretSpec,
 		}
-		payload := &bulkAction.BulkUpdatePayload{
+		payload := &bean.BulkUpdatePayload{
 			Includes:           includes,
 			Excludes:           excludes,
 			EnvIds:             envId,
@@ -110,7 +112,7 @@ func TestBulkUpdate(t *testing.T) {
 	for _, tt := range tests {
 		testname := fmt.Sprintf("%s,%s", tt.Payload.Includes, tt.Payload.Excludes)
 		t.Run(testname, func(t *testing.T) {
-			got := bulkUpdateService.BulkUpdate(tt.Payload)
+			got := bulkUpdateService.BulkEdit(context.Background(), tt.Payload, util.GetUserMetadata(context.Background(), 1, true))
 			if got.DeploymentTemplate.Message[len(got.DeploymentTemplate.Message)-1] != tt.deploymentTemplateWant {
 				t.Errorf("got %s, want %s", got, tt.deploymentTemplateWant)
 			}

@@ -17,11 +17,15 @@
 package providerConfig
 
 import (
+	"fmt"
+	"github.com/devtron-labs/devtron/internal/constants"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
+	"golang.org/x/exp/maps"
 	"net/http"
+	"strings"
 )
 
 type DeploymentTypeOverrideService interface {
@@ -58,6 +62,7 @@ func (impl *DeploymentTypeOverrideServiceImpl) ValidateAndOverrideDeploymentAppT
 	AllowedDeploymentAppTypes := map[string]bool{
 		util2.PIPELINE_DEPLOYMENT_TYPE_ACD:  true,
 		util2.PIPELINE_DEPLOYMENT_TYPE_HELM: true,
+		util2.PIPELINE_DEPLOYMENT_TYPE_FLUX: true,
 	}
 	for k, v := range deploymentTypeValidationConfig {
 		// rewriting allowed deployment types based on config provided by user
@@ -68,11 +73,15 @@ func (impl *DeploymentTypeOverrideServiceImpl) ValidateAndOverrideDeploymentAppT
 			overrideDeploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_ACD
 		} else if AllowedDeploymentAppTypes[util2.PIPELINE_DEPLOYMENT_TYPE_HELM] {
 			overrideDeploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_HELM
+		} else if AllowedDeploymentAppTypes[util2.PIPELINE_DEPLOYMENT_TYPE_FLUX] {
+			overrideDeploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_FLUX
 		}
 	}
 	if deploymentType == "" {
 		if isGitOpsConfigured && AllowedDeploymentAppTypes[util2.PIPELINE_DEPLOYMENT_TYPE_ACD] {
 			overrideDeploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_ACD
+		} else if isGitOpsConfigured && AllowedDeploymentAppTypes[util2.PIPELINE_DEPLOYMENT_TYPE_FLUX] {
+			overrideDeploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_FLUX
 		} else if AllowedDeploymentAppTypes[util2.PIPELINE_DEPLOYMENT_TYPE_HELM] {
 			overrideDeploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_HELM
 		}
@@ -81,10 +90,11 @@ func (impl *DeploymentTypeOverrideServiceImpl) ValidateAndOverrideDeploymentAppT
 		impl.logger.Errorw("validation error for the given deployment type", "deploymentType", deploymentType, "err", err)
 		return overrideDeploymentType, err
 	}
-	if !isGitOpsConfigured && util2.IsAcdApp(overrideDeploymentType) {
+	if !isGitOpsConfigured && util2.IsAcdApp(overrideDeploymentType) && util2.IsFluxApp(overrideDeploymentType) {
 		impl.logger.Errorw("GitOps not configured but selected as a deployment app type")
 		err = &util2.ApiError{
 			HttpStatusCode:  http.StatusBadRequest,
+			Code:            constants.InvalidDeploymentAppTypeForPipeline,
 			InternalMessage: "GitOps integration is not installed/configured. Please install/configure GitOps or use helm option.",
 			UserMessage:     "GitOps integration is not installed/configured. Please install/configure GitOps or use helm option.",
 		}
@@ -107,11 +117,12 @@ func (impl *DeploymentTypeOverrideServiceImpl) validateDeploymentAppType(deploym
 	if validDeploymentConfigReceived(deploymentConfig, deploymentType) {
 		return nil
 	}
-
+	errMsg := fmt.Sprintf("Deployment app type %q is not allowed for this environment. Allowed deployment app types are: %s", deploymentType, strings.Join(maps.Keys(deploymentConfig), ", "))
 	err := &util2.ApiError{
 		HttpStatusCode:  http.StatusBadRequest,
-		InternalMessage: "Received deployment app type doesn't match with the allowed deployment app type for this environment.",
-		UserMessage:     "Received deployment app type doesn't match with the allowed deployment app type for this environment.",
+		Code:            constants.InvalidDeploymentAppTypeForPipeline,
+		InternalMessage: errMsg,
+		UserMessage:     errMsg,
 	}
 	return err
 }

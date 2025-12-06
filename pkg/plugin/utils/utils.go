@@ -19,8 +19,10 @@ package utils
 import (
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
+	"golang.org/x/mod/semver"
 	"net/http"
 	"regexp"
 	"sort"
@@ -94,6 +96,17 @@ func FetchIconAndCheckSize(url string, maxSize int64) error {
 		}
 	} else {
 		return fmt.Errorf("error in fetching icon : empty response")
+	}
+	return nil
+}
+
+func ValidatePluginVersion(version string) error {
+	if !strings.Contains(version, "v") {
+		version = fmt.Sprintf("v%s", version)
+	}
+	// semantic versioning validation on plugin's version
+	if !semver.IsValid(version) {
+		return util.NewApiError(http.StatusBadRequest, bean2.PluginVersionNotSemanticallyCorrectError, bean2.PluginVersionNotSemanticallyCorrectError)
 	}
 	return nil
 }

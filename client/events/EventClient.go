@@ -18,27 +18,27 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
-	"github.com/devtron-labs/devtron/pkg/module"
-	"net/http"
-	"time"
-
 	"github.com/caarlos0/env"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
+	buildBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/module"
+	bean3 "github.com/devtron-labs/devtron/pkg/module/bean"
 	util "github.com/devtron-labs/devtron/util/event"
 	"go.uber.org/zap"
+	"net/http"
 )
 
 type EventClientConfig struct {
-	DestinationURL     string             `env:"EVENT_URL" envDefault:"http://localhost:3000/notify"`
-	NotificationMedium NotificationMedium `env:"NOTIFICATION_MEDIUM" envDefault:"rest"`
+	DestinationURL     string             `env:"EVENT_URL" envDefault:"http://localhost:3000/notify" description:"Notifier service url"`
+	NotificationMedium NotificationMedium `env:"NOTIFICATION_MEDIUM" envDefault:"rest" description:"notification medium"`
 }
 type NotificationMedium string
 
@@ -59,79 +59,63 @@ type EventClient interface {
 }
 
 type Event struct {
-	EventTypeId        int               `json:"eventTypeId"`
-	EventName          string            `json:"eventName"`
-	PipelineId         int               `json:"pipelineId"`
-	PipelineType       string            `json:"pipelineType"`
-	CorrelationId      string            `json:"correlationId"`
-	Payload            *Payload          `json:"payload"`
-	EventTime          string            `json:"eventTime"`
-	TeamId             int               `json:"teamId"`
-	AppId              int               `json:"appId"`
-	EnvId              int               `json:"envId"`
-	CdWorkflowType     bean.WorkflowType `json:"cdWorkflowType,omitempty"`
-	CdWorkflowRunnerId int               `json:"cdWorkflowRunnerId"`
-	CiWorkflowRunnerId int               `json:"ciWorkflowRunnerId"`
-	CiArtifactId       int               `json:"ciArtifactId"`
-	BaseUrl            string            `json:"baseUrl"`
-	UserId             int               `json:"-"`
+	EventTypeId         int               `json:"eventTypeId"`
+	EventName           string            `json:"eventName"`
+	PipelineId          int               `json:"pipelineId"`
+	PipelineType        string            `json:"pipelineType"`
+	CorrelationId       string            `json:"correlationId"`
+	Payload             *Payload          `json:"payload"`
+	EventTime           string            `json:"eventTime"`
+	TeamId              int               `json:"teamId"`
+	AppId               int               `json:"appId"`
+	EnvId               int               `json:"envId"`
+	IsProdEnv           bool              `json:"isProdEnv"`
+	ClusterId           int               `json:"clusterId"`
+	CdWorkflowType      bean.WorkflowType `json:"cdWorkflowType,omitempty"`
+	CdWorkflowRunnerId  int               `json:"cdWorkflowRunnerId"`
+	CiWorkflowRunnerId  int               `json:"ciWorkflowRunnerId"`
+	CiArtifactId        int               `json:"ciArtifactId"`
+	EnvIdsForCiPipeline []int             `json:"envIdsForCiPipeline"`
+	BaseUrl             string            `json:"baseUrl"`
+	UserId              int               `json:"-"`
 }
 
 type Payload struct {
-	AppName               string               `json:"appName"`
-	EnvName               string               `json:"envName"`
-	PipelineName          string               `json:"pipelineName"`
-	Source                string               `json:"source"`
-	DockerImageUrl        string               `json:"dockerImageUrl"`
-	TriggeredBy           string               `json:"triggeredBy"`
-	Stage                 string               `json:"stage"`
-	DeploymentHistoryLink string               `json:"deploymentHistoryLink"`
-	AppDetailLink         string               `json:"appDetailLink"`
-	DownloadLink          string               `json:"downloadLink"`
-	BuildHistoryLink      string               `json:"buildHistoryLink"`
-	MaterialTriggerInfo   *MaterialTriggerInfo `json:"material"`
-	FailureReason         string               `json:"failureReason"`
-}
-
-type CiPipelineMaterialResponse struct {
-	Id              int                    `json:"id"`
-	GitMaterialId   int                    `json:"gitMaterialId"`
-	GitMaterialUrl  string                 `json:"gitMaterialUrl"`
-	GitMaterialName string                 `json:"gitMaterialName"`
-	Type            string                 `json:"type"`
-	Value           string                 `json:"value"`
-	Active          bool                   `json:"active"`
-	History         []*gitSensor.GitCommit `json:"history,omitempty"`
-	LastFetchTime   time.Time              `json:"lastFetchTime"`
-	IsRepoError     bool                   `json:"isRepoError"`
-	RepoErrorMsg    string                 `json:"repoErrorMsg"`
-	IsBranchError   bool                   `json:"isBranchError"`
-	BranchErrorMsg  string                 `json:"branchErrorMsg"`
-	Url             string                 `json:"url"`
-}
-
-type MaterialTriggerInfo struct {
-	GitTriggers map[int]pipelineConfig.GitCommit `json:"gitTriggers"`
-	CiMaterials []CiPipelineMaterialResponse     `json:"ciMaterials"`
+	AppName               string                         `json:"appName"`
+	EnvName               string                         `json:"envName"`
+	PipelineName          string                         `json:"pipelineName"`
+	Source                string                         `json:"source"`
+	DockerImageUrl        string                         `json:"dockerImageUrl"`
+	TriggeredBy           string                         `json:"triggeredBy"`
+	Stage                 string                         `json:"stage"`
+	DeploymentHistoryLink string                         `json:"deploymentHistoryLink"`
+	AppDetailLink         string                         `json:"appDetailLink"`
+	DownloadLink          string                         `json:"downloadLink"`
+	BuildHistoryLink      string                         `json:"buildHistoryLink"`
+	MaterialTriggerInfo   *buildBean.MaterialTriggerInfo `json:"material"`
+	FailureReason         string                         `json:"failureReason"`
 }
 
 type EventRESTClientImpl struct {
-	logger               *zap.SugaredLogger
-	client               *http.Client
-	config               *EventClientConfig
-	pubsubClient         *pubsub.PubSubClientServiceImpl
-	ciPipelineRepository pipelineConfig.CiPipelineRepository
-	pipelineRepository   pipelineConfig.PipelineRepository
-	attributesRepository repository.AttributesRepository
-	moduleService        module.ModuleService
+	logger                         *zap.SugaredLogger
+	client                         *http.Client
+	config                         *EventClientConfig
+	pubsubClient                   *pubsub.PubSubClientServiceImpl
+	ciPipelineRepository           pipelineConfig.CiPipelineRepository
+	pipelineRepository             pipelineConfig.PipelineRepository
+	attributesRepository           repository.AttributesRepository
+	moduleService                  module.ModuleService
+	notificationSettingsRepository repository.NotificationSettingsRepository
 }
 
 func NewEventRESTClientImpl(logger *zap.SugaredLogger, client *http.Client, config *EventClientConfig, pubsubClient *pubsub.PubSubClientServiceImpl,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
-	attributesRepository repository.AttributesRepository, moduleService module.ModuleService) *EventRESTClientImpl {
+	attributesRepository repository.AttributesRepository, moduleService module.ModuleService,
+	notificationSettingsRepository repository.NotificationSettingsRepository) *EventRESTClientImpl {
 	return &EventRESTClientImpl{logger: logger, client: client, config: config, pubsubClient: pubsubClient,
 		ciPipelineRepository: ciPipelineRepository, pipelineRepository: pipelineRepository,
-		attributesRepository: attributesRepository, moduleService: moduleService}
+		attributesRepository: attributesRepository, moduleService: moduleService,
+		notificationSettingsRepository: notificationSettingsRepository}
 }
 
 func (impl *EventRESTClientImpl) buildFinalPayload(event Event, cdPipeline *pipelineConfig.Pipeline, ciPipeline *pipelineConfig.CiPipeline) *Payload {
@@ -163,12 +147,12 @@ func (impl *EventRESTClientImpl) buildFinalPayload(event Event, cdPipeline *pipe
 
 func (impl *EventRESTClientImpl) WriteNotificationEvent(event Event) (bool, error) {
 	// if notification integration is not installed then do not send the notification
-	moduleInfo, err := impl.moduleService.GetModuleInfo(module.ModuleNameNotification)
+	moduleInfo, err := impl.moduleService.GetModuleInfo(bean3.ModuleNameNotification)
 	if err != nil {
 		impl.logger.Errorw("error while getting notification module status", "err", err)
 		return false, err
 	}
-	if moduleInfo.Status != module.ModuleStatusInstalled {
+	if moduleInfo.Status != bean3.ModuleStatusInstalled {
 		impl.logger.Warnw("Notification module is not installed, hence skipping sending notification", "currentModuleStatus", moduleInfo.Status)
 		return false, nil
 	}
@@ -256,34 +240,115 @@ func (impl *EventRESTClientImpl) sendEventsOnNats(body []byte) error {
 // do not call this method if notification module is not installed
 func (impl *EventRESTClientImpl) sendEvent(event Event) (bool, error) {
 	impl.logger.Debugw("event before send", "event", event)
-	body, err := json.Marshal(event)
+
+	// Step 1: Create payload and destination URL based on config
+	bodyBytes, destinationUrl, err := impl.createV2PayloadAndDestination(event)
 	if err != nil {
-		impl.logger.Errorw("error while marshaling event request ", "err", err)
 		return false, err
 	}
+
+	// Step 2: Send via appropriate medium (NATS or REST)
+	return impl.deliverEvent(bodyBytes, destinationUrl)
+}
+
+func (impl *EventRESTClientImpl) createV2PayloadAndDestination(event Event) ([]byte, string, error) {
+	destinationUrl := impl.config.DestinationURL + "/v2"
+
+	// Fetch notification settings
+	req := repository.GetRulesRequest{
+		TeamId:              event.TeamId,
+		EnvId:               event.EnvId,
+		AppId:               event.AppId,
+		PipelineId:          event.PipelineId,
+		PipelineType:        event.PipelineType,
+		IsProdEnv:           &event.IsProdEnv,
+		ClusterId:           event.ClusterId,
+		EnvIdsForCiPipeline: event.EnvIdsForCiPipeline,
+	}
+	notificationSettings, err := impl.notificationSettingsRepository.FindNotificationSettingsWithRules(
+		context.Background(), event.EventTypeId, req,
+	)
+	if err != nil {
+		impl.logger.Errorw("error while fetching notification settings", "err", err)
+		return nil, "", err
+	}
+
+	// Process notification settings into beans
+	notificationSettingsBean, err := impl.processNotificationSettings(notificationSettings)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// Create combined payload
+	combinedPayload := map[string]interface{}{
+		"event":                event,
+		"notificationSettings": notificationSettingsBean,
+	}
+
+	bodyBytes, err := json.Marshal(combinedPayload)
+	if err != nil {
+		impl.logger.Errorw("error while marshaling combined event request", "err", err)
+		return nil, "", err
+	}
+
+	return bodyBytes, destinationUrl, nil
+}
+
+func (impl *EventRESTClientImpl) processNotificationSettings(notificationSettings []repository.NotificationSettings) ([]*repository.NotificationSettingsBean, error) {
+	notificationSettingsBean := make([]*repository.NotificationSettingsBean, 0)
+	for _, item := range notificationSettings {
+		config := make([]repository.ConfigEntry, 0)
+		if item.Config != "" {
+			if err := json.Unmarshal([]byte(item.Config), &config); err != nil {
+				impl.logger.Errorw("error while unmarshaling config", "err", err)
+				return nil, err
+			}
+		}
+		notificationSettingsBean = append(notificationSettingsBean, &repository.NotificationSettingsBean{
+			Id:           item.Id,
+			TeamId:       item.TeamId,
+			AppId:        item.AppId,
+			EnvId:        item.EnvId,
+			PipelineId:   item.PipelineId,
+			PipelineType: item.PipelineType,
+			EventTypeId:  item.EventTypeId,
+			Config:       config,
+			ViewId:       item.ViewId,
+		})
+	}
+	return notificationSettingsBean, nil
+}
+
+func (impl *EventRESTClientImpl) deliverEvent(bodyBytes []byte, destinationUrl string) (bool, error) {
 	if impl.config.NotificationMedium == PUB_SUB {
-		err = impl.sendEventsOnNats(body)
-		if err != nil {
-			impl.logger.Errorw("error while publishing event  ", "err", err)
+		if err := impl.sendEventsOnNats(bodyBytes); err != nil {
+			impl.logger.Errorw("error while publishing event", "err", err)
 			return false, err
 		}
 		return true, nil
 	}
-	var reqBody = []byte(body)
-	req, err := http.NewRequest(http.MethodPost, impl.config.DestinationURL, bytes.NewBuffer(reqBody))
+
+	req, err := http.NewRequest(http.MethodPost, destinationUrl, bytes.NewBuffer(bodyBytes))
 	if err != nil {
-		impl.logger.Errorw("error while writing event", "err", err)
+		impl.logger.Errorw("error while creating HTTP request", "err", err)
 		return false, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+
 	resp, err := impl.client.Do(req)
 	if err != nil {
-		impl.logger.Errorw("error while UpdateJiraTransition request ", "err", err)
+		impl.logger.Errorw("error while sending HTTP request", "err", err)
 		return false, err
 	}
 	defer resp.Body.Close()
-	impl.logger.Debugw("event completed", "event resp", resp)
-	return true, err
+
+	if resp.StatusCode >= 300 {
+		impl.logger.Errorw("unexpected response from notifier", "status", resp.StatusCode)
+		return false, fmt.Errorf("unexpected response code: %d", resp.StatusCode)
+	}
+
+	impl.logger.Debugw("event successfully delivered", "status", resp.StatusCode)
+	return true, nil
 }
 
 func (impl *EventRESTClientImpl) WriteNatsEvent(topic string, payload interface{}) error {

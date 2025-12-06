@@ -20,7 +20,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	securityBean "github.com/devtron-labs/devtron/internal/sql/repository/security/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
+	securityBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository/bean"
 	"net/http"
 	"strconv"
 
@@ -28,8 +31,6 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
-	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
 )
@@ -42,19 +43,19 @@ type PolicyRestHandler interface {
 }
 type PolicyRestHandlerImpl struct {
 	logger             *zap.SugaredLogger
-	policyService      security.PolicyService
+	policyService      imageScanning.PolicyService
 	userService        user2.UserService
 	userAuthService    user2.UserAuthService
 	enforcer           casbin.Enforcer
 	enforcerUtil       rbac.EnforcerUtil
-	environmentService cluster.EnvironmentService
+	environmentService environment.EnvironmentService
 }
 
 func NewPolicyRestHandlerImpl(logger *zap.SugaredLogger,
-	policyService security.PolicyService,
+	policyService imageScanning.PolicyService,
 	userService user2.UserService, userAuthService user2.UserAuthService,
 	enforcer casbin.Enforcer,
-	enforcerUtil rbac.EnforcerUtil, environmentService cluster.EnvironmentService) *PolicyRestHandlerImpl {
+	enforcerUtil rbac.EnforcerUtil, environmentService environment.EnvironmentService) *PolicyRestHandlerImpl {
 	return &PolicyRestHandlerImpl{
 		logger:             logger,
 		policyService:      policyService,
@@ -70,7 +71,7 @@ func (impl PolicyRestHandlerImpl) SavePolicy(w http.ResponseWriter, r *http.Requ
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var req bean.CreateVulnerabilityPolicyRequest
@@ -103,14 +104,14 @@ func (impl PolicyRestHandlerImpl) SavePolicy(w http.ResponseWriter, r *http.Requ
 		}
 	} else {
 		// for global and cluster level check super admin access only
-		roles, err := impl.userService.CheckUserRoles(userId)
+		roles, err := impl.userService.CheckUserRoles(userId, "")
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
 		superAdmin := false
 		for _, item := range roles {
-			if item == bean.SUPERADMIN {
+			if item == bean2.SUPERADMIN {
 				superAdmin = true
 			}
 		}
@@ -121,9 +122,9 @@ func (impl PolicyRestHandlerImpl) SavePolicy(w http.ResponseWriter, r *http.Requ
 	}
 	//AUTH
 
-	res, err := impl.policyService.SavePolicy(req, userId)
+	res, err := impl.policyService.SavePolicy(&req, userId)
 	if err != nil {
-		impl.logger.Errorw("service err, SavePolicy", "err", err, "payload", req)
+		impl.logger.Errorw("service err, SavePolicy", "payload", req, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -134,7 +135,7 @@ func (impl PolicyRestHandlerImpl) UpdatePolicy(w http.ResponseWriter, r *http.Re
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var req bean.UpdatePolicyParams
@@ -173,14 +174,14 @@ func (impl PolicyRestHandlerImpl) UpdatePolicy(w http.ResponseWriter, r *http.Re
 		}
 	} else {
 		// for global and cluster level check super admin access only
-		roles, err := impl.userService.CheckUserRoles(userId)
+		roles, err := impl.userService.CheckUserRoles(userId, "")
 		if err != nil {
 			common.WriteJsonResp(w, err, "Failed to get user by id", http.StatusInternalServerError)
 			return
 		}
 		superAdmin := false
 		for _, item := range roles {
-			if item == bean.SUPERADMIN {
+			if item == bean2.SUPERADMIN {
 				superAdmin = true
 			}
 		}
@@ -203,7 +204,7 @@ func (impl PolicyRestHandlerImpl) UpdatePolicy(w http.ResponseWriter, r *http.Re
 func (impl PolicyRestHandlerImpl) GetPolicy(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	req := bean.FetchPolicyParams{}
@@ -217,6 +218,7 @@ func (impl PolicyRestHandlerImpl) GetPolicy(w http.ResponseWriter, r *http.Reque
 		if err != nil {
 			impl.logger.Errorw("request err, GetPolicy", "err", err, "id", id)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
 		}
 		req.Id = ids
 	}
@@ -302,7 +304,7 @@ func (impl PolicyRestHandlerImpl) GetPolicy(w http.ResponseWriter, r *http.Reque
 func (impl PolicyRestHandlerImpl) VerifyImage(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 
-	var req security.VerifyImageRequest
+	var req imageScanning.VerifyImageRequest
 
 	err := decoder.Decode(&req)
 	if err != nil {

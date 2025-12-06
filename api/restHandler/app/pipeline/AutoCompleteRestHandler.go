@@ -18,9 +18,11 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
-	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
@@ -52,8 +54,8 @@ type DevtronAppAutoCompleteRestHandlerImpl struct {
 	enforcer                casbin.Enforcer
 	enforcerUtil            rbac.EnforcerUtil
 	devtronAppConfigService pipeline.DevtronAppConfigService
-	envService              cluster.EnvironmentService
-	gitRegistryConfig       pipeline.GitRegistryConfig
+	envService              environment.EnvironmentService
+	gitProviderReadService  read.GitProviderReadService
 	dockerRegistryConfig    pipeline.DockerRegistryConfig
 }
 
@@ -64,9 +66,9 @@ func NewDevtronAppAutoCompleteRestHandlerImpl(
 	enforcer casbin.Enforcer,
 	enforcerUtil rbac.EnforcerUtil,
 	devtronAppConfigService pipeline.DevtronAppConfigService,
-	envService cluster.EnvironmentService,
-	gitRegistryConfig pipeline.GitRegistryConfig,
-	dockerRegistryConfig pipeline.DockerRegistryConfig) *DevtronAppAutoCompleteRestHandlerImpl {
+	envService environment.EnvironmentService,
+	dockerRegistryConfig pipeline.DockerRegistryConfig,
+	gitProviderReadService read.GitProviderReadService) *DevtronAppAutoCompleteRestHandlerImpl {
 	return &DevtronAppAutoCompleteRestHandlerImpl{
 		Logger:                  Logger,
 		userAuthService:         userAuthService,
@@ -75,15 +77,15 @@ func NewDevtronAppAutoCompleteRestHandlerImpl(
 		enforcerUtil:            enforcerUtil,
 		devtronAppConfigService: devtronAppConfigService,
 		envService:              envService,
-		gitRegistryConfig:       gitRegistryConfig,
 		dockerRegistryConfig:    dockerRegistryConfig,
+		gitProviderReadService:  gitProviderReadService,
 	}
 }
 
 func (handler DevtronAppAutoCompleteRestHandlerImpl) GetAppListForAutocomplete(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -92,6 +94,24 @@ func (handler DevtronAppAutoCompleteRestHandlerImpl) GetAppListForAutocomplete(w
 	v := r.URL.Query()
 	teamId := v.Get("teamId")
 	appName := v.Get("appName")
+	offset := 0
+	size := 0 // default value is 0, it means if not provided in query param it will fetch all
+	sizeStr := v.Get("size")
+	if sizeStr != "" {
+		size, err = strconv.Atoi(sizeStr)
+		if err != nil || size < 0 {
+			common.WriteJsonResp(w, errors.New("invalid size"), nil, http.StatusBadRequest)
+			return
+		}
+	}
+	offsetStr := v.Get("offset")
+	if offsetStr != "" {
+		offset, err = strconv.Atoi(offsetStr)
+		if err != nil || offset < 0 {
+			common.WriteJsonResp(w, errors.New("invalid offset"), nil, http.StatusBadRequest)
+			return
+		}
+	}
 	appTypeParam := v.Get("appType")
 	var appType int
 	if appTypeParam != "" {
@@ -116,10 +136,11 @@ func (handler DevtronAppAutoCompleteRestHandlerImpl) GetAppListForAutocomplete(w
 			return
 		}
 	} else {
-		teamIdInt, err = strconv.Atoi(teamId)
+		teamIdInt, err = common.ExtractIntPathParamWithContext(w, r, "teamId")
 		if err != nil {
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			// Error already written by ExtractIntPathParamWithContext
 			return
+
 		} else {
 			apps, err = handler.devtronAppConfigService.FindAppsByTeamId(teamIdInt)
 			if err != nil {
@@ -130,6 +151,7 @@ func (handler DevtronAppAutoCompleteRestHandlerImpl) GetAppListForAutocomplete(w
 		}
 	}
 	if isActionUserSuperAdmin {
+		apps = handler.getPaginatedResultsForApps(offset, size, apps)
 		common.WriteJsonResp(w, err, apps, http.StatusOK)
 		return
 	}
@@ -160,6 +182,7 @@ func (handler DevtronAppAutoCompleteRestHandlerImpl) GetAppListForAutocomplete(w
 	}
 	span.End()
 	// RBAC
+	accessedApps = handler.getPaginatedResultsForApps(offset, size, accessedApps)
 	common.WriteJsonResp(w, err, accessedApps, http.StatusOK)
 }
 
@@ -210,7 +233,7 @@ func (handler DevtronAppAutoCompleteRestHandlerImpl) GitListAutocomplete(w http.
 		return
 	}
 	//RBAC
-	res, err := handler.gitRegistryConfig.GetAll()
+	res, err := handler.gitProviderReadService.GetAll()
 	if err != nil {
 		handler.Logger.Errorw("service err, GitListAutocomplete", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -222,10 +245,10 @@ func (handler DevtronAppAutoCompleteRestHandlerImpl) GitListAutocomplete(w http.
 
 func (handler DevtronAppAutoCompleteRestHandlerImpl) RegistriesListAutocomplete(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
-	vars := mux.Vars(r)
-	appId, err := strconv.Atoi(vars["appId"])
+	// Use enhanced parameter parsing with context
+	appId, err := common.ExtractIntPathParamWithContext(w, r, "appId")
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		// Error already written by ExtractIntPathParamWithContext
 		return
 	}
 	v := r.URL.Query()
@@ -288,4 +311,15 @@ func (handler DevtronAppAutoCompleteRestHandlerImpl) TeamListAutocomplete(w http
 	}
 
 	common.WriteJsonResp(w, err, result, http.StatusOK)
+}
+
+func (handler DevtronAppAutoCompleteRestHandlerImpl) getPaginatedResultsForApps(offset int, size int, apps []*pipeline.AppBean) []*pipeline.AppBean {
+	if size > 0 {
+		if offset+size <= len(apps) {
+			apps = apps[offset : offset+size]
+		} else {
+			apps = apps[offset:]
+		}
+	}
+	return apps
 }

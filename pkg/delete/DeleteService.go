@@ -18,46 +18,63 @@ package delete
 
 import (
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils/k8s"
+	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	bean4 "github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
+	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/team"
+	bean3 "github.com/devtron-labs/devtron/pkg/team/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	k8sError "k8s.io/apimachinery/pkg/api/errors"
+	http2 "net/http"
 )
 
 type DeleteService interface {
-	DeleteCluster(deleteRequest *cluster.ClusterBean, userId int32) error
+	DeleteCluster(deleteRequest *bean2.DeleteClusterBean, userId int32) error
 	DeleteEnvironment(deleteRequest *bean.EnvironmentBean, userId int32) error
-	DeleteTeam(deleteRequest *team.TeamRequest) error
+	DeleteTeam(deleteRequest *bean3.TeamRequest) error
 	DeleteChartRepo(deleteRequest *chartRepo.ChartRepoDto) error
 	DeleteDockerRegistryConfig(deleteRequest *types.DockerArtifactStoreBean) error
 	CanDeleteChartRegistryPullConfig(storeId string) bool
+	DeleteClusterConfigMap(deleteRequest *bean2.DeleteClusterBean) error
 }
 
 type DeleteServiceImpl struct {
 	logger                   *zap.SugaredLogger
 	teamService              team.TeamService
 	clusterService           cluster.ClusterService
-	environmentService       cluster.EnvironmentService
+	environmentService       environment.EnvironmentService
 	chartRepositoryService   chartRepo.ChartRepositoryService
 	installedAppRepository   repository.InstalledAppRepository
 	dockerRegistryConfig     pipeline.DockerRegistryConfig
 	dockerRegistryRepository dockerRegistryRepository.DockerArtifactStoreRepository
+	K8sUtil                  k8s.K8sService
+	k8sInformerFactory       informer.K8sInformerFactory
+	appRepository            appRepository.AppRepository
 }
 
 func NewDeleteServiceImpl(logger *zap.SugaredLogger,
 	teamService team.TeamService,
 	clusterService cluster.ClusterService,
-	environmentService cluster.EnvironmentService,
+	environmentService environment.EnvironmentService,
 	chartRepositoryService chartRepo.ChartRepositoryService,
 	installedAppRepository repository.InstalledAppRepository,
 	dockerRegistryConfig pipeline.DockerRegistryConfig,
 	dockerRegistryRepository dockerRegistryRepository.DockerArtifactStoreRepository,
+	k8sInformerFactory informer.K8sInformerFactory,
+	K8sUtil k8s.K8sService,
+	appRepository appRepository.AppRepository,
 ) *DeleteServiceImpl {
 	return &DeleteServiceImpl{
 		logger:                   logger,
@@ -68,13 +85,47 @@ func NewDeleteServiceImpl(logger *zap.SugaredLogger,
 		installedAppRepository:   installedAppRepository,
 		dockerRegistryConfig:     dockerRegistryConfig,
 		dockerRegistryRepository: dockerRegistryRepository,
+		K8sUtil:                  K8sUtil,
+		k8sInformerFactory:       k8sInformerFactory,
+		appRepository:            appRepository,
 	}
 }
 
-func (impl DeleteServiceImpl) DeleteCluster(deleteRequest *cluster.ClusterBean, userId int32) error {
-	err := impl.clusterService.DeleteFromDb(deleteRequest, userId)
+func (impl DeleteServiceImpl) DeleteCluster(deleteRequest *bean2.DeleteClusterBean, userId int32) error {
+	clusterName, err := impl.clusterService.DeleteFromDb(deleteRequest, userId)
 	if err != nil {
 		impl.logger.Errorw("error im deleting cluster", "err", err, "deleteRequest", deleteRequest)
+		return err
+	}
+	// deleting a cluster config map created at time of cluster creation/updation so that informer in kubelink and kubewatch can delete the cluster from cache
+	err = impl.DeleteClusterConfigMap(deleteRequest)
+	if err != nil {
+		impl.logger.Errorw("error in deleting cluster cm", "clusterId", deleteRequest.Id, "error", err)
+		// We are not returning error as it is not a blocking call as cluster can be unreachable at that time, and we have already deleted cluster from db.
+		//return err
+	}
+	impl.k8sInformerFactory.DeleteClusterFromCache(clusterName)
+	return nil
+}
+
+func (impl DeleteServiceImpl) DeleteClusterConfigMap(deleteRequest *bean2.DeleteClusterBean) error {
+	// kubelink informers are listening this secret, deleting this secret will inform kubelink that this cluster is deleted
+	k8sClient, err := impl.K8sUtil.GetCoreV1ClientInCluster()
+	if err != nil {
+		impl.logger.Errorw("error in getting in cluster k8s client", "err", err, "clusterId", deleteRequest.Id)
+		return nil
+	}
+	cmName := cluster.ParseCmNameForK8sInformerOnClusterEvent(deleteRequest.Id)
+	err = impl.K8sUtil.DeleteConfigMap(bean4.DevtronCDNamespae, cmName, k8sClient)
+	if k8sError.IsNotFound(err) {
+		// when cm not found in devtroncd ns then delete the secret in default ns(secret name would be the same as cm name)
+		err = impl.K8sUtil.DeleteSecret(bean2.DefaultNamespace, cmName, k8sClient)
+		if err != nil {
+			impl.logger.Errorw("error in deleting cluster secret in default ns ", "secretName", cmName, "err", err)
+			return err
+		}
+	} else if err != nil {
+		impl.logger.Errorw("error in deleting cluster config map in devtroncd ns ", "cmName", cmName, "err", err)
 		return err
 	}
 	return nil
@@ -88,8 +139,18 @@ func (impl DeleteServiceImpl) DeleteEnvironment(deleteRequest *bean.EnvironmentB
 	}
 	return nil
 }
-func (impl DeleteServiceImpl) DeleteTeam(deleteRequest *team.TeamRequest) error {
-	err := impl.teamService.Delete(deleteRequest)
+func (impl DeleteServiceImpl) DeleteTeam(deleteRequest *bean3.TeamRequest) error {
+	//finding if this project is used in some app; if yes, will not perform delete operation
+	apps, err := impl.appRepository.FindAppsByTeamId(deleteRequest.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("err in deleting team", "teamId", deleteRequest.Id, "err", err)
+		return err
+	}
+	if len(apps) > 0 {
+		impl.logger.Errorw("err in deleting team, found apps in team", "teamName", deleteRequest.Name, "err", err)
+		return fmt.Errorf(" Please delete all apps in this project before deleting this project")
+	}
+	err = impl.teamService.Delete(deleteRequest)
 	if err != nil {
 		impl.logger.Errorw("error in deleting team", "err", err, "deleteRequest", deleteRequest)
 		return err
@@ -118,14 +179,18 @@ func (impl DeleteServiceImpl) DeleteChartRepo(deleteRequest *chartRepo.ChartRepo
 }
 
 func (impl DeleteServiceImpl) DeleteDockerRegistryConfig(deleteRequest *types.DockerArtifactStoreBean) error {
-	store, err := impl.dockerRegistryRepository.FindOneWithDeploymentCount(deleteRequest.Id)
+	deploymentCount, err := impl.dockerRegistryRepository.FindDeploymentCount(deleteRequest.Id)
 	if err != nil {
 		impl.logger.Errorw("error in deleting docker registry", "err", err, "deleteRequest", deleteRequest)
 		return err
 	}
-	if store.DeploymentCount > 0 {
+	if deploymentCount > 0 {
 		impl.logger.Errorw("err in deleting docker registry, found chart deployments using registry", "dockerRegistry", deleteRequest.Id, "err", err)
-		return fmt.Errorf(" Please update all related docker config before deleting this registry")
+		return &util.ApiError{
+			HttpStatusCode:  http2.StatusUnprocessableEntity,
+			InternalMessage: " Please update all related docker config before deleting this registry",
+			UserMessage:     "err in deleting docker registry, found chart deployments using registry",
+		}
 	}
 	err = impl.dockerRegistryConfig.DeleteReg(deleteRequest)
 	if err != nil {
@@ -137,12 +202,12 @@ func (impl DeleteServiceImpl) DeleteDockerRegistryConfig(deleteRequest *types.Do
 
 func (impl DeleteServiceImpl) CanDeleteChartRegistryPullConfig(storeId string) bool {
 	//finding if docker reg chart is used in any deployment, if yes then will not delete
-	store, err := impl.dockerRegistryRepository.FindOneWithDeploymentCount(storeId)
+	deploymentCount, err := impl.dockerRegistryRepository.FindDeploymentCount(storeId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching registry chart deployment docker registry", "dockerRegistry", storeId, "err", err)
 		return false
 	}
-	if store.DeploymentCount > 0 {
+	if deploymentCount > 0 {
 		return false
 	}
 	return true

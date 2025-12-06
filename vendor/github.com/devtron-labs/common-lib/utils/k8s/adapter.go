@@ -40,3 +40,14 @@ func (req *ResourceIdentifier) WithKind(kind string) *ResourceIdentifier {
 	req.GroupVersionKind.Kind = kind
 	return req
 }
+
+//
+//func GetEmptyResourceForResourceKey(resourceKey *ResourceKey) *Resource {
+//	return &cache.Resource{
+//		Ref: v1.ObjectReference{
+//			Kind:      resourceKey.Kind,
+//			Namespace: resourceKey.Namespace,
+//			Name:      resourceKey.Name,
+//		},
+//	}
+//}

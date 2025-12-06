@@ -21,7 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
@@ -88,6 +88,7 @@ type GitMaterial struct {
 	FetchSubmodules  bool
 	FilterPattern    []string
 	CloningMode      string
+	CreateBackup     bool
 }
 type GitProvider struct {
 	Id                    int
@@ -98,7 +99,7 @@ type GitProvider struct {
 	SshPrivateKey         string
 	AccessToken           string
 	Active                bool
-	AuthMode              repository.AuthMode
+	AuthMode              constants.AuthMode
 	EnableTlsVerification bool
 	CaCert                string
 	TlsCert               string
@@ -273,7 +274,6 @@ func (session *RestClientImpl) doRequest(clientRequest *ClientRequest) (resBody 
 		if req, err := json.Marshal(clientRequest.RequestBody); err != nil {
 			return nil, nil, err
 		} else {
-			session.logger.Debugw("argo req with body", "body", string(req))
 			body = bytes.NewBuffer(req)
 		}
 	}

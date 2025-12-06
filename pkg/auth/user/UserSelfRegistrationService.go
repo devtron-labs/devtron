@@ -19,7 +19,8 @@ package user
 import (
 	"fmt"
 	jwt2 "github.com/devtron-labs/authenticator/jwt"
-	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/golang-jwt/jwt/v4"
 	"go.uber.org/zap"
@@ -105,7 +106,7 @@ func (impl *UserSelfRegistrationServiceImpl) SelfRegister(emailId string) (*bean
 		SuperAdmin: false,
 	}
 
-	userInfos, err := impl.userService.SelfRegisterUserIfNotExists(userInfo)
+	userInfos, err := impl.userService.SelfRegisterUserIfNotExists(adapter.BuildSelfRegisterDto(userInfo))
 	if err != nil {
 		impl.logger.Errorw("error while register user", "error", err)
 		return nil, err
@@ -125,19 +126,14 @@ func (impl *UserSelfRegistrationServiceImpl) CheckAndCreateUserIfConfigured(clai
 		emailId = sub
 	}
 	exists := impl.userService.UserExists(emailId)
-	var id int32
 	if !exists {
 		impl.logger.Infow("self registering user,  ", "email", emailId)
 		user, err := impl.SelfRegister(emailId)
 		if err != nil {
 			impl.logger.Errorw("error while register user", "error", err)
 		} else if user != nil && user.Id > 0 {
-			id = user.Id
 			exists = true
 		}
-	}
-	if exists {
-		impl.userService.SaveLoginAudit(emailId, "localhost", id)
 	}
 	impl.logger.Infow("user status", "email", emailId, "status", exists)
 	return exists

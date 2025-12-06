@@ -1,74 +1,376 @@
-openapi: '3.0.2'
+openapi: "3.0.3"
 info:
-  title: API Title
-  version: '1.0'
+  title: Devtron Security Scan API
+  description: API specifications for security scanning and vulnerability management in Devtron
+  version: "1.0.0"
+  contact:
+    name: Devtron Support
+    email: support@devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
 servers:
-  - url: https://api.server.test/v1
-paths:
-  /security/scan/executionDetail:
-    get:
-      summary: fetch image scan execution result, by multiple ways for different use case
-      description: params are option but at least one is required
-      operationId: executionDetail
-      parameters:
-        - name: scanExecutionId
-          in: query
-          description: scan execution history id, optional for fetch.
-          required: false
-          schema:
-            type: integer
-        - name: artifactId
-          in: query
-          description: ci artifact id, to fetch scan result for image, option for fetch.
-          required: false
-          schema:
-            type: integer
-        - name: image
-          in: query
-          description: to fetch scan result for image, option for fetch.
-          required: false
-          schema:
-            type: string
-      responses:
-        '200':
-          description: list response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ImageScanResponse'
-        default:
-          description: unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+security:
+  - bearerAuth: []
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   schemas:
-    Error:
-      description: Error object
+    ApiResponse:
       type: object
-      required:
-        - code
-        - message
       properties:
         code:
           type: integer
-          format: int32
-          description: Error code
-        message:
+        status:
           type: string
-          description: Error message
+        result:
+          type: object
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+        status:
+          type: string
+        errors:
+          type: array
+          items:
+            type: string
+
     ImageScanRequest:
-      description: Resource Level can be one of global, cluster, environment, application
-      type: string
-      enum:
-        - global
-        - cluster
-        - environment
-        - application
-    ImageScanResponse:
-      description: Whether CVE is allowed or not
-      type: string
-      enum:
-        - BLOCK
-        - ALLOW
+      type: object
+      properties:
+        imageScanDeployInfoId:
+          type: integer
+          example: 123
+        image:
+          type: string
+          example: "nginx:latest"
+        artifactId:
+          type: integer
+          example: 456
+        appId:
+          type: integer
+          example: 789
+        envId:
+          type: integer
+          example: 101
+        size:
+          type: integer
+          example: 20
+        offset:
+          type: integer
+          example: 0
+
+    ImageScanHistoryResponse:
+      type: object
+      properties:
+        imageScanDeployInfoId:
+          type: integer
+        image:
+          type: string
+        tag:
+          type: string
+        appId:
+          type: integer
+        envId:
+          type: integer
+        executedOn:
+          type: string
+          format: date-time
+        executionHistory:
+          type: array
+          items:
+            type: object
+
+    ImageScanHistoryListingResponse:
+      type: object
+      properties:
+        imageScanHistoryResponse:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImageScanHistoryResponse'
+
+    VulnerabilityExposureRequest:
+      type: object
+      properties:
+        cveId:
+          type: string
+          example: "CVE-2025-1234"
+        appId:
+          type: integer
+          example: 123
+
+tags:
+  - name: Security Scans
+    description: Security scanning operations
+  - name: Vulnerability Management
+    description: Vulnerability exposure and policy management
+
+paths:
+  /security/scan/list:
+    post:
+      tags:
+        - Security Scans
+      summary: Get scan execution list
+      description: Retrieves a list of security scan executions based on the provided criteria
+      operationId: scanExecutionList
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImageScanRequest'
+            example:
+              imageScanDeployInfoId: 123
+              image: "nginx:latest"
+              artifactId: 456
+              appId: 789
+              envId: 101
+              size: 20
+              offset: 0
+      responses:
+        '200':
+          description: Scan execution list retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/ImageScanHistoryListingResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /security/scan/executionDetail:
+    get:
+      tags:
+        - Security Scans
+      summary: Get scan execution detail
+      description: Retrieves detailed information about a specific scan execution
+      operationId: fetchExecutionDetail
+      parameters:
+        - name: imageScanDeployInfoId
+          in: query
+          required: false
+          schema:
+            type: integer
+          example: 123
+        - name: image
+          in: query
+          required: false
+          schema:
+            type: string
+          example: "nginx:latest"
+        - name: artifactId
+          in: query
+          required: false
+          schema:
+            type: integer
+          example: 456
+        - name: appId
+          in: query
+          required: false
+          schema:
+            type: integer
+          example: 789
+        - name: envId
+          in: query
+          required: false
+          schema:
+            type: integer
+          example: 101
+        - name: executionId
+          in: query
+          required: false
+          schema:
+            type: integer
+          example: 999
+      responses:
+        '200':
+          description: Scan execution detail retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Scan execution not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /security/scan/executionDetail/min:
+    get:
+      tags:
+        - Security Scans
+      summary: Get minimal scan execution detail
+      description: Retrieves minimal scan result information by application and environment
+      operationId: fetchMinScanResultByAppIdAndEnvId
+      parameters:
+        - name: appId
+          in: query
+          required: true
+          schema:
+            type: integer
+          example: 789
+        - name: envId
+          in: query
+          required: true
+          schema:
+            type: integer
+          example: 101
+      responses:
+        '200':
+          description: Minimal scan result retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Scan result not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /security/scan/cve/exposure:
+    post:
+      tags:
+        - Vulnerability Management
+      summary: Get CVE vulnerability exposure
+      description: Retrieves vulnerability exposure information for a specific CVE
+      operationId: vulnerabilityExposure
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VulnerabilityExposureRequest'
+            example:
+              cveId: "CVE-2025-1234"
+              appId: 123
+      responses:
+        '200':
+          description: CVE exposure information retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/ImageScanHistoryListingResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: CVE not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

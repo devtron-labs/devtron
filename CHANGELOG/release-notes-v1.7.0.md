@@ -1,0 +1,33 @@
+## v1.7.0
+
+## Enhancements
+- feat: Added Cronjob chart 1-6-0 (#6650)
+- feat: wf logs (#6606)
+- feat: Enable selection of all CI pipelines at once when the Environment filter is applied in Notifications (#6526)
+## Bugs
+- fix: app workflow cd pipleine check (#6658)
+- fix: panic fixes on concurrent delete request (#6657)
+- fix: panic fix on concurrent deletion request (#6644)
+- fix: duplicate entries in deployment history without override (#6637)
+- fix: overriden pipeline ids filtering in case of material deletion (#6636)
+- fix: prevent deletion of git material used in overridden CI templates (#6633)
+- fix: ea mode fixes (#6624)
+- fix: stack Manager issues (#6619)
+- fix: Change ci to webhook fix (#6626)
+- fix: oci chart deployment values.yaml and requirement.yaml not compatible (#6620)
+- fix: panic fix installedApp type timeline update (#6614)
+- fix: workflow getting incorrectly deleted in case of webhook and unreachable cluster's cd pipeline (#6602)
+- fix: add safety checks to prevent index-out-of-range panics in CdHandler (#6597)
+- fix: reverted telemetry connection error (#6587)
+- fix: anomalies in deployment status timeline (#6569)
+- fix: scoped var complex type resolution not working in patch type overrides (#6572)
+## Others
+- chore: when a cluster event occurs, create config map instead of secret (#6607)
+- chore: Gpu workload chart (#6608)
+- misc: update sample dockerfiles use non-root user (UID 2002) and base images (#6512)
+- misc: wire in EA (#6616)
+- chore: removed multi-arch section from readme (#6613)
+- chore: git sensor grpc lb policy change (#6610)
+- misc: go routines wrapped into panic safe function (#6589)
+- chore: http transport service refactoring (#6592)
+- misc: GetConfigDBObj in tx (#6584)

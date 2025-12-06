@@ -18,10 +18,12 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/common-lib/middlewares"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
+	"github.com/devtron-labs/common-lib/securestore"
+	posthogTelemetry "github.com/devtron-labs/common-lib/telemetry"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/in"
 	"log"
@@ -30,7 +32,6 @@ import (
 	"time"
 
 	"github.com/devtron-labs/devtron/api/util"
-	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/otel"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 
@@ -46,18 +47,26 @@ import (
 	"go.uber.org/zap"
 )
 
+func init() {
+	err := securestore.SetEncryptionKey()
+	if err != nil {
+		log.Println("error in setting encryption key", "err", err)
+	}
+}
+
 type App struct {
-	MuxRouter             *router.MuxRouter
-	Logger                *zap.SugaredLogger
-	SSE                   *sse.SSE
-	Enforcer              *casbin.SyncedEnforcer
-	EnforcerV2            *casbinv2.SyncedEnforcer
-	server                *http.Server
-	db                    *pg.DB
-	posthogClient         *telemetry.PosthogClient
-	centralEventProcessor *eventProcessor.CentralEventProcessor
+	MuxRouter     *router.MuxRouter
+	Logger        *zap.SugaredLogger
+	SSE           *sse.SSE
+	Enforcer      *casbin.SyncedEnforcer
+	EnforcerV2    *casbinv2.SyncedEnforcer
+	server        *http.Server
+	db            *pg.DB
+	posthogClient *posthogTelemetry.PosthogClient
+	userService   user.UserService
+	// eventProcessor.CentralEventProcessor is used to register event processors
+	centralEventProcessor *eventProcessor.CentralEventProcessor // do not remove this.
 	// used for local dev only
-	serveTls                   bool
 	sessionManager2            *authMiddleware.SessionManager
 	OtelTracingService         *otel.OtelTracingServiceImpl
 	loggingMiddleware          util.LoggingMiddleware
@@ -71,12 +80,13 @@ func NewApp(router *router.MuxRouter,
 	enforcer *casbin.SyncedEnforcer,
 	db *pg.DB,
 	sessionManager2 *authMiddleware.SessionManager,
-	posthogClient *telemetry.PosthogClient,
+	posthogClient *posthogTelemetry.PosthogClient,
 	loggingMiddleware util.LoggingMiddleware,
 	centralEventProcessor *eventProcessor.CentralEventProcessor,
 	pubSubClient *pubsub.PubSubClientServiceImpl,
 	workflowEventProcessorImpl *in.WorkflowEventProcessorImpl,
 	enforcerV2 *casbinv2.SyncedEnforcer,
+	userService user.UserService,
 ) *App {
 	//check argo connection
 	//todo - check argo-cd version on acd integration installation
@@ -85,9 +95,8 @@ func NewApp(router *router.MuxRouter,
 		Logger:                     Logger,
 		SSE:                        sse,
 		Enforcer:                   enforcer,
-		EnforcerV2:            enforcerV2,
+		EnforcerV2:                 enforcerV2,
 		db:                         db,
-		serveTls:                   false,
 		sessionManager2:            sessionManager2,
 		posthogClient:              posthogClient,
 		OtelTracingService:         otel.NewOtelTracingServiceImpl(Logger),
@@ -95,6 +104,7 @@ func NewApp(router *router.MuxRouter,
 		centralEventProcessor:      centralEventProcessor,
 		pubSubClient:               pubSubClient,
 		workflowEventProcessorImpl: workflowEventProcessorImpl,
+		userService:                userService,
 	}
 	return app
 }
@@ -110,7 +120,7 @@ func (app *App) Start() {
 	app.MuxRouter.Init()
 	//authEnforcer := casbin2.Create()
 
-	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: authMiddleware.Authorizer(app.sessionManager2, user.WhitelistChecker, nil)(app.MuxRouter.Router)}
+	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: authMiddleware.Authorizer(app.sessionManager2, user.WhitelistChecker, app.userService.CheckUserStatusAndUpdateLoginAudit)(app.MuxRouter.Router)}
 	app.MuxRouter.Router.Use(app.loggingMiddleware.LoggingMiddleware)
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
 	app.MuxRouter.Router.Use(middlewares.Recovery)
@@ -119,24 +129,9 @@ func (app *App) Start() {
 		app.MuxRouter.Router.Use(otelmux.Middleware(otel.OTEL_ORCHESTRASTOR_SERVICE_NAME))
 	}
 	app.server = server
-	var err error
-	if app.serveTls {
-		cert, err := tls.LoadX509KeyPair(
-			"localhost.crt",
-			"localhost.key",
-		)
-		if err != nil {
-			log.Fatal(err)
-		}
-		server.TLSConfig = &tls.Config{
-			Certificates: []tls.Certificate{cert},
-		}
-		err = server.ListenAndServeTLS("", "")
-	} else {
-		err = server.ListenAndServe()
-	}
+	err := server.ListenAndServe()
 	//err := http.ListenAndServe(fmt.Sprintf(":%d", port), auth.Authorizer(app.Enforcer, app.sessionManager)(app.MuxRouter.Router))
-	if err != nil {
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		app.Logger.Errorw("error in startup", "err", err)
 		os.Exit(2)
 	}

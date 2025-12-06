@@ -49,3 +49,19 @@ func SetDefaults_MatchResources(obj *admissionregistrationv1alpha1.MatchResource
 		obj.ObjectSelector = &selector
 	}
 }
+
+// SetDefaults_ParamRef sets defaults for ParamRef
+func SetDefaults_ParamRef(obj *admissionregistrationv1alpha1.ParamRef) {
+	if obj.ParameterNotFoundAction == nil {
+		v := admissionregistrationv1alpha1.DenyAction
+		obj.ParameterNotFoundAction = &v
+	}
+}
+
+// SetDefaults_MutatingAdmissionPolicySpec sets defaults for MutatingAdmissionPolicySpec
+func SetDefaults_MutatingAdmissionPolicySpec(obj *admissionregistrationv1alpha1.MutatingAdmissionPolicySpec) {
+	if obj.FailurePolicy == nil {
+		policy := admissionregistrationv1alpha1.Fail
+		obj.FailurePolicy = &policy
+	}
+}

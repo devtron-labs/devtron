@@ -18,6 +18,7 @@ package util
 
 import (
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	"github.com/devtron-labs/devtron/util/urlUtil"
 	"regexp"
 	"strings"
 
@@ -65,7 +66,7 @@ func validateNonEmptyUrl(fl validator.FieldLevel) bool {
 	if value == "" {
 		return true
 	}
-	return IsValidUrl(value)
+	return urlUtil.IsValidUrl(value)
 }
 
 func IntValidator() (*validator.Validate, error) {
@@ -94,11 +95,27 @@ func IntValidator() (*validator.Validate, error) {
 	if err != nil {
 		return v, err
 	}
+	err = v.RegisterValidation("global-entity-name", validateGlobalEntityName)
+	if err != nil {
+		return v, err
+	}
 	err = v.RegisterValidation("not-system-admin-user", validateForSystemOrAdminUser)
 	if err != nil {
 		return v, err
 	}
 	err = v.RegisterValidation("not-system-admin-userid", validateForSystemOrAdminUserById)
+	if err != nil {
+		return v, err
+	}
+	err = v.RegisterValidation("validate-api-token-name", validateApiTokenName)
+	if err != nil {
+		return v, err
+	}
+	err = v.RegisterValidation("validate-sso-config-name", validateSSOConfigName)
+	if err != nil {
+		return v, err
+	}
+	err = v.RegisterValidation("validate-devtron-entity-name", validateDevtronEntityName)
 	if err != nil {
 		return v, err
 	}
@@ -127,4 +144,42 @@ func validateDockerImage(fl validator.FieldLevel) bool {
 		return true
 	}
 	return false
+}
+
+func validateGlobalEntityName(fl validator.FieldLevel) bool {
+	// ^[a-z0-9]+(?:[-._]+[a-z0-9]+)*$
+	hostnameRegexString := `^[a-z0-9]+(?:[-._]+[a-z0-9]+)*$`
+	hostnameRegexRFC952 := regexp.MustCompile(hostnameRegexString)
+	return hostnameRegexRFC952.MatchString(fl.Field().String())
+}
+
+func validateApiTokenName(fl validator.FieldLevel) bool {
+	hostnameRegexString := `^[a-z0-9][a-z0-9_-]*[a-z0-9]$`
+	hostnameRegexRFC952 := regexp.MustCompile(hostnameRegexString)
+	return hostnameRegexRFC952.MatchString(fl.Field().String())
+}
+
+func validateSSOConfigName(fl validator.FieldLevel) bool {
+	allowedSSOConfigNames := []string{
+		"google",
+		"github",
+		"gitlab",
+		"microsoft",
+		"ldap",
+		"oidc",
+		"openshift",
+	}
+	value := fl.Field().String()
+	for _, v := range allowedSSOConfigNames {
+		if value == v {
+			return true
+		}
+	}
+	return false
+}
+
+func validateDevtronEntityName(fl validator.FieldLevel) bool {
+	hostnameRegexString := `^[a-z0-9]+(-[a-z0-9]+)*$`
+	hostnameRegexRFC952 := regexp.MustCompile(hostnameRegexString)
+	return hostnameRegexRFC952.MatchString(fl.Field().String())
 }

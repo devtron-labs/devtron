@@ -23,12 +23,22 @@ import (
 )
 
 type AppStoreManifestResponse struct {
-	ChartResponse      *util.ChartCreateResponse
-	ValuesConfig       *git.ChartConfig
-	RequirementsConfig *git.ChartConfig
+	ChartResponse       *util.ChartCreateResponse
+	ValuesConfig        *git.ChartConfig
+	ChartMetaDataConfig *git.ChartConfig
 }
 
 type AppStoreGitOpsResponse struct {
 	ChartGitAttribute *commonBean.ChartGitAttribute
 	GitHash           string
+}
+
+const HELM_APP_UPDATE_COUNTER = "HelmAppUpdateCounter"
+
+type DeployedInstalledAppInfo struct {
+	ClusterId         int
+	Namespace         string
+	DeploymentAppName string
+	AppName           string
+	DisplayName       string
 }

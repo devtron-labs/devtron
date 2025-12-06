@@ -1,0 +1,758 @@
+openapi: 3.0.0
+info:
+  version: 1.0.0
+  title: CI Pipeline Build API
+  description: API for managing CI pipeline builds and related operations
+  contact:
+    name: Devtron Support
+    url: https://devtron.ai
+    email: support@devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+paths:
+  /orchestrator/app/ci-pipeline/{appId}/{ciPipelineId}:
+    get:
+      description: get CI pipeline details
+      operationId: GetCiPipeline
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: ciPipelineId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully get the pipeline config
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CiPipelineDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/app/commit-info/{ciPipelineMaterialId}/{gitHash}:
+    get:
+      tags:
+        - Commit
+      summary: Get commit information
+      description: Retrieves commit information for a specific commit hash in a CI pipeline material
+      operationId: getCommitInfo
+      parameters:
+        - name: ciPipelineMaterialId
+          in: path
+          description: ID of the CI pipeline material
+          required: true
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+          example: 123
+        - name: gitHash
+          in: path
+          description: Git commit hash
+          required: true
+          schema:
+            type: string
+            pattern: '^[a-f0-9]{7,40}$'
+          example: "a1b2c3d4e5"
+      responses:
+        '200':
+          description: Successfully retrieved commit information
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CommitInfo'
+        '400':
+          description: Invalid input parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Commit not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+        - bearerAuth: []
+          
+  /orchestrator/ci-pipeline/trigger:
+    post:
+      tags:
+        - Workflow
+      summary: Trigger CI workflow
+      description: Triggers a new CI workflow for the specified pipeline
+      operationId: triggerWorkflow
+      requestBody:
+        description: Workflow trigger payload
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowTriggerRequest'
+      responses:
+        '200':
+          description: Workflow triggered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+        - bearerAuth: []
+
+  /orchestrator/{appId}/ci-pipeline/{pipelineId}/workflow/{workflowId}:
+    get:
+      tags:
+        - Workflow
+      summary: Get workflow details
+      description: Retrieves details of a specific workflow
+      operationId: getWorkflow
+      parameters:
+        - name: appId
+          in: path
+          description: ID of the application
+          required: true
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+          example: 123
+        - name: pipelineId
+          in: path
+          description: ID of the CI pipeline
+          required: true
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+          example: 456
+        - name: workflowId
+          in: path
+          description: ID of the workflow
+          required: true
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+          example: 789
+      responses:
+        '200':
+          description: Workflow details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Workflow not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+        - bearerAuth: []
+
+components:
+  schemas:
+    CiPipelineDto:
+      type: object
+      properties:
+        appId:
+          type: integer
+        action:
+          type: integer
+        appWorkflowId:
+          type: integer
+        ciPipeline:
+          $ref: '#/components/schemas/CiPipelineDetails'
+    CiPipelineDetails:
+      type: object
+      properties:
+        id:
+          type: integer
+        active:
+          type: boolean
+        isExternal:
+          type: boolean
+        isManual:
+          type: boolean
+        linkedCount:
+          type: integer
+        name:
+          type: string
+        scanEnabled:
+          type: boolean
+        dockerArgs:
+          type: array
+          items:
+            $ref: '#/components/schemas/DockerArg'
+        externalCiConfig:
+          $ref: '#/components/schemas/ExternalCiConfig'
+        ciMaterial:
+          $ref: '#/components/schemas/CiMaterial'
+        beforeDockerBuildScripts:
+          type: array
+          items:
+            $ref: '#/components/schemas/DockerBuildScript'
+        afterDockerBuildScripts:
+          type: array
+          items:
+            $ref: '#/components/schemas/DockerBuildScript'
+        preBuildStage:
+          $ref: '#/components/schemas/BuildStageDto'
+        postBuildStage:
+          $ref: '#/components/schemas/BuildStageDto'
+    DockerBuildScript:
+      type: object
+      properties:
+        id:
+          type: integer
+        index:
+          type: integer
+        name:
+          type: string
+        outputLocation:
+          type: string
+        script:
+          type: string
+    BuildStageDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: pipelineStageId(every stage is given a Id)
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/stageStepDetails'
+    stageStepDetails:
+      type: object
+      properties:
+        id:
+          type: integer
+        index:
+          type: integer
+          description: sequence of step in all steps
+        name:
+          type: string
+        description:
+          type: string
+        stepType:
+          type: string
+          example:
+            - "INLINE"
+            - "REF_PLUGIN"
+        outputDirectoryPath:
+          type: array
+          items:
+            type: string
+        inlineStepDetail:
+          $ref: '#/components/schemas/InlineStepDetail'
+        pluginRefStepDetail:
+          $ref: '#/components/schemas/PluginRefStepDetail'
+    InlineStepDetail:
+      type: object
+      properties:
+        scriptType:
+          type: string
+          example:
+            - "SHELL"
+            - "DOCKERFILE"
+            - "CONTAINER_IMAGE"
+        script:
+          type: string
+        storeScriptAt:
+          type: string
+        dockerFileExists:
+          type: boolean
+        mountPath:
+          type: string
+        mountCodeToContainer:
+          type: boolean
+        mountCodeToContainerPath:
+          type: string
+        mountDirectoryFromHost:
+          type: boolean
+        containerImagePath:
+          type: string
+        imagePullSecretType:
+          type: string
+          example:
+            - "CONTAINER_REGISTRY"
+            - "SECRET_PATH"
+        imagePullSecret:
+          type: string
+        mountPathMap:
+          type: array
+          items:
+            $ref: '#/components/schemas/MountPathMap'
+        commandArgsMap:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommandArgMap'
+        portMap:
+          type: array
+          items:
+            $ref: '#/components/schemas/PortMap'
+        inputVariables:
+          type: array
+          items:
+            $ref: '#/components/schemas/PipelineStepsVariableDto'
+        outputVariables:
+          type: array
+          items:
+            $ref: '#/components/schemas/PipelineStepsVariableDto'
+        conditionDetails:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConditionDetail'
+    PluginRefStepDetail:
+      type: object
+      properties:
+        pluginId:
+          type: integer
+          description: id of the plugin used in the step
+        inputVariables:
+          type: array
+          items:
+            $ref: '#/components/schemas/PluginVariableDto'
+        outputVariables:
+          type: array
+          items:
+            $ref: '#/components/schemas/PluginVariableDto'
+        conditionDetails:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConditionDetail'
+    PluginVariableDto:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Variable name
+        description:
+          type: string
+          description: Variable description
+        type:
+          type: string
+          description: Variable type
+        format:
+          type: string
+          description: Variable format
+        required:
+          type: boolean
+          description: Whether the variable is required
+        defaultValue:
+          type: string
+          description: Default value for the variable
+    PipelineStepsVariableDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        value:
+          type: integer
+        format:
+          type: string
+          example:
+            - "STRING"
+            - "NUMBER"
+            - "BOOL"
+            - "DATE"
+        description:
+          type: string
+        defaultValue:
+          type: string
+        refVariableUsed:
+          type: boolean
+        refVariableType:
+          type: string
+          example:
+            - "GLOBAL"
+            - "FROM_PREVIOUS_STEP"
+            - "NEW"
+        refVariableStepIndex:
+          type: integer
+        refVariableName:
+          type: string
+        refVariableStage:
+          type: string
+          example:
+            - "PRE_CI"
+            - "POST_CI"
+    ConditionDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        conditionOnVariable:
+          type: string
+          description: name of the variable on which condition is applied
+        conditionOperator:
+          type: string
+        conditionType:
+          type: string
+          example:
+            - "SKIP"
+            - "TRIGGER"
+            - "SUCCESS"
+            - "FAIL"
+        conditionalValue:
+          type: string
+    MountPathMap:
+      type: object
+      properties:
+        filePathOnDisk:
+          type: string
+        filePathOnContainer:
+          type: string
+    CommandArgMap:
+      type: object
+      properties:
+        command:
+          type: string
+        args:
+          type: array
+          items:
+            type: string
+    PortMap:
+      type: object
+      properties:
+        portOnLocal:
+          type: integer
+        portOnContainer:
+          type: integer
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Error code
+        status:
+          type: string
+          description: Error status
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: integer
+                description: Error code
+              internalMessage:
+                type: string
+                description: Internal error message
+              userMessage:
+                type: string
+                description: User friendly error message
+    DockerArg:
+      type: object
+      description: map of key value pairs
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+    ExternalCiConfig:
+      type: object
+      properties:
+        id:
+          type: integer
+        accessKey:
+          type: string
+        webhookUrl:
+          type: string
+        payload:
+          type: string
+    CiMaterial:
+      type: array
+      items:
+        $ref: '#/components/schemas/CiMaterialDetail'
+    CiMaterialDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        gitMaterialId:
+          type: integer
+        source:
+          type: object
+          properties:
+            type:
+              type: string
+              example: "SOURCE_TYPE_BRANCH_FIXED"
+            value:
+              type: string
+              example: "master"
+    CommitInfo:
+      type: object
+      required:
+        - Commit
+        - Author
+        - Date
+      properties:
+        Commit:
+          type: string
+          description: Full commit hash
+          example: "a1b2c3d4e5f6g7h8i9j0"
+          minLength: 7
+          maxLength: 40
+        Author:
+          type: string
+          description: Author of the commit
+          example: "John Doe <john@example.com>"
+        Date:
+          type: string
+          format: date-time
+          description: Timestamp of the commit
+          example: "2023-01-15T14:30:22Z"
+        Message:
+          type: string
+          description: Commit message
+          example: "Update README with new features"
+        Changes:
+          type: array
+          description: List of files changed in this commit
+          items:
+            type: string
+            example: "src/main.go"
+
+    WorkflowTriggerRequest:
+      type: object
+      required:
+        - pipelineId
+        - ciPipelineMaterials
+      properties:
+        pipelineId:
+          type: integer
+          description: ID of the CI pipeline to trigger
+          example: 123
+        ciPipelineMaterials:
+          type: array
+          description: CI pipeline materials configuration
+          items:
+            $ref: '#/components/schemas/CiPipelineMaterial'
+        triggeredBy:
+          type: integer
+          description: User ID who triggered the pipeline
+          example: 1
+        invalidateCache:
+          type: boolean
+          description: Whether to invalidate cache
+          default: false
+        environmentId:
+          type: integer
+          description: Environment ID for the pipeline
+          example: 456
+        pipelineType:
+          type: string
+          description: Type of pipeline
+          example: "CI"
+        ciArtifactLastFetch:
+          type: string
+          format: date-time
+          description: Last fetch time for CI artifacts
+
+    CiPipelineMaterial:
+      type: object
+      properties:
+        Id:
+          type: integer
+          description: Material ID
+          example: 1
+        GitMaterialId:
+          type: integer
+          description: Git material ID
+          example: 2
+        Type:
+          type: string
+          description: Type of material
+          example: "GIT"
+        Value:
+          type: string
+          description: Material value
+          example: "main"
+        Active:
+          type: boolean
+          description: Whether material is active
+          default: true
+        GitCommit:
+          $ref: '#/components/schemas/GitCommit'
+        GitTag:
+          type: string
+          description: Git tag
+          example: "v1.0.0"
+
+    GitCommit:
+      type: object
+      properties:
+        Commit:
+          type: string
+          description: Commit hash
+          example: "a1b2c3d4e5"
+        Author:
+          type: string
+          description: Author name
+          example: "John Doe"
+        Date:
+          type: string
+          format: date-time
+          description: Commit date
+          example: "2023-01-15T14:30:22Z"
+        Message:
+          type: string
+          description: Commit message
+          example: "Update README"
+
+    CIBuildConfig:
+      type: object
+      properties:
+        dockerBuildConfig:
+          $ref: '#/components/schemas/DockerBuildConfig'
+        ciBuildType:
+          type: string
+          enum: [SELF_DOCKERFILE_BUILD_TYPE, MANIFEST_PUSH, SKIP_BUILD]
+
+    DockerBuildConfig:
+      type: object
+      properties:
+        dockerfilePath:
+          type: string
+          example: "./Dockerfile"
+        args:
+          type: object
+          additionalProperties:
+            type: string
+
+    WorkflowResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 12345
+        name:
+          type: string
+          example: "workflow-12345"
+        status:
+          type: string
+          enum: [QUEUED, RUNNING, SUCCEEDED, FAILED, ABORTED]
+          example: "QUEUED"
+        startTime:
+          type: string
+          format: date-time
+          example: "2023-01-15T14:30:22Z"
+        endTime:
+          type: string
+          format: date-time
+          example: "2023-01-15T14:35:45Z"
+        triggeredBy:
+          type: string
+          example: "user@example.com"
+
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 404
+        message:
+          type: string
+          example: "Resource not found"
+        details:
+          type: array
+          items:
+            type: string
+          example: ["Commit not found in the repository"]
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >-
+        JWT token for authentication. 
+        Include the token in the Authorization header as: 'Bearer {token}'

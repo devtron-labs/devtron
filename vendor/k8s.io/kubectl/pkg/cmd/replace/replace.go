@@ -17,8 +17,8 @@ limitations under the License.
 package replace
 
 import (
+	"context"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/kubectl/pkg/cmd/delete"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -40,7 +41,6 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/i18n"
-	"k8s.io/kubectl/pkg/util/slice"
 	"k8s.io/kubectl/pkg/util/templates"
 	"k8s.io/kubectl/pkg/validation"
 )
@@ -68,8 +68,6 @@ var (
 		kubectl replace --force -f ./pod.json`))
 )
 
-var supportedSubresources = []string{"status", "scale"}
-
 type ReplaceOptions struct {
 	PrintFlags  *genericclioptions.PrintFlags
 	RecordFlags *genericclioptions.RecordFlags
@@ -77,10 +75,8 @@ type ReplaceOptions struct {
 	DeleteFlags   *delete.DeleteFlags
 	DeleteOptions *delete.DeleteOptions
 
-	DryRunStrategy          cmdutil.DryRunStrategy
-	DryRunVerifier          *resource.QueryParamVerifier
-	FieldValidationVerifier *resource.QueryParamVerifier
-	validationDirective     string
+	DryRunStrategy      cmdutil.DryRunStrategy
+	validationDirective string
 
 	PrintObj func(obj runtime.Object) error
 
@@ -98,12 +94,12 @@ type ReplaceOptions struct {
 
 	Subresource string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 
 	fieldManager string
 }
 
-func NewReplaceOptions(streams genericclioptions.IOStreams) *ReplaceOptions {
+func NewReplaceOptions(streams genericiooptions.IOStreams) *ReplaceOptions {
 	return &ReplaceOptions{
 		PrintFlags:  genericclioptions.NewPrintFlags("replaced"),
 		DeleteFlags: delete.NewDeleteFlags("The files that contain the configurations to replace."),
@@ -112,7 +108,7 @@ func NewReplaceOptions(streams genericclioptions.IOStreams) *ReplaceOptions {
 	}
 }
 
-func NewCmdReplace(f cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdReplace(f cmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewReplaceOptions(streams)
 
 	cmd := &cobra.Command{
@@ -138,7 +134,7 @@ func NewCmdReplace(f cmdutil.Factory, streams genericclioptions.IOStreams) *cobr
 
 	cmd.Flags().StringVar(&o.Raw, "raw", o.Raw, "Raw URI to PUT to the server.  Uses the transport specified by the kubeconfig file.")
 	cmdutil.AddFieldManagerFlagVar(cmd, &o.fieldManager, "kubectl-replace")
-	cmdutil.AddSubresourceFlags(cmd, &o.Subresource, "If specified, replace will operate on the subresource of the requested object.", supportedSubresources...)
+	cmdutil.AddSubresourceFlags(cmd, &o.Subresource, "If specified, replace will operate on the subresource of the requested object.")
 
 	return cmd
 }
@@ -166,8 +162,6 @@ func (o *ReplaceOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []
 	if err != nil {
 		return err
 	}
-	o.DryRunVerifier = resource.NewQueryParamVerifier(dynamicClient, f.OpenAPIGetter(), resource.QueryParamDryRun)
-	o.FieldValidationVerifier = resource.NewQueryParamVerifier(dynamicClient, f.OpenAPIGetter(), resource.QueryParamFieldValidation)
 	cmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 
 	printer, err := o.PrintFlags.ToPrinter()
@@ -201,7 +195,7 @@ func (o *ReplaceOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []
 		return err
 	}
 
-	schema, err := f.Validator(o.validationDirective, o.FieldValidationVerifier)
+	schema, err := f.Validator(o.validationDirective)
 	if err != nil {
 		return err
 	}
@@ -253,10 +247,6 @@ func (o *ReplaceOptions) Validate() error {
 		}
 	}
 
-	if len(o.Subresource) > 0 && !slice.ContainsString(supportedSubresources, o.Subresource, nil) {
-		return fmt.Errorf("invalid subresource value: %q. Must be one of %v", o.Subresource, supportedSubresources)
-	}
-
 	return nil
 }
 
@@ -304,11 +294,6 @@ func (o *ReplaceOptions) Run(f cmdutil.Factory) error {
 		if o.DryRunStrategy == cmdutil.DryRunClient {
 			return o.PrintObj(info.Object)
 		}
-		if o.DryRunStrategy == cmdutil.DryRunServer {
-			if err := o.DryRunVerifier.HasSupport(info.Mapping.GroupVersionKind); err != nil {
-				return err
-			}
-		}
 
 		// Serialize the object with the annotation applied.
 		obj, err := resource.
@@ -331,7 +316,7 @@ func (o *ReplaceOptions) forceReplace() error {
 	stdinInUse := false
 	for i, filename := range o.DeleteOptions.FilenameOptions.Filenames {
 		if filename == "-" {
-			tempDir, err := ioutil.TempDir("", "kubectl_replace_")
+			tempDir, err := os.MkdirTemp("", "kubectl_replace_")
 			if err != nil {
 				return err
 			}
@@ -374,8 +359,7 @@ func (o *ReplaceOptions) forceReplace() error {
 		if err != nil {
 			return err
 		}
-
-		return wait.PollImmediate(1*time.Second, timeout, func() (bool, error) {
+		return wait.PollUntilContextTimeout(context.Background(), 1*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			if err := info.Get(); !errors.IsNotFound(err) {
 				return false, err
 			}

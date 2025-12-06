@@ -20,14 +20,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
+	history2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	history2 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables"
@@ -47,10 +48,6 @@ const (
 	HashiCorpVault    string = "HashiCorpVault"
 )
 
-type ConfigsList struct {
-	ConfigData []*bean.ConfigData `json:"maps"`
-}
-
 type ConfigMapService interface {
 	CMGlobalAddUpdate(configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error)
 	CMGlobalFetch(appId int) (*bean.ConfigDataRequest, error)
@@ -58,7 +55,9 @@ type ConfigMapService interface {
 	CMEnvironmentFetch(appId int, envId int) (*bean.ConfigDataRequest, error)
 	CMGlobalFetchForEdit(name string, id int) (*bean.ConfigDataRequest, error)
 	CMEnvironmentFetchForEdit(name string, id int, appId int, envId int) (*bean.ConfigDataRequest, error)
-	ConfigGlobalFetchEditUsingAppId(name string, appId int, resourceType bean.ResourceType) (*bean.ConfigDataRequest, error)
+
+	CmCsConfigGlobalFetchUsingAppId(name string, appId int, resourceType bean.ResourceType) (*bean.ConfigDataRequest, error)
+	CmCsConfigOverrideFetchUsingAppAndEnvId(name string, appId, envId int, resourceType bean.ResourceType) (*bean.ConfigDataRequest, error)
 
 	CSGlobalAddUpdate(configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error)
 	CSGlobalFetch(appId int) (*bean.ConfigDataRequest, error)
@@ -89,18 +88,17 @@ type ConfigMapService interface {
 }
 
 type ConfigMapServiceImpl struct {
-	chartRepository             chartRepoRepository.ChartRepository
-	logger                      *zap.SugaredLogger
-	repoRepository              chartRepoRepository.ChartRepoRepository
-	mergeUtil                   util.MergeUtil
-	pipelineConfigRepository    chartConfig.PipelineConfigRepository
-	configMapRepository         chartConfig.ConfigMapRepository
-	environmentConfigRepository chartConfig.EnvConfigOverrideRepository
-	commonService               commonService.CommonService
-	appRepository               app.AppRepository
-	configMapHistoryService     history2.ConfigMapHistoryService
-	environmentRepository       repository2.EnvironmentRepository
-	scopedVariableManager       variables.ScopedVariableCMCSManager
+	chartRepository          chartRepoRepository.ChartRepository
+	logger                   *zap.SugaredLogger
+	repoRepository           chartRepoRepository.ChartRepoRepository
+	mergeUtil                util.MergeUtil
+	pipelineConfigRepository chartConfig.PipelineConfigRepository
+	configMapRepository      chartConfig.ConfigMapRepository
+	commonService            commonService.CommonService
+	appRepository            app.AppRepository
+	configMapHistoryService  history2.ConfigMapHistoryService
+	environmentRepository    repository3.EnvironmentRepository
+	scopedVariableManager    variables.ScopedVariableCMCSManager
 }
 
 func NewConfigMapServiceImpl(chartRepository chartRepoRepository.ChartRepository,
@@ -108,24 +106,23 @@ func NewConfigMapServiceImpl(chartRepository chartRepoRepository.ChartRepository
 	repoRepository chartRepoRepository.ChartRepoRepository,
 	mergeUtil util.MergeUtil,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
-	configMapRepository chartConfig.ConfigMapRepository, environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
+	configMapRepository chartConfig.ConfigMapRepository,
 	commonService commonService.CommonService, appRepository app.AppRepository,
-	configMapHistoryService history2.ConfigMapHistoryService, environmentRepository repository2.EnvironmentRepository,
+	configMapHistoryService history2.ConfigMapHistoryService, environmentRepository repository3.EnvironmentRepository,
 	scopedVariableManager variables.ScopedVariableCMCSManager,
 ) *ConfigMapServiceImpl {
 	return &ConfigMapServiceImpl{
-		chartRepository:             chartRepository,
-		logger:                      logger,
-		repoRepository:              repoRepository,
-		mergeUtil:                   mergeUtil,
-		pipelineConfigRepository:    pipelineConfigRepository,
-		configMapRepository:         configMapRepository,
-		environmentConfigRepository: environmentConfigRepository,
-		commonService:               commonService,
-		appRepository:               appRepository,
-		configMapHistoryService:     configMapHistoryService,
-		environmentRepository:       environmentRepository,
-		scopedVariableManager:       scopedVariableManager,
+		chartRepository:          chartRepository,
+		logger:                   logger,
+		repoRepository:           repoRepository,
+		mergeUtil:                mergeUtil,
+		pipelineConfigRepository: pipelineConfigRepository,
+		configMapRepository:      configMapRepository,
+		commonService:            commonService,
+		appRepository:            appRepository,
+		configMapHistoryService:  configMapHistoryService,
+		environmentRepository:    environmentRepository,
+		scopedVariableManager:    scopedVariableManager,
 	}
 }
 
@@ -165,7 +162,7 @@ func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.Config
 			impl.logger.Errorw("error while fetching from db", "error", err)
 			return nil, err
 		}
-		configsList := &ConfigsList{}
+		configsList := &bean.ConfigsList{}
 		found := false
 		var configs []*bean.ConfigData
 		if len(model.ConfigMapData) > 0 {
@@ -208,7 +205,7 @@ func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.Config
 
 	} else {
 		//creating config map record for first time
-		configsList := &ConfigsList{
+		configsList := &bean.ConfigsList{
 			ConfigData: configMapRequest.ConfigData,
 		}
 		configDataByte, err := json.Marshal(configsList)
@@ -254,7 +251,7 @@ func (impl ConfigMapServiceImpl) CMGlobalFetch(appId int) (*bean.ConfigDataReque
 		impl.logger.Debugw("no config map data found for this request", "appId", appId)
 	}
 
-	configMapGlobalList := &ConfigsList{}
+	configMapGlobalList := &bean.ConfigsList{}
 	if len(configMapGlobal.ConfigMapData) > 0 {
 		err = json.Unmarshal([]byte(configMapGlobal.ConfigMapData), configMapGlobalList)
 		if err != nil {
@@ -290,6 +287,13 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *bean.C
 		impl.logger.Errorw("error in validating", "error", err)
 		return configMapRequest, err
 	}
+
+	appLevelConfigMap, err := impl.CmCsConfigGlobalFetchUsingAppId(configData.Name, configMapRequest.AppId, bean.CM)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching app level config", "appId", configMapRequest.AppId, "err", err)
+		return configMapRequest, err
+	}
+
 	var model *chartConfig.ConfigMapEnvModel
 	if configMapRequest.Id > 0 {
 		model, err = impl.configMapRepository.GetByIdEnvLevel(configMapRequest.Id)
@@ -301,7 +305,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *bean.C
 		return nil, err
 	}
 	if err == nil && model.Id > 0 {
-		configsList := &ConfigsList{}
+		configsList := &bean.ConfigsList{}
 		found := false
 		var configs []*bean.ConfigData
 		if len(model.ConfigMapData) > 0 {
@@ -320,6 +324,12 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *bean.C
 				item.SubPath = configData.SubPath
 				item.FilePermission = configData.FilePermission
 				found = true
+				item.MergeStrategy = configData.MergeStrategy
+				if len(appLevelConfigMap.ConfigData) > 0 {
+					if len(item.MergeStrategy) == 0 {
+						item.MergeStrategy = models.MERGE_STRATEGY_REPLACE
+					}
+				}
 			}
 			configs = append(configs, item)
 		}
@@ -345,7 +355,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *bean.C
 
 	} else if err == pg.ErrNoRows {
 		//creating config map record for first time
-		configsList := &ConfigsList{
+		configsList := &bean.ConfigsList{
 			ConfigData: configMapRequest.ConfigData,
 		}
 		configDataByte, err := json.Marshal(configsList)
@@ -391,7 +401,7 @@ func (impl ConfigMapServiceImpl) CMGlobalFetchForEdit(name string, id int) (*bea
 		impl.logger.Debugw("no config map data found for this request", "id", id)
 	}
 
-	configMapGlobalList := &ConfigsList{}
+	configMapGlobalList := &bean.ConfigsList{}
 	if len(configMapGlobal.ConfigMapData) > 0 {
 		err = json.Unmarshal([]byte(configMapGlobal.ConfigMapData), configMapGlobalList)
 		if err != nil {
@@ -439,7 +449,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentFetch(appId int, envId int) (*bean
 	if pg.ErrNoRows == err {
 		impl.logger.Debugw("no config map data found for this request", "appId", appId)
 	}
-	configMapGlobalList := &ConfigsList{}
+	configMapGlobalList := &bean.ConfigsList{}
 	if len(configMapGlobal.ConfigMapData) > 0 {
 		err = json.Unmarshal([]byte(configMapGlobal.ConfigMapData), configMapGlobalList)
 		if err != nil {
@@ -454,7 +464,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentFetch(appId int, envId int) (*bean
 	if pg.ErrNoRows == err {
 		impl.logger.Debugw("no config map data found for this request", "appId", appId)
 	}
-	configsListEnvLevel := &ConfigsList{}
+	configsListEnvLevel := &bean.ConfigsList{}
 	if len(configMapEnvLevel.ConfigMapData) > 0 {
 		err = json.Unmarshal([]byte(configMapEnvLevel.ConfigMapData), configsListEnvLevel)
 		if err != nil {
@@ -487,8 +497,6 @@ func (impl ConfigMapServiceImpl) CMEnvironmentFetch(appId int, envId int) (*bean
 			item.DefaultMountPath = item.MountPath
 			item.Data = nil
 			item.MountPath = ""
-			item.SubPath = item.SubPath
-			item.FilePermission = item.FilePermission
 			configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
 		}
 	}
@@ -500,6 +508,11 @@ func (impl ConfigMapServiceImpl) CMEnvironmentFetch(appId int, envId int) (*bean
 			item.DefaultMountPath = kv11[item.Name]
 			item.Global = true
 			item.Overridden = true
+
+			if len(item.MergeStrategy) == 0 {
+				item.MergeStrategy = models.MERGE_STRATEGY_REPLACE
+			}
+
 			configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
 		} else {
 			configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
@@ -580,6 +593,7 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *bean.Config
 				item.ExternalSecret = configData.ExternalSecret
 				item.RoleARN = configData.RoleARN
 				item.SubPath = configData.SubPath
+				item.ESOSubPath = configData.ESOSubPath
 				item.FilePermission = configData.FilePermission
 			}
 			configs = append(configs, item)
@@ -705,6 +719,13 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *bean.C
 		impl.logger.Errorw("error in validating", "error", err)
 		return configMapRequest, err
 	}
+
+	appLevelSecret, err := impl.CmCsConfigGlobalFetchUsingAppId(configData.Name, configMapRequest.AppId, bean.CS)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching app level config", "appId", configMapRequest.AppId, "err", err)
+		return configMapRequest, err
+	}
+
 	var model *chartConfig.ConfigMapEnvModel
 	if configMapRequest.Id > 0 {
 		model, err = impl.configMapRepository.GetByIdEnvLevel(configMapRequest.Id)
@@ -736,8 +757,15 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *bean.C
 				item.ExternalSecret = configData.ExternalSecret
 				item.RoleARN = configData.RoleARN
 				item.SubPath = configData.SubPath
+				item.ESOSubPath = configData.ESOSubPath
 				item.FilePermission = configData.FilePermission
 				found = true
+				item.MergeStrategy = configData.MergeStrategy
+				if len(appLevelSecret.ConfigData) > 0 {
+					if len(item.MergeStrategy) == 0 {
+						item.MergeStrategy = models.MERGE_STRATEGY_REPLACE
+					}
+				}
 			}
 			configs = append(configs, item)
 		}
@@ -873,16 +901,16 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*bean
 				item.DefaultExternalSecret = item.ExternalSecret
 			}
 			item.DefaultESOSecretData = item.ESOSecretData
-			item.ESOSecretData.EsoData = nil
+			item.ESOSecretData.ESOData = nil
 			item.ESOSecretData.SecretStore = nil
+			item.ESOSecretData.ESODataFrom = nil
+			item.ESOSecretData.Template = nil
 			item.ESOSecretData.SecretStoreRef = nil
 			item.ESOSecretData.RefreshInterval = ""
 			item.DefaultMountPath = item.MountPath
 			item.Data = nil
 			item.ExternalSecret = nil
 			item.MountPath = ""
-			item.SubPath = item.SubPath
-			item.FilePermission = item.FilePermission
 			configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
 		}
 	}
@@ -896,6 +924,11 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*bean
 			item.Global = true
 			item.Overridden = true
 			item.DefaultESOSecretData = kv1ESOSecret[item.Name]
+
+			if len(item.MergeStrategy) == 0 {
+				item.MergeStrategy = models.MERGE_STRATEGY_REPLACE
+			}
+
 			configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
 		} else {
 			configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
@@ -918,7 +951,7 @@ func (impl ConfigMapServiceImpl) CMGlobalDelete(name string, id int, userId int3
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return false, err
 	}
-	configsList := &ConfigsList{}
+	configsList := &bean.ConfigsList{}
 	found := false
 	var configs []*bean.ConfigData
 	if len(model.ConfigMapData) > 0 {
@@ -960,8 +993,10 @@ func (impl ConfigMapServiceImpl) CMGlobalDelete(name string, id int, userId int3
 			return false, err
 		}
 	} else {
-		impl.logger.Debugw("no config map found for delete with this name", "name", name)
-
+		// impl.logger.Debugw("no config map found for delete with this name", "name", name)
+		// this should return false as no config map found
+		impl.logger.Errorw("config map does not exist", "name", name, "id", id)
+		return false, err
 	}
 
 	return true, nil
@@ -974,7 +1009,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentDelete(name string, id int, userId
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return false, err
 	}
-	configsList := &ConfigsList{}
+	configsList := &bean.ConfigsList{}
 	found := false
 	var configs []*bean.ConfigData
 	if len(model.ConfigMapData) > 0 {
@@ -1016,7 +1051,10 @@ func (impl ConfigMapServiceImpl) CMEnvironmentDelete(name string, id int, userId
 			return false, err
 		}
 	} else {
-		impl.logger.Debugw("no config map found for delete with this name", "name", name)
+		// impl.logger.Debugw("no config map found for delete with this name", "name", name)
+		// this should return false as no config map found
+		impl.logger.Errorw("config map does not exist", "name", name, "id", id)
+		return false, err
 	}
 	return true, nil
 }
@@ -1070,8 +1108,10 @@ func (impl ConfigMapServiceImpl) CSGlobalDelete(name string, id int, userId int3
 			return false, err
 		}
 	} else {
-		impl.logger.Debugw("no config map found for delete with this name", "name", name)
-
+		// impl.logger.Debugw("no config map found for delete with this name", "name", name)
+		// this should return false as no config map found
+		impl.logger.Errorw("cs does not exist", "name", name, "id", id)
+		return false, err
 	}
 
 	return true, nil
@@ -1125,7 +1165,10 @@ func (impl ConfigMapServiceImpl) CSEnvironmentDelete(name string, id int, userId
 			return false, err
 		}
 	} else {
-		impl.logger.Debugw("no config map found for delete with this name", "name", name)
+		// impl.logger.Debugw("no config map found for delete with this name", "name", name)
+		// this should return false as no config map found
+		impl.logger.Errorw("cs does not exist", "name", name, "id", id)
+		return false, err
 	}
 
 	return true, nil
@@ -1140,7 +1183,7 @@ func (impl ConfigMapServiceImpl) CMGlobalDeleteByAppId(name string, appId int, u
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return false, err
 	}
-	configsList := &ConfigsList{}
+	configsList := &bean.ConfigsList{}
 	found := false
 	var configs []*bean.ConfigData
 	if len(model.ConfigMapData) > 0 {
@@ -1176,8 +1219,10 @@ func (impl ConfigMapServiceImpl) CMGlobalDeleteByAppId(name string, appId int, u
 			return false, err
 		}
 	} else {
-		impl.logger.Debugw("no config map found for delete with this name", "name", name)
-
+		// impl.logger.Debugw("no config map found for delete with this name", "name", name)
+		// this should return false as no config map found
+		impl.logger.Errorw("cnfog map does not exist", "name", name)
+		return false, err
 	}
 
 	return true, nil
@@ -1190,7 +1235,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentDeleteByAppIdAndEnvId(name string,
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return false, err
 	}
-	configsList := &ConfigsList{}
+	configsList := &bean.ConfigsList{}
 	found := false
 	var configs []*bean.ConfigData
 	if len(model.ConfigMapData) > 0 {
@@ -1388,6 +1433,16 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetchForEdit(name string, id int, 
 		}
 		for _, item := range configsList.ConfigData {
 			if item.Name == name {
+
+				appLevelConfigMap, err := impl.CmCsConfigGlobalFetchUsingAppId(name, appId, bean.CS)
+				if err != nil && err != pg.ErrNoRows {
+					impl.logger.Errorw("error in fetching app level config", "appId", appId, "err", err)
+					return nil, err
+				}
+				if len(item.MergeStrategy) == 0 && len(appLevelConfigMap.ConfigData) > 0 {
+					item.MergeStrategy = models.MERGE_STRATEGY_REPLACE
+				}
+
 				configs = append(configs, item)
 				break
 			}
@@ -1454,8 +1509,25 @@ func (impl ConfigMapServiceImpl) validateConfigDataForSecretsOnly(configData *be
 		err = util2.ValidateEncodedDataByDecoding(dataMap)
 		if err != nil {
 			impl.logger.Errorw("error in decoding secret data", "error", err)
-			return false, util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithCode(strconv.Itoa(http.StatusUnprocessableEntity)).
-				WithUserMessage("error in decoding data, make sure the secret data is encoded properly")
+			return false, util.DefaultApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithCode(strconv.Itoa(http.StatusUnprocessableEntity)).
+				WithUserMessage("error in decoding data, make sure the secret data is encoded properly").
+				WithInternalMessage("error in decoding data, make sure the secret data is encoded properly")
+		}
+	}
+	if configData.IsESOExternalSecretType() {
+		if !configData.External {
+			return false, util.DefaultApiError().WithHttpStatusCode(http.StatusBadRequest).WithCode(strconv.Itoa(http.StatusBadRequest)).
+				WithUserMessage(fmt.Sprintf("external flag should be true for '%s' secret type", configData.ExternalSecretType)).
+				WithInternalMessage(fmt.Sprintf("external flag should be true for '%s' secret type", configData.ExternalSecretType))
+		}
+		if configData.ESOSecretData.ESODataFrom == nil && configData.ESOSecretData.ESOData == nil {
+			return false, util.DefaultApiError().WithHttpStatusCode(http.StatusBadRequest).WithCode(strconv.Itoa(http.StatusBadRequest)).
+				WithUserMessage("both esoSecretData.esoDataFrom and esoSecretData.esoData can't be empty").
+				WithInternalMessage("both esoSecretData.esoDataFrom and esoSecretData.esoData can't be empty")
+		} else if configData.ESOSecretData.SecretStore == nil && configData.ESOSecretData.SecretStoreRef == nil {
+			return false, util.DefaultApiError().WithHttpStatusCode(http.StatusBadRequest).WithCode(strconv.Itoa(http.StatusBadRequest)).
+				WithUserMessage("both esoSecretData.secretStore and esoSecretData.secretStoreRef can't be empty").
+				WithInternalMessage("both esoSecretData.secretStore and esoSecretData.secretStoreRef can't be empty")
 		}
 	}
 	return true, nil
@@ -1523,7 +1595,7 @@ func (impl ConfigMapServiceImpl) ConfigSecretGlobalBulkPatch(bulkPatchRequest *b
 			continue
 		}
 		if bulkPatchRequest.Type == "CM" {
-			configsList := &ConfigsList{}
+			configsList := &bean.ConfigsList{}
 			var configs []*bean.ConfigData
 			if len(model.ConfigMapData) > 0 {
 				err = json.Unmarshal([]byte(model.ConfigMapData), configsList)
@@ -1628,7 +1700,7 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentBulkPatch(bulkPatchReque
 			continue
 		}
 		if bulkPatchRequest.Type == "CM" {
-			configsList := &ConfigsList{}
+			configsList := &bean.ConfigsList{}
 			var configs []*bean.ConfigData
 			if len(model.ConfigMapData) > 0 {
 				err = json.Unmarshal([]byte(model.ConfigMapData), configsList)
@@ -1715,11 +1787,10 @@ func (impl ConfigMapServiceImpl) validateExternalSecretChartCompatibility(appId 
 	if configData.ExternalSecret != nil && len(configData.ExternalSecret) > 0 {
 		for _, es := range configData.ExternalSecret {
 			if len(es.Property) > 0 || es.IsBinary == true {
-				chart, err := impl.commonService.FetchLatestChart(appId, envId)
+				chartVersion, err := impl.commonService.FetchLatestChartVersion(appId, envId)
 				if err != nil {
 					return false, err
 				}
-				chartVersion := chart.ChartVersion
 				chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(chartVersion)
 				if err != nil {
 					impl.logger.Errorw("chart version parsing", "err", err)
@@ -1925,7 +1996,7 @@ func (impl ConfigMapServiceImpl) FetchCmCsNamesAppAndEnvLevel(appId int, envId i
 	return cMCSNamesAppLevel, cMCSNamesEnvLevel, nil
 }
 
-func (impl ConfigMapServiceImpl) ConfigGlobalFetchEditUsingAppId(name string, appId int, resourceType bean.ResourceType) (*bean.ConfigDataRequest, error) {
+func (impl ConfigMapServiceImpl) CmCsConfigGlobalFetchUsingAppId(name string, appId int, resourceType bean.ResourceType) (*bean.ConfigDataRequest, error) {
 	var fetchGlobalConfigFunc func(int) (*bean.ConfigDataRequest, error)
 	if resourceType == bean.CS {
 		fetchGlobalConfigFunc = impl.CSGlobalFetch
@@ -1933,6 +2004,29 @@ func (impl ConfigMapServiceImpl) ConfigGlobalFetchEditUsingAppId(name string, ap
 		fetchGlobalConfigFunc = impl.CMGlobalFetch
 	}
 	configDataRequest, err := fetchGlobalConfigFunc(appId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching global cm using app id ", "cmName", name, "appId", appId, "err", err)
+		return nil, err
+	}
+	configDataRequest.Deletable = true // always true in oss
+	configs := make([]*bean.ConfigData, 0, len(configDataRequest.ConfigData))
+	for _, configData := range configDataRequest.ConfigData {
+		if configData.Name == name {
+			configs = append(configs, configData)
+		}
+	}
+	configDataRequest.ConfigData = configs
+	return configDataRequest, nil
+}
+
+func (impl ConfigMapServiceImpl) CmCsConfigOverrideFetchUsingAppAndEnvId(name string, appId, envId int, resourceType bean.ResourceType) (*bean.ConfigDataRequest, error) {
+	var fetchGlobalConfigFunc func(int, int) (*bean.ConfigDataRequest, error)
+	if resourceType == bean.CS {
+		fetchGlobalConfigFunc = impl.CSEnvironmentFetch
+	} else if resourceType == bean.CM {
+		fetchGlobalConfigFunc = impl.CMEnvironmentFetch
+	}
+	configDataRequest, err := fetchGlobalConfigFunc(appId, envId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching global cm using app id ", "cmName", name, "appId", appId, "err", err)
 		return nil, err

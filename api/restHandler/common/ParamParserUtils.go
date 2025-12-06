@@ -17,22 +17,47 @@
 package common
 
 import (
-	"github.com/gorilla/mux"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/gorilla/mux"
 )
 
 const TokenHeaderKey = "token"
 
-func ExtractIntPathParam(w http.ResponseWriter, r *http.Request, paramName string) (int, error) {
+// ExtractIntPathParamWithContext provides enhanced error messages with resource context
+func ExtractIntPathParamWithContext(w http.ResponseWriter, r *http.Request, paramName string) (int, error) {
 	vars := mux.Vars(r)
 	paramValue := vars[paramName]
-	paramIntValue, err := convertToInt(w, paramValue)
+	paramIntValue, err := convertToIntWithContext(w, paramValue, paramName)
 	if err != nil {
 		return 0, err
 	}
 	return paramIntValue, nil
+}
+
+// ExtractStringPathParamWithContext provides enhanced error messages for string path parameters
+func ExtractStringPathParamWithContext(w http.ResponseWriter, r *http.Request, paramName string) (string, error) {
+	vars := mux.Vars(r)
+	paramValue := vars[paramName]
+
+	if paramValue == "" {
+		apiErr := util.NewMissingRequiredFieldError(paramName)
+		WriteJsonResp(w, apiErr, nil, apiErr.HttpStatusCode)
+		return "", apiErr
+	}
+
+	// Trim whitespace and validate
+	paramValue = strings.TrimSpace(paramValue)
+	if paramValue == "" {
+		apiErr := util.NewValidationErrorForField(paramName, "cannot be empty or contain only whitespace")
+		WriteJsonResp(w, apiErr, nil, apiErr.HttpStatusCode)
+		return "", apiErr
+	}
+
+	return paramValue, nil
 }
 
 func convertToInt(w http.ResponseWriter, paramValue string) (int, error) {
@@ -41,6 +66,30 @@ func convertToInt(w http.ResponseWriter, paramValue string) (int, error) {
 		WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return 0, err
 	}
+	return paramIntValue, nil
+}
+
+// convertToIntWithContext provides better error messages for parameter conversion
+func convertToIntWithContext(w http.ResponseWriter, paramValue, paramName string) (int, error) {
+	if paramValue == "" {
+		apiErr := util.NewMissingRequiredFieldError(paramName)
+		WriteJsonResp(w, apiErr, nil, apiErr.HttpStatusCode)
+		return 0, apiErr
+	}
+
+	paramIntValue, err := strconv.Atoi(paramValue)
+	if err != nil {
+		apiErr := util.NewInvalidPathParameterError(paramName, paramValue)
+		WriteJsonResp(w, apiErr, nil, apiErr.HttpStatusCode)
+		return 0, apiErr
+	}
+
+	if paramIntValue < 0 {
+		apiErr := util.NewValidationErrorForField(paramName, "must be a positive integer")
+		WriteJsonResp(w, apiErr, nil, apiErr.HttpStatusCode)
+		return 0, apiErr
+	}
+
 	return paramIntValue, nil
 }
 
@@ -92,34 +141,4 @@ func ExtractBoolQueryParam(r *http.Request, paramName string) (bool, error) {
 	}
 
 	return boolValue, nil
-}
-
-// ExtractIntArrayFromQueryParam returns list of all ids in []int extracted from query param
-// use this method over ExtractIntArrayQueryParam if there is list of query params
-func ExtractIntArrayFromQueryParam(r *http.Request, paramName string) ([]int, error) {
-	queryParams := r.URL.Query()
-	paramValue := queryParams[paramName]
-	paramIntValues := make([]int, 0)
-	var err error
-	if paramValue != nil && len(paramValue) > 0 {
-		if strings.Contains(paramValue[0], ",") {
-			paramIntValues, err = convertToIntArray(paramValue[0])
-		} else {
-			paramIntValues, err = convertStringArrayToIntArray(paramValue)
-		}
-	}
-
-	return paramIntValues, err
-}
-
-func convertStringArrayToIntArray(strArr []string) ([]int, error) {
-	var paramValues []int
-	for _, item := range strArr {
-		paramIntValue, err := strconv.Atoi(item)
-		if err != nil {
-			return paramValues, err
-		}
-		paramValues = append(paramValues, paramIntValue)
-	}
-	return paramValues, nil
 }

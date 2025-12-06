@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"sync"
 	"time"
 )
 
@@ -40,16 +41,41 @@ func GetSettings(conf *DexConfig) (*oidc.Settings, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	settings := &oidc.Settings{
 		URL: conf.Url,
 		OIDCConfig: oidc.OIDCConfig{CLIClientID: conf.DexClientID,
-			ClientSecret: conf.DexClientSecret,
-			Issuer:       proxyUrl,
-			ServerSecret: conf.ServerSecret},
+			ClientSecret:    conf.DexClientSecret,
+			Issuer:          proxyUrl,
+			ServerSecret:    conf.ServerSecret,
+			RequestedScopes: conf.GetDexScopes(),
+		},
 		UserSessionDuration: time.Duration(conf.UserSessionDurationSeconds) * time.Second,
 		AdminPasswordMtime:  conf.AdminPasswordMtime,
 	}
 	return settings, nil
+}
+func (conf *DexConfig) GetDexScopes() []string {
+	// passing empty array to get default scopes
+	defaultScopes := oidc.GetScopesOrDefault([]string{})
+	additionalScopes := conf.DexScopes
+
+	occurrenceMap := make(map[string]bool)
+	finalScopes := make([]string, 0, len(defaultScopes)+len(additionalScopes))
+
+	// first add all the default
+	for _, scope := range defaultScopes {
+		occurrenceMap[scope] = true
+		finalScopes = append(finalScopes, scope)
+	}
+	// append extra configs
+	for _, scope := range additionalScopes {
+		if _, exists := occurrenceMap[scope]; !exists {
+			occurrenceMap[scope] = true
+			finalScopes = append(finalScopes, scope)
+		}
+	}
+	return finalScopes
 }
 func getOidcClient(dexServerAddress string, settings *oidc.Settings, userVerifier oidc.UserVerifier, RedirectUrlSanitiser oidc.RedirectUrlSanitiser) (*oidc.ClientApp, func(writer http.ResponseWriter, request *http.Request), error) {
 	dexClient := &http.Client{
@@ -65,8 +91,8 @@ func getOidcClient(dexServerAddress string, settings *oidc.Settings, userVerifie
 		},
 	}
 	dexProxy := oidc.NewDexHTTPReverseProxy(dexServerAddress, dexClient.Transport)
-	cahecStore := &oidc.Cache{OidcState: map[string]*oidc.OIDCState{}}
-	oidcClient, err := oidc.NewClientApp(settings, cahecStore, "/", userVerifier, RedirectUrlSanitiser)
+	cacheStore := &oidc.Cache{OidcState: sync.Map{}}
+	oidcClient, err := oidc.NewClientApp(settings, cacheStore, "/", userVerifier, RedirectUrlSanitiser)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -87,7 +113,8 @@ type DexConfig struct {
 	UserSessionDurationSeconds int       `env:"USER_SESSION_DURATION_SECONDS" envDefault:"86400"`
 	AdminPasswordMtime         time.Time `json:"ADMIN_PASSWORD_MTIME"`
 	DexConfigRaw               string
-	DevtronSecretName          string `env:"DEVTRON_SECRET_NAME" envDefault:"devtron-secret"`
+	DevtronSecretName          string   `env:"DEVTRON_SECRET_NAME" envDefault:"devtron-secret"`
+	DexScopes                  []string `env:"DEX_SCOPES" envDefault:"" envSeparator:","`
 }
 
 func (c *DexConfig) GetDexProxyUrl() (string, error) {

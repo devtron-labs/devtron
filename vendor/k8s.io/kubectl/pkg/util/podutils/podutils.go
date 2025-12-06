@@ -21,7 +21,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/integer"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 // IsPodAvailable returns true if a pod is available; false otherwise.
@@ -45,6 +45,10 @@ func IsPodAvailable(pod *corev1.Pod, minReadySeconds int32, now metav1.Time) boo
 // IsPodReady returns true if a pod is ready; false otherwise.
 func IsPodReady(pod *corev1.Pod) bool {
 	return isPodReadyConditionTrue(pod.Status)
+}
+
+func isPodDeleting(pod *corev1.Pod) bool {
+	return pod.DeletionTimestamp != nil
 }
 
 // IsPodReadyConditionTrue returns true if a pod is ready; false otherwise.
@@ -110,8 +114,8 @@ func (s ByLogging) Less(i, j int) bool {
 		return afterOrZero(podReadyTime(s[j]), podReadyTime(s[i]))
 	}
 	// 5. Pods with containers with higher restart counts < lower restart counts
-	if maxContainerRestarts(s[i]) != maxContainerRestarts(s[j]) {
-		return maxContainerRestarts(s[i]) > maxContainerRestarts(s[j])
+	if res := compareMaxContainerRestarts(s[i], s[j]); res != nil {
+		return *res
 	}
 	// 6. older pods < newer pods < empty timestamp pods
 	if !s[i].CreationTimestamp.Equal(&s[j].CreationTimestamp) {
@@ -142,18 +146,26 @@ func (s ActivePods) Less(i, j int) bool {
 	if IsPodReady(s[i]) != IsPodReady(s[j]) {
 		return !IsPodReady(s[i])
 	}
+	// 4. Deleting < Not deleting
+	if isPodDeleting(s[i]) != isPodDeleting(s[j]) {
+		return isPodDeleting(s[i])
+	}
+	// 5. Older deletion timestamp < newer deletion timestamp
+	if isPodDeleting(s[i]) && isPodDeleting(s[j]) && !s[i].ObjectMeta.DeletionTimestamp.Equal(s[j].ObjectMeta.DeletionTimestamp) {
+		return s[i].ObjectMeta.DeletionTimestamp.Before(s[j].ObjectMeta.DeletionTimestamp)
+	}
 	// TODO: take availability into account when we push minReadySeconds information from deployment into pods,
 	//       see https://github.com/kubernetes/kubernetes/issues/22065
-	// 4. Been ready for empty time < less time < more time
+	// 6. Been ready for empty time < less time < more time
 	// If both pods are ready, the latest ready one is smaller
 	if IsPodReady(s[i]) && IsPodReady(s[j]) && !podReadyTime(s[i]).Equal(podReadyTime(s[j])) {
 		return afterOrZero(podReadyTime(s[i]), podReadyTime(s[j]))
 	}
-	// 5. Pods with containers with higher restart counts < lower restart counts
-	if maxContainerRestarts(s[i]) != maxContainerRestarts(s[j]) {
-		return maxContainerRestarts(s[i]) > maxContainerRestarts(s[j])
+	// 7. Pods with containers with higher restart counts < lower restart counts
+	if res := compareMaxContainerRestarts(s[i], s[j]); res != nil {
+		return *res
 	}
-	// 6. Empty creation time pods < newer pods < older pods
+	// 8. Empty creation time pods < newer pods < older pods
 	if !s[i].CreationTimestamp.Equal(&s[j].CreationTimestamp) {
 		return afterOrZero(&s[i].CreationTimestamp, &s[j].CreationTimestamp)
 	}
@@ -179,10 +191,91 @@ func podReadyTime(pod *corev1.Pod) *metav1.Time {
 	return &metav1.Time{}
 }
 
-func maxContainerRestarts(pod *corev1.Pod) int {
-	maxRestarts := 0
+func maxContainerRestarts(pod *corev1.Pod) (regularRestarts, sidecarRestarts int) {
 	for _, c := range pod.Status.ContainerStatuses {
-		maxRestarts = integer.IntMax(maxRestarts, int(c.RestartCount))
+		regularRestarts = max(regularRestarts, int(c.RestartCount))
 	}
-	return maxRestarts
+	names := sets.New[string]()
+	for _, c := range pod.Spec.InitContainers {
+		if c.RestartPolicy != nil && *c.RestartPolicy == corev1.ContainerRestartPolicyAlways {
+			names.Insert(c.Name)
+		}
+	}
+	for _, c := range pod.Status.InitContainerStatuses {
+		if names.Has(c.Name) {
+			sidecarRestarts = max(sidecarRestarts, int(c.RestartCount))
+		}
+	}
+	return
+}
+
+// We use *bool here to determine equality:
+// true: pi has a higher container restart count.
+// false: pj has a higher container restart count.
+// nil: Both have the same container restart count.
+func compareMaxContainerRestarts(pi *corev1.Pod, pj *corev1.Pod) *bool {
+	regularRestartsI, sidecarRestartsI := maxContainerRestarts(pi)
+	regularRestartsJ, sidecarRestartsJ := maxContainerRestarts(pj)
+	if regularRestartsI != regularRestartsJ {
+		res := regularRestartsI > regularRestartsJ
+		return &res
+	}
+	// If pods have the same restart count, an attempt is made to compare the restart counts of sidecar containers.
+	if sidecarRestartsI != sidecarRestartsJ {
+		res := sidecarRestartsI > sidecarRestartsJ
+		return &res
+	}
+	return nil
+}
+
+// ContainerType and VisitContainers are taken from
+// https://github.com/kubernetes/kubernetes/blob/master/pkg/api/v1/pod/util.go
+// kubectl cannot directly import this due to project goals
+
+// ContainerType signifies container type
+type ContainerType int
+
+const (
+	// Containers is for normal containers
+	Containers ContainerType = 1 << iota
+	// InitContainers is for init containers
+	InitContainers
+	// EphemeralContainers is for ephemeral containers
+	EphemeralContainers
+)
+
+// AllContainers specifies that all containers be visited.
+const AllContainers ContainerType = (InitContainers | Containers | EphemeralContainers)
+
+// ContainerVisitor is called with each container spec, and returns true
+// if visiting should continue.
+type ContainerVisitor func(container *corev1.Container, containerType ContainerType) (shouldContinue bool)
+
+// VisitContainers invokes the visitor function with a pointer to every container
+// spec in the given pod spec with type set in mask. If visitor returns false,
+// visiting is short-circuited. VisitContainers returns true if visiting completes,
+// false if visiting was short-circuited.
+func VisitContainers(podSpec *corev1.PodSpec, mask ContainerType, visitor ContainerVisitor) bool {
+	if mask&InitContainers != 0 {
+		for i := range podSpec.InitContainers {
+			if !visitor(&podSpec.InitContainers[i], InitContainers) {
+				return false
+			}
+		}
+	}
+	if mask&Containers != 0 {
+		for i := range podSpec.Containers {
+			if !visitor(&podSpec.Containers[i], Containers) {
+				return false
+			}
+		}
+	}
+	if mask&EphemeralContainers != 0 {
+		for i := range podSpec.EphemeralContainers {
+			if !visitor((*corev1.Container)(&podSpec.EphemeralContainers[i].EphemeralContainerCommon), EphemeralContainers) {
+				return false
+			}
+		}
+	}
+	return true
 }

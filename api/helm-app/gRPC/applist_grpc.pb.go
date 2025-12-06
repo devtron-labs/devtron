@@ -23,6 +23,7 @@ const (
 	ApplicationService_ListFluxApplications_FullMethodName                = "/ApplicationService/ListFluxApplications"
 	ApplicationService_GetAppDetail_FullMethodName                        = "/ApplicationService/GetAppDetail"
 	ApplicationService_GetAppStatus_FullMethodName                        = "/ApplicationService/GetAppStatus"
+	ApplicationService_GetAppStatusV2_FullMethodName                      = "/ApplicationService/GetAppStatusV2"
 	ApplicationService_Hibernate_FullMethodName                           = "/ApplicationService/Hibernate"
 	ApplicationService_UnHibernate_FullMethodName                         = "/ApplicationService/UnHibernate"
 	ApplicationService_GetDeploymentHistory_FullMethodName                = "/ApplicationService/GetDeploymentHistory"
@@ -54,6 +55,7 @@ type ApplicationServiceClient interface {
 	ListFluxApplications(ctx context.Context, in *AppListRequest, opts ...grpc.CallOption) (ApplicationService_ListFluxApplicationsClient, error)
 	GetAppDetail(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*AppDetail, error)
 	GetAppStatus(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*AppStatus, error)
+	GetAppStatusV2(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*AppStatus, error)
 	Hibernate(ctx context.Context, in *HibernateRequest, opts ...grpc.CallOption) (*HibernateResponse, error)
 	UnHibernate(ctx context.Context, in *HibernateRequest, opts ...grpc.CallOption) (*HibernateResponse, error)
 	GetDeploymentHistory(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*HelmAppDeploymentHistory, error)
@@ -161,6 +163,15 @@ func (c *applicationServiceClient) GetAppDetail(ctx context.Context, in *AppDeta
 func (c *applicationServiceClient) GetAppStatus(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*AppStatus, error) {
 	out := new(AppStatus)
 	err := c.cc.Invoke(ctx, ApplicationService_GetAppStatus_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *applicationServiceClient) GetAppStatusV2(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*AppStatus, error) {
+	out := new(AppStatus)
+	err := c.cc.Invoke(ctx, ApplicationService_GetAppStatusV2_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -364,6 +375,7 @@ type ApplicationServiceServer interface {
 	ListFluxApplications(*AppListRequest, ApplicationService_ListFluxApplicationsServer) error
 	GetAppDetail(context.Context, *AppDetailRequest) (*AppDetail, error)
 	GetAppStatus(context.Context, *AppDetailRequest) (*AppStatus, error)
+	GetAppStatusV2(context.Context, *AppDetailRequest) (*AppStatus, error)
 	Hibernate(context.Context, *HibernateRequest) (*HibernateResponse, error)
 	UnHibernate(context.Context, *HibernateRequest) (*HibernateResponse, error)
 	GetDeploymentHistory(context.Context, *AppDetailRequest) (*HelmAppDeploymentHistory, error)
@@ -403,6 +415,9 @@ func (UnimplementedApplicationServiceServer) GetAppDetail(context.Context, *AppD
 }
 func (UnimplementedApplicationServiceServer) GetAppStatus(context.Context, *AppDetailRequest) (*AppStatus, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAppStatus not implemented")
+}
+func (UnimplementedApplicationServiceServer) GetAppStatusV2(context.Context, *AppDetailRequest) (*AppStatus, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAppStatusV2 not implemented")
 }
 func (UnimplementedApplicationServiceServer) Hibernate(context.Context, *HibernateRequest) (*HibernateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Hibernate not implemented")
@@ -554,6 +569,24 @@ func _ApplicationService_GetAppStatus_Handler(srv interface{}, ctx context.Conte
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ApplicationServiceServer).GetAppStatus(ctx, req.(*AppDetailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ApplicationService_GetAppStatusV2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AppDetailRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApplicationServiceServer).GetAppStatusV2(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ApplicationService_GetAppStatusV2_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApplicationServiceServer).GetAppStatusV2(ctx, req.(*AppDetailRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -950,6 +983,10 @@ var ApplicationService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetAppStatus",
 			Handler:    _ApplicationService_GetAppStatus_Handler,
+		},
+		{
+			MethodName: "GetAppStatusV2",
+			Handler:    _ApplicationService_GetAppStatusV2_Handler,
 		},
 		{
 			MethodName: "Hibernate",

@@ -5,9 +5,11 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
+	"sync"
 	"time"
 
 	ioutil "github.com/argoproj/argo-cd/v2/util/io"
@@ -42,7 +44,7 @@ func NewRedisCache(client *redis.Client, expiration time.Duration, compressionTy
 	}
 }
 
-// compile-time validation of adherance of the CacheClient contract
+// compile-time validation of adherence of the CacheClient contract
 var _ CacheClient = &redisCache{}
 
 type redisCache struct {
@@ -77,6 +79,11 @@ func (r *redisCache) marshal(obj interface{}) ([]byte, error) {
 			return nil, err
 		}
 	}
+	if closer, ok := w.(interface{ Close() error }); ok {
+		if err := closer.Close(); err != nil {
+			return nil, err
+		}
+	}
 	return buf.Bytes(), nil
 }
 
@@ -96,8 +103,17 @@ func (r *redisCache) unmarshal(data []byte, obj interface{}) error {
 	return nil
 }
 
+func (r *redisCache) Rename(oldKey string, newKey string, _ time.Duration) error {
+	err := r.client.Rename(context.TODO(), r.getKey(oldKey), r.getKey(newKey)).Err()
+	if err != nil && err.Error() == "ERR no such key" {
+		err = ErrCacheMiss
+	}
+
+	return err
+}
+
 func (r *redisCache) Set(item *Item) error {
-	expiration := item.Expiration
+	expiration := item.CacheActionOpts.Expiration
 	if expiration == 0 {
 		expiration = r.expiration
 	}
@@ -111,13 +127,14 @@ func (r *redisCache) Set(item *Item) error {
 		Key:   r.getKey(item.Key),
 		Value: val,
 		TTL:   expiration,
+		SetNX: item.CacheActionOpts.DisableOverwrite,
 	})
 }
 
 func (r *redisCache) Get(key string, obj interface{}) error {
 	var data []byte
 	err := r.cache.Get(context.TODO(), r.getKey(key), &data)
-	if err == rediscache.ErrCacheMiss {
+	if errors.Is(err, rediscache.ErrCacheMiss) {
 		err = ErrCacheMiss
 	}
 	if err != nil {
@@ -172,7 +189,7 @@ func (rh *redisHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
 		startTime := time.Now()
 
 		err := next(ctx, cmd)
-		rh.registry.IncRedisRequest(err != nil && err != redis.Nil)
+		rh.registry.IncRedisRequest(err != nil && !errors.Is(err, redis.Nil))
 		rh.registry.ObserveRedisRequestDuration(time.Since(startTime))
 
 		return err
@@ -184,6 +201,11 @@ func (redisHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.Proce
 }
 
 // CollectMetrics add transport wrapper that pushes metrics into the specified metrics registry
-func CollectMetrics(client *redis.Client, registry MetricsRegistry) {
+// Lock should be shared between functions that can add/process a Redis hook.
+func CollectMetrics(client *redis.Client, registry MetricsRegistry, lock *sync.RWMutex) {
+	if lock != nil {
+		lock.Lock()
+		defer lock.Unlock()
+	}
 	client.AddHook(&redisHook{registry: registry})
 }

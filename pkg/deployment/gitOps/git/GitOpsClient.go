@@ -29,45 +29,44 @@ import (
 )
 
 type GitOpsClient interface {
-	CreateRepository(ctx context.Context, config *gitOps.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions)
-	CommitValues(ctx context.Context, config *ChartConfig, gitOpsConfig *gitOps.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error)
-	GetRepoUrl(config *gitOps.GitOpsConfigDto) (repoUrl string, err error)
+	CreateRepository(ctx context.Context, config *gitOps.GitOpsConfigDto) (url string, isNew bool, isEmpty bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions)
+	CommitValues(ctx context.Context, config *ChartConfig, gitOpsConfig *gitOps.GitOpsConfigDto, publishStatusConflictError bool) (commitHash string, commitTime time.Time, err error)
+	GetRepoUrl(config *gitOps.GitOpsConfigDto) (repoUrl string, isRepoEmpty bool, err error)
 	DeleteRepository(config *gitOps.GitOpsConfigDto) error
 	CreateReadme(ctx context.Context, config *gitOps.GitOpsConfigDto) (string, error)
+	// CreateFirstCommitOnHead creates a commit on the HEAD of the repository, used for initializing the repository.
+	// It is used when the repository is empty and needs an initial commit.
+	CreateFirstCommitOnHead(ctx context.Context, config *gitOps.GitOpsConfigDto) (string, error)
 }
 
-func GetGitConfig(gitOpsConfigReadService config.GitOpsConfigReadService) (*bean.GitConfig, error) {
-	gitOpsConfig, err := gitOpsConfigReadService.GetGitOpsConfigActive()
+func GetGitConfigAll(gitOpsConfigReadService config.GitOpsConfigReadService) ([]*bean.GitConfig, error) {
+	gitOpsConfigs, err := gitOpsConfigReadService.GetAllGitOpsConfig()
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	} else if err == pg.ErrNoRows {
-		// adding this block for backward compatibility,TODO: remove in next  iteration
-		// cfg := &GitConfig{}
-		// err := env.Parse(cfg)
-		// return cfg, err
-		return &bean.GitConfig{}, nil
+		return nil, nil
 	}
-
-	if gitOpsConfig == nil || gitOpsConfig.Id == 0 {
-		return nil, err
+	cfgs := make([]*bean.GitConfig, 0, len(gitOpsConfigs))
+	for _, gitOpsConfig := range gitOpsConfigs {
+		cfgs = append(cfgs, &bean.GitConfig{
+			GitlabGroupId:         gitOpsConfig.GitLabGroupId,
+			GitToken:              gitOpsConfig.Token,
+			GitUserName:           gitOpsConfig.Username,
+			GithubOrganization:    gitOpsConfig.GitHubOrgId,
+			GitProvider:           gitOpsConfig.Provider,
+			GitHost:               gitOpsConfig.Host,
+			AzureToken:            gitOpsConfig.Token,
+			AzureProject:          gitOpsConfig.AzureProjectName,
+			BitbucketWorkspaceId:  gitOpsConfig.BitBucketWorkspaceId,
+			BitbucketProjectKey:   gitOpsConfig.BitBucketProjectKey,
+			IsActiveConfig:        gitOpsConfig.Active,
+			CaCert:                gitOpsConfig.TLSConfig.CaData,
+			TLSCert:               gitOpsConfig.TLSConfig.TLSCertData,
+			TLSKey:                gitOpsConfig.TLSConfig.TLSKeyData,
+			EnableTLSVerification: gitOpsConfig.EnableTLSVerification,
+		})
 	}
-	cfg := &bean.GitConfig{
-		GitlabGroupId:         gitOpsConfig.GitLabGroupId,
-		GitToken:              gitOpsConfig.Token,
-		GitUserName:           gitOpsConfig.Username,
-		GithubOrganization:    gitOpsConfig.GitHubOrgId,
-		GitProvider:           gitOpsConfig.Provider,
-		GitHost:               gitOpsConfig.Host,
-		AzureToken:            gitOpsConfig.Token,
-		AzureProject:          gitOpsConfig.AzureProjectName,
-		BitbucketWorkspaceId:  gitOpsConfig.BitBucketWorkspaceId,
-		BitbucketProjectKey:   gitOpsConfig.BitBucketProjectKey,
-		EnableTLSVerification: gitOpsConfig.EnableTLSVerification,
-		TLSCert:               gitOpsConfig.TLSConfig.TLSCertData,
-		TLSKey:                gitOpsConfig.TLSConfig.TLSKeyData,
-		CaCert:                gitOpsConfig.TLSConfig.CaData,
-	}
-	return cfg, err
+	return cfgs, nil
 }
 
 func NewGitOpsClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitOpsHelper *GitOpsHelper) (GitOpsClient, error) {
@@ -75,27 +74,27 @@ func NewGitOpsClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitOpsHe
 	var tlsConfig *tls.Config
 	var err error
 	if config.EnableTLSVerification {
-		tlsConfig, err = util.GetTlsConfig(config.TLSKey, config.TLSCert, config.CaCert, GIT_TLS_DIR)
+		tlsConfig, err = util.GetTlsConfig(config.TLSKey, config.TLSCert, config.CaCert, bean.GIT_TLS_DIR)
 		if err != nil {
 			logger.Errorw("error in getting tls config", "err", err)
 			return nil, err
 		}
 	}
 
-	if config.GitProvider == GITLAB_PROVIDER {
+	if config.GitProvider == bean.GITLAB_PROVIDER {
 		gitLabClient, err := NewGitLabClient(config, logger, gitOpsHelper, tlsConfig)
 		return gitLabClient, err
-	} else if config.GitProvider == GITHUB_PROVIDER {
+	} else if config.GitProvider == bean.GITHUB_PROVIDER {
 		gitHubClient, err := NewGithubClient(config.GitHost, config.GitToken, config.GithubOrganization, logger, gitOpsHelper, tlsConfig)
 		return gitHubClient, err
-	} else if config.GitProvider == AZURE_DEVOPS_PROVIDER {
+	} else if config.GitProvider == bean.AZURE_DEVOPS_PROVIDER {
 		gitAzureClient, err := NewGitAzureClient(config.AzureToken, config.GitHost, config.AzureProject, logger, gitOpsHelper, tlsConfig)
 		return gitAzureClient, err
-	} else if config.GitProvider == BITBUCKET_PROVIDER {
+	} else if config.GitProvider == bean.BITBUCKET_PROVIDER {
 		gitBitbucketClient := NewGitBitbucketClient(config.GitUserName, config.GitToken, config.GitHost, logger, gitOpsHelper, tlsConfig)
 		return gitBitbucketClient, nil
 	} else {
-		logger.Errorw("no gitops config provided, gitops will not work ")
-		return nil, nil
+		logger.Warn("no gitops config provided, gitops will not work")
+		return &UnimplementedGitOpsClient{}, nil
 	}
 }

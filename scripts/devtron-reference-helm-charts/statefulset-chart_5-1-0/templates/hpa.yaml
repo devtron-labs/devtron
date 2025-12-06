@@ -38,6 +38,28 @@ spec:
   minReplicas: {{ $.Values.autoscaling.MinReplicas  }}
   maxReplicas: {{ $.Values.autoscaling.MaxReplicas }}
   metrics:
+  {{- if  $.Values.autoscaling.containerResource.enabled  }}
+  {{- with $.Values.autoscaling.containerResource }}
+  {{- if .TargetCPUUtilizationPercentage }}
+  - type: ContainerResource  
+    containerResource:
+      name: cpu
+      container: "{{ if $.Values.containerName }}{{ $.Values.containerName }}{{ else }}{{ $.Chart.Name }}{{ end }}"
+      target:
+        type: Utilization
+        averageUtilization: {{ .TargetCPUUtilizationPercentage }}
+  {{- end}}  
+  {{- if .TargetMemoryUtilizationPercentage  }}
+  - type: ContainerResource  
+    containerResource:
+      name: memory
+      container: "{{ if $.Values.containerName }}{{ $.Values.containerName }}{{ else }}{{ $.Chart.Name }}{{ end }}"
+      target:
+        type: Utilization
+        averageUtilization: {{ .TargetMemoryUtilizationPercentage }}
+  {{- end}}
+  {{- end }}            
+  {{- end }}  
   {{- if $.Values.autoscaling.TargetMemoryUtilizationPercentage }}
   - type: Resource
     resource:

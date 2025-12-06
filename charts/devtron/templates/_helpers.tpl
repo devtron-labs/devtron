@@ -10,7 +10,7 @@ it randomly.
 {{- define "getOrGeneratePass" }}
 {{- $len := (default 32 .Length) | int -}}
 {{- $obj := (lookup "v1" .Kind .Namespace .Name).data -}}
-{{- if $obj }}
+{{- if and ($obj) (index $obj .Key) }}
 {{- index $obj .Key -}}
 {{- else if (eq (lower .Kind) "secret") -}}
 {{- randAlphaNum $len | b64enc -}}
@@ -86,3 +86,33 @@ Return full image
     {{- end }}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Get the storage class name.
+If storageClass is defined in values.yaml under global.storageClass, use that.
+*/}}
+{{- define "common.storageclass" -}}
+{{- if $.Values.global.storageClass }}
+storageClassName: {{ $.Values.global.storageClass }}
+{{- end }}
+{{- end -}}
+
+{{- define "common.podSecurityContext" -}}
+  {{- if .podSecurityContext }}
+securityContext:
+{{ toYaml .podSecurityContext | indent 2 }}
+  {{- else if .global.podSecurityContext }}
+securityContext:
+{{ toYaml .global.podSecurityContext | indent 2 }}
+  {{- end }}
+{{- end }}
+
+{{- define "common.containerSecurityContext" -}}
+  {{- if .containerSecurityContext }}
+securityContext:
+{{ toYaml .containerSecurityContext | indent 2 }}
+  {{- else if .global.containerSecurityContext }}
+securityContext:
+{{ toYaml .global.containerSecurityContext | indent 2 }}
+  {{- end }}
+{{- end }}

@@ -22,16 +22,39 @@ import (
 	api "k8s.io/kubernetes/pkg/apis/core"
 )
 
-// JobTrackingFinalizer is a finalizer for Job's pods. It prevents them from
-// being deleted before being accounted in the Job status.
-//
-// Additionally, the apiserver and job controller use this string as a Job
-// annotation, to mark Jobs that are being tracked using pod finalizers.
-// However, this behavior is deprecated in kubernetes 1.26. This means that, in
-// 1.27+, one release after JobTrackingWithFinalizers graduates to GA, the
-// apiserver and job controller will ignore this annotation and they will
-// always track jobs using finalizers.
-const JobTrackingFinalizer = "batch.kubernetes.io/job-tracking"
+const (
+	// Unprefixed labels are reserved for end-users
+	// so we will add a batch.kubernetes.io to designate these labels as official Kubernetes labels.
+	// See https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#label-selector-and-annotation-conventions
+	labelPrefix = "batch.kubernetes.io/"
+	// JobTrackingFinalizer is a finalizer for Job's pods. It prevents them from
+	// being deleted before being accounted in the Job status.
+	//
+	// Additionally, the apiserver and job controller use this string as a Job
+	// annotation, to mark Jobs that are being tracked using pod finalizers.
+	// However, this behavior is deprecated in kubernetes 1.26. This means that, in
+	// 1.27+, one release after JobTrackingWithFinalizers graduates to GA, the
+	// apiserver and job controller will ignore this annotation and they will
+	// always track jobs using finalizers.
+	JobTrackingFinalizer = labelPrefix + "job-tracking"
+	// LegacyJobName and LegacyControllerUid are legacy labels that were set using unprefixed labels.
+	LegacyJobNameLabel       = "job-name"
+	LegacyControllerUidLabel = "controller-uid"
+	// JobName is a user friendly way to refer to jobs and is set in the labels for jobs.
+	JobNameLabel = labelPrefix + LegacyJobNameLabel
+	// Controller UID is used for selectors and labels for jobs
+	ControllerUidLabel = labelPrefix + LegacyControllerUidLabel
+	// Annotation indicating the number of failures for the index corresponding
+	// to the pod, which are counted towards the backoff limit.
+	JobIndexFailureCountAnnotation = labelPrefix + "job-index-failure-count"
+	// Annotation indicating the number of failures for the index corresponding
+	// to the pod, which don't count towards the backoff limit, according to the
+	// pod failure policy. When the annotation is absent zero is implied.
+	JobIndexIgnoredFailureCountAnnotation = labelPrefix + "job-index-ignored-failure-count"
+	// JobControllerName reserved value for the managedBy field for the built-in
+	// Job controller.
+	JobControllerName = "kubernetes.io/job-controller"
+)
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
@@ -66,22 +89,6 @@ type JobList struct {
 
 	// items is the list of Jobs.
 	Items []Job
-}
-
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// JobTemplate describes a template for creating copies of a predefined pod.
-type JobTemplate struct {
-	metav1.TypeMeta
-	// Standard object's metadata.
-	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
-	// +optional
-	metav1.ObjectMeta
-
-	// Defines jobs that will be created from this template.
-	// https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
-	// +optional
-	Template JobTemplateSpec
 }
 
 // JobTemplateSpec describes the data a Job should have when created from a template
@@ -122,6 +129,11 @@ const (
 	// pod's job as Failed and terminate all running pods.
 	PodFailurePolicyActionFailJob PodFailurePolicyAction = "FailJob"
 
+	// This is an action which might be taken on a pod failure - mark the
+	// Job's index as failed to avoid restarts within this index. This action
+	// can only be used when backoffLimitPerIndex is set.
+	PodFailurePolicyActionFailIndex PodFailurePolicyAction = "FailIndex"
+
 	// This is an action which might be taken on a pod failure - the counter towards
 	// .backoffLimit, represented by the job's .status.failed field, is not
 	// incremented and a replacement pod is created.
@@ -141,6 +153,19 @@ const (
 	PodFailurePolicyOnExitCodesOpNotIn PodFailurePolicyOnExitCodesOperator = "NotIn"
 )
 
+// PodReplacementPolicy specifies the policy for creating pod replacements.
+// +enum
+type PodReplacementPolicy string
+
+const (
+	// TerminatingOrFailed means that we recreate pods
+	// when they are terminating (has a metadata.deletionTimestamp) or failed.
+	TerminatingOrFailed PodReplacementPolicy = "TerminatingOrFailed"
+	//Failed means to wait until a previously created Pod is fully terminated (has phase
+	//Failed or Succeeded) before creating a replacement Pod.
+	Failed PodReplacementPolicy = "Failed"
+)
+
 // PodFailurePolicyOnExitCodesRequirement describes the requirement for handling
 // a failed pod based on its container exit codes. In particular, it lookups the
 // .state.terminated.exitCode for each app container and init container status,
@@ -158,6 +183,7 @@ type PodFailurePolicyOnExitCodesRequirement struct {
 	// Represents the relationship between the container exit code(s) and the
 	// specified values. Containers completed with success (exit code 0) are
 	// excluded from the requirement check. Possible values are:
+	//
 	// - In: the requirement is satisfied if at least one container exit code
 	//   (might be multiple if there are multiple containers not restricted
 	//   by the 'containerName' field) is in the set of specified values.
@@ -194,8 +220,11 @@ type PodFailurePolicyOnPodConditionsPattern struct {
 type PodFailurePolicyRule struct {
 	// Specifies the action taken on a pod failure when the requirements are satisfied.
 	// Possible values are:
+	//
 	// - FailJob: indicates that the pod's job is marked as Failed and all
 	//   running pods are terminated.
+	// - FailIndex: indicates that the pod's index is marked as Failed and will
+	//   not be restarted.
 	// - Ignore: indicates that the counter towards the .backoffLimit is not
 	//   incremented and a replacement pod is created.
 	// - Count: indicates that the pod is handled in the default way - the
@@ -227,6 +256,51 @@ type PodFailurePolicy struct {
 	Rules []PodFailurePolicyRule
 }
 
+// SuccessPolicy describes when a Job can be declared as succeeded based on the success of some indexes.
+type SuccessPolicy struct {
+	// rules represents the list of alternative rules for the declaring the Jobs
+	// as successful before `.status.succeeded >= .spec.completions`. Once any of the rules are met,
+	// the "SucceededCriteriaMet" condition is added, and the lingering pods are removed.
+	// The terminal state for such a Job has the "Complete" condition.
+	// Additionally, these rules are evaluated in order; Once the Job meets one of the rules,
+	// other rules are ignored. At most 20 elements are allowed.
+	// +listType=atomic
+	Rules []SuccessPolicyRule
+}
+
+// SuccessPolicyRule describes rule for declaring a Job as succeeded.
+// Each rule must have at least one of the "succeededIndexes" or "succeededCount" specified.
+type SuccessPolicyRule struct {
+	// succeededIndexes specifies the set of indexes
+	// which need to be contained in the actual set of the succeeded indexes for the Job.
+	// The list of indexes must be within 0 to ".spec.completions-1" and
+	// must not contain duplicates. At least one element is required.
+	// The indexes are represented as intervals separated by commas.
+	// The intervals can be a decimal integer or a pair of decimal integers separated by a hyphen.
+	// The number are listed in represented by the first and last element of the series,
+	// separated by a hyphen.
+	// For example, if the completed indexes are 1, 3, 4, 5 and 7, they are
+	// represented as "1,3-5,7".
+	// When this field is null, this field doesn't default to any value
+	// and is never evaluated at any time.
+	//
+	// +optional
+	SucceededIndexes *string
+
+	// succeededCount specifies the minimal required size of the actual set of the succeeded indexes
+	// for the Job. When succeededCount is used along with succeededIndexes, the check is
+	// constrained only to the set of indexes specified by succeededIndexes.
+	// For example, given that succeededIndexes is "1-4", succeededCount is "3",
+	// and completed indexes are "1", "3", and "5", the Job isn't declared as succeeded
+	// because only "1" and "3" indexes are considered in that rules.
+	// When this field is null, this doesn't default to any value and
+	// is never evaluated at any time.
+	// When specified it needs to be a positive integer.
+	//
+	// +optional
+	SucceededCount *int32
+}
+
 // JobSpec describes how the job execution will look like.
 type JobSpec struct {
 
@@ -238,7 +312,7 @@ type JobSpec struct {
 	Parallelism *int32
 
 	// Specifies the desired number of successfully finished pods the
-	// job should be run with.  Setting to nil means that the success of any
+	// job should be run with.  Setting to null means that the success of any
 	// pod signals the success of all pods, and allows parallelism to have any positive
 	// value.  Setting to 1 means that parallelism is limited to 1 and the success of that
 	// pod signals the success of the job.
@@ -253,10 +327,17 @@ type JobSpec struct {
 	// checked against the backoffLimit. This field cannot be used in combination
 	// with .spec.podTemplate.spec.restartPolicy=OnFailure.
 	//
-	// This field is alpha-level. To use this field, you must enable the
-	// `JobPodFailurePolicy` feature gate (disabled by default).
 	// +optional
 	PodFailurePolicy *PodFailurePolicy
+
+	// successPolicy specifies the policy when the Job can be declared as succeeded.
+	// If empty, the default behavior applies - the Job is declared as succeeded
+	// only when the number of succeeded pods equals to the completions.
+	// When the field is specified, it must be immutable and works only for the Indexed Jobs.
+	// Once the Job meets the SuccessPolicy, the lingering pods are terminated.
+	//
+	// +optional
+	SuccessPolicy *SuccessPolicy
 
 	// Specifies the duration in seconds relative to the startTime that the job
 	// may be continuously active before the system tries to terminate it; value
@@ -270,6 +351,26 @@ type JobSpec struct {
 	// Defaults to 6
 	// +optional
 	BackoffLimit *int32
+
+	// Specifies the limit for the number of retries within an
+	// index before marking this index as failed. When enabled the number of
+	// failures per index is kept in the pod's
+	// batch.kubernetes.io/job-index-failure-count annotation. It can only
+	// be set when Job's completionMode=Indexed, and the Pod's restart
+	// policy is Never. The field is immutable.
+	// +optional
+	BackoffLimitPerIndex *int32
+
+	// Specifies the maximal number of failed indexes before marking the Job as
+	// failed, when backoffLimitPerIndex is set. Once the number of failed
+	// indexes exceeds this number the entire Job is marked as Failed and its
+	// execution is terminated. When left as null the job continues execution of
+	// all of its indexes and is marked with the `Complete` Job condition.
+	// It can only be specified when backoffLimitPerIndex is set.
+	// It can be null or up to completions. It is required and must be
+	// less than or equal to 10^4 when is completions greater than 10^5.
+	// +optional
+	MaxFailedIndexes *int32
 
 	// TODO enabled it when https://github.com/kubernetes/kubernetes/issues/28486 has been fixed
 	// Optional number of failed pods to retain.
@@ -294,6 +395,7 @@ type JobSpec struct {
 	ManualSelector *bool
 
 	// Describes the pod that will be created when executing a job.
+	// The only allowed template.spec.restartPolicy values are "Never" or "OnFailure".
 	Template api.PodTemplateSpec
 
 	// ttlSecondsAfterFinished limits the lifetime of a Job that has finished
@@ -306,7 +408,7 @@ type JobSpec struct {
 	// +optional
 	TTLSecondsAfterFinished *int32
 
-	// CompletionMode specifies how Pod completions are tracked. It can be
+	// completionMode specifies how Pod completions are tracked. It can be
 	// `NonIndexed` (default) or `Indexed`.
 	//
 	// `NonIndexed` means that the Job is considered complete when there have
@@ -331,7 +433,7 @@ type JobSpec struct {
 	// +optional
 	CompletionMode *CompletionMode
 
-	// Suspend specifies whether the Job controller should create Pods or not. If
+	// suspend specifies whether the Job controller should create Pods or not. If
 	// a Job is created with suspend set to true, no Pods are created by the Job
 	// controller. If a Job is suspended after creation (i.e. the flag goes from
 	// false to true), the Job controller will delete all active Pods associated
@@ -341,6 +443,35 @@ type JobSpec struct {
 	//
 	// +optional
 	Suspend *bool
+
+	// podReplacementPolicy specifies when to create replacement Pods.
+	// Possible values are:
+	// - TerminatingOrFailed means that we recreate pods
+	//   when they are terminating (has a metadata.deletionTimestamp) or failed.
+	// - Failed means to wait until a previously created Pod is fully terminated (has phase
+	//   Failed or Succeeded) before creating a replacement Pod.
+	//
+	// When using podFailurePolicy, Failed is the the only allowed value.
+	// TerminatingOrFailed and Failed are allowed values when podFailurePolicy is not in use.
+	// This is an beta field. To use this, enable the JobPodReplacementPolicy feature toggle.
+	// This is on by default.
+	// +optional
+	PodReplacementPolicy *PodReplacementPolicy
+
+	// ManagedBy field indicates the controller that manages a Job. The k8s Job
+	// controller reconciles jobs which don't have this field at all or the field
+	// value is the reserved string `kubernetes.io/job-controller`, but skips
+	// reconciling Jobs with a custom value for this field.
+	// The value must be a valid domain-prefixed path (e.g. acme.io/foo) -
+	// all characters before the first "/" must be a valid subdomain as defined
+	// by RFC 1123. All characters trailing the first "/" must be valid HTTP Path
+	// characters as defined by RFC 3986. The value cannot exceed 63 characters.
+	// This field is immutable.
+	//
+	// This field is beta-level. The job controller accepts setting the field
+	// when the feature gate JobManagedBy is enabled (enabled by default).
+	// +optional
+	ManagedBy *string
 }
 
 // JobStatus represents the current state of a Job.
@@ -352,6 +483,12 @@ type JobStatus struct {
 	// status true; when the Job is resumed, the status of this condition will
 	// become false. When a Job is completed, one of the conditions will have
 	// type "Complete" and status true.
+	//
+	// A job is considered finished when it is in a terminal condition, either
+	// "Complete" or "Failed". A Job cannot have both the "Complete" and "Failed" conditions.
+	// Additionally, it cannot be in the "Complete" and "FailureTarget" conditions.
+	// The "Complete", "Failed" and "FailureTarget" conditions cannot be disabled.
+	//
 	// +optional
 	Conditions []JobCondition
 
@@ -359,36 +496,53 @@ type JobStatus struct {
 	// Job is created in the suspended state, this field is not set until the
 	// first time it is resumed. This field is reset every time a Job is resumed
 	// from suspension. It is represented in RFC3339 form and is in UTC.
+	//
+	// Once set, the field can only be removed when the job is suspended.
+	// The field cannot be modified while the job is unsuspended or finished.
+	//
 	// +optional
 	StartTime *metav1.Time
 
 	// Represents time when the job was completed. It is not guaranteed to
 	// be set in happens-before order across separate operations.
 	// It is represented in RFC3339 form and is in UTC.
-	// The completion time is only set when the job finishes successfully.
+	// The completion time is set when the job finishes successfully, and only then.
+	// The value cannot be updated or removed. The value indicates the same or
+	// later point in time as the startTime field.
 	// +optional
 	CompletionTime *metav1.Time
 
-	// The number of pending and running pods.
+	// The number of pending and running pods which are not terminating (without
+	// a deletionTimestamp).
+	// The value is zero for finished jobs.
 	// +optional
 	Active int32
 
-	// The number of active pods which have a Ready condition.
+	// The number of pods which are terminating (in phase Pending or Running
+	// and have a deletionTimestamp).
 	//
 	// This field is beta-level. The job controller populates the field when
-	// the feature gate JobReadyPods is enabled (enabled by default).
+	// the feature gate JobPodReplacementPolicy is enabled (enabled by default).
+	// +optional
+	Terminating *int32
+
+	// The number of active pods which have a Ready condition and are not
+	// terminating (without a deletionTimestamp).
 	// +optional
 	Ready *int32
 
 	// The number of pods which reached phase Succeeded.
+	// The value increases monotonically for a given spec. However, it may
+	// decrease in reaction to scale down of elastic indexed jobs.
 	// +optional
 	Succeeded int32
 
 	// The number of pods which reached phase Failed.
+	// The value increases monotonically.
 	// +optional
 	Failed int32
 
-	// CompletedIndexes holds the completed indexes when .spec.completionMode =
+	// completedIndexes holds the completed indexes when .spec.completionMode =
 	// "Indexed" in a text format. The indexes are represented as decimal integers
 	// separated by commas. The numbers are listed in increasing order. Three or
 	// more consecutive numbers are compressed and represented by the first and
@@ -398,19 +552,34 @@ type JobStatus struct {
 	// +optional
 	CompletedIndexes string
 
-	// UncountedTerminatedPods holds the UIDs of Pods that have terminated but
+	// FailedIndexes holds the failed indexes when spec.backoffLimitPerIndex is set.
+	// The indexes are represented in the text format analogous as for the
+	// `completedIndexes` field, ie. they are kept as decimal integers
+	// separated by commas. The numbers are listed in increasing order. Three or
+	// more consecutive numbers are compressed and represented by the first and
+	// last element of the series, separated by a hyphen.
+	// For example, if the failed indexes are 1, 3, 4, 5 and 7, they are
+	// represented as "1,3-5,7".
+	// The set of failed indexes cannot overlap with the set of completed indexes.
+	//
+	// +optional
+	FailedIndexes *string
+
+	// uncountedTerminatedPods holds the UIDs of Pods that have terminated but
 	// the job controller hasn't yet accounted for in the status counters.
 	//
 	// The job controller creates pods with a finalizer. When a pod terminates
 	// (succeeded or failed), the controller does three steps to account for it
 	// in the job status:
-	// (1) Add the pod UID to the corresponding array in this field.
-	// (2) Remove the pod finalizer.
-	// (3) Remove the pod UID from the array while increasing the corresponding
+	//
+	// 1. Add the pod UID to the corresponding array in this field.
+	// 2. Remove the pod finalizer.
+	// 3. Remove the pod UID from the array while increasing the corresponding
 	//     counter.
 	//
 	// Old jobs might not be tracked using this field, in which case the field
 	// remains null.
+	// The structure is empty for finished jobs.
 	// +optional
 	UncountedTerminatedPods *UncountedTerminatedPods
 }
@@ -418,12 +587,12 @@ type JobStatus struct {
 // UncountedTerminatedPods holds UIDs of Pods that have terminated but haven't
 // been accounted in Job status counters.
 type UncountedTerminatedPods struct {
-	// Succeeded holds UIDs of succeeded Pods.
+	// succeeded holds UIDs of succeeded Pods.
 	// +listType=set
 	// +optional
 	Succeeded []types.UID
 
-	// Failed holds UIDs of failed Pods.
+	// failed holds UIDs of failed Pods.
 	// +listType=set
 	// +optional
 	Failed []types.UID
@@ -442,6 +611,8 @@ const (
 	JobFailed JobConditionType = "Failed"
 	// FailureTarget means the job is about to fail its execution.
 	JobFailureTarget JobConditionType = "FailureTarget"
+	// JobSuccessCriteriaMet means the Job has reached a success state and will be marked as Completed
+	JobSuccessCriteriaMet JobConditionType = "SuccessCriteriaMet"
 )
 
 // JobCondition describes current state of a job.
@@ -514,7 +685,6 @@ type CronJobSpec struct {
 	// configuration, the controller will stop creating new new Jobs and will create a system event with the
 	// reason UnknownTimeZone.
 	// More information can be found in https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/#time-zones
-	// This is beta field and must be enabled via the `CronJobTimeZone` feature gate.
 	// +optional
 	TimeZone *string
 
@@ -525,6 +695,7 @@ type CronJobSpec struct {
 
 	// Specifies how to treat concurrent executions of a Job.
 	// Valid values are:
+	//
 	// - "Allow" (default): allows CronJobs to run concurrently;
 	// - "Forbid": forbids concurrent runs, skipping next run if previous run hasn't finished yet;
 	// - "Replace": cancels currently running job and replaces it with a new one

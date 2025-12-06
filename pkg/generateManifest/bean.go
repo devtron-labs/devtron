@@ -45,6 +45,7 @@ type DeploymentTemplateRequest struct {
 	EnvName                     string                            `json:"-"`
 	Namespace                   string                            `json:"-"`
 	PipelineName                string                            `json:"-"`
+	DeploymentAppName           string                            `json:"-"`
 	ChartRefId                  int                               `json:"chartRefId"`
 	RequestDataMode             RequestDataMode                   `json:"valuesAndManifestFlag"`
 	Values                      string                            `json:"values"`
@@ -69,9 +70,11 @@ var ReleaseIdentifier = &gRPC.ReleaseIdentifier{
 }
 
 type DeploymentTemplateResponse struct {
-	Data             string            `json:"data"`
-	ResolvedData     string            `json:"resolvedData"`
-	VariableSnapshot map[string]string `json:"variableSnapshot"`
+	Data                string            `json:"data"`
+	ResolvedData        string            `json:"resolvedData"`
+	VariableSnapshot    map[string]string `json:"variableSnapshot"`
+	TemplateVersion     string            `json:"-"`
+	IsAppMetricsEnabled bool              `json:"-"`
 }
 
 type RestartPodResponse struct {
@@ -89,6 +92,6 @@ type ResourceMetadata struct {
 	GroupVersionKind schema.GroupVersionKind `json:"groupVersionKind"`
 }
 type RestartWorkloadConfig struct {
-	WorkerPoolSize   int `env:"FEATURE_RESTART_WORKLOAD_WORKER_POOL_SIZE" envDefault:"5"`
-	RequestBatchSize int `env:"FEATURE_RESTART_WORKLOAD_BATCH_SIZE" envDefault:"1"`
+	WorkerPoolSize   int `env:"FEATURE_RESTART_WORKLOAD_WORKER_POOL_SIZE" envDefault:"5" description:"restart workload retrieval pool size"`
+	RequestBatchSize int `env:"FEATURE_RESTART_WORKLOAD_BATCH_SIZE" envDefault:"1" description:"restart workload retrieval batch size "`
 }

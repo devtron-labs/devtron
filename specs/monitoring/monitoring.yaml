@@ -1,0 +1,591 @@
+openapi: 3.0.3
+info:
+  version: 1.0.0
+  title: Devtron Orchestrator Monitoring API
+  description: |
+    API specifications for Devtron orchestrator monitoring endpoints including
+    application metrics, logs, and health status monitoring.
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Support
+    email: support@devtron.ai
+    url: https://devtron.ai/support
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
+
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+        status:
+          type: string
+          description: Status message
+        result:
+          type: object
+          description: Response result data
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Error code
+        status:
+          type: string
+          description: Error status
+        errors:
+          type: array
+          items:
+            type: string
+          description: List of error messages
+
+    ApplicationMetrics:
+      type: object
+      properties:
+        appId:
+          type: integer
+          format: int64
+          description: Application ID
+        appName:
+          type: string
+          description: Application name
+        environmentId:
+          type: integer
+          format: int64
+          description: Environment ID
+        environmentName:
+          type: string
+          description: Environment name
+        cpu:
+          $ref: '#/components/schemas/ResourceMetric'
+        memory:
+          $ref: '#/components/schemas/ResourceMetric'
+        network:
+          $ref: '#/components/schemas/NetworkMetric'
+        storage:
+          $ref: '#/components/schemas/StorageMetric'
+        replicas:
+          $ref: '#/components/schemas/ReplicaMetric'
+        timestamp:
+          type: string
+          format: date-time
+          description: Metrics timestamp
+
+    ResourceMetric:
+      type: object
+      properties:
+        usage:
+          type: number
+          format: float
+          description: Current usage
+        limit:
+          type: number
+          format: float
+          description: Resource limit
+        request:
+          type: number
+          format: float
+          description: Resource request
+        unit:
+          type: string
+          description: Unit of measurement
+        utilizationPercentage:
+          type: number
+          format: float
+          description: Utilization percentage
+
+    NetworkMetric:
+      type: object
+      properties:
+        inbound:
+          type: number
+          format: float
+          description: Inbound network traffic
+        outbound:
+          type: number
+          format: float
+          description: Outbound network traffic
+        unit:
+          type: string
+          description: Unit of measurement (bytes/sec)
+
+    StorageMetric:
+      type: object
+      properties:
+        used:
+          type: number
+          format: float
+          description: Used storage
+        available:
+          type: number
+          format: float
+          description: Available storage
+        total:
+          type: number
+          format: float
+          description: Total storage
+        unit:
+          type: string
+          description: Unit of measurement
+
+    ReplicaMetric:
+      type: object
+      properties:
+        desired:
+          type: integer
+          description: Desired replica count
+        current:
+          type: integer
+          description: Current replica count
+        ready:
+          type: integer
+          description: Ready replica count
+        available:
+          type: integer
+          description: Available replica count
+
+    ApplicationLogs:
+      type: object
+      properties:
+        appId:
+          type: integer
+          format: int64
+          description: Application ID
+        environmentId:
+          type: integer
+          format: int64
+          description: Environment ID
+        podName:
+          type: string
+          description: Pod name
+        containerName:
+          type: string
+          description: Container name
+        logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/LogEntry'
+          description: Log entries
+        hasMore:
+          type: boolean
+          description: Whether more logs are available
+        nextToken:
+          type: string
+          description: Token for pagination
+
+    LogEntry:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Log timestamp
+        level:
+          type: string
+          enum: [DEBUG, INFO, WARN, ERROR, FATAL]
+          description: Log level
+        message:
+          type: string
+          description: Log message
+        source:
+          type: string
+          description: Log source
+        metadata:
+          type: object
+          description: Additional log metadata
+
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [Healthy, Degraded, Failed, Unknown]
+          description: Overall health status
+        components:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComponentHealth'
+          description: Component health statuses
+        timestamp:
+          type: string
+          format: date-time
+          description: Health check timestamp
+        uptime:
+          type: integer
+          format: int64
+          description: System uptime in seconds
+
+    ComponentHealth:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Component name
+        status:
+          type: string
+          enum: [Healthy, Degraded, Failed, Unknown]
+          description: Component health status
+        message:
+          type: string
+          description: Health status message
+        lastChecked:
+          type: string
+          format: date-time
+          description: Last health check timestamp
+        details:
+          type: object
+          description: Additional health details
+
+    MetricsRequest:
+      type: object
+      properties:
+        appId:
+          type: integer
+          format: int64
+          description: Application ID
+        environmentId:
+          type: integer
+          format: int64
+          description: Environment ID
+        startTime:
+          type: string
+          format: date-time
+          description: Start time for metrics query
+        endTime:
+          type: string
+          format: date-time
+          description: End time for metrics query
+        step:
+          type: string
+          description: Query step interval (e.g., "5m", "1h")
+        metricTypes:
+          type: array
+          items:
+            type: string
+            enum: [cpu, memory, network, storage, replicas]
+          description: Types of metrics to retrieve
+
+    LogsRequest:
+      type: object
+      properties:
+        appId:
+          type: integer
+          format: int64
+          description: Application ID
+        environmentId:
+          type: integer
+          format: int64
+          description: Environment ID
+        podName:
+          type: string
+          description: Pod name (optional)
+        containerName:
+          type: string
+          description: Container name (optional)
+        startTime:
+          type: string
+          format: date-time
+          description: Start time for log query
+        endTime:
+          type: string
+          format: date-time
+          description: End time for log query
+        logLevel:
+          type: string
+          enum: [DEBUG, INFO, WARN, ERROR, FATAL]
+          description: Minimum log level to retrieve
+        searchQuery:
+          type: string
+          description: Search query for log filtering
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          description: Maximum number of log entries to return
+        nextToken:
+          type: string
+          description: Token for pagination
+
+tags:
+  - name: Application Metrics
+    description: Operations for retrieving application metrics
+  - name: Application Logs
+    description: Operations for retrieving application logs
+  - name: Health Status
+    description: Operations for checking system health status
+
+paths:
+  /metrics/application:
+    post:
+      tags:
+        - Application Metrics
+      summary: Get application metrics
+      description: Retrieves metrics for applications including CPU, memory, network, and storage usage
+      operationId: getApplicationMetrics
+      requestBody:
+        description: Metrics query request
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MetricsRequest'
+      responses:
+        '200':
+          description: Application metrics retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ApplicationMetrics'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Application or environment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /logs/application:
+    post:
+      tags:
+        - Application Logs
+      summary: Get application logs
+      description: Retrieves logs for applications with filtering and search capabilities
+      operationId: getApplicationLogs
+      requestBody:
+        description: Logs query request
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogsRequest'
+      responses:
+        '200':
+          description: Application logs retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/ApplicationLogs'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Application or environment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /health/status:
+    get:
+      tags:
+        - Health Status
+      summary: Get system health status
+      description: Retrieves overall system health status and component health details
+      operationId: getSystemHealthStatus
+      parameters:
+        - name: includeComponents
+          in: query
+          description: Whether to include detailed component health information
+          required: false
+          schema:
+            type: boolean
+            default: true
+        - name: componentFilter
+          in: query
+          description: Filter components by name pattern
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: System health status retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/HealthStatus'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /deployment-metrics:
+    get:
+      tags:
+        - Application Metrics
+      summary: Get deployment metrics
+      description: Retrieves deployment-specific metrics and statistics
+      operationId: getDeploymentMetrics
+      parameters:
+        - name: appId
+          in: query
+          description: Application ID
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: environmentId
+          in: query
+          description: Environment ID
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: timeRange
+          in: query
+          description: Time range for metrics (e.g., "1h", "24h", "7d")
+          required: false
+          schema:
+            type: string
+            default: "1h"
+      responses:
+        '200':
+          description: Deployment metrics retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        type: object
+                        properties:
+                          deploymentCount:
+                            type: integer
+                            description: Total number of deployments
+                          successRate:
+                            type: number
+                            format: float
+                            description: Deployment success rate percentage
+                          averageDeploymentTime:
+                            type: number
+                            format: float
+                            description: Average deployment time in minutes
+                          failureRate:
+                            type: number
+                            format: float
+                            description: Deployment failure rate percentage
+                          recentDeployments:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                deploymentId:
+                                  type: integer
+                                  format: int64
+                                appName:
+                                  type: string
+                                environmentName:
+                                  type: string
+                                status:
+                                  type: string
+                                  enum: [Success, Failed, InProgress]
+                                startTime:
+                                  type: string
+                                  format: date-time
+                                endTime:
+                                  type: string
+                                  format: date-time
+                                duration:
+                                  type: number
+                                  format: float
+                                  description: Deployment duration in minutes
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []

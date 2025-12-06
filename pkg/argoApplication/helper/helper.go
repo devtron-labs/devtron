@@ -2,7 +2,7 @@ package helper
 
 import (
 	"fmt"
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -32,16 +32,71 @@ func DecodeExternalArgoAppId(appId string) (*bean.ArgoAppIdentifier, error) {
 func ConvertClusterBeanToGrpcConfig(cluster repository.Cluster) *gRPC.ClusterConfig {
 	config := &gRPC.ClusterConfig{
 		ApiServerUrl:          cluster.ServerUrl,
-		Token:                 cluster.Config[k8s.BearerToken],
+		Token:                 cluster.Config[commonBean.BearerToken],
 		ClusterId:             int32(cluster.Id),
 		ClusterName:           cluster.ClusterName,
 		InsecureSkipTLSVerify: cluster.InsecureSkipTlsVerify,
 	}
 	if cluster.InsecureSkipTlsVerify == false {
-		config.KeyData = cluster.Config[k8s.TlsKey]
-		config.CertData = cluster.Config[k8s.CertData]
-		config.CaData = cluster.Config[k8s.CertificateAuthorityData]
+		config.KeyData = cluster.Config[commonBean.TlsKey]
+		config.CertData = cluster.Config[commonBean.CertData]
+		config.CaData = cluster.Config[commonBean.CertificateAuthorityData]
 	}
 	return config
 
+}
+
+func GetHealthSyncStatusDestinationServerAndManagedResourcesForArgoK8sRawObject(obj map[string]interface{}) (string,
+	string, string, []*bean.ArgoManagedResource) {
+	var healthStatus, syncStatus, destinationServer string
+	argoManagedResources := make([]*bean.ArgoManagedResource, 0)
+	if specObjRaw, ok := obj[commonBean.Spec]; ok {
+		specObj := specObjRaw.(map[string]interface{})
+		if destinationObjRaw, ok2 := specObj[bean.Destination]; ok2 {
+			destinationObj := destinationObjRaw.(map[string]interface{})
+			if destinationServerIf, ok3 := destinationObj[bean.Server]; ok3 {
+				destinationServer = destinationServerIf.(string)
+			}
+		}
+	}
+	if statusObjRaw, ok := obj[commonBean.K8sClusterResourceStatusKey]; ok {
+		statusObj := statusObjRaw.(map[string]interface{})
+		if healthObjRaw, ok2 := statusObj[commonBean.K8sClusterResourceHealthKey]; ok2 {
+			healthObj := healthObjRaw.(map[string]interface{})
+			if healthStatusIf, ok3 := healthObj[commonBean.K8sClusterResourceStatusKey]; ok3 {
+				healthStatus = healthStatusIf.(string)
+			}
+		}
+		if syncObjRaw, ok2 := statusObj[commonBean.K8sClusterResourceSyncKey]; ok2 {
+			syncObj := syncObjRaw.(map[string]interface{})
+			if syncStatusIf, ok3 := syncObj[commonBean.K8sClusterResourceStatusKey]; ok3 {
+				syncStatus = syncStatusIf.(string)
+			}
+		}
+		if resourceObjsRaw, ok2 := statusObj[commonBean.K8sClusterResourceResourcesKey]; ok2 {
+			resourceObjs := resourceObjsRaw.([]interface{})
+			argoManagedResources = make([]*bean.ArgoManagedResource, 0, len(resourceObjs))
+			for _, resourceObjRaw := range resourceObjs {
+				argoManagedResource := &bean.ArgoManagedResource{}
+				resourceObj := resourceObjRaw.(map[string]interface{})
+				if groupRaw, ok := resourceObj[commonBean.K8sClusterResourceGroupKey]; ok {
+					argoManagedResource.Group = groupRaw.(string)
+				}
+				if kindRaw, ok := resourceObj[commonBean.K8sClusterResourceKindKey]; ok {
+					argoManagedResource.Kind = kindRaw.(string)
+				}
+				if versionRaw, ok := resourceObj[commonBean.K8sClusterResourceVersionKey]; ok {
+					argoManagedResource.Version = versionRaw.(string)
+				}
+				if nameRaw, ok := resourceObj[commonBean.K8sClusterResourceMetadataNameKey]; ok {
+					argoManagedResource.Name = nameRaw.(string)
+				}
+				if namespaceRaw, ok := resourceObj[commonBean.K8sClusterResourceNamespaceKey]; ok {
+					argoManagedResource.Namespace = namespaceRaw.(string)
+				}
+				argoManagedResources = append(argoManagedResources, argoManagedResource)
+			}
+		}
+	}
+	return healthStatus, syncStatus, destinationServer, argoManagedResources
 }

@@ -54,7 +54,14 @@ func (handler *HistoryRestHandlerImpl) GetDeploymentHistory(w http.ResponseWrite
 	queryParams := apiBean.GetHistoryQueryParams{}
 	err := decoder.Decode(&queryParams, v)
 	if err != nil {
+		handler.logger.Errorw("error in decoding query parameters", "queryParams", v, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// Validating that filterCriteria is provided
+	if len(queryParams.FilterCriteria) == 0 {
+		handler.logger.Errorw("missing required filterCriteria parameter")
+		common.HandleParameterError(w, r, "filterCriteria", "")
 		return
 	}
 	decodedReqBean, err := handler.apiReqDecoderService.GetFilterCriteriaParamsForDeploymentHistory(queryParams.FilterCriteria)

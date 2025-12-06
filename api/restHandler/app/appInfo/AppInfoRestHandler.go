@@ -19,6 +19,7 @@ package appInfo
 import (
 	"encoding/json"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/util/commonEnforcementFunctionsUtil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -48,31 +49,34 @@ type AppInfoRestHandler interface {
 }
 
 type AppInfoRestHandlerImpl struct {
-	logger             *zap.SugaredLogger
-	appService         app.AppCrudOperationService
-	userAuthService    user.UserService
-	validator          *validator.Validate
-	enforcerUtil       rbac.EnforcerUtil
-	enforcer           casbin.Enforcer
-	helmAppService     client.HelmAppService
-	enforcerUtilHelm   rbac.EnforcerUtilHelm
-	genericNoteService genericNotes.GenericNoteService
+	logger              *zap.SugaredLogger
+	appService          app.AppCrudOperationService
+	userAuthService     user.UserService
+	validator           *validator.Validate
+	enforcerUtil        rbac.EnforcerUtil
+	enforcer            casbin.Enforcer
+	helmAppService      client.HelmAppService
+	enforcerUtilHelm    rbac.EnforcerUtilHelm
+	genericNoteService  genericNotes.GenericNoteService
+	rbacEnforcementUtil commonEnforcementFunctionsUtil.CommonEnforcementUtil
 }
 
 func NewAppInfoRestHandlerImpl(logger *zap.SugaredLogger, appService app.AppCrudOperationService,
 	userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
 	enforcer casbin.Enforcer, helmAppService client.HelmAppService, enforcerUtilHelm rbac.EnforcerUtilHelm,
-	genericNoteService genericNotes.GenericNoteService) *AppInfoRestHandlerImpl {
+	genericNoteService genericNotes.GenericNoteService,
+	rbacEnforcementUtil commonEnforcementFunctionsUtil.CommonEnforcementUtil) *AppInfoRestHandlerImpl {
 	handler := &AppInfoRestHandlerImpl{
-		logger:             logger,
-		appService:         appService,
-		userAuthService:    userAuthService,
-		validator:          validator,
-		enforcerUtil:       enforcerUtil,
-		enforcer:           enforcer,
-		helmAppService:     helmAppService,
-		enforcerUtilHelm:   enforcerUtilHelm,
-		genericNoteService: genericNoteService,
+		logger:              logger,
+		appService:          appService,
+		userAuthService:     userAuthService,
+		validator:           validator,
+		enforcerUtil:        enforcerUtil,
+		enforcer:            enforcer,
+		helmAppService:      helmAppService,
+		enforcerUtilHelm:    enforcerUtilHelm,
+		genericNoteService:  genericNoteService,
+		rbacEnforcementUtil: rbacEnforcementUtil,
 	}
 	return handler
 }
@@ -80,12 +84,26 @@ func NewAppInfoRestHandlerImpl(logger *zap.SugaredLogger, appService app.AppCrud
 func (handler AppInfoRestHandlerImpl) GetAllLabels(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
+	propagatedLabelsOnlyStr := r.URL.Query().Get("showPropagatedOnly")
+
+	var propagatedLabelsOnlyBool *bool
+	if propagatedLabelsOnlyStr != "" {
+		if val, err := strconv.ParseBool(propagatedLabelsOnlyStr); err == nil {
+			propagatedLabelsOnlyBool = &val
+		} else {
+			// Invalid boolean value provided, treat as null (nil)
+			propagatedLabelsOnlyBool = nil
+			handler.logger.Infow("Invalid 'showPropagatedOnly' value from quey params — defaulting to nil", propagatedLabelsOnlyStr)
+		}
+	}
+
 	token := r.Header.Get("token")
 	results := make([]*bean.AppLabelDto, 0)
-	labels, err := handler.appService.FindAll()
+
+	labels, err := handler.appService.FindAll(propagatedLabelsOnlyBool)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAllLabels", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -104,14 +122,13 @@ func (handler AppInfoRestHandlerImpl) GetAllLabels(w http.ResponseWriter, r *htt
 func (handler AppInfoRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
-	vars := mux.Vars(r)
-	appId, err := strconv.Atoi(vars["appId"])
+	// Use enhanced parameter parsing with context
+	appId, err := common.ExtractIntPathParamWithContext(w, r, "appId")
 	if err != nil {
-		handler.logger.Errorw("request err, GetAppMetaInfo", "err", err, "appId", appId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		// Error already written by ExtractIntPathParamWithContext
 		return
 	}
 
@@ -137,7 +154,7 @@ func (handler AppInfoRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r *h
 func (handler AppInfoRestHandlerImpl) GetHelmAppMetaInfo(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -147,7 +164,7 @@ func (handler AppInfoRestHandlerImpl) GetHelmAppMetaInfo(w http.ResponseWriter, 
 	appIdReq := vars["appId"]
 	appIdSplit := strings.Split(appIdReq, "|")
 
-	handler.logger.Infow("request payload, GetHelmAppMetaInfo", appIdReq)
+	handler.logger.Infow("request payload, GetHelmAppMetaInfo", "appIdReq", appIdReq)
 	if len(appIdSplit) > 1 {
 
 		appIdDecoded, err := handler.helmAppService.DecodeAppId(appIdReq)
@@ -190,7 +207,7 @@ func (handler AppInfoRestHandlerImpl) GetHelmAppMetaInfo(w http.ResponseWriter, 
 func (handler AppInfoRestHandlerImpl) UpdateApp(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -244,7 +261,7 @@ func (handler AppInfoRestHandlerImpl) UpdateApp(w http.ResponseWriter, r *http.R
 func (handler AppInfoRestHandlerImpl) UpdateProjectForApps(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -288,7 +305,7 @@ func (handler AppInfoRestHandlerImpl) UpdateProjectForApps(w http.ResponseWriter
 func (handler AppInfoRestHandlerImpl) GetAppListByTeamIds(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	//vars := mux.Vars(r)
@@ -299,7 +316,6 @@ func (handler AppInfoRestHandlerImpl) GetAppListByTeamIds(w http.ResponseWriter,
 		return
 	}
 	token := r.Header.Get("token")
-	isActionUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 
 	appType := v.Get("appType")
 	handler.logger.Infow("request payload, GetAppListByTeamIds", "payload", params)
@@ -321,23 +337,7 @@ func (handler AppInfoRestHandlerImpl) GetAppListByTeamIds(w http.ResponseWriter,
 	}
 
 	// RBAC
-	for _, project := range projectWiseApps {
-		var accessedApps []*app.AppBean
-		for _, app := range project.AppList {
-			if isActionUserSuperAdmin {
-				accessedApps = append(accessedApps, app)
-				continue
-			}
-			object := handler.enforcerUtil.GetAppRBACNameByAppAndProjectName(project.ProjectName, app.Name)
-			if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); ok {
-				accessedApps = append(accessedApps, app)
-			}
-		}
-		if len(accessedApps) == 0 {
-			accessedApps = make([]*app.AppBean, 0)
-		}
-		project.AppList = accessedApps
-	}
+	projectWiseApps = handler.rbacEnforcementUtil.CheckAuthorisationOnApp(token, projectWiseApps)
 	// RBAC
 	common.WriteJsonResp(w, err, projectWiseApps, http.StatusOK)
 }
@@ -348,7 +348,7 @@ func (handler AppInfoRestHandlerImpl) UpdateAppNote(w http.ResponseWriter, r *ht
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		handler.logger.Errorw("service err, Update", "error", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var bean repository.GenericNote

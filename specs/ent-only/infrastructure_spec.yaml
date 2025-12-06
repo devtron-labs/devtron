@@ -1,0 +1,203 @@
+openapi: 3.0.0
+info:
+  title: Cluster Metadata API
+  description: API to fetch metadata for cluster charts
+  version: 1.0.0
+paths:
+  /orchestrator/infrastructure/chart/metadata:
+    get:
+      summary: Retrieve infra chart metadata
+      description: Fetch metadata about the charts needed for cluster installation
+      responses:
+        '200':
+          description: A list of cluster chart metadata
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    installationType:
+                      type: string
+                      description: Type of installation (e.g., "eksAutoCluster", "eksManualCluster")
+                      example: "eksAutoCluster"
+                    chartName:
+                      type: string
+                      description: Name of the chart (e.g., "terraform-eks-auto-cluster")
+                      example: "terraform-eks-auto-cluster"
+                    valuesSchema:
+                      type: string
+                      description: A schema or description for the chart's values (may be an empty string)
+                      example: ""
+                example:
+                  - installationType: "eksAutoCluster"
+                    chartName: "terraform-eks-auto-cluster"
+                    valuesSchema: ""
+                  - installationType: "eksManualCluster"
+                    chartName: "terraform-eks-cluster"
+                    valuesSchema: ""
+        '400':
+          description: Bad Request. Invalid or missing parameters.
+        '500':
+          description: Internal Server Error.
+  /orchestrator/infrastructure/installations/v1:
+    post:
+      summary: Create or Update cluster infrastructure
+      description: Submit metadata and YAML values to configure a cluster infrastructure.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProvisionRequest'
+      responses:
+        '200':
+          description: Cluster infrastructure successfully created or updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Cluster infrastructure created successfully."
+        '412':
+          description: "Chart not saved in chart repository"
+        '400':
+          description: Bad Request. Invalid or missing parameters in the request body.
+        '500':
+          description: Internal Server Error. The request could not be processed due to a server error.
+    get:
+      parameters:
+        - in: query
+          name: installation-id
+          schema:
+            type: integer
+          description: For getting detail of one particular installation
+      summary: List all infrastructure installations
+      responses:
+        '200':
+          description: A list of installations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Installation'
+              example:
+                - installationId: "abc123"
+                  status: "failed"
+                  name: "cluster-prod"
+                  isProd: true
+                - installationId: "xyz789"
+                  status: "succeeded"
+                  name: "cluster-dev"
+                  isProd: false
+  /orchestrator/infrastructure/installation-status/{installationId}:
+    get:
+      summary: Get installation status conditions of an installation
+      parameters:
+        - in: path
+          name: installationId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A list of status conditions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InstallationStatus'
+              example:
+                - lastTransitionTime: 2025-04-06T07:23:22Z
+                  message: Initializing
+                  reason: Progressing
+                  status: Unknown
+                  type: Ready
+                - lastTransitionTime: 2025-04-06T07:00:27Z
+                  message: Plan generated
+                  reason: TerraformPlannedWithChanges
+                  status: "True"
+                  type: Plan
+                - lastTransitionTime: 2025-04-06T07:12:25Z
+                  message: Applied successfully
+                  reason: TerraformAppliedSucceed
+                  status: "True"
+                  type: Apply
+                - lastTransitionTime: 2025-04-06T07:12:28Z
+                  message: Outputs written
+                  reason: TerraformOutputsWritten
+                  status: "True"
+                  type: Output
+components:
+  schemas:
+    ProvisionRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        installationType:
+          type: string
+          enum:
+            - eksCluster
+        installedEntityType:
+          type: string
+          enum:
+            - cluster
+            - registry
+        ChartValues:
+          type: object
+          description: YAML configuration values for the cluster infrastructure.
+          example: { }
+      required:
+        - installationType
+        - clusterMetadata
+        - ChartValues
+    Installation:
+      type: object
+      properties:
+        installationId:
+          type: string
+        status:
+          type: string
+        name:
+          type: string
+        isProd:
+          type: boolean
+        valuesSchema:
+          type: string
+        values:
+          type: string
+    InstallationStatus:
+      type: object
+      properties:
+        installation-status:
+          type: string
+          enum:
+            - "Creating"
+            - "Updating"
+            - "Succeeded"
+            - "Failed"
+        Conditions:
+          $ref: '#/components/schemas/Conditions'
+    Conditions:
+      type: object
+      properties:
+        lastTransitionTime:
+          type: string
+          format: date-time
+        message:
+          type: string
+        reason:
+          type: string
+        status:
+          type: string
+        type:
+          type: string

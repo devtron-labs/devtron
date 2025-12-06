@@ -22,13 +22,13 @@ import (
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
+	installedAppReadBean "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	"github.com/devtron-labs/devtron/pkg/workflow/status"
-	"github.com/devtron-labs/devtron/util/argo"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
 )
@@ -38,30 +38,26 @@ type CDPipelineEventProcessorImpl struct {
 	pubSubClient            *pubsub.PubSubClientServiceImpl
 	cdWorkflowCommonService cd.CdWorkflowCommonService
 	workflowStatusService   status.WorkflowStatusService
-	cdTriggerService        devtronApps.TriggerService
-	argoUserService         argo.ArgoUserService
-
-	pipelineRepository     pipelineConfig.PipelineRepository
-	installedAppRepository repository2.InstalledAppRepository
+	cdHandlerService        devtronApps.HandlerService
+	pipelineRepository      pipelineConfig.PipelineRepository
+	installedAppReadService installedAppReader.InstalledAppReadService
 }
 
 func NewCDPipelineEventProcessorImpl(logger *zap.SugaredLogger,
 	pubSubClient *pubsub.PubSubClientServiceImpl,
 	cdWorkflowCommonService cd.CdWorkflowCommonService,
 	workflowStatusService status.WorkflowStatusService,
-	cdTriggerService devtronApps.TriggerService,
-	argoUserService argo.ArgoUserService,
+	cdHandlerService devtronApps.HandlerService,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	installedAppRepository repository2.InstalledAppRepository) *CDPipelineEventProcessorImpl {
+	installedAppReadService installedAppReader.InstalledAppReadService) *CDPipelineEventProcessorImpl {
 	cdPipelineEventProcessorImpl := &CDPipelineEventProcessorImpl{
 		logger:                  logger,
 		pubSubClient:            pubSubClient,
 		cdWorkflowCommonService: cdWorkflowCommonService,
 		workflowStatusService:   workflowStatusService,
-		cdTriggerService:        cdTriggerService,
-		argoUserService:         argoUserService,
+		cdHandlerService:        cdHandlerService,
 		pipelineRepository:      pipelineRepository,
-		installedAppRepository:  installedAppRepository,
+		installedAppReadService: installedAppReadService,
 	}
 	return cdPipelineEventProcessorImpl
 }
@@ -77,16 +73,12 @@ func (impl *CDPipelineEventProcessorImpl) SubscribeCDBulkTriggerTopic() error {
 		}
 		event.ValuesOverrideRequest.UserId = event.UserId
 		// trigger
-		ctx, err := impl.argoUserService.GetACDContext(context2.Background())
-		if err != nil {
-			impl.logger.Errorw("error in creating acd context", "err", err)
-			return
-		}
+
 		triggerContext := bean2.TriggerContext{
 			ReferenceId: pointer.String(msg.MsgId),
-			Context:     ctx,
+			Context:     context2.Background(),
 		}
-		_, err = impl.cdTriggerService.ManualCdTrigger(triggerContext, event.ValuesOverrideRequest)
+		_, _, _, err = impl.cdHandlerService.ManualCdTrigger(triggerContext, event.ValuesOverrideRequest, event.UserMetadata)
 		if err != nil {
 			impl.logger.Errorw("Error triggering CD", "topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC, "msg", msg.Data, "err", err)
 		}
@@ -113,7 +105,7 @@ func (impl *CDPipelineEventProcessorImpl) SubscribeArgoTypePipelineSyncEvent() e
 		statusUpdateEvent := bean.ArgoPipelineStatusSyncEvent{}
 		var err error
 		var cdPipeline *pipelineConfig.Pipeline
-		var installedApp repository2.InstalledApps
+		var installedApp *installedAppReadBean.InstalledAppMin
 
 		err = json.Unmarshal([]byte(msg.Data), &statusUpdateEvent)
 		if err != nil {
@@ -122,7 +114,7 @@ func (impl *CDPipelineEventProcessorImpl) SubscribeArgoTypePipelineSyncEvent() e
 		}
 
 		if statusUpdateEvent.IsAppStoreApplication {
-			installedApp, err = impl.installedAppRepository.GetInstalledAppByInstalledAppVersionId(statusUpdateEvent.InstalledAppVersionId)
+			installedApp, err = impl.installedAppReadService.GetInstalledAppByInstalledAppVersionId(statusUpdateEvent.InstalledAppVersionId)
 			if err != nil {
 				impl.logger.Errorw("error in getting installedAppVersion by id", "err", err, "id", statusUpdateEvent.PipelineId)
 				return

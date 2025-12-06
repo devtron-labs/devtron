@@ -33,13 +33,14 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/appStore/values/service"
-	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
-	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	cluster2 "github.com/devtron-labs/devtron/pkg/cluster/environment"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
-	repository4 "github.com/devtron-labs/devtron/pkg/team"
-	"github.com/devtron-labs/devtron/util/argo"
+	"github.com/devtron-labs/devtron/pkg/team/read"
+	repository3 "github.com/devtron-labs/devtron/pkg/team/repository"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -68,18 +69,18 @@ type ChartGroupServiceImpl struct {
 	userAuthService                      user.UserAuthService
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	environmentService                   cluster2.EnvironmentService
-	teamRepository                       repository4.TeamRepository
+	teamRepository                       repository3.TeamRepository
 	clusterInstalledAppsRepository       repository.ClusterInstalledAppsRepository
 	appStoreValuesService                service.AppStoreValuesService
 	appStoreDeploymentService            service2.AppStoreDeploymentService
 	appStoreDeploymentDBService          service2.AppStoreDeploymentDBService
-	argoUserService                      argo.ArgoUserService
 	pipelineStatusTimelineService        status.PipelineStatusTimelineService
 	acdConfig                            *argocdServer.ACDConfig
 	fullModeDeploymentService            deployment.FullModeDeploymentService
 	gitOperationService                  git.GitOperationService
 	installAppService                    FullMode.InstalledAppDBExtendedService
 	appStoreAppsEventPublishService      out.AppStoreAppsEventPublishService
+	teamReadService                      read.TeamReadService
 }
 
 func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
@@ -92,18 +93,18 @@ func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
 	userAuthService user.UserAuthService,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	environmentService cluster2.EnvironmentService,
-	teamRepository repository4.TeamRepository,
+	teamRepository repository3.TeamRepository,
 	clusterInstalledAppsRepository repository.ClusterInstalledAppsRepository,
 	appStoreValuesService service.AppStoreValuesService,
 	appStoreDeploymentService service2.AppStoreDeploymentService,
 	appStoreDeploymentDBService service2.AppStoreDeploymentDBService,
-	argoUserService argo.ArgoUserService,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	acdConfig *argocdServer.ACDConfig,
 	fullModeDeploymentService deployment.FullModeDeploymentService,
 	gitOperationService git.GitOperationService,
 	installAppService FullMode.InstalledAppDBExtendedService,
-	appStoreAppsEventPublishService out.AppStoreAppsEventPublishService) (*ChartGroupServiceImpl, error) {
+	appStoreAppsEventPublishService out.AppStoreAppsEventPublishService,
+	teamReadService read.TeamReadService) (*ChartGroupServiceImpl, error) {
 	impl := &ChartGroupServiceImpl{
 		logger:                               logger,
 		chartGroupEntriesRepository:          chartGroupEntriesRepository,
@@ -119,7 +120,6 @@ func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
 		appStoreValuesService:                appStoreValuesService,
 		appStoreDeploymentService:            appStoreDeploymentService,
 		appStoreDeploymentDBService:          appStoreDeploymentDBService,
-		argoUserService:                      argoUserService,
 		pipelineStatusTimelineService:        pipelineStatusTimelineService,
 		acdConfig:                            acdConfig,
 		fullModeDeploymentService:            fullModeDeploymentService,
@@ -127,6 +127,7 @@ func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
 		installAppService:                    installAppService,
 		appStoreAppsEventPublishService:      appStoreAppsEventPublishService,
 		appStoreRepository:                   appStoreRepository,
+		teamReadService:                      teamReadService,
 	}
 	return impl, nil
 }
@@ -136,13 +137,13 @@ type ChartGroupService interface {
 	UpdateChartGroup(req *ChartGroupBean) (*ChartGroupBean, error)
 	SaveChartGroupEntries(req *ChartGroupBean) (*ChartGroupBean, error)
 	GetChartGroupWithChartMetaData(chartGroupId int) (*ChartGroupBean, error)
-	ChartGroupList(max int) (*ChartGroupList, error)
+	GetChartGroupList(max int) (*ChartGroupList, error)
 	GetChartGroupWithInstallationDetail(chartGroupId int) (*ChartGroupBean, error)
 	ChartGroupListMin(max int) ([]*ChartGroupBean, error)
 	DeleteChartGroup(req *ChartGroupBean) error
 
 	DeployBulk(chartGroupInstallRequest *ChartGroupInstallRequest) (*ChartGroupInstallAppRes, error)
-	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
+	DeployDefaultChartOnCluster(bean *bean3.ClusterBean, userId int32) (bool, error)
 	TriggerDeploymentEventAndHandleStatusUpdate(installAppVersions []*appStoreBean.InstallAppVersionDTO)
 
 	PerformDeployStage(installedAppVersionId int, installedAppVersionHistoryId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
@@ -374,7 +375,7 @@ func (impl *ChartGroupServiceImpl) charterEntryAdopter(chartGroupEntry *reposito
 	return entry
 }
 
-func (impl *ChartGroupServiceImpl) ChartGroupList(max int) (*ChartGroupList, error) {
+func (impl *ChartGroupServiceImpl) GetChartGroupList(max int) (*ChartGroupList, error) {
 	groups, err := impl.chartGroupRepository.GetAll(max)
 	if err != nil {
 		return nil, err
@@ -695,9 +696,9 @@ func (impl *ChartGroupServiceImpl) TriggerDeploymentEventAndHandleStatusUpdate(i
 	}
 }
 
-func (impl *ChartGroupServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error) {
+func (impl *ChartGroupServiceImpl) DeployDefaultChartOnCluster(bean *bean3.ClusterBean, userId int32) (bool, error) {
 	// STEP 1 - create environment with name "devton"
-	impl.logger.Infow("STEP 1", "create environment for cluster component", bean)
+	impl.logger.Infow("STEP 1", "create environment for cluster component", "clusterId", bean.Id)
 	envName := fmt.Sprintf("%d-%s", bean.Id, appStoreBean.DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT)
 	env, err := impl.environmentService.FindOne(envName)
 	if err != nil && err != pg.ErrNoRows {
@@ -720,12 +721,12 @@ func (impl *ChartGroupServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.Cl
 
 	// STEP 2 - create project with name "devtron"
 	impl.logger.Info("STEP 2", "create project for cluster components")
-	t, err := impl.teamRepository.FindByTeamName(appStoreBean.DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT)
+	t, err := impl.teamReadService.FindByTeamName(appStoreBean.DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT)
 	if err != nil && err != pg.ErrNoRows {
 		return false, err
 	}
 	if err == pg.ErrNoRows {
-		t := &repository4.Team{
+		t := &repository3.Team{
 			Name:     appStoreBean.DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT,
 			Active:   true,
 			AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
@@ -903,12 +904,7 @@ func (impl *ChartGroupServiceImpl) PerformDeployStage(installedAppVersionId int,
 	installedAppVersion.InstalledAppVersionHistoryId = installedAppVersionHistoryId
 	if util.IsAcdApp(installedAppVersion.DeploymentAppType) {
 		//this method should only call in case of argo-integration installed and git-ops has configured
-		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			impl.logger.Errorw("error in getting acd token", "err", err)
-			return nil, err
-		}
-		ctx = context.WithValue(ctx, "token", acdToken)
+
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			InstalledAppVersionHistoryId: installedAppVersion.InstalledAppVersionHistoryId,
 			Status:                       timelineStatus.TIMELINE_STATUS_DEPLOYMENT_INITIATED,
@@ -1042,6 +1038,7 @@ func (impl *ChartGroupServiceImpl) performDeployStageOnAcd(installedAppVersion *
 		}
 		installedAppVersion.GitHash = appStoreGitOpsResponse.GitHash
 		chartGitAttr.RepoUrl = appStoreGitOpsResponse.ChartGitAttribute.RepoUrl
+		chartGitAttr.TargetRevision = appStoreGitOpsResponse.ChartGitAttribute.TargetRevision
 		chartGitAttr.ChartLocation = appStoreGitOpsResponse.ChartGitAttribute.ChartLocation
 	} else {
 		impl.logger.Infow("DB and GIT operation already done for this app and env, proceed for further step", "installedAppId", installedAppVersion.InstalledAppId, "existing status", installedAppVersion.Status)
@@ -1056,6 +1053,7 @@ func (impl *ChartGroupServiceImpl) performDeployStageOnAcd(installedAppVersion *
 		adapter.UpdateAdditionalEnvDetails(installedAppVersion, installedAppVersion.Environment)
 
 		chartGitAttr.RepoUrl = installedAppVersion.GitOpsRepoURL
+		chartGitAttr.TargetRevision = installedAppVersion.GitOpsRepoURL
 		chartGitAttr.ChartLocation = fmt.Sprintf("%s-%s", installedAppVersion.AppName, installedAppVersion.EnvironmentName)
 	}
 

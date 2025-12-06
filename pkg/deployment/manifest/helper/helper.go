@@ -22,9 +22,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
-	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/bean"
+	bean4 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	util4 "github.com/devtron-labs/devtron/util"
@@ -152,7 +152,7 @@ func GetAutoScalingReplicaCount(templateMap map[string]interface{}, appName stri
 
 }
 
-func NewMergedCmAndCsJsonV2Request(overrideRequest *bean.ValuesOverrideRequest, envOverride *chartConfig.EnvConfigOverride, chartVersion string, scope resourceQualifiers.Scope) bean3.GetMergedCmAndCsJsonV2Request {
+func NewMergedCmAndCsJsonV2Request(overrideRequest *bean.ValuesOverrideRequest, envOverride *bean4.EnvConfigOverride, chartVersion string, scope resourceQualifiers.Scope) bean3.GetMergedCmAndCsJsonV2Request {
 	request := bean3.GetMergedCmAndCsJsonV2Request{
 		AppId:                                 overrideRequest.AppId,
 		EnvId:                                 envOverride.TargetEnvironment,
@@ -167,13 +167,13 @@ func NewMergedCmAndCsJsonV2Request(overrideRequest *bean.ValuesOverrideRequest, 
 
 func NewMergedCmAndCsJsonV2Response() *bean3.MergedCmAndCsJsonV2Response {
 	return &bean3.MergedCmAndCsJsonV2Response{
-		MergedJson:     []byte("{}"),
+		MergedJson:     util4.GetEmptyJSON(),
 		ExternalCsList: make([]string, 0),
 		ExternalCmList: make([]string, 0),
 	}
 }
 
-func GetScopeForVariables(overrideRequest *bean.ValuesOverrideRequest, envOverride *chartConfig.EnvConfigOverride) resourceQualifiers.Scope {
+func GetScopeForVariables(overrideRequest *bean.ValuesOverrideRequest, envOverride *bean4.EnvConfigOverride) resourceQualifiers.Scope {
 	scope := resourceQualifiers.Scope{
 		AppId:     overrideRequest.AppId,
 		EnvId:     envOverride.TargetEnvironment,

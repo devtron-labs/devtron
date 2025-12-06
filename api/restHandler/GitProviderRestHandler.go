@@ -18,6 +18,9 @@ package restHandler
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/bean"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
 	"net/http"
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -25,7 +28,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -44,31 +46,34 @@ type GitProviderRestHandler interface {
 }
 
 type GitProviderRestHandlerImpl struct {
-	dockerRegistryConfig  pipeline.DockerRegistryConfig
-	logger                *zap.SugaredLogger
-	gitRegistryConfig     pipeline.GitRegistryConfig
-	userAuthService       user.UserService
-	validator             *validator.Validate
-	enforcer              casbin.Enforcer
-	teamService           team.TeamService
-	deleteServiceFullMode delete2.DeleteServiceFullMode
+	dockerRegistryConfig   pipeline.DockerRegistryConfig
+	logger                 *zap.SugaredLogger
+	gitRegistryConfig      gitProvider.GitRegistryConfig
+	gitProviderReadService read.GitProviderReadService
+	userAuthService        user.UserService
+	validator              *validator.Validate
+	enforcer               casbin.Enforcer
+	teamService            team.TeamService
+	deleteServiceFullMode  delete2.DeleteServiceFullMode
 }
 
 func NewGitProviderRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryConfig,
 	logger *zap.SugaredLogger,
-	gitRegistryConfig pipeline.GitRegistryConfig,
+	gitRegistryConfig gitProvider.GitRegistryConfig,
 	userAuthService user.UserService,
 	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService,
-	deleteServiceFullMode delete2.DeleteServiceFullMode) *GitProviderRestHandlerImpl {
+	deleteServiceFullMode delete2.DeleteServiceFullMode,
+	gitProviderReadService read.GitProviderReadService) *GitProviderRestHandlerImpl {
 	return &GitProviderRestHandlerImpl{
-		dockerRegistryConfig:  dockerRegistryConfig,
-		logger:                logger,
-		gitRegistryConfig:     gitRegistryConfig,
-		userAuthService:       userAuthService,
-		validator:             validator,
-		enforcer:              enforcer,
-		teamService:           teamService,
-		deleteServiceFullMode: deleteServiceFullMode,
+		dockerRegistryConfig:   dockerRegistryConfig,
+		logger:                 logger,
+		gitRegistryConfig:      gitRegistryConfig,
+		gitProviderReadService: gitProviderReadService,
+		userAuthService:        userAuthService,
+		validator:              validator,
+		enforcer:               enforcer,
+		teamService:            teamService,
+		deleteServiceFullMode:  deleteServiceFullMode,
 	}
 }
 
@@ -76,10 +81,10 @@ func (impl GitProviderRestHandlerImpl) SaveGitRepoConfig(w http.ResponseWriter, 
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
-	var bean types.GitRegistry
+	var bean bean.GitRegistry
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, SaveGitRepoConfig", "err", err, "payload", bean)
@@ -105,18 +110,20 @@ func (impl GitProviderRestHandlerImpl) SaveGitRepoConfig(w http.ResponseWriter, 
 
 	res, err := impl.gitRegistryConfig.Create(&bean)
 	if err != nil {
-		impl.logger.Errorw("service err, SaveGitRepoConfig", "err", err, "payload", bean)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		impl.logger.Errorw("Failed to create git provider", "gitProviderName", bean.Name, "err", err)
+		// Use enhanced error response with resource context
+		common.WriteJsonRespWithResourceContext(w, err, nil, 0, "git provider", bean.Name)
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl GitProviderRestHandlerImpl) GetGitProviders(w http.ResponseWriter, r *http.Request) {
-	res, err := impl.gitRegistryConfig.GetAll()
+	res, err := impl.gitProviderReadService.GetAll()
 	if err != nil {
-		impl.logger.Errorw("service err, GetGitProviders", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		impl.logger.Errorw("Failed to get git providers", "err", err)
+		// Use enhanced error response for service errors
+		common.WriteJsonRespWithResourceContext(w, err, nil, 0, "git providers", "all")
 		return
 	}
 
@@ -124,7 +131,7 @@ func (impl GitProviderRestHandlerImpl) GetGitProviders(w http.ResponseWriter, r 
 }
 
 func (impl GitProviderRestHandlerImpl) FetchAllGitProviders(w http.ResponseWriter, r *http.Request) {
-	res, err := impl.gitRegistryConfig.FetchAllGitProviders()
+	res, err := impl.gitProviderReadService.FetchAllGitProviders()
 	if err != nil {
 		impl.logger.Errorw("service err, FetchAllGitProviders", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -133,7 +140,7 @@ func (impl GitProviderRestHandlerImpl) FetchAllGitProviders(w http.ResponseWrite
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	result := make([]types.GitRegistry, 0)
+	result := make([]bean.GitRegistry, 0)
 	for _, item := range res {
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionGet, item.Name); ok {
 			result = append(result, item)
@@ -147,7 +154,7 @@ func (impl GitProviderRestHandlerImpl) FetchAllGitProviders(w http.ResponseWrite
 func (impl GitProviderRestHandlerImpl) FetchOneGitProviders(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id := params["id"]
-	res, err := impl.gitRegistryConfig.FetchOneGitProvider(id)
+	res, err := impl.gitProviderReadService.FetchOneGitProvider(id)
 	if err != nil {
 		impl.logger.Errorw("service err, FetchOneGitProviders", "err", err, "id", id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -169,21 +176,21 @@ func (impl GitProviderRestHandlerImpl) UpdateGitRepoConfig(w http.ResponseWriter
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
-	var bean types.GitRegistry
+	var bean bean.GitRegistry
 	err = decoder.Decode(&bean)
 	if err != nil {
-		impl.logger.Errorw("request err, UpdateGitRepoConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("request err, UpdateGitRepoConfig", "err", err, "gitRegistryId", bean.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	bean.UserId = userId
-	impl.logger.Infow("request payload, UpdateGitRepoConfig", "payload", bean)
+	impl.logger.Infow("request payload, UpdateGitRepoConfig", "gitRegistryId", bean.Id)
 	err = impl.validator.Struct(bean)
 	if err != nil {
-		impl.logger.Errorw("validation err, UpdateGitRepoConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("validation err, UpdateGitRepoConfig", "err", err, "gitRegistryId", bean.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -197,7 +204,7 @@ func (impl GitProviderRestHandlerImpl) UpdateGitRepoConfig(w http.ResponseWriter
 
 	res, err := impl.gitRegistryConfig.Update(&bean)
 	if err != nil {
-		impl.logger.Errorw("service err, UpdateGitRepoConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("service err, UpdateGitRepoConfig", "err", err, "gitRegistryId", bean.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -208,10 +215,10 @@ func (impl GitProviderRestHandlerImpl) DeleteGitRepoConfig(w http.ResponseWriter
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
-	var bean types.GitRegistry
+	var bean bean.GitRegistry
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, DeleteGitRepoConfig", "err", err, "payload", bean)

@@ -18,9 +18,15 @@ package variables
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
+	"sync"
+
 	"github.com/argoproj/argo-workflows/v3/errors"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/common-lib/async"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/read"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
@@ -33,9 +39,6 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
-	"regexp"
-	"strings"
-	"sync"
 )
 
 type ScopedVariableService interface {
@@ -54,15 +57,17 @@ type ScopedVariableServiceImpl struct {
 	qualifierMappingService  resourceQualifiers.QualifierMappingService
 	VariableNameConfig       *VariableConfig
 	VariableCache            *cache.VariableCacheObj
+	asyncRunnable            *async.Runnable
 }
 
-func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository repository2.ScopedVariableRepository, appRepository app.AppRepository, environmentRepository repository.EnvironmentRepository, devtronResourceSearchableKeyService read.DevtronResourceSearchableKeyService, clusterRepository repository.ClusterRepository,
-	qualifierMappingService resourceQualifiers.QualifierMappingService) (*ScopedVariableServiceImpl, error) {
+func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository repository2.ScopedVariableRepository, appRepository app.AppRepository, environmentRepository repository3.EnvironmentRepository, devtronResourceSearchableKeyService read.DevtronResourceSearchableKeyService, clusterRepository repository.ClusterRepository,
+	qualifierMappingService resourceQualifiers.QualifierMappingService, asyncRunnable *async.Runnable) (*ScopedVariableServiceImpl, error) {
 	scopedVariableService := &ScopedVariableServiceImpl{
 		logger:                   logger,
 		scopedVariableRepository: scopedVariableRepository,
 		qualifierMappingService:  qualifierMappingService,
 		VariableCache:            &cache.VariableCacheObj{CacheLock: &sync.Mutex{}},
+		asyncRunnable:            asyncRunnable,
 	}
 	cfg, err := GetVariableNameConfig()
 	if err != nil {
@@ -74,15 +79,15 @@ func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepos
 }
 
 type VariableConfig struct {
-	VariableNameRegex    string `env:"SCOPED_VARIABLE_NAME_REGEX" envDefault:"^[a-zA-Z][a-zA-Z0-9_-]{0,62}[a-zA-Z0-9]$"`
-	VariableCacheEnabled bool   `env:"VARIABLE_CACHE_ENABLED" envDefault:"true"`
-	SystemVariablePrefix string `env:"SYSTEM_VAR_PREFIX" envDefault:"DEVTRON_"`
-	ScopedVariableFormat string `env:"SCOPED_VARIABLE_FORMAT" envDefault:"@{{%s}}"`
+	VariableNameRegex    string `env:"SCOPED_VARIABLE_NAME_REGEX" envDefault:"^[a-zA-Z][a-zA-Z0-9_-]{0,62}[a-zA-Z0-9]$" description:"Regex for scoped variable name that must passed this regex."`
+	VariableCacheEnabled bool   `env:"VARIABLE_CACHE_ENABLED" envDefault:"true" description:"This is used to  control caching of all the scope variables defined in the system."`
+	SystemVariablePrefix string `env:"SYSTEM_VAR_PREFIX" envDefault:"DEVTRON_" description:"Scoped variable prefix, variable name must have this prefix."`
+	ScopedVariableFormat string `env:"SCOPED_VARIABLE_FORMAT" envDefault:"@{{%s}}" description:"Its a scope format for varialbe name."`
 }
 
 func loadVariableCache(cfg *VariableConfig, service *ScopedVariableServiceImpl) {
 	if cfg.VariableCacheEnabled {
-		go service.loadVarCache()
+		service.asyncRunnable.Execute(func() { service.loadVarCache() })
 	}
 }
 func GetVariableNameConfig() (*VariableConfig, error) {

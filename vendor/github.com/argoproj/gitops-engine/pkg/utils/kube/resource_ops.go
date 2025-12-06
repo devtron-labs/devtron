@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
@@ -44,6 +45,7 @@ type ResourceOperations interface {
 	UpdateResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy) (*unstructured.Unstructured, error)
 }
 
+// This is a generic implementation for doing most kubectl operations. Implements the ResourceOperations interface.
 type kubectlResourceOperations struct {
 	config        *rest.Config
 	log           logr.Logger
@@ -53,59 +55,75 @@ type kubectlResourceOperations struct {
 	openAPISchema openapi.Resources
 }
 
-type commandExecutor func(f cmdutil.Factory, ioStreams genericclioptions.IOStreams, fileName string) error
+// This is an implementation specific for doing server-side diff dry runs. Implements the KubeApplier interface.
+type kubectlServerSideDiffDryRunApplier struct {
+	config        *rest.Config
+	log           logr.Logger
+	tracer        tracing.Tracer
+	onKubectlRun  OnKubectlRunFunc
+	fact          cmdutil.Factory
+	openAPISchema openapi.Resources
+}
 
-func (k *kubectlResourceOperations) runResourceCommand(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, executor commandExecutor) (string, error) {
-	manifestBytes, err := json.Marshal(obj)
-	if err != nil {
-		return "", err
-	}
-	manifestFile, err := os.CreateTemp(io.TempDir, "")
-	if err != nil {
-		return "", fmt.Errorf("Failed to generate temp file for manifest: %v", err)
-	}
-	if _, err = manifestFile.Write(manifestBytes); err != nil {
-		return "", fmt.Errorf("Failed to write manifest: %v", err)
-	}
-	if err = manifestFile.Close(); err != nil {
-		return "", fmt.Errorf("Failed to close manifest: %v", err)
-	}
-	defer io.DeleteFile(manifestFile.Name())
+type commandExecutor func(ioStreams genericclioptions.IOStreams, fileName string) error
 
+func maybeLogManifest(manifestBytes []byte, log logr.Logger) error {
 	// log manifest
-	if k.log.V(1).Enabled() {
+	if log.V(1).Enabled() {
 		var obj unstructured.Unstructured
 		err := json.Unmarshal(manifestBytes, &obj)
 		if err != nil {
-			return "", err
+			return err
 		}
-		redacted, _, err := diff.HideSecretData(&obj, nil)
+		redacted, _, err := diff.HideSecretData(&obj, nil, nil)
 		if err != nil {
-			return "", err
+			return err
 		}
 		redactedBytes, err := json.Marshal(redacted)
 		if err != nil {
-			return "", err
+			return err
 		}
-		k.log.V(1).Info(string(redactedBytes))
+		log.V(1).Info(string(redactedBytes))
+	}
+	return nil
+}
+
+func createManifestFile(obj *unstructured.Unstructured, log logr.Logger) (*os.File, error) {
+	manifestBytes, err := json.Marshal(obj)
+	if err != nil {
+		return nil, err
+	}
+	manifestFile, err := os.CreateTemp(io.TempDir, "")
+	if err != nil {
+		return nil, fmt.Errorf("Failed to generate temp file for manifest: %v", err)
+	}
+	if _, err = manifestFile.Write(manifestBytes); err != nil {
+		return nil, fmt.Errorf("Failed to write manifest: %v", err)
+	}
+	if err = manifestFile.Close(); err != nil {
+		return nil, fmt.Errorf("Failed to close manifest: %v", err)
 	}
 
+	err = maybeLogManifest(manifestBytes, log)
+	if err != nil {
+		return nil, err
+	}
+	return manifestFile, nil
+}
+
+func (k *kubectlResourceOperations) runResourceCommand(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, executor commandExecutor) (string, error) {
+	manifestFile, err := createManifestFile(obj, k.log)
+	if err != nil {
+		return "", err
+	}
+	defer io.DeleteFile(manifestFile.Name())
+
 	var out []string
+	// rbac resouces are first applied with auth reconcile kubectl feature.
 	if obj.GetAPIVersion() == "rbac.authorization.k8s.io/v1" {
-		// If it is an RBAC resource, run `kubectl auth reconcile`. This is preferred over
-		// `kubectl apply`, which cannot tolerate changes in roleRef, which is an immutable field.
-		// See: https://github.com/kubernetes/kubernetes/issues/66353
-		// `auth reconcile` will delete and recreate the resource if necessary
-		outReconcile, err := func() (string, error) {
-			cleanup, err := k.processKubectlRun("auth")
-			if err != nil {
-				return "", err
-			}
-			defer cleanup()
-			return k.authReconcile(ctx, obj, manifestFile.Name(), dryRunStrategy)
-		}()
+		outReconcile, err := k.rbacReconcile(ctx, obj, manifestFile.Name(), dryRunStrategy)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("error running rbacReconcile: %s", err)
 		}
 		out = append(out, outReconcile)
 		// We still want to fallthrough and run `kubectl apply` in order set the
@@ -118,7 +136,7 @@ func (k *kubectlResourceOperations) runResourceCommand(ctx context.Context, obj 
 		Out:    &bytes.Buffer{},
 		ErrOut: &bytes.Buffer{},
 	}
-	err = executor(k.fact, ioStreams, manifestFile.Name())
+	err = executor(ioStreams, manifestFile.Name())
 	if err != nil {
 		return "", errors.New(cleanKubectlOutput(err.Error()))
 	}
@@ -131,6 +149,62 @@ func (k *kubectlResourceOperations) runResourceCommand(ctx context.Context, obj 
 	return strings.Join(out, ". "), nil
 }
 
+func (k *kubectlServerSideDiffDryRunApplier) runResourceCommand(obj *unstructured.Unstructured, executor commandExecutor) (string, error) {
+	manifestFile, err := createManifestFile(obj, k.log)
+	if err != nil {
+		return "", err
+	}
+	defer io.DeleteFile(manifestFile.Name())
+
+	stdoutBuf := &bytes.Buffer{}
+	stderrBuf := &bytes.Buffer{}
+
+	// Run kubectl apply
+	ioStreams := genericclioptions.IOStreams{
+		In:     &bytes.Buffer{},
+		Out:    stdoutBuf,
+		ErrOut: stderrBuf,
+	}
+	err = executor(ioStreams, manifestFile.Name())
+	if err != nil {
+		return "", errors.New(cleanKubectlOutput(err.Error()))
+	}
+	stdout := stdoutBuf.String()
+	stderr := stderrBuf.String()
+
+	if stderr != "" && stdout == "" {
+		err := fmt.Errorf("Server-side dry run apply had non-empty stderr: %s", stderr)
+		k.log.Error(err, "server-side diff")
+		return "", err
+	}
+	if stderr != "" {
+		k.log.Info("Warning: Server-side dry run apply had non-empty stderr: %s", stderr)
+	}
+	return stdout, nil
+}
+
+// rbacReconcile will perform reconciliation for RBAC resources. It will run
+// the following command:
+//
+//	kubectl auth reconcile
+//
+// This is preferred over `kubectl apply`, which cannot tolerate changes in
+// roleRef, which is an immutable field.
+// See: https://github.com/kubernetes/kubernetes/issues/66353
+// `auth reconcile` will delete and recreate the resource if necessary
+func (k *kubectlResourceOperations) rbacReconcile(ctx context.Context, obj *unstructured.Unstructured, fileName string, dryRunStrategy cmdutil.DryRunStrategy) (string, error) {
+	cleanup, err := processKubectlRun(k.onKubectlRun, "auth")
+	if err != nil {
+		return "", fmt.Errorf("error processing kubectl run auth: %w", err)
+	}
+	defer cleanup()
+	outReconcile, err := k.authReconcile(ctx, obj, fileName, dryRunStrategy)
+	if err != nil {
+		return "", fmt.Errorf("error running kubectl auth reconcile: %w", err)
+	}
+	return outReconcile, nil
+}
+
 func kubeCmdFactory(kubeconfig, ns string, config *rest.Config) cmdutil.Factory {
 	kubeConfigFlags := genericclioptions.NewConfigFlags(true)
 	if ns != "" {
@@ -139,6 +213,9 @@ func kubeCmdFactory(kubeconfig, ns string, config *rest.Config) cmdutil.Factory 
 	kubeConfigFlags.KubeConfig = &kubeconfig
 	kubeConfigFlags.WithDiscoveryBurst(config.Burst)
 	kubeConfigFlags.WithDiscoveryQPS(config.QPS)
+	kubeConfigFlags.Impersonate = &config.Impersonate.UserName
+	kubeConfigFlags.ImpersonateUID = &config.Impersonate.UID
+	kubeConfigFlags.ImpersonateGroup = &config.Impersonate.Groups
 	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)
 	return cmdutil.NewFactory(matchVersionKubeConfigFlags)
 }
@@ -149,18 +226,18 @@ func (k *kubectlResourceOperations) ReplaceResource(ctx context.Context, obj *un
 	span.SetBaggageItem("name", obj.GetName())
 	defer span.Finish()
 	k.log.Info(fmt.Sprintf("Replacing resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), k.config.Host, obj.GetNamespace()))
-	return k.runResourceCommand(ctx, obj, dryRunStrategy, func(f cmdutil.Factory, ioStreams genericclioptions.IOStreams, fileName string) error {
-		cleanup, err := k.processKubectlRun("replace")
+	return k.runResourceCommand(ctx, obj, dryRunStrategy, func(ioStreams genericclioptions.IOStreams, fileName string) error {
+		cleanup, err := processKubectlRun(k.onKubectlRun, "replace")
 		if err != nil {
 			return err
 		}
 		defer cleanup()
 
-		replaceOptions, err := k.newReplaceOptions(k.config, f, ioStreams, fileName, obj.GetNamespace(), force, dryRunStrategy)
+		replaceOptions, err := k.newReplaceOptions(k.config, k.fact, ioStreams, fileName, obj.GetNamespace(), force, dryRunStrategy)
 		if err != nil {
 			return err
 		}
-		return replaceOptions.Run(f)
+		return replaceOptions.Run(k.fact)
 	})
 }
 
@@ -170,14 +247,14 @@ func (k *kubectlResourceOperations) CreateResource(ctx context.Context, obj *uns
 	span.SetBaggageItem("kind", gvk.Kind)
 	span.SetBaggageItem("name", obj.GetName())
 	defer span.Finish()
-	return k.runResourceCommand(ctx, obj, dryRunStrategy, func(f cmdutil.Factory, ioStreams genericclioptions.IOStreams, fileName string) error {
-		cleanup, err := k.processKubectlRun("create")
+	return k.runResourceCommand(ctx, obj, dryRunStrategy, func(ioStreams genericclioptions.IOStreams, fileName string) error {
+		cleanup, err := processKubectlRun(k.onKubectlRun, "create")
 		if err != nil {
 			return err
 		}
 		defer cleanup()
 
-		createOptions, err := k.newCreateOptions(k.config, ioStreams, fileName, dryRunStrategy)
+		createOptions, err := k.newCreateOptions(ioStreams, fileName, dryRunStrategy)
 		if err != nil {
 			return err
 		}
@@ -190,7 +267,7 @@ func (k *kubectlResourceOperations) CreateResource(ctx context.Context, obj *uns
 			_ = command.Flags().Set("validate", "true")
 		}
 
-		return createOptions.RunCreate(f, command)
+		return createOptions.RunCreate(k.fact, command)
 	})
 }
 
@@ -224,14 +301,18 @@ func (k *kubectlResourceOperations) UpdateResource(ctx context.Context, obj *uns
 }
 
 // ApplyResource performs an apply of a unstructured resource
-func (k *kubectlResourceOperations) ApplyResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string) (string, error) {
+func (k *kubectlServerSideDiffDryRunApplier) ApplyResource(_ context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string) (string, error) {
 	span := k.tracer.StartSpan("ApplyResource")
 	span.SetBaggageItem("kind", obj.GetKind())
 	span.SetBaggageItem("name", obj.GetName())
 	defer span.Finish()
-	k.log.Info(fmt.Sprintf("Applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), k.config.Host, obj.GetNamespace()))
-	return k.runResourceCommand(ctx, obj, dryRunStrategy, func(f cmdutil.Factory, ioStreams genericclioptions.IOStreams, fileName string) error {
-		cleanup, err := k.processKubectlRun("apply")
+	k.log.V(1).WithValues(
+		"dry-run", [...]string{"none", "client", "server"}[dryRunStrategy],
+		"manager", manager,
+		"serverSideApply", serverSideApply).Info(fmt.Sprintf("Running server-side diff. Dry run applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), k.config.Host, obj.GetNamespace()))
+
+	return k.runResourceCommand(obj, func(ioStreams genericclioptions.IOStreams, fileName string) error {
+		cleanup, err := processKubectlRun(k.onKubectlRun, "apply")
 		if err != nil {
 			return err
 		}
@@ -245,19 +326,50 @@ func (k *kubectlResourceOperations) ApplyResource(ctx context.Context, obj *unst
 	})
 }
 
-func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericclioptions.IOStreams, obj *unstructured.Unstructured, fileName string, validate bool, force, serverSideApply bool, dryRunStrategy cmdutil.DryRunStrategy, manager string) (*apply.ApplyOptions, error) {
-	flags := apply.NewApplyFlags(k.fact, ioStreams)
+// ApplyResource performs an apply of a unstructured resource
+func (k *kubectlResourceOperations) ApplyResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string) (string, error) {
+	span := k.tracer.StartSpan("ApplyResource")
+	span.SetBaggageItem("kind", obj.GetKind())
+	span.SetBaggageItem("name", obj.GetName())
+	defer span.Finish()
+	logWithLevel := k.log
+	if dryRunStrategy != cmdutil.DryRunNone {
+		logWithLevel = logWithLevel.V(1)
+	}
+	logWithLevel.WithValues(
+		"dry-run", [...]string{"none", "client", "server"}[dryRunStrategy],
+		"manager", manager,
+		"serverSideApply", serverSideApply,
+		"serverSideDiff", true).Info(fmt.Sprintf("Applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), k.config.Host, obj.GetNamespace()))
+
+	return k.runResourceCommand(ctx, obj, dryRunStrategy, func(ioStreams genericclioptions.IOStreams, fileName string) error {
+		cleanup, err := processKubectlRun(k.onKubectlRun, "apply")
+		if err != nil {
+			return err
+		}
+		defer cleanup()
+
+		applyOpts, err := k.newApplyOptions(ioStreams, obj, fileName, validate, force, serverSideApply, dryRunStrategy, manager)
+		if err != nil {
+			return err
+		}
+		return applyOpts.Run()
+	})
+}
+
+func newApplyOptionsCommon(config *rest.Config, fact cmdutil.Factory, ioStreams genericclioptions.IOStreams, obj *unstructured.Unstructured, fileName string, validate bool, force, serverSideApply bool, dryRunStrategy cmdutil.DryRunStrategy, manager string) (*apply.ApplyOptions, error) {
+	flags := apply.NewApplyFlags(ioStreams)
 	o := &apply.ApplyOptions{
 		IOStreams:         ioStreams,
-		VisitedUids:       sets.NewString(),
-		VisitedNamespaces: sets.NewString(),
+		VisitedUids:       sets.Set[types.UID]{},
+		VisitedNamespaces: sets.Set[string]{},
 		Recorder:          genericclioptions.NoopRecorder{},
 		PrintFlags:        flags.PrintFlags,
 		Overwrite:         true,
 		OpenAPIPatch:      true,
 		ServerSideApply:   serverSideApply,
 	}
-	dynamicClient, err := dynamic.NewForConfig(k.config)
+	dynamicClient, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, err
 	}
@@ -266,19 +378,60 @@ func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericclioptions.
 	if err != nil {
 		return nil, err
 	}
-	o.OpenAPISchema = k.openAPISchema
-	o.DryRunVerifier = resource.NewQueryParamVerifier(dynamicClient, k.fact.OpenAPIGetter(), resource.QueryParamFieldValidation)
-	o.FieldValidationVerifier = resource.NewQueryParamVerifier(dynamicClient, k.fact.OpenAPIGetter(), resource.QueryParamFieldValidation)
+	o.OpenAPIGetter = fact
+	o.DryRunStrategy = dryRunStrategy
+	o.FieldManager = manager
 	validateDirective := metav1.FieldValidationIgnore
 	if validate {
 		validateDirective = metav1.FieldValidationStrict
 	}
-	o.Validator, err = k.fact.Validator(validateDirective, o.DryRunVerifier)
+	o.Validator, err = fact.Validator(validateDirective)
 	if err != nil {
 		return nil, err
 	}
-	o.Builder = k.fact.NewBuilder()
-	o.Mapper, err = k.fact.ToRESTMapper()
+	o.Builder = fact.NewBuilder()
+	o.Mapper, err = fact.ToRESTMapper()
+	if err != nil {
+		return nil, err
+	}
+
+	o.DeleteOptions.FilenameOptions.Filenames = []string{fileName}
+	o.Namespace = obj.GetNamespace()
+	o.DeleteOptions.ForceDeletion = force
+	o.DryRunStrategy = dryRunStrategy
+	if manager != "" {
+		o.FieldManager = manager
+	}
+	return o, nil
+}
+
+func (k *kubectlServerSideDiffDryRunApplier) newApplyOptions(ioStreams genericclioptions.IOStreams, obj *unstructured.Unstructured, fileName string, validate bool, force, serverSideApply bool, dryRunStrategy cmdutil.DryRunStrategy, manager string) (*apply.ApplyOptions, error) {
+	o, err := newApplyOptionsCommon(k.config, k.fact, ioStreams, obj, fileName, validate, force, serverSideApply, dryRunStrategy, manager)
+	if err != nil {
+		return nil, err
+	}
+
+	o.ToPrinter = func(operation string) (printers.ResourcePrinter, error) {
+		o.PrintFlags.NamePrintFlags.Operation = operation
+		if o.DryRunStrategy != cmdutil.DryRunServer {
+			return nil, fmt.Errorf("invalid dry run strategy passed to server-side diff dry run applier: %d, expected %d", o.DryRunStrategy, cmdutil.DryRunServer)
+		}
+		// managedFields are required by server-side diff to identify
+		// changes made by mutation webhooks.
+		o.PrintFlags.JSONYamlPrintFlags.ShowManagedFields = true
+		p, err := o.PrintFlags.JSONYamlPrintFlags.ToPrinter("json")
+		if err != nil {
+			return nil, fmt.Errorf("error configuring server-side diff printer: %w", err)
+		}
+		return p, nil
+	}
+
+	o.ForceConflicts = true
+	return o, nil
+}
+
+func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericclioptions.IOStreams, obj *unstructured.Unstructured, fileName string, validate bool, force, serverSideApply bool, dryRunStrategy cmdutil.DryRunStrategy, manager string) (*apply.ApplyOptions, error) {
+	o, err := newApplyOptionsCommon(k.config, k.fact, ioStreams, obj, fileName, validate, force, serverSideApply, dryRunStrategy, manager)
 	if err != nil {
 		return nil, err
 	}
@@ -294,25 +447,19 @@ func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericclioptions.
 		case cmdutil.DryRunServer:
 			err = o.PrintFlags.Complete("%s (server dry run)")
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error configuring server dryrun printer: %w", err)
 			}
 		}
 		return o.PrintFlags.ToPrinter()
 	}
-	o.DeleteOptions.FilenameOptions.Filenames = []string{fileName}
-	o.Namespace = obj.GetNamespace()
-	o.DeleteOptions.ForceDeletion = force
-	o.DryRunStrategy = dryRunStrategy
-	if manager != "" {
-		o.FieldManager = manager
-	}
+
 	if serverSideApply {
 		o.ForceConflicts = true
 	}
 	return o, nil
 }
 
-func (k *kubectlResourceOperations) newCreateOptions(config *rest.Config, ioStreams genericclioptions.IOStreams, fileName string, dryRunStrategy cmdutil.DryRunStrategy) (*create.CreateOptions, error) {
+func (k *kubectlResourceOperations) newCreateOptions(ioStreams genericclioptions.IOStreams, fileName string, dryRunStrategy cmdutil.DryRunStrategy) (*create.CreateOptions, error) {
 	o := create.NewCreateOptions(ioStreams)
 
 	recorder, err := o.RecordFlags.ToRecorder()
@@ -320,14 +467,6 @@ func (k *kubectlResourceOperations) newCreateOptions(config *rest.Config, ioStre
 		return nil, err
 	}
 	o.Recorder = recorder
-
-	dynamicClient, err := dynamic.NewForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-
-	o.DryRunVerifier = resource.NewQueryParamVerifier(dynamicClient, k.fact.OpenAPIGetter(), resource.QueryParamFieldValidation)
-	o.FieldValidationVerifier = resource.NewQueryParamVerifier(dynamicClient, k.fact.OpenAPIGetter(), resource.QueryParamFieldValidation)
 
 	switch dryRunStrategy {
 	case cmdutil.DryRunClient:
@@ -373,8 +512,6 @@ func (k *kubectlResourceOperations) newReplaceOptions(config *rest.Config, f cmd
 		return nil, err
 	}
 
-	o.DryRunVerifier = resource.NewQueryParamVerifier(dynamicClient, k.fact.OpenAPIGetter(), resource.QueryParamFieldValidation)
-	o.FieldValidationVerifier = resource.NewQueryParamVerifier(dynamicClient, k.fact.OpenAPIGetter(), resource.QueryParamFieldValidation)
 	o.Builder = func() *resource.Builder {
 		return f.NewBuilder()
 	}
@@ -458,9 +595,8 @@ func (k *kubectlResourceOperations) authReconcile(ctx context.Context, obj *unst
 	}
 	reconcileOpts, err := newReconcileOptions(k.fact, kubeClient, manifestFile, ioStreams, obj.GetNamespace(), dryRunStrategy)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error calling newReconcileOptions: %w", err)
 	}
-
 	err = reconcileOpts.Validate()
 	if err != nil {
 		return "", errors.New(cleanKubectlOutput(err.Error()))
@@ -480,9 +616,9 @@ func (k *kubectlResourceOperations) authReconcile(ctx context.Context, obj *unst
 	return strings.Join(out, ". "), nil
 }
 
-func (k *kubectlResourceOperations) processKubectlRun(cmd string) (CleanupFunc, error) {
-	if k.onKubectlRun != nil {
-		return k.onKubectlRun(cmd)
+func processKubectlRun(onKubectlRun OnKubectlRunFunc, cmd string) (CleanupFunc, error) {
+	if onKubectlRun != nil {
+		return onKubectlRun(cmd)
 	}
 	return func() {}, nil
 }

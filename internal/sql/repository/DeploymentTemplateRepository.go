@@ -38,6 +38,7 @@ type DeploymentTemplateComparisonMetadata struct {
 	EnvironmentId               int                    `json:"environmentId,omitempty"`
 	EnvironmentName             string                 `json:"environmentName,omitempty"`
 	DeploymentTemplateHistoryId int                    `json:"deploymentTemplateHistoryId,omitempty"`
+	WfrId                       int                    `json:"wfrId,omitempty"`
 	StartedOn                   *time.Time             `json:"startedOn,omitempty"`
 	FinishedOn                  *time.Time             `json:"finishedOn,omitempty"`
 	Status                      string                 `json:"status,omitempty"`
@@ -69,13 +70,14 @@ func (impl DeploymentTemplateRepositoryImpl) FetchDeploymentHistoryWithChartRefs
 	limit := 15
 
 	query := "select p.id as pipeline_id, dth.id as deployment_template_history_id," +
-		"  wfr.finished_on, wfr.status, c.chart_ref_id, c.chart_version FROM cd_workflow_runner wfr" +
-		" JOIN cd_workflow wf ON wf.id = wfr.cd_workflow_id JOIN pipeline p ON p.id = wf.pipeline_id" +
-		" JOIN deployment_template_history dth ON dth.deployed_on = wfr.started_on " +
-		"JOIN pipeline_config_override pco ON pco.cd_workflow_id = wf.id " +
-		"JOIN chart_env_config_override ceco ON ceco.id = pco.env_config_override_id JOIN charts c " +
-		"ON c.id = ceco.chart_id where p.environment_id = ?  AND p.app_id = ? AND p.deleted = false  AND wfr.workflow_type = 'DEPLOY' " +
-		"ORDER BY wfr.id DESC LIMIT ? ;"
+		"  wfr.id as wfr_id, wfr.finished_on, wfr.status, c.chart_ref_id, c.chart_version FROM cd_workflow_runner wfr" +
+		" JOIN deployment_template_history dth ON dth.deployed_on = wfr.started_on" +
+		" JOIN cd_workflow wf ON wf.id = wfr.cd_workflow_id" +
+		" JOIN pipeline p ON p.id = wf.pipeline_id AND p.id = dth.pipeline_id" +
+		" JOIN pipeline_config_override pco ON pco.cd_workflow_id = wf.id" +
+		" JOIN chart_env_config_override ceco ON ceco.id = pco.env_config_override_id JOIN charts c" +
+		" ON c.id = ceco.chart_id where p.environment_id = ?  AND p.app_id = ? AND p.deleted = false  AND wfr.workflow_type = 'DEPLOY'" +
+		" ORDER BY wfr.id DESC LIMIT ? ;"
 
 	_, err := impl.dbConnection.Query(&result, query, envId, appId, limit)
 	if err != nil {

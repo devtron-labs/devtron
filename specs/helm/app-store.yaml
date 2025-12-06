@@ -1,0 +1,1125 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: App Store Management
+  description: Devtron API for app store management
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Labs
+    email: support@devtron.ai
+    url: https://devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: http://localhost:8080
+paths:
+  /orchestrator/app-store/discover:
+    get:
+      description: Get all charts from chart repositories
+      parameters:
+        - name: includeDeprecated
+          in: query
+          description: Include deprecated charts
+          required: false
+          schema:
+            type: boolean
+        - name: chartRepoId
+          in: query
+          description: Chart repository IDs (comma separated)
+          required: false
+          schema:
+            type: string
+        - name: registryId
+          in: query
+          description: Registry IDs (comma separated)
+          required: false
+          schema:
+            type: string
+        - name: appStoreName
+          in: query
+          description: App store name filter
+          required: false
+          schema:
+            type: string
+        - name: offset
+          in: query
+          description: Offset for pagination
+          required: false
+          schema:
+            type: integer
+        - name: size
+          in: query
+          description: Size for pagination
+          required: false
+          schema:
+            type: integer
+        - name: chartCategoryId
+          in: query
+          description: Chart category IDs (comma separated)
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of app store applications with versions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppStoreListingResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/app-store/discover/application/{id}:
+    get:
+      description: Get chart details for a specific version
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            description: App store application version ID
+      responses:
+        '200':
+          description: Chart details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppStoreApplicationVersion'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/app-store/discover/application/{appStoreId}/version/autocomplete:
+    get:
+      description: Get chart versions for an app store application
+      parameters:
+        - name: appStoreId
+          in: path
+          required: true
+          schema:
+            type: integer
+            description: App store application ID
+      responses:
+        '200':
+          description: List of chart versions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AppStoreApplicationVersion'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/app-store/discover/application/chartInfo/{appStoreApplicationVersionId}:
+    get:
+      description: Get chart information for a specific version
+      parameters:
+        - name: appStoreApplicationVersionId
+          in: path
+          required: true
+          schema:
+            type: integer
+            description: App store application version ID
+      responses:
+        '200':
+          description: Chart information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChartInfo'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/app-store/discover/search:
+    get:
+      description: Search app store charts by name
+      parameters:
+        - name: chartName
+          in: query
+          required: true
+          schema:
+            type: string
+            description: Chart name to search for
+      responses:
+        '200':
+          description: List of matching charts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AppStoreApplication'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/app-store/installed-app/detail/v2:
+    get:
+      tags:
+        - App Store Deployment
+      summary: Get installed app details v2
+      description: |
+        Retrieves comprehensive details about a deployed app store application including
+        deployment information, environment details, and application metadata.
+
+        **Authentication & Authorization**:
+        - Requires valid user session
+        - User must have GET permission on the Helm app resource
+        - RBAC enforced based on cluster, namespace, and app name
+
+        **Use Cases**:
+        - View current deployment status and details
+        - Get application metadata and configuration
+        - Access environment and cluster information
+        - Retrieve deployment history and version information
+      operationId: fetchAppDetailsForInstalledAppV2
+      parameters:
+        - name: installed-app-id
+          in: query
+          required: true
+          description: |
+            The ID of the installed app to retrieve details for.
+            This is the unique identifier for a deployed app store application.
+          schema:
+            type: integer
+            minimum: 1
+          example: 2
+        - name: env-id
+          in: query
+          required: true
+          description: |
+            The environment ID where the app is deployed.
+            Used to identify the specific environment instance of the app.
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+      responses:
+        '200':
+          description: Installed app details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    description: HTTP status code
+                    example: 200
+                  status:
+                    type: string
+                    description: Response status
+                    example: "OK"
+                  result:
+                    $ref: '#/components/schemas/AppDetailContainer'
+              examples:
+                successful_response:
+                  summary: Successful retrieval of installed app details
+                  value:
+                    code: 200
+                    status: "OK"
+                    result:
+                      installedAppId: 2
+                      appId: 12
+                      appName: "my-nginx-app"
+                      environmentId: 1
+                      environmentName: "production"
+                      namespace: "default"
+                      clusterId: 1
+                      clusterName: "prod-cluster"
+                      appStoreChartName: "nginx"
+                      appStoreChartId: 10
+                      appStoreAppVersion: "1.21.0"
+                      lastDeployedTime: "2024-01-15T10:30:00Z"
+                      lastDeployedBy: "admin@example.com"
+                      status: "Healthy"
+                      deploymentAppType: "HELM"
+                      helmPackageName: "my-nginx-app-production-20240115"
+                      deprecated: false
+                      k8sVersion: "1.28"
+                      instanceDetail: []
+                      otherEnvironment: []
+                      linkOuts: []
+        '400':
+          description: Bad Request - Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_installed_app_id:
+                  summary: Invalid installed-app-id parameter
+                  value:
+                    code: 400
+                    status: "Bad Request"
+                    errors:
+                      - code: "11003"
+                        userMessage: "Invalid query parameter 'installed-app-id': must be a valid positive integer"
+                        internalMessage: "strconv.Atoi: parsing \"abc\": invalid syntax"
+                invalid_env_id:
+                  summary: Invalid env-id parameter
+                  value:
+                    code: 400
+                    status: "Bad Request"
+                    errors:
+                      - code: "11003"
+                        userMessage: "Invalid query parameter 'env-id': must be a valid positive integer"
+                        internalMessage: "strconv.Atoi: parsing \"xyz\": invalid syntax"
+        '401':
+          description: Unauthorized - Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                unauthorized:
+                  summary: User not authenticated
+                  value:
+                    code: 401
+                    status: "Unauthorized"
+                    errors:
+                      - code: "11010"
+                        userMessage: "Authentication required. Please log in to continue."
+                        internalMessage: "unauthorized"
+        '403':
+          description: Forbidden - Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                forbidden:
+                  summary: User lacks permissions
+                  value:
+                    code: 403
+                    status: "Forbidden"
+                    errors:
+                      - code: "11008"
+                        userMessage: "Access denied. You do not have permission to view this installed app."
+                        internalMessage: "unauthorized user"
+        '404':
+          description: Not Found - Installed app does not exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                not_found:
+                  summary: Installed app not found
+                  value:
+                    code: 404
+                    status: "Not Found"
+                    errors:
+                      - code: "11006"
+                        userMessage: "Installed app with ID '2' not found in environment '1'"
+                        internalMessage: "sql: no rows in result set"
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                internal_error:
+                  summary: Unexpected server error
+                  value:
+                    code: 500
+                    status: "Internal Server Error"
+                    errors:
+                      - code: "11009"
+                        userMessage: "An unexpected error occurred while retrieving the installed app details"
+                        internalMessage: "database connection failed"
+      security:
+        - bearerAuth: []
+
+  /orchestrator/app-store/deployment/application/version/{installedAppVersionId}:
+    get:
+      tags:
+        - App Store Deployment
+      summary: Get installed app version details
+      description: |
+        Retrieves detailed information about a specific installed app version.
+        This endpoint returns the complete configuration, values, and metadata
+        for a deployed app store application version.
+
+        **Authentication & Authorization**:
+        - Requires valid user session
+        - User must have GET permission on the Helm app resource
+        - RBAC enforced based on cluster, namespace, and app name
+
+        **Use Cases**:
+        - View current deployment configuration
+        - Retrieve values.yaml for an installed app
+        - Get chart version and metadata
+        - Access deployment history reference
+      operationId: getInstalledAppVersion
+      parameters:
+        - name: installedAppVersionId
+          in: path
+          required: true
+          description: |
+            The ID of the installed app version to retrieve.
+            This is the unique identifier for a specific version of a deployed app.
+          schema:
+            type: integer
+            minimum: 1
+          example: 2
+      responses:
+        '200':
+          description: Installed app version details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    description: HTTP status code
+                    example: 200
+                  status:
+                    type: string
+                    description: Response status
+                    example: "OK"
+                  result:
+                    $ref: '#/components/schemas/InstallAppVersionDTO'
+              examples:
+                successful_response:
+                  summary: Successful retrieval of installed app version
+                  value:
+                    code: 200
+                    status: "OK"
+                    result:
+                      id: 2
+                      appId: 12
+                      appName: "my-app"
+                      teamId: 1
+                      teamName: "devtron-demo"
+                      environmentId: 1
+                      installedAppId: 5
+                      installedAppVersionId: 2
+                      appStoreVersion: 45
+                      valuesOverrideYaml: |
+                        replicaCount: 2
+                        image:
+                          tag: "v1.0.0"
+                      readme: "# Application README\n\nThis is the application documentation."
+                      referenceValueId: 1
+                      referenceValueKind: "DEFAULT"
+                      appStoreId: 10
+                      appStoreName: "nginx"
+                      deprecated: false
+                      clusterId: 1
+                      namespace: "default"
+                      appOfferingMode: "FULL"
+                      gitOpsPath: "my-app-default"
+                      deploymentAppType: "HELM"
+                      helmPackageName: "nginx-1.0.0"
+        '400':
+          description: Bad Request - Invalid installedAppVersionId parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_parameter:
+                  summary: Invalid installedAppVersionId
+                  value:
+                    code: 400
+                    status: "Bad Request"
+                    errors:
+                      - code: "11001"
+                        userMessage: "Invalid path parameter 'installedAppVersionId': must be a valid positive integer"
+                        internalMessage: "strconv.Atoi: parsing \"abc\": invalid syntax"
+                outdated_values:
+                  summary: Outdated values error
+                  value:
+                    code: 400
+                    status: "Bad Request"
+                    errors:
+                      - code: "400"
+                        userMessage: "values are outdated. please fetch the latest version and try again"
+                        internalMessage: "sql: no rows in result set"
+        '401':
+          description: Unauthorized - Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                unauthorized:
+                  summary: User not authenticated
+                  value:
+                    code: 401
+                    status: "Unauthorized"
+                    errors:
+                      - code: "11010"
+                        userMessage: "Authentication required. Please log in to continue."
+                        internalMessage: "unauthorized"
+        '403':
+          description: Forbidden - Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                forbidden:
+                  summary: User lacks permissions
+                  value:
+                    code: 403
+                    status: "Forbidden"
+                    errors:
+                      - code: "11008"
+                        userMessage: "Access denied. You do not have permission to view this installed app version."
+                        internalMessage: "unauthorized user"
+        '404':
+          description: Not Found - Installed app version does not exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                not_found:
+                  summary: Installed app version not found
+                  value:
+                    code: 404
+                    status: "Not Found"
+                    errors:
+                      - code: "11006"
+                        userMessage: "Installed app version with ID '2' not found"
+                        internalMessage: "sql: no rows in result set"
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                internal_error:
+                  summary: Unexpected server error
+                  value:
+                    code: 500
+                    status: "Internal Server Error"
+                    errors:
+                      - code: "11009"
+                        userMessage: "An unexpected error occurred while retrieving the installed app version"
+                        internalMessage: "database connection failed"
+      security:
+        - bearerAuth: []
+
+components:
+  schemas:
+    AppStoreApplication:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: App store application ID
+        name:
+          type: string
+          description: App store application name
+        chartRepoId:
+          type: integer
+          description: Chart repository ID
+        active:
+          type: boolean
+          description: Whether the application is active
+        chartGitLocation:
+          type: string
+          description: Chart Git repository location
+        createdOn:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updatedOn:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        appStoreApplicationVersions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppStoreApplicationVersion'
+          description: List of application versions
+
+    AppStoreApplicationVersion:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Version ID
+        version:
+          type: string
+          description: Version number
+        appVersion:
+          type: string
+          description: Application version
+        created:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        deprecated:
+          type: boolean
+          description: Whether the version is deprecated
+        description:
+          type: string
+          description: Version description
+        digest:
+          type: string
+          description: Chart digest
+        icon:
+          type: string
+          description: Icon URL
+        name:
+          type: string
+          description: Chart name
+        chartName:
+          type: string
+          description: Chart name
+        appStoreApplicationName:
+          type: string
+          description: App store application name
+        home:
+          type: string
+          description: Home URL
+        source:
+          type: string
+          description: Source URL
+        valuesYaml:
+          type: string
+          description: Values YAML
+        chartYaml:
+          type: string
+          description: Chart YAML
+        appStoreId:
+          type: integer
+          description: App store ID
+        latest:
+          type: boolean
+          description: Whether this is the latest version
+        createdOn:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        rawValues:
+          type: string
+          description: Raw values
+        readme:
+          type: string
+          description: README content
+        valuesSchemaJson:
+          type: string
+          description: Values schema in JSON format
+        notes:
+          type: string
+          description: Release notes
+
+    ChartInfo:
+      type: object
+      properties:
+        chartName:
+          type: string
+          description: Chart name
+        chartVersion:
+          type: string
+          description: Chart version
+        valuesYaml:
+          type: string
+          description: Values YAML
+        chartYaml:
+          type: string
+          description: Chart YAML
+        readme:
+          type: string
+          description: README content
+        notes:
+          type: string
+          description: Release notes
+
+    AppStoreListingResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Status code
+        status:
+          type: string
+          description: Status message
+        result:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppStoreApplication'
+          description: List of app store applications
+
+    InstallAppVersionDTO:
+      type: object
+      description: |
+        Complete details of an installed app version including configuration,
+        values, and deployment metadata.
+      properties:
+        id:
+          type: integer
+          description: Installed app version ID (same as installedAppVersionId)
+          example: 2
+        appId:
+          type: integer
+          description: Application ID
+          example: 12
+        appName:
+          type: string
+          description: Application name (can be display name for external apps)
+          example: "my-app"
+        teamId:
+          type: integer
+          description: Team/Project ID
+          example: 1
+        teamName:
+          type: string
+          description: Team/Project name
+          example: "devtron-demo"
+        environmentId:
+          type: integer
+          description: Environment ID where the app is deployed
+          example: 1
+        installedAppId:
+          type: integer
+          description: Installed app ID
+          example: 5
+        installedAppVersionId:
+          type: integer
+          description: Installed app version ID
+          example: 2
+        installedAppVersionHistoryId:
+          type: integer
+          description: Installed app version history ID (for rollback reference)
+          example: 10
+        appStoreVersion:
+          type: integer
+          description: App store application version ID (chart version reference)
+          example: 45
+        valuesOverrideYaml:
+          type: string
+          description: YAML string containing custom values that override chart defaults
+          example: |
+            replicaCount: 2
+            image:
+              tag: "v1.0.0"
+            service:
+              type: ClusterIP
+        readme:
+          type: string
+          description: README documentation for the chart
+          example: "# Application README\n\nThis is the application documentation."
+        referenceValueId:
+          type: integer
+          description: Reference value ID (points to template or deployed values)
+          example: 1
+        referenceValueKind:
+          type: string
+          description: Kind of reference value
+          enum: ["DEFAULT", "TEMPLATE", "DEPLOYED", "EXISTING"]
+          example: "DEFAULT"
+        appStoreId:
+          type: integer
+          description: App store application ID
+          example: 10
+        appStoreName:
+          type: string
+          description: App store application name (chart name)
+          example: "nginx"
+        deprecated:
+          type: boolean
+          description: Whether this chart version is deprecated
+          example: false
+        clusterId:
+          type: integer
+          description: Cluster ID where the app is deployed
+          example: 1
+        namespace:
+          type: string
+          description: Kubernetes namespace where the app is deployed
+          example: "default"
+        appOfferingMode:
+          type: string
+          description: App offering mode (FULL, EA_ONLY, etc.)
+          example: "FULL"
+        gitOpsPath:
+          type: string
+          description: GitOps repository path for this deployment
+          example: "my-app-default"
+        gitHash:
+          type: string
+          description: Git commit hash of the deployed version
+          example: "abc123def456"
+        deploymentAppType:
+          type: string
+          description: Deployment application type (HELM, GITOPS, etc.)
+          example: "HELM"
+        acdPartialDelete:
+          type: boolean
+          description: Whether ArgoCD partial delete is enabled
+          example: false
+        updatedOn:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-01-15T10:30:00Z"
+        isVirtualEnvironment:
+          type: boolean
+          description: Whether this is a virtual environment
+          example: false
+        helmPackageName:
+          type: string
+          description: Helm package name
+          example: "nginx-1.0.0"
+        gitRepoURL:
+          type: string
+          description: GitOps repository URL
+          example: "https://github.com/org/gitops-repo"
+        appStoreApplicationVersionId:
+          type: integer
+          description: App store application version ID
+          example: 45
+
+    AppDetailContainer:
+      type: object
+      description: |
+        Comprehensive details about a deployed app store application including
+        deployment information, environment details, instance information, and resource tree.
+      properties:
+        installedAppId:
+          type: integer
+          description: Installed app ID
+          example: 2
+        appId:
+          type: integer
+          description: Application ID
+          example: 12
+        appName:
+          type: string
+          description: Application name
+          example: "my-nginx-app"
+        environmentId:
+          type: integer
+          description: Environment ID where the app is deployed
+          example: 1
+        environmentName:
+          type: string
+          description: Environment name
+          example: "production"
+        namespace:
+          type: string
+          description: Kubernetes namespace where the app is deployed
+          example: "default"
+        clusterId:
+          type: integer
+          description: Cluster ID where the app is deployed
+          example: 1
+        clusterName:
+          type: string
+          description: Cluster name
+          example: "prod-cluster"
+        appStoreChartName:
+          type: string
+          description: App store chart name
+          example: "nginx"
+        appStoreChartId:
+          type: integer
+          description: App store chart ID
+          example: 10
+        appStoreAppVersion:
+          type: string
+          description: App store application version
+          example: "1.21.0"
+        appStoreInstalledAppVersionId:
+          type: integer
+          description: App store installed app version ID
+          example: 5
+        lastDeployedTime:
+          type: string
+          description: Last deployment timestamp
+          example: "2024-01-15T10:30:00Z"
+        lastDeployedBy:
+          type: string
+          description: Email of user who last deployed the app
+          example: "admin@example.com"
+        status:
+          type: string
+          description: Application health status
+          example: "Healthy"
+        statusMessage:
+          type: string
+          description: Detailed status message
+          example: "All resources are healthy"
+        releaseVersion:
+          type: string
+          description: Helm release version
+          example: "1"
+        deploymentAppType:
+          type: string
+          description: Deployment application type (HELM, ACD, etc.)
+          example: "HELM"
+        helmPackageName:
+          type: string
+          description: Generated Helm package name
+          example: "my-nginx-app-production-20240115"
+        deprecated:
+          type: boolean
+          description: Whether the chart version is deprecated
+          example: false
+        k8sVersion:
+          type: string
+          description: Kubernetes version of the cluster
+          example: "1.28"
+        dataSource:
+          type: string
+          description: Data source for the application
+          example: "HELM"
+        default:
+          type: boolean
+          description: Whether this is the default environment
+          example: false
+        isVirtualEnvironment:
+          type: boolean
+          description: Whether this is a virtual environment
+          example: false
+        deploymentAppDeleteRequest:
+          type: boolean
+          description: Whether a delete request is pending
+          example: false
+        ipsAccessProvided:
+          type: boolean
+          description: Whether IPS access is provided
+          example: false
+        releaseMode:
+          type: string
+          description: Release mode (NORMAL, ROLLBACK, etc.)
+          example: "NORMAL"
+        instanceDetail:
+          type: array
+          description: List of pod instances with resource usage
+          items:
+            $ref: '#/components/schemas/InstanceDetail'
+        otherEnvironment:
+          type: array
+          description: List of other environments where this app is deployed
+          items:
+            $ref: '#/components/schemas/Environment'
+        linkOuts:
+          type: array
+          description: External links associated with the application
+          items:
+            $ref: '#/components/schemas/LinkOut'
+        resourceTree:
+          type: object
+          description: Kubernetes resource tree for the application
+          additionalProperties: true
+        notes:
+          type: string
+          description: Helm chart notes
+          example: "Application deployed successfully"
+
+    InstanceDetail:
+      type: object
+      description: Pod instance details with resource usage
+      properties:
+        podName:
+          type: string
+          description: Pod name
+          example: "my-nginx-app-7d8f9c5b6-abc12"
+        cpuUsage:
+          type: string
+          description: CPU usage percentage
+          example: "15%"
+        memoryUsage:
+          type: string
+          description: Memory usage percentage
+          example: "45%"
+        status:
+          type: string
+          description: Pod status
+          example: "Running"
+
+    Environment:
+      type: object
+      description: Environment information
+      properties:
+        environmentId:
+          type: integer
+          description: Environment ID
+          example: 2
+        environmentName:
+          type: string
+          description: Environment name
+          example: "staging"
+        namespace:
+          type: string
+          description: Kubernetes namespace
+          example: "staging"
+        clusterName:
+          type: string
+          description: Cluster name
+          example: "staging-cluster"
+
+    LinkOut:
+      type: object
+      description: External link configuration
+      properties:
+        name:
+          type: string
+          description: Link name
+          example: "Grafana Dashboard"
+        url:
+          type: string
+          description: Link URL
+          example: "https://grafana.example.com/d/app-dashboard"
+        description:
+          type: string
+          description: Link description
+          example: "Application monitoring dashboard"
+
+    ErrorResponse:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        status:
+          type: string
+          description: Error message
+        errors:
+          type: array
+          description: List of errors
+          items:
+            $ref: '#/components/schemas/Error'
+
+    Error:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error internal code
+        internalMessage:
+          type: string
+          description: Error internal message
+        userMessage:
+          type: string
+          description: Error user message
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token-based authentication. Include the token in the Authorization header
+        as: `Authorization: Bearer <token>`

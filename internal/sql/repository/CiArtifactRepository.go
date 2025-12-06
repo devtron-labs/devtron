@@ -19,8 +19,8 @@ package repository
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util"
 	"golang.org/x/exp/slices"
 	"strings"
 	"time"
@@ -73,15 +73,24 @@ type CiArtifact struct {
 	ScanEnabled           bool      `sql:"scan_enabled,notnull"`
 	Scanned               bool      `sql:"scanned,notnull"`
 	ExternalCiPipelineId  int       `sql:"external_ci_pipeline_id"`
-	IsArtifactUploaded    bool      `sql:"is_artifact_uploaded"`
+	IsArtifactUploaded    bool      `sql:"is_artifact_uploaded"` // Deprecated; Use pipelineConfig.CiWorkflow instead.
 	CredentialsSourceType string    `sql:"credentials_source_type"`
 	CredentialSourceValue string    `sql:"credentials_source_value"`
+	TargetPlatforms       string    `sql:"target_platforms"`
 	ComponentId           int       `sql:"component_id"`
 	DeployedTime          time.Time `sql:"-"`
 	Deployed              bool      `sql:"-"`
 	Latest                bool      `sql:"-"`
 	RunningOnParent       bool      `sql:"-"`
 	sql.AuditLog
+}
+
+func (artifact *CiArtifact) ExtractImageRepoAndTag() (repo string, tag string, err error) {
+	imageMetadata, err := util.ExtractImageRepoAndTag(artifact.Image)
+	if err != nil {
+		return "", "", err
+	}
+	return imageMetadata.Repo, imageMetadata.Tag, nil
 }
 
 func (artifact *CiArtifact) IsMigrationRequired() bool {
@@ -115,6 +124,7 @@ type CiArtifactRepository interface {
 	GetArtifactsByCDPipelineAndRunnerType(cdPipelineId int, runnerType bean.WorkflowType) ([]CiArtifact, error)
 	SaveAll(artifacts []*CiArtifact) ([]*CiArtifact, error)
 	GetArtifactsByCiPipelineId(ciPipelineId int) ([]CiArtifact, error)
+	GetLatestArtifactsByCiPipelineId(ciPipelineId, limit int) ([]CiArtifact, error)
 	GetArtifactsByCiPipelineIds(ciPipelineIds []int) ([]CiArtifact, error)
 	FinDByParentCiArtifactAndCiId(parentCiArtifact int, ciPipelineIds []int) ([]*CiArtifact, error)
 	GetLatest(cdPipelineId int) (int, error)
@@ -130,6 +140,8 @@ type CiArtifactRepository interface {
 	// MigrateToWebHookDataSourceType is used for backward compatibility. It'll migrate the deprecated DataSource type
 	MigrateToWebHookDataSourceType(id int) error
 	UpdateLatestTimestamp(artifactIds []int) error
+
+	Update(ciArtifact *CiArtifact) error
 }
 
 type CiArtifactRepositoryImpl struct {
@@ -350,8 +362,8 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpt
 	artifactsResp := make([]*CiArtifactWithExtraData, 0, listingFilterOpts.Limit)
 	var artifacts []*CiArtifact
 	totalCount := 0
-	finalQuery := BuildQueryForParentTypeCIOrWebhook(*listingFilterOpts)
-	_, err := impl.dbConnection.Query(&artifactsResp, finalQuery)
+	finalQuery, finalQueryParams := BuildQueryForParentTypeCIOrWebhook(*listingFilterOpts)
+	_, err := impl.dbConnection.Query(&artifactsResp, finalQuery, finalQueryParams...)
 	if err != nil {
 		return nil, totalCount, err
 	}
@@ -407,9 +419,9 @@ func (impl CiArtifactRepositoryImpl) GetLatestArtifactTimeByCiPipelineIds(ciPipe
 		"(SELECT  pipeline_id, MAX(created_on) created_on " +
 		"FROM ci_artifact " +
 		"GROUP BY pipeline_id) cws " +
-		"where cws.pipeline_id IN (" + helper.GetCommaSepratedString(ciPipelineIds) + "); "
+		"where cws.pipeline_id IN (?); "
 
-	_, err := impl.dbConnection.Query(&artifacts, query)
+	_, err := impl.dbConnection.Query(&artifacts, query, pg.In(ciPipelineIds))
 	if err != nil {
 		return nil, err
 	}
@@ -669,6 +681,19 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCiPipelineId(ciPipelineId int
 	return artifacts, err
 }
 
+func (impl CiArtifactRepositoryImpl) GetLatestArtifactsByCiPipelineId(ciPipelineId, limit int) ([]CiArtifact, error) {
+	var artifacts []CiArtifact
+	err := impl.dbConnection.
+		Model(&artifacts).
+		Column("ci_artifact.*").
+		Join("INNER JOIN ci_pipeline cp on cp.id=ci_artifact.pipeline_id").
+		Where("ci_artifact.pipeline_id = ?", ciPipelineId).
+		Where("cp.deleted = ?", false).
+		Order("ci_artifact.id DESC").Limit(limit).
+		Select()
+	return artifacts, err
+}
+
 func (impl CiArtifactRepositoryImpl) GetArtifactsByCiPipelineIds(ciPipelineIds []int) ([]CiArtifact, error) {
 	var artifacts []CiArtifact
 	if len(ciPipelineIds) == 0 {
@@ -767,8 +792,8 @@ func (impl CiArtifactRepositoryImpl) FindArtifactByListFilter(listingFilterOptio
 	var ciArtifactsResp []CiArtifactWithExtraData
 	ciArtifacts := make([]*CiArtifact, 0)
 	totalCount := 0
-	finalQuery := BuildQueryForArtifactsForCdStage(*listingFilterOptions)
-	_, err := impl.dbConnection.Query(&ciArtifactsResp, finalQuery)
+	finalQuery, queryParams := BuildQueryForArtifactsForCdStage(*listingFilterOptions)
+	_, err := impl.dbConnection.Query(&ciArtifactsResp, finalQuery, queryParams...)
 	if err == pg.ErrNoRows || len(ciArtifactsResp) == 0 {
 		return ciArtifacts, totalCount, nil
 	}
@@ -809,8 +834,8 @@ func (impl CiArtifactRepositoryImpl) FindArtifactByListFilter(listingFilterOptio
 func (impl CiArtifactRepositoryImpl) FetchArtifactsByCdPipelineIdV2(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CiArtifactWithExtraData, int, error) {
 	var wfrList []CiArtifactWithExtraData
 	totalCount := 0
-	finalQuery := BuildQueryForArtifactsForRollback(listingFilterOptions)
-	_, err := impl.dbConnection.Query(&wfrList, finalQuery)
+	finalQuery, queryParams := BuildQueryForArtifactsForRollback(listingFilterOptions)
+	_, err := impl.dbConnection.Query(&wfrList, finalQuery, queryParams...)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting Wfrs and ci artifacts by pipelineId", "err", err, "pipelineId", listingFilterOptions.PipelineId)
 		return nil, totalCount, err
@@ -848,4 +873,13 @@ func (impl CiArtifactRepositoryImpl) FindCiArtifactByImagePaths(images []string)
 		return ciArtifacts, err
 	}
 	return ciArtifacts, nil
+}
+
+func (impl CiArtifactRepositoryImpl) Update(ciArtifact *CiArtifact) error {
+	err := impl.dbConnection.Update(ciArtifact)
+	if err != nil {
+		impl.logger.Errorw("error in updating ciArtifact", "ciArtifact", ciArtifact, "err", err)
+		return err
+	}
+	return nil
 }

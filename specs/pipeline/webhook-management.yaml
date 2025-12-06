@@ -1,0 +1,613 @@
+openapi: 3.0.3
+info:
+  version: 1.0.0
+  title: Devtron Orchestrator Webhook Management API
+  description: |
+    API specifications for Devtron orchestrator webhook configuration management
+    including creating, listing, and deleting webhook configurations.
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Support
+    email: support@devtron.ai
+    url: https://devtron.ai/support
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
+
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+        status:
+          type: string
+          description: Status message
+        result:
+          type: object
+          description: Response result data
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Error code
+        status:
+          type: string
+          description: Error status
+        errors:
+          type: array
+          items:
+            type: string
+          description: List of error messages
+
+    WebhookConfig:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Webhook configuration ID
+        name:
+          type: string
+          description: Webhook configuration name
+        description:
+          type: string
+          description: Webhook description
+        webhookUrl:
+          type: string
+          format: uri
+          description: Webhook URL endpoint
+        httpMethod:
+          type: string
+          enum: [POST, PUT, PATCH]
+          description: HTTP method for webhook calls
+        headers:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookHeader'
+          description: HTTP headers to include in webhook calls
+        payload:
+          type: object
+          description: Webhook payload template
+        eventTypes:
+          type: array
+          items:
+            type: string
+            enum: [DEPLOYMENT_SUCCESS, DEPLOYMENT_FAILURE, CI_SUCCESS, CI_FAILURE, APPLICATION_CREATED, APPLICATION_DELETED]
+          description: Event types that trigger this webhook
+        filters:
+          $ref: '#/components/schemas/WebhookFilters'
+        active:
+          type: boolean
+          description: Whether the webhook is active
+        retryConfig:
+          $ref: '#/components/schemas/RetryConfig'
+        createdOn:
+          type: string
+          format: date-time
+          description: Webhook creation timestamp
+        createdBy:
+          type: integer
+          description: ID of user who created the webhook
+        lastTriggered:
+          type: string
+          format: date-time
+          description: Last time webhook was triggered
+
+    WebhookHeader:
+      type: object
+      required:
+        - key
+        - value
+      properties:
+        key:
+          type: string
+          description: Header key
+        value:
+          type: string
+          description: Header value
+        isSecret:
+          type: boolean
+          description: Whether the header value is secret
+          default: false
+
+    WebhookFilters:
+      type: object
+      properties:
+        appIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: Filter by application IDs
+        environmentIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: Filter by environment IDs
+        teamIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: Filter by team IDs
+        projectIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: Filter by project IDs
+
+    RetryConfig:
+      type: object
+      properties:
+        maxRetries:
+          type: integer
+          minimum: 0
+          maximum: 10
+          description: Maximum number of retry attempts
+          default: 3
+        retryInterval:
+          type: integer
+          minimum: 1
+          maximum: 3600
+          description: Retry interval in seconds
+          default: 60
+        backoffMultiplier:
+          type: number
+          format: float
+          minimum: 1.0
+          maximum: 10.0
+          description: Backoff multiplier for retry intervals
+          default: 2.0
+
+    CreateWebhookRequest:
+      type: object
+      required:
+        - name
+        - webhookUrl
+        - eventTypes
+      properties:
+        name:
+          type: string
+          description: Webhook configuration name
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          description: Webhook description
+        webhookUrl:
+          type: string
+          format: uri
+          description: Webhook URL endpoint
+        httpMethod:
+          type: string
+          enum: [POST, PUT, PATCH]
+          description: HTTP method for webhook calls
+          default: POST
+        headers:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookHeader'
+          description: HTTP headers to include in webhook calls
+        payload:
+          type: object
+          description: Webhook payload template
+        eventTypes:
+          type: array
+          items:
+            type: string
+            enum: [DEPLOYMENT_SUCCESS, DEPLOYMENT_FAILURE, CI_SUCCESS, CI_FAILURE, APPLICATION_CREATED, APPLICATION_DELETED]
+          description: Event types that trigger this webhook
+          minItems: 1
+        filters:
+          $ref: '#/components/schemas/WebhookFilters'
+        active:
+          type: boolean
+          description: Whether the webhook is active
+          default: true
+        retryConfig:
+          $ref: '#/components/schemas/RetryConfig'
+
+    UpdateWebhookRequest:
+      type: object
+      required:
+        - id
+        - name
+        - webhookUrl
+        - eventTypes
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Webhook configuration ID
+        name:
+          type: string
+          description: Webhook configuration name
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          description: Webhook description
+        webhookUrl:
+          type: string
+          format: uri
+          description: Webhook URL endpoint
+        httpMethod:
+          type: string
+          enum: [POST, PUT, PATCH]
+          description: HTTP method for webhook calls
+        headers:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookHeader'
+          description: HTTP headers to include in webhook calls
+        payload:
+          type: object
+          description: Webhook payload template
+        eventTypes:
+          type: array
+          items:
+            type: string
+            enum: [DEPLOYMENT_SUCCESS, DEPLOYMENT_FAILURE, CI_SUCCESS, CI_FAILURE, APPLICATION_CREATED, APPLICATION_DELETED]
+          description: Event types that trigger this webhook
+          minItems: 1
+        filters:
+          $ref: '#/components/schemas/WebhookFilters'
+        active:
+          type: boolean
+          description: Whether the webhook is active
+        retryConfig:
+          $ref: '#/components/schemas/RetryConfig'
+
+    WebhookListResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+        status:
+          type: string
+          description: Status message
+        result:
+          type: object
+          properties:
+            webhooks:
+              type: array
+              items:
+                $ref: '#/components/schemas/WebhookConfig'
+              description: List of webhook configurations
+            totalCount:
+              type: integer
+              description: Total number of webhooks
+
+    WebhookExecutionLog:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Execution log ID
+        webhookId:
+          type: integer
+          format: int64
+          description: Webhook configuration ID
+        eventType:
+          type: string
+          description: Event type that triggered the webhook
+        triggeredAt:
+          type: string
+          format: date-time
+          description: When the webhook was triggered
+        status:
+          type: string
+          enum: [SUCCESS, FAILED, RETRYING]
+          description: Execution status
+        httpStatusCode:
+          type: integer
+          description: HTTP response status code
+        responseBody:
+          type: string
+          description: Response body from webhook endpoint
+        errorMessage:
+          type: string
+          description: Error message if execution failed
+        retryCount:
+          type: integer
+          description: Number of retry attempts
+        executionTime:
+          type: number
+          format: float
+          description: Execution time in milliseconds
+
+tags:
+  - name: Webhook Configuration
+    description: Operations for managing webhook configurations
+  - name: Webhook Execution
+    description: Operations for webhook execution and monitoring
+
+paths:
+  /webhook/create:
+    post:
+      tags:
+        - Webhook Configuration
+      summary: Create webhook configuration
+      description: Creates a new webhook configuration for event notifications
+      operationId: createWebhookConfiguration
+      requestBody:
+        description: Webhook configuration creation request
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWebhookRequest'
+      responses:
+        '200':
+          description: Webhook configuration created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/WebhookConfig'
+        '400':
+          description: Invalid request format or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Webhook configuration with the same name already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /webhook/list:
+    get:
+      tags:
+        - Webhook Configuration
+      summary: List webhook configurations
+      description: Retrieves a list of webhook configurations with optional filtering
+      operationId: listWebhookConfigurations
+      parameters:
+        - name: active
+          in: query
+          description: Filter by active status
+          required: false
+          schema:
+            type: boolean
+        - name: eventType
+          in: query
+          description: Filter by event type
+          required: false
+          schema:
+            type: string
+            enum: [DEPLOYMENT_SUCCESS, DEPLOYMENT_FAILURE, CI_SUCCESS, CI_FAILURE, APPLICATION_CREATED, APPLICATION_DELETED]
+        - name: appId
+          in: query
+          description: Filter by application ID
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: teamId
+          in: query
+          description: Filter by team ID
+          required: false
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Webhook configurations retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookListResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+  /webhook/{webhookId}:
+    get:
+      tags:
+        - Webhook Configuration
+      summary: Get webhook configuration
+      description: Retrieves a specific webhook configuration by ID
+      operationId: getWebhookConfiguration
+      parameters:
+        - name: webhookId
+          in: path
+          description: Webhook configuration ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      responses:
+        '200':
+          description: Webhook configuration retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/WebhookConfig'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Webhook configuration not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+    put:
+      tags:
+        - Webhook Configuration
+      summary: Update webhook configuration
+      description: Updates an existing webhook configuration
+      operationId: updateWebhookConfiguration
+      parameters:
+        - name: webhookId
+          in: path
+          description: Webhook configuration ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      requestBody:
+        description: Webhook configuration update request
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWebhookRequest'
+      responses:
+        '200':
+          description: Webhook configuration updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/WebhookConfig'
+        '400':
+          description: Invalid request format or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Webhook configuration not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+    delete:
+      tags:
+        - Webhook Configuration
+      summary: Delete webhook configuration
+      description: Deletes a webhook configuration
+      operationId: deleteWebhookConfiguration
+      parameters:
+        - name: webhookId
+          in: path
+          description: Webhook configuration ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      responses:
+        '200':
+          description: Webhook configuration deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Webhook configuration not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []

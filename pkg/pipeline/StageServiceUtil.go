@@ -193,7 +193,6 @@ func constructGlobalInputVariablesUsedInScript(script string) []*bean.StepVariab
 				Name:                      inputVariable,
 				Format:                    repository2.PIPELINE_STAGE_STEP_VARIABLE_FORMAT_TYPE_STRING,
 				Description:               "",
-				IsExposed:                 false,
 				AllowEmptyValue:           false,
 				DefaultValue:              "",
 				Value:                     "",

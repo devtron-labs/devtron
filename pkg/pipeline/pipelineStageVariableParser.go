@@ -19,9 +19,9 @@ package pipeline
 import (
 	"errors"
 	"fmt"
+	commonBean "github.com/devtron-labs/common-lib/workflow"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
 	"github.com/go-pg/pg"
 	errors1 "github.com/juju/errors"
@@ -30,12 +30,9 @@ import (
 )
 
 type copyContainerImagePluginInputVariable = string
-type RefPluginName = string
 
 const (
-	COPY_CONTAINER_IMAGE            RefPluginName = "Copy container image"
-	COPY_CONTAINER_IMAGE_VERSION_V1               = "1.0.0"
-	EMPTY_STRING                                  = " "
+	EMPTY_STRING = " "
 )
 
 const (
@@ -44,7 +41,7 @@ const (
 )
 
 type PluginInputVariableParser interface {
-	HandleCopyContainerImagePluginInputVariables(inputVariables []*bean.VariableObject, dockerImageTag string, pluginTriggerImage string, sourceImageDockerRegistry string) (registryDestinationImageMap map[string][]string, registryCredentials map[string]bean2.RegistryCredentials, err error)
+	HandleCopyContainerImagePluginInputVariables(inputVariables []*commonBean.VariableObject, dockerImageTag string, pluginTriggerImage string, sourceImageDockerRegistry string) (registryDestinationImageMap map[string][]string, registryCredentials map[string]bean2.RegistryCredentials, err error)
 }
 
 type PluginInputVariableParserImpl struct {
@@ -65,7 +62,7 @@ func NewPluginInputVariableParserImpl(
 	}
 }
 
-func (impl *PluginInputVariableParserImpl) HandleCopyContainerImagePluginInputVariables(inputVariables []*bean.VariableObject,
+func (impl *PluginInputVariableParserImpl) HandleCopyContainerImagePluginInputVariables(inputVariables []*commonBean.VariableObject,
 	dockerImageTag string,
 	pluginTriggerImage string,
 	sourceImageDockerRegistry string) (registryDestinationImageMap map[string][]string, registryCredentials map[string]bean2.RegistryCredentials, err error) {
@@ -91,9 +88,14 @@ func (impl *PluginInputVariableParserImpl) HandleCopyContainerImagePluginInputVa
 		dockerImageTag = pluginTriggerImageSplit[len(pluginTriggerImageSplit)-1]
 	}
 
-	registryRepoMapping := impl.getRegistryRepoMapping(DestinationInfo)
+	registryRepoMapping, err := impl.getRegistryRepoMapping(DestinationInfo)
+	if err != nil {
+		impl.logger.Errorw("error in getting registry repo mapping", "DestinationInfo", DestinationInfo, "err", err)
+		return nil, nil, err
+	}
 	registryCredentials, err = impl.getRegistryDetails(registryRepoMapping, sourceImageDockerRegistry)
 	if err != nil {
+		impl.logger.Errorw("error in getting registry details", "err", err)
 		return nil, nil, err
 	}
 	registryDestinationImageMap = impl.getRegistryDestinationImageMapping(registryRepoMapping, dockerImageTag, registryCredentials)
@@ -107,7 +109,7 @@ func (impl *PluginInputVariableParserImpl) HandleCopyContainerImagePluginInputVa
 	return registryDestinationImageMap, registryCredentials, nil
 }
 
-func (impl *PluginInputVariableParserImpl) getRegistryRepoMapping(destinationInfo string) map[string][]string {
+func (impl *PluginInputVariableParserImpl) getRegistryRepoMapping(destinationInfo string) (map[string][]string, error) {
 	/*
 		creating map with registry as key and list of repositories in that registry where we need to copy image
 			destinationInfo format (each registry detail is separated by new line) :
@@ -118,6 +120,11 @@ func (impl *PluginInputVariableParserImpl) getRegistryRepoMapping(destinationInf
 	destinationRegistryRepoDetails := strings.Split(destinationInfo, "\n")
 	for _, detail := range destinationRegistryRepoDetails {
 		registryRepoSplit := strings.Split(detail, "|")
+		if len(registryRepoSplit) != 2 {
+			impl.logger.Errorw("invalid destination info format", "destinationInfo", destinationInfo)
+			// skipping for invalid format
+			return destinationRegistryRepositoryMap, errors.New("invalid destination info format. Please provide it in <registry-1> | <repo1>,<repo2>")
+		}
 		registryName := strings.Trim(registryRepoSplit[0], EMPTY_STRING)
 		repositoryValuesSplit := strings.Split(registryRepoSplit[1], ",")
 		var repositories []string
@@ -127,7 +134,7 @@ func (impl *PluginInputVariableParserImpl) getRegistryRepoMapping(destinationInf
 		}
 		destinationRegistryRepositoryMap[registryName] = repositories
 	}
-	return destinationRegistryRepositoryMap
+	return destinationRegistryRepositoryMap, nil
 }
 
 func (impl *PluginInputVariableParserImpl) getRegistryDetails(destinationRegistryRepositoryMap map[string][]string, sourceRegistry string) (map[string]bean2.RegistryCredentials, error) {

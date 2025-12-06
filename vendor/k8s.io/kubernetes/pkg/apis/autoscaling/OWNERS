@@ -2,11 +2,11 @@
 
 reviewers:
   - thockin
-  - lavalamp
   - smarterclayton
   - wojtek-t
   - deads2k
   - caesarxuchao
   - sttts
-  - ncdc
   - dims
+emeritus_reviewers:
+  - ncdc

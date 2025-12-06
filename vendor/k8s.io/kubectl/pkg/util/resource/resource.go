@@ -25,6 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
+	helpers "k8s.io/component-helpers/resource"
 )
 
 // PodRequestsAndLimits returns a dictionary of all defined resources summed up for all
@@ -32,21 +33,103 @@ import (
 // total container resource requests and to the total container limits which have a
 // non-zero quantity.
 func PodRequestsAndLimits(pod *corev1.Pod) (reqs, limits corev1.ResourceList) {
-	reqs, limits = corev1.ResourceList{}, corev1.ResourceList{}
-	for _, container := range pod.Spec.Containers {
-		addResourceList(reqs, container.Resources.Requests)
-		addResourceList(limits, container.Resources.Limits)
+	return podRequests(pod), podLimits(pod)
+}
+
+// podRequests is a simplified form of PodRequests from k8s.io/kubernetes/pkg/api/v1/resource that doesn't check
+// feature gate enablement and avoids adding a dependency on k8s.io/kubernetes/pkg/apis/core/v1 for kubectl.
+func podRequests(pod *corev1.Pod) corev1.ResourceList {
+	// attempt to reuse the maps if passed, or allocate otherwise
+	reqs := corev1.ResourceList{}
+
+	containerStatuses := map[string]*corev1.ContainerStatus{}
+	for i := range pod.Status.ContainerStatuses {
+		containerStatuses[pod.Status.ContainerStatuses[i].Name] = &pod.Status.ContainerStatuses[i]
 	}
-	// init containers define the minimum of any resource
-	for _, container := range pod.Spec.InitContainers {
-		maxResourceList(reqs, container.Resources.Requests)
-		maxResourceList(limits, container.Resources.Limits)
+	for i := range pod.Status.InitContainerStatuses {
+		containerStatuses[pod.Status.InitContainerStatuses[i].Name] = &pod.Status.InitContainerStatuses[i]
 	}
 
-	// Add overhead for running a pod to the sum of requests and to non-zero limits:
+	for _, container := range pod.Spec.Containers {
+		containerReqs := container.Resources.Requests
+		cs, found := containerStatuses[container.Name]
+		if found && cs.Resources != nil {
+			containerReqs = determineContainerReqs(pod, &container, cs)
+		}
+		addResourceList(reqs, containerReqs)
+	}
+
+	restartableInitContainerReqs := corev1.ResourceList{}
+	initContainerReqs := corev1.ResourceList{}
+
+	for _, container := range pod.Spec.InitContainers {
+		containerReqs := container.Resources.Requests
+
+		if container.RestartPolicy != nil && *container.RestartPolicy == corev1.ContainerRestartPolicyAlways {
+			cs, found := containerStatuses[container.Name]
+			if found && cs.Resources != nil {
+				containerReqs = determineContainerReqs(pod, &container, cs)
+			}
+			// and add them to the resulting cumulative container requests
+			addResourceList(reqs, containerReqs)
+
+			// track our cumulative restartable init container resources
+			addResourceList(restartableInitContainerReqs, containerReqs)
+			containerReqs = restartableInitContainerReqs
+		} else {
+			tmp := corev1.ResourceList{}
+			addResourceList(tmp, containerReqs)
+			addResourceList(tmp, restartableInitContainerReqs)
+			containerReqs = tmp
+		}
+		maxResourceList(initContainerReqs, containerReqs)
+	}
+
+	maxResourceList(reqs, initContainerReqs)
+
+	// Add overhead for running a pod to the sum of requests if requested:
 	if pod.Spec.Overhead != nil {
 		addResourceList(reqs, pod.Spec.Overhead)
+	}
 
+	return reqs
+}
+
+// podLimits is a simplified form of PodLimits from k8s.io/kubernetes/pkg/api/v1/resource that doesn't check
+// feature gate enablement and avoids adding a dependency on k8s.io/kubernetes/pkg/apis/core/v1 for kubectl.
+func podLimits(pod *corev1.Pod) corev1.ResourceList {
+	limits := corev1.ResourceList{}
+
+	for _, container := range pod.Spec.Containers {
+		addResourceList(limits, container.Resources.Limits)
+	}
+
+	restartableInitContainerLimits := corev1.ResourceList{}
+	initContainerLimits := corev1.ResourceList{}
+
+	for _, container := range pod.Spec.InitContainers {
+		containerLimits := container.Resources.Limits
+		// Is the init container marked as a restartable init container?
+		if container.RestartPolicy != nil && *container.RestartPolicy == corev1.ContainerRestartPolicyAlways {
+			addResourceList(limits, containerLimits)
+
+			// track our cumulative restartable init container resources
+			addResourceList(restartableInitContainerLimits, containerLimits)
+			containerLimits = restartableInitContainerLimits
+		} else {
+			tmp := corev1.ResourceList{}
+			addResourceList(tmp, containerLimits)
+			addResourceList(tmp, restartableInitContainerLimits)
+			containerLimits = tmp
+		}
+
+		maxResourceList(initContainerLimits, containerLimits)
+	}
+
+	maxResourceList(limits, initContainerLimits)
+
+	// Add overhead to non-zero limits if requested:
+	if pod.Spec.Overhead != nil {
 		for name, quantity := range pod.Spec.Overhead {
 			if value, ok := limits[name]; ok && !value.IsZero() {
 				value.Add(quantity)
@@ -54,7 +137,26 @@ func PodRequestsAndLimits(pod *corev1.Pod) (reqs, limits corev1.ResourceList) {
 			}
 		}
 	}
-	return
+
+	return limits
+}
+
+// determineContainerReqs will return a copy of the container requests based on if resizing is feasible or not.
+func determineContainerReqs(pod *corev1.Pod, container *corev1.Container, cs *corev1.ContainerStatus) corev1.ResourceList {
+	if helpers.IsPodResizeInfeasible(pod) {
+		return max(cs.Resources.Requests, cs.AllocatedResources)
+	}
+	return max(container.Resources.Requests, cs.Resources.Requests, cs.AllocatedResources)
+}
+
+// max returns the result of max(a, b...) for each named resource and is only used if we can't
+// accumulate into an existing resource list
+func max(a corev1.ResourceList, b ...corev1.ResourceList) corev1.ResourceList {
+	result := a.DeepCopy()
+	for _, other := range b {
+		maxResourceList(result, other)
+	}
+	return result
 }
 
 // addResourceList adds the resources in newList to list
@@ -153,7 +255,7 @@ func convertResourceEphemeralStorageToString(ephemeralStorage *resource.Quantity
 	return strconv.FormatInt(m, 10), nil
 }
 
-var standardContainerResources = sets.NewString(
+var standardContainerResources = sets.New[string](
 	string(corev1.ResourceCPU),
 	string(corev1.ResourceMemory),
 	string(corev1.ResourceEphemeralStorage),

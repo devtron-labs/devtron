@@ -19,6 +19,7 @@ package bean
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 )
 
 type ConfigMapRootJson struct {
@@ -54,23 +55,29 @@ type ConfigSecretMap struct {
 	RoleARN        string          `json:"roleARN"`
 	SecretData     json.RawMessage `json:"secretData,omitempty"`
 	SubPath        bool            `json:"subPath"`
+	ESOSubPath     []string        `json:"esoSubPath"`
 	FilePermission string          `json:"filePermission"`
+	ConfigSecretMapEnt
 }
 
-func (configSecret ConfigSecretMap) GetDataMap() (map[string]string, error) {
-	var datamap map[string]string
-	err := json.Unmarshal(configSecret.Data, &datamap)
-	return datamap, err
+func (configSecret *ConfigSecretMap) GetDataMap() (map[string]string, error) {
+	if len(configSecret.Data) == 0 {
+		return make(map[string]string), nil
+	}
+	var dataMap map[string]string
+	err := json.Unmarshal(configSecret.Data, &dataMap)
+	return dataMap, err
 }
-func (configSecretJson ConfigSecretJson) GetDereferencedSecrets() []ConfigSecretMap {
-	return util.GetDeReferencedArray(configSecretJson.Secrets)
+
+func (configSecretJson *ConfigSecretJson) GetDereferencedSecrets() []ConfigSecretMap {
+	return sliceUtil.GetDeReferencedSlice(configSecretJson.Secrets)
 }
 
 func (configSecretJson *ConfigSecretJson) SetReferencedSecrets(secrets []ConfigSecretMap) {
-	configSecretJson.Secrets = util.GetReferencedArray(secrets)
+	configSecretJson.Secrets = sliceUtil.GetReferencedSlice(secrets)
 }
 
-func (ConfigSecretRootJson) GetTransformedDataForSecretData(data string, mode util.SecretTransformMode) (string, error) {
+func GetTransformedDataForSecretRootJsonData(data string, mode util.SecretTransformMode) (string, error) {
 	secretsJson := ConfigSecretRootJson{}
 	err := json.Unmarshal([]byte(data), &secretsJson)
 	if err != nil {
@@ -78,6 +85,9 @@ func (ConfigSecretRootJson) GetTransformedDataForSecretData(data string, mode ut
 	}
 
 	for _, configData := range secretsJson.ConfigSecretJson.Secrets {
+		if configData.Data == nil || configData.External {
+			continue
+		}
 		configData.Data, err = util.GetDecodedAndEncodedData(configData.Data, mode)
 		if err != nil {
 			return "", err
@@ -90,3 +100,14 @@ func (ConfigSecretRootJson) GetTransformedDataForSecretData(data string, mode ut
 	}
 	return string(marshal), nil
 }
+
+type ConfigType string
+
+func (c ConfigType) String() string {
+	return string(c)
+}
+
+const (
+	ConfigMap ConfigType = "cm"
+	Secret    ConfigType = "cs"
+)

@@ -73,7 +73,7 @@ func (handler *ScopedVariableRestHandlerImpl) CreateVariables(w http.ResponseWri
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	request := models.VariableRequest{}
@@ -168,7 +168,7 @@ func (handler *ScopedVariableRestHandlerImpl) GetScopedVariables(w http.Response
 func (handler *ScopedVariableRestHandlerImpl) GetJsonForVariables(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	// not logging bean object as it contains sensitive data

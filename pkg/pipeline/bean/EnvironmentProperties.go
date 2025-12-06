@@ -19,6 +19,8 @@ package bean
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 )
 
 type EnvironmentProperties struct {
@@ -39,6 +41,21 @@ type EnvironmentProperties struct {
 	CurrentViewEditor models.ChartsViewEditorType `json:"currentViewEditor"` //default "UNDEFINED" in db
 	Description       string                      `json:"description" validate:"max=40"`
 	ClusterId         int                         `json:"clusterId"`
+	MergeStrategy     models.MergeStrategy        `json:"mergeStrategy"`
+	MigratedFrom      *bean.ExternalReleaseType   `json:"migratedFrom,omitempty"`
+	AppId             int                         `json:"appId"`
+}
+
+type EnvironmentOverrideCreateInternalDTO struct {
+	Chart                                              *chartRepoRepository.Chart
+	EnvironmentId                                      int
+	UserId                                             int32
+	ManualReviewed                                     bool
+	ChartStatus                                        models.ChartStatus
+	IsOverride, IsAppMetricsEnabled, IsBasicViewLocked bool
+	Namespace                                          string
+	CurrentViewEditor                                  models.ChartsViewEditorType
+	MergeStrategy                                      models.MergeStrategy
 }
 
 type EnvironmentPropertiesResponse struct {
@@ -51,4 +68,10 @@ type EnvironmentPropertiesResponse struct {
 	Namespace         string                `json:"namespace" validate:"name-space-component"`
 	Schema            json.RawMessage       `json:"schema"`
 	Readme            string                `json:"readme"`
+}
+
+type DeploymentConfigMetadata struct {
+	AppId        int
+	EnvId        int
+	ResourceName string // if base then BaseDeploymentTemplate or if at env level{envName-DeploymentTemplateOverride}
 }

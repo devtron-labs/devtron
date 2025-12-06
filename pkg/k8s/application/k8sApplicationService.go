@@ -27,9 +27,12 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	bean5 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/read"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/fluxApplication"
 	bean2 "github.com/devtron-labs/devtron/pkg/fluxApplication/bean"
+	bean4 "github.com/devtron-labs/devtron/pkg/k8s/bean"
 	"io"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"net/http"
@@ -68,28 +71,28 @@ import (
 )
 
 type K8sApplicationService interface {
-	ValidatePodLogsRequestQuery(r *http.Request) (*k8s.ResourceRequestBean, error)
-	ValidateTerminalRequestQuery(r *http.Request) (*terminal.TerminalSessionRequest, *k8s.ResourceRequestBean, error)
+	ValidatePodLogsRequestQuery(r *http.Request) (*bean4.ResourceRequestBean, error)
+	ValidateTerminalRequestQuery(r *http.Request) (*terminal.TerminalSessionRequest, *bean4.ResourceRequestBean, error)
 	DecodeDevtronAppId(applicationId string) (*bean3.DevtronAppIdentifier, error)
-	GetPodLogs(ctx context.Context, request *k8s.ResourceRequestBean) (io.ReadCloser, error)
+	GetPodLogs(ctx context.Context, request *bean4.ResourceRequestBean) (io.ReadCloser, error)
 	ValidateResourceRequest(ctx context.Context, appIdentifier *bean.AppIdentifier, request *k8s2.K8sRequestBean) error
-	ValidateClusterResourceRequest(ctx context.Context, clusterResourceRequest *k8s.ResourceRequestBean,
+	ValidateClusterResourceRequest(ctx context.Context, clusterResourceRequest *bean4.ResourceRequestBean,
 		rbacCallback func(clusterName string, resourceIdentifier k8s2.ResourceIdentifier) bool) (bool, error)
 	ValidateClusterResourceBean(ctx context.Context, clusterId int, manifest unstructured.Unstructured, gvk schema.GroupVersionKind, rbacCallback func(clusterName string, resourceIdentifier k8s2.ResourceIdentifier) bool) bool
 	GetResourceInfo(ctx context.Context) (*bean3.ResourceInfo, error)
 	GetAllApiResourceGVKWithoutAuthorization(ctx context.Context, clusterId int) (*k8s2.GetAllApiResourcesResponse, error)
 	GetAllApiResources(ctx context.Context, clusterId int, isSuperAdmin bool, userId int32) (*k8s2.GetAllApiResourcesResponse, error)
-	GetResourceList(ctx context.Context, token string, request *k8s.ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool) (*k8s2.ClusterResourceListMap, error)
-	GetResourceListWithRestConfig(ctx context.Context, token string, request *k8s.ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool,
+	GetResourceList(ctx context.Context, token string, request *bean4.ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request bean4.ResourceRequestBean, casbinAction string) bool) (*k8s2.ClusterResourceListMap, error)
+	GetResourceListWithRestConfig(ctx context.Context, token string, request *bean4.ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request bean4.ResourceRequestBean, casbinAction string) bool,
 		restConfig *rest.Config, clusterName string) (*k8s2.ClusterResourceListMap, error)
-	ApplyResources(ctx context.Context, token string, request *k8s2.ApplyResourcesRequest, resourceRbacHandler func(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool) ([]*k8s2.ApplyResourcesResponse, error)
-	CreatePodEphemeralContainers(req *cluster.EphemeralContainerRequest) error
-	TerminatePodEphemeralContainer(req cluster.EphemeralContainerRequest) (bool, error)
-	GetPodContainersList(clusterId int, namespace, podName string) (*k8s.PodContainerList, error)
+	ApplyResources(ctx context.Context, token string, request *k8s2.ApplyResourcesRequest, resourceRbacHandler func(token string, clusterName string, request bean4.ResourceRequestBean, casbinAction string) bool) ([]*k8s2.ApplyResourcesResponse, error)
+	CreatePodEphemeralContainers(req *bean5.EphemeralContainerRequest) error
+	TerminatePodEphemeralContainer(req bean5.EphemeralContainerRequest) (bool, error)
+	GetPodContainersList(clusterId int, namespace, podName string) (*bean4.PodContainerList, error)
 	GetPodListByLabel(clusterId int, namespace, label string) ([]corev1.Pod, error)
-	RecreateResource(ctx context.Context, request *k8s.ResourceRequestBean) (*k8s2.ManifestResponse, error)
-	DeleteResourceWithAudit(ctx context.Context, request *k8s.ResourceRequestBean, userId int32) (*k8s2.ManifestResponse, error)
-	GetUrlsByBatchForIngress(ctx context.Context, resp []k8s.BatchResourceResponse) []interface{}
+	RecreateResource(ctx context.Context, request *bean4.ResourceRequestBean) (*k8s2.ManifestResponse, error)
+	DeleteResourceWithAudit(ctx context.Context, request *bean4.ResourceRequestBean, userId int32) (*k8s2.ManifestResponse, error)
+	GetUrlsByBatchForIngress(ctx context.Context, resp []bean4.BatchResourceResponse) []interface{}
 	ValidateFluxResourceRequest(ctx context.Context, appIdentifier *bean2.FluxAppIdentifier, request *k8s2.K8sRequestBean) (bool, error)
 }
 
@@ -106,15 +109,16 @@ type K8sApplicationServiceImpl struct {
 	ephemeralContainerService    cluster.EphemeralContainerService
 	ephemeralContainerRepository repository.EphemeralContainersRepository
 	ephemeralContainerConfig     *EphemeralContainerConfig
-	//argoApplicationService       argoApplication.ArgoApplicationService
-	fluxApplicationService fluxApplication.FluxApplicationService
+	fluxApplicationService       fluxApplication.FluxApplicationService
+	clusterReadService           read.ClusterReadService
 }
 
 func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, pump connector.Pump, helmAppService client.HelmAppService, K8sUtil *k8s2.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig, K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService,
 	k8sCommonService k8s.K8sCommonService, terminalSession terminal.TerminalSessionHandler,
 	ephemeralContainerService cluster.EphemeralContainerService,
 	ephemeralContainerRepository repository.EphemeralContainersRepository,
-	fluxApplicationService fluxApplication.FluxApplicationService) (*K8sApplicationServiceImpl, error) {
+	fluxApplicationService fluxApplication.FluxApplicationService,
+	clusterReadService read.ClusterReadService) (*K8sApplicationServiceImpl, error) {
 	ephemeralContainerConfig := &EphemeralContainerConfig{}
 	err := env.Parse(ephemeralContainerConfig)
 	if err != nil {
@@ -136,16 +140,17 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService clus
 		ephemeralContainerConfig:     ephemeralContainerConfig,
 		//argoApplicationService:       argoApplicationService,
 		fluxApplicationService: fluxApplicationService,
+		clusterReadService:     clusterReadService,
 	}, nil
 }
 
 type EphemeralContainerConfig struct {
-	EphemeralServerVersionRegex string `env:"EPHEMERAL_SERVER_VERSION_REGEX" envDefault:"v[1-9]\\.\\b(2[3-9]|[3-9][0-9])\\b.*"`
+	EphemeralServerVersionRegex string `env:"EPHEMERAL_SERVER_VERSION_REGEX" envDefault:"v[1-9]\\.\\b(2[3-9]|[3-9][0-9])\\b.*" description:"ephemeral containers support version regex that is compared with k8sServerVersion"`
 }
 
-func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Request) (*k8s.ResourceRequestBean, error) {
+func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Request) (*bean4.ResourceRequestBean, error) {
 	v, vars := r.URL.Query(), mux.Vars(r)
-	request := &k8s.ResourceRequestBean{}
+	request := &bean4.ResourceRequestBean{}
 	var err error
 	request.ExternalArgoApplicationName = v.Get("externalArgoApplicationName")
 	appTypeStr := v.Get("appType")
@@ -258,6 +263,7 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 			request.ClusterId = appIdentifier.ClusterId
 			request.K8sRequest.ResourceIdentifier.Namespace = namespace
 			request.AppId = appId
+			request.ExternalArgoAppIdentifier = appIdentifier
 		} else if request.AppType == bean3.HelmAppType {
 			// For Helm App resources
 			appIdentifier, err := impl.helmAppService.DecodeAppId(appId)
@@ -307,7 +313,7 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 	return request, nil
 }
 
-func (impl *K8sApplicationServiceImpl) ValidateTerminalRequestQuery(r *http.Request) (*terminal.TerminalSessionRequest, *k8s.ResourceRequestBean, error) {
+func (impl *K8sApplicationServiceImpl) ValidateTerminalRequestQuery(r *http.Request) (*terminal.TerminalSessionRequest, *bean4.ResourceRequestBean, error) {
 	request := &terminal.TerminalSessionRequest{}
 	v := r.URL.Query()
 	vars := mux.Vars(r)
@@ -315,7 +321,7 @@ func (impl *K8sApplicationServiceImpl) ValidateTerminalRequestQuery(r *http.Requ
 	request.Namespace = vars["namespace"]
 	request.PodName = vars["pod"]
 	request.Shell = vars["shell"]
-	resourceRequestBean := &k8s.ResourceRequestBean{}
+	resourceRequestBean := &bean4.ResourceRequestBean{}
 	identifier := vars["identifier"]
 	if strings.Contains(identifier, "|") {
 		// Validate App Type
@@ -365,6 +371,8 @@ func (impl *K8sApplicationServiceImpl) ValidateTerminalRequestQuery(r *http.Requ
 			resourceRequestBean.ClusterId = appIdentifier.ClusterId
 			request.ClusterId = appIdentifier.ClusterId
 			request.ExternalArgoApplicationName = appIdentifier.AppName
+			request.ExternalArgoApplicationNamespace = appIdentifier.Namespace
+			request.ExternalArgoAppIdentifier = appIdentifier
 		}
 	} else {
 		// Validate Cluster Id
@@ -418,7 +426,7 @@ func (impl *K8sApplicationServiceImpl) DecodeDevtronAppId(applicationId string) 
 	}, nil
 }
 
-func (impl *K8sApplicationServiceImpl) GetPodLogs(ctx context.Context, request *k8s.ResourceRequestBean) (io.ReadCloser, error) {
+func (impl *K8sApplicationServiceImpl) GetPodLogs(ctx context.Context, request *bean4.ResourceRequestBean) (io.ReadCloser, error) {
 	clusterId := request.ClusterId
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
 	podLogsRequest := request.K8sRequest.PodLogsRequest
@@ -426,6 +434,7 @@ func (impl *K8sApplicationServiceImpl) GetPodLogs(ctx context.Context, request *
 	restConfig, err := impl.k8sCommonService.GetRestConfigOfCluster(ctx, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by clusterId", "err", err, "clusterId", clusterId, "")
+		return nil, err
 	}
 	resp, err := impl.K8sUtil.GetPodLogs(ctx, restConfig, resourceIdentifier.Name, resourceIdentifier.Namespace, podLogsRequest.SinceTime, podLogsRequest.TailLines, podLogsRequest.SinceSeconds, podLogsRequest.Follow, podLogsRequest.ContainerName, podLogsRequest.IsPrevContainerLogsEnabled)
 	if err != nil {
@@ -435,10 +444,10 @@ func (impl *K8sApplicationServiceImpl) GetPodLogs(ctx context.Context, request *
 	return resp, nil
 }
 
-func (impl *K8sApplicationServiceImpl) ValidateClusterResourceRequest(ctx context.Context, clusterResourceRequest *k8s.ResourceRequestBean,
+func (impl *K8sApplicationServiceImpl) ValidateClusterResourceRequest(ctx context.Context, clusterResourceRequest *bean4.ResourceRequestBean,
 	rbacCallback func(clusterName string, resourceIdentifier k8s2.ResourceIdentifier) bool) (bool, error) {
 	clusterId := clusterResourceRequest.ClusterId
-	clusterBean, err := impl.clusterService.FindById(clusterId)
+	clusterBean, err := impl.clusterReadService.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting clusterBean by cluster Id", "clusterId", clusterId, "err", err)
 		return false, err
@@ -469,7 +478,7 @@ func (impl *K8sApplicationServiceImpl) validateResourceManifest(clusterName stri
 }
 
 func (impl *K8sApplicationServiceImpl) ValidateClusterResourceBean(ctx context.Context, clusterId int, manifest unstructured.Unstructured, gvk schema.GroupVersionKind, rbacCallback func(clusterName string, resourceIdentifier k8s2.ResourceIdentifier) bool) bool {
-	clusterBean, err := impl.clusterService.FindById(clusterId)
+	clusterBean, err := impl.clusterReadService.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting clusterBean by cluster Id", "clusterId", clusterId, "err", err)
 		return false
@@ -630,9 +639,6 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResourceGVKWithoutAuthorization(
 				k8sEventIndex = index
 			}
 		}
-		if gvk.Kind == "Node" {
-			allApiResources = append(allApiResources[:index], allApiResources[index+1:]...)
-		}
 	}
 	if k8sEventIndex > -1 && v1EventIndex > -1 {
 		allApiResources = append(allApiResources[:v1EventIndex], allApiResources[v1EventIndex+1:]...)
@@ -657,7 +663,7 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(ctx context.Context, c
 	allowedAll := isSuperAdmin
 	filteredApiResources := make([]*k8s2.K8sApiResource, 0)
 	if !isSuperAdmin {
-		clusterBean, err := impl.clusterService.FindById(clusterId)
+		clusterBean, err := impl.clusterReadService.FindById(clusterId)
 		if err != nil {
 			impl.logger.Errorw("failed to find cluster for id", "err", err, "clusterId", clusterId)
 			return nil, err
@@ -725,7 +731,7 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(ctx context.Context, c
 	return response, nil
 }
 
-func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, token string, request *k8s.ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool) (*k8s2.ClusterResourceListMap, error) {
+func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, token string, request *bean4.ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request bean4.ResourceRequestBean, casbinAction string) bool) (*k8s2.ClusterResourceListMap, error) {
 	resourceList := &k8s2.ClusterResourceListMap{}
 	clusterId := request.ClusterId
 	restConfig, err, clusterBean := impl.k8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
@@ -736,8 +742,8 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 	return impl.GetResourceListWithRestConfig(ctx, token, request, validateResourceAccess, restConfig, clusterBean.ClusterName)
 }
 
-func (impl *K8sApplicationServiceImpl) GetResourceListWithRestConfig(ctx context.Context, token string, request *k8s.ResourceRequestBean,
-	validateResourceAccess func(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool,
+func (impl *K8sApplicationServiceImpl) GetResourceListWithRestConfig(ctx context.Context, token string, request *bean4.ResourceRequestBean,
+	validateResourceAccess func(token string, clusterName string, request bean4.ResourceRequestBean, casbinAction string) bool,
 	restConfig *rest.Config, clusterName string) (*k8s2.ClusterResourceListMap, error) {
 	resourceList := &k8s2.ClusterResourceListMap{}
 	k8sRequest := request.K8sRequest
@@ -769,7 +775,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceListWithRestConfig(ctx context
 	return resourceList, nil
 }
 
-func (impl *K8sApplicationServiceImpl) ApplyResources(ctx context.Context, token string, request *k8s2.ApplyResourcesRequest, validateResourceAccess func(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool) ([]*k8s2.ApplyResourcesResponse, error) {
+func (impl *K8sApplicationServiceImpl) ApplyResources(ctx context.Context, token string, request *k8s2.ApplyResourcesRequest, validateResourceAccess func(token string, clusterName string, request bean4.ResourceRequestBean, casbinAction string) bool) ([]*k8s2.ApplyResourcesResponse, error) {
 	manifests, err := yamlUtil.SplitYAMLs([]byte(request.Manifest))
 	if err != nil {
 		impl.logger.Errorw("error in splitting yaml in manifest", "err", err)
@@ -797,7 +803,7 @@ func (impl *K8sApplicationServiceImpl) ApplyResources(ctx context.Context, token
 			Name: manifest.GetName(),
 			Kind: manifest.GetKind(),
 		}
-		resourceRequestBean := k8s.ResourceRequestBean{
+		resourceRequestBean := bean4.ResourceRequestBean{
 			ClusterId: clusterId,
 			K8sRequest: &k8s2.K8sRequestBean{
 				ResourceIdentifier: k8s2.ResourceIdentifier{
@@ -838,7 +844,7 @@ func (impl *K8sApplicationServiceImpl) applyResourceFromManifest(ctx context.Con
 		return isUpdateResource, err
 	}
 	jsonStr := string(jsonStrByteErr)
-	request := &k8s.ResourceRequestBean{
+	request := &bean4.ResourceRequestBean{
 		K8sRequest: k8sRequestBean,
 		ClusterId:  clusterId,
 	}
@@ -870,11 +876,11 @@ func (impl *K8sApplicationServiceImpl) applyResourceFromManifest(ctx context.Con
 
 	return isUpdateResource, nil
 }
-func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req *cluster.EphemeralContainerRequest) error {
+func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req *bean5.EphemeralContainerRequest) error {
 	var clientSet *kubernetes.Clientset
 	var v1Client *v1.CoreV1Client
 	var err error
-	if len(req.ExternalArgoApplicationName) > 0 {
+	if req.ExternalArgoAppIdentifier != nil {
 		clientSet, v1Client, err = impl.k8sCommonService.GetCoreClientByClusterIdForExternalArgoApps(req)
 		if err != nil {
 			impl.logger.Errorw("error in getting coreV1 client by clusterId", "err", err, "req", req)
@@ -959,10 +965,10 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req *cluster
 			impl.logger.Errorw("error occurred in unMarshaling debugContainer object", "debugContainerJs", debugContainer, "err", err)
 			return fmt.Errorf("error creating JSON for pod: %v", err)
 		}
-		req.AdvancedData = &cluster.EphemeralContainerAdvancedData{
+		req.AdvancedData = &bean5.EphemeralContainerAdvancedData{
 			Manifest: string(debugContainerJs),
 		}
-		req.BasicData = &cluster.EphemeralContainerBasicData{
+		req.BasicData = &bean5.EphemeralContainerBasicData{
 			ContainerName:       debugContainer.Name,
 			TargetContainerName: debugContainer.TargetContainerName,
 			Image:               debugContainer.Image,
@@ -979,7 +985,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req *cluster
 	return err
 }
 
-func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, req cluster.EphemeralContainerRequest) (*corev1.Pod, *corev1.EphemeralContainer, error) {
+func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, req bean5.EphemeralContainerRequest) (*corev1.Pod, *corev1.EphemeralContainer, error) {
 	copied := pod.DeepCopy()
 	ephemeralContainer := &corev1.EphemeralContainer{}
 	if req.AdvancedData != nil {
@@ -1018,7 +1024,7 @@ func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, r
 
 }
 
-func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req cluster.EphemeralContainerRequest) (bool, error) {
+func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req bean5.EphemeralContainerRequest) (bool, error) {
 	terminalReq := &terminal.TerminalSessionRequest{
 		PodName:                     req.PodName,
 		ClusterId:                   req.ClusterId,
@@ -1032,19 +1038,83 @@ func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req cluste
 		return false, err
 	}
 	if container == nil {
-		return false, errors.New("externally created ephemeral containers cannot be removed")
+		return false, errors.New(bean5.EXTERNAL_EPHIMERAL_CONTAINER_ERR)
+	}
+	// Check if pod exists and is running before attempting to execute command
+	var v1Client *v1.CoreV1Client
+	if req.ExternalArgoAppIdentifier != nil {
+		_, v1Client, err = impl.k8sCommonService.GetCoreClientByClusterIdForExternalArgoApps(&req)
+		if err != nil {
+			impl.logger.Errorw("error in getting coreV1 client by clusterId for external argo apps", "err", err, "req", req)
+			return false, err
+		}
+	} else {
+		_, v1Client, err = impl.k8sCommonService.GetCoreClientByClusterId(req.ClusterId)
+		if err != nil {
+			impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", req.ClusterId, "err", err)
+			return false, err
+		}
+	}
+
+	// Check if pod exists and is running
+	pod, err := impl.K8sUtil.GetPodByName(req.Namespace, req.PodName, v1Client)
+	if err != nil {
+		if k8s.IsResourceNotFoundErr(err) {
+			impl.logger.Infow("pod not found, ephemeral container termination not needed", "podName", req.PodName, "namespace", req.Namespace, "clusterId", req.ClusterId)
+			// Pod doesn't exist, so ephemeral container is already terminated
+			err = impl.ephemeralContainerService.AuditEphemeralContainerAction(req, repository.ActionTerminate)
+			if err != nil {
+				impl.logger.Errorw("error in saving ephemeral container data", "err", err)
+				return true, err
+			}
+			return true, nil
+		}
+		impl.logger.Errorw("error in getting pod", "clusterId", req.ClusterId, "namespace", req.Namespace, "podName", req.PodName, "err", err)
+		return false, err
+	}
+
+	// Check if pod is in a terminated state
+	if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+		impl.logger.Infow("pod is in terminated state, ephemeral container termination not needed", "podName", req.PodName, "namespace", req.Namespace, "clusterId", req.ClusterId, "podPhase", pod.Status.Phase)
+		// Pod is terminated, so ephemeral container is already terminated
+		err = impl.ephemeralContainerService.AuditEphemeralContainerAction(req, repository.ActionTerminate)
+		if err != nil {
+			impl.logger.Errorw("error in saving ephemeral container data", "err", err)
+			return true, err
+		}
+		return true, nil
+	}
+
+	// Check if the specific ephemeral container is still running
+	ephemeralContainerRunning := false
+	for _, ecStatus := range pod.Status.EphemeralContainerStatuses {
+		if ecStatus.Name == req.BasicData.ContainerName && ecStatus.State.Running != nil {
+			ephemeralContainerRunning = true
+			break
+		}
+	}
+
+	if !ephemeralContainerRunning {
+		impl.logger.Infow("ephemeral container is not running, termination not needed", "podName", req.PodName, "namespace", req.Namespace, "clusterId", req.ClusterId, "containerName", req.BasicData.ContainerName)
+		// Ephemeral container is not running, so it's already terminated
+		err = impl.ephemeralContainerService.AuditEphemeralContainerAction(req, repository.ActionTerminate)
+		if err != nil {
+			impl.logger.Errorw("error in saving ephemeral container data", "err", err)
+			return true, err
+		}
+		return true, errors.New(bean5.EPHEMERAL_CONTAINER_NOT_FOUND_ERR)
 	}
 	containerKillCommand := fmt.Sprintf("kill -16 $(pgrep -f '%s' -o)", fmt.Sprintf(k8sObjectUtils.EphemeralContainerStartingShellScriptFileName, terminalReq.ContainerName))
 	cmds := []string{"sh", "-c", containerKillCommand}
 	_, errBuf, err := impl.terminalSession.RunCmdInRemotePod(terminalReq, cmds)
 	if err != nil {
 		impl.logger.Errorw("failed to execute commands ", "err", err, "commands", cmds, "podName", req.PodName, "namespace", req.Namespace)
-		return false, err
+		// not returning the error since websocket connection will break when running kill command
 	}
 	errBufString := errBuf.String()
 	if errBufString != "" {
 		impl.logger.Errorw("error response on executing commands ", "err", errBufString, "commands", cmds, "podName", req.Namespace, "namespace", req.Namespace)
-		return false, err
+		// not returning the error since websocket connection will break when running kill command
 	}
 
 	if err == nil {
@@ -1060,7 +1130,7 @@ func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req cluste
 	return true, nil
 }
 
-func (impl *K8sApplicationServiceImpl) GetPodContainersList(clusterId int, namespace, podName string) (*k8s.PodContainerList, error) {
+func (impl *K8sApplicationServiceImpl) GetPodContainersList(clusterId int, namespace, podName string) (*bean4.PodContainerList, error) {
 	_, v1Client, err := impl.k8sCommonService.GetCoreClientByClusterId(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", clusterId, "err", err)
@@ -1097,7 +1167,7 @@ func (impl *K8sApplicationServiceImpl) GetPodContainersList(clusterId int, names
 		initContainers[i] = ic.Name
 	}
 
-	return &k8s.PodContainerList{
+	return &bean4.PodContainerList{
 		Containers:          containers,
 		EphemeralContainers: ephemeralContainers,
 		InitContainers:      initContainers,
@@ -1118,7 +1188,7 @@ func (impl *K8sApplicationServiceImpl) GetPodListByLabel(clusterId int, namespac
 	return pods, err
 }
 
-func (impl *K8sApplicationServiceImpl) RecreateResource(ctx context.Context, request *k8s.ResourceRequestBean) (*k8s2.ManifestResponse, error) {
+func (impl *K8sApplicationServiceImpl) RecreateResource(ctx context.Context, request *bean4.ResourceRequestBean) (*k8s2.ManifestResponse, error) {
 	resourceIdentifier := &openapi.ResourceIdentifier{
 		Name:      &request.K8sRequest.ResourceIdentifier.Name,
 		Namespace: &request.K8sRequest.ResourceIdentifier.Namespace,
@@ -1155,14 +1225,14 @@ func (impl *K8sApplicationServiceImpl) RecreateResource(ctx context.Context, req
 	return resp, nil
 }
 
-func (impl *K8sApplicationServiceImpl) DeleteResourceWithAudit(ctx context.Context, request *k8s.ResourceRequestBean, userId int32) (*k8s2.ManifestResponse, error) {
+func (impl *K8sApplicationServiceImpl) DeleteResourceWithAudit(ctx context.Context, request *bean4.ResourceRequestBean, userId int32) (*k8s2.ManifestResponse, error) {
 	resp, err := impl.k8sCommonService.DeleteResource(ctx, request)
 	if err != nil {
 		if k8s.IsResourceNotFoundErr(err) {
 			return nil, &utils.ApiError{Code: "404",
 				HttpStatusCode:  http.StatusNotFound,
 				InternalMessage: err.Error(),
-				UserMessage:     k8s.ResourceNotFoundErr}
+				UserMessage:     bean4.ResourceNotFoundErr}
 		}
 		impl.logger.Errorw("error in deleting resource", "err", err)
 		return nil, err
@@ -1177,7 +1247,7 @@ func (impl *K8sApplicationServiceImpl) DeleteResourceWithAudit(ctx context.Conte
 	return resp, nil
 }
 
-func (impl *K8sApplicationServiceImpl) GetUrlsByBatchForIngress(ctx context.Context, resp []k8s.BatchResourceResponse) []interface{} {
+func (impl *K8sApplicationServiceImpl) GetUrlsByBatchForIngress(ctx context.Context, resp []bean4.BatchResourceResponse) []interface{} {
 	result := make([]interface{}, 0)
 	for _, res := range resp {
 		err := res.Err

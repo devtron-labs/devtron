@@ -34,6 +34,8 @@ type GitConfig struct {
 	BitbucketWorkspaceId string
 	BitbucketProjectKey  string
 
+	IsActiveConfig bool //flag to check if the gitOps config is active
+
 	EnableTLSVerification bool
 	CaCert                string
 	TLSCert               string
@@ -45,6 +47,7 @@ type PushChartToGitRequestDTO struct {
 	EnvName           string
 	ChartAppStoreName string
 	RepoURL           string
+	TargetRevision    string
 	TempChartRefDir   string
 	UserId            int32
 }

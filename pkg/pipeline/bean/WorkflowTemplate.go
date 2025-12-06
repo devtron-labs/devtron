@@ -18,6 +18,7 @@ package bean
 
 import (
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	informerBean "github.com/devtron-labs/common-lib/informer"
 	"github.com/devtron-labs/devtron/api/bean"
 	v1 "k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,16 +48,20 @@ type WorkflowTemplate struct {
 	RefPlugins             []*RefPluginObject
 	TerminationGracePeriod int
 	WorkflowType           string
+	DevtronInstanceUID     string
 }
 
 const (
-	CI_WORKFLOW_NAME        = "ci"
-	CI_WORKFLOW_WITH_STAGES = "ci-stages-with-env"
-	CiStage                 = "CI"
-	JobStage                = "JOB"
-	CdStage                 = "CD"
-	CD_WORKFLOW_NAME        = "cd"
-	CD_WORKFLOW_WITH_STAGES = "cd-stages-with-env"
+	CI_WORKFLOW_NAME            = "ci"
+	CI_WORKFLOW_WITH_STAGES     = "ci-stages-with-env"
+	CiStage                     = "CI"
+	JobStage                    = "JOB"
+	CdStage                     = "CD"
+	CD_WORKFLOW_NAME            = "cd"
+	CD_WORKFLOW_WITH_STAGES     = "cd-stages-with-env"
+	WorkflowGenerateNamePrefix  = "devtron.ai/generate-name-prefix"
+	DevtronLabelPurposeKey      = "devtron.ai/purpose"
+	DevtronLabelPurposeWorkflow = "workflow"
 )
 
 func (workflowTemplate *WorkflowTemplate) GetEntrypoint() string {
@@ -70,19 +75,29 @@ func (workflowTemplate *WorkflowTemplate) GetEntrypoint() string {
 	}
 }
 
-func (workflowTemplate *WorkflowTemplate) CreateObjectMetadata() *v12.ObjectMeta {
+func (workflowTemplate *WorkflowTemplate) SetActiveDeadlineSeconds(timeout int64) {
+	workflowTemplate.ActiveDeadlineSeconds = &timeout
+}
 
+func (workflowTemplate *WorkflowTemplate) CreateObjectMetadata() *v12.ObjectMeta {
+	workflowLabels := map[string]string{
+		WorkflowGenerateNamePrefix:                workflowTemplate.WorkflowNamePrefix,
+		informerBean.WorkflowTypeLabelKey:         workflowTemplate.WorkflowType,
+		informerBean.DevtronOwnerInstanceLabelKey: workflowTemplate.DevtronInstanceUID,
+	}
 	switch workflowTemplate.WorkflowType {
 	case CI_WORKFLOW_NAME:
+		workflowLabels["devtron.ai/workflow-purpose"] = "ci"
 		return &v12.ObjectMeta{
 			GenerateName: workflowTemplate.WorkflowNamePrefix + "-",
-			Labels:       map[string]string{"devtron.ai/workflow-purpose": "ci"},
+			Labels:       workflowLabels,
 		}
 	case CD_WORKFLOW_NAME:
+		workflowLabels["devtron.ai/workflow-purpose"] = "cd"
 		return &v12.ObjectMeta{
 			GenerateName: workflowTemplate.WorkflowNamePrefix + "-",
 			Annotations:  map[string]string{"workflows.argoproj.io/controller-instanceid": workflowTemplate.WfControllerInstanceID},
-			Labels:       map[string]string{"devtron.ai/workflow-purpose": "cd"},
+			Labels:       workflowLabels,
 		}
 	default:
 		return nil

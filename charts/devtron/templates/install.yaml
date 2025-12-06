@@ -98,6 +98,11 @@ spec:
               containerPort: 8080
               name: app
               protocol: TCP
+          envFrom:
+          - configMapRef:
+              name: devtron-common-cm
+          - configMapRef: 
+              name: devtron-operator-cm
           {{- if $.Values.installer.resources }}    
           resources:
           {{- toYaml $.Values.installer.resources | nindent 12 }}

@@ -22,6 +22,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/devtron-labs/common-lib/async"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
 	"github.com/devtron-labs/devtron/pkg/apis/devtron/v1/validation"
@@ -29,7 +30,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/team"
-	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
 )
@@ -45,12 +45,11 @@ type BatchOperationRestHandlerImpl struct {
 	teamService     team.TeamService
 	logger          *zap.SugaredLogger
 	enforcerUtil    rbac.EnforcerUtil
-	argoUserService argo.ArgoUserService
+	asyncRunnable   *async.Runnable
 }
 
 func NewBatchOperationRestHandlerImpl(userAuthService user.UserService, enforcer casbin.Enforcer, workflowAction batch.WorkflowAction,
-	teamService team.TeamService, logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
-	argoUserService argo.ArgoUserService) *BatchOperationRestHandlerImpl {
+	teamService team.TeamService, logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil, asyncRunnable *async.Runnable) *BatchOperationRestHandlerImpl {
 	return &BatchOperationRestHandlerImpl{
 		userAuthService: userAuthService,
 		enforcer:        enforcer,
@@ -58,7 +57,7 @@ func NewBatchOperationRestHandlerImpl(userAuthService user.UserService, enforcer
 		teamService:     teamService,
 		logger:          logger,
 		enforcerUtil:    enforcerUtil,
-		argoUserService: argoUserService,
+		asyncRunnable:   asyncRunnable,
 	}
 }
 
@@ -67,7 +66,7 @@ func (handler BatchOperationRestHandlerImpl) Operate(w http.ResponseWriter, r *h
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var data map[string]interface{}
@@ -98,6 +97,7 @@ func (handler BatchOperationRestHandlerImpl) Operate(w http.ResponseWriter, r *h
 
 		if workflow.Destination.App == nil || len(*workflow.Destination.App) == 0 {
 			common.WriteJsonResp(w, errors.New("app name cannot be empty"), nil, http.StatusBadRequest)
+			return
 		}
 		rbacString := handler.enforcerUtil.GetProjectAdminRBACNameBYAppName(*workflow.Destination.App)
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, rbacString); !ok {
@@ -107,22 +107,16 @@ func (handler BatchOperationRestHandlerImpl) Operate(w http.ResponseWriter, r *h
 
 		ctx, cancel := context.WithCancel(r.Context())
 		if cn, ok := w.(http.CloseNotifier); ok {
-			go func(done <-chan struct{}, closed <-chan bool) {
+			runnableFunc := func(done <-chan struct{}, closed <-chan bool) {
 				select {
 				case <-done:
 				case <-closed:
 					cancel()
 				}
-			}(ctx.Done(), cn.CloseNotify())
+			}
+			handler.asyncRunnable.Execute(func() { runnableFunc(ctx.Done(), cn.CloseNotify()) })
 		}
-		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			handler.logger.Errorw("error in getting acd token", "err", err)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		ctx = context.WithValue(r.Context(), "token", acdToken)
-		err = handler.workflowAction.Execute(&workflow, emptyProps, ctx)
+		err = handler.workflowAction.Execute(&workflow, emptyProps, r.Context())
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return

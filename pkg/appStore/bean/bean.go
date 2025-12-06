@@ -19,12 +19,19 @@ package appStoreBean
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	bean3 "github.com/devtron-labs/devtron/api/helm-app/service/bean"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	"github.com/devtron-labs/devtron/client/argocdServer"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
+	util2 "github.com/devtron-labs/devtron/internal/util"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
-	"github.com/devtron-labs/devtron/util/gitUtil"
+	"github.com/devtron-labs/devtron/util"
+	"slices"
 	"time"
 )
 
@@ -105,6 +112,7 @@ type InstallAppVersionDTO struct {
 	IsVirtualEnvironment         bool                           `json:"isVirtualEnvironment"`
 	HelmPackageName              string                         `json:"helmPackageName"`
 	GitOpsRepoURL                string                         `json:"gitRepoURL"`
+	TargetRevision               string                         `json:"-"`
 	IsCustomRepository           bool                           `json:"-"`
 	IsNewGitOpsRepo              bool                           `json:"-"`
 	ACDAppName                   string                         `json:"-"`
@@ -119,6 +127,15 @@ type InstallAppVersionDTO struct {
 	InstallAppVersionChartDTO    *InstallAppVersionChartDTO     `json:"-"`
 	AppStoreApplicationVersionId int
 	DisplayName                  string `json:"-"` // used only for external apps
+	IsChartLinkRequest           bool
+	GitOpsId                     int
+}
+
+func (chart *InstallAppVersionDTO) GetTargetRevision() string {
+	if len(chart.TargetRevision) == 0 {
+		return util.GetDefaultTargetRevision()
+	}
+	return chart.TargetRevision
 }
 
 func (chart *InstallAppVersionDTO) GetAppIdentifierString() string {
@@ -132,6 +149,22 @@ func (chart *InstallAppVersionDTO) GetAppIdentifierString() string {
 		ReleaseName: displayName,
 	}
 	return appIdentifier.GetUniqueAppNameIdentifier()
+}
+func (chart *InstallAppVersionDTO) NewInstalledAppVersionRequestDTO(userId int32, installedAppId int) *InstallAppVersionDTO {
+	chart.UserId = userId
+	chart.InstalledAppId = installedAppId
+	return chart
+}
+func (chart *InstallAppVersionDTO) UpdateLog(updatedOn time.Time) {
+	if chart == nil {
+		return
+	}
+	chart.UpdatedOn = updatedOn
+}
+
+// IsExternalCliApp It is used for filtering the incoming request for rollback case
+func (chart *InstallAppVersionDTO) IsExternalCliApp() bool {
+	return chart.InstalledAppId == 0
 }
 
 // UpdateDeploymentAppType updates deploymentAppType to InstallAppVersionDTO
@@ -147,7 +180,7 @@ func (chart *InstallAppVersionDTO) UpdateACDAppName() {
 	if chart == nil {
 		return
 	}
-	chart.ACDAppName = fmt.Sprintf("%s-%s", chart.AppName, chart.EnvironmentName)
+	chart.ACDAppName = util.BuildDeployedAppName(chart.AppName, chart.EnvironmentName)
 }
 
 func (chart *InstallAppVersionDTO) UpdateCustomGitOpsRepoUrl(allowCustomRepository bool, installAppVersionRequestType InstallAppVersionRequestType) {
@@ -164,6 +197,7 @@ type InstalledAppDeploymentAction struct {
 	PerformGitOps           bool
 	PerformACDDeployment    bool
 	PerformHelmDeployment   bool
+	PerformFluxDeployment   bool
 }
 
 type InstalledAppDeleteResponseDTO struct {
@@ -187,6 +221,9 @@ type InstallAppVersionChartRepoDTO struct {
 }
 
 func (chart *InstallAppVersionDTO) GetDeploymentConfig() *bean2.DeploymentConfig {
+	if util2.IsFluxApp(chart.DeploymentAppType) {
+		return chart.GetFluxDeploymentConfig()
+	}
 	var configType string
 	if chart.IsCustomRepository {
 		configType = bean2.CUSTOM.String()
@@ -198,13 +235,69 @@ func (chart *InstallAppVersionDTO) GetDeploymentConfig() *bean2.DeploymentConfig
 		EnvironmentId:     chart.EnvironmentId,
 		ConfigType:        configType,
 		DeploymentAppType: chart.DeploymentAppType,
-		RepoURL:           chart.GitOpsRepoURL,
-		RepoName:          gitUtil.GetGitRepoNameFromGitRepoUrl(chart.GitOpsRepoURL),
-		Active:            true,
+		ReleaseMode:       util2.PIPELINE_RELEASE_MODE_CREATE,
+		ReleaseConfiguration: &bean2.ReleaseConfiguration{
+			Version: bean2.Version,
+			ArgoCDSpec: bean2.ArgoCDSpec{
+				Metadata: bean2.ApplicationMetadata{
+					ClusterId: clusterBean.DefaultClusterId,
+					Namespace: argocdServer.DevtronInstalationNs,
+				},
+				Spec: bean2.ApplicationSpec{
+					Destination: &bean2.Destination{
+						Namespace: chart.Namespace,
+						Server:    commonBean.DefaultClusterUrl,
+					},
+					Source: &bean2.ApplicationSource{
+						RepoURL: chart.GitOpsRepoURL,
+						Path:    util.BuildDeployedAppName(chart.AppName, chart.EnvironmentName),
+						Helm: &bean2.ApplicationSourceHelm{
+							ValueFiles: []string{"values.yaml"},
+						},
+						TargetRevision: util.GetDefaultTargetRevision(),
+					},
+					SyncPolicy: nil,
+				},
+			},
+		},
+		Active: true,
 	}
 }
 
-// /
+func (chart *InstallAppVersionDTO) GetFluxDeploymentConfig() *bean2.DeploymentConfig {
+	var configType string
+	if chart.IsCustomRepository {
+		configType = bean2.CUSTOM.String()
+	} else {
+		configType = bean2.SYSTEM_GENERATED.String()
+	}
+	chartLocation := util.BuildDeployedAppName(chart.AppName, chart.EnvironmentName)
+	return &bean2.DeploymentConfig{
+		AppId:             chart.AppId,
+		EnvironmentId:     chart.EnvironmentId,
+		ConfigType:        configType,
+		DeploymentAppType: chart.DeploymentAppType,
+		ReleaseMode:       util2.PIPELINE_RELEASE_MODE_CREATE,
+		ReleaseConfiguration: &bean2.ReleaseConfiguration{
+			Version: bean2.Version,
+			FluxCDSpec: bean2.FluxCDSpec{
+				ClusterId:              chart.ClusterId,
+				HelmReleaseNamespace:   chart.Namespace,
+				GitRepositoryNamespace: chart.Namespace,
+				GitRepositoryName:      util.BuildDeployedAppName(chart.AppName, chart.EnvironmentName),
+				HelmReleaseName:        util.BuildDeployedAppName(chart.AppName, chart.EnvironmentName),
+				GitOpsSecretName:       fmt.Sprintf("devtron-flux-secret-%d", chart.GitOpsId),
+				ChartLocation:          chartLocation,
+				//ChartVersion:           chart.InstallAppVersionChartDTO.ChartVersion,
+				RevisionTarget:   util.GetDefaultTargetRevision(),
+				RepoUrl:          chart.GitOpsRepoURL,
+				DevtronValueFile: "values.yaml",
+			},
+		},
+		Active: true,
+	}
+}
+
 type RefChartProxyDir string
 
 const (
@@ -240,15 +333,6 @@ type AppNames struct {
 	Name          string `json:"name,omitempty"`
 	Exists        bool   `json:"exists"`
 	SuggestedName string `json:"suggestedName,omitempty"`
-}
-
-type Dependencies struct {
-	Dependencies []Dependency `json:"dependencies"`
-}
-type Dependency struct {
-	Name       string `json:"name"`
-	Version    string `json:"version"`
-	Repository string `json:"repository"`
 }
 
 const REFERENCE_TYPE_DEFAULT string = "DEFAULT"
@@ -379,6 +463,7 @@ type ChartRepoSearch struct {
 	ChartId                      int    `json:"chartId"`
 	ChartName                    string `json:"chartName"`
 	ChartRepoId                  int    `json:"chartRepoId"`
+	DockerArtifactStoreId        string `json:"DockerArtifactStoreId"`
 	ChartRepoName                string `json:"chartRepoName"`
 	Version                      string `json:"version"`
 	Deprecated                   bool   `json:"deprecated"`
@@ -433,7 +518,6 @@ type ChartComponent struct {
 }
 
 const (
-	DEFAULT_CLUSTER_ID                          = 1
 	DEFAULT_NAMESPACE                           = "default"
 	DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT = "devtron"
 	CLUSTER_COMPONENT_DIR_PATH                  = "/cluster/component"
@@ -494,4 +578,14 @@ type AppListDetail struct {
 	HelmApps *[]HelmAppDetails `json:"helmApps,omitempty"`
 	// all helm app list, EA+ devtronapp
 	DevtronApps *[]openapi.DevtronApp `json:"devtronApps,omitempty"`
+}
+
+var InstalledAppTerminalStatusList = []string{string(health.HealthStatusHealthy), cdWorkflow.WorkflowAborted, cdWorkflow.WorkflowFailed, cdWorkflow.WorkflowSucceeded}
+
+func IsTerminalStatus(status string) bool {
+	return slices.Contains(InstalledAppTerminalStatusList, status)
+}
+
+func IsFailedStatus(status string) bool {
+	return status == cdWorkflow.WorkflowFailed
 }

@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/bean"
 	"go.opentelemetry.io/otel"
 	"regexp"
@@ -52,13 +53,13 @@ const (
 )
 
 type CrudOperationServiceConfig struct {
-	PropagateExtraLabels bool `env:"PROPAGATE_EXTRA_LABELS" envDefault:"false"`
+	PropagateExtraLabels bool `env:"PROPAGATE_EXTRA_LABELS" envDefault:"false" description:"Add additional propagate labels like api.devtron.ai/appName, api.devtron.ai/envName, api.devtron.ai/project along with the user defined ones."`
 }
 
 type AppCrudOperationService interface {
 	Create(request *bean.AppLabelDto, tx *pg.Tx) (*bean.AppLabelDto, error)
 	FindById(id int) (*bean.AppLabelDto, error)
-	FindAll() ([]*bean.AppLabelDto, error)
+	FindAll(propagated *bool) ([]*bean.AppLabelDto, error)
 	GetAppMetaInfo(appId int, installedAppId int, envId int) (*bean.AppMetaInfoDto, error)
 	GetHelmAppMetaInfo(appId string) (*bean.AppMetaInfoDto, error)
 	GetAppLabelsForDeployment(ctx context.Context, appId int, appName, envName string) ([]byte, error)
@@ -86,7 +87,7 @@ type AppCrudOperationServiceImpl struct {
 	userRepository             repository.UserRepository
 	installedAppRepository     repository2.InstalledAppRepository
 	genericNoteService         genericNotes.GenericNoteService
-	gitMaterialRepository      pipelineConfig.MaterialRepository
+	gitMaterialReadService     read.GitMaterialReadService
 	installedAppDbService      EAMode.InstalledAppDBService
 	crudOperationServiceConfig *CrudOperationServiceConfig
 	dbMigration                dbMigration.DbMigration
@@ -96,10 +97,10 @@ func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRe
 	logger *zap.SugaredLogger, appRepository appRepository.AppRepository, userRepository repository.UserRepository,
 	installedAppRepository repository2.InstalledAppRepository,
 	genericNoteService genericNotes.GenericNoteService,
-	gitMaterialRepository pipelineConfig.MaterialRepository,
 	installedAppDbService EAMode.InstalledAppDBService,
 	crudOperationServiceConfig *CrudOperationServiceConfig,
-	dbMigration dbMigration.DbMigration) *AppCrudOperationServiceImpl {
+	dbMigration dbMigration.DbMigration,
+	gitMaterialReadService read.GitMaterialReadService) *AppCrudOperationServiceImpl {
 	impl := &AppCrudOperationServiceImpl{
 		appLabelRepository:     appLabelRepository,
 		logger:                 logger,
@@ -107,9 +108,9 @@ func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRe
 		userRepository:         userRepository,
 		installedAppRepository: installedAppRepository,
 		genericNoteService:     genericNoteService,
-		gitMaterialRepository:  gitMaterialRepository,
 		installedAppDbService:  installedAppDbService,
 		dbMigration:            dbMigration,
+		gitMaterialReadService: gitMaterialReadService,
 	}
 	crudOperationServiceConfig, err := GetCrudOperationServiceConfig()
 	if err != nil {
@@ -317,9 +318,9 @@ func (impl AppCrudOperationServiceImpl) FindById(id int) (*bean.AppLabelDto, err
 	return label, nil
 }
 
-func (impl AppCrudOperationServiceImpl) FindAll() ([]*bean.AppLabelDto, error) {
+func (impl AppCrudOperationServiceImpl) FindAll(propagated *bool) ([]*bean.AppLabelDto, error) {
 	results := make([]*bean.AppLabelDto, 0)
-	models, err := impl.appLabelRepository.FindAll()
+	models, err := impl.appLabelRepository.FindAll(propagated)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching FindAll app labels", "error", err)
 		return nil, err
@@ -333,6 +334,7 @@ func (impl AppCrudOperationServiceImpl) FindAll() ([]*bean.AppLabelDto, error) {
 			Key:       model.Key,
 			Value:     model.Value,
 			Propagate: model.Propagate,
+			AppName:   model.App.AppName,
 		}
 		results = append(results, dto)
 	}
@@ -427,7 +429,7 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int, installedAppId
 		}
 	} else {
 		//app type not helm type, getting gitMaterials
-		gitMaterials, err := impl.gitMaterialRepository.FindByAppId(appId)
+		gitMaterials, err := impl.gitMaterialReadService.FindByAppId(appId)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting gitMaterials by appId", "err", err, "appId", appId)
 			return nil, err
@@ -462,22 +464,22 @@ func convertUrlToHttpsIfSshType(url string) string {
 }
 
 // getAppAndProjectForAppIdentifier, returns app db model for an app unique identifier or from display_name if both exists else it throws pg.ErrNoRows
-func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIdentifier *helmBean.AppIdentifier) (*appRepository.App, error) {
+func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIdentifier *helmBean.AppIdentifier) (*appRepository.App, bool, error) {
 	app := &appRepository.App{}
 	var err error
 	appNameUniqueIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
 	app, err = impl.appRepository.FindAppAndProjectByAppName(appNameUniqueIdentifier)
 	if err != nil && err != pg.ErrNoRows && err != pg.ErrMultiRows {
 		impl.logger.Errorw("error in fetching app meta data by unique app identifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
-		return app, err
+		return app, false, err
 	}
 	if err == pg.ErrMultiRows {
 		validApp, err := impl.dbMigration.FixMultipleAppsForInstalledApp(appNameUniqueIdentifier)
 		if err != nil {
 			impl.logger.Errorw("error in fixing multiple installed app entries", "appName", appNameUniqueIdentifier, "err", err)
-			return app, err
+			return app, false, err
 		}
-		return validApp, err
+		return validApp, false, err
 	}
 	if util.IsErrNoRows(err) {
 		//find app by display name if not found by unique identifier
@@ -486,16 +488,28 @@ func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIden
 			validApp, err := impl.dbMigration.FixMultipleAppsForInstalledApp(appNameUniqueIdentifier)
 			if err != nil {
 				impl.logger.Errorw("error in fixing multiple installed app entries", "appName", appNameUniqueIdentifier, "err", err)
-				return app, err
+				return app, false, err
 			}
-			return validApp, err
+			return validApp, false, err
 		}
 		if err != nil {
 			impl.logger.Errorw("error in fetching app meta data by display name", "displayName", appIdentifier.ReleaseName, "err", err)
-			return app, err
+			return app, false, err
+		}
+		// there can be a case when an app whose installed_app is deployed via argocd and same appName is also deployed externally
+		// via helm then we need to check if app model found is not deployed by argocd.
+		isManagedByArgocd, err := impl.installedAppDbService.IsChartStoreAppManagedByArgoCd(app.Id)
+		if err != nil {
+			impl.logger.Errorw("error in checking if installed app linked to this app is managed via argocd or not ", "appId", app.Id, "err", err)
+			return app, false, err
+		}
+		if isManagedByArgocd {
+			// if this helm app is managed by argocd then we don't want to process this req. any further.
+			return app, true, nil
 		}
 	}
-	return app, nil
+
+	return app, false, nil
 }
 
 // updateAppNameToUniqueAppIdentifierInApp, migrates values of app_name col. in app table to unique identifier and also updates display_name with releaseName
@@ -539,6 +553,7 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 	app := &appRepository.App{}
 	var err error
 	var displayName string
+	var isManagedByArgocd bool
 	impl.logger.Info("request payload, appId", appId)
 	if len(appIdSplitted) > 1 {
 		appIdDecoded, err := client.DecodeExternalAppAppId(appId)
@@ -546,10 +561,16 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 			impl.logger.Errorw("error in decoding app id for external app", "appId", appId, "err", err)
 			return nil, err
 		}
-		app, err = impl.getAppAndProjectForAppIdentifier(appIdDecoded)
+		app, isManagedByArgocd, err = impl.getAppAndProjectForAppIdentifier(appIdDecoded)
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.logger.Errorw("GetHelmAppMetaInfo, error in getAppAndProjectForAppIdentifier for external apps", "appIdentifier", appIdDecoded, "err", err)
 			return nil, err
+		}
+		if isManagedByArgocd {
+			info := &bean.AppMetaInfoDto{
+				AppName: appIdDecoded.ReleaseName,
+			}
+			return info, nil
 		}
 		// if app.DisplayName is empty then that app_name is not yet migrated to app name unique identifier
 		if app.Id > 0 && len(app.DisplayName) == 0 {

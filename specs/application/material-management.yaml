@@ -1,0 +1,324 @@
+openapi: 3.0.3
+info:
+  version: 1.0.0
+  title: Devtron Orchestrator Application Material Management API
+  description: |
+    API specifications for Devtron orchestrator application material management endpoints.
+    This includes creating and updating git materials for applications, managing git repositories,
+    checkout paths, and filter patterns for CI/CD pipelines.
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Support
+    email: support@devtron.ai
+    url: https://devtron.ai/support
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: /orchestrator
+    description: Devtron Orchestrator API Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
+
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+        status:
+          type: string
+          description: Status message
+        result:
+          type: object
+          description: Response result data
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Error code
+        status:
+          type: string
+          description: Error status
+        errors:
+          type: array
+          items:
+            type: string
+          description: List of error messages
+
+    GitMaterial:
+      type: object
+      required:
+        - url
+        - gitProviderId
+        - checkoutPath
+      properties:
+        id:
+          type: integer
+          description: Material ID (for updates)
+          example: 456
+        name:
+          type: string
+          description: Material name (auto-generated if not provided)
+          example: "my-app-material"
+        url:
+          type: string
+          description: Git repository URL
+          example: "https://github.com/user/repo.git"
+        gitProviderId:
+          type: integer
+          description: Git provider ID
+          example: 1
+          minimum: 1
+        checkoutPath:
+          type: string
+          description: Path where code will be checked out
+          example: "./"
+          default: "./"
+        fetchSubmodules:
+          type: boolean
+          description: Whether to fetch git submodules
+          example: false
+          default: false
+        filterPattern:
+          type: array
+          items:
+            type: string
+          description: File patterns to include/exclude during build
+          example: ["*.yaml", "!test/*"]
+
+    CreateMaterialRequest:
+      type: object
+      required:
+        - appId
+        - material
+      properties:
+        appId:
+          type: integer
+          description: Application ID
+          example: 123
+          minimum: 1
+        material:
+          type: array
+          items:
+            $ref: '#/components/schemas/GitMaterial'
+          description: Array of git materials to create
+          minItems: 1
+
+    UpdateMaterialRequest:
+      type: object
+      required:
+        - appId
+        - material
+      properties:
+        appId:
+          type: integer
+          description: Application ID
+          example: 123
+          minimum: 1
+        material:
+          $ref: '#/components/schemas/GitMaterial'
+          description: Git material to update
+
+    MaterialResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Material ID
+        name:
+          type: string
+          description: Material name
+        url:
+          type: string
+          description: Git repository URL
+        gitProviderId:
+          type: integer
+          description: Git provider ID
+        checkoutPath:
+          type: string
+          description: Checkout path
+        fetchSubmodules:
+          type: boolean
+          description: Whether submodules are fetched
+        filterPattern:
+          type: array
+          items:
+            type: string
+          description: Filter patterns
+        active:
+          type: boolean
+          description: Whether material is active
+        createdOn:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        createdBy:
+          type: integer
+          description: ID of user who created the material
+
+security:
+  - bearerAuth: []
+
+paths:
+  /app/material:
+    post:
+      tags:
+        - Application Material Management
+      summary: Create git materials for application
+      description: |
+        Creates one or more git materials for an application. Git materials define the source code repositories
+        that will be used for CI/CD pipelines. Each material specifies a git repository URL, checkout path,
+        and optional filter patterns.
+      operationId: createMaterial
+      requestBody:
+        description: Material creation request
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMaterialRequest'
+            examples:
+              single_material:
+                summary: Single material example
+                value:
+                  appId: 123
+                  material:
+                    - url: "https://github.com/user/repo.git"
+                      checkoutPath: "./"
+                      gitProviderId: 1
+                      fetchSubmodules: false
+                      filterPattern: ["*.yaml", "!test/*"]
+              multiple_materials:
+                summary: Multiple materials example
+                value:
+                  appId: 123
+                  material:
+                    - url: "https://github.com/user/frontend.git"
+                      checkoutPath: "./frontend"
+                      gitProviderId: 1
+                      fetchSubmodules: false
+                      filterPattern: ["src/**", "!src/test/**"]
+                    - url: "https://github.com/user/backend.git"
+                      checkoutPath: "./backend"
+                      gitProviderId: 1
+                      fetchSubmodules: true
+                      filterPattern: ["*.go", "!*_test.go"]
+      responses:
+        '200':
+          description: Materials created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MaterialResponse'
+        '400':
+          description: Invalid request format or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Application Material Management
+      summary: Update git material for application
+      description: |
+        Updates an existing git material for an application. This allows modifying the git repository URL,
+        checkout path, filter patterns, and other material properties.
+      operationId: updateMaterial
+      requestBody:
+        description: Material update request
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMaterialRequest'
+            examples:
+              update_material:
+                summary: Update material example
+                value:
+                  appId: 123
+                  material:
+                    id: 456
+                    url: "https://github.com/user/updated-repo.git"
+                    checkoutPath: "./src"
+                    gitProviderId: 1
+                    fetchSubmodules: true
+                    filterPattern: ["src/**", "!src/test/**"]
+      responses:
+        '200':
+          description: Material updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/MaterialResponse'
+        '400':
+          description: Invalid request format or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Material not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

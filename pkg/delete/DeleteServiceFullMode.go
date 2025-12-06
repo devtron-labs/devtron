@@ -20,46 +20,51 @@ import (
 	"fmt"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	http2 "net/http"
 )
 
 type DeleteServiceFullMode interface {
-	DeleteGitProvider(deleteRequest *types.GitRegistry) error
+	DeleteGitProvider(deleteRequest *bean.GitRegistry) error
 	DeleteDockerRegistryConfig(deleteRequest *types.DockerArtifactStoreBean) error
 	CanDeleteContainerRegistryConfig(storeId string) bool
 }
 
 type DeleteServiceFullModeImpl struct {
 	logger                   *zap.SugaredLogger
-	gitMaterialRepository    pipelineConfig.MaterialRepository
-	gitRegistryConfig        pipeline.GitRegistryConfig
+	gitMaterialReadService   read.GitMaterialReadService
+	gitRegistryConfig        gitProvider.GitRegistryConfig
 	ciTemplateRepository     pipelineConfig.CiTemplateRepository
 	dockerRegistryConfig     pipeline.DockerRegistryConfig
 	dockerRegistryRepository dockerRegistryRepository.DockerArtifactStoreRepository
 }
 
 func NewDeleteServiceFullModeImpl(logger *zap.SugaredLogger,
-	gitMaterialRepository pipelineConfig.MaterialRepository,
-	gitRegistryConfig pipeline.GitRegistryConfig,
+	gitMaterialReadService read.GitMaterialReadService,
+	gitRegistryConfig gitProvider.GitRegistryConfig,
 	ciTemplateRepository pipelineConfig.CiTemplateRepository,
 	dockerRegistryConfig pipeline.DockerRegistryConfig,
 	dockerRegistryRepository dockerRegistryRepository.DockerArtifactStoreRepository,
 ) *DeleteServiceFullModeImpl {
 	return &DeleteServiceFullModeImpl{
 		logger:                   logger,
-		gitMaterialRepository:    gitMaterialRepository,
+		gitMaterialReadService:   gitMaterialReadService,
 		gitRegistryConfig:        gitRegistryConfig,
 		ciTemplateRepository:     ciTemplateRepository,
 		dockerRegistryConfig:     dockerRegistryConfig,
 		dockerRegistryRepository: dockerRegistryRepository,
 	}
 }
-func (impl DeleteServiceFullModeImpl) DeleteGitProvider(deleteRequest *types.GitRegistry) error {
+func (impl DeleteServiceFullModeImpl) DeleteGitProvider(deleteRequest *bean.GitRegistry) error {
 	//finding if this git account is used in any git material, if yes then will not delete
-	materials, err := impl.gitMaterialRepository.FindByGitProviderId(deleteRequest.Id)
+	materials, err := impl.gitMaterialReadService.FindByGitProviderId(deleteRequest.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("err in deleting git provider", "gitProvider", deleteRequest.Name, "err", err)
 		return err
@@ -89,14 +94,18 @@ func (impl DeleteServiceFullModeImpl) DeleteDockerRegistryConfig(deleteRequest *
 	}
 
 	//finding if docker reg chart is used in any deployment, if yes then will not delete
-	store, err := impl.dockerRegistryRepository.FindOneWithDeploymentCount(deleteRequest.Id)
+	deploymentCount, err := impl.dockerRegistryRepository.FindDeploymentCount(deleteRequest.Id)
 	if err != nil {
 		impl.logger.Errorw("error in fetching registry chart deployment", "dockerRegistry", deleteRequest.Id, "err", err)
 		return err
 	}
-	if store.DeploymentCount > 0 {
+	if deploymentCount > 0 {
 		impl.logger.Errorw("err in deleting docker registry, found chart deployments using registry", "dockerRegistry", deleteRequest.Id, "err", err)
-		return fmt.Errorf(" Please update all related docker config before deleting this registry")
+		return &util.ApiError{
+			HttpStatusCode:  http2.StatusUnprocessableEntity,
+			InternalMessage: " Please update all related docker config before deleting this registry",
+			UserMessage:     "err in deleting docker registry, found chart deployments using registry",
+		}
 	}
 	err = impl.dockerRegistryConfig.DeleteReg(deleteRequest)
 	if err != nil {

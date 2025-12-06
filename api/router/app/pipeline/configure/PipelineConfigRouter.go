@@ -69,6 +69,7 @@ func (router PipelineConfigRouterImpl) InitPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/cd-pipeline/patch/deployment/trigger").HandlerFunc(router.restHandler.HandleTriggerDeploymentAfterTypeChange).Methods("POST")
 	configRouter.Path("/cd-pipeline/{appId}").HandlerFunc(router.restHandler.GetCdPipelines).Methods("GET")
 	configRouter.Path("/cd-pipeline/{appId}/env/{envId}").HandlerFunc(router.restHandler.GetCdPipelinesForAppAndEnv).Methods("GET")
+	configRouter.Path("/cd-pipeline/validate-link-request").HandlerFunc(router.restHandler.ValidateExternalAppLinkRequest).Methods("POST")
 	//save environment specific override
 	configRouter.Path("/env/{appId}/{environmentId}").HandlerFunc(router.restHandler.EnvConfigOverrideCreate).Methods("POST")
 	configRouter.Path("/env/patch").HandlerFunc(router.restHandler.ChangeChartRef).Methods("PATCH")
@@ -122,6 +123,9 @@ func (router PipelineConfigRouterImpl) InitPipelineConfigRouter(configRouter *mu
 
 	configRouter.Path("/env/reset/{appId}/{environmentId}/{id}").HandlerFunc(router.restHandler.EnvConfigOverrideReset).Methods("DELETE")
 	configRouter.Path("/env/namespace/{appId}/{environmentId}").HandlerFunc(router.restHandler.EnvConfigOverrideCreateNamespace).Methods("POST")
+
+	// this api was made for issue :- https://github.com/devtron-labs/sprint-tasks/issues/2692
+	configRouter.Path("/env/namespace/populate-empty").HandlerFunc(router.restHandler.UpdateEmptyNamespaceInChartEnvConfigOverride).Methods("GET")
 
 	configRouter.Path("/cd-pipeline/workflow/history/{appId}/{environmentId}/{pipelineId}").HandlerFunc(router.restHandler.ListDeploymentHistory).Methods("GET")
 	configRouter.Path("/cd-pipeline/workflow/logs/{appId}/{environmentId}/{pipelineId}/{workflowId}").HandlerFunc(router.restHandler.GetPrePostDeploymentLogs).Methods("GET")

@@ -22,6 +22,7 @@ package main
 import (
 	"github.com/devtron-labs/authenticator/middleware"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
+	posthogTelemetry "github.com/devtron-labs/common-lib/telemetry"
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	"github.com/devtron-labs/devtron/api/appStore"
@@ -51,36 +52,47 @@ import (
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/terminal"
+	"github.com/devtron-labs/devtron/api/userResource"
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
+	"github.com/devtron-labs/devtron/client/argocdServer"
+	"github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/client/argocdServer/config"
+	"github.com/devtron-labs/devtron/client/argocdServer/repoCredsK8sClient"
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/client/dashboard"
+	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
-	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/app/dbMigration"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
+	deployment2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
-	"github.com/devtron-labs/devtron/pkg/argoRepositoryCreds"
+	"github.com/devtron-labs/devtron/pkg/asyncProvider"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial"
+	"github.com/devtron-labs/devtron/pkg/commonService"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool"
+	security2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/ucid"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/argo"
+	"github.com/devtron-labs/devtron/util/commonEnforcementFunctionsUtil"
 	"github.com/devtron-labs/devtron/util/cron"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/google/wire"
@@ -89,7 +101,6 @@ import (
 func InitializeApp() (*App, error) {
 	wire.Build(
 		user.SelfRegistrationWireSet,
-
 		sql.PgSqlWireSet,
 		user.UserWireSet,
 		sso.SsoConfigWireSet,
@@ -105,9 +116,9 @@ func InitializeApp() (*App, error) {
 		chartRepo.ChartRepositoryWireSet,
 		appStoreDiscover.AppStoreDiscoverWireSet,
 		chartProvider.AppStoreChartProviderWireSet,
-		appStoreValues.AppStoreValuesWireSet,
+		appStoreValues.WireSet,
 		util3.GetEnvironmentVariables,
-		appStoreDeployment.AppStoreDeploymentWireSet,
+		appStoreDeployment.EAModeWireSet,
 		server.ServerWireSet,
 		module.ModuleWireSet,
 		apiToken.ApiTokenWireSet,
@@ -115,27 +126,37 @@ func InitializeApp() (*App, error) {
 		terminal.TerminalWireSet,
 		gitOps.GitOpsEAWireSet,
 		providerConfig.DeploymentProviderConfigWireSet,
-		argoApplication.ArgoApplicationWireSet,
+		argoApplication.ArgoApplicationWireSetEA,
 		fluxApplication.FluxApplicationWireSet,
+		userResource.UserResourceWireSetEA,
 		NewApp,
 		NewMuxRouter,
 		util.NewHttpClient,
 		util.NewSugardLogger,
 		util.IntValidator,
 		util2.GetACDAuthConfig,
-		telemetry.NewPosthogClient,
+		posthogTelemetry.NewPosthogClient,
+		ucid.WireSet,
 		delete2.NewDeleteServiceImpl,
+		gitMaterial.GitMaterialWireSet,
+		scanTool.ScanToolWireSet,
 
 		sql.NewTransactionUtilImpl,
 
-		pipelineConfig.NewMaterialRepositoryImpl,
-		wire.Bind(new(pipelineConfig.MaterialRepository), new(*pipelineConfig.MaterialRepositoryImpl)),
 		// appStatus
 		appStatus.NewAppStatusRepositoryImpl,
 		wire.Bind(new(appStatus.AppStatusRepository), new(*appStatus.AppStatusRepositoryImpl)),
 		// appStatus ends
 		rbac.NewEnforcerUtilImpl,
 		wire.Bind(new(rbac.EnforcerUtil), new(*rbac.EnforcerUtilImpl)),
+
+		grafana.GetGrafanaClientConfig,
+		grafana.NewGrafanaClientImpl,
+		wire.Bind(new(grafana.GrafanaClient), new(*grafana.GrafanaClientImpl)),
+		asyncProvider.WireSet,
+
+		commonEnforcementFunctionsUtil.NewCommonEnforcementUtilImpl,
+		wire.Bind(new(commonEnforcementFunctionsUtil.CommonEnforcementUtil), new(*commonEnforcementFunctionsUtil.CommonEnforcementUtilImpl)),
 
 		appInfo2.NewAppInfoRouterImpl,
 		wire.Bind(new(appInfo2.AppInfoRouter), new(*appInfo2.AppInfoRouterImpl)),
@@ -185,7 +206,9 @@ func InitializeApp() (*App, error) {
 		// needed for enforcer util ends
 
 		// binding gitops to helm (for hyperion)
-		wire.Bind(new(deployment.FullModeDeploymentService), new(*EAMode.EAModeDeploymentServiceImpl)),
+		wire.Bind(new(deployment.FullModeDeploymentService), new(*deployment2.EAModeDeploymentServiceImpl)),
+
+		wire.Bind(new(deployment.FullModeFluxDeploymentService), new(*deployment2.EAModeDeploymentServiceImpl)),
 
 		router.NewTelemetryRouterImpl,
 		wire.Bind(new(router.TelemetryRouter), new(*router.TelemetryRouterImpl)),
@@ -200,8 +223,8 @@ func InitializeApp() (*App, error) {
 			new(*dashboardEvent.DashboardTelemetryRouterImpl)),
 
 		//binding argoUserService to helm via dummy implementation(HelmUserServiceImpl)
-		argo.NewHelmUserServiceImpl,
-		wire.Bind(new(argo.ArgoUserService), new(*argo.HelmUserServiceImpl)),
+		//argo.NewHelmUserServiceImpl,
+		//wire.Bind(new(argo.ArgoUserService), new(*argo.HelmUserServiceImpl)),
 
 		router.NewUserAttributesRouterImpl,
 		wire.Bind(new(router.UserAttributesRouter), new(*router.UserAttributesRouterImpl)),
@@ -241,22 +264,41 @@ func InitializeApp() (*App, error) {
 		// chart group repository layer wire injection ended
 
 		// end: docker registry wire set injection
+
+		router.NewCommonRouterImpl,
+		wire.Bind(new(router.CommonRouter), new(*router.CommonRouterImpl)),
+		restHandler.NewCommonRestHandlerImpl,
+		wire.Bind(new(restHandler.CommonRestHandler), new(*restHandler.CommonRestHandlerImpl)),
+
+		commonService.NewCommonBaseServiceImpl,
+		wire.Bind(new(commonService.CommonService), new(*commonService.CommonBaseServiceImpl)),
+
 		cron.NewCronLoggerImpl,
-		appStore.AppStoreWireSet,
+		appStore.EAModeWireSet,
 
-		deploymentConfig.NewRepositoryImpl,
-		wire.Bind(new(deploymentConfig.Repository), new(*deploymentConfig.RepositoryImpl)),
-
-		common.NewDeploymentConfigServiceImpl,
-		wire.Bind(new(common.DeploymentConfigService), new(*common.DeploymentConfigServiceImpl)),
+		common.WireSet,
 
 		wire.Bind(new(util4.K8sService), new(*util4.K8sServiceImpl)),
 
-		argoRepositoryCreds.NewRepositorySecret,
-		wire.Bind(new(argoRepositoryCreds.RepositorySecret), new(*argoRepositoryCreds.RepositorySecretImpl)),
+		repoCredsK8sClient.NewRepositoryCredsK8sClientImpl,
+		wire.Bind(new(repoCredsK8sClient.RepositoryCredsK8sClient), new(*repoCredsK8sClient.RepositoryCredsK8sClientImpl)),
+
+		bean.GetConfig,
+
+		config.NewArgoCDConfigGetter,
+		wire.Bind(new(config.ArgoCDConfigGetter), new(*config.ArgoCDConfigGetterImpl)),
+
+		argocdServer.NewArgoClientWrapperServiceEAImpl,
+		wire.Bind(new(argocdServer.ArgoClientWrapperService), new(*argocdServer.ArgoClientWrapperServiceEAImpl)),
 
 		dbMigration.NewDbMigrationServiceImpl,
 		wire.Bind(new(dbMigration.DbMigration), new(*dbMigration.DbMigrationServiceImpl)),
+
+		read.NewEnvConfigOverrideReadServiceImpl,
+		wire.Bind(new(read.EnvConfigOverrideService), new(*read.EnvConfigOverrideReadServiceImpl)),
+
+		chartConfig.NewEnvConfigOverrideRepository,
+		wire.Bind(new(chartConfig.EnvConfigOverrideRepository), new(*chartConfig.EnvConfigOverrideRepositoryImpl)),
 	)
 	return &App{}, nil
 }

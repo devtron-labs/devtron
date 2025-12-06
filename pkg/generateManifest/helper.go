@@ -20,11 +20,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/yaml"
-	"github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"go.opentelemetry.io/otel"
 	"golang.org/x/exp/maps"
 )
@@ -100,7 +100,7 @@ func (impl DeploymentTemplateServiceImpl) constructInstallReleaseBulkReq(apps []
 		impl.Logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
 		return nil, err
 	}
-	config, err := impl.helmAppService.GetClusterConf(bean.DEFAULT_CLUSTER_ID)
+	config, err := impl.helmAppReadService.GetClusterConf(clusterBean.DefaultClusterId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching cluster detail", "clusterId", 1, "err", err)
 		return nil, err

@@ -19,7 +19,7 @@ package appClone
 import (
 	"context"
 	"fmt"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/api/bean/AppView"
 	"github.com/devtron-labs/devtron/internal/constants"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -28,14 +28,22 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
+	bean4 "github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	pipeline2 "github.com/devtron-labs/devtron/pkg/build/pipeline"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	bean5 "github.com/devtron-labs/devtron/pkg/chart/bean"
+	read3 "github.com/devtron-labs/devtron/pkg/chart/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"net/http"
 	"strings"
 )
 
@@ -52,12 +60,13 @@ type AppCloneServiceImpl struct {
 	appListingService       app.AppListingService
 	propertiesConfigService pipeline.PropertiesConfigService
 	pipelineStageService    pipeline.PipelineStageService
-	ciTemplateService       pipeline.CiTemplateService
+	ciTemplateService       pipeline2.CiTemplateReadService
 	appRepository           app2.AppRepository
 	ciPipelineRepository    pipelineConfig.CiPipelineRepository
 	pipelineRepository      pipelineConfig.PipelineRepository
 	ciPipelineConfigService pipeline.CiPipelineConfigService
 	gitOpsConfigReadService config.GitOpsConfigReadService
+	chartReadService        read3.ChartReadService
 }
 
 func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
@@ -68,11 +77,12 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 	appWorkflowService appWorkflow.AppWorkflowService,
 	appListingService app.AppListingService,
 	propertiesConfigService pipeline.PropertiesConfigService,
-	pipelineStageService pipeline.PipelineStageService, ciTemplateService pipeline.CiTemplateService,
+	pipelineStageService pipeline.PipelineStageService, ciTemplateService pipeline2.CiTemplateReadService,
 	appRepository app2.AppRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciPipelineConfigService pipeline.CiPipelineConfigService,
-	gitOpsConfigReadService config.GitOpsConfigReadService) *AppCloneServiceImpl {
+	gitOpsConfigReadService config.GitOpsConfigReadService,
+	chartReadService read3.ChartReadService) *AppCloneServiceImpl {
 	return &AppCloneServiceImpl{
 		logger:                  logger,
 		pipelineBuilder:         pipelineBuilder,
@@ -89,16 +99,17 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 		pipelineRepository:      pipelineRepository,
 		ciPipelineConfigService: ciPipelineConfigService,
 		gitOpsConfigReadService: gitOpsConfigReadService,
+		chartReadService:        chartReadService,
 	}
 }
 
 type CloneRequest struct {
-	RefAppId    int                            `json:"refAppId"`
-	Name        string                         `json:"name"`
-	ProjectId   int                            `json:"projectId"`
-	AppLabels   []*bean.Label                  `json:"labels,omitempty" validate:"dive"`
-	Description *bean2.GenericNoteResponseBean `json:"description"`
-	AppType     helper.AppType                 `json:"appType"`
+	RefAppId    int                              `json:"refAppId"`
+	Name        string                           `json:"name"`
+	ProjectId   int                              `json:"projectId"`
+	AppLabels   []*bean.Label                    `json:"labels,omitempty" validate:"dive"`
+	Description *AppView.GenericNoteResponseBean `json:"description"`
+	AppType     helper.AppType                   `json:"appType"`
 }
 
 type CreateWorkflowMappingDto struct {
@@ -328,13 +339,13 @@ func (impl *AppCloneServiceImpl) CreateCiTemplate(oldAppId, newAppId int, userId
 	return res, err
 }
 
-func (impl *AppCloneServiceImpl) CreateDeploymentTemplate(oldAppId, newAppId int, userId int32, context context.Context) (*chart.TemplateRequest, error) {
-	refTemplate, err := impl.chartService.FindLatestChartForAppByAppId(oldAppId)
+func (impl *AppCloneServiceImpl) CreateDeploymentTemplate(oldAppId, newAppId int, userId int32, context context.Context) (*bean5.TemplateRequest, error) {
+	refTemplate, err := impl.chartReadService.FindLatestChartForAppByAppId(oldAppId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching ref app chart ", "app", oldAppId, "err", err)
 		return nil, err
 	}
-	templateReq := chart.TemplateRequest{
+	templateReq := bean5.TemplateRequest{
 		Id:                0,
 		AppId:             newAppId,
 		Latest:            refTemplate.Latest,
@@ -516,15 +527,15 @@ func (impl *AppCloneServiceImpl) createEnvOverride(oldAppId, newAppId int, userI
 		createResp, err := impl.propertiesConfigService.CreateEnvironmentProperties(newAppId, envPropertiesReq)
 		if err != nil {
 			if err.Error() == bean2.NOCHARTEXIST {
-				templateRequest := chart.TemplateRequest{
+				templateRequest := bean5.TemplateRequest{
 					AppId:             newAppId,
 					ChartRefId:        envPropertiesReq.ChartRefId,
-					ValuesOverride:    []byte("{}"),
+					ValuesOverride:    globalUtil.GetEmptyJSON(),
 					UserId:            userId,
 					IsBasicViewLocked: envPropertiesReq.IsBasicViewLocked,
 					CurrentViewEditor: envPropertiesReq.CurrentViewEditor,
 				}
-				_, err = impl.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
+				_, err = impl.chartService.CreateChartFromEnvOverride(ctx, templateRequest)
 				if err != nil {
 					impl.logger.Error(err)
 					return nil, nil
@@ -545,17 +556,24 @@ func (impl *AppCloneServiceImpl) configDataClone(cfData []*bean3.ConfigData) []*
 	var copiedData []*bean3.ConfigData
 	for _, refdata := range cfData {
 		data := &bean3.ConfigData{
-			Name:               refdata.Name,
-			Type:               refdata.Type,
-			External:           refdata.External,
-			MountPath:          refdata.MountPath,
-			Data:               refdata.Data,
-			DefaultData:        refdata.DefaultData,
-			DefaultMountPath:   refdata.DefaultMountPath,
-			Global:             refdata.Global,
-			ExternalSecretType: refdata.ExternalSecretType,
-			FilePermission:     refdata.FilePermission,
-			SubPath:            refdata.SubPath,
+			Name:                  refdata.Name,
+			Type:                  refdata.Type,
+			External:              refdata.External,
+			MountPath:             refdata.MountPath,
+			Data:                  refdata.Data,
+			DefaultData:           refdata.DefaultData,
+			DefaultMountPath:      refdata.DefaultMountPath,
+			Global:                refdata.Global,
+			ExternalSecretType:    refdata.ExternalSecretType,
+			FilePermission:        refdata.FilePermission,
+			SubPath:               refdata.SubPath,
+			ESOSubPath:            refdata.ESOSubPath,
+			MergeStrategy:         refdata.MergeStrategy,
+			ESOSecretData:         refdata.ESOSecretData,
+			DefaultESOSecretData:  refdata.DefaultESOSecretData,
+			ExternalSecret:        refdata.ExternalSecret,
+			DefaultExternalSecret: refdata.DefaultExternalSecret,
+			RoleARN:               refdata.RoleARN,
 		}
 		copiedData = append(copiedData, data)
 	}
@@ -604,7 +622,7 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 		oldToNewCDPipelineId: make(map[int]int),
 	}
 	for _, refAppWF := range refAppWFs {
-		thisWf := appWorkflow.AppWorkflowDto{
+		thisWf := bean4.AppWorkflowDto{
 			Id:                    0,
 			Name:                  refAppWF.Name,
 			AppId:                 newAppId,
@@ -672,11 +690,11 @@ func (impl *AppCloneServiceImpl) createExternalCiAndAppWorkflowMapping(createWor
 	return externalCiPipelineId, nil
 }
 
-func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []appWorkflow.AppWorkflowMappingDto, createWorkflowMappingDto CreateWorkflowMappingDto, ctx context.Context) (CreateWorkflowMappingDto, error) {
+func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []bean4.AppWorkflowMappingDto, createWorkflowMappingDto CreateWorkflowMappingDto, ctx context.Context) (CreateWorkflowMappingDto, error) {
 	impl.logger.Debugw("wf mapping cloning", "refWfMappings", refWfMappings)
-	var ciMapping []appWorkflow.AppWorkflowMappingDto
-	var cdMappings []appWorkflow.AppWorkflowMappingDto
-	var webhookMappings []appWorkflow.AppWorkflowMappingDto
+	var ciMapping []bean4.AppWorkflowMappingDto
+	var cdMappings []bean4.AppWorkflowMappingDto
+	var webhookMappings []bean4.AppWorkflowMappingDto
 
 	refWfMappings = appWorkflow.LevelWiseSort(refWfMappings)
 
@@ -710,7 +728,7 @@ func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []appWorkflow.A
 				sourceToNewPipelineId: sourceToNewPipelineIdMapping,
 				externalCiPipelineId:  createWorkflowMappingDto.externalCiPipelineId,
 			}
-			pipeline, err := impl.CreateCdPipeline(cdCloneReq, ctx)
+			pipeline, err := impl.createClonedCdPipeline(cdCloneReq, ctx)
 			impl.logger.Debugw("cd pipeline created", "pipeline", pipeline)
 			if err != nil {
 				impl.logger.Errorw("error in getting cd-pipeline", "refAppId", createWorkflowMappingDto.oldAppId, "newAppId", createWorkflowMappingDto.newAppId, "err", err)
@@ -750,6 +768,9 @@ func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []appWorkflow.A
 			impl.logger.Errorw("error in creating ci pipeline, app clone", "err", err)
 			return createWorkflowMappingDto, err
 		}
+		if ci == nil || ci.CiPipelines == nil || len(ci.CiPipelines) == 0 {
+			return createWorkflowMappingDto, errors.New("ci pipeline not created")
+		}
 		impl.logger.Debugw("ci created", "ci", ci)
 	}
 
@@ -764,7 +785,7 @@ func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []appWorkflow.A
 			refAppName:            refApp.AppName,
 			sourceToNewPipelineId: sourceToNewPipelineIdMapping,
 		}
-		pipeline, err := impl.CreateCdPipeline(cdCloneReq, ctx)
+		pipeline, err := impl.createClonedCdPipeline(cdCloneReq, ctx)
 		if err != nil {
 			impl.logger.Errorw("error in creating cd pipeline, app clone", "err", err)
 			return createWorkflowMappingDto, err
@@ -795,6 +816,7 @@ type cloneCiPipelineRequest struct {
 func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (*bean.CiConfigRequest, error) {
 	refCiConfig, err := impl.pipelineBuilder.GetCiPipeline(req.refAppId)
 	if err != nil {
+		impl.logger.Errorw("error in fetching ci config", "err", err)
 		return nil, err
 	}
 
@@ -808,6 +830,7 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 		}
 	}
 	if refCiPipeline == nil {
+		impl.logger.Errorw("error in fetching ci pipeline", "err", err)
 		return nil, nil
 	}
 	pipelineName := refCiPipeline.Name
@@ -956,7 +979,7 @@ type cloneCdPipelineRequest struct {
 	externalCiPipelineId  int
 }
 
-func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, ctx context.Context) (*bean.CdPipelines, error) {
+func (impl *AppCloneServiceImpl) createClonedCdPipeline(req *cloneCdPipelineRequest, ctx context.Context) (*bean.CdPipelines, error) {
 	refPipelines, err := impl.pipelineBuilder.GetCdPipelinesForApp(req.refAppId)
 	if err != nil {
 		return nil, err
@@ -981,11 +1004,11 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		util.PIPELINE_DEPLOYMENT_TYPE_ACD:  true,
 		util.PIPELINE_DEPLOYMENT_TYPE_HELM: true,
 	}
-	DeploymentAppConfigForEnvironment, err := impl.attributesService.GetDeploymentEnforcementConfig(refCdPipeline.EnvironmentId)
+	deploymentAppConfigForEnvironment, err := impl.attributesService.GetDeploymentEnforcementConfig(refCdPipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching deployment config for environment", "err", err)
 	}
-	for deploymentType, allowed := range DeploymentAppConfigForEnvironment {
+	for deploymentType, allowed := range deploymentAppConfigForEnvironment {
 		AllowedDeploymentAppTypes[deploymentType] = allowed
 	}
 	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
@@ -993,10 +1016,24 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		impl.logger.Errorw("error in checking if gitOps configured", "err", err)
 		return nil, err
 	}
+
+	// TODO Asutosh: skip pipeline and it's children
+	if refCdPipeline.IsExternalArgoAppLinkRequest() {
+		impl.logger.Warnw("argo cd is not installed, skipping creation of linked cd pipeline", "cdPipelineId", refCdPipeline.Id)
+		apiErr := &util.ApiError{
+			HttpStatusCode:  http.StatusPreconditionFailed,
+			UserMessage:     "GitOps integration is not installed/configured. Please install/configure GitOps.",
+			InternalMessage: "GitOps integration is not installed/configured. Please install/configure GitOps.",
+		}
+		return nil, apiErr
+	}
+
 	var deploymentAppType string
 	if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_ACD] && AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_HELM] {
 		deploymentAppType = refCdPipeline.DeploymentAppType
-	} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_ACD] && gitOpsConfigurationStatus.IsGitOpsConfigured {
+	} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_ACD] && gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled() {
+		// if GitOps is configured and ArgoCD is installed, then the deployment type should be ACD
+		// if GitOps is configured and ArgoCD is not installed, then the deployment type should be Helm
 		deploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
 	} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_HELM] {
 		deploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
@@ -1029,7 +1066,7 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 	if refCdPipeline.ParentPipelineType == "WEBHOOK" {
 		cdPipeline.CiPipelineId = 0
 		cdPipeline.ParentPipelineId = req.externalCiPipelineId
-	} else if refCdPipeline.ParentPipelineType != appWorkflow.CI_PIPELINE_TYPE {
+	} else if refCdPipeline.ParentPipelineType != bean4.CI_PIPELINE_TYPE {
 		cdPipeline.ParentPipelineId = refCdPipeline.ParentPipelineId
 	}
 	cdPipelineReq := &bean.CdPipelines{

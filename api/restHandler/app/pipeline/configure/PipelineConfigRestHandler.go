@@ -21,11 +21,24 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
+	imageTaggingRead "github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging/read"
+	read2 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
+	gitProviderRead "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
+	bean3 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/build/trigger"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
+	read5 "github.com/devtron-labs/devtron/pkg/chart/read"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
-	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
-	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
+	validator2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/validator"
+	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
+	"github.com/devtron-labs/devtron/pkg/pipeline/draftAwareConfigService"
+	security2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/read"
+	read3 "github.com/devtron-labs/devtron/pkg/team/read"
+	"github.com/devtron-labs/devtron/util/beHelper"
 	"io"
 	"net/http"
 	"strconv"
@@ -40,21 +53,17 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
-	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appClone"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	security2 "github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/team"
-	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -62,7 +71,7 @@ import (
 )
 
 type PipelineRestHandlerEnvConfig struct {
-	UseArtifactListApiV2 bool `env:"USE_ARTIFACT_LISTING_API_V2" envDefault:"true"`
+	UseArtifactListApiV2 bool `env:"USE_ARTIFACT_LISTING_API_V2" envDefault:"true" description:"To use the V2 API for listing artifacts in Listing the images in pipeline"` //deprecated
 }
 
 type DevtronAppRestHandler interface {
@@ -102,7 +111,7 @@ type PipelineConfigRestHandlerImpl struct {
 	ciPipelineMaterialRepository        pipelineConfig.CiPipelineMaterialRepository
 	ciHandler                           pipeline.CiHandler
 	Logger                              *zap.SugaredLogger
-	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService
+	deploymentTemplateValidationService validator2.DeploymentTemplateValidationService
 	chartService                        chart.ChartService
 	devtronAppGitOpConfigService        gitOpsConfig.DevtronAppGitOpConfigService
 	propertiesConfigService             pipeline.PropertiesConfigService
@@ -117,22 +126,28 @@ type PipelineConfigRestHandlerImpl struct {
 	dockerRegistryConfig                pipeline.DockerRegistryConfig
 	cdHandler                           pipeline.CdHandler
 	appCloneService                     appClone.AppCloneService
-	materialRepository                  pipelineConfig.MaterialRepository
+	gitMaterialReadService              read2.GitMaterialReadService
 	policyService                       security2.PolicyService
-	scanResultRepository                security.ImageScanResultRepository
-	gitProviderRepo                     repository.GitProviderRepository
-	argoUserService                     argo.ArgoUserService
-	imageTaggingService                 pipeline.ImageTaggingService
+	imageScanResultReadService          read.ImageScanResultReadService
+	gitProviderReadService              gitProviderRead.GitProviderReadService
+	imageTaggingReadService             imageTaggingRead.ImageTaggingReadService
+	imageTaggingService                 imageTagging.ImageTaggingService
 	deploymentTemplateService           generateManifest.DeploymentTemplateService
 	pipelineRestHandlerEnvConfig        *PipelineRestHandlerEnvConfig
 	ciArtifactRepository                repository.CiArtifactRepository
 	deployedAppMetricsService           deployedAppMetrics.DeployedAppMetricsService
 	chartRefService                     chartRef.ChartRefService
 	ciCdPipelineOrchestrator            pipeline.CiCdPipelineOrchestrator
+	teamReadService                     read3.TeamReadService
+	environmentRepository               repository2.EnvironmentRepository
+	chartReadService                    read5.ChartReadService
+	draftAwareResourceService           draftAwareConfigService.DraftAwareConfigService
+	ciHandlerService                    trigger.HandlerService
+	cdHandlerService                    devtronApps.HandlerService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
-	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService,
+	deploymentTemplateValidationService validator2.DeploymentTemplateValidationService,
 	chartService chart.ChartService,
 	devtronAppGitOpConfigService gitOpsConfig.DevtronAppGitOpConfigService,
 	propertiesConfigService pipeline.PropertiesConfigService,
@@ -142,21 +157,31 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	ciHandler pipeline.CiHandler,
 	validator *validator.Validate,
 	gitSensorClient gitSensor.Client,
-	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
+	ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	pipelineRepository pipelineConfig.PipelineRepository,
 	enforcerUtil rbac.EnforcerUtil,
 	dockerRegistryConfig pipeline.DockerRegistryConfig,
 	cdHandler pipeline.CdHandler,
 	appCloneService appClone.AppCloneService,
 	deploymentTemplateService generateManifest.DeploymentTemplateService,
 	appWorkflowService appWorkflow.AppWorkflowService,
-	materialRepository pipelineConfig.MaterialRepository, policyService security2.PolicyService,
-	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository,
-	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	imageTaggingService pipeline.ImageTaggingService,
+	gitMaterialReadService read2.GitMaterialReadService, policyService security2.PolicyService,
+	imageScanResultReadService read.ImageScanResultReadService,
+	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
+	imageTaggingReadService imageTaggingRead.ImageTaggingReadService,
+	imageTaggingService imageTagging.ImageTaggingService,
 	ciArtifactRepository repository.CiArtifactRepository,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	chartRefService chartRef.ChartRefService,
-	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator) *PipelineConfigRestHandlerImpl {
+	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator,
+	gitProviderReadService gitProviderRead.GitProviderReadService,
+	teamReadService read3.TeamReadService,
+	EnvironmentRepository repository2.EnvironmentRepository,
+	chartReadService read5.ChartReadService,
+	draftAwareResourceService draftAwareConfigService.DraftAwareConfigService,
+	ciHandlerService trigger.HandlerService,
+	cdHandlerService devtronApps.HandlerService,
+) *PipelineConfigRestHandlerImpl {
 	envConfig := &PipelineRestHandlerEnvConfig{}
 	err := env.Parse(envConfig)
 	if err != nil {
@@ -182,12 +207,11 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		cdHandler:                           cdHandler,
 		appCloneService:                     appCloneService,
 		appWorkflowService:                  appWorkflowService,
-		materialRepository:                  materialRepository,
+		gitMaterialReadService:              gitMaterialReadService,
 		policyService:                       policyService,
-		scanResultRepository:                scanResultRepository,
-		gitProviderRepo:                     gitProviderRepo,
-		argoUserService:                     argoUserService,
+		imageScanResultReadService:          imageScanResultReadService,
 		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,
+		imageTaggingReadService:             imageTaggingReadService,
 		imageTaggingService:                 imageTaggingService,
 		deploymentTemplateService:           deploymentTemplateService,
 		pipelineRestHandlerEnvConfig:        envConfig,
@@ -195,6 +219,13 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		deployedAppMetricsService:           deployedAppMetricsService,
 		chartRefService:                     chartRefService,
 		ciCdPipelineOrchestrator:            ciCdPipelineOrchestrator,
+		gitProviderReadService:              gitProviderReadService,
+		teamReadService:                     teamReadService,
+		environmentRepository:               EnvironmentRepository,
+		chartReadService:                    chartReadService,
+		draftAwareResourceService:           draftAwareResourceService,
+		ciHandlerService:                    ciHandlerService,
+		cdHandlerService:                    cdHandlerService,
 	}
 }
 
@@ -202,6 +233,7 @@ const (
 	devtron             = "DEVTRON"
 	SSH_URL_PREFIX      = "git@"
 	HTTPS_URL_PREFIX    = "https://"
+	HTTP_URL_PREFIX     = "http://"
 	argoWFLogIdentifier = "argo=true"
 )
 
@@ -209,7 +241,7 @@ func (handler *PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -251,7 +283,7 @@ func (handler *PipelineConfigRestHandlerImpl) DeleteACDAppWithNonCascade(w http.
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -298,13 +330,7 @@ func (handler *PipelineConfigRestHandlerImpl) DeleteACDAppWithNonCascade(w http.
 		return
 	}
 	// rbac enforcer ends
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.Logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	ctx := context.WithValue(r.Context(), "token", acdToken)
+
 	pipelines, err := handler.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
 	if err != nil && err != pg.ErrNoRows {
 		handler.Logger.Errorw("error in fetching pipelines from db", "appId", appId, "envId", envId)
@@ -318,7 +344,7 @@ func (handler *PipelineConfigRestHandlerImpl) DeleteACDAppWithNonCascade(w http.
 		return
 	}
 	cdPipeline := pipelines[0]
-	err = handler.pipelineBuilder.DeleteACDAppCdPipelineWithNonCascade(cdPipeline, ctx, forceDelete, userId)
+	err = handler.pipelineBuilder.DeleteACDAppCdPipelineWithNonCascade(cdPipeline, r.Context(), forceDelete, userId)
 	if err != nil {
 		handler.Logger.Errorw("service err, NonCascadeDeleteCdPipeline", "err", err, "payload", cdPipeline)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -332,7 +358,7 @@ func (handler *PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var createRequest bean.CreateAppDTO
@@ -351,7 +377,7 @@ func (handler *PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r
 		return
 	}
 
-	project, err := handler.teamService.FetchOne(createRequest.TeamId)
+	project, err := handler.teamReadService.FindOne(createRequest.TeamId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -385,14 +411,6 @@ func (handler *PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r
 				}
 			}(ctx.Done(), cn.CloseNotify())
 		}
-		var acdToken string
-		acdToken, err = handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			handler.Logger.Errorw("error in getting acd token", "err", err)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		ctx = context.WithValue(r.Context(), "token", acdToken)
 		createResp, err = handler.appCloneService.CloneApp(&createRequest, ctx)
 	}
 	if err != nil {
@@ -573,7 +591,7 @@ func (handler *PipelineConfigRestHandlerImpl) sendData(event []byte, w http.Resp
 func (handler *PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerView(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -659,7 +677,7 @@ func (handler *PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.Resp
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	suggestedName := fmt.Sprintf("%s-%d-%s", pType, appId, util2.Generate(4))
+	suggestedName := beHelper.GetPipelineNameByPipelineType(pType, appId)
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceName, casbin.ActionGet)
 	if !ok {
@@ -673,7 +691,7 @@ func (handler *PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVi
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
@@ -790,7 +808,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetApplicationsByEnvironment(w htt
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	envId, err := strconv.Atoi(vars["envId"])
@@ -844,7 +862,7 @@ func (handler *PipelineConfigRestHandlerImpl) FetchAppDeploymentStatusForEnviron
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)

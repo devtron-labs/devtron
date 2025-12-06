@@ -20,14 +20,18 @@ import (
 	"context"
 	"fmt"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/common-lib/async"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
-	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/api/bean/AppView"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	internalUtil "github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/argoApplication/read"
-	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/read/config"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	bean4 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/read"
 	bean3 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
+	bean5 "github.com/devtron-labs/devtron/pkg/k8s/bean"
 	"github.com/devtron-labs/devtron/util"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -46,56 +50,58 @@ import (
 )
 
 type K8sCommonService interface {
-	GetResource(ctx context.Context, request *ResourceRequestBean) (resp *ResourceGetResponse, err error)
-	GetDataFromConfigMaps(ctx context.Context, request *CmCsRequestBean) (map[string]*apiV1.ConfigMap, error)
-	GetDataFromSecrets(ctx context.Context, request *CmCsRequestBean) (map[string]*apiV1.Secret, error)
-	UpdateResource(ctx context.Context, request *ResourceRequestBean) (resp *k8s.ManifestResponse, err error)
-	DeleteResource(ctx context.Context, request *ResourceRequestBean) (resp *k8s.ManifestResponse, err error)
-	ListEvents(ctx context.Context, request *ResourceRequestBean) (*k8s.EventsResponse, error)
-	GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *cluster.ClusterBean)
-	GetManifestsByBatch(ctx context.Context, request []ResourceRequestBean) ([]BatchResourceResponse, error)
-	FilterK8sResources(ctx context.Context, resourceTreeInf map[string]interface{}, appDetail bean.AppDetailContainer, appId string, kindsToBeFiltered []string, externalArgoAppName string) []ResourceRequestBean
-	RotatePods(ctx context.Context, request *RotatePodRequest) (*RotatePodResponse, error)
+	GetResource(ctx context.Context, request *bean5.ResourceRequestBean) (resp *bean5.ResourceGetResponse, err error)
+	GetDataFromConfigMaps(ctx context.Context, request *bean5.CmCsRequestBean) (map[string]*apiV1.ConfigMap, error)
+	GetDataFromSecrets(ctx context.Context, request *bean5.CmCsRequestBean) (map[string]*apiV1.Secret, error)
+	UpdateResource(ctx context.Context, request *bean5.ResourceRequestBean) (resp *k8s.ManifestResponse, err error)
+	DeleteResource(ctx context.Context, request *bean5.ResourceRequestBean) (resp *k8s.ManifestResponse, err error)
+	ListEvents(ctx context.Context, request *bean5.ResourceRequestBean) (*k8s.EventsResponse, error)
+	GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *bean2.ClusterBean)
+	GetManifestsByBatch(ctx context.Context, request []bean5.ResourceRequestBean) ([]bean5.BatchResourceResponse, error)
+	FilterK8sResources(ctx context.Context, resourceTreeInf map[string]interface{}, appDetail AppView.AppDetailContainer, appId string, kindsToBeFiltered []string, externalArgoAppName string) []bean5.ResourceRequestBean
+	RotatePods(ctx context.Context, request *bean5.RotatePodRequest) (*bean5.RotatePodResponse, error)
 	GetCoreClientByClusterId(clusterId int) (*kubernetes.Clientset, *clientV1.CoreV1Client, error)
-	GetCoreClientByClusterIdForExternalArgoApps(req *cluster.EphemeralContainerRequest) (*kubernetes.Clientset, *clientV1.CoreV1Client, error)
+	GetCoreClientByClusterIdForExternalArgoApps(req *bean4.EphemeralContainerRequest) (*kubernetes.Clientset, *clientV1.CoreV1Client, error)
 	GetK8sServerVersion(clusterId int) (*version.Info, error)
-	PortNumberExtraction(resp []BatchResourceResponse, resourceTree map[string]interface{}) map[string]interface{}
-	GetRestConfigOfCluster(ctx context.Context, request *ResourceRequestBean) (*rest.Config, error)
-	GetK8sConfigAndClients(ctx context.Context, cluster *cluster.ClusterBean) (*rest.Config, *http.Client, *kubernetes.Clientset, error)
+	PortNumberExtraction(resp []bean5.BatchResourceResponse, resourceTree map[string]interface{}) map[string]interface{}
+	GetRestConfigOfCluster(ctx context.Context, request *bean5.ResourceRequestBean) (*rest.Config, error)
+	GetK8sConfigAndClients(ctx context.Context, cluster *bean2.ClusterBean) (*rest.Config, *http.Client, *kubernetes.Clientset, error)
 	GetK8sConfigAndClientsByClusterId(ctx context.Context, clusterId int) (*rest.Config, *http.Client, *kubernetes.Clientset, error)
 	GetPreferredVersionForAPIGroup(ctx context.Context, clusterId int, groupName string) (string, error)
 }
 
 type K8sCommonServiceImpl struct {
-	logger                      *zap.SugaredLogger
-	K8sUtil                     *k8s.K8sServiceImpl
-	clusterService              cluster.ClusterService
-	K8sApplicationServiceConfig *K8sApplicationServiceConfig
-	argoApplicationReadService  read.ArgoApplicationReadService
+	logger                       *zap.SugaredLogger
+	K8sUtil                      *k8s.K8sServiceImpl
+	K8sApplicationServiceConfig  *K8sApplicationServiceConfig
+	argoApplicationConfigService config.ArgoApplicationConfigService
+	ClusterReadService           read.ClusterReadService
+	asyncRunnable                *async.Runnable
 }
 type K8sApplicationServiceConfig struct {
-	BatchSize        int `env:"BATCH_SIZE" envDefault:"5"`
-	TimeOutInSeconds int `env:"TIMEOUT_IN_SECONDS" envDefault:"5"`
+	BatchSize        int `env:"BATCH_SIZE" envDefault:"5" description:"there is feature to get URL's of services/ingresses. so to extract those, we need to parse all the servcie and ingress objects of the application. this BATCH_SIZE flag controls the no of these objects get parsed in one go."`
+	TimeOutInSeconds int `env:"TIMEOUT_IN_SECONDS" envDefault:"5" description:"timeout to compute the urls from services and ingress objects of an application"`
 }
 
 func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sServiceImpl,
-	clusterService cluster.ClusterService,
-	argoApplicationReadService read.ArgoApplicationReadService) *K8sCommonServiceImpl {
+	argoApplicationConfigService config.ArgoApplicationConfigService,
+	ClusterReadService read.ClusterReadService, asyncRunnable *async.Runnable) *K8sCommonServiceImpl {
 	cfg := &K8sApplicationServiceConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
 		Logger.Infow("error occurred while parsing K8sApplicationServiceConfig,so setting batchSize and timeOutInSeconds to default value", "err", err)
 	}
 	return &K8sCommonServiceImpl{
-		logger:                      Logger,
-		K8sUtil:                     k8sUtils,
-		clusterService:              clusterService,
-		K8sApplicationServiceConfig: cfg,
-		argoApplicationReadService:  argoApplicationReadService,
+		logger:                       Logger,
+		K8sUtil:                      k8sUtils,
+		K8sApplicationServiceConfig:  cfg,
+		argoApplicationConfigService: argoApplicationConfigService,
+		ClusterReadService:           ClusterReadService,
+		asyncRunnable:                asyncRunnable,
 	}
 }
 
-func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *ResourceRequestBean) (*ResourceGetResponse, error) {
+func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *bean5.ResourceRequestBean) (*bean5.ResourceGetResponse, error) {
 	clusterId := request.ClusterId
 	//getting rest config by clusterId
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
@@ -110,13 +116,13 @@ func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *Reso
 		impl.logger.Errorw("error in getting resource", "err", err, "resource", resourceIdentifier.Name)
 		return nil, err
 	}
-	response := &ResourceGetResponse{
+	response := &bean5.ResourceGetResponse{
 		ManifestResponse: resp,
 	}
 	return response, nil
 }
 
-func (impl *K8sCommonServiceImpl) GetDataFromConfigMaps(ctx context.Context, request *CmCsRequestBean) (map[string]*apiV1.ConfigMap, error) {
+func (impl *K8sCommonServiceImpl) GetDataFromConfigMaps(ctx context.Context, request *bean5.CmCsRequestBean) (map[string]*apiV1.ConfigMap, error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "K8sCommonServiceImpl.GetDataFromConfigMaps")
 	defer span.End()
 	response := make(map[string]*apiV1.ConfigMap, len(request.GetExternalCmList()))
@@ -125,7 +131,7 @@ func (impl *K8sCommonServiceImpl) GetDataFromConfigMaps(ctx context.Context, req
 	}
 	_, v1Client, err := impl.GetCoreClientByClusterId(request.GetClusterId())
 	if err != nil {
-		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", request.clusterId, "err", err)
+		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", request.GetClusterId(), "err", err)
 		return nil, err
 	}
 	// using for loop instead of getting all configMaps at once since request.GetExternalCmList() will be small
@@ -140,7 +146,7 @@ func (impl *K8sCommonServiceImpl) GetDataFromConfigMaps(ctx context.Context, req
 	return response, nil
 }
 
-func (impl *K8sCommonServiceImpl) GetDataFromSecrets(ctx context.Context, request *CmCsRequestBean) (map[string]*apiV1.Secret, error) {
+func (impl *K8sCommonServiceImpl) GetDataFromSecrets(ctx context.Context, request *bean5.CmCsRequestBean) (map[string]*apiV1.Secret, error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "K8sCommonServiceImpl.GetDataFromConfigMaps")
 	defer span.End()
 	response := make(map[string]*apiV1.Secret, len(request.GetExternalCmList()))
@@ -149,14 +155,14 @@ func (impl *K8sCommonServiceImpl) GetDataFromSecrets(ctx context.Context, reques
 	}
 	_, v1Client, err := impl.GetCoreClientByClusterId(request.GetClusterId())
 	if err != nil {
-		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", request.clusterId, "err", err)
+		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", request.GetClusterId(), "err", err)
 		return nil, err
 	}
 	// using for loop instead of getting all secrets at once since request.GetExternalCsList() will be small
 	for _, csName := range request.GetExternalCsList() {
 		secret, err := impl.K8sUtil.GetSecretWithCtx(newCtx, request.GetNamespace(), csName, v1Client)
 		if err != nil {
-			impl.logger.Errorw("error in getting configMap", "namespace", request.namespace, "csName", csName, "err", err)
+			impl.logger.Errorw("error in getting configMap", "namespace", request.GetNamespace(), "csName", csName, "err", err)
 			return nil, err
 		}
 		response[csName] = secret
@@ -164,7 +170,7 @@ func (impl *K8sCommonServiceImpl) GetDataFromSecrets(ctx context.Context, reques
 	return response, nil
 }
 
-func (impl *K8sCommonServiceImpl) UpdateResource(ctx context.Context, request *ResourceRequestBean) (*k8s.ManifestResponse, error) {
+func (impl *K8sCommonServiceImpl) UpdateResource(ctx context.Context, request *bean5.ResourceRequestBean) (*k8s.ManifestResponse, error) {
 	//getting rest config by clusterId
 	clusterId := request.ClusterId
 
@@ -186,13 +192,13 @@ func (impl *K8sCommonServiceImpl) UpdateResource(ctx context.Context, request *R
 	}
 	return resp, nil
 }
-func (impl *K8sCommonServiceImpl) GetRestConfigOfCluster(ctx context.Context, request *ResourceRequestBean) (*rest.Config, error) {
+func (impl *K8sCommonServiceImpl) GetRestConfigOfCluster(ctx context.Context, request *bean5.ResourceRequestBean) (*rest.Config, error) {
 	//getting rest config by clusterId
 	clusterId := request.ClusterId
-	if len(request.ExternalArgoApplicationName) > 0 {
-		restConfig, err := impl.argoApplicationReadService.GetRestConfigForExternalArgo(ctx, clusterId, request.ExternalArgoApplicationName)
+	if request.ExternalArgoAppIdentifier != nil {
+		restConfig, err := impl.argoApplicationConfigService.GetRestConfigForExternalArgo(ctx, request.ExternalArgoAppIdentifier)
 		if err != nil {
-			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", clusterId, "externalArgoApplicationName", request.ExternalArgoApplicationName)
+			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", clusterId, "externalArgoApplicationName", request.ExternalArgoAppIdentifier.AppName)
 			return nil, err
 		}
 		return restConfig, nil
@@ -206,7 +212,7 @@ func (impl *K8sCommonServiceImpl) GetRestConfigOfCluster(ctx context.Context, re
 	}
 }
 
-func (impl *K8sCommonServiceImpl) DeleteResource(ctx context.Context, request *ResourceRequestBean) (*k8s.ManifestResponse, error) {
+func (impl *K8sCommonServiceImpl) DeleteResource(ctx context.Context, request *bean5.ResourceRequestBean) (*k8s.ManifestResponse, error) {
 	//getting rest config by clusterId
 	clusterId := request.ClusterId
 	restConfig, err := impl.GetRestConfigOfCluster(ctx, request)
@@ -223,7 +229,7 @@ func (impl *K8sCommonServiceImpl) DeleteResource(ctx context.Context, request *R
 	return resp, nil
 }
 
-func (impl *K8sCommonServiceImpl) ListEvents(ctx context.Context, request *ResourceRequestBean) (*k8s.EventsResponse, error) {
+func (impl *K8sCommonServiceImpl) ListEvents(ctx context.Context, request *bean5.ResourceRequestBean) (*k8s.EventsResponse, error) {
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
 	restConfig, err := impl.GetRestConfigOfCluster(ctx, request)
 	if err != nil {
@@ -240,8 +246,8 @@ func (impl *K8sCommonServiceImpl) ListEvents(ctx context.Context, request *Resou
 
 }
 
-func (impl *K8sCommonServiceImpl) FilterK8sResources(ctx context.Context, resourceTree map[string]interface{}, appDetail bean.AppDetailContainer, appId string, kindsToBeFiltered []string, externalArgoAppName string) []ResourceRequestBean {
-	validRequests := make([]ResourceRequestBean, 0)
+func (impl *K8sCommonServiceImpl) FilterK8sResources(ctx context.Context, resourceTree map[string]interface{}, appDetail AppView.AppDetailContainer, appId string, kindsToBeFiltered []string, externalArgoAppName string) []bean5.ResourceRequestBean {
+	validRequests := make([]bean5.ResourceRequestBean, 0)
 	kindsToBeFilteredMap := util.ConvertStringSliceToMap(kindsToBeFiltered)
 	resourceTreeNodes, ok := resourceTree["nodes"]
 	if !ok {
@@ -262,7 +268,7 @@ func (impl *K8sCommonServiceImpl) FilterK8sResources(ctx context.Context, resour
 		if kindsToBeFilteredMap[kind] {
 			group := impl.extractResourceValue(resourceItem, k8sCommonBean.Group)
 			version := impl.extractResourceValue(resourceItem, k8sCommonBean.Version)
-			req := ResourceRequestBean{
+			req := bean5.ResourceRequestBean{
 				AppId:     appId,
 				ClusterId: appDetail.ClusterId,
 				AppIdentifier: &helmBean.AppIdentifier{
@@ -287,12 +293,13 @@ func (impl *K8sCommonServiceImpl) FilterK8sResources(ctx context.Context, resour
 	return validRequests
 }
 
-func (impl *K8sCommonServiceImpl) GetManifestsByBatch(ctx context.Context, requests []ResourceRequestBean) ([]BatchResourceResponse, error) {
-	ch := make(chan []BatchResourceResponse)
-	var res []BatchResourceResponse
+func (impl *K8sCommonServiceImpl) GetManifestsByBatch(ctx context.Context, requests []bean5.ResourceRequestBean) ([]bean5.BatchResourceResponse, error) {
+	ch := make(chan []bean5.BatchResourceResponse)
+	var res []bean5.BatchResourceResponse
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(impl.K8sApplicationServiceConfig.TimeOutInSeconds)*time.Second)
 	defer cancel()
-	go func() {
+
+	runnableFunc := func() {
 		ans := impl.getManifestsByBatch(ctx, requests)
 		select {
 		case <-ctx.Done():
@@ -300,7 +307,9 @@ func (impl *K8sCommonServiceImpl) GetManifestsByBatch(ctx context.Context, reque
 		default:
 			ch <- ans
 		}
-	}()
+	}
+	impl.asyncRunnable.Execute(runnableFunc)
+
 	select {
 	case ans := <-ch:
 		res = ans
@@ -311,10 +320,10 @@ func (impl *K8sCommonServiceImpl) GetManifestsByBatch(ctx context.Context, reque
 	return res, nil
 }
 
-func (impl *K8sCommonServiceImpl) GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *cluster.ClusterBean) {
+func (impl *K8sCommonServiceImpl) GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *bean2.ClusterBean) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "K8sApplicationService.GetRestConfigByClusterId")
 	defer span.End()
-	cluster, err := impl.clusterService.FindById(clusterId)
+	cluster, err := impl.ClusterReadService.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId", clusterId)
 		return nil, err, nil
@@ -328,7 +337,7 @@ func (impl *K8sCommonServiceImpl) GetRestConfigByClusterId(ctx context.Context, 
 	return restConfig, nil, cluster
 }
 
-func (impl *K8sCommonServiceImpl) RotatePods(ctx context.Context, request *RotatePodRequest) (*RotatePodResponse, error) {
+func (impl *K8sCommonServiceImpl) RotatePods(ctx context.Context, request *bean5.RotatePodRequest) (*bean5.RotatePodResponse, error) {
 
 	clusterId := request.ClusterId
 	restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, clusterId)
@@ -336,7 +345,7 @@ func (impl *K8sCommonServiceImpl) RotatePods(ctx context.Context, request *Rotat
 		impl.logger.Errorw("error in getting rest config by cluster", "clusterId", clusterId, "err", err)
 		return nil, err
 	}
-	response := &RotatePodResponse{}
+	response := &bean5.RotatePodResponse{}
 	var resourceResponses []*bean3.RotatePodResourceResponse
 	var containsError bool
 	for _, resourceIdentifier := range request.Resources {
@@ -352,7 +361,7 @@ func (impl *K8sCommonServiceImpl) RotatePods(ctx context.Context, request *Rotat
 			resourceKind != k8sCommonBean.DaemonSetKind && resourceKind != k8sCommonBean.K8sClusterResourceRolloutKind {
 			impl.logger.Errorf("restarting not supported for kind %s name %s", resourceKind, resourceIdentifier.Name)
 			containsError = true
-			resourceResponse.ErrorResponse = k8s.RestartingNotSupported
+			resourceResponse.ErrorResponse = k8sCommonBean.RestartingNotSupported
 		} else {
 			activitySnapshot := time.Now().Format(time.RFC3339)
 			data := fmt.Sprintf(`{"metadata": {"annotations": {"devtron.ai/restartedAt": "%s"}},"spec": {"template": {"metadata": {"annotations": {"devtron.ai/activity": "%s"}}}}}`, activitySnapshot, activitySnapshot)
@@ -377,7 +386,7 @@ func (impl *K8sCommonServiceImpl) RotatePods(ctx context.Context, request *Rotat
 	return response, nil
 }
 
-func (impl *K8sCommonServiceImpl) getManifestsByBatch(ctx context.Context, requests []ResourceRequestBean) []BatchResourceResponse {
+func (impl *K8sCommonServiceImpl) getManifestsByBatch(ctx context.Context, requests []bean5.ResourceRequestBean) []bean5.BatchResourceResponse {
 	//total batch length
 	batchSize := impl.K8sApplicationServiceConfig.BatchSize
 	if requests == nil {
@@ -385,7 +394,7 @@ func (impl *K8sCommonServiceImpl) getManifestsByBatch(ctx context.Context, reque
 	}
 	requestsLength := len(requests)
 	//final batch responses
-	res := make([]BatchResourceResponse, requestsLength)
+	res := make([]bean5.BatchResourceResponse, requestsLength)
 	for i := 0; i < requestsLength; {
 		//requests left to process
 		remainingBatch := requestsLength - i
@@ -395,16 +404,18 @@ func (impl *K8sCommonServiceImpl) getManifestsByBatch(ctx context.Context, reque
 		var wg sync.WaitGroup
 		for j := 0; j < batchSize; j++ {
 			wg.Add(1)
-			go func(j int) {
-				resp := BatchResourceResponse{}
-				response, err := impl.GetResource(ctx, &requests[i+j])
+			runnableFunc := func(index int) {
+				resp := bean5.BatchResourceResponse{}
+				response, err := impl.GetResource(ctx, &requests[index])
 				if response != nil {
 					resp.ManifestResponse = response.ManifestResponse
 				}
 				resp.Err = err
-				res[i+j] = resp
+				res[index] = resp
 				wg.Done()
-			}(j)
+			}
+			index := i + j
+			impl.asyncRunnable.Execute(func() { runnableFunc(index) })
 		}
 		wg.Wait()
 		i += batchSize
@@ -434,7 +445,7 @@ func (impl *K8sCommonServiceImpl) GetK8sServerVersion(clusterId int) (*version.I
 }
 
 func (impl *K8sCommonServiceImpl) GetCoreClientByClusterId(clusterId int) (*kubernetes.Clientset, *clientV1.CoreV1Client, error) {
-	clusterBean, err := impl.clusterService.FindById(clusterId)
+	clusterBean, err := impl.ClusterReadService.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error occurred in finding clusterBean by Id", "clusterId", clusterId, "err", err)
 		return nil, nil, err
@@ -456,8 +467,8 @@ func (impl *K8sCommonServiceImpl) GetCoreClientByClusterId(clusterId int) (*kube
 	return clientSet, v1Client, nil
 }
 
-func (impl *K8sCommonServiceImpl) GetCoreClientByClusterIdForExternalArgoApps(req *cluster.EphemeralContainerRequest) (*kubernetes.Clientset, *clientV1.CoreV1Client, error) {
-	restConfig, err := impl.argoApplicationReadService.GetRestConfigForExternalArgo(context.Background(), req.ClusterId, req.ExternalArgoApplicationName)
+func (impl *K8sCommonServiceImpl) GetCoreClientByClusterIdForExternalArgoApps(req *bean4.EphemeralContainerRequest) (*kubernetes.Clientset, *clientV1.CoreV1Client, error) {
+	restConfig, err := impl.argoApplicationConfigService.GetRestConfigForExternalArgo(context.Background(), req.ExternalArgoAppIdentifier)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId, "externalArgoApplicationName", req.ExternalArgoApplicationName)
 	}
@@ -477,7 +488,7 @@ func (impl *K8sCommonServiceImpl) GetCoreClientByClusterIdForExternalArgoApps(re
 	return clientSet, v1Client, nil
 }
 
-func (impl *K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceResponse, resourceTree map[string]interface{}) map[string]interface{} {
+func (impl *K8sCommonServiceImpl) PortNumberExtraction(resp []bean5.BatchResourceResponse, resourceTree map[string]interface{}) map[string]interface{} {
 	servicePortMapping := make(map[string]interface{})
 	endpointPortMapping := make(map[string]interface{})
 	endpointSlicePortMapping := make(map[string]interface{})
@@ -689,7 +700,7 @@ func (impl *K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespo
 	return resourceTree
 }
 
-func (impl *K8sCommonServiceImpl) GetK8sConfigAndClients(ctx context.Context, cluster *cluster.ClusterBean) (*rest.Config, *http.Client, *kubernetes.Clientset, error) {
+func (impl *K8sCommonServiceImpl) GetK8sConfigAndClients(ctx context.Context, cluster *bean2.ClusterBean) (*rest.Config, *http.Client, *kubernetes.Clientset, error) {
 	clusterConfig := cluster.GetClusterConfig()
 	return impl.K8sUtil.GetK8sConfigAndClients(clusterConfig)
 }
@@ -724,8 +735,8 @@ func (impl *K8sCommonServiceImpl) GetPreferredVersionForAPIGroup(ctx context.Con
 	return "", k8s.NotFoundError
 }
 
-func (impl *K8sCommonServiceImpl) getClusterBean(clusterId int) (*cluster.ClusterBean, error) {
-	clusterDto, err := impl.clusterService.FindById(clusterId)
+func (impl *K8sCommonServiceImpl) getClusterBean(clusterId int) (*bean2.ClusterBean, error) {
+	clusterDto, err := impl.ClusterReadService.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId", clusterId)
 		return nil, err

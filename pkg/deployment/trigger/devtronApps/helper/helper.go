@@ -24,7 +24,7 @@ import (
 )
 
 func GetValuesFileForEnv(environmentId int) string {
-	return fmt.Sprintf("_%d-values.yaml", environmentId) //-{envId}-values.yaml
+	return fmt.Sprintf("_%d-values.yaml", environmentId) //_{envId}-values.yaml
 }
 
 func NewTriggerEvent(deploymentAppType string, triggeredAt time.Time, deployedBy int32) bean.TriggerEvent {
@@ -34,12 +34,14 @@ func NewTriggerEvent(deploymentAppType string, triggeredAt time.Time, deployedBy
 		TriggeredAt: triggeredAt,
 	}
 	switch deploymentAppType {
-	case bean.ArgoCd:
+	case bean.ArgoCd, bean.FluxCd:
 		triggerEvent.PerformChartPush = true
 		triggerEvent.PerformDeploymentOnCluster = true
-		triggerEvent.DeployArgoCdApp = true
-		triggerEvent.DeploymentAppType = bean.ArgoCd
+		triggerEvent.DeploymentAppType = deploymentAppType
 		triggerEvent.ManifestStorageType = bean2.ManifestStorageGit
+		if deploymentAppType == bean.ArgoCd {
+			triggerEvent.DeployArgoCdApp = true
+		}
 	case bean.Helm:
 		triggerEvent.PerformChartPush = false
 		triggerEvent.PerformDeploymentOnCluster = true

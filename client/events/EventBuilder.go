@@ -19,6 +19,8 @@ package client
 import (
 	"context"
 	"fmt"
+	buildBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	repository4 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"strings"
 	"time"
 
@@ -35,9 +37,9 @@ import (
 )
 
 type EventFactory interface {
-	Build(eventType util.EventType, sourceId *int, appId int, envId *int, pipelineType util.PipelineType) Event
+	Build(eventType util.EventType, sourceId *int, appId int, envId *int, pipelineType util.PipelineType) (Event, error)
 	BuildExtraCDData(event Event, wfr *pipelineConfig.CdWorkflowRunner, pipelineOverrideId int, stage bean2.WorkflowType) Event
-	BuildExtraCIData(event Event, material *MaterialTriggerInfo, dockerImage string) Event
+	BuildExtraCIData(event Event, material *buildBean.MaterialTriggerInfo) Event
 	//BuildFinalData(event Event) *Payload
 }
 
@@ -50,6 +52,7 @@ type EventSimpleFactoryImpl struct {
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
 	pipelineRepository           pipelineConfig.PipelineRepository
 	userRepository               repository.UserRepository
+	envRepository                repository4.EnvironmentRepository
 	ciArtifactRepository         repository2.CiArtifactRepository
 }
 
@@ -57,7 +60,7 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
-	userRepository repository.UserRepository, ciArtifactRepository repository2.CiArtifactRepository) *EventSimpleFactoryImpl {
+	userRepository repository.UserRepository, envRepository repository4.EnvironmentRepository, ciArtifactRepository repository2.CiArtifactRepository) *EventSimpleFactoryImpl {
 	return &EventSimpleFactoryImpl{
 		logger:                       logger,
 		cdWorkflowRepository:         cdWorkflowRepository,
@@ -68,10 +71,11 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 		pipelineRepository:           pipelineRepository,
 		userRepository:               userRepository,
 		ciArtifactRepository:         ciArtifactRepository,
+		envRepository:                envRepository,
 	}
 }
 
-func (impl *EventSimpleFactoryImpl) Build(eventType util.EventType, sourceId *int, appId int, envId *int, pipelineType util.PipelineType) Event {
+func (impl *EventSimpleFactoryImpl) Build(eventType util.EventType, sourceId *int, appId int, envId *int, pipelineType util.PipelineType) (Event, error) {
 	correlationId := uuid.NewV4()
 	event := Event{}
 	event.EventTypeId = int(eventType)
@@ -79,13 +83,20 @@ func (impl *EventSimpleFactoryImpl) Build(eventType util.EventType, sourceId *in
 		event.PipelineId = *sourceId
 	}
 	event.AppId = appId
-	if envId != nil {
+	if envId != nil && *envId > 0 {
+		env, err := impl.envRepository.FindById(*envId)
+		if err != nil {
+			impl.logger.Errorw("error in getting env", "envId", *envId, "err", err)
+			return event, err
+		}
 		event.EnvId = *envId
+		event.ClusterId = env.ClusterId
+		event.IsProdEnv = env.Default
 	}
 	event.PipelineType = string(pipelineType)
 	event.CorrelationId = fmt.Sprintf("%s", correlationId)
 	event.EventTime = time.Now().Format(bean.LayoutRFC3339)
-	return event
+	return event, nil
 }
 
 func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineConfig.CdWorkflowRunner, pipelineOverrideId int, stage bean2.WorkflowType) Event {
@@ -160,10 +171,11 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 		payload.TriggeredBy = user.EmailId
 		event.Payload = payload
 	}
+	event = impl.addExtraCdDataForEnterprise(event, wfr)
 	return event
 }
 
-func (impl *EventSimpleFactoryImpl) BuildExtraCIData(event Event, material *MaterialTriggerInfo, dockerImage string) Event {
+func (impl *EventSimpleFactoryImpl) BuildExtraCIData(event Event, material *buildBean.MaterialTriggerInfo) Event {
 	if material == nil {
 		materialInfo, err := impl.getCiMaterialInfo(event.PipelineId, event.CiArtifactId)
 		if err != nil {
@@ -194,11 +206,31 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCIData(event Event, material *Mate
 		payload.TriggeredBy = user.EmailId
 		event.Payload = payload
 	}
+
+	// fetching all the envs which are directly or indirectly linked with the ci pipeline
+	if event.PipelineId > 0 {
+		// Get the pipeline to check if it's external
+		ciPipeline, err := impl.ciPipelineRepository.FindById(event.PipelineId)
+		if err != nil {
+			impl.logger.Errorw("error in getting ci pipeline", "pipelineId", event.PipelineId, "err", err)
+		} else {
+			envs, err := impl.envRepository.FindEnvLinkedWithCiPipelines(ciPipeline.IsExternal, []int{event.PipelineId})
+			if err != nil {
+				impl.logger.Errorw("error in finding environments linked with ci pipeline", "pipelineId", event.PipelineId, "err", err)
+			} else {
+				event.EnvIdsForCiPipeline = make([]int, 0, len(envs))
+				for _, env := range envs {
+					event.EnvIdsForCiPipeline = append(event.EnvIdsForCiPipeline, env.Id)
+				}
+			}
+		}
+	}
+
 	return event
 }
 
-func (impl *EventSimpleFactoryImpl) getCiMaterialInfo(ciPipelineId int, ciArtifactId int) (*MaterialTriggerInfo, error) {
-	materialTriggerInfo := &MaterialTriggerInfo{}
+func (impl *EventSimpleFactoryImpl) getCiMaterialInfo(ciPipelineId int, ciArtifactId int) (*buildBean.MaterialTriggerInfo, error) {
+	materialTriggerInfo := &buildBean.MaterialTriggerInfo{}
 	if ciPipelineId > 0 {
 		ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(ciPipelineId)
 		if err != nil {
@@ -206,13 +238,13 @@ func (impl *EventSimpleFactoryImpl) getCiMaterialInfo(ciPipelineId int, ciArtifa
 			return nil, err
 		}
 
-		var ciMaterialsArr []CiPipelineMaterialResponse
+		var ciMaterialsArr []buildBean.CiPipelineMaterialResponse
 		for _, m := range ciMaterials {
 			if m.GitMaterial == nil {
 				impl.logger.Warnw("git material are empty", "material", m)
 				continue
 			}
-			res := CiPipelineMaterialResponse{
+			res := buildBean.CiPipelineMaterialResponse{
 				Id:              m.Id,
 				GitMaterialId:   m.GitMaterialId,
 				GitMaterialName: m.GitMaterial.Name[strings.Index(m.GitMaterial.Name, "-")+1:],

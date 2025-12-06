@@ -17,17 +17,39 @@
 package argoApplication
 
 import (
-	"github.com/devtron-labs/devtron/pkg/argoApplication"
+	argoApplication3 "github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/read"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/read/config"
 	"github.com/google/wire"
 )
 
-var ArgoApplicationWireSet = wire.NewSet(
+var ArgoApplicationWireSetFull = wire.NewSet(
 	read.NewArgoApplicationReadServiceImpl,
 	wire.Bind(new(read.ArgoApplicationReadService), new(*read.ArgoApplicationReadServiceImpl)),
 
-	argoApplication.NewArgoApplicationServiceImpl,
-	wire.Bind(new(argoApplication.ArgoApplicationService), new(*argoApplication.ArgoApplicationServiceImpl)),
+	config.NewArgoApplicationConfigServiceImpl,
+	wire.Bind(new(config.ArgoApplicationConfigService), new(*config.ArgoApplicationConfigServiceImpl)),
+
+	argoApplication3.NewArgoApplicationServiceImpl,
+	argoApplication3.NewArgoApplicationServiceExtendedServiceImpl,
+	wire.Bind(new(argoApplication3.ArgoApplicationService), new(*argoApplication3.ArgoApplicationServiceExtendedImpl)),
+
+	NewArgoApplicationRestHandlerImpl,
+	wire.Bind(new(ArgoApplicationRestHandler), new(*ArgoApplicationRestHandlerImpl)),
+
+	NewArgoApplicationRouterImpl,
+	wire.Bind(new(ArgoApplicationRouter), new(*ArgoApplicationRouterImpl)),
+)
+
+var ArgoApplicationWireSetEA = wire.NewSet(
+	read.NewArgoApplicationReadServiceImpl,
+	wire.Bind(new(read.ArgoApplicationReadService), new(*read.ArgoApplicationReadServiceImpl)),
+
+	config.NewArgoApplicationConfigServiceImpl,
+	wire.Bind(new(config.ArgoApplicationConfigService), new(*config.ArgoApplicationConfigServiceImpl)),
+
+	argoApplication3.NewArgoApplicationServiceImpl,
+	wire.Bind(new(argoApplication3.ArgoApplicationService), new(*argoApplication3.ArgoApplicationServiceImpl)),
 
 	NewArgoApplicationRestHandlerImpl,
 	wire.Bind(new(ArgoApplicationRestHandler), new(*ArgoApplicationRestHandlerImpl)),

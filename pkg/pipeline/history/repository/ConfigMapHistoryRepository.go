@@ -35,7 +35,6 @@ type ConfigMapHistoryRepository interface {
 	sql.TransactionWrapper
 	CreateHistory(tx *pg.Tx, model *ConfigmapAndSecretHistory) (*ConfigmapAndSecretHistory, error)
 	GetHistoryForDeployedCMCSById(id, pipelineId int, configType ConfigType) (*ConfigmapAndSecretHistory, error)
-	GetDeploymentDetailsForDeployedCMCSHistory(pipelineId int, configType ConfigType) ([]*ConfigmapAndSecretHistory, error)
 	GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId int, configType ConfigType) (*ConfigmapAndSecretHistory, error)
 	GetDeployedHistoryForPipelineIdOnTime(pipelineId int, deployedOn time.Time, configType ConfigType) (*ConfigmapAndSecretHistory, error)
 	GetDeployedHistoryList(pipelineId, baseConfigId int, configType ConfigType, componentName string) ([]*ConfigmapAndSecretHistory, error)
@@ -71,6 +70,13 @@ type ConfigmapAndSecretHistory struct {
 	DeployedByEmailId string `sql:"-"`
 }
 
+func (r *ConfigmapAndSecretHistory) IsConfigmapHistorySecretType() bool {
+	return r.DataType == SECRET_TYPE
+}
+
+func (r *ConfigmapAndSecretHistory) IsConfigmapHistoryConfigMapType() bool {
+	return r.DataType == CONFIGMAP_TYPE
+}
 func (impl ConfigMapHistoryRepositoryImpl) CreateHistory(tx *pg.Tx, model *ConfigmapAndSecretHistory) (*ConfigmapAndSecretHistory, error) {
 	var err error
 	if tx != nil {
@@ -96,18 +102,6 @@ func (impl ConfigMapHistoryRepositoryImpl) GetHistoryForDeployedCMCSById(id, pip
 		return &history, err
 	}
 	return &history, nil
-}
-
-func (impl ConfigMapHistoryRepositoryImpl) GetDeploymentDetailsForDeployedCMCSHistory(pipelineId int, configType ConfigType) ([]*ConfigmapAndSecretHistory, error) {
-	var histories []*ConfigmapAndSecretHistory
-	err := impl.dbConnection.Model(&histories).Where("pipeline_id = ?", pipelineId).
-		Where("data_type = ?", configType).
-		Where("deployed = ?", true).Select()
-	if err != nil {
-		impl.logger.Errorw("error in getting deployed CM/CS history", "err", err)
-		return histories, err
-	}
-	return histories, nil
 }
 
 func (impl ConfigMapHistoryRepositoryImpl) GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId int, configType ConfigType) (*ConfigmapAndSecretHistory, error) {

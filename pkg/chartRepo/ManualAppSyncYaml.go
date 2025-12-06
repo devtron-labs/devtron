@@ -23,12 +23,13 @@ import (
 )
 
 type AppSyncConfig struct {
-	DbConfig               sql.Config
-	DockerImage            string
-	AppSyncJobResourcesObj string
-	ChartProviderConfig    *ChartProviderConfig
-	AppSyncServiceAccount  string
+	DbConfig                         sql.Config
+	DockerImage                      string
+	AppSyncJobResourcesObj           string
+	ChartProviderConfig              *ChartProviderConfig
+	AppSyncServiceAccount            string
 	ParallelismLimitForTagProcessing int
+	AppSyncJobShutDownWaitDuration   int
 }
 
 type ChartProviderConfig struct {
@@ -36,31 +37,49 @@ type ChartProviderConfig struct {
 	IsOCIRegistry   bool
 }
 
-func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, appSyncServiceAccount string, chartProviderConfig *ChartProviderConfig, ParallelismLimitForTagProcessing int) []byte {
+func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, appSyncServiceAccount string, chartProviderConfig *ChartProviderConfig, ParallelismLimitForTagProcessing, AppSyncJobShutDownWaitDuration int) []byte {
 	cfg, _ := sql.GetConfig()
 	configValues := AppSyncConfig{
-		DbConfig:               sql.Config{Addr: cfg.Addr, Database: cfg.Database, User: cfg.User, Password: cfg.Password},
-		DockerImage:            dockerImage,
-		AppSyncJobResourcesObj: appSyncJobResourcesObj,
-		ChartProviderConfig:    chartProviderConfig,
-		AppSyncServiceAccount:  appSyncServiceAccount,
+		DbConfig:                         sql.Config{Addr: cfg.Addr, Database: cfg.Database, User: cfg.User, Password: cfg.Password},
+		DockerImage:                      dockerImage,
+		AppSyncJobResourcesObj:           appSyncJobResourcesObj,
+		ChartProviderConfig:              chartProviderConfig,
+		AppSyncServiceAccount:            appSyncServiceAccount,
 		ParallelismLimitForTagProcessing: ParallelismLimitForTagProcessing,
+		AppSyncJobShutDownWaitDuration:   AppSyncJobShutDownWaitDuration,
 	}
 	temp := template.New("manualAppSyncJobByteArr")
 	temp, _ = temp.Parse(`{"apiVersion": "batch/v1",
   "kind": "Job",
   "metadata": {
+    "labels": {
+       "app": "app-manual-sync-job",
+       "component": "devtron"
+    },
     "name": "app-manual-sync-job",
     "namespace": "devtroncd"
   },
   "spec": {
     "template": {
+      "metadata": {
+        "labels": {
+          "app": "app-manual-sync-job",
+          "component": "devtron"
+        }
+      },
       "spec": {
 		"serviceAccount": "{{.AppSyncServiceAccount}}",
         "containers": [
           {
             "name": "chart-sync",
             "image": "{{.DockerImage}}",
+ 			"ports": [
+              {
+                "containerPort": 8080,
+                "name": "metrics",
+                "protocol": "TCP"
+              }
+            ],
 			{{if .AppSyncJobResourcesObj}}
 			"resources": {{.AppSyncJobResourcesObj}},
             {{end}}
@@ -92,6 +111,10 @@ func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, 
               {
 				"name": "PARALLELISM_LIMIT_FOR_TAG_PROCESSING",
      			"value": "{{.ParallelismLimitForTagProcessing}}"
+              },
+			  {
+				"name": "APP_SYNC_SHUTDOWN_WAIT_DURATION",
+     			"value": "{{.AppSyncJobShutDownWaitDuration}}"
               }
             ]
           }

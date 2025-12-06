@@ -39,7 +39,7 @@ spec:
       interval: {{ .servicemonitor.interval}}
       {{- end }}
       {{- if .servicemonitor.scrapeTimeout }}
-      scrapeTimeout: {{ .servicemonitor.scrapeTimeout}}
+      scrapeTimeout: {{ .servicemonitor.scrapeTimeout | quote}}
       {{- end }}
       {{- if .servicemonitor.basicAuth }}
       basicAuth:
@@ -55,6 +55,10 @@ spec:
       {{- if .servicemonitor.metricRelabelings}}
       metricRelabelings:
 {{toYaml .servicemonitor.metricRelabelings | indent 8 }}
+      {{- end }}
+      {{- if .servicemonitor.relabelings }}
+      relabelings:
+{{ toYaml .servicemonitor.relabelings | indent 8 }}
       {{- end }}
         {{- end }}
       {{- end }}
@@ -94,6 +98,10 @@ spec:
       {{- if .servicemonitor.metricRelabelings}}
       metricRelabelings:
 {{toYaml .servicemonitor.metricRelabelings | indent 8 }}
+      {{- end }}
+      {{- if .servicemonitor.relabelings }}
+      relabelings:
+{{ toYaml .servicemonitor.relabelings | indent 8 }}
       {{- end }}
           {{- end }}
         {{- end }}

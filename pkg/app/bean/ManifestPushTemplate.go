@@ -30,16 +30,20 @@ type ManifestPushTemplate struct {
 	UserId                 int32
 	PipelineOverrideId     int
 	AppName                string
-	TargetEnvironmentName  int
+	TargetEnvironmentId    int
 	ChartReferenceTemplate string
 	ChartName              string
 	ChartVersion           string
 	ChartLocation          string
 	RepoUrl                string
+	TargetRevision         string
+	ValuesFilePath         string
+	ReleaseMode            string
 	IsCustomGitRepository  bool
 	BuiltChartPath         string
 	BuiltChartBytes        *[]byte
 	MergedValues           string
+	ArgoSyncNeeded         bool
 }
 
 type ManifestPushResponse struct {

@@ -19,6 +19,7 @@ package plugin
 import (
 	"errors"
 	"fmt"
+	commonBean "github.com/devtron-labs/common-lib/workflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -30,9 +31,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/plugin/utils"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"golang.org/x/mod/semver"
 	"net/http"
 	"strings"
 	"time"
@@ -73,12 +74,13 @@ type GlobalPluginService interface {
 	PatchPlugin(pluginDto *bean2.PluginMetadataDto, userId int32) (*bean2.PluginMetadataDto, error)
 	GetDetailedPluginInfoByPluginId(pluginId int) (*bean2.PluginMetadataDto, error)
 	GetAllDetailedPluginInfo() ([]*bean2.PluginMetadataDto, error)
+	GetNewPluginStepsDtoByRefPluginIdentifier(identifier string) (*bean2.PluginStepsDto, error)
 
 	CreatePluginOrVersions(pluginDto *bean2.PluginParentMetadataDto, userId int32) (int, error)
 	ListAllPluginsV2(filter *bean2.PluginsListFilter) (*bean2.PluginsDto, error)
-	GetPluginDetailV2(pluginVersionIds, parentPluginIds []int, fetchAllVersionDetails bool) (*bean2.PluginsDto, error)
+	GetPluginDetailV2(queryParams bean2.GlobalPluginDetailsRequest) (*bean2.PluginsDto, error)
 	GetAllUniqueTags() (*bean2.PluginTagsDto, error)
-	GetAllPluginMinData() ([]*bean2.PluginMinDto, error)
+	GetAllPluginMinData(pluginType bean2.PluginType) ([]*bean2.PluginMinDto, error)
 	MigratePluginData() error
 }
 
@@ -228,7 +230,7 @@ func (impl *GlobalPluginServiceImpl) ListAllPlugins(stageTypeReq string) ([]*bea
 
 	//getting all plugins metadata(without tags)
 	if len(stageTypeReq) == 0 {
-		pluginsMetadata, err = impl.globalPluginRepository.GetMetaDataForAllPlugins()
+		pluginsMetadata, err = impl.globalPluginRepository.GetMetaDataForAllPlugins(true)
 		if err != nil {
 			impl.logger.Errorw("error in getting plugins", "err", err)
 			return nil, err
@@ -367,20 +369,23 @@ func (impl *GlobalPluginServiceImpl) getIOVariablesOfAPlugin(pluginId int) (inpu
 }
 
 func getVariableDto(pluginVariable *repository.PluginStepVariable) *bean2.PluginVariableDto {
-	return &bean2.PluginVariableDto{
-		Id:                    pluginVariable.Id,
-		Name:                  pluginVariable.Name,
-		Format:                pluginVariable.Format,
-		Description:           pluginVariable.Description,
-		IsExposed:             pluginVariable.IsExposed,
-		AllowEmptyValue:       pluginVariable.AllowEmptyValue,
-		DefaultValue:          pluginVariable.DefaultValue,
-		Value:                 pluginVariable.Value,
-		ValueType:             pluginVariable.ValueType,
-		PreviousStepIndex:     pluginVariable.PreviousStepIndex,
-		VariableStepIndex:     pluginVariable.VariableStepIndex,
-		ReferenceVariableName: pluginVariable.ReferenceVariableName,
+	dto := &bean2.PluginVariableDto{
+		Id:                        pluginVariable.Id,
+		Name:                      pluginVariable.Name,
+		Format:                    pluginVariable.Format,
+		Description:               pluginVariable.Description,
+		IsExposed:                 pluginVariable.IsExposed,
+		AllowEmptyValue:           pluginVariable.AllowEmptyValue,
+		DefaultValue:              pluginVariable.DefaultValue,
+		Value:                     pluginVariable.Value,
+		ValueType:                 pluginVariable.ValueType,
+		PreviousStepIndex:         pluginVariable.PreviousStepIndex,
+		VariableStepIndex:         pluginVariable.VariableStepIndex,
+		ReferenceVariableName:     pluginVariable.ReferenceVariableName,
+		VariableType:              pluginVariable.VariableType,
+		VariableStepIndexInPlugin: pluginVariable.VariableStepIndexInPlugin,
 	}
+	return dto
 }
 
 func (impl *GlobalPluginServiceImpl) GetRefPluginIdByRefPluginName(pluginName string) (pluginVersionDetail []bean2.PluginsVersionDetail, err error) {
@@ -389,7 +394,7 @@ func (impl *GlobalPluginServiceImpl) GetRefPluginIdByRefPluginName(pluginName st
 		impl.logger.Errorw("error in fetching plugin metadata by name", "err", err)
 		return nil, err
 	}
-	if pluginMetadata == nil {
+	if len(pluginMetadata) == 0 {
 		return nil, nil
 	}
 	pluginVersionDetail = make([]bean2.PluginsVersionDetail, 0)
@@ -400,6 +405,21 @@ func (impl *GlobalPluginServiceImpl) GetRefPluginIdByRefPluginName(pluginName st
 		})
 	}
 	return pluginVersionDetail, nil
+}
+
+func (impl *GlobalPluginServiceImpl) GetParentPluginIdByIdentifiers(identifiers ...string) (pluginParentIds []int, err error) {
+	if len(identifiers) == 0 {
+		return pluginParentIds, nil
+	}
+	pluginParentsMetadata, err := impl.globalPluginRepository.GetPluginParentsMetadataByIdentifiers(identifiers...)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in GetPluginParentsMetadataByIdentifiers", "pluginIdentifiers", identifiers, "err", err)
+		return pluginParentIds, err
+	}
+	for _, pluginParentMetadata := range pluginParentsMetadata {
+		pluginParentIds = append(pluginParentIds, pluginParentMetadata.Id)
+	}
+	return sliceUtil.GetUniqueElements(pluginParentIds), nil
 }
 
 func (impl *GlobalPluginServiceImpl) PatchPlugin(pluginDto *bean2.PluginMetadataDto, userId int32) (*bean2.PluginMetadataDto, error) {
@@ -678,6 +698,12 @@ func (impl *GlobalPluginServiceImpl) UpdatePluginPipelineScript(dbPluginPipeline
 	return nil
 }
 
+// validatePluginVariableDtoForConfigure validates the []*bean.PluginStepsDto
+// Note: This function should be used for configure request stage (Create/ Update)
+func validatePluginVariableDtoForConfigure(variableDtos []*bean2.PluginVariableDto) error {
+	return validatePluginVariables(variableDtos)
+}
+
 func (impl *GlobalPluginServiceImpl) saveDeepPluginStepData(pluginMetadataId int, pluginStepsReq []*bean2.PluginStepsDto, userId int32, tx *pg.Tx) error {
 	for _, pluginStep := range pluginStepsReq {
 		pluginStepData := adaptor.GetPluginStepDbObject(pluginStep, pluginMetadataId, userId)
@@ -704,7 +730,11 @@ func (impl *GlobalPluginServiceImpl) saveDeepPluginStepData(pluginMetadataId int
 			return err
 		}
 		pluginStep.Id = pluginStepData.Id
-		//create entry in plugin_step_variable
+		validationErr := validatePluginVariableDtoForConfigure(pluginStep.PluginStepVariable)
+		if validationErr != nil {
+			impl.logger.Errorw("validation failed for StepVariableDto", "err", validationErr, "stepId", pluginStep.Id)
+			return validationErr
+		}
 		for _, pluginStepVariable := range pluginStep.PluginStepVariable {
 			pluginStepVariableData := adaptor.GetPluginStepVariableDbObject(pluginStepData.Id, pluginStepVariable, userId)
 			pluginStepVariableData, err = impl.globalPluginRepository.SavePluginStepVariables(pluginStepVariableData, tx)
@@ -713,7 +743,7 @@ func (impl *GlobalPluginServiceImpl) saveDeepPluginStepData(pluginMetadataId int
 				return err
 			}
 			pluginStepVariable.Id = pluginStepVariableData.Id
-			//create entry in plugin_step_condition
+			// create entry in plugin_step_condition
 			for _, pluginStepCondition := range pluginStepVariable.PluginStepCondition {
 				pluginStepConditionData := adaptor.GetPluginStepConditionDbObject(pluginStepData.Id, pluginStepVariableData.Id, pluginStepCondition, userId)
 				pluginStepConditionData, err = impl.globalPluginRepository.SavePluginStepConditions(pluginStepConditionData, tx)
@@ -940,7 +970,6 @@ func (impl *GlobalPluginServiceImpl) updateDeepPluginStepVariableData(pluginStep
 			dbStepVariable.ReferenceVariableName = stepVariableIdsToStepVariableMapping[dbStepVariable.Id].ReferenceVariableName
 			dbStepVariable.UpdatedBy = userId
 			dbStepVariable.UpdatedOn = time.Now()
-
 		}
 	}
 	err := impl.globalPluginRepository.UpdateInBulkPluginStepVariables(pluginStepVariables, tx)
@@ -1157,6 +1186,11 @@ func filterPluginStepVariable(pluginStepId int, existingPluginStepVariables []*r
 }
 
 func (impl *GlobalPluginServiceImpl) saveDeepPluginStepVariableData(pluginStepId int, pluginStepVariablesToCreate []*bean2.PluginVariableDto, userId int32, tx *pg.Tx) error {
+	validationErr := validatePluginVariableDtoForConfigure(pluginStepVariablesToCreate)
+	if validationErr != nil {
+		impl.logger.Errorw("validation failed for StepVariableDto", "err", validationErr, "stepId", pluginStepId)
+		return validationErr
+	}
 	for _, pluginStepVariable := range pluginStepVariablesToCreate {
 		pluginStepVariableData := &repository.PluginStepVariable{
 			PluginStepId:              pluginStepId,
@@ -1167,7 +1201,7 @@ func (impl *GlobalPluginServiceImpl) saveDeepPluginStepVariableData(pluginStepId
 			AllowEmptyValue:           pluginStepVariable.AllowEmptyValue,
 			DefaultValue:              pluginStepVariable.DefaultValue,
 			Value:                     pluginStepVariable.Value,
-			VariableType:              repository.PluginStepVariableType(pluginStepVariable.VariableType),
+			VariableType:              pluginStepVariable.VariableType,
 			ValueType:                 pluginStepVariable.ValueType,
 			PreviousStepIndex:         pluginStepVariable.PreviousStepIndex,
 			VariableStepIndex:         pluginStepVariable.VariableStepIndex,
@@ -1495,23 +1529,9 @@ func (impl *GlobalPluginServiceImpl) GetDetailedPluginInfoByPluginId(pluginId in
 						})
 					}
 				}
-				pluginStepVariableResp = append(pluginStepVariableResp, &bean2.PluginVariableDto{
-					Id:                        pluginStepVariable.Id,
-					Name:                      pluginStepVariable.Name,
-					Format:                    pluginStepVariable.Format,
-					Description:               pluginStepVariable.Description,
-					IsExposed:                 pluginStepVariable.IsExposed,
-					AllowEmptyValue:           pluginStepVariable.AllowEmptyValue,
-					DefaultValue:              pluginStepVariable.DefaultValue,
-					Value:                     pluginStepVariable.Value,
-					VariableType:              pluginStepVariable.VariableType,
-					ValueType:                 pluginStepVariable.ValueType,
-					PreviousStepIndex:         pluginStepVariable.PreviousStepIndex,
-					VariableStepIndex:         pluginStepVariable.VariableStepIndex,
-					VariableStepIndexInPlugin: pluginStepVariable.VariableStepIndexInPlugin,
-					ReferenceVariableName:     pluginStepVariable.ReferenceVariableName,
-					PluginStepCondition:       pluginStepConditionDto,
-				})
+				pluginVariableDto := getVariableDto(pluginStepVariable)
+				pluginVariableDto.PluginStepCondition = pluginStepConditionDto
+				pluginStepVariableResp = append(pluginStepVariableResp, pluginVariableDto)
 			}
 		}
 		pluginStepDto.PluginStepVariable = pluginStepVariableResp
@@ -1734,7 +1754,7 @@ func (impl *GlobalPluginServiceImpl) GetPluginParentMetadataDtos(parentIdVsPlugi
 
 func (impl *GlobalPluginServiceImpl) ListAllPluginsV2(filter *bean2.PluginsListFilter) (*bean2.PluginsDto, error) {
 	impl.logger.Infow("request received, ListAllPluginsV2", "filter", filter)
-	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins()
+	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins(true)
 	if err != nil {
 		impl.logger.Errorw("ListAllPluginsV2, error in getting plugins", "err", err)
 		return nil, err
@@ -1784,13 +1804,13 @@ func (impl *GlobalPluginServiceImpl) validateDetailRequest(pluginVersions []*rep
 	for _, versionId := range pluginVersionIds {
 		if _, ok := pluginVersionsIdMap[versionId]; !ok {
 			errorMsg := fmt.Sprintf("there are some plugin version ids in request that do not exist:- %d", versionId)
-			return util.GetApiError(http.StatusBadRequest, errorMsg, errorMsg)
+			return util.NewApiError(http.StatusBadRequest, errorMsg, errorMsg)
 		}
 	}
 	for _, pluginId := range parentPluginIds {
 		if _, ok := pluginParentIdMap[pluginId]; !ok {
 			errorMsg := fmt.Sprintf("there are some plugin parent ids in request that do not exist %d", pluginId)
-			return util.GetApiError(http.StatusBadRequest, errorMsg, errorMsg)
+			return util.NewApiError(http.StatusBadRequest, errorMsg, errorMsg)
 		}
 	}
 	return nil
@@ -1798,33 +1818,39 @@ func (impl *GlobalPluginServiceImpl) validateDetailRequest(pluginVersions []*rep
 
 // GetPluginDetailV2 returns all details of the of a plugin version according to the pluginVersionIds and parentPluginIds
 // provided by user, and minimal data for all versions of that plugin.
-func (impl *GlobalPluginServiceImpl) GetPluginDetailV2(pluginVersionIds, parentPluginIds []int, fetchAllVersionDetails bool) (*bean2.PluginsDto, error) {
-	var err error
-	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins()
+func (impl *GlobalPluginServiceImpl) GetPluginDetailV2(queryParams bean2.GlobalPluginDetailsRequest) (*bean2.PluginsDto, error) {
+	additionalPluginParentIds, err := impl.GetParentPluginIdByIdentifiers(queryParams.ParentPluginIdentifiers...)
+	if err != nil {
+		impl.logger.Errorw("GetPluginDetailV2, error in getting additional plugin parent ids", "err", err)
+		return nil, err
+	}
+	queryParams.ParentPluginIds = append(queryParams.ParentPluginIds, additionalPluginParentIds...)
+	queryParams.ParentPluginIds = sliceUtil.GetUniqueElements(queryParams.ParentPluginIds)
+	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins(false)
 	if err != nil {
 		impl.logger.Errorw("GetPluginDetailV2, error in getting all plugins versions metadata", "err", err)
 		return nil, err
 	}
-	err = impl.validateDetailRequest(pluginVersionsMetadata, pluginVersionIds, parentPluginIds)
+	err = impl.validateDetailRequest(pluginVersionsMetadata, queryParams.PluginIds, queryParams.ParentPluginIds)
 	if err != nil {
 		return nil, err
 	}
-	pluginParentMetadataDtos := make([]*bean2.PluginParentMetadataDto, 0, len(pluginVersionIds)+len(parentPluginIds))
-	if len(pluginVersionIds) == 0 && len(parentPluginIds) == 0 {
-		return nil, util.GetApiError(http.StatusBadRequest, bean2.NoPluginOrParentIdProvidedErr, bean2.NoPluginOrParentIdProvidedErr)
+	pluginParentMetadataDtos := make([]*bean2.PluginParentMetadataDto, 0, len(queryParams.PluginIds)+len(queryParams.ParentPluginIds))
+	if len(queryParams.PluginIds) == 0 && len(queryParams.ParentPluginIds) == 0 {
+		return nil, util.NewApiError(http.StatusBadRequest, bean2.NoPluginOrParentIdProvidedErr, bean2.NoPluginOrParentIdProvidedErr)
 	}
-	pluginVersionIdsMap, parentPluginIdsMap := helper2.GetPluginVersionAndParentPluginIdsMap(pluginVersionIds, parentPluginIds)
+	pluginVersionIdsMap, parentPluginIdsMap := helper2.GetPluginVersionAndParentPluginIdsMap(queryParams.PluginIds, queryParams.ParentPluginIds)
 
-	pluginParentMetadataIds := make([]int, 0, len(pluginVersionIds)+len(parentPluginIds))
-	pluginVersionsIdToInclude := make(map[int]bool, len(pluginVersionIds)+len(parentPluginIds))
+	pluginParentMetadataIds := make([]int, 0, len(queryParams.PluginIds)+len(queryParams.ParentPluginIds))
+	pluginVersionsIdToInclude := make(map[int]bool, len(queryParams.PluginIds)+len(queryParams.ParentPluginIds))
 
 	filteredPluginVersionMetadata := helper2.GetPluginVersionsMetadataByVersionAndParentPluginIds(pluginVersionsMetadata, pluginVersionIdsMap, parentPluginIdsMap)
 	if len(filteredPluginVersionMetadata) == 0 {
-		return nil, util.GetApiError(http.StatusNotFound, bean2.NoPluginFoundForThisSearchQueryErr, bean2.NoPluginFoundForThisSearchQueryErr)
+		return nil, util.NewApiError(http.StatusNotFound, bean2.NoPluginFoundForThisSearchQueryErr, bean2.NoPluginFoundForThisSearchQueryErr)
 	}
 	for _, version := range filteredPluginVersionMetadata {
 		_, found := pluginVersionIdsMap[version.Id]
-		wantDetailedData := found || fetchAllVersionDetails || version.IsLatest
+		wantDetailedData := found || queryParams.FetchAllVersionDetails || version.IsLatest
 		if wantDetailedData {
 			pluginVersionsIdToInclude[version.Id] = true
 		}
@@ -1863,7 +1889,7 @@ func (impl *GlobalPluginServiceImpl) GetAllUniqueTags() (*bean2.PluginTagsDto, e
 }
 
 func (impl *GlobalPluginServiceImpl) MigratePluginData() error {
-	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins()
+	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins(false)
 	if err != nil {
 		impl.logger.Errorw("MigratePluginData, error in getting plugins", "err", err)
 		return err
@@ -1915,7 +1941,7 @@ func (impl *GlobalPluginServiceImpl) MigratePluginDataToParentPluginMetadata(plu
 				continue
 			}
 			parentMetadata := repository.NewPluginParentMetadata()
-			parentMetadata.SetParentPluginMetadata(pluginMetadata).CreateAuditLog(bean.SystemUserId)
+			parentMetadata.SetParentPluginMetadata(pluginMetadata).CreateAuditLog(bean.SystemUserId).WithIsExposed(true)
 			parentMetadata.Identifier = identifier
 			parentMetadata, err = impl.globalPluginRepository.SavePluginParentMetadata(tx, parentMetadata)
 			if err != nil {
@@ -1942,19 +1968,22 @@ func (impl *GlobalPluginServiceImpl) MigratePluginDataToParentPluginMetadata(plu
 	return nil
 }
 
-func (impl *GlobalPluginServiceImpl) GetAllPluginMinData() ([]*bean2.PluginMinDto, error) {
-	pluginsParentMinData, err := impl.globalPluginRepository.GetAllPluginMinData()
+func (impl *GlobalPluginServiceImpl) GetAllPluginMinData(pluginType bean2.PluginType) ([]*bean2.PluginMinDto, error) {
+	pluginsParentMinData, err := impl.globalPluginRepository.GetAllPluginMinDataByType(pluginType.ToString())
 	if err != nil {
 		impl.logger.Errorw("GetAllPluginMinData, error in getting all plugin parent metadata min data", "err", err)
 		return nil, err
 	}
 	pluginMinList := make([]*bean2.PluginMinDto, 0, len(pluginsParentMinData))
 	for _, item := range pluginsParentMinData {
-		//since creating new version of preset plugin is disabled for end user, hence ignoring PRESET plugin in min list
-		if item.Type == repository.PLUGIN_TYPE_PRESET {
-			continue
-		}
-		pluginMinList = append(pluginMinList, bean2.NewPluginMinDto().WithParentPluginId(item.Id).WithPluginName(item.Name).WithIcon(item.Icon))
+		pluginMinList = append(pluginMinList,
+			bean2.NewPluginMinDto().
+				WithParentPluginId(item.Id).
+				WithPluginName(item.Name).
+				WithPluginIdentifier(item.Identifier).
+				WithPluginType(item.Type).
+				WithIcon(item.Icon),
+		)
 	}
 	return pluginMinList, nil
 }
@@ -1967,10 +1996,10 @@ func (impl *GlobalPluginServiceImpl) checkValidationOnPluginNameAndIdentifier(pl
 	}
 	for _, plugin := range plugins {
 		if plugin.Identifier == pluginReq.PluginIdentifier {
-			return util.GetApiError(http.StatusConflict, bean2.PluginWithSameIdentifierExistsError, bean2.PluginWithSameIdentifierExistsError)
+			return util.NewApiError(http.StatusConflict, bean2.PluginWithSameIdentifierExistsError, bean2.PluginWithSameIdentifierExistsError)
 		}
 		if plugin.Name == pluginReq.Name {
-			return util.GetApiError(http.StatusConflict, bean2.PluginWithSameNameExistError, bean2.PluginWithSameNameExistError)
+			return util.NewApiError(http.StatusConflict, bean2.PluginWithSameNameExistError, bean2.PluginWithSameNameExistError)
 		}
 	}
 	return nil
@@ -1986,7 +2015,7 @@ func (impl *GlobalPluginServiceImpl) checkValidationOnVersion(pluginReq *bean2.P
 		if pluginReq.Versions != nil && len(pluginReq.Versions.DetailedPluginVersionData) > 0 && pluginReq.Versions.DetailedPluginVersionData[0] != nil {
 			// if plugin version from req is already created then return error
 			if pluginVersion.PluginVersion == pluginReq.Versions.DetailedPluginVersionData[0].Version {
-				return util.GetApiError(http.StatusBadRequest, bean2.PluginVersionAlreadyExistError, bean2.PluginVersionAlreadyExistError)
+				return util.NewApiError(http.StatusBadRequest, bean2.PluginVersionAlreadyExistError, bean2.PluginVersionAlreadyExistError)
 			}
 		}
 
@@ -1996,7 +2025,7 @@ func (impl *GlobalPluginServiceImpl) checkValidationOnVersion(pluginReq *bean2.P
 
 func (impl *GlobalPluginServiceImpl) validateV2PluginRequest(pluginReq *bean2.PluginParentMetadataDto) error {
 	if pluginReq.Versions == nil || len(pluginReq.Versions.DetailedPluginVersionData) == 0 || pluginReq.Versions.DetailedPluginVersionData[0] == nil {
-		return util.GetApiError(http.StatusBadRequest, bean2.NoStepDataToProceedError, bean2.NoStepDataToProceedError)
+		return util.NewApiError(http.StatusBadRequest, bean2.NoStepDataToProceedError, bean2.NoStepDataToProceedError)
 	}
 	if pluginReq.Id == 0 {
 		//create plugin req.
@@ -2013,19 +2042,17 @@ func (impl *GlobalPluginServiceImpl) validateV2PluginRequest(pluginReq *bean2.Pl
 		}
 	}
 	version := pluginReq.Versions.DetailedPluginVersionData[0].Version
-	if !strings.Contains(version, "v") {
-		version = fmt.Sprintf("v%s", version)
-	}
+
 	// semantic versioning validation on plugin's version
-	if !semver.IsValid(version) {
-		return util.GetApiError(http.StatusBadRequest, bean2.PluginVersionNotSemanticallyCorrectError, bean2.PluginVersionNotSemanticallyCorrectError)
+	if err := utils.ValidatePluginVersion(version); err != nil {
+		return err
 	}
 	//validate icon url and size
 	if len(pluginReq.Icon) > 0 {
 		err := utils.FetchIconAndCheckSize(pluginReq.Icon, bean2.PluginIconMaxSizeInBytes)
 		if err != nil {
 			errMsg := fmt.Sprintf("%s err:= %s", bean2.PluginIconNotCorrectOrReachableError, err.Error())
-			return util.GetApiError(http.StatusBadRequest, errMsg, errMsg)
+			return util.NewApiError(http.StatusBadRequest, errMsg, errMsg)
 		}
 	}
 	return nil
@@ -2077,7 +2104,7 @@ func (impl *GlobalPluginServiceImpl) createPluginStepDataAndTagRelations(pluginV
 			return err
 		}
 	} else {
-		return util.GetApiError(http.StatusBadRequest, bean2.PluginStepsNotProvidedError, bean2.PluginStepsNotProvidedError)
+		return util.NewApiError(http.StatusBadRequest, bean2.PluginStepsNotProvidedError, bean2.PluginStepsNotProvidedError)
 	}
 
 	err := impl.createPluginTagAndRelations(pluginVersionDetail, userId, tx)
@@ -2108,7 +2135,7 @@ func (impl *GlobalPluginServiceImpl) createNewPlugin(tx *pg.Tx, pluginDto *bean2
 
 	pluginStageMapping := &repository.PluginStageMapping{
 		PluginId:  pluginParentMetadata.Id,
-		StageType: repository.CI_CD,
+		StageType: pluginDto.GetPluginStageType(),
 		AuditLog:  sql.NewDefaultAuditLog(userId),
 	}
 	_, err = impl.globalPluginRepository.SavePluginStageMapping(pluginStageMapping, tx)
@@ -2240,4 +2267,76 @@ func (impl *GlobalPluginServiceImpl) CreateNewPluginTagsAndRelationsIfRequiredV2
 		}
 	}
 	return nil
+}
+
+func validatePluginVariables(variable []*bean2.PluginVariableDto) error {
+	for _, v := range variable {
+		err := validatePluginVariable(v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ValidateStepVariable validates the step variable
+// It validates the following:
+//   - variable.IsExposed is false, then it's an internal variable (not exposed in UI) and no validation is required
+//   - variable.Name is mandatory
+//   - format commonBean.Format is mandatory
+//   - variable.Value should be a valid value for the format
+//   - variable.Value is optional on few conditions: refer to &bean.PluginVariableDto{}.IsEmptyValueAllowed()
+//
+// Input:
+//   - variable: Type *bean.PluginVariableDto; variable object to be validated
+//
+// Returns:
+//   - error: validation error (util.ApiError)
+func validatePluginVariable(variable *bean2.PluginVariableDto) error {
+	if variable == nil {
+		return nil
+	}
+	if !variable.IsExposed {
+		// if the variable is not exposed, then it's an internal variable (not exposed in UI).
+		// for internal variables, we don't need to validate the value.
+		// assuming internal variables are always valid.
+		return nil
+	}
+	// validate name
+	// if invalid, return error
+	if len(variable.Name) == 0 {
+		errMsg := fmt.Sprintf("variable name is mandatory")
+		return util.NewApiError(http.StatusBadRequest, errMsg, errMsg)
+	}
+	// validate format
+	// if invalid, return error
+	// format is mandatory
+	format, err := commonBean.NewFormat(variable.Format.String())
+	if err != nil {
+		errMsg := fmt.Sprintf("variable '%s' has invalid format '%s'", variable.Name, variable.Format)
+		return util.NewApiError(http.StatusBadRequest, errMsg, errMsg)
+	}
+
+	// value is optional
+	if len(variable.GetValue()) != 0 {
+		// validate value based on format
+		// convert value to format
+		// if invalid, return error
+		_, convErr := format.Convert(variable.GetValue())
+		if convErr != nil {
+			errMsg := fmt.Sprintf("variable '%s' has invalid value '%s' for format '%s'", variable.Name, variable.Value, variable.Format)
+			return util.NewApiError(http.StatusBadRequest, errMsg, errMsg)
+		}
+	}
+	return nil
+}
+
+func (impl *GlobalPluginServiceImpl) GetNewPluginStepsDtoByRefPluginIdentifier(identifier string) (*bean2.PluginStepsDto, error) {
+	pluginMetadata, err := impl.globalPluginRepository.GetPluginMetadataByPluginIdentifier(identifier)
+	if err != nil {
+		impl.logger.Errorw("error in getting plugin steps by plugin identifier", "identifier", identifier, "err", err)
+		return nil, err
+	}
+	pluginStepDto := adaptor.GetNewPluginStepDtoFromRefPluginMetadata(pluginMetadata)
+	return pluginStepDto, nil
 }

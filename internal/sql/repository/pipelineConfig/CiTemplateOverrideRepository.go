@@ -18,8 +18,10 @@ package pipelineConfig
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	repository2 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
 )
 
@@ -35,7 +37,7 @@ type CiTemplateOverride struct {
 	Active                    bool     `sql:"active,notnull"`
 	CiBuildConfigId           int      `sql:"ci_build_config_id"`
 	sql.AuditLog
-	GitMaterial    *GitMaterial
+	GitMaterial    *repository2.GitMaterial
 	DockerRegistry *repository.DockerArtifactStore
 	CiBuildConfig  *CiBuildConfig
 }
@@ -46,6 +48,7 @@ type CiTemplateOverrideRepository interface {
 	FindByAppId(appId int) ([]*CiTemplateOverride, error)
 	FindByCiPipelineIds(ciPipelineIds []int) ([]*CiTemplateOverride, error)
 	FindByCiPipelineId(ciPipelineId int) (*CiTemplateOverride, error)
+	FindIfTemplateOverrideExistsByCiPipelineIdsAndGitMaterialId(ciPipelineIds []int, gitMaterialId int) (bool, error)
 }
 
 type CiTemplateOverrideRepositoryImpl struct {
@@ -123,4 +126,23 @@ func (repo *CiTemplateOverrideRepositoryImpl) FindByCiPipelineId(ciPipelineId in
 		return ciTemplateOverride, err
 	}
 	return ciTemplateOverride, nil
+}
+
+func (repo *CiTemplateOverrideRepositoryImpl) FindIfTemplateOverrideExistsByCiPipelineIdsAndGitMaterialId(ciPipelineIds []int, gitMaterialId int) (bool, error) {
+	if len(ciPipelineIds) == 0 {
+		return false, nil
+	}
+	count, err := repo.dbConnection.Model((*CiTemplateOverride)(nil)).
+		Where("ci_pipeline_id in (?)", pg.In(ciPipelineIds)).
+		WhereGroup(func(q *orm.Query) (*orm.Query, error) {
+			return q.Where("git_material_id = ?", gitMaterialId).WhereOr("build_context_git_material_id = ?", gitMaterialId), nil
+		}).
+		Where("active = ?", true).
+		Count()
+	if err != nil {
+		repo.logger.Errorw("error in checking if template override exists", "ciPipelineIds", ciPipelineIds, "gitMaterialId", gitMaterialId, "err", err)
+		return false, err
+	}
+	return count > 0, nil
+
 }

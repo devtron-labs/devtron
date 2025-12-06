@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/discovery"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -74,7 +75,7 @@ type APIResourceOptions struct {
 
 	discoveryClient discovery.CachedDiscoveryInterface
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 // groupResource contains the APIGroup and APIResource
@@ -85,7 +86,7 @@ type groupResource struct {
 }
 
 // NewAPIResourceOptions creates the options for APIResource
-func NewAPIResourceOptions(ioStreams genericclioptions.IOStreams) *APIResourceOptions {
+func NewAPIResourceOptions(ioStreams genericiooptions.IOStreams) *APIResourceOptions {
 	return &APIResourceOptions{
 		IOStreams:  ioStreams,
 		Namespaced: true,
@@ -93,7 +94,7 @@ func NewAPIResourceOptions(ioStreams genericclioptions.IOStreams) *APIResourceOp
 }
 
 // NewCmdAPIResources creates the `api-resources` command
-func NewCmdAPIResources(restClientGetter genericclioptions.RESTClientGetter, ioStreams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAPIResources(restClientGetter genericclioptions.RESTClientGetter, ioStreams genericiooptions.IOStreams) *cobra.Command {
 	o := NewAPIResourceOptions(ioStreams)
 
 	cmd := &cobra.Command{
@@ -116,17 +117,17 @@ func NewCmdAPIResources(restClientGetter genericclioptions.RESTClientGetter, ioS
 	cmd.Flags().StringSliceVar(&o.Verbs, "verbs", o.Verbs, "Limit to resources that support the specified verbs.")
 	cmd.Flags().StringVar(&o.SortBy, "sort-by", o.SortBy, "If non-empty, sort list of resources using specified field. The field can be either 'name' or 'kind'.")
 	cmd.Flags().BoolVar(&o.Cached, "cached", o.Cached, "Use the cached list of resources if available.")
-	cmd.Flags().StringSliceVar(&o.Categories, "categories", o.Categories, "Limit to resources that belong the the specified categories.")
+	cmd.Flags().StringSliceVar(&o.Categories, "categories", o.Categories, "Limit to resources that belong to the specified categories.")
 	return cmd
 }
 
 // Validate checks to the APIResourceOptions to see if there is sufficient information run the command
 func (o *APIResourceOptions) Validate() error {
-	supportedOutputTypes := sets.NewString("", "wide", "name")
+	supportedOutputTypes := sets.New[string]("", "wide", "name")
 	if !supportedOutputTypes.Has(o.Output) {
 		return fmt.Errorf("--output %v is not available", o.Output)
 	}
-	supportedSortTypes := sets.NewString("", "name", "kind")
+	supportedSortTypes := sets.New[string]("", "name", "kind")
 	if len(o.SortBy) > 0 {
 		if !supportedSortTypes.Has(o.SortBy) {
 			return fmt.Errorf("--sort-by accepts only name or kind")
@@ -192,11 +193,11 @@ func (o *APIResourceOptions) RunAPIResources() error {
 				continue
 			}
 			// filter to resources that support the specified verbs
-			if len(o.Verbs) > 0 && !sets.NewString(resource.Verbs...).HasAll(o.Verbs...) {
+			if len(o.Verbs) > 0 && !sets.New[string](resource.Verbs...).HasAll(o.Verbs...) {
 				continue
 			}
 			// filter to resources that belong to the specified categories
-			if len(o.Categories) > 0 && !sets.NewString(resource.Categories...).HasAll(o.Categories...) {
+			if len(o.Categories) > 0 && !sets.New[string](resource.Categories...).HasAll(o.Categories...) {
 				continue
 			}
 			resources = append(resources, groupResource{

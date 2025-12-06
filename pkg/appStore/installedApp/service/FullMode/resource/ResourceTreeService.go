@@ -24,24 +24,31 @@ import (
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
-	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/api/bean/AppView"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
-	client "github.com/devtron-labs/devtron/api/helm-app/service"
-	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
+	"github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/api/helm-app/service/bean"
+	"github.com/devtron-labs/devtron/api/helm-app/service/read"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/constants"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	cdWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	"github.com/devtron-labs/devtron/pkg/argoApplication"
+	bean3 "github.com/devtron-labs/devtron/pkg/argoApplication/bean"
+	bean4 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
+	"github.com/devtron-labs/devtron/pkg/fluxApplication"
+	bean5 "github.com/devtron-labs/devtron/pkg/fluxApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application3 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	util2 "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
 	"net/http"
@@ -53,8 +60,8 @@ import (
 )
 
 type InstalledAppResourceService interface {
-	FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *bean.AppDetailContainer) bean.AppDetailContainer
-	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetailsContainer *bean.AppDetailsContainer, installedApp repository.InstalledApps, deploymentConfig *bean2.DeploymentConfig, helmReleaseInstallStatus string, status string) error
+	FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *AppView.AppDetailContainer) AppView.AppDetailContainer
+	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetailsContainer *AppView.AppDetailsContainer, installedApp repository.InstalledApps, deploymentConfig *bean2.DeploymentConfig, helmReleaseInstallStatus string, status string) error
 	FetchChartNotes(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error)
 }
 
@@ -62,67 +69,68 @@ type InstalledAppResourceServiceImpl struct {
 	logger                               *zap.SugaredLogger
 	installedAppRepository               repository.InstalledAppRepository
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
-	acdClient                            application2.ServiceClient
+	acdClientWrapper                     argocdServer.ArgoClientWrapperService
 	aCDAuthConfig                        *util3.ACDAuthConfig
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
-	argoUserService                      argo.ArgoUserService
-	helmAppClient                        gRPC.HelmAppClient
-	helmAppService                       client.HelmAppService
+	helmAppService                       service.HelmAppService
+	helmAppReadService                   read.HelmAppReadService
 	appStatusService                     appStatus.AppStatusService
 	k8sCommonService                     k8s.K8sCommonService
 	k8sApplicationService                application3.K8sApplicationService
 	K8sUtil                              k8s2.K8sService
 	deploymentConfigurationService       common.DeploymentConfigService
 	OCIRegistryConfigRepository          repository2.OCIRegistryConfigRepository
+	argoApplicationService               argoApplication.ArgoApplicationService
+	fluxApplicationService               fluxApplication.FluxApplicationService
 }
 
 func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepository repository.InstalledAppRepository,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
-	acdClient application2.ServiceClient,
+	acdClientWrapper argocdServer.ArgoClientWrapperService,
 	aCDAuthConfig *util3.ACDAuthConfig,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
-	argoUserService argo.ArgoUserService, helmAppClient gRPC.HelmAppClient, helmAppService client.HelmAppService,
+	helmAppService service.HelmAppService,
+	helmAppReadService read.HelmAppReadService,
 	appStatusService appStatus.AppStatusService,
 	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService, K8sUtil k8s2.K8sService,
 	deploymentConfigurationService common.DeploymentConfigService,
-	OCIRegistryConfigRepository repository2.OCIRegistryConfigRepository) *InstalledAppResourceServiceImpl {
+	OCIRegistryConfigRepository repository2.OCIRegistryConfigRepository,
+	argoApplicationService argoApplication.ArgoApplicationService,
+	fluxApplicationService fluxApplication.FluxApplicationService) *InstalledAppResourceServiceImpl {
 	return &InstalledAppResourceServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
-		acdClient:                            acdClient,
+		acdClientWrapper:                     acdClientWrapper,
 		aCDAuthConfig:                        aCDAuthConfig,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
-		argoUserService:                      argoUserService,
-		helmAppClient:                        helmAppClient,
 		helmAppService:                       helmAppService,
+		helmAppReadService:                   helmAppReadService,
 		appStatusService:                     appStatusService,
 		k8sCommonService:                     k8sCommonService,
 		k8sApplicationService:                k8sApplicationService,
 		K8sUtil:                              K8sUtil,
 		deploymentConfigurationService:       deploymentConfigurationService,
 		OCIRegistryConfigRepository:          OCIRegistryConfigRepository,
+		argoApplicationService:               argoApplicationService,
+		fluxApplicationService:               fluxApplicationService,
 	}
 }
 
-func (impl *InstalledAppResourceServiceImpl) FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetailsContainer *bean.AppDetailsContainer, installedApp repository.InstalledApps, deploymentConfig *bean2.DeploymentConfig, helmReleaseInstallStatus string, status string) error {
+func (impl *InstalledAppResourceServiceImpl) FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetailsContainer *AppView.AppDetailsContainer, installedApp repository.InstalledApps, deploymentConfig *bean2.DeploymentConfig, helmReleaseInstallStatus string, status string) error {
 	var err error
 	var resourceTree map[string]interface{}
-	deploymentAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
+	deploymentAppName := util2.BuildDeployedAppName(installedApp.App.AppName, installedApp.Environment.Name)
 	if util.IsAcdApp(deploymentConfig.DeploymentAppType) {
 		resourceTree, err = impl.fetchResourceTreeForACD(rctx, cn, installedApp.App.Id, installedApp.EnvironmentId, installedApp.Environment.ClusterId, deploymentAppName, installedApp.Environment.Namespace)
 	} else if util.IsHelmApp(deploymentConfig.DeploymentAppType) {
-		config, err := impl.helmAppService.GetClusterConf(installedApp.Environment.ClusterId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching cluster detail", "err", err)
+		req := &bean.AppIdentifier{
+			ClusterId:   installedApp.Environment.ClusterId,
+			Namespace:   installedApp.Environment.Namespace,
+			ReleaseName: installedApp.App.AppName,
 		}
-		req := &gRPC.AppDetailRequest{
-			ClusterConfig: config,
-			Namespace:     installedApp.Environment.Namespace,
-			ReleaseName:   installedApp.App.AppName,
-		}
-		detail, err := impl.helmAppClient.GetAppDetail(rctx, req)
+		detail, err := impl.helmAppService.GetApplicationDetail(rctx, req)
 		if err != nil {
 			impl.logger.Errorw("error in fetching app detail", "err", err)
 		}
@@ -170,6 +178,49 @@ func (impl *InstalledAppResourceServiceImpl) FetchResourceTree(rctx context.Cont
 			releaseStatusMap := util2.InterfaceToMapAdapter(releaseStatus)
 			appDetailsContainer.ReleaseStatus = releaseStatusMap
 		}
+	} else if util.IsFluxApp(deploymentConfig.DeploymentAppType) {
+		req := &bean5.FluxAppIdentifier{
+			ClusterId:      installedApp.Environment.ClusterId,
+			Namespace:      installedApp.Environment.Namespace,
+			Name:           deploymentAppName,
+			IsKustomizeApp: false,
+		}
+		detail, err := impl.fluxApplicationService.GetFluxAppDetail(rctx, req)
+		if err != nil {
+			impl.logger.Errorw("error in fetching app detail", "payload", req, "err", err)
+		}
+		if detail != nil {
+			iaVersion, err := impl.installedAppRepositoryHistory.GetLatestInstalledAppVersionHistoryByInstalledAppId(installedApp.Id)
+			if err != nil {
+				impl.logger.Errorw("error in fetching latest installed app version history", "err", err)
+			} else if iaVersion != nil {
+				switch detail.FluxAppStatusDetail.Reason {
+				case bean5.InstallSucceededReason, bean5.UpgradeSucceededReason, bean5.TestSucceededReason, bean5.RollbackSucceededReason:
+					if detail.AppHealthStatus == commonBean.HealthStatusHealthy {
+						iaVersion.Status = cdWorkflow2.WorkflowSucceeded
+					}
+				case bean5.UpgradeFailedReason,
+					bean5.TestFailedReason,
+					bean5.RollbackFailedReason,
+					bean5.UninstallFailedReason,
+					bean5.ArtifactFailedReason,
+					bean5.InstallFailedReason:
+					iaVersion.Status = cdWorkflow2.WorkflowFailed
+				}
+				iaVersion.UpdateAuditLog(bean4.SYSTEM_USER_ID)
+				_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(iaVersion, nil)
+				if err != nil {
+					impl.logger.Errorw("error in updating app version history", "err", err)
+				}
+			}
+			resourceTree = util2.InterfaceToMapAdapter(detail.ResourceTreeResponse)
+			applicationStatus := detail.AppHealthStatus
+			if detail.ResourceTreeResponse != nil && len(detail.ResourceTreeResponse.Nodes) == 0 {
+				resourceTree["status"] = commonBean.HealthStatusUnknown
+			} else {
+				resourceTree["status"] = applicationStatus
+			}
+		}
 	}
 	if resourceTree != nil {
 		version, err := impl.k8sCommonService.GetK8sServerVersion(installedApp.Environment.ClusterId)
@@ -183,7 +234,7 @@ func (impl *InstalledAppResourceServiceImpl) FetchResourceTree(rctx context.Cont
 	return err
 }
 
-func (impl *InstalledAppResourceServiceImpl) FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *bean.AppDetailContainer) bean.AppDetailContainer {
+func (impl *InstalledAppResourceServiceImpl) FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *AppView.AppDetailContainer) AppView.AppDetailContainer {
 	ctx, cancel := context.WithCancel(rctx)
 	if cn != nil {
 		go func(done <-chan struct{}, closed <-chan bool) {
@@ -194,15 +245,9 @@ func (impl *InstalledAppResourceServiceImpl) FetchResourceTreeWithHibernateForAC
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		impl.logger.Errorw("error in getting acd token", "err", err)
-		return *appDetail
-	}
-	ctx = context.WithValue(ctx, "token", acdToken)
 	defer cancel()
-	deploymentAppName := fmt.Sprintf("%s-%s", appDetail.AppName, appDetail.EnvironmentName)
-	resourceTree, err := impl.fetchResourceTreeForACD(rctx, cn, appDetail.InstalledAppId, appDetail.EnvironmentId, appDetail.ClusterId, deploymentAppName, appDetail.Namespace)
+	deploymentAppName := util2.BuildDeployedAppName(appDetail.AppName, appDetail.EnvironmentName)
+	resourceTree, err := impl.fetchResourceTreeForACD(rctx, cn, appDetail.AppId, appDetail.EnvironmentId, appDetail.ClusterId, deploymentAppName, appDetail.Namespace)
 	appDetail.ResourceTree = resourceTree
 	if err != nil {
 		return *appDetail
@@ -229,15 +274,9 @@ func (impl *InstalledAppResourceServiceImpl) fetchResourceTreeForACD(rctx contex
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		impl.logger.Errorw("error in getting acd token", "err", err)
-		return resourceTree, err
-	}
-	ctx = context.WithValue(ctx, "token", acdToken)
 	defer cancel()
 	start := time.Now()
-	resp, err := impl.acdClient.ResourceTree(ctx, query)
+	resp, err := impl.argoApplicationService.GetResourceTree(ctx, bean3.NewImperativeQueryRequest(query))
 	elapsed := time.Since(start)
 	impl.logger.Debugf("Time elapsed %s in fetching app-store installed application %s for environment %s", elapsed, deploymentAppName, envId)
 	if err != nil {
@@ -277,8 +316,8 @@ func (impl *InstalledAppResourceServiceImpl) fetchResourceTreeForACD(rctx contex
 		}
 	}()
 	impl.logger.Debugf("application %s in environment %s had status %+v\n", appId, envId, resp)
-	k8sAppDetail := bean.AppDetailContainer{
-		DeploymentDetailContainer: bean.DeploymentDetailContainer{
+	k8sAppDetail := AppView.AppDetailContainer{
+		DeploymentDetailContainer: AppView.DeploymentDetailContainer{
 			ClusterId: clusterId,
 			Namespace: namespace,
 		},
@@ -287,7 +326,7 @@ func (impl *InstalledAppResourceServiceImpl) fetchResourceTreeForACD(rctx contex
 	validRequest := impl.k8sCommonService.FilterK8sResources(rctx, resourceTree, k8sAppDetail, clusterIdString, []string{commonBean.ServiceKind, commonBean.EndpointsKind, commonBean.IngressKind}, "")
 	response, err := impl.k8sCommonService.GetManifestsByBatch(rctx, validRequest)
 	if err != nil {
-		impl.logger.Errorw("error in getting manifest by batch", "err", err, "clusterId", clusterIdString)
+		impl.logger.Errorw("error in getting manifest by batch", "clusterId", clusterIdString, "err", err)
 		return nil, err
 	}
 	newResourceTree := impl.k8sCommonService.PortNumberExtraction(response, resourceTree)
@@ -374,7 +413,7 @@ func (impl *InstalledAppResourceServiceImpl) checkForHibernation(ctx context.Con
 	canBeHibernated := false
 	alreadyHibernated := false
 	ctx, _ = context.WithTimeout(ctx, 60*time.Second)
-	res, err := impl.acdClient.GetResource(ctx, rQuery)
+	res, err := impl.acdClientWrapper.GetApplicationResource(ctx, rQuery)
 	if err != nil {
 		impl.logger.Errorw("error getting response from acdClient", "request", rQuery, "data", res, "timeTaken", time.Since(t0), "err", err)
 		return canBeHibernated, alreadyHibernated

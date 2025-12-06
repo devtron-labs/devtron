@@ -37,11 +37,14 @@ import (
 	"github.com/devtron-labs/devtron/api/k8s/application"
 	"github.com/devtron-labs/devtron/api/k8s/capacity"
 	"github.com/devtron-labs/devtron/api/module"
+	"github.com/devtron-labs/devtron/api/resourceScan"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/router/app"
+	"github.com/devtron-labs/devtron/api/router/app/configDiff"
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/team"
 	terminal2 "github.com/devtron-labs/devtron/api/terminal"
+	"github.com/devtron-labs/devtron/api/userResource"
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/client/dashboard"
@@ -114,11 +117,13 @@ type MuxRouter struct {
 	rbacRoleRouter                     user.RbacRoleRouter
 	scopedVariableRouter               ScopedVariableRouter
 	ciTriggerCron                      cron.CiTriggerCron
-	deploymentConfigurationRouter      DeploymentConfigurationRouter
+	deploymentConfigurationRouter      configDiff.DeploymentConfigurationRouter
 	infraConfigRouter                  infraConfig.InfraConfigRouter
 	argoApplicationRouter              argoApplication.ArgoApplicationRouter
 	fluxApplicationRouter              fluxApplication2.FluxApplicationRouter
 	devtronResourceRouter              devtronResource.DevtronResourceRouter
+	scanningResultRouter               resourceScan.ScanningResultRouter
+	userResourceRouter                 userResource.Router
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger,
@@ -147,12 +152,14 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 	scopedVariableRouter ScopedVariableRouter,
 	ciTriggerCron cron.CiTriggerCron,
 	proxyRouter proxy.ProxyRouter,
-	deploymentConfigurationRouter DeploymentConfigurationRouter,
+	deploymentConfigurationRouter configDiff.DeploymentConfigurationRouter,
 	infraConfigRouter infraConfig.InfraConfigRouter,
 	argoApplicationRouter argoApplication.ArgoApplicationRouter,
 	devtronResourceRouter devtronResource.DevtronResourceRouter,
 	fluxApplicationRouter fluxApplication2.FluxApplicationRouter,
-	) *MuxRouter {
+	scanningResultRouter resourceScan.ScanningResultRouter,
+	userResourceRouter userResource.Router,
+) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		EnvironmentClusterMappingsRouter:   EnvironmentClusterMappingsRouter,
@@ -217,6 +224,8 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 		argoApplicationRouter:              argoApplicationRouter,
 		devtronResourceRouter:              devtronResourceRouter,
 		fluxApplicationRouter:              fluxApplicationRouter,
+		scanningResultRouter:               scanningResultRouter,
+		userResourceRouter:                 userResourceRouter,
 	}
 	return r
 }
@@ -298,7 +307,7 @@ func (r MuxRouter) Init() {
 
 	configRouter := r.Router.PathPrefix("/orchestrator/config").Subrouter()
 	r.ConfigMapRouter.initConfigMapRouter(configRouter)
-	r.deploymentConfigurationRouter.initDeploymentConfigurationRouter(configRouter)
+	r.deploymentConfigurationRouter.InitDeploymentConfigurationRouter(configRouter)
 
 	appStoreRouter := r.Router.PathPrefix("/orchestrator/app-store").Subrouter()
 	r.AppStoreRouter.Init(appStoreRouter)
@@ -319,6 +328,9 @@ func (r MuxRouter) Init() {
 
 	imageScanRouter := r.Router.PathPrefix("/orchestrator/security/scan").Subrouter()
 	r.imageScanRouter.InitImageScanRouter(imageScanRouter)
+
+	scanResultRouter := r.Router.PathPrefix("/orchestrator/scan-result").Subrouter()
+	r.scanningResultRouter.InitScanningResultRouter(scanResultRouter)
 
 	policyRouter := r.Router.PathPrefix("/orchestrator/security/policy").Subrouter()
 	r.policyRouter.InitPolicyRouter(policyRouter)
@@ -420,6 +432,9 @@ func (r MuxRouter) Init() {
 	devtronResourceRouter := r.Router.PathPrefix("/orchestrator/resource").Subrouter()
 	r.devtronResourceRouter.InitDevtronResourceRouter(devtronResourceRouter)
 
+	userResourcesRouter := r.Router.PathPrefix("/orchestrator/user/resource").Subrouter()
+	r.userResourceRouter.InitUserResourceRouter(userResourcesRouter)
+
 	infraConfigRouter := r.Router.PathPrefix("/orchestrator/infra-config").Subrouter()
 	r.infraConfigRouter.InitInfraConfigRouter(infraConfigRouter)
 
@@ -428,4 +443,5 @@ func (r MuxRouter) Init() {
 
 	fluxApplicationRouter := r.Router.PathPrefix("/orchestrator/flux-application").Subrouter()
 	r.fluxApplicationRouter.InitFluxApplicationRouter(fluxApplicationRouter)
+
 }

@@ -18,7 +18,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	repocreds "github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
@@ -27,7 +26,7 @@ import (
 )
 
 type ServiceClient interface {
-	CreateRepoCreds(ctx context.Context, query *repocreds.RepoCredsCreateRequest) (*v1alpha1.RepoCreds, error)
+	CreateRepoCreds(ctx context.Context, grpcConfig *argoApplication.ArgoGRPCConfig, query *repocreds.RepoCredsCreateRequest) (*v1alpha1.RepoCreds, error)
 }
 
 type ServiceClientImpl struct {
@@ -42,20 +41,16 @@ func NewServiceClientImpl(logger *zap.SugaredLogger, argoCDConnectionManager con
 	}
 }
 
-func (r ServiceClientImpl) getService(ctx context.Context) (repocreds.RepoCredsServiceClient, error) {
-	token, ok := ctx.Value("token").(string)
-	if !ok {
-		return nil, errors.New("Unauthorized")
-	}
-	conn := r.argoCDConnectionManager.GetConnection(token)
+func (r ServiceClientImpl) getService(ctx context.Context, grpcConfig *argoApplication.ArgoGRPCConfig) (repocreds.RepoCredsServiceClient, error) {
+	conn := r.argoCDConnectionManager.GetGrpcClientConnection(grpcConfig)
 	//defer conn.Close()
 	return repocreds.NewRepoCredsServiceClient(conn), nil
 }
 
-func (r ServiceClientImpl) CreateRepoCreds(ctx context.Context, query *repocreds.RepoCredsCreateRequest) (*v1alpha1.RepoCreds, error) {
+func (r ServiceClientImpl) CreateRepoCreds(ctx context.Context, grpcConfig *argoApplication.ArgoGRPCConfig, query *repocreds.RepoCredsCreateRequest) (*v1alpha1.RepoCreds, error) {
 	ctx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutSlow)
 	defer cancel()
-	client, err := r.getService(ctx)
+	client, err := r.getService(ctx, grpcConfig)
 	if err != nil {
 		return nil, err
 	}

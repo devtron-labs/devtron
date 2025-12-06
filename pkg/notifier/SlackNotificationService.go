@@ -19,30 +19,27 @@ package notifier
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/notifier/adapter"
+	"github.com/devtron-labs/devtron/pkg/notifier/beans"
 	"strings"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
-	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
-	util2 "github.com/devtron-labs/devtron/util/event"
+	eventUtil "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
-const SLACK_CONFIG_TYPE = "slack"
-const SLACK_URL = "https://hooks.slack.com/"
-const WEBHOOK_URL = "https://"
-
 type SlackNotificationService interface {
-	SaveOrEditNotificationConfig(channelReq []SlackConfigDto, userId int32) ([]int, error)
-	FetchSlackNotificationConfigById(id int) (*SlackConfigDto, error)
-	FetchAllSlackNotificationConfig() ([]*SlackConfigDto, error)
-	FetchAllSlackNotificationConfigAutocomplete() ([]*NotificationChannelAutoResponse, error)
-	RecipientListingSuggestion(value string) ([]*NotificationRecipientListingResponse, error)
-	DeleteNotificationConfig(deleteReq *SlackConfigDto, userId int32) error
+	SaveOrEditNotificationConfig(channelReq []beans.SlackConfigDto, userId int32) ([]int, error)
+	FetchSlackNotificationConfigById(id int) (*beans.SlackConfigDto, error)
+	FetchAllSlackNotificationConfig() ([]*beans.SlackConfigDto, error)
+	FetchAllSlackNotificationConfigAutocomplete() ([]*beans.NotificationChannelAutoResponse, error)
+	RecipientListingSuggestion(value string) ([]*beans.NotificationRecipientListingResponse, error)
+	DeleteNotificationConfig(deleteReq *beans.SlackConfigDto, userId int32) error
 }
 
 type SlackNotificationServiceImpl struct {
@@ -52,20 +49,6 @@ type SlackNotificationServiceImpl struct {
 	webhookRepository              repository.WebhookNotificationRepository
 	userRepository                 repository2.UserRepository
 	notificationSettingsRepository repository.NotificationSettingsRepository
-}
-
-type SlackChannelConfig struct {
-	Channel         util2.Channel    `json:"channel" validate:"required"`
-	SlackConfigDtos []SlackConfigDto `json:"configs"`
-}
-
-type SlackConfigDto struct {
-	OwnerId     int32  `json:"userId" validate:"number"`
-	TeamId      int    `json:"teamId" validate:"required"`
-	WebhookUrl  string `json:"webhookUrl" validate:"required"`
-	ConfigName  string `json:"configName" validate:"required"`
-	Description string `json:"description"`
-	Id          int    `json:"id" validate:"number"`
 }
 
 func NewSlackNotificationServiceImpl(logger *zap.SugaredLogger, slackRepository repository.SlackNotificationRepository, webhookRepository repository.WebhookNotificationRepository, teamService team.TeamService,
@@ -80,9 +63,9 @@ func NewSlackNotificationServiceImpl(logger *zap.SugaredLogger, slackRepository 
 	}
 }
 
-func (impl *SlackNotificationServiceImpl) SaveOrEditNotificationConfig(channelReq []SlackConfigDto, userId int32) ([]int, error) {
+func (impl *SlackNotificationServiceImpl) SaveOrEditNotificationConfig(channelReq []beans.SlackConfigDto, userId int32) ([]int, error) {
 	var responseIds []int
-	slackConfigs := buildSlackNewConfigs(channelReq, userId)
+	slackConfigs := adapter.BuildSlackNewConfigs(channelReq, userId)
 	for _, config := range slackConfigs {
 		if config.Id != 0 {
 			model, err := impl.slackRepository.FindOne(config.Id)
@@ -90,7 +73,7 @@ func (impl *SlackNotificationServiceImpl) SaveOrEditNotificationConfig(channelRe
 				impl.logger.Errorw("err while fetching slack config", "err", err)
 				return []int{}, err
 			}
-			impl.buildConfigUpdateModel(config, model, userId)
+			adapter.BuildConfigUpdateModelForSlack(config, model, userId)
 			model, uErr := impl.slackRepository.UpdateSlackConfig(model)
 			if uErr != nil {
 				impl.logger.Errorw("err while updating slack config", "err", err)
@@ -108,42 +91,42 @@ func (impl *SlackNotificationServiceImpl) SaveOrEditNotificationConfig(channelRe
 	return responseIds, nil
 }
 
-func (impl *SlackNotificationServiceImpl) FetchSlackNotificationConfigById(id int) (*SlackConfigDto, error) {
+func (impl *SlackNotificationServiceImpl) FetchSlackNotificationConfigById(id int) (*beans.SlackConfigDto, error) {
 	slackConfig, err := impl.slackRepository.FindOne(id)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("cannot find all slack config", "err", err)
 		return nil, err
 	}
-	slackConfigDto := impl.adaptSlackConfig(*slackConfig)
+	slackConfigDto := adapter.AdaptSlackConfig(*slackConfig)
 	return &slackConfigDto, nil
 }
 
-func (impl *SlackNotificationServiceImpl) FetchAllSlackNotificationConfig() ([]*SlackConfigDto, error) {
-	var responseDto []*SlackConfigDto
+func (impl *SlackNotificationServiceImpl) FetchAllSlackNotificationConfig() ([]*beans.SlackConfigDto, error) {
+	var responseDto []*beans.SlackConfigDto
 	slackConfigs, err := impl.slackRepository.FindAll()
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("cannot find all slack config", "err", err)
-		return []*SlackConfigDto{}, err
+		return []*beans.SlackConfigDto{}, err
 	}
 	for _, slackConfig := range slackConfigs {
-		slackConfigDto := impl.adaptSlackConfig(slackConfig)
+		slackConfigDto := adapter.AdaptSlackConfig(slackConfig)
 		responseDto = append(responseDto, &slackConfigDto)
 	}
 	if responseDto == nil {
-		responseDto = make([]*SlackConfigDto, 0)
+		responseDto = make([]*beans.SlackConfigDto, 0)
 	}
 	return responseDto, nil
 }
 
-func (impl *SlackNotificationServiceImpl) FetchAllSlackNotificationConfigAutocomplete() ([]*NotificationChannelAutoResponse, error) {
-	var responseDto []*NotificationChannelAutoResponse
+func (impl *SlackNotificationServiceImpl) FetchAllSlackNotificationConfigAutocomplete() ([]*beans.NotificationChannelAutoResponse, error) {
+	var responseDto []*beans.NotificationChannelAutoResponse
 	slackConfigs, err := impl.slackRepository.FindAll()
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("cannot find all slack config", "err", err)
-		return []*NotificationChannelAutoResponse{}, err
+		return []*beans.NotificationChannelAutoResponse{}, err
 	}
 	for _, slackConfig := range slackConfigs {
-		slackConfigDto := &NotificationChannelAutoResponse{
+		slackConfigDto := &beans.NotificationChannelAutoResponse{
 			Id:         slackConfig.Id,
 			ConfigName: slackConfig.ConfigName,
 			TeamId:     slackConfig.TeamId,
@@ -153,107 +136,57 @@ func (impl *SlackNotificationServiceImpl) FetchAllSlackNotificationConfigAutocom
 	return responseDto, nil
 }
 
-func (impl *SlackNotificationServiceImpl) adaptSlackConfig(slackConfig repository.SlackConfig) SlackConfigDto {
-	slackConfigDto := SlackConfigDto{
-		OwnerId:     slackConfig.OwnerId,
-		TeamId:      slackConfig.TeamId,
-		WebhookUrl:  slackConfig.WebHookUrl,
-		ConfigName:  slackConfig.ConfigName,
-		Description: slackConfig.Description,
-		Id:          slackConfig.Id,
-	}
-	return slackConfigDto
-}
-
-func buildSlackNewConfigs(slackReq []SlackConfigDto, userId int32) []*repository.SlackConfig {
-	var slackConfigs []*repository.SlackConfig
-	for _, c := range slackReq {
-		slackConfig := &repository.SlackConfig{
-			Id:          c.Id,
-			ConfigName:  c.ConfigName,
-			WebHookUrl:  c.WebhookUrl,
-			Description: c.Description,
-			AuditLog: sql.AuditLog{
-				CreatedBy: userId,
-				CreatedOn: time.Now(),
-				UpdatedOn: time.Now(),
-				UpdatedBy: userId,
-			},
-		}
-		if c.TeamId != 0 {
-			slackConfig.TeamId = c.TeamId
-		} else {
-			slackConfig.OwnerId = userId
-		}
-		slackConfigs = append(slackConfigs, slackConfig)
-	}
-	return slackConfigs
-}
-
-func (impl *SlackNotificationServiceImpl) buildConfigUpdateModel(slackConfig *repository.SlackConfig, model *repository.SlackConfig, userId int32) {
-	model.WebHookUrl = slackConfig.WebHookUrl
-	model.ConfigName = slackConfig.ConfigName
-	model.Description = slackConfig.Description
-	if slackConfig.TeamId != 0 {
-		model.TeamId = slackConfig.TeamId
-	} else {
-		model.OwnerId = slackConfig.OwnerId
-	}
-	model.UpdatedOn = time.Now()
-	model.UpdatedBy = userId
-}
-
-func (impl *SlackNotificationServiceImpl) RecipientListingSuggestion(value string) ([]*NotificationRecipientListingResponse, error) {
-	var results []*NotificationRecipientListingResponse
+func (impl *SlackNotificationServiceImpl) RecipientListingSuggestion(value string) ([]*beans.NotificationRecipientListingResponse, error) {
+	var results []*beans.NotificationRecipientListingResponse
 
 	slackConfigs, err := impl.slackRepository.FindByName(value)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("cannot find all slack config", "err", err)
-		return []*NotificationRecipientListingResponse{}, err
+		return []*beans.NotificationRecipientListingResponse{}, err
 	}
 	for _, slackConfig := range slackConfigs {
-		result := &NotificationRecipientListingResponse{
+		result := &beans.NotificationRecipientListingResponse{
 			ConfigId:  slackConfig.Id,
 			Recipient: slackConfig.ConfigName,
-			Dest:      util2.Slack}
+			Dest:      eventUtil.Slack}
 		results = append(results, result)
 	}
 	webhookConfigs, err := impl.webhookRepository.FindByName(value)
 
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("cannot find all webhook config", "err", err)
-		return []*NotificationRecipientListingResponse{}, err
+		return []*beans.NotificationRecipientListingResponse{}, err
 	}
 	for _, webhookConfig := range webhookConfigs {
-		result := &NotificationRecipientListingResponse{
+		result := &beans.NotificationRecipientListingResponse{
 			ConfigId:  webhookConfig.Id,
 			Recipient: webhookConfig.ConfigName,
-			Dest:      util2.Webhook}
+			Dest:      eventUtil.Webhook}
 		results = append(results, result)
 	}
 	userList, err := impl.userRepository.FetchUserMatchesByEmailIdExcludingApiTokenUser(value)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("cannot find all slack config", "err", err)
-		return []*NotificationRecipientListingResponse{}, err
+		return []*beans.NotificationRecipientListingResponse{}, err
 	}
 	for _, item := range userList {
-		result := &NotificationRecipientListingResponse{
+		result := &beans.NotificationRecipientListingResponse{
 			ConfigId:  int(item.Id),
 			Recipient: item.EmailId,
-			Dest:      util2.SES}
+			Dest:      eventUtil.SES}
 		results = append(results, result)
 	}
 
 	nsv, err := impl.notificationSettingsRepository.FindAll(0, 20)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("cannot find all slack config", "error", err)
-		return []*NotificationRecipientListingResponse{}, err
+		return []*beans.NotificationRecipientListingResponse{}, err
 	}
 	for _, item := range nsv {
 		var dat map[string]interface{}
 		if err := json.Unmarshal([]byte(item.Config), &dat); err != nil {
 			impl.logger.Errorw("Unmarshal error", "error", err)
-			return []*NotificationRecipientListingResponse{}, err
+			return []*beans.NotificationRecipientListingResponse{}, err
 		}
 		providers := dat["providers"]
 		if providers != nil {
@@ -263,15 +196,15 @@ func (impl *SlackNotificationServiceImpl) RecipientListingSuggestion(value strin
 					for k, v := range item.(map[string]interface{}) {
 						if v != nil && len(value) > 0 {
 							if k == "recipient" && strings.Contains(v.(string), value) {
-								result := &NotificationRecipientListingResponse{
+								result := &beans.NotificationRecipientListingResponse{
 									Recipient: v.(string),
 								}
-								if strings.Contains(v.(string), SLACK_URL) {
-									result.Dest = util2.Slack
-								} else if strings.Contains(v.(string), WEBHOOK_URL) {
-									result.Dest = util2.Webhook
+								if strings.Contains(v.(string), beans.SLACK_URL) {
+									result.Dest = eventUtil.Slack
+								} else if strings.Contains(v.(string), beans.WEBHOOK_URL) {
+									result.Dest = eventUtil.Webhook
 								} else {
-									result.Dest = util2.SES
+									result.Dest = eventUtil.SES
 								}
 								results = append(results, result)
 							}
@@ -284,13 +217,13 @@ func (impl *SlackNotificationServiceImpl) RecipientListingSuggestion(value strin
 	return results, nil
 }
 
-func (impl *SlackNotificationServiceImpl) DeleteNotificationConfig(deleteReq *SlackConfigDto, userId int32) error {
+func (impl *SlackNotificationServiceImpl) DeleteNotificationConfig(deleteReq *beans.SlackConfigDto, userId int32) error {
 	existingConfig, err := impl.slackRepository.FindOne(deleteReq.Id)
 	if err != nil {
 		impl.logger.Errorw("No matching entry found for delete", "err", err, "id", deleteReq.Id)
 		return err
 	}
-	notifications, err := impl.notificationSettingsRepository.FindNotificationSettingsByConfigIdAndConfigType(deleteReq.Id, SLACK_CONFIG_TYPE)
+	notifications, err := impl.notificationSettingsRepository.FindNotificationSettingsByConfigIdAndConfigType(deleteReq.Id, eventUtil.Slack.String())
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in deleting slack config", "config", deleteReq)
 		return err

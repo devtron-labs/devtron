@@ -19,6 +19,10 @@ package restHandler
 import (
 	"context"
 	"encoding/json"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitHost"
+	bean2 "github.com/devtron-labs/devtron/pkg/build/git/gitHost/bean"
+	read2 "github.com/devtron-labs/devtron/pkg/build/git/gitHost/read"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
 	"net/http"
 	"strconv"
 
@@ -26,8 +30,6 @@ import (
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -43,26 +45,30 @@ type GitHostRestHandler interface {
 }
 
 type GitHostRestHandlerImpl struct {
-	logger            *zap.SugaredLogger
-	gitHostConfig     pipeline.GitHostConfig
-	userAuthService   user.UserService
-	validator         *validator.Validate
-	enforcer          casbin.Enforcer
-	gitSensorClient   gitSensor.Client
-	gitProviderConfig pipeline.GitRegistryConfig
+	logger                 *zap.SugaredLogger
+	gitHostConfig          gitHost.GitHostConfig
+	gitHostReadService     read2.GitHostReadService
+	userAuthService        user.UserService
+	validator              *validator.Validate
+	enforcer               casbin.Enforcer
+	gitSensorClient        gitSensor.Client
+	gitProviderReadService read.GitProviderReadService
 }
 
 func NewGitHostRestHandlerImpl(logger *zap.SugaredLogger,
-	gitHostConfig pipeline.GitHostConfig, userAuthService user.UserService,
-	validator *validator.Validate, enforcer casbin.Enforcer, gitSensorClient gitSensor.Client, gitProviderConfig pipeline.GitRegistryConfig) *GitHostRestHandlerImpl {
+	gitHostConfig gitHost.GitHostConfig, userAuthService user.UserService,
+	validator *validator.Validate, enforcer casbin.Enforcer, gitSensorClient gitSensor.Client,
+	gitProviderReadService read.GitProviderReadService,
+	gitHostReadService read2.GitHostReadService) *GitHostRestHandlerImpl {
 	return &GitHostRestHandlerImpl{
-		logger:            logger,
-		gitHostConfig:     gitHostConfig,
-		userAuthService:   userAuthService,
-		validator:         validator,
-		enforcer:          enforcer,
-		gitSensorClient:   gitSensorClient,
-		gitProviderConfig: gitProviderConfig,
+		logger:                 logger,
+		gitHostConfig:          gitHostConfig,
+		userAuthService:        userAuthService,
+		validator:              validator,
+		enforcer:               enforcer,
+		gitSensorClient:        gitSensorClient,
+		gitProviderReadService: gitProviderReadService,
+		gitHostReadService:     gitHostReadService,
 	}
 }
 
@@ -71,11 +77,11 @@ func (impl GitHostRestHandlerImpl) GetGitHosts(w http.ResponseWriter, r *http.Re
 	// check if user is logged in or not
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
-	res, err := impl.gitHostConfig.GetAll()
+	res, err := impl.gitHostReadService.GetAll()
 	if err != nil {
 		impl.logger.Errorw("service err, GetGitHosts", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -84,7 +90,7 @@ func (impl GitHostRestHandlerImpl) GetGitHosts(w http.ResponseWriter, r *http.Re
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	result := make([]types.GitHostRequest, 0)
+	result := make([]bean2.GitHostRequest, 0)
 	for _, item := range res {
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionGet, item.Name); ok {
 			result = append(result, item)
@@ -101,7 +107,7 @@ func (impl GitHostRestHandlerImpl) GetGitHostById(w http.ResponseWriter, r *http
 	// check if user is logged in or not
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -114,7 +120,7 @@ func (impl GitHostRestHandlerImpl) GetGitHostById(w http.ResponseWriter, r *http
 		return
 	}
 
-	res, err := impl.gitHostConfig.GetById(id)
+	res, err := impl.gitHostReadService.GetById(id)
 
 	if err != nil {
 		impl.logger.Errorw("service err, GetGitHostById", "err", err)
@@ -130,13 +136,13 @@ func (impl GitHostRestHandlerImpl) CreateGitHost(w http.ResponseWriter, r *http.
 	// check if user is logged in or not
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
 	decoder := json.NewDecoder(r.Body)
 
-	var bean types.GitHostRequest
+	var bean bean2.GitHostRequest
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, CreateGitHost", "err", err, "payload", bean)
@@ -176,7 +182,7 @@ func (impl GitHostRestHandlerImpl) GetAllWebhookEventConfig(w http.ResponseWrite
 	// check if user is logged in or not
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -189,7 +195,7 @@ func (impl GitHostRestHandlerImpl) GetAllWebhookEventConfig(w http.ResponseWrite
 		return
 	}
 
-	gitHost, err := impl.gitHostConfig.GetById(id)
+	gitHost, err := impl.gitHostReadService.GetById(id)
 	if err != nil {
 		impl.logger.Errorw("service err, GetGitHostById", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -218,7 +224,7 @@ func (impl GitHostRestHandlerImpl) GetWebhookEventConfig(w http.ResponseWriter, 
 	// check if user is logged in or not
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -252,14 +258,14 @@ func (impl GitHostRestHandlerImpl) GetWebhookDataMetaConfig(w http.ResponseWrite
 	// check if user is logged in or not
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
 	params := mux.Vars(r)
 	gitProviderId := params["gitProviderId"]
 
-	gitProvider, err := impl.gitProviderConfig.FetchOneGitProvider(gitProviderId)
+	gitProvider, err := impl.gitProviderReadService.FetchOneGitProvider(gitProviderId)
 
 	if err != nil {
 		impl.logger.Errorw("service err FetchOneGitProvider, GetWebhookDataMetaConfig", "err", err)
@@ -274,7 +280,7 @@ func (impl GitHostRestHandlerImpl) GetWebhookDataMetaConfig(w http.ResponseWrite
 	}
 
 	if gitHostId != 0 {
-		gitHost, err := impl.gitHostConfig.GetById(gitHostId)
+		gitHost, err := impl.gitHostReadService.GetById(gitHostId)
 		if err != nil {
 			impl.logger.Errorw("service err, GetGitHostById", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -300,6 +306,6 @@ func (impl GitHostRestHandlerImpl) GetWebhookDataMetaConfig(w http.ResponseWrite
 
 type WebhookDataMetaConfigResponse struct {
 	GitHostId     int                             `json:"gitHostId"`
-	GitHost       *types.GitHostRequest           `json:"gitHost"`
+	GitHost       *bean2.GitHostRequest           `json:"gitHost"`
 	WebhookEvents []*gitSensor.WebhookEventConfig `json:"webhookEvents"`
 }

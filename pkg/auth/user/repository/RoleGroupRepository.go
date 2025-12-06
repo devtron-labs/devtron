@@ -33,7 +33,7 @@ type RoleGroupRepository interface {
 	GetRoleGroupByName(name string) (*RoleGroup, error)
 	GetRoleGroupListByName(name string) ([]*RoleGroup, error)
 	GetAllRoleGroup() ([]*RoleGroup, error)
-	GetAllExecutingQuery(query string) ([]*RoleGroup, error)
+	GetAllExecutingQuery(query string, queryParams []interface{}) ([]*RoleGroup, error)
 	GetRoleGroupListByCasbinNames(name []string) ([]*RoleGroup, error)
 	CheckRoleGroupExistByCasbinName(name string) (bool, error)
 	CreateRoleGroupRoleMapping(model *RoleGroupRoleMapping, tx *pg.Tx) (*RoleGroupRoleMapping, error)
@@ -43,8 +43,10 @@ type RoleGroupRepository interface {
 	DeleteRoleGroupRoleMappingByRoleId(roleId int, tx *pg.Tx) error
 	DeleteRoleGroupRoleMappingByRoleIds(roleId []int, tx *pg.Tx) error
 	DeleteRoleGroupRoleMapping(model *RoleGroupRoleMapping, tx *pg.Tx) (bool, error)
+	DeleteRoleGroupRoleMappingsByIds(tx *pg.Tx, ids []int) error
 	GetConnection() (dbConnection *pg.DB)
 	GetRoleGroupListByNames(groupNames []string) ([]*RoleGroup, error)
+	GetRoleGroupListByIds(ids []int32) ([]*RoleGroup, error)
 	GetRolesByRoleGroupIds(roleGroupIds []int32) ([]*RoleModel, error)
 	GetRolesByGroupCasbinName(groupName string) ([]*RoleModel, error)
 	GetRolesByGroupCasbinNames(groupCasbinNames []string) ([]*RoleModel, error)
@@ -143,9 +145,9 @@ func (impl RoleGroupRepositoryImpl) GetAllRoleGroup() ([]*RoleGroup, error) {
 	return model, err
 }
 
-func (impl RoleGroupRepositoryImpl) GetAllExecutingQuery(query string) ([]*RoleGroup, error) {
+func (impl RoleGroupRepositoryImpl) GetAllExecutingQuery(query string, queryParams []interface{}) ([]*RoleGroup, error) {
 	var model []*RoleGroup
-	_, err := impl.dbConnection.Query(&model, query)
+	_, err := impl.dbConnection.Query(&model, query, queryParams...)
 	if err != nil {
 		impl.Logger.Error("error in GetAllExecutingQuery", "err", err)
 		return nil, err
@@ -236,9 +238,20 @@ func (impl RoleGroupRepositoryImpl) DeleteRoleGroupRoleMapping(model *RoleGroupR
 	return true, nil
 }
 
+func (impl RoleGroupRepositoryImpl) DeleteRoleGroupRoleMappingsByIds(tx *pg.Tx, ids []int) error {
+	_, err := tx.Model(&RoleGroupRoleMapping{}).Where("id in (?)", pg.In(ids)).Delete()
+	return err
+}
+
 func (impl RoleGroupRepositoryImpl) GetRoleGroupListByNames(groupNames []string) ([]*RoleGroup, error) {
 	var model []*RoleGroup
 	err := impl.dbConnection.Model(&model).Where("name in (?)", pg.In(groupNames)).Where("active = ?", true).Order("updated_on desc").Select()
+	return model, err
+}
+
+func (impl RoleGroupRepositoryImpl) GetRoleGroupListByIds(ids []int32) ([]*RoleGroup, error) {
+	var model []*RoleGroup
+	err := impl.dbConnection.Model(&model).Where("id in (?)", pg.In(ids)).Where("active = ?", true).Select()
 	return model, err
 }
 

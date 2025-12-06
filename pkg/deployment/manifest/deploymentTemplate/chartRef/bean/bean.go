@@ -16,13 +16,21 @@
 
 package bean
 
-import "github.com/devtron-labs/devtron/pkg/sql"
+import (
+	"encoding/json"
+
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
+)
 
 const (
-	DeploymentChartType             = "Deployment"
-	RolloutChartType                = "Rollout Deployment"
-	ReferenceChart                  = "reference-chart"
-	RefChartDirPath                 = "scripts/devtron-reference-helm-charts"
+	DeploymentChartType   = "Deployment"
+	RolloutChartType      = "Rollout Deployment"
+	StatefulSetChartType  = "StatefulSet"
+	JobsCronjobsChartType = "Cron Job & Job"
+	ReferenceChart        = "reference-chart"
+	RefChartDirPath       = "scripts/devtron-reference-helm-charts"
+
 	ChartAlreadyExistsInternalError = "Chart exists already, try uploading another chart"
 	ChartNameReservedInternalError  = "Change the name of the chart and try uploading again"
 )
@@ -109,4 +117,30 @@ type ChartDto struct {
 	ChartDescription string `json:"chartDescription"`
 	Version          string `json:"version"`
 	IsUserUploaded   bool   `json:"isUserUploaded"`
+	UploadedBy       string `json:"uploadedBy"`
 }
+
+type ChartRefSwitchRequest struct {
+	NewChartType string
+	OldChartType string
+}
+
+func (c *ChartRefSwitchRequest) IsFlaggerCanarySupported() bool {
+	return c.NewChartType == DeploymentChartType
+}
+
+type DeploymentType struct {
+	Deployment Deployment `json:"deployment"`
+}
+
+type Deployment struct {
+	Strategy map[string]interface{} `json:"strategy"`
+}
+
+type PipelineStrategy struct {
+	DeploymentTemplate chartRepoRepository.DeploymentStrategy `json:"deploymentTemplate,omitempty"` //
+	Config             json.RawMessage                        `json:"config"`
+	Default            bool                                   `json:"default"`
+}
+
+var CHART_YAML_FILE = "Chart.yaml"

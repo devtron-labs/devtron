@@ -19,6 +19,7 @@ package bean
 import (
 	"context"
 	"encoding/json"
+	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/common-lib/utils/registry"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -39,6 +40,8 @@ type CdStageCompleteEvent struct {
 	CiArtifactDTO                 pipelineConfig.CiArtifactDTO `json:"ciArtifactDTO"`
 	PluginRegistryArtifactDetails map[string][]string          `json:"PluginRegistryArtifactDetails"`
 	PluginArtifacts               *PluginArtifacts             `json:"pluginArtifacts"`
+	IsArtifactUploaded            bool                         `json:"isArtifactUploaded"`
+	IsFailed                      bool                         `json:"isFailed"`
 }
 
 type UserDeploymentRequest struct {
@@ -77,12 +80,14 @@ type CiCompleteEvent struct {
 	Metrics                       util.CIMetrics           `json:"metrics"`
 	AppName                       string                   `json:"appName"`
 	IsArtifactUploaded            bool                     `json:"isArtifactUploaded"`
-	FailureReason                 string                   `json:"failureReason"`
+	FailureReason                 string                   `json:"failureReason"` // FailureReason is used for notifying the failure reason to the user. Should be short and user-friendly
 	ImageDetailsFromCR            json.RawMessage          `json:"imageDetailsFromCR"`
 	PluginRegistryArtifactDetails map[string][]string      `json:"PluginRegistryArtifactDetails"`
 	PluginArtifactStage           string                   `json:"pluginArtifactStage"`
+	IsScanEnabled                 bool                     `json:"isScanEnabled"`
+	TargetPlatforms               []string                 `json:"targetPlatforms"`
 	pluginImageDetails            *registry.ImageDetailsFromCR
-	PluginArtifacts               *PluginArtifacts         `json:"pluginArtifacts"`
+	PluginArtifacts               *PluginArtifacts `json:"pluginArtifacts"`
 }
 
 func (c *CiCompleteEvent) GetPluginImageDetails() *registry.ImageDetailsFromCR {
@@ -109,4 +114,15 @@ type DevtronAppReleaseContextType struct {
 	CancelParentContext context.CancelFunc
 	CancelContext       context.CancelCauseFunc
 	RunnerId            int
+}
+
+type CiCdStatus struct {
+	DevtronOwnerInstance string `json:"devtronOwnerInstance"`
+	*v1alpha1.WorkflowStatus
+}
+
+func NewCiCdStatus() CiCdStatus {
+	return CiCdStatus{
+		WorkflowStatus: &v1alpha1.WorkflowStatus{},
+	}
 }

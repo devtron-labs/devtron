@@ -65,7 +65,7 @@ func (handler TelemetryRestHandlerImpl) GetTelemetryMetaInfo(w http.ResponseWrit
 func (handler TelemetryRestHandlerImpl) SendTelemetryData(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -81,9 +81,14 @@ func (handler TelemetryRestHandlerImpl) SendTelemetryData(w http.ResponseWriter,
 	//	common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 	//	return
 	//}
-
+	var eventTypeString string
 	eventType := payload["eventType"]
-	eventTypeString := eventType.(string)
+	if eventType != nil {
+		eventTypeStr, ok := eventType.(string)
+		if ok {
+			eventTypeString = eventTypeStr
+		}
+	}
 	err = handler.telemetryEventClient.SendGenericTelemetryEvent(eventTypeString, payload)
 
 	if err != nil {

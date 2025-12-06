@@ -52,11 +52,13 @@ spec:
             - name: TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: devtron-secret
+                  name: devtron-custom-secret
                   key: ORCH_TOKEN
           envFrom:
             - configMapRef:
                 name: scoop-cm
+            - configMapRef:
+                name: devtron-common-cm
           ports:
             - containerPort: 8080
               name: app

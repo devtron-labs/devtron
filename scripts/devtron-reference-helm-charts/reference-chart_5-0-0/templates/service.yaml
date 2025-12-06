@@ -18,11 +18,19 @@ metadata:
 {{- end}}
 spec:
   type: {{ .Values.service.type | default "ClusterIP" }}
-{{- if (and (eq .Values.service.type "LoadBalancer") .Values.service.loadBalancerSourceRanges )}}
+{{- with .Values.service.extraSpec }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+{{- if (eq .Values.service.type "LoadBalancer") }}
+  {{- if .Values.service.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.service.loadBalancerIP }}
+  {{- end }}
+  {{- if .Values.service.loadBalancerSourceRanges }}
   loadBalancerSourceRanges: 
- {{- range .Values.service.loadBalancerSourceRanges }}
+  {{- range .Values.service.loadBalancerSourceRanges }}
   - {{ . }}
- {{- end }}
+  {{- end }}
+  {{- end }}
 {{- end }}
   ports:
     {{- range .Values.ContainerPort }}
@@ -39,7 +47,7 @@ spec:
       {{- if (and (eq $.Values.service.type "NodePort") .nodePort )}}
       nodePort: {{ .nodePort }}
       {{- end }}
-      protocol: TCP
+      protocol: {{ .protocol | default "TCP"}}
       name: {{ .name }}
     {{- end }}
       {{- if $.Values.appMetrics }}
@@ -47,7 +55,18 @@ spec:
       name: envoy-admin
       {{- end }}
   selector:
+    {{- if .Values.customPodLabels }}
+{{ toYaml .Values.customPodLabels | indent 4 }}  
+    {{- else }}
     app: {{ template ".Chart.Name .name" . }}
+    {{- end }}
+{{- if .Values.service.sessionAffinity.enabled }}    
+  sessionAffinity: ClientIP
+{{- end }}   
+{{- if .Values.service.sessionAffinityConfig }}    
+  sessionAffinityConfig:
+{{ toYaml .Values.service.sessionAffinityConfig | indent 4 }}  
+{{- end }}      
 {{- if or (eq .Values.deploymentType "BLUE-GREEN")  (eq .Values.deploymentType "CANARY") }}
 ---
 apiVersion: v1
@@ -70,7 +89,7 @@ spec:
       - port: {{ .port }}
         {{- end }}
         targetPort: {{ .name }}
-        protocol: TCP
+        protocol: {{ .protocol | default "TCP"}}
         name: {{ .name }}
       {{- end }}
       {{- if $.Values.appMetrics }}
@@ -78,6 +97,10 @@ spec:
         name: envoy-admin
       {{- end }}
   selector:
+    {{- if .Values.customPodLabels }}
+{{ toYaml .Values.customPodLabels | indent 4 }}  
+    {{- else }}
     app: {{ template ".Chart.Name .name" . }}
+    {{- end }}
 {{- end }}
 {{- end }}

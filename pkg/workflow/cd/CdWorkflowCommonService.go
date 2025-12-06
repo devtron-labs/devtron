@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
+	cdWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
@@ -57,6 +58,7 @@ type CdWorkflowCommonServiceImpl struct {
 	pipelineRepository               pipelineConfig.PipelineRepository
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository
 	deploymentConfigService          common2.DeploymentConfigService
+	cdWorkflowRunnerService          CdWorkflowRunnerService
 }
 
 func NewCdWorkflowCommonServiceImpl(logger *zap.SugaredLogger,
@@ -64,7 +66,8 @@ func NewCdWorkflowCommonServiceImpl(logger *zap.SugaredLogger,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
-	deploymentConfigService common2.DeploymentConfigService) (*CdWorkflowCommonServiceImpl, error) {
+	deploymentConfigService common2.DeploymentConfigService,
+	cdWorkflowRunnerService CdWorkflowRunnerService) (*CdWorkflowCommonServiceImpl, error) {
 	config, err := types.GetCdConfig()
 	if err != nil {
 		return nil, err
@@ -77,6 +80,7 @@ func NewCdWorkflowCommonServiceImpl(logger *zap.SugaredLogger,
 		pipelineRepository:               pipelineRepository,
 		pipelineStatusTimelineRepository: pipelineStatusTimelineRepository,
 		deploymentConfigService:          deploymentConfigService,
+		cdWorkflowRunnerService:          cdWorkflowRunnerService,
 	}, nil
 }
 
@@ -94,7 +98,7 @@ func (impl *CdWorkflowCommonServiceImpl) SupersedePreviousDeployments(ctx contex
 	defer tx.Rollback()
 
 	//update [n,n-1] statuses as failed if not terminal
-	terminalStatus := []string{string(health.HealthStatusHealthy), pipelineConfig.WorkflowAborted, pipelineConfig.WorkflowFailed, pipelineConfig.WorkflowSucceeded}
+	terminalStatus := []string{string(health.HealthStatusHealthy), cdWorkflow2.WorkflowAborted, cdWorkflow2.WorkflowFailed, cdWorkflow2.WorkflowSucceeded}
 	previousNonTerminalRunners, err := impl.cdWorkflowRepository.FindPreviousCdWfRunnerByStatus(pipelineId, cdWfrId, terminalStatus)
 	if err != nil {
 		impl.logger.Errorw("error fetching previous wf runner, updating cd wf runner status,", "err", err, "currentRunnerId", cdWfrId)
@@ -107,17 +111,17 @@ func (impl *CdWorkflowCommonServiceImpl) SupersedePreviousDeployments(ctx contex
 	var timelines []*pipelineConfig.PipelineStatusTimeline
 	for _, previousRunner := range previousNonTerminalRunners {
 		if previousRunner.Status == string(health.HealthStatusHealthy) ||
-			previousRunner.Status == pipelineConfig.WorkflowSucceeded ||
-			previousRunner.Status == pipelineConfig.WorkflowAborted ||
-			previousRunner.Status == pipelineConfig.WorkflowFailed {
+			previousRunner.Status == cdWorkflow2.WorkflowSucceeded ||
+			previousRunner.Status == cdWorkflow2.WorkflowAborted ||
+			previousRunner.Status == cdWorkflow2.WorkflowFailed {
 			//terminal status return
 			impl.logger.Infow("skip updating cd wf runner status as previous runner status is", "status", previousRunner.Status)
 			continue
 		}
 		impl.logger.Infow("updating cd wf runner status as previous runner status is", "status", previousRunner.Status)
 		previousRunner.FinishedOn = triggeredAt
-		previousRunner.Message = pipelineConfig.ErrorDeploymentSuperseded.Error()
-		previousRunner.Status = pipelineConfig.WorkflowFailed
+		previousRunner.Message = cdWorkflow2.ErrorDeploymentSuperseded.Error()
+		previousRunner.Status = cdWorkflow2.WorkflowFailed
 		previousRunner.UpdatedOn = time.Now()
 		previousRunner.UpdatedBy = triggeredBy
 		timeline := &pipelineConfig.PipelineStatusTimeline{
@@ -160,23 +164,23 @@ func (impl *CdWorkflowCommonServiceImpl) MarkDeploymentFailedForRunnerId(cdWfrId
 }
 
 func (impl *CdWorkflowCommonServiceImpl) MarkCurrentDeploymentFailed(runner *pipelineConfig.CdWorkflowRunner, releaseErr error, triggeredBy int32) error {
-	if slices.Contains(pipelineConfig.WfrTerminalStatusList, runner.Status) {
+	if slices.Contains(cdWorkflow2.WfrTerminalStatusList, runner.Status) {
 		impl.logger.Infow("cd wf runner status is already in terminal state", "err", releaseErr, "currentRunner", runner)
 		return nil
 	}
 	//update current WF with error status
 	impl.logger.Errorw("error in triggering cd WF, setting wf status as fail ", "wfId", runner.Id, "err", releaseErr)
-	runner.Status = pipelineConfig.WorkflowFailed
+	runner.Status = cdWorkflow2.WorkflowFailed
 	runner.Message = util.GetClientErrorDetailedMessage(releaseErr)
 	runner.FinishedOn = time.Now()
 	runner.UpdateAuditLog(triggeredBy)
-	err1 := impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+	err1 := impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(runner)
 	if err1 != nil {
 		impl.logger.Errorw("error updating cd wf runner status", "err", releaseErr, "currentRunner", runner)
 		return err1
 	}
 	if runner.WorkflowType.IsStageTypeDeploy() {
-		if errors.Is(releaseErr, pipelineConfig.ErrorDeploymentSuperseded) {
+		if errors.Is(releaseErr, cdWorkflow2.ErrorDeploymentSuperseded) {
 			err := impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineSuperseded(runner.Id)
 			if err != nil {
 				impl.logger.Errorw("error updating CdPipelineStatusTimeline", "err", err, "releaseErr", releaseErr)
@@ -191,7 +195,7 @@ func (impl *CdWorkflowCommonServiceImpl) MarkCurrentDeploymentFailed(runner *pip
 		}
 		appId := runner.CdWorkflow.Pipeline.AppId
 		envId := runner.CdWorkflow.Pipeline.EnvironmentId
-		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
+		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(nil, appId, envId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
 			return err
@@ -205,7 +209,7 @@ func (impl *CdWorkflowCommonServiceImpl) UpdateNonTerminalStatusInRunner(ctx con
 	_, span := otel.Tracer("orchestrator").Start(ctx, "CdWorkflowCommonServiceImpl.UpdateNonTerminalStatusInRunner")
 	defer span.End()
 	// In case of terminal status update finished on time
-	isTerminalStatus := slices.Contains(pipelineConfig.WfrTerminalStatusList, status)
+	isTerminalStatus := slices.Contains(cdWorkflow2.WfrTerminalStatusList, status)
 	if isTerminalStatus {
 		return fmt.Errorf("unsupported status %s for update operation", status)
 	}
@@ -216,13 +220,13 @@ func (impl *CdWorkflowCommonServiceImpl) UpdateNonTerminalStatusInRunner(ctx con
 	}
 	// if the current cdWfr status is already a terminal status and then don't update the status
 	// e.g: Status : Failed --> Progressing (not allowed)
-	if slices.Contains(pipelineConfig.WfrTerminalStatusList, cdWfr.Status) {
+	if slices.Contains(cdWorkflow2.WfrTerminalStatusList, cdWfr.Status) {
 		impl.logger.Warnw("deployment has already been terminated for workflow runner, UpdateNonTerminalStatusInRunner", "workflowRunnerId", cdWfr.Id, "err", err)
 		return nil
 	}
 	cdWfr.Status = status
 	cdWfr.UpdateAuditLog(userId)
-	err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(cdWfr)
+	err = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(cdWfr)
 	if err != nil {
 		impl.logger.Errorw("error on update cd workflow runner, UpdateNonTerminalStatusInRunner", "cdWfr", cdWfr, "err", err)
 		return err
@@ -256,7 +260,7 @@ func (impl *CdWorkflowCommonServiceImpl) UpdatePreviousQueuedRunnerStatus(cdWfrI
 
 		appId := queuedRunner.CdWorkflow.Pipeline.AppId
 		envId := queuedRunner.CdWorkflow.Pipeline.EnvironmentId
-		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
+		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(nil, appId, envId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
 			return err
@@ -264,7 +268,7 @@ func (impl *CdWorkflowCommonServiceImpl) UpdatePreviousQueuedRunnerStatus(cdWfrI
 		globalUtil.TriggerCDMetrics(cdWorkflow.GetTriggerMetricsFromRunnerObj(queuedRunner, envDeploymentConfig), impl.config.ExposeCDMetrics)
 		queuedRunnerIds = append(queuedRunnerIds, queuedRunner.Id)
 	}
-	err = impl.cdWorkflowRepository.UpdateRunnerStatusToFailedForIds(pipelineConfig.ErrorDeploymentSuperseded.Error(), triggeredBy, queuedRunnerIds...)
+	err = impl.cdWorkflowRepository.UpdateRunnerStatusToFailedForIds(cdWorkflow2.ErrorDeploymentSuperseded.Error(), triggeredBy, queuedRunnerIds...)
 	if err != nil {
 		impl.logger.Errorw("error on update previous queued cd workflow runner, UpdatePreviousQueuedRunnerStatus", "cdWfrId", cdWfrId, "err", err)
 		return err
@@ -275,7 +279,7 @@ func (impl *CdWorkflowCommonServiceImpl) UpdatePreviousQueuedRunnerStatus(cdWfrI
 func extractTimelineFailedStatusDetails(err error) string {
 	errorString := util.GetClientErrorDetailedMessage(err)
 	switch errorString {
-	case pipelineConfig.FOUND_VULNERABILITY:
+	case cdWorkflow2.FOUND_VULNERABILITY:
 		return timelineStatus.TIMELINE_DESCRIPTION_VULNERABLE_IMAGE
 	default:
 		return util.GetTruncatedMessage(fmt.Sprintf("Deployment failed: %s", errorString), 255)

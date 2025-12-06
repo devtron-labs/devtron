@@ -34,6 +34,7 @@ type HelmAppClient interface {
 	GetAppDetail(ctx context.Context, in *AppDetailRequest) (*AppDetail, error)
 	GetResourceTreeForExternalResources(ctx context.Context, in *ExternalResourceTreeRequest) (*ResourceTreeResponse, error)
 	GetAppStatus(ctx context.Context, in *AppDetailRequest) (*AppStatus, error)
+	GetAppStatusV2(ctx context.Context, in *AppDetailRequest) (*AppStatus, error)
 	Hibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error)
 	UnHibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error)
 	GetDeploymentHistory(ctx context.Context, in *AppDetailRequest) (*HelmAppDeploymentHistory, error)
@@ -51,6 +52,7 @@ type HelmAppClient interface {
 	InstallReleaseWithCustomChart(ctx context.Context, in *HelmInstallCustomRequest) (*HelmInstallCustomResponse, error)
 	GetNotes(ctx context.Context, request *InstallReleaseRequest) (*ChartNotesResponse, error)
 	ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *RegistryCredential) (*OCIRegistryResponse, error)
+	GetReleaseDetails(ctx context.Context, in *ReleaseIdentifier) (*DeployedAppDetail, error)
 	GetExternalFluxAppDetail(ctx context.Context, in *FluxAppDetailRequest) (*FluxAppDetail, error)
 }
 
@@ -71,8 +73,9 @@ func NewHelmAppClientImpl(logger *zap.SugaredLogger,
 	}
 }
 
+// CATEGORY=INFRA_SETUP
 type HelmClientConfig struct {
-	Url string `env:"HELM_CLIENT_URL" envDefault:"127.0.0.1:50051"`
+	Url string `env:"HELM_CLIENT_URL" envDefault:"127.0.0.1:50051" description:"Kubelink micro-service url "`
 }
 
 func GetConfig() (*HelmClientConfig, error) {
@@ -104,7 +107,7 @@ func (impl *HelmAppClientImpl) getConnection() (*grpc.ClientConn, error) {
 			grpc.MaxCallRecvMsgSize(impl.grpcConfig.KubelinkMaxSendMsgSize*1024*1024), // GRPC Request size
 			grpc.MaxCallSendMsgSize(impl.grpcConfig.KubelinkMaxRecvMsgSize*1024*1024), // GRPC Response size
 		),
-		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
+		grpc.WithDefaultServiceConfig(impl.grpcConfig.KubelinkGRPCServiceConfig),
 	)
 	endpoint := fmt.Sprintf("dns:///%s", impl.helmClientConfig.Url)
 	conn, err := grpc.DialContext(ctx, endpoint, opts...)
@@ -158,6 +161,18 @@ func (impl *HelmAppClientImpl) GetAppStatus(ctx context.Context, in *AppDetailRe
 		return nil, err
 	}
 	appStatus, err := applicationClient.GetAppStatus(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return appStatus, nil
+}
+
+func (impl *HelmAppClientImpl) GetAppStatusV2(ctx context.Context, in *AppDetailRequest) (*AppStatus, error) {
+	applicationClient, err := impl.getApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	appStatus, err := applicationClient.GetAppStatusV2(ctx, in)
 	if err != nil {
 		return nil, err
 	}
@@ -381,6 +396,19 @@ func (impl *HelmAppClientImpl) ListFluxApplication(ctx context.Context, req *App
 	}
 	return stream, nil
 }
+
+func (impl *HelmAppClientImpl) GetReleaseDetails(ctx context.Context, in *ReleaseIdentifier) (*DeployedAppDetail, error) {
+	applicationClient, err := impl.getApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	response, err := applicationClient.GetReleaseDetails(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
 func (impl *HelmAppClientImpl) GetExternalFluxAppDetail(ctx context.Context, in *FluxAppDetailRequest) (*FluxAppDetail, error) {
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {

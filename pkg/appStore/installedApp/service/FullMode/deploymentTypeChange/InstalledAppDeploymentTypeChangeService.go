@@ -27,7 +27,6 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appStatus2 "github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
@@ -35,11 +34,15 @@ import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/chartGroup"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
+	deployment2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
+	"github.com/devtron-labs/devtron/pkg/argoApplication"
+	bean4 "github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster/read"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
@@ -47,7 +50,6 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	util3 "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -70,18 +72,18 @@ type InstalledAppDeploymentTypeChangeServiceImpl struct {
 	appStatusRepository           appStatus2.AppStatusRepository
 	appRepository                 appRepository.AppRepository
 	gitOpsConfigReadService       config.GitOpsConfigReadService
-	environmentRepository         repository5.EnvironmentRepository
-	acdClient                     application2.ServiceClient
+	environmentRepository         repository.EnvironmentRepository
 	k8sCommonService              k8s.K8sCommonService
 	k8sUtil                       k8s2.K8sService
 	fullModeDeploymentService     deployment.FullModeDeploymentService
-	eaModeDeploymentService       EAMode.EAModeDeploymentService
+	eaModeDeploymentService       deployment2.EAModeDeploymentService
 	argoClientWrapperService      argocdServer.ArgoClientWrapperService
 	chartGroupService             chartGroup.ChartGroupService
 	helmAppService                client.HelmAppService
-	argoUserService               argo.ArgoUserService
 	clusterService                cluster.ClusterService
+	clusterReadService            read.ClusterReadService
 	deploymentConfigService       common.DeploymentConfigService
+	argoApplicationService        argoApplication.ArgoApplicationService
 }
 
 func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
@@ -89,15 +91,17 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
 	appStatusRepository appStatus2.AppStatusRepository,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	environmentRepository repository5.EnvironmentRepository,
-	acdClient application2.ServiceClient, k8sCommonService k8s.K8sCommonService,
+	environmentRepository repository.EnvironmentRepository,
+	k8sCommonService k8s.K8sCommonService,
 	k8sUtil k8s2.K8sService, fullModeDeploymentService deployment.FullModeDeploymentService,
-	eaModeDeploymentService EAMode.EAModeDeploymentService,
+	eaModeDeploymentService deployment2.EAModeDeploymentService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	chartGroupService chartGroup.ChartGroupService, helmAppService client.HelmAppService,
-	argoUserService argo.ArgoUserService, clusterService cluster.ClusterService,
+	clusterService cluster.ClusterService,
+	clusterReadService read.ClusterReadService,
 	appRepository appRepository.AppRepository,
-	deploymentConfigService common.DeploymentConfigService) *InstalledAppDeploymentTypeChangeServiceImpl {
+	deploymentConfigService common.DeploymentConfigService,
+	argoApplicationService argoApplication.ArgoApplicationService) *InstalledAppDeploymentTypeChangeServiceImpl {
 	return &InstalledAppDeploymentTypeChangeServiceImpl{
 		logger:                        logger,
 		installedAppRepository:        installedAppRepository,
@@ -105,7 +109,6 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 		appStatusRepository:           appStatusRepository,
 		gitOpsConfigReadService:       gitOpsConfigReadService,
 		environmentRepository:         environmentRepository,
-		acdClient:                     acdClient,
 		k8sCommonService:              k8sCommonService,
 		k8sUtil:                       k8sUtil,
 		fullModeDeploymentService:     fullModeDeploymentService,
@@ -113,10 +116,11 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 		argoClientWrapperService:      argoClientWrapperService,
 		chartGroupService:             chartGroupService,
 		helmAppService:                helmAppService,
-		argoUserService:               argoUserService,
 		clusterService:                clusterService,
+		clusterReadService:            clusterReadService,
 		appRepository:                 appRepository,
 		deploymentConfigService:       deploymentConfigService,
+		argoApplicationService:        argoApplicationService,
 	}
 }
 
@@ -126,11 +130,6 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) MigrateDeploymentType(c
 		DesiredDeploymentType: request.DesiredDeploymentType,
 	}
 	var err error
-	ctx, err = impl.argoUserService.SetAcdTokenInContext(ctx)
-	if err != nil {
-		impl.logger.Errorw("error in setting acd token in context", "err", err)
-		return response, err
-	}
 
 	var deleteDeploymentType bean2.DeploymentType
 	var deployStatus appStoreBean.AppstoreDeploymentStatus
@@ -148,7 +147,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) MigrateDeploymentType(c
 	}
 	//if cluster unreachable return with error, this is done to handle the case when cluster is unreachable and
 	//delete req sent to argo cd the app deletion is stuck in deleting state
-	isClusterReachable, err := impl.clusterService.IsClusterReachable(envBean.ClusterId)
+	isClusterReachable, err := impl.clusterReadService.IsClusterReachable(envBean.ClusterId)
 	if err != nil {
 		return response, err
 	}
@@ -267,11 +266,11 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) performDbOperationsAfte
 }
 
 func (impl *InstalledAppDeploymentTypeChangeServiceImpl) AnnotateCRDsIfExist(ctx context.Context, appName, envName, namespace string, clusterId int) error {
-	deploymentAppName := fmt.Sprintf("%s-%s", appName, envName)
+	deploymentAppName := util3.BuildDeployedAppName(appName, envName)
 	query := &application.ResourcesQuery{
 		ApplicationName: &deploymentAppName,
 	}
-	resp, err := impl.acdClient.ResourceTree(ctx, query)
+	resp, err := impl.argoApplicationService.GetResourceTree(ctx, bean4.NewImperativeQueryRequest(query))
 	if err != nil {
 		impl.logger.Errorw("error in fetching resource tree", "err", err)
 		err = &util.ApiError{
@@ -337,13 +336,13 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) deleteInstalledApps(ctx
 			continue
 		}
 
-		deploymentAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
+		deploymentAppName := util3.BuildDeployedAppName(installedApp.App.AppName, installedApp.Environment.Name)
 		// delete request
 		if deploymentConfig.DeploymentAppType == bean2.ArgoCd {
 			err = impl.fullModeDeploymentService.DeleteACD(deploymentAppName, ctx, false)
 		} else if deploymentConfig.DeploymentAppType == bean2.Helm {
 			// For converting from Helm to ArgoCD, GitOps should be configured
-			if gitOpsConfigErr != nil || !gitOpsConfigStatus.IsGitOpsConfigured {
+			if gitOpsConfigErr != nil || !gitOpsConfigStatus.IsGitOpsConfiguredAndArgoCdInstalled() {
 				err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "200", UserMessage: errors.New("GitOps not configured or unable to fetch GitOps configuration")}
 			}
 			if err != nil {
@@ -435,11 +434,6 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) TriggerAfterMigration(c
 		DesiredDeploymentType: request.DesiredDeploymentType,
 	}
 	var err error
-	ctx, err = impl.argoUserService.SetAcdTokenInContext(ctx)
-	if err != nil {
-		impl.logger.Errorw("error in setting acd token in context", "err", err)
-		return response, err
-	}
 
 	installedApps, err := impl.installedAppRepository.GetActiveInstalledAppByEnvIdAndDeploymentType(request.EnvId, request.DesiredDeploymentType,
 		util2.ConvertIntArrayToStringArray(request.ExcludeApps), util2.ConvertIntArrayToStringArray(request.IncludeApps))
@@ -623,7 +617,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) fetchDeletedInstalledAp
 
 	for _, installedApp := range installedApps {
 
-		deploymentAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
+		deploymentAppName := util3.BuildDeployedAppName(installedApp.App.AppName, installedApp.Environment.Name)
 		var err error
 		if installedApp.DeploymentAppType == bean2.ArgoCd {
 			appIdentifier := &helmBean.AppIdentifier{
@@ -633,10 +627,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) fetchDeletedInstalledAp
 			}
 			_, err = impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
 		} else {
-			req := &application.ApplicationQuery{
-				Name: &deploymentAppName,
-			}
-			_, err = impl.acdClient.Get(ctx, req)
+			_, err = impl.argoClientWrapperService.GetArgoAppByName(ctx, deploymentAppName)
 		}
 		if err != nil {
 			impl.logger.Errorw("error in getting application detail", "deploymentAppName", deploymentAppName, "err", err)

@@ -90,7 +90,7 @@ func (client *GrpcApiClientImpl) getConnection() (*grpc.ClientConn, error) {
 		grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor, otelgrpc.UnaryClientInterceptor()),
 		grpc.WithBlock(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
+		grpc.WithDefaultServiceConfig(client.config.ServiceConfig),
 	)
 	endpoint := fmt.Sprintf("dns:///%s", client.config.Url)
 
@@ -160,6 +160,7 @@ func (client *GrpcApiClientImpl) AddRepo(ctx context.Context, materials []*GitMa
 				Deleted:          item.Deleted,
 				FilterPattern:    item.FilterPattern,
 				CloningMode:      item.CloningMode,
+				CreateBackup:     item.CreateBackup,
 			})
 		}
 	}
@@ -191,6 +192,7 @@ func (client *GrpcApiClientImpl) UpdateRepo(ctx context.Context, material *GitMa
 		Deleted:          material.Deleted,
 		FilterPattern:    material.FilterPattern,
 		CloningMode:      material.CloningMode,
+		CreateBackup:     material.CreateBackup,
 	}
 
 	_, err = serviceClient.UpdateRepo(ctx, mappedMaterial)

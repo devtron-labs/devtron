@@ -1,0 +1,866 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Bulk Operations API
+  description: Devtron API for bulk operations on applications
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Labs
+    email: support@devtron.ai
+    url: https://devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: http://localhost:8080
+paths:
+  /orchestrator/batch/v1beta1/application:
+    post:
+      tags:
+        - BulkUpdate
+      summary: Bulk Edit Applications
+      description: Perform bulk edit operations on multiple applications.
+      operationId: BulkEditApplications
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      requestBody:
+        description: Bulk edit request payload
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkUpdateScript'
+            examples:
+              deployment_template_update:
+                summary: Update deployment template
+                description: Bulk update deployment template for multiple applications
+                value:
+                  apiVersion: "batch/v1beta1"
+                  kind: "Application"
+                  spec:
+                    includes:
+                      names: ["%app1%", "%app2%"]
+                    excludes:
+                      names: ["%test%"]
+                    envIds: [1, 2]
+                    global: false
+                    deploymentTemplate:
+                      spec:
+                        patchJson: '[{"op": "replace", "path": "/MaxSurge", "value": 2}]'
+              configmap_update:
+                summary: Update ConfigMaps
+                description: Bulk update ConfigMaps for multiple applications
+                value:
+                  apiVersion: "batch/v1beta1"
+                  kind: "Application"
+                  spec:
+                    includes:
+                      names: ["%app%"]
+                    envIds: [1]
+                    configMap:
+                      spec:
+                        names: ["config1", "config2"]
+                        patchJson: '[{"op": "add", "path": "/newKey", "value": "newValue"}]'
+      responses:
+        '200':
+          description: Bulk edit operation completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkUpdateResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /orchestrator/batch/v1beta1/application/dryrun:
+    post:
+      tags:
+        - bulk_other
+      summary: Dry Run for Bulk Application Update
+      description: Perform a dry run of bulk application update to see what would be changed.
+      operationId: BulkEditApplicationsDryRun
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      requestBody:
+        description: Bulk edit dry run request payload
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkUpdateScript'
+            examples:
+              dryrun_example:
+                summary: Dry run example
+                description: Example dry run request to see what would be updated
+                value:
+                  apiVersion: "batch/v1beta1"
+                  kind: "Application"
+                  spec:
+                    includes:
+                      names: ["%app%"]
+                    envIds: [1]
+                    deploymentTemplate:
+                      spec:
+                        patchJson: '[{"op": "replace", "path": "/MaxSurge", "value": 2}]'
+      responses:
+        '200':
+          description: Dry run completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImpactedObjectsResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /orchestrator/batch/v1beta1/build:
+    post:
+      tags:
+        - BulkUpdate
+      summary: Bulk Trigger Application Builds
+      description: Trigger builds for multiple applications in bulk.
+      operationId: BulkTriggerBuilds
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      requestBody:
+        description: Bulk build trigger request payload
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkBuildRequest'
+      responses:
+        '200':
+          description: Bulk build trigger completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkOperationResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /orchestrator/batch/v1beta1/deploy:
+    post:
+      tags:
+        - BulkUpdate
+      summary: Bulk Deploy Applications
+      description: Deploy multiple applications in bulk.
+      operationId: BulkDeployApplications
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      requestBody:
+        description: Bulk deploy request payload
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkDeployRequest'
+            examples:
+              deploy_with_env_id:
+                summary: Deploy with environment ID
+                description: Deploy specific applications to an environment using environment ID
+                value:
+                  appIdIncludes: [1, 2, 3]
+                  envId: 1
+                  invalidateCache: false
+                  deployLatestEligibleArtifact: true
+              deploy_with_env_name:
+                summary: Deploy with environment name
+                description: Deploy specific applications to an environment using environment name
+                value:
+                  appIdIncludes: [1, 2, 3]
+                  envName: "production"
+                  invalidateCache: false
+                  deployLatestEligibleArtifact: true
+      responses:
+        '200':
+          description: Bulk deploy operation completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkOperationResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /orchestrator/batch/v1beta1/hibernate:
+    post:
+      tags:
+        - BulkUpdate
+      summary: Bulk Hibernate Applications
+      description: Hibernate multiple applications in bulk.
+      operationId: BulkHibernateApplications
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      requestBody:
+        description: Bulk hibernate request payload
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkHibernateRequest'
+      responses:
+        '200':
+          description: Bulk hibernate operation completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkOperationResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /orchestrator/batch/v1beta1/unhibernate:
+    post:
+      tags:
+        - BulkUpdate
+      summary: Bulk Un-Hibernate Applications
+      description: Un-hibernate multiple applications in bulk.
+      operationId: BulkUnHibernateApplications
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+      requestBody:
+        description: Bulk un-hibernate request payload
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkHibernateRequest'
+      responses:
+        '200':
+          description: Bulk un-hibernate operation completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkOperationResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+  /orchestrator/batch/{apiVersion}/{kind}/readme:
+    get:
+      tags:
+        - bulk_other
+      summary: Get Readme for Bulk Update
+      description: Get readme information for bulk update operations.
+      operationId: GetBulkUpdateReadme
+      parameters:
+        - name: token
+          in: header
+          required: true
+          description: Authentication token.
+          schema:
+            type: string
+        - name: apiVersion
+          in: path
+          required: true
+          description: API version
+          schema:
+            type: string
+        - name: kind
+          in: path
+          required: true
+          description: Resource kind
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Readme information retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  readme:
+                    type: string
+                    description: Readme content
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Readme not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: []
+
+components:
+  schemas:
+
+
+    BulkBuildRequest:
+      type: object
+      required:
+        - appIdIncludes
+      properties:
+        appIdIncludes:
+          type: array
+          items:
+            type: integer
+          description: Application IDs to include for build
+          example: [1, 2, 3]
+        appIdExcludes:
+          type: array
+          items:
+            type: integer
+          description: Application IDs to exclude from build
+          example: [4, 5]
+        envId:
+          type: integer
+          description: Environment ID
+          example: 1
+        envName:
+          type: string
+          description: Environment name
+          example: "production"
+        appNamesIncludes:
+          type: array
+          items:
+            type: string
+          description: Application names to include
+          example: ["app1", "app2"]
+        appNamesExcludes:
+          type: array
+          items:
+            type: string
+          description: Application names to exclude
+          example: ["app3", "app4"]
+        invalidateCache:
+          type: boolean
+          description: Whether to invalidate cache
+          example: false
+          default: false
+
+    BulkDeployRequest:
+      type: object
+      required:
+        - appIdIncludes
+      anyOf:
+        - required: [envId]
+        - required: [envName]
+      properties:
+        appIdIncludes:
+          type: array
+          items:
+            type: integer
+          description: Application IDs to include for deployment
+          example: [1, 2, 3]
+          minItems: 1
+        appIdExcludes:
+          type: array
+          items:
+            type: integer
+          description: Application IDs to exclude from deployment
+          example: [4, 5]
+        envId:
+          type: integer
+          description: Environment ID (required for deployment - either envId or envName must be provided)
+          example: 1
+          minimum: 1
+        envName:
+          type: string
+          description: Environment name (alternative to envId - either envId or envName must be provided)
+          example: "production"
+          minLength: 1
+        appNamesIncludes:
+          type: array
+          items:
+            type: string
+          description: Application names to include
+          example: ["app1", "app2"]
+        appNamesExcludes:
+          type: array
+          items:
+            type: string
+          description: Application names to exclude
+          example: ["app3", "app4"]
+        invalidateCache:
+          type: boolean
+          description: Whether to invalidate cache
+          example: false
+          default: false
+        deployLatestEligibleArtifact:
+          type: boolean
+          description: Whether to deploy latest eligible artifact
+          example: false
+          default: false
+
+    BulkHibernateRequest:
+      type: object
+      required:
+        - appIdIncludes
+      properties:
+        appIdIncludes:
+          type: array
+          items:
+            type: integer
+          description: Application IDs to include for hibernation
+          example: [1, 2, 3]
+        appIdExcludes:
+          type: array
+          items:
+            type: integer
+          description: Application IDs to exclude from hibernation
+          example: [4, 5]
+        envId:
+          type: integer
+          description: Environment ID
+          example: 1
+        envName:
+          type: string
+          description: Environment name
+          example: "production"
+        appNamesIncludes:
+          type: array
+          items:
+            type: string
+          description: Application names to include
+          example: ["app1", "app2"]
+        appNamesExcludes:
+          type: array
+          items:
+            type: string
+          description: Application names to exclude
+          example: ["app3", "app4"]
+        invalidateCache:
+          type: boolean
+          description: Whether to invalidate cache
+          example: false
+          default: false
+
+    BulkOperationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Operation success status
+        message:
+          type: string
+          description: Response message
+        results:
+          type: array
+          items:
+            type: object
+          description: Operation results for each application
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message
+        details:
+          type: array
+          items:
+            type: string
+          description: Additional error details
+
+    BulkUpdateScript:
+      type: object
+      required:
+        - apiVersion
+        - kind
+        - spec
+      properties:
+        apiVersion:
+          type: string
+          description: API version for the bulk update script
+          example: "batch/v1beta1"
+          enum: ["batch/v1beta1"]
+        kind:
+          type: string
+          description: Resource kind for the bulk update script
+          example: "Application"
+          enum: ["Application"]
+        spec:
+          $ref: '#/components/schemas/BulkUpdatePayload'
+      example:
+        apiVersion: "batch/v1beta1"
+        kind: "Application"
+        spec:
+          includes:
+            names: ["%app%"]
+          envIds: [1]
+          deploymentTemplate:
+            spec:
+              patchJson: '[{"op": "replace", "path": "/MaxSurge", "value": 2}]'
+
+    BulkUpdatePayload:
+      type: object
+      properties:
+        includes:
+          $ref: '#/components/schemas/NameIncludesExcludes'
+          description: Applications to include in the bulk update
+        excludes:
+          $ref: '#/components/schemas/NameIncludesExcludes'
+          description: Applications to exclude from the bulk update
+        envIds:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+          description: Environment IDs to target for the bulk update
+          example: [1, 2, 3]
+        global:
+          type: boolean
+          description: Whether to apply changes globally
+          example: false
+          default: false
+        deploymentTemplate:
+          $ref: '#/components/schemas/DeploymentTemplateTask'
+          description: Deployment template updates to apply
+        configMap:
+          $ref: '#/components/schemas/CmAndSecretTask'
+          description: ConfigMap updates to apply
+        secret:
+          $ref: '#/components/schemas/CmAndSecretTask'
+          description: Secret updates to apply
+      example:
+        includes:
+          names: ["%app1%", "%app2%"]
+        excludes:
+          names: ["%test%"]
+        envIds: [1, 2]
+        global: false
+        deploymentTemplate:
+          spec:
+            patchJson: '[{"op": "replace", "path": "/MaxSurge", "value": 2}]'
+
+    NameIncludesExcludes:
+      type: object
+      properties:
+        names:
+          type: array
+          items:
+            type: string
+          description: List of application name patterns (supports wildcards with %)
+          example: ["%app1%", "%app2%"]
+      example:
+        names: ["%app%", "specific-app"]
+
+    DeploymentTemplateTask:
+      type: object
+      properties:
+        spec:
+          $ref: '#/components/schemas/DeploymentTemplateSpec'
+      example:
+        spec:
+          patchJson: '[{"op": "replace", "path": "/MaxSurge", "value": 2}]'
+
+    DeploymentTemplateSpec:
+      type: object
+      required:
+        - patchJson
+      properties:
+        patchJson:
+          type: string
+          description: JSON patch string for deployment template updates
+          example: '[{"op": "replace", "path": "/MaxSurge", "value": 2}]'
+      example:
+        patchJson: '[{"op": "replace", "path": "/MaxSurge", "value": 2}]'
+
+    CmAndSecretTask:
+      type: object
+      properties:
+        spec:
+          $ref: '#/components/schemas/CmAndSecretSpec'
+      example:
+        spec:
+          names: ["config1", "config2"]
+          patchJson: '[{"op": "add", "path": "/newKey", "value": "newValue"}]'
+
+    CmAndSecretSpec:
+      type: object
+      required:
+        - names
+        - patchJson
+      properties:
+        names:
+          type: array
+          items:
+            type: string
+          description: Names of ConfigMaps or Secrets to update
+          example: ["config1", "config2"]
+          minItems: 1
+        patchJson:
+          type: string
+          description: JSON patch string for ConfigMap/Secret updates
+          example: '[{"op": "add", "path": "/newKey", "value": "newValue"}]'
+      example:
+        names: ["config1", "config2"]
+        patchJson: '[{"op": "add", "path": "/newKey", "value": "newValue"}]'
+
+    BulkUpdateResponse:
+      type: object
+      properties:
+        deploymentTemplate:
+          $ref: '#/components/schemas/DeploymentTemplateBulkUpdateResponse'
+        configMap:
+          $ref: '#/components/schemas/CmAndSecretBulkUpdateResponse'
+        secret:
+          $ref: '#/components/schemas/CmAndSecretBulkUpdateResponse'
+      example:
+        deploymentTemplate:
+          message: ["Updated deployment template for 3 applications"]
+          successful: []
+          failure: []
+
+    DeploymentTemplateBulkUpdateResponse:
+      type: object
+      properties:
+        message:
+          type: array
+          items:
+            type: string
+          description: Success messages
+        successful:
+          type: array
+          items:
+            type: object
+          description: Successfully updated applications
+        failure:
+          type: array
+          items:
+            type: object
+          description: Failed application updates
+
+    CmAndSecretBulkUpdateResponse:
+      type: object
+      properties:
+        message:
+          type: array
+          items:
+            type: string
+          description: Success messages
+        successful:
+          type: array
+          items:
+            type: object
+          description: Successfully updated ConfigMaps/Secrets
+        failure:
+          type: array
+          items:
+            type: object
+          description: Failed ConfigMap/Secret updates
+
+    ImpactedObjectsResponse:
+      type: object
+      properties:
+        deploymentTemplate:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeploymentTemplateImpactedObject'
+          description: Deployment templates that would be impacted
+        configMap:
+          type: array
+          items:
+            $ref: '#/components/schemas/CmAndSecretImpactedObject'
+          description: ConfigMaps that would be impacted
+        secret:
+          type: array
+          items:
+            $ref: '#/components/schemas/CmAndSecretImpactedObject'
+          description: Secrets that would be impacted
+      example:
+        deploymentTemplate:
+          - appId: 1
+            appName: "app1"
+            envId: 1
+            envName: "production"
+        configMap: []
+        secret: []
+
+    DeploymentTemplateImpactedObject:
+      type: object
+      properties:
+        appId:
+          type: integer
+          description: Application ID
+          example: 1
+        appName:
+          type: string
+          description: Application name
+          example: "app1"
+        envId:
+          type: integer
+          description: Environment ID
+          example: 1
+        envName:
+          type: string
+          description: Environment name
+          example: "production"
+
+    CmAndSecretImpactedObject:
+      type: object
+      properties:
+        appId:
+          type: integer
+          description: Application ID
+          example: 1
+        appName:
+          type: string
+          description: Application name
+          example: "app1"
+        envId:
+          type: integer
+          description: Environment ID
+          example: 1
+        envName:
+          type: string
+          description: Environment name
+          example: "production"
+        names:
+          type: array
+          items:
+            type: string
+          description: Names of ConfigMaps/Secrets that would be impacted
+          example: ["config1", "config2"]

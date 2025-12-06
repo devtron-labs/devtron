@@ -19,6 +19,7 @@ package module
 import (
 	"context"
 	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/pkg/module/bean"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
@@ -44,14 +45,14 @@ type ModuleCacheServiceImpl struct {
 	logger           *zap.SugaredLogger
 	mutex            sync.Mutex
 	K8sUtil          *k8s.K8sServiceImpl
-	moduleEnvConfig  *ModuleEnvConfig
+	moduleEnvConfig  *bean.ModuleEnvConfig
 	serverEnvConfig  *serverEnvConfig.ServerEnvConfig
 	serverDataStore  *serverDataStore.ServerDataStore
 	moduleRepository moduleRepo.ModuleRepository
 	teamService      team.TeamService
 }
 
-func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *k8s.K8sServiceImpl, moduleEnvConfig *ModuleEnvConfig, serverEnvConfig *serverEnvConfig.ServerEnvConfig,
+func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *k8s.K8sServiceImpl, moduleEnvConfig *bean.ModuleEnvConfig, serverEnvConfig *serverEnvConfig.ServerEnvConfig,
 	serverDataStore *serverDataStore.ServerDataStore, moduleRepository moduleRepo.ModuleRepository, teamService team.TeamService) (*ModuleCacheServiceImpl, error) {
 	impl := &ModuleCacheServiceImpl{
 		logger:           logger,
@@ -72,28 +73,11 @@ func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *k8s.K8sServic
 		}
 		if !exists {
 			// insert cicd module entry
-			err = impl.updateModuleToInstalled(ModuleNameCicd)
+			err = impl.updateModuleToInstalled(bean.ModuleNameCiCd)
 			if err != nil {
 				return nil, err
 			}
 
-			// if old installation (i.e. project was created more than 1 hour ago then insert rest entries)
-			teamId := 1
-			team, err := teamService.FetchOne(teamId)
-			if err != nil {
-				log.Println("Error while getting team.", "teamId", teamId, "err", err)
-				return nil, err
-			}
-
-			// insert first release components if this was old release and user installed full mode at that time
-			if time.Now().After(team.CreatedOn.Add(1 * time.Hour)) {
-				for _, supportedModuleName := range SupportedModuleNamesListFirstReleaseExcludingCicd {
-					err = impl.updateModuleToInstalled(supportedModuleName)
-					if err != nil {
-						return nil, err
-					}
-				}
-			}
 		}
 	}
 
@@ -115,7 +99,7 @@ func (impl *ModuleCacheServiceImpl) updateModuleToInstalled(moduleName string) e
 	module := &moduleRepo.Module{
 		Name:      moduleName,
 		Version:   impl.serverDataStore.CurrentVersion,
-		Status:    ModuleStatusInstalled,
+		Status:    bean.ModuleStatusInstalled,
 		UpdatedOn: time.Now(),
 	}
 	err := impl.moduleRepository.Save(module)

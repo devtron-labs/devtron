@@ -26,7 +26,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/chartGroup"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
-	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 )
@@ -67,7 +66,7 @@ type ChartGroupRestHandler interface {
 func (impl *ChartGroupRestHandlerImpl) CreateChartGroup(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -112,7 +111,7 @@ func (impl *ChartGroupRestHandlerImpl) CreateChartGroup(w http.ResponseWriter, r
 func (impl *ChartGroupRestHandlerImpl) UpdateChartGroup(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -153,7 +152,7 @@ func (impl *ChartGroupRestHandlerImpl) UpdateChartGroup(w http.ResponseWriter, r
 func (impl *ChartGroupRestHandlerImpl) SaveChartGroupEntries(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -187,14 +186,14 @@ func (impl *ChartGroupRestHandlerImpl) SaveChartGroupEntries(w http.ResponseWrit
 func (impl *ChartGroupRestHandlerImpl) GetChartGroupWithChartMetaData(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
-	vars := mux.Vars(r)
-	chartGroupId, err := strconv.Atoi(vars["chartGroupId"])
+
+	// Use enhanced parameter parsing with context
+	chartGroupId, err := common.ExtractIntPathParamWithContext(w, r, "chartGroupId")
 	if err != nil {
-		impl.Logger.Errorw("request err, GetChartGroupWithChartMetaData", "err", err, "chartGroupId", chartGroupId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		// Error already written by ExtractIntPathParamWithContext
 		return
 	}
 
@@ -219,14 +218,14 @@ func (impl *ChartGroupRestHandlerImpl) GetChartGroupWithChartMetaData(w http.Res
 func (impl *ChartGroupRestHandlerImpl) GetChartGroupInstallationDetail(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
-	vars := mux.Vars(r)
-	chartGroupId, err := strconv.Atoi(vars["chartGroupId"])
+
+	// Use enhanced parameter parsing with context
+	chartGroupId, err := common.ExtractIntPathParamWithContext(w, r, "chartGroupId")
 	if err != nil {
-		impl.Logger.Errorw("request err, GetChartGroupInstallationDetail", "err", err, "chartGroupId", chartGroupId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		// Error already written by ExtractIntPathParamWithContext
 		return
 	}
 
@@ -251,7 +250,7 @@ func (impl *ChartGroupRestHandlerImpl) GetChartGroupInstallationDetail(w http.Re
 func (impl *ChartGroupRestHandlerImpl) GetChartGroupList(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -274,7 +273,7 @@ func (impl *ChartGroupRestHandlerImpl) GetChartGroupList(w http.ResponseWriter, 
 			return
 		}
 	}
-	res, err := impl.ChartGroupService.ChartGroupList(maxCount)
+	res, err := impl.ChartGroupService.GetChartGroupList(maxCount)
 	if err != nil {
 		impl.Logger.Errorw("service err, GetChartGroupList", "err", err, "max", max)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -286,7 +285,7 @@ func (impl *ChartGroupRestHandlerImpl) GetChartGroupList(w http.ResponseWriter, 
 func (impl *ChartGroupRestHandlerImpl) GetChartGroupListMin(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -321,7 +320,7 @@ func (impl *ChartGroupRestHandlerImpl) GetChartGroupListMin(w http.ResponseWrite
 func (impl *ChartGroupRestHandlerImpl) DeleteChartGroup(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)

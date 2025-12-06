@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc/status"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type ApiError struct {
@@ -37,7 +38,7 @@ type ApiError struct {
 	UserDetailMessage string      `json:"userDetailMessage,omitempty"`
 }
 
-func GetApiError(code int, userMessage, internalMessage string) *ApiError {
+func NewApiError(code int, userMessage, internalMessage string) *ApiError {
 	return &ApiError{
 		HttpStatusCode:  code,
 		Code:            strconv.Itoa(code),
@@ -45,7 +46,7 @@ func GetApiError(code int, userMessage, internalMessage string) *ApiError {
 		UserMessage:     userMessage,
 	}
 }
-func NewApiError() *ApiError {
+func DefaultApiError() *ApiError {
 	return &ApiError{}
 }
 
@@ -82,14 +83,26 @@ func (e *ApiError) ErrorfInternal(format string, a ...interface{}) error {
 }
 
 // default user message will be set
-func (e ApiError) ErrorfUser(format string, a ...interface{}) error {
+func (e *ApiError) ErrorfUser(format string, a ...interface{}) error {
 	return &ApiError{InternalMessage: fmt.Sprintf(format, a...)}
 }
 
 func IsErrNoRows(err error) bool {
 	return pg.ErrNoRows == err
 }
-
+func IsResourceConflictError(err error) bool {
+	var resourceConflictPhrases = []string{
+		"already exists",
+		"already used",
+	}
+	msg := err.Error()
+	for _, phrase := range resourceConflictPhrases {
+		if strings.Contains(msg, phrase) {
+			return true
+		}
+	}
+	return false
+}
 func GetClientErrorDetailedMessage(err error) string {
 	if errStatus, ok := status.FromError(err); ok {
 		return errStatus.Message()

@@ -16,6 +16,7 @@ limitations under the License.
 package chartutil
 
 import (
+	"fmt"
 	"log"
 	"strings"
 
@@ -137,7 +138,7 @@ func processDependencyEnabled(c *chart.Chart, v map[string]interface{}, path str
 	// If any dependency is not a part of Chart.yaml
 	// then this should be added to chartDependencies.
 	// However, if the dependency is already specified in Chart.yaml
-	// we should not add it, as it would be anyways processed from Chart.yaml
+	// we should not add it, as it would be processed from Chart.yaml anyway.
 
 Loop:
 	for _, existing := range c.Dependencies() {
@@ -255,8 +256,8 @@ func processImportValues(c *chart.Chart, merge bool) error {
 		for _, riv := range r.ImportValues {
 			switch iv := riv.(type) {
 			case map[string]interface{}:
-				child := iv["child"].(string)
-				parent := iv["parent"].(string)
+				child := fmt.Sprintf("%v", iv["child"])
+				parent := fmt.Sprintf("%v", iv["parent"])
 
 				outiv = append(outiv, map[string]string{
 					"child":  child,

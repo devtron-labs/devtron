@@ -1,0 +1,208 @@
+openapi: 3.0.3
+info:
+  title: Infra Config
+  description: API SPEC for Infra Configurations
+  version: 1.0.0
+servers:
+  - url: 'https'
+
+paths:
+  /orchestrator/infra-config/profile:
+    get:
+      description: Get Infra Profile by name
+      parameters:
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^[a-z]+$'
+      responses:
+        "200":
+          description: Gets the infra config profile by its name
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileResponse"
+        "400":
+          description: Invalid profile name
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Profile not found
+        "500":
+          description: Internal Server Error
+
+    put:
+      description: Update Infra Profile
+      parameters:
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^[a-z]+$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Profile'
+      responses:
+        "200":
+          description: Successfully updated infra config profile
+        "400":
+          description: Invalid request payload
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal Server Error
+
+components:
+  schemas:
+    Unit:
+      type: object
+      required:
+        - name
+        - conversionFactor
+      properties:
+        name:
+          type: string
+          description: Unit Name
+          example: "mi"
+        conversionFactor:
+          type: number
+          description: Conversion Factor to convert to base unit
+          example: 1
+
+    ConfigurationUnits:
+      type: object
+      required:
+        - name
+        - units
+      properties:
+        name:
+          type: string
+          description: Configuration Units
+        units:
+          type: array
+          description: Configuration Units
+          items:
+            $ref: '#/components/schemas/Unit'
+
+    ProfileResponse:
+      type: object
+      required:
+        - profile
+        - configurationUnits
+        - defaultConfigurations
+      properties:
+        profile:
+          $ref: '#/components/schemas/Profile'
+        configurationUnits:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/ConfigurationUnits'
+        defaultConfigurations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Configuration'
+
+    Profile:
+      type: object
+      required:
+        - configurations
+        - targetPlatforms
+      properties:
+        configurations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Configuration'
+          description: Profile Configurations
+        targetPlatforms:
+          type: array
+          items:
+            type: string
+            example: "linux/amd64"
+          description: List of target platforms for this profile
+        id:
+          type: integer
+          description: Profile Id
+          example: 1
+        name:
+          type: string
+          description: Profile Name
+          example: "java"
+        description:
+          type: string
+          description: Profile Description
+          example: "all java apps should have this infra profile"
+        type:
+          type: string
+          description: Type of profile (DEFAULT, NORMAL, CUSTOM)
+          enum: [DEFAULT, NORMAL, CUSTOM]
+          example: "CUSTOM"
+        appCount:
+          readOnly: true
+          type: integer
+          description: Number of apps using this profile
+          example: 1
+        createdAt:
+          type: string
+          format: date-time
+          description: Profile creation timestamp
+          example: "2021-06-01T06:30:00.000Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Profile last update timestamp
+          example: "2021-06-01T06:30:00.000Z"
+        createdBy:
+          type: integer
+          description: User ID who created the profile
+          example: 1
+        updatedBy:
+          type: integer
+          description: User ID who last updated the profile
+          example: 1
+
+    Configuration:
+      type: object
+      required:
+        - key
+        - value
+      properties:
+        key:
+          type: string
+          example: "cpu_limits"
+          description: Configuration key
+        value:
+          type: string
+          description: Configuration value
+          example: "0.5"
+        id:
+          type: integer
+          description: Configuration ID
+          example: 1
+        profileName:
+          type: string
+          description: Name of the profile this configuration belongs to
+          example: "java"
+        unit:
+          type: string
+          description: Unit of the configuration value
+          example: "m"
+        active:
+          type: boolean
+          description: Whether the configuration is active
+          example: true
+        platform:
+          type: string
+          description: Target platform for this configuration
+          example: "linux/amd64"
+
+

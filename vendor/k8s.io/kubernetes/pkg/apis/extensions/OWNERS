@@ -2,7 +2,6 @@
 
 reviewers:
   - thockin
-  - lavalamp
   - smarterclayton
   - wojtek-t
   - deads2k
@@ -14,10 +13,12 @@ reviewers:
   - saad-ali
   - janetkuo
   - justinsb
-  - ncdc
   - tallclair
   - mwielgus
   - soltysh
   - dims
+  - jpbetz
+emeritus_reviewers:
+  - ncdc
 labels:
   - sig/apps

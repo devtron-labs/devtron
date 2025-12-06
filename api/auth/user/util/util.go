@@ -16,9 +16,25 @@
 
 package util
 
+import (
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	"github.com/devtron-labs/devtron/pkg/auth/user/helper"
+)
+
 func IsGroupsPresent(groups []string) bool {
 	if len(groups) > 0 {
 		return true
 	}
 	return false
+}
+
+func FilterRoleGroupIfAlreadyPresent(roleGroups []bean.UserRoleGroup, mapOfExistingUserRoleGroup map[string]bool) []bean.UserRoleGroup {
+	finalRoleGroups := make([]bean.UserRoleGroup, 0, len(roleGroups))
+	for _, roleGrp := range roleGroups {
+		if _, ok := mapOfExistingUserRoleGroup[helper.GetCasbinNameFromRoleGroupName(roleGrp.RoleGroup.Name)]; !ok {
+			finalRoleGroups = append(finalRoleGroups, roleGrp)
+		}
+	}
+	return finalRoleGroups
+
 }

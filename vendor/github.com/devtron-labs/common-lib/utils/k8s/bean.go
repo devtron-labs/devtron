@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	"github.com/devtron-labs/common-lib/utils/remoteConnection/bean"
 	v1 "k8s.io/api/core/v1"
@@ -27,28 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/client-go/rest"
-	"log"
-	"net"
-	"net/http"
-	"time"
-)
-
-const (
-	DEFAULT_CLUSTER          = "default_cluster"
-	DEVTRON_SERVICE_NAME     = "devtron-service"
-	DefaultClusterUrl        = "https://kubernetes.default.svc"
-	BearerToken              = "bearer_token"
-	CertificateAuthorityData = "cert_auth_data"
-	CertData                 = "cert_data"
-	TlsKey                   = "tls_key"
-	LiveZ                    = "/livez"
-	Running                  = "Running"
-	RestartingNotSupported   = "restarting not supported"
-	DEVTRON_APP_LABEL_KEY    = "app"
-	DEVTRON_APP_LABEL_VALUE1 = "devtron"
-	DEVTRON_APP_LABEL_VALUE2 = "orchestrator"
 )
 
 type ClusterConfig struct {
@@ -64,10 +44,16 @@ type ClusterConfig struct {
 	RemoteConnectionConfig          *bean.RemoteConnectionConfigBean
 }
 
+var logger, _ = utils.NewSugardLogger()
+
 func (clusterConfig *ClusterConfig) PopulateTlsConfigurationsInto(restConfig *rest.Config) {
-	restConfig.TLSClientConfig = rest.TLSClientConfig{Insecure: clusterConfig.InsecureSkipTLSVerify}
+	serverName, err := GetServerNameFromServerUrl(clusterConfig.Host)
+	if err != nil {
+		// making it non-blocking to avoid blocking the flow
+		logger.Errorw("Error parsing server URL:", "err", err, "clusterConfig.Host", clusterConfig.Host)
+	}
+	restConfig.TLSClientConfig = rest.TLSClientConfig{Insecure: clusterConfig.InsecureSkipTLSVerify, ServerName: serverName}
 	if clusterConfig.InsecureSkipTLSVerify == false {
-		restConfig.TLSClientConfig.ServerName = restConfig.ServerName
 		restConfig.TLSClientConfig.KeyData = []byte(clusterConfig.KeyData)
 		restConfig.TLSClientConfig.CertData = []byte(clusterConfig.CertData)
 		restConfig.TLSClientConfig.CAData = []byte(clusterConfig.CAData)
@@ -135,7 +121,8 @@ type ApplyResourcesResponse struct {
 }
 
 type ManifestResponse struct {
-	Manifest unstructured.Unstructured `json:"manifest,omitempty"`
+	Manifest            unstructured.Unstructured  `json:"manifest,omitempty"`
+	RecommendedManifest *unstructured.Unstructured `json:"recommendedManifest,omitempty"` // imp: this is used to show recommended resources for the resource browser
 	// EphemeralContainers are set for Pod kind manifest response only.
 	// will only contain ephemeral containers which are in running state
 	// +optional
@@ -184,15 +171,6 @@ func GetResourceKey(obj *unstructured.Unstructured) ResourceKey {
 	return NewResourceKey(gvk.Group, gvk.Kind, obj.GetNamespace(), obj.GetName())
 }
 
-type CustomK8sHttpTransportConfig struct {
-	UseCustomTransport  bool `env:"USE_CUSTOM_HTTP_TRANSPORT" envDefault:"false"`
-	TimeOut             int  `env:"K8s_TCP_TIMEOUT" envDefault:"30"`
-	KeepAlive           int  `env:"K8s_TCP_KEEPALIVE" envDefault:"30"`
-	TLSHandshakeTimeout int  `env:"K8s_TLS_HANDSHAKE_TIMEOUT" envDefault:"10"`
-	MaxIdleConnsPerHost int  `env:"K8s_CLIENT_MAX_IDLE_CONNS_PER_HOST" envDefault:"25"`
-	IdleConnTimeout     int  `env:"K8s_TCP_IDLE_CONN_TIMEOUT" envDefault:"300"`
-}
-
 type LocalDevMode bool
 
 type RuntimeConfig struct {
@@ -205,65 +183,14 @@ func GetRuntimeConfig() (*RuntimeConfig, error) {
 	return cfg, err
 }
 
-func NewCustomK8sHttpTransportConfig() *CustomK8sHttpTransportConfig {
-	customK8sHttpTransportConfig := &CustomK8sHttpTransportConfig{}
-	err := env.Parse(customK8sHttpTransportConfig)
-	if err != nil {
-		log.Println("error in parsing custom k8s http configurations from env : ", "err : ", err)
-	}
-	return customK8sHttpTransportConfig
-}
-
-// OverrideConfigWithCustomTransport
-// overrides the given rest config with custom transport if UseCustomTransport is enabled.
-// if the config already has a defined transport, we don't override it.
-func (impl *CustomK8sHttpTransportConfig) OverrideConfigWithCustomTransport(config *rest.Config) (*rest.Config, error) {
-	if !impl.UseCustomTransport || config.Transport != nil {
-		return config, nil
-	}
-
-	dial := (&net.Dialer{
-		Timeout:   time.Duration(impl.TimeOut) * time.Second,
-		KeepAlive: time.Duration(impl.KeepAlive) * time.Second,
-	}).DialContext
-
-	// Get the TLS options for this client config
-	tlsConfig, err := rest.TLSConfigFor(config)
-	if err != nil {
-		return nil, err
-	}
-
-	transport := utilnet.SetTransportDefaults(&http.Transport{
-		Proxy:               config.Proxy,
-		TLSHandshakeTimeout: time.Duration(impl.TLSHandshakeTimeout) * time.Second,
-		TLSClientConfig:     tlsConfig,
-		MaxIdleConns:        impl.MaxIdleConnsPerHost,
-		MaxConnsPerHost:     impl.MaxIdleConnsPerHost,
-		MaxIdleConnsPerHost: impl.MaxIdleConnsPerHost,
-		DialContext:         dial,
-		DisableCompression:  config.DisableCompression,
-		IdleConnTimeout:     time.Duration(impl.IdleConnTimeout) * time.Second,
-	})
-
-	rt, err := rest.HTTPWrappersForConfig(config, transport)
-	if err != nil {
-		return nil, err
-	}
-
-	config.Transport = rt
-	config.Timeout = time.Duration(impl.TimeOut) * time.Second
-
-	// set default tls config and remove auth/exec provides since we use it in a custom transport.
-	// we already set tls config in the transport
-	config.TLSClientConfig = rest.TLSClientConfig{}
-	config.AuthProvider = nil
-	config.ExecProvider = nil
-
-	return config, nil
-}
-
 var NotFoundError = errors.New("not found")
 
 func IsNotFoundError(err error) bool {
 	return errors.Is(err, NotFoundError)
+}
+
+type JsonPatchType struct {
+	Op    string      `json:"op"`
+	Path  string      `json:"path"`
+	Value interface{} `json:"value"`
 }

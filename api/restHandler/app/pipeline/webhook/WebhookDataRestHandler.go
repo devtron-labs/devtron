@@ -18,12 +18,12 @@ package webhook
 
 import (
 	"context"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"net/http"
 	"strconv"
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/gitSensor"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -65,7 +65,7 @@ func (impl WebhookDataRestHandlerImpl) GetWebhookPayloadDataForPipelineMaterialI
 
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -134,7 +134,7 @@ func (impl WebhookDataRestHandlerImpl) GetWebhookPayloadFilterDataForPipelineMat
 
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -185,7 +185,7 @@ func (impl WebhookDataRestHandlerImpl) GetWebhookPayloadFilterDataForPipelineMat
 
 	// set payload json
 	if response != nil && response.PayloadId != 0 {
-		webhookEventData, err := impl.webhookEventDataConfig.GetById(int(response.PayloadId))
+		webhookEventData, err := impl.webhookEventDataConfig.GetById(response.PayloadId)
 		if err != nil {
 			impl.logger.Errorw("error in getting webhook payload data", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

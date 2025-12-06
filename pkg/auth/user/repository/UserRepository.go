@@ -21,7 +21,6 @@ package repository
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/api/bean"
 	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/user/util"
@@ -34,21 +33,21 @@ import (
 type UserRepository interface {
 	CreateUser(userModel *UserModel, tx *pg.Tx) (*UserModel, error)
 	UpdateUser(userModel *UserModel, tx *pg.Tx) (*UserModel, error)
-	UpdateToInactiveByIds(ids []int32, tx *pg.Tx, loggedInUserId int32) error
+	UpdateToInactiveByIds(ids []int32, tx *pg.Tx, loggedInUserId int32, recordedTime time.Time) error
 	GetById(id int32) (*UserModel, error)
 	GetEmailByIds(ids []int32) ([]string, error)
 	GetByIdIncludeDeleted(id int32) (*UserModel, error)
 	GetAllExcludingApiTokenUser() ([]UserModel, error)
-	GetAllExecutingQuery(query string) ([]UserModel, error)
+	GetAllExecutingQuery(query string, queryParams []interface{}) ([]UserModel, error)
 	//GetAllUserRoleMappingsForRoleId(roleId int) ([]UserRoleModel, error)
-	FetchActiveUserByEmail(email string) (bean.UserInfo, error)
-	FetchUserDetailByEmail(email string) (bean.UserInfo, error)
+	FetchActiveUserByEmail(email string) (userBean.UserInfo, error)
+	FetchUserDetailByEmail(email string) (userBean.UserInfo, error)
 	GetByIds(ids []int32) ([]UserModel, error)
 	GetConnection() (dbConnection *pg.DB)
 	FetchUserMatchesByEmailIdExcludingApiTokenUser(email string) ([]UserModel, error)
 	FetchActiveOrDeletedUserByEmail(email string) (*UserModel, error)
 	UpdateRoleIdForUserRolesMappings(roleId int, newRoleId int) (*UserRoleModel, error)
-	GetCountExecutingQuery(query string) (int, error)
+	GetCountExecutingQuery(query string, queryParams []interface{}) (int, error)
 	CheckIfTokenExistsByTokenNameAndVersion(tokenName string, tokenVersion int) (bool, error)
 }
 
@@ -106,7 +105,7 @@ func (impl UserRepositoryImpl) UpdateUser(userModel *UserModel, tx *pg.Tx) (*Use
 	return userModel, nil
 }
 
-func (impl UserRepositoryImpl) UpdateToInactiveByIds(ids []int32, tx *pg.Tx, loggedInUserId int32) error {
+func (impl UserRepositoryImpl) UpdateToInactiveByIds(ids []int32, tx *pg.Tx, loggedInUserId int32, recordedTime time.Time) error {
 	var model []*UserModel
 	_, err := tx.Model(&model).
 		Set("active = ?", false).
@@ -157,7 +156,7 @@ func (impl UserRepositoryImpl) GetAllExcludingApiTokenUser() ([]UserModel, error
 	var userModel []UserModel
 	err := impl.dbConnection.Model(&userModel).
 		Where("active = ?", true).
-		Where("user_type is NULL or user_type != ?", bean.USER_TYPE_API_TOKEN).
+		Where("user_type is NULL or user_type != ?", userBean.USER_TYPE_API_TOKEN).
 		Order("updated_on desc").Select()
 	for i, user := range userModel {
 		userModel[i].EmailId = util.ConvertEmailToLowerCase(user.EmailId)
@@ -165,9 +164,9 @@ func (impl UserRepositoryImpl) GetAllExcludingApiTokenUser() ([]UserModel, error
 	return userModel, err
 }
 
-func (impl UserRepositoryImpl) GetAllExecutingQuery(query string) ([]UserModel, error) {
+func (impl UserRepositoryImpl) GetAllExecutingQuery(query string, queryParams []interface{}) ([]UserModel, error) {
 	var userModel []UserModel
-	_, err := impl.dbConnection.Query(&userModel, query)
+	_, err := impl.dbConnection.Query(&userModel, query, queryParams...)
 	if err != nil {
 		impl.Logger.Error("error in GetAllExecutingQuery", "err", err, "query", query)
 		return nil, err
@@ -178,12 +177,13 @@ func (impl UserRepositoryImpl) GetAllExecutingQuery(query string) ([]UserModel, 
 	return userModel, err
 }
 
-func (impl UserRepositoryImpl) FetchActiveUserByEmail(email string) (bean.UserInfo, error) {
-	var users bean.UserInfo
+func (impl UserRepositoryImpl) FetchActiveUserByEmail(email string) (userBean.UserInfo, error) {
+	var users userBean.UserInfo
 
+	emailSearchQuery, queryParams := helper.GetEmailSearchQuery("u", email)
 	query := fmt.Sprintf("SELECT u.id, u.email_id, u.access_token, u.user_type FROM users u"+
-		" WHERE u.active = true and %s order by u.updated_on desc", helper.GetEmailSearchQuery("u", email))
-	_, err := impl.dbConnection.Query(&users, query, email)
+		" WHERE u.active = true and %s order by u.updated_on desc", emailSearchQuery)
+	_, err := impl.dbConnection.Query(&users, query, queryParams...)
 	if err != nil {
 		impl.Logger.Errorw("Exception caught:", "err", err)
 		return users, err
@@ -192,17 +192,18 @@ func (impl UserRepositoryImpl) FetchActiveUserByEmail(email string) (bean.UserIn
 	return users, nil
 }
 
-func (impl UserRepositoryImpl) FetchUserDetailByEmail(email string) (bean.UserInfo, error) {
+func (impl UserRepositoryImpl) FetchUserDetailByEmail(email string) (userBean.UserInfo, error) {
 	//impl.Logger.Info("reached at FetchUserDetailByEmail:")
-	var users []bean.UserRole
-	var userFinal bean.UserInfo
+	var users []userBean.UserRole
+	var userFinal userBean.UserInfo
 
+	emailSearchQuery, queryParams := helper.GetEmailSearchQuery("u", email)
 	query := fmt.Sprintf("SELECT u.id, u.email_id, u.user_type, r.role FROM users u"+
 		" INNER JOIN user_roles ur ON ur.user_id=u.id"+
 		" INNER JOIN roles r ON r.id=ur.role_id"+
 		" WHERE %s and u.active = true"+
-		" ORDER BY u.updated_on desc;", helper.GetEmailSearchQuery("u", email))
-	_, err := impl.dbConnection.Query(&users, query, email)
+		" ORDER BY u.updated_on desc;", emailSearchQuery)
+	_, err := impl.dbConnection.Query(&users, query, queryParams...)
 	if err != nil {
 		return userFinal, err
 	}
@@ -234,7 +235,7 @@ func (impl UserRepositoryImpl) FetchUserMatchesByEmailIdExcludingApiTokenUser(em
 	var model []UserModel
 	err := impl.dbConnection.Model(&model).
 		Where("email_id ilike (?)", "%"+email+"%").
-		Where("user_type is NULL or user_type != ?", bean.USER_TYPE_API_TOKEN).
+		Where("user_type is NULL or user_type != ?", userBean.USER_TYPE_API_TOKEN).
 		Where("active = ?", true).Select()
 	for i, m := range model {
 		model[i].EmailId = util.ConvertEmailToLowerCase(m.EmailId)
@@ -256,9 +257,9 @@ func (impl UserRepositoryImpl) UpdateRoleIdForUserRolesMappings(roleId int, newR
 
 }
 
-func (impl UserRepositoryImpl) GetCountExecutingQuery(query string) (int, error) {
+func (impl UserRepositoryImpl) GetCountExecutingQuery(query string, queryParams []interface{}) (int, error) {
 	var totalCount int
-	_, err := impl.dbConnection.Query(&totalCount, query)
+	_, err := impl.dbConnection.Query(&totalCount, query, queryParams...)
 	if err != nil {
 		impl.Logger.Error("Exception caught: GetCountExecutingQuery", err)
 		return totalCount, err

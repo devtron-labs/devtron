@@ -22,12 +22,13 @@ import (
 	"fmt"
 	service2 "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
-	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -36,7 +37,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	util2 "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
@@ -60,15 +60,14 @@ type CommonDeploymentRestHandlerImpl struct {
 	installedAppService       EAMode.InstalledAppDBService
 	validator                 *validator.Validate
 	helmAppService            service2.HelmAppService
-	helmAppRestHandler        client.HelmAppRestHandler
-	argoUserService           argo.ArgoUserService
+	attributesService         attributes.AttributesService
 }
 
 func NewCommonDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm,
 	appStoreDeploymentService service.AppStoreDeploymentService, installedAppService EAMode.InstalledAppDBService,
 	validator *validator.Validate, helmAppService service2.HelmAppService,
-	helmAppRestHandler client.HelmAppRestHandler, argoUserService argo.ArgoUserService) *CommonDeploymentRestHandlerImpl {
+	attributesService attributes.AttributesService) *CommonDeploymentRestHandlerImpl {
 	return &CommonDeploymentRestHandlerImpl{
 		Logger:                    Logger,
 		userAuthService:           userAuthService,
@@ -79,8 +78,7 @@ func NewCommonDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthServi
 		installedAppService:       installedAppService,
 		validator:                 validator,
 		helmAppService:            helmAppService,
-		helmAppRestHandler:        helmAppRestHandler,
-		argoUserService:           argoUserService,
+		attributesService:         attributesService,
 	}
 }
 func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppId string, appId string) (string, *appStoreBean.InstallAppVersionDTO, error) {
@@ -89,13 +87,12 @@ func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppI
 	if len(appId) > 0 {
 		appIdentifier, err := handler.helmAppService.DecodeAppId(appId)
 		if err != nil {
-			err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "invalid app id"}
+			// err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "invalid app id"}
 			return appOfferingMode, installedAppDto, err
 		}
-		uniqueAppName := appIdentifier.GetUniqueAppNameIdentifier()
-		installedAppDto, err = handler.installedAppService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, uniqueAppName)
+		installedAppDto, err = handler.installedAppService.GetInstalledAppByClusterNamespaceAndName(appIdentifier)
 		if err != nil {
-			err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "unable to find app in database"}
+			// err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "unable to find app in database"}
 			return appOfferingMode, installedAppDto, err
 		}
 		// this is the case when hyperion apps does not linked yet
@@ -106,7 +103,7 @@ func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppI
 			installedAppDto.AppOfferingMode = appOfferingMode
 			appIdentifier, err := handler.helmAppService.DecodeAppId(appId)
 			if err != nil {
-				err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "invalid app id"}
+				// err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "invalid app id, expected format clusterId|namespace|releaseName"}
 				return appOfferingMode, installedAppDto, err
 			}
 			installedAppDto.ClusterId = appIdentifier.ClusterId
@@ -116,16 +113,17 @@ func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppI
 	} else if len(installedAppId) > 0 {
 		installedAppId, err := strconv.Atoi(installedAppId)
 		if err != nil {
-			err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "invalid installed app id"}
+			handler.Logger.Errorw("Invalid installedAppId expected int value", "installedAppId", installedAppId, "err", err)
 			return appOfferingMode, installedAppDto, err
 		}
 		installedAppDto, err = handler.installedAppService.GetInstalledAppByInstalledAppId(installedAppId)
 		if err != nil {
-			err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "unable to find app in database"}
+			// err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "unable to find app in database"}
 			return appOfferingMode, installedAppDto, err
 		}
 	} else {
 		err := &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "app id missing in request"}
+		handler.Logger.Errorw("appId is missing and is a required field", "appId", appId, "err", err)
 		return appOfferingMode, installedAppDto, err
 	}
 	if installedAppDto != nil && installedAppDto.InstalledAppId > 0 {
@@ -137,7 +135,7 @@ func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppI
 func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistory(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	v := r.URL.Query()
@@ -171,7 +169,7 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistory(w http.Resp
 	}
 	//rbac block ends here
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 	res, err := handler.appStoreDeploymentService.GetDeploymentHistory(ctx, installedAppDto)
 	if err != nil {
@@ -184,13 +182,14 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistory(w http.Resp
 func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	vars := mux.Vars(r)
 	v := r.URL.Query()
 	installedAppId := v.Get("installedAppId")
 	appId := v.Get("appId")
+
 	appOfferingMode, installedAppDto, err := handler.getAppOfferingMode(installedAppId, appId)
 	if err != nil {
 		common.WriteJsonResp(w, err, "bad request", http.StatusBadRequest)
@@ -254,7 +253,7 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w htt
 func (handler *CommonDeploymentRestHandlerImpl) RollbackApplication(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	request := &openapi2.RollbackReleaseRequest{}
@@ -271,6 +270,7 @@ func (handler *CommonDeploymentRestHandlerImpl) RollbackApplication(w http.Respo
 	appOfferingMode, installedAppDto, err := handler.getAppOfferingMode(installedAppId, *request.HAppId)
 	if err != nil {
 		common.WriteJsonResp(w, err, "bad request", http.StatusBadRequest)
+		return
 	}
 	installedAppDto.UserId = userId
 	//rbac block starts from here
@@ -305,14 +305,6 @@ func (handler *CommonDeploymentRestHandlerImpl) RollbackApplication(w http.Respo
 	}
 	if util2.IsBaseStack() || util2.IsHelmApp(appOfferingMode) {
 		ctx = context.WithValue(r.Context(), "token", token)
-	} else {
-		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			handler.Logger.Errorw("error in getting acd token", "err", err)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		ctx = context.WithValue(r.Context(), "token", acdToken)
 	}
 
 	defer cancel()
@@ -325,5 +317,6 @@ func (handler *CommonDeploymentRestHandlerImpl) RollbackApplication(w http.Respo
 	res := &openapi2.RollbackReleaseResponse{
 		Success: &success,
 	}
+	handler.attributesService.UpdateKeyValueByOne(bean.HELM_APP_UPDATE_COUNTER)
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }

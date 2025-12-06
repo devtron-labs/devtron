@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -37,7 +38,8 @@ type DeploymentStatusService interface {
 
 func (impl *FullModeDeploymentServiceImpl) SaveTimelineForHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status timelineStatus.TimelineStatus, statusDetail string, statusTime time.Time, tx *pg.Tx) error {
 
-	if !util.IsAcdApp(installAppVersionRequest.DeploymentAppType) && !util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
+	if !util.IsAcdApp(installAppVersionRequest.DeploymentAppType) && !util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) &&
+		!util.IsFluxApp(installAppVersionRequest.DeploymentAppType) {
 		return nil
 	}
 
@@ -60,19 +62,19 @@ func (impl *FullModeDeploymentServiceImpl) SaveTimelineForHelmApps(installAppVer
 	return timelineErr
 }
 
-func (impl *FullModeDeploymentServiceImpl) UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error {
-	if err != nil {
+func (impl *FullModeDeploymentServiceImpl) UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, deploymentErr error) error {
+	if deploymentErr != nil {
 		terminalStatusExists, timelineErr := impl.pipelineStatusTimelineRepository.CheckIfTerminalStatusTimelinePresentByInstalledAppVersionHistoryId(installAppVersionRequest.InstalledAppVersionHistoryId)
 		if timelineErr != nil {
 			impl.Logger.Errorw("error in checking if terminal status timeline exists by installedAppVersionHistoryId", "err", timelineErr, "installedAppVersionHistoryId", installAppVersionRequest.InstalledAppVersionHistoryId)
 			return timelineErr
 		}
 		if !terminalStatusExists {
-			impl.Logger.Infow("marking pipeline deployment failed", "err", err)
+			impl.Logger.Infow("marking pipeline deployment failed", "err", deploymentErr)
 			timeline := &pipelineConfig.PipelineStatusTimeline{
 				InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
 				Status:                       timelineStatus.TIMELINE_STATUS_DEPLOYMENT_FAILED,
-				StatusDetail:                 fmt.Sprintf("Deployment failed: %v", err),
+				StatusDetail:                 fmt.Sprintf("Deployment failed: %v", deploymentErr),
 				StatusTime:                   time.Now(),
 			}
 			timeline.CreateAuditLog(1)
@@ -81,31 +83,34 @@ func (impl *FullModeDeploymentServiceImpl) UpdateInstalledAppAndPipelineStatusFo
 				impl.Logger.Errorw("error in creating timeline status for deployment fail", "err", timelineErr, "timeline", timeline)
 			}
 		}
-		impl.Logger.Errorw("error in triggering installed application deployment, setting status as fail ", "versionHistoryId", installAppVersionRequest.InstalledAppVersionHistoryId, "err", err)
+		impl.Logger.Errorw("error in triggering installed application deployment, setting status as fail ", "versionHistoryId", installAppVersionRequest.InstalledAppVersionHistoryId, "err", deploymentErr)
 
-		installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installAppVersionRequest.InstalledAppVersionHistoryId)
-		if err != nil {
-			impl.Logger.Errorw("error in getting installedAppVersionHistory by installedAppVersionHistoryId", "installedAppVersionHistoryId", installAppVersionRequest.InstalledAppVersionHistoryId, "err", err)
-			return err
+		installedAppVersionHistory, dbErr := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installAppVersionRequest.InstalledAppVersionHistoryId)
+		if dbErr != nil {
+			impl.Logger.Errorw("error in getting installedAppVersionHistory by installedAppVersionHistoryId", "installedAppVersionHistoryId", installAppVersionRequest.InstalledAppVersionHistoryId, "err", dbErr)
+			return dbErr
 		}
-		installedAppVersionHistory.SetStatus(pipelineConfig.WorkflowFailed)
+		installedAppVersionHistory.MarkDeploymentFailed(deploymentErr)
 		installedAppVersionHistory.FinishedOn = triggeredAt
 		installedAppVersionHistory.UpdateAuditLog(installAppVersionRequest.UserId)
-		_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
-		if err != nil {
-			impl.Logger.Errorw("error updating installed app version history status", "err", err, "installedAppVersionHistory", installedAppVersionHistory)
-			return err
+		_, dbErr = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
+		if dbErr != nil {
+			impl.Logger.Errorw("error updating installed app version history status", "err", dbErr, "installedAppVersionHistory", installedAppVersionHistory)
+			return dbErr
 		}
 
 	} else {
 		//update [n,n-1] statuses as failed if not terminal
-		terminalStatus := []string{string(health.HealthStatusHealthy), pipelineConfig.WorkflowAborted, pipelineConfig.WorkflowFailed, pipelineConfig.WorkflowSucceeded}
-		previousNonTerminalHistory, err := impl.installedAppRepositoryHistory.FindPreviousInstalledAppVersionHistoryByStatus(installAppVersionRequest.Id, installAppVersionRequest.InstalledAppVersionHistoryId, terminalStatus)
+		previousNonTerminalHistory, err := impl.installedAppRepositoryHistory.FindPreviousInstalledAppVersionHistoryByStatus(
+			installAppVersionRequest.InstalledAppId,
+			installAppVersionRequest.InstalledAppVersionHistoryId,
+			appStoreBean.InstalledAppTerminalStatusList,
+		)
 		if err != nil {
-			impl.Logger.Errorw("error fetching previous installed app version history, updating installed app version history status,", "err", err, "installAppVersionRequest", installAppVersionRequest)
+			impl.Logger.Errorw("error fetching previous installed app version history, updating installed app version history status,", "err", err, "installAppVersionRequestId", installAppVersionRequest.Id)
 			return err
 		} else if len(previousNonTerminalHistory) == 0 {
-			impl.Logger.Errorw("no previous history found in updating installedAppVersionHistory status,", "err", err, "installAppVersionRequest", installAppVersionRequest)
+			impl.Logger.Errorw("no previous history found in updating installedAppVersionHistory status,", "err", err, "installAppVersionRequestId", installAppVersionRequest.Id)
 			return nil
 		}
 		dbConnection := impl.installedAppRepositoryHistory.GetConnection()
@@ -119,30 +124,24 @@ func (impl *FullModeDeploymentServiceImpl) UpdateInstalledAppAndPipelineStatusFo
 		var timelines []*pipelineConfig.PipelineStatusTimeline
 		for _, previousHistory := range previousNonTerminalHistory {
 			if previousHistory.Status == string(health.HealthStatusHealthy) ||
-				previousHistory.Status == pipelineConfig.WorkflowSucceeded ||
-				previousHistory.Status == pipelineConfig.WorkflowAborted ||
-				previousHistory.Status == pipelineConfig.WorkflowFailed {
+				previousHistory.Status == cdWorkflow.WorkflowSucceeded ||
+				previousHistory.Status == cdWorkflow.WorkflowAborted ||
+				previousHistory.Status == cdWorkflow.WorkflowFailed {
 				//terminal status return
 				impl.Logger.Infow("skip updating installedAppVersionHistory status as previous history status is", "status", previousHistory.Status)
 				continue
 			}
 			impl.Logger.Infow("updating installedAppVersionHistory status as previous runner status is", "status", previousHistory.Status)
 			previousHistory.FinishedOn = triggeredAt
-			previousHistory.Status = pipelineConfig.WorkflowFailed
-			previousHistory.UpdatedOn = time.Now()
-			previousHistory.UpdatedBy = installAppVersionRequest.UserId
+			previousHistory.MarkDeploymentFailed(cdWorkflow.ErrorDeploymentSuperseded)
+			previousHistory.UpdateAuditLog(installAppVersionRequest.UserId)
 			timeline := &pipelineConfig.PipelineStatusTimeline{
 				InstalledAppVersionHistoryId: previousHistory.Id,
 				Status:                       timelineStatus.TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED,
 				StatusDetail:                 "This deployment is superseded.",
 				StatusTime:                   time.Now(),
-				AuditLog: sql.AuditLog{
-					CreatedBy: 1,
-					CreatedOn: time.Now(),
-					UpdatedBy: 1,
-					UpdatedOn: time.Now(),
-				},
 			}
+			timeline.CreateAuditLog(1)
 			timelines = append(timelines, timeline)
 		}
 

@@ -62,7 +62,7 @@ func (impl ServerRestHandlerImpl) GetServerInfo(w http.ResponseWriter, r *http.R
 	// check if user is logged in or not
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	showServerStatus := true
@@ -89,7 +89,7 @@ func (impl ServerRestHandlerImpl) HandleServerAction(w http.ResponseWriter, r *h
 	// check if user is logged in or not
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 

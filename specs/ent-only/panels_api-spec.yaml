@@ -1,0 +1,155 @@
+openapi: 3.0.0
+info:
+  title: Panel Management API
+  description: API for managing panels on a per-cluster basis.
+  version: 1.0.0
+
+servers:
+  - url: https://api.example.com/v1
+
+paths:
+  /orchestrator/cluster/{cluster_id}/panels:
+    get:
+      summary: List panels for a specific cluster
+      parameters:
+        - in: path
+          name: cluster_id
+          required: true
+          schema:
+            type: string
+            example: "demo-eks-backup"
+      responses:
+        '200':
+          description: List of panels
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Panel'
+  /orchestrator/cluster/{cluster_id}/panel:
+    post:
+      summary: Create a new panel for a specific cluster
+      parameters:
+        - in: path
+          name: cluster_id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Panel'
+      responses:
+        '201':
+          description: Panel created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Panel'
+
+  /orchestrator/clusters/{cluster_id}/panel/{panel_id}:
+    get:
+      summary: Get details of a specific panel
+      parameters:
+        - in: path
+          name: cluster_id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: panel_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Panel details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Panel'
+
+    put:
+      summary: Update an existing panel
+      parameters:
+        - in: path
+          name: cluster_id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: panel_id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Panel'
+      responses:
+        '200':
+          description: Panel updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Panel'
+
+    delete:
+      summary: Delete a specific panel
+      parameters:
+        - in: path
+          name: cluster_id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: panel_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Panel deleted successfully
+
+  /orchestrator/clusters/{cluster_id}/panel:
+    post:
+      summary: Create a new panel for a specific cluster (plural clusters path)
+      parameters:
+        - in: path
+          name: cluster_id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Panel'
+      responses:
+        '201':
+          description: Panel created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Panel'
+
+components:
+  schemas:
+    Panel:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "panel-123"
+        name:
+          type: string
+          example: "Monitoring Panel"
+        embedIframe:
+          type: string
+          example: "<iframe src='https://example.com'></iframe>"

@@ -26,8 +26,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	util4 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
-	clutserBean "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	adapter2 "github.com/devtron-labs/devtron/pkg/cluster/environment/adapter"
+	clutserBean "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"time"
 )
@@ -102,16 +102,42 @@ func NewInstalledAppDeploymentAction(deploymentAppType string) *appStoreBean.Ins
 		installedAppDeploymentAction.PerformGitOps = true
 		installedAppDeploymentAction.PerformACDDeployment = true
 		installedAppDeploymentAction.PerformHelmDeployment = false
+		installedAppDeploymentAction.PerformFluxDeployment = false
+	case util.PIPELINE_DEPLOYMENT_TYPE_FLUX:
+		installedAppDeploymentAction.PerformGitOps = true
+		installedAppDeploymentAction.PerformFluxDeployment = true
+		installedAppDeploymentAction.PerformACDDeployment = false
+		installedAppDeploymentAction.PerformHelmDeployment = false
 	case util.PIPELINE_DEPLOYMENT_TYPE_HELM:
 		installedAppDeploymentAction.PerformGitOps = false
 		installedAppDeploymentAction.PerformACDDeployment = false
 		installedAppDeploymentAction.PerformHelmDeployment = true
+		installedAppDeploymentAction.PerformFluxDeployment = false
 	case util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD:
 		installedAppDeploymentAction.PerformGitOps = false
 		installedAppDeploymentAction.PerformHelmDeployment = false
 		installedAppDeploymentAction.PerformACDDeployment = false
+		installedAppDeploymentAction.PerformFluxDeployment = false
 	}
 	return installedAppDeploymentAction
+}
+func UpdateRequestDTOForRollback(request, installedApp, installedAppVersionDTO *appStoreBean.InstallAppVersionDTO, installedAppVersionHistory *repository.InstalledAppVersionHistory) {
+	// Update basic version information and IDs for rollback
+	request.InstalledAppVersionId = installedApp.InstalledAppVersionId
+	request.AppStoreVersion = installedAppVersionDTO.AppStoreVersion
+
+	// Set the ID to installed app version if only the chart version changes
+	if installedApp.AppStoreVersion != installedAppVersionDTO.AppStoreVersion {
+		request.Id = installedAppVersionDTO.InstalledAppVersionId
+	}
+	// If the AppStoreId changes, reset the ID to indicate a new chart
+	if installedApp.AppStoreId != installedAppVersionDTO.AppStoreId {
+		request.Id = 0
+	}
+	// setting historical version overrides and reference information
+	request.ValuesOverrideYaml = installedAppVersionHistory.ValuesYamlRaw
+	request.ReferenceValueKind = installedAppVersionDTO.ReferenceValueKind
+	request.ReferenceValueId = installedAppVersionDTO.ReferenceValueId
 }
 
 // GenerateInstallAppVersionDTO converts repository.InstalledApps and repository.InstalledAppVersions db object to appStoreBean.InstallAppVersionDTO bean
@@ -133,9 +159,9 @@ func GenerateInstallAppVersionDTO(installedApp *repository.InstalledApps, instal
 			chartVersionApp.AppStore.DockerArtifactStore.RegistryURL,
 			chartVersionApp.AppStore.Name)
 		Username = chartVersionApp.AppStore.DockerArtifactStore.Username
-		Password = chartVersionApp.AppStore.DockerArtifactStore.Password
+		Password = chartVersionApp.AppStore.DockerArtifactStore.Password.String()
 	}
-	envBean := adapter.NewEnvironmentBean(&installedApp.Environment)
+	envBean := adapter2.NewEnvironmentBean(&installedApp.Environment)
 	installAppDto := &appStoreBean.InstallAppVersionDTO{
 		TeamName: installedApp.App.Team.Name,
 		InstallAppVersionChartDTO: &appStoreBean.InstallAppVersionChartDTO{
@@ -255,8 +281,9 @@ func UpdateInstallAppDetails(request *appStoreBean.InstallAppVersionDTO, install
 	request.EnvironmentId = installedApp.EnvironmentId
 	request.Status = installedApp.Status
 	request.DeploymentAppType = config.DeploymentAppType
-	if util.IsAcdApp(config.DeploymentAppType) {
-		request.GitOpsRepoURL = config.RepoURL
+	if util.IsAcdApp(config.DeploymentAppType) || util.IsFluxApp(config.DeploymentAppType) {
+		request.GitOpsRepoURL = config.GetRepoURL()
+		request.TargetRevision = config.GetTargetRevision()
 	}
 }
 

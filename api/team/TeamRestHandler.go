@@ -19,8 +19,8 @@ package team
 import (
 	"encoding/json"
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/pkg/team/bean"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -31,7 +31,6 @@ import (
 	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/team"
-	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 )
@@ -90,10 +89,10 @@ func (impl TeamRestHandlerImpl) SaveTeam(w http.ResponseWriter, r *http.Request)
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
-	var bean team.TeamRequest
+	var bean bean2.TeamRequest
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, SaveTeam", "err", err, "payload", bean)
@@ -132,7 +131,7 @@ func (impl TeamRestHandlerImpl) FetchAll(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	// RBAC enforcer applying
-	var result []team.TeamRequest
+	var result []bean2.TeamRequest
 	for _, item := range res {
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceTeam, casbin.ActionGet, item.Name); ok {
 			result = append(result, item)
@@ -144,19 +143,18 @@ func (impl TeamRestHandlerImpl) FetchAll(w http.ResponseWriter, r *http.Request)
 }
 
 func (impl TeamRestHandlerImpl) FetchOne(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	id := params["id"]
-	idi, err := strconv.Atoi(id)
+	// Use enhanced parameter parsing with context
+	teamId, err := common.ExtractIntPathParamWithContext(w, r, "id")
 	if err != nil {
-		impl.logger.Errorw("request err, FetchOne", "err", err, "id", id)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		// Error already written by ExtractIntPathParamWithContext
 		return
 	}
 
-	res, err := impl.teamService.FetchOne(idi)
+	res, err := impl.teamService.FetchOne(teamId)
 	if err != nil {
-		impl.logger.Errorw("service err, FetchOne", "err", err, "id", idi)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		impl.logger.Errorw("Failed to fetch team", "teamId", teamId, "err", err)
+		// Use enhanced error response with resource context
+		common.WriteJsonRespWithResourceContextFromId(w, err, nil, 0, "team", teamId)
 		return
 	}
 
@@ -173,10 +171,10 @@ func (impl TeamRestHandlerImpl) UpdateTeam(w http.ResponseWriter, r *http.Reques
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
-	var bean team.TeamRequest
+	var bean bean2.TeamRequest
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, UpdateTeam", "err", err, "bean", bean)
@@ -209,10 +207,10 @@ func (impl TeamRestHandlerImpl) DeleteTeam(w http.ResponseWriter, r *http.Reques
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
-	var deleteRequest team.TeamRequest
+	var deleteRequest bean2.TeamRequest
 	err = decoder.Decode(&deleteRequest)
 	if err != nil {
 		impl.logger.Errorw("request err, DeleteTeam", "err", err, "deleteRequest", deleteRequest)
@@ -246,7 +244,7 @@ func (impl TeamRestHandlerImpl) DeleteTeam(w http.ResponseWriter, r *http.Reques
 func (impl TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	start := time.Now()
@@ -261,7 +259,7 @@ func (impl TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *h
 	var grantedTeams = teams
 	start = time.Now()
 	if !impl.cfg.IgnoreAuthCheck {
-		grantedTeams = make([]team.TeamRequest, 0)
+		grantedTeams = make([]bean2.TeamRequest, 0)
 		// RBAC enforcer applying
 		var teamNameList []string
 		for _, item := range teams {

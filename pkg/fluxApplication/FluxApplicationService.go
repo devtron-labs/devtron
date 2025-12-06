@@ -3,49 +3,62 @@ package fluxApplication
 import (
 	"context"
 	"fmt"
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/api/helm-app/service/read"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/fluxApplication/bean"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"github.com/gogo/protobuf/proto"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
+	"io"
 	"net/http"
 )
 
 type FluxApplicationService interface {
-	ListFluxApplications(ctx context.Context, clusterIds []int, w http.ResponseWriter)
+	ListFluxApplications(ctx context.Context, clusterIds []int, noStream bool, w http.ResponseWriter)
 	GetFluxAppDetail(ctx context.Context, app *bean.FluxAppIdentifier) (*bean.FluxApplicationDetailDto, error)
 	HibernateFluxApplication(ctx context.Context, app *bean.FluxAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	UnHibernateFluxApplication(ctx context.Context, app *bean.FluxAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 }
 
 type FluxApplicationServiceImpl struct {
-	logger         *zap.SugaredLogger
-	helmAppService service.HelmAppService
-	clusterService cluster.ClusterService
-	helmAppClient  gRPC.HelmAppClient
-	pump           connector.Pump
+	logger                 *zap.SugaredLogger
+	helmAppReadService     read.HelmAppReadService
+	clusterService         cluster.ClusterService
+	helmAppClient          gRPC.HelmAppClient
+	pump                   connector.Pump
+	pipelineRepository     pipelineConfig.PipelineRepository
+	installedAppRepository repository.InstalledAppRepository
 }
 
 func NewFluxApplicationServiceImpl(logger *zap.SugaredLogger,
-	helmAppService service.HelmAppService,
+	helmAppReadService read.HelmAppReadService,
 	clusterService cluster.ClusterService,
-	helmAppClient gRPC.HelmAppClient, pump connector.Pump) *FluxApplicationServiceImpl {
+	helmAppClient gRPC.HelmAppClient, pump connector.Pump,
+	pipelineRepository pipelineConfig.PipelineRepository,
+	installedAppRepository repository.InstalledAppRepository) *FluxApplicationServiceImpl {
 	return &FluxApplicationServiceImpl{
-		logger:         logger,
-		helmAppService: helmAppService,
-		clusterService: clusterService,
-		helmAppClient:  helmAppClient,
-		pump:           pump,
+		logger:                 logger,
+		helmAppReadService:     helmAppReadService,
+		clusterService:         clusterService,
+		helmAppClient:          helmAppClient,
+		pump:                   pump,
+		pipelineRepository:     pipelineRepository,
+		installedAppRepository: installedAppRepository,
 	}
 
 }
 func (impl *FluxApplicationServiceImpl) HibernateFluxApplication(ctx context.Context, app *bean.FluxAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
-	conf, err := impl.helmAppService.GetClusterConf(app.ClusterId)
+	conf, err := impl.helmAppReadService.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("HibernateFluxApplication", "error in getting the cluster config", err, "clusterId", app.ClusterId, "appName", app.Name)
 		return nil, err
@@ -63,7 +76,7 @@ func (impl *FluxApplicationServiceImpl) HibernateFluxApplication(ctx context.Con
 
 func (impl *FluxApplicationServiceImpl) UnHibernateFluxApplication(ctx context.Context, app *bean.FluxAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
 
-	conf, err := impl.helmAppService.GetClusterConf(app.ClusterId)
+	conf, err := impl.helmAppReadService.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("UnHibernateFluxApplication", "error in getting the cluster config", err, "clusterId", app.ClusterId, "appName", app.Name)
 		return nil, err
@@ -79,18 +92,101 @@ func (impl *FluxApplicationServiceImpl) UnHibernateFluxApplication(ctx context.C
 	return response, nil
 }
 
-func (impl *FluxApplicationServiceImpl) ListFluxApplications(ctx context.Context, clusterIds []int, w http.ResponseWriter) {
+func (impl *FluxApplicationServiceImpl) ListFluxApplications(ctx context.Context, clusterIds []int, noStream bool, w http.ResponseWriter) {
 	appStream, err := impl.listApplications(ctx, clusterIds)
+	if err != nil {
+		impl.logger.Errorw("error in listing flux applications", "clusterIds", clusterIds, "err", err)
+		return
+	}
 
-	impl.pump.StartStreamWithTransformer(w, func() (proto.Message, error) {
-		return appStream.Recv()
-	}, err,
-		func(message interface{}) interface{} {
-			return impl.appListRespProtoTransformer(message.(*gRPC.FluxApplicationList))
+	fluxCdPipelines, err := impl.pipelineRepository.GetAppAndEnvDetailsForDeploymentAppTypePipeline(util.PIPELINE_DEPLOYMENT_TYPE_FLUX, clusterIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching helm app list from DB created using cd_pipelines", "clusters", clusterIds, "err", err)
+		return
+	}
+
+	installedHelmApps, err := impl.installedAppRepository.GetAppAndEnvDetailsForDeploymentAppTypeInstalledApps(util.PIPELINE_DEPLOYMENT_TYPE_FLUX, clusterIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching helm app list from DB created from app store", "clusters", clusterIds, "err", err)
+		return
+	}
+
+	cdPipelineMap := make(map[string]map[string]bool) // map of clusterId-namespace, deploymentAppName
+	for _, p := range fluxCdPipelines {
+		key := fmt.Sprintf("%v-%s", p.Environment.ClusterId, p.Environment.Namespace)
+		if _, ok := cdPipelineMap[key]; !ok {
+			cdPipelineMap[key] = make(map[string]bool)
+		}
+		cdPipelineMap[key][p.DeploymentAppName] = true
+	}
+
+	installedAppMap := make(map[string]map[string]bool)
+	for _, i := range installedHelmApps {
+		key := fmt.Sprintf("%v-%s", i.Environment.ClusterId, i.Environment.Namespace)
+		if _, ok := installedAppMap[key]; !ok {
+			installedAppMap[key] = make(map[string]bool)
+		}
+		deploymentAppName := fmt.Sprintf("%s-%s", i.App.AppName, i.Environment.Namespace)
+		installedAppMap[key][deploymentAppName] = true
+	}
+	if !noStream {
+		impl.pump.StartStreamWithTransformer(w, func() (proto.Message, error) {
+			return appStream.Recv()
+		}, err,
+			func(message interface{}) interface{} {
+				return impl.appListRespProtoTransformer(message.(*gRPC.FluxApplicationList), cdPipelineMap, installedAppMap)
+			})
+	} else {
+		fluxApps := make([]bean.FluxApplication, 0)
+		for {
+			appDetail, err := appStream.Recv()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return
+			}
+			if appDetail.Errored {
+				appList := bean.FluxAppList{
+					Errored:  &appDetail.Errored,
+					ErrorMsg: &appDetail.ErrorMsg,
+				}
+				common.WriteJsonResp(w, nil, appList, http.StatusOK)
+				return
+			} else {
+				for _, deployedApp := range appDetail.FluxApplication {
+					key := fmt.Sprintf("%v-%s", deployedApp.EnvironmentDetail.ClusterId, deployedApp.EnvironmentDetail.Namespace)
+					if _, ok := cdPipelineMap[key][deployedApp.Name]; ok {
+						continue
+					}
+					if _, ok := installedAppMap[key][deployedApp.Name]; ok {
+						continue
+					}
+					fluxApp := bean.FluxApplication{
+						Name:                  deployedApp.Name,
+						HealthStatus:          deployedApp.HealthStatus,
+						SyncStatus:            deployedApp.SyncStatus,
+						ClusterId:             int(deployedApp.EnvironmentDetail.ClusterId),
+						ClusterName:           deployedApp.EnvironmentDetail.ClusterName,
+						Namespace:             deployedApp.EnvironmentDetail.Namespace,
+						FluxAppDeploymentType: deployedApp.FluxAppDeploymentType,
+					}
+					fluxApps = append(fluxApps, fluxApp)
+				}
+			}
+		}
+		clusterIdsInt32 := sliceUtil.NewSliceFromFuncExec(clusterIds, func(clusterId int) int32 {
+			return int32(clusterId)
 		})
+		appList := bean.FluxAppList{
+			ClusterId: &clusterIdsInt32,
+			FluxApps:  &fluxApps,
+		}
+		common.WriteJsonResp(w, nil, appList, http.StatusOK)
+	}
 }
 func (impl *FluxApplicationServiceImpl) GetFluxAppDetail(ctx context.Context, app *bean.FluxAppIdentifier) (*bean.FluxApplicationDetailDto, error) {
-	config, err := impl.helmAppService.GetClusterConf(app.ClusterId)
+	config, err := impl.helmAppReadService.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster config", "appIdentifier", app, "err", err)
 		return nil, fmt.Errorf("failed to get cluster config for app %s in namespace %s: %w", app.Name, app.Namespace, err)
@@ -117,6 +213,8 @@ func (impl *FluxApplicationServiceImpl) GetFluxAppDetail(ctx context.Context, ap
 			Message: fluxDetailResponse.FluxAppStatusDetail.GetMessage(),
 		},
 		ResourceTreeResponse: fluxDetailResponse.ResourceTreeResponse,
+		AppHealthStatus:      fluxDetailResponse.ApplicationStatus,
+		LastObservedVersion:  fluxDetailResponse.GetLastObservedGeneration(),
 	}
 
 	return appDetail, nil
@@ -138,15 +236,15 @@ func (impl *FluxApplicationServiceImpl) listApplications(ctx context.Context, cl
 	for _, clusterDetail := range clusters {
 		config := &gRPC.ClusterConfig{
 			ApiServerUrl:          clusterDetail.ServerUrl,
-			Token:                 clusterDetail.Config[k8s.BearerToken],
+			Token:                 clusterDetail.Config[commonBean.BearerToken],
 			ClusterId:             int32(clusterDetail.Id),
 			ClusterName:           clusterDetail.ClusterName,
 			InsecureSkipTLSVerify: clusterDetail.InsecureSkipTLSVerify,
 		}
 		if clusterDetail.InsecureSkipTLSVerify == false {
-			config.KeyData = clusterDetail.Config[k8s.TlsKey]
-			config.CertData = clusterDetail.Config[k8s.CertData]
-			config.CaData = clusterDetail.Config[k8s.CertificateAuthorityData]
+			config.KeyData = clusterDetail.Config[commonBean.TlsKey]
+			config.CertData = clusterDetail.Config[commonBean.CertData]
+			config.CaData = clusterDetail.Config[commonBean.CertificateAuthorityData]
 		}
 		req.Clusters = append(req.Clusters, config)
 	}
@@ -154,22 +252,30 @@ func (impl *FluxApplicationServiceImpl) listApplications(ctx context.Context, cl
 
 	return applicationStream, err
 }
-func (impl *FluxApplicationServiceImpl) appListRespProtoTransformer(deployedApps *gRPC.FluxApplicationList) bean.FluxAppList {
+func (impl *FluxApplicationServiceImpl) appListRespProtoTransformer(deployedApps *gRPC.FluxApplicationList, fluxCdPipelines map[string]map[string]bool, fluxInstalledApps map[string]map[string]bool) bean.FluxAppList {
+
 	appList := bean.FluxAppList{ClusterId: &[]int32{deployedApps.ClusterId}}
 	if deployedApps.Errored {
 		appList.Errored = &deployedApps.Errored
 		appList.ErrorMsg = &deployedApps.ErrorMsg
 	} else {
 		fluxApps := make([]bean.FluxApplication, 0, len(deployedApps.FluxApplication))
-		for _, deployedapp := range deployedApps.FluxApplication {
+		for _, deployedApp := range deployedApps.FluxApplication {
+			key := fmt.Sprintf("%v-%s", deployedApp.EnvironmentDetail.ClusterId, deployedApp.EnvironmentDetail.Namespace)
+			if _, ok := fluxCdPipelines[key][deployedApp.Name]; ok {
+				continue
+			}
+			if _, ok := fluxInstalledApps[key][deployedApp.Name]; ok {
+				continue
+			}
 			fluxApp := bean.FluxApplication{
-				Name:                  deployedapp.Name,
-				HealthStatus:          deployedapp.HealthStatus,
-				SyncStatus:            deployedapp.SyncStatus,
-				ClusterId:             int(deployedapp.EnvironmentDetail.ClusterId),
-				ClusterName:           deployedapp.EnvironmentDetail.ClusterName,
-				Namespace:             deployedapp.EnvironmentDetail.Namespace,
-				FluxAppDeploymentType: deployedapp.FluxAppDeploymentType,
+				Name:                  deployedApp.Name,
+				HealthStatus:          deployedApp.HealthStatus,
+				SyncStatus:            deployedApp.SyncStatus,
+				ClusterId:             int(deployedApp.EnvironmentDetail.ClusterId),
+				ClusterName:           deployedApp.EnvironmentDetail.ClusterName,
+				Namespace:             deployedApp.EnvironmentDetail.Namespace,
+				FluxAppDeploymentType: deployedApp.FluxAppDeploymentType,
 			}
 			fluxApps = append(fluxApps, fluxApp)
 		}

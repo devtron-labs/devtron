@@ -24,9 +24,11 @@ import (
 )
 
 const (
-	RefreshTypeNormal    = "normal"
-	TargetRevisionMaster = "master"
-	PatchTypeMerge       = "merge"
+	RefreshTypeNormal          = "normal"
+	TargetRevisionMaster       = "master"
+	TargetRevisionOriginMaster = "origin/master"
+	PatchTypeMerge             = "merge"
+	TargetRevisionHead         = "head"
 )
 
 type ArgoCdAppPatchReqDto struct {
@@ -44,7 +46,9 @@ const RegisterRepoMaxRetryCount = 3
 var EmptyRepoErrorList = []string{"failed to get index: 404 Not Found", "remote repository is empty"}
 
 // ArgoRepoSyncDelayErr - This error occurs inconsistently; ArgoCD requires 80-120s after last commit for create repository operation
-const ArgoRepoSyncDelayErr = "Unable to resolve 'HEAD' to a commit SHA"
+// Error message reference: https://github.com/argoproj/argo-cd/blob/master/util/git/client.go#L718
+const ArgoRepoSyncDelayErr = "unable to resolve 'HEAD' to a commit SHA"    // argocd version <= v2.13.0
+const ArgoRepoSyncDelayErrOld = "Unable to resolve 'HEAD' to a commit SHA" // argocd version > v2.13.0
 
 const (
 	Degraded    = "Degraded"
@@ -66,12 +70,11 @@ type Result struct {
 
 type ResourceTreeResponse struct {
 	*v1alpha1.ApplicationTree
-	NewGenerationReplicaSets []string                        `json:"newGenerationReplicaSets"`
-	Status                   string                          `json:"status"`
-	RevisionHash             string                          `json:"revisionHash"`
-	PodMetadata              []*PodMetadata                  `json:"podMetadata"`
-	Conditions               []v1alpha1.ApplicationCondition `json:"conditions"`
-	ResourcesSyncResultMap   map[string]string               `json:"resourcesSyncResult"`
+	Status                 string                          `json:"status"`
+	RevisionHash           string                          `json:"revisionHash"`
+	PodMetadata            []*PodMetadata                  `json:"podMetadata"`
+	Conditions             []v1alpha1.ApplicationCondition `json:"conditions"`
+	ResourcesSyncResultMap map[string]string               `json:"resourcesSyncResult"`
 }
 
 type PodMetadata struct {

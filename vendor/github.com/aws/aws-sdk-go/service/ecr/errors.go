@@ -189,11 +189,32 @@ const (
 	// enabled on the repository and try again.
 	ErrCodeScanNotFoundException = "ScanNotFoundException"
 
+	// ErrCodeSecretNotFoundException for service response error code
+	// "SecretNotFoundException".
+	//
+	// The ARN of the secret specified in the pull through cache rule was not found.
+	// Update the pull through cache rule with a valid secret ARN and try again.
+	ErrCodeSecretNotFoundException = "SecretNotFoundException"
+
 	// ErrCodeServerException for service response error code
 	// "ServerException".
 	//
 	// These errors are usually caused by a server-side issue.
 	ErrCodeServerException = "ServerException"
+
+	// ErrCodeTemplateAlreadyExistsException for service response error code
+	// "TemplateAlreadyExistsException".
+	//
+	// The repository creation template already exists. Specify a unique prefix
+	// and try again.
+	ErrCodeTemplateAlreadyExistsException = "TemplateAlreadyExistsException"
+
+	// ErrCodeTemplateNotFoundException for service response error code
+	// "TemplateNotFoundException".
+	//
+	// The specified repository creation template can't be found. Verify the registry
+	// ID and prefix and try again.
+	ErrCodeTemplateNotFoundException = "TemplateNotFoundException"
 
 	// ErrCodeTooManyTagsException for service response error code
 	// "TooManyTagsException".
@@ -201,6 +222,35 @@ const (
 	// The list of tags on the repository is over the limit. The maximum number
 	// of tags that can be applied to a repository is 50.
 	ErrCodeTooManyTagsException = "TooManyTagsException"
+
+	// ErrCodeUnableToAccessSecretException for service response error code
+	// "UnableToAccessSecretException".
+	//
+	// The secret is unable to be accessed. Verify the resource permissions for
+	// the secret and try again.
+	ErrCodeUnableToAccessSecretException = "UnableToAccessSecretException"
+
+	// ErrCodeUnableToDecryptSecretValueException for service response error code
+	// "UnableToDecryptSecretValueException".
+	//
+	// The secret is accessible but is unable to be decrypted. Verify the resource
+	// permisisons and try again.
+	ErrCodeUnableToDecryptSecretValueException = "UnableToDecryptSecretValueException"
+
+	// ErrCodeUnableToGetUpstreamImageException for service response error code
+	// "UnableToGetUpstreamImageException".
+	//
+	// The image or images were unable to be pulled using the pull through cache
+	// rule. This is usually caused because of an issue with the Secrets Manager
+	// secret containing the credentials for the upstream registry.
+	ErrCodeUnableToGetUpstreamImageException = "UnableToGetUpstreamImageException"
+
+	// ErrCodeUnableToGetUpstreamLayerException for service response error code
+	// "UnableToGetUpstreamLayerException".
+	//
+	// There was an issue getting the upstream layer matching the pull through cache
+	// rule.
+	ErrCodeUnableToGetUpstreamLayerException = "UnableToGetUpstreamLayerException"
 
 	// ErrCodeUnsupportedImageTypeException for service response error code
 	// "UnsupportedImageTypeException".
@@ -256,8 +306,15 @@ var exceptionFromCode = map[string]func(protocol.ResponseMetadata) error{
 	"RepositoryNotFoundException":                newErrorRepositoryNotFoundException,
 	"RepositoryPolicyNotFoundException":          newErrorRepositoryPolicyNotFoundException,
 	"ScanNotFoundException":                      newErrorScanNotFoundException,
+	"SecretNotFoundException":                    newErrorSecretNotFoundException,
 	"ServerException":                            newErrorServerException,
+	"TemplateAlreadyExistsException":             newErrorTemplateAlreadyExistsException,
+	"TemplateNotFoundException":                  newErrorTemplateNotFoundException,
 	"TooManyTagsException":                       newErrorTooManyTagsException,
+	"UnableToAccessSecretException":              newErrorUnableToAccessSecretException,
+	"UnableToDecryptSecretValueException":        newErrorUnableToDecryptSecretValueException,
+	"UnableToGetUpstreamImageException":          newErrorUnableToGetUpstreamImageException,
+	"UnableToGetUpstreamLayerException":          newErrorUnableToGetUpstreamLayerException,
 	"UnsupportedImageTypeException":              newErrorUnsupportedImageTypeException,
 	"UnsupportedUpstreamRegistryException":       newErrorUnsupportedUpstreamRegistryException,
 	"UploadNotFoundException":                    newErrorUploadNotFoundException,

@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/bean"
 	"log"
 	"math/rand"
+	"os"
 	"path"
 	"regexp"
 	"strings"
@@ -30,7 +31,15 @@ import (
 
 var chars = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
 
-const DOCKER_REGISTRY_TYPE_DOCKERHUB = "docker-hub"
+const (
+	DOCKER_REGISTRY_TYPE_DOCKERHUB        = "docker-hub"
+	DEVTRON_SELF_POD_UID                  = "DEVTRON_SELF_POD_UID"
+	DEVTRON_SELF_POD_NAME                 = "DEVTRON_SELF_POD_NAME"
+	DEVTRON_SELF_DOWNWARD_API_VOLUME      = "devtron-pod-info"
+	DEVTRON_SELF_DOWNWARD_API_VOLUME_PATH = "/etc/devtron-pod-info"
+	POD_LABELS                            = "labels"
+	POD_ANNOTATIONS                       = "annotations"
+)
 
 // Generates random string
 func Generate(size int) string {
@@ -41,6 +50,11 @@ func Generate(size int) string {
 	}
 	str := b.String()
 	return str
+}
+
+// GenerateUCID generates UCID of len 16
+func GenerateUCID() string {
+	return Generate(16)
 }
 
 func hasScheme(url string) bool {
@@ -81,4 +95,31 @@ func BuildDockerImagePath(dockerInfo bean.DockerRegistryInfo) (string, error) {
 		dest = dockerRegistryURL + ":" + dockerInfo.DockerImageTag
 	}
 	return dest, nil
+}
+
+func GetSelfK8sUID() string {
+	return os.Getenv(DEVTRON_SELF_POD_UID)
+}
+
+func GetSelfK8sPodName() string {
+	return os.Getenv(DEVTRON_SELF_POD_NAME)
+}
+
+func ConvertTargetPlatformStringToObject(targetPlatformString string) []*bean.TargetPlatform {
+	targetPlatforms := ConvertTargetPlatformStringToList(targetPlatformString)
+	targetPlatformObject := []*bean.TargetPlatform{}
+	for _, targetPlatform := range targetPlatforms {
+		if len(targetPlatform) > 0 {
+			targetPlatformObject = append(targetPlatformObject, &bean.TargetPlatform{Name: targetPlatform})
+		}
+	}
+	return targetPlatformObject
+}
+
+func ConvertTargetPlatformStringToList(targetPlatform string) []string {
+	return strings.Split(targetPlatform, ",")
+}
+
+func ConvertTargetPlatformListToString(targetPlatforms []string) string {
+	return strings.Join(targetPlatforms, ",")
 }

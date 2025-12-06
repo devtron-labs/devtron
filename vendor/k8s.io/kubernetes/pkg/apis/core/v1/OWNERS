@@ -2,7 +2,6 @@
 
 reviewers:
   - thockin
-  - lavalamp
   - smarterclayton
   - wojtek-t
   - deads2k
@@ -17,8 +16,9 @@ reviewers:
   - luxas
   - janetkuo
   - justinsb
-  - ncdc
   - tallclair
   - jsafrane
   - dims
   - jayunit100
+emeritus_reviewers:
+  - ncdc

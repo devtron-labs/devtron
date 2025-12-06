@@ -36,6 +36,10 @@ pauseForSecondsBeforeSwitchActive: 30
 waitForSecondsBeforeScalingDown: 30
 autoPromotionSeconds: 30
 
+# Optional override for the main container name. If provided, this name will be used
+# for the primary container instead of the default chart-derived name.
+containerName: ""
+
 Spec:
  Affinity:
   Key:
@@ -114,18 +118,23 @@ kedaAutoscaling:
 secret:
   enabled: false
 serviceheadless: 
-    enabled: true
+    enabled: false
+    sessionAffinity:
+      enabled: false 
 service:
   type: ClusterIP
   enabled: false
   #name: "test-service"
   annotations: {}
+  sessionAffinity:
+    enabled: false  
     # test1: test2
     # test3: test4
 statefulSetConfig:
   mountPath: "/tmp"
   serviceheadless: 
     enabled: false
+    
 
   volumeClaimTemplates: []
   # - spec:
@@ -151,7 +160,7 @@ EnvVariables:
     value: qa
 
 LivenessProbe:
-  Path: /
+  Path: ""
   port: 8080
   initialDelaySeconds: 20
   periodSeconds: 10
@@ -163,7 +172,7 @@ LivenessProbe:
 #      value: abc
 
 ReadinessProbe:
-  Path: /
+  Path: ""
   port: 8080
   initialDelaySeconds: 20
   periodSeconds: 10
@@ -600,3 +609,9 @@ tolerations: []
 imagePullSecrets: []
   # - test1
   # - test2
+
+affinity:
+  enabled: false
+
+verticalPodScaling:
+  enabled: false

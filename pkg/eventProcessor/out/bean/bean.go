@@ -17,7 +17,9 @@
 package bean
 
 import (
+	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
+	"time"
 )
 
 type BulkTriggerRequest struct {
@@ -32,12 +34,13 @@ type StopDeploymentGroupRequest struct {
 }
 
 type DeploymentGroupAppWithEnv struct {
-	EnvironmentId     int               `json:"environmentId"`
-	DeploymentGroupId int               `json:"deploymentGroupId"`
-	AppId             int               `json:"appId"`
-	Active            bool              `json:"active"`
-	UserId            int32             `json:"userId"`
-	RequestType       bean4.RequestType `json:"requestType" validate:"oneof=START STOP"`
+	EnvironmentId     int                    `json:"environmentId"`
+	DeploymentGroupId int                    `json:"deploymentGroupId"`
+	AppId             int                    `json:"appId"`
+	Active            bool                   `json:"active"`
+	UserId            int32                  `json:"userId"`
+	RequestType       bean4.RequestType      `json:"requestType" validate:"oneof=START STOP"`
+	UserMetadata      *userBean.UserMetadata `json:"-"`
 }
 
 type CdPipelineDeleteEvent struct {
@@ -46,8 +49,10 @@ type CdPipelineDeleteEvent struct {
 }
 
 type CIPipelineGitWebhookEvent struct {
-	GitHostId          int    `json:"gitHostId"`
-	GitHostName        string `json:"gitHostName"`
-	EventType          string `json:"eventType"`
-	RequestPayloadJson string `json:"requestPayloadJson"`
+	PayloadId          int       `json:"payloadId"`
+	GitHostId          int       `json:"gitHostId"`
+	GitHostName        string    `json:"gitHostName"`
+	EventType          string    `json:"eventType"`
+	RequestPayloadJson string    `json:"requestPayloadJson"`
+	CreatedOn          time.Time `json:"createdOn"`
 }

@@ -19,6 +19,7 @@ package module
 import (
 	"encoding/json"
 	"errors"
+	"github.com/devtron-labs/devtron/pkg/module/bean"
 	"net/http"
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -63,7 +64,7 @@ func NewModuleRestHandlerImpl(logger *zap.SugaredLogger,
 func (impl ModuleRestHandlerImpl) GetModuleConfig(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -89,7 +90,7 @@ func (impl ModuleRestHandlerImpl) GetModuleInfo(w http.ResponseWriter, r *http.R
 	// check if user is logged in or not
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -120,7 +121,7 @@ func (impl ModuleRestHandlerImpl) HandleModuleAction(w http.ResponseWriter, r *h
 	// check if user is logged in or not
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -135,7 +136,7 @@ func (impl ModuleRestHandlerImpl) HandleModuleAction(w http.ResponseWriter, r *h
 
 	// decode request
 	decoder := json.NewDecoder(r.Body)
-	var moduleActionRequestDto *module.ModuleActionRequestDto
+	var moduleActionRequestDto *bean.ModuleActionRequestDto
 	err = decoder.Decode(&moduleActionRequestDto)
 	if err != nil {
 		impl.logger.Errorw("error in decoding request in HandleModuleAction", "err", err)
@@ -170,7 +171,7 @@ func (impl ModuleRestHandlerImpl) EnableModule(w http.ResponseWriter, r *http.Re
 	// check if user is logged in or not
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -184,7 +185,7 @@ func (impl ModuleRestHandlerImpl) EnableModule(w http.ResponseWriter, r *http.Re
 	}
 	// decode request
 	decoder := json.NewDecoder(r.Body)
-	var moduleEnableRequestDto module.ModuleEnableRequestDto
+	var moduleEnableRequestDto bean.ModuleEnableRequestDto
 	err = decoder.Decode(&moduleEnableRequestDto)
 	if err != nil {
 		impl.logger.Errorw("error in decoding request in ModuleEnableRequestDto", "err", err)

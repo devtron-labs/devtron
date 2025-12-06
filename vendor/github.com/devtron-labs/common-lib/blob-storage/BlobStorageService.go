@@ -23,12 +23,13 @@ import (
 	"go.uber.org/zap"
 	"log"
 	"os"
+	"path/filepath"
 )
 
 type BlobStorageService interface {
 	PutWithCommand(request *BlobStorageRequest) error
-	Get(request *BlobStorageRequest) (bool, error)
-	DeleteObjectForS3(request *BlobStorageRequest) error
+	Get(request *BlobStorageRequest) (bool, int64, error)
+	UploadToBlobWithSession(request *BlobStorageRequest) error
 }
 
 type BlobStorageServiceImpl struct {
@@ -49,8 +50,12 @@ func (impl *BlobStorageServiceImpl) PutWithCommand(request *BlobStorageRequest) 
 	var err error
 	switch request.StorageType {
 	case BLOB_STORAGE_S3:
-		awsS3Blob := AwsS3Blob{}
-		err = awsS3Blob.UploadBlob(request, err)
+		s3BasicsClient, err1 := GetS3BucketBasicsClient(context.Background(), request.AwsS3BaseConfig.Region, request.AwsS3BaseConfig.AccessKey, request.AwsS3BaseConfig.Passkey, request.AwsS3BaseConfig.EndpointUrl)
+		if err1 == nil {
+			err = s3BasicsClient.UploadFileV2(context.Background(), request, err)
+		} else {
+			err = err1
+		}
 	case BLOB_STORAGE_AZURE:
 		azureBlob := AzureBlob{}
 		err = azureBlob.UploadBlob(context.Background(), request.DestinationKey, request.AzureBlobBaseConfig, request.SourceKey, request.AzureBlobBaseConfig.BlobContainerName)
@@ -70,7 +75,7 @@ func (impl *BlobStorageServiceImpl) Get(request *BlobStorageRequest) (bool, int6
 
 	downloadSuccess := false
 	numBytes := int64(0)
-	file, err := os.Create("/" + request.DestinationKey)
+	file, err := os.Create(filepath.Clean("/" + request.DestinationKey))
 	defer file.Close()
 	if err != nil {
 		log.Println(err)
@@ -78,8 +83,12 @@ func (impl *BlobStorageServiceImpl) Get(request *BlobStorageRequest) (bool, int6
 	}
 	switch request.StorageType {
 	case BLOB_STORAGE_S3:
-		awsS3Blob := AwsS3Blob{}
-		downloadSuccess, numBytes, err = awsS3Blob.DownloadBlob(request, downloadSuccess, numBytes, err, file)
+		s3BasicsClient, err1 := GetS3BucketBasicsClient(context.Background(), request.AwsS3BaseConfig.Region, request.AwsS3BaseConfig.AccessKey, request.AwsS3BaseConfig.Passkey, request.AwsS3BaseConfig.EndpointUrl)
+		if err1 == nil {
+			downloadSuccess, numBytes, err = s3BasicsClient.DownloadFileV2(context.Background(), request, downloadSuccess, numBytes, err, file)
+		} else {
+			err = err1
+		}
 	case BLOB_STORAGE_AZURE:
 		b := AzureBlob{}
 		downloadSuccess, err = b.DownloadBlob(context.Background(), request.SourceKey, request.AzureBlobBaseConfig, file)
@@ -93,20 +102,6 @@ func (impl *BlobStorageServiceImpl) Get(request *BlobStorageRequest) (bool, int6
 	}
 
 	return downloadSuccess, numBytes, err
-}
-
-// TODO: Have not Tested it
-func (impl *BlobStorageServiceImpl) DeleteObjectForS3(request *BlobStorageRequest) error {
-	if request.StorageType == BLOB_STORAGE_S3 {
-		awsS3Blob := AwsS3Blob{}
-		err := awsS3Blob.DeleteObjectFromBlob(request)
-		if err != nil {
-			impl.logger.Errorw("error in deleting object from S3", "err", err, "DestinationKey", request.DestinationKey, "StorageType", request.StorageType)
-			return err
-		}
-	}
-
-	return nil
 }
 
 func (impl *BlobStorageServiceImpl) UploadToBlobWithSession(request *BlobStorageRequest) error {

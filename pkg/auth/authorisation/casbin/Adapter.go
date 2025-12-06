@@ -18,6 +18,7 @@ package casbin
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
 	"log"
 	"os"
 	"strings"
@@ -45,20 +46,6 @@ var e2 *casbinv2.SyncedEnforcer
 var enforcerImplRef *EnforcerImpl
 var casbinVersion Version
 
-type Subject string
-type Resource string
-type Action string
-type Object string
-type PolicyType string
-
-type Policy struct {
-	Type PolicyType `json:"type"`
-	Sub  Subject    `json:"sub"`
-	Res  Resource   `json:"res"`
-	Act  Action     `json:"act"`
-	Obj  Object     `json:"obj"`
-}
-
 func isV2() bool {
 	return casbinVersion == CasbinV2
 }
@@ -83,12 +70,8 @@ func Create() (*casbin.SyncedEnforcer, error) {
 		log.Println(err)
 		return nil, err
 	}
-	dbSpecified := true
-	if config.CasbinDatabase == CasbinDefaultDatabase {
-		dbSpecified = false
-	}
 	dataSource := fmt.Sprintf("dbname=%s user=%s password=%s host=%s port=%s sslmode=disable", config.CasbinDatabase, config.User, config.Password, config.Addr, config.Port)
-	a, err := xormadapter.NewAdapter("postgres", dataSource, dbSpecified) // Your driver and data source.
+	a, err := xormadapter.NewAdapter("postgres", dataSource, true) // Your driver and data source.
 	if err != nil {
 		log.Println(err)
 		return nil, err
@@ -155,9 +138,9 @@ func setEnforcerImpl(ref *EnforcerImpl) {
 	enforcerImplRef = ref
 }
 
-func AddPolicy(policies []Policy) []Policy {
+func AddPolicy(policies []bean.Policy) []bean.Policy {
 	defer handlePanic()
-	var failed = []Policy{}
+	var failed = []bean.Policy{}
 	emailIdList := map[string]struct{}{}
 	var err error
 	for _, p := range policies {
@@ -211,9 +194,9 @@ func LoadPolicy() {
 	}
 }
 
-func RemovePolicy(policies []Policy) []Policy {
+func RemovePolicy(policies []bean.Policy) []bean.Policy {
 	defer handlePanic()
-	var failed = []Policy{}
+	var failed = []bean.Policy{}
 	emailIdList := map[string]struct{}{}
 	var err error
 	for _, p := range policies {

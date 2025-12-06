@@ -101,12 +101,11 @@ func UntilWithoutRetry(ctx context.Context, watcher watch.Interface, conditions 
 // It guarantees you to see all events and in the order they happened.
 // Due to this guarantee there is no way it can deal with 'Resource version too old error'. It will fail in this case.
 // (See `UntilWithSync` if you'd prefer to recover from all the errors including RV too old by re-listing
-//
-//	those items. In normal code you should care about being level driven so you'd not care about not seeing all the edges.)
+// those items. In normal code you should care about being level driven so you'd not care about not seeing all the edges.)
 //
 // The most frequent usage for Until would be a test where you want to verify exact order of events ("edges").
 func Until(ctx context.Context, initialResourceVersion string, watcherClient cache.Watcher, conditions ...ConditionFunc) (*watch.Event, error) {
-	w, err := NewRetryWatcher(initialResourceVersion, watcherClient)
+	w, err := NewRetryWatcherWithContext(ctx, initialResourceVersion, cache.ToWatcherWithContext(watcherClient))
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +126,7 @@ func Until(ctx context.Context, initialResourceVersion string, watcherClient cac
 // The most frequent usage would be a command that needs to watch the "state of the world" and should't fail, like:
 // waiting for object reaching a state, "small" controllers, ...
 func UntilWithSync(ctx context.Context, lw cache.ListerWatcher, objType runtime.Object, precondition PreconditionFunc, conditions ...ConditionFunc) (*watch.Event, error) {
-	indexer, informer, watcher, done := NewIndexerInformerWatcher(lw, objType)
+	indexer, informer, watcher, done := NewIndexerInformerWatcherWithLogger(klog.FromContext(ctx), lw, objType)
 	// We need to wait for the internal informers to fully stop so it's easier to reason about
 	// and it works with non-thread safe clients.
 	defer func() { <-done }()
@@ -137,7 +136,7 @@ func UntilWithSync(ctx context.Context, lw cache.ListerWatcher, objType runtime.
 
 	if precondition != nil {
 		if !cache.WaitForCacheSync(ctx.Done(), informer.HasSynced) {
-			return nil, fmt.Errorf("UntilWithSync: unable to sync caches: %v", ctx.Err())
+			return nil, fmt.Errorf("UntilWithSync: unable to sync caches: %w", ctx.Err())
 		}
 
 		done, err := precondition(indexer)
@@ -157,7 +156,7 @@ func UntilWithSync(ctx context.Context, lw cache.ListerWatcher, objType runtime.
 func ContextWithOptionalTimeout(parent context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
 	if timeout < 0 {
 		// This should be handled in validation
-		klog.Errorf("Timeout for context shall not be negative!")
+		klog.FromContext(parent).Error(nil, "Timeout for context shall not be negative")
 		timeout = 0
 	}
 

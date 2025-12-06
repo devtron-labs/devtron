@@ -17,9 +17,16 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"github.com/devtron-labs/common-lib/securestore"
+	"log"
 	"net/http"
 	"os"
+	"time"
+
+	posthogTelemetry "github.com/devtron-labs/common-lib/telemetry"
 
 	authMiddleware "github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/common-lib/middlewares"
@@ -30,6 +37,13 @@ import (
 	"go.uber.org/zap"
 )
 
+func init() {
+	err := securestore.SetEncryptionKey()
+	if err != nil {
+		log.Println("error in setting encryption key", "err", err)
+	}
+}
+
 type App struct {
 	db             *pg.DB
 	sessionManager *authMiddleware.SessionManager
@@ -37,15 +51,17 @@ type App struct {
 	Logger         *zap.SugaredLogger
 	server         *http.Server
 	telemetry      telemetry.TelemetryEventClient
-	posthogClient  *telemetry.PosthogClient
+	posthogClient  *posthogTelemetry.PosthogClient
+	userService    user.UserService
 }
 
 func NewApp(db *pg.DB,
 	sessionManager *authMiddleware.SessionManager,
 	MuxRouter *MuxRouter,
 	telemetry telemetry.TelemetryEventClient,
-	posthogClient *telemetry.PosthogClient,
-	Logger *zap.SugaredLogger) *App {
+	posthogClient *posthogTelemetry.PosthogClient,
+	Logger *zap.SugaredLogger,
+	userService user.UserService) *App {
 	return &App{
 		db:             db,
 		sessionManager: sessionManager,
@@ -53,6 +69,7 @@ func NewApp(db *pg.DB,
 		Logger:         Logger,
 		telemetry:      telemetry,
 		posthogClient:  posthogClient,
+		userService:    userService,
 	}
 }
 func (app *App) Start() {
@@ -64,21 +81,31 @@ func (app *App) Start() {
 	app.MuxRouter.Init()
 	//authEnforcer := casbin2.Create()
 
-	_, err := app.telemetry.SendTelemetryInstallEventEA()
-
-	if err != nil {
-		app.Logger.Warnw("telemetry installation success event failed", "err", err)
-	}
-	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: authMiddleware.Authorizer(app.sessionManager, user.WhitelistChecker, nil)(app.MuxRouter.Router)}
+	// Send telemetry event asynchronously to avoid blocking startup
+	go func() {
+		_, err := app.telemetry.SendTelemetryInstallEventEA()
+		if err != nil {
+			app.Logger.Warnw("telemetry installation success event failed", "err", err)
+		}
+	}()
+	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: authMiddleware.Authorizer(app.sessionManager, user.WhitelistChecker, app.userService.CheckUserStatusAndUpdateLoginAudit)(app.MuxRouter.Router)}
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
 	app.MuxRouter.Router.Use(middlewares.Recovery)
 	app.server = server
 
-	err = server.ListenAndServe()
-	if err != nil {
-		app.Logger.Errorw("error in startup", "err", err)
-		os.Exit(2)
-	}
+	// Start server in goroutine to make it non-blocking
+	go func() {
+		app.Logger.Info("HTTP server starting to listen")
+		err := server.ListenAndServe()
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			app.Logger.Errorw("error in startup", "err", err)
+			os.Exit(2)
+		}
+	}()
+
+	// Give server a moment to start listening
+	time.Sleep(1 * time.Second)
+	app.Logger.Info("HTTP server should be ready for health checks")
 }
 
 func (app *App) Stop() {
@@ -88,4 +115,22 @@ func (app *App) Stop() {
 		app.Logger.Info("flushing messages of posthog")
 		posthogCl.Close()
 	}
+
+	timeoutContext, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	app.Logger.Infow("closing router")
+	var err error
+	if app.server != nil {
+		err = app.server.Shutdown(timeoutContext)
+	}
+	if err != nil {
+		app.Logger.Errorw("error in mux router shutdown", "err", err)
+	}
+
+	app.Logger.Infow("closing db connection")
+	err = app.db.Close()
+	if err != nil {
+		app.Logger.Errorw("error in closing db connection", "err", err)
+	}
+	app.Logger.Infow("housekeeping done. exiting now")
+
 }

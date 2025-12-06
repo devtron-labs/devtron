@@ -23,7 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
-	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
@@ -32,6 +32,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables/models"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository4 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -70,7 +71,6 @@ var pipelineStageReq = &bean.PipelineStageDto{
 						Name:                      "Hello",
 						Format:                    "STRING",
 						Description:               "dsuihvsuvhbdv",
-						IsExposed:                 false,
 						AllowEmptyValue:           false,
 						DefaultValue:              "",
 						Value:                     "",
@@ -115,7 +115,6 @@ var pipelineStageReq = &bean.PipelineStageDto{
 						Name:                      "RelativePathToScript",
 						Format:                    "STRING",
 						Description:               "checkout path + script path along with script name",
-						IsExposed:                 true,
 						AllowEmptyValue:           false,
 						DefaultValue:              "/./script.js",
 						Value:                     "sfds",
@@ -130,7 +129,6 @@ var pipelineStageReq = &bean.PipelineStageDto{
 						Name:                      "PrometheusUsername",
 						Format:                    "STRING",
 						Description:               "username of prometheus accoun",
-						IsExposed:                 true,
 						AllowEmptyValue:           true,
 						DefaultValue:              "",
 						Value:                     "sdf",
@@ -145,7 +143,6 @@ var pipelineStageReq = &bean.PipelineStageDto{
 						Name:                      "PrometheusApiKey",
 						Format:                    "STRING",
 						Description:               "api key of prometheus account",
-						IsExposed:                 true,
 						AllowEmptyValue:           true,
 						DefaultValue:              "",
 						Value:                     "gwrsd",
@@ -160,7 +157,6 @@ var pipelineStageReq = &bean.PipelineStageDto{
 						Name:                      "PrometheusRemoteWriteEndpoint",
 						Format:                    "STRING",
 						Description:               "remote write endpoint of prometheus account",
-						IsExposed:                 true,
 						AllowEmptyValue:           true,
 						DefaultValue:              "",
 						Value:                     "ewq",
@@ -175,7 +171,6 @@ var pipelineStageReq = &bean.PipelineStageDto{
 						Name:                      "OutputType",
 						Format:                    "STRING",
 						Description:               "output type - LOG or PROMETHEUS",
-						IsExposed:                 true,
 						AllowEmptyValue:           false,
 						DefaultValue:              "LOG",
 						Value:                     "Log",
@@ -214,7 +209,6 @@ var pipelineStageReq = &bean.PipelineStageDto{
 						Name:                      "Hello",
 						Format:                    "STRING",
 						Description:               "jnsdvbdvbsd",
-						IsExposed:                 false,
 						AllowEmptyValue:           false,
 						DefaultValue:              "",
 						Value:                     "",
@@ -250,7 +244,6 @@ var pipelineStageReqUnresolved = &bean.PipelineStageDto{
 						Name:                      "Hello",
 						Format:                    "STRING",
 						Description:               "dsuihvsuvhbdv",
-						IsExposed:                 false,
 						AllowEmptyValue:           false,
 						DefaultValue:              "",
 						Value:                     "",
@@ -295,7 +288,6 @@ var pipelineStageReqUnresolved = &bean.PipelineStageDto{
 						Name:                      "RelativePathToScript",
 						Format:                    "STRING",
 						Description:               "checkout path + script path along with script name",
-						IsExposed:                 true,
 						AllowEmptyValue:           false,
 						DefaultValue:              "/./script.js",
 						Value:                     "sfds",
@@ -310,7 +302,6 @@ var pipelineStageReqUnresolved = &bean.PipelineStageDto{
 						Name:                      "PrometheusUsername",
 						Format:                    "STRING",
 						Description:               "username of prometheus accoun",
-						IsExposed:                 true,
 						AllowEmptyValue:           true,
 						DefaultValue:              "",
 						Value:                     "sdf",
@@ -325,7 +316,6 @@ var pipelineStageReqUnresolved = &bean.PipelineStageDto{
 						Name:                      "PrometheusApiKey",
 						Format:                    "STRING",
 						Description:               "api key of prometheus account",
-						IsExposed:                 true,
 						AllowEmptyValue:           true,
 						DefaultValue:              "",
 						Value:                     "gwrsd",
@@ -340,7 +330,6 @@ var pipelineStageReqUnresolved = &bean.PipelineStageDto{
 						Name:                      "PrometheusRemoteWriteEndpoint",
 						Format:                    "STRING",
 						Description:               "remote write endpoint of prometheus account",
-						IsExposed:                 true,
 						AllowEmptyValue:           true,
 						DefaultValue:              "",
 						Value:                     "ewq",
@@ -355,7 +344,6 @@ var pipelineStageReqUnresolved = &bean.PipelineStageDto{
 						Name:                      "OutputType",
 						Format:                    "STRING",
 						Description:               "output type - LOG or PROMETHEUS",
-						IsExposed:                 true,
 						AllowEmptyValue:           false,
 						DefaultValue:              "LOG",
 						Value:                     "Log",
@@ -394,7 +382,6 @@ var pipelineStageReqUnresolved = &bean.PipelineStageDto{
 						Name:                      "Hello",
 						Format:                    "STRING",
 						Description:               "jnsdvbdvbsd",
-						IsExposed:                 false,
 						AllowEmptyValue:           false,
 						DefaultValue:              "",
 						Value:                     "",
@@ -431,7 +418,6 @@ var pipelineStageReqResolved = &bean.PipelineStageDto{
 						Name:                      "Hello",
 						Format:                    "STRING",
 						Description:               "dsuihvsuvhbdv",
-						IsExposed:                 false,
 						AllowEmptyValue:           false,
 						DefaultValue:              "",
 						Value:                     "",
@@ -476,7 +462,6 @@ var pipelineStageReqResolved = &bean.PipelineStageDto{
 						Name:                      "RelativePathToScript",
 						Format:                    "STRING",
 						Description:               "checkout path + script path along with script name",
-						IsExposed:                 true,
 						AllowEmptyValue:           false,
 						DefaultValue:              "/./script.js",
 						Value:                     "sfds",
@@ -491,7 +476,6 @@ var pipelineStageReqResolved = &bean.PipelineStageDto{
 						Name:                      "PrometheusUsername",
 						Format:                    "STRING",
 						Description:               "username of prometheus accoun",
-						IsExposed:                 true,
 						AllowEmptyValue:           true,
 						DefaultValue:              "",
 						Value:                     "sdf",
@@ -506,7 +490,6 @@ var pipelineStageReqResolved = &bean.PipelineStageDto{
 						Name:                      "PrometheusApiKey",
 						Format:                    "STRING",
 						Description:               "api key of prometheus account",
-						IsExposed:                 true,
 						AllowEmptyValue:           true,
 						DefaultValue:              "",
 						Value:                     "gwrsd",
@@ -521,7 +504,6 @@ var pipelineStageReqResolved = &bean.PipelineStageDto{
 						Name:                      "PrometheusRemoteWriteEndpoint",
 						Format:                    "STRING",
 						Description:               "remote write endpoint of prometheus account",
-						IsExposed:                 true,
 						AllowEmptyValue:           true,
 						DefaultValue:              "",
 						Value:                     "ewq",
@@ -536,7 +518,6 @@ var pipelineStageReqResolved = &bean.PipelineStageDto{
 						Name:                      "OutputType",
 						Format:                    "STRING",
 						Description:               "output type - LOG or PROMETHEUS",
-						IsExposed:                 true,
 						AllowEmptyValue:           false,
 						DefaultValue:              "LOG",
 						Value:                     "Log",
@@ -575,7 +556,6 @@ var pipelineStageReqResolved = &bean.PipelineStageDto{
 						Name:                      "Hello",
 						Format:                    "STRING",
 						Description:               "jnsdvbdvbsd",
-						IsExposed:                 false,
 						AllowEmptyValue:           false,
 						DefaultValue:              "",
 						Value:                     "",
@@ -690,7 +670,7 @@ func setupSuite(t *testing.T) func(t *testing.T) {
 		RunPostStageInEnv:    false,
 		DeploymentAppCreated: false,
 		DeploymentAppType:    "helm",
-		DeploymentAppName:    fmt.Sprintf("%s-%s", string(randomAppName), string(randomEnvName)),
+		DeploymentAppName:    util.BuildDeployedAppName(string(randomAppName), string(randomEnvName)),
 		AuditLog:             sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
 	err = pipelineRepoImpl.Save([]*pipelineConfig.Pipeline{pipeline}, tx)
@@ -960,7 +940,7 @@ func TestPipelineStageService_BuildPrePostAndRefPluginStepsDataForWfRequest_With
 		AppId:     1,
 		EnvId:     1,
 		ClusterId: 1,
-	})
+	}, nil)
 	assert.Nil(t, err)
 	requestJson, _ := json.Marshal(resolvedRequest)
 	extractVariables, err := templateParserImpl.ExtractVariables(string(requestJson))

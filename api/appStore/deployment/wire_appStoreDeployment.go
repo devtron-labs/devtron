@@ -18,21 +18,27 @@ package appStoreDeployment
 
 import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	"github.com/devtron-labs/devtron/internal/util"
+	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
+	repository3 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/common"
+	deployment2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode/deployment"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deploymentTypeChange"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
+	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/common"
 	"github.com/google/wire"
 )
 
-var AppStoreDeploymentWireSet = wire.NewSet(
+var EAModeWireSet = wire.NewSet(
 	//util.GetDeploymentServiceTypeConfig,
-	repository.NewClusterInstalledAppsRepositoryImpl,
-	wire.Bind(new(repository.ClusterInstalledAppsRepository), new(*repository.ClusterInstalledAppsRepositoryImpl)),
+	util.NewChartTemplateServiceImpl,
+	wire.Bind(new(util.ChartTemplateService), new(*util.ChartTemplateServiceImpl)),
 	appStoreDeploymentCommon.NewAppStoreDeploymentCommonServiceImpl,
 	wire.Bind(new(appStoreDeploymentCommon.AppStoreDeploymentCommonService), new(*appStoreDeploymentCommon.AppStoreDeploymentCommonServiceImpl)),
-	EAMode.NewEAModeDeploymentServiceImpl,
-	wire.Bind(new(EAMode.EAModeDeploymentService), new(*EAMode.EAModeDeploymentServiceImpl)),
+	deployment2.NewEAModeDeploymentServiceImpl,
+	wire.Bind(new(deployment2.EAModeDeploymentService), new(*deployment2.EAModeDeploymentServiceImpl)),
 	service.NewAppStoreDeploymentServiceImpl,
 	wire.Bind(new(service.AppStoreDeploymentService), new(*service.AppStoreDeploymentServiceImpl)),
 	service.NewAppStoreDeploymentDBServiceImpl,
@@ -41,8 +47,8 @@ var AppStoreDeploymentWireSet = wire.NewSet(
 	wire.Bind(new(AppStoreDeploymentRestHandler), new(*AppStoreDeploymentRestHandlerImpl)),
 	NewAppStoreDeploymentRouterImpl,
 	wire.Bind(new(AppStoreDeploymentRouter), new(*AppStoreDeploymentRouterImpl)),
-	repository.NewInstalledAppVersionHistoryRepositoryImpl,
-	wire.Bind(new(repository.InstalledAppVersionHistoryRepository), new(*repository.InstalledAppVersionHistoryRepositoryImpl)),
+	repository3.NewInstalledAppVersionHistoryRepositoryImpl,
+	wire.Bind(new(repository3.InstalledAppVersionHistoryRepository), new(*repository3.InstalledAppVersionHistoryRepositoryImpl)),
 
 	NewCommonDeploymentRestHandlerImpl,
 	wire.Bind(new(CommonDeploymentRestHandler), new(*CommonDeploymentRestHandlerImpl)),
@@ -52,4 +58,22 @@ var AppStoreDeploymentWireSet = wire.NewSet(
 
 	EAMode.NewInstalledAppDBServiceImpl,
 	wire.Bind(new(EAMode.InstalledAppDBService), new(*EAMode.InstalledAppDBServiceImpl)),
+
+	installedAppReader.EAWireSet,
+)
+
+var FullModeWireSet = wire.NewSet(
+
+	EAModeWireSet,
+
+	FullMode.NewInstalledAppDBExtendedServiceImpl,
+	wire.Bind(new(FullMode.InstalledAppDBExtendedService), new(*FullMode.InstalledAppDBExtendedServiceImpl)),
+
+	resource.NewInstalledAppResourceServiceImpl,
+	wire.Bind(new(resource.InstalledAppResourceService), new(*resource.InstalledAppResourceServiceImpl)),
+
+	deploymentTypeChange.NewInstalledAppDeploymentTypeChangeServiceImpl,
+	wire.Bind(new(deploymentTypeChange.InstalledAppDeploymentTypeChangeService), new(*deploymentTypeChange.InstalledAppDeploymentTypeChangeServiceImpl)),
+
+	installedAppReader.WireSet,
 )

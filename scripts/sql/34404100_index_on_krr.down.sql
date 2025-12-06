@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS idx_krr_scan_history_krr_scan_request;

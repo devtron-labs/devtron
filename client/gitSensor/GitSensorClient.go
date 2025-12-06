@@ -79,10 +79,12 @@ func NewGitSensorClient(logger *zap.SugaredLogger, config *ClientConfig) (*Clien
 	return client, nil
 }
 
+// CATEGORY=INFRA_SETUP
 type ClientConfig struct {
-	Url      string `env:"GIT_SENSOR_URL" envDefault:"127.0.0.1:7070"`
-	Protocol string `env:"GIT_SENSOR_PROTOCOL" envDefault:"REST"`
-	Timeout  int    `env:"GIT_SENSOR_TIMEOUT" envDefault:"0"` // in seconds
+	Url           string `env:"GIT_SENSOR_URL" envDefault:"127.0.0.1:7070" description:"git-sensor micro-service url "`
+	Protocol      string `env:"GIT_SENSOR_PROTOCOL" envDefault:"REST" description:"Protocol to connect with git-sensor micro-service"`
+	Timeout       int    `env:"GIT_SENSOR_TIMEOUT" envDefault:"0" description:"Timeout for getting response from the git-sensor"` // in seconds
+	ServiceConfig string `env:"GIT_SENSOR_SERVICE_CONFIG" envDefault:"{\"loadBalancingPolicy\":\"pick_first\"}" description:"git-sensor grpc service config"`
 }
 
 func GetConfig() (*ClientConfig, error) {

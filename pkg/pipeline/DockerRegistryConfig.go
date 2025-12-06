@@ -19,9 +19,10 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/common-lib/securestore"
 	bean2 "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
-	"github.com/devtron-labs/devtron/pkg/argoRepositoryCreds"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -65,19 +66,20 @@ type DockerRegistryConfigImpl struct {
 	dockerArtifactStoreRepository     repository.DockerArtifactStoreRepository
 	dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository
 	ociRegistryConfigRepository       repository.OCIRegistryConfigRepository
-	RepositorySecret                  argoRepositoryCreds.RepositorySecret
+	argoClientWrapperService          argocdServer.ArgoClientWrapperService
 }
 
 func NewDockerRegistryConfigImpl(logger *zap.SugaredLogger, helmAppService client.HelmAppService, dockerArtifactStoreRepository repository.DockerArtifactStoreRepository,
 	dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository, ociRegistryConfigRepository repository.OCIRegistryConfigRepository,
-	RepositorySecret argoRepositoryCreds.RepositorySecret) *DockerRegistryConfigImpl {
+	argoClientWrapperService argocdServer.ArgoClientWrapperService,
+) *DockerRegistryConfigImpl {
 	return &DockerRegistryConfigImpl{
 		logger:                            logger,
 		helmAppService:                    helmAppService,
 		dockerArtifactStoreRepository:     dockerArtifactStoreRepository,
 		dockerRegistryIpsConfigRepository: dockerRegistryIpsConfigRepository,
 		ociRegistryConfigRepository:       ociRegistryConfigRepository,
-		RepositorySecret:                  RepositorySecret,
+		argoClientWrapperService:          argoClientWrapperService,
 	}
 }
 
@@ -89,10 +91,10 @@ func NewDockerArtifactStore(bean *types.DockerArtifactStoreBean, isActive bool, 
 		RegistryType:           bean.RegistryType,
 		IsOCICompliantRegistry: bean.IsOCICompliantRegistry,
 		AWSAccessKeyId:         bean.AWSAccessKeyId,
-		AWSSecretAccessKey:     bean.AWSSecretAccessKey,
+		AWSSecretAccessKey:     securestore.ToEncryptedString(bean.AWSSecretAccessKey),
 		AWSRegion:              bean.AWSRegion,
 		Username:               bean.Username,
-		Password:               bean.Password,
+		Password:               securestore.ToEncryptedString(bean.Password),
 		IsDefault:              bean.IsDefault,
 		Connection:             bean.Connection,
 		Cert:                   bean.Cert,
@@ -298,7 +300,7 @@ func (impl DockerRegistryConfigImpl) ConfigureOCIRegistry(bean *types.DockerArti
 func (impl DockerRegistryConfigImpl) CreateArgoRepositorySecretForRepositories(artifactStore *types.DockerArtifactStoreBean, ociRegistryConfig *repository.OCIRegistryConfig) error {
 	for _, repo := range artifactStore.RepositoryList {
 
-		err := impl.RepositorySecret.CreateArgoRepositorySecret(artifactStore.Username,
+		err := impl.argoClientWrapperService.AddOrUpdateOCIRegistry(artifactStore.Username,
 			artifactStore.Password,
 			ociRegistryConfig.Id,
 			artifactStore.RegistryURL,
@@ -486,10 +488,10 @@ func (impl DockerRegistryConfigImpl) FetchOneDockerAccount(storeId string) (*typ
 		RegistryURL:            store.RegistryURL,
 		RegistryType:           store.RegistryType,
 		AWSAccessKeyId:         store.AWSAccessKeyId,
-		AWSSecretAccessKey:     store.AWSSecretAccessKey,
+		AWSSecretAccessKey:     store.AWSSecretAccessKey.String(),
 		AWSRegion:              store.AWSRegion,
 		Username:               store.Username,
-		Password:               store.Password,
+		Password:               store.Password.String(),
 		IsDefault:              store.IsDefault,
 		Connection:             store.Connection,
 		Cert:                   store.Cert,
@@ -535,11 +537,11 @@ func (impl DockerRegistryConfigImpl) Update(bean *types.DockerArtifactStoreBean)
 
 	// 3- update docker_registry_config
 	if bean.Password == "" {
-		bean.Password = existingStore.Password
+		bean.Password = existingStore.Password.String()
 	}
 
 	if bean.AWSSecretAccessKey == "" {
-		bean.AWSSecretAccessKey = existingStore.AWSSecretAccessKey
+		bean.AWSSecretAccessKey = existingStore.AWSSecretAccessKey.String()
 	}
 
 	if bean.Cert == "" {
@@ -852,6 +854,18 @@ func (impl DockerRegistryConfigImpl) DeleteReg(bean *types.DockerArtifactStoreBe
 				impl.logger.Errorw("err in deleting OCI configs for registry", "registryId", bean.Id, "err", err)
 				return err
 			}
+			if ociRegistryConfig.RepositoryType == repository.OCI_REGISRTY_REPO_TYPE_CHART {
+				repositoryList := strings.Split(ociRegistryConfig.RepositoryList, ",")
+				for _, repo := range repositoryList {
+					err = impl.argoClientWrapperService.DeleteOCIRegistry(dockerReg.RegistryURL, repo, ociRegistryConfig.Id)
+					if err != nil {
+						impl.logger.Errorw("error in deleting OCI registry secret", "err", err)
+						//intentionally ignoring error
+					}
+
+				}
+			}
+
 		}
 	}
 
@@ -907,13 +921,13 @@ func (impl DockerRegistryConfigImpl) ValidateRegistryCredentials(bean *types.Doc
 	isLoggedIn, err := impl.helmAppService.ValidateOCIRegistry(context.Background(), request)
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart", "err", err)
-		return util.NewApiError().
+		return util.DefaultApiError().
 			WithUserMessage("error in validating oci registry").
 			WithInternalMessage(err.Error()).
 			WithHttpStatusCode(http.StatusInternalServerError)
 	}
 	if !isLoggedIn {
-		return util.NewApiError().
+		return util.DefaultApiError().
 			WithUserMessage(ociRegistryInvalidCredsMsg).
 			WithInternalMessage(ociRegistryInvalidCredsMsg).
 			WithHttpStatusCode(http.StatusBadRequest)

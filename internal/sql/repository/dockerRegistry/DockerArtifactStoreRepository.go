@@ -18,6 +18,7 @@ package repository
 
 import (
 	"fmt"
+	"github.com/devtron-labs/common-lib/securestore"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg/orm"
@@ -46,29 +47,24 @@ type RegistryType string
 var OCI_REGISRTY_REPO_TYPE_LIST = []string{OCI_REGISRTY_REPO_TYPE_CONTAINER, OCI_REGISRTY_REPO_TYPE_CHART}
 
 type DockerArtifactStore struct {
-	tableName              struct{}     `sql:"docker_artifact_store" json:",omitempty"  pg:",discard_unknown_columns"`
-	Id                     string       `sql:"id,pk" json:"id,,omitempty"`
-	PluginId               string       `sql:"plugin_id,notnull" json:"pluginId,omitempty"`
-	RegistryURL            string       `sql:"registry_url" json:"registryUrl,omitempty"`
-	RegistryType           RegistryType `sql:"registry_type,notnull" json:"registryType,omitempty"`
-	IsOCICompliantRegistry bool         `sql:"is_oci_compliant_registry,notnull" json:"isOCICompliantRegistry,omitempty"`
-	AWSAccessKeyId         string       `sql:"aws_accesskey_id" json:"awsAccessKeyId,omitempty" `
-	AWSSecretAccessKey     string       `sql:"aws_secret_accesskey" json:"awsSecretAccessKey,omitempty"`
-	AWSRegion              string       `sql:"aws_region" json:"awsRegion,omitempty"`
-	Username               string       `sql:"username" json:"username,omitempty"`
-	Password               string       `sql:"password" json:"password,omitempty"`
-	IsDefault              bool         `sql:"is_default,notnull" json:"isDefault"`
-	Connection             string       `sql:"connection" json:"connection,omitempty"`
-	Cert                   string       `sql:"cert" json:"cert,omitempty"`
-	Active                 bool         `sql:"active,notnull" json:"active"`
+	tableName              struct{}                    `sql:"docker_artifact_store" json:",omitempty"  pg:",discard_unknown_columns"`
+	Id                     string                      `sql:"id,pk" json:"id,,omitempty"`
+	PluginId               string                      `sql:"plugin_id,notnull" json:"pluginId,omitempty"`
+	RegistryURL            string                      `sql:"registry_url" json:"registryUrl,omitempty"`
+	RegistryType           RegistryType                `sql:"registry_type,notnull" json:"registryType,omitempty"`
+	IsOCICompliantRegistry bool                        `sql:"is_oci_compliant_registry,notnull" json:"isOCICompliantRegistry,omitempty"`
+	AWSAccessKeyId         string                      `sql:"aws_accesskey_id" json:"awsAccessKeyId,omitempty" `
+	AWSSecretAccessKey     securestore.EncryptedString `sql:"aws_secret_accesskey" json:"awsSecretAccessKey,omitempty"`
+	AWSRegion              string                      `sql:"aws_region" json:"awsRegion,omitempty"`
+	Username               string                      `sql:"username" json:"username,omitempty"`
+	Password               securestore.EncryptedString `sql:"password" json:"password,omitempty"`
+	IsDefault              bool                        `sql:"is_default,notnull" json:"isDefault"`
+	Connection             string                      `sql:"connection" json:"connection,omitempty"`
+	Cert                   string                      `sql:"cert" json:"cert,omitempty"`
+	Active                 bool                        `sql:"active,notnull" json:"active"`
 	IpsConfig              *DockerRegistryIpsConfig
 	OCIRegistryConfig      []*OCIRegistryConfig
 	sql.AuditLog
-}
-
-type DockerArtifactStoreExt struct {
-	*DockerArtifactStore
-	DeploymentCount int `sql:"deployment_count" json:"deploymentCount"`
 }
 
 type ChartDeploymentCount struct {
@@ -94,7 +90,7 @@ type DockerArtifactStoreRepository interface {
 	FindAllDockerArtifactCount() (int, error)
 	FindAllChartProviders() ([]DockerArtifactStore, error)
 	FindOne(storeId string) (*DockerArtifactStore, error)
-	FindOneWithDeploymentCount(storeId string) (*DockerArtifactStoreExt, error)
+	FindDeploymentCount(storeId string) (int, error)
 	FindOneWithChartDeploymentCount(storeId, chartName string) (*ChartDeploymentCount, error)
 	FindOneInactive(storeId string) (*DockerArtifactStore, error)
 	Update(artifactStore *DockerArtifactStore, tx *pg.Tx) error
@@ -103,18 +99,30 @@ type DockerArtifactStoreRepository interface {
 	FindInactive(storeId string) (bool, error)
 }
 type DockerArtifactStoreRepositoryImpl struct {
-	dbConnection *pg.DB
+	dbConnection       *pg.DB
+	GlobalEnvVariables *util.GlobalEnvVariables
 }
 
-func NewDockerArtifactStoreRepositoryImpl(dbConnection *pg.DB) *DockerArtifactStoreRepositoryImpl {
-	return &DockerArtifactStoreRepositoryImpl{dbConnection: dbConnection}
+func NewDockerArtifactStoreRepositoryImpl(dbConnection *pg.DB, environmentVariables *util.EnvironmentVariables) *DockerArtifactStoreRepositoryImpl {
+	return &DockerArtifactStoreRepositoryImpl{dbConnection: dbConnection, GlobalEnvVariables: environmentVariables.GlobalEnvVariables}
 }
 
 func (impl DockerArtifactStoreRepositoryImpl) GetConnection() *pg.DB {
 	return impl.dbConnection
 }
 
-func (impl DockerArtifactStoreRepositoryImpl) Save(artifactStore *DockerArtifactStore, tx *pg.Tx) error {
+func (impl DockerArtifactStoreRepositoryImpl) Save(artifactStore *DockerArtifactStore, tx *pg.Tx) (err error) {
+
+	if impl.GlobalEnvVariables.EnablePasswordEncryption {
+		artifactStore.Password, err = securestore.EncryptString(artifactStore.Password.String())
+		if err != nil {
+			return err
+		}
+		artifactStore.AWSSecretAccessKey, err = securestore.EncryptString(artifactStore.AWSSecretAccessKey.String())
+		if err != nil {
+			return err
+		}
+	}
 	if util.IsBaseStack() {
 		return tx.Insert(artifactStore)
 	}
@@ -205,14 +213,14 @@ func (impl DockerArtifactStoreRepositoryImpl) FindOne(storeId string) (*DockerAr
 	return &provider, err
 }
 
-func (impl DockerArtifactStoreRepositoryImpl) FindOneWithDeploymentCount(storeId string) (*DockerArtifactStoreExt, error) {
-	var provider DockerArtifactStoreExt
-	query := "SELECT docker_artifact_store.*, count(jq.ia_id) as deployment_count FROM docker_artifact_store" +
+func (impl DockerArtifactStoreRepositoryImpl) FindDeploymentCount(storeId string) (int, error) {
+	var DeploymentCount int
+	query := "SELECT count(jq.ia_id) as deployment_count FROM docker_artifact_store" +
 		fmt.Sprintf(" LEFT JOIN oci_registry_config orc on (docker_artifact_store.id = orc.docker_artifact_store_id and orc.is_chart_pull_active = true and orc.deleted = false and orc.repository_type = '%s' and (orc.repository_action = '%s' or orc.repository_action = '%s'))", OCI_REGISRTY_REPO_TYPE_CHART, STORAGE_ACTION_TYPE_PULL, STORAGE_ACTION_TYPE_PULL_AND_PUSH) +
 		" LEFT JOIN (SELECT aps.docker_artifact_store_id as das_id ,ia.id as ia_id FROM installed_app_versions iav INNER JOIN installed_apps ia on iav.installed_app_id = ia.id INNER JOIN app_store_application_version asav on iav.app_store_application_version_id = asav.id INNER JOIN app_store aps on asav.app_store_id = aps.id WHERE ia.active=true and iav.active=true) jq on jq.das_id = docker_artifact_store.id" +
 		" WHERE docker_artifact_store.id = ? and docker_artifact_store.active = true Group by docker_artifact_store.id;"
-	_, err := impl.dbConnection.Query(&provider, query, storeId)
-	return &provider, err
+	_, err := impl.dbConnection.Query(&DeploymentCount, query, storeId)
+	return DeploymentCount, err
 }
 
 func (impl DockerArtifactStoreRepositoryImpl) FindOneWithChartDeploymentCount(storeId, chartName string) (*ChartDeploymentCount, error) {
@@ -240,7 +248,17 @@ func (impl DockerArtifactStoreRepositoryImpl) FindOneInactive(storeId string) (*
 	return &provider, err
 }
 
-func (impl DockerArtifactStoreRepositoryImpl) Update(artifactStore *DockerArtifactStore, tx *pg.Tx) error {
+func (impl DockerArtifactStoreRepositoryImpl) Update(artifactStore *DockerArtifactStore, tx *pg.Tx) (err error) {
+	if impl.GlobalEnvVariables.EnablePasswordEncryption {
+		artifactStore.Password, err = securestore.EncryptString(artifactStore.Password.String())
+		if err != nil {
+			return err
+		}
+		artifactStore.AWSSecretAccessKey, err = securestore.EncryptString(artifactStore.AWSSecretAccessKey.String())
+		if err != nil {
+			return err
+		}
+	}
 	//TODO check for unique default
 	//there can be only one default
 

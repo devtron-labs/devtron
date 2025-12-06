@@ -19,8 +19,13 @@ package cluster
 import (
 	"context"
 	"encoding/json"
-	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	request "github.com/devtron-labs/devtron/pkg/cluster/environment"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment/read"
+	"github.com/devtron-labs/devtron/util/commonEnforcementFunctionsUtil"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -35,7 +40,6 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	request "github.com/devtron-labs/devtron/pkg/cluster"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -45,9 +49,16 @@ import (
 
 const ENV_DELETE_SUCCESS_RESP = "Environment deleted successfully."
 
+var (
+	// Regex patterns for environment name validation
+	envNameAlphanumericRegex = regexp.MustCompile(`^[a-z0-9-]+$`)
+	envNameLengthRegex       = regexp.MustCompile(`^.{1,16}$`)
+)
+
 type EnvironmentRestHandler interface {
 	Create(w http.ResponseWriter, r *http.Request)
 	Get(w http.ResponseWriter, r *http.Request)
+	GetDataSourceName(w http.ResponseWriter, r *http.Request)
 	GetAll(w http.ResponseWriter, r *http.Request)
 	GetAllActive(w http.ResponseWriter, r *http.Request)
 	Update(w http.ResponseWriter, r *http.Request)
@@ -61,6 +72,7 @@ type EnvironmentRestHandler interface {
 
 type EnvironmentRestHandlerImpl struct {
 	environmentClusterMappingsService request.EnvironmentService
+	environmentReadService            read.EnvironmentReadService
 	k8sCommonService                  k8s.K8sCommonService
 	logger                            *zap.SugaredLogger
 	userService                       user.UserService
@@ -69,6 +81,7 @@ type EnvironmentRestHandlerImpl struct {
 	deleteService                     delete2.DeleteService
 	k8sUtil                           *k8s2.K8sServiceImpl
 	cfg                               *bean.Config
+	rbacEnforcementUtil               commonEnforcementFunctionsUtil.CommonEnforcementUtil
 }
 
 type ClusterReachableResponse struct {
@@ -76,7 +89,8 @@ type ClusterReachableResponse struct {
 	ClusterName      string `json:"clusterName"`
 }
 
-func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.SugaredLogger, userService user.UserService, validator *validator.Validate, enforcer casbin.Enforcer, deleteService delete2.DeleteService, k8sUtil *k8s2.K8sServiceImpl, k8sCommonService k8s.K8sCommonService) *EnvironmentRestHandlerImpl {
+func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, environmentReadService read.EnvironmentReadService, logger *zap.SugaredLogger, userService user.UserService, validator *validator.Validate, enforcer casbin.Enforcer, deleteService delete2.DeleteService, k8sUtil *k8s2.K8sServiceImpl, k8sCommonService k8s.K8sCommonService,
+	rbacEnforcementUtil commonEnforcementFunctionsUtil.CommonEnforcementUtil) *EnvironmentRestHandlerImpl {
 	cfg := &bean.Config{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -86,6 +100,7 @@ func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.S
 	logger.Infow("evironment rest handler initialized", "ignoreAuthCheckValue", cfg.IgnoreAuthCheck)
 	return &EnvironmentRestHandlerImpl{
 		environmentClusterMappingsService: svc,
+		environmentReadService:            environmentReadService,
 		logger:                            logger,
 		userService:                       userService,
 		validator:                         validator,
@@ -94,14 +109,36 @@ func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.S
 		cfg:                               cfg,
 		k8sUtil:                           k8sUtil,
 		k8sCommonService:                  k8sCommonService,
+		rbacEnforcementUtil:               rbacEnforcementUtil,
 	}
+}
+
+// validateEnvironmentName validates the environment name against multiple regex patterns
+// Note: Required validation is already handled by struct validation tag
+func (impl EnvironmentRestHandlerImpl) validateEnvironmentName(envName string) error {
+	// Validation 1: Use only lowercase alphanumeric characters or '-'
+	if !envNameAlphanumericRegex.MatchString(envName) {
+		return errors.New("Use only lowercase alphanumeric characters or '-'")
+	}
+
+	// Validation 2: Cannot start/end with '-'
+	if strings.HasPrefix(envName, "-") || strings.HasSuffix(envName, "-") {
+		return errors.New("Cannot start/end with '-'")
+	}
+
+	// Validation 3: Minimum 1 and Maximum 16 characters required
+	if !envNameLengthRegex.MatchString(envName) {
+		return errors.New("Minimum 1 and Maximum 16 characters required")
+	}
+
+	return nil
 }
 
 func (impl EnvironmentRestHandlerImpl) Create(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var bean bean2.EnvironmentBean
@@ -116,6 +153,13 @@ func (impl EnvironmentRestHandlerImpl) Create(w http.ResponseWriter, r *http.Req
 	err = impl.validator.Struct(bean)
 	if err != nil {
 		impl.logger.Errorw("validation err, Create", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// Validate environment name
+	err = impl.validateEnvironmentName(bean.Environment)
+	if err != nil {
+		impl.logger.Errorw("environment name validation err, Create", "err", err, "envName", bean.Environment)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -159,8 +203,36 @@ func (impl EnvironmentRestHandlerImpl) Get(w http.ResponseWriter, r *http.Reques
 	common.WriteJsonResp(w, err, bean, http.StatusOK)
 }
 
+func (impl EnvironmentRestHandlerImpl) GetDataSourceName(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	environmentName := vars["environmentName"]
+
+	bean, err := impl.environmentClusterMappingsService.FindOne(environmentName)
+	if err != nil {
+		impl.logger.Errorw("service err, Get", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, bean.EnvironmentIdentifier); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+
+	resp, err := impl.environmentClusterMappingsService.GetDataSourceName(bean)
+	if err != nil {
+		impl.logger.Errorw("service err, Get", "err", err, "env", environmentName)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
+}
+
 func (impl EnvironmentRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request) {
-	environments, err := impl.environmentClusterMappingsService.GetAll()
+	environments, err := impl.environmentReadService.GetAll()
 	if err != nil {
 		impl.logger.Errorw("service err, GetAll", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -169,7 +241,7 @@ func (impl EnvironmentRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Req
 
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
@@ -224,7 +296,7 @@ func (impl EnvironmentRestHandlerImpl) Update(w http.ResponseWriter, r *http.Req
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -256,6 +328,16 @@ func (impl EnvironmentRestHandlerImpl) Update(w http.ResponseWriter, r *http.Req
 	}
 	//RBAC enforcer Ends
 
+	// checkImmutable fields
+	if modifiedEnvironment.Environment != bean.Environment {
+		common.WriteJsonResp(w, errors.New("environment name cannot be changed"), nil, http.StatusConflict)
+		return
+	}
+	if modifiedEnvironment.Namespace != bean.Namespace {
+		common.WriteJsonResp(w, errors.New("namespace cannot be changed"), nil, http.StatusConflict)
+		return
+	}
+
 	res, err := impl.environmentClusterMappingsService.Update(&bean, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, Update", "err", err, "payload", bean)
@@ -266,16 +348,18 @@ func (impl EnvironmentRestHandlerImpl) Update(w http.ResponseWriter, r *http.Req
 }
 
 func (impl EnvironmentRestHandlerImpl) FindById(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	envId, err := strconv.Atoi(vars["id"])
+	// Use enhanced parameter parsing with context
+	envId, err := common.ExtractIntPathParamWithContext(w, r, "id")
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		// Error already written by ExtractIntPathParamWithContext
 		return
 	}
+
 	bean, err := impl.environmentClusterMappingsService.FindById(envId)
 	if err != nil {
-		impl.logger.Errorw("service err, FindById", "err", err, "envId", envId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		impl.logger.Errorw("Failed to find environment", "envId", envId, "err", err)
+		// Use enhanced error response with resource context
+		common.WriteJsonRespWithResourceContextFromId(w, err, nil, 0, "environment", envId)
 		return
 	}
 
@@ -293,7 +377,7 @@ func (impl EnvironmentRestHandlerImpl) FindById(w http.ResponseWriter, r *http.R
 func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	start := time.Now()
@@ -314,29 +398,7 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 	var grantedEnvironment = environments
 	start = time.Now()
 	if !impl.cfg.IgnoreAuthCheck {
-		grantedEnvironment = make([]bean2.EnvironmentBean, 0)
-		// RBAC enforcer applying
-		var envIdentifierList []string
-		for _, item := range environments {
-			envIdentifierList = append(envIdentifierList, strings.ToLower(item.EnvironmentIdentifier))
-		}
-
-		result := impl.enforcer.EnforceInBatch(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
-		for _, item := range environments {
-
-			var hasAccess bool
-			EnvironmentIdentifier := item.ClusterName + "__" + item.Namespace
-			if item.EnvironmentIdentifier != EnvironmentIdentifier {
-				// fix for futuristic case
-				hasAccess = result[strings.ToLower(EnvironmentIdentifier)] || result[strings.ToLower(item.EnvironmentIdentifier)]
-			} else {
-				hasAccess = result[strings.ToLower(item.EnvironmentIdentifier)]
-			}
-			if hasAccess {
-				grantedEnvironment = append(grantedEnvironment, item)
-			}
-		}
-		//RBAC enforcer Ends
+		grantedEnvironment = impl.rbacEnforcementUtil.CheckAuthorisationForEnvs(token, environments)
 	}
 	elapsedTime := time.Since(start)
 	impl.logger.Infow("Env elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime",
@@ -348,13 +410,13 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDown(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	token := r.Header.Get("token")
 	isActionUserSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 
-	clusters, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDown(token, isActionUserSuperAdmin, impl.CheckAuthorizationByEmailInBatchForGlobalEnvironment)
+	clusters, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDown(token, isActionUserSuperAdmin, impl.rbacEnforcementUtil.CheckAuthorizationByEmailInBatchForGlobalEnvironment)
 	if err != nil {
 		impl.logger.Errorw("service err, GetCombinedEnvironmentListForDropDown", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -366,26 +428,11 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDown(w h
 	common.WriteJsonResp(w, err, clusters, http.StatusOK)
 }
 
-func (handler EnvironmentRestHandlerImpl) CheckAuthorizationByEmailInBatchForGlobalEnvironment(token string, object []string) map[string]bool {
-	var objectResult map[string]bool
-	if len(object) > 0 {
-		objectResult = handler.enforcer.EnforceInBatch(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, object)
-	}
-	return objectResult
-}
-
-func (handler EnvironmentRestHandlerImpl) CheckAuthorizationForGlobalEnvironment(token string, object string) bool {
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, object); !ok {
-		return false
-	}
-	return true
-}
-
 func (impl EnvironmentRestHandlerImpl) DeleteEnvironment(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	var bean bean2.EnvironmentBean
@@ -423,7 +470,7 @@ func (impl EnvironmentRestHandlerImpl) DeleteEnvironment(w http.ResponseWriter, 
 func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDownByClusterIds(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	v := r.URL.Query()
@@ -435,14 +482,18 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDownByCl
 			id, err := strconv.Atoi(clusterId)
 			if err != nil {
 				impl.logger.Errorw("request err, GetCombinedEnvironmentListForDropDownByClusterIds", "err", err, "clusterIdString", clusterIdString)
-				common.WriteJsonResp(w, err, "please send valid cluster Ids", http.StatusBadRequest)
+				common.HandleParameterError(w, r, "ids", clusterIdString)
 				return
 			}
 			clusterIds = append(clusterIds, id)
 		}
+	} else {
+		impl.logger.Errorw("request err empty query param, GetCombinedEnvironmentListForDropDownByClusterIds", "err", err, "clusterIdString", clusterIdString)
+		common.HandleParameterError(w, r, "ids", clusterIdString)
+		return
 	}
 	token := r.Header.Get("token")
-	clusters, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDownByClusterIds(token, clusterIds, impl.CheckAuthorizationForGlobalEnvironment)
+	clusters, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDownByClusterIds(token, clusterIds, impl.rbacEnforcementUtil.CheckAuthorizationForGlobalEnvironment)
 	if err != nil {
 		impl.logger.Errorw("service err, GetCombinedEnvironmentListForDropDown", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -468,7 +519,7 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentConnection(w http.ResponseW
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		impl.logger.Errorw("user not authorized", "error", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	bean, err := impl.environmentClusterMappingsService.FindById(envId)
@@ -516,6 +567,6 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentConnection(w http.ResponseW
 	//updating the cluster connection error to db
 	mapObj := &sync.Map{}
 	mapObj.Store(clusterBean.Id, err)
-	impl.environmentClusterMappingsService.HandleErrorInClusterConnections([]*request.ClusterBean{clusterBean}, mapObj, true)
+	impl.environmentClusterMappingsService.HandleErrorInClusterConnections([]*bean3.ClusterBean{clusterBean}, mapObj, true)
 	common.WriteJsonResp(w, nil, responseObj, http.StatusOK)
 }

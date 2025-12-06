@@ -19,19 +19,26 @@ package restHandler
 import (
 	"encoding/json"
 	"fmt"
-	securityBean "github.com/devtron-labs/devtron/pkg/security/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
+	securityBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/bean"
+	security2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"net/http"
 	"strconv"
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
-	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
+)
+
+const (
+	ObjectTypeApp   = "app"
+	ObjectTypeChart = "chart"
+	ObjectTypePod   = "pod"
 )
 
 type ImageScanRestHandler interface {
@@ -43,16 +50,16 @@ type ImageScanRestHandler interface {
 
 type ImageScanRestHandlerImpl struct {
 	logger             *zap.SugaredLogger
-	imageScanService   security.ImageScanService
+	imageScanService   imageScanning.ImageScanService
 	userService        user.UserService
 	enforcer           casbin.Enforcer
 	enforcerUtil       rbac.EnforcerUtil
-	environmentService cluster.EnvironmentService
+	environmentService environment.EnvironmentService
 }
 
 func NewImageScanRestHandlerImpl(logger *zap.SugaredLogger,
-	imageScanService security.ImageScanService, userService user.UserService, enforcer casbin.Enforcer,
-	enforcerUtil rbac.EnforcerUtil, environmentService cluster.EnvironmentService) *ImageScanRestHandlerImpl {
+	imageScanService imageScanning.ImageScanService, userService user.UserService, enforcer casbin.Enforcer,
+	enforcerUtil rbac.EnforcerUtil, environmentService environment.EnvironmentService) *ImageScanRestHandlerImpl {
 	return &ImageScanRestHandlerImpl{
 		logger:             logger,
 		imageScanService:   imageScanService,
@@ -66,7 +73,7 @@ func NewImageScanRestHandlerImpl(logger *zap.SugaredLogger,
 func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 
@@ -90,37 +97,36 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 		}
 		return
 	}
+
+	filteredDeployInfoList, err := impl.imageScanService.FilterDeployInfoByScannedArtifactsDeployedInEnv(deployInfoList)
+	if err != nil {
+		impl.logger.Errorw("request err, FilterDeployInfoListForScannedArtifacts", "payload", request, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 	token := r.Header.Get("token")
+	isSuperAdmin := false
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
+		isSuperAdmin = true
+	}
 	var ids []int
-	for _, item := range deployInfoList {
-		if item.ScanObjectMetaId > 0 && (item.ObjectType == "app" || item.ObjectType == "chart") {
-			object := impl.enforcerUtil.GetAppRBACNameByAppId(item.ScanObjectMetaId)
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
-				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-				return
-			}
-			object = impl.enforcerUtil.GetEnvRBACNameByAppId(item.ScanObjectMetaId, item.EnvId)
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); ok {
-				ids = append(ids, item.Id)
-			}
-		} else if item.ScanObjectMetaId > 0 && (item.ObjectType == "pod") {
-			environments, err := impl.environmentService.GetByClusterId(item.ClusterId)
-			if err != nil {
-				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-				return
-			}
-			pass := false
-			for _, environment := range environments {
-				if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, environment.EnvironmentIdentifier); ok {
-					pass = true
-					continue
-				}
-			}
-			if pass {
-				ids = append(ids, item.Id)
-			}
+	if isSuperAdmin {
+		ids = sliceUtil.NewSliceFromFuncExec(filteredDeployInfoList, func(item *security2.ImageScanDeployInfo) int {
+			return item.Id
+		})
+	} else {
+		ids, err = impl.getAuthorisedImageScanDeployInfoIds(token, filteredDeployInfoList)
+		if err != nil {
+			impl.logger.Errorw("error in getting authorised image scan deploy info ids", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
 		}
-		// skip for pod
+	}
+
+	if len(ids) == 0 {
+		responseList := make([]*securityBean.ImageScanHistoryResponse, 0)
+		common.WriteJsonResp(w, nil, &securityBean.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
+		return
 	}
 
 	results, err := impl.imageScanService.FetchScanExecutionListing(request, ids)
@@ -137,10 +143,73 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 	common.WriteJsonResp(w, err, results, http.StatusOK)
 }
 
+func (impl ImageScanRestHandlerImpl) getAuthorisedImageScanDeployInfoIds(token string, filteredDeployInfoList []*security2.ImageScanDeployInfo) ([]int, error) {
+	var ids []int
+	var appRBACObjects []string
+	var envRBACObjects []string
+	var podRBACObjects []string
+	podRBACMap := make(map[string]int)
+
+	IdToAppEnvPairs := make(map[int][2]int)
+	for _, item := range filteredDeployInfoList {
+		if item.ScanObjectMetaId > 0 && (item.ObjectType == ObjectTypeApp || item.ObjectType == ObjectTypeChart) {
+			IdToAppEnvPairs[item.Id] = [2]int{item.ScanObjectMetaId, item.EnvId}
+		}
+	}
+
+	appObjects, envObjects, appIdtoApp, envIdToEnv, err := impl.enforcerUtil.GetAppAndEnvRBACNamesByAppAndEnvIds(IdToAppEnvPairs)
+	if err != nil {
+		impl.logger.Errorw("error in getting app and env rbac objects", "err", err)
+		return nil, err
+	}
+
+	for _, item := range filteredDeployInfoList {
+		if item.ScanObjectMetaId > 0 && (item.ObjectType == ObjectTypeApp || item.ObjectType == ObjectTypeChart) {
+			appObject := appObjects[item.Id]
+			envObject := envObjects[item.Id]
+			if appObject != "" {
+				appRBACObjects = append(appRBACObjects, appObject)
+			}
+			if envObject != "" {
+				envRBACObjects = append(envRBACObjects, envObject)
+			}
+		} else if item.ScanObjectMetaId > 0 && (item.ObjectType == ObjectTypePod) {
+			environments, err := impl.environmentService.GetByClusterId(item.ClusterId)
+			if err != nil {
+				impl.logger.Errorw("error in getting environments for cluster", "clusterId", item.ClusterId, "err", err)
+				return nil, err
+			}
+			for _, environment := range environments {
+				podObject := environment.EnvironmentIdentifier
+				podRBACObjects = append(podRBACObjects, podObject)
+				podRBACMap[podObject] = item.Id
+			}
+		}
+	}
+
+	appResults := impl.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, appRBACObjects)
+	envResults := impl.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionGet, envRBACObjects)
+	podResults := impl.enforcer.EnforceInBatch(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, podRBACObjects)
+
+	for _, item := range filteredDeployInfoList {
+		if impl.enforcerUtil.IsAuthorizedForAppInAppResults(item.ScanObjectMetaId, appResults, appIdtoApp) && impl.enforcerUtil.IsAuthorizedForEnvInEnvResults(item.ScanObjectMetaId, item.EnvId, envResults, appIdtoApp, envIdToEnv) {
+			ids = append(ids, item.Id)
+		}
+	}
+	for podObject, authorized := range podResults {
+		if authorized {
+			if itemId, exists := podRBACMap[podObject]; exists {
+				ids = append(ids, itemId)
+			}
+		}
+	}
+	return ids, nil
+}
+
 func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 	v := r.URL.Query()
@@ -151,6 +220,7 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 		if err != nil {
 			impl.logger.Errorw("request err, FetchExecutionDetail", "err", err, "imageScanDeployInfoIdS", imageScanDeployInfoIdS)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
 		}
 	}
 	artifactIdS := v.Get("artifactId")
@@ -159,6 +229,7 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 		if err != nil {
 			impl.logger.Errorw("request err, FetchExecutionDetail", "err", err, "artifactIdS", artifactIdS)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
 		}
 	}
 	appIds := v.Get("appId")
@@ -167,6 +238,7 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 		if err != nil {
 			impl.logger.Errorw("request err, FetchExecutionDetail", "err", err, "appIds", appIds)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
 		}
 	}
 	envIds := v.Get("envId")
@@ -175,6 +247,7 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 		if err != nil {
 			impl.logger.Errorw("request err, FetchExecutionDetail", "err", err, "envIds", envIds)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
 		}
 	}
 	image := v.Get("image")
@@ -219,6 +292,7 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 			}
 		} else {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
 		}
 		//RBAC
 	} else {
@@ -238,6 +312,7 @@ func (impl ImageScanRestHandlerImpl) FetchMinScanResultByAppIdAndEnvId(w http.Re
 		if err != nil {
 			impl.logger.Errorw("request err, FetchMinScanResultByAppIdAndEnvId", "err", err, "appIds", appIds)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
 		}
 		request.AppId = appId
 	}
@@ -247,6 +322,7 @@ func (impl ImageScanRestHandlerImpl) FetchMinScanResultByAppIdAndEnvId(w http.Re
 		if err != nil {
 			impl.logger.Errorw("request err, FetchMinScanResultByAppIdAndEnvId", "err", err, "envIds", envIds)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
 		}
 		request.EnvId = envId
 	}
@@ -284,7 +360,7 @@ func (impl ImageScanRestHandlerImpl) FetchMinScanResultByAppIdAndEnvId(w http.Re
 func (impl ImageScanRestHandlerImpl) VulnerabilityExposure(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.HandleUnauthorized(w, r)
 		return
 	}
 

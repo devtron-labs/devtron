@@ -27,6 +27,7 @@ metadata:
     "helm.sh/resource-policy": keep
 {{- if .configs }}
 data:
+{{ toYaml $.Values.global.dbConfig | indent 2 }}
 {{ toYaml .configs | indent 2 }}
 {{- if $.Values.installer.modules }}
 {{- if has "cicd" $.Values.installer.modules }}
@@ -61,18 +62,12 @@ spec:
       terminationGracePeriodSeconds: 30
       restartPolicy: Always
       serviceAccount: devtron
-      {{- if and $.Values.global $.Values.global.podSecurityContext }}
-      securityContext:
-{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
-      {{- end }}
+      {{- include "common.podSecurityContext" (dict "podSecurityContext" $.Values.components.kubelink.podSecurityContext "global" $.Values.global) | indent 6 }}
       containers:
         - name: kubelink
           image: {{ include "common.image" (dict "component" $.Values.components.kubelink "global" $.Values.global ) }}
           imagePullPolicy: {{ .imagePullPolicy }}
-          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
-          securityContext:
-{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
-          {{- end }}
+          {{- include "common.containerSecurityContext" (dict "containerSecurityContext" $.Values.components.kubelink.containerSecurityContext "global" $.Values.global) | indent 10 }}
           ports:
             - name: app
               containerPort: 50051
@@ -91,11 +86,33 @@ spec:
                   name: {{ .dbconfig.secretName }}
                   key: {{ .dbconfig.keyName }}
             {{- end }}
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: {{ $.Values.components.kubelink.healthPort}}
+              scheme: HTTP
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: {{ $.Values.components.kubelink.healthPort}}
+              scheme: HTTP
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
           envFrom:
           - configMapRef:
               name: kubelink-cm
           - secretRef:
               name: kubelink-secret
+          - configMapRef:
+              name: devtron-common-cm
           {{- if .resources }}        
           resources:
           {{- toYaml .resources | nindent 12 }}
@@ -107,7 +124,7 @@ kind: Service
 metadata:
   labels:
     app: kubelink
-  name: kubelink-service
+  name: kubelink-service-headless
   namespace: devtroncd
   annotations:
     "helm.sh/resource-policy": keep
@@ -121,4 +138,5 @@ spec:
     app: kubelink
   sessionAffinity: None
   type: ClusterIP
+  clusterIP: None
 {{- end }}

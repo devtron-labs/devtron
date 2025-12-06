@@ -41,8 +41,8 @@ jobs:
              local image="$1"
              local image_ref=$(echo $image | sed 's/:.*//')
              
-             # skipping the check for 'inception', 'postgres' , 'postgres_exporter' and 'workflow-controller' images
-             if [[ "$image_ref" == "inception" || "$image_ref" == "postgres" || "$image_ref" == "postgres_exporter" || "$image_ref" == "workflow-controller" ]]; then
+             # skipping the check for 'inception', 'postgres' , 'postgres_exporter', 'workflow-controller', 'casbin' and 'scoop' images
+             if [[ "$image_ref" == "inception" || "$image_ref" == "postgres" || "$image_ref" == "postgres_exporter" || "$image_ref" == "workflow-controller" || "$image_ref" == "casbin" || "$image_ref" == "scoop" ]]; then
                  return
              fi
             

@@ -20,7 +20,7 @@ import (
 	"context"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/common-lib/utils/k8s"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"go.uber.org/zap"
 	"io"
@@ -30,18 +30,17 @@ import (
 )
 
 type CiLogService interface {
-	FetchRunningWorkflowLogs(ciLogRequest types.BuildLogRequest, clusterConfig *k8s.ClusterConfig, isExt bool) (io.ReadCloser, func() error, error)
+	FetchRunningWorkflowLogs(ciLogRequest types.BuildLogRequest, clusterConfig *k8s.ClusterConfig, isExt bool, followLogs bool) (io.ReadCloser, func() error, error)
 	FetchLogs(baseLogLocationPathConfig string, ciLogRequest types.BuildLogRequest) (*os.File, func() error, error)
 }
 
 type CiLogServiceImpl struct {
 	logger     *zap.SugaredLogger
-	ciService  CiService
 	kubeClient *kubernetes.Clientset
 	k8sUtil    *k8s.K8sServiceImpl
 }
 
-func NewCiLogServiceImpl(logger *zap.SugaredLogger, ciService CiService, k8sUtil *k8s.K8sServiceImpl) (*CiLogServiceImpl, error) {
+func NewCiLogServiceImpl(logger *zap.SugaredLogger, k8sUtil *k8s.K8sServiceImpl) (*CiLogServiceImpl, error) {
 	_, _, clientSet, err := k8sUtil.GetK8sInClusterConfigAndClients()
 	if err != nil {
 		logger.Errorw("error in getting k8s in cluster client set", "err", err)
@@ -49,13 +48,12 @@ func NewCiLogServiceImpl(logger *zap.SugaredLogger, ciService CiService, k8sUtil
 	}
 	return &CiLogServiceImpl{
 		logger:     logger,
-		ciService:  ciService,
 		kubeClient: clientSet,
 		k8sUtil:    k8sUtil,
 	}, nil
 }
 
-func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest types.BuildLogRequest, clusterConfig *k8s.ClusterConfig, isExt bool) (io.ReadCloser, func() error, error) {
+func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest types.BuildLogRequest, clusterConfig *k8s.ClusterConfig, isExt bool, followLogs bool) (io.ReadCloser, func() error, error) {
 	var kubeClient *kubernetes.Clientset
 	kubeClient = impl.kubeClient
 	var err error
@@ -66,7 +64,7 @@ func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest types.BuildL
 			return nil, nil, err
 		}
 	}
-	req := impl.k8sUtil.GetLogsForAPod(kubeClient, ciLogRequest.Namespace, ciLogRequest.PodName, CiPipeline.Main, true)
+	req := impl.k8sUtil.GetLogsForAPod(kubeClient, ciLogRequest.Namespace, ciLogRequest.PodName, bean.Main, followLogs)
 	podLogs, err := req.Stream(context.Background())
 	if err != nil {
 		impl.logger.Errorw("error in opening stream", "name", ciLogRequest.PodName, "err", err)
@@ -90,7 +88,7 @@ func (impl *CiLogServiceImpl) FetchLogs(baseLogLocationPathConfig string, logReq
 	tempFile := baseLogLocationPathConfig
 	tempFile = filepath.Clean(filepath.Join(tempFile, logRequest.PodName+".log"))
 
-	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
+	blobStorageService := blob_storage.NewBlobStorageServiceImpl(impl.logger)
 	request := &blob_storage.BlobStorageRequest{
 		StorageType:         logRequest.CloudProvider,
 		SourceKey:           logRequest.LogsFilePath,

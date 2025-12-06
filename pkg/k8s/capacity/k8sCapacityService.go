@@ -23,9 +23,10 @@ import (
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/cluster"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
+	bean3 "github.com/devtron-labs/devtron/pkg/k8s/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s/capacity/bean"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
@@ -41,16 +42,17 @@ import (
 	"k8s.io/client-go/kubernetes"
 	resourcehelper "k8s.io/kubectl/pkg/util/resource"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
+	"math"
 	"net/http"
 	"strings"
 	"time"
 )
 
 type K8sCapacityService interface {
-	GetClusterCapacityDetailList(ctx context.Context, clusters []*cluster.ClusterBean) ([]*bean.ClusterCapacityDetail, error)
-	GetClusterCapacityDetail(ctx context.Context, cluster *cluster.ClusterBean, callForList bool) (*bean.ClusterCapacityDetail, error)
-	GetNodeCapacityDetailsListByCluster(ctx context.Context, cluster *cluster.ClusterBean) ([]*bean.NodeCapacityDetail, error)
-	GetNodeCapacityDetailByNameAndCluster(ctx context.Context, cluster *cluster.ClusterBean, name string) (*bean.NodeCapacityDetail, error)
+	GetClusterCapacityDetailList(ctx context.Context, clusters []*bean2.ClusterBean) ([]*bean.ClusterCapacityDetail, error)
+	GetClusterCapacityDetail(ctx context.Context, cluster *bean2.ClusterBean, callForList bool) (*bean.ClusterCapacityDetail, error)
+	GetNodeCapacityDetailsListByCluster(ctx context.Context, cluster *bean2.ClusterBean) ([]*bean.NodeCapacityDetail, error)
+	GetNodeCapacityDetailByNameAndCluster(ctx context.Context, cluster *bean2.ClusterBean, name string) (*bean.NodeCapacityDetail, error)
 	UpdateNodeManifest(ctx context.Context, request *bean.NodeUpdateRequestDto) (*k8s2.ManifestResponse, error)
 	DeleteNode(ctx context.Context, request *bean.NodeUpdateRequestDto) (*k8s2.ManifestResponse, error)
 	CordonOrUnCordonNode(ctx context.Context, request *bean.NodeUpdateRequestDto) (string, error)
@@ -78,30 +80,34 @@ func NewK8sCapacityServiceImpl(Logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailList(ctx context.Context, clusters []*cluster.ClusterBean) ([]*bean.ClusterCapacityDetail, error) {
+func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailList(ctx context.Context, clusters []*bean2.ClusterBean) ([]*bean.ClusterCapacityDetail, error) {
 	var clustersDetails []*bean.ClusterCapacityDetail
 	for _, cluster := range clusters {
 		clusterCapacityDetail := &bean.ClusterCapacityDetail{}
 		var err error
 		if len(cluster.ErrorInConnecting) > 0 {
 			clusterCapacityDetail.ErrorInConnection = cluster.ErrorInConnecting
+			clusterCapacityDetail.Status = bean.ClusterStatusConnectionFailed
 		} else {
 			clusterCapacityDetail, err = impl.GetClusterCapacityDetail(ctx, cluster, true)
 			if err != nil {
 				impl.logger.Errorw("error in getting cluster capacity details by id", "clusterID", cluster.Id, "err", err)
 				clusterCapacityDetail = &bean.ClusterCapacityDetail{
 					ErrorInConnection: err.Error(),
+					Status:            bean.ClusterStatusConnectionFailed,
 				}
 			}
 		}
 		clusterCapacityDetail.Id = cluster.Id
 		clusterCapacityDetail.Name = cluster.ClusterName
+		clusterCapacityDetail.IsVirtualCluster = cluster.IsVirtualCluster
+		clusterCapacityDetail.IsProd = cluster.IsProd
 		clustersDetails = append(clustersDetails, clusterCapacityDetail)
 	}
 	return clustersDetails, nil
 }
 
-func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(ctx context.Context, cluster *cluster.ClusterBean, callForList bool) (*bean.ClusterCapacityDetail, error) {
+func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(ctx context.Context, cluster *bean2.ClusterBean, callForList bool) (*bean.ClusterCapacityDetail, error) {
 	//getting kubernetes clientSet by rest config
 	restConfig, k8sHttpClient, k8sClientSet, err := impl.k8sCommonService.GetK8sConfigAndClients(ctx, cluster)
 	if err != nil {
@@ -140,6 +146,7 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(ctx context.Context
 			return nil, err
 		}
 	}
+	clusterDetail.IsProd = cluster.IsProd
 	return clusterDetail, nil
 }
 
@@ -184,6 +191,7 @@ func (impl *K8sCapacityServiceImpl) setBasicClusterDetails(nodeList *corev1.Node
 	clusterDetail.NodeErrors = nodeErrors
 	clusterDetail.NodeK8sVersions = nodesK8sVersion
 	clusterDetail.NodeDetails = clusterNodeDetails
+	clusterDetail.SetStatus(nodeErrors)
 	clusterDetail.Cpu = &bean.ResourceDetailObject{
 		Capacity: getResourceString(clusterCpuCapacity, corev1.ResourceCPU),
 	}
@@ -236,7 +244,7 @@ func (impl *K8sCapacityServiceImpl) updateMetricsData(ctx context.Context, metri
 	return nil
 }
 
-func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByCluster(ctx context.Context, cluster *cluster.ClusterBean) ([]*bean.NodeCapacityDetail, error) {
+func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByCluster(ctx context.Context, cluster *bean2.ClusterBean) ([]*bean.NodeCapacityDetail, error) {
 	//getting kubernetes clientSet by cluster config
 	restConfig, k8sHttpClient, k8sClientSet, err := impl.k8sCommonService.GetK8sConfigAndClients(ctx, cluster)
 	if err != nil {
@@ -285,7 +293,7 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByCluster(ctx cont
 	return nodeDetails, nil
 }
 
-func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailByNameAndCluster(ctx context.Context, cluster *cluster.ClusterBean, name string) (*bean.NodeCapacityDetail, error) {
+func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailByNameAndCluster(ctx context.Context, cluster *bean2.ClusterBean, name string) (*bean.NodeCapacityDetail, error) {
 
 	//getting kubernetes clientSet by rest config
 	restConfig, k8sHttpClient, k8sClientSet, err := impl.k8sCommonService.GetK8sConfigAndClients(ctx, cluster)
@@ -345,7 +353,7 @@ func (impl *K8sCapacityServiceImpl) getNodeGroup(node *corev1.Node) string {
 	return nodeGroup
 }
 
-func (impl *K8sCapacityServiceImpl) getNodeDetail(ctx context.Context, node *corev1.Node, nodeResourceUsage map[string]corev1.ResourceList, podList *corev1.PodList, callForList bool, cluster *cluster.ClusterBean) (*bean.NodeCapacityDetail, error) {
+func (impl *K8sCapacityServiceImpl) getNodeDetail(ctx context.Context, node *corev1.Node, nodeResourceUsage map[string]corev1.ResourceList, podList *corev1.PodList, callForList bool, cluster *bean2.ClusterBean) (*bean.NodeCapacityDetail, error) {
 	cpuAllocatable := node.Status.Allocatable[corev1.ResourceCPU]
 	memoryAllocatable := node.Status.Allocatable[corev1.ResourceMemory]
 	podCount := 0
@@ -485,7 +493,7 @@ func (impl *K8sCapacityServiceImpl) updateManifestData(ctx context.Context, node
 			},
 		},
 	}
-	request := &k8s.ResourceRequestBean{
+	request := &bean3.ResourceRequestBean{
 		K8sRequest: manifestRequest,
 		ClusterId:  clusterId,
 	}
@@ -562,7 +570,7 @@ func (impl *K8sCapacityServiceImpl) UpdateNodeManifest(ctx context.Context, requ
 		},
 		Patch: request.ManifestPatch,
 	}
-	requestResourceBean := &k8s.ResourceRequestBean{K8sRequest: manifestUpdateReq, ClusterId: request.ClusterId}
+	requestResourceBean := &bean3.ResourceRequestBean{K8sRequest: manifestUpdateReq, ClusterId: request.ClusterId}
 	manifestResponse, err := impl.k8sCommonService.UpdateResource(ctx, requestResourceBean)
 	if err != nil {
 		impl.logger.Errorw("error in updating node manifest", "err", err)
@@ -582,7 +590,7 @@ func (impl *K8sCapacityServiceImpl) DeleteNode(ctx context.Context, request *bea
 			},
 		},
 	}
-	resourceRequest := &k8s.ResourceRequestBean{K8sRequest: deleteReq, ClusterId: request.ClusterId}
+	resourceRequest := &bean3.ResourceRequestBean{K8sRequest: deleteReq, ClusterId: request.ClusterId}
 	// Here Sending userId as 0 as appIdentifier is being sent nil so user id is not used in method. Update userid if appIdentifier is used
 	manifestResponse, err := impl.k8sCommonService.DeleteResource(ctx, resourceRequest)
 	if err != nil {
@@ -590,7 +598,7 @@ func (impl *K8sCapacityServiceImpl) DeleteNode(ctx context.Context, request *bea
 			return nil, &utils.ApiError{Code: "404",
 				HttpStatusCode:  http.StatusNotFound,
 				InternalMessage: err.Error(),
-				UserMessage:     k8s.ResourceNotFoundErr}
+				UserMessage:     bean3.ResourceNotFoundErr}
 		}
 		impl.logger.Errorw("error in deleting node", "err", err)
 		return nil, err
@@ -927,30 +935,51 @@ func getResourceString(quantity resource.Quantity, resourceName corev1.ResourceN
 		//not a standard resource, we do not know if conversion would be valid or not
 		//for example - pods: "250", this is not in bytes but an integer so conversion is invalid
 		return quantity.String()
-	} else {
+		// exempting CPU resource as CPU's resource unit is in cores
+	} else if resourceName != corev1.ResourceCPU {
 		var quantityStr string
 		value := quantity.Value()
-		valueGi := value / bean.Gibibyte
-		//allowing remainder 0 only, because for Gi rounding off will be highly erroneous
-		if valueGi > 1 && value%bean.Gibibyte == 0 {
-			quantityStr = fmt.Sprintf("%dGi", valueGi)
-		} else {
-			valueMi := value / bean.Mebibyte
-			if valueMi > 10 {
-				if value%bean.Mebibyte != 0 {
-					valueMi++
-				}
-				quantityStr = fmt.Sprintf("%dMi", valueMi)
-			} else if value > 1000 {
-				valueKi := value / bean.Kibibyte
-				if value%bean.Kibibyte != 0 {
-					valueKi++
-				}
-				quantityStr = fmt.Sprintf("%dKi", valueKi)
+		//allowing remainder 0 only, because for Gi rounding off will be highly erroneous -
+		//despite rounding allowing decimal value upto 2 decimal places
+
+		// first check for Gi
+		valueGi := float64(value) / (bean.Gibibyte * 1.0)
+		if valueGi >= 1 {
+			if valueGi == math.Floor(valueGi) { // if the converted value is a whole number
+				quantityStr = fmt.Sprintf("%dGi", int64(valueGi))
 			} else {
-				quantityStr = fmt.Sprintf("%dm", quantity.MilliValue())
+				quantityStr = fmt.Sprintf("%.2fGi", valueGi)
 			}
+		} else if value >= bean.Mebibyte { // fall back to check for Mi
+			valueMi := value / bean.Mebibyte
+			if value%bean.Mebibyte != 0 {
+				valueMi++
+			}
+			quantityStr = fmt.Sprintf("%dMi", valueMi)
+		} else if value >= bean.Kibibyte { // fall back to check for Ki
+			valueKi := value / bean.Kibibyte
+			if value%bean.Kibibyte != 0 {
+				valueKi++
+			}
+			quantityStr = fmt.Sprintf("%dKi", valueKi)
+		} else { // else better to show in Bytes
+			quantityStr = fmt.Sprintf("%dB", value)
 		}
+		return quantityStr
+	} else {
+		var quantityStr string
+		cpuValueMilli := quantity.MilliValue() // it is safe to use MilliValue here as in real world the value would not exceed int64 range
+		cpuValueCore := float64(cpuValueMilli) / 1000.0
+		quantityStr = fmt.Sprintf("%.2f", cpuValueCore)
+		// if cpuValueCore is less than 1 then show in milli core only
+		if cpuValueCore < 1 {
+			return fmt.Sprintf("%dm", cpuValueMilli)
+		}
+		// if the core value is a whole number then returning int else float
+		if cpuValueCore == math.Floor(cpuValueCore) {
+			return fmt.Sprintf("%d", int64(cpuValueCore))
+		}
+		// showing values in cores upto 2 decimal value
 		return quantityStr
 	}
 }

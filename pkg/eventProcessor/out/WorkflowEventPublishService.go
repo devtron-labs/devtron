@@ -23,9 +23,12 @@ import (
 	apiBean "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	internalUtil "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
+	appBean "github.com/devtron-labs/devtron/pkg/app/bean"
 	"github.com/devtron-labs/devtron/pkg/app/status"
+	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/celEvaluator"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
@@ -38,9 +41,8 @@ import (
 )
 
 type WorkflowEventPublishService interface {
-	TriggerBulkHibernateAsync(request bean.StopDeploymentGroupRequest) (interface{}, error)
-	TriggerAsyncRelease(userDeploymentRequestId int, overrideRequest *apiBean.ValuesOverrideRequest,
-		valuesOverrideResponse *app.ValuesOverrideResponse, ctx context.Context, triggeredBy int32) (releaseNo int, err error)
+	TriggerBulkHibernateAsync(request bean.StopDeploymentGroupRequest, userMetadata *bean2.UserMetadata) (interface{}, error)
+	TriggerAsyncRelease(userDeploymentRequestId int, overrideRequest *apiBean.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, ctx context.Context, triggeredBy int32) (releaseNo int, manifestPushTemplate *appBean.ManifestPushTemplate, err error)
 	TriggerBulkDeploymentAsync(requests []*bean.BulkTriggerRequest, UserId int32) (interface{}, error)
 }
 
@@ -85,7 +87,7 @@ func NewWorkflowEventPublishServiceImpl(logger *zap.SugaredLogger,
 	return impl, nil
 }
 
-func (impl *WorkflowEventPublishServiceImpl) TriggerBulkHibernateAsync(request bean.StopDeploymentGroupRequest) (interface{}, error) {
+func (impl *WorkflowEventPublishServiceImpl) TriggerBulkHibernateAsync(request bean.StopDeploymentGroupRequest, userMetadata *bean2.UserMetadata) (interface{}, error) {
 	dg, err := impl.groupRepository.FindByIdWithApp(request.DeploymentGroupId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching dg", "err", err)
@@ -100,6 +102,7 @@ func (impl *WorkflowEventPublishServiceImpl) TriggerBulkHibernateAsync(request b
 			Active:            dg.Active,
 			UserId:            request.UserId,
 			RequestType:       request.RequestType,
+			UserMetadata:      userMetadata,
 		}
 
 		data, err := json.Marshal(deploymentGroupAppWithEnv)
@@ -116,14 +119,13 @@ func (impl *WorkflowEventPublishServiceImpl) TriggerBulkHibernateAsync(request b
 }
 
 // TriggerAsyncRelease will publish async Install/Upgrade request event for Devtron App releases
-func (impl *WorkflowEventPublishServiceImpl) TriggerAsyncRelease(userDeploymentRequestId int, overrideRequest *apiBean.ValuesOverrideRequest,
-	valuesOverrideResponse *app.ValuesOverrideResponse, ctx context.Context, triggeredBy int32) (releaseNo int, err error) {
+func (impl *WorkflowEventPublishServiceImpl) TriggerAsyncRelease(userDeploymentRequestId int, overrideRequest *apiBean.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, ctx context.Context, triggeredBy int32) (releaseNo int, manifestPushTemplate *appBean.ManifestPushTemplate, err error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "WorkflowEventPublishServiceImpl.TriggerAsyncRelease")
 	defer span.End()
 	topic, msg, err := impl.getAsyncDeploymentTopicAndPayload(userDeploymentRequestId, overrideRequest.DeploymentAppType, valuesOverrideResponse)
 	if err != nil {
 		impl.logger.Errorw("error in fetching values for trigger", "err", err)
-		return releaseNo, err
+		return releaseNo, manifestPushTemplate, err
 	}
 	// publish nats event for async installation
 	err = impl.pubSubClient.Publish(topic, msg)
@@ -134,21 +136,21 @@ func (impl *WorkflowEventPublishServiceImpl) TriggerAsyncRelease(userDeploymentR
 		if err1 != nil {
 			impl.logger.Errorw("error in updating the workflow runner status, TriggerAsyncRelease", "err", err1)
 		}
-		return 0, err
+		return 0, manifestPushTemplate, err
 	}
 
 	//update workflow runner status, used in app workflow view
-	err = impl.cdWorkflowCommonService.UpdateNonTerminalStatusInRunner(newCtx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowInQueue)
+	err = impl.cdWorkflowCommonService.UpdateNonTerminalStatusInRunner(newCtx, overrideRequest.WfrId, overrideRequest.UserId, cdWorkflow.WorkflowInQueue)
 	if err != nil {
 		impl.logger.Errorw("error in updating the workflow runner status, TriggerAsyncRelease", "err", err)
-		return 0, err
+		return 0, manifestPushTemplate, err
 	}
 	err = impl.cdWorkflowCommonService.UpdatePreviousQueuedRunnerStatus(overrideRequest.WfrId, overrideRequest.PipelineId, triggeredBy)
 	if err != nil {
 		impl.logger.Errorw("error in updating the previous queued workflow runner status, TriggerAsyncRelease", "err", err)
-		return 0, err
+		return 0, manifestPushTemplate, err
 	}
-	return 0, nil
+	return 0, manifestPushTemplate, nil
 }
 
 func (impl *WorkflowEventPublishServiceImpl) TriggerBulkDeploymentAsync(requests []*bean.BulkTriggerRequest, UserId int32) (interface{}, error) {
@@ -158,7 +160,7 @@ func (impl *WorkflowEventPublishServiceImpl) TriggerBulkDeploymentAsync(requests
 			CiArtifactId:   request.CiArtifactId,
 			PipelineId:     request.PipelineId,
 			AuditLog:       sql.AuditLog{CreatedOn: time.Now(), CreatedBy: UserId, UpdatedOn: time.Now(), UpdatedBy: UserId},
-			WorkflowStatus: pipelineConfig.REQUEST_ACCEPTED,
+			WorkflowStatus: cdWorkflow.REQUEST_ACCEPTED,
 		}
 		cdWorkflows = append(cdWorkflows, cdWf)
 	}
@@ -175,13 +177,13 @@ func (impl *WorkflowEventPublishServiceImpl) triggerNatsEventForBulkAction(cdWor
 	for _, wf := range cdWorkflows {
 		data, err := json.Marshal(wf)
 		if err != nil {
-			wf.WorkflowStatus = pipelineConfig.QUE_ERROR
+			wf.WorkflowStatus = cdWorkflow.QUE_ERROR
 		} else {
 			err = impl.pubSubClient.Publish(pubsub.BULK_DEPLOY_TOPIC, string(data))
 			if err != nil {
-				wf.WorkflowStatus = pipelineConfig.QUE_ERROR
+				wf.WorkflowStatus = cdWorkflow.QUE_ERROR
 			} else {
-				wf.WorkflowStatus = pipelineConfig.ENQUEUED
+				wf.WorkflowStatus = cdWorkflow.ENQUEUED
 			}
 		}
 		err = impl.cdWorkflowRepository.UpdateWorkFlow(wf)

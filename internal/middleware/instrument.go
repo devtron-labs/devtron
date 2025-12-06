@@ -32,11 +32,6 @@ var (
 	}, []string{"path", "method", "status"})
 )
 
-var PgQueryDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
-	Name: "pg_query_duration_seconds",
-	Help: "Duration of PG queries",
-}, []string{"label"})
-
 var CdDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Name: "cd_duration_seconds",
 	Help: "Duration of CD process",
@@ -121,6 +116,11 @@ var TerminalSessionDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Name: "terminal_session_duration",
 	Help: "duration of each terminal session",
 }, []string{"podName", "namespace", "clusterId"})
+
+var ReTriggerFailedCounter = promauto.NewCounterVec(prometheus.CounterOpts{
+	Name: "re_trigger_failed_counter",
+	Help: "ci/ pre cd/ post cd workflow re-trigger failed counter",
+}, []string{"workflowType", "workflowId"})
 
 // prometheusMiddleware implements mux.MiddlewareFunc.
 func PrometheusMiddleware(next http.Handler) http.Handler {

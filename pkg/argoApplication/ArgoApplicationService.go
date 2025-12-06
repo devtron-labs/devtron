@@ -23,51 +23,62 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/helper"
-	"github.com/devtron-labs/devtron/pkg/argoApplication/read"
-	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/read/config"
+	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	commonBean "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s/application"
-	"github.com/devtron-labs/devtron/util/argo"
+	k8s2 "github.com/devtron-labs/devtron/pkg/k8s/bean"
+	"github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"net/http"
 )
 
 type ArgoApplicationService interface {
 	ListApplications(clusterIds []int) ([]*bean.ArgoApplicationListDto, error)
 	HibernateArgoApplication(ctx context.Context, app *bean.ArgoAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	UnHibernateArgoApplication(ctx context.Context, app *bean.ArgoAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
+
+	//FUll mode
+	// ResourceTree	returns the status for all Apps deployed via ArgoCd
+	GetResourceTree(ctx context.Context, acdQueryRequest *bean.AcdClientQueryRequest) (*argoApplication.ResourceTreeResponse, error)
 }
 
 type ArgoApplicationServiceImpl struct {
-	logger                *zap.SugaredLogger
-	clusterRepository     clusterRepository.ClusterRepository
-	k8sUtil               *k8s.K8sServiceImpl
-	argoUserService       argo.ArgoUserService
-	helmAppClient         gRPC.HelmAppClient
-	helmAppService        service.HelmAppService
-	k8sApplicationService application.K8sApplicationService
-	readService           read.ArgoApplicationReadService
+	logger                       *zap.SugaredLogger
+	clusterRepository            clusterRepository.ClusterRepository
+	k8sUtil                      *k8s.K8sServiceImpl
+	helmAppClient                gRPC.HelmAppClient
+	helmAppService               service.HelmAppService
+	k8sApplicationService        application.K8sApplicationService
+	argoApplicationConfigService config.ArgoApplicationConfigService
+	deploymentConfigService      common.DeploymentConfigService
 }
 
 func NewArgoApplicationServiceImpl(logger *zap.SugaredLogger,
 	clusterRepository clusterRepository.ClusterRepository,
 	k8sUtil *k8s.K8sServiceImpl,
-	argoUserService argo.ArgoUserService, helmAppClient gRPC.HelmAppClient,
+	helmAppClient gRPC.HelmAppClient,
 	helmAppService service.HelmAppService,
 	k8sApplicationService application.K8sApplicationService,
-	readService read.ArgoApplicationReadService) *ArgoApplicationServiceImpl {
+	argoApplicationConfigService config.ArgoApplicationConfigService,
+	deploymentConfigService common.DeploymentConfigService) *ArgoApplicationServiceImpl {
 	return &ArgoApplicationServiceImpl{
-		logger:                logger,
-		clusterRepository:     clusterRepository,
-		k8sUtil:               k8sUtil,
-		argoUserService:       argoUserService,
-		helmAppService:        helmAppService,
-		helmAppClient:         helmAppClient,
-		k8sApplicationService: k8sApplicationService,
-		readService:           readService,
+		logger:                       logger,
+		clusterRepository:            clusterRepository,
+		k8sUtil:                      k8sUtil,
+		helmAppService:               helmAppService,
+		helmAppClient:                helmAppClient,
+		k8sApplicationService:        k8sApplicationService,
+		argoApplicationConfigService: argoApplicationConfigService,
+		deploymentConfigService:      deploymentConfigService,
 	}
 
 }
@@ -105,7 +116,7 @@ func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*b
 		if clusterObj.IsVirtualCluster || len(clusterObj.ErrorInConnecting) != 0 {
 			continue
 		}
-		clusterBean := cluster2.GetClusterBean(clusterObj)
+		clusterBean := adapter.GetClusterBean(clusterObj)
 		clusterConfig := clusterBean.GetClusterConfig()
 		restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
 		if err != nil {
@@ -127,7 +138,24 @@ func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*b
 		appLists := getApplicationListDtos(resp, clusterObj.ClusterName, clusterObj.Id)
 		appListFinal = append(appListFinal, appLists...)
 	}
-	return appListFinal, nil
+	applicationNames := sliceUtil.NewSliceFromFuncExec(appListFinal, func(app *bean.ArgoApplicationListDto) string {
+		return app.Name
+	})
+	allDevtronManagedArgoAppsInfo, err := impl.deploymentConfigService.GetAllArgoAppInfosByDeploymentAppNames(applicationNames)
+	if err != nil {
+		impl.logger.Errorw("error in getting all argo app names by cluster", "err", err, "applicationNames", applicationNames)
+		return nil, err
+	}
+	filteredAppList := make([]*bean.ArgoApplicationListDto, 0)
+	filteredAppList = sliceUtil.Filter(filteredAppList, appListFinal, func(app *bean.ArgoApplicationListDto) bool {
+		_, found := sliceUtil.Find(allDevtronManagedArgoAppsInfo, func(info *commonBean.DevtronArgoCdAppInfo) bool {
+			return info.ArgoAppClusterId == app.ClusterId &&
+				info.ArgoAppNamespace == app.Namespace &&
+				info.ArgoCdAppName == app.Name
+		})
+		return !found
+	})
+	return filteredAppList, nil
 }
 
 func getApplicationListDtos(resp *k8s.ClusterResourceListMap, clusterName string, clusterId int) []*bean.ArgoApplicationListDto {
@@ -169,7 +197,7 @@ func getApplicationListDtos(resp *k8s.ClusterResourceListMap, clusterName string
 }
 
 func (impl *ArgoApplicationServiceImpl) HibernateArgoApplication(ctx context.Context, app *bean.ArgoAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
-	_, clusterBean, _, err := impl.readService.GetClusterConfigFromAllClusters(app.ClusterId)
+	_, clusterBean, _, err := impl.argoApplicationConfigService.GetClusterConfigFromAllClusters(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("HibernateArgoApplication", "error in getting the cluster config", err, "clusterId", app.ClusterId, "appName", app.AppName)
 		return nil, err
@@ -188,7 +216,7 @@ func (impl *ArgoApplicationServiceImpl) HibernateArgoApplication(ctx context.Con
 }
 
 func (impl *ArgoApplicationServiceImpl) UnHibernateArgoApplication(ctx context.Context, app *bean.ArgoAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
-	_, clusterBean, _, err := impl.readService.GetClusterConfigFromAllClusters(app.ClusterId)
+	_, clusterBean, _, err := impl.argoApplicationConfigService.GetClusterConfigFromAllClusters(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("HibernateArgoApplication", "error in getting the cluster config", err, "clusterId", app.ClusterId, "appName", app.AppName)
 		return nil, err
@@ -204,4 +232,8 @@ func (impl *ArgoApplicationServiceImpl) UnHibernateArgoApplication(ctx context.C
 	}
 	response := service.HibernateResponseAdaptor(res.Status)
 	return response, nil
+}
+
+func (impl *ArgoApplicationServiceImpl) GetResourceTree(ctx context.Context, acdQueryRequest *bean.AcdClientQueryRequest) (*argoApplication.ResourceTreeResponse, error) {
+	return nil, util2.DefaultApiError().WithHttpStatusCode(http.StatusNotFound).WithInternalMessage(util.NotSupportedErr).WithUserMessage(util.NotSupportedErr)
 }

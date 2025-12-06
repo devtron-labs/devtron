@@ -1,4 +1,0 @@
-dependencies:
-- name: sample
-  version: 0.0.0
-  repository: sample-url

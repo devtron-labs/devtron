@@ -21,9 +21,8 @@ import (
 	"fmt"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/utils/k8s"
-	"github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
-	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	read3 "github.com/devtron-labs/devtron/api/helm-app/service/read"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -32,18 +31,22 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	read2 "github.com/devtron-labs/devtron/pkg/chart/read"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	cdConfigRead "github.com/devtron-labs/devtron/pkg/deployment/common/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	"github.com/devtron-labs/devtron/pkg/variables/utils"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"github.com/gammazero/workerpool"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -57,32 +60,38 @@ import (
 	"sync"
 )
 
+// TODO: Prakash, move this interface to pkg/deployment/manifest/deploymentTemplate, both are same
 type DeploymentTemplateService interface {
 	FetchDeploymentsWithChartRefs(appId int, envId int) ([]*repository.DeploymentTemplateComparisonMetadata, error)
 	GetDeploymentTemplate(ctx context.Context, request DeploymentTemplateRequest) (DeploymentTemplateResponse, error)
 	GenerateManifest(ctx context.Context, request *DeploymentTemplateRequest, valuesYaml string) (*openapi2.TemplateChartResponse, error)
 	GetRestartWorkloadData(ctx context.Context, appIds []int, envId int) (*RestartPodResponse, error)
+	GetDeploymentTemplateWithResolvedData(ctx context.Context, request DeploymentTemplateRequest) (DeploymentTemplateResponse, error)
+	ResolveTemplateVariables(ctx context.Context, values string, request DeploymentTemplateRequest) (string, map[string]string, error)
 }
+
 type DeploymentTemplateServiceImpl struct {
-	Logger                           *zap.SugaredLogger
-	chartService                     chart.ChartService
-	appListingService                app.AppListingService
-	deploymentTemplateRepository     repository.DeploymentTemplateRepository
-	helmAppService                   client.HelmAppService
-	chartTemplateServiceImpl         util.ChartTemplateService
-	K8sUtil                          *k8s.K8sServiceImpl
-	helmAppClient                    gRPC.HelmAppClient
-	propertiesConfigService          pipeline.PropertiesConfigService
-	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
-	environmentRepository            repository3.EnvironmentRepository
-	appRepository                    appRepository.AppRepository
-	scopedVariableManager            variables.ScopedVariableManager
-	chartRefService                  chartRef.ChartRefService
-	pipelineOverrideRepository       chartConfig.PipelineOverrideRepository
-	pipelineRepository               pipelineConfig.PipelineRepository
-	chartRepository                  chartRepoRepository.ChartRepository
-	restartWorkloadConfig            *RestartWorkloadConfig
-	mergeUtil                        *util.MergeUtil
+	Logger                               *zap.SugaredLogger
+	chartService                         chart.ChartService
+	chartReadService                     read2.ChartReadService
+	appListingService                    app.AppListingService
+	deploymentTemplateRepository         repository.DeploymentTemplateRepository
+	helmAppReadService                   read3.HelmAppReadService
+	chartTemplateServiceImpl             util.ChartTemplateService
+	K8sUtil                              *k8s.K8sServiceImpl
+	helmAppClient                        gRPC.HelmAppClient
+	propertiesConfigService              pipeline.PropertiesConfigService
+	environmentRepository                repository3.EnvironmentRepository
+	appRepository                        appRepository.AppRepository
+	scopedVariableManager                variables.ScopedVariableManager
+	chartRefService                      chartRef.ChartRefService
+	pipelineOverrideRepository           chartConfig.PipelineOverrideRepository
+	pipelineRepository                   pipelineConfig.PipelineRepository
+	chartRepository                      chartRepoRepository.ChartRepository
+	restartWorkloadConfig                *RestartWorkloadConfig
+	mergeUtil                            *util.MergeUtil
+	deploymentTemplateHistoryReadService read.DeploymentTemplateHistoryReadService
+	deploymentConfigReadService          cdConfigRead.DeploymentConfigReadService
 }
 
 func GetRestartWorkloadConfig() (*RestartWorkloadConfig, error) {
@@ -92,14 +101,14 @@ func GetRestartWorkloadConfig() (*RestartWorkloadConfig, error) {
 }
 
 func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService chart.ChartService,
+	chartReadService read2.ChartReadService,
 	appListingService app.AppListingService,
 	deploymentTemplateRepository repository.DeploymentTemplateRepository,
-	helmAppService client.HelmAppService,
+	helmAppReadService read3.HelmAppReadService,
 	chartTemplateServiceImpl util.ChartTemplateService,
 	helmAppClient gRPC.HelmAppClient,
 	K8sUtil *k8s.K8sServiceImpl,
 	propertiesConfigService pipeline.PropertiesConfigService,
-	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	environmentRepository repository3.EnvironmentRepository,
 	appRepository appRepository.AppRepository,
 	scopedVariableManager variables.ScopedVariableManager,
@@ -108,26 +117,30 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 	chartRepository chartRepoRepository.ChartRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	mergeUtil *util.MergeUtil,
+	deploymentTemplateHistoryReadService read.DeploymentTemplateHistoryReadService,
+	deploymentConfigReadService cdConfigRead.DeploymentConfigReadService,
 ) (*DeploymentTemplateServiceImpl, error) {
 	deploymentTemplateServiceImpl := &DeploymentTemplateServiceImpl{
-		Logger:                           Logger,
-		chartService:                     chartService,
-		appListingService:                appListingService,
-		deploymentTemplateRepository:     deploymentTemplateRepository,
-		helmAppService:                   helmAppService,
-		chartTemplateServiceImpl:         chartTemplateServiceImpl,
-		K8sUtil:                          K8sUtil,
-		helmAppClient:                    helmAppClient,
-		propertiesConfigService:          propertiesConfigService,
-		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
-		environmentRepository:            environmentRepository,
-		appRepository:                    appRepository,
-		scopedVariableManager:            scopedVariableManager,
-		chartRefService:                  chartRefService,
-		pipelineOverrideRepository:       pipelineOverrideRepository,
-		chartRepository:                  chartRepository,
-		pipelineRepository:               pipelineRepository,
-		mergeUtil:                        mergeUtil,
+		Logger:                               Logger,
+		chartService:                         chartService,
+		chartReadService:                     chartReadService,
+		appListingService:                    appListingService,
+		deploymentTemplateRepository:         deploymentTemplateRepository,
+		helmAppReadService:                   helmAppReadService,
+		chartTemplateServiceImpl:             chartTemplateServiceImpl,
+		K8sUtil:                              K8sUtil,
+		helmAppClient:                        helmAppClient,
+		propertiesConfigService:              propertiesConfigService,
+		environmentRepository:                environmentRepository,
+		appRepository:                        appRepository,
+		scopedVariableManager:                scopedVariableManager,
+		chartRefService:                      chartRefService,
+		pipelineOverrideRepository:           pipelineOverrideRepository,
+		chartRepository:                      chartRepository,
+		pipelineRepository:                   pipelineRepository,
+		mergeUtil:                            mergeUtil,
+		deploymentTemplateHistoryReadService: deploymentTemplateHistoryReadService,
+		deploymentConfigReadService:          deploymentConfigReadService,
 	}
 	cfg, err := GetRestartWorkloadConfig()
 	if err != nil {
@@ -201,6 +214,7 @@ func (impl DeploymentTemplateServiceImpl) FetchDeploymentsWithChartRefs(appId in
 
 func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplate(ctx context.Context, request DeploymentTemplateRequest) (DeploymentTemplateResponse, error) {
 	var result DeploymentTemplateResponse
+	var response *DeploymentTemplateResponse
 	var values, resolvedValue string
 	var err error
 	var variableSnapshot map[string]string
@@ -217,9 +231,11 @@ func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplate(ctx context.Cont
 			_, values, err = impl.chartRefService.GetAppOverrideForDefaultTemplate(request.ChartRefId)
 			resolvedValue = values
 		case repository.PublishedOnEnvironments:
-			values, resolvedValue, variableSnapshot, err = impl.fetchResolvedTemplateForPublishedEnvs(ctx, request)
+			response, err = impl.fetchResolvedTemplateForPublishedEnvs(ctx, request)
+			resolvedValue = response.ResolvedData
 		case repository.DeployedOnSelfEnvironment, repository.DeployedOnOtherEnvironment:
-			values, resolvedValue, variableSnapshot, err = impl.fetchTemplateForDeployedEnv(ctx, request)
+			response, err = impl.fetchTemplateForDeployedEnv(ctx, request)
+			resolvedValue = response.ResolvedData
 		}
 		if err != nil {
 			impl.Logger.Errorw("error in getting values", "err", err)
@@ -227,6 +243,42 @@ func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplate(ctx context.Cont
 		}
 	}
 
+	if request.RequestDataMode == Values {
+		result.Data = values
+		result.ResolvedData = resolvedValue
+		result.VariableSnapshot = variableSnapshot
+		if response != nil {
+			result = ConvertPointerDeploymentTemplateResponseToNonPointer(response)
+		}
+		return result, nil
+	}
+	if variableSnapshot != nil {
+		result.VariableSnapshot = variableSnapshot
+	}
+	request = impl.setRequestMetadata(&request)
+	manifest, err := impl.GenerateManifest(ctx, &request, resolvedValue)
+	if err != nil {
+		return result, err
+	}
+	if manifest != nil {
+		result.Data = *manifest.Manifest
+	}
+	return result, nil
+}
+
+func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplateWithResolvedData(ctx context.Context, request DeploymentTemplateRequest) (DeploymentTemplateResponse, error) {
+	var result DeploymentTemplateResponse
+	var values, resolvedValue string
+	var err error
+	var variableSnapshot map[string]string
+
+	if request.Values != "" {
+		values = request.Values
+		resolvedValue, variableSnapshot, err = impl.resolveTemplateVariables(ctx, request.Values, request)
+		if err != nil {
+			return result, err
+		}
+	}
 	if request.RequestDataMode == Values {
 		result.Data = values
 		result.ResolvedData = resolvedValue
@@ -276,12 +328,13 @@ func (impl DeploymentTemplateServiceImpl) setRequestMetadata(request *Deployment
 			// not returning the error as this will break the UX
 		}
 		request.PipelineName = cdPipeline.Name
+		request.DeploymentAppName = cdPipeline.DeploymentAppName
 	}
 
 	return *request
 }
 
-func (impl DeploymentTemplateServiceImpl) fetchResolvedTemplateForPublishedEnvs(ctx context.Context, request DeploymentTemplateRequest) (string, string, map[string]string, error) {
+func (impl DeploymentTemplateServiceImpl) fetchResolvedTemplateForPublishedEnvs(ctx context.Context, request DeploymentTemplateRequest) (*DeploymentTemplateResponse, error) {
 	var values string
 	override, err := impl.propertiesConfigService.GetEnvironmentProperties(request.AppId, request.EnvId, request.ChartRefId)
 	if err == nil && override.GlobalConfig != nil {
@@ -292,24 +345,47 @@ func (impl DeploymentTemplateServiceImpl) fetchResolvedTemplateForPublishedEnvs(
 		}
 	} else {
 		impl.Logger.Errorw("error in getting overridden values", "err", err)
-		return "", "", nil, err
+		return nil, err
+	}
+	// handle here for chart ref id in case
+	chartRefId := override.EnvironmentConfig.ChartRefId
+	if chartRefId == 0 {
+		chartRefId = override.GlobalChartRefId
+	}
+	_, _, version, _, err := impl.chartRefService.GetRefChart(chartRefId)
+	if err != nil {
+		impl.Logger.Errorw("error in getting chart ref by chartRefId ", "chartRefId", request.ChartRefId, "err", err)
+		return nil, err
 	}
 	resolvedTemplate, variableSnapshot, err := impl.resolveTemplateVariables(ctx, values, request)
 	if err != nil {
-		return values, values, variableSnapshot, err
+		impl.Logger.Errorw("error in resolving template variables for env override  ", "deploymentTemplateRequest", request, "err", err)
+		return nil, err
 	}
-	return values, resolvedTemplate, variableSnapshot, nil
+	return &DeploymentTemplateResponse{
+		Data:                values,
+		ResolvedData:        resolvedTemplate,
+		VariableSnapshot:    variableSnapshot,
+		TemplateVersion:     version,
+		IsAppMetricsEnabled: *override.AppMetrics,
+	}, nil
 }
 
-func (impl DeploymentTemplateServiceImpl) fetchTemplateForDeployedEnv(ctx context.Context, request DeploymentTemplateRequest) (string, string, map[string]string, error) {
-	historyObject, err := impl.deploymentTemplateHistoryService.GetHistoryForDeployedTemplateById(ctx, request.DeploymentTemplateHistoryId, request.PipelineId)
+func (impl DeploymentTemplateServiceImpl) fetchTemplateForDeployedEnv(ctx context.Context, request DeploymentTemplateRequest) (*DeploymentTemplateResponse, error) {
+	historyObject, err := impl.deploymentTemplateHistoryReadService.GetHistoryForDeployedTemplateById(ctx, request.DeploymentTemplateHistoryId, request.PipelineId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting deployment template history", "err", err, "id", request.DeploymentTemplateHistoryId, "pipelineId", request.PipelineId)
-		return "", "", nil, err
+		return nil, err
 	}
 
 	//todo Subhashish solve variable leak
-	return historyObject.CodeEditorValue.Value, historyObject.CodeEditorValue.ResolvedValue, historyObject.CodeEditorValue.VariableSnapshot, nil
+	return &DeploymentTemplateResponse{
+		Data:                historyObject.CodeEditorValue.Value,
+		ResolvedData:        historyObject.CodeEditorValue.ResolvedValue,
+		VariableSnapshot:    historyObject.CodeEditorValue.VariableSnapshot,
+		TemplateVersion:     historyObject.TemplateVersion,
+		IsAppMetricsEnabled: *historyObject.IsAppMetricsEnabled,
+	}, nil
 }
 
 func (impl DeploymentTemplateServiceImpl) resolveTemplateVariables(ctx context.Context, values string, request DeploymentTemplateRequest) (string, map[string]string, error) {
@@ -368,7 +444,14 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 		Name:    request.AppName,
 		Version: refChart.Version,
 	}
-
+	deploymentConfigMin, err := impl.deploymentConfigReadService.GetDeploymentConfigMinForAppAndEnv(request.AppId, request.EnvId)
+	if err != nil {
+		impl.Logger.Errorw("error in getting deployment config", "appId", request.AppId, "envId", request.EnvId, "err", err)
+		return nil, err
+	}
+	if deploymentConfigMin.IsLinkedRelease() {
+		chartMetaData.Name = refChart.Name
+	}
 	refChartPath, err := impl.chartRefService.GetChartLocation(refChart.Location, refChart.ChartData)
 	if err != nil {
 		impl.Logger.Errorw("error in getting chart location", "chartMetaData", chartMetaData, "refChartLocation", refChart.Location)
@@ -401,6 +484,10 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 		sanitizedK8sVersion = k8s2.StripPrereleaseFromK8sVersion(sanitizedK8sVersion)
 	}
 
+	releaseName := util2.BuildDeployedAppName(request.AppName, request.EnvName)
+	if len(request.DeploymentAppName) != 0 {
+		releaseName = request.DeploymentAppName
+	}
 	mergedValuesYaml := impl.patchReleaseAttributes(request, valuesYaml)
 	installReleaseRequest := &gRPC.InstallReleaseRequest{
 		AppName:         request.AppName,
@@ -410,14 +497,14 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 		K8SVersion:      sanitizedK8sVersion,
 		ChartRepository: ChartRepository,
 		ReleaseIdentifier: &gRPC.ReleaseIdentifier{
-			ReleaseName:      fmt.Sprintf("%s-%s", request.AppName, request.EnvName),
+			ReleaseName:      releaseName,
 			ReleaseNamespace: request.Namespace,
 		},
 		ChartContent: &gRPC.ChartContent{
 			Content: chartInBytes,
 		},
 	}
-	config, err := impl.helmAppService.GetClusterConf(bean.DEFAULT_CLUSTER_ID)
+	config, err := impl.helmAppReadService.GetClusterConf(clusterBean.DefaultClusterId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching cluster detail", "clusterId", 1, "err", err)
 		return nil, err
@@ -452,7 +539,7 @@ func (impl DeploymentTemplateServiceImpl) patchReleaseAttributes(request *Deploy
 		return
 	}
 
-	chartDto, err := impl.chartService.GetByAppIdAndChartRefId(request.AppId, request.ChartRefId)
+	chartDto, err := impl.chartReadService.GetByAppIdAndChartRefId(request.AppId, request.ChartRefId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting the chart using appId and chartRefId", "appId", request.AppId, "chartRefId", request.ChartRefId, "err", err)
 		return
@@ -491,7 +578,7 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 	if len(appIds) == 0 {
 		return podResp, nil
 	}
-	apps, err := impl.appRepository.FindByIds(util2.GetReferencedArray(appIds))
+	apps, err := impl.appRepository.FindByIds(sliceUtil.GetReferencedSlice(appIds))
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app", "appIds", appIds, "err", err)
 		return nil, err
@@ -556,4 +643,22 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 		return nil, err
 	}
 	return podResp, nil
+}
+
+func (impl DeploymentTemplateServiceImpl) ResolveTemplateVariables(ctx context.Context, values string, request DeploymentTemplateRequest) (string, map[string]string, error) {
+
+	isSuperAdmin, err := util2.GetIsSuperAdminFromContext(ctx)
+	if err != nil {
+		return values, nil, err
+	}
+	scope, err := impl.extractScopeData(request)
+	if err != nil {
+		return values, nil, err
+	}
+	maskUnknownVariableForHelmGenerate := request.RequestDataMode == Manifest
+	resolvedTemplate, variableSnapshot, err := impl.scopedVariableManager.ExtractVariablesAndResolveTemplate(scope, values, parsers.JsonVariableTemplate, isSuperAdmin, maskUnknownVariableForHelmGenerate)
+	if err != nil {
+		return values, variableSnapshot, err
+	}
+	return resolvedTemplate, variableSnapshot, nil
 }

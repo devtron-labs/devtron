@@ -17,20 +17,20 @@
 package pipelineConfig
 
 import (
-	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"time"
+
+	"github.com/devtron-labs/devtron/internal/sql/constants"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"time"
 )
 
 type CiWorkflowRepository interface {
-	SaveWorkFlowConfig(config *CiWorkflowConfig) error
-	FindConfigByPipelineId(pipelineId int) (*CiWorkflowConfig, error)
-
-	SaveWorkFlow(wf *CiWorkflow) error
+	SaveWorkFlowWithTx(wf *CiWorkflow, tx *pg.Tx) error
 	FindLastTriggeredWorkflow(pipelineId int) (*CiWorkflow, error)
-	UpdateWorkFlow(wf *CiWorkflow) error
+	UpdateWorkFlowWithTx(wf *CiWorkflow, tx *pg.Tx) error
+	UpdateArtifactUploaded(id int, isUploaded workflow.ArtifactUploadedType) error
 	FindByStatusesIn(activeStatuses []string) ([]*CiWorkflow, error)
 	FindByPipelineId(pipelineId int, offset int, size int) ([]WorkflowWithArtifact, error)
 	FindById(id int) (*CiWorkflow, error)
@@ -40,14 +40,19 @@ type CiWorkflowRepository interface {
 	FindByName(name string) (*CiWorkflow, error)
 
 	FindLastTriggeredWorkflowByCiIds(pipelineId []int) (ciWorkflow []*CiWorkflow, err error)
+	FindWorkflowsByCiWorkflowIds(ciWorkflowIds []int) (ciWorkflow []*CiWorkflow, err error)
 	FindLastTriggeredWorkflowByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error)
 	FindAllLastTriggeredWorkflowByArtifactId(ciArtifactId []int) (ciWorkflow []*CiWorkflow, err error)
 	FindAllTriggeredWorkflowCountInLast24Hour() (ciWorkflowCount int, err error)
 	FindLastTriggeredWorkflowGitTriggersByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error)
 	FindLastTriggeredWorkflowGitTriggersByArtifactIds(ciArtifactIds []int) ([]*WorkflowWithArtifact, error)
 	ExistsByStatus(status string) (bool, error)
-	FindBuildTypeAndStatusDataOfLast1Day() []*BuildTypeCount
+	FindBuildTypeAndStatusDataOfLast1Day() ([]*BuildTypeCount, error)
 	FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error)
+	FindCiPipelineIdsByAppId(appId int) ([]int, error)
+
+	MigrateIsArtifactUploaded(wfId int, isArtifactUploaded bool)
+	MigrateCiArtifactLocation(wfId int, artifactLocation string)
 }
 
 type CiWorkflowRepositoryImpl struct {
@@ -56,30 +61,40 @@ type CiWorkflowRepositoryImpl struct {
 }
 
 type CiWorkflow struct {
-	tableName               struct{}             `sql:"ci_workflow" pg:",discard_unknown_columns"`
-	Id                      int                  `sql:"id,pk"`
-	Name                    string               `sql:"name"`
-	Status                  string               `sql:"status"`
-	PodStatus               string               `sql:"pod_status"`
-	Message                 string               `sql:"message"`
-	StartedOn               time.Time            `sql:"started_on"`
-	FinishedOn              time.Time            `sql:"finished_on"`
-	CiPipelineId            int                  `sql:"ci_pipeline_id"`
-	Namespace               string               `sql:"namespace"`
-	BlobStorageEnabled      bool                 `sql:"blob_storage_enabled,notnull"`
-	LogLocation             string               `sql:"log_file_path"`
-	GitTriggers             map[int]GitCommit    `sql:"git_triggers"`
-	TriggeredBy             int32                `sql:"triggered_by"`
-	CiArtifactLocation      string               `sql:"ci_artifact_location"`
-	PodName                 string               `sql:"pod_name"`
-	CiBuildType             string               `sql:"ci_build_type"`
-	EnvironmentId           int                  `sql:"environment_id"`
-	ReferenceCiWorkflowId   int                  `sql:"ref_ci_workflow_id"`
-	ParentCiWorkFlowId      int                  `sql:"parent_ci_workflow_id"`
-	ExecutorType            WorkflowExecutorType `sql:"executor_type"` //awf, system
-	ImagePathReservationId  int                  `sql:"image_path_reservation_id"`
-	ImagePathReservationIds []int                `sql:"image_path_reservation_ids" pg:",array"`
+	tableName               struct{}                        `sql:"ci_workflow" pg:",discard_unknown_columns"`
+	Id                      int                             `sql:"id,pk"`
+	Name                    string                          `sql:"name"`
+	Status                  string                          `sql:"status"`
+	PodStatus               string                          `sql:"pod_status"`
+	Message                 string                          `sql:"message"`
+	StartedOn               time.Time                       `sql:"started_on"`
+	FinishedOn              time.Time                       `sql:"finished_on"`
+	CiPipelineId            int                             `sql:"ci_pipeline_id"`
+	Namespace               string                          `sql:"namespace"`
+	BlobStorageEnabled      bool                            `sql:"blob_storage_enabled,notnull"`
+	LogLocation             string                          `sql:"log_file_path"`
+	GitTriggers             map[int]GitCommit               `sql:"git_triggers"`
+	TriggeredBy             int32                           `sql:"triggered_by"`
+	CiArtifactLocation      string                          `sql:"ci_artifact_location"`
+	IsArtifactUploaded      workflow.ArtifactUploadedType   `sql:"is_artifact_uploaded"`
+	PodName                 string                          `sql:"pod_name"`
+	CiBuildType             string                          `sql:"ci_build_type"`
+	EnvironmentId           int                             `sql:"environment_id"`
+	ReferenceCiWorkflowId   int                             `sql:"ref_ci_workflow_id"`
+	ParentCiWorkFlowId      int                             `sql:"parent_ci_workflow_id"`
+	ExecutorType            cdWorkflow.WorkflowExecutorType `sql:"executor_type"` //awf, system
+	ImagePathReservationId  int                             `sql:"image_path_reservation_id"`
+	ImagePathReservationIds []int                           `sql:"image_path_reservation_ids" pg:",array"`
 	CiPipeline              *CiPipeline
+}
+
+func (ciWorkflow *CiWorkflow) GetIsArtifactUploaded() (isArtifactUploaded bool, isMigrationRequired bool) {
+	return workflow.IsArtifactUploaded(ciWorkflow.IsArtifactUploaded)
+}
+
+func (ciWorkflow *CiWorkflow) WithIsArtifactUploaded(isArtifactUploaded bool) *CiWorkflow {
+	ciWorkflow.IsArtifactUploaded = workflow.GetArtifactUploadedType(isArtifactUploaded)
+	return ciWorkflow
 }
 
 func (ciWorkflow *CiWorkflow) InProgress() bool {
@@ -91,33 +106,39 @@ func (ciWorkflow *CiWorkflow) IsExternalRunInJobType() bool {
 }
 
 type WorkflowWithArtifact struct {
-	Id                      int                  `json:"id"`
-	Name                    string               `json:"name"`
-	PodName                 string               `json:"podName"`
-	Status                  string               `json:"status"`
-	PodStatus               string               `json:"pod_status"`
-	Message                 string               `json:"message"`
-	StartedOn               time.Time            `json:"started_on"`
-	FinishedOn              time.Time            `json:"finished_on"`
-	CiPipelineId            int                  `json:"ci_pipeline_id"`
-	Namespace               string               `json:"namespace"`
-	LogFilePath             string               `json:"log_file_path"`
-	GitTriggers             map[int]GitCommit    `json:"git_triggers"`
-	TriggeredBy             int32                `json:"triggered_by"`
-	EmailId                 string               `json:"email_id"`
-	Image                   string               `json:"image"`
-	CiArtifactLocation      string               `json:"ci_artifact_location"`
-	CiArtifactId            int                  `json:"ci_artifact_d"`
-	BlobStorageEnabled      bool                 `json:"blobStorageEnabled"`
-	CiBuildType             string               `json:"ci_build_type"`
-	IsArtifactUploaded      bool                 `json:"is_artifact_uploaded"`
-	EnvironmentId           int                  `json:"environmentId"`
-	EnvironmentName         string               `json:"environmentName"`
-	RefCiWorkflowId         int                  `json:"referenceCiWorkflowId"`
-	ParentCiWorkflowId      int                  `json:"parent_ci_workflow_id"`
-	ExecutorType            WorkflowExecutorType `json:"executor_type"` //awf, system
-	ImagePathReservationId  int                  `json:"image_path_reservation_id"`
-	ImagePathReservationIds []int                `json:"image_path_reservation_ids" pg:",array"`
+	Id                      int                             `sql:"id"`
+	Name                    string                          `sql:"name"`
+	PodName                 string                          `sql:"pod_name"`
+	Status                  string                          `sql:"status"`
+	PodStatus               string                          `sql:"pod_status"`
+	Message                 string                          `sql:"message"`
+	StartedOn               time.Time                       `sql:"started_on"`
+	FinishedOn              time.Time                       `sql:"finished_on"`
+	CiPipelineId            int                             `sql:"ci_pipeline_id"`
+	Namespace               string                          `sql:"namespace"`
+	LogFilePath             string                          `sql:"log_file_path"`
+	GitTriggers             map[int]GitCommit               `sql:"git_triggers"`
+	TriggeredBy             int32                           `sql:"triggered_by"`
+	EmailId                 string                          `sql:"email_id"`
+	Image                   string                          `sql:"image"`
+	TargetPlatforms         string                          `sql:"target_platforms"`
+	CiArtifactLocation      string                          `sql:"ci_artifact_location"`
+	CiArtifactId            int                             `sql:"ci_artifact_id"`
+	BlobStorageEnabled      bool                            `sql:"blob_storage_enabled"`
+	CiBuildType             string                          `sql:"ci_build_type"`
+	IsArtifactUploadedV2    workflow.ArtifactUploadedType   `sql:"is_artifact_uploaded"`     // IsArtifactUploadedV2 is the new column from ci_workflow table, IsArtifactUploaded is Deprecated and will be removed in future
+	IsArtifactUploaded      bool                            `sql:"old_is_artifact_uploaded"` // Deprecated; Use IsArtifactUploadedV2 instead. IsArtifactUploaded is the column from ci_artifact table
+	EnvironmentId           int                             `sql:"environment_id"`
+	EnvironmentName         string                          `sql:"environment_name"`
+	RefCiWorkflowId         int                             `sql:"ref_ci_workflow_id"`
+	ParentCiWorkflowId      int                             `sql:"parent_ci_workflow_id"`
+	ExecutorType            cdWorkflow.WorkflowExecutorType `sql:"executor_type"` //awf, system
+	ImagePathReservationId  int                             `sql:"image_path_reservation_id"`
+	ImagePathReservationIds []int                           `sql:"image_path_reservation_ids" pg:",array"`
+}
+
+func (w *WorkflowWithArtifact) GetIsArtifactUploaded() (isArtifactUploaded bool, isMigrationRequired bool) {
+	return workflow.IsArtifactUploaded(w.IsArtifactUploadedV2)
 }
 
 type GitCommit struct {
@@ -130,34 +151,13 @@ type GitCommit struct {
 	CiConfigureSourceValue string
 	GitRepoUrl             string
 	GitRepoName            string
-	CiConfigureSourceType  SourceType
+	CiConfigureSourceType  constants.SourceType
 }
 
 type WebhookData struct {
 	Id              int               `json:"id"`
 	EventActionType string            `json:"eventActionType"`
 	Data            map[string]string `json:"data"`
-}
-
-type CiWorkflowConfig struct {
-	tableName                struct{} `sql:"ci_workflow_config" pg:",discard_unknown_columns"`
-	Id                       int      `sql:"id,pk"`
-	CiTimeout                int64    `sql:"ci_timeout"`
-	MinCpu                   string   `sql:"min_cpu"`
-	MaxCpu                   string   `sql:"max_cpu"`
-	MinMem                   string   `sql:"min_mem"`
-	MaxMem                   string   `sql:"max_mem"`
-	MinStorage               string   `sql:"min_storage"`
-	MaxStorage               string   `sql:"max_storage"`
-	MinEphStorage            string   `sql:"min_eph_storage"`
-	MaxEphStorage            string   `sql:"max_eph_storage"`
-	CiCacheBucket            string   `sql:"ci_cache_bucket"`
-	CiCacheRegion            string   `sql:"ci_cache_region"`
-	CiImage                  string   `sql:"ci_image"`
-	Namespace                string   `sql:"wf_namespace"`
-	CiPipelineId             int      `sql:"ci_pipeline_id"`
-	LogsBucket               string   `sql:"logs_bucket"`
-	CiArtifactLocationFormat string   `sql:"ci_artifact_location_format"`
 }
 
 func NewCiWorkflowRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *CiWorkflowRepositoryImpl {
@@ -190,8 +190,27 @@ func (impl *CiWorkflowRepositoryImpl) FindByStatusesIn(activeStatuses []string) 
 // FindByPipelineId gets only those workflowWithArtifact whose parent_ci_workflow_id is null, this is done to accommodate multiple ci_artifacts through a single workflow(parent), making child workflows for other ci_artifacts (this has been done due to design understanding and db constraint) single workflow single ci-artifact
 func (impl *CiWorkflowRepositoryImpl) FindByPipelineId(pipelineId int, offset int, limit int) ([]WorkflowWithArtifact, error) {
 	var wfs []WorkflowWithArtifact
-	queryTemp := "select cia.id as ci_artifact_id, env.environment_name, cia.image, cia.is_artifact_uploaded, wf.*, u.email_id from ci_workflow wf left join users u on u.id = wf.triggered_by left join ci_artifact cia on wf.id = cia.ci_workflow_id left join environment env on env.id = wf.environment_id where wf.ci_pipeline_id = ? and parent_ci_workflow_id is null order by wf.started_on desc offset ? limit ?;"
-	_, err := impl.dbConnection.Query(&wfs, queryTemp, pipelineId, offset, limit)
+	err := impl.dbConnection.Model().
+		TableExpr("ci_workflow AS wf").
+		ColumnExpr("cia.id AS ci_artifact_id").
+		ColumnExpr("env.environment_name").
+		ColumnExpr("cia.image").
+		ColumnExpr("cia.target_platforms").
+		ColumnExpr("cia.is_artifact_uploaded AS old_is_artifact_uploaded").
+		ColumnExpr("wf.*").
+		ColumnExpr("u.email_id").
+		Join("LEFT JOIN users u").
+		JoinOn("u.id = wf.triggered_by").
+		Join("LEFT JOIN ci_artifact cia").
+		JoinOn("wf.id = cia.ci_workflow_id").
+		Join("LEFT JOIN environment env").
+		JoinOn("env.id = wf.environment_id").
+		Where("wf.ci_pipeline_id = ?", pipelineId).
+		Where("parent_ci_workflow_id is NULL").
+		Order("wf.started_on DESC").
+		Offset(offset).
+		Limit(limit).
+		Select(&wfs)
 	if err != nil {
 		return nil, err
 	}
@@ -218,10 +237,9 @@ func (impl *CiWorkflowRepositoryImpl) FindById(id int) (*CiWorkflow, error) {
 
 func (impl *CiWorkflowRepositoryImpl) FindRetriedWorkflowCountByReferenceId(id int) (int, error) {
 	retryCount := 0
-	query := fmt.Sprintf("select count(*) "+
-		"from ci_workflow where ref_ci_workflow_id = %v", id)
+	query := "select count(*) from ci_workflow where ref_ci_workflow_id = ?"
 
-	_, err := impl.dbConnection.Query(&retryCount, query)
+	_, err := impl.dbConnection.Query(&retryCount, query, id)
 	return retryCount, err
 }
 
@@ -247,32 +265,42 @@ func (impl *CiWorkflowRepositoryImpl) FindCiWorkflowGitTriggersByIds(ids []int) 
 
 	return workflows, err
 }
-func (impl *CiWorkflowRepositoryImpl) SaveWorkFlowConfig(config *CiWorkflowConfig) error {
-	err := impl.dbConnection.Insert(config)
+
+func (impl *CiWorkflowRepositoryImpl) SaveWorkFlowWithTx(wf *CiWorkflow, tx *pg.Tx) error {
+	err := tx.Insert(wf)
 	return err
 }
 
-func (impl *CiWorkflowRepositoryImpl) FindConfigByPipelineId(pipelineId int) (*CiWorkflowConfig, error) {
-	ciWorkflowConfig := &CiWorkflowConfig{}
-	err := impl.dbConnection.Model(ciWorkflowConfig).Where("ci_pipeline_id = ?", pipelineId).Select()
-	return ciWorkflowConfig, err
-}
-
-func (impl *CiWorkflowRepositoryImpl) SaveWorkFlow(wf *CiWorkflow) error {
-	err := impl.dbConnection.Insert(wf)
+func (impl *CiWorkflowRepositoryImpl) UpdateWorkFlowWithTx(wf *CiWorkflow, tx *pg.Tx) error {
+	err := tx.Update(wf)
 	return err
 }
 
-func (impl *CiWorkflowRepositoryImpl) UpdateWorkFlow(wf *CiWorkflow) error {
-	err := impl.dbConnection.Update(wf)
+func (impl *CiWorkflowRepositoryImpl) UpdateArtifactUploaded(id int, isUploaded workflow.ArtifactUploadedType) error {
+	_, err := impl.dbConnection.Model(&CiWorkflow{}).
+		Set("is_artifact_uploaded = ?", isUploaded).
+		Where("id = ?", id).
+		Update()
 	return err
 }
 
 func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByCiIds(pipelineId []int) (ciWorkflow []*CiWorkflow, err error) {
 	err = impl.dbConnection.Model(&ciWorkflow).
 		Column("ci_workflow.*", "CiPipeline").
-		Where("ci_workflow.ci_pipeline_id in (?) ", pg.In(pipelineId)).
-		Order("ci_workflow.started_on Desc").
+		Where("ci_workflow.id IN (select MAX(id) from ci_workflow where  ci_pipeline_id IN (?) GROUP BY ci_pipeline_id)", pg.In(pipelineId)).
+		Select()
+	return ciWorkflow, err
+}
+
+// FindWorkflowsByCiWorkflowIds fetches workflows by their workflow IDs (simple query)
+func (impl *CiWorkflowRepositoryImpl) FindWorkflowsByCiWorkflowIds(ciWorkflowIds []int) (ciWorkflow []*CiWorkflow, err error) {
+	if len(ciWorkflowIds) == 0 {
+		return ciWorkflow, nil
+	}
+
+	err = impl.dbConnection.Model(&ciWorkflow).
+		Column("ci_workflow.*", "CiPipeline").
+		Where("ci_workflow.id IN (?)", pg.In(ciWorkflowIds)).
 		Select()
 	return ciWorkflow, err
 }
@@ -323,9 +351,8 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowGitTriggersByArti
 	}
 	query := "SELECT cw.git_triggers,cw.id,cw.triggered_by,cw.ci_pipeline_id,cia.id as ci_artifact_id" +
 		" FROM ci_workflow cw INNER JOIN ci_artifact cia on cia.ci_workflow_id = cw.id " +
-		" WHERE cia.id IN (%s)"
-	query = fmt.Sprintf(query, helper.GetCommaSepratedString(ciArtifactIds))
-	_, err := impl.dbConnection.Query(&workflows, query)
+		" WHERE cia.id IN (?)"
+	_, err := impl.dbConnection.Query(&workflows, query, pg.In(ciArtifactIds))
 	return workflows, err
 }
 
@@ -336,14 +363,15 @@ func (impl *CiWorkflowRepositoryImpl) ExistsByStatus(status string) (bool, error
 	return exists, err
 }
 
-func (impl *CiWorkflowRepositoryImpl) FindBuildTypeAndStatusDataOfLast1Day() []*BuildTypeCount {
+func (impl *CiWorkflowRepositoryImpl) FindBuildTypeAndStatusDataOfLast1Day() ([]*BuildTypeCount, error) {
 	var buildTypeCounts []*BuildTypeCount
 	query := "select status,ci_build_type as type, count(*) from ci_workflow where status in ('Succeeded','Failed') and started_on > ? group by (ci_build_type, status)"
 	_, err := impl.dbConnection.Query(&buildTypeCounts, query, time.Now().AddDate(0, 0, -1))
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching build type vs status vs count data", "err", err)
+		return nil, err
 	}
-	return buildTypeCounts
+	return buildTypeCounts, nil
 }
 
 func (impl *CiWorkflowRepositoryImpl) FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error) {
@@ -361,6 +389,37 @@ func (impl *CiWorkflowRepositoryImpl) FIndCiWorkflowStatusesByAppId(appId int) (
 	_, err := impl.dbConnection.Query(&ciworkflowStatuses, query, appId) //, pg.In(ciPipelineIds))
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching build type vs status vs count data", "err", err)
+		return ciworkflowStatuses, err
 	}
 	return ciworkflowStatuses, err
+}
+
+// FindCiPipelineIdsByAppId gets all CI pipeline IDs for an app (simple query)
+func (impl *CiWorkflowRepositoryImpl) FindCiPipelineIdsByAppId(appId int) ([]int, error) {
+	var ciPipelineIds []int
+	err := impl.dbConnection.Model((*CiPipeline)(nil)).
+		Column("id").
+		Where("app_id = ? AND deleted = false", appId).
+		Select(&ciPipelineIds)
+	return ciPipelineIds, err
+}
+
+func (impl *CiWorkflowRepositoryImpl) MigrateIsArtifactUploaded(wfId int, isArtifactUploaded bool) {
+	_, err := impl.dbConnection.Model((*CiWorkflow)(nil)).
+		Set("is_artifact_uploaded = ?", workflow.GetArtifactUploadedType(isArtifactUploaded)).
+		Where("id = ?", wfId).
+		Update()
+	if err != nil {
+		impl.logger.Errorw("error occurred while updating is_artifact_uploaded", "wfId", wfId, "err", err)
+	}
+}
+
+func (impl *CiWorkflowRepositoryImpl) MigrateCiArtifactLocation(wfId int, artifactLocation string) {
+	_, err := impl.dbConnection.Model((*CiWorkflow)(nil)).
+		Set("ci_artifact_location = ?", artifactLocation).
+		Where("id = ?", wfId).
+		Update()
+	if err != nil {
+		impl.logger.Errorw("error occurred while updating ci_artifact_location", "wfId", wfId, "err", err)
+	}
 }

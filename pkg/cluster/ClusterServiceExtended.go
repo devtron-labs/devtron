@@ -19,61 +19,72 @@ package cluster
 import (
 	"context"
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	"github.com/devtron-labs/devtron/client/argocdServer"
+	"github.com/devtron-labs/devtron/pkg/cluster/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/devtron-labs/common-lib/utils/k8s"
-	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 )
+
+const DataSourceNameFormat = "Prometheus-%s-EnvId-%d"
 
 // extends ClusterServiceImpl and enhances method of ClusterService with full mode specific errors
 type ClusterServiceImplExtended struct {
 	environmentRepository   repository.EnvironmentRepository
 	grafanaClient           grafana.GrafanaClient
 	installedAppRepository  repository2.InstalledAppRepository
-	clusterServiceCD        cluster2.ServiceClient
+	argoCDClientWrapper     argocdServer.ArgoClientWrapperService
 	gitOpsConfigReadService config.GitOpsConfigReadService
 	*ClusterServiceImpl
 }
 
 func NewClusterServiceImplExtended(environmentRepository repository.EnvironmentRepository,
 	grafanaClient grafana.GrafanaClient, installedAppRepository repository2.InstalledAppRepository,
-	clusterServiceCD cluster2.ServiceClient,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	clusterServiceImpl *ClusterServiceImpl) *ClusterServiceImplExtended {
+	clusterServiceImpl *ClusterServiceImpl,
+	argoCDClientWrapper argocdServer.ArgoClientWrapperService) *ClusterServiceImplExtended {
 	clusterServiceExt := &ClusterServiceImplExtended{
 		environmentRepository:   environmentRepository,
 		grafanaClient:           grafanaClient,
 		installedAppRepository:  installedAppRepository,
-		clusterServiceCD:        clusterServiceCD,
+		argoCDClientWrapper:     argoCDClientWrapper,
 		gitOpsConfigReadService: gitOpsConfigReadService,
 		ClusterServiceImpl:      clusterServiceImpl,
 	}
 	return clusterServiceExt
 }
 
-func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*ClusterBean, error) {
+func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*bean.ClusterBean, error) {
 	beans, err := impl.FindAll()
 	if err != nil {
 		return nil, err
 	}
 	for _, bean := range beans {
-		bean.Config = map[string]string{k8s.BearerToken: ""}
+		bean.Config = map[string]string{commonBean.BearerToken: ""}
 	}
 	return beans, nil
 }
 
-func (impl *ClusterServiceImplExtended) GetClusterFullModeDTO(beans []*ClusterBean) ([]*ClusterBean, error) {
+func (impl *ClusterServiceImplExtended) FindByIdsWithoutConfig(ids []int) ([]*bean.ClusterBean, error) {
+	beans, err := impl.ClusterServiceImpl.FindByIdsWithoutConfig(ids)
+	if err != nil {
+		return nil, err
+	}
+	return impl.GetClusterFullModeDTO(beans)
+}
+
+func (impl *ClusterServiceImplExtended) GetClusterFullModeDTO(beans []*bean.ClusterBean) ([]*bean.ClusterBean, error) {
 	//devtron full mode logic
 	var clusterIds []int
 	for _, cluster := range beans {
@@ -98,7 +109,7 @@ func (impl *ClusterServiceImplExtended) GetClusterFullModeDTO(beans []*ClusterBe
 	}
 
 	for _, item := range beans {
-		defaultClusterComponents := make([]*DefaultClusterComponent, 0)
+		defaultClusterComponents := make([]*bean.DefaultClusterComponent, 0)
 		if _, ok := clusterComponentsMap[item.Id]; ok {
 			charts := clusterComponentsMap[item.Id]
 			failed := false
@@ -108,7 +119,7 @@ func (impl *ClusterServiceImplExtended) GetClusterFullModeDTO(beans []*ClusterBe
 				chartLen = len(charts)
 			}
 			for _, chart := range charts {
-				defaultClusterComponent := &DefaultClusterComponent{}
+				defaultClusterComponent := &bean.DefaultClusterComponent{}
 				defaultClusterComponent.AppId = chart.InstalledApp.AppId
 				defaultClusterComponent.InstalledAppId = chart.InstalledApp.Id
 				defaultClusterComponent.EnvId = chart.InstalledApp.EnvironmentId
@@ -141,7 +152,7 @@ func (impl *ClusterServiceImplExtended) GetClusterFullModeDTO(beans []*ClusterBe
 	return beans, nil
 }
 
-func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
+func (impl *ClusterServiceImplExtended) FindAll() ([]*bean.ClusterBean, error) {
 	beans, err := impl.ClusterServiceImpl.FindAll()
 	if err != nil {
 		return nil, err
@@ -149,7 +160,7 @@ func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
 	return impl.GetClusterFullModeDTO(beans)
 }
 
-func (impl *ClusterServiceImplExtended) FindAllExceptVirtual() ([]*ClusterBean, error) {
+func (impl *ClusterServiceImplExtended) FindAllExceptVirtual() ([]*bean.ClusterBean, error) {
 	beans, err := impl.ClusterServiceImpl.FindAll()
 	if err != nil {
 		return nil, err
@@ -157,7 +168,7 @@ func (impl *ClusterServiceImplExtended) FindAllExceptVirtual() ([]*ClusterBean, 
 	return impl.GetClusterFullModeDTO(beans)
 }
 
-func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
+func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *bean.ClusterBean, userId int32) (*bean.ClusterBean, error) {
 	gitOpsConfigurationStatus, err1 := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err1 != nil {
 		return nil, err1
@@ -235,41 +246,15 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 
 	}
 
-	// if git-ops configured, then only update cluster in ACD, otherwise ignore
-	if gitOpsConfigurationStatus.IsGitOpsConfigured {
-		configMap := bean.Config
-		serverUrl := bean.ServerUrl
-		bearerToken := ""
-		if configMap[k8s.BearerToken] != "" {
-			bearerToken = configMap[k8s.BearerToken]
-		}
+	// if git-ops configured and ArgoCD module is installed, then only update cluster in ACD, otherwise ignore
+	if gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled() {
 
-		tlsConfig := v1alpha1.TLSClientConfig{
-			Insecure: bean.InsecureSkipTLSVerify,
-		}
-		if !bean.InsecureSkipTLSVerify {
-			tlsConfig.KeyData = []byte(configMap[k8s.TlsKey])
-			tlsConfig.CertData = []byte(configMap[k8s.CertData])
-			tlsConfig.CAData = []byte(configMap[k8s.CertificateAuthorityData])
-		}
-
-		cdClusterConfig := v1alpha1.ClusterConfig{
-			BearerToken:     bearerToken,
-			TLSClientConfig: tlsConfig,
-		}
-
-		cl := &v1alpha1.Cluster{
-			Name:   bean.ClusterName,
-			Server: serverUrl,
-			Config: cdClusterConfig,
-		}
-
-		_, err = impl.clusterServiceCD.Update(ctx, &cluster3.ClusterUpdateRequest{Cluster: cl})
-
+		cl := impl.ConvertClusterBeanObjectToCluster(bean)
+		_, err = impl.argoCDClientWrapper.CreateCluster(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
 		if err != nil {
 			impl.logger.Errorw("service err, Update", "error", err, "payload", cl)
 			userMsg := "failed to update on cluster via ACD"
-			if strings.Contains(err.Error(), k8s.DefaultClusterUrl) {
+			if strings.Contains(err.Error(), commonBean.DefaultClusterUrl) {
 				userMsg = fmt.Sprintf("%s, %s", err.Error(), ", successfully updated in ACD")
 			}
 			err = &util.ApiError{
@@ -288,12 +273,16 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 	return bean, err
 }
 
-func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *ClusterBean, env *repository.Environment) (int, error) {
+func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *bean.ClusterBean, env *repository.Environment) (int, error) {
 	grafanaDatasourceId := env.GrafanaDatasourceId
 	if grafanaDatasourceId == 0 {
 		//starts grafana creation
+		// appending envId to ensure unique datasource name for each environment (ex- env got deleted and created with same name)
+		// reverting to old name will be done in next release
+
+		DataSourceName := fmt.Sprintf(DataSourceNameFormat, env.Name, env.Id)
 		createDatasourceReq := grafana.CreateDatasourceRequest{
-			Name:      "Prometheus-" + env.Name,
+			Name:      DataSourceName,
 			Type:      "prometheus",
 			Url:       clusterBean.PrometheusUrl,
 			Access:    "proxy",
@@ -337,7 +326,7 @@ func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *Clu
 	return grafanaDatasourceId, nil
 }
 
-func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
+func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *bean.ClusterBean, userId int32) (*bean.ClusterBean, error) {
 	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err != nil {
 		return nil, err
@@ -348,12 +337,12 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 		return nil, err
 	}
 
-	// if git-ops configured, then only add cluster in ACD, otherwise ignore
-	if gitOpsConfigurationStatus.IsGitOpsConfigured {
+	// if git-ops configured and ArgoCD module is installed, then only add cluster in ACD, otherwise ignore
+	if gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled() {
 		//create it into argo cd as well
 		cl := impl.ConvertClusterBeanObjectToCluster(bean)
 
-		_, err = impl.clusterServiceCD.Create(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
+		_, err = impl.argoCDClientWrapper.CreateCluster(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
 		if err != nil {
 			impl.logger.Errorw("service err, Save", "err", err, "payload", cl)
 			err1 := impl.ClusterServiceImpl.Delete(bean, userId) //FIXME nishant call local
@@ -381,11 +370,11 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 	return clusterBean, nil
 }
 
-func (impl ClusterServiceImplExtended) DeleteFromDb(bean *ClusterBean, userId int32) error {
+func (impl ClusterServiceImplExtended) DeleteFromDb(bean *bean.DeleteClusterBean, userId int32) (string, error) {
 	existingCluster, err := impl.clusterRepository.FindById(bean.Id)
 	if err != nil {
 		impl.logger.Errorw("No matching entry found for delete.", "id", bean.Id)
-		return err
+		return "", err
 	}
 	deleteReq := existingCluster
 	deleteReq.UpdatedOn = time.Now()
@@ -393,14 +382,7 @@ func (impl ClusterServiceImplExtended) DeleteFromDb(bean *ClusterBean, userId in
 	err = impl.clusterRepository.MarkClusterDeleted(deleteReq)
 	if err != nil {
 		impl.logger.Errorw("error in deleting cluster", "id", bean.Id, "err", err)
-		return err
+		return "", err
 	}
-	k8sClient, err := impl.ClusterServiceImpl.K8sUtil.GetCoreV1ClientInCluster()
-	if err != nil {
-		impl.logger.Errorw("error in creating k8s client set", "err", err, "clusterName", bean.ClusterName)
-	}
-	secretName := fmt.Sprintf("%s-%v", "cluster-event", bean.Id)
-	err = impl.K8sUtil.DeleteSecret("default", secretName, k8sClient)
-	impl.logger.Errorw("error in deleting secret", "error", err)
-	return nil
+	return existingCluster.ClusterName, nil
 }

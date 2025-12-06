@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	chartRefBean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	dirCopy "github.com/otiai10/copy"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -40,6 +41,7 @@ import (
 
 const (
 	PIPELINE_DEPLOYMENT_TYPE_ACD               = "argo_cd"
+	PIPELINE_DEPLOYMENT_TYPE_FLUX              = "flux_cd"
 	PIPELINE_DEPLOYMENT_TYPE_HELM              = "helm"
 	PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD = "manifest_download"
 	PIPELINE_DEPLOYMENT_TYPE_MANIFEST_PUSH     = "manifest_push"
@@ -47,6 +49,7 @@ const (
 )
 
 const (
+	PIPELINE_RELEASE_MODE_LINK   = "link"
 	PIPELINE_RELEASE_MODE_CREATE = "create"
 )
 
@@ -58,11 +61,11 @@ type ChartCreateRequest struct {
 
 type ChartCreateResponse struct {
 	BuiltChartPath string
-	valuesYaml     string
+	ChartMetaData  *chart.Metadata
 }
 
 type ChartTemplateService interface {
-	FetchValuesFromReferenceChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string, userId int32, pipelineStrategyPath string) (*ChartValues, error)
+	FetchValuesFromReferenceChart(chartMetaData *chart.Metadata, refChartLocation string, pipelineStrategyPath string) (*ChartValues, error)
 	GetChartVersion(location string) (string, error)
 	BuildChart(ctx context.Context, chartMetaData *chart.Metadata, referenceTemplatePath string) (string, error)
 	BuildChartProxyForHelmApps(chartCreateRequest *ChartCreateRequest) (chartCreateResponse *ChartCreateResponse, err error)
@@ -72,8 +75,9 @@ type ChartTemplateService interface {
 	LoadChartInBytes(ChartPath string, deleteChart bool) ([]byte, error)
 	LoadChartFromDir(dir string) (*chart.Chart, error)
 	CreateZipFileForChart(chart *chart.Chart, outputChartPathDir string) ([]byte, error)
-	PackageChart(tempReferenceTemplateDir string, chartMetaData *chart.Metadata) (*string, string, error)
+	PackageChart(tempReferenceTemplateDir string, chartMetaData *chart.Metadata) (*chart.Metadata, *string, string, error)
 }
+
 type ChartTemplateServiceImpl struct {
 	randSource rand.Source
 	logger     *zap.SugaredLogger
@@ -102,7 +106,7 @@ func (impl ChartTemplateServiceImpl) GetChartVersion(location string) (string, e
 		return "", fmt.Errorf("%q is not a directory", location)
 	}
 
-	chartYaml := filepath.Join(location, "Chart.yaml")
+	chartYaml := filepath.Join(location, chartRefBean.CHART_YAML_FILE)
 	if _, err := os.Stat(chartYaml); os.IsNotExist(err) {
 		return "", fmt.Errorf("Chart.yaml file not present in the directory %q", location)
 	}
@@ -114,7 +118,7 @@ func (impl ChartTemplateServiceImpl) GetChartVersion(location string) (string, e
 	return chartContent.Version, nil
 }
 
-func (impl ChartTemplateServiceImpl) FetchValuesFromReferenceChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string, userId int32, pipelineStrategyPath string) (*ChartValues, error) {
+func (impl ChartTemplateServiceImpl) FetchValuesFromReferenceChart(chartMetaData *chart.Metadata, refChartLocation string, pipelineStrategyPath string) (*ChartValues, error) {
 	chartMetaData.APIVersion = "v1" // ensure always v1
 	dir := impl.GetDir()
 	chartDir := filepath.Join(CHART_WORKING_DIR_PATH, dir)
@@ -132,7 +136,7 @@ func (impl ChartTemplateServiceImpl) FetchValuesFromReferenceChart(chartMetaData
 		impl.logger.Errorw("error in copying chart for app", "app", chartMetaData.Name, "error", err)
 		return nil, err
 	}
-	archivePath, valuesYaml, err := impl.PackageChart(chartDir, chartMetaData)
+	_, archivePath, valuesYaml, err := impl.PackageChart(chartDir, chartMetaData)
 	if err != nil {
 		impl.logger.Errorw("error in creating archive", "err", err)
 		return nil, err
@@ -172,7 +176,7 @@ func (impl ChartTemplateServiceImpl) BuildChart(ctx context.Context, chartMetaDa
 		return "", err
 	}
 	_, span := otel.Tracer("orchestrator").Start(ctx, "impl.PackageChart")
-	_, _, err = impl.PackageChart(tempReferenceTemplateDir, chartMetaData)
+	_, _, _, err = impl.PackageChart(tempReferenceTemplateDir, chartMetaData)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("error in creating archive", "err", err)
@@ -187,25 +191,24 @@ func (impl ChartTemplateServiceImpl) BuildChartProxyForHelmApps(chartCreateReque
 	chartMetaData.APIVersion = "v2" // ensure always v2
 	dir := impl.GetDir()
 	chartDir := filepath.Join(CHART_WORKING_DIR_PATH, dir)
-	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", chartDir)
+	chartCreateResponse.BuiltChartPath = chartDir
+	impl.logger.Debugw("temp chart dir", "chart", chartMetaData.Name, "dir", chartDir)
 	err := os.MkdirAll(chartDir, os.ModePerm) //hack for concurrency handling
 	if err != nil {
 		impl.logger.Errorw("err in creating dir", "dir", chartDir, "err", err)
 		return chartCreateResponse, err
 	}
 	err = dirCopy.Copy(chartCreateRequest.ChartPath, chartDir)
-
 	if err != nil {
 		impl.logger.Errorw("error in copying chart for app", "app", chartMetaData.Name, "error", err)
 		return chartCreateResponse, err
 	}
-	_, valuesYaml, err := impl.PackageChart(chartDir, chartMetaData)
+	chartMetaData, _, _, err = impl.PackageChart(chartDir, chartMetaData)
 	if err != nil {
 		impl.logger.Errorw("error in creating archive", "err", err)
 		return chartCreateResponse, err
 	}
-	chartCreateResponse.valuesYaml = valuesYaml
-	chartCreateResponse.BuiltChartPath = chartDir
+	chartCreateResponse.ChartMetaData = chartMetaData
 	return chartCreateResponse, nil
 }
 
@@ -295,12 +298,15 @@ func (impl ChartTemplateServiceImpl) overrideChartMetaDataInDir(chartDir string,
 	if len(chartMetaData.Version) > 0 {
 		chart.Metadata.Version = chartMetaData.Version
 	}
+	if len(chartMetaData.Dependencies) > 0 {
+		chart.Metadata.Dependencies = append(chart.Metadata.Dependencies, chartMetaData.Dependencies...)
+	}
 	chartMetaDataBytes, err := yaml.Marshal(chart.Metadata)
 	if err != nil {
 		impl.logger.Errorw("error in marshaling chartMetadata", "err", err)
 		return chart, err
 	}
-	err = ioutil.WriteFile(filepath.Join(chartDir, "Chart.yaml"), chartMetaDataBytes, 0600)
+	err = os.WriteFile(filepath.Join(chartDir, chartRefBean.CHART_YAML_FILE), chartMetaDataBytes, 0600)
 	if err != nil {
 		impl.logger.Errorw("err in writing Chart.yaml", "err", err)
 		return chart, err
@@ -308,39 +314,39 @@ func (impl ChartTemplateServiceImpl) overrideChartMetaDataInDir(chartDir string,
 	return chart, nil
 }
 
-func (impl ChartTemplateServiceImpl) PackageChart(tempReferenceTemplateDir string, chartMetaData *chart.Metadata) (*string, string, error) {
+func (impl ChartTemplateServiceImpl) PackageChart(tempReferenceTemplateDir string, chartMetaData *chart.Metadata) (*chart.Metadata, *string, string, error) {
 	valid, err := chartutil.IsChartDir(tempReferenceTemplateDir)
 	if err != nil {
 		impl.logger.Errorw("error in validating base chart", "dir", tempReferenceTemplateDir, "err", err)
-		return nil, "", err
+		return nil, nil, "", err
 	}
 	if !valid {
 		impl.logger.Errorw("invalid chart at ", "dir", tempReferenceTemplateDir)
-		return nil, "", fmt.Errorf("invalid base chart")
+		return nil, nil, "", fmt.Errorf("invalid base chart")
 	}
 	chart, err := impl.overrideChartMetaDataInDir(tempReferenceTemplateDir, chartMetaData)
 	if err != nil {
 		impl.logger.Errorw("error in overriding chart metadata", "chartPath", tempReferenceTemplateDir, "err", err)
-		return nil, "", err
+		return nil, nil, "", err
 	}
 	archivePath, err := chartutil.Save(chart, tempReferenceTemplateDir)
 	if err != nil {
 		impl.logger.Errorw("error in saving", "err", err, "dir", tempReferenceTemplateDir)
-		return nil, "", err
+		return nil, nil, "", err
 	}
 	impl.logger.Debugw("chart archive path", "path", archivePath)
 	var valuesYaml string
 	byteValues, err := json.Marshal(chart.Values)
 	if err != nil {
 		impl.logger.Errorw("error in json Marshal values", "values", chart.Values, "err", err)
-		return nil, "", err
+		return nil, nil, "", err
 	}
 	if chart.Values != nil {
 		valuesYaml = string(byteValues)
 	} else {
 		impl.logger.Warnw("values.yaml not found in helm chart", "dir", tempReferenceTemplateDir)
 	}
-	return &archivePath, valuesYaml, nil
+	return chart.Metadata, &archivePath, valuesYaml, nil
 }
 
 func (impl ChartTemplateServiceImpl) CleanDir(dir string) {
@@ -373,7 +379,7 @@ func (impl ChartTemplateServiceImpl) GetByteArrayRefChart(chartMetaData *chart.M
 		impl.logger.Errorw("error in copying chart for app", "app", chartMetaData.Name, "error", err)
 		return nil, err
 	}
-	activePath, _, err := impl.PackageChart(tempReferenceTemplateDir, chartMetaData)
+	_, activePath, _, err := impl.PackageChart(tempReferenceTemplateDir, chartMetaData)
 	if err != nil {
 		impl.logger.Errorw("error in creating archive", "err", err)
 		return nil, err
@@ -446,6 +452,10 @@ func IsHelmApp(deploymentAppType string) bool {
 
 func IsAcdApp(deploymentAppType string) bool {
 	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_ACD
+}
+
+func IsFluxApp(deploymentAppType string) bool {
+	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_FLUX
 }
 
 // TODO refactoring: This feature belongs to enterprise only

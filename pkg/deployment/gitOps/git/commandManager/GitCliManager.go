@@ -21,7 +21,6 @@ import (
 	git_manager "github.com/devtron-labs/common-lib/git-manager"
 	"github.com/devtron-labs/devtron/util"
 	"os/exec"
-	"strings"
 	"time"
 )
 
@@ -37,7 +36,7 @@ func (impl *GitCliManagerImpl) AddRepo(ctx GitContext, rootDir string, remoteUrl
 	return impl.gitCreateRemote(ctx, rootDir, remoteUrl)
 }
 
-func (impl *GitCliManagerImpl) CommitAndPush(ctx GitContext, repoRoot, commitMsg, name, emailId string) (commitHash string, err error) {
+func (impl *GitCliManagerImpl) CommitAndPush(ctx GitContext, repoRoot, targetRevision, commitMsg, name, emailId string) (commitHash string, err error) {
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("CommitAndPushAllChanges", "GitService", start, err)
@@ -61,30 +60,32 @@ func (impl *GitCliManagerImpl) CommitAndPush(ctx GitContext, repoRoot, commitMsg
 	}
 	impl.logger.Debugw("git hash", "repo", repoRoot, "hash", commit)
 
-	_, _, err = impl.push(ctx, repoRoot)
+	_, _, err = impl.push(ctx, repoRoot, targetRevision)
 
 	return commit, err
 }
 
-func (impl *GitCliManagerImpl) Pull(ctx GitContext, repoRoot string) (err error) {
+func (impl *GitCliManagerImpl) Pull(ctx GitContext, targetRevision string, repoRoot string) (err error) {
+
 	start := time.Now()
-	defer func() {
-		util.TriggerGitOpsMetrics("Pull", "GitService", start, err)
-	}()
 
 	err = LocateGitRepo(repoRoot)
 	if err != nil {
+		util.TriggerGitOpsMetrics("Pull", "GitService", start, err)
 		return err
 	}
-	response, errMsg, err := impl.PullCli(ctx, repoRoot, "origin/master")
+
+	response, errMsg, err := impl.PullCli(ctx, repoRoot, targetRevision)
 	if err != nil {
+		if IsAlreadyUpToDateError(response, errMsg) {
+			err = nil
+			return nil
+		} else {
+			util.TriggerGitOpsMetrics("Pull", "GitService", start, err)
+		}
 		impl.logger.Errorw("error in git pull from cli", "errMsg", errMsg, "err", err)
 	}
-
-	if strings.Contains(response, "already up-to-date") || strings.Contains(errMsg, "already up-to-date") {
-		err = nil
-		return nil
-	}
+	util.TriggerGitOpsMetrics("Pull", "GitService", start, nil)
 	return err
 }
 
@@ -157,9 +158,9 @@ func (impl *GitCliManagerImpl) add(ctx GitContext, rootDir string) (response, er
 	return output, errMsg, err
 }
 
-func (impl *GitCliManagerImpl) push(ctx GitContext, rootDir string) (response, errMsg string, err error) {
+func (impl *GitCliManagerImpl) push(ctx GitContext, rootDir, targetRevision string) (response, errMsg string, err error) {
 	impl.logger.Debugw("git push", "location", rootDir)
-	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "push", "origin", "master")
+	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "push", "origin", targetRevision)
 	defer cancel()
 	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), TLS_FOLDER)
 	if err != nil {

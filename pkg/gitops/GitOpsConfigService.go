@@ -19,106 +19,156 @@ package gitops
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	certificate2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
+	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	repocreds2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/devtron-labs/common-lib/securestore"
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/certificate"
-	repocreds "github.com/devtron-labs/devtron/client/argocdServer/repocreds"
+	config2 "github.com/devtron-labs/devtron/client/argocdServer/config"
+	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	repository2 "github.com/devtron-labs/devtron/client/argocdServer/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation"
 	gitOpsBean "github.com/devtron-labs/devtron/pkg/gitops/bean"
+	moduleBean "github.com/devtron-labs/devtron/pkg/module/bean"
+	moduleRead "github.com/devtron-labs/devtron/pkg/module/read"
+	moduleReadBean "github.com/devtron-labs/devtron/pkg/module/read/bean"
+	moduleErr "github.com/devtron-labs/devtron/pkg/module/read/error"
 	util2 "github.com/devtron-labs/devtron/util"
 	"net/http"
 	"strings"
 	"time"
 
-	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8sError "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/yaml"
 )
 
 type GitOpsConfigService interface {
 	ValidateAndCreateGitOpsConfig(config *apiBean.GitOpsConfigDto) (apiBean.DetailedErrorGitOpsConfigResponse, error)
 	ValidateAndUpdateGitOpsConfig(config *apiBean.GitOpsConfigDto) (apiBean.DetailedErrorGitOpsConfigResponse, error)
-	GitOpsValidateDryRun(config *apiBean.GitOpsConfigDto) apiBean.DetailedErrorGitOpsConfigResponse
+	GitOpsValidateDryRun(isArgoModuleInstalled bool, config *apiBean.GitOpsConfigDto) apiBean.DetailedErrorGitOpsConfigResponse
 	GetGitOpsConfigById(id int) (*apiBean.GitOpsConfigDto, error)
 	GetAllGitOpsConfig() ([]*apiBean.GitOpsConfigDto, error)
 	GetGitOpsConfigByProvider(provider string) (*apiBean.GitOpsConfigDto, error)
 }
 
 type GitOpsConfigServiceImpl struct {
-	logger                  *zap.SugaredLogger
-	gitOpsRepository        repository.GitOpsConfigRepository
-	K8sUtil                 *util4.K8sServiceImpl
-	aCDAuthConfig           *util3.ACDAuthConfig
-	clusterService          cluster.ClusterService
-	argoUserService         argo.ArgoUserService
-	clusterServiceCD        cluster2.ServiceClient
-	gitOpsConfigReadService config.GitOpsConfigReadService
-	gitOperationService     git.GitOperationService
-	gitOpsValidationService validation.GitOpsValidationService
-	argoCertificateClient   certificate.Client
-	argoRepoService         repository2.ServiceClient
-	repocreds               repocreds.ServiceClient
+	logger                   *zap.SugaredLogger
+	gitOpsRepository         repository.GitOpsConfigRepository
+	K8sUtil                  *util4.K8sServiceImpl
+	aCDAuthConfig            *util3.ACDAuthConfig
+	clusterService           cluster.ClusterService
+	gitOpsConfigReadService  config.GitOpsConfigReadService
+	gitOperationService      git.GitOperationService
+	gitOpsValidationService  validation.GitOpsValidationService
+	argoCertificateClient    certificate.ServiceClient
+	argoRepoService          repository2.ServiceClient
+	devtronSecretConfig      *util2.DevtronSecretConfig
+	argoCDConnectionManager  connection.ArgoCDConnectionManager
+	argoCDConfigGetter       config2.ArgoCDConfigGetter
+	argoClientWrapperService argocdServer.ArgoClientWrapperService
+	clusterReadService       read.ClusterReadService
+	moduleReadService        moduleRead.ModuleReadService
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
 	gitOpsRepository repository.GitOpsConfigRepository,
 	K8sUtil *util4.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig,
 	clusterService cluster.ClusterService,
-	argoUserService argo.ArgoUserService,
-	clusterServiceCD cluster2.ServiceClient,
 	gitOperationService git.GitOperationService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	gitOpsValidationService validation.GitOpsValidationService,
-	argoCertificateClient certificate.Client,
+	argoCertificateClient certificate.ServiceClient,
 	argoRepoService repository2.ServiceClient,
-	repocreds repocreds.ServiceClient) *GitOpsConfigServiceImpl {
+	environmentVariables *util2.EnvironmentVariables,
+	argoCDConnectionManager connection.ArgoCDConnectionManager,
+	argoCDConfigGetter config2.ArgoCDConfigGetter,
+	argoClientWrapperService argocdServer.ArgoClientWrapperService,
+	clusterReadService read.ClusterReadService,
+	moduleReadService moduleRead.ModuleReadService) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
-		logger:                  Logger,
-		gitOpsRepository:        gitOpsRepository,
-		K8sUtil:                 K8sUtil,
-		aCDAuthConfig:           aCDAuthConfig,
-		clusterService:          clusterService,
-		argoUserService:         argoUserService,
-		clusterServiceCD:        clusterServiceCD,
-		gitOpsConfigReadService: gitOpsConfigReadService,
-		gitOperationService:     gitOperationService,
-		gitOpsValidationService: gitOpsValidationService,
-		argoCertificateClient:   argoCertificateClient,
-		argoRepoService:         argoRepoService,
-		repocreds:               repocreds,
+		logger:                   Logger,
+		gitOpsRepository:         gitOpsRepository,
+		K8sUtil:                  K8sUtil,
+		aCDAuthConfig:            aCDAuthConfig,
+		clusterService:           clusterService,
+		gitOpsConfigReadService:  gitOpsConfigReadService,
+		gitOperationService:      gitOperationService,
+		gitOpsValidationService:  gitOpsValidationService,
+		argoCertificateClient:    argoCertificateClient,
+		argoRepoService:          argoRepoService,
+		devtronSecretConfig:      environmentVariables.DevtronSecretConfig,
+		argoCDConnectionManager:  argoCDConnectionManager,
+		argoCDConfigGetter:       argoCDConfigGetter,
+		argoClientWrapperService: argoClientWrapperService,
+		clusterReadService:       clusterReadService,
+		moduleReadService:        moduleReadService,
 	}
 }
 
 func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *apiBean.GitOpsConfigDto) (apiBean.DetailedErrorGitOpsConfigResponse, error) {
-	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
+	argoModule, err := impl.moduleReadService.GetModuleInfoByName(moduleBean.ModuleNameArgoCd)
+	if err != nil && !errors.Is(err, moduleErr.ModuleNotFoundError) {
+		impl.logger.Errorw("error in getting argo module", "error", err)
+		return apiBean.DetailedErrorGitOpsConfigResponse{}, err
+	}
+	exists, err := impl.gitOpsRepository.CheckIfGitOpsProviderExist(config.Provider)
+	if err != nil {
+		impl.logger.Errorw("error in checking if gitops provider exists", "provider", config.Provider, "err", err)
+		return apiBean.DetailedErrorGitOpsConfigResponse{}, err
+	}
+	if exists {
+		impl.logger.Errorw("gitops provider already exists", "provider", config.Provider)
+		err = &util.ApiError{
+			HttpStatusCode:  http.StatusConflict,
+			InternalMessage: "gitops provider already exists",
+			UserMessage:     "gitops provider already exists",
+		}
+		return apiBean.DetailedErrorGitOpsConfigResponse{}, err
+	}
+	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(argoModule.IsInstalled(), config)
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
-		//create argo-cd user, if not created, here argo-cd integration has to be installed
-		token := impl.argoUserService.GetOrUpdateArgoCdUserDetail()
-		ctx := context.WithValue(context.Background(), "token", token)
-		_, err := impl.createGitOpsConfig(ctx, config)
+		err = impl.updateArgoCdUserDetailIfNotPresent(argoModule)
+		if err != nil {
+			return detailedErrorGitOpsConfigResponse, err
+		}
+		_, err = impl.createGitOpsConfig(context.Background(), config)
 		if err != nil {
 			impl.logger.Errorw("service err, SaveGitRepoConfig", "err", err, "payload", config)
 			return detailedErrorGitOpsConfigResponse, err
 		}
 	}
 	return detailedErrorGitOpsConfigResponse, nil
+}
+
+func (impl *GitOpsConfigServiceImpl) updateArgoCdUserDetailIfNotPresent(argoModule *moduleReadBean.ModuleInfoMin) error {
+	// create argo-cd user, if not created, here argo-cd integration has to be installed
+	if argoModule.IsInstalled() {
+		gRPCConfig, err := impl.argoCDConfigGetter.GetGRPCConfig()
+		if err != nil {
+			impl.logger.Errorw("error in getting all grpc configs", "error", err)
+			return err
+		}
+		_ = impl.argoCDConnectionManager.GetOrUpdateArgoCdUserDetail(gRPCConfig)
+	}
+	return nil
 }
 
 func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *apiBean.GitOpsConfigDto) (apiBean.DetailedErrorGitOpsConfigResponse, error) {
@@ -138,7 +188,7 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *apiBe
 			return apiBean.DetailedErrorGitOpsConfigResponse{}, err
 		}
 		if isTokenEmpty {
-			config.Token = model.Token
+			config.Token = model.Token.String()
 		}
 		if isTlsDetailsEmpty {
 			caData := model.CaCert
@@ -164,9 +214,18 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *apiBe
 			}
 		}
 	}
-	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
+	argoModule, err := impl.moduleReadService.GetModuleInfoByName(moduleBean.ModuleNameArgoCd)
+	if err != nil && !errors.Is(err, moduleErr.ModuleNotFoundError) {
+		impl.logger.Errorw("error in getting argo module", "error", err)
+		return apiBean.DetailedErrorGitOpsConfigResponse{}, err
+	}
+	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(argoModule.IsInstalled(), config)
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
-		err := impl.updateGitOpsConfig(config)
+		err = impl.updateArgoCdUserDetailIfNotPresent(argoModule)
+		if err != nil {
+			return detailedErrorGitOpsConfigResponse, err
+		}
+		err = impl.updateGitOpsConfig(config)
 		if err != nil {
 			impl.logger.Errorw("service err, updateGitOpsConfig", "err", err, "payload", config)
 			return detailedErrorGitOpsConfigResponse, err
@@ -175,11 +234,151 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *apiBe
 	return detailedErrorGitOpsConfigResponse, nil
 }
 
+// step-1: add ca cert if present to list of trusted certificates on argoCD using certificate.ServiceClient service
+// step-2: add repository credentials in secret declared using env variable util.ACDAuthConfig.(GitOpsSecretName)
+// step-3: add repository URL in argocd-cm, argocd-cm will have reference to secret created in step-3 for credentials
+// step-4: upsert cluster in acd
+func (impl *GitOpsConfigServiceImpl) registerGitOpsClientConfig(ctx context.Context, model *repository.GitOpsConfig, request *apiBean.GitOpsConfigDto) (*apiBean.GitOpsConfigDto, error) {
+	if model.EnableTLSVerification {
+		err := impl.gitOperationService.UpdateGitHostUrlByProvider(request)
+		if err != nil {
+			return nil, err
+		}
+		_, err = impl.argoClientWrapperService.CreateRepoCreds(ctx, &repocreds2.RepoCredsCreateRequest{
+			Creds: &v1alpha1.RepoCreds{
+				URL:               request.Host,
+				Username:          model.Username,
+				Password:          model.Token.String(),
+				TLSClientCertData: model.TlsCert,
+				TLSClientCertKey:  model.TlsKey,
+			},
+			Upsert: true,
+		})
+		if err != nil {
+			impl.logger.Errorw("error in saving repo credential template to argocd", "err", err)
+			return nil, err
+		}
+
+		err = impl.addCACertInArgoIfPresent(ctx, model)
+		if err != nil {
+			impl.logger.Errorw("error in adding ca cert to argo", "err", err)
+			return nil, err
+		}
+	} else {
+
+		clusterBean, err := impl.clusterReadService.FindOne(bean2.DefaultCluster)
+		if err != nil {
+			return nil, err
+		}
+		cfg := clusterBean.GetClusterConfig()
+
+		client, err := impl.K8sUtil.GetCoreV1Client(cfg)
+		if err != nil {
+			return nil, err
+		}
+		secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.GitOpsSecretName, client)
+		statusError, _ := err.(*k8sError.StatusError)
+		if err != nil && statusError.Status().Code != http.StatusNotFound {
+			impl.logger.Errorw("secret not found", "err", err)
+			return nil, err
+		}
+		data := make(map[string][]byte)
+		data[gitOpsBean.USERNAME] = []byte(request.Username)
+		data[gitOpsBean.PASSWORD] = []byte(request.Token)
+
+		if secret == nil {
+			secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, impl.aCDAuthConfig.GitOpsSecretName, "", client, nil, nil)
+			if err != nil {
+				impl.logger.Errorw("err on creating secret", "err", err)
+				return nil, err
+			}
+		} else {
+			secret.Data = data
+			secret, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
+			if err != nil {
+				operationComplete := false
+				retryCount := 0
+				for !operationComplete && retryCount < 3 {
+					retryCount = retryCount + 1
+					secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.GitOpsSecretName, client)
+					if err != nil {
+						impl.logger.Errorw("secret not found", "err", err)
+						return nil, err
+					}
+					secret.Data = data
+					secret, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
+					if err != nil {
+						continue
+					} else {
+						operationComplete = true
+					}
+				}
+			}
+		}
+		err = impl.gitOperationService.UpdateGitHostUrlByProvider(request)
+		if err != nil {
+			return nil, err
+		}
+		operationComplete := false
+		retryCount := 0
+		for !operationComplete && retryCount < 3 {
+			retryCount = retryCount + 1
+
+			cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+			if err != nil {
+				return nil, err
+			}
+			currentHost := request.Host
+			updatedData := impl.updateData(cm.Data, request, impl.aCDAuthConfig.GitOpsSecretName, currentHost)
+			data := cm.Data
+			if data == nil {
+				data = make(map[string]string, 0)
+			}
+			data["repository.credentials"] = updatedData["repository.credentials"]
+			cm.Data = data
+			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+			if err != nil {
+				continue
+			} else {
+				operationComplete = true
+			}
+		}
+		if !operationComplete {
+			return nil, fmt.Errorf("resouce version not matched with config map attempted 3 times")
+		}
+	}
+	if err := impl.registerClustersInArgoCd(ctx); err != nil {
+		return nil, err
+	}
+	return request, nil
+}
+
+func (impl *GitOpsConfigServiceImpl) registerClustersInArgoCd(ctx context.Context) error {
+	// if git-ops config is created/saved successfully (just before transaction commit) and this was first git-ops config, then upsert clusters in acd
+	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
+	if err != nil {
+		return err
+	}
+	if !gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled() {
+		clusters, err := impl.clusterService.FindAllActive()
+		if err != nil {
+			impl.logger.Errorw("Error while fetching all the clusters", "err", err)
+			return err
+		}
+		for _, clusterBean := range clusters {
+			cl := impl.clusterService.ConvertClusterBeanObjectToCluster(&clusterBean)
+			_, err = impl.argoClientWrapperService.CreateCluster(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
+			if err != nil {
+				impl.logger.Errorw("Error while upserting cluster in acd", "clusterName", clusterBean.ClusterName, "err", err)
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // step-1: save data in DB
-// step-3: add ca cert if present to list of trusted certificates on argoCD using certificate.Client service
-// step-3: add repository credentials in secret declared using env variable GITOPS_SECRET_NAME
-// step-4 add repository URL in argocd-cm, argocd-cm will have reference to secret created in step-3 for credentials
-// steps-5 upsert cluster in acd
+// step-2: register GitOps config in ArgoCd
 func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, request *apiBean.GitOpsConfigDto) (*apiBean.GitOpsConfigDto, error) {
 	impl.logger.Debugw("gitops create request", "req", request)
 	dbConnection := impl.gitOpsRepository.GetConnection()
@@ -208,7 +407,7 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 	model := &repository.GitOpsConfig{
 		Provider:              strings.ToUpper(request.Provider),
 		Username:              request.Username,
-		Token:                 request.Token,
+		Token:                 securestore.ToEncryptedString(request.Token),
 		GitLabGroupId:         request.GitLabGroupId,
 		GitHubOrgId:           request.GitHubOrgId,
 		AzureProject:          request.AzureProjectName,
@@ -274,136 +473,16 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 		return nil, err
 	}
 
-	if model.EnableTLSVerification {
-
-		err = impl.gitOperationService.UpdateGitHostUrlByProvider(request)
-		if err != nil {
-			return nil, err
-		}
-		_, err = impl.repocreds.CreateRepoCreds(ctx, &repocreds2.RepoCredsCreateRequest{
-			Creds: &v1alpha1.RepoCreds{
-				URL:               request.Host,
-				Username:          model.Username,
-				Password:          model.Token,
-				TLSClientCertData: model.TlsCert,
-				TLSClientCertKey:  model.TlsKey,
-			},
-			Upsert: true,
-		})
-		if err != nil {
-			impl.logger.Errorw("error in saving repo credential template to argocd", "err", err)
-			return nil, err
-		}
-
-		err = impl.addCACertInArgoIfPresent(ctx, model)
-		if err != nil {
-			impl.logger.Errorw("error in adding ca cert to argo", "err", err)
-			return nil, err
-		}
-
-	} else {
-
-		clusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
-		if err != nil {
-			return nil, err
-		}
-		cfg := clusterBean.GetClusterConfig()
-
-		client, err := impl.K8sUtil.GetCoreV1Client(cfg)
-		if err != nil {
-			return nil, err
-		}
-		secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.GitOpsSecretName, client)
-		statusError, _ := err.(*errors.StatusError)
-		if err != nil && statusError.Status().Code != http.StatusNotFound {
-			impl.logger.Errorw("secret not found", "err", err)
-			return nil, err
-		}
-		data := make(map[string][]byte)
-		data[gitOpsBean.USERNAME] = []byte(request.Username)
-		data[gitOpsBean.PASSWORD] = []byte(request.Token)
-
-		if secret == nil {
-			secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, impl.aCDAuthConfig.GitOpsSecretName, "", client, nil, nil)
-			if err != nil {
-				impl.logger.Errorw("err on creating secret", "err", err)
-				return nil, err
-			}
-		} else {
-			secret.Data = data
-			secret, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
-			if err != nil {
-				operationComplete := false
-				retryCount := 0
-				for !operationComplete && retryCount < 3 {
-					retryCount = retryCount + 1
-					secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.GitOpsSecretName, client)
-					if err != nil {
-						impl.logger.Errorw("secret not found", "err", err)
-						return nil, err
-					}
-					secret.Data = data
-					secret, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
-					if err != nil {
-						continue
-					}
-					if err == nil {
-						operationComplete = true
-					}
-				}
-			}
-		}
-		err = impl.gitOperationService.UpdateGitHostUrlByProvider(request)
-		if err != nil {
-			return nil, err
-		}
-		operationComplete := false
-		retryCount := 0
-		for !operationComplete && retryCount < 3 {
-			retryCount = retryCount + 1
-
-			cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
-			if err != nil {
-				return nil, err
-			}
-			currentHost := request.Host
-			updatedData := impl.updateData(cm.Data, request, impl.aCDAuthConfig.GitOpsSecretName, currentHost)
-			data := cm.Data
-			if data == nil {
-				data = make(map[string]string, 0)
-			}
-			data["repository.credentials"] = updatedData["repository.credentials"]
-			cm.Data = data
-			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
-			if err != nil {
-				continue
-			} else {
-				operationComplete = true
-			}
-		}
-		if !operationComplete {
-			return nil, fmt.Errorf("resouce version not matched with config map attempted 3 times")
-		}
-	}
-
-	// if git-ops config is created/saved successfully (just before transaction commit) and this was first git-ops config, then upsert clusters in acd
-	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
-	if err != nil {
+	argoModule, err := impl.moduleReadService.GetModuleInfoByName(moduleBean.ModuleNameArgoCd)
+	if err != nil && !errors.Is(err, moduleErr.ModuleNotFoundError) {
+		impl.logger.Errorw("error in getting argo module", "error", err)
 		return nil, err
 	}
-	if !gitOpsConfigurationStatus.IsGitOpsConfigured {
-		clusters, err := impl.clusterService.FindAllActive()
+	if argoModule.IsInstalled() {
+		request, err = impl.registerGitOpsClientConfig(ctx, model, request)
 		if err != nil {
-			impl.logger.Errorw("Error while fetching all the clusters", "err", err)
+			impl.logger.Errorw("error in registering gitops config", "err", err)
 			return nil, err
-		}
-		for _, cluster := range clusters {
-			cl := impl.clusterService.ConvertClusterBeanObjectToCluster(&cluster)
-			_, err = impl.clusterServiceCD.Create(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
-			if err != nil {
-				impl.logger.Errorw("Error while upserting cluster in acd", "clusterName", cluster.ClusterName, "err", err)
-				return nil, err
-			}
 		}
 	}
 
@@ -423,12 +502,12 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 
 func (impl *GitOpsConfigServiceImpl) addCACertInArgoIfPresent(ctx context.Context, model *repository.GitOpsConfig) error {
 	if len(model.CaCert) > 0 {
-		host, err := util2.GetHost(model.Host)
+		host, _, err := util2.GetHost(model.Host)
 		if err != nil {
 			impl.logger.Errorw("invalid gitOps host", "host", host, "err", err)
 			return err
 		}
-		_, err = impl.argoCertificateClient.CreateCertificate(ctx, &certificate2.RepositoryCertificateCreateRequest{
+		_, err = impl.argoClientWrapperService.CreateCertificate(ctx, &certificate2.RepositoryCertificateCreateRequest{
 			Certificates: &v1alpha1.RepositoryCertificateList{
 				Items: []v1alpha1.RepositoryCertificate{{
 					ServerName: host,
@@ -440,6 +519,118 @@ func (impl *GitOpsConfigServiceImpl) addCACertInArgoIfPresent(ctx context.Contex
 		})
 		if err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func (impl *GitOpsConfigServiceImpl) patchGitOpsClientConfig(model *repository.GitOpsConfig, request *apiBean.GitOpsConfigDto) error {
+	if model.EnableTLSVerification {
+		err := impl.gitOperationService.UpdateGitHostUrlByProvider(request)
+		if err != nil {
+			return err
+		}
+
+		_, err = impl.argoClientWrapperService.CreateRepoCreds(context.Background(), &repocreds2.RepoCredsCreateRequest{
+			Creds: &v1alpha1.RepoCreds{
+				URL:               request.Host,
+				Username:          model.Username,
+				Password:          model.Token.String(),
+				TLSClientCertData: model.TlsCert,
+				TLSClientCertKey:  model.TlsKey,
+			},
+			Upsert: true,
+		})
+		if err != nil {
+			impl.logger.Errorw("error in saving repo credential template to argocd", "err", err)
+			return err
+		}
+
+		err = impl.addCACertInArgoIfPresent(context.Background(), model)
+		if err != nil {
+			impl.logger.Errorw("error in adding ca cert to argo", "err", err)
+			return err
+		}
+
+	} else {
+		clusterBean, err := impl.clusterReadService.FindOne(bean2.DefaultCluster)
+		if err != nil {
+			return err
+		}
+		cfg := clusterBean.GetClusterConfig()
+
+		client, err := impl.K8sUtil.GetCoreV1Client(cfg)
+		if err != nil {
+			return err
+		}
+
+		secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.GitOpsSecretName, client)
+		statusError, _ := err.(*k8sError.StatusError)
+		if err != nil && statusError.Status().Code != http.StatusNotFound {
+			impl.logger.Errorw("secret not found", "err", err)
+			return err
+		}
+		data := make(map[string][]byte)
+		data[gitOpsBean.USERNAME] = []byte(request.Username)
+		data[gitOpsBean.PASSWORD] = []byte(request.Token)
+
+		if secret == nil {
+			secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, impl.aCDAuthConfig.GitOpsSecretName, "", client, nil, nil)
+			if err != nil {
+				impl.logger.Errorw("err on creating secret", "err", err)
+				return err
+			}
+		} else {
+			secret.Data = data
+			secret, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
+			if err != nil {
+				operationComplete := false
+				retryCount := 0
+				for !operationComplete && retryCount < 3 {
+					retryCount = retryCount + 1
+					secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.GitOpsSecretName, client)
+					if err != nil {
+						impl.logger.Errorw("secret not found", "err", err)
+						return err
+					}
+					secret.Data = data
+					secret, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
+					if err != nil {
+						continue
+					} else {
+						operationComplete = true
+					}
+				}
+
+			}
+		}
+		err = impl.gitOperationService.UpdateGitHostUrlByProvider(request)
+		if err != nil {
+			return err
+		}
+		operationComplete := false
+		retryCount := 0
+		for !operationComplete && retryCount < 3 {
+			retryCount = retryCount + 1
+
+			cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+			if err != nil {
+				return err
+			}
+			currentHost := request.Host
+			updatedData := impl.updateData(cm.Data, request, impl.aCDAuthConfig.GitOpsSecretName, currentHost)
+			data := cm.Data
+			data["repository.credentials"] = updatedData["repository.credentials"]
+			cm.Data = data
+			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+			if err != nil {
+				continue
+			} else {
+				operationComplete = true
+			}
+		}
+		if !operationComplete {
+			return fmt.Errorf("resouce version not matched with config map attempted 3 times")
 		}
 	}
 	return nil
@@ -466,7 +657,7 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 
 	existingModel, err := impl.gitOpsRepository.GetGitOpsConfigActive()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in creating new gitops config", "error", err)
+		impl.logger.Errorw("error in getting active gitops config", "error", err)
 		return err
 	}
 	if request.Active {
@@ -488,7 +679,7 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 
 	model.Provider = strings.ToUpper(request.Provider)
 	model.Username = request.Username
-	model.Token = request.Token
+	model.Token = securestore.ToEncryptedString(request.Token)
 	model.GitLabGroupId = request.GitLabGroupId
 	model.GitHubOrgId = request.GitHubOrgId
 	model.Host = request.Host
@@ -557,130 +748,18 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 		return err
 	}
 	request.Id = model.Id
-
-	if model.EnableTLSVerification {
-
-		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			impl.logger.Errorw("error in getting acd token", "err", err)
-			return err
-		}
-		ctx := context.WithValue(context.Background(), "token", acdToken)
-
-		err = impl.gitOperationService.UpdateGitHostUrlByProvider(request)
-		if err != nil {
-			return err
-		}
-
-		_, err = impl.repocreds.CreateRepoCreds(ctx, &repocreds2.RepoCredsCreateRequest{
-			Creds: &v1alpha1.RepoCreds{
-				URL:               request.Host,
-				Username:          model.Username,
-				Password:          model.Token,
-				TLSClientCertData: model.TlsCert,
-				TLSClientCertKey:  model.TlsKey,
-			},
-			Upsert: true,
-		})
-		if err != nil {
-			impl.logger.Errorw("error in saving repo credential template to argocd", "err", err)
-			return err
-		}
-
-		err = impl.addCACertInArgoIfPresent(ctx, model)
-		if err != nil {
-			impl.logger.Errorw("error in adding ca cert to argo", "err", err)
-			return err
-		}
-
-	} else {
-		clusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
-		if err != nil {
-			return err
-		}
-		cfg := clusterBean.GetClusterConfig()
-		if err != nil {
-			return err
-		}
-
-		client, err := impl.K8sUtil.GetCoreV1Client(cfg)
-		if err != nil {
-			return err
-		}
-
-		secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.GitOpsSecretName, client)
-		statusError, _ := err.(*errors.StatusError)
-		if err != nil && statusError.Status().Code != http.StatusNotFound {
-			impl.logger.Errorw("secret not found", "err", err)
-			return err
-		}
-		data := make(map[string][]byte)
-		data[gitOpsBean.USERNAME] = []byte(request.Username)
-		data[gitOpsBean.PASSWORD] = []byte(request.Token)
-
-		if secret == nil {
-			secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, impl.aCDAuthConfig.GitOpsSecretName, "", client, nil, nil)
-			if err != nil {
-				impl.logger.Errorw("err on creating secret", "err", err)
-				return err
-			}
-		} else {
-			secret.Data = data
-			secret, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
-			if err != nil {
-				operationComplete := false
-				retryCount := 0
-				for !operationComplete && retryCount < 3 {
-					retryCount = retryCount + 1
-					secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.GitOpsSecretName, client)
-					if err != nil {
-						impl.logger.Errorw("secret not found", "err", err)
-						return err
-					}
-					secret.Data = data
-					secret, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
-					if err != nil {
-						continue
-					}
-					if err == nil {
-						operationComplete = true
-					}
-				}
-
-			}
-		}
-		err = impl.gitOperationService.UpdateGitHostUrlByProvider(request)
-		if err != nil {
-			return err
-		}
-		operationComplete := false
-		retryCount := 0
-		for !operationComplete && retryCount < 3 {
-			retryCount = retryCount + 1
-
-			cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
-			if err != nil {
-				return err
-			}
-			currentHost := request.Host
-			updatedData := impl.updateData(cm.Data, request, impl.aCDAuthConfig.GitOpsSecretName, currentHost)
-			data := cm.Data
-			data["repository.credentials"] = updatedData["repository.credentials"]
-			cm.Data = data
-			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
-			if err != nil {
-				continue
-			}
-			if err == nil {
-				operationComplete = true
-			}
-		}
-		if !operationComplete {
-			return fmt.Errorf("resouce version not matched with config map attempted 3 times")
-		}
-
+	argoModule, err := impl.moduleReadService.GetModuleInfoByName(moduleBean.ModuleNameArgoCd)
+	if err != nil && !errors.Is(err, moduleErr.ModuleNotFoundError) {
+		impl.logger.Errorw("error in getting argo module", "error", err)
+		return err
 	}
-
+	if argoModule.IsInstalled() {
+		err = impl.patchGitOpsClientConfig(model, request)
+		if err != nil {
+			impl.logger.Errorw("error in registering gitops config", "err", err)
+			return err
+		}
+	}
 	err = tx.Commit()
 	if err != nil {
 		return err
@@ -704,7 +783,7 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigById(id int) (*apiBean.GitOp
 		GitHubOrgId:           model.GitHubOrgId,
 		GitLabGroupId:         model.GitLabGroupId,
 		Username:              model.Username,
-		Token:                 model.Token,
+		Token:                 model.Token.String(),
 		Host:                  model.Host,
 		Active:                model.Active,
 		UserId:                model.CreatedBy,
@@ -774,7 +853,7 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) 
 		GitHubOrgId:           model.GitHubOrgId,
 		GitLabGroupId:         model.GitLabGroupId,
 		Username:              model.Username,
-		Token:                 model.Token,
+		Token:                 model.Token.String(),
 		Host:                  model.Host,
 		Active:                model.Active,
 		UserId:                model.CreatedBy,
@@ -796,7 +875,7 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) 
 	return config, err
 }
 
-func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *apiBean.GitOpsConfigDto) apiBean.DetailedErrorGitOpsConfigResponse {
+func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(isArgoModuleInstalled bool, config *apiBean.GitOpsConfigDto) apiBean.DetailedErrorGitOpsConfigResponse {
 
 	isTokenEmpty := config.Token == ""
 	isTlsDetailsEmpty := config.EnableTLSVerification && (len(config.TLSConfig.CaData) == 0 && len(config.TLSConfig.TLSCertData) == 0 && len(config.TLSConfig.TLSKeyData) == 0)
@@ -812,7 +891,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *apiBean.GitOps
 			return apiBean.DetailedErrorGitOpsConfigResponse{}
 		}
 		if isTokenEmpty {
-			config.Token = model.Token
+			config.Token = model.Token.String()
 		}
 		if isTlsDetailsEmpty {
 			caData := model.CaCert
@@ -838,7 +917,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *apiBean.GitOps
 		}
 	}
 
-	return impl.gitOpsValidationService.GitOpsValidateDryRun(config)
+	return impl.gitOpsValidationService.GitOpsValidateDryRun(isArgoModuleInstalled, config)
 }
 
 func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request *apiBean.GitOpsConfigDto, secretName string, currentHost string) map[string]string {

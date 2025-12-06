@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package terminal
 
 import (
@@ -23,22 +24,30 @@ import (
 	"encoding/json"
 	errors2 "errors"
 	"fmt"
-	"github.com/caarlos0/env"
-	"github.com/devtron-labs/common-lib/utils/k8s"
-	"github.com/devtron-labs/devtron/internal/middleware"
-	"github.com/devtron-labs/devtron/pkg/argoApplication/read"
-	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	errors1 "github.com/juju/errors"
-	"go.uber.org/zap"
 	"io"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/devtron-labs/common-lib/async"
+
+	"github.com/caarlos0/env"
+	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/internal/middleware"
+	bean3 "github.com/devtron-labs/devtron/pkg/argoApplication/bean"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/read/config"
+	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/read"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	errors1 "github.com/juju/errors"
+	"go.uber.org/zap"
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	"gopkg.in/igm/sockjs-go.v3/sockjs"
 	v1 "k8s.io/api/core/v1"
@@ -278,8 +287,8 @@ func handleTerminalSession(session sockjs.Session) {
 }
 
 type SocketConfig struct {
-	SocketHeartbeatSeconds int `env:"SOCKET_HEARTBEAT_SECONDS" envDefault:"25"`
-	SocketDisconnectDelay  int `env:"SOCKET_DISCONNECT_DELAY_SECONDS" envDefault:"5"`
+	SocketHeartbeatSeconds int `env:"SOCKET_HEARTBEAT_SECONDS" envDefault:"25" description:"In order to keep proxies and load balancers from closing long running http requests we need to pretend that the connection is active and send a heartbeat packet once in a while. This setting controls how often this is done. By default a heartbeat packet is sent every 25 seconds."`
+	SocketDisconnectDelay  int `env:"SOCKET_DISCONNECT_DELAY_SECONDS" envDefault:"5" description:"The server closes a session when a client receiving connection have not been seen for a while.This delay is configured by this setting. By default the session is closed when a receiving connection wasn't seen for 5 seconds."`
 }
 
 var cfg *SocketConfig
@@ -350,7 +359,8 @@ func getExecutor(k8sClient kubernetes.Interface, cfg *rest.Config, podName, name
 		TTY:       tty,
 	}, scheme.ParameterCodec)
 
-	exec, err := remotecommand.NewSPDYExecutor(cfg, "POST", req.URL())
+	// Use the new fallback executor instead of SPDY directly
+	exec, err := NewFallbackExecutor(cfg, "POST", req.URL())
 	return exec, err
 }
 
@@ -389,9 +399,11 @@ type TerminalSessionRequest struct {
 	EnvironmentId int
 	AppId         int
 	//ClusterId is optional
-	ClusterId                   int
-	UserId                      int32
-	ExternalArgoApplicationName string
+	ClusterId                        int
+	UserId                           int32
+	ExternalArgoApplicationName      string
+	ExternalArgoApplicationNamespace string
+	ExternalArgoAppIdentifier        *bean3.ArgoAppIdentifier
 }
 
 const CommandExecutionFailed = "Failed to Execute Command"
@@ -447,24 +459,27 @@ type TerminalSessionHandler interface {
 }
 
 type TerminalSessionHandlerImpl struct {
-	environmentService         cluster.EnvironmentService
-	clusterService             cluster.ClusterService
-	logger                     *zap.SugaredLogger
-	k8sUtil                    *k8s.K8sServiceImpl
-	ephemeralContainerService  cluster.EphemeralContainerService
-	argoApplicationReadService read.ArgoApplicationReadService
+	environmentService           environment.EnvironmentService
+	logger                       *zap.SugaredLogger
+	k8sUtil                      *k8s.K8sServiceImpl
+	ephemeralContainerService    cluster.EphemeralContainerService
+	argoApplicationConfigService config.ArgoApplicationConfigService
+	ClusterReadService           read.ClusterReadService
+	asyncRunnable                *async.Runnable
 }
 
-func NewTerminalSessionHandlerImpl(environmentService cluster.EnvironmentService, clusterService cluster.ClusterService,
+func NewTerminalSessionHandlerImpl(environmentService environment.EnvironmentService,
 	logger *zap.SugaredLogger, k8sUtil *k8s.K8sServiceImpl, ephemeralContainerService cluster.EphemeralContainerService,
-	argoApplicationReadService read.ArgoApplicationReadService) *TerminalSessionHandlerImpl {
+	argoApplicationConfigService config.ArgoApplicationConfigService,
+	ClusterReadService read.ClusterReadService, asyncRunnable *async.Runnable) *TerminalSessionHandlerImpl {
 	return &TerminalSessionHandlerImpl{
-		environmentService:         environmentService,
-		clusterService:             clusterService,
-		logger:                     logger,
-		k8sUtil:                    k8sUtil,
-		ephemeralContainerService:  ephemeralContainerService,
-		argoApplicationReadService: argoApplicationReadService,
+		environmentService:           environmentService,
+		logger:                       logger,
+		k8sUtil:                      k8sUtil,
+		ephemeralContainerService:    ephemeralContainerService,
+		argoApplicationConfigService: argoApplicationConfigService,
+		ClusterReadService:           ClusterReadService,
+		asyncRunnable:                asyncRunnable,
 	}
 }
 
@@ -510,28 +525,28 @@ func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionR
 	})
 	config, client, err := impl.getClientSetAndRestConfigForTerminalConn(req)
 
-	go func() {
+	impl.asyncRunnable.Execute(func() {
 		err := impl.saveEphemeralContainerTerminalAccessAudit(req)
 		if err != nil {
 			impl.logger.Errorw("error in saving ephemeral container terminal access audit,so skipping auditing", "err", err)
 		}
-	}()
+	})
 
 	if err != nil {
 		impl.logger.Errorw("error in fetching config", "err", err)
 		return http.StatusInternalServerError, nil, err
 	}
-	go WaitForTerminal(client, config, req)
+	impl.asyncRunnable.Execute(func() { WaitForTerminal(client, config, req) })
 	return http.StatusOK, &TerminalMessage{SessionID: sessionID}, nil
 }
 
 func (impl *TerminalSessionHandlerImpl) getClientSetAndRestConfigForTerminalConn(req *TerminalSessionRequest) (*rest.Config, *kubernetes.Clientset, error) {
-	var clusterBean *cluster.ClusterBean
+	var clusterBean *bean.ClusterBean
 	var clusterConfig *k8s.ClusterConfig
 	var restConfig *rest.Config
 	var err error
-	if len(req.ExternalArgoApplicationName) > 0 {
-		restConfig, err = impl.argoApplicationReadService.GetRestConfigForExternalArgo(context.Background(), req.ClusterId, req.ExternalArgoApplicationName)
+	if req.ExternalArgoAppIdentifier != nil {
+		restConfig, err = impl.argoApplicationConfigService.GetRestConfigForExternalArgo(context.Background(), req.ExternalArgoAppIdentifier)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId, "externalArgoApplicationName", req.ExternalArgoApplicationName)
 			return nil, nil, err
@@ -545,7 +560,7 @@ func (impl *TerminalSessionHandlerImpl) getClientSetAndRestConfigForTerminalConn
 		return restConfig, clientSet, nil
 	} else {
 		if req.ClusterId != 0 {
-			clusterBean, err = impl.clusterService.FindById(req.ClusterId)
+			clusterBean, err = impl.ClusterReadService.FindById(req.ClusterId)
 			if err != nil {
 				impl.logger.Errorw("error in fetching cluster detail", "err", err, "clusterId", req.ClusterId)
 				return nil, nil, err
@@ -561,23 +576,17 @@ func (impl *TerminalSessionHandlerImpl) getClientSetAndRestConfigForTerminalConn
 		}
 
 		clusterConfig = clusterBean.GetClusterConfig()
-		restConfig, err = impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
+		restConfig, err = impl.k8sUtil.GetRestConfigByCluster(clusterConfig, k8s.WithDefaultHttpTransport())
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config by cluster", "err", err, "clusterName", clusterConfig.ClusterName)
 			return nil, nil, err
 		}
 
-		_, clientSet, err := impl.k8sUtil.GetK8sConfigAndClientsByRestConfig(restConfig)
+		_, clientSet, err := impl.k8sUtil.GetK8sConfigAndClientsByRestConfig(restConfig, k8s.WithDefaultHttpTransport())
 		if err != nil {
 			impl.logger.Errorw("error in clientSet", "err", err)
 			return nil, nil, err
 		}
-
-		// we have to get the clientSet before setting the custom transport to nil
-		// we need re populate the tls config in the restConfig.
-		// rest config with custom transport will break spdy client
-		clusterConfig.PopulateTlsConfigurationsInto(restConfig)
-		restConfig.Transport = nil
 		return restConfig, clientSet, nil
 	}
 }
@@ -651,14 +660,14 @@ func (impl *TerminalSessionHandlerImpl) RunCmdInRemotePod(req *TerminalSessionRe
 func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudit(req *TerminalSessionRequest) error {
 	var restConfig *rest.Config
 	var err error
-	if len(req.ExternalArgoApplicationName) > 0 {
-		restConfig, err = impl.argoApplicationReadService.GetRestConfigForExternalArgo(context.Background(), req.ClusterId, req.ExternalArgoApplicationName)
+	if req.ExternalArgoAppIdentifier != nil {
+		restConfig, err = impl.argoApplicationConfigService.GetRestConfigForExternalArgo(context.Background(), req.ExternalArgoAppIdentifier)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId, "externalArgoApplicationName", req.ExternalArgoApplicationName)
 			return err
 		}
 	} else {
-		clusterBean, err := impl.clusterService.FindById(req.ClusterId)
+		clusterBean, err := impl.ClusterReadService.FindById(req.ClusterId)
 		if err != nil {
 			impl.logger.Errorw("error occurred in finding clusterBean by Id", "clusterId", req.ClusterId, "err", err)
 			return err
@@ -697,16 +706,16 @@ func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudi
 		impl.logger.Errorw("error occurred while marshaling ephemeralContainer object", "err", err, "ephemeralContainer", ephemeralContainer)
 		return err
 	}
-	ephemeralReq := cluster.EphemeralContainerRequest{
+	ephemeralReq := bean2.EphemeralContainerRequest{
 		PodName:   req.PodName,
 		Namespace: req.Namespace,
 		ClusterId: req.ClusterId,
-		BasicData: &cluster.EphemeralContainerBasicData{
+		BasicData: &bean2.EphemeralContainerBasicData{
 			ContainerName:       req.ContainerName,
 			TargetContainerName: ephemeralContainer.TargetContainerName,
 			Image:               ephemeralContainer.Image,
 		},
-		AdvancedData: &cluster.EphemeralContainerAdvancedData{
+		AdvancedData: &bean2.EphemeralContainerAdvancedData{
 			Manifest: string(ephemeralContainerJson),
 		},
 		UserId: req.UserId,

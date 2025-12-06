@@ -44,10 +44,12 @@ type ServerServiceImpl struct {
 	serverEnvConfig                *serverEnvConfig.ServerEnvConfig
 	helmAppService                 client.HelmAppService
 	moduleRepository               moduleRepo.ModuleRepository
+	serverCacheService             *ServerCacheServiceImpl
 }
 
 func NewServerServiceImpl(logger *zap.SugaredLogger, serverActionAuditLogRepository ServerActionAuditLogRepository,
-	serverDataStore *serverDataStore.ServerDataStore, serverEnvConfig *serverEnvConfig.ServerEnvConfig, helmAppService client.HelmAppService, moduleRepository moduleRepo.ModuleRepository) *ServerServiceImpl {
+	serverDataStore *serverDataStore.ServerDataStore, serverEnvConfig *serverEnvConfig.ServerEnvConfig, helmAppService client.HelmAppService, moduleRepository moduleRepo.ModuleRepository,
+	serverCacheService *ServerCacheServiceImpl) *ServerServiceImpl {
 	return &ServerServiceImpl{
 		logger:                         logger,
 		serverActionAuditLogRepository: serverActionAuditLogRepository,
@@ -55,12 +57,27 @@ func NewServerServiceImpl(logger *zap.SugaredLogger, serverActionAuditLogReposit
 		serverEnvConfig:                serverEnvConfig,
 		helmAppService:                 helmAppService,
 		moduleRepository:               moduleRepository,
+		serverCacheService:             serverCacheService,
 	}
 }
 
 func (impl ServerServiceImpl) GetServerInfo(showServerStatus bool) (*serverBean.ServerInfoDto, error) {
 	impl.logger.Debug("getting server info")
-
+	if impl.serverEnvConfig.ErrorEncounteredOnGettingDevtronHelmRelease != nil || impl.serverDataStore.CurrentVersion == "" {
+		// if on initialisation any error have occurred, have captured that error and retry mechanism is done here, possible scenario  is migration did not complete but devtron pod came up so values set would not be correct.
+		impl.logger.Debug("error encountered on getting devtron helm release, now retrying", "err", impl.serverEnvConfig.ErrorEncounteredOnGettingDevtronHelmRelease)
+		err := impl.serverCacheService.UpdateServerEnvAndDataStore()
+		if err != nil || impl.serverEnvConfig.ErrorEncounteredOnGettingDevtronHelmRelease != nil {
+			var errToReturn error
+			if err != nil {
+				errToReturn = err
+			} else {
+				errToReturn = impl.serverEnvConfig.ErrorEncounteredOnGettingDevtronHelmRelease
+			}
+			impl.logger.Errorw("error encountered in GetServerInfo", "err", errToReturn)
+			return nil, errToReturn
+		}
+	}
 	serverInfoDto := &serverBean.ServerInfoDto{
 		CurrentVersion:   impl.serverDataStore.CurrentVersion,
 		ReleaseName:      impl.serverEnvConfig.DevtronHelmReleaseName,
@@ -141,14 +158,14 @@ func (impl ServerServiceImpl) HandleServerAction(userId int32, serverActionReque
 	}
 
 	extraValues := make(map[string]interface{})
-	extraValues["installer.release"] = serverActionRequest.Version
+	extraValues[impl.serverEnvConfig.DevtronInstallerReleasePath] = serverActionRequest.Version
 	alreadyInstalledModuleNames, err := impl.moduleRepository.GetInstalledModuleNames()
 	if err != nil {
 		impl.logger.Errorw("error in getting modules with installed status ", "err", err)
 		return nil, err
 	}
 	for _, alreadyInstalledModuleName := range alreadyInstalledModuleNames {
-		alreadyInstalledModuleEnableKeys := moduleUtil.BuildAllModuleEnableKeys(alreadyInstalledModuleName)
+		alreadyInstalledModuleEnableKeys := moduleUtil.BuildAllModuleEnableKeys(impl.serverEnvConfig.DevtronOperatorBasePath, alreadyInstalledModuleName)
 		for _, alreadyInstalledModuleEnableKey := range alreadyInstalledModuleEnableKeys {
 			extraValues[alreadyInstalledModuleEnableKey] = true
 		}

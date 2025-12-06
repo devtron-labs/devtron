@@ -19,6 +19,7 @@ package pipelineConfig
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
@@ -47,7 +48,7 @@ type CiTemplate struct {
 	sql.AuditLog
 	App            *app.App
 	DockerRegistry *dockerRegistryRepository.DockerArtifactStore
-	GitMaterial    *GitMaterial
+	GitMaterial    *repository.GitMaterial
 	CiBuildConfig  *CiBuildConfig
 }
 
@@ -95,8 +96,10 @@ func (impl CiTemplateRepositoryImpl) FindByAppId(appId int) (ciTemplate *CiTempl
 
 func (impl CiTemplateRepositoryImpl) FindByDockerRegistryId(dockerRegistryId string) (ciTemplates []*CiTemplate, err error) {
 	err = impl.dbConnection.Model(&ciTemplates).
-		Where("docker_registry_id =? ", dockerRegistryId).
-		Where("active = ?", true).
+		Join("JOIN app a ON ci_template.app_id = a.id").
+		Where("ci_template.docker_registry_id = ?", dockerRegistryId).
+		Where("ci_template.active = ?", true).
+		Where("a.active = ?", true).
 		Select()
 	return ciTemplates, err
 }
