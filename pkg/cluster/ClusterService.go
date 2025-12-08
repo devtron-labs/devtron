@@ -200,8 +200,8 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *bean.ClusterB
 	}
 
 	existingModel, err := impl.clusterRepository.FindOne(bean.ClusterName)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Error(err)
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
+		impl.logger.Errorw("error in finding cluster for create", "clusterName", bean.ClusterName, "err", err)
 		return nil, err
 	}
 	if existingModel.Id > 0 {
@@ -378,12 +378,12 @@ func (impl *ClusterServiceImpl) FindByIdsWithoutConfig(ids []int) ([]*bean.Clust
 func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *bean.ClusterBean, userId int32) (*bean.ClusterBean, error) {
 	model, err := impl.clusterRepository.FindById(bean.Id)
 	if err != nil {
-		impl.logger.Error("error in fetching cluster", "clusterId", bean.Id, "err", err)
+		impl.logger.Errorw("error in fetching cluster", "clusterId", bean.Id, "err", err)
 		return nil, err
 	}
 	existingModel, err := impl.clusterRepository.FindOne(bean.ClusterName)
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
-		impl.logger.Error("error in fetching cluster", "clusterName", bean.ClusterName, "err", err)
+		impl.logger.Errorw("error in fetching cluster", "clusterName", bean.ClusterName, "err", err)
 		return nil, err
 	}
 	if existingModel.Id > 0 && model.Id != existingModel.Id {
