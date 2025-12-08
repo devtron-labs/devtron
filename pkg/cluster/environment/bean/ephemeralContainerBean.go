@@ -6,7 +6,7 @@ import (
 )
 
 type EphemeralContainerRequest struct {
-	BasicData                        *EphemeralContainerBasicData    `json:"basicData" validate:"required"`
+	BasicData                        *EphemeralContainerBasicData    `json:"basicData"`
 	AdvancedData                     *EphemeralContainerAdvancedData `json:"advancedData"`
 	Namespace                        string                          `json:"namespace" validate:"required"`
 	ClusterId                        int                             `json:"clusterId" validate:"gt=0"`
@@ -23,8 +23,8 @@ type EphemeralContainerAdvancedData struct {
 
 type EphemeralContainerBasicData struct {
 	ContainerName       string `json:"containerName" validate:"required"`
-	TargetContainerName string `json:"targetContainerName" validate:"required"`
-	Image               string `json:"image" validate:"required"`
+	TargetContainerName string `json:"targetContainerName"`
+	Image               string `json:"image"`
 }
 
 func (request EphemeralContainerRequest) GetContainerBean() repository.EphemeralContainerBean {

@@ -635,6 +635,7 @@ func (impl *HandlerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 			Namespace:       env.Namespace,
 			Image:           artifact.Image,
 			ImageTag:        util3.GetImageTagFromImage(artifact.Image),
+			AppName:         cdPipeline.App.AppName,
 		},
 	}
 	if pipelineStage != nil {

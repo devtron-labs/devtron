@@ -209,7 +209,7 @@ spec:
 {{- end}}
 {{- end}}
       containers:
-        - name: {{ $.Chart.Name }}
+        - name: "{{ if $.Values.containerName }}{{ $.Values.containerName }}{{ else }}{{ $.Chart.Name }}{{ end }}"
           image: "{{ .Values.server.deployment.image }}:{{ .Values.server.deployment.image_tag }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
           {{- if $.Values.containerSpec.lifecycle.enabled }}
@@ -825,7 +825,7 @@ spec:
 {{- end}}
 {{- end}}
       containers:
-        - name: {{ $.Chart.Name }}
+        - name: "{{ if $.Values.containerName }}{{ $.Values.containerName }}{{ else }}{{ $.Chart.Name }}{{ end }}"
           image: "{{ .Values.server.deployment.image }}:{{ .Values.server.deployment.image_tag }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
           {{- if $.Values.containerSpec.lifecycle.enabled }}
