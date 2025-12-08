@@ -6,6 +6,7 @@
 - feat: feature flag for encryption (#6856)
 - feat: encryption for db credentials (#6852)
 ## Bugs
+- fix: enhance validation and error handling in cluster update process (#6887)
 - fix: Invalid type casting error for custom charts (#6883)
 - fix: dependabot fixes (#6874)
 - fix: validation on team name (#6872)
