@@ -44,7 +44,7 @@ spec:
   - type: ContainerResource  
     containerResource:
       name: cpu
-      container: {{ $.Chart.Name }}
+      container: "{{ if $.Values.containerName }}{{ $.Values.containerName }}{{ else }}{{ $.Chart.Name }}{{ end }}"
       target:
         type: Utilization
         averageUtilization: {{ .TargetCPUUtilizationPercentage }}
@@ -53,7 +53,7 @@ spec:
   - type: ContainerResource  
     containerResource:
       name: memory
-      container: {{ $.Chart.Name }}
+      container: "{{ if $.Values.containerName }}{{ $.Values.containerName }}{{ else }}{{ $.Chart.Name }}{{ end }}"
       target:
         type: Utilization
         averageUtilization: {{ .TargetMemoryUtilizationPercentage }}

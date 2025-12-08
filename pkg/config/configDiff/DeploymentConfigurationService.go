@@ -1329,7 +1329,7 @@ func (impl *DeploymentConfigurationServiceImpl) getAllComparableSecretResponseDt
 			return nil, err
 		}
 		// prepare resolved data part for response
-		resolvedSecretConfigData, err := helper.GetConfigDataRequestJsonRawMessage(secretConfigMetadata.SecretScopeVariableMetadata.ResolvedConfigData)
+		resolvedSecretConfigData, err := helper.GetJsonRawMessageFromConfigDataRequest(secretConfigMetadata.SecretScopeVariableMetadata.ResolvedConfigData)
 		if err != nil {
 			impl.logger.Errorw("error in converting resolved secret config data to json raw message", "err", err)
 			return nil, err
