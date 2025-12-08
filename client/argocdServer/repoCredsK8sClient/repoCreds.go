@@ -105,7 +105,8 @@ func (impl *RepositoryCredsK8sClientImpl) createOrUpdateArgoRepoSecret(argoK8sCo
 		argoK8sConfig.AcdNamespace,
 		uniqueSecretName,
 		secretLabel,
-		secretData)
+		secretData,
+		nil)
 	if err != nil {
 		impl.logger.Errorw("error in create/update argocd secret by name", "secretName", uniqueSecretName, "err", err)
 		return err
