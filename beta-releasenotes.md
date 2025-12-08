@@ -1,4 +1,5 @@
 ## Enhancements
+- feat: kubecon 2025 feature release (#6884)
 - feat: Added support to override container name (#6880)
 - feat: Increase max length for TeamRequest name field (#6876)
 - feat: Added namespace support for virtualService and destinationRule (#6868)
