@@ -2,8 +2,8 @@ DELETE FROM global_strategy_metadata_chart_ref_mapping
 WHERE chart_ref_id IN (
     SELECT id 
     FROM "public"."chart_ref" 
-    WHERE "version" = '5.1.0' 
-    AND "location" = 'reference-chart_5-1-0'
+    WHERE "version" = '5.1.1' 
+    AND "location" = 'reference-chart_5-1-1'
     AND "name" = 'Rollout Deployment'
 )
 AND global_strategy_metadata_id IN (1, 2, 3, 4);
