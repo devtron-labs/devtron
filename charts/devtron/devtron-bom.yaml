@@ -93,7 +93,7 @@ components:
     healthPort: 50052
   kubewatch:
     registry: ""
-    image: "kubewatch:880420ac-419-36026"
+    image: "kubewatch:9255d19e-419-37902"
     imagePullPolicy: IfNotPresent
     healthPort: 8080
     configs:
