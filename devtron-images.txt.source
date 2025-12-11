@@ -15,7 +15,7 @@ quay.io/devtron/dashboard:b00aa204-690-36533
 quay.io/devtron/devtron-utils:dup-chart-repo-v1.1.0
 quay.io/devtron/devtron:261df88d-434-36530
 quay.io/devtron/dex:v2.30.2
-quay.io/devtron/git-sensor:b82f5fdb-200-36532
+quay.io/devtron/git-sensor:07252d4f-200-37900
 quay.io/devtron/grafana:7.3.1
 quay.io/devtron/hyperion:261df88d-280-36531
 quay.io/devtron/image-scanner:f21e02cb-141-34534
