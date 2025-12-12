@@ -18,6 +18,8 @@ package router
 
 import (
 	"encoding/json"
+	"net/http"
+
 	"github.com/devtron-labs/devtron/api/apiToken"
 	"github.com/devtron-labs/devtron/api/appStore"
 	"github.com/devtron-labs/devtron/api/appStore/chartGroup"
@@ -55,7 +57,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 type MuxRouter struct {
@@ -124,6 +125,7 @@ type MuxRouter struct {
 	devtronResourceRouter              devtronResource.DevtronResourceRouter
 	scanningResultRouter               resourceScan.ScanningResultRouter
 	userResourceRouter                 userResource.Router
+	overviewRouter                     OverviewRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger,
@@ -159,6 +161,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 	fluxApplicationRouter fluxApplication2.FluxApplicationRouter,
 	scanningResultRouter resourceScan.ScanningResultRouter,
 	userResourceRouter userResource.Router,
+	overviewRouter OverviewRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
@@ -226,6 +229,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 		fluxApplicationRouter:              fluxApplicationRouter,
 		scanningResultRouter:               scanningResultRouter,
 		userResourceRouter:                 userResourceRouter,
+		overviewRouter:                     overviewRouter,
 	}
 	return r
 }
@@ -444,4 +448,6 @@ func (r MuxRouter) Init() {
 	fluxApplicationRouter := r.Router.PathPrefix("/orchestrator/flux-application").Subrouter()
 	r.fluxApplicationRouter.InitFluxApplicationRouter(fluxApplicationRouter)
 
+	overviewRouter := r.Router.PathPrefix("/orchestrator/overview").Subrouter()
+	r.overviewRouter.InitOverviewRouter(overviewRouter)
 }

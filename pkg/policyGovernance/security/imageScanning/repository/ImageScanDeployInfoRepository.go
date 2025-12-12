@@ -65,6 +65,11 @@ type ImageScanListingResponse struct {
 	TotalCount       int       `json:"totalCount"`
 }
 
+type DeploymentScannedCount struct {
+	ScannedCount   int
+	UnscannedCount int
+}
+
 type ImageScanDeployInfoRepository interface {
 	Save(model *ImageScanDeployInfo) error
 	FindAll() ([]*ImageScanDeployInfo, error)
@@ -75,6 +80,13 @@ type ImageScanDeployInfoRepository interface {
 	FetchByAppIdAndEnvId(appId int, envId int, objectType []string) (*ImageScanDeployInfo, error)
 	FindByTypeMetaAndTypeId(scanObjectMetaId int, objectType string) (*ImageScanDeployInfo, error)
 	ScanListingWithFilter(request *repoBean.ImageScanFilter, size int, offset int, deployInfoIds []int) ([]*ImageScanListingResponse, error)
+
+	// Security Overview methods
+	GetActiveDeploymentCountByFilters(envIds, clusterIds, appIds []int) (int, error)
+	GetActiveDeploymentCountWithVulnerabilitiesByFilters(envIds, clusterIds, appIds []int) (int, error)
+	GetActiveDeploymentScannedUnscannedCountByFilters(envIds, clusterIds, appIds []int) (*DeploymentScannedCount, error)
+	GetNonScannedAppEnvCombinations(request *repoBean.ImageScanFilter, size int, offset int, deployInfoIds []int) ([]*ImageScanDeployInfo, error)
+	GetNonScannedAppEnvCombinationsCount(request *repoBean.ImageScanFilter, deployInfoIds []int) (int, error)
 }
 
 type ImageScanDeployInfoRepositoryImpl struct {
@@ -287,5 +299,337 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListingQueryBuilder(request *r
 	} else if len(request.AppName) > 0 {
 		query, queryParams = impl.scanListQueryWithObject(request, size, offset, deployInfoIds)
 	}
+	return query, queryParams
+}
+
+// ============================================================================
+// Security Overview Methods
+// ============================================================================
+
+// GetActiveDeploymentCountByFilters returns the count of unique active deployments (app+env combinations)
+// filtered by envIds, clusterIds, and appIds
+// Uses cd_workflow_runner as the source of truth for ALL deployments (scanned and unscanned)
+func (impl ImageScanDeployInfoRepositoryImpl) GetActiveDeploymentCountByFilters(envIds, clusterIds, appIds []int) (int, error) {
+	// Query to find latest deployment per app+environment combination from cd_workflow_runner
+	// This is the source of truth for ALL active deployments, not just scanned ones
+	// Partitions by (app_id, environment_id) to get the most recent deployment for each app+env
+	query := `
+		WITH LatestDeployments AS (
+			SELECT
+				p.app_id,
+				p.environment_id,
+				ROW_NUMBER() OVER (PARTITION BY p.app_id, p.environment_id ORDER BY cwr.id DESC) AS rn
+			FROM cd_workflow_runner cwr
+			INNER JOIN cd_workflow cw ON cw.id = cwr.cd_workflow_id
+			INNER JOIN pipeline p ON p.id = cw.pipeline_id
+			INNER JOIN environment env ON env.id = p.environment_id
+			WHERE cwr.workflow_type = 'DEPLOY'
+			AND p.deleted = false
+			AND env.active = true
+	`
+
+	var queryParams []interface{}
+
+	// Add filters to CTE
+	if len(envIds) > 0 {
+		query += " AND p.environment_id = ANY(?)"
+		queryParams = append(queryParams, pg.Array(envIds))
+	}
+
+	if len(clusterIds) > 0 {
+		query += " AND env.cluster_id = ANY(?)"
+		queryParams = append(queryParams, pg.Array(clusterIds))
+	}
+
+	if len(appIds) > 0 {
+		query += " AND p.app_id = ANY(?)"
+		queryParams = append(queryParams, pg.Array(appIds))
+	}
+
+	// Complete the CTE and count unique app+env combinations
+	query += `
+		)
+		SELECT COUNT(DISTINCT (app_id, environment_id))
+		FROM LatestDeployments
+		WHERE rn = 1
+	`
+
+	var count int
+	_, err := impl.dbConnection.Query(&count, query, queryParams...)
+	if err != nil {
+		impl.logger.Errorw("error in getting active deployment count", "err", err)
+		return 0, err
+	}
+
+	return count, nil
+}
+
+// GetActiveDeploymentCountWithVulnerabilitiesByFilters returns the count of unique active deployments
+// that have vulnerabilities in their LATEST deployed artifact
+func (impl ImageScanDeployInfoRepositoryImpl) GetActiveDeploymentCountWithVulnerabilitiesByFilters(envIds, clusterIds, appIds []int) (int, error) {
+	// Query to find latest deployment per app+environment combination and check if it has vulnerabilities
+	// Partitions by (app_id, environment_id) to get the most recent deployment for each app+env
+	// This handles cases where pipelines are deleted and recreated for the same app+env
+	// Shows vulnerability data from all deployments (successful or failed) since vulnerability is about the image, not deployment status
+	query := `
+		WITH LatestDeployments AS (
+			SELECT
+				p.app_id,
+				p.environment_id,
+				env.cluster_id,
+				cia.image,
+				ROW_NUMBER() OVER (PARTITION BY p.app_id, p.environment_id ORDER BY cwr.id DESC) AS rn
+			FROM cd_workflow_runner cwr
+			INNER JOIN cd_workflow cw ON cw.id = cwr.cd_workflow_id
+			INNER JOIN pipeline p ON p.id = cw.pipeline_id
+			INNER JOIN environment env ON env.id = p.environment_id
+			INNER JOIN ci_artifact cia ON cia.id = cw.ci_artifact_id
+			WHERE cwr.workflow_type = 'DEPLOY'
+			AND p.deleted = false
+			AND env.active = true
+	`
+
+	var queryParams []interface{}
+
+	// Add filters to CTE
+	if len(envIds) > 0 {
+		query += " AND p.environment_id = ANY(?)"
+		queryParams = append(queryParams, pg.Array(envIds))
+	}
+
+	if len(clusterIds) > 0 {
+		query += " AND env.cluster_id = ANY(?)"
+		queryParams = append(queryParams, pg.Array(clusterIds))
+	}
+
+	if len(appIds) > 0 {
+		query += " AND p.app_id = ANY(?)"
+		queryParams = append(queryParams, pg.Array(appIds))
+	}
+
+	// Complete the CTE and count deployments with vulnerabilities
+	// Join with image_scan_deploy_info to verify scanned deployments
+	// Then join with image_scan_execution_history using both id and image for verification
+	query += `
+		)
+		SELECT COUNT(DISTINCT (ld.app_id, ld.environment_id))
+		FROM LatestDeployments ld
+		INNER JOIN image_scan_deploy_info isdi
+			ON isdi.scan_object_meta_id = ld.app_id
+			AND isdi.env_id = ld.environment_id
+			AND isdi.object_type = 'app'
+		INNER JOIN image_scan_execution_history iseh
+			ON iseh.id = isdi.image_scan_execution_history_id[1]
+			AND iseh.image = ld.image
+		INNER JOIN image_scan_execution_result iser
+			ON iser.image_scan_execution_history_id = iseh.id
+		WHERE ld.rn = 1
+		AND isdi.image_scan_execution_history_id[1] != -1
+	`
+
+	var count int
+	_, err := impl.dbConnection.Query(&count, query, queryParams...)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment count with vulnerabilities", "err", err)
+		return 0, err
+	}
+
+	return count, nil
+}
+
+// GetActiveDeploymentScannedUnscannedCountByFilters returns the count of scanned and unscanned deployments
+// in a single query for optimal performance. It finds the latest deployed artifact per app+env combination
+// and counts how many have scanned=true vs scanned=false
+func (impl ImageScanDeployInfoRepositoryImpl) GetActiveDeploymentScannedUnscannedCountByFilters(envIds, clusterIds, appIds []int) (*DeploymentScannedCount, error) {
+	// Query to find latest deployment per app+environment combination and count scanned vs unscanned
+	// Uses ROW_NUMBER() to get the latest deployment per app+env
+	// Partitions by (app_id, environment_id) to get the most recent deployment for each app+env
+	// This handles cases where pipelines are deleted and recreated for the same app+env
+	// Shows scan data from all deployments (successful or failed) since scan status is about the image, not deployment status
+	// Then uses conditional aggregation to count scanned and unscanned in one query
+	query := `
+		WITH LatestDeployments AS (
+			SELECT
+				p.app_id,
+				p.environment_id,
+				cia.scanned,
+				ROW_NUMBER() OVER (PARTITION BY p.app_id, p.environment_id ORDER BY cwr.id DESC) AS rn
+			FROM cd_workflow_runner cwr
+			INNER JOIN cd_workflow cw ON cw.id = cwr.cd_workflow_id
+			INNER JOIN pipeline p ON p.id = cw.pipeline_id
+			INNER JOIN ci_artifact cia ON cia.id = cw.ci_artifact_id
+			INNER JOIN environment env ON env.id = p.environment_id
+			WHERE cwr.workflow_type = 'DEPLOY'
+			AND p.deleted = false
+			AND env.active = true
+	`
+
+	var queryParams []interface{}
+
+	// Add filters
+	if len(envIds) > 0 {
+		query += " AND p.environment_id = ANY(?)"
+		queryParams = append(queryParams, pg.Array(envIds))
+	}
+
+	if len(clusterIds) > 0 {
+		query += " AND env.cluster_id = ANY(?)"
+		queryParams = append(queryParams, pg.Array(clusterIds))
+	}
+
+	if len(appIds) > 0 {
+		query += " AND p.app_id = ANY(?)"
+		queryParams = append(queryParams, pg.Array(appIds))
+	}
+
+	query += `
+		)
+		SELECT
+			COUNT(*) FILTER (WHERE scanned = true) as scanned_count,
+			COUNT(*) FILTER (WHERE scanned = false) as unscanned_count
+		FROM LatestDeployments
+		WHERE rn = 1
+	`
+
+	type queryResult struct {
+		ScannedCount   int `pg:"scanned_count"`
+		UnscannedCount int `pg:"unscanned_count"`
+	}
+
+	var result queryResult
+	_, err := impl.dbConnection.Query(&result, query, queryParams...)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment scanned/unscanned counts", "err", err)
+		return nil, err
+	}
+
+	return &DeploymentScannedCount{
+		ScannedCount:   result.ScannedCount,
+		UnscannedCount: result.UnscannedCount,
+	}, nil
+}
+
+// GetNonScannedAppEnvCombinations returns app-env combinations that are NOT scanned
+// It finds all active deployments and excludes those that exist in image_scan_deploy_info
+func (impl ImageScanDeployInfoRepositoryImpl) GetNonScannedAppEnvCombinations(request *repoBean.ImageScanFilter, size int, offset int, deployInfoIds []int) ([]*ImageScanDeployInfo, error) {
+	query, queryParams := impl.buildNonScannedAppEnvQuery(request, size, offset, deployInfoIds, false)
+
+	var results []*ImageScanDeployInfo
+	_, err := impl.dbConnection.Query(&results, query, queryParams...)
+	if err != nil {
+		impl.logger.Errorw("error in getting non-scanned app-env combinations", "err", err)
+		return nil, err
+	}
+
+	return results, nil
+}
+
+// GetNonScannedAppEnvCombinationsCount returns count of app-env combinations that are NOT scanned
+func (impl ImageScanDeployInfoRepositoryImpl) GetNonScannedAppEnvCombinationsCount(request *repoBean.ImageScanFilter, deployInfoIds []int) (int, error) {
+	query, queryParams := impl.buildNonScannedAppEnvQuery(request, 0, 0, deployInfoIds, true)
+
+	var count int
+	_, err := impl.dbConnection.Query(&count, query, queryParams...)
+	if err != nil {
+		impl.logger.Errorw("error in getting non-scanned app-env combinations count", "err", err)
+		return 0, err
+	}
+
+	return count, nil
+}
+
+// buildNonScannedAppEnvQuery builds query to find non-scanned app-env combinations
+// It gets all active deployments from cd_workflow_runner and excludes those in image_scan_deploy_info
+func (impl ImageScanDeployInfoRepositoryImpl) buildNonScannedAppEnvQuery(request *repoBean.ImageScanFilter, size int, offset int, deployInfoIds []int, isCountQuery bool) (string, []interface{}) {
+	var queryParams []interface{}
+
+	// Build the CTE to get latest deployments
+	query := `
+		WITH LatestDeployments AS (
+			SELECT
+				p.app_id,
+				p.environment_id,
+				env.cluster_id,
+				ROW_NUMBER() OVER (PARTITION BY p.app_id, p.environment_id ORDER BY cwr.id DESC) AS rn
+			FROM cd_workflow_runner cwr
+			INNER JOIN cd_workflow cw ON cw.id = cwr.cd_workflow_id
+			INNER JOIN pipeline p ON p.id = cw.pipeline_id
+			INNER JOIN environment env ON env.id = p.environment_id
+			WHERE cwr.workflow_type = 'DEPLOY'
+			AND p.deleted = false
+			AND env.active = true
+	`
+
+	// Add filters to CTE
+	if len(request.EnvironmentIds) > 0 {
+		query += " AND p.environment_id = ANY(?)"
+		queryParams = append(queryParams, pg.Array(request.EnvironmentIds))
+	}
+
+	if len(request.ClusterIds) > 0 {
+		query += " AND env.cluster_id = ANY(?)"
+		queryParams = append(queryParams, pg.Array(request.ClusterIds))
+	}
+
+	query += `
+		)
+	`
+
+	// Main query - select non-scanned app-env combinations
+	if isCountQuery {
+		query += `
+			SELECT COUNT(*)
+			FROM LatestDeployments ld
+			INNER JOIN app a ON a.id = ld.app_id
+			INNER JOIN environment env ON env.id = ld.environment_id
+			LEFT JOIN image_scan_deploy_info isdi
+				ON isdi.scan_object_meta_id = ld.app_id
+				AND isdi.env_id = ld.environment_id
+				AND isdi.object_type = 'app'
+			WHERE ld.rn = 1
+			AND a.active = true
+			AND env.active = true
+			AND (isdi.id IS NULL OR isdi.image_scan_execution_history_id[1] = -1)
+		`
+	} else {
+		query += `
+			SELECT
+				ld.app_id as scan_object_meta_id,
+				ld.environment_id as env_id,
+				ld.cluster_id,
+				'app' as object_type,
+				-1 as id
+			FROM LatestDeployments ld
+			INNER JOIN app a ON a.id = ld.app_id
+			INNER JOIN environment env ON env.id = ld.environment_id
+			LEFT JOIN image_scan_deploy_info isdi
+				ON isdi.scan_object_meta_id = ld.app_id
+				AND isdi.env_id = ld.environment_id
+				AND isdi.object_type = 'app'
+			WHERE ld.rn = 1
+			AND a.active = true
+			AND env.active = true
+			AND (isdi.id IS NULL OR isdi.image_scan_execution_history_id[1] = -1)
+		`
+	}
+
+	// Add app name filter if provided
+	if len(request.AppName) > 0 {
+		query += " AND a.app_name ILIKE ?"
+		queryParams = append(queryParams, util.GetLIKEClauseQueryParam(request.AppName))
+	}
+
+	// Add deployInfoIds filter if provided (for RBAC)
+	if len(deployInfoIds) > 0 && !isCountQuery {
+		// For non-scanned items, we can't filter by deployInfoIds since they don't exist in image_scan_deploy_info
+		// This filter is only applicable for scanned items
+	}
+
+	// Add pagination for non-count queries
+	if !isCountQuery && size > 0 {
+		query += " ORDER BY ld.app_id, ld.environment_id LIMIT ? OFFSET ?"
+		queryParams = append(queryParams, size, offset)
+	}
+
 	return query, queryParams
 }

@@ -112,12 +112,13 @@ type ImageScanFilter struct {
 	CVEName string `json:"cveName"`
 	AppName string `json:"appName"`
 	// ObjectName deprecated
-	ObjectName     string    `json:"objectName"`
-	EnvironmentIds []int     `json:"envIds"`
-	ClusterIds     []int     `json:"clusterIds"`
-	Severity       []int     `json:"severity"`
-	SortOrder      SortOrder `json:"sortOrder"`
-	SortBy         SortBy    `json:"sortBy"` // sort by objectName,envName,lastChecked
+	ObjectName     string         `json:"objectName"`
+	EnvironmentIds []int          `json:"envIds"`
+	ClusterIds     []int          `json:"clusterIds"`
+	Severity       []int          `json:"severity"`
+	SortOrder      SortOrder      `json:"sortOrder"`
+	SortBy         SortBy         `json:"sortBy"` // sort by objectName,envName,lastChecked
+	ScanStatus     ScanStatusType `json:"scanStatus,omitempty"`
 }
 
 type SortBy string
@@ -126,4 +127,13 @@ type SortOrder string
 const (
 	Asc  SortOrder = "ASC"
 	Desc SortOrder = "DESC"
+)
+
+// ScanStatusType represents the scan status filter
+type ScanStatusType string
+
+const (
+	ScanStatusAll        ScanStatusType = "" // default - show all (scanned + not-scanned)
+	ScanStatusScanned    ScanStatusType = "scanned"
+	ScanStatusNotScanned ScanStatusType = "not-scanned"
 )

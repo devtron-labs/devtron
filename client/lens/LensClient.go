@@ -19,14 +19,16 @@ package lens
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/caarlos0/env"
-	"go.uber.org/zap"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
+
+	"github.com/caarlos0/env"
+	"go.uber.org/zap"
 )
 
 type LensConfig struct {
@@ -41,6 +43,7 @@ func (code StatusCode) IsSuccess() bool {
 
 type LensClient interface {
 	GetAppMetrics(metricRequest *MetricRequest) (resBody []byte, resCode *StatusCode, err error)
+	GetBulkAppMetrics(bulkRequest *BulkMetricRequest) (*LensResponse, *StatusCode, error)
 }
 type LensClientImpl struct {
 	httpClient *http.Client
@@ -66,7 +69,21 @@ func NewLensClientImpl(config *LensConfig, logger *zap.SugaredLogger) (*LensClie
 type ClientRequest struct {
 	Method      string
 	Path        string
-	RequestBody *MetricRequest
+	RequestBody interface{}
+}
+
+type LensResponse struct {
+	Code   int             `json:"code,omitempty"`
+	Status string          `json:"status,omitempty"`
+	Result json.RawMessage `json:"result,omitempty"`
+	Errors []*LensApiError `json:"errors,omitempty"`
+}
+type LensApiError struct {
+	HttpStatusCode    int    `json:"-"`
+	Code              string `json:"code,omitempty"`
+	InternalMessage   string `json:"internalMessage,omitempty"`
+	UserMessage       string `json:"userMessage,omitempty"`
+	UserDetailMessage string `json:"userDetailMessage,omitempty"`
 }
 
 func (session *LensClientImpl) doRequest(clientRequest *ClientRequest) (resBody []byte, resCode *StatusCode, err error) {
@@ -109,6 +126,50 @@ type MetricRequest struct {
 	To    string `json:"to"`
 }
 
+type AppEnvPair struct {
+	AppId int `json:"appId"`
+	EnvId int `json:"envId"`
+}
+
+type BulkMetricRequest struct {
+	AppEnvPairs []AppEnvPair `json:"appEnvPairs"`
+	From        *time.Time   `json:"from"`
+	To          *time.Time   `json:"to"`
+}
+
+type Metrics struct {
+	AverageCycleTime       float64 `json:"average_cycle_time"`
+	AverageLeadTime        float64 `json:"average_lead_time"`
+	ChangeFailureRate      float64 `json:"change_failure_rate"`
+	AverageRecoveryTime    float64 `json:"average_recovery_time"`
+	AverageDeploymentSize  float32 `json:"average_deployment_size"`
+	AverageLineAdded       float32 `json:"average_line_added"`
+	AverageLineDeleted     float32 `json:"average_line_deleted"`
+	LastFailedTime         string  `json:"last_failed_time"`
+	RecoveryTimeLastFailed float64 `json:"recovery_time_last_failed"`
+}
+
+type AppEnvMetrics struct {
+	AppId   int      `json:"appId"`
+	EnvId   int      `json:"envId"`
+	Metrics *Metrics `json:"metrics"`
+	Error   string   `json:"error,omitempty"`
+}
+
+type BulkMetricsResponse struct {
+	Results []AppEnvMetrics `json:"results"`
+}
+
+// DoraMetrics represents the new response structure from Lens API
+type DoraMetrics struct {
+	AppId                  int     `json:"app_id"`
+	EnvId                  int     `json:"env_id"`
+	DeploymentFrequency    float64 `json:"deployment_frequency"`       // Deployments per day
+	ChangeFailureRate      float64 `json:"change_failure_rate"`        // Percentage
+	MeanLeadTimeForChanges float64 `json:"mean_lead_time_for_changes"` // Minutes
+	MeanTimeToRecovery     float64 `json:"mean_time_to_recovery"`      // Minutes
+}
+
 func (session *LensClientImpl) GetAppMetrics(metricRequest *MetricRequest) (resBody []byte, resCode *StatusCode, err error) {
 	params := url.Values{}
 	params.Add("app_id", strconv.Itoa(metricRequest.AppId))
@@ -127,4 +188,31 @@ func (session *LensClientImpl) GetAppMetrics(metricRequest *MetricRequest) (resB
 	session.logger.Infow("lens req", "req", req)
 	resBody, resCode, err = session.doRequest(req)
 	return resBody, resCode, err
+}
+
+func (session *LensClientImpl) GetBulkAppMetrics(bulkRequest *BulkMetricRequest) (*LensResponse, *StatusCode, error) {
+	u, err := url.Parse("deployment-metrics/bulk")
+	if err != nil {
+		return nil, nil, err
+	}
+	req := &ClientRequest{
+		Method:      "GET",
+		Path:        u.String(),
+		RequestBody: bulkRequest,
+	}
+	session.logger.Infow("lens bulk req", "req", req)
+	resBody, resCode, err := session.doRequest(req)
+	if err != nil {
+		return nil, resCode, err
+	}
+	if resCode.IsSuccess() {
+		apiRes := &LensResponse{}
+		err = json.Unmarshal(resBody, apiRes)
+		if err != nil {
+			return nil, resCode, err
+		}
+		return apiRes, resCode, nil
+	}
+	session.logger.Errorw("api err in git sensor response", "res", string(resBody))
+	return nil, resCode, fmt.Errorf("res not success, Statuscode: %v", resCode)
 }
