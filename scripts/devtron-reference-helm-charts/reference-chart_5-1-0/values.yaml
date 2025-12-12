@@ -37,6 +37,10 @@ pauseForSecondsBeforeSwitchActive: 30
 waitForSecondsBeforeScalingDown: 30
 autoPromotionSeconds: 30
 
+# Optional override for the main container name. If provided, this name will be used
+# for the primary container instead of the default chart-derived name.
+containerName: ""
+
 Spec:
  Affinity:
   Key:
