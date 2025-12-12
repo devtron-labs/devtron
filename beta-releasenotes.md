@@ -1,4 +1,5 @@
 ## Enhancements
+- feat: add helm_take_ownership and helm_redeployment_request columns to user_deployment_request table (#6888)
 - feat: kubecon 2025 feature release (#6884)
 - feat: Added support to override container name (#6880)
 - feat: Increase max length for TeamRequest name field (#6876)
