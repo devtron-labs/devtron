@@ -19,13 +19,16 @@ package restHandler
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
 	securityBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/bean"
 	security2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository/bean"
 	"github.com/devtron-labs/devtron/util/sliceUtil"
-	"net/http"
-	"strconv"
+	"go.opentelemetry.io/otel"
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -46,6 +49,8 @@ type ImageScanRestHandler interface {
 	FetchExecutionDetail(w http.ResponseWriter, r *http.Request)
 	FetchMinScanResultByAppIdAndEnvId(w http.ResponseWriter, r *http.Request)
 	VulnerabilityExposure(w http.ResponseWriter, r *http.Request)
+	VulnerabilitySummary(w http.ResponseWriter, r *http.Request)
+	VulnerabilityListing(w http.ResponseWriter, r *http.Request)
 }
 
 type ImageScanRestHandlerImpl struct {
@@ -401,4 +406,230 @@ func (impl ImageScanRestHandlerImpl) VulnerabilityExposure(w http.ResponseWriter
 	//RBAC
 	results.VulnerabilityExposure = vulnerabilityExposure
 	common.WriteJsonResp(w, err, results, http.StatusOK)
+}
+
+func (impl ImageScanRestHandlerImpl) VulnerabilitySummary(w http.ResponseWriter, r *http.Request) {
+	ctx, span := otel.Tracer("imageScanRestHandler").Start(r.Context(), "VulnerabilitySummary")
+	defer span.End()
+
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.HandleUnauthorized(w, r)
+		return
+	}
+
+	// Parse request body with filters
+	decoder := json.NewDecoder(r.Body)
+	var summaryRequest *securityBean.VulnerabilitySummaryRequest
+	err = decoder.Decode(&summaryRequest)
+	if err != nil {
+		impl.logger.Errorw("request err, VulnerabilitySummary", "err", err, "payload", r.Body)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// Create ImageScanRequest with filters for fetching deploy info
+	request := &securityBean.ImageScanRequest{
+		ImageScanFilter: bean.ImageScanFilter{
+			EnvironmentIds: summaryRequest.EnvironmentIds,
+			ClusterIds:     summaryRequest.ClusterIds,
+		},
+	}
+
+	deployInfoList, err := impl.imageScanService.FetchAllDeployInfo(request)
+	if err != nil {
+		impl.logger.Errorw("service err, VulnerabilitySummary", "err", err)
+		if util.IsErrNoRows(err) {
+			emptySummary := &securityBean.VulnerabilitySummary{
+				TotalVulnerabilities: 0,
+				SeverityCount: &securityBean.SeverityCount{
+					Critical: 0,
+					High:     0,
+					Medium:   0,
+					Low:      0,
+					Unknown:  0,
+				},
+				FixableVulnerabilities:    0,
+				NotFixableVulnerabilities: 0,
+			}
+			common.WriteJsonResp(w, nil, emptySummary, http.StatusOK)
+		} else {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		}
+		return
+	}
+
+	filteredDeployInfoList, err := impl.imageScanService.FilterDeployInfoByScannedArtifactsDeployedInEnv(deployInfoList)
+	if err != nil {
+		impl.logger.Errorw("request err, FilterDeployInfoListForScannedArtifacts", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	_, rbacSpan := otel.Tracer("imageScanRestHandler").Start(ctx, "RBACProcessing")
+	token := r.Header.Get("token")
+	isSuperAdmin := false
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
+		isSuperAdmin = true
+	}
+	var ids []int
+	if isSuperAdmin {
+		ids = sliceUtil.NewSliceFromFuncExec(filteredDeployInfoList, func(item *security2.ImageScanDeployInfo) int {
+			return item.Id
+		})
+	} else {
+		ids, err = impl.getAuthorisedImageScanDeployInfoIds(token, filteredDeployInfoList)
+		if err != nil {
+			impl.logger.Errorw("error in getting authorised image scan deploy info ids", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+	}
+	rbacSpan.End()
+
+	if len(ids) == 0 {
+		emptySummary := &securityBean.VulnerabilitySummary{
+			TotalVulnerabilities: 0,
+			SeverityCount: &securityBean.SeverityCount{
+				Critical: 0,
+				High:     0,
+				Medium:   0,
+				Low:      0,
+				Unknown:  0,
+			},
+			FixableVulnerabilities:    0,
+			NotFixableVulnerabilities: 0,
+		}
+		common.WriteJsonResp(w, nil, emptySummary, http.StatusOK)
+		return
+	}
+
+	summary, err := impl.imageScanService.FetchVulnerabilitySummary(ctx, summaryRequest, ids)
+	if err != nil {
+		impl.logger.Errorw("service err, VulnerabilitySummary", "err", err)
+		if util.IsErrNoRows(err) {
+			emptySummary := &securityBean.VulnerabilitySummary{
+				TotalVulnerabilities: 0,
+				SeverityCount: &securityBean.SeverityCount{
+					Critical: 0,
+					High:     0,
+					Medium:   0,
+					Low:      0,
+					Unknown:  0,
+				},
+				FixableVulnerabilities:    0,
+				NotFixableVulnerabilities: 0,
+			}
+			common.WriteJsonResp(w, nil, emptySummary, http.StatusOK)
+		} else {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		}
+		return
+	}
+	common.WriteJsonResp(w, err, summary, http.StatusOK)
+}
+
+func (impl ImageScanRestHandlerImpl) VulnerabilityListing(w http.ResponseWriter, r *http.Request) {
+	ctx, span := otel.Tracer("imageScanRestHandler").Start(r.Context(), "VulnerabilityListing")
+	defer span.End()
+
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.HandleUnauthorized(w, r)
+		return
+	}
+
+	// Parse request body
+	decoder := json.NewDecoder(r.Body)
+	var request *securityBean.VulnerabilityListingRequest
+	err = decoder.Decode(&request)
+	if err != nil {
+		impl.logger.Errorw("request err, VulnerabilityListing", "err", err, "payload", r.Body)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// Fetch all deploy info to apply RBAC
+	deployInfoRequest := &securityBean.ImageScanRequest{
+		ImageScanFilter: bean.ImageScanFilter{
+			EnvironmentIds: request.EnvironmentIds,
+			ClusterIds:     request.ClusterIds,
+		},
+	}
+
+	deployInfoList, err := impl.imageScanService.FetchAllDeployInfo(deployInfoRequest)
+	if err != nil {
+		impl.logger.Errorw("service err, VulnerabilityListing", "err", err)
+		if util.IsErrNoRows(err) {
+			emptyResponse := &securityBean.VulnerabilityListingResponse{
+				Offset:          request.Offset,
+				Size:            request.Size,
+				Total:           0,
+				Vulnerabilities: []*securityBean.VulnerabilityDetail{},
+			}
+			common.WriteJsonResp(w, nil, emptyResponse, http.StatusOK)
+		} else {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		}
+		return
+	}
+
+	filteredDeployInfoList, err := impl.imageScanService.FilterDeployInfoByScannedArtifactsDeployedInEnv(deployInfoList)
+	if err != nil {
+		impl.logger.Errorw("request err, FilterDeployInfoListForScannedArtifacts", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	// Apply RBAC
+	_, rbacSpan := otel.Tracer("imageScanRestHandler").Start(ctx, "RBACProcessing")
+	token := r.Header.Get("token")
+	isSuperAdmin := false
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
+		isSuperAdmin = true
+	}
+	var ids []int
+	if isSuperAdmin {
+		ids = sliceUtil.NewSliceFromFuncExec(filteredDeployInfoList, func(item *security2.ImageScanDeployInfo) int {
+			return item.Id
+		})
+	} else {
+		ids, err = impl.getAuthorisedImageScanDeployInfoIds(token, filteredDeployInfoList)
+		if err != nil {
+			impl.logger.Errorw("error in getting authorised image scan deploy info ids", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+	}
+	rbacSpan.End()
+
+	if len(ids) == 0 {
+		emptyResponse := &securityBean.VulnerabilityListingResponse{
+			Offset:          request.Offset,
+			Size:            request.Size,
+			Total:           0,
+			Vulnerabilities: []*securityBean.VulnerabilityDetail{},
+		}
+		common.WriteJsonResp(w, nil, emptyResponse, http.StatusOK)
+		return
+	}
+
+	// Fetch vulnerability listing
+	listing, err := impl.imageScanService.FetchVulnerabilityListing(ctx, request, ids)
+	if err != nil {
+		impl.logger.Errorw("service err, VulnerabilityListing", "err", err)
+		if util.IsErrNoRows(err) {
+			emptyResponse := &securityBean.VulnerabilityListingResponse{
+				Offset:          request.Offset,
+				Size:            request.Size,
+				Total:           0,
+				Vulnerabilities: []*securityBean.VulnerabilityDetail{},
+			}
+			common.WriteJsonResp(w, nil, emptyResponse, http.StatusOK)
+		} else {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		}
+		return
+	}
+	common.WriteJsonResp(w, err, listing, http.StatusOK)
 }
