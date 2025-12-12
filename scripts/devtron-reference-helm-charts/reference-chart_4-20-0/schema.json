@@ -611,7 +611,7 @@
           "title": "Value"
         },
         "workingDir": {
-          "type": "object",
+          "type": "string",
           "items": {},
           "description": "contains the working directory",
           "title": "Working directory"
