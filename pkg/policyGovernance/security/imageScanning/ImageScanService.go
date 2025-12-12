@@ -18,6 +18,10 @@ package imageScanning
 
 import (
 	"context"
+	"fmt"
+	"strings"
+	"time"
+
 	bean4 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
@@ -29,8 +33,9 @@ import (
 	securityBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool/repository"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/read"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"go.opentelemetry.io/otel"
-	"time"
+	"golang.org/x/exp/slices"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -49,6 +54,9 @@ type ImageScanService interface {
 	VulnerabilityExposure(request *repository3.VulnerabilityRequest) (*repository3.VulnerabilityExposureListingResponse, error)
 	GetArtifactVulnerabilityStatus(ctx context.Context, request *bean2.VulnerabilityCheckRequest) (bool, error)
 	IsImageScanExecutionCompleted(image, imageDigest string) (bool, error)
+	FetchVulnerabilitySummary(ctx context.Context, request *bean3.VulnerabilitySummaryRequest, ids []int) (*bean3.VulnerabilitySummary, error)
+	FetchVulnerabilityListing(ctx context.Context, request *bean3.VulnerabilityListingRequest, ids []int) (*bean3.VulnerabilityListingResponse, error)
+
 	// resource scanning functions below
 	GetScanResults(resourceScanQueryParams *bean3.ResourceScanQueryParams) (parser.ResourceScanResponseDto, error)
 	FilterDeployInfoByScannedArtifactsDeployedInEnv(deployInfoList []*repository3.ImageScanDeployInfo) ([]*repository3.ImageScanDeployInfo, error)
@@ -109,7 +117,44 @@ func (impl ImageScanServiceImpl) FetchAllDeployInfo(request *bean3.ImageScanRequ
 	return deployedList, nil
 }
 
-func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *bean3.ImageScanRequest, deployInfoIds []int) (*bean3.ImageScanHistoryListingResponse, error) {
+func (impl *ImageScanServiceImpl) FetchScanExecutionListing(request *bean3.ImageScanRequest, deployInfoIds []int) (*bean3.ImageScanHistoryListingResponse, error) {
+
+	// Handle different scan status cases
+	if request.ScanStatus == securityBean.ScanStatusNotScanned {
+		// Show only not-scanned items
+		return impl.fetchNonScannedAppEnvListing(request, deployInfoIds)
+	} else if request.ScanStatus == securityBean.ScanStatusScanned {
+		// Show only scanned items
+		return impl.fetchScannedAppEnvListing(request, deployInfoIds)
+	}
+
+	// ScanStatusAll (default: empty string) - show both scanned and not-scanned
+	// Fetch both scanned and not-scanned items and merge them
+	scannedResponse, err := impl.fetchScannedAppEnvListing(request, deployInfoIds)
+	if err != nil {
+		impl.Logger.Errorw("error while fetching scanned items", "err", err)
+		return nil, err
+	}
+
+	notScannedResponse, err := impl.fetchNonScannedAppEnvListing(request, deployInfoIds)
+	if err != nil {
+		impl.Logger.Errorw("error while fetching not-scanned items", "err", err)
+		return nil, err
+	}
+
+	// Merge the responses
+	mergedResponse := &bean3.ImageScanHistoryListingResponse{
+		Offset:                   request.Offset,
+		Size:                     request.Size,
+		ImageScanHistoryResponse: append(scannedResponse.ImageScanHistoryResponse, notScannedResponse.ImageScanHistoryResponse...),
+		Total:                    scannedResponse.Total + notScannedResponse.Total,
+	}
+
+	return mergedResponse, nil
+}
+
+// fetchScannedAppEnvListing fetches scanned app-env combinations
+func (impl *ImageScanServiceImpl) fetchScannedAppEnvListing(request *bean3.ImageScanRequest, deployInfoIds []int) (*bean3.ImageScanHistoryListingResponse, error) {
 	groupByList, err := impl.imageScanDeployInfoRepository.ScanListingWithFilter(&request.ImageScanFilter, request.Size, request.Offset, deployInfoIds)
 	if err != nil {
 		impl.Logger.Errorw("error while fetching scan execution result", "err", err)
@@ -138,7 +183,6 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *bean3.ImageS
 		groupByListMap[item.Id] = item
 		executionHistoryIds = append(executionHistoryIds, item.ImageScanExecutionHistoryId...)
 	}
-
 	// fetching all execution history in bulk for updating last check time in case when no vul are found(no results will be saved)
 	mapOfExecutionHistoryIdVsLastExecTime, err := impl.fetchImageExecutionHistoryMapByIds(executionHistoryIds)
 	if err != nil {
@@ -147,6 +191,7 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *bean3.ImageS
 	}
 
 	var finalResponseList []*bean3.ImageScanHistoryResponse
+
 	for _, item := range groupByList {
 		imageScanHistoryResponse := &bean3.ImageScanHistoryResponse{}
 		var lastChecked time.Time
@@ -155,6 +200,7 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *bean3.ImageS
 		highCount := 0
 		moderateCount := 0
 		lowCount, unkownCount := 0, 0
+		fixableCount := 0
 		imageScanDeployInfo := groupByListMap[item.Id]
 		if imageScanDeployInfo != nil {
 			scanResultList, err := impl.scanResultRepository.FetchByScanExecutionIds(imageScanDeployInfo.ImageScanExecutionHistoryId)
@@ -170,6 +216,11 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *bean3.ImageS
 			for _, item := range scanResultList {
 				lastChecked = item.ImageScanExecutionHistory.ExecutionTime
 				criticalCount, highCount, moderateCount, lowCount, unkownCount = impl.updateCount(item.CveStore.GetSeverity(), criticalCount, highCount, moderateCount, lowCount, unkownCount)
+
+				// Count fixable vulnerabilities (those with a fixed version)
+				if item.FixedVersion != "" {
+					fixableCount++
+				}
 			}
 			// updating in case when no vul are found (no results)
 			if lastChecked.IsZero() && len(imageScanDeployInfo.ImageScanExecutionHistoryId) > 0 && mapOfExecutionHistoryIdVsLastExecTime != nil {
@@ -192,6 +243,15 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *bean3.ImageS
 			imageScanHistoryResponse.LastChecked = &lastChecked
 		}
 		imageScanHistoryResponse.SeverityCount = severityCount
+		imageScanHistoryResponse.FixableVulnerabilities = fixableCount
+
+		// Set scan status based on whether it's scanned or not
+		if imageScanDeployInfo != nil && len(imageScanDeployInfo.ImageScanExecutionHistoryId) > 0 && imageScanDeployInfo.ImageScanExecutionHistoryId[0] != -1 {
+			imageScanHistoryResponse.ScanStatus = "scanned"
+		} else {
+			imageScanHistoryResponse.ScanStatus = "not-scanned"
+		}
+
 		if imageScanDeployInfo != nil {
 			imageScanHistoryResponse.EnvId = imageScanDeployInfo.EnvId
 		}
@@ -243,6 +303,91 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *bean3.ImageS
 	*/
 
 	return finalResponse, err
+}
+
+// fetchNonScannedAppEnvListing fetches non-scanned app-env combinations
+// These are active deployments that don't have scan data in image_scan_deploy_info
+func (impl *ImageScanServiceImpl) fetchNonScannedAppEnvListing(request *bean3.ImageScanRequest, deployInfoIds []int) (*bean3.ImageScanHistoryListingResponse, error) {
+	// Get non-scanned app-env combinations
+	nonScannedList, err := impl.imageScanDeployInfoRepository.GetNonScannedAppEnvCombinations(&request.ImageScanFilter, request.Size, request.Offset, deployInfoIds)
+	if err != nil {
+		impl.Logger.Errorw("error while fetching non-scanned app-env combinations", "err", err)
+		return nil, err
+	}
+
+	// Get total count
+	totalCount, err := impl.imageScanDeployInfoRepository.GetNonScannedAppEnvCombinationsCount(&request.ImageScanFilter, deployInfoIds)
+	if err != nil {
+		impl.Logger.Errorw("error while fetching non-scanned app-env combinations count", "err", err)
+		return nil, err
+	}
+
+	// Build response list
+	var finalResponseList []*bean3.ImageScanHistoryResponse
+
+	// Get app and environment details
+	appIds := make([]int, 0)
+	envIds := make([]int, 0)
+	for _, item := range nonScannedList {
+		appIds = append(appIds, item.ScanObjectMetaId)
+		envIds = append(envIds, item.EnvId)
+	}
+
+	// Extract unique IDs to avoid duplicate queries
+	appIds = sliceUtil.GetUniqueElements(appIds)
+	envIds = sliceUtil.GetUniqueElements(envIds)
+
+	// Fetch app details
+	appMap := make(map[int]string)
+	if len(appIds) > 0 {
+		apps, err := impl.appRepository.FindAppAndProjectByIdsIn(appIds)
+		if err != nil && err != pg.ErrNoRows {
+			impl.Logger.Errorw("error while fetching apps", "err", err)
+			return nil, err
+		}
+		for _, app := range apps {
+			appMap[app.Id] = app.AppName
+		}
+	}
+
+	// Fetch environment details using lightweight method
+	envMap := make(map[int]string)
+	if len(envIds) > 0 {
+		envMap, err = impl.envService.FindNamesByIds(envIds)
+		if err != nil && err != pg.ErrNoRows {
+			impl.Logger.Errorw("error while fetching environments", "err", err)
+			return nil, err
+		}
+	}
+
+	// Build response items
+	for _, item := range nonScannedList {
+		response := &bean3.ImageScanHistoryResponse{
+			ImageScanDeployInfoId: -1, // No scan deploy info exists
+			AppId:                 item.ScanObjectMetaId,
+			EnvId:                 item.EnvId,
+			Name:                  appMap[item.ScanObjectMetaId],
+			Type:                  item.ObjectType,
+			Environment:           envMap[item.EnvId],
+			ScanStatus:            string(securityBean.ScanStatusNotScanned),
+			SeverityCount: &bean3.SeverityCount{
+				Critical: 0,
+				High:     0,
+				Medium:   0,
+				Low:      0,
+				Unknown:  0,
+			},
+			FixableVulnerabilities: 0,
+		}
+		finalResponseList = append(finalResponseList, response)
+	}
+
+	return &bean3.ImageScanHistoryListingResponse{
+		Offset:                   request.Offset,
+		Size:                     request.Size,
+		ImageScanHistoryResponse: finalResponseList,
+		Total:                    totalCount,
+	}, nil
 }
 
 func (impl ImageScanServiceImpl) fetchImageExecutionHistoryMapByIds(historyIds []int) (map[int]time.Time, error) {
@@ -781,4 +926,438 @@ func (impl ImageScanServiceImpl) fetchLatestArtifactMetadataDeployedOnAllEnvsAcr
 		}
 	}
 	return appEnvToCiArtifactMap, ciArtifactIdToScannedMap, nil
+}
+
+// FetchVulnerabilitySummary fetches the vulnerability summary for the given filters
+// Same filters as VulnerabilityListing: Environment, Cluster, Application, Severity, Fix Availability, Vulnerability Age
+// ids parameter contains RBAC-filtered deploy info IDs that the user has access to
+func (impl *ImageScanServiceImpl) FetchVulnerabilitySummary(ctx context.Context, request *bean3.VulnerabilitySummaryRequest, ids []int) (*bean3.VulnerabilitySummary, error) {
+	ctx, span := otel.Tracer("imageScanService").Start(ctx, "FetchVulnerabilitySummary")
+	defer span.End()
+
+	// Fetch raw vulnerability data with database-level filters (same as VulnerabilityListing)
+	// This applies: CVEName (empty for summary), Severity, EnvironmentIds, ClusterIds, AppIds, and RBAC-filtered deploy info IDs
+	rawData, err := impl.scanResultRepository.GetVulnerabilityRawData("", request.Severity, request.EnvironmentIds, request.ClusterIds, request.AppIds, ids)
+	if err != nil {
+		impl.Logger.Errorw("error while fetching vulnerability raw data", "err", err)
+		return nil, err
+	}
+
+	if len(rawData) == 0 {
+		// Return empty summary
+		return &bean3.VulnerabilitySummary{
+			TotalVulnerabilities: 0,
+			SeverityCount: &bean3.SeverityCount{
+				Critical: 0,
+				High:     0,
+				Medium:   0,
+				Low:      0,
+				Unknown:  0,
+			},
+			FixableVulnerabilities:    0,
+			NotFixableVulnerabilities: 0,
+		}, nil
+	}
+
+	// Build vulnerability map (deduplicate by CVE + App + Env + Package + Version + FixedVersion)
+	// Same logic as VulnerabilityListing
+	vulnerabilityMap := make(map[string]*bean3.VulnerabilityDetail)
+	for _, data := range rawData {
+		// Create unique key for this CVE+App+Env+Package+Version+FixedVersion combination
+		key := fmt.Sprintf("%s|%d|%d|%s|%s|%s", data.CveStoreName, data.AppId, data.EnvId, data.Package, data.CurrentVersion, data.FixedVersion)
+
+		// Convert severity int to string
+		severityStr := impl.convertSeverityEnumToString(data.Severity)
+
+		if existing, exists := vulnerabilityMap[key]; exists {
+			// Keep the earliest discovery time
+			if data.ExecutionTime.Before(existing.DiscoveredAt) {
+				existing.DiscoveredAt = data.ExecutionTime
+			}
+		} else {
+			vulnerabilityMap[key] = &bean3.VulnerabilityDetail{
+				CVEName:        data.CveStoreName,
+				Severity:       severityStr,
+				AppName:        data.AppName,
+				AppId:          data.AppId,
+				EnvName:        data.EnvName,
+				EnvId:          data.EnvId,
+				DiscoveredAt:   data.ExecutionTime,
+				Package:        data.Package,
+				CurrentVersion: data.CurrentVersion,
+				FixedVersion:   data.FixedVersion,
+			}
+		}
+	}
+
+	// Convert map to slice
+	vulnerabilities := make([]*bean3.VulnerabilityDetail, 0, len(vulnerabilityMap))
+	for _, vuln := range vulnerabilityMap {
+		vulnerabilities = append(vulnerabilities, vuln)
+	}
+
+	// Apply code-level filters (FixAvailable and VulnAge)
+	// Same logic as VulnerabilityListing
+	vulnerabilities = impl.applyVulnerabilitySummaryFilters(vulnerabilities, request)
+
+	// Calculate summary from filtered vulnerabilities
+	totalVulnerabilities := len(vulnerabilities)
+	totalFixableVulnerabilities := 0
+	totalNotFixableVulnerabilities := 0
+	summaryCriticalCount := 0
+	summaryHighCount := 0
+	summaryModerateCount := 0
+	summaryLowCount := 0
+	summaryUnknownCount := 0
+
+	for _, vuln := range vulnerabilities {
+		// Count by severity
+		switch strings.ToLower(vuln.Severity) {
+		case "critical":
+			summaryCriticalCount++
+		case "high":
+			summaryHighCount++
+		case "medium", "moderate":
+			summaryModerateCount++
+		case "low":
+			summaryLowCount++
+		default:
+			summaryUnknownCount++
+		}
+
+		// Count fixable vs not fixable
+		if vuln.FixedVersion != "" {
+			totalFixableVulnerabilities++
+		} else {
+			totalNotFixableVulnerabilities++
+		}
+	}
+
+	// Build and return vulnerability summary
+	vulnerabilitySummary := &bean3.VulnerabilitySummary{
+		TotalVulnerabilities: totalVulnerabilities,
+		SeverityCount: &bean3.SeverityCount{
+			Critical: summaryCriticalCount,
+			High:     summaryHighCount,
+			Medium:   summaryModerateCount,
+			Low:      summaryLowCount,
+			Unknown:  summaryUnknownCount,
+		},
+		FixableVulnerabilities:    totalFixableVulnerabilities,
+		NotFixableVulnerabilities: totalNotFixableVulnerabilities,
+	}
+
+	return vulnerabilitySummary, nil
+}
+
+// FetchVulnerabilityListing fetches the vulnerability listing with pagination and filters
+// Optimized version: Uses code-level aggregation instead of database GROUP BY
+func (impl *ImageScanServiceImpl) FetchVulnerabilityListing(ctx context.Context, request *bean3.VulnerabilityListingRequest, ids []int) (*bean3.VulnerabilityListingResponse, error) {
+	ctx, span := otel.Tracer("imageScanService").Start(ctx, "FetchVulnerabilityListing")
+	defer span.End()
+
+	rawData, err := impl.scanResultRepository.GetVulnerabilityRawData(request.CVEName, request.Severity, request.EnvironmentIds, request.ClusterIds, request.AppIds, ids)
+	if err != nil {
+		impl.Logger.Errorw("error while fetching vulnerability raw data", "err", err)
+		return nil, err
+	}
+
+	// Code-level aggregation using maps for O(n) performance
+	// Key: "cveName|appId|envId|package|version|fixedVersion"
+	// This ensures unique combinations of CVE+App+Env+Package+Version
+	vulnerabilityMap := make(map[string]*bean3.VulnerabilityDetail)
+
+	for _, data := range rawData {
+		// Create unique key for this CVE+App+Env+Package+Version combination
+		key := fmt.Sprintf("%s|%d|%d|%s|%s|%s", data.CveStoreName, data.AppId, data.EnvId, data.Package, data.CurrentVersion, data.FixedVersion)
+
+		// Check if this combination already exists
+		if existing, exists := vulnerabilityMap[key]; exists {
+			// Keep the earliest discovery time
+			if data.ExecutionTime.Before(existing.DiscoveredAt) {
+				existing.DiscoveredAt = data.ExecutionTime
+			}
+		} else {
+			// New combination - add to map
+			vulnerabilityMap[key] = &bean3.VulnerabilityDetail{
+				CVEName:        data.CveStoreName,
+				Severity:       impl.convertSeverityEnumToString(data.Severity),
+				AppName:        data.AppName,
+				AppId:          data.AppId,
+				EnvName:        data.EnvName,
+				EnvId:          data.EnvId,
+				DiscoveredAt:   data.ExecutionTime,
+				Package:        data.Package,
+				CurrentVersion: data.CurrentVersion,
+				FixedVersion:   data.FixedVersion,
+			}
+		}
+	}
+
+	// Convert map to slice
+	vulnerabilities := make([]*bean3.VulnerabilityDetail, 0, len(vulnerabilityMap))
+	for _, vuln := range vulnerabilityMap {
+		vulnerabilities = append(vulnerabilities, vuln)
+	}
+
+	// Apply code-level filters
+	vulnerabilities = impl.applyVulnerabilityFilters(vulnerabilities, request)
+
+	// Apply sorting based on request
+	impl.sortVulnerabilities(vulnerabilities, request.SortBy, request.SortOrder)
+
+	// Apply pagination in code
+	totalCount := len(vulnerabilities)
+	start := request.Offset
+	end := request.Offset + request.Size
+
+	// Handle edge cases
+	if start > totalCount {
+		start = totalCount
+	}
+	if end > totalCount {
+		end = totalCount
+	}
+	if start < 0 {
+		start = 0
+	}
+
+	// Slice for pagination
+	paginatedVulnerabilities := vulnerabilities[start:end]
+
+	return &bean3.VulnerabilityListingResponse{
+		Offset:          request.Offset,
+		Size:            request.Size,
+		Total:           totalCount,
+		Vulnerabilities: paginatedVulnerabilities,
+	}, nil
+}
+
+// applyVulnerabilityFilters applies code-level filters (fix availability and vulnerability age)
+func (impl *ImageScanServiceImpl) applyVulnerabilityFilters(vulnerabilities []*bean3.VulnerabilityDetail, request *bean3.VulnerabilityListingRequest) []*bean3.VulnerabilityDetail {
+	filtered := make([]*bean3.VulnerabilityDetail, 0, len(vulnerabilities))
+	now := time.Now()
+
+	for _, vuln := range vulnerabilities {
+		// Apply fix availability filter (multi-select)
+		if len(request.FixAvailability) > 0 {
+			hasFixedVersion := vuln.FixedVersion != ""
+			matchesFilter := false
+
+			for _, fixAvailType := range request.FixAvailability {
+				if fixAvailType == bean3.FixAvailable && hasFixedVersion {
+					matchesFilter = true
+					break
+				}
+				if fixAvailType == bean3.FixNotAvailable && !hasFixedVersion {
+					matchesFilter = true
+					break
+				}
+			}
+
+			if !matchesFilter {
+				continue
+			}
+		}
+
+		// Apply vulnerability age filter (multi-select)
+		if len(request.AgeOfDiscovery) > 0 {
+			daysSinceDiscovery := int(now.Sub(vuln.DiscoveredAt).Hours() / 24)
+			matchesAgeFilter := false
+
+			for _, ageType := range request.AgeOfDiscovery {
+				switch ageType {
+				case bean3.VulnAgeLessThan30Days:
+					if daysSinceDiscovery < 30 {
+						matchesAgeFilter = true
+					}
+				case bean3.VulnAge30To60Days:
+					if daysSinceDiscovery >= 30 && daysSinceDiscovery < 60 {
+						matchesAgeFilter = true
+					}
+				case bean3.VulnAge60To90Days:
+					if daysSinceDiscovery >= 60 && daysSinceDiscovery < 90 {
+						matchesAgeFilter = true
+					}
+				case bean3.VulnAgeMoreThan90Days:
+					if daysSinceDiscovery >= 90 {
+						matchesAgeFilter = true
+					}
+				}
+
+				if matchesAgeFilter {
+					break
+				}
+			}
+
+			if !matchesAgeFilter {
+				continue
+			}
+		}
+
+		filtered = append(filtered, vuln)
+	}
+
+	return filtered
+}
+
+// applyVulnerabilitySummaryFilters applies code-level filters for summary (fix availability and vulnerability age)
+// Same logic as applyVulnerabilityFilters but for VulnerabilitySummaryRequest
+func (impl *ImageScanServiceImpl) applyVulnerabilitySummaryFilters(vulnerabilities []*bean3.VulnerabilityDetail, request *bean3.VulnerabilitySummaryRequest) []*bean3.VulnerabilityDetail {
+	filtered := make([]*bean3.VulnerabilityDetail, 0, len(vulnerabilities))
+	now := time.Now()
+
+	for _, vuln := range vulnerabilities {
+		// Apply fix availability filter (multi-select)
+		if len(request.FixAvailability) > 0 {
+			hasFixedVersion := vuln.FixedVersion != ""
+			matchesFilter := false
+
+			for _, fixAvailType := range request.FixAvailability {
+				if fixAvailType == bean3.FixAvailable && hasFixedVersion {
+					matchesFilter = true
+					break
+				}
+				if fixAvailType == bean3.FixNotAvailable && !hasFixedVersion {
+					matchesFilter = true
+					break
+				}
+			}
+
+			if !matchesFilter {
+				continue
+			}
+		}
+
+		// Apply vulnerability age filter (multi-select)
+		if len(request.AgeOfDiscovery) > 0 {
+			daysSinceDiscovery := int(now.Sub(vuln.DiscoveredAt).Hours() / 24)
+			matchesAgeFilter := false
+
+			for _, ageType := range request.AgeOfDiscovery {
+				switch ageType {
+				case bean3.VulnAgeLessThan30Days:
+					if daysSinceDiscovery < 30 {
+						matchesAgeFilter = true
+					}
+				case bean3.VulnAge30To60Days:
+					if daysSinceDiscovery >= 30 && daysSinceDiscovery < 60 {
+						matchesAgeFilter = true
+					}
+				case bean3.VulnAge60To90Days:
+					if daysSinceDiscovery >= 60 && daysSinceDiscovery < 90 {
+						matchesAgeFilter = true
+					}
+				case bean3.VulnAgeMoreThan90Days:
+					if daysSinceDiscovery >= 90 {
+						matchesAgeFilter = true
+					}
+				}
+
+				if matchesAgeFilter {
+					break
+				}
+			}
+
+			if !matchesAgeFilter {
+				continue
+			}
+		}
+
+		filtered = append(filtered, vuln)
+	}
+
+	return filtered
+}
+
+// sortVulnerabilities sorts vulnerabilities based on sortBy and sortOrder
+func (impl *ImageScanServiceImpl) sortVulnerabilities(vulnerabilities []*bean3.VulnerabilityDetail, sortBy bean3.VulnerabilitySortBy, sortOrder bean3.SortOrder) {
+	// Default sort: discoveredAt DESC, cveName ASC
+	if sortBy == "" {
+		sortBy = bean3.VulnSortByDiscoveredAt
+	}
+	if sortOrder == "" {
+		sortOrder = bean3.SortOrderDesc
+	}
+
+	slices.SortFunc(vulnerabilities, func(a, b *bean3.VulnerabilityDetail) int {
+		var cmp int
+
+		switch sortBy {
+		case bean3.VulnSortByCveName:
+			if a.CVEName < b.CVEName {
+				cmp = -1
+			} else if a.CVEName > b.CVEName {
+				cmp = 1
+			}
+		case bean3.VulnSortByCurrentVersion:
+			if a.CurrentVersion < b.CurrentVersion {
+				cmp = -1
+			} else if a.CurrentVersion > b.CurrentVersion {
+				cmp = 1
+			}
+		case bean3.VulnSortByFixedVersion:
+			if a.FixedVersion < b.FixedVersion {
+				cmp = -1
+			} else if a.FixedVersion > b.FixedVersion {
+				cmp = 1
+			}
+		case bean3.VulnSortByDiscoveredAt:
+			if a.DiscoveredAt.Before(b.DiscoveredAt) {
+				cmp = -1
+			} else if a.DiscoveredAt.After(b.DiscoveredAt) {
+				cmp = 1
+			}
+		case bean3.VulnSortBySeverity:
+			// Severity comparison: Critical > High > Medium > Low > Unknown
+			severityOrder := map[string]int{
+				securityBean.CRITICAL: 4,
+				securityBean.HIGH:     3,
+				securityBean.MEDIUM:   2,
+				securityBean.LOW:      1,
+				securityBean.UNKNOWN:  0,
+			}
+			aSev := severityOrder[a.Severity]
+			bSev := severityOrder[b.Severity]
+			if aSev < bSev {
+				cmp = -1
+			} else if aSev > bSev {
+				cmp = 1
+			}
+		default:
+			// Default to discoveredAt
+			if a.DiscoveredAt.Before(b.DiscoveredAt) {
+				cmp = -1
+			} else if a.DiscoveredAt.After(b.DiscoveredAt) {
+				cmp = 1
+			}
+		}
+
+		// Apply sort order
+		if sortOrder == bean3.SortOrderDesc {
+			cmp = -cmp
+		}
+
+		return cmp
+	})
+}
+
+// convertSeverityEnumToString converts severity enum to string
+func (impl *ImageScanServiceImpl) convertSeverityEnumToString(severity int) string {
+	switch severity {
+	case int(securityBean.Low):
+		return securityBean.LOW
+	case int(securityBean.Medium):
+		return securityBean.MEDIUM
+	case int(securityBean.High):
+		return securityBean.HIGH
+	case int(securityBean.Critical):
+		return securityBean.CRITICAL
+	case int(securityBean.Safe):
+		return securityBean.SAFE
+	case int(securityBean.Unknown):
+		return securityBean.UNKNOWN
+	default:
+		return securityBean.UNKNOWN
+	}
 }
