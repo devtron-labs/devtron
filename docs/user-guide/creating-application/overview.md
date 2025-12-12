@@ -93,7 +93,7 @@ kubectl apply -f https://k8s.io/examples/pods/storage/pv-claim.yaml -n {namespac
 For more detail, refer [Kubernetes PVC](https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim).
 
 
-## Configure PVC
+### Configure PVC
 
 In order to configure PVC:
 * Go to the `Overview` section of your application.
