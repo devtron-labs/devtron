@@ -6,86 +6,52 @@
 
 ---
 
-## The Story Arc
-
-```
-Act 1: The Problem     → We're overwhelmed
-Act 2: First Attempt   → We fail (Naive approach)
-Act 3: Understanding   → We learn how Go works (Deep dive)
-Act 4: Second Attempt  → We fail again (WaitGroup)
-Act 5: The Solution    → We succeed (Worker Pool)
-Act 6: Scaling Further → We master it (Fan-Out/Fan-In)
-Act 7: The Wisdom      → Lessons learned
-```
-
----
-
 ## Act 1: The Problem (3 mins)
 
-### Our Story Begins at Devtron
+### The Challenge: Processing Tasks at Scale
 
-**Setting the scene:**
+**The scenario:**
 
-I work at Devtron, an open-source Kubernetes deployment platform. We help teams deploy applications to Kubernetes clusters.
+You're building a system that needs to process many tasks concurrently. Common examples:
+- Auto-triggering 1,000 CI/CD pipelines
+- Fetching data from 100 Kubernetes clusters
+- Processing 10,000 webhook events
+- Sending notifications to thousands of users
 
-**The numbers:**
-- 1,000+ applications managed
-- 100+ Kubernetes clusters
-- 10,000+ deployments daily
-- Thousands of CI/CD pipelines running concurrently
+**The question:**
 
-**Everything was fine... until it wasn't.**
+> "How do we process 1,000+ tasks concurrently without exhausting system resources?"
 
----
-
-### The Day Everything Broke
-
-**Monday morning, 9 AM:**
-
-```
-[ERROR] Database: pq: sorry, too many clients already
-[ERROR] Kubernetes API: 429 Too Many Requests
-[FATAL] Out of memory: killed by OOM
-```
-
-**What happened?**
-- A customer triggered 100 CI pipelines at once
-- Our system tried to process all 100 simultaneously
-- Database connections: Exhausted (max 100)
-- Kubernetes API: Rate limited (50 QPS)
-- Memory: Out of memory (OOM killed)
-- **Result:** Complete system crash
-
-**The question that started our journey:**
-> "How do we process 1000 concurrent tasks without crashing?"
+**The constraints:**
+- **Database:** Connection pool limited (e.g., 100 connections)
+- **External APIs:** Rate limits (e.g., 50 queries per second)
+- **Memory:** Each goroutine costs ~2KB stack + heap allocations
+- **CPU:** Context switching overhead
 
 ---
 
 ### The Restaurant Analogy
 
-**Let me tell you a story about a restaurant...**
+**Imagine you own a restaurant...**
 
-**Week 1: The small restaurant**
-- You own a cozy restaurant
+**Week 1: Small restaurant**
 - 10 customers per day
 - You cook everything yourself
 - Life is good! ✅
 
 **Week 2: Featured on TV**
-- Your restaurant gets featured on a popular TV show
-- Next day: 1,000 customers show up!
+- 1,000 customers show up!
 - You try to cook for all of them yourself
 - **Result:**
   - You're overwhelmed
   - Customers wait hours
   - Kitchen runs out of ingredients
-  - You collapse from exhaustion
   - Restaurant closes ❌
 
-**This is exactly what happened to our system:**
-- Week 1 = Development (10 apps)
-- Week 2 = Production (1,000 apps)
-- You cooking = Simple goroutines
+**The parallel to our code:**
+- Week 1 = Development (small load)
+- Week 2 = Production (high load)
+- You cooking = Spawning goroutines
 - Overwhelmed = System crash
 
 **The journey ahead:**
@@ -1161,18 +1127,16 @@ Speedup: 2x faster!
 
 ## Act 7: The Wisdom - Lessons Learned (5 mins)
 
-### Our Journey: From Crash to Success
+### The Evolution: From Failure to Success
 
-**The story so far:**
+**Our journey:**
 
 ```
-Monday 9 AM:  System crashes → "We need to fix this!"
-Monday 10 AM: Attempt 1 (Naive) → Crashes again
-Monday 11 AM: Deep dive into Go internals → "Aha! Now we understand!"
-Monday 2 PM:  Attempt 2 (WaitGroup) → Still crashes
-Monday 4 PM:  Attempt 3 (Worker Pool) → Success! 🎉
-Tuesday:      Implement Fan-Out/Fan-In → Even faster!
-6 months later: 99.9% uptime, 10,000+ deployments/day ✅
+Attempt 1 (Naive)      → Crashes (5,000 goroutines)
+Deep dive              → Understanding how Go works
+Attempt 2 (WaitGroup)  → Still crashes (unbounded)
+Attempt 3 (Worker Pool)→ Success! (bounded batches)
+Pattern 2 (Fan-Out)    → Even faster! (parallel aggregation)
 ```
 
 ---
@@ -1252,25 +1216,9 @@ for i := range items {
 
 ---
 
-### The End of Our Story
+### Key Lessons Learned
 
-**Where we started:**
-```
-Monday 9 AM: System crash
-Error: Out of memory
-Status: 0% success rate
-Team: Panicking 😱
-```
-
-**Where we are now:**
-```
-6 months later: 99.9% uptime
-Deployments: 10,000+ per day
-Success rate: 100%
-Team: Confident ✅
-```
-
-**What we learned:**
+**What we learned from this journey:**
 
 1. **Goroutines are powerful, but not magic**
    - Each costs ~2KB + heap allocations
