@@ -21,7 +21,7 @@ INSERT INTO "public"."global_strategy_metadata_chart_ref_mapping" ("global_strat
 SELECT
     (SELECT "id" FROM "public"."global_strategy_metadata" WHERE "name" = 'RECREATE'),
     (SELECT "id" FROM "public"."chart_ref" WHERE "location" = 'deployment-chart_4-22-0'),
-    true, true, 'now()', 1, 'now()', 1
+    true, false, 'now()', 1, 'now()', 1
 WHERE NOT EXISTS (
     SELECT 1
     FROM "public"."global_strategy_metadata_chart_ref_mapping"
