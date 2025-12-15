@@ -2,6 +2,8 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+containerName: "akshat"
+
 rolloutLabels:
   name: devops-team
   Company: Devtron
@@ -84,30 +86,30 @@ image:
 autoscaling:
   enabled: true
   MinReplicas: 1
-  MaxReplicas: 2
+  MaxReplicas: 2c
   TargetCPUUtilizationPercentage: 90
   TargetMemoryUtilizationPercentage: 80
   behavior: {}
   containerResource:
-    enable: false
+    enabled: false
     TargetCPUUtilizationPercentage: 90
     TargetMemoryUtilizationPercentage: 80    
-#    scaleDown:
-#      stabilizationWindowSeconds: 300
-#      policies:
-#      - type: Percent
-#        value: 100
-#        periodSeconds: 15
-#    scaleUp:
-#      stabilizationWindowSeconds: 0
-#      policies:
-#      - type: Percent
-#        value: 100
-#        periodSeconds: 15
-#      - type: Pods
-#        value: 4
-#        periodSeconds: 15
-#      selectPolicy: Max
+    # scaleDown:
+    #   stabilizationWindowSeconds: 300
+    #   policies:
+    #   - type: Percent
+    #     value: 100
+    #     periodSeconds: 15
+    # scaleUp:
+    #   stabilizationWindowSeconds: 0
+    #   policies:
+    #   - type: Percent
+    #     value: 100
+    #     periodSeconds: 15
+    #   - type: Pods
+    #     value: 4
+    #     periodSeconds: 15
+    #   selectPolicy: Max
 
   extraMetrics: []
 #    - external:
@@ -195,12 +197,8 @@ deployment:
         - pause: {}  # final manual approval (optional)
 
       trafficRouting:
-        managedRoutes:
-          - name: api-canary
-            devtron: test
-        customTrafficRouting:
-          nginx:
-            stableIngress: rollouts-demo-stable
+        # managedRoutes:
+        #   - name: api-canary
         istio:
           virtualService:
             name: api-vs
@@ -670,43 +668,82 @@ deploymentType: CANARY
 
 topologySpreadConstraints: {}
 
+# istio:
+#   enable: true
+#   gateway:
+#     enabled: true
+#     labels: {}
+#     annotations: {}
+#     selector: 
+#       istiokj: sdkj
+#     host: "istio.example.com"
+#     tls:
+#       enabled: true
+#       secretName: "asjkj"
+#     gatewayExtraSpec: {}
+#       # selector:
+#       #   istio: "istio-1"
+#       # servers:
+#       # - port:
+#       #     number: 8080
+#       #     name: http
+#       #     protocol: HTTP
+#       #   hosts:    
+#       #     - "istio.example.com"
+#   virtualService:
+#     enabled: true
+#     labels: {}
+#     annotations: {}
+#     gateways: 
+#     - sdkk
+#     hosts: 
+#      - istio-2.exmap.com
+#      - ksdj.sdkj.ckj
+#     http:
+#       - match:
+#         - uri:
+#             prefix: /v1
+#         - uri:
+#             prefix: /v2
+#         timeout: 12
+#         headers:
+#           request:
+#             add:
+#               x-some-header: "value"
+#         retries:
+#           attempts: 2 
+#           perTryTimeout: 3s
+#     virtualServiceExtraSpec: 
+#       tcp: 
+#         skldjlkjds: kdjj
+
 istio:
   enable: true
   gateway:
     enabled: true
     labels: {}
     annotations: {}
-    selector: 
-      istiokj: sdkj
-    host: "istio.example.com"
+    # host: example.com
+    hosts:
+    - "example4.com"
     tls:
       enabled: true
-      secretName: "asjkj"
-    gatewayExtraSpec: {}
-      # selector:
-      #   istio: "istio-1"
-      # servers:
-      # - port:
-      #     number: 8080
-      #     name: http
-      #     protocol: HTTP
-      #   hosts:    
-      #     - "istio.example.com"
+      secretName: example-tls-secret
   virtualService:
+    namespace: test
     enabled: true
     labels: {}
     annotations: {}
-    gateways: 
-    - sdkk
-    hosts: 
-     - istio-2.exmap.com
-     - ksdj.sdkj.ckj
-    http:
+    gateways: []
+    hosts:
+    - example1.local
+    tcp: 
       - match:
         - uri:
             prefix: /v1
         - uri:
             prefix: /v2
+        rewriteUri: /
         timeout: 12
         headers:
           request:
@@ -714,7 +751,33 @@ istio:
               x-some-header: "value"
         retries:
           attempts: 2 
-          perTryTimeout: 3s
-    virtualServiceExtraSpec: 
-      tcp: 
-        skldjlkjds: kdjjk
+          perTryTimeout: 3s 
+        route:
+        - destination:
+            host: service1
+            port: 80
+      - route:
+        - destination:
+            host: service2
+    http: 
+      - match:
+        - uri:
+            prefix: /v1
+        - uri:
+            prefix: /v2
+        rewriteUri: /
+        timeout: 12
+        headers:
+          request:
+            add:
+              x-some-header: "value"
+        retries:
+          attempts: 2 
+          perTryTimeout: 3s 
+        route:
+        - destination:
+            host: service1
+            port: 80
+      - route:
+        - destination:
+            host: service2

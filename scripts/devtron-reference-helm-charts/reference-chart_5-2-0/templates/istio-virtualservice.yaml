@@ -66,6 +66,10 @@ spec:
   http: 
 {{ toYaml $.Values.istio.virtualService.http | indent 4 }}
 {{- end }}
+{{- if $.Values.istio.virtualService.tcp }}
+  tcp:
+{{ toYaml $.Values.istio.virtualService.tcp | indent 4 }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
