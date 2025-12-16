@@ -15,11 +15,14 @@ type OverviewRouter interface {
 
 type OverviewRouterImpl struct {
 	overviewRestHandler restHandler.OverviewRestHandler
+	infraOverviewRouter InfraOverviewRouter
 }
 
-func NewOverviewRouterImpl(overviewRestHandler restHandler.OverviewRestHandler) *OverviewRouterImpl {
+func NewOverviewRouterImpl(overviewRestHandler restHandler.OverviewRestHandler,
+	infraOverviewRouter InfraOverviewRouter) *OverviewRouterImpl {
 	return &OverviewRouterImpl{
 		overviewRestHandler: overviewRestHandler,
+		infraOverviewRouter: infraOverviewRouter,
 	}
 }
 
@@ -55,27 +58,11 @@ func (router OverviewRouterImpl) InitOverviewRouter(overviewRouter *mux.Router) 
 		Methods("GET")
 
 	// Infra Overview Subrouter
+
 	infraOverviewRouter := overviewRouter.PathPrefix("/infra").Subrouter()
+	router.infraOverviewRouter.InitInfraOverviewRouter(infraOverviewRouter)
 
 	// Cluster Management Overview
-	infraOverviewRouter.Path("").
-		HandlerFunc(router.overviewRestHandler.GetClusterOverview).
-		Methods("GET")
-
-	// Delete Cluster Overview Cache
-	infraOverviewRouter.Path("/cache").
-		HandlerFunc(router.overviewRestHandler.DeleteClusterOverviewCache).
-		Methods("DELETE")
-
-	// Refresh Cluster Overview Cache
-	infraOverviewRouter.Path("/refresh").
-		HandlerFunc(router.overviewRestHandler.RefreshClusterOverviewCache).
-		Methods("GET")
-
-	// Cluster Overview Detailed Node Info
-	infraOverviewRouter.Path("/node-list").
-		HandlerFunc(router.overviewRestHandler.GetClusterOverviewDetailedNodeInfo).
-		Methods("GET")
 
 	// Security Overview Subrouter
 	securityOverviewRouter := overviewRouter.PathPrefix("/security").Subrouter()
