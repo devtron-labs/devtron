@@ -993,6 +993,12 @@ func InitializeApp() (*App, error) {
 
 		router.NewOverviewRouterImpl,
 		wire.Bind(new(router.OverviewRouter), new(*router.OverviewRouterImpl)),
+		
+		restHandler.NewInfraOverviewRestHandlerImpl,
+		wire.Bind(new(restHandler.InfraOverviewRestHandler), new(*restHandler.InfraOverviewRestHandlerImpl)),
+
+		router.NewInfraOverviewRouterImpl,
+		wire.Bind(new(router.InfraOverviewRouter), new(*router.InfraOverviewRouterImpl)),
 	)
 	return &App{}, nil
 }
