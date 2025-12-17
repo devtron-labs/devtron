@@ -151,6 +151,7 @@ type CiPipeline struct {
 	CustomTagObject          *CustomTagData         `json:"customTag,omitempty"`
 	DefaultTag               []string               `json:"defaultTag,omitempty"`
 	EnableCustomTag          bool                   `json:"enableCustomTag"`
+	InfraProfileId           *int                   `json:"infraProfileId,omitempty"` // Optional pipeline-level infra profile override
 }
 
 func (ciPipeline *CiPipeline) IsLinkedCi() bool {

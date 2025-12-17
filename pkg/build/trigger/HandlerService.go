@@ -773,7 +773,8 @@ func (impl *HandlerServiceImpl) StartCiWorkflowAndPrepareWfRequest(trigger *type
 	}
 
 	scope := resourceQualifiers.Scope{
-		AppId: pipeline.App.Id,
+		AppId:      pipeline.App.Id,
+		PipelineId: pipeline.Id, // Added pipeline ID for pipeline-level infra profile support
 	}
 	ciWorkflowConfigNamespace := impl.config.GetDefaultNamespace()
 	envModal, isJob, err := impl.getEnvironmentForJob(pipeline, trigger)
