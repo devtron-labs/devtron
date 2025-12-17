@@ -1,0 +1,177 @@
+{{- if $.Values.autoscaling.enabled }}
+{{- if semverCompare ">=1.23-0" .Capabilities.KubeVersion.GitVersion }}
+apiVersion: autoscaling/v2
+{{- else if semverCompare ">=1.16-0" .Capabilities.KubeVersion.GitVersion }}
+apiVersion: autoscaling/v2beta2
+{{- else }}
+apiVersion: autoscaling/v2beta1
+{{- end }}
+kind: HorizontalPodAutoscaler
+metadata:
+  {{- if $.Values.autoscaling.name }}
+  name: {{ $.Values.autoscaling.name }}
+  {{- else }}
+  name: {{ template ".Chart.Name .fullname" $ }}-hpa
+  {{- end }}
+  {{- if .Values.autoscaling.annotations }}
+  annotations:
+{{ toYaml .Values.autoscaling.annotations | indent 4 }}
+  {{- end }}
+  labels:
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    app: {{ template ".Chart.Name .name" $ }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}  
+  {{- if .Values.autoscaling.labels }}
+{{ toYaml .Values.autoscaling.labels | indent 4 }}
+  {{- end }}
+{{- if $.Values.appLabels }}
+{{ toYaml $.Values.appLabels | indent 4 }}
+{{- end }}  
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include ".Chart.Name .fullname" $ }}
+  minReplicas: {{ $.Values.autoscaling.MinReplicas  }}
+  maxReplicas: {{ $.Values.autoscaling.MaxReplicas }}
+  metrics:
+  {{- if  $.Values.autoscaling.containerResource.enabled  }}
+  {{- with $.Values.autoscaling.containerResource }}
+  {{- if .TargetCPUUtilizationPercentage }}
+  - type: ContainerResource  
+    containerResource:
+      name: cpu
+      container: "{{ if $.Values.containerName }}{{ $.Values.containerName }}{{ else }}{{ $.Chart.Name }}{{ end }}"
+      target:
+        type: Utilization
+        averageUtilization: {{ .TargetCPUUtilizationPercentage }}
+  {{- end}}  
+  {{- if .TargetMemoryUtilizationPercentage  }}
+  - type: ContainerResource  
+    containerResource:
+      name: memory
+      container: "{{ if $.Values.containerName }}{{ $.Values.containerName }}{{ else }}{{ $.Chart.Name }}{{ end }}"
+      target:
+        type: Utilization
+        averageUtilization: {{ .TargetMemoryUtilizationPercentage }}
+  {{- end}}
+  {{- end }}            
+  {{- end }}  
+  {{- if $.Values.autoscaling.TargetMemoryUtilizationPercentage }}
+  - type: Resource
+    resource:
+      name: memory
+      {{- if semverCompare ">=1.16-0" .Capabilities.KubeVersion.GitVersion }}
+      target:
+        type: Utilization
+        averageUtilization: {{ $.Values.autoscaling.TargetMemoryUtilizationPercentage }}
+      {{- else }}
+      targetAverageUtilization: {{ $.Values.autoscaling.TargetMemoryUtilizationPercentage }}
+      {{- end }}
+  {{- end }}
+  {{- if $.Values.autoscaling.TargetCPUUtilizationPercentage }}
+  - type: Resource
+    resource:
+      name: cpu
+      {{- if semverCompare ">=1.16-0" .Capabilities.KubeVersion.GitVersion }}
+      target:
+        type: Utilization
+        averageUtilization: {{ $.Values.autoscaling.TargetCPUUtilizationPercentage }}
+      {{- else }}
+      targetAverageUtilization: {{ $.Values.autoscaling.TargetCPUUtilizationPercentage }}
+      {{- end }}
+  {{- end }}
+    {{- if and $.Values.autoscaling.extraMetrics (semverCompare ">=1.16-0" .Capabilities.KubeVersion.GitVersion) }}
+  {{- toYaml $.Values.autoscaling.extraMetrics | nindent 2 }}
+    {{- end}}
+  {{- if and $.Values.autoscaling.behavior (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion) }}
+  behavior:
+    {{- toYaml $.Values.autoscaling.behavior | nindent 4 }}
+  {{- end }}
+  {{- end }}
+{{- if and $.Values.secondaryWorkload.enabled $.Values.secondaryWorkload.autoscaling.enabled }}
+---
+{{- if semverCompare ">=1.23-0" .Capabilities.KubeVersion.GitVersion }}
+apiVersion: autoscaling/v2
+{{- else if semverCompare ">=1.16-0" .Capabilities.KubeVersion.GitVersion }}
+apiVersion: autoscaling/v2beta2
+{{- else }}
+apiVersion: autoscaling/v2beta1
+{{- end }}
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ template ".Chart.Name .fullname" $ }}-{{ $.Values.secondaryWorkload.postfix | default "sec" }}-hpa
+  {{- if .Values.autoscaling.annotations }}
+  annotations:
+{{ toYaml .Values.autoscaling.annotations | indent 4 }}
+  {{- end }}
+  {{- if .Values.autoscaling.labels }}
+  labels:
+{{ toYaml .Values.autoscaling.labels | indent 4 }}
+  {{- end }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include ".Chart.Name .fullname" $ }}-{{ $.Values.secondaryWorkload.postfix | default "sec" }}
+  {{- with $.Values.secondaryWorkload }}
+  minReplicas: {{ .autoscaling.MinReplicas  }}
+  maxReplicas: {{ .autoscaling.MaxReplicas }}
+  metrics:
+  {{- if  .autoscaling.containerResource.enabled  }}
+  {{- with .autoscaling.containerResource }}
+  {{- if .TargetCPUUtilizationPercentage }}
+  - type: ContainerResource  
+    containerResource:
+      name: cpu
+      container: "{{ if $.Values.containerName }}{{ $.Values.containerName }}{{ else }}{{ $.Chart.Name }}{{ end }}"
+      target:
+        type: Utilization
+        averageUtilization: {{ .TargetCPUUtilizationPercentage }}
+  {{- end}}  
+  {{- if .TargetMemoryUtilizationPercentage  }}
+  - type: ContainerResource  
+    containerResource:
+      name: memory
+      container: "{{ if $.Values.containerName }}{{ $.Values.containerName }}{{ else }}{{ $.Chart.Name }}{{ end }}"
+      target:
+        type: Utilization
+        averageUtilization: {{ .TargetMemoryUtilizationPercentage }}
+  {{- end}}
+  {{- end }}            
+  {{- end }}  
+  {{- if .autoscaling.TargetMemoryUtilizationPercentage }}
+  - type: Resource
+    resource:
+      name: memory
+      {{- if semverCompare ">=1.16-0" $.Capabilities.KubeVersion.GitVersion }}
+      target:
+        type: Utilization
+        averageUtilization: {{ .autoscaling.TargetMemoryUtilizationPercentage }}
+      {{- else }}
+      targetAverageUtilization: {{ .autoscaling.TargetMemoryUtilizationPercentage }}
+      {{- end }}
+  {{- end }}
+  {{- if .autoscaling.TargetCPUUtilizationPercentage }}
+  - type: Resource
+    resource:
+      name: cpu
+      {{- if semverCompare ">=1.16-0" $.Capabilities.KubeVersion.GitVersion }}
+      target:
+        type: Utilization
+        averageUtilization: {{ .autoscaling.TargetCPUUtilizationPercentage }}
+      {{- else }}
+      targetAverageUtilization: {{ .autoscaling.TargetCPUUtilizationPercentage }}
+      {{- end }}
+  {{- end }}
+    {{- if and .autoscaling.extraMetrics (semverCompare ">=1.16-0" $.Capabilities.KubeVersion.GitVersion) }}
+  {{- toYaml .autoscaling.extraMetrics | nindent 2 }}
+    {{- end}}
+  {{- if and .autoscaling.behavior (semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion) }}
+  behavior:
+    {{- toYaml .autoscaling.behavior | nindent 4 }}
+  {{- end }}
+  {{- end }}
+  {{- end }}

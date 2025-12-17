@@ -1,0 +1,71 @@
+{{- if and .Values.istio.enable .Values.istio.gateway.enabled -}}
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  {{- if .Values.istio.gateway.name }}
+  name: {{ .Values.istio.gateway.name }}
+  {{- else }}
+  name: {{ template ".Chart.Name .fullname" $ }}-istio-gateway
+  {{- end }}
+  labels:
+    app: {{ template ".Chart.Name .name" $ }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
+{{- if $.Values.appLabels }}
+{{ toYaml $.Values.appLabels | indent 4 }}
+{{- end }}
+    {{- if $.Values.istio.gateway.labels }}
+{{ toYaml $.Values.istio.gateway.labels | indent 4 }}
+    {{- end }}
+{{- if $.Values.istio.gateway.annotations }}
+  annotations:
+{{ toYaml $.Values.istio.gateway.annotations | indent 4 }}
+{{- end }}
+spec:
+{{ with $.Values.istio.gateway }}
+  selector:
+    {{- if .selector }}
+    {{- toYaml .selector | nindent 4 }}
+    {{- else }}
+    istio: ingressgateway
+    {{- end }}
+  servers:
+  {{- if .servers }}
+  {{- toYaml .servers | nindent 2 }}
+  {{- else }}
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+{{- if .host }}    
+      - {{ .host | quote -}}
+{{- else if .hosts }}      
+{{- range .hosts }}
+      - {{ . | quote }}
+{{- end }} 
+{{- end }}           
+{{- if .tls.enabled }}
+    tls:
+      httpsRedirect: true
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    hosts:
+{{- if .host }}    
+      - {{ .host | quote }}
+{{- else if .hosts }}      
+{{- range .hosts }}
+      - {{ . | quote }}
+{{- end }}  
+{{- end }}       
+    tls:
+      mode: SIMPLE
+      credentialName: {{ .tls.secretName }}
+{{ end }}
+{{ end }}
+{{ end }}
+{{- end }}
