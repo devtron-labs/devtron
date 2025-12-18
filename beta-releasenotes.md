@@ -1,4 +1,5 @@
 ## Enhancements
+- feat: Release candidate v0.44.0 (#6898)
 - feat: Rollout 5.2.0 (#6889)
 - feat: Added support for tcp in virtual service and changed the apiVersion for externalSecrets (#6892)
 - feat: add helm_take_ownership and helm_redeployment_request columns to user_deployment_request table (#6888)
