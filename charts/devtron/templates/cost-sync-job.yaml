@@ -35,30 +35,4 @@ spec:
   successfulJobsHistoryLimit: 3
   suspend: false
   timeZone: UTC
----
-apiVersion: v1
-data:
-  JOB_INTERVAL_MINUTES: "60"
-  LOG_LEVEL: info
-  MAX_INTERVALS_PER_RUN: "6"
-  PG_ADDR: postgresql-postgresql.devtroncd
-  PG_DATABASE: orchestrator
-  PG_USER: postgres
-  POSTGRES_HOST: postgresql-postgresql.devtroncd
-  POSTGRES_NAME: orchestrator
-  POSTGRES_PORT: "5432"
-  POSTGRES_SSL_MODE: disable
-  POSTGRES_USER: postgres
-  PROMETHEUS_DELAY_MINUTES: "5"
-  TIMESCALE_ADDR: timescaledb-cluster-pg15-rw.timescale-db
-  TIMESCALE_DATABASE: finops
-  TIMESCALE_HOST: timescaledb-cluster-pg15-rw.timescale-db
-  TIMESCALE_NAME: finops
-  TIMESCALE_PORT: "5432"
-  TIMESCALE_SSL_MODE: disable
-  TIMESCALE_USER: postgres
-kind: ConfigMap
-metadata:
-  name: cost-sync-2802
-  namespace: devtroncd
 {{- end }}  

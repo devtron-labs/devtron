@@ -23,16 +23,7 @@ data:
   init-schema.sql: |
     CREATE EXTENSION IF NOT EXISTS timescaledb;
 ---      
-apiVersion: v1
-kind: Secret
-metadata:
-  name: timescaledb-cluster-pg15-superuser
-  namespace: timescale-db
-type: kubernetes.io/basic-auth
-data:
-  username: {{ .Values.devtronEnterprise.finops.timescale.user | b64enc  }}
-  password: {{ .Values.devtronEnterprise.finops.timescale.password | b64enc }}
----    
+   
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -40,13 +31,8 @@ metadata:
   namespace: timescale-db
 spec:
   affinity:
-    tolerations:
-    - effect: NoSchedule
-      key: dedicated
-      operator: Equal
-      value: production
-    nodeSelector:
-      purpose: prod
+    tolerations: []
+    nodeSelector: {}
   instances: 1
   enableSuperuserAccess: true
   imageCatalogRef:
