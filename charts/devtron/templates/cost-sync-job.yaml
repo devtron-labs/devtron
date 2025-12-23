@@ -15,6 +15,7 @@ spec:
           labels:
             app: cost-sync-job
         spec:
+          restartPolicy: OnFailure
           containers:
             - envFrom:
                 - configMapRef: 
