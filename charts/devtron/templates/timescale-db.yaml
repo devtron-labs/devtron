@@ -1,0 +1,82 @@
+{{- if .Values.devtronEnterprise.finops.enabled }}
+apiVersion: v1
+kind: Namespace
+metadata:
+    name: timescale-db
+---    
+apiVersion: postgresql.cnpg.io/v1
+kind: ImageCatalog
+metadata:
+  name: cloudnative-pg-timescaledb-pg15
+  namespace: timescale-db
+spec:
+  images:
+    - major: 15 
+      image: timescale/timescaledb-ha:pg15-ts2.18-all
+---        
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: init-schema
+  namespace: timescale-db
+data:
+  init-schema.sql: |
+    CREATE EXTENSION IF NOT EXISTS timescaledb;
+---      
+apiVersion: v1
+kind: Secret
+metadata:
+  name: timescaledb-cluster-pg15-superuser
+  namespace: timescale-db
+type: kubernetes.io/basic-auth
+data:
+  username: {{ .Values.devtronEnterprise.finops.timescale.user | b64enc  }}
+  password: {{ .Values.devtronEnterprise.finops.timescale.password | b64enc }}
+---    
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: timescaledb-cluster-pg15
+  namespace: timescale-db
+spec:
+  affinity:
+    tolerations:
+    - effect: NoSchedule
+      key: dedicated
+      operator: Equal
+      value: production
+    nodeSelector:
+      purpose: prod
+  instances: 1
+  enableSuperuserAccess: true
+  imageCatalogRef:
+    apiGroup: postgresql.cnpg.io
+    kind: ImageCatalog
+    name: cloudnative-pg-timescaledb-pg15
+    major: 15
+  postgresUID: 1000
+  postgresGID: 1000
+  resources: {}
+  postgresql:
+    shared_preload_libraries:
+      - 'timescaledb'
+    parameters:
+      max_wal_size: "1GB"
+      max_wal_senders: "3" 
+      wal_level: "replica"
+    pg_hba:
+      - host all all all scram-sha-256
+  bootstrap:
+    initdb:
+      database: finops
+      owner: postgres # This should match the username in timescaledb-cluster-pg15-superuser
+      secret:
+        name: timescaledb-cluster-pg15-superuser 
+      postInitApplicationSQLRefs:
+        configMapRefs:
+        - name: init-schema
+          key: init-schema.sql
+  storage:
+    size: 5Gi
+    storageClass: default
+{{- end }}
