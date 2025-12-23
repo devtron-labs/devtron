@@ -485,9 +485,9 @@ devtronEnterprise:
   finops:
     enabled: false
     costSync:
-      image: "quay.io/cost-syc"
+      image: ""
     timescale:
-      password: "nflkwednsclkwmdnsc"  
+      password: ""  
       user: "postgres"
   casbin:
     registry: ""
