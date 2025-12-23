@@ -72,5 +72,5 @@ spec:
           key: init-schema.sql
   storage:
     size: 5Gi
-    storageClass: default
+    storageClass: {{ .Values.devtronEnterprise.finops.timescale.storageClass | default "default" }}
 {{- end }}
