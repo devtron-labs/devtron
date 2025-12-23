@@ -6,16 +6,19 @@ metadata:
     annotations:
       "helm.sh/hook": pre-install
       "helm.sh/hook-weight": "-2"
-# ---    
-# apiVersion: postgresql.cnpg.io/v1
-# kind: ImageCatalog
-# metadata:
-#   name: cloudnative-pg-timescaledb-pg15
-#   namespace: timescale-db
-# spec:
-#   images:
-#     - major: 15 
-#       image: timescale/timescaledb-ha:pg15-ts2.18-all
+---    
+apiVersion: postgresql.cnpg.io/v1
+kind: ImageCatalog
+metadata:
+  name: cloudnative-pg-timescaledb-pg15
+  namespace: timescale-db
+  annotations:
+      "helm.sh/hook": post-install,post-upgrade
+      "helm.sh/hook-weight": "-2"
+spec:
+  images:
+    - major: 15 
+      image: timescale/timescaledb-ha:pg15-ts2.18-all
 # ---        
 # apiVersion: v1
 # kind: ConfigMap
