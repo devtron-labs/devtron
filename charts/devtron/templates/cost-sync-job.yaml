@@ -16,7 +16,7 @@ spec:
             app: cost-sync-job
         spec:
           containers:
-              envFrom:
+            - envFrom:
                 - configMapRef: 
                     name: cost-sync-cm
                 - secretRef:
