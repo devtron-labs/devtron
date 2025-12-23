@@ -10,6 +10,7 @@
 - feat: feature flag for encryption (#6856)
 - feat: encryption for db credentials (#6852)
 ## Bugs
+- fix: migrate proxy chart dependencies and refactor related functions (#6899)
 - fix: enhance validation and error handling in cluster update process (#6887)
 - fix: Invalid type casting error for custom charts (#6883)
 - fix: dependabot fixes (#6874)
