@@ -482,6 +482,13 @@ monitoring:
 # Change these values for Devtron-Enterprise 
 devtronEnterprise:
   enabled: false
+  finops:
+    enabled: false
+    costSync:
+      image: "quay.io/cost-syc"
+    timescale:
+      password: "nflkwednsclkwmdnsc"  
+      user: "postgres"
   casbin:
     registry: ""
     image: "casbin:f6ff5f74-064b67e5-462-30822"
