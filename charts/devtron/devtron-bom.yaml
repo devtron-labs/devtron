@@ -239,11 +239,6 @@ monitoring:
       image: "k8s-sidecar:1.1.0"
       curlImage: "curl:7.73.0"
       imagePullPolicy: IfNotPresent
-
-cloudnative-pg:
-  crds:
-    create: false
-
 devtronEnterprise:
   enabled: false
   finops:
