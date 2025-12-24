@@ -1,4 +1,11 @@
 {{- if .Values.devtronEnterprise.finops.enabled }}
+{{ - if include "createNamespace" . | toBool }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: timescale-db
+{{- end }}  
+---
 apiVersion: postgresql.cnpg.io/v1
 kind: ImageCatalog
 metadata:
