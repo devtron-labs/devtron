@@ -62,5 +62,5 @@ spec:
   {{- end }}
   storage:
     size: {{ $.Values.devtronEnterprise.finops.timescale.volumeSize }}
-    storageClass: {{ $.Values.global.storageClass | default "default"}}
+    storageClass: {{ $.Values.global.storageClass }}
 {{- end }}

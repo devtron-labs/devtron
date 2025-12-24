@@ -1,9 +1,10 @@
-{{- if .Values.devtronEnterprise.finops.enabled }}
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
+    meta.helm.sh/release-name: devtron
+    meta.helm.sh/release-namespace: devtroncd
     helm.sh/resource-policy: keep
   name: backups.postgresql.cnpg.io
 spec:
@@ -456,6 +457,8 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
+    meta.helm.sh/release-name: devtron
+    meta.helm.sh/release-namespace: devtroncd
   name: clusterimagecatalogs.postgresql.cnpg.io
 spec:
   group: postgresql.cnpg.io
@@ -538,6 +541,8 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
+    meta.helm.sh/release-name: devtron
+    meta.helm.sh/release-namespace: devtroncd
   name: clusters.postgresql.cnpg.io
 spec:
   group: postgresql.cnpg.io
@@ -7747,6 +7752,8 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
+    meta.helm.sh/release-name: devtron
+    meta.helm.sh/release-namespace: devtroncd
   name: databases.postgresql.cnpg.io
 spec:
   group: postgresql.cnpg.io
@@ -8342,6 +8349,8 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
+    meta.helm.sh/release-name: devtron
+    meta.helm.sh/release-namespace: devtroncd
   name: failoverquorums.postgresql.cnpg.io
 spec:
   group: postgresql.cnpg.io
@@ -8420,6 +8429,8 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
+    meta.helm.sh/release-name: devtron
+    meta.helm.sh/release-namespace: devtroncd
   name: imagecatalogs.postgresql.cnpg.io
 spec:
   group: postgresql.cnpg.io
@@ -8501,6 +8512,8 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
+    meta.helm.sh/release-name: devtron
+    meta.helm.sh/release-namespace: devtroncd
   name: poolers.postgresql.cnpg.io
 spec:
   group: postgresql.cnpg.io
@@ -17811,6 +17824,8 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
+    meta.helm.sh/release-name: devtron
+    meta.helm.sh/release-namespace: devtroncd
   name: publications.postgresql.cnpg.io
 spec:
   group: postgresql.cnpg.io
@@ -18007,6 +18022,8 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
+    meta.helm.sh/release-name: devtron
+    meta.helm.sh/release-namespace: devtroncd
   name: scheduledbackups.postgresql.cnpg.io
 spec:
   group: postgresql.cnpg.io
@@ -18199,6 +18216,8 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
+    meta.helm.sh/release-name: devtron
+    meta.helm.sh/release-namespace: devtroncd
   name: subscriptions.postgresql.cnpg.io
 spec:
   group: postgresql.cnpg.io
@@ -18342,4 +18361,3 @@ spec:
     storage: true
     subresources:
       status: {}
-{{- end }}

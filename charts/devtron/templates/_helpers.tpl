@@ -116,12 +116,3 @@ securityContext:
 {{ toYaml .global.containerSecurityContext | indent 2 }}
   {{- end }}
 {{- end }}
-
-{{- define "createNamespace" -}}
-{{- $liveNs := lookup "v1" "Namespace" "" "timescale-db" }}
-{{- if not $liveNs }}
-true
-{{- else }}
-false
-{{- end }}
-{{- end }}
