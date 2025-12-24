@@ -7,6 +7,8 @@ metadata:
     meta.helm.sh/release-namespace: devtroncd
     helm.sh/resource-policy: keep
   name: backups.postgresql.cnpg.io
+  labels:
+    app.kubernetes.io/managed-by: Helm
 spec:
   group: postgresql.cnpg.io
   names:
@@ -460,6 +462,8 @@ metadata:
     meta.helm.sh/release-name: devtron
     meta.helm.sh/release-namespace: devtroncd
   name: clusterimagecatalogs.postgresql.cnpg.io
+  labels:
+    app.kubernetes.io/managed-by: Helm
 spec:
   group: postgresql.cnpg.io
   names:
@@ -544,6 +548,8 @@ metadata:
     meta.helm.sh/release-name: devtron
     meta.helm.sh/release-namespace: devtroncd
   name: clusters.postgresql.cnpg.io
+  labels:
+    app.kubernetes.io/managed-by: Helm
 spec:
   group: postgresql.cnpg.io
   names:
@@ -7755,6 +7761,8 @@ metadata:
     meta.helm.sh/release-name: devtron
     meta.helm.sh/release-namespace: devtroncd
   name: databases.postgresql.cnpg.io
+  labels:
+    app.kubernetes.io/managed-by: Helm
 spec:
   group: postgresql.cnpg.io
   names:
@@ -8352,6 +8360,8 @@ metadata:
     meta.helm.sh/release-name: devtron
     meta.helm.sh/release-namespace: devtroncd
   name: failoverquorums.postgresql.cnpg.io
+  labels:
+    app.kubernetes.io/managed-by: Helm
 spec:
   group: postgresql.cnpg.io
   names:
@@ -8432,6 +8442,8 @@ metadata:
     meta.helm.sh/release-name: devtron
     meta.helm.sh/release-namespace: devtroncd
   name: imagecatalogs.postgresql.cnpg.io
+  labels:
+    app.kubernetes.io/managed-by: Helm
 spec:
   group: postgresql.cnpg.io
   names:
@@ -8515,6 +8527,8 @@ metadata:
     meta.helm.sh/release-name: devtron
     meta.helm.sh/release-namespace: devtroncd
   name: poolers.postgresql.cnpg.io
+  labels:
+    app.kubernetes.io/managed-by: Helm
 spec:
   group: postgresql.cnpg.io
   names:
@@ -17827,6 +17841,8 @@ metadata:
     meta.helm.sh/release-name: devtron
     meta.helm.sh/release-namespace: devtroncd
   name: publications.postgresql.cnpg.io
+  labels:
+    app.kubernetes.io/managed-by: Helm
 spec:
   group: postgresql.cnpg.io
   names:
@@ -18025,6 +18041,8 @@ metadata:
     meta.helm.sh/release-name: devtron
     meta.helm.sh/release-namespace: devtroncd
   name: scheduledbackups.postgresql.cnpg.io
+  labels:
+    app.kubernetes.io/managed-by: Helm
 spec:
   group: postgresql.cnpg.io
   names:
@@ -18219,6 +18237,8 @@ metadata:
     meta.helm.sh/release-name: devtron
     meta.helm.sh/release-namespace: devtroncd
   name: subscriptions.postgresql.cnpg.io
+  labels:
+    app.kubernetes.io/managed-by: Helm
 spec:
   group: postgresql.cnpg.io
   names:
