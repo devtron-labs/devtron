@@ -18,6 +18,7 @@
 - fix: sql injection  (#6861)
 - fix: user manager fix (#6854)
 ## Others
+- misc: Add support for migrating plugin metadata to parent metadata, includi… (#6902)
 - misc: update UserDeploymentRequestWithAdditionalFields struct to include tableName for PostgreSQL compatibility (#6896)
 - chore: Merge remote-tracking branch 'origin/main' into 'origin/develop' (#6886)
 - chore: rename SQL migration files for consistency (#6885)
