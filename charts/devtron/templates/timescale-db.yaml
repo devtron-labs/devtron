@@ -1,14 +1,4 @@
 {{- if .Values.devtronEnterprise.finops.enabled }}
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: timescale-db
-  labels:
-    name: devtron
-  annotations:
-    "helm.sh/hook": pre-install
-    "helm.sh/resource-policy": keep
----  
 apiVersion: postgresql.cnpg.io/v1
 kind: ImageCatalog
 metadata:
