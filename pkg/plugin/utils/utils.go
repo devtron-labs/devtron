@@ -19,15 +19,16 @@ package utils
 import (
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/util"
-	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
-	"github.com/devtron-labs/devtron/pkg/plugin/repository"
-	"golang.org/x/mod/semver"
 	"net/http"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/devtron-labs/devtron/internal/util"
+	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
+	"github.com/devtron-labs/devtron/pkg/plugin/repository"
+	"golang.org/x/mod/semver"
 )
 
 func GetStageType(stageTypeReq string) (int, error) {
@@ -109,4 +110,20 @@ func ValidatePluginVersion(version string) error {
 		return util.NewApiError(http.StatusBadRequest, bean2.PluginVersionNotSemanticallyCorrectError, bean2.PluginVersionNotSemanticallyCorrectError)
 	}
 	return nil
+}
+
+// StripVersionSuffixFromName removes version suffix patterns like "v1.0.0", "v1.0", "v1" from the end of plugin names.
+// This is used during migration to ensure plugins with names like "DockerSlim v1.0.0" and "DockerSlim"
+// generate the same identifier and are linked to the same parent metadata.
+//
+// Examples:
+//   - "DockerSlim v1.0.0" -> "DockerSlim"
+//   - "Github Release Plugin v1.0" -> "Github Release Plugin"
+//   - "Devtron CI Trigger v1.0.0" -> "Devtron CI Trigger"
+//   - "DockerSlim" -> "DockerSlim" (no change)
+func StripVersionSuffixFromName(pluginName string) string {
+	// Pattern to match version suffix like " v1.0.0", " v1.0", " v1" at the end of the name
+	// Also handles pre-release versions like " v1.0.0-beta.1"
+	versionSuffixPattern := regexp.MustCompile(`\s+v\d+(\.\d+)*(-[a-zA-Z0-9.]+)?$`)
+	return strings.TrimSpace(versionSuffixPattern.ReplaceAllString(pluginName, ""))
 }

@@ -19,6 +19,10 @@ package plugin
 import (
 	"errors"
 	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
 	commonBean "github.com/devtron-labs/common-lib/workflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -34,9 +38,6 @@ import (
 	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"net/http"
-	"strings"
-	"time"
 )
 
 type GlobalVariable struct {
@@ -1889,7 +1890,7 @@ func (impl *GlobalPluginServiceImpl) GetAllUniqueTags() (*bean2.PluginTagsDto, e
 }
 
 func (impl *GlobalPluginServiceImpl) MigratePluginData() error {
-	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins(false)
+	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPluginsWithBaseVersionForMigration(false)
 	if err != nil {
 		impl.logger.Errorw("MigratePluginData, error in getting plugins", "err", err)
 		return err
@@ -1904,6 +1905,13 @@ func (impl *GlobalPluginServiceImpl) MigratePluginData() error {
 
 // MigratePluginDataToParentPluginMetadata migrates pre-existing plugin metadata from plugin_metadata table into plugin_parent_metadata table,
 // and also populate plugin_parent_metadata_id in plugin_metadata.
+//
+// This function works in two steps:
+// Step 1: Create parent metadata entries for all v1.0.0 plugins (passed as pluginsMetadata parameter)
+// Step 2: Link remaining plugin versions (non-v1.0.0) to their respective parent metadata entries
+//
+// Note: Plugin names may have version suffixes like "v1.0.0" or "v1.0" (e.g., "DockerSlim v1.0.0").
+// These are stripped before creating identifiers so that all versions of a plugin share the same parent.
 func (impl *GlobalPluginServiceImpl) MigratePluginDataToParentPluginMetadata(pluginsMetadata []*repository.PluginMetadata) error {
 	dbConnection := impl.globalPluginRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -1915,42 +1923,93 @@ func (impl *GlobalPluginServiceImpl) MigratePluginDataToParentPluginMetadata(plu
 	defer tx.Rollback()
 
 	pluginMetadataToUpdate := make([]*repository.PluginMetadata, 0, len(pluginsMetadata))
-	identifierVsPluginMetadata := make(map[string]*repository.PluginMetadata, len(pluginsMetadata))
-	pluginsIdentifierSlice := make([]string, 0, len(pluginsMetadata))
+
+	// Step 1: Create parent metadata entries for v1.0.0 plugins
+	// Build a map of identifier -> parent metadata ID for later use in Step 2
+	identifierVsParentId := make(map[string]int)
+
 	for _, item := range pluginsMetadata {
 		if item.PluginParentMetadataId > 0 {
-			//data already migrated
+			// data already migrated
 			continue
 		}
-		identifier := utils.CreateUniqueIdentifier(item.Name, 0)
-		if _, ok := identifierVsPluginMetadata[identifier]; ok {
-			identifier = utils.CreateUniqueIdentifier(item.Name, item.Id)
+		// Strip version suffix from plugin name before creating identifier
+		// e.g., "DockerSlim v1.0.0" -> "DockerSlim" -> identifier "dockerslim"
+		baseName := utils.StripVersionSuffixFromName(item.Name)
+		identifier := utils.CreateUniqueIdentifier(baseName, 0)
+
+		// Check if we've already processed this identifier in the current batch
+		if parentId, ok := identifierVsParentId[identifier]; ok {
+			// Parent was already created in this batch, just link this plugin to it
+			item.PluginParentMetadataId = parentId
+			pluginMetadataToUpdate = append(pluginMetadataToUpdate, item)
+			continue
 		}
-		identifierVsPluginMetadata[identifier] = item
-		pluginsIdentifierSlice = append(pluginsIdentifierSlice, identifier)
+
+		// Check if parent metadata already exists for this identifier in database
+		pluginParentMetadata, err := impl.globalPluginRepository.GetPluginParentMetadataByIdentifier(identifier)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.logger.Errorw("MigratePluginDataToParentPluginMetadata, error in GetPluginParentMetadataByIdentifier", "pluginIdentifier", identifier, "err", err)
+			return err
+		}
+		if pluginParentMetadata != nil && pluginParentMetadata.Id > 0 {
+			// Parent already exists in database, store the mapping and link this plugin
+			identifierVsParentId[identifier] = pluginParentMetadata.Id
+			item.PluginParentMetadataId = pluginParentMetadata.Id
+			pluginMetadataToUpdate = append(pluginMetadataToUpdate, item)
+			continue
+		}
+
+		// Create new parent metadata entry
+		parentMetadata := repository.NewPluginParentMetadata()
+		parentMetadata.SetParentPluginMetadata(item).CreateAuditLog(bean.SystemUserId).WithIsExposed(true)
+		parentMetadata.Identifier = identifier
+		parentMetadata, err = impl.globalPluginRepository.SavePluginParentMetadata(tx, parentMetadata)
+		if err != nil {
+			impl.logger.Errorw("MigratePluginDataToParentPluginMetadata, error in saving plugin parent metadata", "err", err)
+			return err
+		}
+
+		// Store the mapping for Step 2
+		identifierVsParentId[identifier] = parentMetadata.Id
+
+		// Update the v1.0.0 plugin with parent ID
+		item.PluginParentMetadataId = parentMetadata.Id
+		pluginMetadataToUpdate = append(pluginMetadataToUpdate, item)
 	}
 
-	for _, identifier := range pluginsIdentifierSlice {
-		if pluginMetadata, ok := identifierVsPluginMetadata[identifier]; ok {
-			pluginParentMetadata, err := impl.globalPluginRepository.GetPluginParentMetadataByIdentifier(identifier)
-			if err != nil && !util.IsErrNoRows(err) {
-				impl.logger.Errorw("MigratePluginDataToParentPluginMetadata, error in GetPluginParentMetadataByIdentifier", "pluginIdentifier", identifier, "err", err)
-				return err
-			}
-			if pluginParentMetadata != nil && pluginParentMetadata.Id > 0 {
-				continue
-			}
-			parentMetadata := repository.NewPluginParentMetadata()
-			parentMetadata.SetParentPluginMetadata(pluginMetadata).CreateAuditLog(bean.SystemUserId).WithIsExposed(true)
-			parentMetadata.Identifier = identifier
-			parentMetadata, err = impl.globalPluginRepository.SavePluginParentMetadata(tx, parentMetadata)
-			if err != nil {
-				impl.logger.Errorw("MigratePluginDataToParentPluginMetadata, error in saving plugin parent metadata", "err", err)
-				return err
-			}
-			pluginMetadata.PluginParentMetadataId = parentMetadata.Id
-			pluginMetadataToUpdate = append(pluginMetadataToUpdate, pluginMetadata)
+	// Step 2: Link remaining plugin versions (non-v1.0.0) to their parent metadata
+	// Fetch all plugins that still don't have a parent metadata linked
+	pluginsWithoutParent, err := impl.globalPluginRepository.GetPluginMetadataWithoutParent()
+	if err != nil {
+		impl.logger.Errorw("MigratePluginDataToParentPluginMetadata, error in GetPluginMetadataWithoutParent", "err", err)
+		return err
+	}
+
+	for _, plugin := range pluginsWithoutParent {
+		// Strip version suffix from plugin name before creating identifier
+		// e.g., "DockerSlim" -> identifier "dockerslim" (same as "DockerSlim v1.0.0")
+		baseName := utils.StripVersionSuffixFromName(plugin.Name)
+		identifier := utils.CreateUniqueIdentifier(baseName, 0)
+
+		// First check in our local map (for parents created in Step 1)
+		if parentId, ok := identifierVsParentId[identifier]; ok {
+			plugin.PluginParentMetadataId = parentId
+			pluginMetadataToUpdate = append(pluginMetadataToUpdate, plugin)
+			continue
 		}
+
+		// If not found in local map, try to find in database
+		pluginParentMetadata, err := impl.globalPluginRepository.GetPluginParentMetadataByIdentifier(identifier)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.logger.Errorw("MigratePluginDataToParentPluginMetadata, error in GetPluginParentMetadataByIdentifier for non-v1.0.0 plugin", "pluginIdentifier", identifier, "pluginId", plugin.Id, "err", err)
+			return err
+		}
+		if pluginParentMetadata != nil && pluginParentMetadata.Id > 0 {
+			plugin.PluginParentMetadataId = pluginParentMetadata.Id
+			pluginMetadataToUpdate = append(pluginMetadataToUpdate, plugin)
+		}
+		// If no parent found, skip this plugin (it might be an orphan or have a different naming convention)
 	}
 
 	if len(pluginMetadataToUpdate) > 0 {
