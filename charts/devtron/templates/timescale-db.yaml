@@ -1,16 +1,19 @@
 {{- if .Values.devtronEnterprise.finops.enabled }}
-{{- if eq (include "createNamespace" . | trim) "true"}}
 apiVersion: v1
 kind: Namespace
 metadata:
   name: timescale-db
-{{- end }}  
----
+  labels:
+    name: devtron
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/resource-policy": keep
+---  
 apiVersion: postgresql.cnpg.io/v1
 kind: ImageCatalog
 metadata:
   name: cloudnative-pg-timescaledb-pg15
-  namespace: timescale-db
+  namespace: devtroncd
 spec:
   images:
     - image: timescale/timescaledb-ha:pg15-ts2.18-all
@@ -23,13 +26,13 @@ data:
 kind: ConfigMap
 metadata:
   name: init-schema
-  namespace: timescale-db
+  namespace: devtroncd
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
   name: timescaledb-cluster-pg15
-  namespace: timescale-db
+  namespace: devtroncd
 spec:
   bootstrap:
     initdb:
