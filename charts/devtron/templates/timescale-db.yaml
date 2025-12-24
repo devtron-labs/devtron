@@ -4,8 +4,8 @@ kind: Namespace
 metadata:
     name: timescale-db
     annotations:
-      "helm.sh/hook": pre-install
-      "helm.sh/hook-weight": "-2"
+      "helm.sh/hook": pre-install,pre-upgrade
+      "helm.sh/resource-policy": keep
 ---    
 apiVersion: postgresql.cnpg.io/v1
 kind: ImageCatalog
