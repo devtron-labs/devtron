@@ -245,6 +245,8 @@ devtronEnterprise:
     enabled: false
     costSync:
       image: ""
+    timescale:
+      storageClass: ""
   casbin:
     registry: ""
     image: "casbin:f6ff5f74-064b67e5-462-30822"

@@ -36,4 +36,4 @@ spec:
   successfulJobsHistoryLimit: 3
   suspend: false
   timeZone: UTC
-{{- end }}  
+{{- end }}

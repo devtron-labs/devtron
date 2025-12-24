@@ -12,65 +12,62 @@ kind: ImageCatalog
 metadata:
   name: cloudnative-pg-timescaledb-pg15
   namespace: timescale-db
-  annotations:
-      "helm.sh/hook": post-install,post-upgrade
-      "helm.sh/hook-weight": "-2"
 spec:
   images:
-    - major: 15 
-      image: timescale/timescaledb-ha:pg15-ts2.18-all
-# ---        
+    - image: timescale/timescaledb-ha:pg15-ts2.18-all
+      major: 15
+---      
 apiVersion: v1
+data:
+  init-schema.sql: |
+    CREATE EXTENSION IF NOT EXISTS timescaledb;
 kind: ConfigMap
 metadata:
   name: init-schema
   namespace: timescale-db
-data:
-  init-schema.sql: |
-    CREATE EXTENSION IF NOT EXISTS timescaledb;
----      
+---
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
   name: timescaledb-cluster-pg15
   namespace: timescale-db
-  annotations:
-      "helm.sh/hook": post-install,post-upgrade
-      "helm.sh/hook-weight": "-2"
 spec:
-  affinity:
-    tolerations: []
-    nodeSelector: {}
-  instances: 1
+  bootstrap:
+    initdb:
+      database: finops
+      owner: postgres
+      postInitApplicationSQLRefs:
+        configMapRefs:
+          - key: init-schema.sql
+            name: init-schema
+      secret:
+        name: timescaledb-cluster-pg15-superuser
   enableSuperuserAccess: true
   imageCatalogRef:
     apiGroup: postgresql.cnpg.io
     kind: ImageCatalog
-    name: cloudnative-pg-timescaledb-pg15
     major: 15
-  postgresUID: 1000
+    name: cloudnative-pg-timescaledb-pg15
+  instances: 1
   postgresGID: 1000
-  resources: {}
+  postgresUID: 1000
   postgresql:
-    shared_preload_libraries:
-      - 'timescaledb'
     parameters:
-      max_wal_size: "1GB"
-      max_wal_senders: "3" 
-      wal_level: "replica"
+      max_wal_senders: "3"
+      max_wal_size: 1GB
+      wal_level: replica
     pg_hba:
       - host all all all scram-sha-256
-  bootstrap:
-    initdb:
-      database: finops
-      owner: postgres # This should match the username in timescaledb-cluster-pg15-superuser
-      secret:
-        name: timescaledb-cluster-pg15-superuser 
-      postInitApplicationSQLRefs:
-        configMapRefs:
-        - name: init-schema
-          key: init-schema.sql
+    shared_preload_libraries:
+      - timescaledb
+  resources:
+    limits:
+      cpu: "1"
+      memory: 2Gi
+    requests:
+      cpu: "0.5"
+      memory: 1Gi
   storage:
     size: 5Gi
-    storageClass: {{ .Values.devtronEnterprise.finops.timescale.storageClass | default "default" }}
+    storageClass: {{ .Values.devtronEnterprise.finops.timescale.storageClass | default "default"}}
 {{- end }}
