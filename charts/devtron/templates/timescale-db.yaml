@@ -1,5 +1,5 @@
 {{- if .Values.devtronEnterprise.finops.enabled }}
-{{- if include "createNamespace" . | toBool }}
+{{- if include "createNamespace" . }}
 apiVersion: v1
 kind: Namespace
 metadata:
