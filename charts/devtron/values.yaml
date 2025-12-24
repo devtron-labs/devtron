@@ -30,9 +30,9 @@ global:
   #     effect: "NoSchedule"
   # imagePullSecrets:
   #   - name: your-image-pull-secret
-  nodeSelector: {}
-  tolerations: []
-  imagePullSecrets: []
+  # nodeSelector: {}
+  # tolerations: []
+  # imagePullSecrets: []
   # Set the storage class to be used for PVCs (would use default sc if not specified)
   storageClass: ""
   # Add Proxy Configs to be propagated to all the Devtron Microservices.
@@ -486,8 +486,10 @@ devtronEnterprise:
     enabled: false
     costSync:
       image: ""
+      schedule: "* 2 * * *"
+      timeZone: UTC
     timescale:
-      storageClass: ""  
+      volumeSize: 5Gi
   casbin:
     registry: ""
     image: "casbin:f6ff5f74-064b67e5-462-30822"
