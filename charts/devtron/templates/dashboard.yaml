@@ -22,6 +22,9 @@ data:
   GATEKEEPER_URL: "https://license.devtron.ai/dashboard"
 {{- end }}
 {{- if .config }}
+  FEATURE_STORAGE_ENABLE: "true"
+  FEATURE_RESOURCE_WATCHER_ENABLE: "true"
+  FEATURE_SOFTWARE_DISTRIBUTION_HUB_ENABLE: "true"
   GA_ENABLED: {{ .config.analytics | default "false" | quote }}
   HOTJAR_ENABLED: {{ .config.hotjar | default "false" | quote }}
   SENTRY_ENABLED: {{ .config.sentry | default "false" | quote }}
