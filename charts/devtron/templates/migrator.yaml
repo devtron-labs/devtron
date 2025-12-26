@@ -56,7 +56,7 @@ spec:
             - name: MIGRATE_TO_VERSION
               value: "0"
             - name: PG_DATABASE
-              value: casbin
+              value: finops
           envFrom:
             - secretRef:
                 name: postgresql-migrator
@@ -81,7 +81,7 @@ spec:
 {{- toYaml .casbin.initContainer.resources | nindent 12 }}
           {{- end }}
           {{- end }}
-          name: postgresql-migrate-casbin
+          name: postgresql-migrate-finops
           volumeMounts:
             - mountPath: /shared
               name: shared-volume  
