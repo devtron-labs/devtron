@@ -174,7 +174,7 @@ components:
       keyName: postgresql-password
   kubewatch:
     registry: ""
-    image: "kubewatch:9255d19e-419-37902"
+    image: "kubewatch:6b408df4-419-38172"
     imagePullPolicy: IfNotPresent
     healthPort: 8080
     configs:
