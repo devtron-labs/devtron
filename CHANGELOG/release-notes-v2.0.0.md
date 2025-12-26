@@ -1,3 +1,5 @@
+## v2.0.0
+
 ## Enhancements
 - feat: Rollout 5.2.0 (#6889)
 - feat: Added support for tcp in virtual service and changed the apiVersion for externalSecrets (#6892)
@@ -25,3 +27,5 @@
 - misc: helm app details API spec (#6850)
 - misc: api Spec Added for draft (#6849)
 - misc: api Specs added for lock config (#6847)
+
+
