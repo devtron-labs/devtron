@@ -1,6 +1,6 @@
 apiVersion: v2
 name: devtron-operator
-appVersion: 1.8.2
+appVersion: 2.0.0
 description: Chart to configure and install Devtron. Devtron is a Kubernetes Orchestration system.
 keywords:
   - Devtron
@@ -11,10 +11,14 @@ keywords:
   - argocd
   - Hyperion
 engine: gotpl
-version: 0.22.98
+version: 0.22.99
 sources:
   - https://github.com/devtron-labs/charts
 dependencies:
+- name: cloudnative-pg
+  version: 0.26.0
+  repository: https://cloudnative-pg.io/charts
+  condition: devtronEnterprise.finops.enabled
 - name: argo-cd
   version: "7.7.15"
   repository: https://argoproj.github.io/argo-helm
