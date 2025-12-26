@@ -75,10 +75,10 @@ spec:
           securityContext:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
           {{- end }}
-          {{- if .casbin }}
-          {{- if .casbin.initContainer.resources }}        
+          {{- if .finops }}
+          {{- if .finops.initContainer.resources }}        
           resources:
-{{- toYaml .casbin.initContainer.resources | nindent 12 }}
+{{- toYaml .finops.initContainer.resources | nindent 12 }}
           {{- end }}
           {{- end }}
           name: postgresql-migrate-finops
