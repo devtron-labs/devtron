@@ -143,4 +143,8 @@ type PipelineStrategy struct {
 	Default            bool                                   `json:"default"`
 }
 
-var CHART_YAML_FILE = "Chart.yaml"
+const (
+	CHART_YAML_FILE        = "Chart.yaml"
+	REQUIREMENTS_YAML_FILE = "requirements.yaml"
+	VALUES_YAML_FILE       = "values.yaml"
+)

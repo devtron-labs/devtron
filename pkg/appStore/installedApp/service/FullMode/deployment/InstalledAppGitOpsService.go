@@ -28,18 +28,14 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
-	gitBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	validationBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation/bean"
 	chartRefBean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	globalUtil "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"github.com/google/go-github/github"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/xanzy/go-gitlab"
 	"helm.sh/helm/v3/pkg/chart"
 	"net/http"
-	"os"
-	"path/filepath"
 	"sigs.k8s.io/yaml"
 	"strconv"
 	"strings"
@@ -137,20 +133,17 @@ func (impl *FullModeDeploymentServiceImpl) UpdateAppGitOpsOperations(manifest *b
 
 	gitOpsResponse := &bean.AppStoreGitOpsResponse{}
 	ctx := context.Background()
+	cloneChartToGitRequest := adapter.ParseChartGitPushRequest(installAppVersionRequest, "")
+	err := impl.gitOperationService.MigrateProxyChartDependenciesIfRequired(ctx, updateDependencies, cloneChartToGitRequest, manifest.ChartMetaDataConfig.FileContent)
+	if err != nil {
+		impl.Logger.Errorw("error in checking if proxy chart dependencies should be migrated", "err", err)
+		return nil, err
+	}
 	if updateDependencies {
 		// update dependency if chart or chart version is changed
 		_, _, requirementsCommitErr = impl.gitOperationService.CommitValues(ctx, manifest.ChartMetaDataConfig)
 		gitHash, _, valuesCommitErr = impl.gitOperationService.CommitValues(ctx, manifest.ValuesConfig)
 	} else {
-		cloneChartToGitRequest := adapter.ParseChartGitPushRequest(installAppVersionRequest, "")
-		migrateDependencies, err := impl.shouldMigrateProxyChartDependencies(cloneChartToGitRequest, manifest.ChartMetaDataConfig.FileContent)
-		if err != nil {
-			impl.Logger.Errorw("error in checking if proxy chart dependencies should be migrated", "err", err)
-			return nil, err
-		}
-		if migrateDependencies {
-			_, _, requirementsCommitErr = impl.gitOperationService.CommitValues(ctx, manifest.ChartMetaDataConfig)
-		}
 		// only values are changed in update, so commit values config
 		gitHash, _, valuesCommitErr = impl.gitOperationService.CommitValues(ctx, manifest.ValuesConfig)
 	}
@@ -372,7 +365,7 @@ func (impl *FullModeDeploymentServiceImpl) getValuesAndChartMetaDataForGitConfig
 		impl.Logger.Errorw("error in marshalling values content", "err", err)
 		return nil, nil, err
 	}
-	valuesConfig, err := impl.getGitCommitConfig(installAppVersionRequest, string(valuesContent), appStoreBean.VALUES_YAML_FILE)
+	valuesConfig, err := impl.getGitCommitConfig(installAppVersionRequest, string(valuesContent), chartRefBean.VALUES_YAML_FILE)
 	if err != nil {
 		impl.Logger.Errorw("error in creating values config for git", "err", err)
 		return nil, nil, err
@@ -425,84 +418,4 @@ func (impl *FullModeDeploymentServiceImpl) CreateArgoRepoSecretIfNeeded(appStore
 		return err
 	}
 	return nil
-}
-
-func (impl *FullModeDeploymentServiceImpl) shouldMigrateProxyChartDependencies(pushChartToGitRequest *gitBean.PushChartToGitRequestDTO, expectedChartYamlContent string) (bool, error) {
-	clonedDir, err := impl.gitOperationService.CloneChartForHelmApp(pushChartToGitRequest.AppName, pushChartToGitRequest.RepoURL, pushChartToGitRequest.TargetRevision)
-	if err != nil {
-		impl.Logger.Errorw("error in cloning chart for helm app", "appName", pushChartToGitRequest.AppName, "repoUrl", pushChartToGitRequest.RepoURL, "err", err)
-		return false, err
-	}
-	defer impl.chartTemplateService.CleanDir(clonedDir)
-	gitOpsChartLocation := fmt.Sprintf("%s-%s", pushChartToGitRequest.AppName, pushChartToGitRequest.EnvName)
-	dir := filepath.Join(clonedDir, gitOpsChartLocation)
-	chartYamlPath := filepath.Join(dir, chartRefBean.CHART_YAML_FILE)
-	if _, err := os.Stat(chartYamlPath); os.IsNotExist(err) {
-		impl.Logger.Debugw("chart.yaml not found in cloned repo from git-ops, no migrations required", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName)
-		return false, nil
-	} else if err != nil {
-		impl.Logger.Errorw("error in checking chart.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
-		return false, err
-	}
-	expectedChartMetaData := &chart.Metadata{}
-	expectedChartJsonContent, err := yaml.YAMLToJSON([]byte(expectedChartYamlContent))
-	if err != nil {
-		impl.Logger.Errorw("error in converting requirements.yaml to json", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
-		return false, err
-	}
-	err = json.Unmarshal(expectedChartJsonContent, &expectedChartMetaData)
-	if err != nil {
-		impl.Logger.Errorw("error in unmarshalling requirements.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
-		return false, err
-	}
-	if len(expectedChartMetaData.Dependencies) == 0 {
-		impl.Logger.Debugw("no dependencies found in requirements.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName)
-		return false, nil
-	}
-	impl.Logger.Debugw("dependencies found in requirements.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "dependencies", expectedChartMetaData.Dependencies)
-	// check if chart.yaml file has dependencies
-	chartYamlContent, err := os.ReadFile(chartYamlPath)
-	if err != nil {
-		impl.Logger.Errorw("error in reading chart.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
-		return false, err
-	}
-	chartMetadata := &chart.Metadata{}
-	chartJsonContent, err := yaml.YAMLToJSON(chartYamlContent)
-	if err != nil {
-		impl.Logger.Errorw("error in converting chart.yaml to json", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
-		return false, err
-	}
-	err = json.Unmarshal(chartJsonContent, chartMetadata)
-	if err != nil {
-		impl.Logger.Errorw("error in unmarshalling chart.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
-		return false, err
-	}
-	if len(chartMetadata.Dependencies) == 0 {
-		impl.Logger.Debugw("no dependencies found in chart.yaml file, need to migrate proxy chart dependencies", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName)
-		return true, nil
-	}
-	impl.Logger.Debugw("dependencies found in chart.yaml file, validating against requirements.yaml", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "chartDependencies", chartMetadata.Dependencies)
-	// validate if chart.yaml dependencies are present in requirements.yaml
-	latestDependencies := sliceUtil.NewMapFromFuncExec(chartMetadata.Dependencies, func(dependency *chart.Dependency) string {
-		return getUniqueKeyFromDependency(dependency)
-	})
-	previousDependencies := sliceUtil.NewMapFromFuncExec(expectedChartMetaData.Dependencies, func(dependency *chart.Dependency) string {
-		return getUniqueKeyFromDependency(dependency)
-	})
-	for key := range latestDependencies {
-		if _, ok := previousDependencies[key]; !ok {
-			impl.Logger.Debugw("dependency found in chart.yaml but not in requirements.yaml, need to migrate proxy chart dependencies", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "dependency", key)
-			return true, nil
-		}
-	}
-	impl.Logger.Debugw("all dependencies found in chart.yaml and requirements.yaml, no migration required", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName)
-	return false, nil
-}
-
-func getUniqueKeyFromDependency(dependency *chart.Dependency) string {
-	// return unique key for dependency
-	return fmt.Sprintf("%s-%s-%s",
-		strings.ToLower(strings.TrimSpace(dependency.Name)),
-		strings.ToLower(strings.TrimSpace(dependency.Version)),
-		strings.ToLower(strings.TrimSpace(dependency.Repository)))
 }
