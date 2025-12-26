@@ -430,7 +430,7 @@ security:
 notifier:
   enabled: false
   imagePullPolicy: IfNotPresent
-  image: "notifier:61d34685-372-37905"
+  image: "notifier:5c4b5b3a-372-38153"
   configs:
     CD_ENVIRONMENT: PROD
   secrets: {}
