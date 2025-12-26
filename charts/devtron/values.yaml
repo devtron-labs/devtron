@@ -486,7 +486,7 @@ devtronEnterprise:
   finops:
     enabled: false
     costSync:
-      image: ""
+      image: "cost-sync:46ed7c67-1159-38183"
       schedule: "* 2 * * *"
       timeZone: UTC
     timescale:
