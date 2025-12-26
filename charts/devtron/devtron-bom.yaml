@@ -97,6 +97,7 @@ components:
     imagePullPolicy: IfNotPresent
     healthPort: 8080
     configs:
+      VELERO_INFORMER: "false"
       devtroncd_NAMESPACE: "devtron-ci"
       USE_CUSTOM_HTTP_TRANSPORT: "true"
       CI_INFORMER: "true"
