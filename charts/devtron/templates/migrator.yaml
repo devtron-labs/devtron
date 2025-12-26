@@ -59,9 +59,7 @@ spec:
               value: finops
           envFrom:
             - secretRef:
-                name: postgresql-migrator
-            - secretRef:
-                name: devtron-secret            
+                name: postgresql-migrator        
             - configMapRef:
                 name: devtron-cm
             - configMapRef:
