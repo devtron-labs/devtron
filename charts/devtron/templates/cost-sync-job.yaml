@@ -1,4 +1,4 @@
-{{- if .Values.devtronEnterprise.finops.enabled }}
+{{- if and $.Values.devtronEnterprise.enabled  $.Values.devtronEnterprise.finops.enabled }}
 {{- if $.Capabilities.APIVersions.Has "batch/v1/Job" }}
 apiVersion: batch/v1
 {{- else }}
