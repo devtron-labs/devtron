@@ -31,7 +31,7 @@ spec:
                     name: cost-sync-cm
                 - secretRef:
                     name: devtron-secret
-              image: {{ $.Values.devtronEnterprise.finops.costSync.image }}
+              image: {{ include "common.image" (dict "component" $.Values.devtronEnterprise.finops.costSync "global" $.Values.global ) }}
               imagePullPolicy: IfNotPresent
               name: cost-sync-job
               ports:

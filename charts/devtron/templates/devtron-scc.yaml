@@ -36,8 +36,8 @@ users:
 - system:serviceaccount:devtroncd:devtron-default-sa
 {{- if $.Values.devtronEnterprise.enabled }}
 - system:serviceaccount:devtroncd:devtron-cloudnative-pg
-{{- end }}
 - system:serviceaccount:devtroncd:timescaledb-cluster-pg15
+{{- end }}
 volumes:
 - '*'
 {{- end }}
