@@ -60,6 +60,8 @@ spec:
           envFrom:
             - secretRef:
                 name: postgresql-migrator
+            - secretRef:
+                name: devtron-secret            
             - configMapRef:
                 name: devtron-cm
             - configMapRef:
