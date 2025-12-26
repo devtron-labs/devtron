@@ -241,6 +241,14 @@ monitoring:
       imagePullPolicy: IfNotPresent
 devtronEnterprise:
   enabled: false
+  finops:
+    enabled: false
+    costSync:
+      image: ""
+      schedule: "* 2 * * *"
+      timeZone: UTC
+    timescale:
+      volumeSize: 5Gi
   casbin:
     registry: ""
     image: "casbin:f6ff5f74-064b67e5-462-30822"
