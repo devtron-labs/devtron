@@ -487,7 +487,7 @@ devtronEnterprise:
     enabled: false
     costSync:
       image: "cost-sync:46ed7c67-1159-38183"
-      schedule: "* 2 * * *"
+      schedule: "0 * * * *"
       timeZone: UTC
     timescale:
       volumeSize: 5Gi
