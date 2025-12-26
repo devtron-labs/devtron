@@ -8,7 +8,7 @@ quay.io/devtron/bats:v1.4.1
 quay.io/devtron/busybox:1.31.1
 quay.io/devtron/centos-k8s-utils:latest
 quay.io/devtron/chart-sync:6b408df4-836-38155
-quay.io/devtron/ci-runner:d6692a4f-138-37904
+quay.io/devtron/ci-runner:6b408df4-138-38163
 quay.io/devtron/clair:4.3.6
 quay.io/devtron/curl:7.73.0
 quay.io/devtron/dashboard:62e65ef2-690-38157

@@ -140,7 +140,7 @@ components:
       #      - devtron.example.com
   ciRunner:
     registry: ""
-    image: "ci-runner:d6692a4f-138-37904"
+    image: "ci-runner:6b408df4-138-38163"
     # Add annotations for ci-runner & cd-runner serviceAccount. 
     annotations: {}
   argocdDexServer:
@@ -480,7 +480,6 @@ monitoring:
       resources: {}
     persistence:
       storage: "2Gi"
-
 # Change these values for Devtron-Enterprise 
 devtronEnterprise:
   enabled: false
