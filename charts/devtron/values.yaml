@@ -30,9 +30,9 @@ global:
   #     effect: "NoSchedule"
   # imagePullSecrets:
   #   - name: your-image-pull-secret
-  nodeSelector: {}
-  tolerations: []
-  imagePullSecrets: []
+  # nodeSelector: {}
+  # tolerations: []
+  # imagePullSecrets: []
   # Set the storage class to be used for PVCs (would use default sc if not specified)
   storageClass: ""
   # Add Proxy Configs to be propagated to all the Devtron Microservices.
@@ -178,6 +178,7 @@ components:
     imagePullPolicy: IfNotPresent
     healthPort: 8080
     configs:
+      VELERO_INFORMER: "false"
       devtroncd_NAMESPACE: "devtron-ci"
       USE_CUSTOM_HTTP_TRANSPORT: "true"
       CLUSTER_ARGO_CD_TYPE: "ALL_CLUSTER"
@@ -479,9 +480,18 @@ monitoring:
       resources: {}
     persistence:
       storage: "2Gi"
+
 # Change these values for Devtron-Enterprise 
 devtronEnterprise:
   enabled: false
+  finops:
+    enabled: false
+    costSync:
+      image: ""
+      schedule: "* 2 * * *"
+      timeZone: UTC
+    timescale:
+      volumeSize: 5Gi
   casbin:
     registry: ""
     image: "casbin:f6ff5f74-064b67e5-462-30822"
