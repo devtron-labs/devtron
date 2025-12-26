@@ -10,7 +10,6 @@ metadata:
   annotations:
     "helm.sh/resource-policy": keep
 data:
-  VELERO_INFORMER: "false"
   TIMESCALE_ADDR: timescaledb-cluster-pg15-r.devtroncd
   TIMESCALE_DATABASE: finops
   TIMESCALE_USER: postgres
