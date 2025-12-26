@@ -1,0 +1,66 @@
+{{- if .Values.devtronEnterprise.finops.enabled }}
+apiVersion: postgresql.cnpg.io/v1
+kind: ImageCatalog
+metadata:
+  name: cloudnative-pg-timescaledb-pg15
+  namespace: devtroncd
+spec:
+  images:
+    - image: timescale/timescaledb-ha:pg15-ts2.18-all
+      major: 15
+---      
+apiVersion: v1
+data:
+  init-schema.sql: |
+    CREATE EXTENSION IF NOT EXISTS timescaledb;
+kind: ConfigMap
+metadata:
+  name: init-schema
+  namespace: devtroncd
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: timescaledb-cluster-pg15
+  namespace: devtroncd
+  labels:
+    app: timescale-db
+spec:
+  affinity:
+  {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.devtronEnterprise.finops.nodeSelector "tolerations" $.Values.devtronEnterprise.finops.tolerations "imagePullSecrets" $.Values.devtronEnterprise.finops.imagePullSecrets "global" $.Values.global) | indent 4 }}
+  bootstrap:
+    initdb:
+      database: finops
+      owner: postgres
+      postInitApplicationSQLRefs:
+        configMapRefs:
+          - key: init-schema.sql
+            name: init-schema
+      secret:
+        name: timescaledb-cluster-pg15-superuser
+  enableSuperuserAccess: true
+  imageCatalogRef:
+    apiGroup: postgresql.cnpg.io
+    kind: ImageCatalog
+    major: 15
+    name: cloudnative-pg-timescaledb-pg15
+  instances: 1
+  postgresGID: 1000
+  postgresUID: 1000
+  postgresql:
+    parameters:
+      max_wal_senders: "3"
+      max_wal_size: 1GB
+      wal_level: replica
+    pg_hba:
+      - host all all all scram-sha-256
+    shared_preload_libraries:
+      - timescaledb
+  {{- if $.Values.devtronEnterprise.finops.timescale.resources }}
+  resources:
+  {{- toYaml $.Values.devtronEnterprise.finops.timescale.resources | nindent 4 }}
+  {{- end }}
+  storage:
+    size: {{ $.Values.devtronEnterprise.finops.timescale.volumeSize }}
+    storageClass: {{ $.Values.global.storageClass }}
+{{- end }}
