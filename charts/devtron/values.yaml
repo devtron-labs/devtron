@@ -30,9 +30,9 @@ global:
   #     effect: "NoSchedule"
   # imagePullSecrets:
   #   - name: your-image-pull-secret
-  # nodeSelector: {}
-  # tolerations: []
-  # imagePullSecrets: []
+  nodeSelector: {}
+  tolerations: []
+  imagePullSecrets: []
   # Set the storage class to be used for PVCs (would use default sc if not specified)
   storageClass: ""
   # Add Proxy Configs to be propagated to all the Devtron Microservices.
