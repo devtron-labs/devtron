@@ -21,6 +21,9 @@ import (
 	"encoding/json"
 	errors2 "errors"
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/util"
 	bean5 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
@@ -38,8 +41,6 @@ import (
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	globalUtil "github.com/devtron-labs/devtron/util"
 	"go.opentelemetry.io/otel"
-	"net/http"
-	"time"
 
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -67,6 +68,9 @@ type PropertiesConfigService interface {
 
 	FetchEnvProperties(appId, envId, chartRefId int) (*bean4.EnvConfigOverride, error)
 	ChangeChartRefForEnvConfigOverride(ctx context.Context, request *bean3.ChartRefChangeRequest, userId int32) (*bean.EnvironmentProperties, error)
+
+	// UpdateEmptyNamespaceInChartEnvConfigOverride updates namespace in chart_env_config_override from environment table for empty namespaces
+	UpdateEmptyNamespaceInChartEnvConfigOverride(userId int32) (int, error)
 
 	PropertiesConfigServiceEnt
 }
@@ -804,4 +808,15 @@ func (impl *PropertiesConfigServiceImpl) createEnvConfigOverrideWithChart(ctx co
 		return impl.CreateEnvironmentProperties(request.AppId, request.EnvConfigProperties)
 	}
 	return createResp, nil
+}
+
+func (impl *PropertiesConfigServiceImpl) UpdateEmptyNamespaceInChartEnvConfigOverride(userId int32) (int, error) {
+	count, err := impl.envConfigRepo.UpdateEmptyNamespaceInChartEnvConfigOverride(userId)
+	if err != nil {
+		impl.logger.Errorw("error in updating namespace from environment table", "err", err)
+		return 0, err
+	}
+
+	impl.logger.Infow("successfully updated namespace for env config overrides from environment table", "count", count)
+	return count, nil
 }

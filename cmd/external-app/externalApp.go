@@ -20,6 +20,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/common-lib/securestore"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -34,6 +36,13 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
+
+func init() {
+	err := securestore.SetEncryptionKey()
+	if err != nil {
+		log.Println("error in setting encryption key", "err", err)
+	}
+}
 
 type App struct {
 	db             *pg.DB

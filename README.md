@@ -7,12 +7,12 @@ Note: We have restructured the readme. If you are looking for Devtron's CI/CD ca
   <source media="(prefers-color-scheme: light)"  srcset="./assets/devtron-lightmode-logo.png">
   <img width="333.333" height="260" src="./assets/devtron-logo-dark-light.png">
 </picture>
-<h1 align= "center">Kubernetes Dashboard for a Centralized DevOps Hub</h1>
+<h1 align= "center">The Kubernetes Platform That Eliminates Operational Chaos</h1>
 </p>
  
 <p align="center">
 <br>
-<a href="https://docs.dashboard.devtron.ai/" rel="nofollow"><strong>«Explore Documentation»</strong></a> <strong>||</strong>
+<a href="https://docs.devtron.ai/" rel="nofollow"><strong>«Explore Documentation»</strong></a> <strong>||</strong>
 <a href="https://preview.devtron.ai/dashboard/" rel="nofollow"><strong>«Try Devtron Demo»</strong></a>
 <br>
 <a href="https://devtron.ai/">Website</a>
@@ -56,7 +56,9 @@ Out of the box, Devtron's Kubernetes Dashboard includes:
 - [Single Sign On (SSO)](https://docs.dashboard.devtron.ai/operator-guide/authorization/sso-login-services) to simplify onboarding and authenticating team members.
 - [Fine Grained RBAC](https://docs.dashboard.devtron.ai/operator-guide/authorization) to control the level of access users have to different Dashboard and Cluster resources.
 
-[Devtron](#install-devtron) helps you deploy, observe, manage & debug existing Helm apps in all your clusters.
+[Devtron](#devtron-platform) helps you deploy, observe, manage & debug existing Helm apps in all your clusters.
+
+---
 
 ## Devtron Dashboard 
 
@@ -113,6 +115,8 @@ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}
 
 Please refer to the document for more information on how to [access the Devtron Dashboard](https://docs.dashboard.devtron.ai/getting-started/install-devtron-dashboard).
 
+---
+
 ## Devtron Platform
 
 The Devtron Platform provides a complete solution for all DevOps requirements, helping to create a single centralized DevOps Platform for managing all applications across Kubernetes clusters. <br>
@@ -157,11 +161,39 @@ helm install devtron devtron/devtron-operator --namespace devtroncd \
 --set security.enabled=true  --set notifier.enabled=true  \
 --set security.trivy.enabled=true --set monitoring.grafana.enabled=true
 ```
-## :blue_heart: Technology
+
+---
+
+## Core Tools and Technologies
  
-Devtron is built on some of the most trusted and loved technologies:
-<br>
-<p align="center"><img width="70%" height="70%" src="./assets/we-support.jpg"></p>
+Here are the components that Devtron uses internally as part of its own architecture:
+
+| Logo     | Tool     | Purpose    | GitHub Repository   | License |
+| -------- | -------- | ---------- | ------------------- | ------- |
+| <img src="./assets/readme-logos/kubernetes.jpg" width="64px"> | **Kubernetes** | Core orchestration platform managing deployments, scaling, and container lifecycle automation.                                                                         | [kubernetes/kubernetes](https://github.com/kubernetes/kubernetes) | [Apache License 2.0](https://github.com/kubernetes/kubernetes/blob/master/LICENSE) |
+| <img src="./assets/readme-logos/golang.jpg" width="64px">     | **Golang**     | Backend language powering high-performance, scalable Devtron core services.                                                                           | [golang/go](https://github.com/golang/go)                         | [BSD 3-Clause License](https://github.com/golang/go/blob/master/LICENSE)           |
+| <img src="./assets/readme-logos/helm.jpg" width="64px">       | **Helm**       | Manages Kubernetes application packaging, versioning, and consistent deployment workflows.                                                                                           | [helm/helm](https://github.com/helm/helm)                         | [Apache License 2.0](https://github.com/helm/helm/blob/main/LICENSE)               |
+| <img src="./assets/readme-logos/trivy.jpg" width="64px">      | **Trivy**      | Ensures security by scanning vulnerabilities, misconfigurations, secrets, and SBOMs. | [aquasecurity/trivy](https://github.com/aquasecurity/trivy)       | [Apache License 2.0](https://github.com/aquasecurity/trivy/blob/main/LICENSE)      |
+| <img src="./assets/readme-logos/nats.jpg" width="64px">       | **NATS**       | Enables reliable, high-speed messaging between Devtron microservices and workflows.                                                     | [nats-io/nats-server](https://github.com/nats-io/nats-server)     | [Apache License 2.0](https://github.com/nats-io/nats-server/blob/main/LICENSE)     |
+| <img src="./assets/readme-logos/dex.jpg" width="64px">        | **Dex**        | Provides secure SSO integration with enterprise identity providers.                                                                       | [dexidp/dex](https://github.com/dexidp/dex)                       | [Apache License 2.0](https://github.com/dexidp/dex/blob/master/LICENSE)              |
+| <img src="./assets/readme-logos/casbin.jpg" width="64px">     | **Casbin**     | Enforces fine-grained RBAC policies for secure user authorization.                                                                             | [casbin/casbin](https://github.com/casbin/casbin)                 | [Apache License 2.0](https://github.com/casbin/casbin/blob/master/LICENSE)         |
+
+
+---
+
+## Optional Components
+
+Here are some of the optional components that Devtron supports:
+
+| Logo     | Tool     | Purpose    | GitHub Repository   | License |
+| -------- | -------- | ---------- | ------------------- | ------- |
+| <img src="./assets/readme-logos/argo.jpg" width="64px">                 | **Argo CD / Argo Workflows**       | Enables GitOps-based deployments and workflow automation within Devtron          | [argoproj/argo-cd](https://github.com/argoproj/argo-cd)                   | [Apache License 2.0](https://github.com/argoproj/argo-cd/blob/master/LICENSE)       |
+| <img src="./assets/readme-logos/clair.jpg" width="64px">                | **Clair**                          | Scans container images for known security vulnerabilities                    | [quay/clair](https://github.com/quay/clair)                               | [Apache License 2.0](https://github.com/quay/clair/blob/main/LICENSE)                 |
+| <img src="./assets/readme-logos/keda.jpg" width="64px">                 | **KEDA**                           | Enables event-driven autoscaling for Kubernetes applications                       | [kedacore/keda](https://github.com/kedacore/keda)                         | [Apache License 2.0](https://github.com/kedacore/keda/blob/main/LICENSE)            |
+| <img src="./assets/readme-logos/k8s_external_secrets.jpg" width="64px"> | **Kubernetes External Secrets**    | Syncs external secrets securely into Kubernetes clusters                           | [external-secrets/external-secrets](https://github.com/external-secrets/external-secrets) | [Apache License 2.0](https://github.com/external-secrets/external-secrets/blob/main/LICENSE) |
+| <img src="./assets/readme-logos/prometheus.jpg" width="64px">           | **Prometheus**                     | Collects metrics for monitoring, alerting, and performance insights               | [prometheus/prometheus](https://github.com/prometheus/prometheus)         | [Apache License 2.0](https://github.com/prometheus/prometheus/blob/main/LICENSE)      |
+
+---
 
 ## :question: FAQs & Troubleshooting
  
@@ -185,6 +217,8 @@ Get updates on Devtron's development and chat with project maintainers, contribu
 </a>
 </p>
 
+---
+
 ## :handshake: Contribute
  
 Check out our [contributing guidelines](CONTRIBUTING.md). Included, are directions for opening issues, coding standards, and notes on our development processes. We deeply appreciate your contribution.
@@ -198,10 +232,14 @@ We are deeply grateful to all our amazing contributors!
 <a href="https://github.com/devtron-labs/devtron/graphs/contributors">
  <img src="https://contrib.rocks/image?repo=devtron-labs/devtron" />
 </a>
+
+---
  
 ## :bug: Vulnerability Reporting
  
 We at Devtron, take security and our users' trust very seriously. If you believe you have found a security issue, please report it to <b>security@devtron.ai</b>.
+
+---
  
 ## :bookmark: License
  

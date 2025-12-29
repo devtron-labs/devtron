@@ -87,6 +87,7 @@ type MuxRouter struct {
 	argoApplicationRouter    argoApplication.ArgoApplicationRouter
 	fluxApplicationRouter    fluxApplication.FluxApplicationRouter
 	userResourceRouter       userResource.Router
+	infraOverviewRouter      router.InfraOverviewRouter
 }
 
 func NewMuxRouter(
@@ -121,6 +122,7 @@ func NewMuxRouter(
 	appRouter app.AppRouterEAMode,
 	rbacRoleRouter user.RbacRoleRouter, argoApplicationRouter argoApplication.ArgoApplicationRouter, fluxApplicationRouter fluxApplication.FluxApplicationRouter,
 	userResourceRouter userResource.Router,
+	infraOverviewRouter router.InfraOverviewRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                   mux.NewRouter(),
@@ -158,6 +160,7 @@ func NewMuxRouter(
 		argoApplicationRouter:    argoApplicationRouter,
 		fluxApplicationRouter:    fluxApplicationRouter,
 		userResourceRouter:       userResourceRouter,
+		infraOverviewRouter:      infraOverviewRouter,
 	}
 	return r
 }
@@ -301,4 +304,8 @@ func (r *MuxRouter) Init() {
 
 	userResourcesRouter := r.Router.PathPrefix("/orchestrator/user/resource").Subrouter()
 	r.userResourceRouter.InitUserResourceRouter(userResourcesRouter)
+
+	infraOverviewRouter := r.Router.PathPrefix("/orchestrator/overview/infra").Subrouter()
+	r.infraOverviewRouter.InitInfraOverviewRouter(infraOverviewRouter)
+
 }

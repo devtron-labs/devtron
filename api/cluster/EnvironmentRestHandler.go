@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/read"
 	"github.com/devtron-labs/devtron/util/commonEnforcementFunctionsUtil"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -47,6 +48,12 @@ import (
 )
 
 const ENV_DELETE_SUCCESS_RESP = "Environment deleted successfully."
+
+var (
+	// Regex patterns for environment name validation
+	envNameAlphanumericRegex = regexp.MustCompile(`^[a-z0-9-]+$`)
+	envNameLengthRegex       = regexp.MustCompile(`^.{1,16}$`)
+)
 
 type EnvironmentRestHandler interface {
 	Create(w http.ResponseWriter, r *http.Request)
@@ -106,6 +113,27 @@ func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, environmentRe
 	}
 }
 
+// validateEnvironmentName validates the environment name against multiple regex patterns
+// Note: Required validation is already handled by struct validation tag
+func (impl EnvironmentRestHandlerImpl) validateEnvironmentName(envName string) error {
+	// Validation 1: Use only lowercase alphanumeric characters or '-'
+	if !envNameAlphanumericRegex.MatchString(envName) {
+		return errors.New("Use only lowercase alphanumeric characters or '-'")
+	}
+
+	// Validation 2: Cannot start/end with '-'
+	if strings.HasPrefix(envName, "-") || strings.HasSuffix(envName, "-") {
+		return errors.New("Cannot start/end with '-'")
+	}
+
+	// Validation 3: Minimum 1 and Maximum 16 characters required
+	if !envNameLengthRegex.MatchString(envName) {
+		return errors.New("Minimum 1 and Maximum 16 characters required")
+	}
+
+	return nil
+}
+
 func (impl EnvironmentRestHandlerImpl) Create(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userService.GetLoggedInUser(r)
@@ -125,6 +153,13 @@ func (impl EnvironmentRestHandlerImpl) Create(w http.ResponseWriter, r *http.Req
 	err = impl.validator.Struct(bean)
 	if err != nil {
 		impl.logger.Errorw("validation err, Create", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// Validate environment name
+	err = impl.validateEnvironmentName(bean.Environment)
+	if err != nil {
+		impl.logger.Errorw("environment name validation err, Create", "err", err, "envName", bean.Environment)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -314,7 +349,7 @@ func (impl EnvironmentRestHandlerImpl) Update(w http.ResponseWriter, r *http.Req
 
 func (impl EnvironmentRestHandlerImpl) FindById(w http.ResponseWriter, r *http.Request) {
 	// Use enhanced parameter parsing with context
-	envId, err := common.ExtractIntPathParamWithContext(w, r, "id", "environment")
+	envId, err := common.ExtractIntPathParamWithContext(w, r, "id")
 	if err != nil {
 		// Error already written by ExtractIntPathParamWithContext
 		return
@@ -447,11 +482,15 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDownByCl
 			id, err := strconv.Atoi(clusterId)
 			if err != nil {
 				impl.logger.Errorw("request err, GetCombinedEnvironmentListForDropDownByClusterIds", "err", err, "clusterIdString", clusterIdString)
-				common.WriteJsonResp(w, err, "please send valid cluster Ids", http.StatusBadRequest)
+				common.HandleParameterError(w, r, "ids", clusterIdString)
 				return
 			}
 			clusterIds = append(clusterIds, id)
 		}
+	} else {
+		impl.logger.Errorw("request err empty query param, GetCombinedEnvironmentListForDropDownByClusterIds", "err", err, "clusterIdString", clusterIdString)
+		common.HandleParameterError(w, r, "ids", clusterIdString)
+		return
 	}
 	token := r.Header.Get("token")
 	clusters, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDownByClusterIds(token, clusterIds, impl.rbacEnforcementUtil.CheckAuthorizationForGlobalEnvironment)

@@ -5,6 +5,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"path"
+	"path/filepath"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/async"
@@ -60,16 +70,7 @@ import (
 	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"io/ioutil"
 	"k8s.io/client-go/rest"
-	"net/http"
-	"os"
-	"path"
-	"path/filepath"
-	"slices"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type HandlerService interface {
@@ -1018,9 +1019,9 @@ func (impl *HandlerServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineCo
 			CommitTime:      commitHashForPipelineId.Date.Format(bean.LayoutRFC3339),
 			GitOptions: pipelineConfigBean.GitOptions{
 				UserName:              ciMaterial.GitMaterial.GitProvider.UserName,
-				Password:              ciMaterial.GitMaterial.GitProvider.Password,
-				SshPrivateKey:         ciMaterial.GitMaterial.GitProvider.SshPrivateKey,
-				AccessToken:           ciMaterial.GitMaterial.GitProvider.AccessToken,
+				Password:              ciMaterial.GitMaterial.GitProvider.Password.String(),
+				SshPrivateKey:         ciMaterial.GitMaterial.GitProvider.SshPrivateKey.String(),
+				AccessToken:           ciMaterial.GitMaterial.GitProvider.AccessToken.String(),
 				AuthMode:              ciMaterial.GitMaterial.GitProvider.AuthMode,
 				EnableTLSVerification: ciMaterial.GitMaterial.GitProvider.EnableTLSVerification,
 				TlsKey:                ciMaterial.GitMaterial.GitProvider.TlsKey,
@@ -1306,10 +1307,10 @@ func (impl *HandlerServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineCo
 		workflowRequest.DockerRepository = dockerRepository
 		workflowRequest.CheckoutPath = checkoutPath
 		workflowRequest.DockerUsername = dockerRegistry.Username
-		workflowRequest.DockerPassword = dockerRegistry.Password
+		workflowRequest.DockerPassword = dockerRegistry.Password.String()
 		workflowRequest.AwsRegion = dockerRegistry.AWSRegion
 		workflowRequest.AccessKey = dockerRegistry.AWSAccessKeyId
-		workflowRequest.SecretKey = dockerRegistry.AWSSecretAccessKey
+		workflowRequest.SecretKey = dockerRegistry.AWSSecretAccessKey.String()
 		workflowRequest.DockerConnection = dockerRegistry.Connection
 		workflowRequest.DockerCert = dockerRegistry.Cert
 

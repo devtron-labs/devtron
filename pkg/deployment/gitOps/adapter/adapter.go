@@ -29,7 +29,7 @@ func GetGitOpsConfigBean(model *repository.GitOpsConfig) *apiGitOpsBean.GitOpsCo
 		GitHubOrgId:           model.GitHubOrgId,
 		GitLabGroupId:         model.GitLabGroupId,
 		Active:                model.Active,
-		Token:                 model.Token,
+		Token:                 model.Token.String(),
 		Host:                  model.Host,
 		Username:              model.Username,
 		UserId:                model.CreatedBy,

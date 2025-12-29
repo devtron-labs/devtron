@@ -124,10 +124,10 @@ func (impl *InstalledAppResourceServiceImpl) findNotesForArgoApplication(install
 			registryCredential = &gRPC.RegistryCredential{
 				RegistryUrl:         appStoreAppVersion.AppStore.DockerArtifactStore.RegistryURL,
 				Username:            appStoreAppVersion.AppStore.DockerArtifactStore.Username,
-				Password:            appStoreAppVersion.AppStore.DockerArtifactStore.Password,
+				Password:            appStoreAppVersion.AppStore.DockerArtifactStore.Password.String(),
 				AwsRegion:           appStoreAppVersion.AppStore.DockerArtifactStore.AWSRegion,
 				AccessKey:           appStoreAppVersion.AppStore.DockerArtifactStore.AWSAccessKeyId,
-				SecretKey:           appStoreAppVersion.AppStore.DockerArtifactStore.AWSSecretAccessKey,
+				SecretKey:           appStoreAppVersion.AppStore.DockerArtifactStore.AWSSecretAccessKey.String(),
 				RegistryType:        string(appStoreAppVersion.AppStore.DockerArtifactStore.RegistryType),
 				RepoName:            appStoreAppVersion.AppStore.Name,
 				IsPublic:            ociRegistryConfig.IsPublic,

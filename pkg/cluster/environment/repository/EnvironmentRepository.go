@@ -18,9 +18,13 @@ package repository
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/overview/bean"
+	"github.com/devtron-labs/devtron/pkg/overview/constants"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
@@ -61,6 +65,8 @@ type EnvironmentRepository interface {
 	Create(mappings *Environment) error
 	FindAll() ([]Environment, error)
 	FindAllActive() ([]*Environment, error)
+	FindAllActiveInTimeRange(from, to *time.Time) ([]*Environment, error)
+	GetAggregatedEnvironmentTrendWithParams(from, to *time.Time, aggregationType constants.AggregationType) ([]bean.TimeDataPoint, error)
 	FindAllActiveEnvironmentCount() (int, error)
 	MarkEnvironmentDeleted(mappings *Environment, tx *pg.Tx) error
 	GetConnection() (dbConnection *pg.DB)
@@ -80,6 +86,7 @@ type EnvironmentRepository interface {
 	FindByClusterIdAndNamespace(namespaceClusterPair []*ClusterNamespacePair) ([]*Environment, error)
 	FindByClusterIds(clusterIds []int) ([]*Environment, error)
 	FindIdsByNames(envNames []string) ([]int, error)
+	FindNamesByIds(envIds []int) (map[int]string, error)
 	FindByNames(envNames []string) ([]*Environment, error)
 
 	FindByEnvName(envName string) ([]*Environment, error)
@@ -361,6 +368,29 @@ func (repo EnvironmentRepositoryImpl) FindIdsByNames(envNames []string) ([]int, 
 	return ids, err
 }
 
+// FindNamesByIds returns a map of environment id to environment name for the given ids
+func (repo *EnvironmentRepositoryImpl) FindNamesByIds(envIds []int) (map[int]string, error) {
+	if len(envIds) == 0 {
+		return make(map[int]string), nil
+	}
+	type EnvIdName struct {
+		Id   int    `sql:"id"`
+		Name string `sql:"environment_name"`
+	}
+	var envIdNames []EnvIdName
+	query := "SELECT id, environment_name FROM environment WHERE id IN (?) AND active = ?;"
+	_, err := repo.dbConnection.Query(&envIdNames, query, pg.In(envIds), true)
+	if err != nil {
+		return nil, err
+	}
+
+	envMap := make(map[int]string, len(envIdNames))
+	for _, env := range envIdNames {
+		envMap[env.Id] = env.Name
+	}
+	return envMap, nil
+}
+
 func (repo EnvironmentRepositoryImpl) FindByNames(envNames []string) ([]*Environment, error) {
 	var environment []*Environment
 	err := repo.dbConnection.
@@ -436,3 +466,70 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindEnvLinkedWithCiPipelines(ext
 //" INNER JOIN " +
 //" (SELECT apf2.app_workflow_id FROM app_workflow_mapping apf2 WHERE component_id IN (?) AND type='CI_PIPELINE') sqt " +
 //" ON apf.app_workflow_id = sqt.app_workflow_id;"
+
+func (repo EnvironmentRepositoryImpl) FindAllActiveInTimeRange(from, to *time.Time) ([]*Environment, error) {
+	var mappings []*Environment
+	query := repo.
+		dbConnection.Model(&mappings).
+		Where("environment.active = ?", true)
+
+	if from != nil {
+		query = query.Where("environment.created_on >= ?", from)
+	}
+	if to != nil {
+		query = query.Where("environment.created_on <= ?", to)
+	}
+
+	err := query.Select()
+	return mappings, err
+}
+
+func (repo EnvironmentRepositoryImpl) GetAggregatedEnvironmentTrendWithParams(from, to *time.Time, aggregationType constants.AggregationType) ([]bean.TimeDataPoint, error) {
+	var results []struct {
+		Date  string `json:"date"`
+		Count int    `json:"count"`
+	}
+
+	var query string
+	if aggregationType == constants.AggregateByHour {
+		// Aggregate by hour for "Today"
+		query = `
+			SELECT
+				TO_CHAR(DATE_TRUNC('hour', created_on), 'YYYY-MM-DD HH24:00') as date,
+				COUNT(*) as count
+			FROM environment
+			WHERE active = true
+			AND created_on >= ? AND created_on <= ?
+			GROUP BY DATE_TRUNC('hour', created_on)
+			ORDER BY DATE_TRUNC('hour', created_on)
+		`
+	} else {
+		// Aggregate by day for other periods
+		query = `
+			SELECT
+				TO_CHAR(DATE_TRUNC('day', created_on), 'YYYY-MM-DD') as date,
+				COUNT(*) as count
+			FROM environment
+			WHERE active = true
+			AND created_on >= ? AND created_on <= ?
+			GROUP BY DATE_TRUNC('day', created_on)
+			ORDER BY DATE_TRUNC('day', created_on)
+		`
+	}
+
+	_, err := repo.dbConnection.Query(&results, query, from, to)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to TimeDataPoint
+	trendData := make([]bean.TimeDataPoint, 0, len(results))
+	for _, result := range results {
+		trendData = append(trendData, bean.TimeDataPoint{
+			Date:  result.Date,
+			Count: result.Count,
+		})
+	}
+
+	return trendData, nil
+}

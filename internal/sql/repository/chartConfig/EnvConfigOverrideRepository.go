@@ -17,6 +17,8 @@
 package chartConfig
 
 import (
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
@@ -80,6 +82,8 @@ type EnvConfigOverrideRepository interface {
 	// as the chartRepoRepository.Chart contains the reference chart(in bytes).
 	GetAllOverridesForApp(appId int) ([]*EnvConfigOverride, error)
 	GetDbConnection() *pg.DB
+	// UpdateEmptyNamespaceInChartEnvConfigOverride updates namespace in chart_env_config_override from environment table for empty namespaces
+	UpdateEmptyNamespaceInChartEnvConfigOverride(userId int32) (int, error)
 }
 
 type EnvConfigOverrideRepositoryImpl struct {
@@ -400,4 +404,24 @@ func (r EnvConfigOverrideRepositoryImpl) GetAllOverridesForApp(appId int) ([]*En
 
 func (r EnvConfigOverrideRepositoryImpl) GetDbConnection() *pg.DB {
 	return r.dbConnection
+}
+
+func (r EnvConfigOverrideRepositoryImpl) UpdateEmptyNamespaceInChartEnvConfigOverride(userId int32) (int, error) {
+	query := `UPDATE chart_env_config_override
+		SET namespace = e.namespace,
+		    updated_by = ?,
+		    updated_on = ?
+		FROM charts c
+		INNER JOIN app a ON a.id = c.app_id
+		INNER JOIN chart_env_config_override ce ON ce.chart_id = c.id
+		INNER JOIN environment e ON e.id = ce.target_environment
+		WHERE a.active = true
+		  AND (ce.namespace = '' OR ce.namespace IS NULL)
+		  AND chart_env_config_override.id = ce.id`
+
+	result, err := r.dbConnection.Exec(query, userId, time.Now())
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

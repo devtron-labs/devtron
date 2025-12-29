@@ -77,6 +77,9 @@ func SetScalingValues(templateMap map[string]interface{}, customScalingKey strin
 		return merged, errors.New(fmt.Sprintf("no json path found for [%s]", customScalingKey))
 	}
 	autoscalingJsonPathKey := autoscalingJsonPath.(string)
+	if len(autoscalingJsonPathKey) == 0 {
+		return merged, nil
+	}
 	mergedRes, err := sjson.Set(string(merged), autoscalingJsonPathKey, value)
 	if err != nil {
 		return merged, err
@@ -97,6 +100,7 @@ func FetchRequiredReplicaCount(currentReplicaCount float64, reqMaxReplicas float
 }
 
 func GetAutoScalingReplicaCount(templateMap map[string]interface{}, appName string) *util4.HpaResourceRequest {
+	hpaResourceRequest := &util4.HpaResourceRequest{}
 	hasOverride := false
 	if _, ok := templateMap[bean3.FullnameOverride]; ok {
 		appNameOverride := templateMap[bean3.FullnameOverride].(string)
@@ -113,21 +117,35 @@ func GetAutoScalingReplicaCount(templateMap map[string]interface{}, appName stri
 			}
 		}
 	}
-	hpaResourceRequest := &util4.HpaResourceRequest{}
 	hpaResourceRequest.Version = ""
 	hpaResourceRequest.Group = autoscaling.ServiceName
 	hpaResourceRequest.Kind = bean3.HorizontalPodAutoscaler
 	if _, ok := templateMap[bean3.KedaAutoscaling]; ok {
 		as := templateMap[bean3.KedaAutoscaling]
-		asd := as.(map[string]interface{})
+		asd, ok := as.(map[string]interface{})
+		if !ok {
+			return hpaResourceRequest
+		}
 		if _, ok := asd[bean3.Enabled]; ok {
-			enable := asd[bean3.Enabled].(bool)
+			enable, ok := asd[bean3.Enabled].(bool)
+			if !ok {
+				return hpaResourceRequest
+			}
 			if enable {
-				hpaResourceRequest.IsEnable = enable
-				hpaResourceRequest.ReqReplicaCount = templateMap[bean3.ReplicaCount].(float64)
-				hpaResourceRequest.ReqMaxReplicas = asd["maxReplicaCount"].(float64)
-				hpaResourceRequest.ReqMinReplicas = asd["minReplicaCount"].(float64)
 				hpaResourceRequest.ResourceName = fmt.Sprintf("%s-%s-%s", "keda-hpa", appName, "keda")
+				hpaResourceRequest.ReqReplicaCount, ok = templateMap[bean3.ReplicaCount].(float64)
+				if !ok {
+					return hpaResourceRequest
+				}
+				hpaResourceRequest.ReqMaxReplicas, ok = asd["maxReplicaCount"].(float64)
+				if !ok {
+					return hpaResourceRequest
+				}
+				hpaResourceRequest.ReqMinReplicas, ok = asd["minReplicaCount"].(float64)
+				if !ok {
+					return hpaResourceRequest
+				}
+				hpaResourceRequest.IsEnable = true
 				return hpaResourceRequest
 			}
 		}
@@ -135,15 +153,30 @@ func GetAutoScalingReplicaCount(templateMap map[string]interface{}, appName stri
 
 	if _, ok := templateMap[autoscaling.ServiceName]; ok {
 		as := templateMap[autoscaling.ServiceName]
-		asd := as.(map[string]interface{})
+		asd, ok := as.(map[string]interface{})
+		if !ok {
+			return hpaResourceRequest
+		}
 		if _, ok := asd[bean3.Enabled]; ok {
-			enable := asd[bean3.Enabled].(bool)
+			enable, ok := asd[bean3.Enabled].(bool)
+			if !ok {
+				return hpaResourceRequest
+			}
 			if enable {
-				hpaResourceRequest.IsEnable = asd[bean3.Enabled].(bool)
-				hpaResourceRequest.ReqReplicaCount = templateMap[bean3.ReplicaCount].(float64)
-				hpaResourceRequest.ReqMaxReplicas = asd["MaxReplicas"].(float64)
-				hpaResourceRequest.ReqMinReplicas = asd["MinReplicas"].(float64)
 				hpaResourceRequest.ResourceName = fmt.Sprintf("%s-%s", appName, "hpa")
+				hpaResourceRequest.ReqReplicaCount, ok = templateMap[bean3.ReplicaCount].(float64)
+				if !ok {
+					return hpaResourceRequest
+				}
+				hpaResourceRequest.ReqMaxReplicas, ok = asd["MaxReplicas"].(float64)
+				if !ok {
+					return hpaResourceRequest
+				}
+				hpaResourceRequest.ReqMinReplicas, ok = asd["MinReplicas"].(float64)
+				if !ok {
+					return hpaResourceRequest
+				}
+				hpaResourceRequest.IsEnable = true
 				return hpaResourceRequest
 			}
 		}

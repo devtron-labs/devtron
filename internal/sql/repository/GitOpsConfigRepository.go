@@ -17,7 +17,9 @@
 package repository
 
 import (
+	"github.com/devtron-labs/common-lib/securestore"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -36,34 +38,35 @@ type GitOpsConfigRepository interface {
 }
 
 type GitOpsConfigRepositoryImpl struct {
-	dbConnection *pg.DB
-	logger       *zap.SugaredLogger
+	dbConnection       *pg.DB
+	logger             *zap.SugaredLogger
+	GlobalEnvVariables *globalUtil.GlobalEnvVariables
 }
 
 type GitOpsConfig struct {
-	tableName             struct{} `sql:"gitops_config" pg:",discard_unknown_columns"`
-	Id                    int      `sql:"id,pk"`
-	Provider              string   `sql:"provider"`
-	Username              string   `sql:"username"`
-	Token                 string   `sql:"token"`
-	GitLabGroupId         string   `sql:"gitlab_group_id"`
-	GitHubOrgId           string   `sql:"github_org_id"`
-	AzureProject          string   `sql:"azure_project"`
-	Host                  string   `sql:"host"`
-	Active                bool     `sql:"active,notnull"`
-	AllowCustomRepository bool     `sql:"allow_custom_repository,notnull"`
-	BitBucketWorkspaceId  string   `sql:"bitbucket_workspace_id"`
-	BitBucketProjectKey   string   `sql:"bitbucket_project_key"`
-	EmailId               string   `sql:"email_id"`
-	EnableTLSVerification bool     `sql:"enable_tls_verification"`
-	TlsCert               string   `sql:"tls_cert"`
-	TlsKey                string   `sql:"tls_key"`
-	CaCert                string   `sql:"ca_cert"`
+	tableName             struct{}                    `sql:"gitops_config" pg:",discard_unknown_columns"`
+	Id                    int                         `sql:"id,pk"`
+	Provider              string                      `sql:"provider"`
+	Username              string                      `sql:"username"`
+	Token                 securestore.EncryptedString `sql:"token"`
+	GitLabGroupId         string                      `sql:"gitlab_group_id"`
+	GitHubOrgId           string                      `sql:"github_org_id"`
+	AzureProject          string                      `sql:"azure_project"`
+	Host                  string                      `sql:"host"`
+	Active                bool                        `sql:"active,notnull"`
+	AllowCustomRepository bool                        `sql:"allow_custom_repository,notnull"`
+	BitBucketWorkspaceId  string                      `sql:"bitbucket_workspace_id"`
+	BitBucketProjectKey   string                      `sql:"bitbucket_project_key"`
+	EmailId               string                      `sql:"email_id"`
+	EnableTLSVerification bool                        `sql:"enable_tls_verification"`
+	TlsCert               string                      `sql:"tls_cert"`
+	TlsKey                string                      `sql:"tls_key"`
+	CaCert                string                      `sql:"ca_cert"`
 	sql.AuditLog
 }
 
-func NewGitOpsConfigRepositoryImpl(logger *zap.SugaredLogger, dbConnection *pg.DB) *GitOpsConfigRepositoryImpl {
-	return &GitOpsConfigRepositoryImpl{dbConnection: dbConnection, logger: logger}
+func NewGitOpsConfigRepositoryImpl(logger *zap.SugaredLogger, dbConnection *pg.DB, variables *globalUtil.EnvironmentVariables) *GitOpsConfigRepositoryImpl {
+	return &GitOpsConfigRepositoryImpl{dbConnection: dbConnection, logger: logger, GlobalEnvVariables: variables.GlobalEnvVariables}
 }
 
 func (impl *GitOpsConfigRepositoryImpl) GetConnection() *pg.DB {
@@ -71,15 +74,28 @@ func (impl *GitOpsConfigRepositoryImpl) GetConnection() *pg.DB {
 }
 
 func (impl *GitOpsConfigRepositoryImpl) CreateGitOpsConfig(model *GitOpsConfig, tx *pg.Tx) (*GitOpsConfig, error) {
-	err := tx.Insert(model)
+	var err error
+	if impl.GlobalEnvVariables.EnablePasswordEncryption {
+		model.Token, err = securestore.EncryptString(model.Token.String())
+		if err != nil {
+			return model, err
+		}
+	}
+	err = tx.Insert(model)
 	if err != nil {
 		impl.logger.Error(err)
 		return model, err
 	}
 	return model, nil
 }
-func (impl *GitOpsConfigRepositoryImpl) UpdateGitOpsConfig(model *GitOpsConfig, tx *pg.Tx) error {
-	err := tx.Update(model)
+func (impl *GitOpsConfigRepositoryImpl) UpdateGitOpsConfig(model *GitOpsConfig, tx *pg.Tx) (err error) {
+	if impl.GlobalEnvVariables.EnablePasswordEncryption {
+		model.Token, err = securestore.EncryptString(model.Token.String())
+		if err != nil {
+			return err
+		}
+	}
+	err = tx.Update(model)
 	if err != nil {
 		impl.logger.Error(err)
 		return err

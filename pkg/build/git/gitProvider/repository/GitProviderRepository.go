@@ -17,28 +17,30 @@
 package repository
 
 import (
+	"github.com/devtron-labs/common-lib/securestore"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 )
 
 type GitProvider struct {
-	tableName             struct{}           `sql:"git_provider" pg:",discard_unknown_columns"`
-	Id                    int                `sql:"id,pk"`
-	Name                  string             `sql:"name,notnull"`
-	Url                   string             `sql:"url,notnull"`
-	UserName              string             `sql:"user_name"`
-	Password              string             `sql:"password"`
-	SshPrivateKey         string             `sql:"ssh_private_key"`
-	AccessToken           string             `sql:"access_token"`
-	AuthMode              constants.AuthMode `sql:"auth_mode,notnull"`
-	Active                bool               `sql:"active,notnull"`
-	Deleted               bool               `sql:"deleted,notnull"`
-	GitHostId             int                `sql:"git_host_id"` //id stored in db git_host( foreign key)
-	TlsCert               string             `sql:"tls_cert"`
-	TlsKey                string             `sql:"tls_key"`
-	CaCert                string             `sql:"ca_cert"`
-	EnableTLSVerification bool               `sql:"enable_tls_verification"`
+	tableName             struct{}                    `sql:"git_provider" pg:",discard_unknown_columns"`
+	Id                    int                         `sql:"id,pk"`
+	Name                  string                      `sql:"name,notnull"`
+	Url                   string                      `sql:"url,notnull"`
+	UserName              string                      `sql:"user_name"`
+	Password              securestore.EncryptedString `sql:"password"`
+	SshPrivateKey         securestore.EncryptedString `sql:"ssh_private_key"`
+	AccessToken           securestore.EncryptedString `sql:"access_token"`
+	AuthMode              constants.AuthMode          `sql:"auth_mode,notnull"`
+	Active                bool                        `sql:"active,notnull"`
+	Deleted               bool                        `sql:"deleted,notnull"`
+	GitHostId             int                         `sql:"git_host_id"` //id stored in db git_host( foreign key)
+	TlsCert               string                      `sql:"tls_cert"`
+	TlsKey                string                      `sql:"tls_key"`
+	CaCert                string                      `sql:"ca_cert"`
+	EnableTLSVerification bool                        `sql:"enable_tls_verification"`
 	sql.AuditLog
 }
 
@@ -55,15 +57,20 @@ type GitProviderRepository interface {
 }
 
 type GitProviderRepositoryImpl struct {
-	dbConnection *pg.DB
+	GlobalEnvVariables *globalUtil.GlobalEnvVariables
+	dbConnection       *pg.DB
 }
 
-func NewGitProviderRepositoryImpl(dbConnection *pg.DB) *GitProviderRepositoryImpl {
-	return &GitProviderRepositoryImpl{dbConnection: dbConnection}
+func NewGitProviderRepositoryImpl(dbConnection *pg.DB, envVariables *globalUtil.EnvironmentVariables) *GitProviderRepositoryImpl {
+	return &GitProviderRepositoryImpl{dbConnection: dbConnection, GlobalEnvVariables: envVariables.GlobalEnvVariables}
 }
 
 func (impl GitProviderRepositoryImpl) Save(gitProvider *GitProvider) error {
-	err := impl.dbConnection.Insert(gitProvider)
+	err := impl.encryptFieldsInGitProvider(gitProvider)
+	if err != nil {
+		return err
+	}
+	err = impl.dbConnection.Insert(gitProvider)
 	return err
 }
 
@@ -115,11 +122,34 @@ func (impl GitProviderRepositoryImpl) FindByUrl(providerUrl string) (GitProvider
 }
 
 func (impl GitProviderRepositoryImpl) Update(gitProvider *GitProvider) error {
-	err := impl.dbConnection.Update(gitProvider)
+	err := impl.encryptFieldsInGitProvider(gitProvider)
+	if err != nil {
+		return err
+	}
+	err = impl.dbConnection.Update(gitProvider)
 	return err
 }
 
 func (impl GitProviderRepositoryImpl) MarkProviderDeleted(gitProvider *GitProvider) error {
 	gitProvider.Deleted = true
 	return impl.dbConnection.Update(gitProvider)
+}
+
+func (impl GitProviderRepositoryImpl) encryptFieldsInGitProvider(gitProvider *GitProvider) error {
+	var err error
+	if impl.GlobalEnvVariables.EnablePasswordEncryption {
+		gitProvider.Password, err = securestore.EncryptString(gitProvider.Password.String())
+		if err != nil {
+			return err
+		}
+		gitProvider.AccessToken, err = securestore.EncryptString(gitProvider.AccessToken.String())
+		if err != nil {
+			return err
+		}
+		gitProvider.SshPrivateKey, err = securestore.EncryptString(gitProvider.SshPrivateKey.String())
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

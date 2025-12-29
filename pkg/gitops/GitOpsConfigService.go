@@ -25,6 +25,7 @@ import (
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	repocreds2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/devtron-labs/common-lib/securestore"
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
@@ -187,7 +188,7 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *apiBe
 			return apiBean.DetailedErrorGitOpsConfigResponse{}, err
 		}
 		if isTokenEmpty {
-			config.Token = model.Token
+			config.Token = model.Token.String()
 		}
 		if isTlsDetailsEmpty {
 			caData := model.CaCert
@@ -247,7 +248,7 @@ func (impl *GitOpsConfigServiceImpl) registerGitOpsClientConfig(ctx context.Cont
 			Creds: &v1alpha1.RepoCreds{
 				URL:               request.Host,
 				Username:          model.Username,
-				Password:          model.Token,
+				Password:          model.Token.String(),
 				TLSClientCertData: model.TlsCert,
 				TLSClientCertKey:  model.TlsKey,
 			},
@@ -406,7 +407,7 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 	model := &repository.GitOpsConfig{
 		Provider:              strings.ToUpper(request.Provider),
 		Username:              request.Username,
-		Token:                 request.Token,
+		Token:                 securestore.ToEncryptedString(request.Token),
 		GitLabGroupId:         request.GitLabGroupId,
 		GitHubOrgId:           request.GitHubOrgId,
 		AzureProject:          request.AzureProjectName,
@@ -534,7 +535,7 @@ func (impl *GitOpsConfigServiceImpl) patchGitOpsClientConfig(model *repository.G
 			Creds: &v1alpha1.RepoCreds{
 				URL:               request.Host,
 				Username:          model.Username,
-				Password:          model.Token,
+				Password:          model.Token.String(),
 				TLSClientCertData: model.TlsCert,
 				TLSClientCertKey:  model.TlsKey,
 			},
@@ -678,7 +679,7 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 
 	model.Provider = strings.ToUpper(request.Provider)
 	model.Username = request.Username
-	model.Token = request.Token
+	model.Token = securestore.ToEncryptedString(request.Token)
 	model.GitLabGroupId = request.GitLabGroupId
 	model.GitHubOrgId = request.GitHubOrgId
 	model.Host = request.Host
@@ -782,7 +783,7 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigById(id int) (*apiBean.GitOp
 		GitHubOrgId:           model.GitHubOrgId,
 		GitLabGroupId:         model.GitLabGroupId,
 		Username:              model.Username,
-		Token:                 model.Token,
+		Token:                 model.Token.String(),
 		Host:                  model.Host,
 		Active:                model.Active,
 		UserId:                model.CreatedBy,
@@ -852,7 +853,7 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) 
 		GitHubOrgId:           model.GitHubOrgId,
 		GitLabGroupId:         model.GitLabGroupId,
 		Username:              model.Username,
-		Token:                 model.Token,
+		Token:                 model.Token.String(),
 		Host:                  model.Host,
 		Active:                model.Active,
 		UserId:                model.CreatedBy,
@@ -890,7 +891,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(isArgoModuleInstalled 
 			return apiBean.DetailedErrorGitOpsConfigResponse{}
 		}
 		if isTokenEmpty {
-			config.Token = model.Token
+			config.Token = model.Token.String()
 		}
 		if isTlsDetailsEmpty {
 			caData := model.CaCert

@@ -19,8 +19,10 @@ package cluster
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"sync"
 	"time"
@@ -92,6 +94,7 @@ type ClusterService interface {
 	ConvertClusterBeanObjectToCluster(bean *bean.ClusterBean) *v1alpha1.Cluster
 
 	GetClusterConfigByClusterId(clusterId int) (*k8s.ClusterConfig, error)
+	FindActiveClustersExcludingVirtual() ([]bean.ClusterBean, error)
 }
 
 type ClusterServiceImpl struct {
@@ -198,8 +201,8 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *bean.ClusterB
 	}
 
 	existingModel, err := impl.clusterRepository.FindOne(bean.ClusterName)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Error(err)
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
+		impl.logger.Errorw("error in finding cluster for create", "clusterName", bean.ClusterName, "err", err)
 		return nil, err
 	}
 	if existingModel.Id > 0 {
@@ -376,17 +379,23 @@ func (impl *ClusterServiceImpl) FindByIdsWithoutConfig(ids []int) ([]*bean.Clust
 func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *bean.ClusterBean, userId int32) (*bean.ClusterBean, error) {
 	model, err := impl.clusterRepository.FindById(bean.Id)
 	if err != nil {
-		impl.logger.Error(err)
+		impl.logger.Errorw("error in fetching cluster", "clusterId", bean.Id, "err", err)
 		return nil, err
 	}
 	existingModel, err := impl.clusterRepository.FindOne(bean.ClusterName)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Error(err)
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
+		impl.logger.Errorw("error in fetching cluster", "clusterName", bean.ClusterName, "err", err)
 		return nil, err
 	}
 	if existingModel.Id > 0 && model.Id != existingModel.Id {
 		impl.logger.Errorw("error on fetching cluster, duplicate", "name", bean.ClusterName)
-		return nil, fmt.Errorf("cluster already exists")
+		errMsg := fmt.Sprintf("cluster already exists with name %q", bean.ClusterName)
+		return nil, util.NewApiError(http.StatusBadRequest, errMsg, errMsg)
+	}
+	if bean.ClusterName != model.ClusterName {
+		impl.logger.Errorw("cluster name cannot be changed", "oldName", model.ClusterName, "newName", bean.ClusterName)
+		errMsg := fmt.Sprintf("cluster name cannot be changed")
+		return nil, util.NewApiError(http.StatusBadRequest, errMsg, errMsg)
 	}
 
 	// check whether config modified or not, if yes create informer with updated config
@@ -417,7 +426,8 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *bean.ClusterBe
 	if bean.ServerUrl != model.ServerUrl || bean.InsecureSkipTLSVerify != model.InsecureSkipTlsVerify || dbConfigBearerToken != requestConfigBearerToken || dbConfigTlsKey != requestConfigTlsKey || dbConfigCertData != requestConfigCertData || dbConfigCAData != requestConfigCAData {
 		if bean.ClusterName == clusterBean.DefaultCluster {
 			impl.logger.Errorw("default_cluster is reserved by the system and cannot be updated, default_cluster", "name", bean.ClusterName)
-			return nil, fmt.Errorf("default_cluster is reserved by the system and cannot be updated")
+			errMsg := fmt.Sprintf("default_cluster is reserved by the system and cannot be updated")
+			return nil, util.NewApiError(http.StatusBadRequest, errMsg, errMsg)
 		}
 		bean.HasConfigOrUrlChanged = true
 		//validating config
@@ -1089,4 +1099,17 @@ func (impl *ClusterServiceImpl) GetClusterConfigByClusterId(clusterId int) (*k8s
 	rq := *clusterBean
 	clusterConfig := rq.GetClusterConfig()
 	return clusterConfig, nil
+}
+
+func (impl *ClusterServiceImpl) FindActiveClustersExcludingVirtual() ([]bean.ClusterBean, error) {
+	models, err := impl.clusterRepository.FindAllActiveExceptVirtual()
+	if err != nil {
+		return nil, err
+	}
+	var beans []bean.ClusterBean
+	for _, model := range models {
+		bean := adapter.GetClusterBean(model)
+		beans = append(beans, bean)
+	}
+	return beans, nil
 }

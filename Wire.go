@@ -154,6 +154,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository7 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/notifier"
+	"github.com/devtron-labs/devtron/pkg/overview"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/draftAwareConfigService"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
@@ -984,6 +985,20 @@ func InitializeApp() (*App, error) {
 
 		acdConfig.NewArgoCDConfigGetter,
 		wire.Bind(new(acdConfig.ArgoCDConfigGetter), new(*acdConfig.ArgoCDConfigGetterImpl)),
+
+		// overview starts
+		overview.OverviewWireSet,
+		restHandler.NewOverviewRestHandlerImpl,
+		wire.Bind(new(restHandler.OverviewRestHandler), new(*restHandler.OverviewRestHandlerImpl)),
+
+		router.NewOverviewRouterImpl,
+		wire.Bind(new(router.OverviewRouter), new(*router.OverviewRouterImpl)),
+		
+		restHandler.NewInfraOverviewRestHandlerImpl,
+		wire.Bind(new(restHandler.InfraOverviewRestHandler), new(*restHandler.InfraOverviewRestHandlerImpl)),
+
+		router.NewInfraOverviewRouterImpl,
+		wire.Bind(new(router.InfraOverviewRouter), new(*router.InfraOverviewRouterImpl)),
 	)
 	return &App{}, nil
 }

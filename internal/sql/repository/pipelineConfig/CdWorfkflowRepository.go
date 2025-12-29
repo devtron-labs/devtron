@@ -19,16 +19,19 @@ package pipelineConfig
 import (
 	"context"
 	"errors"
+	"fmt"
+	"time"
+
 	apiBean "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/constants"
+	bean2 "github.com/devtron-labs/devtron/pkg/overview/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	"time"
 )
 
 type CdWorkflowRepository interface {
@@ -80,6 +83,12 @@ type CdWorkflowRepository interface {
 	MigrateIsArtifactUploaded(wfrId int, isArtifactUploaded bool)
 	MigrateCdArtifactLocation(wfrId int, cdArtifactLocation string)
 	FindDeployedCdWorkflowRunnersByPipelineId(pipelineId int) ([]*CdWorkflowRunner, error)
+
+	// Overview methods
+	GetDeploymentCountInTimeRange(from, to *time.Time) (int, error)
+	GetDeploymentWorkflowsForStatusTrend(from, to *time.Time) ([]DeploymentStatusData, error)
+	GetBlockedDeploymentsForTrend(from, to *time.Time) ([]BlockedDeploymentData, error)
+	GetTriggeredCDPipelines(from, to *time.Time, sortOrder bean2.SortOrder, limit, offset int) ([]PipelineUsageData, int, error)
 }
 
 type CdWorkflowRepositoryImpl struct {
@@ -180,6 +189,15 @@ type AppDeploymentStatus struct {
 	PipelineId   int    `json:"pipelineId"`
 	DeployStatus string `json:"deployStatus"`
 	WfrId        int    `json:"wfrId,omitempty"`
+}
+
+type DeploymentStatusData struct {
+	StartedOn time.Time `db:"started_on"`
+	Status    string    `db:"status"`
+}
+
+type BlockedDeploymentData struct {
+	StartedOn time.Time `db:"started_on"`
 }
 
 func NewCdWorkflowRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *CdWorkflowRepositoryImpl {
@@ -810,4 +828,144 @@ SELECT "app_id","env_id","ci_artifact_id","parent_ci_artifact","scanned" FROM Ra
 		return nil, err
 	}
 	return runners, nil
+}
+
+// Overview methods implementation
+func (impl *CdWorkflowRepositoryImpl) GetDeploymentCountInTimeRange(from, to *time.Time) (int, error) {
+	var count int
+	query := impl.dbConnection.Model((*CdWorkflowRunner)(nil)).
+		Where("created_on >= ? AND created_on <= ?", from, to).
+		Where("workflow_type = ?", "DEPLOY")
+
+	count, err := query.Count()
+	if err != nil {
+		impl.logger.Errorw("error getting deployment count in time range", "from", from, "to", to, "err", err)
+		return 0, err
+	}
+	return count, nil
+}
+
+// GetDeploymentWorkflowsForStatusTrend returns all deployment workflows in the date range including deployments of deleted pipelines
+func (impl *CdWorkflowRepositoryImpl) GetDeploymentWorkflowsForStatusTrend(from, to *time.Time) ([]DeploymentStatusData, error) {
+	var deployments []DeploymentStatusData
+
+	query := `
+		SELECT cwr.started_on, cwr.status
+		FROM cd_workflow_runner cwr
+		INNER JOIN cd_workflow cw ON cwr.cd_workflow_id = cw.id
+		INNER JOIN pipeline p ON cw.pipeline_id = p.id
+		INNER JOIN app a ON p.app_id = a.id
+		WHERE cwr.started_on >= ? AND cwr.started_on <= ?
+			AND cwr.workflow_type = 'DEPLOY'
+		ORDER BY cwr.started_on
+	`
+
+	_, err := impl.dbConnection.Query(&deployments, query, from, to)
+	if err != nil {
+		impl.logger.Errorw("error fetching deployment workflows for status trend", "from", from, "to", to, "err", err)
+		return nil, err
+	}
+
+	return deployments, nil
+}
+
+// GetBlockedDeploymentsForTrend returns all deployment attempts that were blocked by security scan policy
+// This includes:
+// 1. Deployments blocked BEFORE workflow creation (tracked in resource_filter_evaluation_audit with filter_type=6)
+// 2. Deployments that started but failed due to vulnerability (tracked in cd_workflow_runner with message)
+func (impl *CdWorkflowRepositoryImpl) GetBlockedDeploymentsForTrend(from, to *time.Time) ([]BlockedDeploymentData, error) {
+	var blockedDeployments []BlockedDeploymentData
+
+	// Query to get blocked deployments from two sources:
+	// 1. resource_filter_evaluation_audit: Deployments blocked by security scan policy BEFORE workflow creation
+	//    - filter_type = 6 (SECURITY_SCAN_POLICY)
+	//    - subject_type = 0 (Artifact)
+	//    - reference_type = 1 (PipelineStage)
+	// 2. cd_workflow_runner: Deployments that started but failed due to vulnerability
+	//    - status = 'Failed'
+	//    - message contains 'Found vulnerability on image'
+	query := `
+		SELECT created_on as started_on
+		FROM resource_filter_evaluation_audit
+		WHERE created_on >= ? AND created_on <= ?
+			AND filter_type = 6
+			AND subject_type = 0
+			AND reference_type = 1
+		UNION ALL
+		SELECT cwr.started_on
+		FROM cd_workflow_runner cwr
+		WHERE cwr.started_on >= ? AND cwr.started_on <= ?
+			AND cwr.workflow_type = 'DEPLOY'
+			AND cwr.status = 'Failed'
+			AND cwr.message LIKE '%Found vulnerability on image%'
+		ORDER BY started_on
+	`
+
+	_, err := impl.dbConnection.Query(&blockedDeployments, query, from, to, from, to)
+	if err != nil {
+		impl.logger.Errorw("error fetching blocked deployments for trend", "from", from, "to", to, "err", err)
+		return nil, err
+	}
+
+	return blockedDeployments, nil
+}
+
+func (impl *CdWorkflowRepositoryImpl) GetTriggeredCDPipelines(from, to *time.Time, sortOrder bean2.SortOrder, limit, offset int) ([]PipelineUsageData, int, error) {
+	var results []PipelineUsageData
+	var totalCount int
+
+	// First get the total count
+	countQuery := `
+		SELECT COUNT(DISTINCT p.id)
+		FROM pipeline p
+		INNER JOIN app a ON p.app_id = a.id
+		INNER JOIN environment e ON p.environment_id = e.id
+		LEFT JOIN cd_workflow cw ON p.id = cw.pipeline_id
+		LEFT JOIN cd_workflow_runner cwr ON cw.id = cwr.cd_workflow_id
+			AND cwr.created_on >= ? AND cwr.created_on <= ?
+			AND cwr.workflow_type = 'DEPLOY' AND a.app_type = 0
+		WHERE p.deleted = false AND a.active = true
+	`
+
+	_, err := impl.dbConnection.Query(&totalCount, countQuery, from, to)
+	if err != nil {
+		impl.logger.Errorw("error getting total count of CD pipelines", "from", from, "to", to, "err", err)
+		return nil, 0, err
+	}
+
+	// Build the main query with sorting and pagination
+	orderClause := "ORDER BY trigger_count DESC, p.id DESC"
+	if sortOrder == bean2.ASC {
+		orderClause = "ORDER BY trigger_count ASC, p.id ASC"
+	}
+
+	query := fmt.Sprintf(`
+		SELECT
+			a.id as app_id,
+			e.id as env_id,
+			p.id as pipeline_id,
+			p.pipeline_name as pipeline_name,
+			a.app_name,
+			e.environment_name as env_name,
+			COALESCE(COUNT(cwr.id), 0) as trigger_count
+		FROM pipeline p
+		INNER JOIN app a ON p.app_id = a.id
+		INNER JOIN environment e ON p.environment_id = e.id
+		LEFT JOIN cd_workflow cw ON p.id = cw.pipeline_id
+		LEFT JOIN cd_workflow_runner cwr ON cw.id = cwr.cd_workflow_id
+			AND cwr.created_on >= ? AND cwr.created_on <= ?
+			AND cwr.workflow_type = 'DEPLOY' AND a.app_type = 0
+		WHERE p.deleted = false AND a.active = true
+		GROUP BY a.id, e.id, p.id, p.pipeline_name, a.app_name, e.environment_name
+		%s
+		LIMIT ? OFFSET ?
+	`, orderClause)
+
+	_, err = impl.dbConnection.Query(&results, query, from, to, limit, offset)
+	if err != nil {
+		impl.logger.Errorw("error getting triggered CD pipelines", "from", from, "to", to, "sortOrder", sortOrder, "limit", limit, "offset", offset, "err", err)
+		return nil, 0, err
+	}
+
+	return results, totalCount, nil
 }

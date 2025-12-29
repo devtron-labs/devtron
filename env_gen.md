@@ -157,6 +157,11 @@
  | CI_TRIGGER_CRON_TIME | int |2 | For image poll plugin |  | false |
  | CI_WORKFLOW_STATUS_UPDATE_CRON | string |*/5 * * * * | Cron schedule for CI pipeline status |  | false |
  | CLI_CMD_TIMEOUT_GLOBAL_SECONDS | int |0 | Used in git cli opeartion timeout |  | false |
+ | CLUSTER_OVERVIEW_BACKGROUND_REFRESH_ENABLED | bool |true | Enable background refresh of cluster overview cache |  | false |
+ | CLUSTER_OVERVIEW_CACHE_ENABLED | bool |true | Enable caching for cluster overview data |  | false |
+ | CLUSTER_OVERVIEW_MAX_PARALLEL_CLUSTERS | int |15 | Maximum number of clusters to fetch in parallel during refresh |  | false |
+ | CLUSTER_OVERVIEW_MAX_STALE_DATA_SECONDS | int |30 | Maximum age of cached data in seconds before warning |  | false |
+ | CLUSTER_OVERVIEW_REFRESH_INTERVAL_SECONDS | int |15 | Background cache refresh interval in seconds |  | false |
  | CLUSTER_STATUS_CRON_TIME | int |15 | Cron schedule for cluster status on resource browser |  | false |
  | CONSUMER_CONFIG_JSON | string | |  |  | false |
  | DEFAULT_LOG_TIME_LIMIT | int64 |1 |  |  | false |
@@ -188,6 +193,7 @@
  | ENABLE_ASYNC_ARGO_CD_INSTALL_DEVTRON_CHART | bool |false | To enable async installation of gitops application |  | false |
  | ENABLE_ASYNC_INSTALL_DEVTRON_CHART | bool |false | To enable async installation of no-gitops application |  | false |
  | ENABLE_LINKED_CI_ARTIFACT_COPY | bool |false | Enable copying artifacts from parent CI pipeline to linked CI pipeline during creation |  | false |
+ | ENABLE_PASSWORD_ENCRYPTION | bool |true | enable password encryption |  | false |
  | EPHEMERAL_SERVER_VERSION_REGEX | string |v[1-9]\.\b(2[3-9]\|[3-9][0-9])\b.* | ephemeral containers support version regex that is compared with k8sServerVersion |  | false |
  | EVENT_URL | string |http://localhost:3000/notify | Notifier service url |  | false |
  | EXECUTE_WIRE_NIL_CHECKER | bool |false | checks for any nil pointer in wire.go |  | false |

@@ -18,6 +18,7 @@ package repository
 
 import (
 	"fmt"
+	"github.com/devtron-labs/common-lib/securestore"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg/orm"
@@ -46,21 +47,21 @@ type RegistryType string
 var OCI_REGISRTY_REPO_TYPE_LIST = []string{OCI_REGISRTY_REPO_TYPE_CONTAINER, OCI_REGISRTY_REPO_TYPE_CHART}
 
 type DockerArtifactStore struct {
-	tableName              struct{}     `sql:"docker_artifact_store" json:",omitempty"  pg:",discard_unknown_columns"`
-	Id                     string       `sql:"id,pk" json:"id,,omitempty"`
-	PluginId               string       `sql:"plugin_id,notnull" json:"pluginId,omitempty"`
-	RegistryURL            string       `sql:"registry_url" json:"registryUrl,omitempty"`
-	RegistryType           RegistryType `sql:"registry_type,notnull" json:"registryType,omitempty"`
-	IsOCICompliantRegistry bool         `sql:"is_oci_compliant_registry,notnull" json:"isOCICompliantRegistry,omitempty"`
-	AWSAccessKeyId         string       `sql:"aws_accesskey_id" json:"awsAccessKeyId,omitempty" `
-	AWSSecretAccessKey     string       `sql:"aws_secret_accesskey" json:"awsSecretAccessKey,omitempty"`
-	AWSRegion              string       `sql:"aws_region" json:"awsRegion,omitempty"`
-	Username               string       `sql:"username" json:"username,omitempty"`
-	Password               string       `sql:"password" json:"password,omitempty"`
-	IsDefault              bool         `sql:"is_default,notnull" json:"isDefault"`
-	Connection             string       `sql:"connection" json:"connection,omitempty"`
-	Cert                   string       `sql:"cert" json:"cert,omitempty"`
-	Active                 bool         `sql:"active,notnull" json:"active"`
+	tableName              struct{}                    `sql:"docker_artifact_store" json:",omitempty"  pg:",discard_unknown_columns"`
+	Id                     string                      `sql:"id,pk" json:"id,,omitempty"`
+	PluginId               string                      `sql:"plugin_id,notnull" json:"pluginId,omitempty"`
+	RegistryURL            string                      `sql:"registry_url" json:"registryUrl,omitempty"`
+	RegistryType           RegistryType                `sql:"registry_type,notnull" json:"registryType,omitempty"`
+	IsOCICompliantRegistry bool                        `sql:"is_oci_compliant_registry,notnull" json:"isOCICompliantRegistry,omitempty"`
+	AWSAccessKeyId         string                      `sql:"aws_accesskey_id" json:"awsAccessKeyId,omitempty" `
+	AWSSecretAccessKey     securestore.EncryptedString `sql:"aws_secret_accesskey" json:"awsSecretAccessKey,omitempty"`
+	AWSRegion              string                      `sql:"aws_region" json:"awsRegion,omitempty"`
+	Username               string                      `sql:"username" json:"username,omitempty"`
+	Password               securestore.EncryptedString `sql:"password" json:"password,omitempty"`
+	IsDefault              bool                        `sql:"is_default,notnull" json:"isDefault"`
+	Connection             string                      `sql:"connection" json:"connection,omitempty"`
+	Cert                   string                      `sql:"cert" json:"cert,omitempty"`
+	Active                 bool                        `sql:"active,notnull" json:"active"`
 	IpsConfig              *DockerRegistryIpsConfig
 	OCIRegistryConfig      []*OCIRegistryConfig
 	sql.AuditLog
@@ -98,18 +99,30 @@ type DockerArtifactStoreRepository interface {
 	FindInactive(storeId string) (bool, error)
 }
 type DockerArtifactStoreRepositoryImpl struct {
-	dbConnection *pg.DB
+	dbConnection       *pg.DB
+	GlobalEnvVariables *util.GlobalEnvVariables
 }
 
-func NewDockerArtifactStoreRepositoryImpl(dbConnection *pg.DB) *DockerArtifactStoreRepositoryImpl {
-	return &DockerArtifactStoreRepositoryImpl{dbConnection: dbConnection}
+func NewDockerArtifactStoreRepositoryImpl(dbConnection *pg.DB, environmentVariables *util.EnvironmentVariables) *DockerArtifactStoreRepositoryImpl {
+	return &DockerArtifactStoreRepositoryImpl{dbConnection: dbConnection, GlobalEnvVariables: environmentVariables.GlobalEnvVariables}
 }
 
 func (impl DockerArtifactStoreRepositoryImpl) GetConnection() *pg.DB {
 	return impl.dbConnection
 }
 
-func (impl DockerArtifactStoreRepositoryImpl) Save(artifactStore *DockerArtifactStore, tx *pg.Tx) error {
+func (impl DockerArtifactStoreRepositoryImpl) Save(artifactStore *DockerArtifactStore, tx *pg.Tx) (err error) {
+
+	if impl.GlobalEnvVariables.EnablePasswordEncryption {
+		artifactStore.Password, err = securestore.EncryptString(artifactStore.Password.String())
+		if err != nil {
+			return err
+		}
+		artifactStore.AWSSecretAccessKey, err = securestore.EncryptString(artifactStore.AWSSecretAccessKey.String())
+		if err != nil {
+			return err
+		}
+	}
 	if util.IsBaseStack() {
 		return tx.Insert(artifactStore)
 	}
@@ -235,7 +248,17 @@ func (impl DockerArtifactStoreRepositoryImpl) FindOneInactive(storeId string) (*
 	return &provider, err
 }
 
-func (impl DockerArtifactStoreRepositoryImpl) Update(artifactStore *DockerArtifactStore, tx *pg.Tx) error {
+func (impl DockerArtifactStoreRepositoryImpl) Update(artifactStore *DockerArtifactStore, tx *pg.Tx) (err error) {
+	if impl.GlobalEnvVariables.EnablePasswordEncryption {
+		artifactStore.Password, err = securestore.EncryptString(artifactStore.Password.String())
+		if err != nil {
+			return err
+		}
+		artifactStore.AWSSecretAccessKey, err = securestore.EncryptString(artifactStore.AWSSecretAccessKey.String())
+		if err != nil {
+			return err
+		}
+	}
 	//TODO check for unique default
 	//there can be only one default
 

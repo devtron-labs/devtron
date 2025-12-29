@@ -1,0 +1,933 @@
+openapi: "3.0.3"
+info:
+  version: 1.0.0
+  title: CD Pipeline Workflow Management
+  description: Devtron API for CD pipeline workflow history, logs, status, and artifact management
+  termsOfService: https://devtron.ai/terms/
+  contact:
+    name: Devtron Labs
+    email: support@devtron.ai
+    url: https://devtron.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: https://devtron-ent-2.devtron.info
+    description: Devtron Enterprise Server
+
+security:
+  - bearerAuth: []
+
+paths:
+  /orchestrator/app/cd-pipeline/workflow/history/{appId}/{environmentId}/{pipelineId}:
+    get:
+      tags:
+        - CD Pipeline Workflow
+      summary: Get CD Pipeline Workflow History
+      description: |
+        Retrieves the deployment history for a specific CD pipeline in an environment.
+        Returns a list of workflow runs with their status, timestamps, and metadata.
+        
+        **Use Cases:**
+        - View deployment history for troubleshooting
+        - Track deployment frequency and success rates
+        - Audit deployment activities
+        
+        **Required Permissions:**
+        - Application view permission
+        - Environment view permission
+      operationId: getCdPipelineWorkflowHistory
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          description: Unique identifier of the application
+          schema:
+            type: integer
+            minimum: 1
+          example: 123
+        - name: environmentId
+          in: path
+          required: true
+          description: Unique identifier of the environment
+          schema:
+            type: integer
+            minimum: 1
+          example: 456
+        - name: pipelineId
+          in: path
+          required: true
+          description: Unique identifier of the CD pipeline
+          schema:
+            type: integer
+            minimum: 1
+          example: 789
+        - name: offset
+          in: query
+          required: false
+          description: Number of records to skip for pagination
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          example: 0
+        - name: size
+          in: query
+          required: false
+          description: Number of records to return per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          example: 20
+      responses:
+        '200':
+          description: Workflow history retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowHistoryResponse'
+              examples:
+                successful_history:
+                  summary: Successful deployment history
+                  value:
+                    code: 200
+                    status: "OK"
+                    result:
+                      workflows:
+                        - workflowId: 12345
+                          workflowRunnerId: 67890
+                          status: "Succeeded"
+                          startedOn: "2024-01-15T10:30:00Z"
+                          finishedOn: "2024-01-15T10:35:00Z"
+                          triggeredBy: "user@example.com"
+                          artifactId: 98765
+                          imageTag: "v1.2.3"
+                          message: "Deployment completed successfully"
+                        - workflowId: 12344
+                          workflowRunnerId: 67889
+                          status: "Failed"
+                          startedOn: "2024-01-15T09:30:00Z"
+                          finishedOn: "2024-01-15T09:32:00Z"
+                          triggeredBy: "user@example.com"
+                          artifactId: 98764
+                          imageTag: "v1.2.2"
+                          message: "Deployment failed: pod startup timeout"
+                      totalCount: 25
+                      offset: 0
+                      size: 20
+        '400':
+          description: Bad request - Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_app_id:
+                  summary: Invalid application ID
+                  value:
+                    code: 400
+                    status: "Bad Request"
+                    errors:
+                      - code: "000"
+                        internalMessage: "invalid appId: must be positive integer"
+                        userMessage: "Invalid application ID provided"
+        '401':
+          description: Unauthorized - Invalid or missing authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not found - Application, environment, or pipeline not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                pipeline_not_found:
+                  summary: Pipeline not found
+                  value:
+                    code: 404
+                    status: "Not Found"
+                    errors:
+                      - code: "11006"
+                        internalMessage: "cd pipeline not found"
+                        userMessage: "CD pipeline not found for the specified application and environment"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/app/cd-pipeline/workflow/logs/{appId}/{environmentId}/{pipelineId}/{workflowId}:
+    get:
+      tags:
+        - CD Pipeline Workflow
+      summary: Get CD Pipeline Workflow Logs
+      description: |
+        Retrieves pre-deployment and post-deployment logs for a specific workflow run.
+        Supports both streaming and historical log retrieval.
+        
+        **Use Cases:**
+        - Debug deployment failures
+        - Monitor deployment progress
+        - Audit deployment activities
+        
+        **Required Permissions:**
+        - Application view permission
+        - Environment view permission
+      operationId: getCdPipelineWorkflowLogs
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          description: Unique identifier of the application
+          schema:
+            type: integer
+            minimum: 1
+          example: 123
+        - name: environmentId
+          in: path
+          required: true
+          description: Unique identifier of the environment
+          schema:
+            type: integer
+            minimum: 1
+          example: 456
+        - name: pipelineId
+          in: path
+          required: true
+          description: Unique identifier of the CD pipeline
+          schema:
+            type: integer
+            minimum: 1
+          example: 789
+        - name: workflowId
+          in: path
+          required: true
+          description: Unique identifier of the workflow run
+          schema:
+            type: integer
+            minimum: 1
+          example: 12345
+        - name: logType
+          in: query
+          required: false
+          description: Type of logs to retrieve
+          schema:
+            type: string
+            enum: ["pre-deployment", "post-deployment", "all"]
+            default: "all"
+          example: "all"
+        - name: follow
+          in: query
+          required: false
+          description: Whether to stream logs in real-time
+          schema:
+            type: boolean
+            default: false
+          example: false
+      responses:
+        '200':
+          description: Workflow logs retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowLogsResponse'
+            text/plain:
+              schema:
+                type: string
+                description: Raw log content when follow=true
+        '400':
+          description: Bad request - Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Invalid or missing authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not found - Workflow not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/app/cd-pipeline/workflow/trigger-info/{appId}/{environmentId}/{pipelineId}/{workflowRunnerId}:
+    get:
+      tags:
+        - CD Pipeline Workflow
+      summary: Get CD Workflow Trigger Information
+      description: |
+        Retrieves detailed information about a specific workflow run including trigger details,
+        configuration, and runtime parameters.
+
+        **Use Cases:**
+        - Get detailed workflow execution information
+        - Debug workflow configuration issues
+        - Audit workflow trigger parameters
+
+        **Required Permissions:**
+        - Application view permission
+        - Environment view permission
+      operationId: getCdWorkflowTriggerInfo
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          description: Unique identifier of the application
+          schema:
+            type: integer
+            minimum: 1
+          example: 123
+        - name: environmentId
+          in: path
+          required: true
+          description: Unique identifier of the environment
+          schema:
+            type: integer
+            minimum: 1
+          example: 456
+        - name: pipelineId
+          in: path
+          required: true
+          description: Unique identifier of the CD pipeline
+          schema:
+            type: integer
+            minimum: 1
+          example: 789
+        - name: workflowRunnerId
+          in: path
+          required: true
+          description: Unique identifier of the workflow runner
+          schema:
+            type: integer
+            minimum: 1
+          example: 67890
+      responses:
+        '200':
+          description: Workflow trigger information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowTriggerInfoResponse'
+        '400':
+          description: Bad request - Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Invalid or missing authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not found - Workflow runner not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/app/cd-pipeline/workflow/download/{appId}/{environmentId}/{pipelineId}/{workflowRunnerId}:
+    get:
+      tags:
+        - CD Pipeline Workflow
+      summary: Download CD Workflow Artifacts
+      description: |
+        Downloads deployment artifacts (logs, manifests, etc.) for a specific workflow run.
+        Returns a compressed archive containing all workflow artifacts.
+
+        **Use Cases:**
+        - Download deployment artifacts for offline analysis
+        - Archive deployment records for compliance
+        - Share deployment artifacts with team members
+
+        **Required Permissions:**
+        - Application view permission
+        - Environment view permission
+      operationId: downloadCdWorkflowArtifacts
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          description: Unique identifier of the application
+          schema:
+            type: integer
+            minimum: 1
+          example: 123
+        - name: environmentId
+          in: path
+          required: true
+          description: Unique identifier of the environment
+          schema:
+            type: integer
+            minimum: 1
+          example: 456
+        - name: pipelineId
+          in: path
+          required: true
+          description: Unique identifier of the CD pipeline
+          schema:
+            type: integer
+            minimum: 1
+          example: 789
+        - name: workflowRunnerId
+          in: path
+          required: true
+          description: Unique identifier of the workflow runner
+          schema:
+            type: integer
+            minimum: 1
+          example: 67890
+      responses:
+        '200':
+          description: Workflow artifacts downloaded successfully
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+                description: Compressed archive containing workflow artifacts
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+                description: Binary artifact file
+          headers:
+            Content-Disposition:
+              description: Attachment filename
+              schema:
+                type: string
+                example: "workflow-artifacts-67890.zip"
+            Content-Length:
+              description: Size of the download in bytes
+              schema:
+                type: integer
+                example: 1048576
+        '400':
+          description: Bad request - Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Invalid or missing authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not found - Workflow artifacts not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                artifacts_not_found:
+                  summary: Artifacts not available
+                  value:
+                    code: 404
+                    status: "Not Found"
+                    errors:
+                      - code: "11006"
+                        internalMessage: "workflow artifacts not found or expired"
+                        userMessage: "Workflow artifacts are not available for download"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/app/cd-pipeline/workflow/status/{appId}/{environmentId}/{pipelineId}:
+    get:
+      tags:
+        - CD Pipeline Workflow
+      summary: Get CD Pipeline Deployment Stage Status
+      description: |
+        Retrieves the current status of all deployment stages for a CD pipeline.
+        Shows the progress and status of pre-deployment, deployment, and post-deployment stages.
+
+        **Use Cases:**
+        - Monitor real-time deployment progress
+        - Check deployment stage status
+        - Debug deployment stage failures
+
+        **Required Permissions:**
+        - Application view permission
+        - Environment view permission
+      operationId: getCdPipelineDeploymentStatus
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          description: Unique identifier of the application
+          schema:
+            type: integer
+            minimum: 1
+          example: 123
+        - name: environmentId
+          in: path
+          required: true
+          description: Unique identifier of the environment
+          schema:
+            type: integer
+            minimum: 1
+          example: 456
+        - name: pipelineId
+          in: path
+          required: true
+          description: Unique identifier of the CD pipeline
+          schema:
+            type: integer
+            minimum: 1
+          example: 789
+      responses:
+        '200':
+          description: Deployment stage status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeploymentStatusResponse'
+              examples:
+                deployment_in_progress:
+                  summary: Deployment in progress
+                  value:
+                    code: 200
+                    status: "OK"
+                    result:
+                      pipelineId: 789
+                      currentStage: "DEPLOYMENT"
+                      overallStatus: "Running"
+                      stages:
+                        - name: "PRE_DEPLOYMENT"
+                          status: "Succeeded"
+                          startTime: "2024-01-15T10:30:00Z"
+                          endTime: "2024-01-15T10:32:00Z"
+                          message: "Pre-deployment scripts completed successfully"
+                        - name: "DEPLOYMENT"
+                          status: "Running"
+                          startTime: "2024-01-15T10:32:00Z"
+                          endTime: null
+                          message: "Deploying application pods..."
+                        - name: "POST_DEPLOYMENT"
+                          status: "Pending"
+                          startTime: null
+                          endTime: null
+                          message: "Waiting for deployment to complete"
+        '400':
+          description: Bad request - Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Invalid or missing authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not found - Pipeline not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
+
+  schemas:
+    WorkflowHistoryResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+          example: 200
+        status:
+          type: string
+          description: Response status
+          example: "OK"
+        result:
+          $ref: '#/components/schemas/WorkflowHistoryResult'
+
+    WorkflowHistoryResult:
+      type: object
+      properties:
+        workflows:
+          type: array
+          description: List of workflow runs
+          items:
+            $ref: '#/components/schemas/WorkflowRun'
+        totalCount:
+          type: integer
+          description: Total number of workflow runs
+          example: 25
+        offset:
+          type: integer
+          description: Current offset for pagination
+          example: 0
+        size:
+          type: integer
+          description: Number of records returned
+          example: 20
+
+    WorkflowRun:
+      type: object
+      properties:
+        workflowId:
+          type: integer
+          description: Unique identifier of the workflow
+          example: 12345
+        workflowRunnerId:
+          type: integer
+          description: Unique identifier of the workflow run
+          example: 67890
+        status:
+          type: string
+          description: Current status of the workflow
+          enum: ["Starting", "Running", "Succeeded", "Failed", "Cancelled", "Aborted"]
+          example: "Succeeded"
+        startedOn:
+          type: string
+          format: date-time
+          description: Timestamp when the workflow started
+          example: "2024-01-15T10:30:00Z"
+        finishedOn:
+          type: string
+          format: date-time
+          description: Timestamp when the workflow finished
+          example: "2024-01-15T10:35:00Z"
+        triggeredBy:
+          type: string
+          description: User who triggered the workflow
+          example: "user@example.com"
+        artifactId:
+          type: integer
+          description: ID of the artifact being deployed
+          example: 98765
+        imageTag:
+          type: string
+          description: Docker image tag being deployed
+          example: "v1.2.3"
+        message:
+          type: string
+          description: Status message or error details
+          example: "Deployment completed successfully"
+
+    WorkflowLogsResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+          example: 200
+        status:
+          type: string
+          description: Response status
+          example: "OK"
+        result:
+          $ref: '#/components/schemas/WorkflowLogsResult'
+
+    WorkflowLogsResult:
+      type: object
+      properties:
+        preDeploymentLogs:
+          type: string
+          description: Pre-deployment script logs
+          example: "Starting pre-deployment tasks...\nRunning database migrations...\nMigrations completed successfully"
+        postDeploymentLogs:
+          type: string
+          description: Post-deployment script logs
+          example: "Starting post-deployment tasks...\nRunning health checks...\nAll health checks passed"
+        deploymentLogs:
+          type: string
+          description: Main deployment logs
+          example: "Deploying application...\nPods starting...\nDeployment successful"
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+          example: 400
+        status:
+          type: string
+          description: Error status
+          example: "Bad Request"
+        errors:
+          type: array
+          description: List of error details
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+
+    ErrorDetail:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Error code
+          example: "000"
+        internalMessage:
+          type: string
+          description: Internal error message for debugging
+          example: "validation failed for field 'appId': required"
+        userMessage:
+          type: string
+          description: User-friendly error message
+          example: "Application ID is required"
+
+    WorkflowTriggerInfoResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+          example: 200
+        status:
+          type: string
+          description: Response status
+          example: "OK"
+        result:
+          $ref: '#/components/schemas/WorkflowTriggerInfo'
+
+    WorkflowTriggerInfo:
+      type: object
+      properties:
+        workflowRunnerId:
+          type: integer
+          description: Unique identifier of the workflow runner
+          example: 67890
+        triggeredBy:
+          type: string
+          description: User who triggered the workflow
+          example: "user@example.com"
+        triggeredAt:
+          type: string
+          format: date-time
+          description: Timestamp when the workflow was triggered
+          example: "2024-01-15T10:30:00Z"
+        triggerType:
+          type: string
+          description: Type of trigger
+          enum: ["MANUAL", "AUTOMATIC", "WEBHOOK"]
+          example: "MANUAL"
+        artifactInfo:
+          $ref: '#/components/schemas/ArtifactInfo'
+        deploymentConfig:
+          $ref: '#/components/schemas/DeploymentConfig'
+        runtimeParameters:
+          type: object
+          description: Runtime parameters used for deployment
+          additionalProperties:
+            type: string
+          example:
+            ENVIRONMENT: "production"
+            REPLICAS: "3"
+            CPU_LIMIT: "500m"
+
+    ArtifactInfo:
+      type: object
+      properties:
+        artifactId:
+          type: integer
+          description: Unique identifier of the artifact
+          example: 98765
+        imageTag:
+          type: string
+          description: Docker image tag
+          example: "v1.2.3"
+        imageDigest:
+          type: string
+          description: Docker image digest
+          example: "sha256:abcd1234..."
+        buildTime:
+          type: string
+          format: date-time
+          description: Timestamp when the artifact was built
+          example: "2024-01-15T10:00:00Z"
+        commitHash:
+          type: string
+          description: Git commit hash
+          example: "abc123def456"
+        commitMessage:
+          type: string
+          description: Git commit message
+          example: "Fix critical bug in payment processing"
+
+    DeploymentConfig:
+      type: object
+      properties:
+        strategy:
+          type: string
+          description: Deployment strategy
+          enum: ["ROLLING", "BLUE_GREEN", "RECREATE", "CANARY"]
+          example: "ROLLING"
+        namespace:
+          type: string
+          description: Kubernetes namespace
+          example: "production"
+        replicas:
+          type: integer
+          description: Number of replicas
+          example: 3
+        resources:
+          $ref: '#/components/schemas/ResourceRequirements'
+        environmentVariables:
+          type: object
+          description: Environment variables
+          additionalProperties:
+            type: string
+          example:
+            DATABASE_URL: "postgresql://..."
+            REDIS_URL: "redis://..."
+
+    ResourceRequirements:
+      type: object
+      properties:
+        requests:
+          $ref: '#/components/schemas/ResourceSpec'
+        limits:
+          $ref: '#/components/schemas/ResourceSpec'
+
+    ResourceSpec:
+      type: object
+      properties:
+        cpu:
+          type: string
+          description: CPU requirement
+          example: "500m"
+        memory:
+          type: string
+          description: Memory requirement
+          example: "512Mi"
+
+    DeploymentStatusResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+          example: 200
+        status:
+          type: string
+          description: Response status
+          example: "OK"
+        result:
+          $ref: '#/components/schemas/DeploymentStatus'
+
+    DeploymentStatus:
+      type: object
+      properties:
+        pipelineId:
+          type: integer
+          description: Unique identifier of the CD pipeline
+          example: 789
+        currentStage:
+          type: string
+          description: Currently executing stage
+          enum: ["PRE_DEPLOYMENT", "DEPLOYMENT", "POST_DEPLOYMENT", "COMPLETED"]
+          example: "DEPLOYMENT"
+        overallStatus:
+          type: string
+          description: Overall deployment status
+          enum: ["Pending", "Running", "Succeeded", "Failed", "Cancelled"]
+          example: "Running"
+        stages:
+          type: array
+          description: List of deployment stages
+          items:
+            $ref: '#/components/schemas/DeploymentStage'
+
+    DeploymentStage:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Stage name
+          enum: ["PRE_DEPLOYMENT", "DEPLOYMENT", "POST_DEPLOYMENT"]
+          example: "DEPLOYMENT"
+        status:
+          type: string
+          description: Stage status
+          enum: ["Pending", "Running", "Succeeded", "Failed", "Cancelled"]
+          example: "Running"
+        startTime:
+          type: string
+          format: date-time
+          description: Stage start time
+          example: "2024-01-15T10:32:00Z"
+        endTime:
+          type: string
+          format: date-time
+          description: Stage end time (null if still running)
+          example: "2024-01-15T10:35:00Z"
+        message:
+          type: string
+          description: Stage status message
+          example: "Deploying application pods..."
