@@ -15,10 +15,6 @@ version: 0.22.99
 sources:
   - https://github.com/devtron-labs/charts
 dependencies:
-- name: cloudnative-pg
-  version: 0.26.0
-  repository: https://cloudnative-pg.io/charts
-  condition: devtronEnterprise.finops.enabled
 - name: argo-cd
   version: "7.7.15"
   repository: https://argoproj.github.io/argo-helm

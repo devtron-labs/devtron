@@ -34,10 +34,6 @@ users:
 - system:serviceaccount:devtron-cd:cd-runner
 - system:serviceaccount:devtroncd:chart-sync
 - system:serviceaccount:devtroncd:devtron-default-sa
-{{- if $.Values.devtronEnterprise.enabled }}
-- system:serviceaccount:devtroncd:devtron-cloudnative-pg
-- system:serviceaccount:devtroncd:timescaledb-cluster-pg15
-{{- end }}
 volumes:
 - '*'
 {{- end }}
