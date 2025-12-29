@@ -25,7 +25,7 @@ data:
   SCOOP_CLUSTER_CONFIG: '{"1":{"serviceName":"scoop-service","passKey":"qhihdidhwid","namespace":"devtroncd","port":"80"}}'
   {{- end }}
   {{- if $.Values.devtronEnterprise.enabled }}
-  TIMESCALE_ADDR: timescaledb-cluster-pg15-r.devtroncd
+  TIMESCALE_ADDR: timescaledb-service.devtroncd
   TIMESCALE_DATABASE: finops
   TIMESCALE_USER: postgres
   CASBIN_CLIENT_URL: casbin-service.devtroncd:9000
