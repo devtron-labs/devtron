@@ -46,7 +46,7 @@ spec:
         {{- include "common.storageclass" $ | indent 8 }}
         resources:
           requests:
-            storage: {{ $.Values.devtronEnterprise.finops.timescale.persistence.volumeSize }}
+            storage: {{ $.Values.devtronEnterprise.finops.timescale.persistence.volumeSize | default "5Gi" }}
 
 ---
 apiVersion: v1
