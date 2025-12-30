@@ -26,11 +26,11 @@ spec:
           containers:
             - envFrom:
                 - configMapRef: 
-                    name: devtron-common-cm
-                - configMapRef: 
                     name: cost-sync-cm
                 - secretRef:
                     name: postgresql-migrator
+                - configMapRef: 
+                    name: devtron-common-cm
               image: {{ include "common.image" (dict "component" $.Values.devtronEnterprise.finops.costSync "global" $.Values.global ) }}
               imagePullPolicy: IfNotPresent
               name: cost-sync-job
