@@ -30,7 +30,7 @@ spec:
                 - configMapRef: 
                     name: cost-sync-cm
                 - secretRef:
-                    name: devtron-secret
+                    name: devtron-custom-secret
               image: {{ include "common.image" (dict "component" $.Values.devtronEnterprise.finops.costSync "global" $.Values.global ) }}
               imagePullPolicy: IfNotPresent
               name: cost-sync-job
