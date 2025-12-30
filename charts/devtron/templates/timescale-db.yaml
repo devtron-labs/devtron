@@ -8,7 +8,6 @@ metadata:
     app: timescaledb
 spec:
   serviceName: timescaledb-service
-  serviceAccountName: devtron-default-sa
   replicas: 1
   selector:
     matchLabels:
@@ -18,6 +17,7 @@ spec:
       labels:
         app: timescaledb
     spec:
+      serviceAccountName: devtron-default-sa
       {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.postgres.nodeSelector "tolerations" $.Values.components.postgres.tolerations "imagePullSecrets" $.Values.components.postgres.imagePullSecrets "global" $.Values.global) | indent 6 }}
       securityContext:
         fsGroup: 999
