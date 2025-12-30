@@ -40,3 +40,5 @@ quay.io/devtron/postgres_exporter:v0.10.1
 quay.io/devtron/postgres_exporter:v0.4.7
 quay.io/devtron/prometheus-nats-exporter:0.9.0
 quay.io/devtron/ubuntu-k8s-utils:latest
+quay.io/devtron/cost-sync:46ed7c67-1159-38183
+quay.io/devtron/timescaledb-ha:pg18

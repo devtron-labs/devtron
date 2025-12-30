@@ -23,7 +23,7 @@ spec:
         fsGroup: 999
       containers:
         - name: timescaledb
-          image: 'timescale/timescaledb-ha:pg18'
+          image: {{ include "common.image" (dict "component" $.Values.devtronEnterprise.finops.timescale "global" $.Values.global ) }}
           securityContext: {}
           envFrom:
             - secretRef:

@@ -249,6 +249,7 @@ devtronEnterprise:
       schedule: "0 * * * *"
       timeZone: UTC
     timescale:
+      image: "timescaledb-ha:pg18"
       volumeSize: 5Gi
   casbin:
     registry: ""
