@@ -13,13 +13,13 @@ spec:
   failedJobsHistoryLimit: 1
   jobTemplate:
     spec:
-      serviceAccountName: devtron-default-sa
       activeDeadlineSeconds: 3600
       template:
         metadata:
           labels:
             app: cost-sync-job
         spec:
+          serviceAccountName: devtron-default-sa
           {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.devtronEnterprise.finops.nodeSelector "tolerations" $.Values.devtronEnterprise.finops.tolerations "imagePullSecrets" $.Values.devtronEnterprise.finops.imagePullSecrets "global" $.Values.global) | indent 4 }}
           {{- include "common.podSecurityContext" (dict "podSecurityContext" $.Values.devtronEnterprise.finops.podSecurityContext "global" $.Values.global) | indent 10 }}         
           restartPolicy: OnFailure
