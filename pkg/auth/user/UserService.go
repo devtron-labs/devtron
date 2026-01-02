@@ -1664,7 +1664,10 @@ func (impl *UserServiceImpl) saveUserAudit(r *http.Request, userId int32) {
 		CreatedOn: time.Now(),
 		UpdatedOn: time.Now(),
 	}
-	impl.userAuditService.Save(userAudit)
+	// Using Update instead of Save to upsert (update if exists, insert if not)
+	// This prevents the user_audit table from filling up with duplicate entries
+	// for API token users
+	impl.userAuditService.Update(userAudit)
 }
 
 func (impl *UserServiceImpl) GetRoleFiltersByUserRoleGroups(userRoleGroups []userBean.UserRoleGroup) ([]userBean.RoleFilter, error) {
