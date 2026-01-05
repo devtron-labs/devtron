@@ -959,41 +959,23 @@ func (impl *ImageScanServiceImpl) FetchVulnerabilitySummary(ctx context.Context,
 		}, nil
 	}
 
-	// Build vulnerability map (deduplicate by CVE + App + Env + Package + Version + FixedVersion)
-	// Same logic as VulnerabilityListing
-	vulnerabilityMap := make(map[string]*bean3.VulnerabilityDetail)
+	vulnerabilities := make([]*bean3.VulnerabilityDetail, 0)
 	for _, data := range rawData {
-		// Create unique key for this CVE+App+Env+Package+Version+FixedVersion combination
-		key := fmt.Sprintf("%s|%d|%d|%s|%s|%s", data.CveStoreName, data.AppId, data.EnvId, data.Package, data.CurrentVersion, data.FixedVersion)
-
 		// Convert severity int to string
 		severityStr := impl.convertSeverityEnumToString(data.Severity)
+		vulnerabilities = append(vulnerabilities, &bean3.VulnerabilityDetail{
+			CVEName:        data.CveStoreName,
+			Severity:       severityStr,
+			AppName:        data.AppName,
+			AppId:          data.AppId,
+			EnvName:        data.EnvName,
+			EnvId:          data.EnvId,
+			DiscoveredAt:   data.ExecutionTime,
+			Package:        data.Package,
+			CurrentVersion: data.CurrentVersion,
+			FixedVersion:   data.FixedVersion,
+		})
 
-		if existing, exists := vulnerabilityMap[key]; exists {
-			// Keep the earliest discovery time
-			if data.ExecutionTime.Before(existing.DiscoveredAt) {
-				existing.DiscoveredAt = data.ExecutionTime
-			}
-		} else {
-			vulnerabilityMap[key] = &bean3.VulnerabilityDetail{
-				CVEName:        data.CveStoreName,
-				Severity:       severityStr,
-				AppName:        data.AppName,
-				AppId:          data.AppId,
-				EnvName:        data.EnvName,
-				EnvId:          data.EnvId,
-				DiscoveredAt:   data.ExecutionTime,
-				Package:        data.Package,
-				CurrentVersion: data.CurrentVersion,
-				FixedVersion:   data.FixedVersion,
-			}
-		}
-	}
-
-	// Convert map to slice
-	vulnerabilities := make([]*bean3.VulnerabilityDetail, 0, len(vulnerabilityMap))
-	for _, vuln := range vulnerabilityMap {
-		vulnerabilities = append(vulnerabilities, vuln)
 	}
 
 	// Apply code-level filters (FixAvailable and VulnAge)
