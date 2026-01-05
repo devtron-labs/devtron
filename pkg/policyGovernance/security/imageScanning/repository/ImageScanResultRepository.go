@@ -97,7 +97,6 @@ type ImageScanResultRepository interface {
 	FindByImage(image string) ([]*ImageScanExecutionResult, error)
 
 	// Security Overview methods
-	GetVulnerabilitiesWithFixedVersionByFilters(envIds, clusterIds, appIds []int) ([]*VulnerabilityData, error)
 	GetSeverityInsightDataByFilters(envIds, clusterIds, appIds []int, isProd *bool) ([]*SeverityInsightData, error)
 	GetVulnerabilityTrendDataByFilters(from, to *time.Time, isProd *bool) ([]*VulnerabilityTrendData, error)
 
@@ -192,75 +191,6 @@ func (impl ImageScanResultRepositoryImpl) FindByImage(image string) ([]*ImageSca
 // ============================================================================
 // Security Overview Methods
 // ============================================================================
-
-func (impl ImageScanResultRepositoryImpl) GetVulnerabilitiesWithFixedVersionByFilters(envIds, clusterIds, appIds []int) ([]*VulnerabilityData, error) {
-	var results []*VulnerabilityData
-
-	query := `
-		WITH LatestDeployments AS (
-			SELECT
-				p.app_id,
-				p.environment_id,
-				env.cluster_id,
-				cia.image,
-				ROW_NUMBER() OVER (PARTITION BY p.app_id, p.environment_id ORDER BY cwr.id DESC) AS rn
-			FROM cd_workflow_runner cwr
-			INNER JOIN cd_workflow cw ON cw.id = cwr.cd_workflow_id
-			INNER JOIN pipeline p ON p.id = cw.pipeline_id
-			INNER JOIN environment env ON env.id = p.environment_id
-			INNER JOIN ci_artifact cia ON cia.id = cw.ci_artifact_id
-			WHERE cwr.workflow_type = 'DEPLOY'
-			AND p.deleted = false
-			AND env.active = true
-	`
-
-	var queryParams []interface{}
-
-	// Add filters to CTE
-	if len(envIds) > 0 {
-		query += " AND p.environment_id = ANY(?)"
-		queryParams = append(queryParams, pg.Array(envIds))
-	}
-
-	if len(clusterIds) > 0 {
-		query += " AND env.cluster_id = ANY(?)"
-		queryParams = append(queryParams, pg.Array(clusterIds))
-	}
-
-	if len(appIds) > 0 {
-		query += " AND p.app_id = ANY(?)"
-		queryParams = append(queryParams, pg.Array(appIds))
-	}
-
-	// Complete the CTE and join with image_scan_deploy_info to get only scanned deployments
-	// Then fetch vulnerabilities from image_scan_execution_result
-	query += `
-		)
-		SELECT
-			iser.cve_store_name,
-			iser.fixed_version
-		FROM LatestDeployments ld
-		INNER JOIN image_scan_deploy_info isdi
-			ON isdi.scan_object_meta_id = ld.app_id
-			AND isdi.env_id = ld.environment_id
-			AND isdi.object_type = 'app'
-		INNER JOIN image_scan_execution_result iser
-			ON iser.image_scan_execution_history_id = isdi.image_scan_execution_history_id[1]
-		INNER JOIN image_scan_execution_history iseh
-			ON iseh.id = isdi.image_scan_execution_history_id[1]
-		WHERE ld.image = iseh.image
-		AND ld.rn = 1
-		AND isdi.image_scan_execution_history_id[1] != -1
-	`
-
-	_, err := impl.dbConnection.Query(&results, query, queryParams...)
-	if err != nil {
-		impl.logger.Errorw("error in getting vulnerabilities with fixed version", "err", err)
-		return nil, err
-	}
-
-	return results, nil
-}
 
 // GetSeverityInsightDataByFilters returns vulnerability data with severity and execution time
 // for calculating severity distribution and age distribution in a single query
