@@ -87,6 +87,9 @@ type ImageScanDeployInfoRepository interface {
 	GetActiveDeploymentScannedUnscannedCountByFilters(envIds, clusterIds, appIds []int) (*DeploymentScannedCount, error)
 	GetNonScannedAppEnvCombinations(request *repoBean.ImageScanFilter, size int, offset int, deployInfoIds []int) ([]*ImageScanDeployInfo, error)
 	GetNonScannedAppEnvCombinationsCount(request *repoBean.ImageScanFilter, deployInfoIds []int) (int, error)
+
+	// Optimized method for vulnerability summary - combines filtering with scanned artifact check in single query
+	FindScannedDeployInfoWithFilters(envIds, clusterIds []int) ([]*ImageScanDeployInfo, error)
 }
 
 type ImageScanDeployInfoRepositoryImpl struct {
@@ -632,4 +635,80 @@ func (impl ImageScanDeployInfoRepositoryImpl) buildNonScannedAppEnvQuery(request
 	}
 
 	return query, queryParams
+}
+
+// FindScannedDeployInfoWithFilters returns deploy info for scanned artifacts that are currently deployed
+// This combines the logic of FindAll + FilterDeployInfoByScannedArtifactsDeployedInEnv into a single optimized query
+// It only returns deploy info where:
+// 1. The artifact is currently deployed (latest deployment per app+env)
+// 2. The artifact has been scanned (exists in image_scan_deploy_info with valid scan history)
+// 3. The deployed image matches the scanned image
+func (impl ImageScanDeployInfoRepositoryImpl) FindScannedDeployInfoWithFilters(envIds, clusterIds []int) ([]*ImageScanDeployInfo, error) {
+	var results []*ImageScanDeployInfo
+
+	// This query:
+	// 1. Gets the latest deployment per app+env from cd_workflow_runner
+	// 2. Joins with image_scan_deploy_info to get only scanned deployments
+	// 3. Verifies the deployed image matches the scanned image
+	// 4. Applies environment and cluster filters
+	query := `
+		WITH LatestDeployments AS (
+			SELECT
+				p.app_id,
+				p.environment_id,
+				env.cluster_id,
+				cia.image,
+				ROW_NUMBER() OVER (PARTITION BY p.app_id, p.environment_id ORDER BY cwr.id DESC) AS rn
+			FROM cd_workflow_runner cwr
+			INNER JOIN cd_workflow cw ON cw.id = cwr.cd_workflow_id
+			INNER JOIN pipeline p ON p.id = cw.pipeline_id
+			INNER JOIN environment env ON env.id = p.environment_id
+			INNER JOIN ci_artifact cia ON cia.id = cw.ci_artifact_id
+			WHERE cwr.workflow_type = 'DEPLOY'
+			AND p.deleted = false
+			AND env.active = true
+	`
+
+	var queryParams []interface{}
+
+	// Add filters to CTE
+	if len(envIds) > 0 {
+		query += " AND p.environment_id = ANY(?)"
+		queryParams = append(queryParams, pg.Array(envIds))
+	}
+
+	if len(clusterIds) > 0 {
+		query += " AND env.cluster_id = ANY(?)"
+		queryParams = append(queryParams, pg.Array(clusterIds))
+	}
+
+	// Complete the CTE and join with image_scan_deploy_info
+	query += `
+		)
+		SELECT
+			isdi.id,
+			isdi.image_scan_execution_history_id,
+			isdi.scan_object_meta_id,
+			isdi.object_type,
+			isdi.env_id,
+			isdi.cluster_id
+		FROM LatestDeployments ld
+		INNER JOIN image_scan_deploy_info isdi
+			ON isdi.scan_object_meta_id = ld.app_id
+			AND isdi.env_id = ld.environment_id
+			AND isdi.object_type = 'app'
+			AND isdi.image_scan_execution_history_id[1] != -1
+		INNER JOIN image_scan_execution_history iseh
+			ON iseh.id = isdi.image_scan_execution_history_id[1]
+			AND iseh.image = ld.image
+		WHERE ld.rn = 1
+	`
+
+	_, err := impl.dbConnection.Query(&results, query, queryParams...)
+	if err != nil {
+		impl.logger.Errorw("error in FindScannedDeployInfoWithFilters", "err", err, "envIds", envIds, "clusterIds", clusterIds)
+		return nil, err
+	}
+
+	return results, nil
 }

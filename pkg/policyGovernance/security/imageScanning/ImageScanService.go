@@ -60,6 +60,9 @@ type ImageScanService interface {
 	// resource scanning functions below
 	GetScanResults(resourceScanQueryParams *bean3.ResourceScanQueryParams) (parser.ResourceScanResponseDto, error)
 	FilterDeployInfoByScannedArtifactsDeployedInEnv(deployInfoList []*repository3.ImageScanDeployInfo) ([]*repository3.ImageScanDeployInfo, error)
+
+	// Optimized method for vulnerability summary - combines filtering with scanned artifact check in single query
+	FetchScannedDeployInfoWithFilters(ctx context.Context, envIds, clusterIds []int) ([]*repository3.ImageScanDeployInfo, error)
 }
 
 type ImageScanServiceImpl struct {
@@ -926,6 +929,21 @@ func (impl ImageScanServiceImpl) fetchLatestArtifactMetadataDeployedOnAllEnvsAcr
 		}
 	}
 	return appEnvToCiArtifactMap, ciArtifactIdToScannedMap, nil
+}
+
+// FetchScannedDeployInfoWithFilters returns deploy info for scanned artifacts that are currently deployed
+// This is an optimized method that combines the logic of FetchAllDeployInfo + FilterDeployInfoByScannedArtifactsDeployedInEnv
+// into a single database query, significantly improving performance for vulnerability summary API
+func (impl *ImageScanServiceImpl) FetchScannedDeployInfoWithFilters(ctx context.Context, envIds, clusterIds []int) ([]*repository3.ImageScanDeployInfo, error) {
+	_, span := otel.Tracer("imageScanService").Start(ctx, "FetchScannedDeployInfoWithFilters")
+	defer span.End()
+
+	deployInfoList, err := impl.imageScanDeployInfoRepository.FindScannedDeployInfoWithFilters(envIds, clusterIds)
+	if err != nil {
+		impl.Logger.Errorw("error in FetchScannedDeployInfoWithFilters", "err", err, "envIds", envIds, "clusterIds", clusterIds)
+		return nil, err
+	}
+	return deployInfoList, nil
 }
 
 // FetchVulnerabilitySummary fetches the vulnerability summary for the given filters
