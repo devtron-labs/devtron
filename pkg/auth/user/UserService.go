@@ -19,17 +19,18 @@ package user
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
 	bean4 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
 	userHelper "github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	adapter2 "github.com/devtron-labs/devtron/pkg/auth/user/repository/adapter"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	util3 "github.com/devtron-labs/devtron/pkg/auth/user/util"
-	"net/http"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
 
 	"github.com/devtron-labs/authenticator/jwt"
 	"github.com/devtron-labs/authenticator/middleware"
@@ -1237,7 +1238,7 @@ func (impl *UserServiceImpl) GetLoggedInUser(r *http.Request) (int32, error) {
 	userId, userType, err := impl.GetUserByToken(r.Context(), token)
 	// if user is of api-token type, then update lastUsedBy and lastUsedAt
 	if err == nil && userType == userBean.USER_TYPE_API_TOKEN {
-		go impl.saveUserAudit(r, userId)
+		go impl.updateUserAudit(r, userId)
 	}
 	return userId, err
 }
@@ -1663,6 +1664,15 @@ func (impl *UserServiceImpl) saveUserAudit(r *http.Request, userId int32) {
 		ClientIp:  clientIp,
 		CreatedOn: time.Now(),
 		UpdatedOn: time.Now(),
+	}
+	impl.userAuditService.Save(userAudit)
+}
+
+func (impl *UserServiceImpl) updateUserAudit(r *http.Request, userId int32) {
+	clientIp := util2.GetClientIP(r)
+	userAudit := &UserAudit{
+		UserId:   userId,
+		ClientIp: clientIp,
 	}
 	impl.userAuditService.Update(userAudit)
 }
