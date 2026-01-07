@@ -1664,7 +1664,7 @@ func (impl *UserServiceImpl) saveUserAudit(r *http.Request, userId int32) {
 		CreatedOn: time.Now(),
 		UpdatedOn: time.Now(),
 	}
-	impl.userAuditService.Save(userAudit)
+	impl.userAuditService.Update(userAudit)
 }
 
 func (impl *UserServiceImpl) GetRoleFiltersByUserRoleGroups(userRoleGroups []userBean.UserRoleGroup) ([]userBean.RoleFilter, error) {
