@@ -344,7 +344,7 @@ spec:
           {{- end }}
           {{- end }}
 
-{{- if or $.Values.LivenessProbe.Path $.Values.LivenessProbe.command $.Values.LivenessProbe.tcp }}
+{{- if or $.Values.LivenessProbe.Path $.Values.LivenessProbe.command $.Values.LivenessProbe.tcp $.Values.LivenessProbe.grpc }}
           livenessProbe:
 {{- if $.Values.LivenessProbe.Path }}
             httpGet:
@@ -357,7 +357,7 @@ spec:
                   value: {{.value}}
               {{- end}}
 	    {{- end }}
-{{- end }}
+{{- end }}       
 {{- if $.Values.LivenessProbe.command }}
             exec:
               command:
@@ -372,8 +372,12 @@ spec:
             successThreshold: {{ $.Values.LivenessProbe.successThreshold  }}
             timeoutSeconds: {{ $.Values.LivenessProbe.timeoutSeconds  }}
             failureThreshold: {{ $.Values.LivenessProbe.failureThreshold  }}
+          {{- if $.Values.LivenessProbe.grpc }}
+            grpc:
+{{ toYaml .Values.LivenessProbe.grpc | indent 14 }}
+          {{- end}}
 {{- end }}
-{{- if or $.Values.ReadinessProbe.Path  $.Values.ReadinessProbe.command $.Values.ReadinessProbe.tcp }}
+{{- if or $.Values.ReadinessProbe.Path  $.Values.ReadinessProbe.command $.Values.ReadinessProbe.tcp $.Values.ReadinessProbe.grpc }}
           readinessProbe:
 {{- if $.Values.ReadinessProbe.Path }}
             httpGet:
@@ -401,10 +405,14 @@ spec:
             successThreshold: {{ $.Values.ReadinessProbe.successThreshold  }}
             timeoutSeconds: {{ $.Values.ReadinessProbe.timeoutSeconds  }}
             failureThreshold: {{ $.Values.ReadinessProbe.failureThreshold  }}
+            {{- if $.Values.ReadinessProbe.grpc }}
+            grpc:
+{{ toYaml .Values.ReadinessProbe.grpc | indent 14 }}
+            {{- end}}
 {{- end }}
           resources:
 {{ toYaml $.Values.resources | trim | indent 12 }}
-{{- if or $.Values.StartupProbe.Path  $.Values.StartupProbe.command $.Values.StartupProbe.tcp }}
+{{- if or $.Values.StartupProbe.Path  $.Values.StartupProbe.command $.Values.StartupProbe.tcp $.Values.StartupProbe.grpc }}
           startupProbe:
 {{- if $.Values.StartupProbe.Path }}
             httpGet:
@@ -432,6 +440,10 @@ spec:
             successThreshold: {{ $.Values.StartupProbe.successThreshold  }}
             timeoutSeconds: {{ $.Values.StartupProbe.timeoutSeconds  }}
             failureThreshold: {{ $.Values.StartupProbe.failureThreshold  }}
+            {{- if $.Values.StartupProbe.grpc }}
+            grpc:
+{{ toYaml .Values.StartupProbe.grpc | indent 14 }}
+            {{- end}}
 {{- end }}
           volumeMounts:
 {{- with .Values.volumeMounts }}
