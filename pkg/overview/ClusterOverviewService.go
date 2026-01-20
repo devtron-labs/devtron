@@ -230,8 +230,12 @@ func (impl *ClusterOverviewServiceImpl) fetchClusterDataParallel(ctx context.Con
 			detail, err := impl.k8sCapacityService.GetClusterCapacityDetail(ctx, clusterCopy, false)
 			if err != nil {
 				impl.logger.Warnw("error fetching cluster capacity, skipping", "clusterId", clusterCopy.Id, "clusterName", clusterCopy.ClusterName, "err", err)
-				// Return error to skip this cluster
-				return nil, err
+				// Populate error for this cluster
+				detail = &capacityBean.ClusterCapacityDetail{
+					ErrorInConnection: err.Error(),
+					Status:            capacityBean.ClusterStatusConnectionFailed,
+				}
+				// Continue to next cluster, returning error will stop the worker pool from further processing
 			}
 
 			// Set cluster metadata
