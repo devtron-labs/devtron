@@ -1,5 +1,6 @@
 ## Enhancements
 ## Bugs
+- fix: enhance cluster overview response with raw cluster capacity details and caching support (#6914)
 - fix: Handle cluster capacity fetch errors by returning detailed connection failure status (#6912)
 ## Others
 - misc: add clientIP in audit log (#6908)
