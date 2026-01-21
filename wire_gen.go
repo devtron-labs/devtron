@@ -1038,7 +1038,8 @@ func InitializeApp() (*App, error) {
 	apiTokenRestHandlerImpl := apiToken2.NewApiTokenRestHandlerImpl(sugaredLogger, apiTokenServiceImpl, userServiceImpl, enforcerImpl, validate)
 	apiTokenRouterImpl := apiToken2.NewApiTokenRouterImpl(apiTokenRestHandlerImpl)
 	k8sCapacityServiceImpl := capacity.NewK8sCapacityServiceImpl(sugaredLogger, k8sApplicationServiceImpl, k8sServiceImpl, k8sCommonServiceImpl)
-	k8sCapacityRestHandlerImpl := capacity2.NewK8sCapacityRestHandlerImpl(sugaredLogger, k8sCapacityServiceImpl, userServiceImpl, enforcerImpl, clusterServiceImplExtended, environmentServiceImpl, clusterRbacServiceImpl, clusterReadServiceImpl, validate)
+	clusterCacheServiceImpl := cache.NewClusterCacheServiceImpl(sugaredLogger)
+	k8sCapacityRestHandlerImpl := capacity2.NewK8sCapacityRestHandlerImpl(sugaredLogger, k8sCapacityServiceImpl, userServiceImpl, enforcerImpl, clusterServiceImplExtended, environmentServiceImpl, clusterRbacServiceImpl, clusterReadServiceImpl, validate, clusterCacheServiceImpl)
 	k8sCapacityRouterImpl := capacity2.NewK8sCapacityRouterImpl(k8sCapacityRestHandlerImpl)
 	webhookHelmServiceImpl := webhookHelm.NewWebhookHelmServiceImpl(sugaredLogger, helmAppServiceImpl, clusterServiceImplExtended, chartRepositoryServiceImpl, attributesServiceImpl)
 	webhookHelmRestHandlerImpl := webhookHelm2.NewWebhookHelmRestHandlerImpl(sugaredLogger, webhookHelmServiceImpl, userServiceImpl, enforcerImpl, validate)
@@ -1107,7 +1108,6 @@ func InitializeApp() (*App, error) {
 	appManagementServiceImpl := overview.NewAppManagementServiceImpl(sugaredLogger, appRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, ciWorkflowRepositoryImpl, cdWorkflowRepositoryImpl, environmentRepositoryImpl, teamRepositoryImpl, workflowStageRepositoryImpl, repositoryImpl)
 	doraMetricsServiceImpl := overview.NewDoraMetricsServiceImpl(sugaredLogger, lensClientImpl, appRepositoryImpl, pipelineRepositoryImpl, environmentRepositoryImpl, cdWorkflowRepositoryImpl)
 	insightsServiceImpl := overview.NewInsightsServiceImpl(sugaredLogger, appRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, ciWorkflowRepositoryImpl, cdWorkflowRepositoryImpl, environmentRepositoryImpl)
-	clusterCacheServiceImpl := cache.NewClusterCacheServiceImpl(sugaredLogger)
 	clusterOverviewConfig, err := config5.GetClusterOverviewConfig()
 	if err != nil {
 		return nil, err
