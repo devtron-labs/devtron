@@ -21,11 +21,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils"
-	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/cluster/rbac"
 	"github.com/devtron-labs/devtron/pkg/cluster/read"
 	bean3 "github.com/devtron-labs/devtron/pkg/k8s/bean"
+	overviewBean "github.com/devtron-labs/devtron/pkg/overview/bean"
+	overviewCache "github.com/devtron-labs/devtron/pkg/overview/cache"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
@@ -53,15 +55,16 @@ type K8sCapacityRestHandler interface {
 	EditNodeTaints(w http.ResponseWriter, r *http.Request)
 }
 type K8sCapacityRestHandlerImpl struct {
-	logger             *zap.SugaredLogger
-	k8sCapacityService capacity.K8sCapacityService
-	userService        user.UserService
-	enforcer           casbin.Enforcer
-	clusterService     cluster.ClusterService
-	environmentService environment.EnvironmentService
-	clusterRbacService rbac.ClusterRbacService
-	clusterReadService read.ClusterReadService
-	validator          *validator.Validate
+	logger              *zap.SugaredLogger
+	k8sCapacityService  capacity.K8sCapacityService
+	userService         user.UserService
+	enforcer            casbin.Enforcer
+	clusterService      cluster.ClusterService
+	environmentService  environment.EnvironmentService
+	clusterRbacService  rbac.ClusterRbacService
+	clusterReadService  read.ClusterReadService
+	validator           *validator.Validate
+	clusterCacheService overviewCache.ClusterCacheService
 }
 
 func NewK8sCapacityRestHandlerImpl(logger *zap.SugaredLogger,
@@ -70,17 +73,21 @@ func NewK8sCapacityRestHandlerImpl(logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	environmentService environment.EnvironmentService,
 	clusterRbacService rbac.ClusterRbacService,
-	clusterReadService read.ClusterReadService, validator *validator.Validate) *K8sCapacityRestHandlerImpl {
+	clusterReadService read.ClusterReadService,
+	validator *validator.Validate,
+	clusterCacheService overviewCache.ClusterCacheService,
+) *K8sCapacityRestHandlerImpl {
 	return &K8sCapacityRestHandlerImpl{
-		logger:             logger,
-		k8sCapacityService: k8sCapacityService,
-		userService:        userService,
-		enforcer:           enforcer,
-		clusterService:     clusterService,
-		environmentService: environmentService,
-		clusterRbacService: clusterRbacService,
-		clusterReadService: clusterReadService,
-		validator:          validator,
+		logger:              logger,
+		k8sCapacityService:  k8sCapacityService,
+		userService:         userService,
+		enforcer:            enforcer,
+		clusterService:      clusterService,
+		environmentService:  environmentService,
+		clusterRbacService:  clusterRbacService,
+		clusterReadService:  clusterReadService,
+		validator:           validator,
+		clusterCacheService: clusterCacheService,
 	}
 }
 
@@ -98,7 +105,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterListRaw(w http.ResponseWrit
 		return
 	}
 	// RBAC enforcer applying
-	var authenticatedClusters []*bean2.ClusterBean
+	var authenticatedClusters []*clusterBean.ClusterBean
 	var clusterDetailList []*bean.ClusterCapacityDetail
 	for _, cluster := range clusters {
 		authenticated, err := handler.clusterRbacService.CheckAuthorization(cluster.ClusterName, cluster.Id, token, userId, true)
@@ -140,7 +147,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterListWithDetail(w http.Respo
 		return
 	}
 	// RBAC enforcer applying
-	var authenticatedClusters []*bean2.ClusterBean
+	var authenticatedClusters []*clusterBean.ClusterBean
 	for _, cluster := range clusters {
 		authenticated, err := handler.clusterRbacService.CheckAuthorization(cluster.ClusterName, cluster.Id, token, userId, true)
 		if err != nil {
@@ -156,11 +163,21 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterListWithDetail(w http.Respo
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	clusterDetailList, err := handler.k8sCapacityService.GetClusterCapacityDetailList(r.Context(), authenticatedClusters)
-	if err != nil {
-		handler.logger.Errorw("error in getting cluster capacity detail list", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
+	// Try to get data from cache if available
+	var clusterDetailList []*bean.ClusterCapacityDetail
+	cachedOverview, cacheFound := handler.clusterCacheService.GetClusterOverview()
+	if cacheFound {
+		handler.logger.Infow("serving cluster capacity details from cache", "totalClusters", cachedOverview.TotalClusters)
+		// Convert ClusterOverviewResponse to RawClusterCapacityDetails list and filter by RBAC
+		clusterDetailList = handler.filterAuthorizedClusterDetails(cachedOverview, authenticatedClusters)
+	} else {
+		handler.logger.Infow("cache not available, fetching cluster capacity details from k8s API")
+		clusterDetailList, err = handler.k8sCapacityService.GetClusterCapacityDetailList(r.Context(), authenticatedClusters)
+		if err != nil {
+			handler.logger.Errorw("error in getting cluster capacity detail list", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
 	}
 	common.WriteJsonResp(w, nil, clusterDetailList, http.StatusOK)
 }
@@ -472,4 +489,38 @@ func (handler *K8sCapacityRestHandlerImpl) EditNodeTaints(w http.ResponseWriter,
 		return
 	}
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+
+// filterAuthorizedClusterDetails converts ClusterOverviewResponse to RawClusterCapacityDetails list
+// and filters based on authenticated clusters. It includes:
+// 1. Clusters from cache (healthy clusters with capacity data)
+// 2. Virtual clusters (from database, not in cache)
+// 3. Clusters with connection errors (from database, not in cache)
+func (handler *K8sCapacityRestHandlerImpl) filterAuthorizedClusterDetails(
+	cachedOverview *overviewBean.ClusterOverviewResponse,
+	authenticatedClusters []*clusterBean.ClusterBean,
+) []*bean.ClusterCapacityDetail {
+	// Create maps for quick lookup
+	authenticatedClusterIds := make(map[int]bool)
+	for _, authenticatedCluster := range authenticatedClusters {
+		authenticatedClusterIds[authenticatedCluster.Id] = true
+	}
+
+	// Authenticated cluster details
+	clusterDetailList := make([]*bean.ClusterCapacityDetail, 0, len(authenticatedClusters))
+
+	// Add clusters from cache
+	for _, capacityDetail := range cachedOverview.RawClusterCapacityDetails {
+		// Only include authenticated clusters
+		if !authenticatedClusterIds[capacityDetail.Id] {
+			continue
+		}
+	}
+
+	handler.logger.Debugw("converted and filtered cluster details from cache",
+		"totalCached", len(cachedOverview.RawClusterCapacityDetails),
+		"authenticated", len(authenticatedClusters),
+		"converted", len(clusterDetailList))
+
+	return clusterDetailList
 }
