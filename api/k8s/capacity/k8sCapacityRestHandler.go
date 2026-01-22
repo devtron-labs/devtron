@@ -515,6 +515,7 @@ func (handler *K8sCapacityRestHandlerImpl) filterAuthorizedClusterDetails(
 		if !authenticatedClusterIds[capacityDetail.Id] {
 			continue
 		}
+		clusterDetailList = append(clusterDetailList, capacityDetail)
 	}
 
 	handler.logger.Debugw("converted and filtered cluster details from cache",
