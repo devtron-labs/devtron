@@ -24,6 +24,11 @@ const (
 	UserPreferencesResourcesKey           = "resources"
 )
 
+// InternalOnlyKeys are the internal attribute keys - cannot be read or written via API
+var InternalOnlyKeys = map[string]bool{
+	API_SECRET_KEY: true,
+}
+
 type AttributesDto struct {
 	Id     int    `json:"id"`
 	Key    string `json:"key,omitempty"`

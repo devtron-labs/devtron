@@ -15,7 +15,7 @@ global:
     PG_DATABASE: orchestrator
 extraManifests: []
 installer:
-  release: "v1.8.2"
+  release: "v2.0.0"
   registry: ""
   image: "inception"
   tag: "473deaa4-185-21582"
@@ -41,13 +41,13 @@ components:
         FEATURE_CODE_MIRROR_ENABLE: "true"
         FEATURE_GROUPED_APP_LIST_FILTERS_ENABLE: "true"
     registry: ""
-    image: "dashboard:b00aa204-690-36533"
+    image: "dashboard:b48d0910-690-38228"
     imagePullPolicy: IfNotPresent
     healthPort: 8080
   devtron:
     registry: ""
-    image: "hyperion:261df88d-280-36531"
-    cicdImage: "devtron:261df88d-434-36530"
+    image: "hyperion:f0c18f20-280-38148"
+    cicdImage: "devtron:f0c18f20-434-38146"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     podSecurityContext:
@@ -61,7 +61,7 @@ components:
     healthPort: 8080
   ciRunner:
     registry: ""
-    image: "ci-runner:880420ac-138-36030"
+    image: "ci-runner:6b408df4-138-38163"
   argocdDexServer:
     registry: ""
     image: "dex:v2.30.2"
@@ -70,7 +70,7 @@ components:
       authenticator: "authenticator:e414faff-393-13273"
   kubelink:
     registry: ""
-    image: "kubelink:880420ac-564-36036"
+    image: "kubelink:6b408df4-564-38159"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
@@ -93,10 +93,11 @@ components:
     healthPort: 50052
   kubewatch:
     registry: ""
-    image: "kubewatch:880420ac-419-36026"
+    image: "kubewatch:6b408df4-419-38172"
     imagePullPolicy: IfNotPresent
     healthPort: 8080
     configs:
+      VELERO_INFORMER: "false"
       devtroncd_NAMESPACE: "devtron-ci"
       USE_CUSTOM_HTTP_TRANSPORT: "true"
       CI_INFORMER: "true"
@@ -117,7 +118,7 @@ components:
       image: postgres_exporter:v0.10.1
   gitsensor:
     registry: ""
-    image: "git-sensor:b82f5fdb-200-36532"
+    image: "git-sensor:6b408df4-200-38174"
     imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
@@ -135,7 +136,7 @@ components:
   # Values for lens
   lens:
     registry: ""
-    image: "lens:880420ac-333-36029"
+    image: "lens:6b408df4-333-38167"
     imagePullPolicy: IfNotPresent
     configs:
       GIT_SENSOR_PROTOCOL: GRPC
@@ -170,7 +171,7 @@ components:
     entMigratorImage: "devtron-utils:geni-v1.1.4"
   chartSync:
     registry: ""
-    image: chart-sync:880420ac-836-36037
+    image: chart-sync:6b408df4-836-38155
     schedule: "0 19 * * *"
     podSecurityContext:
       fsGroup: 1001
@@ -208,7 +209,7 @@ workflowController:
   IMDSv1ExecutorImage: "argoexec:v3.0.7"
 security:
   imageScanner:
-    image: "image-scanner:f21e02cb-141-34534"
+    image: "image-scanner:6b408df4-141-38158"
     healthPort: 8080
     configs:
       TRIVY_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-db
@@ -219,7 +220,7 @@ security:
       tag: 4.3.6
 # Values for notifier integration
 notifier:
-  image: "notifier:00f17215-372-36041"
+  image: "notifier:5c4b5b3a-372-38153"
   healthPort: 3000
 minio:
   image: "minio:RELEASE.2021-02-14T04-01-33Z"
@@ -241,6 +242,15 @@ monitoring:
       imagePullPolicy: IfNotPresent
 devtronEnterprise:
   enabled: false
+  finops:
+    enabled: false
+    costSync:
+      image: "cost-sync:46ed7c67-1159-38183"
+      schedule: "0 * * * *"
+      timeZone: UTC
+    timescale:
+      image: "timescaledb-ha:pg18"
+      volumeSize: 5Gi
   casbin:
     registry: ""
     image: "casbin:f6ff5f74-064b67e5-462-30822"

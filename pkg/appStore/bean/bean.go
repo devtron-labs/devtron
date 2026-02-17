@@ -305,8 +305,6 @@ const (
 )
 
 var CHART_PROXY_TEMPLATE = "reference-chart-proxy"
-var REQUIREMENTS_YAML_FILE = "requirements.yaml"
-var VALUES_YAML_FILE = "values.yaml"
 
 type InstalledAppsResponse struct {
 	AppStoreApplicationName      string    `json:"appStoreApplicationName"`

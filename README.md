@@ -1,6 +1,6 @@
 Note: We have restructured the readme. If you are looking for Devtron's CI/CD capabilities, please [click here](#devtron-platform)
 #
-
+<img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=40318be7-e780-4186-8959-0078e057dddc" />
 <p align="center">
 <picture>
   <source media="(prefers-color-scheme: dark)"  srcset="./assets/devtron-darkmode-logo.png">

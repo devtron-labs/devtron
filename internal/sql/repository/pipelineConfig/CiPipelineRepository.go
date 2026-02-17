@@ -19,8 +19,14 @@ package pipelineConfig
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/ciPipeline"
+	workflowConstants "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/constants"
 	buildCommonBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -29,8 +35,6 @@ import (
 	"github.com/go-pg/pg/orm"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	"strconv"
-	"time"
 )
 
 type CiPipeline struct {
@@ -86,6 +90,18 @@ type CiPipelineScript struct {
 	OutputLocation string   `sql:"output_location"`
 	Active         bool     `sql:"active,notnull"`
 	sql.AuditLog
+}
+
+// WorkflowWithAppEnvDetails represents a workflow with app and environment details for security enablement
+type WorkflowWithAppEnvDetails struct {
+	WorkflowId     int    `pg:"workflow_id"`
+	WorkflowName   string `pg:"workflow_name"`
+	AppId          int    `pg:"app_id"`
+	AppName        string `pg:"app_name"`
+	Environments   string `pg:"environments"`    // Comma-separated environment names
+	CiPipelineIds  string `pg:"ci_pipeline_ids"` // Comma-separated CI pipeline IDs (for RBAC)
+	ScanEnabled    bool   `pg:"scan_enabled"`
+	CiPipelineType string `pg:"ci_pipeline_type"` // CI pipeline type (CI_BUILD, LINKED, EXTERNAL, CI_JOB, LINKED_CD)
 }
 
 // CiPipelineRepository :
@@ -146,6 +162,19 @@ type CiPipelineRepository interface {
 	GetLinkedCiPipelines(ctx context.Context, ciPipelineId int) ([]*CiPipeline, error)
 	GetDownStreamInfo(ctx context.Context, sourceCiPipelineId int,
 		appNameMatch, envNameMatch string, req *pagination.RepositoryRequest) ([]ciPipeline.LinkedCIDetails, int, error)
+	GetActiveCiPipelineCount() (int, error)
+	GetActiveCiPipelineCountInTimeRange(from, to *time.Time) (int, error)
+	GetScanEnabledCiPipelineCount() (int, error)
+	GetCiPipelineCountWithImageScanPluginInPostCiOrPreCd() (int, error)
+	// Security Enablement methods
+	FindAppWorkflowsWithScanDetails(appIds, clusterIds, envIds []int, searchQuery string, scanEnablement string, sortBy, sortOrder string, offset, size int) ([]*WorkflowWithAppEnvDetails, int, error)
+	FindAllAppWorkflowIdsByFilters(appIds, clusterIds, envIds []int, searchQuery string, scanEnablement string) ([]int, error)
+	FindAppWorkflowsByIds(workflowIds []int) ([]*WorkflowWithAppEnvDetails, error)
+	BulkUpdateScanEnabled(workflowIds []int, scanEnabled bool, userId int32) error
+
+	// External CI count methods for performance optimization
+	GetActiveExternalCiPipelineCount() (int, error)
+	GetActiveExternalCiPipelineCountInTimeRange(from, to *time.Time) (int, error)
 }
 
 type CiPipelineRepositoryImpl struct {
@@ -725,4 +754,459 @@ func (impl *CiPipelineRepositoryImpl) GetDownStreamInfo(ctx context.Context, sou
 		return nil, 0, err
 	}
 	return linkedCIDetails, totalCount, err
+}
+
+// Count methods implementation for performance optimization
+func (impl *CiPipelineRepositoryImpl) GetActiveCiPipelineCount() (int, error) {
+	count, err := impl.dbConnection.Model((*CiPipeline)(nil)).
+		Where("active = ?", true).
+		Where("deleted = ?", false).
+		Where("ci_pipeline_type = ?", buildCommonBean.CI_BUILD.ToString()).
+		Count()
+
+	if err != nil {
+		impl.logger.Errorw("error getting active CI pipeline count", "err", err)
+		return 0, err
+	}
+	return count, nil
+}
+
+func (impl *CiPipelineRepositoryImpl) GetActiveCiPipelineCountInTimeRange(from, to *time.Time) (int, error) {
+	query := impl.dbConnection.Model((*CiPipeline)(nil)).
+		Where("active = ?", true).
+		Where("deleted = ?", false)
+
+	if from != nil {
+		query = query.Where("created_on >= ?", from)
+	}
+	if to != nil {
+		query = query.Where("created_on <= ?", to)
+	}
+
+	count, err := query.Count()
+	if err != nil {
+		impl.logger.Errorw("error getting active CI pipeline count in time range", "from", from, "to", to, "err", err)
+		return 0, err
+	}
+	return count, nil
+}
+
+func (impl *CiPipelineRepositoryImpl) GetScanEnabledCiPipelineCount() (int, error) {
+	count, err := impl.dbConnection.Model((*CiPipeline)(nil)).
+		Where("active = ?", true).
+		Where("deleted = ?", false).
+		Where("scan_enabled = ?", true).
+		Where("ci_pipeline_type = ?", buildCommonBean.CI_BUILD.ToString()).
+		Count()
+
+	if err != nil {
+		impl.logger.Errorw("error getting scan enabled CI pipeline count", "err", err)
+		return 0, err
+	}
+	return count, nil
+}
+
+// FindAppWorkflowsWithScanDetails fetches app workflows with scan enablement details for security enablement page
+func (impl *CiPipelineRepositoryImpl) FindAppWorkflowsWithScanDetails(appIds, clusterIds, envIds []int, searchQuery string, scanEnablement string, sortBy, sortOrder string, offset, size int) ([]*WorkflowWithAppEnvDetails, int, error) {
+	var results []*WorkflowWithAppEnvDetails
+
+	// Optimized query strategy:
+	// 1. Single CTE to filter and aggregate in one pass
+	// 2. Avoid redundant joins by reusing data from first join
+	// 3. Use window function for total count to avoid separate CTE
+	// 4. Filter early to reduce rows processed in aggregation
+	// 5. Dynamic sorting based on sortBy and sortOrder parameters
+	query := `
+		WITH workflow_data AS (
+			SELECT
+				aw.id as workflow_id,
+				aw.name as workflow_name,
+				aw.app_id,
+				a.app_name,
+				cp.id as ci_pipeline_id,
+				cp.scan_enabled,
+				cp.ci_pipeline_type,
+				e.environment_name
+			FROM app_workflow aw
+			INNER JOIN app a ON a.id = aw.app_id AND a.active = true AND a.app_type != ?
+			INNER JOIN app_workflow_mapping awm ON awm.app_workflow_id = aw.id AND awm.active = true AND awm.type = ?
+			INNER JOIN ci_pipeline cp ON cp.id = awm.component_id AND cp.active = true AND cp.deleted = false
+			LEFT JOIN pipeline p ON p.ci_pipeline_id = cp.id AND p.deleted = false
+			LEFT JOIN environment e ON e.id = p.environment_id
+			WHERE aw.active = true
+	`
+
+	// Initialize query params with Job type constant and CI_PIPELINE constant
+	queryParams := []interface{}{helper.Job, appWorkflow.CIPIPELINE}
+
+	// Apply app filter early
+	if len(appIds) > 0 {
+		query += " AND aw.app_id = ANY(?)"
+		queryParams = append(queryParams, pg.Array(appIds))
+	}
+
+	// Apply search filter early
+	if searchQuery != "" {
+		query += " AND aw.name ILIKE ?"
+		queryParams = append(queryParams, "%"+searchQuery+"%")
+	}
+
+	// Apply scan enablement filter early using constants
+	// Empty string means fetch all workflows
+	if scanEnablement == string(workflowConstants.ScanEnabled) {
+		query += " AND cp.scan_enabled = true"
+	} else if scanEnablement == string(workflowConstants.ScanNotEnabled) {
+		query += " AND cp.scan_enabled = false"
+	}
+	// If scanEnablement is empty or any other value, no filter is applied (fetch all)
+
+	// Apply cluster/env filters early using direct join instead of EXISTS subquery
+	if len(clusterIds) > 0 || len(envIds) > 0 {
+		// Add filter condition - at least one pipeline must match
+		// We'll handle this by ensuring the workflow has matching pipelines
+		query += `
+			AND EXISTS (
+				SELECT 1 FROM pipeline p2
+				INNER JOIN environment e2 ON e2.id = p2.environment_id
+				WHERE p2.ci_pipeline_id = cp.id
+				AND p2.deleted = false
+		`
+		if len(clusterIds) > 0 {
+			query += " AND e2.cluster_id = ANY(?)"
+			queryParams = append(queryParams, pg.Array(clusterIds))
+		}
+		if len(envIds) > 0 {
+			query += " AND e2.id = ANY(?)"
+			queryParams = append(queryParams, pg.Array(envIds))
+		}
+		query += `
+			)
+		`
+	}
+
+	query += `
+		)
+		SELECT
+			workflow_id,
+			workflow_name,
+			app_id,
+			app_name,
+			MAX(scan_enabled::int)::boolean as scan_enabled,
+			STRING_AGG(DISTINCT environment_name, ', ' ORDER BY environment_name) FILTER (WHERE environment_name IS NOT NULL) as environments,
+			STRING_AGG(DISTINCT ci_pipeline_id::text, ',' ORDER BY ci_pipeline_id::text) as ci_pipeline_ids,
+			MAX(ci_pipeline_type) as ci_pipeline_type
+		FROM workflow_data
+		GROUP BY workflow_id, workflow_name, app_id, app_name
+	`
+
+	// Add dynamic sorting
+	orderByClause := impl.buildWorkflowSortClause(sortBy, sortOrder)
+	query += orderByClause
+
+	// Fetch all results (no pagination in SQL)
+	var allResults []*WorkflowWithAppEnvDetails
+	_, err := impl.dbConnection.Query(&allResults, query, queryParams...)
+	if err != nil {
+		impl.logger.Errorw("error fetching workflows with app and env details", "err", err, "query", query, "params", queryParams)
+		return nil, 0, err
+	}
+
+	// Calculate total count
+	totalCount := len(allResults)
+
+	// Apply pagination in code
+	start := offset
+	end := offset + size
+
+	// Handle edge cases
+	if start > totalCount {
+		start = totalCount
+	}
+	if end > totalCount {
+		end = totalCount
+	}
+	if start < 0 {
+		start = 0
+	}
+
+	// Slice the results for pagination
+	results = allResults[start:end]
+
+	return results, totalCount, nil
+}
+
+// buildWorkflowSortClause builds the ORDER BY clause for workflow listing based on sortBy and sortOrder
+func (impl *CiPipelineRepositoryImpl) buildWorkflowSortClause(sortBy, sortOrder string) string {
+	// Default sorting
+	orderByClause := " ORDER BY app_name ASC, workflow_name ASC"
+
+	// Validate and sanitize sortOrder using constants
+	validSortOrder := string(workflowConstants.SortOrderAsc)
+	if sortOrder == string(workflowConstants.SortOrderDesc) {
+		validSortOrder = string(workflowConstants.SortOrderDesc)
+	}
+
+	// Build ORDER BY based on sortBy field using constants
+	switch sortBy {
+	case string(workflowConstants.WorkflowSortByWorkflowName):
+		orderByClause = " ORDER BY workflow_name " + validSortOrder + ", app_name " + validSortOrder
+	case string(workflowConstants.WorkflowSortByAppName):
+		orderByClause = " ORDER BY app_name " + validSortOrder + ", workflow_name " + validSortOrder
+	case string(workflowConstants.WorkflowSortByScanEnabled):
+		orderByClause = " ORDER BY scan_enabled " + validSortOrder + ", app_name " + validSortOrder + ", workflow_name " + validSortOrder
+	default:
+		// Default: sort by app_name, then workflow_name
+		orderByClause = " ORDER BY app_name " + validSortOrder + ", workflow_name " + validSortOrder
+	}
+
+	return orderByClause
+}
+
+// FindAllAppWorkflowIdsByFilters fetches ALL app workflow IDs matching the filters (no pagination)
+// This is used for bulk operations where we need to get all matching workflow IDs
+func (impl *CiPipelineRepositoryImpl) FindAllAppWorkflowIdsByFilters(appIds, clusterIds, envIds []int, searchQuery string, scanEnablement string) ([]int, error) {
+	query := `
+		WITH workflow_data AS (
+			SELECT
+				aw.id as workflow_id,
+				cp.scan_enabled
+			FROM app_workflow aw
+			INNER JOIN app a ON a.id = aw.app_id AND a.active = true AND a.app_type != ?
+			INNER JOIN app_workflow_mapping awm ON awm.app_workflow_id = aw.id AND awm.active = true AND awm.type = ?
+			INNER JOIN ci_pipeline cp ON cp.id = awm.component_id AND cp.active = true AND cp.deleted = false
+			LEFT JOIN pipeline p ON p.ci_pipeline_id = cp.id AND p.deleted = false
+			LEFT JOIN environment e ON e.id = p.environment_id
+			WHERE aw.active = true
+	`
+
+	// Initialize query params with Job type constant and CI_PIPELINE constant
+	queryParams := []interface{}{helper.Job, appWorkflow.CIPIPELINE}
+
+	// Apply filters
+	if len(appIds) > 0 {
+		query += " AND aw.app_id IN (?)"
+		queryParams = append(queryParams, pg.In(appIds))
+	}
+
+	if len(clusterIds) > 0 {
+		query += " AND e.cluster_id IN (?)"
+		queryParams = append(queryParams, pg.In(clusterIds))
+	}
+
+	if len(envIds) > 0 {
+		query += " AND e.id IN (?)"
+		queryParams = append(queryParams, pg.In(envIds))
+	}
+
+	if searchQuery != "" {
+		query += " AND aw.name ILIKE ?"
+		queryParams = append(queryParams, "%"+searchQuery+"%")
+	}
+
+	// Apply scan enablement filter using constants
+	if scanEnablement == string(workflowConstants.ScanEnabled) {
+		query += " AND cp.scan_enabled = true"
+	} else if scanEnablement == string(workflowConstants.ScanNotEnabled) {
+		query += " AND cp.scan_enabled = false"
+	}
+
+	// Close the CTE and select distinct workflow IDs
+	query += `
+		)
+		SELECT DISTINCT workflow_id
+		FROM workflow_data
+		ORDER BY workflow_id
+	`
+
+	var workflowIds []int
+	_, err := impl.dbConnection.Query(&workflowIds, query, queryParams...)
+	if err != nil {
+		impl.logger.Errorw("error fetching all app workflow IDs by filters", "err", err, "query", query, "params", queryParams)
+		return nil, err
+	}
+
+	return workflowIds, nil
+}
+
+// FindAppWorkflowsByIds fetches app workflows by specific workflow IDs (for RBAC checks in bulk operations)
+func (impl *CiPipelineRepositoryImpl) FindAppWorkflowsByIds(workflowIds []int) ([]*WorkflowWithAppEnvDetails, error) {
+	if len(workflowIds) == 0 {
+		return []*WorkflowWithAppEnvDetails{}, nil
+	}
+
+	query := `
+		WITH workflow_data AS (
+			SELECT
+				aw.id as workflow_id,
+				aw.name as workflow_name,
+				aw.app_id,
+				a.app_name,
+				cp.id as ci_pipeline_id,
+				cp.scan_enabled,
+				cp.ci_pipeline_type,
+				e.environment_name
+			FROM app_workflow aw
+			INNER JOIN app a ON a.id = aw.app_id AND a.active = true AND a.app_type != ?
+			INNER JOIN app_workflow_mapping awm ON awm.app_workflow_id = aw.id AND awm.active = true AND awm.type = ?
+			INNER JOIN ci_pipeline cp ON cp.id = awm.component_id AND cp.active = true AND cp.deleted = false
+			LEFT JOIN pipeline p ON p.ci_pipeline_id = cp.id AND p.deleted = false
+			LEFT JOIN environment e ON e.id = p.environment_id
+			WHERE aw.active = true
+			AND aw.id = ANY(?)
+		)
+		SELECT
+			workflow_id,
+			workflow_name,
+			app_id,
+			app_name,
+			MAX(scan_enabled::int)::boolean as scan_enabled,
+			STRING_AGG(DISTINCT environment_name, ', ' ORDER BY environment_name) FILTER (WHERE environment_name IS NOT NULL) as environments,
+			STRING_AGG(DISTINCT ci_pipeline_id::text, ',' ORDER BY ci_pipeline_id::text) as ci_pipeline_ids,
+			MAX(ci_pipeline_type) as ci_pipeline_type
+		FROM workflow_data
+		GROUP BY workflow_id, workflow_name, app_id, app_name
+		ORDER BY workflow_name ASC
+	`
+
+	var results []*WorkflowWithAppEnvDetails
+	_, err := impl.dbConnection.Query(&results, query, helper.Job, appWorkflow.CIPIPELINE, pg.Array(workflowIds))
+	if err != nil {
+		impl.logger.Errorw("error fetching app workflows by IDs", "err", err, "workflowIds", workflowIds)
+		return nil, err
+	}
+
+	return results, nil
+}
+
+// BulkUpdateScanEnabled updates scan_enabled for CI pipelines in app workflows
+// workflowIds are app_workflow.id values, we fetch ci_pipeline_ids from app_workflow_mapping and update ci_pipeline
+func (impl *CiPipelineRepositoryImpl) BulkUpdateScanEnabled(workflowIds []int, scanEnabled bool, userId int32) error {
+	if len(workflowIds) == 0 {
+		return nil
+	}
+
+	// Get distinct ci_pipeline_ids from app_workflow_mapping table for the given app workflow IDs
+	query := `
+		SELECT DISTINCT awm.component_id
+		FROM app_workflow_mapping awm
+		WHERE awm.app_workflow_id IN (?)
+		AND awm.type = ?
+		AND awm.active = true
+	`
+
+	var ciPipelineIds []int
+	_, err := impl.dbConnection.Query(&ciPipelineIds, query, pg.In(workflowIds), appWorkflow.CIPIPELINE)
+
+	if err != nil {
+		impl.logger.Errorw("error fetching ci_pipeline_ids from app_workflow_mapping", "workflowIds", workflowIds, "err", err)
+		return err
+	}
+
+	if len(ciPipelineIds) == 0 {
+		impl.logger.Warnw("no ci_pipeline_ids found for given app_workflow_ids", "workflowIds", workflowIds)
+		return fmt.Errorf("no ci_pipeline_ids found for given app_workflow_ids")
+	}
+
+	// Update scan_enabled for the fetched ci_pipeline_ids
+	_, err = impl.dbConnection.Model(&CiPipeline{}).
+		Set("scan_enabled = ?", scanEnabled).
+		Set("updated_on = ?", time.Now()).
+		Set("updated_by = ?", userId).
+		Where("id IN (?)", pg.In(ciPipelineIds)).
+		Where("active = ?", true).
+		Where("deleted = ?", false).
+		Update()
+
+	if err != nil {
+		impl.logger.Errorw("error bulk updating scan_enabled", "ciPipelineIds", ciPipelineIds, "scanEnabled", scanEnabled, "err", err)
+		return err
+	}
+
+	impl.logger.Infow("successfully updated scan_enabled for ci_pipelines", "workflowIds", workflowIds, "ciPipelineIds", ciPipelineIds, "scanEnabled", scanEnabled)
+	return nil
+}
+
+// External CI count methods implementation
+func (impl *CiPipelineRepositoryImpl) GetActiveExternalCiPipelineCount() (int, error) {
+	count, err := impl.dbConnection.Model((*ExternalCiPipeline)(nil)).
+		Where("active = ?", true).
+		Count()
+
+	if err != nil {
+		impl.logger.Errorw("error getting active external CI pipeline count", "err", err)
+		return 0, err
+	}
+	return count, nil
+}
+
+func (impl *CiPipelineRepositoryImpl) GetActiveExternalCiPipelineCountInTimeRange(from, to *time.Time) (int, error) {
+	query := impl.dbConnection.Model((*ExternalCiPipeline)(nil)).
+		Where("active = ?", true)
+
+	if from != nil {
+		query = query.Where("created_on >= ?", from)
+	}
+	if to != nil {
+		query = query.Where("created_on <= ?", to)
+	}
+
+	count, err := query.Count()
+	if err != nil {
+		impl.logger.Errorw("error getting active external CI pipeline count in time range", "from", from, "to", to, "err", err)
+		return 0, err
+	}
+	return count, nil
+}
+
+// GetCiPipelineCountWithImageScanPluginInPostCiOrPreCd returns count of active CI pipelines that have IMAGE SCAN plugin configured
+// in POST-CI or PRE-CD stages. Image scanning plugin is identified by plugin name 'IMAGE SCAN' (constant IMAGE_SCANNING_PLUGIN from pipelineStage.go)
+func (impl *CiPipelineRepositoryImpl) GetCiPipelineCountWithImageScanPluginInPostCiOrPreCd() (int, error) {
+	var count int
+
+	// Query to count distinct CI pipelines that have IMAGE SCAN plugin configured in POST-CI or PRE-CD stages
+	// We need to check both:
+	// 1. POST-CI stages (pipeline_stage.ci_pipeline_id is set)
+	// 2. PRE-CD stages (pipeline_stage.cd_pipel1ine_id is set, need to join with pipeline table to get ci_pipeline_id)
+	query := `
+		SELECT COUNT(DISTINCT ci_pipeline_id) FROM (
+			-- CI pipelines with IMAGE SCAN plugin in POST-CI stage
+			SELECT cp.id as ci_pipeline_id
+			FROM ci_pipeline cp
+			INNER JOIN pipeline_stage ps ON ps.ci_pipeline_id = cp.id
+			INNER JOIN pipeline_stage_step pss ON pss.pipeline_stage_id = ps.id
+			INNER JOIN plugin_metadata pm ON pm.id = pss.ref_plugin_id
+			WHERE cp.active = true
+			AND cp.deleted = false
+			AND ps.deleted = false
+			AND pss.deleted = false
+			AND pm.deleted = false
+			AND pm.name = 'IMAGE SCAN'
+
+			UNION
+
+			-- CI pipelines with IMAGE SCAN plugin in PRE-CD stage
+			SELECT p.ci_pipeline_id
+			FROM pipeline p
+			INNER JOIN pipeline_stage ps ON ps.cd_pipeline_id = p.id
+			INNER JOIN pipeline_stage_step pss ON pss.pipeline_stage_id = ps.id
+			INNER JOIN plugin_metadata pm ON pm.id = pss.ref_plugin_id
+			INNER JOIN ci_pipeline cp ON cp.id = p.ci_pipeline_id
+			WHERE p.deleted = false
+			AND cp.active = true
+			AND cp.deleted = false
+			AND ps.deleted = false
+			AND pss.deleted = false
+			AND pm.deleted = false
+			AND pm.name = 'IMAGE SCAN'
+			AND p.ci_pipeline_id IS NOT NULL
+		) AS combined_pipelines
+	`
+
+	_, err := impl.dbConnection.Query(&count, query)
+	if err != nil {
+		impl.logger.Errorw("error getting CI pipeline count with image scanning plugin", "err", err)
+		return 0, err
+	}
+
+	return count, nil
 }

@@ -18,6 +18,7 @@ package git
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/retryFunc"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
@@ -29,14 +30,17 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	chartRefBean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	globalUtil "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	dirCopy "github.com/otiai10/copy"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
+	"helm.sh/helm/v3/pkg/chart"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
+	"sigs.k8s.io/yaml"
 	"strings"
 	"time"
 )
@@ -52,6 +56,7 @@ type GitOperationService interface {
 	PushChartToGitRepo(ctx context.Context, gitOpsRepoName, chartLocation, tempReferenceTemplateDir, repoUrl, targetRevision string, userId int32) (err error)
 	CloneChartForHelmApp(helmAppName, gitRepoUrl, targetRevision string) (string, error)
 	PushChartToGitOpsRepoForHelmApp(ctx context.Context, pushChartToGitRequest *bean.PushChartToGitRequestDTO, valuesConfig *ChartConfig) (*commonBean.ChartGitAttribute, string, error)
+	MigrateProxyChartDependenciesIfRequired(ctx context.Context, isChartUpdated bool, pushChartToGitRequest *bean.PushChartToGitRequestDTO, expectedChartYamlContent string) error
 
 	CreateRepository(ctx context.Context, dto *apiBean.GitOpsConfigDto, userId int32) (string, bool, bool, error)
 
@@ -378,6 +383,188 @@ func (impl *GitOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(ctx context
 	}, commit, err
 }
 
+func (impl *GitOperationServiceImpl) MigrateProxyChartDependenciesIfRequired(ctx context.Context, isChartUpdated bool, pushChartToGitRequest *bean.PushChartToGitRequestDTO, expectedChartYamlContent string) error {
+	clonedDir, err := impl.CloneChartForHelmApp(pushChartToGitRequest.AppName, pushChartToGitRequest.RepoURL, pushChartToGitRequest.TargetRevision)
+	if err != nil {
+		impl.logger.Errorw("error in cloning chart for helm app", "appName", pushChartToGitRequest.AppName, "repoUrl", pushChartToGitRequest.RepoURL, "err", err)
+		return err
+	}
+	defer impl.chartTemplateService.CleanDir(clonedDir)
+	gitOpsChartLocation := fmt.Sprintf("%s-%s", pushChartToGitRequest.AppName, pushChartToGitRequest.EnvName)
+	workingDir := filepath.Join(clonedDir, gitOpsChartLocation)
+	deleteRequirementsYaml, requirementsYamlPath, err := impl.shouldDeleteProxyChartRequirementsYaml(workingDir, pushChartToGitRequest)
+	if err != nil {
+		impl.logger.Errorw("error in checking if requirements.yaml should be deleted", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
+		return err
+	}
+	err = impl.deleteProxyChartRequirementsYaml(deleteRequirementsYaml, requirementsYamlPath)
+	if err != nil {
+		impl.logger.Errorw("error in deleting requirements.yaml", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
+		return err
+	}
+	shouldMigrate, chartYamlPath, err := impl.shouldMigrateProxyChartDependencies(isChartUpdated, workingDir, pushChartToGitRequest, expectedChartYamlContent)
+	if err != nil {
+		impl.logger.Errorw("error in checking if proxy chart dependencies should be migrated", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
+		return err
+	}
+	err = impl.updateChartYamlWithDependencies(shouldMigrate, chartYamlPath, expectedChartYamlContent)
+	if err != nil {
+		impl.logger.Errorw("error in migrating proxy chart dependencies", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
+		return err
+	}
+	if shouldMigrate || deleteRequirementsYaml {
+		userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(pushChartToGitRequest.UserId)
+		commit, err := impl.gitFactory.GitOpsHelper.CommitAndPushAllChanges(ctx, clonedDir, pushChartToGitRequest.TargetRevision, "mirage proxy chart dependencies", userName, userEmailId)
+		if err != nil {
+			impl.logger.Warn("re-trying, taking pull and then push again")
+			err = impl.GitPull(clonedDir, pushChartToGitRequest.RepoURL, pushChartToGitRequest.TargetRevision)
+			if err != nil {
+				impl.logger.Errorw("error in git pull", "appName", gitOpsChartLocation, "err", err)
+				return err
+			}
+			if deleteRequirementsYaml {
+				err = impl.deleteProxyChartRequirementsYaml(deleteRequirementsYaml, requirementsYamlPath)
+				if err != nil {
+					impl.logger.Errorw("error in deleting requirements.yaml", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
+					return err
+				}
+			}
+			if shouldMigrate {
+				err = impl.updateChartYamlWithDependencies(shouldMigrate, chartYamlPath, expectedChartYamlContent)
+				if err != nil {
+					impl.logger.Errorw("error in migrating proxy chart dependencies", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
+					return err
+				}
+			}
+			commit, err = impl.gitFactory.GitOpsHelper.CommitAndPushAllChanges(ctx, clonedDir, pushChartToGitRequest.TargetRevision, "mirage proxy chart dependencies", userName, userEmailId)
+			if err != nil {
+				impl.logger.Errorw("error in pushing git", "err", err)
+				return err
+			}
+		}
+		impl.logger.Debugw("proxy chart dependencies committed", "url", pushChartToGitRequest.RepoURL, "commit", commit)
+	}
+	return nil
+}
+
+func (impl *GitOperationServiceImpl) shouldDeleteProxyChartRequirementsYaml(clonedDir string, pushChartToGitRequest *bean.PushChartToGitRequestDTO) (delete bool, requirementsYamlPath string, err error) {
+	requirementsYamlPath = filepath.Join(clonedDir, chartRefBean.REQUIREMENTS_YAML_FILE)
+	if _, err = os.Stat(requirementsYamlPath); os.IsNotExist(err) {
+		impl.logger.Debugw("requirements.yaml not found in cloned repo from git-ops, no need to delete requirements.yaml", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName)
+		return delete, requirementsYamlPath, nil
+	} else if err != nil {
+		impl.logger.Errorw("error in checking requirements.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
+		return delete, requirementsYamlPath, err
+	}
+	delete = true
+	return delete, requirementsYamlPath, nil
+}
+
+func (impl *GitOperationServiceImpl) deleteProxyChartRequirementsYaml(deleteRequirementsYaml bool, requirementsYamlPath string) error {
+	if !deleteRequirementsYaml {
+		return nil
+	}
+	impl.logger.Warnw("requirements.yaml found in cloned repo from git-ops, need to delete requirements.yaml", "requirementsYamlPath", requirementsYamlPath)
+	err := os.Remove(requirementsYamlPath)
+	if err != nil && !os.IsNotExist(err) {
+		impl.logger.Errorw("error in deleting requirements.yaml file", "requirementsYamlPath", requirementsYamlPath, "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl *GitOperationServiceImpl) shouldMigrateProxyChartDependencies(isChartUpdated bool, clonedDir string, pushChartToGitRequest *bean.PushChartToGitRequestDTO, expectedChartYamlContent string) (shouldMigrate bool, chartYamlPath string, err error) {
+	chartYamlPath = filepath.Join(clonedDir, chartRefBean.CHART_YAML_FILE)
+	if isChartUpdated {
+		// as the chart is updated,
+		// the dependencies as the chart.yaml file will be updated as per the new chart version
+		// no need of migrating the dependencies
+		return shouldMigrate, chartYamlPath, err
+	}
+	if _, err = os.Stat(chartYamlPath); os.IsNotExist(err) {
+		impl.logger.Debugw("chart.yaml not found in cloned repo from git-ops, no migrations required", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName)
+		return shouldMigrate, chartYamlPath, err
+	} else if err != nil {
+		impl.logger.Errorw("error in checking chart.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
+		return shouldMigrate, chartYamlPath, err
+	}
+	expectedChartMetaData := &chart.Metadata{}
+	expectedChartJsonContent, err := yaml.YAMLToJSON([]byte(expectedChartYamlContent))
+	if err != nil {
+		impl.logger.Errorw("error in converting requirements.yaml to json", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
+		return shouldMigrate, chartYamlPath, err
+	}
+	err = json.Unmarshal(expectedChartJsonContent, &expectedChartMetaData)
+	if err != nil {
+		impl.logger.Errorw("error in unmarshalling requirements.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
+		return shouldMigrate, chartYamlPath, err
+	}
+	if len(expectedChartMetaData.Dependencies) == 0 {
+		impl.logger.Debugw("no dependencies found in requirements.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName)
+		return shouldMigrate, chartYamlPath, err
+	}
+	impl.logger.Debugw("dependencies found in requirements.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "dependencies", expectedChartMetaData.Dependencies)
+	// check if chart.yaml file has dependencies
+	chartYamlContent, err := os.ReadFile(chartYamlPath)
+	if err != nil {
+		impl.logger.Errorw("error in reading chart.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
+		return shouldMigrate, chartYamlPath, err
+	}
+	chartMetadata := &chart.Metadata{}
+	chartJsonContent, err := yaml.YAMLToJSON(chartYamlContent)
+	if err != nil {
+		impl.logger.Errorw("error in converting chart.yaml to json", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
+		return shouldMigrate, chartYamlPath, err
+	}
+	err = json.Unmarshal(chartJsonContent, chartMetadata)
+	if err != nil {
+		impl.logger.Errorw("error in unmarshalling chart.yaml file", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "err", err)
+		return shouldMigrate, chartYamlPath, err
+	}
+	if len(chartMetadata.Dependencies) == 0 {
+		impl.logger.Warnw("no dependencies found in chart.yaml file, need to migrate proxy chart dependencies", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName)
+		shouldMigrate = true
+		return shouldMigrate, chartYamlPath, err
+	}
+	impl.logger.Debugw("dependencies found in chart.yaml file, validating against requirements.yaml", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "chartDependencies", chartMetadata.Dependencies)
+	// validate if chart.yaml dependencies are present in requirements.yaml
+	latestDependencies := sliceUtil.NewMapFromFuncExec(chartMetadata.Dependencies, func(dependency *chart.Dependency) string {
+		return getUniqueKeyFromDependency(dependency)
+	})
+	previousDependencies := sliceUtil.NewMapFromFuncExec(expectedChartMetaData.Dependencies, func(dependency *chart.Dependency) string {
+		return getUniqueKeyFromDependency(dependency)
+	})
+	for key := range latestDependencies {
+		if _, ok := previousDependencies[key]; !ok {
+			impl.logger.Warnw("dependency found in chart.yaml but not in requirements.yaml, need to migrate proxy chart dependencies", "appName", pushChartToGitRequest.AppName, "envName", pushChartToGitRequest.EnvName, "dependency", key)
+			shouldMigrate = true
+			return shouldMigrate, chartYamlPath, err
+		}
+	}
+	return shouldMigrate, chartYamlPath, nil
+}
+
+func (impl *GitOperationServiceImpl) updateChartYamlWithDependencies(shouldMigrate bool, chartYamlPath string, expectedChartYamlContent string) (err error) {
+	if !shouldMigrate {
+		return nil
+	}
+	impl.logger.Warnw("migrating proxy chart dependencies", "chartYamlPath", chartYamlPath)
+	chartYamlPath, err = util2.CreateFileAtFilePathAndWrite(chartYamlPath, expectedChartYamlContent)
+	if err != nil {
+		impl.logger.Errorw("error in creating yaml file", "err", err)
+		return err
+	}
+	return nil
+}
+
+func getUniqueKeyFromDependency(dependency *chart.Dependency) string {
+	// return unique key for dependency
+	return fmt.Sprintf("%s-%s-%s",
+		strings.ToLower(strings.TrimSpace(dependency.Name)),
+		strings.ToLower(strings.TrimSpace(dependency.Version)),
+		strings.ToLower(strings.TrimSpace(dependency.Repository)))
+}
+
 func (impl *GitOperationServiceImpl) GetClonedDir(ctx context.Context, chartDir, repoUrl, targetRevision string) (string, error) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "GitOperationServiceImpl.GetClonedDir")
 	defer span.End()
@@ -399,6 +586,7 @@ func (impl *GitOperationServiceImpl) cloneInDir(repoUrl, chartDir, targetRevisio
 	}
 	return clonedDir, nil
 }
+
 func (impl *GitOperationServiceImpl) ReloadGitOpsProvider() error {
 	return impl.gitFactory.Reload(impl.gitOpsConfigReadService)
 }

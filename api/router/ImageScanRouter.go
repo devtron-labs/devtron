@@ -34,6 +34,8 @@ func NewImageScanRouterImpl(imageScanRestHandler restHandler.ImageScanRestHandle
 
 func (impl ImageScanRouterImpl) InitImageScanRouter(configRouter *mux.Router) {
 	configRouter.Path("/list").HandlerFunc(impl.imageScanRestHandler.ScanExecutionList).Methods("POST")
+	configRouter.Path("/summary").HandlerFunc(impl.imageScanRestHandler.VulnerabilitySummary).Methods("POST")
+	configRouter.Path("/vulnerabilities").HandlerFunc(impl.imageScanRestHandler.VulnerabilityListing).Methods("POST")
 
 	//image=image:abc&envId=3&appId=100&artifactId=100&executionId=100
 	configRouter.Path("/executionDetail").HandlerFunc(impl.imageScanRestHandler.FetchExecutionDetail).Methods("GET")

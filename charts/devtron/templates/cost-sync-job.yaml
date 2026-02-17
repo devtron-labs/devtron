@@ -1,0 +1,48 @@
+{{- if and $.Values.devtronEnterprise.enabled  $.Values.devtronEnterprise.finops.enabled }}
+{{- if $.Capabilities.APIVersions.Has "batch/v1/Job" }}
+apiVersion: batch/v1
+{{- else }}
+apiVersion: batch/v1beta1
+{{- end }}
+kind: CronJob
+metadata:
+  name: cost-sync-job
+  namespace: devtroncd
+spec:
+  concurrencyPolicy: Allow
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 3600
+      template:
+        metadata:
+          labels:
+            app: cost-sync-job
+        spec:
+          serviceAccountName: devtron-default-sa
+          {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.devtronEnterprise.finops.nodeSelector "tolerations" $.Values.devtronEnterprise.finops.tolerations "imagePullSecrets" $.Values.devtronEnterprise.finops.imagePullSecrets "global" $.Values.global) | indent 10 }}
+          {{- include "common.podSecurityContext" (dict "podSecurityContext" $.Values.devtronEnterprise.finops.podSecurityContext "global" $.Values.global) | indent 10 }}         
+          restartPolicy: OnFailure
+          containers:
+            - envFrom:
+                - configMapRef: 
+                    name: cost-sync-cm
+                - secretRef:
+                    name: postgresql-migrator
+                - configMapRef: 
+                    name: devtron-common-cm
+              image: {{ include "common.image" (dict "component" $.Values.devtronEnterprise.finops.costSync "global" $.Values.global ) }}
+              imagePullPolicy: IfNotPresent
+              name: cost-sync-job
+              ports:
+                - containerPort: 8080
+                  name: app
+                  protocol: TCP
+              resources: {}
+          terminationGracePeriodSeconds: 30
+  schedule: {{ $.Values.devtronEnterprise.finops.costSync.schedule | quote }}
+  startingDeadlineSeconds: 100
+  successfulJobsHistoryLimit: 3
+  suspend: false
+  timeZone: {{ $.Values.devtronEnterprise.finops.costSync.timeZone }}
+{{- end }}

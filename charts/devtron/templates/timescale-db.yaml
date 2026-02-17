@@ -1,0 +1,67 @@
+{{- if and $.Values.devtronEnterprise.enabled  $.Values.devtronEnterprise.finops.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: timescaledb
+  labels:
+    release: devtron
+    app: timescaledb
+spec:
+  serviceName: timescaledb-service
+  replicas: 1
+  selector:
+    matchLabels:
+      app: timescaledb
+  template:
+    metadata:
+      labels:
+        app: timescaledb
+    spec:
+      serviceAccountName: devtron-default-sa
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.postgres.nodeSelector "tolerations" $.Values.components.postgres.tolerations "imagePullSecrets" $.Values.components.postgres.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      securityContext:
+        fsGroup: 999
+      containers:
+        - name: timescaledb
+          image: {{ include "common.image" (dict "component" $.Values.devtronEnterprise.finops.timescale "global" $.Values.global ) }}
+          securityContext: {}
+          envFrom:
+            - secretRef:
+                name: timescaledb-secret
+            - configMapRef:
+                name: devtron-common-cm                
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: timescale-vol
+  volumeClaimTemplates:
+    - metadata:
+        name: timescale-vol
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        {{- include "common.storageclass" $ | indent 8 }}
+        resources:
+          requests:
+            storage: {{ $.Values.devtronEnterprise.finops.timescale.volumeSize | default "5Gi" }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: timescaledb-service
+  labels:
+    release: devtron
+    app: timescaledb
+spec:
+  selector:
+    app: timescaledb
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+  type: ClusterIP
+{{- end }}

@@ -20,6 +20,9 @@ metadata:
 data:
 {{- if $.Values.devtronEnterprise.enabled }}
   GATEKEEPER_URL: "https://license.devtron.ai/dashboard"
+  FEATURE_STORAGE_ENABLE: "true"
+  FEATURE_RESOURCE_WATCHER_ENABLE: "true"
+  FEATURE_SOFTWARE_DISTRIBUTION_HUB_ENABLE: "true"
 {{- end }}
 {{- if .config }}
   GA_ENABLED: {{ .config.analytics | default "false" | quote }}

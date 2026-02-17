@@ -17,6 +17,8 @@
 package repository
 
 import (
+	"time"
+
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 )
@@ -32,6 +34,7 @@ type Team struct {
 type TeamRepository interface {
 	Save(team *Team) error
 	FindAllActive() ([]Team, error)
+	FindAllActiveInTimeRange(from, to *time.Time) ([]Team, error)
 	FindOne(id int) (Team, error)
 	FindByTeamName(name string) (Team, error)
 	Update(team *Team) error
@@ -107,4 +110,19 @@ func (impl TeamRepositoryImpl) FindByIds(ids []*int) ([]*Team, error) {
 
 func (impl TeamRepositoryImpl) GetConnection() *pg.DB {
 	return impl.dbConnection
+}
+
+func (impl TeamRepositoryImpl) FindAllActiveInTimeRange(from, to *time.Time) ([]Team, error) {
+	var teams []Team
+	query := impl.dbConnection.Model(&teams).Where("active = ?", true)
+
+	if from != nil {
+		query = query.Where("created_on >= ?", from)
+	}
+	if to != nil {
+		query = query.Where("created_on <= ?", to)
+	}
+
+	err := query.Select()
+	return teams, err
 }

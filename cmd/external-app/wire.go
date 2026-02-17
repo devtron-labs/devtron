@@ -85,6 +85,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
+	"github.com/devtron-labs/devtron/pkg/overview"
+	"github.com/devtron-labs/devtron/pkg/overview/cache"
+	config2 "github.com/devtron-labs/devtron/pkg/overview/config"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool"
 	security2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool/repository"
@@ -299,6 +302,21 @@ func InitializeApp() (*App, error) {
 
 		chartConfig.NewEnvConfigOverrideRepository,
 		wire.Bind(new(chartConfig.EnvConfigOverrideRepository), new(*chartConfig.EnvConfigOverrideRepositoryImpl)),
+
+		restHandler.NewInfraOverviewRestHandlerImpl,
+		wire.Bind(new(restHandler.InfraOverviewRestHandler), new(*restHandler.InfraOverviewRestHandlerImpl)),
+
+		router.NewInfraOverviewRouterImpl,
+		wire.Bind(new(router.InfraOverviewRouter), new(*router.InfraOverviewRouterImpl)),
+
+		// Cluster overview service (uses background refresh worker)
+		overview.NewClusterOverviewServiceImpl,
+		wire.Bind(new(overview.ClusterOverviewService), new(*overview.ClusterOverviewServiceImpl)),
+
+		cache.NewClusterCacheServiceImpl,
+		wire.Bind(new(cache.ClusterCacheService), new(*cache.ClusterCacheServiceImpl)),
+
+		config2.GetClusterOverviewConfig,
 	)
 	return &App{}, nil
 }
