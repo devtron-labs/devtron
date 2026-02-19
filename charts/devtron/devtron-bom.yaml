@@ -41,7 +41,7 @@ components:
         FEATURE_CODE_MIRROR_ENABLE: "true"
         FEATURE_GROUPED_APP_LIST_FILTERS_ENABLE: "true"
     registry: ""
-    image: "dashboard:b48d0910-690-38228"
+    image: "dashboard:d87d9a07-690-38693"
     imagePullPolicy: IfNotPresent
     healthPort: 8080
   devtron:
