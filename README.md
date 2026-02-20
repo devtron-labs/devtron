@@ -7,21 +7,22 @@ Note: We have restructured the readme. If you are looking for Devtron's CI/CD ca
   <source media="(prefers-color-scheme: light)"  srcset="./assets/devtron-lightmode-logo.png">
   <img width="333.333" height="260" src="./assets/devtron-logo-dark-light.png">
 </picture>
-<h1 align= "center">The Kubernetes Platform That Eliminates Operational Chaos</h1>
+<h1 align= "center">AI-Native Kubernetes Management Platform</h1>
+<p align= "center">Kubernetes is powerful but complex. Devtron unifies app and infrastructure management with an AI teammate to simplify operations and accelerate delivery.</p>
 </p>
  
 <p align="center">
 <br>
-<a href="https://docs.devtron.ai/" rel="nofollow"><strong>«Explore Documentation»</strong></a> <strong>||</strong>
-<a href="https://preview.devtron.ai/dashboard/" rel="nofollow"><strong>«Try Devtron Demo»</strong></a>
+<a href="https://docs.devtron.ai/" rel="nofollow"><strong>Explore Documentation</strong></a>
+·
+<a href="https://license.devtron.ai/dashboard" rel="nofollow"><strong>Try Devtron SaaS</strong></a>
+<br>
 <br>
 <a href="https://devtron.ai/">Website</a>
 ·
 <a href="https://devtron.ai/blog/">Blogs</a>
 ·
 <a href="https://discord.gg/jsRG5qx2gp">Join Discord channel</a>
-·
-<a href="https://twitter.com/DevtronL">Twitter</a>
 .
 <a href="https://www.youtube.com/channel/UCAHRp9qp0z1y9MMtQlcFtcw">YouTube</a>
  
