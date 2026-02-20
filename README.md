@@ -124,7 +124,7 @@ The Devtron Platform provides a complete solution for all DevOps requirements, h
 
 With Devtron Platform, you can accelerate your application delivery lifecycle by leveraging advanced features like canary deployments, A/B testing, and automated rollbacks. Devtron Platform helps you achieve faster time-to-market and improved application reliability by simplifying Kubernetes operations and streamlining development workflows.
 
-<p align="center"><img src="./assets/devtron-feat-glance.png"></p>
+<p align="center"><img src="./assets/devtron-hero-image.webp"></p>
 
 Devtron deeply integrates with products across the lifecycle of microservices,i.e., CI, CD, security, cost, debugging, and observability via an intuitive web interface and helps you deploy, observe, manage & debug applications across all your Kubernetes clusters.
 
