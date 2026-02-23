@@ -5,6 +5,7 @@
 - fix: enhance cluster overview response with raw cluster capacity details and caching support (#6914)
 - fix: Handle cluster capacity fetch errors by returning detailed connection failure status (#6912)
 ## Others
+- chore: Update README with new platform description and links (#6921)
 - sync: main (#6920)
 - chore: Adds scarf pixel (#6918)
 - misc: add clientIP in audit log (#6908)
