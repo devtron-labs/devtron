@@ -51,9 +51,11 @@ func BuildUserInfoResponseAdapter(requestUserInfo *bean2.UserInfo, emailId strin
 	}
 }
 
-func BuildSelfRegisterDto(userInfo *bean2.UserInfo) *bean2.SelfRegisterDto {
+func BuildSelfRegisterDto(userInfo *bean2.UserInfo, groups []string, groupClaimsConfigActive bool) *bean2.SelfRegisterDto {
 	return &bean2.SelfRegisterDto{
-		UserInfo: userInfo,
+		UserInfo:                userInfo,
+		GroupsFromClaims:        groups,
+		GroupClaimsConfigActive: groupClaimsConfigActive,
 	}
 }
 

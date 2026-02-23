@@ -26,6 +26,7 @@ import (
 	"time"
 
 	bean4 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
+	globalConfig "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
 	userHelper "github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	adapter2 "github.com/devtron-labs/devtron/pkg/auth/user/repository/adapter"
@@ -78,6 +79,8 @@ type UserService interface {
 	DeleteUser(userInfo *userBean.UserInfo) (bool, error)
 	BulkDeleteUsers(request *userBean.BulkDeleteRequest) (bool, error)
 	CheckUserRoles(id int32, token string) ([]string, error)
+	UpdateUserGroupMappingIfActiveUser(emailId string, groups []string) error
+	GetEmailAndGroupClaimsFromToken(token string) (string, []string, error)
 	SyncOrchestratorToCasbin() (bool, error)
 	GetUserByToken(context context.Context, token string) (int32, string, error)
 	//IsSuperAdmin(userId int) (bool, error)
@@ -94,15 +97,17 @@ type UserServiceImpl struct {
 	userReqLock sync.RWMutex
 	//map of userId and current lock-state of their serving ability;
 	//if TRUE then it means that some request is ongoing & unable to serve and FALSE then it is open to serve
-	userReqState        map[int32]bool
-	userAuthRepository  repository.UserAuthRepository
-	logger              *zap.SugaredLogger
-	userRepository      repository.UserRepository
-	roleGroupRepository repository.RoleGroupRepository
-	sessionManager2     *middleware.SessionManager
-	userCommonService   UserCommonService
-	userAuditService    UserAuditService
-	roleGroupService    RoleGroupService
+	userReqState                     map[int32]bool
+	userAuthRepository               repository.UserAuthRepository
+	logger                           *zap.SugaredLogger
+	userRepository                   repository.UserRepository
+	roleGroupRepository              repository.RoleGroupRepository
+	sessionManager2                  *middleware.SessionManager
+	userCommonService                UserCommonService
+	userAuditService                 UserAuditService
+	roleGroupService                 RoleGroupService
+	userGroupMapRepository           repository.UserAutoAssignGroupMapRepository
+	globalAuthorisationConfigService globalConfig.GlobalAuthorisationConfigService
 }
 
 func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository,
@@ -110,17 +115,21 @@ func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository,
 	userRepository repository.UserRepository,
 	userGroupRepository repository.RoleGroupRepository,
 	sessionManager2 *middleware.SessionManager, userCommonService UserCommonService, userAuditService UserAuditService,
-	roleGroupService RoleGroupService) *UserServiceImpl {
+	roleGroupService RoleGroupService,
+	userGroupMapRepository repository.UserAutoAssignGroupMapRepository,
+	globalAuthorisationConfigService globalConfig.GlobalAuthorisationConfigService) *UserServiceImpl {
 	serviceImpl := &UserServiceImpl{
-		userReqState:        make(map[int32]bool),
-		userAuthRepository:  userAuthRepository,
-		logger:              logger,
-		userRepository:      userRepository,
-		roleGroupRepository: userGroupRepository,
-		sessionManager2:     sessionManager2,
-		userCommonService:   userCommonService,
-		userAuditService:    userAuditService,
-		roleGroupService:    roleGroupService,
+		userReqState:                     make(map[int32]bool),
+		userAuthRepository:               userAuthRepository,
+		logger:                           logger,
+		userRepository:                   userRepository,
+		roleGroupRepository:              userGroupRepository,
+		sessionManager2:                  sessionManager2,
+		userCommonService:                userCommonService,
+		userAuditService:                 userAuditService,
+		roleGroupService:                 roleGroupService,
+		userGroupMapRepository:           userGroupMapRepository,
+		globalAuthorisationConfigService: globalAuthorisationConfigService,
 	}
 	cStore = sessions.NewCookieStore(randKey())
 	return serviceImpl
