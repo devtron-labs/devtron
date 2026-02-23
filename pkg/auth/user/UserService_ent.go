@@ -41,6 +41,11 @@ func (impl *UserServiceImpl) UpdateDataForGroupClaims(dto *userBean.SelfRegister
 			impl.logger.Errorw("error in updating data for user group claims map", "err", err, "userId", userInfo.Id)
 			return err
 		}
+		err = impl.syncGroupClaimsCasbinPolicies(userInfo.EmailId, dto.GroupsFromClaims)
+		if err != nil {
+			impl.logger.Errorw("error in syncing group claims casbin policies", "err", err, "emailId", userInfo.EmailId)
+			return err
+		}
 	}
 	return nil
 }
@@ -171,6 +176,11 @@ func (impl *UserServiceImpl) UpdateUserGroupMappingIfActiveUser(emailId string, 
 	err = impl.updateDataForUserGroupClaimsMap(user.Id, groups)
 	if err != nil {
 		impl.logger.Errorw("error in updating data for user group claims map", "err", err, "userId", user.Id)
+		return err
+	}
+	err = impl.syncGroupClaimsCasbinPolicies(emailId, groups)
+	if err != nil {
+		impl.logger.Errorw("error in syncing group claims casbin policies", "err", err, "emailId", emailId)
 		return err
 	}
 	return nil
@@ -466,4 +476,51 @@ func (impl *UserServiceImpl) getUserWithTimeoutWindowConfiguration(emailId strin
 	}
 	// here false is always returned to match signature of authoriser function.
 	return user.Id, false, nil
+}
+
+// syncGroupClaimsCasbinPolicies syncs casbin g-policies for the given user based on their current JWT group claims.
+// It adds policies for new groups and removes policies for groups no longer in the JWT.
+func (impl *UserServiceImpl) syncGroupClaimsCasbinPolicies(emailId string, groups []string) error {
+	newGroupCasbinNames := util3.GetGroupCasbinName(groups)
+	newGroupSet := make(map[string]bool, len(newGroupCasbinNames))
+	for _, g := range newGroupCasbinNames {
+		newGroupSet[g] = true
+	}
+
+	currentRoles, err := casbin2.GetRolesForUser(emailId)
+	if err != nil {
+		impl.logger.Warnw("could not fetch casbin roles for user, skipping casbin sync", "email", emailId, "err", err)
+		currentRoles = nil
+	}
+
+	existingGroupSet := make(map[string]bool)
+	for _, role := range currentRoles {
+		if strings.HasPrefix(role, "group:") {
+			existingGroupSet[role] = true
+		}
+	}
+
+	var policiesToAdd []bean4.Policy
+	var policiesToRemove []bean4.Policy
+
+	for groupName := range newGroupSet {
+		if !existingGroupSet[groupName] {
+			policiesToAdd = append(policiesToAdd, bean4.Policy{Type: "g", Sub: bean4.Subject(emailId), Obj: bean4.Object(groupName)})
+		}
+	}
+	for groupName := range existingGroupSet {
+		if !newGroupSet[groupName] {
+			policiesToRemove = append(policiesToRemove, bean4.Policy{Type: "g", Sub: bean4.Subject(emailId), Obj: bean4.Object(groupName)})
+		}
+	}
+
+	if len(policiesToAdd) > 0 {
+		casbin2.LoadPolicy()
+		casbin2.AddPolicy(policiesToAdd)
+		casbin2.LoadPolicy()
+	}
+	if len(policiesToRemove) > 0 {
+		casbin2.RemovePolicy(policiesToRemove)
+	}
+	return nil
 }
