@@ -1,4 +1,5 @@
 ## Enhancements
+- feat: auto assign permission group (#6923)
 ## Bugs
 - fix: prevent exposure of internal-only attributes in API responses and requests (#6917)
 - fix: append filtered cluster details to the cluster detail list in capacity handler (#6915)
