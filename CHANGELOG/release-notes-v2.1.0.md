@@ -1,3 +1,5 @@
+## v2.1.0
+
 ## Enhancements
 - feat: auto assign permission group (#6923)
 ## Bugs
@@ -13,3 +15,5 @@
 - chore: Adds scarf pixel (#6918)
 - misc: add clientIP in audit log (#6908)
 - misc: Refactor vulnerability query implementation and cleanup unused code (#6907)
+
+
