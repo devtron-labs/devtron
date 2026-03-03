@@ -24,7 +24,7 @@ import (
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
 	"github.com/devtron-labs/devtron/api/argoApplication"
-	globalConfigAPI "github.com/devtron-labs/devtr
+	globalConfigAPI "github.com/devtron-labs/devtron/api/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/api/auth/sso"
 	"github.com/devtron-labs/devtron/api/auth/user"
 	"github.com/devtron-labs/devtron/api/chartRepo"
