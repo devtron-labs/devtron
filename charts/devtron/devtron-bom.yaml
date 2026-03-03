@@ -61,7 +61,7 @@ components:
     healthPort: 8080
   ciRunner:
     registry: ""
-    image: "ci-runner:6b408df4-138-38163"
+    image: "ci-runner:fbde4d5e-138-38754"
   argocdDexServer:
     registry: ""
     image: "dex:v2.30.2"
