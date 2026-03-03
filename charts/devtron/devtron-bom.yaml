@@ -46,7 +46,7 @@ components:
     healthPort: 8080
   devtron:
     registry: ""
-    image: "hyperion:37b07f15-280-38743"
+    image: "hyperion:634eb598-280-38763"
     cicdImage: "devtron:634eb598-434-38762"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
