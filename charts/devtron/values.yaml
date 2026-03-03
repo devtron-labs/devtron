@@ -151,7 +151,7 @@ components:
       authenticator: "authenticator:e414faff-393-13273"
   kubelink:
     registry: ""
-    image: "kubelink:6b408df4-564-38694"
+    image: "kubelink:fbde4d5e-564-38749"
     imagePullPolicy: IfNotPresent
     healthPort: 50052
     podSecurityContext:
