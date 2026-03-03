@@ -197,13 +197,14 @@ func (impl *ClusterOverviewServiceImpl) fetchClusterDataParallel(ctx context.Con
 		})
 	}
 
+	// Create combined cluster bean list (all clusters)
+	allClusterPointers := make([]*clusterBean.ClusterBean, len(clusters))
+	for i := range clusters {
+		allClusterPointers[i] = &clusters[i]
+	}
 	// If all clusters have connection errors, return response with error clusters only
 	if len(validClusters) == 0 {
 		impl.logger.Warn("All clusters have connection errors, returning response with error clusters only")
-		allClusterPointers := make([]*clusterBean.ClusterBean, len(clusters))
-		for i := range clusters {
-			allClusterPointers[i] = &clusters[i]
-		}
 		return impl.aggregateClusterCapacityDetails(ctx, errorClusterDetails, allClusterPointers), nil
 	}
 
@@ -230,8 +231,12 @@ func (impl *ClusterOverviewServiceImpl) fetchClusterDataParallel(ctx context.Con
 			detail, err := impl.k8sCapacityService.GetClusterCapacityDetail(ctx, clusterCopy, false)
 			if err != nil {
 				impl.logger.Warnw("error fetching cluster capacity, skipping", "clusterId", clusterCopy.Id, "clusterName", clusterCopy.ClusterName, "err", err)
-				// Return error to skip this cluster
-				return nil, err
+				// Populate error for this cluster
+				detail = &capacityBean.ClusterCapacityDetail{
+					ErrorInConnection: err.Error(),
+					Status:            capacityBean.ClusterStatusConnectionFailed,
+				}
+				// Continue to next cluster, returning error will stop the worker pool from further processing
 			}
 
 			// Set cluster metadata
@@ -257,12 +262,6 @@ func (impl *ClusterOverviewServiceImpl) fetchClusterDataParallel(ctx context.Con
 	allClusterDetails := make([]*capacityBean.ClusterCapacityDetail, 0, len(results)+len(errorClusterDetails))
 	allClusterDetails = append(allClusterDetails, results...)
 	allClusterDetails = append(allClusterDetails, errorClusterDetails...)
-
-	// Create combined cluster bean list (all clusters)
-	allClusterPointers := make([]*clusterBean.ClusterBean, len(clusters))
-	for i := range clusters {
-		allClusterPointers[i] = &clusters[i]
-	}
 
 	// Log summary
 	successCount := len(results)
@@ -394,7 +393,7 @@ func (impl *ClusterOverviewServiceImpl) buildClusterOverviewResponse(ctx context
 		}
 		impl.processNodeDetails(cluster, response)
 		impl.aggregateNodeErrorCounts(cluster, response)
-
+		impl.addRawClusterCapacityDetails(cluster, response)
 	}
 
 	impl.finalizeResponse(response, totalCpuCapacityCores, totalMemoryCapacityGi, providerCounts, versionCounts, autoscalerNodeDetailsMap)
@@ -479,6 +478,11 @@ func (impl *ClusterOverviewServiceImpl) addClusterCapacityDistribution(cluster *
 			metrics.memoryRequest,
 			metrics.memoryLimit,
 		))
+}
+
+// addClusterCapacityDistribution adds cluster capacity distribution entry to response
+func (impl *ClusterOverviewServiceImpl) addRawClusterCapacityDetails(capacity *capacityBean.ClusterCapacityDetail, response *bean.ClusterOverviewResponse) {
+	response.RawClusterCapacityDetails = append(response.RawClusterCapacityDetails, capacity)
 }
 
 // processNodeDistributionAndAutoscaler adds cluster node count to distribution and aggregates autoscaler counts across all clusters

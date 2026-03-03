@@ -68,7 +68,7 @@ func (service *SecurityOverviewServiceImpl) GetSecurityOverview(ctx context.Cont
 	service.logger.Infow("GetSecurityOverview called", "request", request)
 
 	// Fetch all vulnerabilities with fixed_version in a single query
-	vulnerabilities, err := service.imageScanResultRepository.GetVulnerabilitiesWithFixedVersionByFilters(request.EnvIds, request.ClusterIds, request.AppIds)
+	vulnerabilities, err := service.imageScanResultRepository.GetVulnerabilityRawData("", nil, request.EnvIds, request.ClusterIds, request.AppIds, nil)
 	if err != nil {
 		service.logger.Errorw("error fetching vulnerabilities", "err", err)
 		return nil, fmt.Errorf("failed to fetch vulnerabilities: %w", err)

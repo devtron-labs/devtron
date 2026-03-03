@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/api/appStore/chartGroup"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	"github.com/devtron-labs/devtron/api/argoApplication"
+	"github.com/devtron-labs/devtron/api/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/api/auth/sso"
 	"github.com/devtron-labs/devtron/api/auth/user"
 	"github.com/devtron-labs/devtron/api/chartRepo"
@@ -126,6 +127,7 @@ type MuxRouter struct {
 	scanningResultRouter               resourceScan.ScanningResultRouter
 	userResourceRouter                 userResource.Router
 	overviewRouter                     OverviewRouter
+	globalAuthorisationConfigRouter    globalConfig.AuthorisationConfigRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger,
@@ -162,6 +164,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 	scanningResultRouter resourceScan.ScanningResultRouter,
 	userResourceRouter userResource.Router,
 	overviewRouter OverviewRouter,
+	globalAuthorisationConfigRouter globalConfig.AuthorisationConfigRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
@@ -230,6 +233,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 		scanningResultRouter:               scanningResultRouter,
 		userResourceRouter:                 userResourceRouter,
 		overviewRouter:                     overviewRouter,
+		globalAuthorisationConfigRouter:    globalAuthorisationConfigRouter,
 	}
 	return r
 }
@@ -305,6 +309,9 @@ func (r MuxRouter) Init() {
 
 	userRouter := r.Router.PathPrefix("/orchestrator/user").Subrouter()
 	r.UserRouter.InitUserRouter(userRouter)
+
+	authorisationConfigRouter := r.Router.PathPrefix("/orchestrator/authorisation").Subrouter()
+	r.globalAuthorisationConfigRouter.InitAuthorisationConfigRouter(authorisationConfigRouter)
 
 	chartRefRouter := r.Router.PathPrefix("/orchestrator/chartref").Subrouter()
 	r.ChartRefRouter.initChartRefRouter(chartRefRouter)

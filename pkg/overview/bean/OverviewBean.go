@@ -5,6 +5,7 @@
 package bean
 
 import (
+	capacityBean "github.com/devtron-labs/devtron/pkg/k8s/capacity/bean"
 	"time"
 
 	"github.com/devtron-labs/common-lib/utils"
@@ -254,15 +255,16 @@ type ClusterOverviewRequest struct {
 
 // ClusterOverviewResponse represents the comprehensive cluster management overview
 type ClusterOverviewResponse struct {
-	TotalClusters               int                           `json:"totalClusters"`
-	TotalCpuCapacity            *ResourceCapacity             `json:"totalCpuCapacity"`
-	TotalMemoryCapacity         *ResourceCapacity             `json:"totalMemoryCapacity"`
-	ClusterStatusBreakdown      *ClusterStatusBreakdown       `json:"clusterStatusBreakdown"`
-	NodeSchedulingBreakdown     *NodeSchedulingBreakdown      `json:"nodeSchedulingBreakdown"`
-	NodeErrorBreakdown          *NodeErrorBreakdown           `json:"nodeErrorBreakdown"`
-	ClusterDistribution         *ClusterDistribution          `json:"clusterDistribution"`
-	ClusterCapacityDistribution []ClusterCapacityDistribution `json:"clusterCapacityDistribution"`
-	NodeDistribution            *NodeDistribution             `json:"nodeDistribution"`
+	TotalClusters               int                                   `json:"totalClusters"`
+	TotalCpuCapacity            *ResourceCapacity                     `json:"totalCpuCapacity"`
+	TotalMemoryCapacity         *ResourceCapacity                     `json:"totalMemoryCapacity"`
+	ClusterStatusBreakdown      *ClusterStatusBreakdown               `json:"clusterStatusBreakdown"`
+	NodeSchedulingBreakdown     *NodeSchedulingBreakdown              `json:"nodeSchedulingBreakdown"`
+	NodeErrorBreakdown          *NodeErrorBreakdown                   `json:"nodeErrorBreakdown"`
+	ClusterDistribution         *ClusterDistribution                  `json:"clusterDistribution"`
+	ClusterCapacityDistribution []ClusterCapacityDistribution         `json:"clusterCapacityDistribution"`
+	RawClusterCapacityDetails   []*capacityBean.ClusterCapacityDetail `json:"rawClusterCapacityDetails"`
+	NodeDistribution            *NodeDistribution                     `json:"nodeDistribution"`
 }
 
 // ResourceCapacity represents capacity with value and unit

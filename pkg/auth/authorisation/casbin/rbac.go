@@ -31,6 +31,8 @@ import (
 	"github.com/casbin/casbin"
 	"github.com/devtron-labs/authenticator/jwt"
 	"github.com/devtron-labs/authenticator/middleware"
+	globalConfig "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
+	util3 "github.com/devtron-labs/devtron/pkg/auth/user/util"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
@@ -53,7 +55,8 @@ func NewEnforcerImpl(
 	enforcer *casbin.SyncedEnforcer,
 	enforcerV2 *casbinv2.SyncedEnforcer,
 	sessionManager *middleware.SessionManager,
-	logger *zap.SugaredLogger) (*EnforcerImpl, error) {
+	logger *zap.SugaredLogger,
+	globalAuthorisationConfigService globalConfig.GlobalAuthorisationConfigService) (*EnforcerImpl, error) {
 	lock := make(map[string]*CacheData)
 	batchRequestLock := make(map[string]*sync.Mutex)
 	enforcerConfig, err := getConfig()
@@ -61,7 +64,8 @@ func NewEnforcerImpl(
 		return nil, err
 	}
 	enf := &EnforcerImpl{lockCacheData: lock, enforcerRWLock: &sync.RWMutex{}, batchRequestLock: batchRequestLock, enforcerConfig: enforcerConfig,
-		Cache: getEnforcerCache(logger, enforcerConfig), Enforcer: enforcer, EnforcerV2: enforcerV2, logger: logger, SessionManager: sessionManager}
+		Cache: getEnforcerCache(logger, enforcerConfig), Enforcer: enforcer, EnforcerV2: enforcerV2, logger: logger, SessionManager: sessionManager,
+		globalAuthorisationConfigService: globalAuthorisationConfigService}
 	setEnforcerImpl(enf)
 	return enf, nil
 }
@@ -113,9 +117,10 @@ type EnforcerImpl struct {
 	Enforcer   *casbin.SyncedEnforcer
 	EnforcerV2 *casbinv2.SyncedEnforcer
 	*middleware.SessionManager
-	logger         *zap.SugaredLogger
-	enforcerConfig *EnforcerConfig
-	enforcerRWLock *sync.RWMutex
+	logger                           *zap.SugaredLogger
+	enforcerConfig                   *EnforcerConfig
+	enforcerRWLock                   *sync.RWMutex
+	globalAuthorisationConfigService globalConfig.GlobalAuthorisationConfigService
 }
 
 // Enforce is a wrapper around casbin.Enforce to additionally enforce a default role and a custom
@@ -392,21 +397,38 @@ func (e *EnforcerImpl) GetCacheDump() string {
 
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
 func (e *EnforcerImpl) enforce(token string, resource string, action string, resourceItem string) bool {
-	// check the default role
-	email, invalid := e.VerifyTokenAndGetEmail(token)
+	subjects, invalid := e.getSubjectsFromToken(token)
 	if invalid {
 		return false
 	}
-	return e.EnforceByEmail(email, resource, action, resourceItem)
+	for _, subject := range subjects {
+		if e.EnforceByEmail(subject, resource, action, resourceItem) {
+			return true
+		}
+	}
+	return false
 }
 
 // enforceInBatch is a helper to additionally check a default role and invoke a custom claims enforcement function
 func (e *EnforcerImpl) enforceInBatch(token string, resource string, action string, vals []string) map[string]bool {
-	email, invalid := e.VerifyTokenAndGetEmail(token)
+	subjects, invalid := e.getSubjectsFromToken(token)
 	if invalid {
 		return make(map[string]bool)
 	}
-	return e.EnforceByEmailInBatch(email, resource, action, vals)
+	if len(subjects) == 1 {
+		return e.EnforceByEmailInBatch(subjects[0], resource, action, vals)
+	}
+	// multiple subjects (group claims active): any subject allowed = allowed
+	result := make(map[string]bool)
+	for _, subject := range subjects {
+		subjectResult := e.EnforceByEmailInBatch(subject, resource, action, vals)
+		for k, v := range subjectResult {
+			if v {
+				result[k] = true
+			}
+		}
+	}
+	return result
 }
 
 func (e *EnforcerImpl) enforceAndUpdateCache(email string, resource string, action string, resourceItem string) bool {
@@ -465,6 +487,39 @@ func (e *EnforcerImpl) VerifyTokenAndGetEmail(tokenString string) (string, bool)
 		email = "admin"
 	}
 	return email, false
+}
+
+// getSubjectsFromToken parses the JWT token and returns all casbin subjects for the user.
+// When group claims config is active, returns [email, group:casbin1, group:casbin2, ...].
+// Otherwise returns just [email]. The invalid bool is true if the token is invalid.
+func (e *EnforcerImpl) getSubjectsFromToken(tokenString string) ([]string, bool) {
+	claims, err := e.SessionManager.VerifyToken(tokenString)
+	if err != nil {
+		return nil, true
+	}
+	mapClaims, err := jwt.MapClaims(claims)
+	if err != nil {
+		return nil, true
+	}
+	email := jwt.GetField(mapClaims, "email")
+	sub := jwt.GetField(mapClaims, "sub")
+	if email == "" && (sub == "admin" || sub == "admin:login") {
+		email = "admin"
+	}
+	if email == "" {
+		return nil, true
+	}
+	subjects := []string{email}
+	if e.globalAuthorisationConfigService != nil &&
+		e.globalAuthorisationConfigService.IsGroupClaimsConfigActive() &&
+		!util3.CheckIfAdminOrApiToken(email) {
+		_, groups := e.globalAuthorisationConfigService.GetEmailAndGroupsFromClaims(mapClaims)
+		if len(groups) > 0 {
+			groupCasbinNames := util3.GetGroupCasbinName(groups)
+			subjects = append(subjects, groupCasbinNames...)
+		}
+	}
+	return subjects, false
 }
 
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function

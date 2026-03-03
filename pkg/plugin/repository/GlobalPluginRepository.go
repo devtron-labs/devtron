@@ -18,11 +18,12 @@ package repository
 
 import (
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"strings"
-	"time"
 )
 
 type PluginType string
@@ -393,6 +394,8 @@ type GlobalPluginRepository interface {
 	GetPluginStageMappingByPluginId(pluginId int) (*PluginStageMapping, error)
 	GetConnection() (dbConnection *pg.DB)
 	GetPluginVersionsByParentId(parentPluginId int) ([]*PluginMetadata, error)
+	GetPluginMetadataWithoutParent() ([]*PluginMetadata, error)
+	GetMetaDataForAllPluginsWithBaseVersionForMigration(excludeDeprecated bool) ([]*PluginMetadata, error)
 
 	GetPluginParentMetadataByIdentifier(pluginIdentifier string) (*PluginParentMetadata, error)
 	GetPluginParentsMetadataByIdentifiers(pluginIdentifiers ...string) ([]*PluginParentMetadata, error)
@@ -712,6 +715,39 @@ func (impl *GlobalPluginRepositoryImpl) GetPluginVersionsByParentId(parentPlugin
 		return nil, err
 	}
 	return plugin, nil
+}
+
+// GetPluginMetadataWithoutParent returns all plugin metadata entries that don't have a parent metadata linked
+// (plugin_parent_metadata_id = 0 or NULL). This is used during migration to find plugins that need to be linked to their parent.
+func (impl *GlobalPluginRepositoryImpl) GetPluginMetadataWithoutParent() ([]*PluginMetadata, error) {
+	var plugins []*PluginMetadata
+	err := impl.dbConnection.Model(&plugins).
+		Where("deleted = ?", false).
+		Where("(plugin_parent_metadata_id = ? OR plugin_parent_metadata_id IS NULL)", 0).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting plugin metadata without parent", "err", err)
+		return nil, err
+	}
+	return plugins, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) GetMetaDataForAllPluginsWithBaseVersionForMigration(excludeDeprecated bool) ([]*PluginMetadata, error) {
+	var plugins []*PluginMetadata
+	query := impl.dbConnection.Model(&plugins).
+		Where("deleted = ?", false).
+		Where("is_exposed = ?", true).
+		Where("plugin_version = ?", "1.0.0").
+		Order("id")
+	if excludeDeprecated {
+		query = query.Where("is_deprecated = ?", false)
+	}
+	err := query.Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting all plugins", "err", err)
+		return nil, err
+	}
+	return plugins, nil
 }
 
 func (impl *GlobalPluginRepositoryImpl) GetAllPluginMetaData() ([]*PluginMetadata, error) {
