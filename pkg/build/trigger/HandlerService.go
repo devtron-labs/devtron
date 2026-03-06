@@ -85,6 +85,7 @@ type HandlerService interface {
 	GetRunningWorkflowLogs(workflowId int, followLogs bool) (*bufio.Reader, func() error, error)
 	GetHistoricBuildLogs(workflowId int, ciWorkflow *pipelineConfig.CiWorkflow) (map[string]string, error)
 	DownloadCiWorkflowArtifacts(pipelineId int, buildId int) (*os.File, error)
+	abortPreviousRunningBuilds(pipelineId int, triggeredBy int32) error
 }
 
 // CATEGORY=CI_BUILDX
@@ -706,6 +707,13 @@ func (impl *HandlerServiceImpl) triggerCiPipeline(trigger *types.CiTriggerReques
 	if err != nil {
 		impl.Logger.Errorw("error in preparing wf request", "triggerRequest", trigger, "err", err)
 		return 0, err
+	}
+
+	// Check if auto-abort is enabled for this pipeline and abort previous builds if needed
+	err = impl.abortPreviousRunningBuilds(trigger.PipelineId, trigger.TriggeredBy)
+	if err != nil {
+		impl.Logger.Errorw("error in aborting previous running builds", "pipelineId", trigger.PipelineId, "err", err)
+		// Log error but don't fail the trigger - previous builds aborting is a best-effort operation
 	}
 
 	err = impl.executeCiPipeline(workflowRequest)
@@ -2065,4 +2073,85 @@ func (impl *HandlerServiceImpl) DownloadCiWorkflowArtifacts(pipelineId int, buil
 
 	impl.Logger.Infow("Downloaded ", "filename", file.Name(), "bytes", numBytes)
 	return file, nil
+}
+
+// abortPreviousRunningBuilds checks if auto-abort is enabled for the pipeline and aborts previous running builds
+func (impl *HandlerServiceImpl) abortPreviousRunningBuilds(pipelineId int, triggeredBy int32) error {
+	// Get pipeline configuration to check if auto-abort is enabled
+	ciPipeline, err := impl.ciPipelineRepository.FindById(pipelineId)
+	if err != nil {
+		impl.Logger.Errorw("error in finding ci pipeline", "pipelineId", pipelineId, "err", err)
+		return err
+	}
+
+	// Check if auto-abort is enabled for this pipeline
+	if !ciPipeline.AutoAbortPreviousBuilds {
+		impl.Logger.Debugw("auto-abort not enabled for pipeline", "pipelineId", pipelineId)
+		return nil
+	}
+
+	// Find all running/pending workflows for this pipeline
+	runningWorkflows, err := impl.ciWorkflowRepository.FindRunningWorkflowsForPipeline(pipelineId)
+	if err != nil {
+		impl.Logger.Errorw("error in finding running workflows for pipeline", "pipelineId", pipelineId, "err", err)
+		return err
+	}
+
+	if len(runningWorkflows) == 0 {
+		impl.Logger.Debugw("no running workflows found to abort for pipeline", "pipelineId", pipelineId)
+		return nil
+	}
+
+	impl.Logger.Infow("found running workflows to abort due to auto-abort configuration", 
+		"pipelineId", pipelineId, "workflowCount", len(runningWorkflows), "triggeredBy", triggeredBy)
+
+	// Abort each running workflow
+	for _, workflow := range runningWorkflows {
+		// Check if the workflow is in a critical phase that should not be aborted
+		if impl.isWorkflowInCriticalPhase(workflow) {
+			impl.Logger.Infow("skipping abort of workflow in critical phase", 
+				"workflowId", workflow.Id, "status", workflow.Status, "pipelineId", pipelineId)
+			continue
+		}
+
+		// Attempt to cancel the build
+		_, err := impl.CancelBuild(workflow.Id, false)
+		if err != nil {
+			impl.Logger.Errorw("error aborting previous running build", 
+				"workflowId", workflow.Id, "pipelineId", pipelineId, "err", err)
+			// Continue with other workflows even if one fails
+			continue
+		}
+
+		impl.Logger.Infow("successfully aborted previous running build due to auto-abort", 
+			"workflowId", workflow.Id, "pipelineId", pipelineId, "abortedBy", triggeredBy)
+	}
+
+	return nil
+}
+
+// isWorkflowInCriticalPhase determines if a workflow is in a critical phase and should not be aborted
+// This protects builds that are in the final stages like pushing cache or artifacts
+func (impl *HandlerServiceImpl) isWorkflowInCriticalPhase(workflow *pipelineConfig.CiWorkflow) bool {
+	// For now, we consider "Starting" as safe to abort, but "Running" needs more careful consideration
+	// In the future, this could be extended to check actual workflow steps/stages
+	
+	// If workflow has been running for less than 2 minutes, it's likely still in setup phase
+	if workflow.Status == "Running" && workflow.StartedOn.IsZero() == false {
+		runningDuration := time.Since(workflow.StartedOn)
+		if runningDuration < 2*time.Minute {
+			impl.Logger.Debugw("workflow is in early running phase, safe to abort", 
+				"workflowId", workflow.Id, "runningDuration", runningDuration.String())
+			return false
+		}
+		
+		// For workflows running longer, we should be more cautious
+		// This could be extended to check actual workflow phases using workflow service APIs
+		impl.Logger.Debugw("workflow has been running for a while, considering as critical phase", 
+			"workflowId", workflow.Id, "runningDuration", runningDuration.String())
+		return true
+	}
+	
+	// "Starting" and "Pending" are generally safe to abort
+	return false
 }
