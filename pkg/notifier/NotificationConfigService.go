@@ -589,6 +589,7 @@ func (impl *NotificationConfigServiceImpl) updateNotificationSetting(notificatio
 		notificationSettingsRequest.PipelineId = nsConfig.PipelineId
 		notificationSettingsRequest.PipelineType = nsConfig.PipelineType
 		notificationSettingsRequest.Providers = nsConfig.Providers
+		notificationSettingsRequest.ClusterId = nsConfig.ClusterId
 		var notificationSettings []repository.NotificationSettings
 		nsOptions, err := impl.notificationSettingsRepository.FetchNotificationSettingGroupBy(notificationSettingsRequest.Id)
 		if err != nil {
