@@ -30,6 +30,7 @@ type UserAutoAssignGroupMapRepository interface {
 	Update(models []*UserAutoAssignedGroup, tx *pg.Tx) error
 	GetActiveByUserId(userId int32) ([]*UserAutoAssignedGroup, error)
 	GetAllActiveWithUser() ([]*UserAutoAssignedGroup, error)
+	DeactivateByGroupName(groupName string, tx *pg.Tx) error
 }
 
 type UserAutoAssignGroupMapRepositoryImpl struct {
@@ -109,4 +110,16 @@ func (repo *UserAutoAssignGroupMapRepositoryImpl) GetAllActiveWithUser() ([]*Use
 		return nil, err
 	}
 	return models, nil
+}
+
+func (repo *UserAutoAssignGroupMapRepositoryImpl) DeactivateByGroupName(groupName string, tx *pg.Tx) error {
+	_, err := tx.Model((*UserAutoAssignedGroup)(nil)).
+		Set("active = false").
+		Where("group_name = ? AND active = true", groupName).
+		Update()
+	if err != nil && err != pg.ErrNoRows {
+		repo.logger.Errorw("error, DeactivateByGroupName", "err", err, "groupName", groupName)
+		return err
+	}
+	return nil
 }

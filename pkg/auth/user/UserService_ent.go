@@ -41,6 +41,7 @@ func (impl *UserServiceImpl) UpdateDataForGroupClaims(dto *userBean.SelfRegister
 			impl.logger.Errorw("error in updating data for user group claims map", "err", err, "userId", userInfo.Id)
 			return err
 		}
+		impl.syncGroupClaimsCasbinPolicies(userInfo.EmailId, dto.GroupsFromClaims)
 	}
 	return nil
 }
@@ -58,7 +59,74 @@ func (impl *UserServiceImpl) assignUserGroups(tx *pg.Tx, userInfo *userBean.User
 }
 
 func (impl *UserServiceImpl) checkAndPerformOperationsForGroupClaims(tx *pg.Tx, userInfo *userBean.UserInfo) (bool, error) {
+	isGroupClaimsActive := impl.globalAuthorisationConfigService.IsGroupClaimsConfigActive()
+	isSystemManagedActive := impl.globalAuthorisationConfigService.IsDevtronSystemManagedConfigActive()
+	if !isSystemManagedActive && isGroupClaimsActive {
+		// In group-claims-only mode, new users must not get direct casbin permissions;
+		// their access is governed entirely by JWT group claims resolved at login.
+		userInfo.RoleFilters = []userBean.RoleFilter{}
+		userInfo.Groups = []string{}
+		userInfo.UserRoleGroup = []userBean.UserRoleGroup{}
+		userInfo.SuperAdmin = false
+		err := tx.Commit()
+		if err != nil {
+			impl.logger.Errorw("error encountered in checkAndPerformOperationsForGroupClaims", "err", err)
+			return false, err
+		}
+		return true, nil
+	}
 	return false, nil
+}
+
+// syncGroupClaimsCasbinPolicies keeps casbin g-policies in sync with the user's current JWT group claims.
+// It adds g|email|group:xxx for newly assigned groups and removes stale ones.
+func (impl *UserServiceImpl) syncGroupClaimsCasbinPolicies(emailId string, groups []string) {
+	currentRoles, err := casbin2.GetRolesForUser(emailId)
+	if err != nil {
+		impl.logger.Errorw("error in GetRolesForUser for syncGroupClaimsCasbinPolicies", "err", err, "emailId", emailId)
+		return
+	}
+
+	desiredCasbinNames := util3.GetGroupCasbinName(groups)
+	desiredMap := make(map[string]bool, len(desiredCasbinNames))
+	for _, name := range desiredCasbinNames {
+		desiredMap[name] = true
+	}
+
+	currentGroupMap := make(map[string]bool)
+	for _, role := range currentRoles {
+		if strings.HasPrefix(role, "group:") {
+			currentGroupMap[role] = true
+		}
+	}
+
+	policiesToAdd := make([]bean4.Policy, 0)
+	for _, casbinName := range desiredCasbinNames {
+		if !currentGroupMap[casbinName] {
+			policiesToAdd = append(policiesToAdd, bean4.Policy{
+				Type: "g",
+				Sub:  bean4.Subject(emailId),
+				Obj:  bean4.Object(casbinName),
+			})
+		}
+	}
+	if len(policiesToAdd) > 0 {
+		casbin2.AddPolicy(policiesToAdd)
+	}
+
+	policiesToRemove := make([]bean4.Policy, 0)
+	for casbinName := range currentGroupMap {
+		if !desiredMap[casbinName] {
+			policiesToRemove = append(policiesToRemove, bean4.Policy{
+				Type: "g",
+				Sub:  bean4.Subject(emailId),
+				Obj:  bean4.Object(casbinName),
+			})
+		}
+	}
+	if len(policiesToRemove) > 0 {
+		casbin2.RemovePolicy(policiesToRemove)
+	}
 }
 
 func getFinalRoleFiltersToBeConsidered(userInfo *userBean.UserInfo) []userBean.RoleFilter {
@@ -173,6 +241,7 @@ func (impl *UserServiceImpl) UpdateUserGroupMappingIfActiveUser(emailId string, 
 		impl.logger.Errorw("error in updating data for user group claims map", "err", err, "userId", user.Id)
 		return err
 	}
+	impl.syncGroupClaimsCasbinPolicies(emailId, groups)
 	return nil
 }
 

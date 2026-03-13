@@ -780,13 +780,15 @@ func (impl *ClusterServiceImpl) FetchRolesFromGroup(userId int32) ([]*repository
 		impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
 		return nil, err
 	}
-	rolesFromGroup, err := impl.roleGroupRepository.GetRolesByGroupNamesAndEntity(groups, roleEntity)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting roles by group names", "err", err)
-		return nil, err
-	}
-	if len(rolesFromGroup) > 0 {
-		roles = append(roles, rolesFromGroup...)
+	if len(groups) > 0 {
+		rolesFromGroup, err := impl.roleGroupRepository.GetRolesByGroupNamesAndEntity(groups, roleEntity)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting roles by group names", "err", err)
+			return nil, err
+		}
+		if len(rolesFromGroup) > 0 {
+			roles = append(roles, rolesFromGroup...)
+		}
 	}
 	return roles, nil
 }
