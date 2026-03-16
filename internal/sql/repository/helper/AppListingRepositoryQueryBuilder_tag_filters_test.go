@@ -24,7 +24,7 @@ func TestBuildAppListingWhereCondition_WithTagFiltersAnd(t *testing.T) {
 	})
 
 	require.Contains(t, whereClause, "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value = ?)")
-	require.Contains(t, whereClause, "NOT EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value LIKE ? ESCAPE '\\')")
+	require.Contains(t, whereClause, "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value NOT LIKE ? ESCAPE '\\')")
 	require.Contains(t, whereClause, "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ?)")
 	require.Contains(t, whereClause, "NOT EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ?)")
 	require.Len(t, queryParams, 8)
@@ -47,6 +47,34 @@ func TestBuildTagFiltersWhereConditionOR(t *testing.T) {
 
 	require.Equal(t, " and (EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value = ?) OR EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value LIKE ? ESCAPE '\\')) ", whereClause)
 	require.Equal(t, []interface{}{"owner", "James", "cost-center", "%ENG%"}, queryParams)
+}
+
+func TestBuildTagFilterPredicate_DoesNotEqualRequiresKeyAndDifferentValue(t *testing.T) {
+	queryBuilder := NewAppListingRepositoryQueryBuilder(zap.NewNop().Sugar())
+	value := "mayank"
+
+	predicate, queryParams := queryBuilder.buildTagFilterPredicate(TagFilter{
+		Key:      "owner",
+		Operator: TagFilterOperatorDoesNotEqual,
+		Value:    &value,
+	})
+
+	require.Equal(t, "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value <> ?)", predicate)
+	require.Equal(t, []interface{}{"owner", "mayank"}, queryParams)
+}
+
+func TestBuildTagFilterPredicate_DoesNotContainRequiresKeyAndNotLike(t *testing.T) {
+	queryBuilder := NewAppListingRepositoryQueryBuilder(zap.NewNop().Sugar())
+	value := "may"
+
+	predicate, queryParams := queryBuilder.buildTagFilterPredicate(TagFilter{
+		Key:      "owner",
+		Operator: TagFilterOperatorDoesNotContain,
+		Value:    &value,
+	})
+
+	require.Equal(t, "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value NOT LIKE ? ESCAPE '\\')", predicate)
+	require.Equal(t, []interface{}{"owner", "%may%"}, queryParams)
 }
 
 func BenchmarkBuildAppListingQueryWithTagFilters(b *testing.B) {

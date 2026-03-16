@@ -360,6 +360,14 @@ func (impl AppListingRepositoryQueryBuilder) buildTagFiltersWhereConditionOR(tag
 	return " and (" + strings.Join(clauses, " OR ") + ") ", queryParams
 }
 
+// buildTagFilterPredicate converts one UI tag filter row into a SQL predicate.
+// Operator behavior (all case-sensitive):
+// - EQUALS: key exists with exact value match.
+// - DOES_NOT_EQUAL: key exists with at least one value different from target.
+// - CONTAINS: key exists with at least one value containing target substring.
+// - DOES_NOT_CONTAIN: key exists with at least one value not containing target substring.
+// - EXISTS: key exists.
+// - DOES_NOT_EXIST: key does not exist.
 func (impl AppListingRepositoryQueryBuilder) buildTagFilterPredicate(tagFilter TagFilter) (string, []interface{}) {
 	value := ""
 	if tagFilter.Value != nil {
@@ -370,15 +378,17 @@ func (impl AppListingRepositoryQueryBuilder) buildTagFilterPredicate(tagFilter T
 		return "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value = ?)",
 			[]interface{}{tagFilter.Key, value}
 	case TagFilterOperatorDoesNotEqual:
-		// NOT EXISTS intentionally includes apps where the key is missing.
-		return "NOT EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value = ?)",
+		// Best-practice semantics for multi-value keys:
+		// include app when key exists and at least one value is different from target.
+		return "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value <> ?)",
 			[]interface{}{tagFilter.Key, value}
 	case TagFilterOperatorContains:
 		return "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value LIKE ? ESCAPE '\\')",
 			[]interface{}{tagFilter.Key, buildContainsPattern(value)}
 	case TagFilterOperatorDoesNotContain:
-		// NOT EXISTS intentionally includes apps where the key is missing.
-		return "NOT EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value LIKE ? ESCAPE '\\')",
+		// Best-practice semantics for multi-value keys:
+		// include app when key exists and at least one value does not contain target.
+		return "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value NOT LIKE ? ESCAPE '\\')",
 			[]interface{}{tagFilter.Key, buildContainsPattern(value)}
 	case TagFilterOperatorExists:
 		return "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ?)",
