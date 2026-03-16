@@ -138,26 +138,31 @@ func (impl *UserServiceImpl) CheckUserRoles(id int32, token string) ([]string, e
 		return nil, err
 	}
 
+	isGroupClaimsActive := impl.globalAuthorisationConfigService.IsGroupClaimsConfigActive()
+	isDevtronSystemActive := impl.globalAuthorisationConfigService.IsDevtronSystemManagedConfigActive()
 	var groups []string
 	// devtron-system-managed path: get roles from casbin directly
-	activeRoles, err := casbin2.GetRolesForUser(model.EmailId)
-	if err != nil {
-		impl.logger.Errorw("No Roles Found for user", "id", model.Id)
-		return nil, err
-	}
-	groups = append(groups, activeRoles...)
-	if len(groups) > 0 {
-		// getting unique, handling for duplicate roles
-		roleFromGroups, err := impl.getUniquesRolesByGroupCasbinNames(groups)
+	// skipped when group-claims-only mode is active (to avoid stale casbin policies leaking permissions)
+	if isDevtronSystemActive || util3.CheckIfAdminOrApiToken(model.EmailId) {
+		activeRoles, err := casbin2.GetRolesForUser(model.EmailId)
 		if err != nil {
-			impl.logger.Errorw("error in getUniquesRolesByGroupCasbinNames", "err", err)
+			impl.logger.Errorw("No Roles Found for user", "id", model.Id)
 			return nil, err
 		}
-		groups = append(groups, roleFromGroups...)
+		groups = append(groups, activeRoles...)
+		if len(groups) > 0 {
+			// getting unique, handling for duplicate roles
+			roleFromGroups, err := impl.getUniquesRolesByGroupCasbinNames(groups)
+			if err != nil {
+				impl.logger.Errorw("error in getUniquesRolesByGroupCasbinNames", "err", err)
+				return nil, err
+			}
+			groups = append(groups, roleFromGroups...)
+		}
 	}
 
 	// group claims path: check group claims active and add role groups from JWT claims
-	isGroupClaimsActive := impl.globalAuthorisationConfigService.IsGroupClaimsConfigActive()
+	// skipping for api token; also skipping for empty token (update user super-admin check — target user token unavailable)
 	if isGroupClaimsActive && !strings.HasPrefix(model.EmailId, userBean.API_TOKEN_USER_EMAIL_PREFIX) {
 		_, groupClaims, err := impl.GetEmailAndGroupClaimsFromToken(token)
 		if err != nil {
@@ -361,8 +366,12 @@ func (impl *UserServiceImpl) GetEmailAndGroupClaimsFromToken(token string) (stri
 	if err != nil {
 		return "", nil, err
 	}
+	groupsClaims := make([]string, 0)
 	email, groups := impl.globalAuthorisationConfigService.GetEmailAndGroupsFromClaims(mapClaims)
-	return email, groups, nil
+	if impl.globalAuthorisationConfigService.IsGroupClaimsConfigActive() {
+		groupsClaims = groups
+	}
+	return email, groupsClaims, nil
 }
 
 func (impl *UserServiceImpl) getMapClaims(token string) (jwtv4.MapClaims, error) {

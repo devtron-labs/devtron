@@ -778,13 +778,21 @@ func (impl *ClusterServiceImpl) FetchRolesFromGroup(userId int32, token string) 
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
 	}
-	groups, err := casbin2.GetRolesForUser(userModel.EmailId)
-	if err != nil {
-		impl.logger.Errorw("No Roles Found for user", "id", userModel.Id)
-		return nil, err
+	isGroupClaimsActive := impl.globalAuthorisationConfigService != nil && impl.globalAuthorisationConfigService.IsGroupClaimsConfigActive()
+	isDevtronSystemActive := impl.globalAuthorisationConfigService != nil && impl.globalAuthorisationConfigService.IsDevtronSystemManagedConfigActive()
+	var groups []string
+	// devtron-system-managed path: get roles from casbin directly
+	// skipped when group-claims-only mode is active (to avoid stale casbin policies leaking permissions)
+	if isDevtronSystemActive || util3.CheckIfAdminOrApiToken(userModel.EmailId) {
+		casbinGroups, err := casbin2.GetRolesForUser(userModel.EmailId)
+		if err != nil {
+			impl.logger.Errorw("No Roles Found for user", "id", userModel.Id)
+			return nil, err
+		}
+		groups = append(groups, casbinGroups...)
 	}
 	// group claims path: append group casbin names from JWT token if group claims active
-	if impl.globalAuthorisationConfigService != nil && impl.globalAuthorisationConfigService.IsGroupClaimsConfigActive() {
+	if isGroupClaimsActive {
 		_, groupClaims, err := impl.userService.GetEmailAndGroupClaimsFromToken(token)
 		if err != nil {
 			impl.logger.Errorw("error in GetEmailAndGroupClaimsFromToken", "err", err)
