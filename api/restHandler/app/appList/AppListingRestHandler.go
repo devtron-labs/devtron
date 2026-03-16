@@ -331,6 +331,13 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	normalizedTagFilters, err := app.NormalizeAndValidateTagFilters(fetchAppListingRequest.TagFilters)
+	if err != nil {
+		handler.logger.Errorw("request err, ValidateTagFilters", "err", err, "payload", fetchAppListingRequest.TagFilters)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	fetchAppListingRequest.TagFilters = normalizedTagFilters
 	newCtx, span = otel.Tracer("fetchAppListingRequest").Start(newCtx, "GetNamespaceClusterMapping")
 	_, _, err = fetchAppListingRequest.GetNamespaceClusterMapping()
 	span.End()
