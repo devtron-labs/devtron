@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package appList
@@ -21,11 +9,35 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"strconv"
+	"time"
+
+	"github.com/devtron-labs/devtron/api/bean/AppView"
+	util3 "github.com/devtron-labs/devtron/api/util"
+	"github.com/devtron-labs/devtron/pkg/app/bean"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
+	appStoreUtil "github.com/devtron-labs/devtron/pkg/appStore/util"
+	util2 "github.com/devtron-labs/devtron/pkg/auth/user/util"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp/status/resourceTree"
+	"github.com/devtron-labs/devtron/pkg/deployment/resourceTree/devtronApp"
+	"github.com/devtron-labs/devtron/pkg/featureFlag"
+	"github.com/devtron-labs/devtron/pkg/featureFlag/model"
+	ffService "github.com/devtron-labs/devtron/pkg/featureFlag/service"
+	"github.com/devtron-labs/devtron/pkg/globalFlag"
+	"github.com/devtron-labs/devtron/pkg/globalPolicy"
+	read2 "github.com/devtron-labs/devtron/pkg/policyGovernance/approvalConfig/read"
+	devtronUtil "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/rbac/filter"
+	"github.com/gorilla/schema"
+	"golang.org/x/exp/maps"
+
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
-	"github.com/devtron-labs/devtron/api/bean/AppView"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	util3 "github.com/devtron-labs/devtron/api/util"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
@@ -33,33 +45,21 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
-	util4 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
-	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
-	bean5 "github.com/devtron-labs/devtron/pkg/cluster/bean"
-	bean2 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
+	_ "github.com/devtron-labs/devtron/pkg/cluster"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
-	bean3 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
-	bean4 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
-	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp/status/resourceTree"
+	commonBean "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	k8sApplication "github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	bean6 "github.com/devtron-labs/devtron/pkg/team/bean"
-	util2 "github.com/devtron-labs/devtron/util"
+	bean5 "github.com/devtron-labs/devtron/pkg/team/bean"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"strconv"
-	"time"
 )
 
 type AppListingRestHandler interface {
@@ -70,6 +70,7 @@ type AppListingRestHandler interface {
 	FetchAllDevtronManagedApps(w http.ResponseWriter, r *http.Request)
 	FetchAppStageStatus(w http.ResponseWriter, r *http.Request)
 
+	FetchEnvMinData(w http.ResponseWriter, r *http.Request)
 	FetchOtherEnvironment(w http.ResponseWriter, r *http.Request)
 	FetchMinDetailOtherEnvironment(w http.ResponseWriter, r *http.Request)
 	RedirectToLinkouts(w http.ResponseWriter, r *http.Request)
@@ -99,7 +100,14 @@ type AppListingRestHandlerImpl struct {
 	k8sApplicationService       k8sApplication.K8sApplicationService
 	deploymentConfigService     common2.DeploymentConfigService
 	resourceTreeService         resourceTree.Service
-	validator                   *validator.Validate
+
+	//ent
+	virtualEnvResourceTreeService           devtronApp.VirtualEnvResourceTreeService
+	featureFlagService                      ffService.FeatureFlagService
+	approvalConfigurationEnforcementService read2.ApprovalPolicyReadService
+	rbacFilterUtil                          filter.RbacFilterUtil
+	globalFlagService                       globalFlag.GlobalFlagService
+	globalPolicyDataManager                 globalPolicy.GlobalPolicyDataManager
 }
 
 type AppStatus struct {
@@ -111,12 +119,13 @@ type AppStatus struct {
 }
 
 type AppAutocomplete struct {
-	Teams        []bean6.TeamRequest
+	Teams        []bean5.TeamRequest
 	Environments []bean2.EnvironmentBean
-	Clusters     []bean5.ClusterBean
+	Clusters     []clusterBean.ClusterBean
 }
 
-func NewAppListingRestHandlerImpl(appListingService app.AppListingService,
+func NewAppListingRestHandlerImpl(
+	appListingService app.AppListingService,
 	enforcer casbin.Enforcer,
 	pipeline pipeline.PipelineBuilder,
 	logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
@@ -127,7 +136,14 @@ func NewAppListingRestHandlerImpl(appListingService app.AppListingService,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	k8sApplicationService k8sApplication.K8sApplicationService,
 	deploymentConfigService common2.DeploymentConfigService,
-	resourceTreeService resourceTree.Service) *AppListingRestHandlerImpl {
+	virtualEnvResourceTreeService devtronApp.VirtualEnvResourceTreeService,
+	featureFlagService ffService.FeatureFlagService,
+	approvalConfigurationEnforcementService read2.ApprovalPolicyReadService,
+	resourceTreeService resourceTree.Service,
+	rbacFilterUtil filter.RbacFilterUtil,
+	globalFlagService globalFlag.GlobalFlagService,
+	globalPolicyDataManager globalPolicy.GlobalPolicyDataManager,
+) *AppListingRestHandlerImpl {
 	appListingHandler := &AppListingRestHandlerImpl{
 		appListingService:           appListingService,
 		logger:                      logger,
@@ -143,7 +159,13 @@ func NewAppListingRestHandlerImpl(appListingService app.AppListingService,
 		k8sApplicationService:       k8sApplicationService,
 		deploymentConfigService:     deploymentConfigService,
 		resourceTreeService:         resourceTreeService,
-		validator:                   validator.New(),
+
+		virtualEnvResourceTreeService:           virtualEnvResourceTreeService,
+		featureFlagService:                      featureFlagService,
+		approvalConfigurationEnforcementService: approvalConfigurationEnforcementService,
+		rbacFilterUtil:                          rbacFilterUtil,
+		globalFlagService:                       globalFlagService,
+		globalPolicyDataManager:                 globalPolicyDataManager,
 	}
 	return appListingHandler
 }
@@ -279,25 +301,6 @@ func (handler AppListingRestHandlerImpl) FetchJobOverviewCiPipelines(w http.Resp
 	common.WriteJsonResp(w, err, jobCi, http.StatusOK)
 }
 
-// validateAndNormalizeFetchAppListingRequest applies request-level validation first,
-// then tag-filter business validation, and finally normalization.
-func (handler AppListingRestHandlerImpl) validateAndNormalizeFetchAppListingRequest(w http.ResponseWriter, r *http.Request, fetchAppListingRequest *app.FetchAppListingRequest) bool {
-	err := handler.validator.Struct(*fetchAppListingRequest)
-	if err != nil {
-		handler.logger.Errorw("validation err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
-		common.HandleValidationErrors(w, r, err)
-		return false
-	}
-	err = handler.appListingService.ValidateTagFilters(fetchAppListingRequest.TagFilters)
-	if err != nil {
-		handler.logger.Errorw("request err, ValidateTagFilters", "err", err, "payload", fetchAppListingRequest.TagFilters)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return false
-	}
-	fetchAppListingRequest.TagFilters = handler.appListingService.NormalizeTagFilters(fetchAppListingRequest.TagFilters)
-	return true
-}
-
 func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.ResponseWriter, r *http.Request) {
 	//Allow CORS here By * or specific origin
 	util3.SetupCorsOriginHeader(&w)
@@ -353,11 +356,15 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if !handler.validateAndNormalizeFetchAppListingRequest(w, r, &fetchAppListingRequest) {
+	normalizedTagFilters, err := app.NormalizeAndValidateTagFilters(fetchAppListingRequest.TagFilters)
+	if err != nil {
+		handler.logger.Errorw("request err, ValidateTagFilters", "err", err, "payload", fetchAppListingRequest.TagFilters)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	fetchAppListingRequest.TagFilters = normalizedTagFilters
 	newCtx, span = otel.Tracer("fetchAppListingRequest").Start(newCtx, "GetNamespaceClusterMapping")
-	_, _, err = fetchAppListingRequest.GetNamespaceClusterMapping()
+	_, _, err = app.GetNamespaceClusterMapping(fetchAppListingRequest.Namespaces)
 	span.End()
 	if err != nil {
 		handler.logger.Errorw("request err, GetNamespaceClusterMapping", "err", err, "payload", fetchAppListingRequest)
@@ -401,6 +408,21 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 		return
 	}
 
+	// RBAC start
+	//canOnlyViewPermittedData, err := handler.globalFlagService.CanOnlyViewPermittedData(userId)
+	//if err != nil {
+	//	handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
+	//	common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+	//	return
+	//}
+	//
+	//if canOnlyViewPermittedData {
+	//	filteredEnvContainers := handler.filterAppEnvironmentContainers(envContainers, token)
+	//}
+
+	// TODO logic to update the response with filtered envContainers
+	//RBAC ends
+
 	appContainerResponse := AppView.AppContainerResponse{
 		AppContainers: apps,
 		AppCount:      appsCount,
@@ -415,13 +437,14 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 			})
 		}
 		appContainerResponse.DeploymentGroupDTO = AppView.DeploymentGroupDTO{
-			Id:             dg.Id,
-			Name:           dg.Name,
-			AppCount:       dg.AppCount,
-			NoOfApps:       dg.NoOfApps,
-			EnvironmentId:  dg.EnvironmentId,
-			CiPipelineId:   dg.CiPipelineId,
-			CiMaterialDTOs: ciMaterialDTOs,
+			Id:                   dg.Id,
+			Name:                 dg.Name,
+			AppCount:             dg.AppCount,
+			NoOfApps:             dg.NoOfApps,
+			EnvironmentId:        dg.EnvironmentId,
+			CiPipelineId:         dg.CiPipelineId,
+			CiMaterialDTOs:       ciMaterialDTOs,
+			IsVirtualEnvironment: dg.IsVirtualEnvironment,
 		}
 	}
 	t2 = time.Now()
@@ -429,6 +452,26 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 	t1 = t2
 	handler.logger.Infow("api response time testing", "total time", time.Now().String(), "total time", t1.Unix()-t0.Unix())
 	common.WriteJsonResp(w, err, appContainerResponse, http.StatusOK)
+}
+
+// this function gives only those envContainers which are permitted to the user, this can be used in future in app listing to
+// filter out the envContainers which are not permitted to the user, after building the response, iterate over apps -> it's envContainers
+// and filter out the envContainers which are not permitted to the user or put a particular message instead of envContainers
+func (impl AppListingRestHandlerImpl) filterAppEnvironmentContainers(envContainers []*AppView.AppEnvironmentContainer, token string) []*AppView.AppEnvironmentContainer {
+	// make envRBACObjects
+	envRBACObjects := impl.enforcerUtil.GetEnvRbacObjectsByEnvContainers(envContainers)
+
+	envResults := impl.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionGet, envRBACObjects)
+	filteredEnvContainers := make([]*AppView.AppEnvironmentContainer, 0)
+	for _, envContainer := range envContainers {
+		rbacObject := impl.enforcerUtil.GetEnvRbacObjectsByEnvContainer(envContainer)
+		// if rbac object exist into envResults then add to filteredEnvContainers
+		if envResults[rbacObject] {
+			filteredEnvContainers = append(filteredEnvContainers, envContainer)
+		}
+
+	}
+	return filteredEnvContainers
 }
 
 // TODO refactoring: use schema.NewDecoder().Decode(&queryStruct, r.URL.Query())
@@ -521,12 +564,7 @@ func (handler AppListingRestHandlerImpl) FetchAppDetailsV2(w http.ResponseWriter
 		return
 	}
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
-	userEmail := util2.GetEmailFromContext(r.Context())
-	userMetadata := &bean.UserMetadata{
-		UserEmailId:      userEmail,
-		IsUserSuperAdmin: isSuperAdmin,
-		UserId:           userId,
-	}
+	userMetadata := util2.GetUserMetadata(r.Context(), userId, isSuperAdmin)
 	appDetail, err := handler.appListingService.FetchAppDetails(r.Context(), appId, envId)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppDetailsV2", "err", err, "appId", appId, "envId", envId)
@@ -562,6 +600,7 @@ func (handler AppListingRestHandlerImpl) FetchResourceTree(w http.ResponseWriter
 	}
 	defer cancel()
 	ctx = context.WithValue(ctx, "token", token)
+	ctx = devtronUtil.SetSuperAdminInContext(ctx, handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"))
 
 	envId, err := strconv.Atoi(vars["env-id"])
 	if err != nil {
@@ -592,23 +631,48 @@ func (handler AppListingRestHandlerImpl) FetchResourceTree(w http.ResponseWriter
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
+	if cdPipeline.Environment.IsVirtualEnvironment {
+		resourceTreeResp, err := handler.virtualEnvResourceTreeService.GetResourceTreeForPipeline(cdPipeline.Id)
+		if err != nil {
+			handler.logger.Errorw("error in fetching resource tree", "err", err, "appId", appId, "envId", envId)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		common.WriteJsonResp(w, nil, resourceTreeResp, http.StatusOK)
+		return
+	}
+
 	envDeploymentConfig, err := handler.deploymentConfigService.GetConfigForDevtronApps(nil, appId, envId)
 	if err != nil {
 		handler.logger.Errorw("error in fetching deployment config", "appId", appId, "envId", envId, "err", err)
 		common.WriteJsonResp(w, fmt.Errorf("error in getting deployment config for env"), nil, http.StatusInternalServerError)
 		return
 	}
-	resourceTree, err := handler.resourceTreeService.FetchResourceTree(ctx, appId, envId, cdPipeline, envDeploymentConfig)
+	// flag based drift compute in resource tree
+	enableConfigDrift := false
+	resourceTree := map[string]any{}
+	enableConfigDrift, err = handler.featureFlagService.GetFeatureFlagBoolValueFor(
+		featureFlag.NewFeatureFlagHandlerRequest(model.EnableConfigDrift).
+			WithAppId(appId).
+			WithEnvId(envId))
+
+	if enableConfigDrift {
+		resourceTree, err = handler.resourceTreeService.FetchResourceTreeWithDrift(ctx, appId, envId, cdPipeline, envDeploymentConfig)
+	} else {
+		resourceTree, err = handler.resourceTreeService.FetchResourceTree(ctx, appId, envId, cdPipeline, envDeploymentConfig)
+	}
+
 	if err != nil {
 		handler.logger.Errorw("error in fetching resource tree", "err", err, "appId", appId, "envId", envId)
 		handler.handleResourceTreeErrAndDeletePipelineIfNeeded(w, err, cdPipeline, envDeploymentConfig)
 		return
 	}
+
 	common.WriteJsonResp(w, err, resourceTree, http.StatusOK)
 }
 
 func (handler AppListingRestHandlerImpl) handleResourceTreeErrAndDeletePipelineIfNeeded(w http.ResponseWriter, err error,
-	cdPipeline *pipelineConfig.Pipeline, deploymentConfig *bean3.DeploymentConfig) {
+	cdPipeline *pipelineConfig.Pipeline, deploymentConfig *commonBean.DeploymentConfig) {
 	var apiError *util.ApiError
 	ok := errors.As(err, &apiError)
 	if deploymentConfig.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
@@ -676,6 +740,11 @@ func (handler AppListingRestHandlerImpl) FetchAppStageStatus(w http.ResponseWrit
 
 func (handler AppListingRestHandlerImpl) FetchOtherEnvironment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.HandleUnauthorized(w, r)
+		return
+	}
 	appId, err := strconv.Atoi(vars["app-id"])
 	if err != nil {
 		handler.logger.Errorw("request err, FetchOtherEnvironment", "err", err, "appId", appId)
@@ -709,13 +778,24 @@ func (handler AppListingRestHandlerImpl) FetchOtherEnvironment(w http.ResponseWr
 		return
 	}
 
-	// TODO - rbac env level
+	// RBAC enforcer applying
+	otherEnvironment, err = handler.applyEnvRBACEnforcer(userId, appId, otherEnvironment, token)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	// RBAC enforcer Ends
 
 	common.WriteJsonResp(w, err, otherEnvironment, http.StatusOK)
 }
 
 func (handler AppListingRestHandlerImpl) FetchMinDetailOtherEnvironment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.HandleUnauthorized(w, r)
+		return
+	}
 	appId, err := strconv.Atoi(vars["app-id"])
 	if err != nil {
 		handler.logger.Errorw("request err, FetchMinDetailOtherEnvironment", "err", err, "appId", appId)
@@ -746,9 +826,81 @@ func (handler AppListingRestHandlerImpl) FetchMinDetailOtherEnvironment(w http.R
 		return
 	}
 
-	// TODO - rbac env level
-
+	// RBAC enforcer applying
+	otherEnvironment, err = handler.applyEnvRBACEnforcer(userId, appId, otherEnvironment, token)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	// RBAC enforcer Ends
 	common.WriteJsonResp(w, err, otherEnvironment, http.StatusOK)
+}
+
+func (handler AppListingRestHandlerImpl) applyEnvRBACEnforcer(userId int32, appId int, otherEnvironment []*AppView.Environment, token string) ([]*AppView.Environment, error) {
+	canViewPermittedEnv, err := handler.globalFlagService.CanOnlyViewPermittedData(userId)
+	if err != nil {
+		handler.logger.Errorw("error in fetching global flag", "err", err)
+		return nil, err
+	}
+	if canViewPermittedEnv {
+		envIds := make([]int, len(otherEnvironment))
+		for _, env := range otherEnvironment {
+			envIds = append(envIds, env.EnvironmentId)
+		}
+		authorizedResourceIds := handler.rbacFilterUtil.FilterAuthorizedResources(envIds, appId, token)
+		otherEnvironment = handler.filterEnvironments(otherEnvironment, authorizedResourceIds)
+	}
+	return otherEnvironment, nil
+}
+
+func (handler AppListingRestHandlerImpl) filterEnvironments(envs []*AppView.Environment, envIds []int) []*AppView.Environment {
+	envIdSet := make(map[int]struct{}, len(envIds))
+	for _, envId := range envIds {
+		envIdSet[envId] = struct{}{}
+	}
+
+	authorizedEnvs := make([]*AppView.Environment, 0)
+	for _, env := range envs {
+		if _, exists := envIdSet[env.EnvironmentId]; exists {
+			authorizedEnvs = append(authorizedEnvs, env)
+		}
+	}
+	return authorizedEnvs
+}
+
+func (handler AppListingRestHandlerImpl) FetchEnvMinData(w http.ResponseWriter, r *http.Request) {
+	type AppIdsParam struct {
+		AppIds []int `schema:"appId"`
+	}
+
+	var schemaDecoder = schema.NewDecoder()
+	schemaDecoder.IgnoreUnknownKeys(true)
+	queryParams := AppIdsParam{}
+	v := r.URL.Query()
+	err := schemaDecoder.Decode(&queryParams, v)
+	if err != nil {
+		handler.logger.Errorw("error in parsing query param", "err", err)
+		return
+	}
+
+	token := r.Header.Get("token")
+	appEnvIds, err := handler.appListingService.FetchEnvMinData(queryParams.AppIds)
+	if err != nil {
+		handler.logger.Errorw("service err, FetchEnvMinData", "appIds", queryParams.AppIds, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	authorisedAppEnvs := make([]*bean.AppEnvMin, 0)
+	appRbacObjs := handler.enforcerUtil.GetRbacObjectsByAppIds(queryParams.AppIds)
+	allowedApps := handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, maps.Values(appRbacObjs))
+	for _, appEnvObj := range appEnvIds {
+		if !appEnvObj.IsPipelineDeleted && allowedApps[appRbacObjs[appEnvObj.AppId]] {
+			authorisedAppEnvs = append(authorisedAppEnvs, bean.GetAppEnvMin(appEnvObj))
+		}
+	}
+	common.WriteJsonResp(w, nil, authorisedAppEnvs, http.StatusOK)
+	return
 }
 
 func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWriter, r *http.Request) {
@@ -797,7 +949,7 @@ func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWrite
 	}
 	http.Redirect(w, r, link, http.StatusOK)
 }
-func (handler AppListingRestHandlerImpl) fetchResourceTreeFromInstallAppService(w http.ResponseWriter, r *http.Request, resourceTreeAndNotesContainer AppView.AppDetailsContainer, installedApps repository.InstalledApps, deploymentConfig *bean4.DeploymentConfig) (AppView.AppDetailsContainer, error) {
+func (handler AppListingRestHandlerImpl) fetchResourceTreeFromInstallAppService(w http.ResponseWriter, r *http.Request, resourceTreeAndNotesContainer AppView.AppDetailsContainer, installedApps repository.InstalledApps, deploymentConfig *commonBean.DeploymentConfig) (AppView.AppDetailsContainer, error) {
 	rctx := r.Context()
 	cn, _ := w.(http.CloseNotifier)
 	err := handler.installedAppResourceService.FetchResourceTree(rctx, cn, &resourceTreeAndNotesContainer, installedApps, deploymentConfig, "", "")
@@ -883,7 +1035,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 			common.WriteJsonResp(w, err, "App not found in database", http.StatusBadRequest)
 			return
 		}
-		if util4.IsExternalChartStoreApp(installedApp.App.DisplayName) {
+		if appStoreUtil.IsExternalChartStoreApp(installedApp.App.DisplayName) {
 			//this is external app case where app_name is a unique identifier, and we want to fetch resource based on display_name
 			handler.installedAppService.ChangeAppNameToDisplayNameForInstalledApp(installedApp)
 		}

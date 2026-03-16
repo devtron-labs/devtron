@@ -1,23 +1,12 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package helper
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/app/bean"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -45,18 +34,18 @@ func NewAppListingRepositoryQueryBuilder(logger *zap.SugaredLogger) AppListingRe
 }
 
 type AppListingFilter struct {
-	Environments      []int       `json:"environments"`
-	Statuses          []string    `json:"statutes"`
-	Teams             []int       `json:"teams"`
-	AppStatuses       []string    `json:"appStatuses"`
-	TagFilters        []TagFilter `json:"tagFilters"`
-	AppNameSearch     string      `json:"appNameSearch"`
-	SortOrder         SortOrder   `json:"sortOrder"`
-	SortBy            SortBy      `json:"sortBy"`
-	Offset            int         `json:"offset"`
-	Size              int         `json:"size"`
-	DeploymentGroupId int         `json:"deploymentGroupId"`
-	AppIds            []int       `json:"-"` // internal use only
+	Environments      []int    `json:"environments"`
+	Statuses          []string `json:"statutes"`
+	Teams             []int    `json:"teams"`
+	AppStatuses       []string `json:"appStatuses"`
+	TagFilters        []TagFilter
+	AppNameSearch     string    `json:"appNameSearch"`
+	SortOrder         SortOrder `json:"sortOrder"`
+	SortBy            SortBy    `json:"sortBy"`
+	Offset            int       `json:"offset"`
+	Size              int       `json:"size"`
+	DeploymentGroupId int       `json:"deploymentGroupId"`
+	AppIds            []int     `json:"-"` // internal use only
 }
 
 type SortBy string
@@ -68,8 +57,8 @@ type TagFilterOperator string
 // value is required for EQUALS/DOES_NOT_EQUAL/CONTAINS/DOES_NOT_CONTAIN.
 // value must be absent for EXISTS/DOES_NOT_EXIST.
 type TagFilter struct {
-	Key      string            `json:"key" validate:"required"`
-	Operator TagFilterOperator `json:"operator" validate:"required"`
+	Key      string            `json:"key"`
+	Operator TagFilterOperator `json:"operator"`
 	Value    *string           `json:"value"`
 }
 
@@ -298,9 +287,10 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appLi
 			}
 		}
 	}
+
 	if isNotDeployedFilterApplied {
 		deploymentAppType := "manifest_download"
-		whereCondition += " and (p.deployment_app_created=? and (p.deployment_app_type <> ? or dc.deployment_app_type <> ? ) or a.id NOT IN (SELECT app_id from pipeline) "
+		whereCondition += " and (p.deployment_app_created=? and (p.deployment_app_type <> ? or dc.deployment_app_type <> ?) or a.id NOT IN (SELECT app_id from pipeline) "
 		queryParams = append(queryParams, false, deploymentAppType, deploymentAppType)
 		if len(appStatusExcludingNotDeployed) > 0 {
 			whereCondition += " or aps.status IN (?) "
@@ -318,10 +308,16 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appLi
 	whereCondition += tagWhereCondition
 	queryParams = append(queryParams, tagQueryParams...)
 
+	// Future OR support placeholder (intentionally disabled today):
+	// orTagWhereCondition, orTagQueryParams := impl.buildTagFiltersWhereConditionOR(appListingFilter.TagFilters)
+	// whereCondition += orTagWhereCondition
+	// queryParams = append(queryParams, orTagQueryParams...)
+
 	if len(appListingFilter.AppIds) > 0 {
 		whereCondition += " and a.id IN (?) "
 		queryParams = append(queryParams, pg.In(appListingFilter.AppIds))
 	}
+
 	return whereCondition, queryParams
 }
 
@@ -340,14 +336,22 @@ func (impl AppListingRepositoryQueryBuilder) buildTagFiltersWhereConditionAND(ta
 	return queryBuilder.String(), queryParams
 }
 
-// buildTagFilterPredicate converts one UI tag filter row into a SQL predicate.
-// Operator behavior (all case-sensitive):
-// - EQUALS: key exists with exact value match.
-// - DOES_NOT_EQUAL: key exists with at least one value different from target.
-// - CONTAINS: key exists with at least one value containing target substring.
-// - DOES_NOT_CONTAIN: key exists with at least one value not containing target substring.
-// - EXISTS: key exists.
-// - DOES_NOT_EXIST: key does not exist.
+// buildTagFiltersWhereConditionOR is intentionally unused today.
+// It is kept as documented dead code so switching to OR in future is straightforward.
+func (impl AppListingRepositoryQueryBuilder) buildTagFiltersWhereConditionOR(tagFilters []TagFilter) (string, []interface{}) {
+	if len(tagFilters) == 0 {
+		return "", nil
+	}
+	clauses := make([]string, 0, len(tagFilters))
+	queryParams := make([]interface{}, 0, len(tagFilters)*2)
+	for _, tagFilter := range tagFilters {
+		predicate, predicateParams := impl.buildTagFilterPredicate(tagFilter)
+		clauses = append(clauses, predicate)
+		queryParams = append(queryParams, predicateParams...)
+	}
+	return " and (" + strings.Join(clauses, " OR ") + ") ", queryParams
+}
+
 func (impl AppListingRepositoryQueryBuilder) buildTagFilterPredicate(tagFilter TagFilter) (string, []interface{}) {
 	value := ""
 	if tagFilter.Value != nil {
@@ -358,17 +362,15 @@ func (impl AppListingRepositoryQueryBuilder) buildTagFilterPredicate(tagFilter T
 		return "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value = ?)",
 			[]interface{}{tagFilter.Key, value}
 	case TagFilterOperatorDoesNotEqual:
-		// Best-practice semantics for multi-value keys:
-		// include app when key exists and at least one value is different from target.
-		return "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value <> ?)",
+		// NOT EXISTS intentionally includes apps where the key is missing.
+		return "NOT EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value = ?)",
 			[]interface{}{tagFilter.Key, value}
 	case TagFilterOperatorContains:
 		return "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value LIKE ? ESCAPE '\\')",
 			[]interface{}{tagFilter.Key, buildContainsPattern(value)}
 	case TagFilterOperatorDoesNotContain:
-		// Best-practice semantics for multi-value keys:
-		// include app when key exists and at least one value does not contain target.
-		return "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value NOT LIKE ? ESCAPE '\\')",
+		// NOT EXISTS intentionally includes apps where the key is missing.
+		return "NOT EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value LIKE ? ESCAPE '\\')",
 			[]interface{}{tagFilter.Key, buildContainsPattern(value)}
 	case TagFilterOperatorExists:
 		return "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ?)",
@@ -387,6 +389,35 @@ func buildContainsPattern(value string) string {
 	// Escape SQL LIKE wildcard chars so "contains" behaves like plain substring search.
 	escaped := likePatternEscaper.Replace(value)
 	return "%" + escaped + "%"
+}
+
+func (impl AppListingRepositoryQueryBuilder) BuildAppEnvQueryByFilter(filter bean.AppEnvFilterRequest) string {
+	query := "select a.app_name as app_name, a.id as app_id, e.id as environment_id, e.environment_name as environment_name, e.default as is_prod, e.is_virtual_environment as is_virtual_environment, p.deleted as is_pipeline_deleted"
+	query += " from app a left join pipeline p on p.app_id =a.id " +
+		"left join environment e on e.id =p.environment_id and e.active=true "
+
+	if len(filter.EnvNames) > 0 {
+		envNames := GetCommaSepratedStringWithComma(filter.EnvNames)
+		query += " and e.environment_name in (" + envNames + ") "
+	}
+
+	if len(filter.TeamNames) > 0 {
+		teamNames := GetCommaSepratedStringWithComma(filter.TeamNames)
+		query += " join team t on t.id=a.team_id and t.active=true and t.active=true and t.name in (" + teamNames + ") "
+	}
+
+	if len(filter.ClusterNames) > 0 {
+		clusterNames := GetCommaSepratedStringWithComma(filter.ClusterNames)
+		query += " join cluster c on c.id=e.cluster_id and c.active=true and c.active=true and c.cluster_name in (" + clusterNames + ")"
+	}
+
+	query += " where a.active=true and a.app_type=0 "
+	if len(filter.AppNames) > 0 {
+		appNames := GetCommaSepratedStringWithComma(filter.AppNames)
+		query += " and a.app_name in (" + appNames + ") "
+	}
+
+	return query
 }
 
 func GetCommaSepratedString[T int | string](request []T) string {
@@ -409,4 +440,15 @@ func GetCommaSepratedStringWithComma[T int | string](appIds []T) string {
 		}
 	}
 	return appIdsString
+}
+
+func GetCommaSeperatedForMulti(identifiers []string) string {
+	result := ""
+	for i, identifier := range identifiers {
+		result += fmt.Sprintf("(%v)", identifier)
+		if i != len(identifiers)-1 {
+			result += ","
+		}
+	}
+	return result
 }
