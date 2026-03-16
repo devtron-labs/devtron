@@ -43,7 +43,10 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	casbin2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	globalConfig "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	repository3 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
+	util3 "github.com/devtron-labs/devtron/pkg/auth/user/util"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	customErr "github.com/juju/errors"
 	k8sError "k8s.io/apimachinery/pkg/api/errors"
@@ -85,9 +88,9 @@ type ClusterService interface {
 	FindAllForAutoComplete() ([]bean.ClusterBean, error)
 	CreateGrafanaDataSource(clusterBean *bean.ClusterBean, env *repository2.Environment) (int, error)
 	GetAllClusterNamespaces() map[string][]string
-	FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int, isActionUserSuperAdmin bool) ([]string, error)
-	FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]bean.ClusterBean, error)
-	FetchRolesFromGroup(userId int32) ([]*repository3.RoleModel, error)
+	FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int, isActionUserSuperAdmin bool, token string) ([]string, error)
+	FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool, token string) ([]bean.ClusterBean, error)
+	FetchRolesFromGroup(userId int32, token string) ([]*repository3.RoleModel, error)
 	HandleErrorInClusterConnections(clusters []*bean.ClusterBean, respMap *sync.Map, clusterExistInDb bool)
 	ConnectClustersInBatch(clusters []*bean.ClusterBean, clusterExistInDb bool)
 	ConvertClusterBeanToCluster(clusterBean *bean.ClusterBean, userId int32) *repository.Cluster
@@ -98,15 +101,17 @@ type ClusterService interface {
 }
 
 type ClusterServiceImpl struct {
-	clusterRepository   repository.ClusterRepository
-	logger              *zap.SugaredLogger
-	K8sUtil             *k8s.K8sServiceImpl
-	K8sInformerFactory  informer.K8sInformerFactory
-	userAuthRepository  repository3.UserAuthRepository
-	userRepository      repository3.UserRepository
-	roleGroupRepository repository3.RoleGroupRepository
-	clusterReadService  read.ClusterReadService
-	asyncRunnable       *async.Runnable
+	clusterRepository                repository.ClusterRepository
+	logger                           *zap.SugaredLogger
+	K8sUtil                          *k8s.K8sServiceImpl
+	K8sInformerFactory               informer.K8sInformerFactory
+	userAuthRepository               repository3.UserAuthRepository
+	userRepository                   repository3.UserRepository
+	roleGroupRepository              repository3.RoleGroupRepository
+	clusterReadService               read.ClusterReadService
+	asyncRunnable                    *async.Runnable
+	userService                      user.UserService
+	globalAuthorisationConfigService globalConfig.GlobalAuthorisationConfigService
 }
 
 func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.SugaredLogger,
@@ -116,17 +121,21 @@ func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.
 	envVariables *globalUtil.EnvironmentVariables,
 	cronLogger *cronUtil.CronLoggerImpl,
 	clusterReadService read.ClusterReadService,
-	asyncRunnable *async.Runnable) (*ClusterServiceImpl, error) {
+	asyncRunnable *async.Runnable,
+	userService user.UserService,
+	globalAuthorisationConfigService globalConfig.GlobalAuthorisationConfigService) (*ClusterServiceImpl, error) {
 	clusterService := &ClusterServiceImpl{
-		clusterRepository:   repository,
-		logger:              logger,
-		K8sUtil:             K8sUtil,
-		K8sInformerFactory:  K8sInformerFactory,
-		userAuthRepository:  userAuthRepository,
-		userRepository:      userRepository,
-		roleGroupRepository: roleGroupRepository,
-		clusterReadService:  clusterReadService,
-		asyncRunnable:       asyncRunnable,
+		clusterRepository:                repository,
+		logger:                           logger,
+		K8sUtil:                          K8sUtil,
+		K8sInformerFactory:               K8sInformerFactory,
+		userAuthRepository:               userAuthRepository,
+		userRepository:                   userRepository,
+		roleGroupRepository:              roleGroupRepository,
+		clusterReadService:               clusterReadService,
+		asyncRunnable:                    asyncRunnable,
+		userService:                      userService,
+		globalAuthorisationConfigService: globalAuthorisationConfigService,
 	}
 	// initialise cron
 	newCron := cron.New(cron.WithChain(cron.Recover(cronLogger)))
@@ -673,7 +682,7 @@ const (
 	ErrClusterNotReachable = "cluster is not reachable"
 )
 
-func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int, isActionUserSuperAdmin bool) ([]string, error) {
+func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int, isActionUserSuperAdmin bool, token string) ([]string, error) {
 	result := make([]string, 0)
 	clusterBean, err := impl.clusterReadService.FindById(clusterId)
 	if err != nil {
@@ -703,7 +712,7 @@ func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int
 			}
 		}
 	} else {
-		roles, err := impl.FetchRolesFromGroup(userId)
+		roles, err := impl.FetchRolesFromGroup(userId, token)
 		if err != nil {
 			impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
 			return nil, err
@@ -731,12 +740,12 @@ func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int
 	return result, nil
 }
 
-func (impl *ClusterServiceImpl) FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]bean.ClusterBean, error) {
+func (impl *ClusterServiceImpl) FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool, token string) ([]bean.ClusterBean, error) {
 	if isActionUserSuperAdmin {
 		return impl.FindAllForAutoComplete()
 	}
 	allowedClustersMap := make(map[string]bool)
-	roles, err := impl.FetchRolesFromGroup(userId)
+	roles, err := impl.FetchRolesFromGroup(userId, token)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user roles from db", "error", err)
 		return nil, err
@@ -763,16 +772,28 @@ func (impl *ClusterServiceImpl) FindAllForClusterByUserId(userId int32, isAction
 	return beans, nil
 }
 
-func (impl *ClusterServiceImpl) FetchRolesFromGroup(userId int32) ([]*repository3.RoleModel, error) {
-	user, err := impl.userRepository.GetByIdIncludeDeleted(userId)
+func (impl *ClusterServiceImpl) FetchRolesFromGroup(userId int32, token string) ([]*repository3.RoleModel, error) {
+	userModel, err := impl.userRepository.GetByIdIncludeDeleted(userId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
 	}
-	groups, err := casbin2.GetRolesForUser(user.EmailId)
+	groups, err := casbin2.GetRolesForUser(userModel.EmailId)
 	if err != nil {
-		impl.logger.Errorw("No Roles Found for user", "id", user.Id)
+		impl.logger.Errorw("No Roles Found for user", "id", userModel.Id)
 		return nil, err
+	}
+	// group claims path: append group casbin names from JWT token if group claims active
+	if impl.globalAuthorisationConfigService != nil && impl.globalAuthorisationConfigService.IsGroupClaimsConfigActive() {
+		_, groupClaims, err := impl.userService.GetEmailAndGroupClaimsFromToken(token)
+		if err != nil {
+			impl.logger.Errorw("error in GetEmailAndGroupClaimsFromToken", "err", err)
+			return nil, err
+		}
+		if len(groupClaims) > 0 {
+			groupsCasbinNames := util3.GetGroupCasbinName(groupClaims)
+			groups = append(groups, groupsCasbinNames...)
+		}
 	}
 	roleEntity := "cluster"
 	roles, err := impl.userAuthRepository.GetRolesByUserIdAndEntityType(userId, roleEntity)

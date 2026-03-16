@@ -81,7 +81,7 @@ type K8sApplicationService interface {
 	ValidateClusterResourceBean(ctx context.Context, clusterId int, manifest unstructured.Unstructured, gvk schema.GroupVersionKind, rbacCallback func(clusterName string, resourceIdentifier k8s2.ResourceIdentifier) bool) bool
 	GetResourceInfo(ctx context.Context) (*bean3.ResourceInfo, error)
 	GetAllApiResourceGVKWithoutAuthorization(ctx context.Context, clusterId int) (*k8s2.GetAllApiResourcesResponse, error)
-	GetAllApiResources(ctx context.Context, clusterId int, isSuperAdmin bool, userId int32) (*k8s2.GetAllApiResourcesResponse, error)
+	GetAllApiResources(ctx context.Context, clusterId int, isSuperAdmin bool, userId int32, token string) (*k8s2.GetAllApiResourcesResponse, error)
 	GetResourceList(ctx context.Context, token string, request *bean4.ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request bean4.ResourceRequestBean, casbinAction string) bool) (*k8s2.ClusterResourceListMap, error)
 	GetResourceListWithRestConfig(ctx context.Context, token string, request *bean4.ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request bean4.ResourceRequestBean, casbinAction string) bool,
 		restConfig *rest.Config, clusterName string) (*k8s2.ClusterResourceListMap, error)
@@ -651,7 +651,7 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResourceGVKWithoutAuthorization(
 	return response, nil
 }
 
-func (impl *K8sApplicationServiceImpl) GetAllApiResources(ctx context.Context, clusterId int, isSuperAdmin bool, userId int32) (*k8s2.GetAllApiResourcesResponse, error) {
+func (impl *K8sApplicationServiceImpl) GetAllApiResources(ctx context.Context, clusterId int, isSuperAdmin bool, userId int32, token string) (*k8s2.GetAllApiResourcesResponse, error) {
 	impl.logger.Infow("getting all api-resources", "clusterId", clusterId)
 	apiResourceGVKResponse, err := impl.GetAllApiResourceGVKWithoutAuthorization(ctx, clusterId)
 	if err != nil {
@@ -668,7 +668,7 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(ctx context.Context, c
 			impl.logger.Errorw("failed to find cluster for id", "err", err, "clusterId", clusterId)
 			return nil, err
 		}
-		roles, err := impl.clusterService.FetchRolesFromGroup(userId)
+		roles, err := impl.clusterService.FetchRolesFromGroup(userId, token)
 		if err != nil {
 			impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
 			return nil, err

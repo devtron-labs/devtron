@@ -83,7 +83,7 @@ type UserService interface {
 	GetEmailAndGroupClaimsFromToken(token string) (string, []string, error)
 	SyncOrchestratorToCasbin() (bool, error)
 	GetUserByToken(context context.Context, token string) (int32, string, error)
-	//IsSuperAdmin(userId int) (bool, error)
+	IsSuperAdmin(userId int, token string) (bool, error)
 	GetByIdIncludeDeleted(id int32) (*userBean.UserInfo, error)
 	UserExists(emailId string) bool
 	UpdateTriggerPolicyForTerminalAccess() (err error)
@@ -1627,10 +1627,10 @@ func (impl *UserServiceImpl) SyncOrchestratorToCasbin() (bool, error) {
 	return true, nil
 }
 
-func (impl *UserServiceImpl) IsSuperAdmin(userId int) (bool, error) {
+func (impl *UserServiceImpl) IsSuperAdmin(userId int, token string) (bool, error) {
 	//validating if action user is not admin and trying to update user who has super admin polices, return 403
 	isSuperAdmin := false
-	userCasbinRoles, err := impl.CheckUserRoles(int32(userId), "")
+	userCasbinRoles, err := impl.CheckUserRoles(int32(userId), token)
 	if err != nil {
 		return isSuperAdmin, err
 	}

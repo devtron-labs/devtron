@@ -56,25 +56,22 @@ type RoleGroupService interface {
 }
 
 type RoleGroupServiceImpl struct {
-	userAuthRepository     repository.UserAuthRepository
-	logger                 *zap.SugaredLogger
-	userRepository         repository.UserRepository
-	roleGroupRepository    repository.RoleGroupRepository
-	userCommonService      UserCommonService
-	userGroupMapRepository repository.UserAutoAssignGroupMapRepository
+	userAuthRepository  repository.UserAuthRepository
+	logger              *zap.SugaredLogger
+	userRepository      repository.UserRepository
+	roleGroupRepository repository.RoleGroupRepository
+	userCommonService   UserCommonService
 }
 
 func NewRoleGroupServiceImpl(userAuthRepository repository.UserAuthRepository,
 	logger *zap.SugaredLogger, userRepository repository.UserRepository,
-	roleGroupRepository repository.RoleGroupRepository, userCommonService UserCommonService,
-	userGroupMapRepository repository.UserAutoAssignGroupMapRepository) *RoleGroupServiceImpl {
+	roleGroupRepository repository.RoleGroupRepository, userCommonService UserCommonService) *RoleGroupServiceImpl {
 	serviceImpl := &RoleGroupServiceImpl{
-		userAuthRepository:     userAuthRepository,
-		logger:                 logger,
-		userRepository:         userRepository,
-		roleGroupRepository:    roleGroupRepository,
-		userCommonService:      userCommonService,
-		userGroupMapRepository: userGroupMapRepository,
+		userAuthRepository:  userAuthRepository,
+		logger:              logger,
+		userRepository:      userRepository,
+		roleGroupRepository: roleGroupRepository,
+		userCommonService:   userCommonService,
 	}
 	cStore = sessions.NewCookieStore(randKey())
 	return serviceImpl
@@ -824,12 +821,6 @@ func (impl RoleGroupServiceImpl) DeleteRoleGroup(bean *bean2.RoleGroup) (bool, e
 			impl.logger.Warnw("unable to delete mapping of group and user in casbin", "user", model.CasbinName, "role", role)
 			return false, err
 		}
-	}
-
-	err = impl.userGroupMapRepository.DeactivateByGroupName(model.Name, tx)
-	if err != nil {
-		impl.logger.Errorw("error deactivating user group mappings for deleted group", "err", err, "groupName", model.Name)
-		return false, err
 	}
 
 	err = tx.Commit()

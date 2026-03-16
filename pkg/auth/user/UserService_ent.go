@@ -41,7 +41,6 @@ func (impl *UserServiceImpl) UpdateDataForGroupClaims(dto *userBean.SelfRegister
 			impl.logger.Errorw("error in updating data for user group claims map", "err", err, "userId", userInfo.Id)
 			return err
 		}
-		impl.syncGroupClaimsCasbinPolicies(userInfo.EmailId, dto.GroupsFromClaims)
 	}
 	return nil
 }
@@ -76,57 +75,6 @@ func (impl *UserServiceImpl) checkAndPerformOperationsForGroupClaims(tx *pg.Tx, 
 		return true, nil
 	}
 	return false, nil
-}
-
-// syncGroupClaimsCasbinPolicies keeps casbin g-policies in sync with the user's current JWT group claims.
-// It adds g|email|group:xxx for newly assigned groups and removes stale ones.
-func (impl *UserServiceImpl) syncGroupClaimsCasbinPolicies(emailId string, groups []string) {
-	currentRoles, err := casbin2.GetRolesForUser(emailId)
-	if err != nil {
-		impl.logger.Errorw("error in GetRolesForUser for syncGroupClaimsCasbinPolicies", "err", err, "emailId", emailId)
-		return
-	}
-
-	desiredCasbinNames := util3.GetGroupCasbinName(groups)
-	desiredMap := make(map[string]bool, len(desiredCasbinNames))
-	for _, name := range desiredCasbinNames {
-		desiredMap[name] = true
-	}
-
-	currentGroupMap := make(map[string]bool)
-	for _, role := range currentRoles {
-		if strings.HasPrefix(role, "group:") {
-			currentGroupMap[role] = true
-		}
-	}
-
-	policiesToAdd := make([]bean4.Policy, 0)
-	for _, casbinName := range desiredCasbinNames {
-		if !currentGroupMap[casbinName] {
-			policiesToAdd = append(policiesToAdd, bean4.Policy{
-				Type: "g",
-				Sub:  bean4.Subject(emailId),
-				Obj:  bean4.Object(casbinName),
-			})
-		}
-	}
-	if len(policiesToAdd) > 0 {
-		casbin2.AddPolicy(policiesToAdd)
-	}
-
-	policiesToRemove := make([]bean4.Policy, 0)
-	for casbinName := range currentGroupMap {
-		if !desiredMap[casbinName] {
-			policiesToRemove = append(policiesToRemove, bean4.Policy{
-				Type: "g",
-				Sub:  bean4.Subject(emailId),
-				Obj:  bean4.Object(casbinName),
-			})
-		}
-	}
-	if len(policiesToRemove) > 0 {
-		casbin2.RemovePolicy(policiesToRemove)
-	}
 }
 
 func getFinalRoleFiltersToBeConsidered(userInfo *userBean.UserInfo) []userBean.RoleFilter {
@@ -241,7 +189,6 @@ func (impl *UserServiceImpl) UpdateUserGroupMappingIfActiveUser(emailId string, 
 		impl.logger.Errorw("error in updating data for user group claims map", "err", err, "userId", user.Id)
 		return err
 	}
-	impl.syncGroupClaimsCasbinPolicies(emailId, groups)
 	return nil
 }
 
@@ -519,7 +466,7 @@ func getApproverFromRoleFilter(roleFilter userBean.RoleFilter) bool {
 func (impl *UserServiceImpl) checkValidationAndPerformOperationsForUpdate(token string, tx *pg.Tx, model *userrepo.UserModel, userInfo *userBean.UserInfo, userGroupsUpdated bool, timeoutWindowConfigId int) (operationCompleted bool, isUserSuperAdmin bool, err error) {
 	//validating if action user is not admin and trying to update user who has super admin polices, return 403
 	// isUserSuperAdminOrManageAllAccess only super-admin is checked as manage all access is not applicable for user
-	isUserSuperAdmin, err = impl.IsSuperAdmin(int(userInfo.Id))
+	isUserSuperAdmin, err = impl.IsSuperAdmin(int(userInfo.Id), token)
 	if err != nil {
 		return false, isUserSuperAdmin, err
 	}
