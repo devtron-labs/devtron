@@ -218,18 +218,18 @@ func (mr *MockUserServiceMockRecorder) GetUserByToken(context, token interface{}
 }
 
 // IsSuperAdmin mocks base method.
-func (m *MockUserService) IsSuperAdmin(userId int) (bool, error) {
+func (m *MockUserService) IsSuperAdmin(userId int, token string) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsSuperAdmin", userId)
+	ret := m.ctrl.Call(m, "IsSuperAdmin", userId, token)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // IsSuperAdmin indicates an expected call of IsSuperAdmin.
-func (mr *MockUserServiceMockRecorder) IsSuperAdmin(userId interface{}) *gomock.Call {
+func (mr *MockUserServiceMockRecorder) IsSuperAdmin(userId, token interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSuperAdmin", reflect.TypeOf((*MockUserService)(nil).IsSuperAdmin), userId)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSuperAdmin", reflect.TypeOf((*MockUserService)(nil).IsSuperAdmin), userId, token)
 }
 
 // SaveLoginAudit mocks base method.

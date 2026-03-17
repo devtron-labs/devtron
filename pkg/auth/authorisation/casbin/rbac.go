@@ -509,7 +509,10 @@ func (e *EnforcerImpl) getSubjectsFromToken(tokenString string) ([]string, bool)
 	if email == "" {
 		return nil, true
 	}
-	subjects := []string{email}
+	subjects := make([]string, 0)
+	if e.globalAuthorisationConfigService.IsDevtronSystemManagedConfigActive() || util3.CheckIfAdminOrApiToken(email) {
+		subjects = append(subjects, email)
+	}
 	if e.globalAuthorisationConfigService != nil &&
 		e.globalAuthorisationConfigService.IsGroupClaimsConfigActive() &&
 		!util3.CheckIfAdminOrApiToken(email) {
