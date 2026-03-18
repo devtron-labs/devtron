@@ -4,7 +4,7 @@ import (
 	"go.uber.org/zap"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 )
 
 func stringPointer(value string) *string {
@@ -22,19 +22,19 @@ func TestBuildAppListingWhereCondition_WithTagFiltersAnd(t *testing.T) {
 		},
 	})
 
-	require.Contains(t, whereClause, "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value = ?)")
-	require.Contains(t, whereClause, "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value NOT LIKE ? ESCAPE '\\')")
-	require.Contains(t, whereClause, "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ?)")
-	require.Contains(t, whereClause, "NOT EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ?)")
-	require.Len(t, queryParams, 8)
-	require.Equal(t, true, queryParams[0])
-	require.Equal(t, CustomApp, queryParams[1])
-	require.Equal(t, "owner", queryParams[2])
-	require.Equal(t, "James", queryParams[3])
-	require.Equal(t, "env", queryParams[4])
-	require.Equal(t, "%pro\\_d\\%%", queryParams[5])
-	require.Equal(t, "team", queryParams[6])
-	require.Equal(t, "zone", queryParams[7])
+	assert.Contains(t, whereClause, "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value = ?)")
+	assert.Contains(t, whereClause, "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value NOT LIKE ? ESCAPE '\\')")
+	assert.Contains(t, whereClause, "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ?)")
+	assert.Contains(t, whereClause, "NOT EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ?)")
+	assert.Len(t, queryParams, 8)
+	assert.Equal(t, true, queryParams[0])
+	assert.Equal(t, CustomApp, queryParams[1])
+	assert.Equal(t, "owner", queryParams[2])
+	assert.Equal(t, "James", queryParams[3])
+	assert.Equal(t, "env", queryParams[4])
+	assert.Equal(t, "%pro\\_d\\%%", queryParams[5])
+	assert.Equal(t, "team", queryParams[6])
+	assert.Equal(t, "zone", queryParams[7])
 }
 
 func TestBuildTagFilterPredicate_DoesNotEqualRequiresKeyAndDifferentValue(t *testing.T) {
@@ -47,8 +47,8 @@ func TestBuildTagFilterPredicate_DoesNotEqualRequiresKeyAndDifferentValue(t *tes
 		Value:    &value,
 	})
 
-	require.Equal(t, "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value <> ?)", predicate)
-	require.Equal(t, []interface{}{"owner", "mayank"}, queryParams)
+	assert.Equal(t, "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value <> ?)", predicate)
+	assert.Equal(t, []interface{}{"owner", "mayank"}, queryParams)
 }
 
 func TestBuildTagFilterPredicate_DoesNotContainRequiresKeyAndNotLike(t *testing.T) {
@@ -61,6 +61,6 @@ func TestBuildTagFilterPredicate_DoesNotContainRequiresKeyAndNotLike(t *testing.
 		Value:    &value,
 	})
 
-	require.Equal(t, "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value NOT LIKE ? ESCAPE '\\')", predicate)
-	require.Equal(t, []interface{}{"owner", "%may%"}, queryParams)
+	assert.Equal(t, "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value NOT LIKE ? ESCAPE '\\')", predicate)
+	assert.Equal(t, []interface{}{"owner", "%may%"}, queryParams)
 }
