@@ -19,17 +19,19 @@ package user
 import (
 	"context"
 	"fmt"
-	bean4 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
-	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
-	userHelper "github.com/devtron-labs/devtron/pkg/auth/user/helper"
-	adapter2 "github.com/devtron-labs/devtron/pkg/auth/user/repository/adapter"
-	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
-	util3 "github.com/devtron-labs/devtron/pkg/auth/user/util"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	bean4 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
+	globalConfig "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
+	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
+	userHelper "github.com/devtron-labs/devtron/pkg/auth/user/helper"
+	adapter2 "github.com/devtron-labs/devtron/pkg/auth/user/repository/adapter"
+	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
+	util3 "github.com/devtron-labs/devtron/pkg/auth/user/util"
 
 	"github.com/devtron-labs/authenticator/jwt"
 	"github.com/devtron-labs/authenticator/middleware"
@@ -77,9 +79,11 @@ type UserService interface {
 	DeleteUser(userInfo *userBean.UserInfo) (bool, error)
 	BulkDeleteUsers(request *userBean.BulkDeleteRequest) (bool, error)
 	CheckUserRoles(id int32, token string) ([]string, error)
+	UpdateUserGroupMappingIfActiveUser(emailId string, groups []string) error
+	GetEmailAndGroupClaimsFromToken(token string) (string, []string, error)
 	SyncOrchestratorToCasbin() (bool, error)
 	GetUserByToken(context context.Context, token string) (int32, string, error)
-	//IsSuperAdmin(userId int) (bool, error)
+	IsSuperAdmin(userId int, token string) (bool, error)
 	GetByIdIncludeDeleted(id int32) (*userBean.UserInfo, error)
 	UserExists(emailId string) bool
 	UpdateTriggerPolicyForTerminalAccess() (err error)
@@ -93,15 +97,17 @@ type UserServiceImpl struct {
 	userReqLock sync.RWMutex
 	//map of userId and current lock-state of their serving ability;
 	//if TRUE then it means that some request is ongoing & unable to serve and FALSE then it is open to serve
-	userReqState        map[int32]bool
-	userAuthRepository  repository.UserAuthRepository
-	logger              *zap.SugaredLogger
-	userRepository      repository.UserRepository
-	roleGroupRepository repository.RoleGroupRepository
-	sessionManager2     *middleware.SessionManager
-	userCommonService   UserCommonService
-	userAuditService    UserAuditService
-	roleGroupService    RoleGroupService
+	userReqState                     map[int32]bool
+	userAuthRepository               repository.UserAuthRepository
+	logger                           *zap.SugaredLogger
+	userRepository                   repository.UserRepository
+	roleGroupRepository              repository.RoleGroupRepository
+	sessionManager2                  *middleware.SessionManager
+	userCommonService                UserCommonService
+	userAuditService                 UserAuditService
+	roleGroupService                 RoleGroupService
+	userGroupMapRepository           repository.UserAutoAssignGroupMapRepository
+	globalAuthorisationConfigService globalConfig.GlobalAuthorisationConfigService
 }
 
 func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository,
@@ -109,17 +115,21 @@ func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository,
 	userRepository repository.UserRepository,
 	userGroupRepository repository.RoleGroupRepository,
 	sessionManager2 *middleware.SessionManager, userCommonService UserCommonService, userAuditService UserAuditService,
-	roleGroupService RoleGroupService) *UserServiceImpl {
+	roleGroupService RoleGroupService,
+	userGroupMapRepository repository.UserAutoAssignGroupMapRepository,
+	globalAuthorisationConfigService globalConfig.GlobalAuthorisationConfigService) *UserServiceImpl {
 	serviceImpl := &UserServiceImpl{
-		userReqState:        make(map[int32]bool),
-		userAuthRepository:  userAuthRepository,
-		logger:              logger,
-		userRepository:      userRepository,
-		roleGroupRepository: userGroupRepository,
-		sessionManager2:     sessionManager2,
-		userCommonService:   userCommonService,
-		userAuditService:    userAuditService,
-		roleGroupService:    roleGroupService,
+		userReqState:                     make(map[int32]bool),
+		userAuthRepository:               userAuthRepository,
+		logger:                           logger,
+		userRepository:                   userRepository,
+		roleGroupRepository:              userGroupRepository,
+		sessionManager2:                  sessionManager2,
+		userCommonService:                userCommonService,
+		userAuditService:                 userAuditService,
+		roleGroupService:                 roleGroupService,
+		userGroupMapRepository:           userGroupMapRepository,
+		globalAuthorisationConfigService: globalAuthorisationConfigService,
 	}
 	cStore = sessions.NewCookieStore(randKey())
 	return serviceImpl
@@ -1237,7 +1247,7 @@ func (impl *UserServiceImpl) GetLoggedInUser(r *http.Request) (int32, error) {
 	userId, userType, err := impl.GetUserByToken(r.Context(), token)
 	// if user is of api-token type, then update lastUsedBy and lastUsedAt
 	if err == nil && userType == userBean.USER_TYPE_API_TOKEN {
-		go impl.saveUserAudit(r, userId)
+		go impl.updateUserAudit(r, userId)
 	}
 	return userId, err
 }
@@ -1617,10 +1627,10 @@ func (impl *UserServiceImpl) SyncOrchestratorToCasbin() (bool, error) {
 	return true, nil
 }
 
-func (impl *UserServiceImpl) IsSuperAdmin(userId int) (bool, error) {
+func (impl *UserServiceImpl) IsSuperAdmin(userId int, token string) (bool, error) {
 	//validating if action user is not admin and trying to update user who has super admin polices, return 403
 	isSuperAdmin := false
-	userCasbinRoles, err := impl.CheckUserRoles(int32(userId), "")
+	userCasbinRoles, err := impl.CheckUserRoles(int32(userId), token)
 	if err != nil {
 		return isSuperAdmin, err
 	}
@@ -1665,6 +1675,15 @@ func (impl *UserServiceImpl) saveUserAudit(r *http.Request, userId int32) {
 		UpdatedOn: time.Now(),
 	}
 	impl.userAuditService.Save(userAudit)
+}
+
+func (impl *UserServiceImpl) updateUserAudit(r *http.Request, userId int32) {
+	clientIp := util2.GetClientIP(r)
+	userAudit := &UserAudit{
+		UserId:   userId,
+		ClientIp: clientIp,
+	}
+	impl.userAuditService.Update(userAudit)
 }
 
 func (impl *UserServiceImpl) GetRoleFiltersByUserRoleGroups(userRoleGroups []userBean.UserRoleGroup) ([]userBean.RoleFilter, error) {

@@ -1,12 +1,13 @@
-## v1.8.2
+## v2.1.0
 
 ## Enhancements
-- feat: linked ci should have artifacts of parent ci (#6836)
+- feat: auto assign permission group ( https://github.com/devtron-labs/devtron/issues/6911 )
 ## Bugs
-- fix: clear cached reference charts for Deployment chart versions 4.18.0, 4.19.0, 1.0.0, and 1.1.0 (#6841)
-- fix: Custom chart with dependencies are not working in Devtron Applications (#6834)
-- fix: Terraform plugin fix in v1.0.1 (#6830)
+- fix: prevent exposure of internal-only attributes in API responses and requests (#6917)
+- fix: append filtered cluster details to the cluster detail list in capacity handler (#6915)
+- fix: enhance cluster overview response with raw cluster capacity details and caching support (#6914)
+- fix: Handle cluster capacity fetch errors by returning detailed connection failure status (#6912)
 ## Others
-- misc: Api specs and validations added (#6807)
-
-
+- chore: Adds scarf pixel (#6918)
+- misc: add clientIP in audit log (#6908)
+- misc: Refactor vulnerability query implementation and cleanup unused code (#6907)

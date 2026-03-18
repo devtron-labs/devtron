@@ -70,6 +70,7 @@ type EnvironmentService interface {
 	GetCombinedEnvironmentListForDropDownByClusterIds(token string, clusterIds []int, auth func(token string, object string) bool) ([]*bean2.ClusterEnvDto, error)
 	HandleErrorInClusterConnections(clusters []*bean4.ClusterBean, respMap *sync.Map, clusterExistInDb bool)
 	GetDetailsById(envId int) (*repository.Environment, error)
+	FindNamesByIds(envIds []int) (map[int]string, error)
 }
 
 type EnvironmentServiceImpl struct {
@@ -751,4 +752,8 @@ func (impl EnvironmentServiceImpl) GetDetailsById(envId int) (*repository.Enviro
 		return nil, err
 	}
 	return envDetails, nil
+}
+
+func (impl EnvironmentServiceImpl) FindNamesByIds(envIds []int) (map[int]string, error) {
+	return impl.environmentRepository.FindNamesByIds(envIds)
 }

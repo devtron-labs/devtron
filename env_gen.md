@@ -157,6 +157,11 @@
  | CI_TRIGGER_CRON_TIME | int |2 | For image poll plugin |  | false |
  | CI_WORKFLOW_STATUS_UPDATE_CRON | string |*/5 * * * * | Cron schedule for CI pipeline status |  | false |
  | CLI_CMD_TIMEOUT_GLOBAL_SECONDS | int |0 | Used in git cli opeartion timeout |  | false |
+ | CLUSTER_OVERVIEW_BACKGROUND_REFRESH_ENABLED | bool |true | Enable background refresh of cluster overview cache |  | false |
+ | CLUSTER_OVERVIEW_CACHE_ENABLED | bool |true | Enable caching for cluster overview data |  | false |
+ | CLUSTER_OVERVIEW_MAX_PARALLEL_CLUSTERS | int |15 | Maximum number of clusters to fetch in parallel during refresh |  | false |
+ | CLUSTER_OVERVIEW_MAX_STALE_DATA_SECONDS | int |30 | Maximum age of cached data in seconds before warning |  | false |
+ | CLUSTER_OVERVIEW_REFRESH_INTERVAL_SECONDS | int |15 | Background cache refresh interval in seconds |  | false |
  | CLUSTER_STATUS_CRON_TIME | int |15 | Cron schedule for cluster status on resource browser |  | false |
  | CONSUMER_CONFIG_JSON | string | |  |  | false |
  | DEFAULT_LOG_TIME_LIMIT | int64 |1 |  |  | false |

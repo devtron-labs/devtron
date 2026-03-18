@@ -18,13 +18,14 @@ package app
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team/repository"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"time"
 )
 
 type App struct {
@@ -96,6 +97,11 @@ type AppRepository interface {
 	FindJobCount() (int, error)
 
 	UpdateAppOfferingModeForAppIds(successAppIds []*int, appOfferingMode string, userId int32) error
+
+	// Overview methods
+	FindAllChartStoreApps() ([]*App, error)
+	FindAllActiveDevtronAppsInTimeRange(from, to *time.Time) ([]*App, error)
+	FindAllActiveChartStoreAppsInTimeRange(from, to *time.Time) ([]*App, error)
 }
 
 const DevtronApp = "DevtronApp"
@@ -541,4 +547,53 @@ func (repo AppRepositoryImpl) UpdateAppOfferingModeForAppIds(successAppIds []*in
 	var app *App
 	_, err := repo.dbConnection.Query(app, query, appOfferingMode, userId, time.Now(), pg.In(successAppIds))
 	return err
+}
+
+// Overview methods implementation
+func (repo AppRepositoryImpl) FindAllChartStoreApps() ([]*App, error) {
+	var apps []*App
+	err := repo.dbConnection.Model(&apps).Where("active = ?", true).Where("app_type = ?", helper.ChartStoreApp).Select()
+	return apps, err
+}
+
+func (repo AppRepositoryImpl) FindAllActiveDevtronAppsInTimeRange(from, to *time.Time) ([]*App, error) {
+	var apps []*App
+	query := repo.dbConnection.Model(&apps).
+		Where("active = ?", true).
+		Where("app_type = ?", helper.CustomApp) // Only normal CI/CD apps (appType = 0)
+
+	if from != nil {
+		query = query.Where("created_on >= ?", from)
+	}
+	if to != nil {
+		query = query.Where("created_on <= ?", to)
+	}
+
+	err := query.Select()
+	if err != nil {
+		repo.logger.Errorw("error getting apps in time range", "from", from, "to", to, "err", err)
+		return nil, err
+	}
+	return apps, nil
+}
+
+func (repo AppRepositoryImpl) FindAllActiveChartStoreAppsInTimeRange(from, to *time.Time) ([]*App, error) {
+	var apps []*App
+	query := repo.dbConnection.Model(&apps).
+		Where("active = ?", true).
+		Where("app_type = ?", helper.ChartStoreApp) // Only chart store apps (appType = 1)
+
+	if from != nil {
+		query = query.Where("created_on >= ?", from)
+	}
+	if to != nil {
+		query = query.Where("created_on <= ?", to)
+	}
+
+	err := query.Select()
+	if err != nil {
+		repo.logger.Errorw("error getting chart store apps in time range", "from", from, "to", to, "err", err)
+		return nil, err
+	}
+	return apps, nil
 }

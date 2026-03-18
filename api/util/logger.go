@@ -25,6 +25,7 @@ import (
 
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/util"
 )
 
 type AuditLoggerDTO struct {
@@ -36,6 +37,7 @@ type AuditLoggerDTO struct {
 	RequestPayload  []byte        `json:"requestPayload"`
 	RequestMethod   string        `json:"requestMethod"`
 	ResponseTime    time.Duration `json:"responseTime"`
+	ClientIp        string        `json:"clientIp"`
 }
 
 type LoggingMiddlewareImpl struct {
@@ -56,13 +58,12 @@ type LoggingMiddleware interface {
 func (impl LoggingMiddlewareImpl) LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		d := middleware.NewDelegator(w, nil)
-
 		token := r.Header.Get("token")
 		userEmail, err := impl.userService.GetEmailFromToken(token)
 		if err != nil {
 			log.Printf("AUDIT_LOG: user does not exists")
 		}
-
+		clientIp := util.GetClientIP(r)
 		// Read the request body into a buffer
 		var bodyBuffer bytes.Buffer
 		_, err = io.Copy(&bodyBuffer, r.Body)
@@ -83,6 +84,7 @@ func (impl LoggingMiddlewareImpl) LoggingMiddleware(next http.Handler) http.Hand
 			QueryParams:    r.URL.Query().Encode(),
 			RequestPayload: bodyBuffer.Bytes(),
 			RequestMethod:  r.Method,
+			ClientIp:       clientIp,
 		}
 		// Call the next handler in the chain.
 		next.ServeHTTP(d, r)
@@ -95,5 +97,5 @@ func (impl LoggingMiddlewareImpl) LoggingMiddleware(next http.Handler) http.Hand
 }
 
 func LogRequest(auditLogDto *AuditLoggerDTO) {
-	log.Printf("AUDIT_LOG: requestMethod: %s, urlPath: %s, queryParams: %s, updatedBy: %s, updatedOn: %s, apiResponseCode: %d, responseTime: %s, requestPayload: %s", auditLogDto.RequestMethod, auditLogDto.UrlPath, auditLogDto.QueryParams, auditLogDto.UserEmail, auditLogDto.UpdatedOn, auditLogDto.ApiResponseCode, auditLogDto.ResponseTime, auditLogDto.RequestPayload)
+	log.Printf("AUDIT_LOG: clientIp: %s, requestMethod: %s, urlPath: %s, queryParams: %s, updatedBy: %s, updatedOn: %s, apiResponseCode: %d, responseTime: %s, requestPayload: %s", auditLogDto.ClientIp, auditLogDto.RequestMethod, auditLogDto.UrlPath, auditLogDto.QueryParams, auditLogDto.UserEmail, auditLogDto.UpdatedOn, auditLogDto.ApiResponseCode, auditLogDto.ResponseTime, auditLogDto.RequestPayload)
 }

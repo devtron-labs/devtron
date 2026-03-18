@@ -18,6 +18,7 @@ package util
 
 import (
 	"context"
+	"fmt"
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	util2 "github.com/devtron-labs/devtron/util"
 	"strings"
@@ -26,6 +27,15 @@ import (
 const (
 	ApiTokenPrefix = "API-TOKEN:"
 )
+
+func GetGroupCasbinName(groups []string) []string {
+	groupCasbinNames := make([]string, 0)
+	for _, group := range groups {
+		toLowerGroup := strings.ToLower(group)
+		groupCasbinNames = append(groupCasbinNames, fmt.Sprintf("group:%s", strings.ReplaceAll(toLowerGroup, " ", "_")))
+	}
+	return groupCasbinNames
+}
 
 func CheckValidationForRoleGroupCreation(name string) bool {
 	if strings.Contains(name, ",") {

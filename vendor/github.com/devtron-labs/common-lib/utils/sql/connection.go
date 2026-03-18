@@ -34,7 +34,7 @@ type Config struct {
 	User            string `env:"PG_USER" envDefault:""  description:"user for postgres" example:"postgres"`
 	Password        string `env:"PG_PASSWORD" envDefault:"" secretData:"-"  description:"password for postgres, associated with PG_USER" example:"confidential ;)"`
 	Database        string `env:"PG_DATABASE" envDefault:"orchestrator"  description:"postgres database to be made connection with" example:"orchestrator, casbin, git_sensor, lens"`
-	CasbinDatabase  string `env:"CASBIN_DATABASE" envDefault:"casbin""`
+	CasbinDatabase  string `env:"CASBIN_DATABASE" envDefault:"casbin"`
 	ApplicationName string `env:"APP" envDefault:"orchestrator" description:"Application name"`
 	ReadTimeout     int64  `env:"PG_READ_TIMEOUT" envDefault:"30"`
 	WriteTimeout    int64  `env:"PG_WRITE_TIMEOUT" envDefault:"30"`
@@ -71,10 +71,10 @@ func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 	_, err := dbConnection.QueryOne(&test, `SELECT 1`)
 
 	if err != nil {
-		logger.Errorw("error in connecting db ", "db", obfuscateSecretTags(cfg), "err", err)
+		logger.Errorw("error in connecting db ", "db", ObfuscateSecretTags(cfg), "err", err)
 		return nil, err
 	} else {
-		logger.Infow("connected with db", "db", obfuscateSecretTags(cfg))
+		logger.Infow("connected with db", "db", ObfuscateSecretTags(cfg))
 	}
 
 	// --------------
@@ -82,7 +82,7 @@ func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 	return dbConnection, err
 }
 
-func obfuscateSecretTags(cfg interface{}) interface{} {
+func ObfuscateSecretTags(cfg interface{}) interface{} {
 
 	cfgDpl := reflect.New(reflect.ValueOf(cfg).Elem().Type()).Interface()
 	cfgDplElm := reflect.ValueOf(cfgDpl).Elem()

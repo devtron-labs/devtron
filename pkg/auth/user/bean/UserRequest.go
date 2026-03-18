@@ -111,13 +111,14 @@ type RoleData struct {
 }
 
 type SSOLoginDto struct {
-	Id     int32           `json:"id"`
-	Name   string          `json:"name,omitempty," validate:"validate-sso-config-name"`
-	Label  string          `json:"label,omitempty"`
-	Url    string          `json:"url,omitempty"`
-	Config json.RawMessage `json:"config,omitempty"`
-	Active bool            `json:"active"`
-	UserId int32           `json:"-"`
+	Id                   int32           `json:"id"`
+	Name                 string          `json:"name,omitempty," validate:"validate-sso-config-name"`
+	Label                string          `json:"label,omitempty"`
+	Url                  string          `json:"url,omitempty"`
+	Config               json.RawMessage `json:"config,omitempty"`
+	Active               bool            `json:"active"`
+	UserId               int32           `json:"-"`
+	GlobalAuthConfigType string          `json:"globalAuthConfigType"`
 }
 
 const (
@@ -207,7 +208,9 @@ func (pa *UserPermissionsAuditDto) WithEntityAudit(entityAudit sql.AuditLog) *Us
 }
 
 type SelfRegisterDto struct {
-	UserInfo *UserInfo
+	UserInfo                *UserInfo
+	GroupsFromClaims        []string
+	GroupClaimsConfigActive bool
 }
 
 type TimeoutWindowConfigDto struct {

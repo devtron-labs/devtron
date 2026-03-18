@@ -81,6 +81,12 @@ type Pipeline struct {
 	sql.AuditLog
 }
 
+// PipelineWithAppData represents production pipeline data with app information
+type PipelineWithAppData struct {
+	AppId         int `sql:"app_id"`
+	EnvironmentId int `sql:"environment_id"`
+}
+
 type PipelineRepository interface {
 	Save(pipeline []*Pipeline, tx *pg.Tx) error
 	Update(pipeline *Pipeline, tx *pg.Tx) error
@@ -147,6 +153,15 @@ type PipelineRepository interface {
 	GetAllArgoAppInfoByDeploymentAppNames(deploymentAppNames []string) ([]*PipelineDeploymentConfigObj, error)
 	FindEnvIdsByIdsInIncludingDeleted(ids []int) ([]int, error)
 	GetPipelineCountByDeploymentType(deploymentType string) (int, error)
+
+	// Overview methods
+	FindActiveByCiPipelineIdsIn(ciPipelineIds []int) ([]*Pipeline, error)
+	GetPipelineCountByEnvironmentType(isProd bool) (int, error)
+	FindActiveByEnvironmentType(isProd bool) ([]*Pipeline, error)
+	// Count methods for performance optimization
+	GetActivePipelineCountByEnvironmentTypeInTimeRange(isProd bool, from, to *time.Time) (int, error)
+	// FindProdPipelinesWithAppDataAndDeploymentHistoryInTimeRange returns production pipelines with app data that have deployment history within the specified time range
+	FindProdPipelinesWithAppDataAndDeploymentHistoryInTimeRange(from, to *time.Time) ([]*PipelineWithAppData, error)
 }
 
 type CiArtifactDTO struct {
@@ -985,4 +1000,101 @@ func (impl *PipelineRepositoryImpl) GetPipelineCountByDeploymentType(deploymentT
 		return 0, err
 	}
 	return count, nil
+}
+
+func (impl *PipelineRepositoryImpl) FindActiveByCiPipelineIdsIn(ciPipelineIds []int) ([]*Pipeline, error) {
+	var pipelines []*Pipeline
+	err := impl.dbConnection.Model(&pipelines).
+		Where("ci_pipeline_id in (?)", pg.In(ciPipelineIds)).
+		Where("deleted = ?", false).
+		Select()
+	return pipelines, err
+}
+
+func (impl *PipelineRepositoryImpl) GetPipelineCountByEnvironmentType(isProd bool) (int, error) {
+	var count int
+	query := `SELECT COUNT(*) FROM pipeline p
+			  JOIN environment e ON p.environment_id = e.id
+			  WHERE p.deleted = false AND e.active = true AND e.default = ?`
+
+	_, err := impl.dbConnection.Query(&count, query, isProd)
+	if err != nil {
+		impl.logger.Errorw("error getting pipeline count by environment type", "isProd", isProd, "err", err)
+		return 0, err
+	}
+	return count, nil
+}
+
+func (impl *PipelineRepositoryImpl) FindActiveByEnvironmentType(isProd bool) ([]*Pipeline, error) {
+	var pipelines []*Pipeline
+	err := impl.dbConnection.Model(&pipelines).
+		Join("JOIN environment e ON pipeline.environment_id = e.id").
+		Where("pipeline.deleted = ?", false).
+		Where("e.active = ?", true).
+		Where("e.default = ?", isProd).
+		Select()
+
+	if err != nil {
+		impl.logger.Errorw("error finding active pipelines by environment type", "isProd", isProd, "err", err)
+		return nil, err
+	}
+	return pipelines, nil
+}
+
+// Count methods implementation for performance optimization
+func (impl *PipelineRepositoryImpl) GetActivePipelineCountByEnvironmentTypeInTimeRange(isProd bool, from, to *time.Time) (int, error) {
+	query := `SELECT COUNT(*) FROM pipeline p
+			  JOIN environment e ON p.environment_id = e.id
+			  WHERE p.deleted = false AND e.active = true AND e.default = ?`
+
+	args := []interface{}{isProd}
+
+	if from != nil {
+		query += " AND p.created_on >= ?"
+		args = append(args, from)
+	}
+	if to != nil {
+		query += " AND p.created_on <= ?"
+		args = append(args, to)
+	}
+
+	var count int
+	_, err := impl.dbConnection.Query(&count, query, args...)
+	if err != nil {
+		impl.logger.Errorw("error getting active pipeline count by environment type in time range", "isProd", isProd, "from", from, "to", to, "err", err)
+		return 0, err
+	}
+	return count, nil
+}
+
+// FindProdPipelinesWithAppDataAndDeploymentHistoryInTimeRange returns production pipelines with app data that have deployment history within the specified time range
+// This optimized method combines multiple queries into one by joining pipeline, environment, app, and cd_workflow tables with time filtering
+func (impl *PipelineRepositoryImpl) FindProdPipelinesWithAppDataAndDeploymentHistoryInTimeRange(from, to *time.Time) ([]*PipelineWithAppData, error) {
+	var results []*PipelineWithAppData
+
+	query := `
+		SELECT DISTINCT
+			p.app_id,
+			p.environment_id
+		FROM pipeline p
+		INNER JOIN environment e ON p.environment_id = e.id
+		INNER JOIN app a ON p.app_id = a.id
+		INNER JOIN cd_workflow cw ON p.id = cw.pipeline_id
+		INNER JOIN cd_workflow_runner cwr ON cw.id = cwr.cd_workflow_id
+		WHERE p.deleted = false
+		AND e.active = true
+		AND e.default = true
+		AND a.active = true
+		AND cwr.workflow_type = 'DEPLOY'
+		AND cwr.started_on >= ?
+		AND cwr.started_on <= ?
+	`
+
+	_, err := impl.dbConnection.Query(&results, query, from, to)
+	if err != nil {
+		impl.logger.Errorw("error finding production pipelines with app data and deployment history in time range", "from", from, "to", to, "err", err)
+		return nil, err
+	}
+
+	return results, nil
 }

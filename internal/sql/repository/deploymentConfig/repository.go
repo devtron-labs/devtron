@@ -18,6 +18,7 @@ package deploymentConfig
 
 import (
 	"fmt"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -66,6 +67,8 @@ type Repository interface {
 	GetAllConfigsForActiveApps() ([]*DeploymentConfig, error)
 	GetAllEnvLevelConfigsWithReleaseMode(releaseMode string) ([]*DeploymentConfig, error)
 	GetDeploymentAppTypeForChartStoreAppByAppId(appId int) (string, error)
+	// GitOps count methods
+	GetGitOpsEnabledPipelineCount() (int, error)
 }
 
 type RepositoryImpl struct {
@@ -297,4 +300,38 @@ func (impl *RepositoryImpl) GetDeploymentAppTypeForChartStoreAppByAppId(appId in
 		Where("a.app_type = ? ", helper.ChartStoreApp).
 		Select()
 	return result.DeploymentAppType, err
+}
+
+// GetGitOpsEnabledPipelineCount returns count of GitOps enabled pipelines
+// This handles lazy migration from pipeline table to deployment_config table
+func (impl *RepositoryImpl) GetGitOpsEnabledPipelineCount() (int, error) {
+	var count int
+	// Complex query to handle lazy migration:
+	// 1. Count pipelines that have deployment_config entry with argo_cd
+	// 2. Count pipelines that don't have deployment_config entry but have argo_cd in pipeline table
+	query := `
+		SELECT COUNT(DISTINCT p.id)
+		FROM pipeline p
+		JOIN environment e ON p.environment_id = e.id
+		JOIN app a ON p.app_id = a.id
+		LEFT JOIN deployment_config dc ON dc.app_id = p.app_id
+			AND dc.environment_id = p.environment_id
+			AND dc.active = true
+		WHERE p.deleted = false
+			AND e.active = true
+			AND a.active = true
+			AND (
+				-- Case 1: deployment_config exists and is argo_cd
+				dc.deployment_app_type = 'argo_cd'
+				OR
+				-- Case 2: no deployment_config entry, fallback to pipeline table
+				(dc.id IS NULL AND p.deployment_app_type = 'argo_cd')
+			)
+	`
+
+	_, err := impl.dbConnection.Query(&count, query)
+	if err != nil {
+		return 0, fmt.Errorf("error getting GitOps enabled pipeline count: %w", err)
+	}
+	return count, nil
 }

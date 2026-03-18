@@ -24,6 +24,7 @@ import (
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
 	"github.com/devtron-labs/devtron/api/argoApplication"
+	globalConfigAPI "github.com/devtron-labs/devtron/api/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/api/auth/sso"
 	"github.com/devtron-labs/devtron/api/auth/user"
 	"github.com/devtron-labs/devtron/api/chartRepo"
@@ -70,23 +71,25 @@ type MuxRouter struct {
 	chartProviderRouter      chartProvider.ChartProviderRouter
 	dockerRegRouter          router.DockerRegRouter
 
-	dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter
-	commonDeploymentRouter   appStoreDeployment.CommonDeploymentRouter
-	externalLinksRouter      externalLink.ExternalLinkRouter
-	moduleRouter             module.ModuleRouter
-	serverRouter             server.ServerRouter
-	apiTokenRouter           apiToken.ApiTokenRouter
-	k8sCapacityRouter        capacity.K8sCapacityRouter
-	webhookHelmRouter        webhookHelm.WebhookHelmRouter
-	userAttributesRouter     router.UserAttributesRouter
-	telemetryRouter          router.TelemetryRouter
-	userTerminalAccessRouter terminal.UserTerminalAccessRouter
-	attributesRouter         router.AttributesRouter
-	appRouter                app.AppRouterEAMode
-	rbacRoleRouter           user.RbacRoleRouter
-	argoApplicationRouter    argoApplication.ArgoApplicationRouter
-	fluxApplicationRouter    fluxApplication.FluxApplicationRouter
-	userResourceRouter       userResource.Router
+	dashboardTelemetryRouter        dashboardEvent.DashboardTelemetryRouter
+	commonDeploymentRouter          appStoreDeployment.CommonDeploymentRouter
+	externalLinksRouter             externalLink.ExternalLinkRouter
+	moduleRouter                    module.ModuleRouter
+	serverRouter                    server.ServerRouter
+	apiTokenRouter                  apiToken.ApiTokenRouter
+	k8sCapacityRouter               capacity.K8sCapacityRouter
+	webhookHelmRouter               webhookHelm.WebhookHelmRouter
+	userAttributesRouter            router.UserAttributesRouter
+	telemetryRouter                 router.TelemetryRouter
+	userTerminalAccessRouter        terminal.UserTerminalAccessRouter
+	attributesRouter                router.AttributesRouter
+	appRouter                       app.AppRouterEAMode
+	rbacRoleRouter                  user.RbacRoleRouter
+	argoApplicationRouter           argoApplication.ArgoApplicationRouter
+	fluxApplicationRouter           fluxApplication.FluxApplicationRouter
+	userResourceRouter              userResource.Router
+	infraOverviewRouter             router.InfraOverviewRouter
+	globalAuthorisationConfigRouter globalConfigAPI.AuthorisationConfigRouter
 }
 
 func NewMuxRouter(
@@ -121,43 +124,47 @@ func NewMuxRouter(
 	appRouter app.AppRouterEAMode,
 	rbacRoleRouter user.RbacRoleRouter, argoApplicationRouter argoApplication.ArgoApplicationRouter, fluxApplicationRouter fluxApplication.FluxApplicationRouter,
 	userResourceRouter userResource.Router,
+	infraOverviewRouter router.InfraOverviewRouter,
+	globalAuthorisationConfigRouter globalConfigAPI.AuthorisationConfigRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
-		Router:                   mux.NewRouter(),
-		logger:                   logger,
-		ssoLoginRouter:           ssoLoginRouter,
-		teamRouter:               teamRouter,
-		UserAuthRouter:           UserAuthRouter,
-		userRouter:               userRouter,
-		commonRouter:             commonRouter,
-		clusterRouter:            clusterRouter,
-		dashboardRouter:          dashboardRouter,
-		helmAppRouter:            helmAppRouter,
-		environmentRouter:        environmentRouter,
-		k8sApplicationRouter:     k8sApplicationRouter,
-		chartRepositoryRouter:    chartRepositoryRouter,
-		appStoreDiscoverRouter:   appStoreDiscoverRouter,
-		appStoreValuesRouter:     appStoreValuesRouter,
-		appStoreDeploymentRouter: appStoreDeploymentRouter,
-		chartProviderRouter:      chartProviderRouter,
-		dockerRegRouter:          dockerRegRouter,
-		dashboardTelemetryRouter: dashboardTelemetryRouter,
-		commonDeploymentRouter:   commonDeploymentRouter,
-		externalLinksRouter:      externalLinkRouter,
-		moduleRouter:             moduleRouter,
-		serverRouter:             serverRouter,
-		apiTokenRouter:           apiTokenRouter,
-		k8sCapacityRouter:        k8sCapacityRouter,
-		webhookHelmRouter:        webhookHelmRouter,
-		userAttributesRouter:     userAttributesRouter,
-		telemetryRouter:          telemetryRouter,
-		userTerminalAccessRouter: userTerminalAccessRouter,
-		attributesRouter:         attributesRouter,
-		appRouter:                appRouter,
-		rbacRoleRouter:           rbacRoleRouter,
-		argoApplicationRouter:    argoApplicationRouter,
-		fluxApplicationRouter:    fluxApplicationRouter,
-		userResourceRouter:       userResourceRouter,
+		Router:                          mux.NewRouter(),
+		logger:                          logger,
+		ssoLoginRouter:                  ssoLoginRouter,
+		teamRouter:                      teamRouter,
+		UserAuthRouter:                  UserAuthRouter,
+		userRouter:                      userRouter,
+		commonRouter:                    commonRouter,
+		clusterRouter:                   clusterRouter,
+		dashboardRouter:                 dashboardRouter,
+		helmAppRouter:                   helmAppRouter,
+		environmentRouter:               environmentRouter,
+		k8sApplicationRouter:            k8sApplicationRouter,
+		chartRepositoryRouter:           chartRepositoryRouter,
+		appStoreDiscoverRouter:          appStoreDiscoverRouter,
+		appStoreValuesRouter:            appStoreValuesRouter,
+		appStoreDeploymentRouter:        appStoreDeploymentRouter,
+		chartProviderRouter:             chartProviderRouter,
+		dockerRegRouter:                 dockerRegRouter,
+		dashboardTelemetryRouter:        dashboardTelemetryRouter,
+		commonDeploymentRouter:          commonDeploymentRouter,
+		externalLinksRouter:             externalLinkRouter,
+		moduleRouter:                    moduleRouter,
+		serverRouter:                    serverRouter,
+		apiTokenRouter:                  apiTokenRouter,
+		k8sCapacityRouter:               k8sCapacityRouter,
+		webhookHelmRouter:               webhookHelmRouter,
+		userAttributesRouter:            userAttributesRouter,
+		telemetryRouter:                 telemetryRouter,
+		userTerminalAccessRouter:        userTerminalAccessRouter,
+		attributesRouter:                attributesRouter,
+		appRouter:                       appRouter,
+		rbacRoleRouter:                  rbacRoleRouter,
+		argoApplicationRouter:           argoApplicationRouter,
+		fluxApplicationRouter:           fluxApplicationRouter,
+		userResourceRouter:              userResourceRouter,
+		infraOverviewRouter:             infraOverviewRouter,
+		globalAuthorisationConfigRouter: globalAuthorisationConfigRouter,
 	}
 	return r
 }
@@ -301,4 +308,11 @@ func (r *MuxRouter) Init() {
 
 	userResourcesRouter := r.Router.PathPrefix("/orchestrator/user/resource").Subrouter()
 	r.userResourceRouter.InitUserResourceRouter(userResourcesRouter)
+
+	infraOverviewRouter := r.Router.PathPrefix("/orchestrator/overview/infra").Subrouter()
+	r.infraOverviewRouter.InitInfraOverviewRouter(infraOverviewRouter)
+
+	authorisationConfigRouter := r.Router.PathPrefix("/orchestrator/authorisation").Subrouter()
+	r.globalAuthorisationConfigRouter.InitAuthorisationConfigRouter(authorisationConfigRouter)
+
 }

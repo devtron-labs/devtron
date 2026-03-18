@@ -10,6 +10,7 @@ metadata:
   annotations:
     "helm.sh/resource-policy": keep
 data:
+  CLUSTER_OVERVIEW_MAX_STALE_DATA_SECONDS: "330"
   DEVTRON_HELM_RELEASE_NAME: {{ $.Release.Name }}
   DEVTRON_HELM_RELEASE_NAMESPACE: {{ $.Release.Namespace }}
   FEATURE_MIGRATE_ARGOCD_APPLICATION_ENABLE: "true"
@@ -25,6 +26,9 @@ data:
   SCOOP_CLUSTER_CONFIG: '{"1":{"serviceName":"scoop-service","passKey":"qhihdidhwid","namespace":"devtroncd","port":"80"}}'
   {{- end }}
   {{- if $.Values.devtronEnterprise.enabled }}
+  TIMESCALE_ADDR: timescaledb-service.devtroncd
+  TIMESCALE_DATABASE: finops
+  TIMESCALE_USER: postgres
   CASBIN_CLIENT_URL: casbin-service.devtroncd:9000
   CD_WORKFLOW_EXECUTOR_TYPE: SYSTEM
   CI_WORKFLOW_EXECUTOR_TYPE: SYSTEM

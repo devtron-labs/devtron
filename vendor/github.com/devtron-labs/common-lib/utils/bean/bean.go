@@ -74,7 +74,9 @@ type PgQueryMonitoringConfig struct {
 }
 
 func GetPgQueryMonitoringConfig(serviceName string) (PgQueryMonitoringConfig, error) {
-	cfg := &PgQueryMonitoringConfig{}
+	cfg := &PgQueryMonitoringConfig{
+		ServiceName: serviceName,
+	}
 	err := env.Parse(cfg)
 	return *cfg, err
 }

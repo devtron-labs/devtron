@@ -105,8 +105,7 @@ type K8sService interface {
 	GetResourceIf(restConfig *rest.Config, groupVersionKind schema.GroupVersionKind) (resourceIf dynamic.NamespaceableResourceInterface, namespaced bool, err error)
 	FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset) error
 	CreateK8sClientSet(restConfig *rest.Config) (*kubernetes.Clientset, error)
-	CreateOrUpdateSecretByName(client *v12.CoreV1Client, namespace, uniqueSecretName string, secretLabel map[string]string, secretData map[string]string) error
-
+	CreateOrUpdateSecretByName(client *v12.CoreV1Client, namespace, uniqueSecretName string, secretLabel map[string]string, dataString map[string]string, data map[string][]byte) error
 	// below functions are exposed for K8sUtilExtended
 
 	CreateNsWithLabels(namespace string, labels map[string]string, client *v12.CoreV1Client) (ns *v1.Namespace, err error)

@@ -1351,7 +1351,7 @@ func (impl *K8sServiceImpl) GetPodListByLabel(namespace, label string, clientSet
 	return podList.Items, nil
 }
 
-func (impl *K8sServiceImpl) CreateOrUpdateSecretByName(client *v12.CoreV1Client, namespace, uniqueSecretName string, secretLabel map[string]string, secretData map[string]string) error {
+func (impl *K8sServiceImpl) CreateOrUpdateSecretByName(client *v12.CoreV1Client, namespace, uniqueSecretName string, secretLabel map[string]string, dataString map[string]string, data map[string][]byte) error {
 
 	secret, err := impl.GetSecret(namespace, uniqueSecretName, client)
 	statusError, ok := err.(*errors.StatusError)
@@ -1361,13 +1361,18 @@ func (impl *K8sServiceImpl) CreateOrUpdateSecretByName(client *v12.CoreV1Client,
 	}
 
 	if ok && statusError != nil && statusError.Status().Code == http.StatusNotFound {
-		_, err = impl.CreateSecret(namespace, nil, uniqueSecretName, "", client, secretLabel, secretData)
+		_, err = impl.CreateSecret(namespace, data, uniqueSecretName, "", client, secretLabel, dataString)
 		if err != nil {
 			impl.logger.Errorw("Error in creating secret for chart repo", "uniqueSecretName", uniqueSecretName, "err", err)
 			return err
 		}
 	} else {
-		secret.StringData = secretData
+		if len(data) > 0 {
+			secret.Data = data
+		}
+		if len(dataString) > 0 {
+			secret.StringData = dataString
+		}
 		_, err = impl.UpdateSecret(namespace, secret, client)
 		if err != nil {
 			impl.logger.Errorw("Error in creating secret for chart repo", "uniqueSecretName", uniqueSecretName, "err", err)

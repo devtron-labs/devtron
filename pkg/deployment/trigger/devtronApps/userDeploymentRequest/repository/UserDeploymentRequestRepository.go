@@ -48,8 +48,9 @@ type UserDeploymentRequest struct {
 
 type UserDeploymentRequestWithAdditionalFields struct {
 	UserDeploymentRequest
-	CdWorkflowRunnerId int `sql:"cd_workflow_runner_id"`
-	PipelineOverrideId int `sql:"pipeline_override_id"`
+	tableName          struct{} `sql:"user_deployment_request" pg:",discard_unknown_columns"`
+	CdWorkflowRunnerId int      `sql:"cd_workflow_runner_id"`
+	PipelineOverrideId int      `sql:"pipeline_override_id"`
 }
 
 type UserDeploymentRequestRepository interface {

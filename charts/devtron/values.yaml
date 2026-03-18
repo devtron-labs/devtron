@@ -42,7 +42,7 @@ nfs:
 extraManifests: []
 installer:
   repo: "devtron-labs/devtron"
-  release: "v1.8.2"
+  release: "v2.1.0"
   registry: ""
   image: inception
   tag: 473deaa4-185-21582
@@ -97,13 +97,13 @@ components:
         FEATURE_CODE_MIRROR_ENABLE: "true"
         FEATURE_GROUPED_APP_LIST_FILTERS_ENABLE: "true"
     registry: ""
-    image: "dashboard:b00aa204-690-36533"
+    image: "dashboard:d4a16ea7-690-38751"
     imagePullPolicy: IfNotPresent
     healthPort: 8080
   devtron:
     registry: ""
-    image: "hyperion:261df88d-280-36531"
-    cicdImage: "devtron:261df88d-434-36530"
+    image: "hyperion:634eb598-280-38763"
+    cicdImage: "devtron:634eb598-434-38762"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     healthPort: 8080
@@ -140,7 +140,7 @@ components:
       #      - devtron.example.com
   ciRunner:
     registry: ""
-    image: "ci-runner:880420ac-138-36030"
+    image: "ci-runner:fbde4d5e-138-38754"
     # Add annotations for ci-runner & cd-runner serviceAccount. 
     annotations: {}
   argocdDexServer:
@@ -151,7 +151,7 @@ components:
       authenticator: "authenticator:e414faff-393-13273"
   kubelink:
     registry: ""
-    image: "kubelink:880420ac-564-36036"
+    image: "kubelink:fbde4d5e-564-38749"
     imagePullPolicy: IfNotPresent
     healthPort: 50052
     podSecurityContext:
@@ -174,10 +174,11 @@ components:
       keyName: postgresql-password
   kubewatch:
     registry: ""
-    image: "kubewatch:880420ac-419-36026"
+    image: "kubewatch:fbde4d5e-419-38744"
     imagePullPolicy: IfNotPresent
     healthPort: 8080
     configs:
+      VELERO_INFORMER: "false"
       devtroncd_NAMESPACE: "devtron-ci"
       USE_CUSTOM_HTTP_TRANSPORT: "true"
       CLUSTER_ARGO_CD_TYPE: "ALL_CLUSTER"
@@ -200,7 +201,7 @@ components:
       volumeSize: "20Gi"
   gitsensor:
     registry: ""
-    image: "git-sensor:b82f5fdb-200-36532"
+    image: "git-sensor:fbde4d5e-200-38750"
     imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
@@ -218,7 +219,7 @@ components:
   # Values for lens
   lens:
     registry: ""
-    image: "lens:880420ac-333-36029"
+    image: "lens:fbde4d5e-333-38752"
     imagePullPolicy: IfNotPresent
     secrets: {}
     resources: {}
@@ -255,7 +256,7 @@ components:
     entMigratorImage: "devtron-utils:geni-v1.1.4"
   chartSync:
     registry: ""
-    image: chart-sync:880420ac-836-36037
+    image: chart-sync:fbde4d5e-836-38757
     schedule: "0 19 * * *"
     extraConfigs: {}
     podSecurityContext:
@@ -411,7 +412,7 @@ argo-cd:
 security:
   enabled: false
   imageScanner:
-    image: "image-scanner:f21e02cb-141-34534"
+    image: "image-scanner:fbde4d5e-141-38756"
     healthPort: 8080
     configs:
       TRIVY_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-db
@@ -430,7 +431,7 @@ security:
 notifier:
   enabled: false
   imagePullPolicy: IfNotPresent
-  image: "notifier:00f17215-372-36041"
+  image: "notifier:580d409b-372-38755"
   configs:
     CD_ENVIRONMENT: PROD
   secrets: {}
@@ -482,6 +483,15 @@ monitoring:
 # Change these values for Devtron-Enterprise 
 devtronEnterprise:
   enabled: false
+  finops:
+    enabled: false
+    costSync:
+      image: "cost-sync:46ed7c67-1159-38183"
+      schedule: "0 * * * *"
+      timeZone: UTC
+    timescale:
+      image: "timescaledb-ha:pg18"
+      volumeSize: 5Gi
   casbin:
     registry: ""
     image: "casbin:f6ff5f74-064b67e5-462-30822"

@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"time"
+
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -13,6 +15,7 @@ type WorkflowStageRepository interface {
 	GetWorkflowStagesByWorkflowIdAndType(workflowId int, workflowType string) ([]*WorkflowExecutionStage, error)
 	GetWorkflowStagesByWorkflowIdAndWtype(wfId int, wfType string) ([]*WorkflowExecutionStage, error)
 	GetWorkflowStagesByWorkflowIdsAndWtype(wfIds []int, wfType string) ([]*WorkflowExecutionStage, error)
+	GetSuccessfulCIExecutionStages(from, to *time.Time) ([]*WorkflowExecutionStage, error)
 }
 
 type WorkflowStageRepositoryImpl struct {
@@ -91,4 +94,23 @@ func (impl *WorkflowStageRepositoryImpl) GetWorkflowStagesByWorkflowIdsAndWtype(
 		return workflowStages, err
 	}
 	return workflowStages, err
+}
+
+func (impl *WorkflowStageRepositoryImpl) GetSuccessfulCIExecutionStages(from, to *time.Time) ([]*WorkflowExecutionStage, error) {
+	var workflowStages []*WorkflowExecutionStage
+	err := impl.dbConnection.Model(&workflowStages).
+		Where("workflow_type = ?", "CI").
+		Where("stage_name = ?", "Execution").
+		Where("status = ?", "SUCCEEDED").
+		Where("status_for = ?", "workflow").
+		Where("start_time IS NOT NULL").
+		Where("end_time IS NOT NULL").
+		Where("created_on >= ? AND created_on <= ?", from, to).
+		Order("id ASC").
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in fetching successful CI execution stages", "err", err)
+		return workflowStages, err
+	}
+	return workflowStages, nil
 }
