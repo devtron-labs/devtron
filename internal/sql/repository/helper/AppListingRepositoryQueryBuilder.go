@@ -45,18 +45,18 @@ func NewAppListingRepositoryQueryBuilder(logger *zap.SugaredLogger) AppListingRe
 }
 
 type AppListingFilter struct {
-	Environments      []int    `json:"environments"`
-	Statuses          []string `json:"statutes"`
-	Teams             []int    `json:"teams"`
-	AppStatuses       []string `json:"appStatuses"`
+	Environments      []int       `json:"environments"`
+	Statuses          []string    `json:"statutes"`
+	Teams             []int       `json:"teams"`
+	AppStatuses       []string    `json:"appStatuses"`
 	TagFilters        []TagFilter `json:"tagFilters"`
-	AppNameSearch     string    `json:"appNameSearch"`
-	SortOrder         SortOrder `json:"sortOrder"`
-	SortBy            SortBy    `json:"sortBy"`
-	Offset            int       `json:"offset"`
-	Size              int       `json:"size"`
-	DeploymentGroupId int       `json:"deploymentGroupId"`
-	AppIds            []int     `json:"-"` // internal use only
+	AppNameSearch     string      `json:"appNameSearch"`
+	SortOrder         SortOrder   `json:"sortOrder"`
+	SortBy            SortBy      `json:"sortBy"`
+	Offset            int         `json:"offset"`
+	Size              int         `json:"size"`
+	DeploymentGroupId int         `json:"deploymentGroupId"`
+	AppIds            []int       `json:"-"` // internal use only
 }
 
 type SortBy string
@@ -318,11 +318,6 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appLi
 	whereCondition += tagWhereCondition
 	queryParams = append(queryParams, tagQueryParams...)
 
-	// Future OR support placeholder (intentionally disabled today):
-	// orTagWhereCondition, orTagQueryParams := impl.buildTagFiltersWhereConditionOR(appListingFilter.TagFilters)
-	// whereCondition += orTagWhereCondition
-	// queryParams = append(queryParams, orTagQueryParams...)
-
 	if len(appListingFilter.AppIds) > 0 {
 		whereCondition += " and a.id IN (?) "
 		queryParams = append(queryParams, pg.In(appListingFilter.AppIds))
@@ -343,22 +338,6 @@ func (impl AppListingRepositoryQueryBuilder) buildTagFiltersWhereConditionAND(ta
 		queryParams = append(queryParams, predicateParams...)
 	}
 	return queryBuilder.String(), queryParams
-}
-
-// buildTagFiltersWhereConditionOR is intentionally unused today.
-// It is kept as documented dead code so switching to OR in future is straightforward.
-func (impl AppListingRepositoryQueryBuilder) buildTagFiltersWhereConditionOR(tagFilters []TagFilter) (string, []interface{}) {
-	if len(tagFilters) == 0 {
-		return "", nil
-	}
-	clauses := make([]string, 0, len(tagFilters))
-	queryParams := make([]interface{}, 0, len(tagFilters)*2)
-	for _, tagFilter := range tagFilters {
-		predicate, predicateParams := impl.buildTagFilterPredicate(tagFilter)
-		clauses = append(clauses, predicate)
-		queryParams = append(queryParams, predicateParams...)
-	}
-	return " and (" + strings.Join(clauses, " OR ") + ") ", queryParams
 }
 
 // buildTagFilterPredicate converts one UI tag filter row into a SQL predicate.
