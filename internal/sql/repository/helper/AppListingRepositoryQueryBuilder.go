@@ -49,7 +49,7 @@ type AppListingFilter struct {
 	Statuses          []string `json:"statutes"`
 	Teams             []int    `json:"teams"`
 	AppStatuses       []string `json:"appStatuses"`
-	TagFilters        []TagFilter
+	TagFilters        []TagFilter `json:"tagFilters"`
 	AppNameSearch     string    `json:"appNameSearch"`
 	SortOrder         SortOrder `json:"sortOrder"`
 	SortBy            SortBy    `json:"sortBy"`
