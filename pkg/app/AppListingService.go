@@ -78,6 +78,8 @@ type AppListingService interface {
 	ISLastReleaseStopTypeV2(pipelineIds []int) (map[int]bool, error)
 	GetReleaseCount(appId, envId int) (int, error)
 	GetAllAppEnvsFromResourceNames(filterCriteria []string) ([]*bean2.AppEnvResponse, error)
+	ValidateTagFilters(tagFilters []helper.TagFilter) error
+	NormalizeTagFilters(tagFilters []helper.TagFilter) []helper.TagFilter
 
 	FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*AppView.AppEnvironmentContainer, int, error)
 	FetchOverviewAppsByEnvironment(envId, limit, offset int) (*OverviewAppsByEnvironmentBean, error)
@@ -93,7 +95,7 @@ type FetchAppListingRequest struct {
 	Environments      []int              `json:"environments"`
 	Statuses          []string           `json:"statuses"`
 	Teams             []int              `json:"teams"`
-	TagFilters        []helper.TagFilter `json:"tagFilters"`
+	TagFilters        []helper.TagFilter `json:"tagFilters" validate:"omitempty,dive"`
 	AppNameSearch     string             `json:"appNameSearch"`
 	SortOrder         helper.SortOrder   `json:"sortOrder"`
 	SortBy            helper.SortBy      `json:"sortBy"`
@@ -115,38 +117,53 @@ type CiArtifactWithParentArtifact struct {
 	CiArtifactId     int
 }
 
-// NormalizeAndValidateTagFilters validates each tag filter row and normalizes value handling.
+// ValidateTagFilters validates each tag filter row.
 // Rules:
 // 1) key must be present.
 // 2) operator must be one of the supported backend operators.
 // 3) for EXISTS/DOES_NOT_EXIST, value must not be sent.
 // 4) for EQUALS/DOES_NOT_EQUAL/CONTAINS/DOES_NOT_CONTAIN, value must be non-empty.
-func NormalizeAndValidateTagFilters(tagFilters []helper.TagFilter) ([]helper.TagFilter, error) {
-	if len(tagFilters) == 0 {
-		return tagFilters, nil
-	}
-	normalizedFilters := make([]helper.TagFilter, 0, len(tagFilters))
+func ValidateTagFilters(tagFilters []helper.TagFilter) error {
 	for index, tagFilter := range tagFilters {
-		tagFilter.Key = strings.TrimSpace(tagFilter.Key)
-		if len(tagFilter.Key) == 0 {
-			return nil, fmt.Errorf("tagFilters[%d].key is required", index)
+		if len(strings.TrimSpace(tagFilter.Key)) == 0 {
+			return fmt.Errorf("tagFilters[%d].key is required", index)
 		}
 		if !tagFilter.Operator.IsValid() {
-			return nil, fmt.Errorf("tagFilters[%d].operator is invalid: %s", index, tagFilter.Operator)
+			return fmt.Errorf("tagFilters[%d].operator is invalid: %s", index, tagFilter.Operator)
 		}
 		switch tagFilter.Operator {
 		case helper.TagFilterOperatorExists, helper.TagFilterOperatorDoesNotExist:
 			if tagFilter.Value != nil {
-				return nil, fmt.Errorf("tagFilters[%d].value must be empty for operator %s", index, tagFilter.Operator)
+				return fmt.Errorf("tagFilters[%d].value must be empty for operator %s", index, tagFilter.Operator)
 			}
 		default:
 			if tagFilter.Value == nil || len(*tagFilter.Value) == 0 {
-				return nil, fmt.Errorf("tagFilters[%d].value is required for operator %s", index, tagFilter.Operator)
+				return fmt.Errorf("tagFilters[%d].value is required for operator %s", index, tagFilter.Operator)
 			}
 		}
+	}
+	return nil
+}
+
+// NormalizeTagFilters normalizes tag filter rows after validation.
+func NormalizeTagFilters(tagFilters []helper.TagFilter) []helper.TagFilter {
+	if len(tagFilters) == 0 {
+		return tagFilters
+	}
+	normalizedFilters := make([]helper.TagFilter, 0, len(tagFilters))
+	for _, tagFilter := range tagFilters {
+		tagFilter.Key = strings.TrimSpace(tagFilter.Key)
 		normalizedFilters = append(normalizedFilters, tagFilter)
 	}
-	return normalizedFilters, nil
+	return normalizedFilters
+}
+
+func (impl AppListingServiceImpl) ValidateTagFilters(tagFilters []helper.TagFilter) error {
+	return ValidateTagFilters(tagFilters)
+}
+
+func (impl AppListingServiceImpl) NormalizeTagFilters(tagFilters []helper.TagFilter) []helper.TagFilter {
+	return NormalizeTagFilters(tagFilters)
 }
 
 func GetNamespaceClusterMapping(underscoreSeperatedClusterIdNamespaces []string) (namespaceClusterPair []*repository3.ClusterNamespacePair, clusterIds []int, err error) {

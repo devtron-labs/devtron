@@ -60,6 +60,7 @@ import (
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
+	"gopkg.in/go-playground/validator.v9"
 )
 
 type AppListingRestHandler interface {
@@ -100,6 +101,7 @@ type AppListingRestHandlerImpl struct {
 	k8sApplicationService       k8sApplication.K8sApplicationService
 	deploymentConfigService     common2.DeploymentConfigService
 	resourceTreeService         resourceTree.Service
+	validator                   *validator.Validate
 
 	//ent
 	virtualEnvResourceTreeService           devtronApp.VirtualEnvResourceTreeService
@@ -159,6 +161,7 @@ func NewAppListingRestHandlerImpl(
 		k8sApplicationService:       k8sApplicationService,
 		deploymentConfigService:     deploymentConfigService,
 		resourceTreeService:         resourceTreeService,
+		validator:                   validator.New(),
 
 		virtualEnvResourceTreeService:           virtualEnvResourceTreeService,
 		featureFlagService:                      featureFlagService,
@@ -301,6 +304,25 @@ func (handler AppListingRestHandlerImpl) FetchJobOverviewCiPipelines(w http.Resp
 	common.WriteJsonResp(w, err, jobCi, http.StatusOK)
 }
 
+// validateAndNormalizeFetchAppListingRequest applies request-level validation first,
+// then tag-filter business validation, and finally normalization.
+func (handler AppListingRestHandlerImpl) validateAndNormalizeFetchAppListingRequest(w http.ResponseWriter, r *http.Request, fetchAppListingRequest *app.FetchAppListingRequest) bool {
+	err := handler.validator.Struct(*fetchAppListingRequest)
+	if err != nil {
+		handler.logger.Errorw("validation err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
+		common.HandleValidationErrors(w, r, err)
+		return false
+	}
+	err = handler.appListingService.ValidateTagFilters(fetchAppListingRequest.TagFilters)
+	if err != nil {
+		handler.logger.Errorw("request err, ValidateTagFilters", "err", err, "payload", fetchAppListingRequest.TagFilters)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return false
+	}
+	fetchAppListingRequest.TagFilters = handler.appListingService.NormalizeTagFilters(fetchAppListingRequest.TagFilters)
+	return true
+}
+
 func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.ResponseWriter, r *http.Request) {
 	//Allow CORS here By * or specific origin
 	util3.SetupCorsOriginHeader(&w)
@@ -356,13 +378,9 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	normalizedTagFilters, err := app.NormalizeAndValidateTagFilters(fetchAppListingRequest.TagFilters)
-	if err != nil {
-		handler.logger.Errorw("request err, ValidateTagFilters", "err", err, "payload", fetchAppListingRequest.TagFilters)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	if !handler.validateAndNormalizeFetchAppListingRequest(w, r, &fetchAppListingRequest) {
 		return
 	}
-	fetchAppListingRequest.TagFilters = normalizedTagFilters
 	newCtx, span = otel.Tracer("fetchAppListingRequest").Start(newCtx, "GetNamespaceClusterMapping")
 	_, _, err = app.GetNamespaceClusterMapping(fetchAppListingRequest.Namespaces)
 	span.End()
