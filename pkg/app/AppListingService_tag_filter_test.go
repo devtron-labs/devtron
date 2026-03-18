@@ -11,8 +11,8 @@ func strPointer(value string) *string {
 	return &value
 }
 
-func TestNormalizeAndValidateTagFilters_EqualsRequiresValue(t *testing.T) {
-	_, err := NormalizeAndValidateTagFilters([]helper.TagFilter{
+func TestValidateTagFilters_EqualsRequiresValue(t *testing.T) {
+	err := ValidateTagFilters([]helper.TagFilter{
 		{Key: "owner", Operator: helper.TagFilterOperatorEquals, Value: nil},
 	})
 
@@ -20,8 +20,8 @@ func TestNormalizeAndValidateTagFilters_EqualsRequiresValue(t *testing.T) {
 	require.Equal(t, "tagFilters[0].value is required for operator EQUALS", err.Error())
 }
 
-func TestNormalizeAndValidateTagFilters_EqualsRejectsEmptyString(t *testing.T) {
-	_, err := NormalizeAndValidateTagFilters([]helper.TagFilter{
+func TestValidateTagFilters_EqualsRejectsEmptyString(t *testing.T) {
+	err := ValidateTagFilters([]helper.TagFilter{
 		{Key: "owner", Operator: helper.TagFilterOperatorEquals, Value: strPointer("")},
 	})
 
@@ -29,8 +29,8 @@ func TestNormalizeAndValidateTagFilters_EqualsRejectsEmptyString(t *testing.T) {
 	require.Equal(t, "tagFilters[0].value is required for operator EQUALS", err.Error())
 }
 
-func TestNormalizeAndValidateTagFilters_ContainsRequiresValue(t *testing.T) {
-	_, err := NormalizeAndValidateTagFilters([]helper.TagFilter{
+func TestValidateTagFilters_ContainsRequiresValue(t *testing.T) {
+	err := ValidateTagFilters([]helper.TagFilter{
 		{Key: "owner", Operator: helper.TagFilterOperatorContains, Value: nil},
 	})
 
@@ -38,8 +38,8 @@ func TestNormalizeAndValidateTagFilters_ContainsRequiresValue(t *testing.T) {
 	require.Equal(t, "tagFilters[0].value is required for operator CONTAINS", err.Error())
 }
 
-func TestNormalizeAndValidateTagFilters_EmptyKeyReturnsError(t *testing.T) {
-	_, err := NormalizeAndValidateTagFilters([]helper.TagFilter{
+func TestValidateTagFilters_EmptyKeyReturnsError(t *testing.T) {
+	err := ValidateTagFilters([]helper.TagFilter{
 		{Key: " ", Operator: helper.TagFilterOperatorEquals, Value: strPointer("James")},
 	})
 
@@ -47,8 +47,8 @@ func TestNormalizeAndValidateTagFilters_EmptyKeyReturnsError(t *testing.T) {
 	require.Equal(t, "tagFilters[0].key is required", err.Error())
 }
 
-func TestNormalizeAndValidateTagFilters_InvalidOperatorReturnsError(t *testing.T) {
-	_, err := NormalizeAndValidateTagFilters([]helper.TagFilter{
+func TestValidateTagFilters_InvalidOperatorReturnsError(t *testing.T) {
+	err := ValidateTagFilters([]helper.TagFilter{
 		{Key: "owner", Operator: helper.TagFilterOperator("INVALID"), Value: strPointer("James")},
 	})
 
@@ -56,18 +56,16 @@ func TestNormalizeAndValidateTagFilters_InvalidOperatorReturnsError(t *testing.T
 	require.Equal(t, "tagFilters[0].operator is invalid: INVALID", err.Error())
 }
 
-func TestNormalizeAndValidateTagFilters_ExistsAllowsNilValueOnly(t *testing.T) {
-	normalizedFilters, err := NormalizeAndValidateTagFilters([]helper.TagFilter{
+func TestValidateTagFilters_ExistsAllowsNilValueOnly(t *testing.T) {
+	err := ValidateTagFilters([]helper.TagFilter{
 		{Key: "owner", Operator: helper.TagFilterOperatorExists, Value: nil},
 	})
 
 	require.NoError(t, err)
-	require.Len(t, normalizedFilters, 1)
-	require.Nil(t, normalizedFilters[0].Value)
 }
 
-func TestNormalizeAndValidateTagFilters_ExistsRejectsProvidedValue(t *testing.T) {
-	_, err := NormalizeAndValidateTagFilters([]helper.TagFilter{
+func TestValidateTagFilters_ExistsRejectsProvidedValue(t *testing.T) {
+	err := ValidateTagFilters([]helper.TagFilter{
 		{Key: "owner", Operator: helper.TagFilterOperatorExists, Value: strPointer("James")},
 	})
 
@@ -75,11 +73,24 @@ func TestNormalizeAndValidateTagFilters_ExistsRejectsProvidedValue(t *testing.T)
 	require.Equal(t, "tagFilters[0].value must be empty for operator EXISTS", err.Error())
 }
 
-func TestNormalizeAndValidateTagFilters_DoesNotExistRejectsProvidedValue(t *testing.T) {
-	_, err := NormalizeAndValidateTagFilters([]helper.TagFilter{
+func TestValidateTagFilters_DoesNotExistRejectsProvidedValue(t *testing.T) {
+	err := ValidateTagFilters([]helper.TagFilter{
 		{Key: "owner", Operator: helper.TagFilterOperatorDoesNotExist, Value: strPointer("")},
 	})
 
 	require.Error(t, err)
 	require.Equal(t, "tagFilters[0].value must be empty for operator DOES_NOT_EXIST", err.Error())
+}
+
+func TestNormalizeTagFilters_TrimsKey(t *testing.T) {
+	filters := []helper.TagFilter{
+		{Key: " owner ", Operator: helper.TagFilterOperatorEquals, Value: strPointer("James")},
+	}
+
+	normalizedFilters := NormalizeTagFilters(filters)
+
+	require.Len(t, normalizedFilters, 1)
+	require.Equal(t, "owner", normalizedFilters[0].Key)
+	// Ensure input is not modified by normalization.
+	require.Equal(t, " owner ", filters[0].Key)
 }
