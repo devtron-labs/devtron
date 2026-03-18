@@ -68,8 +68,8 @@ type TagFilterOperator string
 // value is required for EQUALS/DOES_NOT_EQUAL/CONTAINS/DOES_NOT_CONTAIN.
 // value must be absent for EXISTS/DOES_NOT_EXIST.
 type TagFilter struct {
-	Key      string            `json:"key"`
-	Operator TagFilterOperator `json:"operator"`
+	Key      string            `json:"key" validate:"required"`
+	Operator TagFilterOperator `json:"operator" validate:"required"`
 	Value    *string           `json:"value"`
 }
 
