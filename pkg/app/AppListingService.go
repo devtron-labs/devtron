@@ -420,11 +420,6 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 	if len(fetchAppListingRequest.Namespaces) != 0 && len(fetchAppListingRequest.Environments) == 0 {
 		return []*AppView.AppEnvironmentContainer{}, 0, nil
 	}
-	normalizedTagFilters, err := NormalizeAndValidateTagFilters(fetchAppListingRequest.TagFilters)
-	if err != nil {
-		return []*AppView.AppEnvironmentContainer{}, 0, err
-	}
-	fetchAppListingRequest.TagFilters = normalizedTagFilters
 
 	// Currently AppStatus is available in Db for only ArgoApps
 	// We fetch AppStatus on the fly for Helm Apps from scoop, So AppStatus filter will be applied in last
