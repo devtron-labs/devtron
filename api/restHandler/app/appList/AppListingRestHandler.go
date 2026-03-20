@@ -279,9 +279,8 @@ func (handler AppListingRestHandlerImpl) FetchJobOverviewCiPipelines(w http.Resp
 	common.WriteJsonResp(w, err, jobCi, http.StatusOK)
 }
 
-// validateAndNormalizeFetchAppListingRequest applies request-level validation first,
-// then tag-filter business validation, and finally normalization.
-func (handler AppListingRestHandlerImpl) validateAndNormalizeFetchAppListingRequest(w http.ResponseWriter, r *http.Request, fetchAppListingRequest *app.FetchAppListingRequest) bool {
+// validateFetchAppListingRequest performs request and business-rule validation.
+func (handler AppListingRestHandlerImpl) validateFetchAppListingRequest(w http.ResponseWriter, r *http.Request, fetchAppListingRequest *app.FetchAppListingRequest) bool {
 	err := handler.validator.Struct(*fetchAppListingRequest)
 	if err != nil {
 		handler.logger.Errorw("validation err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
@@ -294,8 +293,12 @@ func (handler AppListingRestHandlerImpl) validateAndNormalizeFetchAppListingRequ
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return false
 	}
-	fetchAppListingRequest.TagFilters = handler.appListingService.NormalizeTagFilters(fetchAppListingRequest.TagFilters)
 	return true
+}
+
+// normalizeFetchAppListingRequest applies request normalization after validation.
+func (handler AppListingRestHandlerImpl) normalizeFetchAppListingRequest(fetchAppListingRequest *app.FetchAppListingRequest) {
+	fetchAppListingRequest.TagFilters = handler.appListingService.NormalizeTagFilters(fetchAppListingRequest.TagFilters)
 }
 
 func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.ResponseWriter, r *http.Request) {
@@ -353,9 +356,10 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if !handler.validateAndNormalizeFetchAppListingRequest(w, r, &fetchAppListingRequest) {
+	if !handler.validateFetchAppListingRequest(w, r, &fetchAppListingRequest) {
 		return
 	}
+	handler.normalizeFetchAppListingRequest(&fetchAppListingRequest)
 	newCtx, span = otel.Tracer("fetchAppListingRequest").Start(newCtx, "GetNamespaceClusterMapping")
 	_, _, err = fetchAppListingRequest.GetNamespaceClusterMapping()
 	span.End()

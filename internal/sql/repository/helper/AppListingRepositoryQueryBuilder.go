@@ -45,18 +45,18 @@ func NewAppListingRepositoryQueryBuilder(logger *zap.SugaredLogger) AppListingRe
 }
 
 type AppListingFilter struct {
-	Environments      []int       `json:"environments"`
-	Statuses          []string    `json:"statutes"`
-	Teams             []int       `json:"teams"`
-	AppStatuses       []string    `json:"appStatuses"`
-	TagFilters        []TagFilter `json:"tagFilters"`
-	AppNameSearch     string      `json:"appNameSearch"`
-	SortOrder         SortOrder   `json:"sortOrder"`
-	SortBy            SortBy      `json:"sortBy"`
-	Offset            int         `json:"offset"`
-	Size              int         `json:"size"`
-	DeploymentGroupId int         `json:"deploymentGroupId"`
-	AppIds            []int       `json:"-"` // internal use only
+	Environments      []int        `json:"environments"`
+	Statuses          []string     `json:"statutes"`
+	Teams             []int        `json:"teams"`
+	AppStatuses       []string     `json:"appStatuses"`
+	TagFilters        *[]TagFilter `json:"tagFilters"`
+	AppNameSearch     string       `json:"appNameSearch"`
+	SortOrder         SortOrder    `json:"sortOrder"`
+	SortBy            SortBy       `json:"sortBy"`
+	Offset            int          `json:"offset"`
+	Size              int          `json:"size"`
+	DeploymentGroupId int          `json:"deploymentGroupId"`
+	AppIds            []int        `json:"-"` // internal use only
 }
 
 type SortBy string
@@ -170,14 +170,17 @@ func getAppListingCommonQueryString() string {
 		" LEFT JOIN app_status aps on aps.app_id = a.id and p.environment_id = aps.env_id "
 }
 
-func (impl AppListingRepositoryQueryBuilder) GetQueryForAppEnvContainers(appListingFilter AppListingFilter) (string, []interface{}) {
+func (impl AppListingRepositoryQueryBuilder) GetQueryForAppEnvContainers(appListingFilter AppListingFilter) (string, []interface{}, error) {
 	query := "SELECT p.environment_id , a.id AS app_id, a.app_name,p.id as pipeline_id, a.team_id ,aps.status as app_status "
-	queryTemp, queryParams := impl.TestForCommonAppFilter(appListingFilter)
+	queryTemp, queryParams, err := impl.TestForCommonAppFilter(appListingFilter)
+	if err != nil {
+		return "", nil, err
+	}
 	query += queryTemp
-	return query, queryParams
+	return query, queryParams, nil
 }
 
-func (impl AppListingRepositoryQueryBuilder) CommonJoinSubQuery(appListingFilter AppListingFilter) (string, []interface{}) {
+func (impl AppListingRepositoryQueryBuilder) CommonJoinSubQuery(appListingFilter AppListingFilter) (string, []interface{}, error) {
 	var queryParams []interface{}
 	query := ` LEFT JOIN pipeline p ON a.id=p.app_id  and p.deleted=? 
 		       LEFT JOIN deployment_config dc ON ( p.app_id=dc.app_id and p.environment_id=dc.environment_id and dc.active=? ) 
@@ -186,16 +189,22 @@ func (impl AppListingRepositoryQueryBuilder) CommonJoinSubQuery(appListingFilter
 	if appListingFilter.DeploymentGroupId != 0 {
 		query = query + " INNER JOIN deployment_group_app dga ON a.id = dga.app_id "
 	}
-	whereCondition, whereConditionParams := impl.buildAppListingWhereCondition(appListingFilter)
+	whereCondition, whereConditionParams, err := impl.buildAppListingWhereCondition(appListingFilter)
+	if err != nil {
+		return "", nil, err
+	}
 	query = query + whereCondition
 	queryParams = append(queryParams, whereConditionParams...)
-	return query, queryParams
+	return query, queryParams, nil
 }
 
-func (impl AppListingRepositoryQueryBuilder) TestForCommonAppFilter(appListingFilter AppListingFilter) (string, []interface{}) {
-	queryTemp, queryParams := impl.CommonJoinSubQuery(appListingFilter)
+func (impl AppListingRepositoryQueryBuilder) TestForCommonAppFilter(appListingFilter AppListingFilter) (string, []interface{}, error) {
+	queryTemp, queryParams, err := impl.CommonJoinSubQuery(appListingFilter)
+	if err != nil {
+		return "", nil, err
+	}
 	query := " FROM app a " + queryTemp
-	return query, queryParams
+	return query, queryParams, nil
 }
 
 func (impl AppListingRepositoryQueryBuilder) BuildAppListingQueryLastDeploymentTimeV2(pipelineIDs []int) (string, []interface{}) {
@@ -211,8 +220,11 @@ func (impl AppListingRepositoryQueryBuilder) BuildAppListingQueryLastDeploymentT
 	return query, queryParams
 }
 
-func (impl AppListingRepositoryQueryBuilder) GetAppIdsQueryWithPaginationForLastDeployedSearch(appListingFilter AppListingFilter) (string, []interface{}) {
-	join, queryParams := impl.CommonJoinSubQuery(appListingFilter)
+func (impl AppListingRepositoryQueryBuilder) GetAppIdsQueryWithPaginationForLastDeployedSearch(appListingFilter AppListingFilter) (string, []interface{}, error) {
+	join, queryParams, err := impl.CommonJoinSubQuery(appListingFilter)
+	if err != nil {
+		return "", nil, err
+	}
 	countQuery := " (SELECT count(distinct(a.id)) as count FROM app a " + join + ") AS total_count "
 	// appending query params for count query as well
 	queryParams = append(queryParams, queryParams...)
@@ -234,12 +246,15 @@ func (impl AppListingRepositoryQueryBuilder) GetAppIdsQueryWithPaginationForLast
 	}
 	query += " LIMIT ? OFFSET ? "
 	queryParams = append(queryParams, appListingFilter.Size, appListingFilter.Offset)
-	return query, queryParams
+	return query, queryParams, nil
 }
 
-func (impl AppListingRepositoryQueryBuilder) GetAppIdsQueryWithPaginationForAppNameSearch(appListingFilter AppListingFilter) (string, []interface{}) {
+func (impl AppListingRepositoryQueryBuilder) GetAppIdsQueryWithPaginationForAppNameSearch(appListingFilter AppListingFilter) (string, []interface{}, error) {
 	orderByClause := impl.buildAppListingSortBy(appListingFilter)
-	join, queryParams := impl.CommonJoinSubQuery(appListingFilter)
+	join, queryParams, err := impl.CommonJoinSubQuery(appListingFilter)
+	if err != nil {
+		return "", nil, err
+	}
 	countQuery := "( SELECT count(distinct(a.id)) as count FROM app a" + join + " ) as total_count"
 	query := "SELECT DISTINCT(a.id) as app_id, a.app_name, " + countQuery +
 		" FROM app a " + join
@@ -250,7 +265,7 @@ func (impl AppListingRepositoryQueryBuilder) GetAppIdsQueryWithPaginationForAppN
 	//adding queryParams two times because join query is used in countQuery and mainQuery two times
 	queryParams = append(queryParams, queryParams...)
 	queryParams = append(queryParams, appListingFilter.Size, appListingFilter.Offset)
-	return query, queryParams
+	return query, queryParams, nil
 }
 
 func (impl AppListingRepositoryQueryBuilder) buildAppListingSortBy(appListingFilter AppListingFilter) string {
@@ -263,7 +278,7 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingSortBy(appListingFil
 	return orderByCondition
 }
 
-func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appListingFilter AppListingFilter) (string, []interface{}) {
+func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appListingFilter AppListingFilter) (string, []interface{}, error) {
 	var queryParams []interface{}
 	whereCondition := " WHERE a.active = ? and a.app_type = ? "
 	queryParams = append(queryParams, true, CustomApp)
@@ -313,30 +328,39 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appLi
 	}
 	// Tag filters are AND-combined for now as requested by product.
 	// Each row translates to a correlated EXISTS/NOT EXISTS on app_label.
-	tagWhereCondition, tagQueryParams := impl.buildTagFiltersWhereConditionAND(appListingFilter.TagFilters)
+	tagWhereCondition, tagQueryParams, err := impl.buildTagFiltersWhereConditionAND(appListingFilter.TagFilters)
+	if err != nil {
+		return "", nil, err
+	}
 	whereCondition += tagWhereCondition
-	queryParams = append(queryParams, tagQueryParams...)
+	if len(tagQueryParams) > 0 {
+		queryParams = append(queryParams, tagQueryParams...)
+	}
 
 	if len(appListingFilter.AppIds) > 0 {
 		whereCondition += " and a.id IN (?) "
 		queryParams = append(queryParams, pg.In(appListingFilter.AppIds))
 	}
-	return whereCondition, queryParams
+
+	return whereCondition, queryParams, nil
 }
 
-func (impl AppListingRepositoryQueryBuilder) buildTagFiltersWhereConditionAND(tagFilters []TagFilter) (string, []interface{}) {
-	if len(tagFilters) == 0 {
-		return "", nil
+func (impl AppListingRepositoryQueryBuilder) buildTagFiltersWhereConditionAND(tagFilters *[]TagFilter) (string, []interface{}, error) {
+	if tagFilters == nil || len(*tagFilters) == 0 {
+		return "", make([]interface{}, 0), nil
 	}
 	var queryBuilder strings.Builder
-	queryParams := make([]interface{}, 0, len(tagFilters)*2)
-	for _, tagFilter := range tagFilters {
-		predicate, predicateParams := impl.buildTagFilterPredicate(tagFilter)
+	queryParams := make([]interface{}, 0, len(*tagFilters)*2)
+	for _, tagFilter := range *tagFilters {
+		predicate, predicateParams, err := impl.buildTagFilterPredicate(tagFilter)
+		if err != nil {
+			return "", nil, err
+		}
 		queryBuilder.WriteString(" and ")
 		queryBuilder.WriteString(predicate)
 		queryParams = append(queryParams, predicateParams...)
 	}
-	return queryBuilder.String(), queryParams
+	return queryBuilder.String(), queryParams, nil
 }
 
 // buildTagFilterPredicate converts one UI tag filter row into a SQL predicate.
@@ -347,7 +371,7 @@ func (impl AppListingRepositoryQueryBuilder) buildTagFiltersWhereConditionAND(ta
 // - DOES_NOT_CONTAIN: key exists with at least one value not containing target substring.
 // - EXISTS: key exists.
 // - DOES_NOT_EXIST: key does not exist.
-func (impl AppListingRepositoryQueryBuilder) buildTagFilterPredicate(tagFilter TagFilter) (string, []interface{}) {
+func (impl AppListingRepositoryQueryBuilder) buildTagFilterPredicate(tagFilter TagFilter) (string, []interface{}, error) {
 	value := ""
 	if tagFilter.Value != nil {
 		value = *tagFilter.Value
@@ -355,30 +379,28 @@ func (impl AppListingRepositoryQueryBuilder) buildTagFilterPredicate(tagFilter T
 	switch tagFilter.Operator {
 	case TagFilterOperatorEquals:
 		return "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value = ?)",
-			[]interface{}{tagFilter.Key, value}
+			[]interface{}{tagFilter.Key, value}, nil
 	case TagFilterOperatorDoesNotEqual:
 		// Best-practice semantics for multi-value keys:
 		// include app when key exists and at least one value is different from target.
 		return "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value <> ?)",
-			[]interface{}{tagFilter.Key, value}
+			[]interface{}{tagFilter.Key, value}, nil
 	case TagFilterOperatorContains:
 		return "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value LIKE ? ESCAPE '\\')",
-			[]interface{}{tagFilter.Key, buildContainsPattern(value)}
+			[]interface{}{tagFilter.Key, buildContainsPattern(value)}, nil
 	case TagFilterOperatorDoesNotContain:
 		// Best-practice semantics for multi-value keys:
 		// include app when key exists and at least one value does not contain target.
 		return "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value NOT LIKE ? ESCAPE '\\')",
-			[]interface{}{tagFilter.Key, buildContainsPattern(value)}
+			[]interface{}{tagFilter.Key, buildContainsPattern(value)}, nil
 	case TagFilterOperatorExists:
 		return "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ?)",
-			[]interface{}{tagFilter.Key}
+			[]interface{}{tagFilter.Key}, nil
 	case TagFilterOperatorDoesNotExist:
 		return "NOT EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ?)",
-			[]interface{}{tagFilter.Key}
+			[]interface{}{tagFilter.Key}, nil
 	default:
-		// Invalid operator should never reach here due request validation.
-		// Returning false condition keeps query safe if validation is bypassed.
-		return "1 = 0", nil
+		return "", nil, fmt.Errorf("unsupported tag filter operator: %s", tagFilter.Operator)
 	}
 }
 

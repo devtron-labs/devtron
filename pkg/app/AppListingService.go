@@ -460,8 +460,10 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 		Size:              fetchAppListingRequest.Size,
 		DeploymentGroupId: fetchAppListingRequest.DeploymentGroupId,
 		AppStatuses:       fetchAppListingRequest.AppStatuses,
-		TagFilters:        fetchAppListingRequest.TagFilters,
 		AppIds:            fetchAppListingRequest.AppIds,
+	}
+	if fetchAppListingRequest.TagFilters != nil {
+		appListingFilter.TagFilters = &fetchAppListingRequest.TagFilters
 	}
 	_, span := otel.Tracer("appListingRepository").Start(r.Context(), "FetchAppsByEnvironment")
 	envContainers, appSize, err := impl.appListingRepository.FetchAppsByEnvironmentV2(appListingFilter)
