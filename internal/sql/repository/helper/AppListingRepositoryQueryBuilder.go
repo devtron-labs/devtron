@@ -174,6 +174,7 @@ func (impl AppListingRepositoryQueryBuilder) GetQueryForAppEnvContainers(appList
 	query := "SELECT p.environment_id , a.id AS app_id, a.app_name,p.id as pipeline_id, a.team_id ,aps.status as app_status "
 	queryTemp, queryParams, err := impl.TestForCommonAppFilter(appListingFilter)
 	if err != nil {
+		impl.logger.Errorw("error in GetQueryForAppEnvContainers while building common app filter query", "err", err, "appListingFilter", appListingFilter)
 		return "", nil, err
 	}
 	query += queryTemp
@@ -191,6 +192,7 @@ func (impl AppListingRepositoryQueryBuilder) CommonJoinSubQuery(appListingFilter
 	}
 	whereCondition, whereConditionParams, err := impl.buildAppListingWhereCondition(appListingFilter)
 	if err != nil {
+		impl.logger.Errorw("error in CommonJoinSubQuery while building app listing where condition", "err", err, "appListingFilter", appListingFilter)
 		return "", nil, err
 	}
 	query = query + whereCondition
@@ -201,6 +203,7 @@ func (impl AppListingRepositoryQueryBuilder) CommonJoinSubQuery(appListingFilter
 func (impl AppListingRepositoryQueryBuilder) TestForCommonAppFilter(appListingFilter AppListingFilter) (string, []interface{}, error) {
 	queryTemp, queryParams, err := impl.CommonJoinSubQuery(appListingFilter)
 	if err != nil {
+		impl.logger.Errorw("error in TestForCommonAppFilter while building common join sub query", "err", err, "appListingFilter", appListingFilter)
 		return "", nil, err
 	}
 	query := " FROM app a " + queryTemp
@@ -223,6 +226,7 @@ func (impl AppListingRepositoryQueryBuilder) BuildAppListingQueryLastDeploymentT
 func (impl AppListingRepositoryQueryBuilder) GetAppIdsQueryWithPaginationForLastDeployedSearch(appListingFilter AppListingFilter) (string, []interface{}, error) {
 	join, queryParams, err := impl.CommonJoinSubQuery(appListingFilter)
 	if err != nil {
+		impl.logger.Errorw("error in GetAppIdsQueryWithPaginationForLastDeployedSearch while building common join sub query", "err", err, "appListingFilter", appListingFilter)
 		return "", nil, err
 	}
 	countQuery := " (SELECT count(distinct(a.id)) as count FROM app a " + join + ") AS total_count "
@@ -253,6 +257,7 @@ func (impl AppListingRepositoryQueryBuilder) GetAppIdsQueryWithPaginationForAppN
 	orderByClause := impl.buildAppListingSortBy(appListingFilter)
 	join, queryParams, err := impl.CommonJoinSubQuery(appListingFilter)
 	if err != nil {
+		impl.logger.Errorw("error in GetAppIdsQueryWithPaginationForAppNameSearch while building common join sub query", "err", err, "appListingFilter", appListingFilter)
 		return "", nil, err
 	}
 	countQuery := "( SELECT count(distinct(a.id)) as count FROM app a" + join + " ) as total_count"
@@ -330,6 +335,7 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appLi
 	// Each row translates to a correlated EXISTS/NOT EXISTS on app_label.
 	tagWhereCondition, tagQueryParams, err := impl.buildTagFiltersWhereConditionAND(appListingFilter.TagFilters)
 	if err != nil {
+		impl.logger.Errorw("error in buildAppListingWhereCondition while building tag filters where condition", "err", err, "appListingFilter", appListingFilter)
 		return "", nil, err
 	}
 	whereCondition += tagWhereCondition
