@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/devtron-labs/devtron/pkg/app/bean"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -406,35 +405,6 @@ func buildContainsPattern(value string) string {
 	// Escape SQL LIKE wildcard chars so "contains" behaves like plain substring search.
 	escaped := likePatternEscaper.Replace(value)
 	return "%" + escaped + "%"
-}
-
-func (impl AppListingRepositoryQueryBuilder) BuildAppEnvQueryByFilter(filter bean.AppEnvFilterRequest) string {
-	query := "select a.app_name as app_name, a.id as app_id, e.id as environment_id, e.environment_name as environment_name, e.default as is_prod, e.is_virtual_environment as is_virtual_environment, p.deleted as is_pipeline_deleted"
-	query += " from app a left join pipeline p on p.app_id =a.id " +
-		"left join environment e on e.id =p.environment_id and e.active=true "
-
-	if len(filter.EnvNames) > 0 {
-		envNames := GetCommaSepratedStringWithComma(filter.EnvNames)
-		query += " and e.environment_name in (" + envNames + ") "
-	}
-
-	if len(filter.TeamNames) > 0 {
-		teamNames := GetCommaSepratedStringWithComma(filter.TeamNames)
-		query += " join team t on t.id=a.team_id and t.active=true and t.active=true and t.name in (" + teamNames + ") "
-	}
-
-	if len(filter.ClusterNames) > 0 {
-		clusterNames := GetCommaSepratedStringWithComma(filter.ClusterNames)
-		query += " join cluster c on c.id=e.cluster_id and c.active=true and c.active=true and c.cluster_name in (" + clusterNames + ")"
-	}
-
-	query += " where a.active=true and a.app_type=0 "
-	if len(filter.AppNames) > 0 {
-		appNames := GetCommaSepratedStringWithComma(filter.AppNames)
-		query += " and a.app_name in (" + appNames + ") "
-	}
-
-	return query
 }
 
 func GetCommaSepratedString[T int | string](request []T) string {

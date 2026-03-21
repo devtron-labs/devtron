@@ -1,5 +1,17 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package app
@@ -8,32 +20,18 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean/AppView"
-	"github.com/devtron-labs/devtron/api/helm-app/service"
-	read2 "github.com/devtron-labs/devtron/api/helm-app/service/read"
-	bean7 "github.com/devtron-labs/devtron/client/argocdServer/bean"
-	"github.com/devtron-labs/devtron/enterprise/pkg/globalTag"
+	bean2 "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
-	"github.com/devtron-labs/devtron/internal/util/helm"
 	read4 "github.com/devtron-labs/devtron/pkg/app/appDetails/read"
-	bean2 "github.com/devtron-labs/devtron/pkg/app/bean"
 	userrepository "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	buildCommonBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
 	ciConfig "github.com/devtron-labs/devtron/pkg/build/pipeline/read"
-	read3 "github.com/devtron-labs/devtron/pkg/chart/read"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
-	cdConfigRead "github.com/devtron-labs/devtron/pkg/deployment/common/read"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
-	constants2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/constants"
-	"github.com/devtron-labs/devtron/pkg/devtronResource/adapter"
-	bean3 "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
-	util4 "github.com/devtron-labs/devtron/pkg/devtronResource/util"
-	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
-	util3 "github.com/devtron-labs/devtron/util"
-
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	errors2 "github.com/juju/errors"
 	"go.opentelemetry.io/otel"
@@ -57,27 +55,21 @@ import (
 type AppListingService interface {
 	FetchJobs(fetchJobListingRequest FetchAppListingRequest) ([]*AppView.JobContainer, error)
 	FetchOverviewCiPipelines(jobId int) ([]*AppView.JobListingContainer, error)
-	FetchJobCiPipelines() ([]*AppView.JobListingContainer, error)
 	BuildAppListingResponseV2(fetchAppListingRequest FetchAppListingRequest, envContainers []*AppView.AppEnvironmentContainer) ([]*AppView.AppContainer, error)
 	FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error)
 	FetchAppDetails(ctx context.Context, appId int, envId int) (AppView.AppDetailContainer, error)
-	FetchAllDevtronAppsWithAtleastOneWorkflow(fetchAppListingRequest FetchAppListingRequest) ([]*AppView.AppResponseDto, error)
-	FetchAppPolicyConsequences(appId int, envId int) (appBlockedState AppView.AppPolicyConsequence, err error)
 
-	// ------------------
+	//------------------
 
 	FetchAppTriggerView(appId int) ([]AppView.TriggerView, error)
 	FetchAppStageStatus(appId int, appType int) ([]AppView.AppStageStatus, error)
 
 	FetchOtherEnvironment(ctx context.Context, appId int) ([]*AppView.Environment, error)
 	FetchMinDetailOtherEnvironment(appId int) ([]*AppView.Environment, error)
-
-	FetchEnvMinData(appIds []int) ([]*bean2.AppEnvNames, error)
 	RedirectToLinkouts(Id int, appId int, envId int, podName string, containerName string) (string, error)
 	ISLastReleaseStopType(appId, envId int) (bool, error)
 	ISLastReleaseStopTypeV2(pipelineIds []int) (map[int]bool, error)
 	GetReleaseCount(appId, envId int) (int, error)
-	GetAllAppEnvsFromResourceNames(filterCriteria []string) ([]*bean2.AppEnvResponse, error)
 	ValidateTagFilters(tagFilters []helper.TagFilter) error
 	NormalizeTagFilters(tagFilters []helper.TagFilter) []helper.TagFilter
 
@@ -111,10 +103,6 @@ type AppNameTypeIdContainer struct {
 	AppName string `json:"appName"`
 	Type    string `json:"type"`
 	AppId   int    `json:"appId"`
-}
-type CiArtifactWithParentArtifact struct {
-	ParentCiArtifact int
-	CiArtifactId     int
 }
 
 // ValidateTagFilters validates each tag filter row.
@@ -166,8 +154,8 @@ func (impl AppListingServiceImpl) NormalizeTagFilters(tagFilters []helper.TagFil
 	return NormalizeTagFilters(tagFilters)
 }
 
-func GetNamespaceClusterMapping(underscoreSeperatedClusterIdNamespaces []string) (namespaceClusterPair []*repository3.ClusterNamespacePair, clusterIds []int, err error) {
-	for _, ns := range underscoreSeperatedClusterIdNamespaces {
+func (req FetchAppListingRequest) GetNamespaceClusterMapping() (namespaceClusterPair []*repository2.ClusterNamespacePair, clusterIds []int, err error) {
+	for _, ns := range req.Namespaces {
 		items := strings.Split(ns, "_")
 		// TODO refactoring: invalid condition; always false
 		if len(items) < 1 && len(items) > 2 {
@@ -178,7 +166,7 @@ func GetNamespaceClusterMapping(underscoreSeperatedClusterIdNamespaces []string)
 			return nil, nil, fmt.Errorf("invalid clustrer id")
 		}
 		if len(items) == 2 {
-			pair := &repository3.ClusterNamespacePair{
+			pair := &repository2.ClusterNamespacePair{
 				ClusterId:     clusterId,
 				NamespaceName: items[1],
 			}
@@ -194,31 +182,22 @@ func GetNamespaceClusterMapping(underscoreSeperatedClusterIdNamespaces []string)
 type AppListingServiceImpl struct {
 	Logger                         *zap.SugaredLogger
 	appRepository                  app.AppRepository
-	appListingRepository           repository.AppListingRepository
 	appDetailsReadService          read4.AppDetailsReadService
+	appListingRepository           repository.AppListingRepository
 	appListingViewBuilder          AppListingViewBuilder
 	pipelineRepository             pipelineConfig.PipelineRepository
 	cdWorkflowRepository           pipelineConfig.CdWorkflowRepository
 	linkoutsRepository             repository.LinkoutsRepository
 	pipelineOverrideRepository     chartConfig.PipelineOverrideRepository
-	environmentRepository          repository3.EnvironmentRepository
+	environmentRepository          repository2.EnvironmentRepository
 	chartRepository                chartRepoRepository.ChartRepository
 	ciPipelineRepository           pipelineConfig.CiPipelineRepository
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService
 	userRepository                 userrepository.UserRepository
 	deployedAppMetricsService      deployedAppMetrics.DeployedAppMetricsService
 	ciArtifactRepository           repository.CiArtifactRepository
-	appLabelRepository             pipelineConfig.AppLabelRepository
-	globalTagService               globalTag.GlobalTagService
 	envConfigOverrideReadService   read.EnvConfigOverrideService
 	ciPipelineConfigReadService    ciConfig.CiPipelineConfigReadService
-	deploymentConfigService        cdConfigRead.DeploymentConfigReadService
-
-	//ent only
-	helmAppReadService read2.HelmAppReadService
-	helmAppService     service.HelmAppService
-	globalEnvVariables *util3.GlobalEnvVariables
-	chartReadService   read3.ChartReadService
 }
 
 func NewAppListingServiceImpl(Logger *zap.SugaredLogger,
@@ -227,19 +206,12 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger,
 	appRepository app.AppRepository,
 	appListingViewBuilder AppListingViewBuilder, pipelineRepository pipelineConfig.PipelineRepository,
 	linkoutsRepository repository.LinkoutsRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
-	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, environmentRepository repository3.EnvironmentRepository,
+	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, environmentRepository repository2.EnvironmentRepository,
 	chartRepository chartRepoRepository.ChartRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService, userRepository userrepository.UserRepository,
-	appLabelRepository pipelineConfig.AppLabelRepository,
-	globalTagService globalTag.GlobalTagService,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService, ciArtifactRepository repository.CiArtifactRepository,
 	envConfigOverrideReadService read.EnvConfigOverrideService,
-	ciPipelineConfigReadService ciConfig.CiPipelineConfigReadService,
-	deploymentConfigService cdConfigRead.DeploymentConfigReadService,
-	helmAppReadService read2.HelmAppReadService,
-	helmAppService service.HelmAppService,
-	envVariables *util3.EnvironmentVariables,
-	chartReadService read3.ChartReadService) *AppListingServiceImpl {
+	ciPipelineConfigReadService ciConfig.CiPipelineConfigReadService) *AppListingServiceImpl {
 	return &AppListingServiceImpl{
 		Logger:                         Logger,
 		appListingRepository:           appListingRepository,
@@ -258,14 +230,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger,
 		deployedAppMetricsService:      deployedAppMetricsService,
 		ciArtifactRepository:           ciArtifactRepository,
 		envConfigOverrideReadService:   envConfigOverrideReadService,
-		appLabelRepository:             appLabelRepository,
-		globalTagService:               globalTagService,
 		ciPipelineConfigReadService:    ciPipelineConfigReadService,
-		deploymentConfigService:        deploymentConfigService,
-		helmAppReadService:             helmAppReadService,
-		helmAppService:                 helmAppService,
-		globalEnvVariables:             envVariables.GlobalEnvVariables,
-		chartReadService:               chartReadService,
 	}
 }
 
@@ -290,23 +255,6 @@ const (
 	Production    = "Production"
 	NonProduction = "Non-Production"
 )
-
-func (impl AppListingServiceImpl) FetchEnvMinData(appIds []int) ([]*bean2.AppEnvNames, error) {
-	if len(appIds) == 0 {
-		return []*bean2.AppEnvNames{}, nil
-	}
-	apps, err := impl.appRepository.FindAppAndProjectByIdsIn(appIds)
-	if err != nil {
-		impl.Logger.Errorw("error in fetching apps by ids", "err", err, "appIds", appIds)
-		return nil, err
-	}
-
-	appNames := make([]string, 0, len(apps))
-	for _, app := range apps {
-		appNames = append(appNames, app.AppName)
-	}
-	return impl.appListingRepository.GetAllAppEnvsFromResourceNames(bean2.AppEnvFilterRequest{AppNames: appNames})
-}
 
 func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, offset int) (*OverviewAppsByEnvironmentBean, error) {
 	resp := &OverviewAppsByEnvironmentBean{}
@@ -345,6 +293,7 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 		impl.Logger.Errorw("failed to fetch env containers", "err", err, "envId", envId)
 		return resp, err
 	}
+
 	artifactIds := make([]int, 0)
 	for _, envContainer := range envContainers {
 		lastDeployed, err := impl.appListingRepository.FetchLastDeployedImage(envContainer.AppId, envId)
@@ -352,7 +301,6 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 			impl.Logger.Errorw("failed to fetch last deployed image", "err", err, "appId", envContainer.AppId, "envId", envId)
 			return resp, err
 		}
-
 		if lastDeployed != nil {
 			envContainer.LastDeployedImage = lastDeployed.LastDeployedImage
 			envContainer.LastDeployedBy = lastDeployed.LastDeployedBy
@@ -409,29 +357,6 @@ func (impl AppListingServiceImpl) FetchAppsEnvContainers(envId int, appIds []int
 	return envContainers, nil
 }
 
-func (impl AppListingServiceImpl) FetchAllDevtronAppsWithAtleastOneWorkflow(fetchAppListingRequest FetchAppListingRequest) ([]*AppView.AppResponseDto, error) {
-	// Basic validation of pagination parameters.
-
-	if fetchAppListingRequest.Offset < 0 {
-		impl.Logger.Errorw("invalid offset provided", "offset", fetchAppListingRequest.Offset)
-		return nil, fmt.Errorf("invalid offset provided")
-	}
-	appListingFilter := helper.AppListingFilter{
-		AppNameSearch: fetchAppListingRequest.AppNameSearch,
-		SortOrder:     fetchAppListingRequest.SortOrder,
-		Offset:        fetchAppListingRequest.Offset,
-		Size:          fetchAppListingRequest.Size,
-	}
-	impl.Logger.Debugw("Fetching all Devtron apps with at least one workflow", "filter", appListingFilter)
-	res, err := impl.appListingRepository.FetchAllDevtronAppsWithAtleastOneWorkflow(appListingFilter)
-	if err != nil {
-		impl.Logger.Errorw("failed to fetch devtron apps", "err", err)
-		return nil, err
-	}
-	resp := adapter.ConvertDbObjToRespDto(res)
-	return resp, nil
-}
-
 func (impl AppListingServiceImpl) FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error) {
 	impl.Logger.Debug("reached at FetchAllDevtronManagedApps:")
 	apps := make([]AppNameTypeIdContainer, 0)
@@ -465,6 +390,7 @@ func (impl AppListingServiceImpl) FetchAllDevtronManagedApps() ([]AppNameTypeIdC
 }
 
 func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListingRequest) ([]*AppView.JobContainer, error) {
+
 	jobListingFilter := helper.AppListingFilter{
 		Teams:         fetchJobListingRequest.Teams,
 		AppNameSearch: fetchJobListingRequest.AppNameSearch,
@@ -491,7 +417,6 @@ func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListi
 		impl.Logger.Errorw("Error in extractEmailIdFromUserId", "jobContainers", jobListingContainers, "err", err)
 		return nil, err
 	}
-
 	CiPipelineIDs := GetCIPipelineIDs(jobListingContainers)
 	JobsLastSucceededOnTime, err := impl.appListingRepository.FetchJobsLastSucceededOn(CiPipelineIDs)
 	jobContainers := BuildJobListingResponse(jobListingContainers, JobsLastSucceededOnTime, userEmailMap)
@@ -507,25 +432,11 @@ func (impl AppListingServiceImpl) FetchOverviewCiPipelines(jobId int) ([]*AppVie
 	return jobCiContainers, nil
 }
 
-func (impl AppListingServiceImpl) FetchJobCiPipelines() ([]*AppView.JobListingContainer, error) {
-	jobCiContainers, err := impl.appListingRepository.FetchJobCiPipelines()
-	if err != nil {
-		impl.Logger.Errorw("error in fetching job ci pipelines", "error", err)
-		return jobCiContainers, err
-	}
-	return jobCiContainers, nil
-}
-
 func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*AppView.AppEnvironmentContainer, int, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
 	if len(fetchAppListingRequest.Namespaces) != 0 && len(fetchAppListingRequest.Environments) == 0 {
 		return []*AppView.AppEnvironmentContainer{}, 0, nil
 	}
-	normalizedTagFilters, err := NormalizeAndValidateTagFilters(fetchAppListingRequest.TagFilters)
-	if err != nil {
-		return []*AppView.AppEnvironmentContainer{}, 0, err
-	}
-	fetchAppListingRequest.TagFilters = normalizedTagFilters
 
 	// Currently AppStatus is available in Db for only ArgoApps
 	// We fetch AppStatus on the fly for Helm Apps from scoop, So AppStatus filter will be applied in last
@@ -536,8 +447,6 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 	if isFilteredOnHibernatingStatus {
 		appStatusesFilter = fetchAppListingRequest.AppStatuses
 		fetchAppListingRequest.AppStatuses = []string{}
-		// log updated filter
-		impl.Logger.Debugw("HIBERNATING status found, updated filter", "filter", fetchAppListingRequest)
 	}
 
 	appListingFilter := helper.AppListingFilter{
@@ -551,10 +460,8 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 		Size:              fetchAppListingRequest.Size,
 		DeploymentGroupId: fetchAppListingRequest.DeploymentGroupId,
 		AppStatuses:       fetchAppListingRequest.AppStatuses,
+		TagFilters:        &fetchAppListingRequest.TagFilters,
 		AppIds:            fetchAppListingRequest.AppIds,
-	}
-	if fetchAppListingRequest.TagFilters != nil {
-		appListingFilter.TagFilters = &fetchAppListingRequest.TagFilters
 	}
 	_, span := otel.Tracer("appListingRepository").Start(r.Context(), "FetchAppsByEnvironment")
 	envContainers, appSize, err := impl.appListingRepository.FetchAppsByEnvironmentV2(appListingFilter)
@@ -590,14 +497,12 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 			container.Namespace = info.Namespace
 			container.ClusterName = info.ClusterName
 			container.EnvironmentName = info.Name
-			container.IsVirtualEnvironment = info.IsVirtualEnvironment
 		}
 	}
-	//Removed the below logic call due to slowness at zupee, to implement faster alternative
-	//err = impl.updateAppStatusForHelmTypePipelines(envContainers)
-	//if err != nil {
-	//	impl.Logger.Errorw("error, UpdateAppStatusForHelmTypePipelines", "envIds", envIds, "err", err)
-	//}
+	err = impl.updateAppStatusForHelmTypePipelines(envContainers)
+	if err != nil {
+		impl.Logger.Errorw("error, UpdateAppStatusForHelmTypePipelines", "envIds", envIds, "err", err)
+	}
 
 	// apply filter for "HIBERNATING" status
 	if isFilteredOnHibernatingStatus {
@@ -614,8 +519,10 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 }
 
 func (impl AppListingServiceImpl) isFilteredOnHibernatingStatus(fetchAppListingRequest FetchAppListingRequest) bool {
-	if fetchAppListingRequest.AppStatuses != nil && len(fetchAppListingRequest.AppStatuses) > 0 && slices.Contains(fetchAppListingRequest.AppStatuses, bean7.HIBERNATING) {
-		return true
+	if fetchAppListingRequest.AppStatuses != nil && len(fetchAppListingRequest.AppStatuses) > 0 {
+		if slices.Contains(fetchAppListingRequest.AppStatuses, bean2.HIBERNATING) {
+			return true
+		}
 	}
 	return false
 }
@@ -747,10 +654,6 @@ func BuildJobListingResponse(jobContainers []*AppView.JobListingContainer, JobsL
 
 			val.JobCiPipelines = append(val.JobCiPipelines, ciPipelineObj)
 		}
-
-		if len(jobContainer.Description) >= 0 {
-		}
-
 		jobContainersMapping[jobContainer.JobId] = val
 
 	}
@@ -774,38 +677,10 @@ func (impl AppListingServiceImpl) fetchACDAppStatusV2(fetchAppListingRequest Fet
 }
 
 func (impl AppListingServiceImpl) FetchAppDetails(ctx context.Context, appId int, envId int) (AppView.AppDetailContainer, error) {
-	pipelines, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
+	appDetailContainer, err := impl.appDetailsReadService.FetchAppDetail(ctx, appId, envId)
 	if err != nil {
-		impl.Logger.Errorw("error encountered in FetchAppDetail", "appId", appId, "envId", envId, "err", err)
+		impl.Logger.Errorw("error in fetching app detail", "error", err)
 		return AppView.AppDetailContainer{}, err
-	}
-	var appDetailContainer AppView.AppDetailContainer
-	if len(pipelines) > 0 && pipelines[0].Environment.IsVirtualEnvironment {
-		appDetailContainer, err = impl.appDetailsReadService.FetchAppDetailForVirtualEnvironment(ctx, appId, envId, pipelines[0].Id)
-		if err != nil {
-			impl.Logger.Errorw("error in fetching app detail", "error", err)
-			return AppView.AppDetailContainer{}, err
-		}
-		imagePath := appDetailContainer.DeploymentDetailContainer.Image
-		if len(imagePath) > 0 {
-			imageMetadata, err := util3.ExtractImageRepoAndTag(imagePath)
-			if err != nil {
-				impl.Logger.Errorw("error in extracting image tag and data", "imagePath", imagePath, "err", err)
-			}
-			appDetailContainer.DeploymentDetailContainer.ImageTag = imageMetadata.Tag
-			var pipeline *pipelineConfig.Pipeline
-			for _, p := range pipelines {
-				pipeline = p
-				break
-			}
-			appDetailContainer.HelmPackageName = helm.BuildHelmPackageNameForDevtronApps(pipeline.App.AppName, pipeline.Environment.Name, imageMetadata.Tag, bean.CD_WORKFLOW_TYPE_DEPLOY)
-		}
-	} else {
-		appDetailContainer, err = impl.appDetailsReadService.FetchAppDetail(ctx, appId, envId)
-		if err != nil {
-			impl.Logger.Errorw("error in fetching app detail", "error", err)
-			return AppView.AppDetailContainer{}, err
-		}
 	}
 	appDetailContainer.AppId = appId
 
@@ -824,51 +699,6 @@ func (impl AppListingServiceImpl) FetchAppDetails(ctx context.Context, appId int
 	return appDetailContainer, nil
 }
 
-func (impl AppListingServiceImpl) FetchAppPolicyConsequences(appId int, envId int) (AppView.AppPolicyConsequence, error) {
-	var appPolicyConsequence AppView.AppPolicyConsequence
-
-	// check if mandatory tags are added as labels or not
-	appLabels, err := impl.appLabelRepository.FindAllByAppId(appId)
-	if err != nil {
-		impl.Logger.Errorw("error in getting app labels", "appId", appId)
-		return appPolicyConsequence, err
-	}
-
-	teamId, err := impl.appRepository.GetTeamIdById(appId)
-	if err != nil {
-		impl.Logger.Errorw("error in getting teamId", "appId", appId)
-		return appPolicyConsequence, err
-	}
-
-	env, err := impl.environmentRepository.FindById(envId)
-	if err != nil {
-		impl.Logger.Errorw("error in getting env", "envId", envId)
-		return appPolicyConsequence, err
-	}
-	// convert appLabels to map
-	appLabelsMap := make(map[string]string)
-	for _, appLabel := range appLabels {
-		appLabelsMap[appLabel.Key] = appLabel.Value
-	}
-
-	err = impl.globalTagService.ValidateTagDeploymentPolicy(teamId, env.Default, appLabelsMap)
-	if err != nil {
-		impl.Logger.Errorw("error in validating mandatory labels for project", "appId", appId, "err", err)
-		blockedState := AppView.BlockedState{
-			IsBlocked: true,
-			BlockedBy: AppView.MandatoryTags,
-			Reason:    constants2.MANDATORY_TAG_DOES_NOT_EXIST_MESSAGE,
-		}
-		appPolicyConsequence.Cd = AppView.BlockedStateStage{
-			Pre:  blockedState,
-			Post: blockedState,
-			Node: blockedState,
-		}
-		return appPolicyConsequence, nil
-	}
-	return appPolicyConsequence, nil
-}
-
 func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, appDetailContainer AppView.AppDetailContainer, clusterId int, isVirtualEnv bool) (AppView.AppDetailContainer, error) {
 	ciPipelineId := appDetailContainer.CiPipelineId
 	if ciPipelineId > 0 {
@@ -881,10 +711,9 @@ func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, a
 		}
 
 		if ciPipeline != nil && ciPipeline.CiTemplate != nil && len(*ciPipeline.CiTemplate.DockerRegistryId) > 0 {
-			if (!ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0) && ciPipeline.PipelineType != string(buildCommonBean.LINKED_CD) {
+			if !ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0 && ciPipeline.PipelineType != string(buildCommonBean.LINKED_CD) {
 				appDetailContainer.IsExternalCi = false
 			}
-
 			// get dockerRegistryId starts
 			artifact, err := impl.ciArtifactRepository.Get(appDetailContainer.CiArtifactId)
 			// artifact can be nil which is a valid case, so we are not returning the error
@@ -899,7 +728,6 @@ func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, a
 				return appDetailContainer, nil
 			}
 			// get dockerRegistryId ends
-
 			appDetailContainer.DockerRegistryId = *dockerRegistryId
 
 			_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided")
@@ -976,7 +804,7 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 		impl.Logger.Errorw("err", err)
 		return envs, err
 	}
-	appLevelInfraMetrics := true // default val, not being derived from DB. TODO: remove this from FE since this is derived from prometheus config at cluster level and this logic is already present at FE
+	appLevelInfraMetrics := true //default val, not being derived from DB. TODO: remove this from FE since this is derived from prometheus config at cluster level and this logic is already present at FE
 	newCtx, span = otel.Tracer("deployedAppMetricsService").Start(newCtx, "GetMetricsFlagByAppId")
 	appLevelAppMetrics, err := impl.deployedAppMetricsService.GetMetricsFlagByAppId(appId)
 	span.End()
@@ -1026,7 +854,7 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 		} else {
 			env.Commits = make([]string, 0)
 		}
-		env.InfraMetrics = &appLevelInfraMetrics // using default value, discarding value got from query
+		env.InfraMetrics = &appLevelInfraMetrics //using default value, discarding value got from query
 	}
 	return envs, nil
 }
@@ -1037,7 +865,7 @@ func (impl AppListingServiceImpl) FetchMinDetailOtherEnvironment(appId int) ([]*
 		impl.Logger.Errorw("err", err)
 		return envs, err
 	}
-	appLevelInfraMetrics := true // default val, not being derived from DB. TODO: remove this from FE since this is derived from prometheus config at cluster level and this logic is already present at FE
+	appLevelInfraMetrics := true //default val, not being derived from DB. TODO: remove this from FE since this is derived from prometheus config at cluster level and this logic is already present at FE
 	appLevelAppMetrics, err := impl.deployedAppMetricsService.GetMetricsFlagByAppId(appId)
 	if err != nil {
 		impl.Logger.Errorw("error, GetMetricsFlagByAppId", "err", err, "appId", appId)
@@ -1071,7 +899,7 @@ func (impl AppListingServiceImpl) FetchMinDetailOtherEnvironment(appId int) ([]*
 		if env.AppMetrics == nil {
 			env.AppMetrics = &appLevelAppMetrics
 		}
-		env.InfraMetrics = &appLevelInfraMetrics // using default value, discarding value got from query
+		env.InfraMetrics = &appLevelInfraMetrics //using default value, discarding value got from query
 	}
 	return envs, nil
 }
@@ -1083,115 +911,6 @@ func arrContains(s []string, e string) bool {
 		}
 	}
 	return false
-}
-
-func (impl AppListingServiceImpl) GetAllAppEnvsFromResourceNames(filterCriteria []string) ([]*bean2.AppEnvResponse, error) {
-	filter := bean2.AppEnvFilterRequest{}
-	resp := []*bean2.AppEnvResponse{}
-	for _, criteria := range filterCriteria {
-		criteriaDecoder, err := util4.DecodeFilterCriteriaStringMulti(criteria)
-		if err != nil {
-			impl.Logger.Errorw("error encountered in applyFilterCriteriaOnResourceObjects", "filterCriteria", filterCriteria, "err", bean3.InvalidFilterCriteria)
-			return nil, err
-		}
-
-		fullKindEnum := adapter.GetStringForKindAndSubKind(criteriaDecoder.Kind, criteriaDecoder.SubKind)
-		switch fullKindEnum {
-		case string(bean3.DevtronResourceDevtronApplicationFull):
-			for _, val := range criteriaDecoder.Values {
-				if strings.TrimSpace(val) != "" {
-					filter.AppNames = append(filter.AppNames, val)
-				}
-			}
-		case string(bean3.DevtronResourceEnvironment):
-			for _, val := range criteriaDecoder.Values {
-				isVirtual, virtualEnvId, _ := resourceQualifiers.IsVirtualResource(val)
-				if isVirtual {
-					if virtualEnvId == resourceQualifiers.AllExistingAndFutureNonProdEnvsInt {
-						nonProdEnvs, err := impl.environmentRepository.FindAllActiveProdOrNonProd(false)
-						if err != nil {
-							impl.Logger.Errorw("Error in getting non prod envs", "err", err)
-							return nil, err
-						}
-						for _, env := range nonProdEnvs {
-							filter.EnvNames = append(filter.EnvNames, env.Name)
-						}
-					} else if virtualEnvId == resourceQualifiers.AllExistingAndFutureProdEnvsInt {
-						prodEnvs, err := impl.environmentRepository.FindAllActiveProdOrNonProd(true)
-						if err != nil {
-							impl.Logger.Errorw("Error in getting non prod envs", "err", err)
-							return nil, err
-						}
-						for _, env := range prodEnvs {
-							filter.EnvNames = append(filter.EnvNames, env.Name)
-						}
-					}
-				}
-				if strings.TrimSpace(val) != "" && !slices.Contains(filter.EnvNames, val) {
-					filter.EnvNames = append(filter.EnvNames, val)
-				}
-			}
-
-		case string(bean3.DevtronResourceCluster):
-			for _, val := range criteriaDecoder.Values {
-				if strings.TrimSpace(val) != "" {
-					filter.ClusterNames = append(filter.ClusterNames, val)
-				}
-			}
-		case string(bean3.DevtronResourceProject):
-			for _, val := range criteriaDecoder.Values {
-				if strings.TrimSpace(val) != "" {
-					filter.TeamNames = append(filter.TeamNames, val)
-				}
-			}
-		}
-	}
-
-	appEnvs, err := impl.appListingRepository.GetAllAppEnvsFromResourceNames(filter)
-	if err != nil {
-		impl.Logger.Errorw("error in getting app-envs", "err", err)
-		return nil, err
-	}
-	appIdEnvMap := make(map[int][]*bean2.AppEnvResponse, 0)
-	appIdAppMap := make(map[int]*bean2.AppEnvResponse, 0)
-	processedEnvs := map[int]map[int]bool{}
-	for _, appEnv := range appEnvs {
-		if processedEnvs[appEnv.AppId] == nil {
-			processedEnvs[appEnv.AppId] = map[int]bool{}
-		}
-
-		if appIdAppMap[appEnv.AppId] == nil {
-			appResKind := &bean2.AppEnvResponse{}
-			appResKind.Kind = string(bean3.DevtronResourceDevtronApplicationFull)
-			appResKind.Id = appEnv.AppId
-			appResKind.Identifier = appEnv.AppName
-			appIdAppMap[appEnv.AppId] = appResKind
-		}
-
-		if !processedEnvs[appEnv.AppId][appEnv.EnvironmentId] && appEnv.EnvironmentId != 0 {
-			processedEnvs[appEnv.AppId][appEnv.EnvironmentId] = true
-			envResKind := &bean2.AppEnvResponse{}
-			envResKind.Kind = string(bean3.DevtronResourceEnvironment)
-			envResKind.Id = appEnv.EnvironmentId
-			envResKind.Identifier = appEnv.EnvironmentName
-
-			if appIdEnvMap[appEnv.AppId] == nil {
-				appIdEnvMap[appEnv.AppId] = make([]*bean2.AppEnvResponse, 0)
-			}
-			appIdEnvMap[appEnv.AppId] = append(appIdEnvMap[appEnv.AppId], envResKind)
-		}
-
-	}
-
-	for appId, appDetail := range appIdAppMap {
-		if appIdEnvMap[appId] == nil || len(appIdEnvMap[appId]) == 0 {
-			appDetail.RelatedObjects = []*bean2.AppEnvResponse{}
-		} else {
-			appDetail.RelatedObjects = appIdEnvMap[appId]
-		}
-		resp = append(resp, appDetail)
-	}
-	return resp, nil
 }
 
 func (impl AppListingServiceImpl) RedirectToLinkouts(Id int, appId int, envId int, podName string, containerName string) (string, error) {
