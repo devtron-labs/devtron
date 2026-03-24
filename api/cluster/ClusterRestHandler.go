@@ -686,7 +686,7 @@ func (impl ClusterRestHandlerImpl) HandleRbacForClusterNamespace(userId int32, t
 	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
 		return clusterNamespaces, nil
 	}
-	roles, err := impl.clusterService.FetchRolesFromGroup(userId)
+	roles, err := impl.clusterService.FetchRolesFromGroup(userId, token)
 	if err != nil {
 		impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
 		return nil, err
@@ -740,7 +740,7 @@ func (impl ClusterRestHandlerImpl) GetClusterNamespaces(w http.ResponseWriter, r
 		return
 	}
 
-	allClusterNamespaces, err := impl.clusterService.FindAllNamespacesByUserIdAndClusterId(userId, clusterId, isActionUserSuperAdmin)
+	allClusterNamespaces, err := impl.clusterService.FindAllNamespacesByUserIdAndClusterId(userId, clusterId, isActionUserSuperAdmin, token)
 	if err != nil {
 		// Check if it's a cluster connectivity error and return appropriate status code
 		if err.Error() == cluster.ErrClusterNotReachable {
@@ -767,7 +767,7 @@ func (impl ClusterRestHandlerImpl) FindAllForClusterPermission(w http.ResponseWr
 	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
 		isActionUserSuperAdmin = true
 	}
-	clusterList, err := impl.clusterService.FindAllForClusterByUserId(userId, isActionUserSuperAdmin)
+	clusterList, err := impl.clusterService.FindAllForClusterByUserId(userId, isActionUserSuperAdmin, token)
 	if err != nil {
 		impl.logger.Errorw("error in deleting cluster", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
