@@ -19,6 +19,8 @@ package user
 import (
 	"github.com/devtron-labs/devtron/pkg/auth/authentication"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	globalConfig "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
+	globalConfigRepo "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig/repository"
 	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
 	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/google/wire"
@@ -77,4 +79,13 @@ var UserWireSet = wire.NewSet(
 	wire.Bind(new(RbacRoleRestHandler), new(*RbacRoleRestHandlerImpl)),
 	user2.NewRbacRoleServiceImpl,
 	wire.Bind(new(user2.RbacRoleService), new(*user2.RbacRoleServiceImpl)),
+
+	repository2.NewUserAutoAssignGroupMapRepositoryImpl,
+	wire.Bind(new(repository2.UserAutoAssignGroupMapRepository), new(*repository2.UserAutoAssignGroupMapRepositoryImpl)),
+
+	globalConfigRepo.NewGlobalAuthorisationConfigRepositoryImpl,
+	wire.Bind(new(globalConfigRepo.GlobalAuthorisationConfigRepository), new(*globalConfigRepo.GlobalAuthorisationConfigRepositoryImpl)),
+
+	globalConfig.NewGlobalAuthorisationConfigServiceImpl,
+	wire.Bind(new(globalConfig.GlobalAuthorisationConfigService), new(*globalConfig.GlobalAuthorisationConfigServiceImpl)),
 )

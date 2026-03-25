@@ -136,7 +136,7 @@ func (impl *UserResourceServiceImpl) getHelmEnvResourceOptions(context context.C
 func (impl *UserResourceServiceImpl) getClusterResourceOptions(context context.Context, token string,
 	reqBean *apiBean.ResourceOptionsReqDto, params *apiBean.PathParams) (*bean5.ResourceOptionsDto, error) {
 	// System User id is passed as 1 as rbac enforcement is handled globally at bottom level and Super-admin is passed as true here
-	clusters, err := impl.clusterService.FindAllForClusterByUserId(1, true)
+	clusters, err := impl.clusterService.FindAllForClusterByUserId(1, true, token)
 	if err != nil {
 		impl.logger.Errorw("error encountered in getClusterResourceOptions", "err", err)
 		return nil, err
@@ -147,7 +147,7 @@ func (impl *UserResourceServiceImpl) getClusterResourceOptions(context context.C
 func (impl *UserResourceServiceImpl) getClusterNamespacesResourceOptions(context context.Context, token string,
 	reqBean *apiBean.ResourceOptionsReqDto, params *apiBean.PathParams) (*bean5.ResourceOptionsDto, error) {
 	// System User id is passed as 1 as rbac enforcement is handled globally at bottom level and Super-admin is passed as true here
-	namespaces, err := impl.clusterService.FindAllNamespacesByUserIdAndClusterId(bean.SystemUserId, reqBean.ClusterId, true)
+	namespaces, err := impl.clusterService.FindAllNamespacesByUserIdAndClusterId(bean.SystemUserId, reqBean.ClusterId, true, token)
 	if err != nil {
 		impl.logger.Errorw("error encountered in getClusterNamespacesResourceOptions", "err", err)
 		return nil, err
@@ -158,7 +158,7 @@ func (impl *UserResourceServiceImpl) getClusterNamespacesResourceOptions(context
 func (impl *UserResourceServiceImpl) getClusterApiResourceOptions(context context.Context, token string,
 	reqBean *apiBean.ResourceOptionsReqDto, params *apiBean.PathParams) (*bean5.ResourceOptionsDto, error) {
 	// System User id is passed as 1 as rbac enforcement is handled globally at bottom level and Super-admin is passed as true here
-	apiResources, err := impl.k8sApplicationService.GetAllApiResources(context, reqBean.ClusterId, true, bean.SystemUserId)
+	apiResources, err := impl.k8sApplicationService.GetAllApiResources(context, reqBean.ClusterId, true, bean.SystemUserId, token)
 	if err != nil {
 		impl.logger.Errorw("error encountered in getClusterApiResourceOptions", "err", err)
 		return nil, err

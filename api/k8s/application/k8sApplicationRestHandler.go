@@ -903,7 +903,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetAllApiResources(w http.Response
 	}
 
 	// get data from service
-	response, err := handler.k8sApplicationService.GetAllApiResources(r.Context(), clusterId, isSuperAdmin, userId)
+	response, err := handler.k8sApplicationService.GetAllApiResources(r.Context(), clusterId, isSuperAdmin, userId, token)
 	if err != nil {
 		handler.logger.Errorw("error in getting api-resources", "clusterId", clusterId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
