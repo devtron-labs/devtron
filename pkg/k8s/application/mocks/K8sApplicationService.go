@@ -174,13 +174,13 @@ func (_m *K8sApplicationService) FilterServiceAndIngress(ctx context.Context, re
 	return r0
 }
 
-// GetAllApiResources provides a mock function with given fields: ctx, clusterId, isSuperAdmin, userId
-func (_m *K8sApplicationService) GetAllApiResources(ctx context.Context, clusterId int, isSuperAdmin bool, userId int32) (*k8s.GetAllApiResourcesResponse, error) {
-	ret := _m.Called(ctx, clusterId, isSuperAdmin, userId)
+// GetAllApiResources provides a mock function with given fields: ctx, clusterId, isSuperAdmin, userId, token
+func (_m *K8sApplicationService) GetAllApiResources(ctx context.Context, clusterId int, isSuperAdmin bool, userId int32, token string) (*k8s.GetAllApiResourcesResponse, error) {
+	ret := _m.Called(ctx, clusterId, isSuperAdmin, userId, token)
 
 	var r0 *k8s.GetAllApiResourcesResponse
-	if rf, ok := ret.Get(0).(func(context.Context, int, bool, int32) *k8s.GetAllApiResourcesResponse); ok {
-		r0 = rf(ctx, clusterId, isSuperAdmin, userId)
+	if rf, ok := ret.Get(0).(func(context.Context, int, bool, int32, string) *k8s.GetAllApiResourcesResponse); ok {
+		r0 = rf(ctx, clusterId, isSuperAdmin, userId, token)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*k8s.GetAllApiResourcesResponse)
@@ -188,8 +188,8 @@ func (_m *K8sApplicationService) GetAllApiResources(ctx context.Context, cluster
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, int, bool, int32) error); ok {
-		r1 = rf(ctx, clusterId, isSuperAdmin, userId)
+	if rf, ok := ret.Get(1).(func(context.Context, int, bool, int32, string) error); ok {
+		r1 = rf(ctx, clusterId, isSuperAdmin, userId, token)
 	} else {
 		r1 = ret.Error(1)
 	}

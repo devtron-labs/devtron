@@ -370,8 +370,8 @@ type SearchRequest struct {
 
 func (impl *NotificationSettingsRepositoryImpl) FetchNotificationSettingGroupBy(viewId int) ([]NotificationSettings, error) {
 	var ns []NotificationSettings
-	queryTemp := "select ns.team_id,ns.env_id,ns.app_id,ns.pipeline_id,ns.pipeline_type from notification_settings ns" +
-		" where ns.view_id=? group by 1,2,3,4,5;"
+	queryTemp := "select ns.team_id,ns.env_id,ns.app_id,ns.pipeline_id,ns.pipeline_type,ns.cluster_id from notification_settings ns" +
+		" where ns.view_id=? group by 1,2,3,4,5,6;"
 	_, err := impl.dbConnection.Query(&ns, queryTemp, viewId)
 	if err != nil {
 		return nil, err

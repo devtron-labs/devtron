@@ -25,6 +25,7 @@ import (
 //depends on sql,
 //TODO integrate user auth module
 
+// SelfRegistrationWireSet depends on GlobalAuthorisationConfigService which is provided by UserWireSet
 var SelfRegistrationWireSet = wire.NewSet(
 	repository.NewSelfRegistrationRolesRepositoryImpl,
 	wire.Bind(new(repository.SelfRegistrationRolesRepository), new(*repository.SelfRegistrationRolesRepositoryImpl)),
