@@ -8,3 +8,4 @@ devtron
 /tests/api-spec-validation/reports
 .qodo
 .worktrees/
+.worktrees/
