@@ -7,3 +7,4 @@ devtron
 /tests/api-spec-validation/bin
 /tests/api-spec-validation/reports
 .qodo
+.worktrees/
