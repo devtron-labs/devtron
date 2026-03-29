@@ -491,7 +491,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entity
 		return false, err, nil
 	}
 	_, err = impl.createRole(&roleData, UserId)
-	if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
+	if err != nil && strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
 		return false, err, nil
 	}
 	err = tx.Commit()
@@ -516,7 +516,7 @@ func (impl UserAuthRepositoryImpl) CreateRolesWithAccessTypeAndEntity(team, enti
 		Resource:    resource,
 	}
 	_, err := impl.createRole(&roleData, UserId)
-	if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
+	if err != nil && strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
 		return false, err
 	}
 	return true, nil
@@ -543,7 +543,7 @@ func (impl UserAuthRepositoryImpl) CreateRoleForSuperAdminIfNotExists(tx *pg.Tx,
 			return false, err
 		}
 		_, err = impl.createRole(&roleManagerData, UserId)
-		if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
+		if err != nil && strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
 			return false, err
 		}
 	}
