@@ -89,9 +89,10 @@ type HandlerService interface {
 
 // CATEGORY=CI_BUILDX
 type BuildxGlobalFlags struct {
-	BuildxCacheModeMin         bool `env:"BUILDX_CACHE_MODE_MIN" envDefault:"false" description:"To set build cache mode to minimum in buildx" `
-	AsyncBuildxCacheExport     bool `env:"ASYNC_BUILDX_CACHE_EXPORT" envDefault:"false" description:"To enable async container image cache export"`
-	BuildxInterruptionMaxRetry int  `env:"BUILDX_INTERRUPTION_MAX_RETRY" envDefault:"3" description:"Maximum number of retries for buildx builder interruption"`
+	BuildxCacheModeMin                bool `env:"BUILDX_CACHE_MODE_MIN" envDefault:"false" description:"To set build cache mode to minimum in buildx" `
+	AsyncBuildxCacheExport            bool `env:"ASYNC_BUILDX_CACHE_EXPORT" envDefault:"false" description:"To enable async container image cache export"`
+	BuildxInterruptionMaxRetry        int  `env:"BUILDX_INTERRUPTION_MAX_RETRY" envDefault:"3" description:"Maximum number of retries for buildx builder interruption"`
+	BuildxBuilderPodWaitDurationSecs  int  `env:"BUILDX_BUILDER_POD_WAIT_DURATION_SECS" envDefault:"120" description:"Timeout in seconds to wait for buildx k8s driver builder pods to be ready (initial startup and after spot interruption)"`
 }
 
 type HandlerServiceImpl struct {
