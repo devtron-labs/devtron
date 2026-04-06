@@ -217,6 +217,10 @@ func PopulatePodInfo(un *unstructured.Unstructured) ([]commonBean.InfoItem, erro
 
 	initializing := false
 	for i := range pod.Status.InitContainerStatuses {
+		if pod.Spec.InitContainers[i].RestartPolicy != nil &&
+			*pod.Spec.InitContainers[i].RestartPolicy == v1.ContainerRestartPolicyAlways {
+			continue // native sidecar — not a blocking init container
+		}
 		container := pod.Status.InitContainerStatuses[i]
 		restarts += int(container.RestartCount)
 		switch {
@@ -242,6 +246,16 @@ func PopulatePodInfo(un *unstructured.Unstructured) ([]commonBean.InfoItem, erro
 			initializing = true
 		}
 		break
+	}
+	for i, cs := range pod.Status.InitContainerStatuses {
+		if pod.Spec.InitContainers[i].RestartPolicy != nil &&
+			*pod.Spec.InitContainers[i].RestartPolicy == v1.ContainerRestartPolicyAlways {
+			totalContainers++
+			restarts += int(cs.RestartCount)
+			if cs.Ready && cs.State.Running != nil {
+				readyContainers++
+			}
+		}
 	}
 	if !initializing {
 		restarts = 0
