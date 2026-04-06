@@ -70,6 +70,7 @@ func (impl *HandlerServiceImpl) updateWorkflowRequestWithBuildxFlags(workflowReq
 	workflowRequest.BuildxCacheModeMin = impl.buildxGlobalFlags.BuildxCacheModeMin
 	workflowRequest.AsyncBuildxCacheExport = impl.buildxGlobalFlags.AsyncBuildxCacheExport
 	workflowRequest.BuildxInterruptionMaxRetry = impl.buildxGlobalFlags.BuildxInterruptionMaxRetry
+	workflowRequest.BuildxBuilderPodWaitDurationSecs = impl.buildxGlobalFlags.BuildxBuilderPodWaitDurationSecs
 	return workflowRequest, nil
 }
 
