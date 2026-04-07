@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"strings"
 )
 
 type AppType int
@@ -44,21 +45,33 @@ func NewAppListingRepositoryQueryBuilder(logger *zap.SugaredLogger) AppListingRe
 }
 
 type AppListingFilter struct {
-	Environments      []int     `json:"environments"`
-	Statuses          []string  `json:"statutes"`
-	Teams             []int     `json:"teams"`
-	AppStatuses       []string  `json:"appStatuses"`
-	AppNameSearch     string    `json:"appNameSearch"`
-	SortOrder         SortOrder `json:"sortOrder"`
-	SortBy            SortBy    `json:"sortBy"`
-	Offset            int       `json:"offset"`
-	Size              int       `json:"size"`
-	DeploymentGroupId int       `json:"deploymentGroupId"`
-	AppIds            []int     `json:"-"` // internal use only
+	Environments      []int       `json:"environments"`
+	Statuses          []string    `json:"statutes"`
+	Teams             []int       `json:"teams"`
+	AppStatuses       []string    `json:"appStatuses"`
+	TagFilters        []TagFilter `json:"tagFilters"`
+	AppNameSearch     string      `json:"appNameSearch"`
+	SortOrder         SortOrder   `json:"sortOrder"`
+	SortBy            SortBy      `json:"sortBy"`
+	Offset            int         `json:"offset"`
+	Size              int         `json:"size"`
+	DeploymentGroupId int         `json:"deploymentGroupId"`
+	AppIds            []int       `json:"-"` // internal use only
 }
 
 type SortBy string
 type SortOrder string
+type TagFilterOperator string
+
+// TagFilter holds one row of label filter sent by UI.
+// key is always required.
+// value is required for EQUALS/DOES_NOT_EQUAL/CONTAINS/DOES_NOT_CONTAIN.
+// value must be absent for EXISTS/DOES_NOT_EXIST.
+type TagFilter struct {
+	Key      string            `json:"key" validate:"required"`
+	Operator TagFilterOperator `json:"operator" validate:"required"`
+	Value    *string           `json:"value"`
+}
 
 const (
 	Asc  SortOrder = "ASC"
@@ -66,9 +79,34 @@ const (
 )
 
 const (
+	TagFilterOperatorEquals         TagFilterOperator = "EQUALS"
+	TagFilterOperatorDoesNotEqual   TagFilterOperator = "DOES_NOT_EQUAL"
+	TagFilterOperatorContains       TagFilterOperator = "CONTAINS"
+	TagFilterOperatorDoesNotContain TagFilterOperator = "DOES_NOT_CONTAIN"
+	TagFilterOperatorExists         TagFilterOperator = "EXISTS"
+	TagFilterOperatorDoesNotExist   TagFilterOperator = "DOES_NOT_EXIST"
+)
+
+const (
 	AppNameSortBy      SortBy = "appNameSort"
 	LastDeployedSortBy        = "lastDeployedSort"
 )
+
+var likePatternEscaper = strings.NewReplacer("\\", "\\\\", "%", "\\%", "_", "\\_")
+
+func (operator TagFilterOperator) IsValid() bool {
+	switch operator {
+	case TagFilterOperatorEquals,
+		TagFilterOperatorDoesNotEqual,
+		TagFilterOperatorContains,
+		TagFilterOperatorDoesNotContain,
+		TagFilterOperatorExists,
+		TagFilterOperatorDoesNotExist:
+		return true
+	default:
+		return false
+	}
+}
 
 func (impl AppListingRepositoryQueryBuilder) BuildJobListingQuery(appIDs []int, statuses []string, environmentIds []int, sortOrder string) (string, []interface{}) {
 	var queryParams []interface{}
@@ -273,11 +311,82 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appLi
 		whereCondition += " and aps.status IN (?) "
 		queryParams = append(queryParams, pg.In(appStatusExcludingNotDeployed))
 	}
+
+	// Tag filters are AND-combined for now as requested by product.
+	// Each row translates to a correlated EXISTS/NOT EXISTS on app_label.
+	tagWhereCondition, tagQueryParams := impl.buildTagFiltersWhereConditionAND(appListingFilter.TagFilters)
+	whereCondition += tagWhereCondition
+	queryParams = append(queryParams, tagQueryParams...)
+
 	if len(appListingFilter.AppIds) > 0 {
 		whereCondition += " and a.id IN (?) "
 		queryParams = append(queryParams, pg.In(appListingFilter.AppIds))
 	}
 	return whereCondition, queryParams
+}
+
+func (impl AppListingRepositoryQueryBuilder) buildTagFiltersWhereConditionAND(tagFilters []TagFilter) (string, []interface{}) {
+	if len(tagFilters) == 0 {
+		return "", nil
+	}
+	var queryBuilder strings.Builder
+	queryParams := make([]interface{}, 0, len(tagFilters)*2)
+	for _, tagFilter := range tagFilters {
+		predicate, predicateParams := impl.buildTagFilterPredicate(tagFilter)
+		queryBuilder.WriteString(" and ")
+		queryBuilder.WriteString(predicate)
+		queryParams = append(queryParams, predicateParams...)
+	}
+	return queryBuilder.String(), queryParams
+}
+
+// buildTagFilterPredicate converts one UI tag filter row into a SQL predicate.
+// Operator behavior (all case-sensitive):
+// - EQUALS: key exists with exact value match.
+// - DOES_NOT_EQUAL: key exists with at least one value different from target.
+// - CONTAINS: key exists with at least one value containing target substring.
+// - DOES_NOT_CONTAIN: key exists with at least one value not containing target substring.
+// - EXISTS: key exists.
+// - DOES_NOT_EXIST: key does not exist.
+func (impl AppListingRepositoryQueryBuilder) buildTagFilterPredicate(tagFilter TagFilter) (string, []interface{}) {
+	value := ""
+	if tagFilter.Value != nil {
+		value = *tagFilter.Value
+	}
+	switch tagFilter.Operator {
+	case TagFilterOperatorEquals:
+		return "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value = ?)",
+			[]interface{}{tagFilter.Key, value}
+	case TagFilterOperatorDoesNotEqual:
+		// Best-practice semantics for multi-value keys:
+		// include app when key exists and at least one value is different from target.
+		return "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value <> ?)",
+			[]interface{}{tagFilter.Key, value}
+	case TagFilterOperatorContains:
+		return "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value LIKE ? ESCAPE '\\')",
+			[]interface{}{tagFilter.Key, buildContainsPattern(value)}
+	case TagFilterOperatorDoesNotContain:
+		// Best-practice semantics for multi-value keys:
+		// include app when key exists and at least one value does not contain target.
+		return "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ? and al.value NOT LIKE ? ESCAPE '\\')",
+			[]interface{}{tagFilter.Key, buildContainsPattern(value)}
+	case TagFilterOperatorExists:
+		return "EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ?)",
+			[]interface{}{tagFilter.Key}
+	case TagFilterOperatorDoesNotExist:
+		return "NOT EXISTS (SELECT 1 FROM app_label al WHERE al.app_id = a.id and al.key = ?)",
+			[]interface{}{tagFilter.Key}
+	default:
+		// Invalid operator should never reach here due request validation.
+		// Returning false condition keeps query safe if validation is bypassed.
+		return "1 = 0", nil
+	}
+}
+
+func buildContainsPattern(value string) string {
+	// Escape SQL LIKE wildcard chars so "contains" behaves like plain substring search.
+	escaped := likePatternEscaper.Replace(value)
+	return "%" + escaped + "%"
 }
 
 func GetCommaSepratedString[T int | string](request []T) string {

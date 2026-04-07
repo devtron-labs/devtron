@@ -70,6 +70,8 @@ type AppListingService interface {
 	ISLastReleaseStopType(appId, envId int) (bool, error)
 	ISLastReleaseStopTypeV2(pipelineIds []int) (map[int]bool, error)
 	GetReleaseCount(appId, envId int) (int, error)
+	ValidateTagFilters(tagFilters []helper.TagFilter) error
+	NormalizeTagFilters(tagFilters []helper.TagFilter) []helper.TagFilter
 
 	FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*AppView.AppEnvironmentContainer, int, error)
 	FetchOverviewAppsByEnvironment(envId, limit, offset int) (*OverviewAppsByEnvironmentBean, error)
@@ -82,24 +84,74 @@ const (
 )
 
 type FetchAppListingRequest struct {
-	Environments      []int            `json:"environments"`
-	Statuses          []string         `json:"statuses"`
-	Teams             []int            `json:"teams"`
-	AppNameSearch     string           `json:"appNameSearch"`
-	SortOrder         helper.SortOrder `json:"sortOrder"`
-	SortBy            helper.SortBy    `json:"sortBy"`
-	Offset            int              `json:"offset"`
-	Size              int              `json:"size"`
-	DeploymentGroupId int              `json:"deploymentGroupId"`
-	Namespaces        []string         `json:"namespaces"` // {clusterId}_{namespace}
-	AppStatuses       []string         `json:"appStatuses"`
-	AppIds            []int            `json:"-"` // internal use only
+	Environments      []int              `json:"environments"`
+	Statuses          []string           `json:"statuses"`
+	Teams             []int              `json:"teams"`
+	TagFilters        []helper.TagFilter `json:"tagFilters" validate:"omitempty,dive"`
+	AppNameSearch     string             `json:"appNameSearch"`
+	SortOrder         helper.SortOrder   `json:"sortOrder"`
+	SortBy            helper.SortBy      `json:"sortBy"`
+	Offset            int                `json:"offset"`
+	Size              int                `json:"size"`
+	DeploymentGroupId int                `json:"deploymentGroupId"`
+	Namespaces        []string           `json:"namespaces"` // {clusterId}_{namespace}
+	AppStatuses       []string           `json:"appStatuses"`
+	AppIds            []int              `json:"-"` // internal use only
 	// IsClusterOrNamespaceSelected bool             `json:"isClusterOrNamespaceSelected"`
 }
 type AppNameTypeIdContainer struct {
 	AppName string `json:"appName"`
 	Type    string `json:"type"`
 	AppId   int    `json:"appId"`
+}
+
+// ValidateTagFilters validates each tag filter row.
+// Rules:
+// 1) key must be present.
+// 2) operator must be one of the supported backend operators.
+// 3) for EXISTS/DOES_NOT_EXIST, value must not be sent.
+// 4) for EQUALS/DOES_NOT_EQUAL/CONTAINS/DOES_NOT_CONTAIN, value must be non-empty.
+func ValidateTagFilters(tagFilters []helper.TagFilter) error {
+	for index, tagFilter := range tagFilters {
+		if len(strings.TrimSpace(tagFilter.Key)) == 0 {
+			return fmt.Errorf("tagFilters[%d].key is required", index)
+		}
+		if !tagFilter.Operator.IsValid() {
+			return fmt.Errorf("tagFilters[%d].operator is invalid: %s", index, tagFilter.Operator)
+		}
+		switch tagFilter.Operator {
+		case helper.TagFilterOperatorExists, helper.TagFilterOperatorDoesNotExist:
+			if tagFilter.Value != nil {
+				return fmt.Errorf("tagFilters[%d].value must be empty for operator %s", index, tagFilter.Operator)
+			}
+		default:
+			if tagFilter.Value == nil || len(*tagFilter.Value) == 0 {
+				return fmt.Errorf("tagFilters[%d].value is required for operator %s", index, tagFilter.Operator)
+			}
+		}
+	}
+	return nil
+}
+
+// NormalizeTagFilters normalizes tag filter rows after validation.
+func NormalizeTagFilters(tagFilters []helper.TagFilter) []helper.TagFilter {
+	if len(tagFilters) == 0 {
+		return tagFilters
+	}
+	normalizedFilters := make([]helper.TagFilter, 0, len(tagFilters))
+	for _, tagFilter := range tagFilters {
+		tagFilter.Key = strings.TrimSpace(tagFilter.Key)
+		normalizedFilters = append(normalizedFilters, tagFilter)
+	}
+	return normalizedFilters
+}
+
+func (impl AppListingServiceImpl) ValidateTagFilters(tagFilters []helper.TagFilter) error {
+	return ValidateTagFilters(tagFilters)
+}
+
+func (impl AppListingServiceImpl) NormalizeTagFilters(tagFilters []helper.TagFilter) []helper.TagFilter {
+	return NormalizeTagFilters(tagFilters)
 }
 
 func (req FetchAppListingRequest) GetNamespaceClusterMapping() (namespaceClusterPair []*repository2.ClusterNamespacePair, clusterIds []int, err error) {
@@ -408,6 +460,7 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 		Size:              fetchAppListingRequest.Size,
 		DeploymentGroupId: fetchAppListingRequest.DeploymentGroupId,
 		AppStatuses:       fetchAppListingRequest.AppStatuses,
+		TagFilters:        fetchAppListingRequest.TagFilters,
 		AppIds:            fetchAppListingRequest.AppIds,
 	}
 	_, span := otel.Tracer("appListingRepository").Start(r.Context(), "FetchAppsByEnvironment")
