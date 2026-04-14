@@ -5,4 +5,5 @@
 ## Bugs
 - fix: dependabot security advisory (#6945)
 ## Others
+- misc: mig seq in develop (#6949)
 - sync: migration seq (#6942)
