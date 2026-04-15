@@ -19,6 +19,10 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/common-lib/securestore"
 	bean2 "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
@@ -27,9 +31,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"k8s.io/utils/strings/slices"
-	"net/http"
-	"strings"
-	"time"
 
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
@@ -904,6 +905,10 @@ func (impl DockerRegistryConfigImpl) ValidateRegistryCredentials(bean *types.Doc
 		bean.RegistryType == repository.REGISTRYTYPE_GCR ||
 		bean.RegistryType == repository.REGISTRYTYPE_ARTIFACT_REGISTRY ||
 		bean.RegistryType == repository.REGISTRYTYPE_OTHER {
+		return nil
+	}
+	// Verify credentials only for chart OCI registry using helm registry login, as for container OCI registry
+	if _, ok := bean.OCIRegistryConfig[repository.OCI_REGISRTY_REPO_TYPE_CHART]; !ok {
 		return nil
 	}
 	request := &bean2.RegistryCredential{
