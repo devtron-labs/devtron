@@ -25,4 +25,5 @@ type RegistryCredential struct {
 	AWSAccessKeyId     string   `json:"awsAccessKeyId,omitempty"`
 	AWSSecretAccessKey string   `json:"awsSecretAccessKey,omitempty"`
 	AWSRegion          string   `json:"awsRegion,omitempty"`
+	AssumeRoleArn      string   `json:"assumeRoleArn,omitempty"`
 }
