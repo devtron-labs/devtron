@@ -3,12 +3,13 @@ package registry
 import (
 	"encoding/base64"
 	"fmt"
+	"strings"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/credentials/ec2rolecreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecr"
-	"strings"
+	"github.com/aws/aws-sdk-go/service/sts"
 )
 
 func ExtractCredentialsForRegistry(registryCredential *RegistryCredential) (string, string, error) {
@@ -24,28 +25,53 @@ func ExtractCredentialsForRegistry(registryCredential *RegistryCredential) (stri
 	}
 	if registryCredential.RegistryType == DOCKER_REGISTRY_TYPE_ECR {
 		accessKey, secretKey := registryCredential.AWSAccessKeyId, registryCredential.AWSSecretAccessKey
-		var creds *credentials.Credentials
+		var sess *session.Session
+		var err error
 
-		if len(registryCredential.AWSAccessKeyId) == 0 || len(registryCredential.AWSSecretAccessKey) == 0 {
-			sess, err := session.NewSession(&aws.Config{
+		if len(accessKey) == 0 || len(secretKey) == 0 {
+			// Case 1: IAM role — use default credential chain (IRSA, instance profile, task role, env vars)
+			sess, err = session.NewSession(&aws.Config{
 				Region: &registryCredential.AWSRegion,
 			})
-			if err != nil {
-				fmt.Printf("Error in creating AWS client", "err", err)
-				return "", "", err
-			}
-			creds = ec2rolecreds.NewCredentials(sess)
 		} else {
-			creds = credentials.NewStaticCredentials(accessKey, secretKey, "")
+			// Case 2: Static credentials
+			creds := credentials.NewStaticCredentials(accessKey, secretKey, "")
+			sess, err = session.NewSession(&aws.Config{
+				Region:      &registryCredential.AWSRegion,
+				Credentials: creds,
+			})
 		}
-		sess, err := session.NewSession(&aws.Config{
-			Region:      &registryCredential.AWSRegion,
-			Credentials: creds,
-		})
 		if err != nil {
 			fmt.Println("Error in creating AWS client session", "err", err)
 			return "", "", err
 		}
+
+		// Case 3: AssumeRole (cross-account) — layered on top of Case 1 or 2
+		if len(registryCredential.AssumeRoleArn) > 0 {
+			stsClient := sts.New(sess)
+			assumeOutput, err := stsClient.AssumeRole(&sts.AssumeRoleInput{
+				RoleArn:         aws.String(registryCredential.AssumeRoleArn),
+				RoleSessionName: aws.String("devtron-ecr-cross-account"),
+			})
+			if err != nil {
+				fmt.Printf("Error in assuming role %s: %v", registryCredential.AssumeRoleArn, err)
+				return "", "", err
+			}
+			assumedCreds := credentials.NewStaticCredentials(
+				*assumeOutput.Credentials.AccessKeyId,
+				*assumeOutput.Credentials.SecretAccessKey,
+				*assumeOutput.Credentials.SessionToken,
+			)
+			sess, err = session.NewSession(&aws.Config{
+				Region:      &registryCredential.AWSRegion,
+				Credentials: assumedCreds,
+			})
+			if err != nil {
+				fmt.Println("Error in creating AWS session with assumed role credentials", "err", err)
+				return "", "", err
+			}
+		}
+
 		svc := ecr.New(sess)
 		input := &ecr.GetAuthorizationTokenInput{}
 		authData, err := svc.GetAuthorizationToken(input)
