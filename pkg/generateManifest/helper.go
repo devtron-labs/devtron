@@ -27,7 +27,33 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"go.opentelemetry.io/otel"
 	"golang.org/x/exp/maps"
+	k8sYaml "sigs.k8s.io/yaml"
 )
+
+// mergeReleaseOverrideIntoValuesYaml merges the chart's ReleaseOverride JSON
+// on top of the given values YAML. On any failure the input valuesYaml is
+// returned unchanged so template rendering can still proceed.
+func (impl DeploymentTemplateServiceImpl) mergeReleaseOverrideIntoValuesYaml(valuesYaml, releaseOverrideJson string) string {
+	if len(releaseOverrideJson) == 0 || releaseOverrideJson == "{}" {
+		return valuesYaml
+	}
+	valuesJsonByte, err := k8sYaml.YAMLToJSON([]byte(valuesYaml))
+	if err != nil {
+		impl.Logger.Errorw("error in converting values yaml to json", "err", err)
+		return valuesYaml
+	}
+	mergedJsonBytes, err := impl.mergeUtil.JsonPatch(valuesJsonByte, []byte(releaseOverrideJson))
+	if err != nil {
+		impl.Logger.Errorw("error in merging releaseOverride into values yaml", "releaseOverrideJson", releaseOverrideJson, "err", err)
+		return valuesYaml
+	}
+	mergedYamlBytes, err := k8sYaml.JSONToYAML(mergedJsonBytes)
+	if err != nil {
+		impl.Logger.Errorw("error in converting merged json to yaml", "err", err)
+		return valuesYaml
+	}
+	return string(mergedYamlBytes)
+}
 
 func (impl DeploymentTemplateServiceImpl) constructRotatePodResponse(templateChartResponse []*gRPC.TemplateChartResponse, appNameToId map[string]int, environment *repository.Environment) (*RestartPodResponse, error) {
 	appIdToResourceIdentifier := make(map[int]*ResourceIdentifierResponse)

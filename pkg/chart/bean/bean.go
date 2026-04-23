@@ -18,6 +18,7 @@ package bean
 
 import (
 	"encoding/json"
+
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 )
@@ -50,6 +51,7 @@ type TemplateRequest struct {
 	UserId                  int32                       `json:"-"`
 	LatestChartVersion      string                      `json:"-"`
 	ImageDescriptorTemplate string                      `json:"-"`
+	ReleaseOverride         string                      `json:"-"`
 }
 
 type ChartUpgradeRequest struct {

@@ -19,6 +19,11 @@ package generateManifest
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"regexp"
+	"strconv"
+	"sync"
+
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
@@ -53,11 +58,7 @@ import (
 	"golang.org/x/exp/maps"
 	chart2 "helm.sh/helm/v3/pkg/chart"
 	"k8s.io/utils/pointer"
-	"net/http"
-	"regexp"
 	"sigs.k8s.io/yaml"
-	"strconv"
-	"sync"
 )
 
 // TODO: Prakash, move this interface to pkg/deployment/manifest/deploymentTemplate, both are same
@@ -565,6 +566,8 @@ func (impl DeploymentTemplateServiceImpl) patchReleaseAttributes(request *Deploy
 	}
 
 	mergedValuesYaml = string(mergedYamlBytes)
+
+	mergedValuesYaml = impl.mergeReleaseOverrideIntoValuesYaml(mergedValuesYaml, chartDto.ReleaseOverride)
 
 	return mergedValuesYaml
 }
