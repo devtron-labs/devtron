@@ -41,7 +41,6 @@ func ChartAdaptor(chartModel *chartRepoRepository.Chart,
 		IsCustomGitRepository:   deploymentConfig.ConfigType == bean2.CUSTOM.String(),
 		ImageDescriptorTemplate: chartModel.ImageDescriptorTemplate,
 		TargetRevision:          targetRevision,
-		ReleaseOverride:         chartModel.ReleaseOverride,
 	}
 	if chartModel.Latest {
 		templateRequest.LatestChartVersion = chartModel.ChartVersion

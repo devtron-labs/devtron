@@ -18,17 +18,112 @@ package generateManifest
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/devtron-labs/common-lib/utils/yaml"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"golang.org/x/exp/maps"
 	k8sYaml "sigs.k8s.io/yaml"
 )
+
+const (
+	releaseValuesYamlFile       = "release-values.yaml"
+	releaseValuesYmlFile        = "release-values.yml"
+	imageDescriptorTemplateFile = ".image_descriptor_template.json"
+)
+
+// readReleaseValuesJsonFromRefChart looks for release-values.yaml / release-values.yml
+// at the root of the reference chart directory and returns its content converted to
+// JSON. Returns an empty string (without erroring the caller) when the file is absent
+// or unreadable — not every chart defines release overrides, and manifest generation
+// must still proceed. This mirrors the file-discovery logic in
+// ChartTemplateServiceImpl.getValues so behaviour matches the save-time path.
+func (impl DeploymentTemplateServiceImpl) readReleaseValuesJsonFromRefChart(refChartPath string) string {
+	data, ok := impl.readFileFromRefChart(refChartPath, releaseValuesYamlFile, releaseValuesYmlFile)
+	if !ok {
+		return ""
+	}
+	jsonBytes, err := k8sYaml.YAMLToJSON(data)
+	if err != nil {
+		impl.Logger.Errorw("error in converting release-values yaml to json", "refChartPath", refChartPath, "err", err)
+		return ""
+	}
+	return string(jsonBytes)
+}
+
+// readImageDescriptorTemplateFromRefChart reads .image_descriptor_template.json from
+// the reference chart directory. Used when the chart hasn't been saved to the DB yet
+// and chartDto.ImageDescriptorTemplate isn't available. Returns an empty string on
+// missing file / read error — RenderJson handles an empty template gracefully.
+func (impl DeploymentTemplateServiceImpl) readImageDescriptorTemplateFromRefChart(refChartPath string) string {
+	data, ok := impl.readFileFromRefChart(refChartPath, imageDescriptorTemplateFile)
+	if !ok {
+		return ""
+	}
+	return string(data)
+}
+
+// readFileFromRefChart scans refChartPath (non-recursive) for the first file whose
+// name (case-insensitive) matches one of fileNames and returns its contents. ok=false
+// means the path was empty, unreadable, or the file was absent — all logged at the
+// appropriate level by the caller's context.
+func (impl DeploymentTemplateServiceImpl) readFileFromRefChart(refChartPath string, fileNames ...string) (data []byte, ok bool) {
+	if len(refChartPath) == 0 {
+		return nil, false
+	}
+	entries, err := os.ReadDir(refChartPath)
+	if err != nil {
+		impl.Logger.Errorw("error in reading ref chart dir", "refChartPath", refChartPath, "err", err)
+		return nil, false
+	}
+	targets := make(map[string]struct{}, len(fileNames))
+	for _, name := range fileNames {
+		targets[strings.ToLower(name)] = struct{}{}
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if _, match := targets[strings.ToLower(entry.Name())]; !match {
+			continue
+		}
+		path := filepath.Clean(filepath.Join(refChartPath, entry.Name()))
+		contents, err := os.ReadFile(path)
+		if err != nil {
+			impl.Logger.Errorw("error in reading file from ref chart", "path", path, "err", err)
+			return nil, false
+		}
+		return contents, true
+	}
+	return nil, false
+}
+
+// resolveImageDescriptorTemplate returns the image descriptor template for the app's
+// chart. It prefers the saved chart in DB; if no chart has been saved for this
+// (appId, chartRefId) pair (pg.ErrNoRows), it falls back to the reference chart's
+// .image_descriptor_template.json on disk so manifest rendering works before save.
+// Any other DB error is returned to the caller.
+func (impl DeploymentTemplateServiceImpl) resolveImageDescriptorTemplate(appId, chartRefId int, refChartPath string) (string, error) {
+	chartDto, err := impl.chartReadService.GetByAppIdAndChartRefId(appId, chartRefId)
+	if err == nil {
+		return chartDto.ImageDescriptorTemplate, nil
+	}
+	if !errors.Is(err, pg.ErrNoRows) {
+		impl.Logger.Errorw("error in getting chart by appId and chartRefId", "appId", appId, "chartRefId", chartRefId, "err", err)
+		return "", err
+	}
+	return impl.readImageDescriptorTemplateFromRefChart(refChartPath), nil
+}
 
 // mergeReleaseOverrideIntoValuesYaml merges the chart's ReleaseOverride JSON
 // on top of the given values YAML. On any failure the input valuesYaml is

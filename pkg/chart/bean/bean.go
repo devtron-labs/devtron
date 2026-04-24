@@ -51,7 +51,6 @@ type TemplateRequest struct {
 	UserId                  int32                       `json:"-"`
 	LatestChartVersion      string                      `json:"-"`
 	ImageDescriptorTemplate string                      `json:"-"`
-	ReleaseOverride         string                      `json:"-"`
 }
 
 type ChartUpgradeRequest struct {
