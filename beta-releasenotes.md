@@ -7,6 +7,7 @@
 - fix: streamline AWS session creation and improve error handling (#6948)
 - fix: dependabot security advisory (#6945)
 ## Others
+- misc: Custom chart fix oss (#6956)
 - chore: added sql migration  (#6951)
 - misc: Release candidate v0.46.0 (#6953)
 - sync: new dependabot security fixes (#6950)
