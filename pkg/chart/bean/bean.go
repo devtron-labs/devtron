@@ -18,6 +18,7 @@ package bean
 
 import (
 	"encoding/json"
+
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 )

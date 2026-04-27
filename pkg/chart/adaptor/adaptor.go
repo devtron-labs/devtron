@@ -3,13 +3,14 @@ package adaptor
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
+
 	apiGitOpsBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/chart/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	util2 "github.com/devtron-labs/devtron/util"
-	"strings"
 )
 
 // ChartAdaptor converts db object chartRepoRepository.Chart to bean.TemplateRequest
