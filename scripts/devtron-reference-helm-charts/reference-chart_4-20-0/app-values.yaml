@@ -161,7 +161,7 @@ ingressInternal:
   #      - chart-example.local
 
 command:
-  workingDir: {}
+  workingDir: ""
   enabled: false
   value: []
     
