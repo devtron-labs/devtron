@@ -33,6 +33,7 @@
 | Key   | Type     | Default Value     | Description       | Example       | Deprecated       |
 |-------|----------|-------------------|-------------------|-----------------------|------------------|
  | ASYNC_BUILDX_CACHE_EXPORT | bool |false | To enable async container image cache export |  | false |
+ | BUILDX_BUILDER_POD_WAIT_DURATION_SECS | int |120 | Timeout in seconds to wait for buildx k8s driver builder pods to be ready (initial startup and after spot interruption) |  | false |
  | BUILDX_CACHE_MODE_MIN | bool |false | To set build cache mode to minimum in buildx |  | false |
  | BUILDX_INTERRUPTION_MAX_RETRY | int |3 | Maximum number of retries for buildx builder interruption |  | false |
 
