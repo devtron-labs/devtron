@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS public.ci_workflow_config (
 );
 
 
-ALTER TABLE public.ci_workflow_config OWNER TO postgres;
+ALTER TABLE public.ci_workflow_config OWNER TO CURRENT_USER;
 
 --
 -- Name: ci_workflow_config_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
@@ -48,7 +48,7 @@ CREATE SEQUENCE IF NOT EXISTS public.ci_workflow_config_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.ci_workflow_config_id_seq OWNER TO postgres;
+ALTER TABLE public.ci_workflow_config_id_seq OWNER TO CURRENT_USER;
 
 --
 -- Name: ci_workflow_config_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS public.cd_workflow_config (
 );
 
 
-ALTER TABLE public.cd_workflow_config OWNER TO postgres;
+ALTER TABLE public.cd_workflow_config OWNER TO CURRENT_USER;
 
 --
 -- Name: cd_workflow_config_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
@@ -96,7 +96,7 @@ CREATE SEQUENCE IF NOT EXISTS public.cd_workflow_config_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.cd_workflow_config_id_seq OWNER TO postgres;
+ALTER TABLE public.cd_workflow_config_id_seq OWNER TO CURRENT_USER;
 
 --
 -- Name: cd_workflow_config_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
