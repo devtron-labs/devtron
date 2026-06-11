@@ -21,12 +21,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/common-lib/utils/retryFunc"
-	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
-	"github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/go-bitbucket"
-	"go.uber.org/zap"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -35,6 +29,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/devtron-labs/common-lib/utils/retryFunc"
+	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
+	"github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/go-bitbucket"
+	"go.uber.org/zap"
 )
 
 const (
@@ -52,7 +53,13 @@ type GitBitbucketClient struct {
 }
 
 func NewGitBitbucketClient(username, token, host string, logger *zap.SugaredLogger, gitOpsHelper *GitOpsHelper, tlsConfig *tls.Config) GitBitbucketClient {
-	coreClient := bitbucket.NewBasicAuth(username, token)
+	var coreClient *bitbucket.Client
+	if username == "x-token-auth" || username == "" {
+		coreClient = bitbucket.NewOAuthbearerToken(token)
+	} else {
+		coreClient = bitbucket.NewBasicAuth(username, token)
+	}
+
 	httpClient := util.GetHTTPClientWithTLSConfig(tlsConfig)
 	coreClient.HttpClient = httpClient
 	logger.Infow("bitbucket client created", "clientDetails", coreClient)
