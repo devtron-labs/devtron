@@ -917,7 +917,7 @@ func (impl *HandlerServiceImpl) getEnvironmentForJob(pipeline *pipelineConfig.Ci
 	if app.AppType == helper.Job {
 		isJob = true
 		if trigger.EnvironmentId == 0 {
-			ciEnvMapping, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(trigger.EnvironmentId)
+			ciEnvMapping, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(pipeline.Id)
 			if err != nil && !util.IsErrNoRows(err) {
 				impl.Logger.Errorw("error in saving pipeline", "pipelineId", pipeline.Id, "err", err)
 				return nil, isJob, err
