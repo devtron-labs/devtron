@@ -103,7 +103,7 @@ func (impl *DeployedAppMetricsServiceImpl) GetMetricsFlagForAPipelineByAppIdAndE
 	return isAppMetricsEnabled, nil
 }
 
-// CheckAndUpdateAppOrEnvLevelMetrics - this method checks whether chart being used supports metrics or not, is app level or env level and updates accordingly
+// CreateOrUpdateAppOrEnvLevelMetrics - this method checks whether chart being used supports metrics or not, is app level or env level and updates accordingly
 func (impl *DeployedAppMetricsServiceImpl) CreateOrUpdateAppOrEnvLevelMetrics(ctx context.Context, req *bean.DeployedAppMetricsRequest) error {
 	isAppMetricsSupported, err := impl.CheckIsAppMetricsSupported(req.ChartRefId)
 	if err != nil {

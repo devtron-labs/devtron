@@ -81,7 +81,7 @@ func IntnRange(min, max int) int {
 	return rng.rand.Intn(max-min) + min
 }
 
-// IntnRange generates an int64 integer in range [min,max).
+// Int63nRange generates an int64 integer in range [min,max).
 // By design this should panic if input is invalid, <= 0.
 func Int63nRange(min, max int64) int64 {
 	rng.Lock()

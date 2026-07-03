@@ -84,7 +84,7 @@ func GetCiTriggerCronConfig() (*CiTriggerCronConfig, error) {
 	return cfg, nil
 }
 
-// UpdateCiWorkflowStatusFailedCron this function will execute periodically
+// TriggerCiCron this function will execute periodically
 func (impl *CiTriggerCronImpl) TriggerCiCron() {
 	plugin, err := impl.globalPluginRepository.GetPluginByName(impl.cfg.PluginName)
 	if err != nil || len(plugin) == 0 {

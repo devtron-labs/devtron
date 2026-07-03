@@ -132,7 +132,7 @@ func (impl *ArgoCDConnectionManagerImpl) ValidateGitOpsAndGetOrUpdateArgoCdUserD
 	return ""
 }
 
-// GetConnection - this function will call only for acd connection
+// GetGrpcClientConnection - this function will call only for acd connection
 func (impl *ArgoCDConnectionManagerImpl) GetGrpcClientConnection(grpcConfig *bean.ArgoGRPCConfig) *grpc.ClientConn {
 	//TODO: acdAuthConfig should be passed as arg in function
 	token, err := impl.getLatestDevtronArgoCdUserToken(grpcConfig)
