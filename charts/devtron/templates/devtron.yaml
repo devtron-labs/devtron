@@ -36,6 +36,8 @@ data:
   DEVTRON_VERSION_IDENTIFIER_IN_HELM_VALUES: "devtron.installer.release"
   DEVTRON_MANAGED_LICENSING_ENABLED: "false"
   DEVTRON_BOM_URL: https://raw.githubusercontent.com/devtron-labs/charts/refs/tags/devtron-enterprise-%s/charts/devtron-enterprise/devtron-bom.yaml
+  SILVER_SURFER_CLIENT_URL: silver-surfer.devtroncd:8111
+  PROXY_SERVICE_CONFIG: '{"athena":{"host":"athena-api-service.devtroncd","port":"80"}}'
   {{- end }}
 {{- if $.Values.installer.modules }}
 {{- if has "cicd" $.Values.installer.modules }}

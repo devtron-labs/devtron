@@ -480,7 +480,11 @@ monitoring:
       resources: {}
     persistence:
       storage: "2Gi"
-# Change these values for Devtron-Enterprise 
+redis:
+  image:
+    registry: "mirror.gcr.io"
+  fullnameOverride: "redis"
+# Change these values for Devtron-Enterprise
 devtronEnterprise:
   enabled: false
   finops:
@@ -497,11 +501,10 @@ devtronEnterprise:
     image: "casbin:f6ff5f74-064b67e5-462-30822"
     imagePullPolicy: IfNotPresent
     healthPort: 8080
-    configs:
-      PG_DATABASE: casbin
-    dbconfig:
-      secretName: postgresql-postgresql
-      keyName: postgresql-password
+  silverSurfer:
+    image: "silver-surfer:e3b9a2f6-1191-38789"
+    imagePullPolicy: IfNotPresent
+    resources: {}
     podSecurityContext:
       fsGroup: 1001
       runAsGroup: 1001
@@ -510,7 +513,25 @@ devtronEnterprise:
       allowPrivilegeEscalation: false
       runAsNonRoot: true
       runAsUser: 1001
-    resources: {}
+  athenaApi:
+    enabled: false
+    registry: ""
+    image: ""
+    imagePullPolicy: IfNotPresent
+    healthPort: "8000"
+    configs:
+      LLM_MODEL_ID: ""
+      LLM_TEMPERATURE: "0.01"
+      REDIS_URL: redis://redis.devtroncd
+      PG_DATABASE: athena
+    secrets: {}
+  athenaMcp:
+    image: ""
+    registry: ""
+    imagePullPolicy: IfNotPresent
+    healthPort: "8000"
+    configs: {}
+    secrets: {}
   scoop:
     enabled: false
     registry: ""

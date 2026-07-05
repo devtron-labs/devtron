@@ -23,9 +23,12 @@ dependencies:
   version: "0.x.x"
   repository: https://helm.devtron.ai
   condition: security.enabled
+- name: redis
+  version: "2.4.0"
+  repository: "https://groundhog2k.github.io/helm-charts/"
+  condition: athenaApi.enabled
 maintainers:
 - email: prakarsh@devtron.ai
   name: Prakarsh
 icon: https://s3-ap-southeast-1.amazonaws.com/devtron.ai/images/devtron-sqr-logo.png
 home: https://devtron.ai
-

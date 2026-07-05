@@ -240,6 +240,10 @@ monitoring:
       image: "k8s-sidecar:1.1.0"
       curlImage: "curl:7.73.0"
       imagePullPolicy: IfNotPresent
+redis:
+  image:
+    registry: "mirror.gcr.io"
+  fullnameOverride: "redis"
 devtronEnterprise:
   enabled: false
   finops:
@@ -270,6 +274,35 @@ devtronEnterprise:
       runAsNonRoot: true
       runAsUser: 1001
     healthPort: 8080
+  silverSurfer:
+    image: "silver-surfer:e3b9a2f6-1191-38789"
+    imagePullPolicy: IfNotPresent
+    resources: {}
+    podSecurityContext:
+      fsGroup: 1001
+      runAsGroup: 1001
+      runAsUser: 1001
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      runAsUser: 1001
+  athenaApi:
+    registry: ""
+    image: ""
+    imagePullPolicy: IfNotPresent
+    healthPort: "8000"
+    configs:
+      LLM_TEMPERATURE: "0.01"
+      REDIS_URL: redis://redis.devtroncd
+      PG_DATABASE: athena
+    secrets: {}
+  athenaMcp:
+    registry: ""
+    image: ""
+    imagePullPolicy: IfNotPresent
+    healthPort: "8000"
+    configs: {}
+    secrets: {}
   scoop:
     enabled: false
     registry: ""
