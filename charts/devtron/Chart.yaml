@@ -26,7 +26,7 @@ dependencies:
 - name: redis
   version: "2.4.0"
   repository: "https://groundhog2k.github.io/helm-charts/"
-  condition: athenaApi.enabled
+  condition: devtronEnterprise.athenaApi.enabled
 maintainers:
 - email: prakarsh@devtron.ai
   name: Prakarsh
