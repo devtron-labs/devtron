@@ -501,6 +501,20 @@ devtronEnterprise:
     image: "casbin:f6ff5f74-064b67e5-462-30822"
     imagePullPolicy: IfNotPresent
     healthPort: 8080
+    configs:
+      PG_DATABASE: casbin
+    dbconfig:
+      secretName: postgresql-postgresql
+      keyName: postgresql-password
+    podSecurityContext:
+      fsGroup: 1001
+      runAsGroup: 1001
+      runAsUser: 1001
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      runAsUser: 1001
+    resources: {}
   silverSurfer:
     image: "silver-surfer:e3b9a2f6-1191-38789"
     imagePullPolicy: IfNotPresent

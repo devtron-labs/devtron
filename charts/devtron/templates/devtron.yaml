@@ -38,7 +38,7 @@ data:
   DEVTRON_BOM_URL: https://raw.githubusercontent.com/devtron-labs/charts/refs/tags/devtron-enterprise-%s/charts/devtron-enterprise/devtron-bom.yaml
   SILVER_SURFER_CLIENT_URL: silver-surfer.devtroncd:8111
   {{- if $.Values.devtronEnterprise.athenaApi.enabled }}
-  FEATURE_ASK_DEVTRON_EXPERT: true
+  FEATURE_ASK_DEVTRON_EXPERT: "true"
   PROXY_SERVICE_CONFIG: '{"athena":{"host":"athena-api-service.devtroncd","port":"80"}}'
   {{- end }}
   {{- end }}

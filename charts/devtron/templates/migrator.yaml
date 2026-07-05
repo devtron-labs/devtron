@@ -618,6 +618,25 @@ spec:
 {{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
       {{- end }}
       initContainers:
+        - name: create-athena-database
+          image: postgres:14
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Checking if database exists..."
+              psql "postgres://$(PG_USER):"$(DB_PASSWORD)"@$(PG_ADDR):$(PG_PORT)/postgres?sslmode=disable" \
+              -tc "SELECT 1 FROM pg_database WHERE datname='$PG_DATABASE'" \
+              | grep -q 1 || \
+              psql "postgres://$(PG_USER):"$(DB_PASSWORD)"@$(PG_ADDR):$(PG_PORT)/postgres?sslmode=disable" \
+              -c "CREATE DATABASE $PG_DATABASE;"
+          envFrom:
+            - secretRef:
+                name: postgresql-migrator
+            - configMapRef:
+                name: athena-api-cm
+            - configMapRef:
+                name: devtron-common-cm
         - command:
             - /bin/sh
             - -c
@@ -627,8 +646,12 @@ spec:
           securityContext:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
           {{- end }}
-          name: athena-init
+          name: migration-copy
           envFrom:
+            - secretRef:
+                name: postgresql-migrator
+            - configMapRef:
+                name: athena-api-cm
             - configMapRef:
                 name: devtron-common-cm
           volumeMounts:

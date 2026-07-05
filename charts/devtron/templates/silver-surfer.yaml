@@ -9,10 +9,10 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-    - port: "8111"
-      targetPort: "8111"
+    - name: app 
+      targetPort: 8111
       protocol: TCP
-      name: app
+      port: 8111
   selector:
     app: silver-surfer
 ---
@@ -39,6 +39,7 @@ spec:
       restartPolicy: Always
       serviceAccountName: devtron
       containers:
+      - name: silver-surfer
         image: {{ include "common.image" (dict "component" $.Values.devtronEnterprise.silverSurfer "global" $.Values.global) }}
         {{- if  .imagePullPolicy }}
         imagePullPolicy: {{ .imagePullPolicy }}

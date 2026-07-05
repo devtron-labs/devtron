@@ -9,10 +9,10 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-    - port: "80"
+    - name: app
       targetPort: app
       protocol: TCP
-      name: app
+      port: 80
   selector:
     app: athena-mcp
 ---
@@ -59,6 +59,7 @@ spec:
       restartPolicy: Always
       serviceAccountName: devtron
       containers:
+      - name: athena-mcp-server
         image: {{ include "common.image" (dict "component" $.Values.devtronEnterprise.athenaMcp "global" $.Values.global) }}
         {{- if  .imagePullPolicy }}
         imagePullPolicy: {{ .imagePullPolicy }}
