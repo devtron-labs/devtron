@@ -1,0 +1,103 @@
+{{- if and $.Values.devtronEnterprise.enabled $.Values.devtronEnterprise.athenaApi.enabled }}
+{{- with $.Values.devtronEnterprise.athenaMcp }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: athena-mcp-engine-service
+  labels:
+    app: athena-mcp
+spec:
+  type: ClusterIP
+  ports:
+    - port: "80"
+      targetPort: app
+      protocol: TCP
+      name: app
+  selector:
+    app: athena-mcp
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: athena-mcp
+  labels:
+    app: athena-mcp
+spec:
+  selector:
+    matchLabels:
+      app: athena-mcp
+  replicas: 1
+  minReadySeconds: 60
+  template:
+    metadata:
+      labels:
+        app: athena-mcp
+    spec:
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.devtronEnterprise.athenaMcp.nodeSelector "tolerations" $.Values.devtronEnterprise.athenaMcp.tolerations "imagePullSecrets" $.Values.devtronEnterprise.athenaMcp.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      {{- include "common.podSecurityContext" (dict "podSecurityContext" $.Values.devtronEnterprise.athenaMcp.podSecurityContext "global" $.Values.global) | indent 6 }}
+      livenessProbe:
+        failureThreshold: 3
+        httpGet:
+          path: /health
+          port: {{ $.Values.devtronEnterprise.athenaMcp.healthPort}}
+          scheme: HTTP
+        initialDelaySeconds: 20
+        periodSeconds: 300
+        successThreshold: 1
+        timeoutSeconds: 5
+      readinessProbe:
+        failureThreshold: 3
+        httpGet:
+          path: /health
+          port: {{ $.Values.devtronEnterprise.athenaMcp.healthPort}}
+          scheme: HTTP
+        initialDelaySeconds: 20
+        periodSeconds: 600
+        successThreshold: 1
+        timeoutSeconds: 5
+      terminationGracePeriodSeconds: 30
+      restartPolicy: Always
+      serviceAccountName: devtron
+      containers:
+        image: {{ include "common.image" (dict "component" $.Values.devtronEnterprise.athenaMcp "global" $.Values.global) }}
+        {{- if  .imagePullPolicy }}
+        imagePullPolicy: {{ .imagePullPolicy }}
+        {{- end }}
+        {{- include "common.containerSecurityContext" (dict "containerSecurityContext" $.Values.components.devtron.containerSecurityContext "global" $.Values.global) | indent 8 }}
+        ports:
+          - name: app
+            containerPort: 8000
+            protocol: TCP
+        {{- if .resources }}
+        resources:
+        {{- toYaml .resources | nindent 10 }}
+        {{- end }}
+        envFrom:
+          - configMapRef:
+              name: athena-mcp-cm
+          - secretRef:
+              name: athena-mcp-secret
+          - configMapRef:
+              name: devtron-common-cm
+---
+apiVersion: v1
+data:
+  DEVTRON_API_ENDPOINT: http://devtron-service.devtroncd
+  DEVTRON_CENTRAL_API_URL: https://api.devtron.ai
+  DOC_RAG_SEARCH_SERVER_URL: https://api.devtron.ai
+  REQUIRED_RECOMMENDATION_DATA_COUNT: "10"
+  SERVICE_NAME: athena-mcp-engine-service
+  SERVICE_PLATFORM: k8s
+  SERVICE_VERSION: 0.2.0
+{{ toYaml $.Values.global.dbConfig | indent 2 }}
+{{- if .configs}}
+{{ toYaml $.Values.devtronEnterprise.athenaMcp.configs | indent 2 }}
+{{- end }}
+kind: ConfigMap
+metadata:
+  labels:
+    app: athena-mcp-server
+  name: athena-mcp-cm
+  namespace: devtroncd
+{{- end }}
+{{- end }}

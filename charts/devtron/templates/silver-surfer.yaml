@@ -1,0 +1,60 @@
+{{- if $.Values.devtronEnterprise.enabled }}
+{{- with $.Values.devtronEnterprise.silverSurfer }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: silver-surfer
+  labels:
+    app: silver-surfer
+spec:
+  type: ClusterIP
+  ports:
+    - port: "8111"
+      targetPort: "8111"
+      protocol: TCP
+      name: app
+  selector:
+    app: silver-surfer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: silver-surfer
+  labels:
+    app: silver-surfer
+spec:
+  selector:
+    matchLabels:
+      app: silver-surfer
+  replicas: 1
+  minReadySeconds: 60
+  template:
+    metadata:
+      labels:
+        app: silver-surfer
+    spec:
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.devtronEnterprise.silverSurfer.nodeSelector "tolerations" $.Values.devtronEnterprise.silverSurfer.tolerations "imagePullSecrets" $.Values.devtronEnterprise.silverSurfer.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      {{- include "common.podSecurityContext" (dict "podSecurityContext" $.Values.devtronEnterprise.silverSurfer.podSecurityContext "global" $.Values.global) | indent 6 }}
+      terminationGracePeriodSeconds: 30
+      restartPolicy: Always
+      serviceAccountName: devtron
+      containers:
+        image: {{ include "common.image" (dict "component" $.Values.devtronEnterprise.silverSurfer "global" $.Values.global) }}
+        {{- if  .imagePullPolicy }}
+        imagePullPolicy: {{ .imagePullPolicy }}
+        {{- end }}
+        {{- include "common.containerSecurityContext" (dict "containerSecurityContext" $.Values.components.devtron.containerSecurityContext "global" $.Values.global) | indent 8 }}
+        ports:
+          - name: app
+            containerPort: 8111
+            protocol: TCP
+        {{- if .resources }}
+        resources:
+        {{- toYaml .resources | nindent 10 }}
+        {{- end }}
+        envFrom:
+          - configMapRef:
+              name: devtron-common-cm
+{{- end }}
+{{- end }}
+
