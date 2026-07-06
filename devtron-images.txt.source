@@ -42,3 +42,7 @@ quay.io/devtron/prometheus-nats-exporter:0.9.0
 quay.io/devtron/ubuntu-k8s-utils:latest
 quay.io/devtron/cost-sync:46ed7c67-1159-38183
 quay.io/devtron/timescaledb-ha:pg18
+quay.io/devtron/athena-mcp:75a5ebf3-1219-39285
+quay.io/devtron/athena-api:75a5ebf3-1218-39284
+quay.io/devtron/silver-surfer:e3b9a2f6-1191-38789
+

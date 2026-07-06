@@ -289,7 +289,7 @@ devtronEnterprise:
   athenaApi:
     enabled: false
     registry: ""
-    image: ""
+    image: "athena-api:75a5ebf3-1218-39284"
     imagePullPolicy: IfNotPresent
     healthPort: "8000"
     configs:
@@ -299,7 +299,7 @@ devtronEnterprise:
     secrets: {}
   athenaMcp:
     registry: ""
-    image: ""
+    image: "athena-mcp:75a5ebf3-1219-39285"
     imagePullPolicy: IfNotPresent
     healthPort: "8000"
     configs: {}
