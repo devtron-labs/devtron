@@ -34,6 +34,16 @@ spec:
           servicePort: 80
         path: /grafana
         pathType: ImplementationSpecific
+{{- if $.Values.devtronEnterprise }}
+{{- if and $.Values.devtronEnterprise.enabled $.Values.devtronEnterprise.athenaApi }}
+{{- if $.Values.devtronEnterprise.athenaApi.enabled }}
+      - backend:
+          serviceName: devtron-service
+          servicePort: 80
+        path: /proxy
+{{- end }}
+{{- end }}
+{{- end }}
   {{- if .tls }}
   tls:
 {{ toYaml .tls | nindent 4 }}
@@ -82,6 +92,19 @@ spec:
               number: 80
         path: /grafana
         pathType: {{ .pathType }}
+{{- if $.Values.devtronEnterprise }}
+{{- if and $.Values.devtronEnterprise.enabled $.Values.devtronEnterprise.athenaApi }}
+{{- if $.Values.devtronEnterprise.athenaApi.enabled }}
+      - backend:
+          service:
+            name: devtron-service
+            port:
+              number: 80
+        path: /proxy
+        pathType: {{ .pathType }}
+{{- end }}
+{{- end }}
+{{- end }}
   {{- if .tls }}
   tls:
 {{ toYaml .tls | nindent 4 }}
