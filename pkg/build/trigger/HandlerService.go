@@ -926,14 +926,14 @@ func (impl *HandlerServiceImpl) getEnvironmentForJob(pipeline *pipelineConfig.Ci
 				trigger.EnvironmentId = ciEnvMapping.EnvironmentId
 			}
 		}
-
-		env, err = impl.envRepository.FindById(trigger.EnvironmentId)
-		if err != nil {
-			impl.Logger.Errorw("could not find environment", "err", err)
-			return nil, isJob, err
+		if trigger.EnvironmentId != 0 {
+			env, err = impl.envRepository.FindById(trigger.EnvironmentId)
+			if err != nil {
+				impl.Logger.Errorw("could not find environment", "err", err)
+				return nil, isJob, err
+			}
+			return env, isJob, nil
 		}
-
-		return env, isJob, nil
 	}
 	return nil, isJob, nil
 }
