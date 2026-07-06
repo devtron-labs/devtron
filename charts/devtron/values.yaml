@@ -102,8 +102,8 @@ components:
     healthPort: 8080
   devtron:
     registry: ""
-    image: "hyperion:1188d0b9-280-38819"
-    cicdImage: "devtron:1188d0b9-434-38818"
+    image: "hyperion:0874dcaf-280-39287"
+    cicdImage: "devtron:0874dcaf-434-39286"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     healthPort: 8080
@@ -174,7 +174,7 @@ components:
       keyName: postgresql-password
   kubewatch:
     registry: ""
-    image: "kubewatch:fbde4d5e-419-38744"
+    image: "kubewatch:09867a9c-419-39288"
     imagePullPolicy: IfNotPresent
     healthPort: 8080
     configs:
