@@ -24,7 +24,7 @@ quay.io/devtron/k8s-sidecar:1.1.0
 quay.io/devtron/k8s-utils:tutum-curl
 quay.io/devtron/k9s-k8s-utils:latest
 quay.io/devtron/kubectl:latest
-quay.io/devtron/kubelink:fbde4d5e-564-38749
+quay.io/devtron/kubelink:09867a9c-564-39289
 quay.io/devtron/kubewatch:09867a9c-419-39288
 quay.io/devtron/lens:fbde4d5e-333-38752
 quay.io/devtron/migrator:v4.16.2
