@@ -20,6 +20,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/common-lib/utils/workFlow"
 	cdWorkflowBean "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
@@ -32,11 +38,6 @@ import (
 	util2 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
 	"github.com/devtron-labs/devtron/pkg/workflow/workflowStatusLatest"
-	"regexp"
-	"slices"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
@@ -1064,6 +1065,7 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(request res
 
 	linkedPipelineDetails := make(map[int]*pipelineConfig.CiPipeline) // linkedPipelineId -> pipeline object
 	parentToLinkedMap := make(map[int][]int)                          // parentPipelineId -> []linkedPipelineId
+	directCiPipelineIds := make(map[int]bool)                         // pipeline IDs that are direct (non-linked) CI pipelines in this env
 
 	for _, ciPipeline := range ciPipelines {
 		appObject := objects[ciPipeline.Id] // here only app permission have to check
@@ -1079,6 +1081,8 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(request res
 			linkedPipelineDetails[ciPipeline.Id] = ciPipeline
 			// Add to slice of linked pipelines for this parent
 			parentToLinkedMap[ciPipelineId] = append(parentToLinkedMap[ciPipelineId], ciPipeline.Id)
+		} else {
+			directCiPipelineIds[ciPipelineId] = true
 		}
 	}
 
@@ -1105,6 +1109,12 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(request res
 			// create workflow status for each linked pipeline
 			for _, linkedPipelineId := range linkedPipelineIds {
 				ciWorkflowStatus := adapter.GetCiWorkflowStatusForLinkedCiPipeline(linkedPipelineId, linkedPipelineDetails[linkedPipelineId].Name, ciWorkflow)
+				ciWorkflowStatuses = append(ciWorkflowStatuses, ciWorkflowStatus)
+			}
+			// parent pipeline itself also needs a status entry when it is a direct CI pipeline
+			// in this env (App A's CI that App B links to — both have CD in the same env)
+			if directCiPipelineIds[ciWorkflow.CiPipelineId] {
+				ciWorkflowStatus := adapter.GetCiWorkflowStatusFromCiWorkflow(ciWorkflow)
 				ciWorkflowStatuses = append(ciWorkflowStatuses, ciWorkflowStatus)
 			}
 		} else {
