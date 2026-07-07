@@ -35,26 +35,6 @@ spec:
     spec:
       {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.devtronEnterprise.athenaApi.nodeSelector "tolerations" $.Values.devtronEnterprise.athenaApi.tolerations "imagePullSecrets" $.Values.devtronEnterprise.athenaApi.imagePullSecrets "global" $.Values.global) | indent 6 }}
       {{- include "common.podSecurityContext" (dict "podSecurityContext" $.Values.devtronEnterprise.athenaApi.podSecurityContext "global" $.Values.global) | indent 6 }}
-      livenessProbe:
-        failureThreshold: 3
-        httpGet:
-          path: /health
-          port: {{ $.Values.devtronEnterprise.athenaApi.healthPort}}
-          scheme: HTTP
-        initialDelaySeconds: 20
-        periodSeconds: 300
-        successThreshold: 1
-        timeoutSeconds: 5
-      readinessProbe:
-        failureThreshold: 3
-        httpGet:
-          path: /health
-          port: {{ $.Values.devtronEnterprise.athenaApi.healthPort}}
-          scheme: HTTP
-        initialDelaySeconds: 20
-        periodSeconds: 600
-        successThreshold: 1
-        timeoutSeconds: 5
       terminationGracePeriodSeconds: 30
       restartPolicy: Always
       serviceAccountName: devtron
@@ -80,6 +60,26 @@ spec:
               name: athena-api-secret
           - configMapRef:
               name: devtron-common-cm
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: {{ $.Values.devtronEnterprise.athenaApi.healthPort}}
+            scheme: HTTP
+          initialDelaySeconds: 20
+          periodSeconds: 300
+          successThreshold: 1
+          timeoutSeconds: 5
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: {{ $.Values.devtronEnterprise.athenaApi.healthPort}}
+            scheme: HTTP
+          initialDelaySeconds: 20
+          periodSeconds: 600
+          successThreshold: 1
+          timeoutSeconds: 5
 ---
 apiVersion: v1
 data:

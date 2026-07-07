@@ -35,27 +35,6 @@ spec:
     spec:
       {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.devtronEnterprise.athenaMcp.nodeSelector "tolerations" $.Values.devtronEnterprise.athenaMcp.tolerations "imagePullSecrets" $.Values.devtronEnterprise.athenaMcp.imagePullSecrets "global" $.Values.global) | indent 6 }}
       {{- include "common.podSecurityContext" (dict "podSecurityContext" $.Values.devtronEnterprise.athenaMcp.podSecurityContext "global" $.Values.global) | indent 6 }}
-      livenessProbe:
-        failureThreshold: 3
-        httpGet:
-          path: /health
-          port: {{ $.Values.devtronEnterprise.athenaMcp.healthPort}}
-          scheme: HTTP
-        initialDelaySeconds: 20
-        periodSeconds: 300
-        successThreshold: 1
-        timeoutSeconds: 5
-      readinessProbe:
-        failureThreshold: 3
-        httpGet:
-          path: /health
-          port: {{ $.Values.devtronEnterprise.athenaMcp.healthPort}}
-          scheme: HTTP
-        initialDelaySeconds: 20
-        periodSeconds: 600
-        successThreshold: 1
-        timeoutSeconds: 5
-      terminationGracePeriodSeconds: 30
       restartPolicy: Always
       serviceAccountName: devtron
       containers:
@@ -80,6 +59,27 @@ spec:
               name: athena-mcp-secret
           - configMapRef:
               name: devtron-common-cm
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: {{ $.Values.devtronEnterprise.athenaMcp.healthPort}}
+            scheme: HTTP
+          initialDelaySeconds: 20
+          periodSeconds: 300
+          successThreshold: 1
+          timeoutSeconds: 5
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: {{ $.Values.devtronEnterprise.athenaMcp.healthPort}}
+            scheme: HTTP
+          initialDelaySeconds: 20
+          periodSeconds: 600
+          successThreshold: 1
+          timeoutSeconds: 5
+        terminationGracePeriodSeconds: 30
 ---
 apiVersion: v1
 data:
