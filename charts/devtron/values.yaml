@@ -532,7 +532,7 @@ devtronEnterprise:
     registry: ""
     image: "athena-api:75a5ebf3-1218-39284"
     imagePullPolicy: IfNotPresent
-    healthPort: "8000"
+    healthPort: 8000
     configs:
       LLM_MODEL_ID: ""
       LLM_TEMPERATURE: "0.01"
@@ -543,7 +543,7 @@ devtronEnterprise:
     registry: ""
     image: "athena-mcp:75a5ebf3-1219-39285"
     imagePullPolicy: IfNotPresent
-    healthPort: "8000"
+    healthPort: 8000
     configs: {}
     secrets: {}
   scoop:
