@@ -37,6 +37,7 @@ spec:
       {{- include "common.podSecurityContext" (dict "podSecurityContext" $.Values.devtronEnterprise.athenaMcp.podSecurityContext "global" $.Values.global) | indent 6 }}
       restartPolicy: Always
       serviceAccountName: devtron
+      terminationGracePeriodSeconds: 30
       containers:
       - name: athena-mcp-server
         image: {{ include "common.image" (dict "component" $.Values.devtronEnterprise.athenaMcp "global" $.Values.global) }}
@@ -79,7 +80,6 @@ spec:
           periodSeconds: 600
           successThreshold: 1
           timeoutSeconds: 5
-        terminationGracePeriodSeconds: 30
 ---
 apiVersion: v1
 data:
