@@ -1,3 +1,5 @@
+## v2.2.0
+
 ## Enhancements
 - feat: add native sidecar container support (#6946)
 - feat: add env-driven timeout for buildx builder pod readiness (#6944)
@@ -12,3 +14,5 @@
 - sync: new dependabot security fixes (#6950)
 - misc: mig seq in develop (#6949)
 - sync: migration seq (#6942)
+
+
