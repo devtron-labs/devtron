@@ -13,4 +13,4 @@ CREATE TABLE IF NOT EXISTS public.user_attributes (
 );
 
 
-ALTER TABLE public.user_attributes OWNER TO postgres;
+ALTER TABLE public.user_attributes OWNER TO CURRENT_USER;

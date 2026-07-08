@@ -18,8 +18,17 @@ package connector
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/devtron-labs/common-lib/async"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/gogo/protobuf/proto"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -27,36 +36,32 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"io"
-	"net/http"
-	"regexp"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
 )
 
 var delimiter = []byte("\n\n")
 
 type Pump interface {
 	StartStreamWithTransformer(w http.ResponseWriter, recv func() (proto.Message, error), err error, transformer func(interface{}) interface{})
-	StartK8sStreamWithHeartBeat(w http.ResponseWriter, isReconnect bool, stream io.ReadCloser, err error)
+	StartK8sStreamWithHeartBeat(ctx context.Context, w http.ResponseWriter, isReconnect bool, stream io.ReadCloser, err error)
 }
 
 type PumpImpl struct {
-	logger *zap.SugaredLogger
+	logger        *zap.SugaredLogger
+	asyncRunnable *async.Runnable
 }
 
-func NewPumpImpl(logger *zap.SugaredLogger) *PumpImpl {
+func NewPumpImpl(logger *zap.SugaredLogger, asyncRunnable *async.Runnable) *PumpImpl {
 	return &PumpImpl{
-		logger: logger,
+		logger:        logger,
+		asyncRunnable: asyncRunnable,
 	}
 }
 
-func (impl PumpImpl) StartK8sStreamWithHeartBeat(w http.ResponseWriter, isReconnect bool, stream io.ReadCloser, err error) {
+func (impl PumpImpl) StartK8sStreamWithHeartBeat(ctx context.Context, w http.ResponseWriter, isReconnect bool, stream io.ReadCloser, err error) {
 	f, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "unexpected server doesnt support streaming", http.StatusInternalServerError)
+		return // was missing: f is nil past this point
 	}
 
 	w.Header().Set("Transfer-Encoding", "chunked")
@@ -80,67 +85,105 @@ func (impl PumpImpl) StartK8sStreamWithHeartBeat(w http.ResponseWriter, isReconn
 			return
 		}
 	}
-	// heartbeat start
+	// sync.Once ensures stream.Close is idempotent: the goroutine may call it
+	// via the ctx.Done path, and the deferred cleanup calls it too.
+	var closeOnce sync.Once
+	closeStream := func() { closeOnce.Do(func() { stream.Close() }) }
+
 	ticker := time.NewTicker(30 * time.Second)
-	done := make(chan bool)
+	done := make(chan struct{})
 	var mux sync.Mutex
-	go func() error {
+
+	// WaitGroup restores the happens-before edge that the old `done <- true`
+	// blocking send provided. wg.Wait() in the defer ensures the goroutine has
+	// fully exited before this function returns, preventing f.Flush() from being
+	// called after net/http.finishRequest() recycles the ResponseWriter.
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	// asyncRunnable.Execute wraps fn in a panic-recovering goroutine with metrics.
+	// wg.Done() is deferred inside fn so it fires even when Execute's recover()
+	// catches a panic (Go runs inner defers before outer recover).
+	impl.asyncRunnable.Execute(func() {
+		defer wg.Done()
 		for {
 			select {
 			case <-done:
-				return nil
+				return
+			case <-ctx.Done():
+				closeStream() // unblocks bufReader.ReadString in the main loop
+				return
 			case t := <-ticker.C:
 				mux.Lock()
 				err := impl.sendEvent(nil, []byte("PING"), []byte(t.String()), w)
+				if err == nil {
+					f.Flush()
+				}
 				mux.Unlock()
 				if err != nil {
 					impl.logger.Errorw("error in writing PING over sse", "err", err)
-					return err
+					return
 				}
-				f.Flush()
 			}
 		}
-	}()
+	})
+
 	defer func() {
+		close(done) // unblock goroutine's select
 		ticker.Stop()
-		done <- true
+		wg.Wait() // block until heartbeat goroutine has fully exited;
+		// only after this does the handler return and net/http
+		// reclaim the ResponseWriter
+		closeStream() // safe: goroutine no longer touches stream after wg.Wait()
 	}()
 
 	bufReader := bufio.NewReader(stream)
 	eof := false
 	for !eof {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
 		log, err := bufReader.ReadString('\n')
 		if err == io.EOF {
 			eof = true
-			// stop if we reached end of stream and the next line is empty
 			if log == "" {
 				return
 			}
-		} else if err != nil && err != io.EOF {
+		} else if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
 			impl.logger.Errorw("error in reading buffer string, StartK8sStreamWithHeartBeat", "err", err)
 			return
 		}
-		log = strings.TrimSpace(log) // Remove trailing line ending
-		a := regexp.MustCompile(" ")
-		splitLog := a.Split(log, 2)
+		log = strings.TrimSpace(log)
+		if log == "" {
+			continue
+		}
+		splitLog := strings.SplitN(log, " ", 2)
+		if len(splitLog) < 2 {
+			continue
+		}
 		parsedTime, err := time.Parse(time.RFC3339, splitLog[0])
 		if err != nil {
-			impl.logger.Errorw("error in writing data over sse", "err", err)
-			return
+			impl.logger.Errorw("error parsing log timestamp, skipping line", "err", err)
+			continue
 		}
 		eventId := strconv.FormatInt(parsedTime.UnixNano(), 10)
 		mux.Lock()
-		if len(splitLog) == 2 {
-			err = impl.sendEvent([]byte(eventId), nil, []byte(splitLog[1]), w)
+		sendErr := impl.sendEvent([]byte(eventId), nil, []byte(splitLog[1]), w)
+		if sendErr == nil {
+			f.Flush()
 		}
 		mux.Unlock()
-		if err != nil {
-			impl.logger.Errorw("error in writing data over sse", "err", err)
+		if sendErr != nil {
+			impl.logger.Errorw("error in writing data over sse", "err", sendErr)
 			return
 		}
-		f.Flush()
 	}
-	// heartbeat end
 }
 
 func (impl PumpImpl) StartStreamWithTransformer(w http.ResponseWriter, recv func() (proto.Message, error), err error, transformer func(interface{}) interface{}) {

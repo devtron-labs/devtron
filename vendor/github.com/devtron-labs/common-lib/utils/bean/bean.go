@@ -39,6 +39,7 @@ type DockerAuthConfig struct {
 	AccessKeyEcr          string // used for pulling from private ecr registry
 	SecretAccessKeyEcr    string // used for pulling from private ecr registry
 	EcrRegion             string // used for pulling from private ecr registry
+	AssumeRoleArnEcr      string // used for cross-account ECR access via STS AssumeRole
 	CredentialFileJsonGcr string // used for pulling from private gcr registry
 	IsRegistryPrivate     bool
 }

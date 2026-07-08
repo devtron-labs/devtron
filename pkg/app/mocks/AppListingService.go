@@ -4,6 +4,7 @@ package mocks
 
 import (
 	bean "github.com/devtron-labs/devtron/api/bean/AppView"
+	helper "github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	app "github.com/devtron-labs/devtron/pkg/app"
 
 	context "context"
@@ -311,6 +312,16 @@ func (_m *AppListingService) FetchAppsByEnvironmentV2(fetchAppListingRequest app
 	}
 
 	return r0, r1, r2
+}
+
+// NormalizeTagFilters provides a mock function with given fields: tagFilters
+func (_m *AppListingService) NormalizeTagFilters(tagFilters []helper.TagFilter) []helper.TagFilter {
+	return app.NormalizeTagFilters(tagFilters)
+}
+
+// ValidateTagFilters provides a mock function with given fields: tagFilters
+func (_m *AppListingService) ValidateTagFilters(tagFilters []helper.TagFilter) error {
+	return app.ValidateTagFilters(tagFilters)
 }
 
 // FetchJobs provides a mock function with given fields: fetchJobListingRequest

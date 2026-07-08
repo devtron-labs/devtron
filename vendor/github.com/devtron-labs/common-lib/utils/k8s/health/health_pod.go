@@ -61,6 +61,20 @@ func getCorev1PodHealth(pod *corev1.Pod) (*HealthStatus, error) {
 			}
 		}
 
+		for i, cs := range pod.Status.InitContainerStatuses {
+			if i < len(pod.Spec.InitContainers) &&
+				pod.Spec.InitContainers[i].RestartPolicy != nil &&
+				*pod.Spec.InitContainers[i].RestartPolicy == corev1.ContainerRestartPolicyAlways {
+				waiting := cs.State.Waiting
+				if waiting != nil && (strings.HasPrefix(waiting.Reason, "Err") ||
+					strings.HasSuffix(waiting.Reason, "Error") ||
+					strings.HasSuffix(waiting.Reason, "BackOff")) {
+					status = HealthStatusDegraded
+					messages = append(messages, waiting.Message)
+				}
+			}
+		}
+
 		if status != "" {
 			return &HealthStatus{
 				Status:  status,

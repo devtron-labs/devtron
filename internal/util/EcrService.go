@@ -21,7 +21,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/credentials/ec2rolecreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/juju/errors"
@@ -33,26 +32,22 @@ func CreateEcrRepo(repoName string, reg string, accessKey string, secretKey stri
 	region := reg
 	//fmt.Printf("repoName %s, reg %s, accessKey %s, secretKey %s\n", repoName, reg, accessKey, secretKey)
 
-	var creds *credentials.Credentials
+	var sess *session.Session
+	var err error
 
 	if len(accessKey) == 0 || len(secretKey) == 0 {
-		//fmt.Println("empty accessKey or secretKey")
-		sess, err := session.NewSession(&aws.Config{
+		// Case 1: IAM role — use default credential chain (IRSA, instance profile, task role, env vars)
+		sess, err = session.NewSession(&aws.Config{
 			Region: &region,
 		})
-		if err != nil {
-			log.Println(err)
-			return err
-		}
-		creds = ec2rolecreds.NewCredentials(sess)
 	} else {
-		creds = credentials.NewStaticCredentials(accessKey, secretKey, "")
+		// Case 2: Static credentials
+		creds := credentials.NewStaticCredentials(accessKey, secretKey, "")
+		sess, err = session.NewSession(&aws.Config{
+			Region:      &region,
+			Credentials: creds,
+		})
 	}
-
-	sess, err := session.NewSession(&aws.Config{
-		Region:      &region,
-		Credentials: creds,
-	})
 	if err != nil {
 		log.Println(err)
 		return err
