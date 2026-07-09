@@ -40,7 +40,7 @@ type ChartProviderConfig struct {
 func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, appSyncServiceAccount string, chartProviderConfig *ChartProviderConfig, ParallelismLimitForTagProcessing, AppSyncJobShutDownWaitDuration int) []byte {
 	cfg, _ := sql.GetConfig()
 	configValues := AppSyncConfig{
-		DbConfig:                         sql.Config{Addr: cfg.Addr, Database: cfg.Database, User: cfg.User, Password: cfg.Password},
+		DbConfig:                         sql.Config{Addr: cfg.Addr, Database: cfg.Database, User: cfg.User, Password: cfg.Password, SslMode: cfg.SslMode, SslRootCert: cfg.SslRootCert},
 		DockerImage:                      dockerImage,
 		AppSyncJobResourcesObj:           appSyncJobResourcesObj,
 		ChartProviderConfig:              chartProviderConfig,
@@ -99,6 +99,14 @@ func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, 
               {
                 "name": "PG_PASSWORD",
                 "value": "{{.DbConfig.Password}}"
+              },
+              {
+                "name": "PG_SSL_MODE",
+                "value": "{{.DbConfig.SslMode}}"
+              },
+              {
+                "name": "PG_SSL_ROOT_CERT",
+                "value": "{{.DbConfig.SslRootCert}}"
               },
 			  {
                 "name": "CHART_PROVIDER_ID",
