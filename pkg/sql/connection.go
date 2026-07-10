@@ -19,6 +19,7 @@ package sql
 import (
 	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/common-lib/utils/bean"
+	commonSql "github.com/devtron-labs/common-lib/utils/sql"
 	"go.uber.org/zap"
 	"reflect"
 	"time"
@@ -38,6 +39,8 @@ type Config struct {
 	ApplicationName string `env:"APP" envDefault:"orchestrator" description:"Application name"`
 	ReadTimeout     int64  `env:"PG_READ_TIMEOUT" envDefault:"30" description:"Time out for read operation in postgres"`
 	WriteTimeout    int64  `env:"PG_WRITE_TIMEOUT" envDefault:"30" description:"Time out for write operation in postgres"`
+	SslMode         string `env:"PG_SSL_MODE" envDefault:"" description:"ssl mode for postgres connection" example:"disable, require, verify-ca, verify-full"`
+	SslRootCert     string `env:"PG_SSL_ROOT_CERT" envDefault:"" description:"path to the PEM CA bundle, required for verify-ca/verify-full ssl modes (for AWS RDS use the downloaded global-bundle.pem)" example:"/etc/devtron/certs/rds-ca-bundle.pem"`
 	bean.PgQueryMonitoringConfig
 }
 
@@ -56,6 +59,11 @@ func GetConfig() (*Config, error) {
 }
 
 func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
+	tlsConfig, err := commonSql.BuildTLSConfig(cfg.SslMode, cfg.SslRootCert, cfg.Addr)
+	if err != nil {
+		logger.Errorw("error in building tls config for db connection", "db", obfuscateSecretTags(cfg), "err", err)
+		return nil, err
+	}
 	options := pg.Options{
 		Addr:            cfg.Addr + ":" + cfg.Port,
 		User:            cfg.User,
@@ -64,11 +72,12 @@ func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 		ApplicationName: cfg.ApplicationName,
 		ReadTimeout:     time.Duration(cfg.ReadTimeout) * time.Second,
 		WriteTimeout:    time.Duration(cfg.WriteTimeout) * time.Second,
+		TLSConfig:       tlsConfig,
 	}
 	dbConnection := pg.Connect(&options)
 	// check db connection
 	var test string
-	_, err := dbConnection.QueryOne(&test, `SELECT 1`)
+	_, err = dbConnection.QueryOne(&test, `SELECT 1`)
 
 	if err != nil {
 		logger.Errorw("error in connecting db ", "db", obfuscateSecretTags(cfg), "err", err)
