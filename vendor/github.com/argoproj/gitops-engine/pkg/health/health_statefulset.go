@@ -3,10 +3,11 @@ package health
 import (
 	"fmt"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
 func getStatefulSetHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
@@ -16,7 +17,7 @@ func getStatefulSetHealth(obj *unstructured.Unstructured) (*HealthStatus, error)
 		var sts appsv1.StatefulSet
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &sts)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured StatefulSet to typed: %v", err)
+			return nil, fmt.Errorf("failed to convert unstructured StatefulSet to typed: %w", err)
 		}
 		return getAppsv1StatefulSetHealth(&sts)
 	default:

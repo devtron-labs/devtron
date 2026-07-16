@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/kubectl/pkg/util/podutils"
+
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
 func getPodHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
@@ -18,7 +19,7 @@ func getPodHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
 		var pod corev1.Pod
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &pod)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured Pod to typed: %v", err)
+			return nil, fmt.Errorf("failed to convert unstructured Pod to typed: %w", err)
 		}
 		return getCorev1PodHealth(&pod)
 	default:

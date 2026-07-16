@@ -2,12 +2,14 @@ package health
 
 import (
 	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
 func getJobHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
@@ -17,7 +19,7 @@ func getJobHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
 		var job batchv1.Job
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &job)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured Job to typed: %v", err)
+			return nil, fmt.Errorf("failed to convert unstructured Job to typed: %w", err)
 		}
 		return getBatchv1JobHealth(&job)
 	default:
@@ -48,22 +50,23 @@ func getBatchv1JobHealth(job *batchv1.Job) (*HealthStatus, error) {
 			}
 		}
 	}
-	if !complete {
+	switch {
+	case !complete:
 		return &HealthStatus{
 			Status:  HealthStatusProgressing,
 			Message: message,
 		}, nil
-	} else if failed {
+	case failed:
 		return &HealthStatus{
 			Status:  HealthStatusDegraded,
 			Message: failMsg,
 		}, nil
-	} else if isSuspended {
+	case isSuspended:
 		return &HealthStatus{
 			Status:  HealthStatusSuspended,
 			Message: failMsg,
 		}, nil
-	} else {
+	default:
 		return &HealthStatus{
 			Status:  HealthStatusHealthy,
 			Message: message,

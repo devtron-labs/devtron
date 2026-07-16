@@ -1,7 +1,7 @@
 package govaluate
 
 /*
-	Represents all valid types of tokens that a token can be.
+Represents all valid types of tokens that a token can be.
 */
 type TokenKind int
 
@@ -30,8 +30,8 @@ const (
 )
 
 /*
-	GetTokenKindString returns a string that describes the given TokenKind.
-	e.g., when passed the NUMERIC TokenKind, this returns the string "NUMERIC".
+GetTokenKindString returns a string that describes the given TokenKind.
+e.g., when passed the NUMERIC TokenKind, this returns the string "NUMERIC".
 */
 func (kind TokenKind) String() string {
 

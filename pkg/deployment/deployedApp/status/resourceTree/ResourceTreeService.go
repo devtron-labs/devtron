@@ -25,7 +25,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	k8sObjectUtils "github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
