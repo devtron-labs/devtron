@@ -138,3 +138,25 @@ example of DEX_CONFIG is
 **Please Note:**
 Ensure that the cluster has access to the DEFAULT_CACHE_BUCKET, DEFAULT_BUILD_LOGS_BUCKET, CHARTMUSEUM_STORAGE_AMAZON_BUCKET and AWS secrets backends (SSM & secrets manager)
 
+### Devtron probe configuration
+
+The liveness and readiness probe timings for the main Devtron deployment can be customized under `components.devtron` while retaining the `/health` endpoint configured by the chart:
+
+```yaml
+components:
+  devtron:
+    livenessProbe:
+      failureThreshold: 3
+      initialDelaySeconds: 60
+      periodSeconds: 10
+      successThreshold: 1
+      timeoutSeconds: 5
+    readinessProbe:
+      failureThreshold: 3
+      initialDelaySeconds: 60
+      periodSeconds: 10
+      successThreshold: 1
+      timeoutSeconds: 5
+```
+
+If these values are not overridden, the chart continues to use the existing probe timings from `values.yaml`.
