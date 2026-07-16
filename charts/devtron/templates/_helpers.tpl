@@ -93,7 +93,7 @@ If storageClass is defined in values.yaml under global.storageClass, use that.
 */}}
 {{- define "common.storageclass" -}}
 {{- if $.Values.global.storageClass }}
-storageClassName: {{ $.Values.global.storageClass }}
+storageClassName: {{ $.Values.global.storageClass | quote }}
 {{- end }}
 {{- end -}}
 

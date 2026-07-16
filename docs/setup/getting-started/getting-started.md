@@ -58,7 +58,8 @@ The minimum requirements for installing `Helm Dashboard by Devtron` and `Devtron
 > Refer to the [Override Configurations](../install/override-default-devtron-installation-configs.md) section for more information.
 
 **Note:**
-* Please make sure that the recommended resources are available on your Kubernetes cluster before you proceed with Devtron installation.
+* Please make sure that the recommended resources are available on your Kubernetes cluster before you proceed with Devtron installation. These are free resources for Devtron workloads; Kubernetes and add-ons such as Longhorn need additional capacity.
+* A single-node cluster does not provide Longhorn's recommended production topology. For a resource-constrained k3s evaluation cluster, use the `local-path` StorageClass for Devtron as described in the [k3s installation guide](../install/Install-devtron-on-Minikube-Microk8s-K3s-Kind.md#for-minikube-microk8s-k3s-kind). For production Longhorn sizing and topology, follow the [Longhorn best practices](https://longhorn.io/docs/latest/best-practices/).
 * It is NOT recommended to use brustable CPU VMs (T series in AWS, B Series in Azure and E2/N1 in GCP) for Devtron installation to experience consistency in performance.
  
 
@@ -76,5 +77,4 @@ Choose one of the options as per your requirements:
 | **Upgrade Devtron to latest version** | You can upgrade Devtron in one of the following ways:<ul><li>[Upgrade Devtron using Helm](../../setup/upgrade/README.md#upgrade-devtron-using-helm)</ul></li><ul><li>[Upgrade Devtron from UI](../../setup/upgrade/upgrade-devtron-ui.md)</ul></li> |
 
 **Note**: If you have questions, please let us know on our discord channel. [![Join Discord](https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg)](https://discord.gg/jsRG5qx2gp)
-
 

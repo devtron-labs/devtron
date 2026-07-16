@@ -30,6 +30,29 @@ Devtron provides ways to control how much `memory` or `CPU` can be allocated to 
  
 **`Small`**: To configure the small resources (e.g. to manage less than 10 apps on Devtron ) based on the requirements, append the Devtron installation command with  `-f https://raw.githubusercontent.com/devtron-labs/devtron/main/charts/devtron/resources-small.yaml`.
 
+## Configure Persistent Storage
+
+By default, Devtron PVCs use the cluster's default StorageClass. You can pin all
+Devtron PVCs to an existing class with `global.storageClass`:
+
+```bash
+helm install devtron devtron/devtron-operator \
+--create-namespace --namespace devtroncd \
+--set-string global.storageClass=local-path
+```
+
+| Parameter | Description | Default |
+| :--- | :--- | :--- |
+| **global.storageClass** | Existing StorageClass used for Devtron PVCs | Cluster default StorageClass |
+
+Set the value during the initial installation. Kubernetes does not allow the
+StorageClass of an existing PVC to be changed, so updating this value later
+does not migrate existing data. On resource-constrained, single-node k3s
+clusters, explicitly selecting `local-path` prevents a default distributed
+StorageClass from consuming the capacity reserved for Devtron. Production
+Longhorn installations should follow Longhorn's recommended node and resource
+sizing.
+
 ## Configure Overrides
 
 For `Helm` installation this section refers to _**customOverrides**_ section of `values.yaml`. In this section you can override values of devtron-cm which you want to keep persistent. For example:

@@ -33,7 +33,9 @@ global:
   nodeSelector: {}
   tolerations: []
   imagePullSecrets: []
-  # Set the storage class to be used for PVCs (would use default sc if not specified)
+  # Set the storage class used by Devtron PVCs. When empty, the cluster's default
+  # StorageClass is used. Set this explicitly when the default class is not
+  # appropriate for Devtron (for example, local-path on a single-node k3s setup).
   storageClass: ""
   # Add Proxy Configs to be propagated to all the Devtron Microservices.
   configs: {}

@@ -5,7 +5,7 @@ You can install and try Devtron on a high-end machine or a Cloud VM. If you inst
 ## Prerequisites
 
 1. 2 vCPUs
-2. 4GB+ of free memory
+2. 4GB+ of free memory after Kubernetes and storage add-ons are running
 3. 20GB+ free disk space
 
 Before you get started, you must set up a cluster in your server and finish the following actions:
@@ -54,9 +54,16 @@ helm repo update devtron
 
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
---set components.devtron.service.type=NodePort
+--set components.devtron.service.type=NodePort \
+--set-string global.storageClass=local-path
 
 ```
+
+The explicit StorageClass keeps Devtron's stateful components on k3s local
+storage even if a distributed provisioner such as Longhorn is the cluster
+default. On a multi-node cluster sized for Longhorn, omit
+`--set-string global.storageClass=local-path` to use the default class, or set
+`global.storageClass` to a dedicated Longhorn StorageClass.
 {% endtab %}
 
 {% endtabs %}

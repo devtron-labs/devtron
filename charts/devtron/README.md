@@ -34,6 +34,22 @@ helm install devtron devtron/devtron-operator \
 --set installer.modules={cicd}
 ```
 
+### Choose the StorageClass
+
+Devtron PVCs use the cluster's default StorageClass unless `global.storageClass`
+is set. Set it explicitly when Devtron should not use the default class. For
+example, a resource-constrained, single-node k3s installation can keep its core
+data on the local-path provisioner even when Longhorn is the cluster default:
+
+```bash
+helm install devtron devtron/devtron-operator \
+--create-namespace --namespace devtroncd \
+--set-string global.storageClass=local-path
+```
+
+The selected StorageClass must already exist. This setting only affects newly
+created PVCs; changing it does not migrate existing volumes.
+
 ### Install with Helm (Beta)
 
 We also release beta versions of devtron every few days before the stable release for people who would like to explore and test beta features before everyone else. If you want to install a fresh devtron from beta release channel, use the chart in our official devtron repository.
@@ -137,4 +153,3 @@ example of DEX_CONFIG is
 
 **Please Note:**
 Ensure that the cluster has access to the DEFAULT_CACHE_BUCKET, DEFAULT_BUILD_LOGS_BUCKET, CHARTMUSEUM_STORAGE_AMAZON_BUCKET and AWS secrets backends (SSM & secrets manager)
-
