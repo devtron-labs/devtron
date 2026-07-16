@@ -1,0 +1,18 @@
+# Copyright 2023 Chainguard, Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+linters:
+  enable:
+    - errcheck
+    - gofmt
+    - goimports
+    - gosec
+    - gocritic
+    - misspell
+    - revive
+    - unused
+output:
+  uniq-by-line: false
+run:
+  issues-exit-code: 1
+  timeout: 10m

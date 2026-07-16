@@ -2,11 +2,11 @@ package argocdServer
 
 import (
 	"context"
-	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
-	cluster2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	application2 "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/certificate"
+	cluster2 "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/repocreds"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/client/argocdServer/bean"
 	config2 "github.com/devtron-labs/devtron/client/argocdServer/config"
 	"github.com/devtron-labs/devtron/client/argocdServer/repoCredsK8sClient"

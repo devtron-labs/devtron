@@ -87,7 +87,8 @@ func (client *GrpcApiClientImpl) getConnection() (*grpc.ClientConn, error) {
 	// Configure gRPC dial options
 	var opts []grpc.DialOption
 	opts = append(opts,
-		grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor, otelgrpc.UnaryClientInterceptor()),
+		grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 		grpc.WithBlock(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultServiceConfig(client.config.ServiceConfig),

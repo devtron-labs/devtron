@@ -1,9 +1,13 @@
 package health
 
 import (
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"fmt"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/argoproj/gitops-engine/pkg/sync/hook"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
 // Represents resource health status
@@ -64,7 +68,7 @@ func IsWorse(current, new HealthStatusCode) bool {
 
 // GetResourceHealth returns the health of a k8s resource
 func GetResourceHealth(obj *unstructured.Unstructured, healthOverride HealthOverride) (health *HealthStatus, err error) {
-	if obj.GetDeletionTimestamp() != nil {
+	if obj.GetDeletionTimestamp() != nil && !hook.HasHookFinalizer(obj) {
 		return &HealthStatus{
 			Status:  HealthStatusProgressing,
 			Message: "Pending deletion",
@@ -78,7 +82,7 @@ func GetResourceHealth(obj *unstructured.Unstructured, healthOverride HealthOver
 				Status:  HealthStatusUnknown,
 				Message: err.Error(),
 			}
-			return health, err
+			return health, fmt.Errorf("failed to get resource health for %s/%s: %w", obj.GetNamespace(), obj.GetName(), err)
 		}
 		if health != nil {
 			return health, nil
@@ -94,7 +98,6 @@ func GetResourceHealth(obj *unstructured.Unstructured, healthOverride HealthOver
 		}
 	}
 	return health, err
-
 }
 
 // GetHealthCheckFunc returns built-in health check function or nil if health check is not supported
@@ -112,23 +115,19 @@ func GetHealthCheckFunc(gvk schema.GroupVersionKind) func(obj *unstructured.Unst
 			return getDaemonSetHealth
 		}
 	case "extensions":
-		switch gvk.Kind {
-		case kube.IngressKind:
+		if gvk.Kind == kube.IngressKind {
 			return getIngressHealth
 		}
 	case "argoproj.io":
-		switch gvk.Kind {
-		case "Workflow":
+		if gvk.Kind == "Workflow" {
 			return getArgoWorkflowHealth
 		}
 	case "apiregistration.k8s.io":
-		switch gvk.Kind {
-		case kube.APIServiceKind:
+		if gvk.Kind == kube.APIServiceKind {
 			return getAPIServiceHealth
 		}
 	case "networking.k8s.io":
-		switch gvk.Kind {
-		case kube.IngressKind:
+		if gvk.Kind == kube.IngressKind {
 			return getIngressHealth
 		}
 	case "":
@@ -141,13 +140,11 @@ func GetHealthCheckFunc(gvk schema.GroupVersionKind) func(obj *unstructured.Unst
 			return getPodHealth
 		}
 	case "batch":
-		switch gvk.Kind {
-		case kube.JobKind:
+		if gvk.Kind == kube.JobKind {
 			return getJobHealth
 		}
 	case "autoscaling":
-		switch gvk.Kind {
-		case kube.HorizontalPodAutoscalerKind:
+		if gvk.Kind == kube.HorizontalPodAutoscalerKind {
 			return getHPAHealth
 		}
 	}
