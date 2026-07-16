@@ -562,7 +562,6 @@ spec:
         app: database-creator
     spec:
       {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.migrator.nodeSelector "tolerations" $.Values.components.migrator.tolerations "imagePullSecrets" $.Values.components.migrator.imagePullSecrets "global" $.Values.global) | indent 6 }}
-      serviceAccountName: devtron-default-sa
       containers:
         - command:
             - /bin/sh
