@@ -738,6 +738,12 @@ components:
           description: Whether to fetch git submodules
           example: false
           default: false
+        cloningMode:
+          type: string
+          enum: [FULL, SHALLOW]
+          description: Git history cloning strategy used for the material
+          example: SHALLOW
+          default: FULL
         commitHash:
           type: string
           description: Git commit hash

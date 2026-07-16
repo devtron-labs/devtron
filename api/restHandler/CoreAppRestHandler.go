@@ -496,6 +496,7 @@ func (handler CoreAppRestHandlerImpl) buildAppGitMaterials(appId int) ([]*appBea
 				GitRepoUrl:      gitMaterial.Url,
 				CheckoutPath:    gitMaterial.CheckoutPath,
 				FetchSubmodules: gitMaterial.FetchSubmodules,
+				CloningMode:     gitMaterial.CloningMode,
 				GitProviderUrl:  gitRegistry.Url,
 			})
 		}
@@ -1312,6 +1313,7 @@ func (handler CoreAppRestHandlerImpl) createGitMaterials(appId int, gitMaterials
 			GitProviderId:   gitProvider.Id,
 			CheckoutPath:    material.CheckoutPath,
 			FetchSubmodules: material.FetchSubmodules,
+			CloningMode:     material.CloningMode,
 		}
 
 		createMaterialRequest.Material = append(createMaterialRequest.Material, gitMaterialRequest)

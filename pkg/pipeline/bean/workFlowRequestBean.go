@@ -94,6 +94,7 @@ type CiProjectDetails struct {
 	MaterialName    string `json:"materialName"`
 	CheckoutPath    string `json:"checkoutPath"`
 	FetchSubmodules bool   `json:"fetchSubmodules"`
+	CloningMode     string `json:"cloningMode"`
 	CommitHash      string `json:"commitHash"`
 	GitTag          string `json:"gitTag"`
 	CommitTime      string `json:"commitTime"`

@@ -172,11 +172,14 @@ func (impl *PipelineBuilderImpl) getGitMaterialsForApp(appId int) ([]*bean.GitMa
 			gitUrl = u.String()
 		}
 		gitMaterial := &bean.GitMaterial{
-			Id:            material.Id,
-			Url:           gitUrl,
-			GitProviderId: material.GitProviderId,
-			Name:          material.Name[strings.Index(material.Name, "-")+1:],
-			CheckoutPath:  material.CheckoutPath,
+			Id:              material.Id,
+			Url:             gitUrl,
+			GitProviderId:   material.GitProviderId,
+			Name:            material.Name[strings.Index(material.Name, "-")+1:],
+			CheckoutPath:    material.CheckoutPath,
+			FetchSubmodules: material.FetchSubmodules,
+			CloningMode:     material.CloningMode,
+			FilterPattern:   material.FilterPattern,
 		}
 		gitMaterials = append(gitMaterials, gitMaterial)
 	}

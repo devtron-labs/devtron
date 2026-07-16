@@ -121,6 +121,8 @@ type CiCdPipelineOrchestrator interface {
 	GetWorkflowCacheConfig(appType helper.AppType, pipelineType string, pipelineWorkflowCacheConfig common2.WorkflowCacheConfigType) bean.WorkflowCacheConfig
 }
 
+const gitMaterialCreationAdvisoryLockNamespace = 6344
+
 type CiCdPipelineOrchestratorImpl struct {
 	appRepository                 app2.AppRepository
 	logger                        *zap.SugaredLogger
@@ -1365,7 +1367,7 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) erro
 
 	impl.logger.Debug("deleting materials in git_sensor")
 	for _, m := range materials {
-		err = impl.updateRepositoryToGitSensor(m, "", false)
+		err = impl.updateRepositoryToGitSensor(m, false)
 		if err != nil {
 			impl.logger.Errorw("error in updating to git-sensor", "err", err)
 			return err
@@ -1426,35 +1428,60 @@ func (impl CiCdPipelineOrchestratorImpl) CreateMaterials(createMaterialRequest *
 		return nil, err
 	}
 	defer tx.Rollback()
+	// Material creation commits before git-sensor imports the repository. Serializing requests per app makes
+	// retries safe while a large repository is still being imported by the original request.
+	_, err = tx.Exec("SELECT pg_advisory_xact_lock(?, ?)", gitMaterialCreationAdvisoryLockNamespace, createMaterialRequest.AppId)
+	if err != nil {
+		impl.logger.Errorw("error acquiring git material creation lock", "appId", createMaterialRequest.AppId, "err", err)
+		return nil, err
+	}
 	existingMaterials, err := impl.materialRepository.FindByAppId(createMaterialRequest.AppId)
 	if err != nil {
 		impl.logger.Errorw("err", "err", err)
 		return nil, err
 	}
 	checkoutPaths := make(map[int]string)
+	existingMaterialByIdentity := make(map[string]*repository6.GitMaterial, len(existingMaterials))
 	impl.logger.Debugw("existing materials", "material", existingMaterials)
 	for _, material := range existingMaterials {
 		checkoutPaths[material.Id] = material.CheckoutPath
+		existingMaterialByIdentity[gitMaterialIdentity(material.Url, material.GitProviderId, material.CheckoutPath)] = material
 	}
+	var materialsToCreate []*bean.GitMaterial
 	for i, material := range createMaterialRequest.Material {
 		if material.CheckoutPath == "" {
 			material.CheckoutPath = "./"
 		}
-		checkoutPaths[i*-1] = material.CheckoutPath
+		material.UpdateSanitisedGitRepoUrl()
+		material.SetDefaultCloningMode()
+		if err = validateGitMaterialCloningMode(material.CloningMode); err != nil {
+			return nil, err
+		}
+		existingMaterial := existingMaterialByIdentity[gitMaterialIdentity(material.Url, material.GitProviderId, material.CheckoutPath)]
+		if existingMaterial != nil {
+			if !gitMaterialOptionsMatch(existingMaterial, material) {
+				return nil, fmt.Errorf("git material for checkout path %q already exists; use update material to change its options", material.CheckoutPath)
+			}
+			material.Id = existingMaterial.Id
+			material.Name = existingMaterial.Name
+			continue
+		}
+		checkoutPaths[(i+1)*-1] = material.CheckoutPath
+		materialsToCreate = append(materialsToCreate, material)
 	}
 	duplicatePathErr := impl.validateCheckoutPathsForMultiGit(checkoutPaths)
 	if duplicatePathErr != nil {
-		impl.logger.Errorw("duplicate checkout paths", "err", err)
+		impl.logger.Errorw("duplicate checkout paths", "err", duplicatePathErr)
 		return nil, duplicatePathErr
 	}
 	var materials []*bean.GitMaterial
-	for _, inputMaterial := range createMaterialRequest.Material {
-		inputMaterial.UpdateSanitisedGitRepoUrl()
+	for _, inputMaterial := range materialsToCreate {
 		m, err := impl.createMaterial(tx, inputMaterial, createMaterialRequest.AppId, createMaterialRequest.UserId)
-		inputMaterial.Id = m.Id
 		if err != nil {
 			return nil, err
 		}
+		inputMaterial.Id = m.Id
+		inputMaterial.Name = m.Name
 		materials = append(materials, inputMaterial)
 	}
 	// moving transaction before addRepositoryToGitSensor as commiting transaction after addRepositoryToGitSensor was causing problems
@@ -1464,7 +1491,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateMaterials(createMaterialRequest *
 		impl.logger.Errorw("error in committing tx Create material", "err", err, "materials", materials)
 		return nil, err
 	}
-	err = impl.addRepositoryToGitSensor(materials, "")
+	err = impl.addRepositoryToGitSensor(materials)
 	if err != nil {
 		impl.logger.Errorw("error in updating to sensor", "err", err)
 		return nil, err
@@ -1490,8 +1517,7 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateMaterial(updateMaterialDTO *bean.
 		return nil, err
 	}
 
-	err = impl.updateRepositoryToGitSensor(updatedMaterial, "",
-		updateMaterialDTO.Material.CreateBackup)
+	err = impl.updateRepositoryToGitSensor(updatedMaterial, updateMaterialDTO.Material.CreateBackup)
 	if err != nil {
 		impl.logger.Errorw("error in updating to git-sensor", "err", err)
 		return nil, err
@@ -1499,8 +1525,7 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateMaterial(updateMaterialDTO *bean.
 	return updateMaterialDTO, nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *repository6.GitMaterial,
-	cloningMode string, createBackup bool) error {
+func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *repository6.GitMaterial, createBackup bool) error {
 	sensorMaterial := &gitSensor.GitMaterial{
 		Name:             material.Name,
 		Url:              material.Url,
@@ -1510,7 +1535,7 @@ func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *r
 		Deleted:          !material.Active,
 		FetchSubmodules:  material.FetchSubmodules,
 		FilterPattern:    material.FilterPattern,
-		CloningMode:      cloningMode,
+		CloningMode:      material.CloningMode,
 		CreateBackup:     createBackup,
 	}
 	timeout := 10 * time.Minute
@@ -1523,8 +1548,8 @@ func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *r
 	return impl.GitSensorClient.UpdateRepo(ctx, sensorMaterial)
 }
 
-func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*bean.GitMaterial, cloningMode string) error {
-	var sensorMaterials []*gitSensor.GitMaterial
+func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*bean.GitMaterial) error {
+	sensorMaterialsByCloningMode := make(map[string][]*gitSensor.GitMaterial)
 	for _, material := range materials {
 		sensorMaterial := &gitSensor.GitMaterial{
 			Name:            material.Name,
@@ -1534,13 +1559,25 @@ func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*b
 			Deleted:         false,
 			FetchSubmodules: material.FetchSubmodules,
 			FilterPattern:   material.FilterPattern,
-			CloningMode:     cloningMode,
+			CloningMode:     material.CloningMode,
 		}
-		sensorMaterials = append(sensorMaterials, sensorMaterial)
+		sensorMaterialsByCloningMode[material.CloningMode] = append(sensorMaterialsByCloningMode[material.CloningMode], sensorMaterial)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-	defer cancel()
-	return impl.GitSensorClient.AddRepo(ctx, sensorMaterials)
+	// git-sensor currently applies the first material's cloning mode to an AddRepo batch. Keep batches homogeneous
+	// so applications with multiple sources can configure FULL and SHALLOW independently.
+	for _, cloningMode := range []string{bean.GitMaterialCloningModeFull, bean.GitMaterialCloningModeShallow} {
+		sensorMaterials := sensorMaterialsByCloningMode[cloningMode]
+		if len(sensorMaterials) == 0 {
+			continue
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		err := impl.GitSensorClient.AddRepo(ctx, sensorMaterials)
+		cancel()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // FIXME: not thread safe
@@ -1642,6 +1679,32 @@ func (impl CiCdPipelineOrchestratorImpl) validateCheckoutPathsForMultiGit(allPat
 	return nil
 }
 
+func gitMaterialIdentity(url string, gitProviderId int, checkoutPath string) string {
+	url = strings.TrimRight(strings.TrimSpace(url), "/")
+	if checkoutPath == "" {
+		checkoutPath = "./"
+	}
+	return fmt.Sprintf("%d\x00%s\x00%s", gitProviderId, url, checkoutPath)
+}
+
+func gitMaterialOptionsMatch(existingMaterial *repository6.GitMaterial, requestedMaterial *bean.GitMaterial) bool {
+	existingCloningMode := existingMaterial.CloningMode
+	if existingCloningMode == "" {
+		existingCloningMode = bean.GitMaterialCloningModeFull
+	}
+	return existingMaterial.FetchSubmodules == requestedMaterial.FetchSubmodules &&
+		existingCloningMode == requestedMaterial.CloningMode &&
+		slices.Equal(existingMaterial.FilterPattern, requestedMaterial.FilterPattern)
+}
+
+func validateGitMaterialCloningMode(cloningMode string) error {
+	if cloningMode != bean.GitMaterialCloningModeFull && cloningMode != bean.GitMaterialCloningModeShallow {
+		return fmt.Errorf("unsupported git material cloning mode %q; supported values are %s and %s",
+			cloningMode, bean.GitMaterialCloningModeFull, bean.GitMaterialCloningModeShallow)
+	}
+	return nil
+}
+
 func (impl CiCdPipelineOrchestratorImpl) updateMaterial(tx *pg.Tx, updateMaterialDTO *bean.UpdateMaterialDTO) (*repository6.GitMaterial, error) {
 	existingMaterials, err := impl.materialRepository.FindByAppId(updateMaterialDTO.AppId)
 	if err != nil {
@@ -1662,6 +1725,13 @@ func (impl CiCdPipelineOrchestratorImpl) updateMaterial(tx *pg.Tx, updateMateria
 	if currentMaterial == nil {
 		return nil, errors.New("material to be updated does not exist")
 	}
+	if updateMaterialDTO.Material.CloningMode == "" {
+		updateMaterialDTO.Material.CloningMode = currentMaterial.CloningMode
+		updateMaterialDTO.Material.SetDefaultCloningMode()
+	}
+	if err = validateGitMaterialCloningMode(updateMaterialDTO.Material.CloningMode); err != nil {
+		return nil, err
+	}
 	if updateMaterialDTO.Material.CheckoutPath == "" {
 		updateMaterialDTO.Material.CheckoutPath = "./"
 	}
@@ -1680,6 +1750,7 @@ func (impl CiCdPipelineOrchestratorImpl) updateMaterial(tx *pg.Tx, updateMateria
 	currentMaterial.GitProviderId = updateMaterialDTO.Material.GitProviderId
 	currentMaterial.CheckoutPath = updateMaterialDTO.Material.CheckoutPath
 	currentMaterial.FetchSubmodules = updateMaterialDTO.Material.FetchSubmodules
+	currentMaterial.CloningMode = updateMaterialDTO.Material.CloningMode
 	currentMaterial.FilterPattern = updateMaterialDTO.Material.FilterPattern
 	currentMaterial.AuditLog = sql.AuditLog{UpdatedBy: updateMaterialDTO.UserId, CreatedBy: currentMaterial.CreatedBy, UpdatedOn: time.Now(), CreatedOn: currentMaterial.CreatedOn}
 
@@ -1706,6 +1777,7 @@ func (impl CiCdPipelineOrchestratorImpl) createMaterial(tx *pg.Tx, inputMaterial
 		Active:          true,
 		CheckoutPath:    inputMaterial.CheckoutPath,
 		FetchSubmodules: inputMaterial.FetchSubmodules,
+		CloningMode:     inputMaterial.CloningMode,
 		FilterPattern:   inputMaterial.FilterPattern,
 		AuditLog:        sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}

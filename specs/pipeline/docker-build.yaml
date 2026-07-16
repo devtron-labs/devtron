@@ -369,6 +369,9 @@ components:
           type: string
         fetchSubmodules:
           type: boolean
+        cloningMode:
+          type: string
+          enum: [FULL, SHALLOW]
     DockerConfig:
       type: object
       properties:

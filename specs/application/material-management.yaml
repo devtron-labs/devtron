@@ -90,6 +90,12 @@ components:
           description: Whether to fetch git submodules
           example: false
           default: false
+        cloningMode:
+          type: string
+          enum: [FULL, SHALLOW]
+          description: Git history cloning strategy. SHALLOW minimizes data transferred for large repositories.
+          example: SHALLOW
+          default: FULL
         filterPattern:
           type: array
           items:
@@ -151,6 +157,10 @@ components:
         fetchSubmodules:
           type: boolean
           description: Whether submodules are fetched
+        cloningMode:
+          type: string
+          enum: [FULL, SHALLOW]
+          description: Git history cloning strategy
         filterPattern:
           type: array
           items:
@@ -198,6 +208,7 @@ paths:
                       checkoutPath: "./"
                       gitProviderId: 1
                       fetchSubmodules: false
+                      cloningMode: SHALLOW
                       filterPattern: ["*.yaml", "!test/*"]
               multiple_materials:
                 summary: Multiple materials example
@@ -208,11 +219,13 @@ paths:
                       checkoutPath: "./frontend"
                       gitProviderId: 1
                       fetchSubmodules: false
+                      cloningMode: FULL
                       filterPattern: ["src/**", "!src/test/**"]
                     - url: "https://github.com/user/backend.git"
                       checkoutPath: "./backend"
                       gitProviderId: 1
                       fetchSubmodules: true
+                      cloningMode: SHALLOW
                       filterPattern: ["*.go", "!*_test.go"]
       responses:
         '200':
@@ -279,6 +292,7 @@ paths:
                     checkoutPath: "./src"
                     gitProviderId: 1
                     fetchSubmodules: true
+                    cloningMode: SHALLOW
                     filterPattern: ["src/**", "!src/test/**"]
       responses:
         '200':

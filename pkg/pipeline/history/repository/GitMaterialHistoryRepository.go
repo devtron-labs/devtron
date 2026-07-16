@@ -32,6 +32,7 @@ type GitMaterialHistory struct {
 	Name            string   `sql:"name, omitempty"`
 	CheckoutPath    string   `sql:"checkout_path, omitempty"`
 	FetchSubmodules bool     `sql:"fetch_submodules,notnull"`
+	CloningMode     string   `sql:"cloning_mode,notnull"`
 	FilterPattern   []string `sql:"filter_pattern"`
 	sql.AuditLog
 }

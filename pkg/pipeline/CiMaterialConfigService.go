@@ -247,6 +247,7 @@ func (impl *CiMaterialConfigServiceImpl) GetMaterialsForAppId(appId int) []*bean
 			GitProviderId:   material.GitProviderId,
 			CheckoutPath:    material.CheckoutPath,
 			FetchSubmodules: material.FetchSubmodules,
+			CloningMode:     material.CloningMode,
 			FilterPattern:   material.FilterPattern,
 		}
 		//check if git material is deletable or not

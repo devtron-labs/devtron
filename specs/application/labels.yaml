@@ -327,6 +327,9 @@ components:
           type: string
         fetchSubmodules:
           type: boolean
+        cloningMode:
+          type: string
+          enum: [FULL, SHALLOW]
         isUsedInCiConfig:
           type: boolean
 

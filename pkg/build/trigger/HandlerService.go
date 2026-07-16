@@ -1020,6 +1020,7 @@ func (impl *HandlerServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineCo
 			MaterialName:    ciMaterial.GitMaterial.Name,
 			CheckoutPath:    ciMaterial.GitMaterial.CheckoutPath,
 			FetchSubmodules: ciMaterial.GitMaterial.FetchSubmodules,
+			CloningMode:     ciMaterial.GitMaterial.CloningMode,
 			CommitHash:      commitHashForPipelineId.Commit,
 			Author:          commitHashForPipelineId.Author,
 			SourceType:      ciMaterial.Type,

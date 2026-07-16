@@ -55,6 +55,7 @@ func (impl GitMaterialHistoryServiceImpl) CreateMaterialHistory(tx *pg.Tx, input
 		Active:          inputMaterial.Active,
 		CheckoutPath:    inputMaterial.CheckoutPath,
 		FetchSubmodules: inputMaterial.FetchSubmodules,
+		CloningMode:     inputMaterial.CloningMode,
 		FilterPattern:   inputMaterial.FilterPattern,
 		AuditLog:        sql.AuditLog{UpdatedBy: inputMaterial.UpdatedBy, CreatedBy: inputMaterial.CreatedBy, UpdatedOn: inputMaterial.UpdatedOn, CreatedOn: inputMaterial.CreatedOn},
 	}
@@ -82,6 +83,7 @@ func (impl GitMaterialHistoryServiceImpl) CreateDeleteMaterialHistory(materials 
 			Name:            material.Name,
 			CheckoutPath:    material.CheckoutPath,
 			FetchSubmodules: material.FetchSubmodules,
+			CloningMode:     material.CloningMode,
 			FilterPattern:   material.FilterPattern,
 			AuditLog: sql.AuditLog{
 				CreatedOn: material.CreatedOn,

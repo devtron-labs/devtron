@@ -273,12 +273,14 @@ func (impl *AppCloneServiceImpl) CloneGitRepo(oldAppId, newAppId int, userId int
 	gitMaterialsMap := make(map[int]int)
 	for _, material := range originalApp.Material {
 		gitMaterial := &bean.GitMaterial{
-			Name:          material.Name,
-			Url:           material.Url,
-			Id:            0,
-			GitProviderId: material.GitProviderId,
-			CheckoutPath:  material.CheckoutPath,
-			FilterPattern: material.FilterPattern,
+			Name:            material.Name,
+			Url:             material.Url,
+			Id:              0,
+			GitProviderId:   material.GitProviderId,
+			CheckoutPath:    material.CheckoutPath,
+			FetchSubmodules: material.FetchSubmodules,
+			CloningMode:     material.CloningMode,
+			FilterPattern:   material.FilterPattern,
 		}
 		createMaterial.Material = []*bean.GitMaterial{gitMaterial} // append(createMaterial.Material, gitMaterial)
 		createMaterialres, err := impl.pipelineBuilder.CreateMaterialsForApp(createMaterial)

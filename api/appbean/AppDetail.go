@@ -60,6 +60,7 @@ type GitMaterial struct {
 	GitRepoUrl      string `json:"gitRepoUrl,notnull" validate:"required"`
 	CheckoutPath    string `json:"checkoutPath,notnull" validate:"required"`
 	FetchSubmodules bool   `json:"fetchSubmodules"`
+	CloningMode     string `json:"cloningMode" validate:"omitempty,oneof=FULL SHALLOW"`
 }
 
 type DockerConfig struct {

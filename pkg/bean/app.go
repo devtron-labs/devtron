@@ -91,9 +91,21 @@ type GitMaterial struct {
 	GitProviderId    int      `json:"gitProviderId,omitempty" validate:"gt=0"`
 	CheckoutPath     string   `json:"checkoutPath" validate:"checkout-path-component"`
 	FetchSubmodules  bool     `json:"fetchSubmodules"`
+	CloningMode      string   `json:"cloningMode" validate:"omitempty,oneof=FULL SHALLOW"`
 	IsUsedInCiConfig bool     `json:"isUsedInCiConfig"`
 	FilterPattern    []string `json:"filterPattern"`
 	CreateBackup     bool     `json:"createBackup"`
+}
+
+const (
+	GitMaterialCloningModeFull    = "FULL"
+	GitMaterialCloningModeShallow = "SHALLOW"
+)
+
+func (m *GitMaterial) SetDefaultCloningMode() {
+	if m.CloningMode == "" {
+		m.CloningMode = GitMaterialCloningModeFull
+	}
 }
 
 // UpdateSanitisedGitRepoUrl will remove all trailing slashes , leading and trailing spaces from git repository url

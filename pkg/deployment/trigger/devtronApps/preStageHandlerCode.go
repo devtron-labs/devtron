@@ -556,6 +556,7 @@ func (impl *HandlerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 				MaterialName:    gitMaterial.Name,
 				CheckoutPath:    gitMaterial.CheckoutPath,
 				FetchSubmodules: gitMaterial.FetchSubmodules,
+				CloningMode:     gitMaterial.CloningMode,
 				SourceType:      m.Type,
 				SourceValue:     m.Value,
 				Type:            string(m.Type),

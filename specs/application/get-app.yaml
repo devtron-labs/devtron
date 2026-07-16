@@ -339,6 +339,10 @@ components:
         fetchSubmodules:
           type: boolean
           description: whether to fetch submodules
+        cloningMode:
+          type: string
+          enum: [FULL, SHALLOW]
+          description: Git history cloning strategy
     ErrorResponse:
       required:
         - code
@@ -401,10 +405,12 @@ components:
             gitRepoUrl: "https://github.com/user1/example-repo"
             checkoutPath: "./"
             fetchSubmodules: true
+            cloningMode: SHALLOW
           - gitProviderUrl: "https://gitlab.com"
             gitRepoUrl: "https://gitlab.com/user2/new-repo"
             checkoutPath: "./a"
             fetchSubmodules: false
+            cloningMode: FULL
         dockerConfig:
           dockerRegistry: "my-dockerhub"
           dockerRepository: "user/test"
