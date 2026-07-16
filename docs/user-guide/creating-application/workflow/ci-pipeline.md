@@ -232,9 +232,13 @@ Linked CI pipelines can't trigger builds. They rely on the source CI pipeline to
 
 ### 3. Deploy Image from External Service
 
-For CI pipeline, you can receive container images from an external services via webhook API.
+Devtron can receive container images from an external service through a webhook API.
 
-You can use Devtron for deployments on Kubernetes while using an external CI tool such as Jenkins or CircleCI. External CI feature can be used when the CI tool is hosted outside the Devtron platform. However, by using an external CI, you will not be able to use some of the Devtron features such as Image scanning and security policies, configuring pre-post CI stages etc. 
+You can use Devtron for deployments on Kubernetes while using an external CI tool such as Jenkins or CircleCI. Use External CI when the CI tool is hosted outside Devtron. However, External CI does not support some Devtron features such as image scanning, security policies, and pre-build or post-build stages.
+
+{% hint style="info" %}
+To deploy an image that was built manually and already exists in Azure Container Registry, see [Deploy an Image from Azure Container Registry](../../use-cases/deploy-existing-acr-image.md#deploy-an-existing-acr-image).
+{% endhint %}
 
 
 * Create a [new](../../create-application.md) or [clone](../../cloning-application.md) an application.
@@ -298,7 +302,7 @@ You can send the Payload script to your CI tools such as Jenkins and Devtron wil
 curl --location --request POST \
 'https://{domain-name}/orchestrator/webhook/ext-ci/{pipeline-id}' \
 --header 'Content-Type: application/json' \
---header 'token: {token}' \
+--header 'api-token: {token}' \
 --data-raw '{
     "dockerImage": "445808685819.dkr.ecr.us-east-2.amazonaws.com/orch:23907713-2"
 }'

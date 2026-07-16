@@ -11,3 +11,5 @@ In this comprehensive guide, you will find a wide range of use cases, illustrati
 [Connect Expressjs With Mongodb Database](connect-expressjs-with-mongodb-database.md)
 
 [Connect Django With Mysql Database](connect-django-with-mysql-database.md)
+
+[Deploy an Image from Azure Container Registry](deploy-existing-acr-image.md)

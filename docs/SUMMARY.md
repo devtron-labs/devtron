@@ -166,6 +166,7 @@
   * [Connect Expressjs With Mongodb Database](user-guide/use-cases/connect-expressjs-with-mongodb-database.md)
   * [Connect Django With Mysql Database](user-guide/use-cases/connect-django-with-mysql-database.md)
   * [Pull Helm Charts from OCI Registry](user-guide/use-cases/oci-pull.md)
+  * [Deploy an Image from Azure Container Registry](user-guide/use-cases/deploy-existing-acr-image.md)
 * [Telemetry Overview](user-guide/telemetry.md)
 * [Devtron on Graviton](reference/graviton.md)
 * [Release Notes](https://github.com/devtron-labs/devtron/releases)
