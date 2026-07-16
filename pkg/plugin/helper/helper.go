@@ -139,6 +139,15 @@ func GetPluginStepIdVsPluginStepVariablesMap(pluginStepVariables []*bean.PluginV
 	return pluginStepIdVsPluginStepVariablesMap
 }
 
+// GetVariableIdVsPluginStepConditionsMap groups conditions by the variable on which they are defined.
+func GetVariableIdVsPluginStepConditionsMap(pluginStepConditions []*bean.PluginStepCondition) map[int][]*bean.PluginStepCondition {
+	variableIdVsPluginStepConditionsMap := make(map[int][]*bean.PluginStepCondition, len(pluginStepConditions))
+	for _, condition := range pluginStepConditions {
+		variableIdVsPluginStepConditionsMap[condition.ConditionVariableId] = append(variableIdVsPluginStepConditionsMap[condition.ConditionVariableId], condition)
+	}
+	return variableIdVsPluginStepConditionsMap
+}
+
 func GetScriptIdVsScriptArgsDetailsMap(scriptArgDetails []*bean.ScriptPathArgPortMapping) map[int][]*bean.ScriptPathArgPortMapping {
 	scriptIdVsScriptArgsDetailsMap := make(map[int][]*bean.ScriptPathArgPortMapping, len(scriptArgDetails))
 	for _, scriptArgDetail := range scriptArgDetails {

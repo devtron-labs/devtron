@@ -142,6 +142,23 @@ func GetPluginStepVariablesDtoFromDbObjects(pluginStepVarsDbObj []*repository.Pl
 	return pluginStepVarsDto
 }
 
+// GetPluginStepConditionsDtoFromDbObjects converts persisted step conditions to API DTOs.
+func GetPluginStepConditionsDtoFromDbObjects(pluginStepConditionsDbObj []*repository.PluginStepCondition) []*pluginBean.PluginStepCondition {
+	pluginStepConditionsDto := make([]*pluginBean.PluginStepCondition, 0, len(pluginStepConditionsDbObj))
+	for _, condition := range pluginStepConditionsDbObj {
+		pluginStepConditionsDto = append(pluginStepConditionsDto, &pluginBean.PluginStepCondition{
+			Id:                  condition.Id,
+			PluginStepId:        condition.PluginStepId,
+			ConditionVariableId: condition.ConditionVariableId,
+			ConditionType:       condition.ConditionType,
+			ConditionalOperator: condition.ConditionalOperator,
+			ConditionalValue:    condition.ConditionalValue,
+			Deleted:             condition.Deleted,
+		})
+	}
+	return pluginStepConditionsDto
+}
+
 // GetPluginPipelineScriptDtoFromDbObject returns PluginPipelineScript dto object without ScriptPathArgPortMapping object
 func GetPluginPipelineScriptDtoFromDbObject(pluginPipelineScript *repository.PluginPipelineScript) *pluginBean.PluginPipelineScript {
 	if pluginPipelineScript == nil {

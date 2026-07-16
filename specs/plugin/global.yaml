@@ -254,9 +254,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/PluginMetaDataDto'
+                $ref: '#/components/schemas/PluginsDto'
         '400':
           description: Bad request
           content:
@@ -284,7 +282,7 @@ paths:
 
   /orchestrator/plugin/global/list/detail/v2:
     post:
-      description: Get detailed information for multiple plugins
+      description: Get detailed information for multiple plugins. Set fetchPluginSteps to include the saved configuration of detailed SHARED plugin versions so they can be edited and saved as a new version.
       operationId: GetPluginDetailByIds
       requestBody:
         required: true
@@ -298,9 +296,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/PluginMetaDataDto'
+                $ref: '#/components/schemas/PluginsDto'
         '400':
           description: Bad request
           content:
@@ -471,7 +467,7 @@ components:
         id:
           type: integer
           description: Unique identifier for the plugin version
-        version:
+        pluginVersion:
           type: string
           description: Version number of the plugin
         description:
@@ -489,8 +485,31 @@ components:
           type: integer
           description: ID of the user who created this version
         updatedBy:
-          type: integer
-          description: ID of the user who last updated this version
+          type: string
+          description: Email of the user who last updated this version
+        docLink:
+          type: string
+          description: Documentation link for this version
+        isLatest:
+          type: boolean
+          description: Whether this is the latest plugin version
+        tags:
+          type: array
+          items:
+            type: string
+        inputVariables:
+          type: array
+          items:
+            $ref: '#/components/schemas/PluginVariableDto'
+        outputVariables:
+          type: array
+          items:
+            $ref: '#/components/schemas/PluginVariableDto'
+        pluginSteps:
+          type: array
+          description: Complete saved step configuration. Returned only for detailed SHARED plugin versions.
+          items:
+            $ref: '#/components/schemas/PluginStepDto'
 
     PluginParentMetadataDto:
       type: object
@@ -501,6 +520,9 @@ components:
         name:
           type: string
           description: Name of the plugin
+        pluginIdentifier:
+          type: string
+          description: Stable identifier for the plugin
         description:
           type: string
           description: Detailed description of what the plugin does
@@ -511,15 +533,173 @@ components:
         icon:
           type: string
           description: URL or base64 encoded icon
-        tags:
-          type: array
-          items:
-            type: string
-          description: List of tags
-        versions:
+        pluginVersions:
+          $ref: '#/components/schemas/PluginVersionsDto'
+
+    PluginVersionsDto:
+      type: object
+      properties:
+        detailedPluginVersionData:
           type: array
           items:
             $ref: '#/components/schemas/PluginVersionDto'
+        minimalPluginVersionData:
+          type: array
+          items:
+            $ref: '#/components/schemas/PluginVersionDto'
+
+    PluginsDto:
+      type: object
+      properties:
+        parentPlugins:
+          type: array
+          items:
+            $ref: '#/components/schemas/PluginParentMetadataDto'
+        totalCount:
+          type: integer
+
+    PluginStepDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        index:
+          type: integer
+        stepType:
+          type: string
+          enum: [INLINE, REF_PLUGIN]
+        refPluginId:
+          type: integer
+        outputDirectoryPath:
+          type: array
+          items:
+            type: string
+        dependentOnStep:
+          type: string
+        pluginStepVariable:
+          type: array
+          items:
+            $ref: '#/components/schemas/PluginVariableDto'
+        pluginPipelineScript:
+          $ref: '#/components/schemas/PluginPipelineScriptDto'
+
+    PluginVariableDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        format:
+          type: string
+          enum: [STRING, NUMBER, BOOL, DATE]
+        description:
+          type: string
+        isExposed:
+          type: boolean
+        allowEmptyValue:
+          type: boolean
+        defaultValue:
+          type: string
+        value:
+          type: string
+        variableType:
+          type: string
+          enum: [INPUT, OUTPUT]
+        valueType:
+          type: string
+          enum: [NEW, FROM_PREVIOUS_STEP, GLOBAL]
+        previousStepIndex:
+          type: integer
+        variableStepIndex:
+          type: integer
+        variableStepIndexInPlugin:
+          type: integer
+        referenceVariableName:
+          type: string
+        pluginStepCondition:
+          type: array
+          items:
+            $ref: '#/components/schemas/PluginStepConditionDto'
+
+    PluginStepConditionDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        pluginStepId:
+          type: integer
+        conditionVariableId:
+          type: integer
+        conditionType:
+          type: string
+        conditionalOperator:
+          type: string
+        conditionalValue:
+          type: string
+
+    PluginPipelineScriptDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        script:
+          type: string
+        storeScriptAt:
+          type: string
+        type:
+          type: string
+          enum: [SHELL, DOCKERFILE, CONTAINER_IMAGE]
+        dockerfileExists:
+          type: boolean
+        mountPath:
+          type: string
+        mountCodeToContainer:
+          type: boolean
+        mountCodeToContainerPath:
+          type: string
+        mountDirectoryFromHost:
+          type: boolean
+        containerImagePath:
+          type: string
+        imagePullSecretType:
+          type: string
+          enum: [CONTAINER_REGISTRY, SECRET_PATH]
+        imagePullSecret:
+          type: string
+        pathArgPortMapping:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScriptPathArgPortMappingDto'
+
+    ScriptPathArgPortMappingDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        typeOfMapping:
+          type: string
+          enum: [FILE_PATH, DOCKER_ARG, PORT]
+        filePathOnDisk:
+          type: string
+        filePathOnContainer:
+          type: string
+        command:
+          type: string
+        args:
+          type: array
+          items:
+            type: string
+        portOnLocal:
+          type: integer
+        portOnContainer:
+          type: integer
+        scriptId:
+          type: integer
 
     PluginMinDto:
       type: object
@@ -534,6 +714,22 @@ components:
         appId:
           type: integer
           description: ID of the application
+        pluginIds:
+          type: array
+          items:
+            type: integer
+          description: Plugin version IDs to fetch
+        parentPluginIds:
+          type: array
+          items:
+            type: integer
+          description: Parent plugin IDs to fetch
+        fetchAllVersionDetails:
+          type: boolean
+          description: Include detailed data for every version instead of only requested or latest versions
+        fetchPluginSteps:
+          type: boolean
+          description: Include saved steps, scripts, variables, conditions, and mappings for detailed SHARED plugin versions
         parentPluginIdentifiers:
           type: array
           items:

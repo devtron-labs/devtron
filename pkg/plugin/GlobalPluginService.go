@@ -1753,6 +1753,116 @@ func (impl *GlobalPluginServiceImpl) GetPluginParentMetadataDtos(parentIdVsPlugi
 	return pluginParentMetadataDtos, nil
 }
 
+func buildPluginStepsByPluginId(pluginSteps []*repository.PluginStep, pluginStepVariables []*repository.PluginStepVariable,
+	pluginStepConditions []*repository.PluginStepCondition, pluginScripts []*repository.PluginPipelineScript,
+	scriptMappings []*repository.ScriptPathArgPortMapping) map[int][]*bean2.PluginStepsDto {
+	pluginStepsDto := adaptor.GetPluginStepsDtoFromDbObjects(pluginSteps)
+	pluginStepVariablesDto := adaptor.GetPluginStepVariablesDtoFromDbObjects(pluginStepVariables)
+	pluginStepConditionsDto := adaptor.GetPluginStepConditionsDtoFromDbObjects(pluginStepConditions)
+	pluginScriptsDto := adaptor.GetPluginPipelineScriptsDtoFromDbObjects(pluginScripts)
+	scriptMappingsDto := adaptor.GetScripPathArgPortMappingsDtoFromDbObjects(scriptMappings)
+
+	variableIdVsConditionsMap := helper2.GetVariableIdVsPluginStepConditionsMap(pluginStepConditionsDto)
+	for _, variable := range pluginStepVariablesDto {
+		variable.PluginStepCondition = variableIdVsConditionsMap[variable.Id]
+	}
+	pluginStepIdVsVariablesMap := helper2.GetPluginStepIdVsPluginStepVariablesMap(pluginStepVariablesDto)
+
+	scriptIdVsMappingsMap := helper2.GetScriptIdVsScriptArgsDetailsMap(scriptMappingsDto)
+	for _, script := range pluginScriptsDto {
+		script.PathArgPortMapping = scriptIdVsMappingsMap[script.Id]
+	}
+	scriptIdVsScriptMap := helper2.GetScriptIdVsPluginScript(pluginScriptsDto)
+
+	pluginIdVsStepsMap := make(map[int][]*bean2.PluginStepsDto)
+	for index, step := range pluginStepsDto {
+		step.PluginStepVariable = pluginStepIdVsVariablesMap[step.Id]
+		step.PluginPipelineScript = scriptIdVsScriptMap[step.ScriptId]
+		pluginId := pluginSteps[index].PluginId
+		pluginIdVsStepsMap[pluginId] = append(pluginIdVsStepsMap[pluginId], step)
+	}
+	return pluginIdVsStepsMap
+}
+
+func (impl *GlobalPluginServiceImpl) getPluginStepsByPluginIds(pluginIds []int) (map[int][]*bean2.PluginStepsDto, error) {
+	pluginSteps, err := impl.globalPluginRepository.GetStepsByPluginIds(pluginIds)
+	if err != nil {
+		impl.logger.Errorw("getPluginStepsByPluginIds, error in getting plugin steps", "pluginIds", pluginIds, "err", err)
+		return nil, err
+	}
+	if len(pluginSteps) == 0 {
+		return map[int][]*bean2.PluginStepsDto{}, nil
+	}
+
+	stepIds := make([]int, 0, len(pluginSteps))
+	scriptIds := make([]int, 0, len(pluginSteps))
+	seenScriptIds := make(map[int]bool, len(pluginSteps))
+	for _, step := range pluginSteps {
+		stepIds = append(stepIds, step.Id)
+		if step.ScriptId > 0 && !seenScriptIds[step.ScriptId] {
+			scriptIds = append(scriptIds, step.ScriptId)
+			seenScriptIds[step.ScriptId] = true
+		}
+	}
+
+	pluginStepVariables, err := impl.globalPluginRepository.GetVariablesByStepIds(stepIds)
+	if err != nil {
+		impl.logger.Errorw("getPluginStepsByPluginIds, error in getting plugin step variables", "stepIds", stepIds, "err", err)
+		return nil, err
+	}
+	pluginStepConditions, err := impl.globalPluginRepository.GetConditionsByStepIds(stepIds)
+	if err != nil {
+		impl.logger.Errorw("getPluginStepsByPluginIds, error in getting plugin step conditions", "stepIds", stepIds, "err", err)
+		return nil, err
+	}
+
+	var pluginScripts []*repository.PluginPipelineScript
+	var scriptMappings []*repository.ScriptPathArgPortMapping
+	if len(scriptIds) > 0 {
+		pluginScripts, err = impl.globalPluginRepository.GetScriptDetailByIds(scriptIds)
+		if err != nil {
+			impl.logger.Errorw("getPluginStepsByPluginIds, error in getting plugin scripts", "scriptIds", scriptIds, "err", err)
+			return nil, err
+		}
+		scriptMappings, err = impl.globalPluginRepository.GetScriptMappingDetailByScriptIds(scriptIds)
+		if err != nil {
+			impl.logger.Errorw("getPluginStepsByPluginIds, error in getting plugin script mappings", "scriptIds", scriptIds, "err", err)
+			return nil, err
+		}
+	}
+
+	return buildPluginStepsByPluginId(pluginSteps, pluginStepVariables, pluginStepConditions, pluginScripts, scriptMappings), nil
+}
+
+func (impl *GlobalPluginServiceImpl) populateCustomPluginSteps(pluginParentMetadataDtos []*bean2.PluginParentMetadataDto) error {
+	customPluginVersionIds := make([]int, 0)
+	for _, parentPlugin := range pluginParentMetadataDtos {
+		if parentPlugin.Type != string(repository.PLUGIN_TYPE_SHARED) || parentPlugin.Versions == nil {
+			continue
+		}
+		for _, version := range parentPlugin.Versions.DetailedPluginVersionData {
+			customPluginVersionIds = append(customPluginVersionIds, version.Id)
+		}
+	}
+	if len(customPluginVersionIds) == 0 {
+		return nil
+	}
+
+	pluginIdVsStepsMap, err := impl.getPluginStepsByPluginIds(customPluginVersionIds)
+	if err != nil {
+		return err
+	}
+	for _, parentPlugin := range pluginParentMetadataDtos {
+		if parentPlugin.Type != string(repository.PLUGIN_TYPE_SHARED) || parentPlugin.Versions == nil {
+			continue
+		}
+		for _, version := range parentPlugin.Versions.DetailedPluginVersionData {
+			version.PluginSteps = pluginIdVsStepsMap[version.Id]
+		}
+	}
+	return nil
+}
+
 func (impl *GlobalPluginServiceImpl) ListAllPluginsV2(filter *bean2.PluginsListFilter) (*bean2.PluginsDto, error) {
 	impl.logger.Infow("request received, ListAllPluginsV2", "filter", filter)
 	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins(true)
@@ -1872,6 +1982,13 @@ func (impl *GlobalPluginServiceImpl) GetPluginDetailV2(queryParams bean2.GlobalP
 	if err != nil {
 		impl.logger.Errorw("GetPluginDetailV2, error in getting plugin parent metadata dtos by pluginParentMetadata ids", "pluginParentMetadataIds", pluginParentMetadataIds, "err", err)
 		return nil, err
+	}
+	if queryParams.FetchPluginSteps {
+		err = impl.populateCustomPluginSteps(pluginParentMetadataDtos)
+		if err != nil {
+			impl.logger.Errorw("GetPluginDetailV2, error in getting custom plugin steps", "pluginParentMetadataIds", pluginParentMetadataIds, "err", err)
+			return nil, err
+		}
 	}
 
 	pluginsDto := bean2.NewPluginsDto().WithParentPlugins(pluginParentMetadataDtos)
@@ -2220,7 +2337,7 @@ func (impl *GlobalPluginServiceImpl) createNewPluginVersionOfExistingPlugin(tx *
 		return 0, err
 	}
 	// before saving new plugin version marking previous version's isLatest as false.
-	err = impl.globalPluginRepository.MarkPreviousPluginVersionLatestFalse(pluginParentMinData.Id)
+	err = impl.globalPluginRepository.MarkPreviousPluginVersionLatestFalse(pluginParentMinData.Id, tx)
 	if err != nil {
 		impl.logger.Errorw("createNewPluginVersionOfExistingPlugin, error in MarkPreviousPluginVersionLatestFalse", "pluginParentId", pluginDto.Id, "err", err)
 		return 0, err

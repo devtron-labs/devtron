@@ -387,6 +387,7 @@ type GlobalPluginRepository interface {
 	GetExposedVariablesByPluginId(pluginId int) ([]*PluginStepVariable, error)
 	GetExposedVariablesForAllPlugins() ([]*PluginStepVariable, error)
 	GetConditionsByStepId(stepId int) ([]*PluginStepCondition, error)
+	GetConditionsByStepIds(stepIds []int) ([]*PluginStepCondition, error)
 	GetPluginByName(pluginName string) ([]*PluginMetadata, error)
 	GetAllPluginMetaData() ([]*PluginMetadata, error)
 	GetPluginStepsByPluginId(pluginId int) ([]*PluginStep, error)
@@ -404,7 +405,7 @@ type GlobalPluginRepository interface {
 	GetAllPluginMinData() ([]*PluginParentMetadata, error)
 	GetAllPluginMinDataByType(pluginType string) ([]*PluginParentMetadata, error)
 	GetPluginParentMinDataById(id int) (*PluginParentMetadata, error)
-	MarkPreviousPluginVersionLatestFalse(pluginParentId int) error
+	MarkPreviousPluginVersionLatestFalse(pluginParentId int, tx *pg.Tx) error
 	GetPluginMetadataByPluginIdentifier(identifier string) (*PluginMetadata, error)
 
 	SavePluginMetadata(pluginMetadata *PluginMetadata, tx *pg.Tx) (*PluginMetadata, error)
@@ -545,7 +546,9 @@ func (impl *GlobalPluginRepositoryImpl) GetStepsByPluginIds(pluginIds []int) ([]
 	var pluginSteps []*PluginStep
 	err := impl.dbConnection.Model(&pluginSteps).
 		Where("deleted = ?", false).
-		Where("plugin_id in (?)", pg.In(pluginIds)).Select()
+		Where("plugin_id in (?)", pg.In(pluginIds)).
+		Order("plugin_id, index, id").
+		Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting plugin steps by pluginIds", "err", err, "pluginIds", pluginIds)
 		return nil, err
@@ -569,7 +572,9 @@ func (impl *GlobalPluginRepositoryImpl) GetScriptDetailByIds(ids []int) ([]*Plug
 	var scriptDetail []*PluginPipelineScript
 	err := impl.dbConnection.Model(&scriptDetail).
 		Where("id in (?)", pg.In(ids)).
-		Where("deleted = ?", false).Select()
+		Where("deleted = ?", false).
+		Order("id").
+		Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting script detail by ids", "ids", ids, "err", err)
 		return nil, err
@@ -593,7 +598,9 @@ func (impl *GlobalPluginRepositoryImpl) GetScriptMappingDetailByScriptIds(script
 	var scriptMappingDetail []*ScriptPathArgPortMapping
 	err := impl.dbConnection.Model(&scriptMappingDetail).
 		Where("script_id in (?)", pg.In(scriptIds)).
-		Where("deleted = ?", false).Select()
+		Where("deleted = ?", false).
+		Order("script_id, id").
+		Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting script mapping detail by id", "scriptIds", scriptIds, "err", err)
 		return nil, err
@@ -617,7 +624,9 @@ func (impl *GlobalPluginRepositoryImpl) GetVariablesByStepIds(stepIds []int) ([]
 	var variables []*PluginStepVariable
 	err := impl.dbConnection.Model(&variables).
 		Where("plugin_step_id in (?)", pg.In(stepIds)).
-		Where("deleted = ?", false).Select()
+		Where("deleted = ?", false).
+		Order("plugin_step_id, variable_step_index, id").
+		Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting variables by stepIds", "stepIds", stepIds, "err", err)
 		return nil, err
@@ -684,6 +693,20 @@ func (impl *GlobalPluginRepositoryImpl) GetConditionsByStepId(stepId int) ([]*Pl
 		Where("deleted = ?", false).Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting conditions by stepId", "err", err, "stepId", stepId)
+		return nil, err
+	}
+	return conditions, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) GetConditionsByStepIds(stepIds []int) ([]*PluginStepCondition, error) {
+	var conditions []*PluginStepCondition
+	err := impl.dbConnection.Model(&conditions).
+		Where("plugin_step_id in (?)", pg.In(stepIds)).
+		Where("deleted = ?", false).
+		Order("plugin_step_id, condition_variable_id, id").
+		Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting conditions by stepIds", "stepIds", stepIds, "err", err)
 		return nil, err
 	}
 	return conditions, nil
@@ -1039,9 +1062,9 @@ func (impl *GlobalPluginRepositoryImpl) GetAllPluginMinDataByType(pluginType str
 	return plugins, nil
 }
 
-func (impl *GlobalPluginRepositoryImpl) MarkPreviousPluginVersionLatestFalse(pluginParentId int) error {
+func (impl *GlobalPluginRepositoryImpl) MarkPreviousPluginVersionLatestFalse(pluginParentId int, tx *pg.Tx) error {
 	var model PluginMetadata
-	_, err := impl.dbConnection.Model(&model).
+	_, err := tx.Model(&model).
 		Set("is_latest = ?", false).
 		Where("id = (select id from plugin_metadata where plugin_parent_metadata_id = ? and is_latest =true order by created_on desc limit ?)", pluginParentId, 1).
 		Update()
