@@ -139,6 +139,15 @@ of options may be passed to these functions, and in any order, as the last
 argument(s).
 
 ```go
+WithCaseInsensitive()
+```
+
+WithCaseInsensitive is an option that can be passed to Glob, GlobWalk, or
+FilepathGlob. If passed, doublestar will treat all alphabetic characters as
+case insensitive (i.e. "a" in the pattern would match "a" or "A"). This is
+useful for platforms like Windows where paths are case insensitive by default.
+
+```go
 WithFailOnIOErrors()
 ```
 
@@ -319,6 +328,9 @@ If SplitPattern cannot find somewhere to split the pattern (for example,
 `meta*/**`), it will return "." and the unaltered pattern (`meta*/**` in this
 example).
 
+Note that SplitPattern will also unescape any meta characters in the returned
+base string, so that it can be passed straight to os.DirFS().
+
 Of course, it is your responsibility to decide if the returned base path is
 "safe" in the context of your application. Perhaps you could use Match() to
 validate against a list of approved base directories?
@@ -373,8 +385,9 @@ Character classes support the following:
 
 Class      | Meaning
 ---------- | -------
-`[abc]`    | matches any single character within the set
-`[a-z]`    | matches any single character in the range
+`[abc123]` | matches any single character within the set
+`[a-z0-9]` | matches any single character in the range a-z or 0-9
+`[125-79]` | matches any single character within the set 129, or the range 5-7
 `[^class]` | matches any single character which does *not* match the class
 `[!class]` | same as `^`: negates the class
 
@@ -413,8 +426,6 @@ I started this project in 2014 in my spare time and have been maintaining it
 ever since. In that time, it has grown into one of the most popular globbing
 libraries in the Go ecosystem. So, if **doublestar** is a useful library in
 your project, consider [sponsoring] my work! I'd really appreciate it!
-
-[![MASV](../sponsors/MASV.png?raw=true)](https://massive.io/)
 
 Thanks for sponsoring me!
 

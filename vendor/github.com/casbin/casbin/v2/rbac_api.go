@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/casbin/casbin/v2/rbac"
+
 	"github.com/casbin/casbin/v2/constant"
 	"github.com/casbin/casbin/v2/errors"
 	"github.com/casbin/casbin/v2/util"
@@ -231,8 +233,16 @@ func (e *Enforcer) HasPermissionForUser(user string, permission ...string) (bool
 func (e *Enforcer) GetImplicitRolesForUser(name string, domain ...string) ([]string, error) {
 	var res []string
 
-	for v := range e.rmMap {
-		roles, err := e.GetNamedImplicitRolesForUser(v, name, domain...)
+	for rm := range e.rmMap {
+		roles, err := e.GetNamedImplicitRolesForUser(rm, name, domain...)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, roles...)
+	}
+
+	for crm := range e.condRmMap {
+		roles, err := e.GetNamedImplicitRolesForUser(crm, name, domain...)
 		if err != nil {
 			return nil, err
 		}
@@ -252,63 +262,34 @@ func (e *Enforcer) GetImplicitRolesForUser(name string, domain ...string) ([]str
 // GetImplicitRolesForUser("alice") can only get: ["role:admin", "role:user"].
 // But GetNamedImplicitRolesForUser("g2", "alice") will get: ["role:admin2"].
 func (e *Enforcer) GetNamedImplicitRolesForUser(ptype string, name string, domain ...string) ([]string, error) {
-	var res []string
-
 	rm := e.GetNamedRoleManager(ptype)
 	if rm == nil {
 		return nil, fmt.Errorf("role manager %s is not initialized", ptype)
 	}
-	roleSet := make(map[string]bool)
-	roleSet[name] = true
-	q := make([]string, 0)
-	q = append(q, name)
 
-	for len(q) > 0 {
-		name := q[0]
-		q = q[1:]
-
-		roles, err := rm.GetRoles(name, domain...)
-		if err != nil {
-			return nil, err
-		}
-		for _, r := range roles {
-			if _, ok := roleSet[r]; !ok {
-				res = append(res, r)
-				q = append(q, r)
-				roleSet[r] = true
-			}
-		}
-	}
-
-	return res, nil
+	// Use the role manager's GetImplicitRoles method which respects maxHierarchyLevel
+	return rm.GetImplicitRoles(name, domain...)
 }
 
 // GetImplicitUsersForRole gets implicit users for a role.
 func (e *Enforcer) GetImplicitUsersForRole(name string, domain ...string) ([]string, error) {
 	res := []string{}
+	var rms []rbac.RoleManager
 
 	for _, rm := range e.rmMap {
-		roleSet := make(map[string]bool)
-		roleSet[name] = true
-		q := make([]string, 0)
-		q = append(q, name)
+		rms = append(rms, rm)
+	}
+	for _, crm := range e.condRmMap {
+		rms = append(rms, crm)
+	}
 
-		for len(q) > 0 {
-			name := q[0]
-			q = q[1:]
-
-			roles, err := rm.GetUsers(name, domain...)
-			if err != nil && err.Error() != "error: name does not exist" {
-				return nil, err
-			}
-			for _, r := range roles {
-				if _, ok := roleSet[r]; !ok {
-					res = append(res, r)
-					q = append(q, r)
-					roleSet[r] = true
-				}
-			}
+	for _, rm := range rms {
+		// Use the role manager's GetImplicitUsers method which respects maxHierarchyLevel
+		users, err := rm.GetImplicitUsers(name, domain...)
+		if err != nil && err.Error() != "error: name does not exist" {
+			return nil, err
 		}
+		res = append(res, users...)
 	}
 
 	return res, nil
@@ -434,6 +415,13 @@ func (e *Enforcer) GetDomainsForUser(user string) ([]string, error) {
 		}
 		domains = append(domains, domain...)
 	}
+	for _, crm := range e.condRmMap {
+		domain, err := crm.GetDomains(user)
+		if err != nil {
+			return nil, err
+		}
+		domains = append(domains, domain...)
+	}
 	return domains, nil
 }
 
@@ -545,6 +533,17 @@ func removeDuplicatePermissions(permissions [][]string) [][]string {
 // GetImplicitUsersForResource("data1") will return [[alice data1 read]]
 // Note: only users will be returned, roles (2nd arg in "g") will be excluded.
 func (e *Enforcer) GetImplicitUsersForResource(resource string) ([][]string, error) {
+	return e.GetNamedImplicitUsersForResource("g", resource)
+}
+
+// GetNamedImplicitUsersForResource return implicit user based on resource with named policy support.
+// This function handles resource role relationships through named policies (e.g., g2, g3, etc.).
+// for example:
+// p, admin_group, admin_data, *
+// g, admin, admin_group
+// g2, app, admin_data
+// GetNamedImplicitUsersForResource("g2", "app") will return users who have access to admin_data through g2 relationship.
+func (e *Enforcer) GetNamedImplicitUsersForResource(ptype string, resource string) ([][]string, error) {
 	permissions := make([][]string, 0)
 	subjectIndex, _ := e.GetFieldIndex("p", "sub")
 	objectIndex, _ := e.GetFieldIndex("p", "obj")
@@ -562,26 +561,35 @@ func (e *Enforcer) GetImplicitUsersForResource(resource string) ([][]string, err
 		isRole[role] = true
 	}
 
+	// Get all resource types that the resource can access through ptype (e.g., g2)
+	ptypePolicies, _ := e.GetNamedGroupingPolicy(ptype)
+	resourceAccessibleResourceTypes := make(map[string]bool)
+
+	for _, ptypePolicy := range ptypePolicies {
+		if ptypePolicy[0] == resource { // ptypePolicy[0] is the resource
+			resourceAccessibleResourceTypes[ptypePolicy[1]] = true // ptypePolicy[1] is the resource type it can access
+		}
+	}
+
 	for _, rule := range e.model["p"]["p"].Policy {
 		obj := rule[objectIndex]
-		if obj != resource {
-			continue
-		}
-
 		sub := rule[subjectIndex]
 
-		if !isRole[sub] {
-			permissions = append(permissions, rule)
-		} else {
-			users, err := rm.GetUsers(sub)
-			if err != nil {
-				return nil, err
-			}
+		// Check if this policy is directly for the resource OR for a resource type the resource can access
+		if obj == resource || resourceAccessibleResourceTypes[obj] {
+			if !isRole[sub] {
+				permissions = append(permissions, rule)
+			} else {
+				users, err := rm.GetUsers(sub)
+				if err != nil {
+					continue
+				}
 
-			for _, user := range users {
-				implicitUserRule := deepCopyPolicy(rule)
-				implicitUserRule[subjectIndex] = user
-				permissions = append(permissions, implicitUserRule)
+				for _, user := range users {
+					implicitUserRule := deepCopyPolicy(rule)
+					implicitUserRule[subjectIndex] = user
+					permissions = append(permissions, implicitUserRule)
+				}
 			}
 		}
 	}
@@ -641,4 +649,82 @@ func (e *Enforcer) GetImplicitUsersForResourceByDomain(resource string, domain s
 
 	res := removeDuplicatePermissions(permissions)
 	return res, nil
+}
+
+// GetImplicitObjectPatternsForUser returns all object patterns (with wildcards) that a user has for a given domain and action.
+// For example:
+// p, admin, chronicle/123, location/*, read
+// p, user, chronicle/456, location/789, read
+// g, alice, admin
+// g, bob, user
+//
+// GetImplicitObjectPatternsForUser("alice", "chronicle/123", "read") will return ["location/*"].
+// GetImplicitObjectPatternsForUser("bob", "chronicle/456", "read") will return ["location/789"].
+func (e *Enforcer) GetImplicitObjectPatternsForUser(user string, domain string, action string) ([]string, error) {
+	roles, err := e.GetImplicitRolesForUser(user, domain)
+	if err != nil {
+		return nil, err
+	}
+
+	subjects := append([]string{user}, roles...)
+	subjectIndex, _ := e.GetFieldIndex("p", constant.SubjectIndex)
+	domainIndex, _ := e.GetFieldIndex("p", constant.DomainIndex)
+	objectIndex, _ := e.GetFieldIndex("p", constant.ObjectIndex)
+	actionIndex, _ := e.GetFieldIndex("p", constant.ActionIndex)
+
+	patterns := make(map[string]struct{})
+	for _, rule := range e.model["p"]["p"].Policy {
+		sub := rule[subjectIndex]
+		matched := false
+		for _, subject := range subjects {
+			if sub == subject {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			continue
+		}
+
+		if !e.matchDomain(domainIndex, domain, rule) {
+			continue
+		}
+
+		ruleAction := rule[actionIndex]
+		if ruleAction != action && ruleAction != "*" {
+			continue
+		}
+
+		obj := rule[objectIndex]
+		patterns[obj] = struct{}{}
+	}
+
+	result := make([]string, 0, len(patterns))
+	for pattern := range patterns {
+		result = append(result, pattern)
+	}
+
+	return result, nil
+}
+
+// matchDomain checks if the domain matches the rule domain using pattern matching.
+func (e *Enforcer) matchDomain(domainIndex int, domain string, rule []string) bool {
+	if domainIndex < 0 || domain == "" {
+		return true
+	}
+	ruleDomain := rule[domainIndex]
+	if ruleDomain == domain {
+		return true
+	}
+	for _, rm := range e.rmMap {
+		if rm.Match(domain, ruleDomain) {
+			return true
+		}
+	}
+	for _, crm := range e.condRmMap {
+		if crm.Match(domain, ruleDomain) {
+			return true
+		}
+	}
+	return false
 }
