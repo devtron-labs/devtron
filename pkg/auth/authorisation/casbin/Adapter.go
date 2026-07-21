@@ -59,6 +59,21 @@ func setCasbinVersion() {
 	casbinVersion = CasbinV1
 }
 
+// buildCasbinSSLParams returns the libpq-style ssl parameters for the casbin data source.
+// An empty sslMode is mapped to "disable" so behaviour is unchanged unless PG_SSL_MODE is set
+// (libpq would otherwise default an empty sslmode to "prefer"). sslRootCert is appended for
+// verify-ca/verify-full (for AWS RDS this is the downloaded global-bundle.pem).
+func buildCasbinSSLParams(sslMode, sslRootCert string) string {
+	if sslMode == "" {
+		sslMode = "disable"
+	}
+	params := " sslmode=" + sslMode
+	if sslRootCert != "" {
+		params += " sslrootcert=" + sslRootCert
+	}
+	return params
+}
+
 func Create() (*casbin.SyncedEnforcer, error) {
 	setCasbinVersion()
 	if isV2() {
@@ -70,7 +85,7 @@ func Create() (*casbin.SyncedEnforcer, error) {
 		log.Println(err)
 		return nil, err
 	}
-	dataSource := fmt.Sprintf("dbname=%s user=%s password=%s host=%s port=%s sslmode=disable", config.CasbinDatabase, config.User, config.Password, config.Addr, config.Port)
+	dataSource := fmt.Sprintf("dbname=%s user=%s password=%s host=%s port=%s%s", config.CasbinDatabase, config.User, config.Password, config.Addr, config.Port, buildCasbinSSLParams(config.SslMode, config.SslRootCert))
 	a, err := xormadapter.NewAdapter("postgres", dataSource, true) // Your driver and data source.
 	if err != nil {
 		log.Println(err)
@@ -109,7 +124,7 @@ func CreateV2() (*casbinv2.SyncedEnforcer, error) {
 	if config.CasbinDatabase == CasbinDefaultDatabase {
 		dbSpecified = false
 	}
-	dataSource := fmt.Sprintf("dbname=%s user=%s password=%s host=%s port=%s sslmode=disable", config.CasbinDatabase, config.User, config.Password, config.Addr, config.Port)
+	dataSource := fmt.Sprintf("dbname=%s user=%s password=%s host=%s port=%s%s", config.CasbinDatabase, config.User, config.Password, config.Addr, config.Port, buildCasbinSSLParams(config.SslMode, config.SslRootCert))
 	a, err := xormadapter2.NewAdapter("postgres", dataSource, dbSpecified) // Your driver and data source.
 	if err != nil {
 		log.Println(err)

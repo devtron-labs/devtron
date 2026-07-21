@@ -4,6 +4,7 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/common-lib/utils/bean"
+	"github.com/devtron-labs/common-lib/utils/sql"
 	"github.com/go-pg/pg"
 	"log"
 )
@@ -23,6 +24,8 @@ type config struct {
 	Password        string `env:"PG_PASSWORD" envDefault:"" secretData:"-"`
 	Database        string `env:"PG_DATABASE" envDefault:"orchestrator"`
 	ApplicationName string `env:"APP" envDefault:"orchestrator"`
+	SslMode         string `env:"PG_SSL_MODE" envDefault:""`
+	SslRootCert     string `env:"PG_SSL_ROOT_CERT" envDefault:""`
 	bean.PgQueryMonitoringConfig
 	LocalDev bool `env:"RUNTIME_CONFIG_LOCAL_DEV" envDefault:"false"`
 }
@@ -49,12 +52,18 @@ func newDbConnection(databaseName string) (*pg.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+	tlsConfig, err := sql.BuildTLSConfig(cfg.SslMode, cfg.SslRootCert, cfg.Addr)
+	if err != nil {
+		log.Println("error in building tls config for orchestrator db ", "err", err)
+		return nil, err
+	}
 	options := pg.Options{
 		Addr:            cfg.Addr + ":" + cfg.Port,
 		User:            cfg.User,
 		Password:        cfg.Password,
 		Database:        cfg.Database,
 		ApplicationName: cfg.ApplicationName,
+		TLSConfig:       tlsConfig,
 	}
 	dbConnection := pg.Connect(&options)
 	//check db connection
