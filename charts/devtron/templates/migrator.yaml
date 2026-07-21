@@ -548,8 +548,6 @@ kind: Job
 metadata:
   namespace: devtroncd
   name: postgresql-create-databases-{{ randAlphaNum 5 | lower }}
-  annotations:
-    "helm.sh/hook": pre-install
 spec:
   activeDeadlineSeconds: 1500
   ttlSecondsAfterFinished: 1000
@@ -599,4 +597,108 @@ spec:
           image: {{ include "common.image" (dict "component" $.Values.components.postgres "global" $.Values.global "extraImage" $.Values.components.postgres.image ) }}
           name: postgresql-database-creator
       restartPolicy: OnFailure
+{{- end }}
+{{- if and $.Values.devtronEnterprise.enabled $.Values.devtronEnterprise.athenaApi.enabled }}
+---
+{{- if $.Capabilities.APIVersions.Has "batch/v1/Job" }}
+apiVersion: batch/v1
+{{- else }}
+apiVersion: batch/v1beta1
+{{- end }}
+kind: Job
+metadata:
+  name: postgresql-migrate-athena-{{ randAlphaNum 5 | lower }}
+spec:
+  template:
+    spec:
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.migrator.nodeSelector "tolerations" $.Values.components.migrator.tolerations "imagePullSecrets" $.Values.components.migrator.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      serviceAccountName: devtron-default-sa
+      {{- if and $.Values.global $.Values.global.podSecurityContext }}
+      securityContext:
+{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - name: create-athena-database
+          image: postgres:14
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Checking if database exists..."
+              psql "postgres://$(PG_USER):"$(DB_PASSWORD)"@$(PG_ADDR):$(PG_PORT)/postgres?sslmode=disable" \
+              -tc "SELECT 1 FROM pg_database WHERE datname='$PG_DATABASE'" \
+              | grep -q 1 || \
+              psql "postgres://$(PG_USER):"$(DB_PASSWORD)"@$(PG_ADDR):$(PG_PORT)/postgres?sslmode=disable" \
+              -c "CREATE DATABASE $PG_DATABASE;"
+          envFrom:
+            - secretRef:
+                name: postgresql-migrator
+            - configMapRef:
+                name: athena-api-cm
+            - configMapRef:
+                name: devtron-common-cm
+        - command:
+            - /bin/sh
+            - -c
+            - cp -r migrations/db_scripts/ /shared/
+          image: {{ include "common.image" (dict "component" $.Values.devtronEnterprise.athenaApi "global" $.Values.global) }}
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          name: migration-copy
+          envFrom:
+            - secretRef:
+                name: postgresql-migrator
+            - configMapRef:
+                name: athena-api-cm
+            - configMapRef:
+                name: devtron-common-cm
+          volumeMounts:
+            - mountPath: /shared
+              name: shared-volume
+      containers:
+        - command:
+            - /bin/sh
+            - -c
+            - 'if [ $(MIGRATE_TO_VERSION) -eq "0" ]; then migrate -path $(SCRIPT_LOCATION) -database postgres://$(PG_USER):$(DB_PASSWORD)@$(PG_ADDR):$(PG_PORT)/$(PG_DATABASE)?sslmode=disable up;  else   echo $(MIGRATE_TO_VERSION); migrate -path $(SCRIPT_LOCATION)  -database postgres://$(PG_USER):$(DB_PASSWORD)@$(PG_ADDR):$(PG_PORT)/$(PG_DATABASE)?sslmode=disable goto $(MIGRATE_TO_VERSION);    fi '
+          env:
+            - name: SCRIPT_LOCATION
+              value: /shared/db_scripts/
+            - name: DB_TYPE
+              value: postgres
+            - name: MIGRATE_TO_VERSION
+              value: "0"
+          envFrom:
+            - secretRef:
+                name: postgresql-migrator
+            - configMapRef:
+                name: athena-api-cm
+            - configMapRef:
+                name: devtron-common-cm
+          {{- if .image }}        
+          image: {{ include "common.image" (dict "component" $.Values.components.migrator "global" $.Values.global) }}
+          {{- else }}
+          image: migrate/migrate
+          {{- end }} 
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          name: postgresql-migrate-athena
+          volumeMounts:
+            - mountPath: /shared
+              name: shared-volume
+          {{- if .athenaApi }}
+          {{- if .athenaApi.resources }}        
+          resources:
+          {{- toYaml .athenaApi.resources | nindent 10 }}
+          {{- end }}
+          {{- end }}
+      restartPolicy: OnFailure
+      volumes:
+        - emptyDir: {}
+          name: shared-volume 
+  backoffLimit: 20
+  activeDeadlineSeconds: 1500
 {{- end }}

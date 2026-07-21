@@ -1,0 +1,107 @@
+{{- if and $.Values.devtronEnterprise.enabled $.Values.devtronEnterprise.athenaApi.enabled }}
+{{- with $.Values.devtronEnterprise.athenaApi }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: athena-api-service
+  labels:
+    app: athena-api
+spec:
+  type: ClusterIP
+  ports:
+    - name: app 
+      targetPort: app
+      protocol: TCP
+      port: 80
+  selector:
+    app: athena-api
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: athena-api
+  labels:
+    app: athena-api
+spec:
+  selector:
+    matchLabels:
+      app: athena-api
+  replicas: 1
+  minReadySeconds: 60
+  template:
+    metadata:
+      labels:
+        app: athena-api
+    spec:
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.devtronEnterprise.athenaApi.nodeSelector "tolerations" $.Values.devtronEnterprise.athenaApi.tolerations "imagePullSecrets" $.Values.devtronEnterprise.athenaApi.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      {{- include "common.podSecurityContext" (dict "podSecurityContext" $.Values.devtronEnterprise.athenaApi.podSecurityContext "global" $.Values.global) | indent 6 }}
+      terminationGracePeriodSeconds: 30
+      restartPolicy: Always
+      serviceAccountName: devtron
+      containers:
+      - name: athena-api
+        image: {{ include "common.image" (dict "component" $.Values.devtronEnterprise.athenaApi "global" $.Values.global) }}
+        {{- if  .imagePullPolicy }}
+        imagePullPolicy: {{ .imagePullPolicy }}
+        {{- end }}
+        {{- include "common.containerSecurityContext" (dict "containerSecurityContext" $.Values.components.devtron.containerSecurityContext "global" $.Values.global) | indent 8 }}
+        ports:
+          - name: app
+            containerPort: 8000
+            protocol: TCP
+        {{- if .resources }}
+        resources:
+        {{- toYaml .resources | nindent 10 }}
+        {{- end }}
+        envFrom:
+          - configMapRef:
+              name: athena-api-cm
+          - secretRef:
+              name: athena-api-secret
+          - configMapRef:
+              name: devtron-common-cm
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: {{ $.Values.devtronEnterprise.athenaApi.healthPort}}
+            scheme: HTTP
+          initialDelaySeconds: 20
+          periodSeconds: 300
+          successThreshold: 1
+          timeoutSeconds: 5
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: {{ $.Values.devtronEnterprise.athenaApi.healthPort}}
+            scheme: HTTP
+          initialDelaySeconds: 20
+          periodSeconds: 600
+          successThreshold: 1
+          timeoutSeconds: 5
+---
+apiVersion: v1
+data:
+  ARGOCD_OPTS: --grpc-web --insecure
+  ARGOCD_SERVER: argocd-server.devtroncd:80
+  DEVTRON_MCP_API_ENDPOINT: http://athena-mcp-engine-service.devtroncd/devtron/mcp
+  HOLMES_ENABLED: "true"
+  LLM_MAX_OUTPUT_TOKEN: "6000"
+  MAX_TOOL_RESPONSE_TOKENS: "3000"
+  CHAT_AGENT_MAX_TOOL_CALLS: "10"
+{{ toYaml $.Values.global.dbConfig | indent 2 }}
+{{- if .configs}}
+{{ toYaml $.Values.devtronEnterprise.athenaApi.configs | indent 2 }}
+{{- end }}
+  SERVICE_NAME: athena-api-service
+  SERVICE_PLATFORM: local
+  SERVICE_VERSION: 0.2.0
+kind: ConfigMap
+metadata:
+  labels:
+    app: athena-api-server
+  name: athena-api-cm
+  namespace: devtroncd
+{{- end }}
+{{- end }}
