@@ -23,8 +23,10 @@ data:
   FEATURE_STORAGE_ENABLE: "true"
   FEATURE_RESOURCE_WATCHER_ENABLE: "true"
   FEATURE_SOFTWARE_DISTRIBUTION_HUB_ENABLE: "true"
+{{- $.Values.devtronEnterprise.athenaApi.enabled }}
   FEATURE_AI_INTEGRATION_ENABLE: "true"
   FEATURE_ATHENA_DEBUG_MODE_ENABLE: "true"
+{{- end }}
 {{- end }}
 {{- if .config }}
   GA_ENABLED: {{ .config.analytics | default "false" | quote }}
