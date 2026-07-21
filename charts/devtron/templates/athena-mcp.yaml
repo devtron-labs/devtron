@@ -36,7 +36,7 @@ spec:
       {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.devtronEnterprise.athenaMcp.nodeSelector "tolerations" $.Values.devtronEnterprise.athenaMcp.tolerations "imagePullSecrets" $.Values.devtronEnterprise.athenaMcp.imagePullSecrets "global" $.Values.global) | indent 6 }}
       {{- include "common.podSecurityContext" (dict "podSecurityContext" $.Values.devtronEnterprise.athenaMcp.podSecurityContext "global" $.Values.global) | indent 6 }}
       restartPolicy: Always
-      serviceAccountName: devtron
+      serviceAccountName: devtron-default-sa
       terminationGracePeriodSeconds: 30
       containers:
       - name: athena-mcp-server
