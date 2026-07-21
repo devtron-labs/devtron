@@ -94,7 +94,7 @@ data:
 {{- if .configs}}
 {{ toYaml $.Values.devtronEnterprise.athenaApi.configs | indent 2 }}
 {{- end }}
-  SERVICE_NAME: athena-api
+  SERVICE_NAME: athena-api-service
   SERVICE_PLATFORM: local
   SERVICE_VERSION: 0.2.0
 kind: ConfigMap
