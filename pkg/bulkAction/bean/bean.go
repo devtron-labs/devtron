@@ -106,6 +106,8 @@ type BulkApplicationForEnvironmentPayload struct {
 	AppNamesExcludes []string `json:"appNamesExcludes,omitempty"`
 	UserId           int32    `json:"-"`
 	InvalidateCache  bool     `json:"invalidateCache"`
+	// confirmation name - should match environment name for additional confirmation
+	ConfirmationName *string `json:"confirmationName,omitempty"`
 }
 
 type BulkApplicationForEnvironmentResponse struct {
