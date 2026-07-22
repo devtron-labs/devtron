@@ -781,6 +781,36 @@
         }
       }
     },
+      "gpu": {
+          "type": "object",
+          "description": "GPU resource configuration",
+          "title": "GPU",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable GPU resources",
+              "title": "GPU Spec"
+            },
+            "provider": {
+              "type": "string",
+              "description": "GPU driver type e.g. nvidia.com/gpu, amd.com/gpu, intel.com/gpu"
+            },
+            "resources": {
+              "type": "object",
+              "description": "GPU resource requests and limits",
+              "properties": {
+                "limits": {
+                  "type": "string",
+                  "description": "GPU resource limits"
+                },
+                "requests": {
+                  "type": "string",
+                  "description": "GPU resource requests"
+                }
+              }
+            }
+          }
+        },
       "hostAliases":{
       "type": "array",
       "title": "hostAliases",
