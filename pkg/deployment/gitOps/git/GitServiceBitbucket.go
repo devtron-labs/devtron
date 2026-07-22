@@ -52,7 +52,16 @@ type GitBitbucketClient struct {
 }
 
 func NewGitBitbucketClient(username, token, host string, logger *zap.SugaredLogger, gitOpsHelper *GitOpsHelper, tlsConfig *tls.Config) GitBitbucketClient {
-	coreClient := bitbucket.NewBasicAuth(username, token)
+	// Bitbucket API tokens (the replacement for deprecated app passwords, CHANGE-3222)
+	// authenticate the REST API with the Atlassian account email, whereas git-over-HTTPS
+	// uses the Bitbucket username. gitops_config stores a single username (consumed by
+	// go-git for clone/push), so allow overriding just the REST client's username via
+	// BITBUCKET_REST_USERNAME. When unset, behaviour is unchanged.
+	restUsername := username
+	if v := os.Getenv("BITBUCKET_REST_USERNAME"); v != "" {
+		restUsername = v
+	}
+	coreClient := bitbucket.NewBasicAuth(restUsername, token)
 	httpClient := util.GetHTTPClientWithTLSConfig(tlsConfig)
 	coreClient.HttpClient = httpClient
 	logger.Infow("bitbucket client created", "clientDetails", coreClient)
