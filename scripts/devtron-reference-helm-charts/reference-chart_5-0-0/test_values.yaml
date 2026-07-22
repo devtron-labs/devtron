@@ -430,11 +430,11 @@ ConfigMaps:
 
 
 ConfigSecrets:
-  enabled: false
+  enabled: true
   secrets:
   - name: config-secret-1
     type: environment
-    external: false
+    external: true
     externalType: AWSSecretsManager
     esoSecretData:
       secretStore:
@@ -468,7 +468,7 @@ ConfigSecrets:
       key3: key3value-1
   - name: config-secret-2
     type: environment
-    external: false
+    external: true
     externalType: ESO_HashiCorpVault
     esoSecretData:
       secretStore:
