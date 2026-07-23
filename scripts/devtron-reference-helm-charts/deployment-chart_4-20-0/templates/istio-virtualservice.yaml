@@ -5,6 +5,8 @@ kind: VirtualService
 metadata:
   {{- if .virtualService.name }}
   name: {{ .virtualService.name }}
+  {{- else if $.Values.virtualServiceName }}
+  name: {{ $.Values.virtualServiceName }}
   {{- else }}
   name: {{ template ".Chart.Name .fullname" $ }}-virtualservice
   {{- end }}
@@ -34,7 +36,7 @@ spec:
     - {{ . | quote }}
   {{- end }}
 {{- end }}
-{{- if or .gateway.enabled .virtualService.hosts }}
+{{- if or .gateway.enabled .virtualService.hosts $.Values.virtualServiceHosts }}
   hosts:
   {{- if .gateway.enabled }}
   {{- if .gateway.host }}
@@ -48,6 +50,9 @@ spec:
   {{- range .virtualService.hosts }}
     - {{ . | quote }}
   {{- end }}
+  {{- range $.Values.virtualServiceHosts }}
+    - {{ . | quote }}
+  {{- end }}
 {{- else }}
   hosts: 
     - "{{  include ".servicename" $ }}.{{ $.Release.Namespace }}.svc.cluster.local"
@@ -55,6 +60,72 @@ spec:
 {{- if $.Values.istio.virtualService.http }}
   http: 
 {{ toYaml $.Values.istio.virtualService.http | indent 4 }}
+{{- end }}
+{{- end }}
+{{- end }}
+---
+{{- with .Values.istio }}
+{{- if and .enable .virtualService.enabled $.Values.secondaryWorkload.istio.virtualService.enabled }}
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  {{- if $.Values.secondaryWorkload.istio.virtualService.name }}
+  name: {{ $.Values.secondaryWorkload.istio.virtualService.name }}
+  {{- else if $.Values.secondaryWorkload.virtualServiceName }}
+  name: {{ $.Values.secondaryWorkload.virtualServiceName }}
+  {{- else }}
+  name: {{ $.Values.secondaryWorkload.fullnameOverride | default (printf "%s-%s" (include ".Chart.Name .fullname" $) ($.Values.secondaryWorkload.postfix | default "sec")) }}-virtualservice
+  {{- end }}
+  labels:
+    app: {{ template ".Chart.Name .name" $ }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
+{{- if $.Values.appLabels }}
+{{ toYaml $.Values.appLabels | indent 4 }}
+{{- end }}
+    {{- if $.Values.secondaryWorkload.istio.virtualService.labels }}
+{{ toYaml $.Values.secondaryWorkload.istio.virtualService.labels | indent 4 }}
+    {{- end }}
+{{- if $.Values.secondaryWorkload.istio.virtualService.annotations }}
+  annotations:
+{{ toYaml $.Values.secondaryWorkload.istio.virtualService.annotations | indent 4 }}
+{{- end }}
+spec:
+{{- if or .gateway.enabled $.Values.secondaryWorkload.istio.virtualService.gateways }}
+  gateways:
+  {{- if .gateway.enabled }} 
+    - {{ template ".Chart.Name .fullname" $ }}-istio-gateway
+  {{- end }}
+  {{- range $.Values.secondaryWorkload.istio.virtualService.gateways }}
+    - {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- if or .gateway.enabled $.Values.secondaryWorkload.istio.virtualService.hosts $.Values.secondaryWorkload.virtualServiceHosts }}
+  hosts:
+  {{- if .gateway.enabled }}
+  {{- if .gateway.host }}
+    - {{ .gateway.host | quote }}
+  {{- else if .gateway.hosts }}  
+{{- range .gateway.hosts }}
+    - {{ . | quote }}
+{{- end }} 
+  {{- end }}             
+  {{- end }}
+  {{- range $.Values.secondaryWorkload.istio.virtualService.hosts }}
+    - {{ . | quote }}
+  {{- end }}
+  {{- range $.Values.secondaryWorkload.virtualServiceHosts }}
+    - {{ . | quote }}
+  {{- end }}
+{{- else }}
+  hosts: 
+    - "{{ $.Values.secondaryWorkload.fullnameOverride | default (printf "%s-%s" (include ".Chart.Name .fullname" $) ($.Values.secondaryWorkload.postfix | default "sec")) }}-service.{{ $.Release.Namespace }}.svc.cluster.local"
+{{- end }}
+{{- if $.Values.secondaryWorkload.istio.virtualService.http }}
+  http: 
+{{ toYaml $.Values.secondaryWorkload.istio.virtualService.http | indent 4 }}
 {{- end }}
 {{- end }}
 {{- end }}
