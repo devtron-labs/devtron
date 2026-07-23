@@ -12,6 +12,9 @@ metadata:
   {{- else }}
   name: {{  template ".Chart.Name .fullname" $ }}-destinationrule
   {{- end }}
+  {{- if .destinationRule.namespace }}
+  namespace: {{ .destinationRule.namespace }}
+  {{- end }}
   labels:
     app: {{ template ".Chart.Name .name" $ }}
     appId: {{ $.Values.app | quote }}
