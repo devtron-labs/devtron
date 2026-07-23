@@ -93,7 +93,7 @@ func (impl LoggingMiddlewareImpl) LoggingMiddleware(next http.Handler) http.Hand
 		// Calculate response time
 		auditLogDto.ResponseTime = time.Since(startTime)
 		auditLogDto.ApiResponseCode = d.Status()
-		auditLogDto.RequestPayload = []byte(secretScanner.MaskSecretsOnString(string(auditLogDto.RequestPayload)))
+		auditLogDto.RequestPayload = []byte(secretScanner.MaskCredentialKeyValues(string(auditLogDto.RequestPayload)))
 
 		LogRequest(auditLogDto)
 	})
