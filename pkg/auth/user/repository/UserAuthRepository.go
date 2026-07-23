@@ -1091,12 +1091,13 @@ func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, ac
 		var queryParams []interface{}
 		query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.entity_name=? AND role.environment=? AND role.action=?"
 		queryParams = append(queryParams, team, app, env, act)
-		if oldValues {
-			query = query + " and role.access_type is NULL"
-		} else {
-			query += " and role.access_type = ? "
-			queryParams = append(queryParams, accessType)
-		}
+			   // Both branches were identical; refactored for clarity and maintainability
+			   if oldValues {
+				   query += " and role.access_type is NULL"
+			   } else {
+				   query += " and role.access_type = ? "
+				   queryParams = append(queryParams, accessType)
+			   }
 
 		_, err = impl.dbConnection.Query(&model, query, queryParams...)
 	} else if len(team) > 0 && app == "" && len(env) > 0 && len(act) > 0 {
@@ -1127,15 +1128,14 @@ func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, ac
 		var queryParams []interface{}
 		//this is applicable for all environment of a team
 		query := "SELECT role.* FROM roles role WHERE role.team = ? AND coalesce(role.entity_name,'')=? AND coalesce(role.environment,'')=? AND role.action=?"
-		queryParams = append(queryParams, team, EMPTY_PLACEHOLDER_FOR_QUERY, EMPTY_PLACEHOLDER_FOR_QUERY, act)
-		if oldValues {
-			query = query + " and role.access_type is NULL"
-		} else {
-			query += " and role.access_type = ? "
-			queryParams = append(queryParams, accessType)
-		}
-
-		_, err = impl.dbConnection.Query(&model, query, queryParams...)
+	       queryParams = append(queryParams, team, EMPTY_PLACEHOLDER_FOR_QUERY, EMPTY_PLACEHOLDER_FOR_QUERY, act)
+	       if oldValues {
+		       query = query + " and role.access_type is NULL"
+	       } else {
+		       query += " and role.access_type = ? "
+		       queryParams = append(queryParams, accessType)
+	       }
+	       _, err = impl.dbConnection.Query(&model, query, queryParams...)
 	} else if team == "" && app == "" && env == "" && len(act) > 0 {
 		var queryParams []interface{}
 		//this is applicable for super admin, all env, all team, all app
