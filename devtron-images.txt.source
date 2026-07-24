@@ -13,7 +13,7 @@ quay.io/devtron/clair:4.3.6
 quay.io/devtron/curl:7.73.0
 quay.io/devtron/dashboard:c7b89667-690-39290
 quay.io/devtron/devtron-utils:dup-chart-repo-v1.1.0
-quay.io/devtron/devtron:0874dcaf-434-39286
+quay.io/devtron/devtron:c6520431-434-39444
 quay.io/devtron/dex:v2.30.2
 quay.io/devtron/git-sensor:3b3d6d0e-200-39291
 quay.io/devtron/grafana:7.3.1
