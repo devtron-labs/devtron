@@ -20,6 +20,11 @@ import (
 	"context"
 	errors3 "errors"
 	"fmt"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -34,10 +39,6 @@ import (
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
-	"net/http"
-	"os"
-	"strings"
-	"time"
 )
 
 type GitOpsValidationService interface {
@@ -84,6 +85,10 @@ func NewGitOpsValidationServiceImpl(Logger *zap.SugaredLogger,
 }
 
 func (impl *GitOpsValidationServiceImpl) GitOpsValidateDryRun(isArgoModuleInstalled bool, config *apiBean.GitOpsConfigDto) apiBean.DetailedErrorGitOpsConfigResponse {
+	// Infer Bitbucket Cloud token-auth flow from the username (no frontend change needed). Done
+	// before the skip check so the create/update save path, which shares this config pointer,
+	// also sees the resolved auth mode.
+	bean2.ResolveBitbucketCloudAuthMode(config)
 	if config.AllowCustomRepository || !isArgoModuleInstalled {
 		return apiBean.DetailedErrorGitOpsConfigResponse{
 			ValidationSkipped: true,

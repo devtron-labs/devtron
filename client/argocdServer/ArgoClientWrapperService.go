@@ -20,6 +20,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
 	cluster2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
@@ -42,12 +46,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
+	gitBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type ACDConfig struct {
@@ -519,6 +521,17 @@ func (impl *ArgoClientWrapperServiceImpl) GetGitOpsRepoURLForApplication(ctx con
 func (impl *ArgoClientWrapperServiceImpl) createRepoInArgoCd(ctx context.Context, grpcConfig *bean.ArgoGRPCConfig, gitOpsRepoUrl string) error {
 	repo := &v1alpha1.Repository{
 		Repo: gitOpsRepoUrl,
+	}
+	// Pass credentials inline on the repository so ArgoCD's connectivity test authenticates
+	// directly, rather than depending on it resolving a prefix-scoped credential template (which
+	// the CreateRepository connectivity test does not do). For Bitbucket Cloud token modes this
+	// also supplies the fixed git username (x-token-auth / x-bitbucket-api-token-auth).
+	gitOpsConfig, gErr := impl.gitOpsConfigReadService.GetGitOpsProviderByRepoURL(gitOpsRepoUrl)
+	if gErr != nil {
+		impl.logger.Warnw("error getting gitops config for repo url; registering repo without inline creds", "url", gitOpsRepoUrl, "err", gErr)
+	} else if gitOpsConfig != nil {
+		repo.Username = gitBean.GitOpsRepoGitUsername(gitOpsConfig)
+		repo.Password = gitOpsConfig.Token
 	}
 	repo, err := impl.repositoryService.Create(ctx, grpcConfig, &repository2.RepoCreateRequest{Repo: repo, Upsert: true})
 	if err != nil {

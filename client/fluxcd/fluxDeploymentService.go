@@ -19,9 +19,13 @@ package fluxcd
 import (
 	"context"
 	"fmt"
+	"path"
+	"time"
+
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	gitBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/pkg/apis/meta"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
@@ -33,9 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
-	"path"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
 )
 
 type DeploymentService interface {
@@ -126,7 +128,9 @@ func (impl *DeploymentServiceImpl) upsertGitRepoSecret(ctx context.Context, flux
 	}
 
 	data := map[string][]byte{
-		"username": []byte(gitOpsConfig.Username),
+		// Bitbucket Cloud token modes need a fixed git username (x-token-auth / x-bitbucket-api-token-auth),
+		// not the stored account email — see GitOpsRepoGitUsername.
+		"username": []byte(gitBean.GitOpsRepoGitUsername(gitOpsConfig)),
 		"password": []byte(gitOpsConfig.Token),
 	}
 
