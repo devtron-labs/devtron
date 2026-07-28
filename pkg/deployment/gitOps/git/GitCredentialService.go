@@ -15,7 +15,6 @@ type GitCredentialService interface {
 type Credential struct {
 	Username string
 	Token    string
-	SSHKey   string
 }
 
 type GitCredentialServiceImpl struct {
@@ -33,7 +32,6 @@ func (impl *GitCredentialServiceImpl) GetCredentials(cfg *gitOps.GitOpsConfigDto
 	return Credential{
 		Username: getUsername(cfg),
 		Token:    cfg.Token,
-		SSHKey:   cfg.SshKey,
 	}
 }
 
