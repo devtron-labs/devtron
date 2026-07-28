@@ -17,67 +17,10 @@
 package bean
 
 import (
-	"strings"
-
 	"github.com/devtron-labs/devtron/api/bean"
-	apiGitOpsBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	git "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/commandManager"
 )
-
-// ResolveBitbucketCloudAuthMode infers the Bitbucket Cloud token-auth flow from the username the
-// user supplied, so the existing UI (which only collects username + token for Bitbucket Cloud) can
-// select app password / access token / API token without any frontend change. An explicit auth mode
-// (e.g. set directly via the API) always wins.
-//
-//	username == "x-token-auth"  -> access token (REST: Bearer, git: x-token-auth)
-//	username is an email (has @) -> API token   (REST: email:token, git: x-bitbucket-api-token-auth)
-//	otherwise                    -> app password (unchanged)
-func ResolveBitbucketCloudAuthMode(dto *apiGitOpsBean.GitOpsConfigDto) {
-	if dto == nil || strings.ToUpper(dto.Provider) != BITBUCKET_PROVIDER {
-		return
-	}
-	dto.AuthMode = bitbucketCloudAuthMode(dto.Username, dto.AuthMode)
-}
-
-// bitbucketCloudAuthMode derives the effective Bitbucket Cloud auth mode. An explicit token mode
-// (set via the API, or stored from a prior save) always wins; otherwise it is inferred from the
-// username. Keeping the inference here means GitOpsRepoGitUsername does NOT depend on
-// ResolveBitbucketCloudAuthMode having run upstream — a legacy config stored as PASSWORD with an
-// email/x-token-auth username still resolves correctly on read paths (e.g. ArgoCD/FluxCD).
-func bitbucketCloudAuthMode(username string, current apiGitOpsBean.AuthMode) apiGitOpsBean.AuthMode {
-	if !current.IsPassword() {
-		return current
-	}
-	switch {
-	case username == BITBUCKET_ACCESS_TOKEN_USERNAME:
-		return apiGitOpsBean.ACCESS_TOKEN
-	case strings.Contains(username, "@"):
-		return apiGitOpsBean.API_TOKEN
-	}
-	return current
-}
-
-// GitOpsRepoGitUsername returns the username to use for git-over-HTTPS auth against the GitOps repo.
-// This is the single source of truth for git credentials consumed by Devtron's own git operations,
-// the ArgoCD credential template + secret, and the FluxCD git secret. Bitbucket Cloud token modes
-// use a fixed git username that differs from the stored/REST username (the account email):
-//
-//	access token -> x-token-auth   |   API token -> x-bitbucket-api-token-auth
-func GitOpsRepoGitUsername(dto *apiGitOpsBean.GitOpsConfigDto) string {
-	if dto == nil {
-		return ""
-	}
-	if strings.ToUpper(dto.Provider) == BITBUCKET_PROVIDER {
-		switch bitbucketCloudAuthMode(dto.Username, dto.AuthMode) {
-		case apiGitOpsBean.ACCESS_TOKEN:
-			return BITBUCKET_ACCESS_TOKEN_USERNAME
-		case apiGitOpsBean.API_TOKEN:
-			return BITBUCKET_API_TOKEN_USERNAME
-		}
-	}
-	return dto.Username
-}
 
 type GitConfig struct {
 	GitlabGroupId        string //local
@@ -111,23 +54,39 @@ type PushChartToGitRequestDTO struct {
 	UserId            int32
 }
 
-func (cfg GitConfig) GetAuth() *git.BasicAuth {
+func bitBucketGitOpsHelperClient(cfg GitConfig) *git.BasicAuth {
 	username := cfg.GitUserName
+
 	// Bitbucket Cloud tokens use a fixed git-over-HTTPS username, not the account name:
 	//   - access token  -> `x-token-auth:<token>`              (REST API uses Bearer)
 	//   - API token      -> `x-bitbucket-api-token-auth:<token>` (REST API uses Basic email:token)
-	if cfg.GitProvider == BITBUCKET_PROVIDER {
-		switch cfg.AuthMode {
-		case constants.AUTH_MODE_ACCESS_TOKEN:
-			username = BITBUCKET_ACCESS_TOKEN_USERNAME
-		case constants.AUTH_MODE_API_TOKEN:
-			username = BITBUCKET_API_TOKEN_USERNAME
-		}
+	switch cfg.AuthMode {
+	case constants.AUTH_MODE_ACCESS_TOKEN:
+		username = BITBUCKET_ACCESS_TOKEN_USERNAME
+	case constants.AUTH_MODE_API_TOKEN:
+		username = BITBUCKET_API_TOKEN_USERNAME
 	}
+
 	return &git.BasicAuth{
 		Username: username,
 		Password: cfg.GitToken,
+		AuthMode: cfg.AuthMode,
 	}
+}
+
+func (cfg GitConfig) GetAuth() *git.BasicAuth {
+	username := cfg.GitUserName
+
+	if cfg.GitProvider == BITBUCKET_PROVIDER {
+		return bitBucketGitOpsHelperClient(cfg)
+	}
+
+	return &git.BasicAuth{
+		Username: username,
+		Password: cfg.GitToken,
+		AuthMode: cfg.AuthMode,
+	}
+
 }
 
 func (cfg GitConfig) GetTLSConfig() *bean.TLSConfig {

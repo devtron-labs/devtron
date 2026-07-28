@@ -88,7 +88,7 @@ func (impl *GitOpsValidationServiceImpl) GitOpsValidateDryRun(isArgoModuleInstal
 	// Infer Bitbucket Cloud token-auth flow from the username (no frontend change needed). Done
 	// before the skip check so the create/update save path, which shares this config pointer,
 	// also sees the resolved auth mode.
-	bean2.ResolveBitbucketCloudAuthMode(config)
+	//bean2.ResolveBitbucketCloudAuthMode(config)
 	if config.AllowCustomRepository || !isArgoModuleInstalled {
 		return apiBean.DetailedErrorGitOpsConfigResponse{
 			ValidationSkipped: true,

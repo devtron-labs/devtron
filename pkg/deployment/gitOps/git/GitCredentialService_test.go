@@ -25,12 +25,6 @@ func TestGitCredentialService(t *testing.T) {
 			wantToken:    "ghp_tok",
 		},
 		{
-			name:         "gitlab ssh returns configured username and ssh key",
-			cfg:          &apiGitOpsBean.GitOpsConfigDto{Provider: "GITLAB", Username: "git", AuthMode: apiGitOpsBean.SSH, SshKey: "PRIVATE-KEY"},
-			wantUsername: "git",
-			wantSSHKey:   "PRIVATE-KEY",
-		},
-		{
 			name:         "non-bitbucket with email username is NOT rewritten",
 			cfg:          &apiGitOpsBean.GitOpsConfigDto{Provider: "AZURE_DEVOPS", Username: "user@org.com", AuthMode: apiGitOpsBean.PASSWORD},
 			wantUsername: "user@org.com",
@@ -70,21 +64,6 @@ func TestGitCredentialService(t *testing.T) {
 			name:         "bitbucket password mode with plain username stays app-password username",
 			cfg:          &apiGitOpsBean.GitOpsConfigDto{Provider: bean.BITBUCKET_PROVIDER, Username: "plainuser", AuthMode: apiGitOpsBean.PASSWORD},
 			wantUsername: "plainuser",
-		},
-		{
-			name:         "bitbucket ssh mode is not rewritten to a token username",
-			cfg:          &apiGitOpsBean.GitOpsConfigDto{Provider: bean.BITBUCKET_PROVIDER, Username: "git", AuthMode: apiGitOpsBean.SSH, SshKey: "KEY"},
-			wantUsername: "git",
-			wantSSHKey:   "KEY",
-		},
-
-		// ---- Pass-through: token and ssh key are returned as-is ----
-		{
-			name:         "token and ssh key are passed through together",
-			cfg:          &apiGitOpsBean.GitOpsConfigDto{Provider: "GITHUB", Username: "u", AuthMode: apiGitOpsBean.PASSWORD, Token: "tok", SshKey: "key"},
-			wantUsername: "u",
-			wantToken:    "tok",
-			wantSSHKey:   "key",
 		},
 	}
 

@@ -88,6 +88,7 @@ type GitOpsConfigServiceImpl struct {
 	argoClientWrapperService argocdServer.ArgoClientWrapperService
 	clusterReadService       read.ClusterReadService
 	moduleReadService        moduleRead.ModuleReadService
+	gitCredentialService     git.GitCredentialService
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
@@ -104,7 +105,8 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
 	argoCDConfigGetter config2.ArgoCDConfigGetter,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	clusterReadService read.ClusterReadService,
-	moduleReadService moduleRead.ModuleReadService) *GitOpsConfigServiceImpl {
+	moduleReadService moduleRead.ModuleReadService,
+	gitCredentialService git.GitCredentialService) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
 		logger:                   Logger,
 		gitOpsRepository:         gitOpsRepository,
@@ -122,11 +124,12 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
 		argoClientWrapperService: argoClientWrapperService,
 		clusterReadService:       clusterReadService,
 		moduleReadService:        moduleReadService,
+		gitCredentialService:     gitCredentialService,
 	}
 }
 
 func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *apiBean.GitOpsConfigDto) (apiBean.DetailedErrorGitOpsConfigResponse, error) {
-	bean3.ResolveBitbucketCloudAuthMode(config)
+	//bean3.ResolveBitbucketCloudAuthMode(config)
 	argoModule, err := impl.moduleReadService.GetModuleInfoByName(moduleBean.ModuleNameArgoCd)
 	if err != nil && !errors.Is(err, moduleErr.ModuleNotFoundError) {
 		impl.logger.Errorw("error in getting argo module", "error", err)
@@ -175,7 +178,7 @@ func (impl *GitOpsConfigServiceImpl) updateArgoCdUserDetailIfNotPresent(argoModu
 }
 
 func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *apiBean.GitOpsConfigDto) (apiBean.DetailedErrorGitOpsConfigResponse, error) {
-	bean3.ResolveBitbucketCloudAuthMode(config)
+	//bean3.ResolveBitbucketCloudAuthMode(config)
 	isTokenEmpty := config.Token == ""
 	isTlsDetailsEmpty := config.EnableTLSVerification &&
 		(config.TLSConfig == nil ||
@@ -248,14 +251,17 @@ func (impl *GitOpsConfigServiceImpl) registerGitOpsClientConfig(ctx context.Cont
 		if err != nil {
 			return nil, err
 		}
+
+		credentials := impl.gitCredentialService.GetCredentials(request)
+		creds := &v1alpha1.RepoCreds{
+			URL:               request.Host,
+			Username:          credentials.Username,
+			Password:          model.Token.String(),
+			TLSClientCertData: model.TlsCert,
+			TLSClientCertKey:  model.TlsKey,
+		}
 		_, err = impl.argoClientWrapperService.CreateRepoCreds(ctx, &repocreds2.RepoCredsCreateRequest{
-			Creds: &v1alpha1.RepoCreds{
-				URL:               request.Host,
-				Username:          getGitOpsGitUsername(request),
-				Password:          model.Token.String(),
-				TLSClientCertData: model.TlsCert,
-				TLSClientCertKey:  model.TlsKey,
-			},
+			Creds:  creds,
 			Upsert: true,
 		})
 		if err != nil {
@@ -287,8 +293,9 @@ func (impl *GitOpsConfigServiceImpl) registerGitOpsClientConfig(ctx context.Cont
 			return nil, err
 		}
 		data := make(map[string][]byte)
-		data[gitOpsBean.USERNAME] = []byte(getGitOpsGitUsername(request))
-		data[gitOpsBean.PASSWORD] = []byte(request.Token)
+		credentials := impl.gitCredentialService.GetCredentials(request)
+		data[gitOpsBean.USERNAME] = []byte(credentials.Username)
+		data[gitOpsBean.PASSWORD] = []byte(credentials.Token)
 
 		if secret == nil {
 			secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, impl.aCDAuthConfig.GitOpsSecretName, "", client, nil, nil)
@@ -410,7 +417,7 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 	}
 	model := &repository.GitOpsConfig{
 		Provider:              strings.ToUpper(request.Provider),
-		Username:              request.Username,
+		Username:              resolveUserName(request),
 		Token:                 securestore.ToEncryptedString(request.Token),
 		GitLabGroupId:         request.GitLabGroupId,
 		GitHubOrgId:           request.GitHubOrgId,
@@ -535,14 +542,16 @@ func (impl *GitOpsConfigServiceImpl) patchGitOpsClientConfig(model *repository.G
 			return err
 		}
 
+		credentials := impl.gitCredentialService.GetCredentials(request)
+		creds := &v1alpha1.RepoCreds{
+			URL:               request.Host,
+			Username:          credentials.Username,
+			Password:          model.Token.String(),
+			TLSClientCertData: model.TlsCert,
+			TLSClientCertKey:  model.TlsKey,
+		}
 		_, err = impl.argoClientWrapperService.CreateRepoCreds(context.Background(), &repocreds2.RepoCredsCreateRequest{
-			Creds: &v1alpha1.RepoCreds{
-				URL:               request.Host,
-				Username:          getGitOpsGitUsername(request),
-				Password:          model.Token.String(),
-				TLSClientCertData: model.TlsCert,
-				TLSClientCertKey:  model.TlsKey,
-			},
+			Creds:  creds,
 			Upsert: true,
 		})
 		if err != nil {
@@ -575,8 +584,9 @@ func (impl *GitOpsConfigServiceImpl) patchGitOpsClientConfig(model *repository.G
 			return err
 		}
 		data := make(map[string][]byte)
-		data[gitOpsBean.USERNAME] = []byte(getGitOpsGitUsername(request))
-		data[gitOpsBean.PASSWORD] = []byte(request.Token)
+		credentials := impl.gitCredentialService.GetCredentials(request)
+		data[gitOpsBean.USERNAME] = []byte(credentials.Username)
+		data[gitOpsBean.PASSWORD] = []byte(credentials.Token)
 
 		if secret == nil {
 			secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, impl.aCDAuthConfig.GitOpsSecretName, "", client, nil, nil)
@@ -682,7 +692,7 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 	}
 
 	model.Provider = strings.ToUpper(request.Provider)
-	model.Username = request.Username
+	model.Username = resolveUserName(request)
 	model.Token = securestore.ToEncryptedString(request.Token)
 	model.GitLabGroupId = request.GitLabGroupId
 	model.GitHubOrgId = request.GitHubOrgId
@@ -773,6 +783,16 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 		return err
 	}
 	return nil
+}
+
+func resolveUserName(request *apiBean.GitOpsConfigDto) string {
+	if request.Provider == bean3.BITBUCKET_PROVIDER {
+		switch request.AuthMode {
+		case apiBean.ACCESS_TOKEN:
+			return bean3.BITBUCKET_ACCESS_TOKEN_USERNAME
+		}
+	}
+	return request.Username
 }
 
 func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigById(id int) (*apiBean.GitOpsConfigDto, error) {
@@ -962,9 +982,9 @@ func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request 
 	return repositoryCredentials
 }
 
-func getGitOpsGitUsername(request *apiBean.GitOpsConfigDto) string {
-	return bean3.GitOpsRepoGitUsername(request)
-}
+//func getGitOpsGitUsername(request *apiBean.GitOpsConfigDto) string {
+//	return bean3.GitOpsRepoGitUsername(request)
+//}
 
 func (impl *GitOpsConfigServiceImpl) createRepoElement(secretName string, request *apiBean.GitOpsConfigDto) *gitOpsBean.RepositoryCredentialsDto {
 	repoData := &gitOpsBean.RepositoryCredentialsDto{}

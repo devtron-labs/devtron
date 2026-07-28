@@ -46,7 +46,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
-	gitBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -158,6 +157,7 @@ type ArgoClientWrapperServiceImpl struct {
 	asyncRunnable           *async.Runnable
 	acdConfigGetter         config2.ArgoCDConfigGetter
 	argoK8sClient           ArgoK8sClient
+	gitCredentialService    git.GitCredentialService
 	*ArgoClientWrapperServiceEAImpl
 }
 
@@ -173,6 +173,7 @@ func NewArgoClientWrapperServiceImpl(
 	acdConfigGetter config2.ArgoCDConfigGetter,
 	ArgoClientWrapperServiceEAImpl *ArgoClientWrapperServiceEAImpl,
 	argoK8sClient ArgoK8sClient,
+	gitCredentialService git.GitCredentialService,
 ) *ArgoClientWrapperServiceImpl {
 	return &ArgoClientWrapperServiceImpl{
 		acdApplicationClient:           acdClient,
@@ -188,6 +189,7 @@ func NewArgoClientWrapperServiceImpl(
 		acdConfigGetter:                acdConfigGetter,
 		ArgoClientWrapperServiceEAImpl: ArgoClientWrapperServiceEAImpl,
 		argoK8sClient:                  argoK8sClient,
+		gitCredentialService:           gitCredentialService,
 	}
 }
 
@@ -517,11 +519,15 @@ func (impl *ArgoClientWrapperServiceImpl) GetGitOpsRepoURLForApplication(ctx con
 	return "", fmt.Errorf("unable to get any ArgoCd application '%s'", appName)
 }
 
+func buildArgoRepo(gitOpsRepoUrl string, credential git.Credential, repo *v1alpha1.Repository) {
+	repo.Repo = gitOpsRepoUrl
+	repo.Username = credential.Username
+	repo.Password = credential.Token
+}
+
 // createRepoInArgoCd is the wrapper function to Create Repository in ArgoCd
 func (impl *ArgoClientWrapperServiceImpl) createRepoInArgoCd(ctx context.Context, grpcConfig *bean.ArgoGRPCConfig, gitOpsRepoUrl string) error {
-	repo := &v1alpha1.Repository{
-		Repo: gitOpsRepoUrl,
-	}
+	repo := &v1alpha1.Repository{}
 	// Pass credentials inline on the repository so ArgoCD's connectivity test authenticates
 	// directly, rather than depending on it resolving a prefix-scoped credential template (which
 	// the CreateRepository connectivity test does not do). For Bitbucket Cloud token modes this
@@ -530,8 +536,11 @@ func (impl *ArgoClientWrapperServiceImpl) createRepoInArgoCd(ctx context.Context
 	if gErr != nil {
 		impl.logger.Warnw("error getting gitops config for repo url; registering repo without inline creds", "url", gitOpsRepoUrl, "err", gErr)
 	} else if gitOpsConfig != nil {
-		repo.Username = gitBean.GitOpsRepoGitUsername(gitOpsConfig)
-		repo.Password = gitOpsConfig.Token
+		credential := impl.gitCredentialService.GetCredentials(gitOpsConfig)
+		buildArgoRepo(gitOpsRepoUrl, credential, repo)
+	} else {
+		impl.logger.Errorw("error in creating argo Repository", "url", gitOpsRepoUrl)
+		return nil // TODO return a better error
 	}
 	repo, err := impl.repositoryService.Create(ctx, grpcConfig, &repository2.RepoCreateRequest{Repo: repo, Upsert: true})
 	if err != nil {
