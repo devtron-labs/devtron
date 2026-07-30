@@ -34,6 +34,7 @@ func ConvertGitOpsConfigToGitConfig(dto *bean2.GitOpsConfigDto) *bean.GitConfig 
 		BitbucketWorkspaceId:  dto.BitBucketWorkspaceId,
 		BitbucketProjectKey:   dto.BitBucketProjectKey,
 		EnableTLSVerification: dto.EnableTLSVerification,
+		AuthMode:              dto.AuthMode.ToInternalAuthMode(),
 	}
 	if dto.TLSConfig != nil {
 		config.CaCert = dto.TLSConfig.CaData
