@@ -428,6 +428,7 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 		BitBucketWorkspaceId:  request.BitBucketWorkspaceId,
 		BitBucketProjectKey:   request.BitBucketProjectKey,
 		EnableTLSVerification: request.EnableTLSVerification,
+		AuthMode:              request.AuthMode.ToInternalAuthMode(),
 		AuditLog:              sql.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
 
@@ -705,6 +706,7 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 	model.EnableTLSVerification = request.EnableTLSVerification
 	model.UpdatedBy = request.UserId
 	model.UpdatedOn = time.Now()
+	model.AuthMode = request.AuthMode.ToInternalAuthMode()
 
 	if request.EnableTLSVerification {
 		if len(request.TLSConfig.CaData) > 0 {
