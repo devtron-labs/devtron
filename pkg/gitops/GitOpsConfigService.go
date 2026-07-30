@@ -39,6 +39,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	repository2 "github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/read"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
@@ -861,6 +862,7 @@ func (impl *GitOpsConfigServiceImpl) GetAllGitOpsConfig() ([]*apiBean.GitOpsConf
 			IsCADataPresent:      len(model.CaCert) > 0,
 			IsTLSCertDataPresent: len(model.TlsCert) > 0,
 			IsTLSKeyDataPresent:  len(model.TlsKey) > 0,
+			AuthMode:             adapter.ToGitOpsSupportedModes(model.AuthMode),
 		}
 		configs = append(configs, config)
 	}
