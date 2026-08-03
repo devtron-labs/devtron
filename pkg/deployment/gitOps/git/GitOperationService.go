@@ -301,12 +301,12 @@ func (impl *GitOperationServiceImpl) CreateRepository(ctx context.Context, dto *
 		dto.UserEmailId = userEmailId
 		dto.Username = userName
 	}
-	gitOpsClient, _, err := impl.getGitOpsClientAndHelperForUrl(dto.Host)
-	if err != nil {
-		impl.logger.Errorw("error in getting git ops client", "err", err)
-		return "", false, false, err
-	}
-	repoUrl, isNew, isEmpty, detailedError := gitOpsClient.CreateRepository(ctx, dto)
+	//gitOpsClient, _, err := impl.getGitOpsClientAndHelperForUrl(dto.Host)
+	//if err != nil {
+	//	impl.logger.Errorw("error in getting git ops client", "err", err)
+	//	return "", false, false, err
+	//}
+	repoUrl, isNew, isEmpty, detailedError := impl.gitFactory.Client.CreateRepository(ctx, dto)
 	for _, err := range detailedError.StageErrorMap {
 		if err != nil {
 			impl.logger.Errorw("error in creating git project", "req", dto, "err", err)
