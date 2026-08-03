@@ -986,10 +986,6 @@ func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request 
 	return repositoryCredentials
 }
 
-//func getGitOpsGitUsername(request *apiBean.GitOpsConfigDto) string {
-//	return bean3.GitOpsRepoGitUsername(request)
-//}
-
 func (impl *GitOpsConfigServiceImpl) createRepoElement(secretName string, request *apiBean.GitOpsConfigDto) *gitOpsBean.RepositoryCredentialsDto {
 	repoData := &gitOpsBean.RepositoryCredentialsDto{}
 	repoData.Url = request.Host

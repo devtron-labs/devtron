@@ -301,11 +301,6 @@ func (impl *GitOperationServiceImpl) CreateRepository(ctx context.Context, dto *
 		dto.UserEmailId = userEmailId
 		dto.Username = userName
 	}
-	//gitOpsClient, _, err := impl.getGitOpsClientAndHelperForUrl(dto.Host)
-	//if err != nil {
-	//	impl.logger.Errorw("error in getting git ops client", "err", err)
-	//	return "", false, false, err
-	//}
 	repoUrl, isNew, isEmpty, detailedError := impl.gitFactory.Client.CreateRepository(ctx, dto)
 	for _, err := range detailedError.StageErrorMap {
 		if err != nil {
@@ -314,40 +309,6 @@ func (impl *GitOperationServiceImpl) CreateRepository(ctx context.Context, dto *
 		}
 	}
 	return repoUrl, isNew, isEmpty, nil
-}
-
-func (impl *GitOperationServiceImpl) getGitOpsClientAndHelperForUrl(inputRepoUrl string) (GitOpsClient, *GitOpsHelper, error) {
-	clientResp, helperResp := impl.gitFactory.Client, impl.gitFactory.GitOpsHelper //default is active. TODO : confirm check
-	for repoUrl, clientHelperObject := range impl.gitFactory.ClientHelperMap {
-		if clientHelperObject == nil {
-			continue
-		}
-		// Extract the scheme from the URL to distinguish between SSH (Other_Git_Ops)
-		// and HTTPS supported providers. This ensures inputRepoUrl and repoUrl are matched correctly.
-		// There are two cases:
-		// 1. SSH scheme -> Other_Git_Ops provider
-		// 2. HTTPS scheme -> All other supported providers
-
-		hostURL, scheme, err := globalUtil.GetHost(repoUrl)
-		if err != nil {
-			impl.logger.Debugw("error in parsing repoUrl, getGitOpsClientAndHelperForUrl", "repoUrl", repoUrl, "err", err)
-		}
-		inputHostURL, inputScheme, err := globalUtil.GetHost(inputRepoUrl)
-		if err != nil {
-			impl.logger.Debugw("error in parsing inputRepoUrl, getGitOpsClientAndHelperForUrl", "inputRepoUrl", inputRepoUrl, "err", err)
-		}
-		if len(hostURL) > 0 && len(inputHostURL) > 0 && scheme == inputScheme {
-			if strings.HasPrefix(inputHostURL, hostURL) {
-				clientResp = clientHelperObject.Client
-				helperResp = clientHelperObject.GitOpsHelper
-				if clientHelperObject.ClientCreationError != nil {
-					impl.logger.Errorw("error in creating client for repoUrl", "repoUrl", repoUrl, "err", clientHelperObject.ClientCreationError)
-					return clientResp, helperResp, clientHelperObject.ClientCreationError
-				}
-			}
-		}
-	}
-	return clientResp, helperResp, nil
 }
 
 func (impl *GitOperationServiceImpl) CloneChartForHelmApp(helmAppName, gitRepoUrl, targetRevision string) (string, error) {
