@@ -540,7 +540,7 @@ func (impl *ArgoClientWrapperServiceImpl) createRepoInArgoCd(ctx context.Context
 		buildArgoRepo(gitOpsRepoUrl, credential, repo)
 	} else {
 		impl.logger.Errorw("error in creating argo Repository", "url", gitOpsRepoUrl)
-		return nil // TODO return a better error
+		return fmt.Errorf("unable to create argo repository '%s'", gitOpsRepoUrl)
 	}
 	repo, err := impl.repositoryService.Create(ctx, grpcConfig, &repository2.RepoCreateRequest{Repo: repo, Upsert: true})
 	if err != nil {

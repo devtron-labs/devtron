@@ -125,7 +125,6 @@ func (impl *GitManagerBaseImpl) PullCli(ctx GitContext, rootDir string, branch s
 }
 
 func (impl *GitManagerBaseImpl) runCommandWithCred(cmd *exec.Cmd, auth *BasicAuth, tlsPathInfo *git_manager.TlsPathInfo) (response, errMsg string, err error) {
-	impl.logger.Debugw("Credentials:", "username", auth.Username, "password", auth.Password)
 	cmd.Env = append(os.Environ(),
 		fmt.Sprintf("GIT_ASKPASS=%s", GIT_ASK_PASS),
 		fmt.Sprintf("GIT_USERNAME=%s", auth.Username),
