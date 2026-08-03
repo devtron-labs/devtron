@@ -296,32 +296,55 @@ func (handler *PipelineConfigRestHandlerImpl) PatchCdPipeline(w http.ResponseWri
 	}
 
 	v := r.URL.Query()
-	forceDelete := false
-	cascadeDelete := true
 	force := v.Get("force")
 	cascade := v.Get("cascade")
-	if len(force) > 0 && len(cascade) > 0 {
-		handler.Logger.Errorw("request err, PatchCdPipeline", "err", fmt.Errorf("cannot perform both cascade and force delete"), "payload", cdPipeline)
+	foreground := v.Get("foregroundDelete")
+	if len(force) > 0 && len(cascade) > 0 && len(foreground) > 0 {
+		err = fmt.Errorf("cannot perform force, cascade and foreground delete together")
+		handler.Logger.Errorw("request err, PatchCdPipeline", "err", err, "payload", cdPipeline)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	} else if len(force) > 0 && len(cascade) > 0 {
+		err = fmt.Errorf("cannot perform both cascade and force delete")
+		handler.Logger.Errorw("request err, PatchCdPipeline", "err", err, "payload", cdPipeline)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	} else if len(foreground) > 0 && len(cascade) > 0 {
+		err = fmt.Errorf("cannot perform both cascade and foreground delete")
+		handler.Logger.Errorw("request err, PatchCdPipeline", "err", err, "payload", cdPipeline)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	} else if len(foreground) > 0 && len(force) > 0 {
+		err = fmt.Errorf("cannot perform both force and foreground delete")
+		handler.Logger.Errorw("request err, PatchCdPipeline", "err", err, "payload", cdPipeline)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if len(force) > 0 {
-		forceDelete, err = strconv.ParseBool(force)
+	if len(foreground) > 0 {
+		foregroundDelete, err := strconv.ParseBool(foreground)
 		if err != nil {
 			handler.Logger.Errorw("request err, PatchCdPipeline", "err", err, "payload", cdPipeline)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
+		cdPipeline.ForegroundDelete = &foregroundDelete
+	} else if len(force) > 0 {
+		forceDelete, err := strconv.ParseBool(force)
+		if err != nil {
+			handler.Logger.Errorw("request err, PatchCdPipeline", "err", err, "payload", cdPipeline)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		cdPipeline.ForceDelete = forceDelete
 	} else if len(cascade) > 0 {
-		cascadeDelete, err = strconv.ParseBool(cascade)
+		cascadeDelete, err := strconv.ParseBool(cascade)
 		if err != nil {
 			handler.Logger.Errorw("request err, PatchCdPipeline", "err", err, "payload", cdPipeline)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
+		cdPipeline.NonCascadeDelete = !cascadeDelete
 	}
-	cdPipeline.ForceDelete = forceDelete
-	cdPipeline.NonCascadeDelete = !cascadeDelete
 	handler.Logger.Infow("request payload, PatchCdPipeline", "payload", cdPipeline)
 	err = handler.validator.StructPartial(cdPipeline, "AppId", "Action")
 	if err == nil {
