@@ -65,6 +65,7 @@ func GetGitConfigAll(gitOpsConfigReadService config.GitOpsConfigReadService) ([]
 			TLSCert:               gitOpsConfig.TLSConfig.TLSCertData,
 			TLSKey:                gitOpsConfig.TLSConfig.TLSKeyData,
 			EnableTLSVerification: gitOpsConfig.EnableTLSVerification,
+			AuthMode:              gitOpsConfig.AuthMode.ToInternalAuthMode(),
 		})
 	}
 	return cfgs, nil

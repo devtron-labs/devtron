@@ -44,6 +44,7 @@ func GetGitOpsConfigBean(model *repository.GitOpsConfig) *apiGitOpsBean.GitOpsCo
 			TLSCertData: model.TlsCert,
 			TLSKeyData:  model.TlsKey,
 		},
+		AuthMode: ToGitOpsSupportedModes(model.AuthMode),
 	}
 }
 

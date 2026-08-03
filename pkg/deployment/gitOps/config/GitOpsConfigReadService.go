@@ -19,6 +19,10 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/http"
+	"regexp"
+	"strings"
+
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -36,9 +40,6 @@ import (
 	"github.com/devtron-labs/devtron/util/gitUtil"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"net/http"
-	"regexp"
-	"strings"
 )
 
 type GitOpsConfigReadService interface {
@@ -191,6 +192,7 @@ func (impl *GitOpsConfigReadServiceImpl) GetAllGitOpsConfig() ([]*bean2.GitOpsCo
 				TLSKeyData:  model.TlsKey,
 			},
 			EnableTLSVerification: model.EnableTLSVerification,
+			AuthMode:              adapter.ToGitOpsSupportedModes(model.AuthMode),
 		})
 	}
 	return configs, err
