@@ -2,7 +2,7 @@ name: "🐛 Bug Report"
 description: "Submit a bug report to help us improve"
 title: "Bug: "
 labels: ["bug", "needs-triage"] 
-assignees: ["prakarsh-dt","@vivek-devtron"]
+assignees: ["prakarsh-dt","vivek-devtron"]
 projects: ["Devtron Features Prioritization"]
 body:
   - type: markdown
