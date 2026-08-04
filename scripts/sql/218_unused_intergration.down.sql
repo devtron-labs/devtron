@@ -14,7 +14,7 @@ CREATE TABLE public.project_management_tool_config (
 );
 
 
-ALTER TABLE public.project_management_tool_config OWNER TO postgres;
+ALTER TABLE public.project_management_tool_config OWNER TO CURRENT_USER;
 
 --
 -- Name: project_management_tool_config_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
@@ -29,7 +29,7 @@ CREATE SEQUENCE public.project_management_tool_config_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.project_management_tool_config_id_seq OWNER TO postgres;
+ALTER TABLE public.project_management_tool_config_id_seq OWNER TO CURRENT_USER;
 
 --
 -- Name: project_management_tool_config_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
@@ -58,7 +58,7 @@ CREATE TABLE public.db_config (
 );
 
 
-ALTER TABLE public.db_config OWNER TO postgres;
+ALTER TABLE public.db_config OWNER TO CURRENT_USER;
 
 --
 -- Name: db_config_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
@@ -73,7 +73,7 @@ CREATE SEQUENCE public.db_config_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.db_config_id_seq OWNER TO postgres;
+ALTER TABLE public.db_config_id_seq OWNER TO CURRENT_USER;
 
 --
 -- Name: db_config_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
@@ -101,7 +101,7 @@ CREATE TABLE public.db_migration_config (
 );
 
 
-ALTER TABLE public.db_migration_config OWNER TO postgres;
+ALTER TABLE public.db_migration_config OWNER TO CURRENT_USER;
 
 --
 -- Name: db_migration_config_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
@@ -116,7 +116,7 @@ CREATE SEQUENCE public.db_migration_config_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.db_migration_config_id_seq OWNER TO postgres;
+ALTER TABLE public.db_migration_config_id_seq OWNER TO CURRENT_USER;
 
 --
 -- Name: db_migration_config_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres

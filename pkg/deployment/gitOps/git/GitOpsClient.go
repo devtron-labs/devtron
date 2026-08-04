@@ -19,13 +19,14 @@ package git
 import (
 	"context"
 	"crypto/tls"
+	"time"
+
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"time"
 )
 
 type GitOpsClient interface {
@@ -64,6 +65,7 @@ func GetGitConfigAll(gitOpsConfigReadService config.GitOpsConfigReadService) ([]
 			TLSCert:               gitOpsConfig.TLSConfig.TLSCertData,
 			TLSKey:                gitOpsConfig.TLSConfig.TLSKeyData,
 			EnableTLSVerification: gitOpsConfig.EnableTLSVerification,
+			AuthMode:              gitOpsConfig.AuthMode.ToInternalAuthMode(),
 		})
 	}
 	return cfgs, nil
@@ -91,7 +93,7 @@ func NewGitOpsClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitOpsHe
 		gitAzureClient, err := NewGitAzureClient(config.AzureToken, config.GitHost, config.AzureProject, logger, gitOpsHelper, tlsConfig)
 		return gitAzureClient, err
 	} else if config.GitProvider == bean.BITBUCKET_PROVIDER {
-		gitBitbucketClient := NewGitBitbucketClient(config.GitUserName, config.GitToken, config.GitHost, logger, gitOpsHelper, tlsConfig)
+		gitBitbucketClient := NewGitBitbucketClient(config.GitUserName, config.GitToken, config.GitHost, logger, gitOpsHelper, tlsConfig, config.AuthMode)
 		return gitBitbucketClient, nil
 	} else {
 		logger.Warn("no gitops config provided, gitops will not work")

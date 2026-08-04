@@ -591,8 +591,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		}(ctx.Done(), cn.CloseNotify())
 	}
 	defer cancel()
-	defer util.Close(stream, handler.logger)
-	handler.pump.StartK8sStreamWithHeartBeat(w, isReconnect, stream, err)
+	handler.pump.StartK8sStreamWithHeartBeat(ctx, w, isReconnect, stream, err)
 }
 
 func (handler *K8sApplicationRestHandlerImpl) DownloadPodLogs(w http.ResponseWriter, r *http.Request) {

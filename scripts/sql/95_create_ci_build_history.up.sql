@@ -21,7 +21,7 @@ CREATE TABLE public.git_material_history (
              REFERENCES public.git_material(id)
 );
 
-ALTER TABLE public.git_material_history OWNER TO postgres;
+ALTER TABLE public.git_material_history OWNER TO CURRENT_USER;
 
 
 CREATE SEQUENCE IF NOT EXISTS id_seq_ci_template_history;
@@ -66,7 +66,7 @@ CREATE TABLE public.ci_template_history (
 );
 
 
-ALTER TABLE public.ci_template OWNER TO postgres;
+ALTER TABLE public.ci_template OWNER TO CURRENT_USER;
 
 CREATE SEQUENCE IF NOT EXISTS id_seq_ci_pipeline_history;
 
