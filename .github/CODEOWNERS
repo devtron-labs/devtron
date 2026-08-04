@@ -3,15 +3,15 @@
 
 #Helm Charts
 charts/devtron/ @prakarsh-dt @vivek-devtron
-scripts/devtron-reference-helm-charts @prakarsh-dt
-CHANGELOG/ @prakarsh-dt
+scripts/devtron-reference-helm-charts @prakarsh-dt @vivek-devtron
+CHANGELOG/ @prakarsh-dt @vivek-devtron
 
 #Migration scripts
 scripts/sql @prakarsh-dt @vivek-devtron
 scripts/utilities @prakarsh-dt @vivek-devtron
 
 #Github Specific
-.github/ @prakarsh-dt @tayalrishabh96 @pawan-59
+.github/ @prakarsh-dt @tayalrishabh96 @pawan-59 @vivek-devtron
 
 #swagger api specs 
-specs/ @prakarsh-dt @pawan-59
+specs/ @prakarsh-dt @pawan-59 @vivek-devtron
