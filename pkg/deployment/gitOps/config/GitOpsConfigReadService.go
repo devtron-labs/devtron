@@ -19,7 +19,10 @@ package config
 import (
 	"errors"
 	"fmt"
-	bean3 "github.com/devtron-labs/devtron/api/bean"
+	"net/http"
+	"regexp"
+	"strings"
+
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -36,9 +39,6 @@ import (
 	"github.com/devtron-labs/devtron/util/gitUtil"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"net/http"
-	"regexp"
-	"strings"
 )
 
 type GitOpsConfigReadService interface {
@@ -171,27 +171,7 @@ func (impl *GitOpsConfigReadServiceImpl) GetAllGitOpsConfig() ([]*bean2.GitOpsCo
 	}
 	configs := make([]*bean2.GitOpsConfigDto, 0, len(models))
 	for _, model := range models {
-		configs = append(configs, &bean2.GitOpsConfigDto{
-			Id:                    model.Id,
-			Provider:              model.Provider,
-			GitHubOrgId:           model.GitHubOrgId,
-			GitLabGroupId:         model.GitLabGroupId,
-			Active:                model.Active,
-			Token:                 model.Token.String(),
-			Host:                  model.Host,
-			Username:              model.Username,
-			UserId:                model.CreatedBy,
-			AzureProjectName:      model.AzureProject,
-			BitBucketWorkspaceId:  model.BitBucketWorkspaceId,
-			BitBucketProjectKey:   model.BitBucketProjectKey,
-			AllowCustomRepository: model.AllowCustomRepository,
-			TLSConfig: &bean3.TLSConfig{
-				CaData:      model.CaCert,
-				TLSCertData: model.TlsCert,
-				TLSKeyData:  model.TlsKey,
-			},
-			EnableTLSVerification: model.EnableTLSVerification,
-		})
+		configs = append(configs, adapter.GetGitOpsConfigBean(model))
 	}
 	return configs, err
 }
