@@ -3,7 +3,7 @@ description: "Submit a bug that is impacting/blocking/limiting a Devtron functio
 title: "Bug: "
 labels: ["bug","pager-duty"]
 projects: ["Devtron Features Prioritization"]
-assignees: ["prakarsh-dt","vikramdevtron","kripanshdevtron","vivek-devtron"]
+assignees: ["prakarsh-dt","vivek-devtron"]
 body:
   - type: markdown
     attributes:
