@@ -19,9 +19,13 @@ package fluxcd
 import (
 	"context"
 	"fmt"
+	"path"
+	"time"
+
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/pkg/apis/meta"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
@@ -33,9 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
-	"path"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
 )
 
 type DeploymentService interface {
@@ -47,15 +49,18 @@ type DeploymentServiceImpl struct {
 	logger                  *zap.SugaredLogger
 	K8sUtil                 *k8s.K8sServiceImpl
 	gitOpsConfigReadService config.GitOpsConfigReadService
+	gitCredentialService    git.GitCredentialService
 }
 
 func NewDeploymentService(logger *zap.SugaredLogger,
 	K8sUtil *k8s.K8sServiceImpl,
-	gitOpsConfigReadService config.GitOpsConfigReadService) *DeploymentServiceImpl {
+	gitOpsConfigReadService config.GitOpsConfigReadService,
+	gitCredentialService git.GitCredentialService) *DeploymentServiceImpl {
 	return &DeploymentServiceImpl{
 		logger:                  logger,
 		K8sUtil:                 K8sUtil,
 		gitOpsConfigReadService: gitOpsConfigReadService,
+		gitCredentialService:    gitCredentialService,
 	}
 }
 
@@ -125,9 +130,12 @@ func (impl *DeploymentServiceImpl) upsertGitRepoSecret(ctx context.Context, flux
 		return nil, err
 	}
 
+	credential := impl.gitCredentialService.GetCredentials(gitOpsConfig)
 	data := map[string][]byte{
-		"username": []byte(gitOpsConfig.Username),
-		"password": []byte(gitOpsConfig.Token),
+		// Bitbucket Cloud token modes need a fixed git username (x-token-auth / x-bitbucket-api-token-auth),
+		// not the stored account email — see GitOpsRepoGitUsername.
+		"username": []byte(credential.Username),
+		"password": []byte(credential.Token),
 	}
 
 	labels := map[string]string{

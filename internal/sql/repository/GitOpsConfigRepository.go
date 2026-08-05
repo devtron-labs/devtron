@@ -18,6 +18,7 @@ package repository
 
 import (
 	"github.com/devtron-labs/common-lib/securestore"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
@@ -62,6 +63,7 @@ type GitOpsConfig struct {
 	TlsCert               string                      `sql:"tls_cert"`
 	TlsKey                string                      `sql:"tls_key"`
 	CaCert                string                      `sql:"ca_cert"`
+	AuthMode              constants.AuthMode          `sql:"auth_mode"`
 	sql.AuditLog
 }
 

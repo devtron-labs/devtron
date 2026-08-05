@@ -291,7 +291,7 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	helmAppClientImpl := gRPC.NewHelmAppClientImpl(sugaredLogger, helmClientConfig, configuration)
-	pumpImpl := connector.NewPumpImpl(sugaredLogger)
+	pumpImpl := connector.NewPumpImpl(sugaredLogger, runnable)
 	appRepositoryImpl := app.NewAppRepositoryImpl(db, sugaredLogger)
 	installedAppReadServiceEAImpl := read3.NewInstalledAppReadServiceEAImpl(sugaredLogger, installedAppRepositoryImpl)
 	dbMigrationServiceImpl := dbMigration.NewDbMigrationServiceImpl(sugaredLogger, appRepositoryImpl, installedAppReadServiceEAImpl)

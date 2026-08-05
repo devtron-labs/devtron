@@ -21,12 +21,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/common-lib/utils/retryFunc"
-	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
-	"github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/go-bitbucket"
-	"go.uber.org/zap"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -35,6 +29,14 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/devtron-labs/common-lib/utils/retryFunc"
+	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
+	"github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/go-bitbucket"
+	"go.uber.org/zap"
 )
 
 const (
@@ -51,8 +53,16 @@ type GitBitbucketClient struct {
 	gitOpsHelper *GitOpsHelper
 }
 
-func NewGitBitbucketClient(username, token, host string, logger *zap.SugaredLogger, gitOpsHelper *GitOpsHelper, tlsConfig *tls.Config) GitBitbucketClient {
+func NewGitBitbucketClient(username, token, host string, logger *zap.SugaredLogger, gitOpsHelper *GitOpsHelper, tlsConfig *tls.Config, authMode constants.AuthMode) GitBitbucketClient {
 	coreClient := bitbucket.NewBasicAuth(username, token)
+	if authMode == constants.AUTH_MODE_ACCESS_TOKEN {
+		// Bitbucket Cloud access tokens authenticate against the REST API with a Bearer header.
+		// (For git-over-HTTPS the `x-token-auth` username convention is used instead, see GetAuth.)
+		coreClient = bitbucket.NewOAuthbearerToken(token)
+	} else {
+		// App password or Atlassian API token: HTTP Basic auth (username/email + secret).
+		coreClient = bitbucket.NewBasicAuth(username, token)
+	}
 	httpClient := util.GetHTTPClientWithTLSConfig(tlsConfig)
 	coreClient.HttpClient = httpClient
 	logger.Infow("bitbucket client created", "clientDetails", coreClient)
