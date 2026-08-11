@@ -340,6 +340,7 @@ LivenessProbe:
   httpHeaders: []
 #    - name: Custom-Header
 #      value: abc
+  grpc: {}
 
 ReadinessProbe:
   Path: /
@@ -352,6 +353,7 @@ ReadinessProbe:
   httpHeaders: []
 #    - name: Custom-Header
 #      value: abc
+  grpc: {}
 
 StartupProbe:
   Path: ""
@@ -364,6 +366,7 @@ StartupProbe:
   httpHeaders: []
   command: []
   tcp: false
+  grpc: {}
 
 prometheus:
   release: monitoring

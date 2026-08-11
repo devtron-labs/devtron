@@ -157,6 +157,9 @@ LivenessProbe:
   httpHeaders: []
 #    - name: Custom-Header
 #      value: abc
+  grpc: {}
+    # port: 8000 # Port number of the gRPC service. Number must be in the range 1 to 65535.
+    # service: "" # Service is the name of the service to place in the gRPC HealthCheckRequest
 
 ReadinessProbe:
   Path: /
@@ -169,6 +172,9 @@ ReadinessProbe:
   httpHeaders: []
 #    - name: Custom-Header
 #      value: abc
+  grpc: {}
+    # port: 8000 # Port number of the gRPC service. Number must be in the range 1 to 65535.
+    # service: "" # Service is the name of the service to place in the gRPC HealthCheckRequest
 
 StartupProbe:
   Path: ""
@@ -181,6 +187,9 @@ StartupProbe:
   httpHeaders: []
   command: []
   tcp: false
+  grpc: {}
+    # port: 8000 # Port number of the gRPC service. Number must be in the range 1 to 65535.
+    # service: "" # Service is the name of the service to place in the gRPC HealthCheckRequest
 
 prometheus:
   release: monitoring
