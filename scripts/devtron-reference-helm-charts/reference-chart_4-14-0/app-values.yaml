@@ -5,6 +5,17 @@ rolloutAnnotations: {}
 
 replicaCount: 1
 MinReadySeconds: 60
+containerSpec:
+  lifecycle: 
+    enabled: false
+    preStop:
+      exec:
+        command: ["sleep","10"]
+    postStart:
+      httpGet:
+        host: example.com
+        path: /example
+        port: 90
 GracePeriod: 30
 image:
   pullPolicy: IfNotPresent
@@ -260,6 +271,7 @@ servicemonitor:
 envoyproxy:
   image: quay.io/devtron/envoy:v1.14.1
   configMapName: ""
+  lifecycle: {}
   resources:
     limits:
       cpu: 50m
