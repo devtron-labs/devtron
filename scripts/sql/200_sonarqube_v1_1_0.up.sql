@@ -35,7 +35,7 @@ VALUES (
     # Define sonarqube scan function
     SonarqubeScanFunction() {
     echo -e "\n********** Starting the scanning ************"
-    docker run --rm -e SONAR_HOST_URL=$SonarqubeEndpoint -e SONAR_LOGIN=$SonarqubeApiKey -v "/$PWD:/usr/src" sonarsource/sonar-scanner-cli
+    docker run --rm -e SONAR_HOST_URL=$SonarqubeEndpoint -e SONAR_TOKEN=$SonarqubeApiKey -v "/$PWD:/usr/src" sonarsource/sonar-scanner-cli:5.0.1
     SonarScanStatusCode=$?
     echo -e "\nStatus code of sonarqube scanning command : $SonarScanStatusCode"
     if [ "$SonarScanStatusCode" -ne 0 ]; then
@@ -96,6 +96,9 @@ VALUES (
     if [[ -z "$UsePropertiesFileFromProject" || $UsePropertiesFileFromProject == false ]]
     then
     echo "sonar.projectKey=$GlobalSonarqubeProjectName" > sonar-project.properties
+    else
+    echo "sonar.projectKey=$GlobalSonarqubeProjectName" > sonar-project.properties
+    echo "$SonarqubeExtraArgs" >> sonar-project.properties
     fi
     echo -e "\n********** Sonarqube Project Name : $GlobalSonarqubeProjectName , Sonarqube Branch name : $SonarqubeBranchName ***********"
     if [ -z "$GlobalSonarqubeProjectName" ] || [ -z "$SonarqubeBranchName" ]; then
@@ -145,8 +148,8 @@ VALUES (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadat
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Sonarqube v1.1.0' and ps."index"=1 and ps.deleted=false),'TotalSonarqubeIssues','STRING','Total issues in the scanned code result from the sum of vulnerabilities and high hotspots','t','f',false,null,'OUTPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Sonarqube v1.1.0' and ps."index"=1 and ps.deleted=false),'SonarqubeHighHotspots','STRING','Total number of SonarQube hotspots (HIGH) in the source code','t','f',false,null,'OUTPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Sonarqube v1.1.0' and ps."index"=1 and ps.deleted=false),'SonarqubeProjectStatus','STRING','Quality gate status of Sonarqube Project ,it may be "ERROR","OK" ,"NONE"','t','f',false,null,'OUTPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
-(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Sonarqube v1.1.0' and ps."index"=1 and ps.deleted=false),'SonarqubeVulnerabilities','STRING','Total number of SonarQube vulnerabilities in the source code','t','f',false,null,'OUTPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
-
+(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Sonarqube v1.1.0' and ps."index"=1 and ps.deleted=false),'SonarqubeVulnerabilities','STRING','Total number of SonarQube vulnerabilities in the source code','t','f',false,null,'OUTPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
+(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Sonarqube v1.1.0' and ps."index"=1 and ps.deleted=false),'SonarqubeExtraArgs','STRING','Define additional Sonar analysis parameters, each on a new line.','t','t',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
 
 INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value","value","variable_type", "value_type", "variable_step_index",reference_variable_name, "deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES
 (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Sonarqube v1.1.0' and ps."index"=1 and ps.deleted=false), 'GIT_MATERIAL_REQUEST','STRING','git material data',false,true,3,'INPUT','GLOBAL',1 ,'GIT_MATERIAL_REQUEST','f','now()', 1, 'now()', 1);
