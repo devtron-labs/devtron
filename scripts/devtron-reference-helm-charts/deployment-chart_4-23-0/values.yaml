@@ -509,8 +509,8 @@ gatewayApi:
 #          - name: my-service2
 #            port: 8080
 
-#  grpcRoute:
-#    enabled: false
+  grpcRoute:
+    enabled: false
 #    host: grpc.chart-example1.local
 #    sectionName: grpc
 #    service: myapp.v1.MyService
