@@ -1,0 +1,75 @@
+{{- with .Values.istio }}
+{{- if and .enable .virtualService.enabled }}
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  {{- if .virtualService.name }}
+  name: {{ .virtualService.name }}
+  {{- else }}
+  name: {{ template ".Chart.Name .fullname" $ }}-virtualservice
+  {{- end }}
+  {{- if .virtualService.namespace }}
+  namespace: {{ .virtualService.namespace }}
+  {{- end }}
+  labels:
+    app: {{ template ".Chart.Name .name" $ }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
+{{- if $.Values.appLabels }}
+{{ toYaml $.Values.appLabels | indent 4 }}
+{{- end }}
+    {{- if .virtualService.labels }}
+{{ toYaml .virtualService.labels | indent 4 }}
+    {{- end }}
+{{- if .virtualService.annotations }}
+  annotations:
+{{ toYaml .virtualService.annotations | indent 4 }}
+{{- end }}
+spec:
+{{- if or .gateway.enabled .virtualService.gateways }}
+  gateways:
+  {{- if .gateway.enabled }}
+  {{- if .gateway.name }}
+  - {{ .gateway.name }}
+  {{- else }}
+    - {{ template ".Chart.Name .fullname" $ }}-istio-gateway
+  {{- end }}
+  {{- end }}
+  {{- range .virtualService.gateways }}
+    - {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- if or .gateway.enabled .virtualService.hosts }}
+  hosts:
+  {{- if .gateway.enabled }}
+  {{- if .gateway.host }}
+    - {{ .gateway.host | quote }}
+  {{- else if .gateway.hosts }}  
+{{- range .gateway.hosts }}
+    - {{ . | quote }}
+{{- end }} 
+  {{- end }}             
+  {{- end }}
+  {{- range .virtualService.hosts }}
+    - {{ . | quote }}
+  {{- end }}
+{{- else }}
+  hosts:
+    {{- if $.Values.service.name }}
+    - {{ $.Values.service.name }}.{{ $.Release.Namespace }}.svc.cluster.local
+    {{- else }}
+    - "{{ include ".servicename" $ }}.{{ $.Release.Namespace }}.svc.cluster.local"
+    {{- end }}
+{{- end }}
+{{- if $.Values.istio.virtualService.http }}
+  http: 
+{{ toYaml $.Values.istio.virtualService.http | indent 4 }}
+{{- end }}
+{{- if $.Values.istio.virtualService.tcp }}
+  tcp:
+{{ toYaml $.Values.istio.virtualService.tcp | indent 4 }}
+{{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,144 @@
+{{ $svcName := include ".servicename" . }}
+{{ $svcPort := (index .Values.ContainerPort 0).servicePort }}
+{{- if $.Values.gatewayApi.enabled -}}
+{{- if not .Values.gatewayApi.parentRef.name }}
+{{- fail "gatewayApi.parentRef.name is required when gatewayApi.enabled=true - set it to the name of the platform-provisioned Gateway this app should attach to." }}
+{{- end }}
+{{- if not (or .Values.gatewayApi.host .Values.gatewayApi.hosts) }}
+{{- fail "gatewayApi.host (or gatewayApi.hosts) is required when gatewayApi.enabled=true - it is not inherited from ingress.host." }}
+{{- end }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ template ".Chart.Name .fullname" . }}-httproute
+  namespace: {{ $.Values.NameSpace }}
+  labels:
+    app: {{ template ".Chart.Name .name" . }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    chart: {{ template ".Chart.Name .chart" . }}
+    release: {{ .Release.Name }}
+{{- if .Values.appLabels }}
+{{ toYaml .Values.appLabels | indent 4 }}
+{{- end }}
+    {{- if .Values.gatewayApi.labels }}
+{{ toYaml .Values.gatewayApi.labels | indent 4 }}
+    {{- end }}
+{{- if .Values.gatewayApi.annotations }}
+  annotations:
+{{ toYaml .Values.gatewayApi.annotations | indent 4 }}
+{{- end }}
+spec:
+  parentRefs:
+    - name: {{ .Values.gatewayApi.parentRef.name }}
+      {{- if .Values.gatewayApi.parentRef.namespace }}
+      namespace: {{ .Values.gatewayApi.parentRef.namespace }}
+      {{- end }}
+      {{- if .Values.gatewayApi.parentRef.sectionName }}
+      sectionName: {{ .Values.gatewayApi.parentRef.sectionName }}
+      {{- end }}
+
+  {{- if .Values.gatewayApi.host }}
+  hostnames:
+    - {{ .Values.gatewayApi.host | quote }}
+  {{- else if .Values.gatewayApi.hosts }}
+  hostnames:
+    {{- range .Values.gatewayApi.hosts }}
+    - {{ .host | quote }}
+    {{- end }}
+  {{- end }}
+
+  {{- if .Values.gatewayApi.rawRules }}
+
+  rules:
+{{ toYaml .Values.gatewayApi.rawRules | indent 4 }}
+  {{- else }}
+  {{/* Simple shorthand: single path match, single backend - covers the common case */}}
+  rules:
+  {{- if or .Values.gatewayApi.host .Values.gatewayApi.path }}
+    - matches:
+        - path:
+            type: {{ .Values.gatewayApi.pathType | default "PathPrefix" }}
+            value: {{ .Values.gatewayApi.path | default "/" }}
+      {{- if .Values.gatewayApi.filters }}
+      filters:
+{{ toYaml .Values.gatewayApi.filters | indent 8 }}
+      {{- end }}
+      backendRefs:
+        - name: {{ $svcName }}
+          port: {{ $svcPort }}
+          {{- if .Values.gatewayApi.weight }}
+          weight: {{ .Values.gatewayApi.weight }}
+          {{- end }}
+  {{- end }}
+
+  {{- if and (.Values.gatewayApi.hosts) (not (.Values.gatewayApi.host)) }}
+  {{- range .Values.gatewayApi.hosts }}
+  {{- range .paths }}
+    - matches:
+        - path:
+            type: {{ $.Values.gatewayApi.pathType | default "PathPrefix" }}
+            value: {{ . }}
+      backendRefs:
+        - name: {{ $svcName }}
+          port: {{ $svcPort }}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+{{- end }}
+
+
+{{- if $.Values.gatewayApi.grpcRoute.enabled }}
+{{- if not .Values.gatewayApi.parentRef.name }}
+{{- fail "gatewayApi.parentRef.name is required when gatewayApi.grpcRoute.enabled=true" }}
+{{- end }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GRPCRoute
+metadata:
+  name: {{ template ".Chart.Name .fullname" . }}-grpcroute
+  namespace: {{ $.Values.NameSpace }}
+  labels:
+    app: {{ template ".Chart.Name .name" . }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    chart: {{ template ".Chart.Name .chart" . }}
+    release: {{ .Release.Name }}
+spec:
+  parentRefs:
+    - name: {{ .Values.gatewayApi.parentRef.name }}
+      {{- if .Values.gatewayApi.parentRef.namespace }}
+      namespace: {{ .Values.gatewayApi.parentRef.namespace }}
+      {{- end }}
+      {{- if .Values.gatewayApi.grpcRoute.sectionName }}
+      sectionName: {{ .Values.gatewayApi.grpcRoute.sectionName }}
+      {{- end }}
+
+  {{- if .Values.gatewayApi.grpcRoute.host }}
+  hostnames:
+    - {{ .Values.gatewayApi.grpcRoute.host | quote }}
+  {{- end }}
+
+  rules:
+    - matches:
+        {{- if .Values.gatewayApi.grpcRoute.service }}
+        - method:
+            service: {{ .Values.gatewayApi.grpcRoute.service }}
+            {{- if .Values.gatewayApi.grpcRoute.method }}
+            method: {{ .Values.gatewayApi.grpcRoute.method }}
+            {{- end }}
+        {{- end }}
+      backendRefs:
+        - name: {{ $svcName }}
+          port: {{ .Values.gatewayApi.grpcRoute.port | default $svcPort }}
+{{- end }}
+
+-----
+{{- if $.Values.gatewayApi.extraObjects }}
+{{- range .Values.gatewayApi.extraObjects }}
+---
+{{ toYaml . }}
+{{- end }}
+{{- end }}
