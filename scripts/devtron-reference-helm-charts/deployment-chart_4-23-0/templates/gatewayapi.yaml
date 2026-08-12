@@ -103,7 +103,7 @@ spec:
   Attaches to the SAME parentRef Gateway as the HTTPRoute above; a Gateway
   can serve both HTTP and gRPC traffic via separate route kinds.
 */}}
-{{- if $.Values.gatewayApi.grpcRoute.enabled }}
+{{- if and $.Values.gatewayApi.grpcRoute $.Values.gatewayApi.grpcRoute.enabled }}
 {{- if not .Values.gatewayApi.parentRef.name }}
 {{- fail "gatewayApi.parentRef.name is required when gatewayApi.grpcRoute.enabled=true" }}
 {{- end }}
