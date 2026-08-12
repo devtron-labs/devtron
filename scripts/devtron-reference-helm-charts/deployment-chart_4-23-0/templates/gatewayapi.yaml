@@ -1,11 +1,21 @@
 {{ $svcName := include ".servicename" . }}
 {{ $svcPort := (index .Values.ContainerPort 0).servicePort }}
+
+{{/*
+  Gateway API support for the Devtron deployment chart.
+    gatewayApi.parentRef.*       - shared: which platform Gateway to attach to
+    gatewayApi.labels/annotations - shared, applied to whichever route(s) render
+    gatewayApi.httpRoute.*       - HTTPRoute-specific config
+    gatewayApi.grpcRoute.*       - GRPCRoute-specific config (separate enable toggle)
+    
+*/}}
+
 {{- if $.Values.gatewayApi.enabled -}}
 {{- if not .Values.gatewayApi.parentRef.name }}
-{{- fail "gatewayApi.parentRef.name is required when gatewayApi.enabled=true - set it to the name of the platform-provisioned Gateway this app should attach to." }}
+{{- fail "gatewayApi.parentRef.name is required when gatewayApi.enabled=true. Set it to the name of the platform-provisioned Gateway this app should attach to." }}
 {{- end }}
-{{- if not (or .Values.gatewayApi.host .Values.gatewayApi.hosts) }}
-{{- fail "gatewayApi.host (or gatewayApi.hosts) is required when gatewayApi.enabled=true - it is not inherited from ingress.host." }}
+{{- if not (or .Values.gatewayApi.httpRoute.host .Values.gatewayApi.httpRoute.hosts) }}
+{{- fail "gatewayApi.httpRoute.host (or gatewayApi.httpRoute.hosts) is required when gatewayApi.enabled=true." }}
 {{- end }}
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -39,46 +49,45 @@ spec:
       sectionName: {{ .Values.gatewayApi.parentRef.sectionName }}
       {{- end }}
 
-  {{- if .Values.gatewayApi.host }}
+  {{- if .Values.gatewayApi.httpRoute.host }}
   hostnames:
-    - {{ .Values.gatewayApi.host | quote }}
-  {{- else if .Values.gatewayApi.hosts }}
+    - {{ .Values.gatewayApi.httpRoute.host | quote }}
+  {{- else if .Values.gatewayApi.httpRoute.hosts }}
   hostnames:
-    {{- range .Values.gatewayApi.hosts }}
+    {{- range .Values.gatewayApi.httpRoute.hosts }}
     - {{ .host | quote }}
     {{- end }}
   {{- end }}
 
-  {{- if .Values.gatewayApi.rawRules }}
-
+  {{- if .Values.gatewayApi.httpRoute.rawRules }}
   rules:
-{{ toYaml .Values.gatewayApi.rawRules | indent 4 }}
+{{ toYaml .Values.gatewayApi.httpRoute.rawRules | indent 4 }}
   {{- else }}
-  {{/* Simple shorthand: single path match, single backend - covers the common case */}}
+  {{/* Simple shorthand: single path match, single backend, covers the common case */}}
   rules:
-  {{- if or .Values.gatewayApi.host .Values.gatewayApi.path }}
+  {{- if or .Values.gatewayApi.httpRoute.host .Values.gatewayApi.httpRoute.path }}
     - matches:
         - path:
-            type: {{ .Values.gatewayApi.pathType | default "PathPrefix" }}
-            value: {{ .Values.gatewayApi.path | default "/" }}
-      {{- if .Values.gatewayApi.filters }}
+            type: {{ .Values.gatewayApi.httpRoute.pathType | default "PathPrefix" }}
+            value: {{ .Values.gatewayApi.httpRoute.path | default "/" }}
+      {{- if .Values.gatewayApi.httpRoute.filters }}
       filters:
-{{ toYaml .Values.gatewayApi.filters | indent 8 }}
+{{ toYaml .Values.gatewayApi.httpRoute.filters | indent 8 }}
       {{- end }}
       backendRefs:
         - name: {{ $svcName }}
           port: {{ $svcPort }}
-          {{- if .Values.gatewayApi.weight }}
-          weight: {{ .Values.gatewayApi.weight }}
+          {{- if .Values.gatewayApi.httpRoute.weight }}
+          weight: {{ .Values.gatewayApi.httpRoute.weight }}
           {{- end }}
   {{- end }}
 
-  {{- if and (.Values.gatewayApi.hosts) (not (.Values.gatewayApi.host)) }}
-  {{- range .Values.gatewayApi.hosts }}
+  {{- if and (.Values.gatewayApi.httpRoute.hosts) (not (.Values.gatewayApi.httpRoute.host)) }}
+  {{- range .Values.gatewayApi.httpRoute.hosts }}
   {{- range .paths }}
     - matches:
         - path:
-            type: {{ $.Values.gatewayApi.pathType | default "PathPrefix" }}
+            type: {{ $.Values.gatewayApi.httpRoute.pathType | default "PathPrefix" }}
             value: {{ . }}
       backendRefs:
         - name: {{ $svcName }}
@@ -89,7 +98,11 @@ spec:
   {{- end }}
 {{- end }}
 
-
+{{/*
+  Optional GRPCRoute - only rendered if the app explicitly enables it.
+  Attaches to the SAME parentRef Gateway as the HTTPRoute above; a Gateway
+  can serve both HTTP and gRPC traffic via separate route kinds.
+*/}}
 {{- if $.Values.gatewayApi.grpcRoute.enabled }}
 {{- if not .Values.gatewayApi.parentRef.name }}
 {{- fail "gatewayApi.parentRef.name is required when gatewayApi.grpcRoute.enabled=true" }}
@@ -106,6 +119,13 @@ metadata:
     envId: {{ $.Values.env | quote }}
     chart: {{ template ".Chart.Name .chart" . }}
     release: {{ .Release.Name }}
+{{- if .Values.gatewayApi.labels }}
+{{ toYaml .Values.gatewayApi.labels | indent 4 }}
+{{- end }}
+{{- if .Values.gatewayApi.annotations }}
+  annotations:
+{{ toYaml .Values.gatewayApi.annotations | indent 4 }}
+{{- end }}
 spec:
   parentRefs:
     - name: {{ .Values.gatewayApi.parentRef.name }}
@@ -120,7 +140,6 @@ spec:
   hostnames:
     - {{ .Values.gatewayApi.grpcRoute.host | quote }}
   {{- end }}
-
   rules:
     - matches:
         {{- if .Values.gatewayApi.grpcRoute.service }}
@@ -133,12 +152,4 @@ spec:
       backendRefs:
         - name: {{ $svcName }}
           port: {{ .Values.gatewayApi.grpcRoute.port | default $svcPort }}
-{{- end }}
-
------
-{{- if $.Values.gatewayApi.extraObjects }}
-{{- range .Values.gatewayApi.extraObjects }}
----
-{{ toYaml . }}
-{{- end }}
 {{- end }}
