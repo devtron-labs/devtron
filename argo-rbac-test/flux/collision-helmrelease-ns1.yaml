@@ -1,0 +1,30 @@
+# Deliberate name collision fixture.
+#
+# This HelmRelease shares its name AND namespace with the Kustomization in
+# flux/app1ns1.yaml (app-1 / devtroncd-ent-3).
+#
+# Because the RBAC object is <cluster>__<namespace>/<appName> with no resource-type
+# segment, both objects collapse to the SAME permission:
+#     devtroncd-ent-3__<cluster>/app-1        <- wait, order is <cluster>__<ns>/<app>
+#     <cluster>__devtroncd-ent-3/app-1
+#
+# Expected behaviour: granting on app-1 grants BOTH the Kustomization and the
+# HelmRelease. Verify that is acceptable — it is the accepted trade-off of dropping
+# the type segment, and it cannot be changed later without an arity change.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: app-1
+  namespace: devtroncd-ent-3
+spec:
+  interval: 10m
+  targetNamespace: wl-flux-5   # without this it installs INTO devtroncd-ent-3
+  install:
+    createNamespace: false     # namespaces.yaml owns it, so cleanup is predictable
+  chart:
+    spec:
+      chart: podinfo
+      version: '6.*'
+      sourceRef:
+        kind: HelmRepository
+        name: podinfo

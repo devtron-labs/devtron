@@ -1,0 +1,13 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: app-1
+  namespace: devtroncd-oss-2            # <- this is what lands in the RBAC object
+spec:
+  interval: 10m
+  prune: true
+  targetNamespace: wl-flux-3    # without this, podinfo deploys INTO devtroncd-oss-2
+  sourceRef:
+    kind: GitRepository
+    name: podinfo
+  path: ./kustomize
