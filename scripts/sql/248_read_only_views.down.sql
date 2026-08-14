@@ -1,0 +1,10 @@
+drop view IF EXISTS git_provider_view;
+drop view IF EXISTS gitops_config_view;
+drop view IF EXISTS cluster_view;
+drop view IF EXISTS sso_login_config_view;
+drop view IF EXISTS docker_artifact_store_view;
+drop view IF EXISTS ses_config_view;
+drop view IF EXISTS slack_config_view;
+drop view IF EXISTS smtp_config_view;
+drop view IF EXISTS webhook_config_view;
+drop table IF EXISTS pg_stat_activity_history CASCADE;
