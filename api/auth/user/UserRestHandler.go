@@ -19,13 +19,14 @@ package user
 import (
 	"encoding/json"
 	"errors"
+	"net/http"
+	"strconv"
+	"strings"
+
 	util2 "github.com/devtron-labs/devtron/api/auth/user/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	"github.com/devtron-labs/devtron/util/commonEnforcementFunctionsUtil"
 	"github.com/gorilla/schema"
-	"net/http"
-	"strconv"
-	"strings"
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -795,10 +796,31 @@ func (handler UserRestHandlerImpl) CheckUserRoles(w http.ResponseWriter, r *http
 	result := make(map[string]interface{})
 	result["roles"] = roles
 	result["superAdmin"] = false
+	result["hasArgoAppAccess"] = false
+	result["hasFluxAppAccess"] = false
 	for _, item := range roles {
 		if item == bean2.SUPERADMIN {
 			result["superAdmin"] = true
+			result["hasArgoAppAccess"] = true
+			result["hasFluxAppAccess"] = true
+			continue
 		}
+
+		roleFragments := strings.Split(item, "_")
+		resourceActionFragment := strings.Split(roleFragments[0], ":")
+
+		if len(resourceActionFragment) < 2 {
+			continue
+		}
+
+		if resourceActionFragment[0] == "argo-app" && (resourceActionFragment[1] == "admin" || resourceActionFragment[1] == "view") {
+			result["hasArgoAppAccess"] = true
+		}
+
+		if resourceActionFragment[0] == "flux-app" && (resourceActionFragment[1] == "admin" || resourceActionFragment[1] == "view") {
+			result["hasFluxAppAccess"] = true
+		}
+
 	}
 	common.WriteJsonResp(w, err, result, http.StatusOK)
 }

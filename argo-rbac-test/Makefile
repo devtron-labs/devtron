@@ -19,8 +19,36 @@ KUBECTL  = kubectl --context=$(CONTEXT)
 NS1     ?= devtroncd-ent-3
 NS2     ?= devtroncd-oss-2
 
+# ---------------------------------------------------------------------------
+# Migrations
+#
+# Two databases, two migration trees, both must be applied:
+#   scripts/sql     -> orchestrator DB  (roles, rbac_role_data, rbac_policy_data, ...)
+#   scripts/casbin  -> casbin DB        (casbin_rule: the super-admin p-lines)
+#
+# Connection settings default to this dev setup and are overridden by ../.env
+# if present, or by CLI args. Nothing needs passing for the normal case.
+# The template cache loads once at boot, so RESTART the orchestrator after
+# migrating or new rbac_role_data rows will not be picked up.
+# ---------------------------------------------------------------------------
+-include ../.env
+
+PG_ADDR         ?= localhost
+PG_PORT         ?= 5432
+PG_USER         ?= postgres
+PG_DATABASE     ?= orchestrator_oss_2
+CASBIN_DATABASE ?= casbin_oss_2
+STEPS           ?= 1
+
+SQL_DIR    := ../scripts/sql
+CASBIN_DIR := ../scripts/casbin
+ORCH_DSN    = postgres://$(PG_USER):$(PG_PASSWORD)@$(PG_ADDR):$(PG_PORT)/$(PG_DATABASE)?sslmode=disable
+CASBIN_DSN  = postgres://$(PG_USER):$(PG_PASSWORD)@$(PG_ADDR):$(PG_PORT)/$(CASBIN_DATABASE)?sslmode=disable
+
 .PHONY: help apply apply-argo apply-flux namespaces clean clean-argo clean-flux \
-        clean-namespaces status check-prereqs argo-crds argo-any-namespace
+        clean-namespaces status check-prereqs argo-crds argo-any-namespace \
+        migrate-check migrate-info migrate-up migrate-up-orchestrator migrate-up-casbin \
+        migrate-down migrate-down-orchestrator migrate-down-casbin migrate-force
 
 help:
 	@echo "Targets (all accept CONTEXT=<kube-context>):"
@@ -33,6 +61,12 @@ help:
 	@echo "  apply-flux          apply Flux sources, Kustomizations, collision HelmRelease"
 	@echo "  status              list what Devtron will see"
 	@echo "  clean               delete everything created here"
+	@echo ""
+	@echo "Migrations (override PG_* / CASBIN_DATABASE on the CLI):"
+	@echo "  migrate-info        show target databases and current versions"
+	@echo "  migrate-up          apply both trees (orchestrator + casbin)"
+	@echo "  migrate-down        roll back STEPS=1 on both trees"
+	@echo "  migrate-force       clear a dirty state: DB=orchestrator|casbin VERSION=n"
 
 check-prereqs:
 	@echo "== context: $(CONTEXT)"
@@ -111,3 +145,71 @@ clean-flux:
 
 clean-namespaces:
 	-$(KUBECTL) delete ns -l rbac-test=true --ignore-not-found
+
+# ---------------------------------------------------------------------------
+# Migration targets
+# ---------------------------------------------------------------------------
+
+migrate-check:
+	@command -v migrate >/dev/null 2>&1 || { \
+	  echo "golang-migrate not found. Install it:"; \
+	  echo "  brew install golang-migrate"; exit 1; }
+
+migrate-info: migrate-check
+	@echo "orchestrator : $(PG_USER)@$(PG_ADDR):$(PG_PORT)/$(PG_DATABASE)   <- $(SQL_DIR)"
+	@echo "casbin       : $(PG_USER)@$(PG_ADDR):$(PG_PORT)/$(CASBIN_DATABASE)   <- $(CASBIN_DIR)"
+	@if [ "$(CASBIN_DATABASE)" = "casbin" ]; then \
+	  echo ""; \
+	  echo "WARNING: CASBIN_DATABASE is the default 'casbin'. On a shared Postgres that"; \
+	  echo "         database is shared with every other developer's orchestrator."; \
+	  echo "         Set CASBIN_DATABASE=casbin_<yours> in ../.env before migrating."; \
+	fi
+	@echo ""
+	@echo "-- current versions --"
+	@printf "orchestrator : "; migrate -path $(SQL_DIR)    -database "$(ORCH_DSN)"   version 2>&1 || true
+	@printf "casbin       : "; migrate -path $(CASBIN_DIR) -database "$(CASBIN_DSN)" version 2>&1 || true
+
+migrate-up: migrate-up-orchestrator migrate-up-casbin
+	@echo ""
+	@echo "Both trees applied. Restart the orchestrator — rbac_role_data and"
+	@echo "rbac_policy_data are cached in memory at boot (UserCommonService.go:102)."
+
+migrate-up-orchestrator: migrate-check
+	@echo "== orchestrator ($(PG_DATABASE)) =="
+	@migrate -path $(SQL_DIR) -database "$(ORCH_DSN)" up
+
+# Forgetting this one is the classic failure: super-admins silently lose access
+# to the new resources, because there is no catch-all row in casbin_rule.
+migrate-up-casbin: migrate-check
+	@echo "== casbin ($(CASBIN_DATABASE)) =="
+	@migrate -path $(CASBIN_DIR) -database "$(CASBIN_DSN)" up
+
+# STEPS defaults to 1. Bare `migrate down` rolls back EVERYTHING, so it is never
+# used here.
+migrate-down: migrate-down-orchestrator migrate-down-casbin
+
+migrate-down-orchestrator: migrate-check
+	@echo "== orchestrator ($(PG_DATABASE)) down $(STEPS) =="
+	@migrate -path $(SQL_DIR) -database "$(ORCH_DSN)" down $(STEPS)
+
+# Guarded: rolling back the shared 'casbin' database would strip policies from
+# every orchestrator pointed at this Postgres. Override with I_KNOW=1.
+migrate-down-casbin: migrate-check
+	@if [ "$(CASBIN_DATABASE)" = "casbin" ] && [ "$(I_KNOW)" != "1" ]; then \
+	  echo "REFUSING: CASBIN_DATABASE=casbin is the shared database."; \
+	  echo "  Use your own (CASBIN_DATABASE=casbin_oss_2), or pass I_KNOW=1."; \
+	  exit 1; \
+	fi
+	@echo "== casbin ($(CASBIN_DATABASE)) down $(STEPS) =="
+	@migrate -path $(CASBIN_DIR) -database "$(CASBIN_DSN)" down $(STEPS)
+
+# A migration that fails partway leaves the version marked dirty and blocks all
+# further migrations. Clear it by forcing to the last known-good version:
+#   make migrate-force DB=orchestrator VERSION=36204600
+migrate-force: migrate-check
+	@test -n "$(VERSION)" || { echo "VERSION=<n> required"; exit 1; }
+	@case "$(DB)" in \
+	  orchestrator) migrate -path $(SQL_DIR)    -database "$(ORCH_DSN)"   force $(VERSION) ;; \
+	  casbin)       migrate -path $(CASBIN_DIR) -database "$(CASBIN_DSN)" force $(VERSION) ;; \
+	  *) echo "DB=orchestrator|casbin required"; exit 1 ;; \
+	esac
