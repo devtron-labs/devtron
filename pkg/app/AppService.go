@@ -23,7 +23,7 @@ import (
 	"strconv"
 	"time"
 
-	health2 "github.com/argoproj/gitops-engine/pkg/health"
+	health2 "github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
