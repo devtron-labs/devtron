@@ -32,7 +32,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/yaml"
 
-	enginecache "github.com/argoproj/gitops-engine/pkg/cache"
+	enginecache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
 	timeutil "github.com/argoproj/pkg/v2/time"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -502,8 +502,12 @@ const (
 	settingUIBannerPositionKey = "ui.bannerposition"
 	// settingsBinaryUrlsKey designates the key for the argocd binary URLs
 	settingsBinaryUrlsKey = "help.download"
-	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
+	// settingsSourceHydratorCommitMessageTemplateKey is the key for the hydrator commit message template
 	settingsSourceHydratorCommitMessageTemplateKey = "sourceHydrator.commitMessageTemplate"
+	// settingsCommitAuthorNameKey is the key for the commit author name
+	settingsCommitAuthorNameKey = "commit.author.name"
+	// settingsCommitAuthorEmailKey is the key for the commit author email
+	settingsCommitAuthorEmailKey = "commit.author.email"
 	// globalProjectsKey designates the key for global project settings
 	globalProjectsKey = "globalProjects"
 	// initialPasswordSecretName is the name of the secret that will hold the initial admin password
@@ -1059,6 +1063,22 @@ func (mgr *SettingsManager) GetSourceHydratorCommitMessageTemplate() (string, er
 	return argoCDCM.Data[settingsSourceHydratorCommitMessageTemplateKey], nil
 }
 
+func (mgr *SettingsManager) GetCommitAuthorName() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", err
+	}
+	return argoCDCM.Data[settingsCommitAuthorNameKey], nil
+}
+
+func (mgr *SettingsManager) GetCommitAuthorEmail() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", err
+	}
+	return argoCDCM.Data[settingsCommitAuthorEmailKey], nil
+}
+
 func addStatusOverrideToGK(resourceOverrides map[string]v1alpha1.ResourceOverride, groupKind string) {
 	if val, ok := resourceOverrides[groupKind]; ok {
 		val.IgnoreDifferences.JSONPointers = append(val.IgnoreDifferences.JSONPointers, "/status")
@@ -1193,7 +1213,7 @@ func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
 	}
 	helmOptions := &v1alpha1.HelmOptions{}
 	if value, ok := argoCDCM.Data[helmValuesFileSchemesKey]; ok {
-		for _, item := range strings.Split(value, ",") {
+		for item := range strings.SplitSeq(value, ",") {
 			if item := strings.TrimSpace(item); item != "" {
 				helmOptions.ValuesFileSchemes = append(helmOptions.ValuesFileSchemes, item)
 			}
@@ -1545,8 +1565,8 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 func getExtensionConfigs(cmData map[string]string) map[string]string {
 	result := make(map[string]string)
 	for k, v := range cmData {
-		if strings.HasPrefix(k, extensionConfig) {
-			extName := strings.TrimPrefix(strings.TrimPrefix(k, extensionConfig), ".")
+		if extName, found := strings.CutPrefix(k, extensionConfig); found {
+			extName = strings.TrimPrefix(extName, ".")
 			result[extName] = v
 		}
 	}
@@ -2156,7 +2176,7 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 			now := time.Now().UTC()
 			if adminAccount.PasswordHash == "" {
 				randBytes := make([]byte, initialPasswordLength)
-				for i := 0; i < initialPasswordLength; i++ {
+				for i := range initialPasswordLength {
 					num, err := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
 					if err != nil {
 						return err
@@ -2294,44 +2314,51 @@ func replaceStringSecret(val string, secretValues map[string]string, trimmer fun
 	return trimmer(secretVal)
 }
 
-// EscapeDollarSignsInMap recursively walks the given config map and escapes any
-// literal '$' characters in string values as '$$'. This should be called on a
-// connector's config sub-map after secret references have been resolved by
-// ReplaceMapSecrets. It protects resolved values from Dex's os.ExpandEnv
-// expansion (controlled by DEX_EXPAND_ENV, enabled by default), which is applied
-// to every string field in each connector's config block during unmarshalling.
-//
-// Scoped to connector configs only — Dex does NOT apply ExpandEnv to top-level
-// fields like issuer, web, oauth2, staticClients, logger, etc.
-//
-// See: https://github.com/argoproj/argo-cd/issues/27803
-func EscapeDollarSignsInMap(obj map[string]any) map[string]any {
+// EscapeDollarSignsInConnectorConfig escapes dollar signs in string values, ONLY if they are resolved from the
+// secrets map. This skips unresolved environment variable references from being escaped.
+// It protects resolved secret values from Dex's os.ExpandEnv expansion.
+func EscapeDollarSignsInConnectorConfig(obj map[string]any, secretValues map[string]string) map[string]any {
 	newObj := make(map[string]any, len(obj))
 	for k, v := range obj {
-		newObj[k] = escapeDollarSignsValue(v)
+		newObj[k] = escapeDollarSignsValueConsideringSecrets(v, secretValues)
 	}
 	return newObj
 }
 
-func escapeDollarSignsValue(v any) any {
+func escapeDollarSignsValueConsideringSecrets(v any, secretValues map[string]string) any {
 	switch val := v.(type) {
 	case map[string]any:
-		return EscapeDollarSignsInMap(val)
+		return EscapeDollarSignsInConnectorConfig(val, secretValues)
 	case []any:
-		return escapeDollarSignsInList(val)
+		return escapeDollarSignsInListConsideringSecrets(val, secretValues)
 	case string:
-		return strings.ReplaceAll(val, "$", "$$")
+		if !isUnresolvedEnvVarReference(val, secretValues) {
+			return strings.ReplaceAll(val, "$", "$$")
+		}
+		return val
 	default:
 		return val
 	}
 }
 
-func escapeDollarSignsInList(obj []any) []any {
+func escapeDollarSignsInListConsideringSecrets(obj []any, secretValues map[string]string) []any {
 	newObj := make([]any, len(obj))
 	for i, v := range obj {
-		newObj[i] = escapeDollarSignsValue(v)
+		newObj[i] = escapeDollarSignsValueConsideringSecrets(v, secretValues)
 	}
 	return newObj
+}
+
+func isUnresolvedEnvVarReference(val string, secretValues map[string]string) bool {
+	if !strings.HasPrefix(val, "$") {
+		return false
+	}
+	envVarName := val[1:]
+	if envVarName == "" {
+		return false
+	}
+	_, found := secretValues[envVarName]
+	return !found
 }
 
 // GetGlobalProjectsSettings loads the global project settings from argocd-cm ConfigMap
@@ -2415,8 +2442,7 @@ func (mgr *SettingsManager) GetSensitiveAnnotations() map[string]bool {
 	}
 
 	value = strings.ReplaceAll(value, " ", "")
-	keys := strings.Split(value, ",")
-	for _, k := range keys {
+	for k := range strings.SplitSeq(value, ",") {
 		annotationKeys[k] = true
 	}
 	return annotationKeys

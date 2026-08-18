@@ -18,7 +18,7 @@ package adapter
 
 import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"

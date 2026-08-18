@@ -30,6 +30,6 @@ const (
 	// KubernetesInternalAPIServerAddr is address of the k8s API server when accessing internal to the cluster
 	KubernetesInternalAPIServerAddr = "https://kubernetes.default.svc"
 
-	// KubernetesInClusterName is the name of the local in-cluster cluster
+	// KubernetesInClusterName is the default name for the in-cluster configuration
 	KubernetesInClusterName = "in-cluster"
 )
