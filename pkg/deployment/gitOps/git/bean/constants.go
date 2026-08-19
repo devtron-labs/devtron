@@ -30,4 +30,14 @@ const (
 	GITHUB_API_V3         = "api/v3"
 	GITHUB_HOST           = "github.com"
 	GIT_TLS_DIR           = "/tmp/gitops/tls"
+	// BITBUCKET_ACCESS_TOKEN_USERNAME is the fixed username Bitbucket Cloud expects for
+	// git-over-HTTPS when authenticating with a repository/project/workspace access token.
+	// Ref: https://support.atlassian.com/bitbucket-cloud/docs/using-access-tokens/
+	BITBUCKET_ACCESS_TOKEN_USERNAME = "x-token-auth"
+
+	// BITBUCKET_API_TOKEN_USERNAME is the fixed username Bitbucket Cloud expects for
+	// git-over-HTTPS when authenticating with an Atlassian API token. (The REST API, by
+	// contrast, uses the account email as the Basic-auth username — see NewGitBitbucketClient.)
+	// Ref: https://support.atlassian.com/bitbucket-cloud/docs/using-api-tokens/
+	BITBUCKET_API_TOKEN_USERNAME = "x-bitbucket-api-token-auth"
 )

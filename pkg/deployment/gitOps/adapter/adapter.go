@@ -19,6 +19,7 @@ package adapter
 import (
 	apiBean "github.com/devtron-labs/devtron/api/bean"
 	apiGitOpsBean "github.com/devtron-labs/devtron/api/bean/gitOps"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 )
 
@@ -43,5 +44,19 @@ func GetGitOpsConfigBean(model *repository.GitOpsConfig) *apiGitOpsBean.GitOpsCo
 			TLSCertData: model.TlsCert,
 			TLSKeyData:  model.TlsKey,
 		},
+		AuthMode: ToGitOpsSupportedModes(model.AuthMode),
 	}
+}
+
+func ToGitOpsSupportedModes(auth constants.AuthMode) apiGitOpsBean.AuthMode {
+	switch auth {
+	case constants.AUTH_MODE_USERNAME_PASSWORD:
+		return apiGitOpsBean.PASSWORD
+	case constants.AUTH_MODE_ACCESS_TOKEN:
+		return apiGitOpsBean.ACCESS_TOKEN
+	case constants.AUTH_MODE_API_TOKEN:
+		return apiGitOpsBean.API_TOKEN
+
+	}
+	return apiGitOpsBean.PASSWORD
 }

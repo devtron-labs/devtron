@@ -329,6 +329,8 @@
  | PG_PASSWORD | string |{password} | password for postgres, associated with PG_USER | confidential ;) | false |
  | PG_PORT | string |5432 | port of postgresql service | 5432 | false |
  | PG_READ_TIMEOUT | int64 |30 | Time out for read operation in postgres |  | false |
+ | PG_SSL_MODE | string | | ssl mode for postgres connection | disable, require, verify-ca, verify-full | false |
+ | PG_SSL_ROOT_CERT | string | | path to the PEM CA bundle, required for verify-ca/verify-full ssl modes (for AWS RDS use the downloaded global-bundle.pem) | /etc/devtron/certs/rds-ca-bundle.pem | false |
  | PG_USER | string |postgres | user for postgres | postgres | false |
  | PG_WRITE_TIMEOUT | int64 |30 | Time out for write operation in postgres |  | false |
 

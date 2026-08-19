@@ -36,6 +36,9 @@ var GitOpsWireSet = wire.NewSet(
 
 	validation.NewGitOpsValidationServiceImpl,
 	wire.Bind(new(validation.GitOpsValidationService), new(*validation.GitOpsValidationServiceImpl)),
+
+	git.NewGitCredentialServiceImpl,
+	wire.Bind(new(git.GitCredentialService), new(*git.GitCredentialServiceImpl)),
 )
 
 var GitOpsEAWireSet = wire.NewSet(

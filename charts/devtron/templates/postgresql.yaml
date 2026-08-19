@@ -314,6 +314,7 @@ data:
     create database git_sensor;
     create database lens;
     create database clairv4;
+    create database athena;
 ---
 # Source: devtron-operator/templates/postgresql.yaml
 apiVersion: v1
