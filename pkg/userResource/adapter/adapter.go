@@ -30,7 +30,7 @@ func BuildFetchAppListingReqForJobFromDto(reqBean *bean2.ResourceOptionsReqDto) 
 }
 
 func ArgoAppToExternalGitOpsApp(applications []*bean3.ArgoApplicationListDto) []*bean.ExternalGitOpsAppDto {
-	result := make([]*bean.ExternalGitOpsAppDto, len(applications))
+	result := make([]*bean.ExternalGitOpsAppDto, 0, len(applications))
 	for _, application := range applications {
 		appDto := bean.ExternalGitOpsAppDto{
 			AppName:     application.Name,
@@ -45,7 +45,7 @@ func ArgoAppToExternalGitOpsApp(applications []*bean3.ArgoApplicationListDto) []
 }
 
 func FluxAppToExternalGitOpsApp(applications []bean4.FluxApplication) []*bean.ExternalGitOpsAppDto {
-	result := make([]*bean.ExternalGitOpsAppDto, len(applications))
+	result := make([]*bean.ExternalGitOpsAppDto, 0, len(applications))
 	for _, application := range applications {
 		appDto := bean.ExternalGitOpsAppDto{
 			AppName:     application.Name,

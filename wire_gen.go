@@ -1109,7 +1109,7 @@ func InitializeApp() (*App, error) {
 	fluxApplicationRouterImpl := fluxApplication2.NewFluxApplicationRouterImpl(fluxApplicationRestHandlerImpl)
 	scanningResultRestHandlerImpl := resourceScan.NewScanningResultRestHandlerImpl(sugaredLogger, userServiceImpl, imageScanServiceImpl, enforcerImpl, enforcerUtilImpl, validate)
 	scanningResultRouterImpl := resourceScan.NewScanningResultRouterImpl(scanningResultRestHandlerImpl)
-	userResourceExtendedServiceImpl := userResource.NewUserResourceExtendedServiceImpl(sugaredLogger, teamServiceImpl, environmentServiceImpl, appCrudOperationServiceImpl, chartGroupServiceImpl, appListingServiceImpl, appWorkflowServiceImpl, k8sApplicationServiceImpl, clusterServiceImplExtended, commonEnforcementUtilImpl, enforcerUtilImpl, enforcerImpl)
+	userResourceExtendedServiceImpl := userResource.NewUserResourceExtendedServiceImpl(sugaredLogger, teamServiceImpl, environmentServiceImpl, appCrudOperationServiceImpl, chartGroupServiceImpl, appListingServiceImpl, appWorkflowServiceImpl, k8sApplicationServiceImpl, clusterServiceImplExtended, commonEnforcementUtilImpl, enforcerUtilImpl, enforcerImpl, argoApplicationServiceExtendedImpl, fluxApplicationServiceImpl)
 	restHandlerImpl := userResource2.NewUserResourceRestHandler(sugaredLogger, userServiceImpl, userResourceExtendedServiceImpl)
 	routerImpl := userResource2.NewUserResourceRouterImpl(restHandlerImpl)
 	appManagementServiceImpl := overview.NewAppManagementServiceImpl(sugaredLogger, appRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, ciWorkflowRepositoryImpl, cdWorkflowRepositoryImpl, environmentRepositoryImpl, teamRepositoryImpl, workflowStageRepositoryImpl, repositoryImpl)

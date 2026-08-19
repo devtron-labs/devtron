@@ -2,14 +2,18 @@ package userResource
 
 import (
 	"context"
+	"net/http"
+
 	apiBean "github.com/devtron-labs/devtron/api/userResource/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appStore/chartGroup"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
+	argoApplication2 "github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	"github.com/devtron-labs/devtron/pkg/fluxApplication"
 	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/userResource/adapter"
@@ -18,7 +22,6 @@ import (
 	"github.com/devtron-labs/devtron/util/commonEnforcementFunctionsUtil"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 type UserResourceExtendedServiceImpl struct {
@@ -39,13 +42,15 @@ func NewUserResourceExtendedServiceImpl(logger *zap.SugaredLogger, teamService t
 	clusterService cluster.ClusterService,
 	rbacEnforcementUtil commonEnforcementFunctionsUtil.CommonEnforcementUtil,
 	enforcerUtil rbac.EnforcerUtil,
-	enforcer casbin.Enforcer) *UserResourceExtendedServiceImpl {
+	enforcer casbin.Enforcer,
+	argoService argoApplication2.ArgoApplicationService,
+	fluxService fluxApplication.FluxApplicationService) *UserResourceExtendedServiceImpl {
 	return &UserResourceExtendedServiceImpl{
 		logger:                  logger,
 		chartGroupService:       chartGroupService,
 		appListingService:       appListingService,
 		appWorkflowService:      appWorkflowService,
-		UserResourceServiceImpl: NewUserResourceServiceImpl(logger, teamService, envService, clusterService, k8sApplicationService, enforcerUtil, rbacEnforcementUtil, enforcer, appService),
+		UserResourceServiceImpl: NewUserResourceServiceImpl(logger, teamService, envService, clusterService, k8sApplicationService, enforcerUtil, rbacEnforcementUtil, enforcer, appService, argoService, fluxService),
 	}
 
 }

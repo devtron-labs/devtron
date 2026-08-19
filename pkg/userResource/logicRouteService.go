@@ -71,10 +71,10 @@ var mapOfKindWithEntityAccessTypeKeyToResourceOptionRbacFunc = map[string]func(i
 	getUserResourceKindWithEntityAccessKey(bean.ClusterApiResources, bean.Alpha1Version, bean2.CLUSTER_ENTITIY, bean2.EmptyAccessType):  (*UserResourceServiceImpl).enforceRbacForClusterApiResource,
 	getUserResourceKindWithEntityAccessKey(bean.ClusterNamespaces, bean.Alpha1Version, bean2.CLUSTER_ENTITIY, bean2.EmptyAccessType):    (*UserResourceServiceImpl).enforceRbacForClusterNamespaces,
 	getUserResourceKindWithEntityAccessKey(bean.ClusterResources, bean.Alpha1Version, bean2.CLUSTER_ENTITIY, bean2.EmptyAccessType):     (*UserResourceServiceImpl).enforceRbacForClusterResourceList,
-	getUserResourceKindWithEntityAccessKey(bean.KindArgoEnvironment, bean.Alpha1Version, bean2.ENTITY_APPS, bean2.APP_ACCESS_TYPE_ARGO): (*UserResourceServiceImpl).enforceRbacForEnvForHelmApp,   // TODO check if this function will work
-	getUserResourceKindWithEntityAccessKey(bean.KindFluxEnvironment, bean.Alpha1Version, bean2.ENTITY_APPS, bean2.APP_ACCESS_TYPE_FLUX): (*UserResourceServiceImpl).enforceRbacForEnvForHelmApp,   // TODO check if this function will work
-	getUserResourceKindWithEntityAccessKey(bean.KindArgoApplication, bean.Alpha1Version, bean2.ENTITY_APPS, bean2.APP_ACCESS_TYPE_ARGO): (*UserResourceServiceImpl).enforceRbacForArgoAppsListing, // TODO check if this function will work
-	getUserResourceKindWithEntityAccessKey(bean.KindFluxApplication, bean.Alpha1Version, bean2.ENTITY_APPS, bean2.APP_ACCESS_TYPE_FLUX): (*UserResourceServiceImpl).enforceRbacForFluxAppsListing, // TODO check if this function will work
+	getUserResourceKindWithEntityAccessKey(bean.KindArgoEnvironment, bean.Alpha1Version, bean2.ENTITY_APPS, bean2.APP_ACCESS_TYPE_ARGO): (*UserResourceServiceImpl).enforceRbacForEnvForHelmApp,
+	getUserResourceKindWithEntityAccessKey(bean.KindFluxEnvironment, bean.Alpha1Version, bean2.ENTITY_APPS, bean2.APP_ACCESS_TYPE_FLUX): (*UserResourceServiceImpl).enforceRbacForEnvForHelmApp,
+	getUserResourceKindWithEntityAccessKey(bean.KindArgoApplication, bean.Alpha1Version, bean2.ENTITY_APPS, bean2.APP_ACCESS_TYPE_ARGO): (*UserResourceServiceImpl).enforceRbacForArgoAppsListing,
+	getUserResourceKindWithEntityAccessKey(bean.KindFluxApplication, bean.Alpha1Version, bean2.ENTITY_APPS, bean2.APP_ACCESS_TYPE_FLUX): (*UserResourceServiceImpl).enforceRbacForFluxAppsListing,
 }
 
 func getResourceOptionRbacFunc(kind bean.UserResourceKind, version bean.Version, entity string, accessType string) func(impl *UserResourceServiceImpl, token string, params *apiBean.PathParams, resourceOptions *bean.ResourceOptionsDto) (*bean.UserResourceResponseDto, error) {
@@ -100,10 +100,10 @@ var mapOfKindWithEntityAccessTypeKeyToResourceOptionRbacExtendedFunc = map[strin
 	getUserResourceKindWithEntityAccessKey(bean.KindChartGroup, bean.Alpha1Version, bean2.CHART_GROUP_ENTITY, bean2.EmptyAccessType):    (*UserResourceExtendedServiceImpl).enforceRbacForChartGroup,
 	getUserResourceKindWithEntityAccessKey(bean.KindJobs, bean.Alpha1Version, bean2.EntityJobs, bean2.EmptyAccessType):                  (*UserResourceExtendedServiceImpl).enforceRbacForJobs,
 	getUserResourceKindWithEntityAccessKey(bean.KindWorkflow, bean.Alpha1Version, bean2.EntityJobs, bean2.EmptyAccessType):              (*UserResourceExtendedServiceImpl).enforceRbacForJobsWfs,
-	getUserResourceKindWithEntityAccessKey(bean.KindArgoEnvironment, bean.Alpha1Version, bean2.ENTITY_APPS, bean2.APP_ACCESS_TYPE_ARGO): (*UserResourceExtendedServiceImpl).enforceRbacForEnvForHelmApp,   // TODO check if this function will work
-	getUserResourceKindWithEntityAccessKey(bean.KindFluxEnvironment, bean.Alpha1Version, bean2.ENTITY_APPS, bean2.APP_ACCESS_TYPE_FLUX): (*UserResourceExtendedServiceImpl).enforceRbacForEnvForHelmApp,   // TODO check if this function will work
-	getUserResourceKindWithEntityAccessKey(bean.KindArgoApplication, bean.Alpha1Version, bean2.ENTITY_APPS, bean2.APP_ACCESS_TYPE_ARGO): (*UserResourceExtendedServiceImpl).enforceRbacForArgoAppsListing, // TODO check if this function will work
-	getUserResourceKindWithEntityAccessKey(bean.KindFluxApplication, bean.Alpha1Version, bean2.ENTITY_APPS, bean2.APP_ACCESS_TYPE_FLUX): (*UserResourceExtendedServiceImpl).enforceRbacForFluxAppsListing, // TODO check if this function will work
+	getUserResourceKindWithEntityAccessKey(bean.KindArgoEnvironment, bean.Alpha1Version, bean2.ENTITY_APPS, bean2.APP_ACCESS_TYPE_ARGO): (*UserResourceExtendedServiceImpl).enforceRbacForEnvForHelmApp,
+	getUserResourceKindWithEntityAccessKey(bean.KindFluxEnvironment, bean.Alpha1Version, bean2.ENTITY_APPS, bean2.APP_ACCESS_TYPE_FLUX): (*UserResourceExtendedServiceImpl).enforceRbacForEnvForHelmApp,
+	getUserResourceKindWithEntityAccessKey(bean.KindArgoApplication, bean.Alpha1Version, bean2.ENTITY_APPS, bean2.APP_ACCESS_TYPE_ARGO): (*UserResourceExtendedServiceImpl).enforceRbacForArgoAppsListing,
+	getUserResourceKindWithEntityAccessKey(bean.KindFluxApplication, bean.Alpha1Version, bean2.ENTITY_APPS, bean2.APP_ACCESS_TYPE_FLUX): (*UserResourceExtendedServiceImpl).enforceRbacForFluxAppsListing,
 }
 
 func getResourceOptionRbacExtendedFunc(kind bean.UserResourceKind, version bean.Version, entity string, accessType string) func(impl *UserResourceExtendedServiceImpl, token string, params *apiBean.PathParams, resourceOptions *bean.ResourceOptionsDto) (*bean.UserResourceResponseDto, error) {
