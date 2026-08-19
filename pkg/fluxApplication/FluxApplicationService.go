@@ -3,6 +3,9 @@ package fluxApplication
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
+
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
@@ -19,8 +22,6 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	"io"
-	"net/http"
 )
 
 type FluxApplicationService interface {
@@ -28,6 +29,7 @@ type FluxApplicationService interface {
 	GetFluxAppDetail(ctx context.Context, app *bean.FluxAppIdentifier) (*bean.FluxApplicationDetailDto, error)
 	HibernateFluxApplication(ctx context.Context, app *bean.FluxAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	UnHibernateFluxApplication(ctx context.Context, app *bean.FluxAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
+	GetFluxApplicationList(ctx context.Context, clusterIds []int) ([]bean.FluxApplication, error)
 }
 
 type FluxApplicationServiceImpl struct {
@@ -92,23 +94,53 @@ func (impl *FluxApplicationServiceImpl) UnHibernateFluxApplication(ctx context.C
 	return response, nil
 }
 
-func (impl *FluxApplicationServiceImpl) ListFluxApplications(ctx context.Context, clusterIds []int, noStream bool, w http.ResponseWriter) {
+func (impl *FluxApplicationServiceImpl) GetFluxApplicationList(ctx context.Context, clusterIds []int) ([]bean.FluxApplication, error) {
 	appStream, err := impl.listApplications(ctx, clusterIds)
 	if err != nil {
-		impl.logger.Errorw("error in listing flux applications", "clusterIds", clusterIds, "err", err)
-		return
+		return nil, err
+	}
+	cdPipelineMap, installedAppMap, err := impl.getDevtronManagedMaps(clusterIds)
+	if err != nil {
+		return nil, err
 	}
 
+	apps := make([]bean.FluxApplication, 0)
+	for {
+		appDetail, err := appStream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if appDetail.Errored {
+			return nil, fmt.Errorf("%s", appDetail.ErrorMsg)
+		}
+		for _, d := range appDetail.FluxApplication {
+			key := fmt.Sprintf("%v-%s", d.EnvironmentDetail.ClusterId, d.EnvironmentDetail.Namespace)
+			if _, ok := cdPipelineMap[key][d.Name]; ok {
+				continue
+			}
+			if _, ok := installedAppMap[key][d.Name]; ok {
+				continue
+			}
+			apps = append(apps, toFluxApplication(d))
+		}
+	}
+	return apps, nil
+}
+
+func (impl *FluxApplicationServiceImpl) getDevtronManagedMaps(clusterIds []int) (map[string]map[string]bool, map[string]map[string]bool, error) {
 	fluxCdPipelines, err := impl.pipelineRepository.GetAppAndEnvDetailsForDeploymentAppTypePipeline(util.PIPELINE_DEPLOYMENT_TYPE_FLUX, clusterIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching helm app list from DB created using cd_pipelines", "clusters", clusterIds, "err", err)
-		return
+		return nil, nil, err
 	}
 
 	installedHelmApps, err := impl.installedAppRepository.GetAppAndEnvDetailsForDeploymentAppTypeInstalledApps(util.PIPELINE_DEPLOYMENT_TYPE_FLUX, clusterIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching helm app list from DB created from app store", "clusters", clusterIds, "err", err)
-		return
+		return nil, nil, err
 	}
 
 	cdPipelineMap := make(map[string]map[string]bool) // map of clusterId-namespace, deploymentAppName
@@ -129,7 +161,39 @@ func (impl *FluxApplicationServiceImpl) ListFluxApplications(ctx context.Context
 		deploymentAppName := fmt.Sprintf("%s-%s", i.App.AppName, i.Environment.Namespace)
 		installedAppMap[key][deploymentAppName] = true
 	}
+
+	return cdPipelineMap, installedAppMap, nil
+}
+
+func toFluxApplication(app *gRPC.FluxApplication) bean.FluxApplication {
+	fluxApp := bean.FluxApplication{
+		Name:                  app.Name,
+		HealthStatus:          app.HealthStatus,
+		SyncStatus:            app.SyncStatus,
+		ClusterId:             int(app.EnvironmentDetail.ClusterId),
+		ClusterName:           app.EnvironmentDetail.ClusterName,
+		Namespace:             app.EnvironmentDetail.Namespace,
+		FluxAppDeploymentType: app.FluxAppDeploymentType,
+	}
+
+	return fluxApp
+}
+
+func (impl *FluxApplicationServiceImpl) ListFluxApplications(ctx context.Context, clusterIds []int, noStream bool, w http.ResponseWriter) {
+
 	if !noStream {
+		appStream, err := impl.listApplications(ctx, clusterIds)
+		if err != nil {
+			impl.logger.Errorw("error in listing flux applications", "clusterIds", clusterIds, "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		cdPipelineMap, installedAppMap, err := impl.getDevtronManagedMaps(clusterIds)
+		if err != nil {
+			impl.logger.Errorw("error in getting devtron managed flux apps", "clusterIds", clusterIds, "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
 		impl.pump.StartStreamWithTransformer(w, func() (proto.Message, error) {
 			return appStream.Recv()
 		}, err,
@@ -137,43 +201,17 @@ func (impl *FluxApplicationServiceImpl) ListFluxApplications(ctx context.Context
 				return impl.appListRespProtoTransformer(message.(*gRPC.FluxApplicationList), cdPipelineMap, installedAppMap)
 			})
 	} else {
-		fluxApps := make([]bean.FluxApplication, 0)
-		for {
-			appDetail, err := appStream.Recv()
-			if err == io.EOF {
-				break
+		fluxApps, err := impl.GetFluxApplicationList(ctx, clusterIds)
+		if err != nil {
+			impl.logger.Errorw("error in getting flux application list", "clusterIds", clusterIds, "err", err)
+			errored := true
+			errMsg := err.Error()
+			appList := bean.FluxAppList{
+				Errored:  &errored,
+				ErrorMsg: &errMsg,
 			}
-			if err != nil {
-				return
-			}
-			if appDetail.Errored {
-				appList := bean.FluxAppList{
-					Errored:  &appDetail.Errored,
-					ErrorMsg: &appDetail.ErrorMsg,
-				}
-				common.WriteJsonResp(w, nil, appList, http.StatusOK)
-				return
-			} else {
-				for _, deployedApp := range appDetail.FluxApplication {
-					key := fmt.Sprintf("%v-%s", deployedApp.EnvironmentDetail.ClusterId, deployedApp.EnvironmentDetail.Namespace)
-					if _, ok := cdPipelineMap[key][deployedApp.Name]; ok {
-						continue
-					}
-					if _, ok := installedAppMap[key][deployedApp.Name]; ok {
-						continue
-					}
-					fluxApp := bean.FluxApplication{
-						Name:                  deployedApp.Name,
-						HealthStatus:          deployedApp.HealthStatus,
-						SyncStatus:            deployedApp.SyncStatus,
-						ClusterId:             int(deployedApp.EnvironmentDetail.ClusterId),
-						ClusterName:           deployedApp.EnvironmentDetail.ClusterName,
-						Namespace:             deployedApp.EnvironmentDetail.Namespace,
-						FluxAppDeploymentType: deployedApp.FluxAppDeploymentType,
-					}
-					fluxApps = append(fluxApps, fluxApp)
-				}
-			}
+			common.WriteJsonResp(w, nil, appList, http.StatusOK)
+			return
 		}
 		clusterIdsInt32 := sliceUtil.NewSliceFromFuncExec(clusterIds, func(clusterId int) int32 {
 			return int32(clusterId)
