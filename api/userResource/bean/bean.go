@@ -31,6 +31,8 @@ type AppAndJobReqDto struct {
 }
 type ClusterReqDto struct {
 	*bean3.ResourceRequestBean
+	ClusterIds             []int    `json:"clusterIds,omitempty"`
+	EnvironmentIdentifiers []string `json:"environmentIdentifiers,omitempty"`
 }
 type JobWorkflowReqDto struct {
 	*bean2.WorkflowNamesRequest

@@ -133,24 +133,38 @@ func (impl *UserResourceServiceImpl) getHelmAppResourceOptions(context context.C
 
 func (impl *UserResourceServiceImpl) getArgoAppResourceOptions(context context.Context, token string,
 	reqBean *apiBean.ResourceOptionsReqDto, params *apiBean.PathParams) (*bean5.ResourceOptionsDto, error) {
-	apps, err := impl.argoApplicationService.ListApplications([]int{reqBean.ClusterId})
+	clusterIds, err := helper.GetValidatedClusterIds(reqBean)
 	if err != nil {
 		impl.logger.Errorw("error encountered in getArgoAppResourceOptions", "err", err)
 		return nil, err
 	}
+	apps, err := impl.argoApplicationService.ListApplications(clusterIds)
+	if err != nil {
+		impl.logger.Errorw("error encountered in getArgoAppResourceOptions", "err", err)
+		return nil, err
+	}
+	appDtos := helper.FilterExternalGitOpsAppsByEnvIdentifier(
+		adapter.ArgoAppToExternalGitOpsApp(apps), reqBean.EnvironmentIdentifiers)
 
-	return bean5.NewResourceOptionsDto().WithExternalGitOpsAppResp(adapter.ArgoAppToExternalGitOpsApp(apps)), nil
+	return bean5.NewResourceOptionsDto().WithExternalGitOpsAppResp(appDtos), nil
 }
 
 func (impl *UserResourceServiceImpl) getFluxAppResourceOptions(context context.Context, token string,
 	reqBean *apiBean.ResourceOptionsReqDto, params *apiBean.PathParams) (*bean5.ResourceOptionsDto, error) {
-	apps, err := impl.fluxApplicationService.GetFluxApplicationList(context, []int{reqBean.ClusterId})
+	clusterIds, err := helper.GetValidatedClusterIds(reqBean)
 	if err != nil {
 		impl.logger.Errorw("error encountered in getFluxAppResourceOptions", "err", err)
 		return nil, err
 	}
+	apps, err := impl.fluxApplicationService.GetFluxApplicationList(context, clusterIds)
+	if err != nil {
+		impl.logger.Errorw("error encountered in getFluxAppResourceOptions", "err", err)
+		return nil, err
+	}
+	appDtos := helper.FilterExternalGitOpsAppsByEnvIdentifier(
+		adapter.FluxAppToExternalGitOpsApp(apps), reqBean.EnvironmentIdentifiers)
 
-	return bean5.NewResourceOptionsDto().WithExternalGitOpsAppResp(adapter.FluxAppToExternalGitOpsApp(apps)), nil
+	return bean5.NewResourceOptionsDto().WithExternalGitOpsAppResp(appDtos), nil
 }
 
 func (impl *UserResourceServiceImpl) getCombinedEnvResourceOptions(context context.Context, token string,
