@@ -25,7 +25,8 @@ import (
 )
 
 type FluxApplicationService interface {
-	ListFluxApplications(ctx context.Context, clusterIds []int, noStream bool, w http.ResponseWriter)
+	ListFluxApplications(ctx context.Context, clusterIds []int, noStream bool, w http.ResponseWriter,
+		token string, fluxAuth func(token string, clusterName string, namespace string, appName string) bool)
 	GetFluxAppDetail(ctx context.Context, app *bean.FluxAppIdentifier) (*bean.FluxApplicationDetailDto, error)
 	HibernateFluxApplication(ctx context.Context, app *bean.FluxAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	UnHibernateFluxApplication(ctx context.Context, app *bean.FluxAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
@@ -181,7 +182,8 @@ func toFluxApplication(app *gRPC.FluxApplication) bean.FluxApplication {
 	return fluxApp
 }
 
-func (impl *FluxApplicationServiceImpl) ListFluxApplications(ctx context.Context, clusterIds []int, noStream bool, w http.ResponseWriter) {
+func (impl *FluxApplicationServiceImpl) ListFluxApplications(ctx context.Context, clusterIds []int, noStream bool, w http.ResponseWriter,
+	token string, fluxAuth func(token string, clusterName string, namespace string, appName string) bool) {
 
 	if !noStream {
 		appStream, err := impl.listApplications(ctx, clusterIds)
@@ -200,7 +202,7 @@ func (impl *FluxApplicationServiceImpl) ListFluxApplications(ctx context.Context
 			return appStream.Recv()
 		}, err,
 			func(message interface{}) interface{} {
-				return impl.appListRespProtoTransformer(message.(*gRPC.FluxApplicationList), cdPipelineMap, installedAppMap)
+				return impl.appListRespProtoTransformer(message.(*gRPC.FluxApplicationList), cdPipelineMap, installedAppMap, token, fluxAuth)
 			})
 	} else {
 		fluxApps, err := impl.GetFluxApplicationList(ctx, clusterIds)
@@ -215,6 +217,17 @@ func (impl *FluxApplicationServiceImpl) ListFluxApplications(ctx context.Context
 			common.WriteJsonResp(w, nil, appList, http.StatusOK)
 			return
 		}
+
+		if fluxAuth != nil {
+			authorised := make([]bean.FluxApplication, 0, len(fluxApps))
+			for _, app := range fluxApps {
+				if fluxAuth(token, app.ClusterName, app.Namespace, app.Name) {
+					authorised = append(authorised, app)
+				}
+			}
+			fluxApps = authorised
+		}
+		//RBAC enforcer Ends
 		clusterIdsInt32 := sliceUtil.NewSliceFromFuncExec(clusterIds, func(clusterId int) int32 {
 			return int32(clusterId)
 		})
@@ -297,7 +310,8 @@ func (impl *FluxApplicationServiceImpl) listApplications(ctx context.Context, cl
 
 	return applicationStream, err
 }
-func (impl *FluxApplicationServiceImpl) appListRespProtoTransformer(deployedApps *gRPC.FluxApplicationList, fluxCdPipelines map[string]map[string]bool, fluxInstalledApps map[string]map[string]bool) bean.FluxAppList {
+func (impl *FluxApplicationServiceImpl) appListRespProtoTransformer(deployedApps *gRPC.FluxApplicationList, fluxCdPipelines map[string]map[string]bool, fluxInstalledApps map[string]map[string]bool,
+	token string, fluxAuth func(token string, clusterName string, namespace string, appName string) bool) bean.FluxAppList {
 
 	appList := bean.FluxAppList{ClusterId: &[]int32{deployedApps.ClusterId}}
 	if deployedApps.Errored {
@@ -313,6 +327,11 @@ func (impl *FluxApplicationServiceImpl) appListRespProtoTransformer(deployedApps
 			if _, ok := fluxInstalledApps[key][deployedApp.Name]; ok {
 				continue
 			}
+			if fluxAuth != nil && !fluxAuth(token, deployedApp.EnvironmentDetail.ClusterName,
+				deployedApp.EnvironmentDetail.Namespace, deployedApp.Name) {
+				continue
+			}
+			//RBAC enforcer Ends
 			fluxApp := bean.FluxApplication{
 				Name:                  deployedApp.Name,
 				HealthStatus:          deployedApp.HealthStatus,
