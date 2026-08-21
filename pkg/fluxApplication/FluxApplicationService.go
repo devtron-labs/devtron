@@ -114,7 +114,9 @@ func (impl *FluxApplicationServiceImpl) GetFluxApplicationList(ctx context.Conte
 			return nil, err
 		}
 		if appDetail.Errored {
-			return nil, fmt.Errorf("%s", appDetail.ErrorMsg)
+			impl.logger.Errorw("error in listing flux applications for cluster, skipping it",
+				"clusterId", appDetail.ClusterId, "errorMsg", appDetail.ErrorMsg)
+			continue
 		}
 		for _, d := range appDetail.FluxApplication {
 			key := fmt.Sprintf("%v-%s", d.EnvironmentDetail.ClusterId, d.EnvironmentDetail.Namespace)
@@ -272,6 +274,11 @@ func (impl *FluxApplicationServiceImpl) listApplications(ctx context.Context, cl
 	}
 
 	for _, clusterDetail := range clusters {
+		if clusterDetail.IsVirtualCluster || len(clusterDetail.ErrorInConnecting) != 0 {
+			impl.logger.Debugw("skipping cluster for flux app listing", "clusterId", clusterDetail.Id,
+				"isVirtualCluster", clusterDetail.IsVirtualCluster, "errorInConnecting", clusterDetail.ErrorInConnecting)
+			continue
+		}
 		config := &gRPC.ClusterConfig{
 			ApiServerUrl:          clusterDetail.ServerUrl,
 			Token:                 clusterDetail.Config[commonBean.BearerToken],
