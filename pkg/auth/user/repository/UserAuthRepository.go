@@ -22,11 +22,12 @@ package repository
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
+
 	bean3 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
 	bean4 "github.com/devtron-labs/devtron/pkg/auth/user/repository/bean"
-	"strings"
-	"time"
 
 	"github.com/devtron-labs/devtron/api/bean"
 	casbin2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -1136,6 +1137,46 @@ func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, ac
 		}
 
 		_, err = impl.dbConnection.Query(&model, query, queryParams...)
+	} else if team == "" && len(app) > 0 && len(env) > 0 && len(act) > 0 {
+		var queryParams []interface{}
+		//this is applicable for entities that have no project, e.g. external argo/flux apps,
+		//where the scope is environment(cluster__namespace) + app
+		query := "SELECT role.* FROM roles role WHERE coalesce(role.team,'') = ? AND role.entity_name=? AND role.environment=? AND role.action=?"
+		queryParams = append(queryParams, EMPTY_PLACEHOLDER_FOR_QUERY, app, env, act)
+		if oldValues {
+			query = query + " and role.access_type is NULL"
+		} else {
+			query += " and role.access_type = ? "
+			queryParams = append(queryParams, accessType)
+		}
+
+		_, err = impl.dbConnection.Query(&model, query, queryParams...)
+	} else if team == "" && app == "" && len(env) > 0 && len(act) > 0 {
+		var queryParams []interface{}
+		//no project, all apps of an environment(cluster__namespace)
+		query := "SELECT role.* FROM roles role WHERE coalesce(role.team,'') = ? AND coalesce(role.entity_name,'')=? AND role.environment=? AND role.action=?"
+		queryParams = append(queryParams, EMPTY_PLACEHOLDER_FOR_QUERY, EMPTY_PLACEHOLDER_FOR_QUERY, env, act)
+		if oldValues {
+			query = query + " and role.access_type is NULL"
+		} else {
+			query += " and role.access_type = ? "
+			queryParams = append(queryParams, accessType)
+		}
+
+		_, err = impl.dbConnection.Query(&model, query, queryParams...)
+	} else if team == "" && len(app) > 0 && env == "" && len(act) > 0 {
+		var queryParams []interface{}
+		//no project, an app across all environments
+		query := "SELECT role.* FROM roles role WHERE coalesce(role.team,'') = ? AND role.entity_name=? AND coalesce(role.environment,'')=? AND role.action=?"
+		queryParams = append(queryParams, EMPTY_PLACEHOLDER_FOR_QUERY, app, EMPTY_PLACEHOLDER_FOR_QUERY, act)
+		if oldValues {
+			query = query + " and role.access_type is NULL"
+		} else {
+			query += " and role.access_type = ? "
+			queryParams = append(queryParams, accessType)
+		}
+
+		_, err = impl.dbConnection.Query(&model, query, queryParams...)
 	} else if team == "" && app == "" && env == "" && len(act) > 0 {
 		var queryParams []interface{}
 		//this is applicable for super admin, all env, all team, all app
@@ -1152,6 +1193,8 @@ func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, ac
 	} else if team == "" && app == "" && env == "" && act == "" {
 		return model, nil
 	} else {
+		impl.Logger.Warnw("no query branch for the given role filter combination, returning empty role",
+			"team", team, "app", app, "env", env, "action", act, "accessType", accessType)
 		return model, nil
 	}
 	if err != nil {
