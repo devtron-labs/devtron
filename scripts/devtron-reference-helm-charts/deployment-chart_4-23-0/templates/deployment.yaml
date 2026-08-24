@@ -3,10 +3,10 @@
   {{- if .Values.ConfigMaps.enabled }}
   {{- range .Values.ConfigMaps.maps }}
   {{- if eq .type "volume"}}
-  {{- $hasCMVolumeExists = true}}
+  {{- $hasCMVolumeExists = true }}
   {{- end }}
-  {{- if eq .type "environment"}}
-  {{- $hasCMEnvExists = true}}
+  {{- if eq .type "environment" }}
+  {{- $hasCMEnvExists = true }}
   {{- end }}
   {{- end }}
   {{- end }}
