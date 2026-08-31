@@ -1,8 +1,0 @@
-apiVersion: source.toolkit.fluxcd.io/v1
-kind: HelmRepository
-metadata:
-  name: podinfo
-  namespace: devtroncd-ent-3
-spec:
-  interval: 10m
-  url: https://stefanprodan.github.io/podinfo
