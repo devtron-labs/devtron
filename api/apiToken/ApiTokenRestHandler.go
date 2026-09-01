@@ -234,7 +234,7 @@ func (impl ApiTokenRestHandlerImpl) GetAllApiTokensForWebhook(w http.ResponseWri
 	projectObject := fmt.Sprintf("%s/%s", projectName, appName)
 	for _, environment := range strings.Split(environmentName, ",") {
 		envObject := fmt.Sprintf("%s/%s", environment, appName)
-		if ok := impl.CheckAuthorizationForWebhook(token, projectObject, envObject); !ok {
+		if !impl.CheckAuthorizationForWebhook(token, projectObject, envObject) {
 			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
