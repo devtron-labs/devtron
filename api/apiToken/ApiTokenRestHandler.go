@@ -246,7 +246,7 @@ func (impl ApiTokenRestHandlerImpl) GetAllApiTokensForWebhook(w http.ResponseWri
 	// access is. So a stored token is only eligible to be returned if, on top
 	// of its own project/env check, it is not more privileged than the caller
 	// - i.e. its scope must be no broader than the requesting user's own.
-	authForToken := func(storedToken string, projObj string, envObj string) bool {
+	authForToken := func(storedToken, projObj, envObj string) bool {
 		if !impl.CheckAuthorizationForWebhook(storedToken, projObj, envObj) {
 			return false
 		}
@@ -281,7 +281,7 @@ func (handler ApiTokenRestHandlerImpl) CheckAuthorizationForWebhook(token string
 // only way to tell it apart from a token that is genuinely scoped to the
 // requested object is to check super-admin status directly, using the same
 // check the other handlers in this file use to gate super-admin-only actions.
-func (handler ApiTokenRestHandlerImpl) callerDominatesToken(callerToken string, storedToken string) bool {
+func (handler ApiTokenRestHandlerImpl) callerDominatesToken(callerToken, storedToken string) bool {
 	if !handler.enforcer.Enforce(storedToken, casbin.ResourceGlobal, casbin.ActionUpdate, "*") {
 		// stored token is not a super-admin token, nothing further to check
 		return true
