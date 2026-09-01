@@ -14,25 +14,27 @@ import (
 // The second string is everything after that slash. For example, given the
 // pattern:
 //
-//   ../../path/to/meta*/**
-//                ^----------- split here
+//	../../path/to/meta*/**
+//	             ^----------- split here
 //
 // SplitPattern returns "../../path/to" and "meta*/**". This is useful for
 // initializing os.DirFS() to call Glob() because Glob() will silently fail if
 // your pattern includes `/./` or `/../`. For example:
 //
-//   base, pattern := SplitPattern("../../path/to/meta*/**")
-//   fsys := os.DirFS(base)
-//   matches, err := Glob(fsys, pattern)
+//	base, pattern := SplitPattern("../../path/to/meta*/**")
+//	fsys := os.DirFS(base)
+//	matches, err := Glob(fsys, pattern)
 //
 // If SplitPattern cannot find somewhere to split the pattern (for example,
 // `meta*/**`), it will return "." and the unaltered pattern (`meta*/**` in
 // this example).
 //
+// Note that SplitPattern will also unescape any meta characters in the
+// returned base string, so that it can be passed straight to os.DirFS().
+//
 // Of course, it is your responsibility to decide if the returned base path is
 // "safe" in the context of your application. Perhaps you could use Match() to
 // validate against a list of approved base directories?
-//
 func SplitPattern(p string) (base, pattern string) {
 	base = "."
 	pattern = p
@@ -52,7 +54,7 @@ func SplitPattern(p string) (base, pattern string) {
 	if splitIdx == 0 {
 		return "/", p[1:]
 	} else if splitIdx > 0 {
-		return p[:splitIdx], p[splitIdx+1:]
+		return unescapeMeta(p[:splitIdx]), p[splitIdx+1:]
 	}
 
 	return
@@ -82,7 +84,6 @@ func SplitPattern(p string) (base, pattern string) {
 //
 // Note: the returned error doublestar.ErrBadPattern is not equal to
 // filepath.ErrBadPattern.
-//
 func FilepathGlob(pattern string, opts ...GlobOption) (matches []string, err error) {
 	if pattern == "" {
 		// special case to match filepath.Glob behavior
@@ -149,9 +150,16 @@ func indexNextAlt(s string, allowEscaping bool) int {
 	return -1
 }
 
-var metaReplacer = strings.NewReplacer("\\*", "*", "\\?", "?", "\\[", "[", "\\]", "]", "\\{", "{", "\\}", "}")
+var escapeMetaReplacer = strings.NewReplacer("*", "\\*", "?", "\\?", "[", "\\[", "]", "\\]", "{", "\\{", "}", "\\}")
+
+// Escapes meta characters (*?[]{})
+func escapeMeta(path string) string {
+	return escapeMetaReplacer.Replace(path)
+}
+
+var unescapeMetaReplacer = strings.NewReplacer("\\*", "*", "\\?", "?", "\\[", "[", "\\]", "]", "\\{", "{", "\\}", "}")
 
 // Unescapes meta characters (*?[]{})
 func unescapeMeta(pattern string) string {
-	return metaReplacer.Replace(pattern)
+	return unescapeMetaReplacer.Replace(pattern)
 }

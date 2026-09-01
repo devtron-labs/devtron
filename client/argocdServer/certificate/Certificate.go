@@ -2,8 +2,8 @@ package certificate
 
 import (
 	"context"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/certificate"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"go.uber.org/zap"
