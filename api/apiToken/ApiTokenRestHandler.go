@@ -224,7 +224,7 @@ func (impl ApiTokenRestHandlerImpl) GetAllApiTokensForWebhook(w http.ResponseWri
 	// webhook config modal, which is itself super-admin-only, so gate the
 	// whole endpoint the same way the other handlers in this file do.
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+	if !impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*") {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
