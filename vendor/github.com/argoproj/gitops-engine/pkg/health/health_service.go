@@ -3,10 +3,11 @@ package health
 import (
 	"fmt"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
 func getServiceHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
@@ -16,7 +17,7 @@ func getServiceHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
 		var service corev1.Service
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &service)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured Service to typed: %v", err)
+			return nil, fmt.Errorf("failed to convert unstructured Service to typed: %w", err)
 		}
 		return getCorev1ServiceHealth(&service)
 	default:

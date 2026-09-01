@@ -3,11 +3,12 @@ package cache
 import (
 	"encoding/json"
 	"fmt"
-	v1 "k8s.io/api/apps/v1"
+	"regexp"
+
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
-	"regexp"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
@@ -23,7 +24,6 @@ func (c *clusterCache) resolveResourceReferences(un *unstructured.Unstructured) 
 	gvk := un.GroupVersionKind()
 
 	switch {
-
 	// Special case for endpoint. Remove after https://github.com/kubernetes/kubernetes/issues/28483 is fixed
 	case gvk.Group == "" && gvk.Kind == kube.EndpointsKind && len(ownerRefs) == 0:
 		ownerRefs = append(ownerRefs, metav1.OwnerReference{
@@ -60,14 +60,14 @@ func (c *clusterCache) resolveResourceReferences(un *unstructured.Unstructured) 
 }
 
 func isStatefulSetChild(un *unstructured.Unstructured) (func(kube.ResourceKey) bool, error) {
-	sts := v1.StatefulSet{}
+	sts := appsv1.StatefulSet{}
 	data, err := json.Marshal(un)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to marshal unstructured object: %w", err)
 	}
 	err = json.Unmarshal(data, &sts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal statefulset: %w", err)
 	}
 
 	templates := sts.Spec.VolumeClaimTemplates

@@ -1,31 +1,19 @@
 // Copyright The OpenTelemetry Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
 package otelgrpc // import "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 
 import (
 	"context"
 
-	"google.golang.org/grpc/metadata"
-
 	"go.opentelemetry.io/otel/baggage"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc/metadata"
 )
 
 type metadataSupplier struct {
-	metadata *metadata.MD
+	metadata metadata.MD
 }
 
 // assert that metadataSupplier implements the TextMapCarrier interface.
@@ -39,13 +27,13 @@ func (s *metadataSupplier) Get(key string) string {
 	return values[0]
 }
 
-func (s *metadataSupplier) Set(key string, value string) {
+func (s *metadataSupplier) Set(key, value string) {
 	s.metadata.Set(key, value)
 }
 
 func (s *metadataSupplier) Keys() []string {
-	out := make([]string, 0, len(*s.metadata))
-	for key := range *s.metadata {
+	out := make([]string, 0, len(s.metadata))
+	for key := range s.metadata {
 		out = append(out, key)
 	}
 	return out
@@ -54,11 +42,12 @@ func (s *metadataSupplier) Keys() []string {
 // Inject injects correlation context and span context into the gRPC
 // metadata object. This function is meant to be used on outgoing
 // requests.
+//
 // Deprecated: Unnecessary public func.
 func Inject(ctx context.Context, md *metadata.MD, opts ...Option) {
-	c := newConfig(opts, "")
+	c := newConfig(opts)
 	c.Propagators.Inject(ctx, &metadataSupplier{
-		metadata: md,
+		metadata: *md,
 	})
 }
 
@@ -68,7 +57,7 @@ func inject(ctx context.Context, propagators propagation.TextMapPropagator) cont
 		md = metadata.MD{}
 	}
 	propagators.Inject(ctx, &metadataSupplier{
-		metadata: &md,
+		metadata: md,
 	})
 	return metadata.NewOutgoingContext(ctx, md)
 }
@@ -76,11 +65,12 @@ func inject(ctx context.Context, propagators propagation.TextMapPropagator) cont
 // Extract returns the correlation context and span context that
 // another service encoded in the gRPC metadata object with Inject.
 // This function is meant to be used on incoming requests.
+//
 // Deprecated: Unnecessary public func.
 func Extract(ctx context.Context, md *metadata.MD, opts ...Option) (baggage.Baggage, trace.SpanContext) {
-	c := newConfig(opts, "")
+	c := newConfig(opts)
 	ctx = c.Propagators.Extract(ctx, &metadataSupplier{
-		metadata: md,
+		metadata: *md,
 	})
 
 	return baggage.FromContext(ctx), trace.SpanContextFromContext(ctx)
@@ -93,6 +83,6 @@ func extract(ctx context.Context, propagators propagation.TextMapPropagator) con
 	}
 
 	return propagators.Extract(ctx, &metadataSupplier{
-		metadata: &md,
+		metadata: md,
 	})
 }

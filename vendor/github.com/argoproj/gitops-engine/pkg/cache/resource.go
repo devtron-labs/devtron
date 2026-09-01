@@ -2,9 +2,10 @@ package cache
 
 import (
 	"fmt"
+
 	"k8s.io/apimachinery/pkg/types"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -16,13 +17,13 @@ type Resource struct {
 	// ResourceVersion holds most recent observed resource version
 	ResourceVersion string
 	// Resource reference
-	Ref v1.ObjectReference
+	Ref corev1.ObjectReference
 	// References to resource owners
 	OwnerRefs []metav1.OwnerReference
 	// Optional creation timestamp of the resource
 	CreationTimestamp *metav1.Time
 	// Optional additional information about the resource
-	Info interface{}
+	Info any
 	// Optional whole resource manifest
 	Resource *unstructured.Unstructured
 
@@ -36,7 +37,6 @@ func (r *Resource) ResourceKey() kube.ResourceKey {
 
 func (r *Resource) isParentOf(child *Resource) bool {
 	for i, ownerRef := range child.OwnerRefs {
-
 		// backfill UID of inferred owner child references
 		if ownerRef.UID == "" && r.Ref.Kind == ownerRef.Kind && r.Ref.APIVersion == ownerRef.APIVersion && r.Ref.Name == ownerRef.Name {
 			ownerRef.UID = r.Ref.UID
@@ -75,32 +75,6 @@ func (r *Resource) toOwnerRef() metav1.OwnerReference {
 	return metav1.OwnerReference{UID: r.Ref.UID, Name: r.Ref.Name, Kind: r.Ref.Kind, APIVersion: r.Ref.APIVersion}
 }
 
-func newResourceKeySet(set map[kube.ResourceKey]bool, keys ...kube.ResourceKey) map[kube.ResourceKey]bool {
-	newSet := make(map[kube.ResourceKey]bool)
-	for k, v := range set {
-		newSet[k] = v
-	}
-	for i := range keys {
-		newSet[keys[i]] = true
-	}
-	return newSet
-}
-
-func (r *Resource) iterateChildren(ns map[kube.ResourceKey]*Resource, parents map[kube.ResourceKey]bool, action func(err error, child *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool) {
-	for childKey, child := range ns {
-		if r.isParentOf(ns[childKey]) {
-			if parents[childKey] {
-				key := r.ResourceKey()
-				_ = action(fmt.Errorf("circular dependency detected. %s is child and parent of %s", childKey.String(), key.String()), child, ns)
-			} else {
-				if action(nil, child, ns) {
-					child.iterateChildren(ns, newResourceKeySet(parents, r.ResourceKey()), action)
-				}
-			}
-		}
-	}
-}
-
 // iterateChildrenV2 is a depth-first traversal of the graph of resources starting from the current resource.
 func (r *Resource) iterateChildrenV2(graph map[kube.ResourceKey]map[types.UID]*Resource, ns map[kube.ResourceKey]*Resource, visited map[kube.ResourceKey]int, action func(err error, child *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool) {
 	key := r.ResourceKey()
@@ -120,10 +94,11 @@ func (r *Resource) iterateChildrenV2(graph map[kube.ResourceKey]map[types.UID]*R
 	for _, c := range children {
 		childKey := c.ResourceKey()
 		child := ns[childKey]
-		if visited[childKey] == 1 {
+		switch visited[childKey] {
+		case 1:
 			// Since we encountered a node that we're currently processing, we know we have a circular dependency.
 			_ = action(fmt.Errorf("circular dependency detected. %s is child and parent of %s", childKey.String(), key.String()), child, ns)
-		} else if visited[childKey] == 0 {
+		case 0:
 			if action(nil, child, ns) {
 				child.iterateChildrenV2(graph, ns, visited, action)
 			}

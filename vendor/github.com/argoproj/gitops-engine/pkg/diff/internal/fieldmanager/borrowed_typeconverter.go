@@ -24,8 +24,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/kube-openapi/pkg/util/proto"
-	"sigs.k8s.io/structured-merge-diff/v4/typed"
-	"sigs.k8s.io/structured-merge-diff/v4/value"
+	"sigs.k8s.io/structured-merge-diff/v6/typed"
+	"sigs.k8s.io/structured-merge-diff/v6/value"
 )
 
 // TypeConverter allows you to convert from runtime.Object to
@@ -102,7 +102,7 @@ func (c *typeConverter) TypedToObject(value *typed.TypedValue) (runtime.Object, 
 func valueToObject(val value.Value) (runtime.Object, error) {
 	vu := val.Unstructured()
 	switch o := vu.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		return &unstructured.Unstructured{Object: o}, nil
 	default:
 		return nil, fmt.Errorf("failed to convert value to unstructured for type %T", vu)

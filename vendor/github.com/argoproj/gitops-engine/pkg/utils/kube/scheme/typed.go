@@ -6,7 +6,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/managedfields"
-	"sigs.k8s.io/structured-merge-diff/v4/typed"
+	"sigs.k8s.io/structured-merge-diff/v6/typed"
 )
 
 // ResolveParseableType will build and return a ParseableType object
@@ -43,8 +43,10 @@ func resolveFromStaticParser(gvk schema.GroupVersionKind, parser *managedfields.
 	return nil
 }
 
-var gvkMap map[schema.GroupVersionKind]string
-var extractOnce sync.Once
+var (
+	gvkMap      map[schema.GroupVersionKind]string
+	extractOnce sync.Once
+)
 
 func getGvkMap(parser *managedfields.GvkParser) map[schema.GroupVersionKind]string {
 	extractOnce.Do(func() {
