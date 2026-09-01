@@ -142,13 +142,7 @@ func (impl *AppDetailsReadServiceImpl) makeAppStageStatus(stage int, stageName s
 	return AppView.AppStageStatus{
 		Stage:     stage,
 		StageName: stageName,
-		Status: func() bool {
-			if id > 0 {
-				return true
-			} else {
-				return false
-			}
-		}(),
-		Required: isRequired,
+		Status:    id > 0,
+		Required:  isRequired,
 	}
 }
