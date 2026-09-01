@@ -12,6 +12,9 @@ metadata:
   {{- else }}
   name: {{ template ".Chart.Name .fullname" $ }}-virtualservice
   {{- end }}
+  {{- if .virtualService.namespace }}
+  namespace: {{ .virtualService.namespace }}
+  {{- end }}
   labels:
     app: {{ template ".Chart.Name .name" $ }}
     appId: {{ $.Values.app | quote }}

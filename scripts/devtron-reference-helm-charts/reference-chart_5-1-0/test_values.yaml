@@ -195,8 +195,12 @@ deployment:
         - pause: {}  # final manual approval (optional)
 
       trafficRouting:
-        # managedRoutes:
-        #   - name: api-canary
+        managedRoutes:
+          - name: api-canary
+            devtron: test
+        customTrafficRouting:
+          nginx:
+            stableIngress: rollouts-demo-stable
         istio:
           virtualService:
             name: api-vs
