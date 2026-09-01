@@ -18,6 +18,9 @@ package repository
 
 import (
 	"fmt"
+	"strconv"
+	"time"
+
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
@@ -34,8 +37,6 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
-	"strconv"
-	"time"
 )
 
 // InstalledApps TODO: remove the deprecated column GitOpsRepoName
@@ -765,7 +766,7 @@ func (impl *InstalledAppRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypeI
 	var installedApps []*InstalledApps
 	err := impl.dbConnection.
 		Model(&installedApps).
-		Column("installed_apps.id", "App.app_name", "App.display_name", "Environment.cluster_id", "Environment.namespace").
+		Column("installed_apps.id", "App.app_name", "App.display_name", "Environment.cluster_id", "Environment.namespace", "Environment.environment_name").
 		Join("LEFT JOIN deployment_config dc on dc.active=true and dc.app_id = installed_apps.app_id and dc.environment_id=installed_apps.environment_id").
 		Where("environment.cluster_id in (?)", pg.In(clusterIds)).
 		Where("(installed_apps.deployment_app_type = ? or dc.deployment_app_type = ?)", deploymentAppType, deploymentAppType).

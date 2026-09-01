@@ -3,6 +3,9 @@ package fluxApplication
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
+
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
@@ -15,12 +18,11 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/fluxApplication/bean"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"github.com/gogo/protobuf/proto"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	"io"
-	"net/http"
 )
 
 type FluxApplicationService interface {
@@ -126,7 +128,7 @@ func (impl *FluxApplicationServiceImpl) ListFluxApplications(ctx context.Context
 		if _, ok := installedAppMap[key]; !ok {
 			installedAppMap[key] = make(map[string]bool)
 		}
-		deploymentAppName := fmt.Sprintf("%s-%s", i.App.AppName, i.Environment.Namespace)
+		deploymentAppName := util2.BuildDeployedAppName(i.App.AppName, i.Environment.Name)
 		installedAppMap[key][deploymentAppName] = true
 	}
 	if !noStream {
