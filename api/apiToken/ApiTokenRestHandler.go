@@ -230,18 +230,31 @@ func (impl ApiTokenRestHandlerImpl) GetAllApiTokensForWebhook(w http.ResponseWri
 	// handle RBAC - verify that the REQUESTING user (not the stored api-tokens
 	// being evaluated below) has trigger permission on the requested
 	// project/environment/app before any token data is looked up and returned.
-	token := r.Header.Get("token")
+	callerToken := r.Header.Get("token")
 	projectObject := fmt.Sprintf("%s/%s", projectName, appName)
 	for _, environment := range strings.Split(environmentName, ",") {
 		envObject := fmt.Sprintf("%s/%s", environment, appName)
-		if !impl.CheckAuthorizationForWebhook(token, projectObject, envObject) {
+		if !impl.CheckAuthorizationForWebhook(callerToken, projectObject, envObject) {
 			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
 	}
 
+	// per-token authorization: a stored api-token's own Casbin policy always
+	// satisfies the project/env check above if that token is a super-admin
+	// ("*" matches any object), regardless of how narrow the caller's own
+	// access is. So a stored token is only eligible to be returned if, on top
+	// of its own project/env check, it is not more privileged than the caller
+	// - i.e. its scope must be no broader than the requesting user's own.
+	authForToken := func(storedToken string, projObj string, envObj string) bool {
+		if !impl.CheckAuthorizationForWebhook(storedToken, projObj, envObj) {
+			return false
+		}
+		return impl.callerDominatesToken(callerToken, storedToken)
+	}
+
 	// service call
-	res, err := impl.apiTokenService.GetAllApiTokensForWebhook(projectName, environmentName, appName, impl.CheckAuthorizationForWebhook)
+	res, err := impl.apiTokenService.GetAllApiTokensForWebhook(projectName, environmentName, appName, authForToken)
 	if err != nil {
 		impl.logger.Errorw("service err, GetAllApiTokensForWebhook", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -258,4 +271,20 @@ func (handler ApiTokenRestHandlerImpl) CheckAuthorizationForWebhook(token string
 		return false
 	}
 	return true
+}
+
+// callerDominatesToken returns false when storedToken has strictly broader
+// access than callerToken, so that a caller can never see an api-token more
+// privileged than themselves through this endpoint. A super-admin token's
+// policy is "*", so it always passes the per-object checks in
+// CheckAuthorizationForWebhook irrespective of the project/env queried; the
+// only way to tell it apart from a token that is genuinely scoped to the
+// requested object is to check super-admin status directly, using the same
+// check the other handlers in this file use to gate super-admin-only actions.
+func (handler ApiTokenRestHandlerImpl) callerDominatesToken(callerToken string, storedToken string) bool {
+	if !handler.enforcer.Enforce(storedToken, casbin.ResourceGlobal, casbin.ActionUpdate, "*") {
+		// stored token is not a super-admin token, nothing further to check
+		return true
+	}
+	return handler.enforcer.Enforce(callerToken, casbin.ResourceGlobal, casbin.ActionUpdate, "*")
 }
