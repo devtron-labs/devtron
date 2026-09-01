@@ -74,5 +74,86 @@ metadata:
     {{- end }}        
 spec:
 {{ toYaml $.Values.kedaAutoscaling.triggerAuthentication.spec | indent 2 }}
+
 {{- end }}
 {{- end }}
+---
+{{- if $.Values.secondaryWorkload.kedaAutoscaling.enabled }}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  {{- if $.Values.secondaryWorkload.kedaAutoscaling.name }}
+  name: {{ $.Values.secondaryWorkload.kedaAutoscaling.name }}
+  {{- else }}
+  name: {{ $.Values.secondaryWorkload.fullnameOverride | default (printf "%s-%s" (include ".Chart.Name .fullname" $) ($.Values.secondaryWorkload.postfix | default "sec")) }}-keda
+  {{- end }}
+  labels:
+    app: {{ template ".Chart.Name .name" $ }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    release: {{ .Release.Name }}
+  {{- if .Values.appLabels }}
+{{ toYaml .Values.appLabels | indent 4 }}
+  {{- end }}
+  {{- if .Values.secondaryWorkload.kedaAutoscaling.labels }}
+{{ toYaml .Values.secondaryWorkload.kedaAutoscaling.labels | indent 4 }}
+  {{- end }}
+  {{- if .Values.secondaryWorkload.kedaAutoscaling.annotations }}
+  annotations:
+{{ toYaml .Values.secondaryWorkload.kedaAutoscaling.annotations | indent 4 }}
+  {{- end }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ $.Values.secondaryWorkload.fullnameOverride | default (printf "%s-%s" (include ".Chart.Name .fullname" $) ($.Values.secondaryWorkload.postfix | default "sec")) }}
+{{- if $.Values.secondaryWorkload.kedaAutoscaling.envSourceContainerName }}
+    envSourceContainerName: {{ $.Values.secondaryWorkload.kedaAutoscaling.envSourceContainerName }}
+{{- end }}
+{{- if $.Values.secondaryWorkload.kedaAutoscaling.pollingInterval }}
+  pollingInterval: {{ $.Values.secondaryWorkload.kedaAutoscaling.pollingInterval }}
+{{- end }}
+{{- if $.Values.secondaryWorkload.kedaAutoscaling.cooldownPeriod }}
+  cooldownPeriod: {{ $.Values.secondaryWorkload.kedaAutoscaling.cooldownPeriod }}
+{{- end }}
+{{- if $.Values.secondaryWorkload.kedaAutoscaling.idleReplicaCount }}
+  idleReplicaCount: {{ $.Values.secondaryWorkload.kedaAutoscaling.idleReplicaCount }}
+{{- end }}
+  minReplicaCount: {{ $.Values.secondaryWorkload.kedaAutoscaling.minReplicaCount }}
+  maxReplicaCount: {{ $.Values.secondaryWorkload.kedaAutoscaling.maxReplicaCount }}
+{{- if $.Values.secondaryWorkload.kedaAutoscaling.fallback }}
+  fallback: 
+{{ toYaml $.Values.secondaryWorkload.kedaAutoscaling.fallback | indent 4 }}
+{{- end }}
+{{- if $.Values.secondaryWorkload.kedaAutoscaling.advanced }}
+  advanced: 
+{{ toYaml $.Values.secondaryWorkload.kedaAutoscaling.advanced | indent 4 }}
+{{- end }}
+  triggers:
+{{ toYaml .Values.secondaryWorkload.kedaAutoscaling.triggers | indent 2}}
+{{- if $.Values.secondaryWorkload.kedaAutoscaling.authenticationRef }}
+    authenticationRef: 
+{{ toYaml $.Values.secondaryWorkload.kedaAutoscaling.authenticationRef | indent 6 }}
+{{- end }}
+---
+{{- if $.Values.secondaryWorkload.kedaAutoscaling.triggerAuthentication.enabled }}
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: {{ $.Values.secondaryWorkload.kedaAutoscaling.triggerAuthentication.name }}
+  labels:
+    app: {{ template ".Chart.Name .name" $ }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    {{- if .Values.appLabels }}
+{{ toYaml .Values.appLabels | indent 4 }}
+    {{- end }}        
+spec:
+{{ toYaml $.Values.secondaryWorkload.kedaAutoscaling.triggerAuthentication.spec | indent 2 }}
+{{- end }}
+{{- end }}
+---
