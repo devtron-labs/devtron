@@ -18,6 +18,7 @@ package apiToken
 
 import (
 	"encoding/json"
+	"fmt"
 	openapi "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/apiToken"
@@ -29,6 +30,7 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type ApiTokenRestHandler interface {
@@ -220,11 +222,23 @@ func (impl ApiTokenRestHandlerImpl) GetAllApiTokensForWebhook(w http.ResponseWri
 		return
 	}
 
-	// handle super-admin RBAC
 	v := r.URL.Query()
 	projectName := v.Get("projectName")
 	environmentName := v.Get("environmentName")
 	appName := v.Get("appName")
+
+	// handle RBAC - verify that the REQUESTING user (not the stored api-tokens
+	// being evaluated below) has trigger permission on the requested
+	// project/environment/app before any token data is looked up and returned.
+	token := r.Header.Get("token")
+	projectObject := fmt.Sprintf("%s/%s", projectName, appName)
+	for _, environment := range strings.Split(environmentName, ",") {
+		envObject := fmt.Sprintf("%s/%s", environment, appName)
+		if ok := impl.CheckAuthorizationForWebhook(token, projectObject, envObject); !ok {
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+			return
+		}
+	}
 
 	// service call
 	res, err := impl.apiTokenService.GetAllApiTokensForWebhook(projectName, environmentName, appName, impl.CheckAuthorizationForWebhook)
