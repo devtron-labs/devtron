@@ -24,6 +24,7 @@ import (
 	"strconv"
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -42,6 +43,7 @@ type ScopedVariableRestHandler interface {
 	CreateVariables(w http.ResponseWriter, r *http.Request)
 	GetScopedVariables(w http.ResponseWriter, r *http.Request)
 	GetJsonForVariables(w http.ResponseWriter, r *http.Request)
+	GetVariableUsage(w http.ResponseWriter, r *http.Request)
 }
 
 type ScopedVariableRestHandlerImpl struct {
@@ -108,7 +110,17 @@ func (handler *ScopedVariableRestHandlerImpl) CreateVariables(w http.ResponseWri
 	//RBAC enforcer Ends
 	err = handler.scopedVariableService.CreateVariables(payload)
 	if err != nil {
-		if errors.As(err, &models.ValidationError{}) {
+		var deletionBlockedErr *models.VariableDeletionBlockedError
+		if errors.As(err, &deletionBlockedErr) {
+			apiErr := &util2.ApiError{
+				HttpStatusCode:    http.StatusConflict,
+				Code:              strconv.Itoa(http.StatusConflict),
+				InternalMessage:   deletionBlockedErr.Error(),
+				UserMessage:       deletionBlockedErr.Error(),
+				UserDetailMessage: deletionBlockedErr.UsageSummary(20),
+			}
+			common.WriteJsonResp(w, apiErr, nil, http.StatusConflict)
+		} else if errors.As(err, &models.ValidationError{}) {
 			common.WriteJsonResp(w, err, nil, http.StatusNotAcceptable)
 		} else {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -116,6 +128,31 @@ func (handler *ScopedVariableRestHandlerImpl) CreateVariables(w http.ResponseWri
 		return
 	}
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
+}
+
+func (handler *ScopedVariableRestHandlerImpl) GetVariableUsage(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.HandleUnauthorized(w, r)
+		return
+	}
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !isSuperAdmin {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+
+	variableName := r.URL.Query().Get("name")
+	usages, err := handler.scopedVariableService.GetVariableUsage(variableName)
+	if err != nil {
+		handler.logger.Errorw("service err, GetVariableUsage", "variableName", variableName, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, usages, http.StatusOK)
 }
 func (handler *ScopedVariableRestHandlerImpl) GetScopedVariables(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
