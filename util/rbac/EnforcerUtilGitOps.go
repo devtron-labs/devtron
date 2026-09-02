@@ -19,7 +19,7 @@ package rbac
 import (
 	"fmt"
 
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster/read"
 	"go.uber.org/zap"
 )
 
@@ -43,20 +43,20 @@ type EnforcerUtilGitOps interface {
 }
 
 type EnforcerUtilGitOpsImpl struct {
-	logger            *zap.SugaredLogger
-	clusterRepository repository.ClusterRepository
+	logger             *zap.SugaredLogger
+	clusterReadService read.ClusterReadService
 }
 
 func NewEnforcerUtilGitOpsImpl(logger *zap.SugaredLogger,
-	clusterRepository repository.ClusterRepository) *EnforcerUtilGitOpsImpl {
+	clusterReadService read.ClusterReadService) *EnforcerUtilGitOpsImpl {
 	return &EnforcerUtilGitOpsImpl{
-		logger:            logger,
-		clusterRepository: clusterRepository,
+		logger:             logger,
+		clusterReadService: clusterReadService,
 	}
 }
 
 func (impl EnforcerUtilGitOpsImpl) GetExternalGitOpsAppObject(clusterId int, namespace string, appName string) string {
-	cluster, err := impl.clusterRepository.FindById(clusterId)
+	cluster, err := impl.clusterReadService.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error on fetching cluster for rbac object", "err", err, "clusterId", clusterId)
 		return ""

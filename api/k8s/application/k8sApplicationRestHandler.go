@@ -23,6 +23,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/common-lib/utils"
 	util3 "github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
@@ -52,14 +59,8 @@ import (
 	errors2 "github.com/juju/errors"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"io"
 	errors3 "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"net/http"
-	"regexp"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type K8sApplicationRestHandler interface {
@@ -833,12 +834,12 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 
 	} else if resourceRequestBean.ExternalArgoApplicationName != "" {
 		// RBAC enforcer applying For external Argo app
-		if request.ExternalArgoAppIdentifier == nil {
+		if resourceRequestBean.ExternalArgoAppIdentifier == nil {
 			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
-		rbacObject := handler.enforcerUtilGitOps.GetExternalGitOpsAppObject(request.ExternalArgoAppIdentifier.ClusterId,
-			request.ExternalArgoAppIdentifier.Namespace, request.ExternalArgoAppIdentifier.AppName)
+		rbacObject := handler.enforcerUtilGitOps.GetExternalGitOpsAppObject(resourceRequestBean.ExternalArgoAppIdentifier.ClusterId,
+			resourceRequestBean.ExternalArgoAppIdentifier.Namespace, resourceRequestBean.ExternalArgoAppIdentifier.AppName)
 		if len(rbacObject) == 0 || !handler.enforcer.Enforce(token, casbin.ResourceArgoApp, casbin.ActionUpdate, rbacObject) {
 			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return

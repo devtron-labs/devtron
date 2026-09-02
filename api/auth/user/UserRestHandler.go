@@ -39,6 +39,16 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 )
 
+const (
+	resultKeyArgoAppAccess = "hasArgoAppAccess"
+	resultKeyFluxAppAccess = "hasFluxAppAccess"
+)
+
+var gitOpsAccessResultKeyByResource = map[string]string{
+	casbin.ResourceArgoApp: resultKeyArgoAppAccess,
+	casbin.ResourceFluxApp: resultKeyFluxAppAccess,
+}
+
 type UserRestHandler interface {
 	CreateUser(w http.ResponseWriter, r *http.Request)
 	UpdateUser(w http.ResponseWriter, r *http.Request)
@@ -796,13 +806,13 @@ func (handler UserRestHandlerImpl) CheckUserRoles(w http.ResponseWriter, r *http
 	result := make(map[string]interface{})
 	result["roles"] = roles
 	result["superAdmin"] = false
-	result["hasArgoAppAccess"] = false
-	result["hasFluxAppAccess"] = false
+	result[resultKeyArgoAppAccess] = false
+	result[resultKeyFluxAppAccess] = false
 	for _, item := range roles {
 		if item == bean2.SUPERADMIN {
 			result["superAdmin"] = true
-			result["hasArgoAppAccess"] = true
-			result["hasFluxAppAccess"] = true
+			result[resultKeyArgoAppAccess] = true
+			result[resultKeyFluxAppAccess] = true
 			continue
 		}
 
@@ -813,14 +823,9 @@ func (handler UserRestHandlerImpl) CheckUserRoles(w http.ResponseWriter, r *http
 			continue
 		}
 
-		if resourceActionFragment[0] == "argo-app" && (resourceActionFragment[1] == "admin" || resourceActionFragment[1] == "view") {
-			result["hasArgoAppAccess"] = true
+		if resultKey, ok := gitOpsAccessResultKeyByResource[resourceActionFragment[0]]; ok {
+			result[resultKey] = true
 		}
-
-		if resourceActionFragment[0] == "flux-app" && (resourceActionFragment[1] == "admin" || resourceActionFragment[1] == "view") {
-			result["hasFluxAppAccess"] = true
-		}
-
 	}
 	common.WriteJsonResp(w, err, result, http.StatusOK)
 }
