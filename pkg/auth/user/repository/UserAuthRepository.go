@@ -74,6 +74,7 @@ type UserAuthRepository interface {
 	GetRoleForClusterEntity(cluster, namespace, group, kind, resource, action string) (RoleModel, error)
 	GetRoleForJobsEntity(entity, team, app, env, act string, workflow string) (RoleModel, error)
 	GetRoleForOtherEntity(team, app, env, act, accessType string, oldValues bool) (RoleModel, error)
+	GetRoleForExternalGitOpsEntity(app, env, act, accessType string) (RoleModel, error)
 	GetRoleForChartGroupEntity(entity, app, act, accessType string) (RoleModel, error)
 }
 
@@ -295,6 +296,13 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(roleFieldDto *bean
 	default:
 		{
 			team, app, env, accessType, oldValues := roleFieldDto.Team, roleFieldDto.App, roleFieldDto.Env, roleFieldDto.AccessType, roleFieldDto.OldValues
+			// External Argo/Flux applications share entity "apps" with devtron-app and
+			// helm-app but have no project, so they get their own project-free lookup
+			// instead of being clubbed into the team-keyed queries below.
+			switch accessType {
+			case bean2.APP_ACCESS_TYPE_ARGO, bean2.APP_ACCESS_TYPE_FLUX:
+				return impl.GetRoleForExternalGitOpsEntity(app, env, action, accessType)
+			}
 			return impl.GetRoleForOtherEntity(team, app, env, action, accessType, oldValues)
 		}
 	}
@@ -1137,46 +1145,6 @@ func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, ac
 		}
 
 		_, err = impl.dbConnection.Query(&model, query, queryParams...)
-	} else if team == "" && len(app) > 0 && len(env) > 0 && len(act) > 0 {
-		var queryParams []interface{}
-		//this is applicable for entities that have no project, e.g. external argo/flux apps,
-		//where the scope is environment(cluster__namespace) + app
-		query := "SELECT role.* FROM roles role WHERE coalesce(role.team,'') = ? AND role.entity_name=? AND role.environment=? AND role.action=?"
-		queryParams = append(queryParams, EMPTY_PLACEHOLDER_FOR_QUERY, app, env, act)
-		if oldValues {
-			query = query + " and role.access_type is NULL"
-		} else {
-			query += " and role.access_type = ? "
-			queryParams = append(queryParams, accessType)
-		}
-
-		_, err = impl.dbConnection.Query(&model, query, queryParams...)
-	} else if team == "" && app == "" && len(env) > 0 && len(act) > 0 {
-		var queryParams []interface{}
-		//no project, all apps of an environment(cluster__namespace)
-		query := "SELECT role.* FROM roles role WHERE coalesce(role.team,'') = ? AND coalesce(role.entity_name,'')=? AND role.environment=? AND role.action=?"
-		queryParams = append(queryParams, EMPTY_PLACEHOLDER_FOR_QUERY, EMPTY_PLACEHOLDER_FOR_QUERY, env, act)
-		if oldValues {
-			query = query + " and role.access_type is NULL"
-		} else {
-			query += " and role.access_type = ? "
-			queryParams = append(queryParams, accessType)
-		}
-
-		_, err = impl.dbConnection.Query(&model, query, queryParams...)
-	} else if team == "" && len(app) > 0 && env == "" && len(act) > 0 {
-		var queryParams []interface{}
-		//no project, an app across all environments
-		query := "SELECT role.* FROM roles role WHERE coalesce(role.team,'') = ? AND role.entity_name=? AND coalesce(role.environment,'')=? AND role.action=?"
-		queryParams = append(queryParams, EMPTY_PLACEHOLDER_FOR_QUERY, app, EMPTY_PLACEHOLDER_FOR_QUERY, act)
-		if oldValues {
-			query = query + " and role.access_type is NULL"
-		} else {
-			query += " and role.access_type = ? "
-			queryParams = append(queryParams, accessType)
-		}
-
-		_, err = impl.dbConnection.Query(&model, query, queryParams...)
 	} else if team == "" && app == "" && env == "" && len(act) > 0 {
 		var queryParams []interface{}
 		//this is applicable for super admin, all env, all team, all app
@@ -1199,6 +1167,40 @@ func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, ac
 	}
 	if err != nil {
 		impl.Logger.Errorw("error in getting role for other entity", "err", err, "app", app, "act", act, "accessType", accessType, "team", team)
+	}
+	return model, err
+}
+
+func (impl UserAuthRepositoryImpl) GetRoleForExternalGitOpsEntity(app, env, act, accessType string) (RoleModel, error) {
+	var model RoleModel
+	if len(act) == 0 || len(accessType) == 0 {
+		impl.Logger.Warnw("incomplete filter for external gitops role, returning empty role",
+			"app", app, "env", env, "action", act, "accessType", accessType)
+		return model, nil
+	}
+	query := "SELECT role.* FROM roles role WHERE coalesce(role.team,'') = ? AND role.action = ? AND role.access_type = ?"
+	queryParams := []interface{}{EMPTY_PLACEHOLDER_FOR_QUERY, act, accessType}
+
+	if len(app) > 0 {
+		query += " AND role.entity_name = ?"
+		queryParams = append(queryParams, app)
+	} else {
+		query += " AND coalesce(role.entity_name,'') = ?"
+		queryParams = append(queryParams, EMPTY_PLACEHOLDER_FOR_QUERY)
+	}
+
+	if len(env) > 0 {
+		query += " AND role.environment = ?"
+		queryParams = append(queryParams, env)
+	} else {
+		query += " AND coalesce(role.environment,'') = ?"
+		queryParams = append(queryParams, EMPTY_PLACEHOLDER_FOR_QUERY)
+	}
+
+	_, err := impl.dbConnection.Query(&model, query, queryParams...)
+	if err != nil {
+		impl.Logger.Errorw("error in getting role for external gitops entity", "err", err,
+			"app", app, "env", env, "action", act, "accessType", accessType)
 	}
 	return model, err
 }
