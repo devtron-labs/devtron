@@ -19,13 +19,14 @@ package user
 import (
 	"encoding/json"
 	"errors"
+	"net/http"
+	"strconv"
+	"strings"
+
 	util2 "github.com/devtron-labs/devtron/api/auth/user/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	"github.com/devtron-labs/devtron/util/commonEnforcementFunctionsUtil"
 	"github.com/gorilla/schema"
-	"net/http"
-	"strconv"
-	"strings"
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -37,6 +38,16 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 )
+
+const (
+	resultKeyArgoAppAccess = "hasArgoAppAccess"
+	resultKeyFluxAppAccess = "hasFluxAppAccess"
+)
+
+var gitOpsAccessResultKeyByResource = map[string]string{
+	casbin.ResourceArgoApp: resultKeyArgoAppAccess,
+	casbin.ResourceFluxApp: resultKeyFluxAppAccess,
+}
 
 type UserRestHandler interface {
 	CreateUser(w http.ResponseWriter, r *http.Request)
@@ -795,9 +806,25 @@ func (handler UserRestHandlerImpl) CheckUserRoles(w http.ResponseWriter, r *http
 	result := make(map[string]interface{})
 	result["roles"] = roles
 	result["superAdmin"] = false
+	result[resultKeyArgoAppAccess] = false
+	result[resultKeyFluxAppAccess] = false
 	for _, item := range roles {
 		if item == bean2.SUPERADMIN {
 			result["superAdmin"] = true
+			result[resultKeyArgoAppAccess] = true
+			result[resultKeyFluxAppAccess] = true
+			continue
+		}
+
+		roleFragments := strings.Split(item, "_")
+		resourceActionFragment := strings.Split(roleFragments[0], ":")
+
+		if len(resourceActionFragment) < 2 {
+			continue
+		}
+
+		if resultKey, ok := gitOpsAccessResultKeyByResource[resourceActionFragment[0]]; ok {
+			result[resultKey] = true
 		}
 	}
 	common.WriteJsonResp(w, err, result, http.StatusOK)
