@@ -1129,10 +1129,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteEphemeralContainer(w http.Re
 
 func (handler *K8sApplicationRestHandlerImpl) handleEphemeralRBAC(podName, namespace string, w http.ResponseWriter, r *http.Request) *bean3.ResourceRequestBean {
 	token := r.Header.Get("token")
-	// terminalRequest is needed for the external Argo identifier: ValidateTerminalRequestQuery
-	// puts the full ArgoAppIdentifier on the request, while resourceRequestBean receives only
-	// the app name and clusterId.
-	terminalRequest, resourceRequestBean, err := handler.k8sApplicationService.ValidateTerminalRequestQuery(r)
+	_, resourceRequestBean, err := handler.k8sApplicationService.ValidateTerminalRequestQuery(r)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return resourceRequestBean
@@ -1166,12 +1163,8 @@ func (handler *K8sApplicationRestHandlerImpl) handleEphemeralRBAC(podName, names
 		//RBAC enforcer ends here
 	} else if resourceRequestBean.ExternalArgoApplicationName != "" {
 		//RBAC enforcer starts here
-		if terminalRequest == nil || terminalRequest.ExternalArgoAppIdentifier == nil {
-			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
-			return resourceRequestBean
-		}
-		rbacObject := handler.enforcerUtilGitOps.GetExternalGitOpsAppObject(terminalRequest.ExternalArgoAppIdentifier.ClusterId,
-			terminalRequest.ExternalArgoAppIdentifier.Namespace, terminalRequest.ExternalArgoAppIdentifier.AppName)
+		rbacObject := handler.enforcerUtilGitOps.GetExternalGitOpsAppObject(resourceRequestBean.ExternalArgoAppIdentifier.ClusterId,
+			resourceRequestBean.ExternalArgoAppIdentifier.Namespace, resourceRequestBean.ExternalArgoAppIdentifier.AppName)
 		if len(rbacObject) == 0 || !handler.enforcer.Enforce(token, casbin.ResourceArgoApp, casbin.ActionUpdate, rbacObject) {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return resourceRequestBean
