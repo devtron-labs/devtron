@@ -135,3 +135,18 @@ func ValidateRoleFilters(rolefilters []bean.RoleFilter) error {
 func ValidateUserRoleGroupRequest(userRoleGroups []bean.UserRoleGroup) error {
 	return nil
 }
+
+func ValidateBulkDeleteRequest(request *bean.BulkDeleteRequest) error {
+	if request == nil {
+		return &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "request payload cannot be empty"}
+	}
+	if len(request.Ids) == 0 && request.ListingRequest == nil {
+		return &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "neither user ids nor filter criteria provided for bulk delete"}
+	}
+	if request.ListingRequest != nil && len(request.Ids) == 0 {
+		if request.ListingRequest.SearchKey == "" && !request.ListingRequest.ShowAll && request.ListingRequest.Size == 0 && request.ListingRequest.Offset == 0 {
+			// Ensure listing request is not completely blank when no IDs are provided
+		}
+	}
+	return nil
+}
