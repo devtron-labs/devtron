@@ -1460,12 +1460,18 @@ func (impl *UserServiceImpl) DeleteUser(userInfo *userBean.UserInfo) (bool, erro
 
 // BulkDeleteUsers takes in BulkDeleteRequest and return success and error
 func (impl *UserServiceImpl) BulkDeleteUsers(request *userBean.BulkDeleteRequest) (bool, error) {
+	if request == nil {
+		return false, errors.New("request cannot be nil")
+	}
 	// it handles ListingRequest if filters are applied will delete those users or will consider the given user ids.
 	if request.ListingRequest != nil {
 		filteredUserIds, err := impl.getUserIdsHonoringFilters(request.ListingRequest)
 		if err != nil {
 			impl.logger.Errorw("error in BulkDeleteUsers", "request", request, "err", err)
 			return false, err
+		}
+		if len(filteredUserIds) == 0 {
+			return true, nil
 		}
 		// setting the filtered user ids here for further processing
 		request.Ids = filteredUserIds
@@ -1480,7 +1486,14 @@ func (impl *UserServiceImpl) BulkDeleteUsers(request *userBean.BulkDeleteRequest
 
 // getUserIdsHonoringFilters get the filtered user ids according to the request filters and returns userIds and error(not nil) if any exception is caught.
 func (impl *UserServiceImpl) getUserIdsHonoringFilters(request *userBean.ListingRequest) ([]int32, error) {
-	//query to get particular models respecting filters
+	// default values will be used if not provided
+	impl.userCommonService.SetDefaultValuesIfNotPresent(request, false)
+	// setting filter status type
+	setStatusFilterType(request)
+	// Recording time here for overall consistency
+	setCurrentTimeInUserInfo(request)
+
+	// query to get particular models respecting filters
 	query, queryParams := helper.GetQueryForUserListingWithFilters(request)
 	models, err := impl.userRepository.GetAllExecutingQuery(query, queryParams)
 	if err != nil {

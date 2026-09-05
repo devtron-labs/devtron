@@ -394,6 +394,14 @@ func (handler UserRestHandlerImpl) BulkDeleteUsers(w http.ResponseWriter, r *htt
 	// setting logged in user Id for audit logs
 	request.LoggedInUserId = userId
 
+	// validations for request payload
+	err = helper.ValidateBulkDeleteRequest(request)
+	if err != nil {
+		handler.logger.Errorw("request err, BulkDeleteUsers, payload validation failed", "payload", request, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
 	// validations for system and admin user
 	err = helper.CheckValidationForAdminAndSystemUserId(request.Ids)
 	if err != nil {
