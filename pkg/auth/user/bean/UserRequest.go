@@ -166,6 +166,17 @@ type BulkDeleteRequest struct {
 	LoggedInUserId int32           `json:"-"`
 }
 
+func (b *BulkDeleteRequest) HasFilterCriteria() bool {
+	if b.ListingRequest == nil {
+		return false
+	}
+	return b.ListingRequest.SearchKey != "" || b.ListingRequest.ShowAll || b.ListingRequest.Size > 0
+}
+
+func (b *BulkDeleteRequest) HasValidTargets() bool {
+	return len(b.Ids) > 0 || b.HasFilterCriteria()
+}
+
 type UserRoleGroup struct {
 	RoleGroup *RoleGroup `json:"roleGroup"`
 }
