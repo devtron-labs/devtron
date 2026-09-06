@@ -843,6 +843,9 @@ func (impl RoleGroupServiceImpl) BulkDeleteRoleGroups(request *bean2.BulkDeleteR
 		// setting the filtered user ids here for further processing
 		request.Ids = filteredGroupIds
 	}
+	if len(request.Ids) == 0 {
+		return true, nil
+	}
 
 	err := impl.deleteRoleGroupsByIds(request)
 	if err != nil {
@@ -854,6 +857,7 @@ func (impl RoleGroupServiceImpl) BulkDeleteRoleGroups(request *bean2.BulkDeleteR
 
 // getGroupIdsHonoringFilters get the filtered group ids according to the request filters and returns groupIds and error(not nil) if any exception is caught.
 func (impl *RoleGroupServiceImpl) getGroupIdsHonoringFilters(request *bean2.ListingRequest) ([]int32, error) {
+	impl.userCommonService.SetDefaultValuesIfNotPresent(request, true)
 	//query to get particular models respecting filters
 	query, queryParams := helper.GetQueryForGroupListingWithFilters(request)
 	models, err := impl.roleGroupRepository.GetAllExecutingQuery(query, queryParams)
