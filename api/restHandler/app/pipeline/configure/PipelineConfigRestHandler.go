@@ -57,6 +57,7 @@ import (
 	"go.opentelemetry.io/otel"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appClone"
@@ -265,7 +266,22 @@ func (handler *PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r
 		return
 	}
 	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceObject, casbin.ActionDelete)
+	app, err := handler.pipelineBuilder.GetApp(appId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetApp", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	var ok bool
+	if app.AppType == helper.Job {
+		// app type is known to be a job, so enforce the jobs resource ONLY (not the applications OR),
+		// otherwise an applications:delete holder could delete the job entity, which is itself an app record
+		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionDelete, resourceObject)
+	} else {
+		// devtron apps use the dedicated app-lifecycle action so the app-entity delete can be
+		// restricted independently of pipeline/workflow delete (which stay on ActionDelete)
+		ok = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDeleteApp, resourceObject)
+	}
 	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -385,7 +401,16 @@ func (handler *PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r
 
 	// with admin roles, you have to access for all the apps of the project to create new app. (admin or manager with specific app permission can't create app.)
 	object := fmt.Sprintf("%s/%s", project.Name, "*")
-	isAuthorised := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionCreate)
+	var isAuthorised bool
+	if createRequest.AppType == helper.Job {
+		// app type is known to be a job, so enforce the jobs resource ONLY (not the applications OR),
+		// otherwise an applications:create holder could create the job entity, which is itself an app record
+		isAuthorised = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, object)
+	} else {
+		// devtron apps use the dedicated app-lifecycle action so the app-entity create can be
+		// restricted independently of pipeline/workflow/config creation (which stay on ActionCreate)
+		isAuthorised = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreateApp, object)
+	}
 	if !isAuthorised {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
