@@ -2,6 +2,7 @@
 - feat: decouple app lifecycle actions; add indexes to improve CI query… (#7019)
 - feat: obfuscate secret in audit logs (#6994)
 ## Bugs
+- fix: scope filter-based bulk user delete to match listing filters (#7021)
 ## Others
 - perf(sql): add index on ci_workflow's status - FindByStatusesIn (#7017)
 - fix(security): enforce caller RBAC in API token webhook endpoint (#7016)
