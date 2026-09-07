@@ -1,6 +1,6 @@
 {{- if .Values.ConfigMaps.enabled }}
   {{- range .Values.ConfigMaps.maps }}
-    {{if eq .external false }}
+    {{ if eq .external false }}
 ---
 apiVersion: v1
 kind: ConfigMap
