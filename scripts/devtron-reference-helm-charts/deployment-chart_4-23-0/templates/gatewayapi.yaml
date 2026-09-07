@@ -224,3 +224,4 @@ spec:
         - name: {{ $svcName }}
           port: {{ .Values.gatewayApi.grpcRoute.port | default $svcPort }}
 {{- end }}
+
