@@ -1,8 +1,9 @@
 package bean
 
 const (
-	InvalidPayloadMessage = "Invalid Payload"
-	InvalidEntityMessage  = "Invalid Entity"
+	InvalidPayloadMessage   = "Invalid Payload"
+	InvalidEntityMessage    = "Invalid Entity"
+	InvalidClusterIdMessage = "Invalid clusterId"
 )
 
 // messages

@@ -18,13 +18,14 @@ package user
 
 import (
 	"fmt"
+	"math"
+	"strings"
+	"time"
+
 	bean3 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository/bean"
 	"golang.org/x/exp/maps"
-	"math"
-	"strings"
-	"time"
 
 	"github.com/caarlos0/env/v6"
 	"github.com/devtron-labs/authenticator/middleware"
@@ -372,6 +373,8 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 		if role, ok := roleIdVsRoleMap[userRoleModel.RoleId]; ok {
 			isValidAuth := impl.checkRbacForARole(role, token, managerAuth)
 			if !isValidAuth {
+				impl.logger.Warnw("not authorised to delete role, skipping", "roleId", role.Id,
+					"entity", role.Entity, "accessType", role.AccessType, "action", role.Action)
 				continue
 			}
 			toBeDeletedUserRolesIds = append(toBeDeletedUserRolesIds, userRoleModel.Id)
@@ -527,6 +530,8 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 		if role, ok := roleIdVsRoleMap[model.RoleId]; ok {
 			isValidAuth := impl.checkRbacForARole(role, token, managerAuth)
 			if !isValidAuth {
+				impl.logger.Warnw("not authorised to delete role, skipping", "roleId", role.Id,
+					"entity", role.Entity, "accessType", role.AccessType, "action", role.Action)
 				continue
 			}
 			toBeDeletedRoleGroupRoleMappingsIds = append(toBeDeletedRoleGroupRoleMappingsIds, model.Id)
@@ -547,7 +552,9 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 func (impl UserCommonServiceImpl) checkRbacForARole(role *repository.RoleModel, token string, managerAuth func(resource string, token string, object string) bool) bool {
 	isAuthorised := true
 	switch {
-	case role.Action == bean2.SUPER_ADMIN || role.AccessType == bean2.APP_ACCESS_TYPE_HELM || role.Entity == bean2.EntityJobs:
+	case role.Action == bean2.SUPER_ADMIN || role.AccessType == bean2.APP_ACCESS_TYPE_HELM ||
+		role.AccessType == bean2.APP_ACCESS_TYPE_ARGO || role.AccessType == bean2.APP_ACCESS_TYPE_FLUX ||
+		role.Entity == bean2.EntityJobs:
 		isValidAuth := managerAuth(casbin.ResourceGlobal, token, "*")
 		if !isValidAuth {
 			isAuthorised = false
@@ -779,6 +786,18 @@ func (impl UserCommonServiceImpl) GetUniqueKeyForAllEntity(entityProcessor Entit
 			key = fmt.Sprintf("%s_%s_%s_%s_%s", entityProcessor.GetTeam(), entityProcessor.GetEntityName(), entityProcessor.GetAction(), entityProcessor.GetAccessType(), entityProcessor.GetEntity())
 		default:
 			key = fmt.Sprintf("%s_%s_%s_%s", entityProcessor.GetTeam(), entityProcessor.GetAction(), entityProcessor.GetAccessType(), entityProcessor.GetEntity())
+		}
+	} else if entityProcessor.GetEntity() == bean2.ENTITY_APPS {
+		switch baseToConsider {
+		case bean2.EnvironmentBasedKey:
+			key = fmt.Sprintf("%s_%s_%s_%s", entityProcessor.GetEntity(), entityProcessor.GetEnvironment(),
+				entityProcessor.GetAction(), entityProcessor.GetAccessType())
+		case bean2.ApplicationBasedKey:
+			key = fmt.Sprintf("%s_%s_%s_%s", entityProcessor.GetEntity(), entityProcessor.GetEntityName(),
+				entityProcessor.GetAction(), entityProcessor.GetAccessType())
+		default:
+			key = fmt.Sprintf("%s_%s_%s", entityProcessor.GetEntity(), entityProcessor.GetAction(),
+				entityProcessor.GetAccessType())
 		}
 	} else if len(entityProcessor.GetEntity()) > 0 {
 		if entityProcessor.GetEntity() == bean2.CLUSTER_ENTITIY {

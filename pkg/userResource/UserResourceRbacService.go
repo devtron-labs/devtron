@@ -16,10 +16,13 @@ func (impl *UserResourceServiceImpl) enforceRbacForTeamForHelmApp(token string, 
 	return adapter.BuildUserResourceResponseDto(resourceOptions.TeamsResp), nil
 }
 
-func (impl *UserResourceServiceImpl) enforceRbacForEnvForHelmApp(token string, params *apiBean.PathParams, resourceOptions *bean.ResourceOptionsDto) (*bean.UserResourceResponseDto, error) {
+// enforceRbacForEnvOptions gates the environment options dropdown. It serves all three
+// external application types — helm-app, argo-app and flux-app — because the options are
+// cluster/namespace pairs regardless of who deployed the application.
+func (impl *UserResourceServiceImpl) enforceRbacForEnvOptions(token string, params *apiBean.PathParams, resourceOptions *bean.ResourceOptionsDto) (*bean.UserResourceResponseDto, error) {
 	isAuthorised := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*")
 	if !isAuthorised {
-		impl.logger.Errorw("user is unauthorized to enforceRbacForEnvForHelmApp")
+		impl.logger.Errorw("user is unauthorized to enforceRbacForEnvOptions")
 		return adapter.BuildNullDataUserResourceResponseDto(), nil
 	}
 	return adapter.BuildUserResourceResponseDto(resourceOptions.HelmEnvResp), nil
