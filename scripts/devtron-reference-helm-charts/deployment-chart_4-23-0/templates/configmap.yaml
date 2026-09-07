@@ -1,11 +1,11 @@
 {{- if .Values.ConfigMaps.enabled }}
   {{- range .Values.ConfigMaps.maps }}
-    {{if eq .external false}}
+    {{if eq .external false }}
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .name}}-{{ $.Values.app }}
+  name: {{ .name }}-{{ $.Values.app }}
   labels:
     appId: {{ $.Values.app | quote }}
     envId: {{ $.Values.env | quote }}
