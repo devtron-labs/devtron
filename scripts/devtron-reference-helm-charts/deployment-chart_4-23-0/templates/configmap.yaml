@@ -17,6 +17,6 @@ metadata:
 {{- end }}
 data:
 {{ toYaml .data | trim | indent 2 }}
-    {{- end}}
-  {{- end}}
+    {{- end }}
+  {{- end }}
 {{- end }}
