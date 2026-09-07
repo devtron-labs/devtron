@@ -21,9 +21,9 @@ spec:
           image: 686244538589.dkr.ecr.us-east-2.amazonaws.com/migrator:0.0.1-rc14
           env:
             {{- range $.Values.dbMigrationConfig.envValues }}
-            - name: {{ .key}}
+            - name: {{ .key }}
               value: {{ .value  | quote }}
-            {{- end}}
+            {{- end }}
       restartPolicy: Never
   backoffLimit: 0
 {{- end }}
