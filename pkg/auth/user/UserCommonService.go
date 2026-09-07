@@ -18,13 +18,14 @@ package user
 
 import (
 	"fmt"
+	"math"
+	"strings"
+	"time"
+
 	bean3 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository/bean"
 	"golang.org/x/exp/maps"
-	"math"
-	"strings"
-	"time"
 
 	"github.com/caarlos0/env/v6"
 	"github.com/devtron-labs/authenticator/middleware"
@@ -779,6 +780,18 @@ func (impl UserCommonServiceImpl) GetUniqueKeyForAllEntity(entityProcessor Entit
 			key = fmt.Sprintf("%s_%s_%s_%s_%s", entityProcessor.GetTeam(), entityProcessor.GetEntityName(), entityProcessor.GetAction(), entityProcessor.GetAccessType(), entityProcessor.GetEntity())
 		default:
 			key = fmt.Sprintf("%s_%s_%s_%s", entityProcessor.GetTeam(), entityProcessor.GetAction(), entityProcessor.GetAccessType(), entityProcessor.GetEntity())
+		}
+	} else if entityProcessor.GetEntity() == bean2.ENTITY_APPS {
+		switch baseToConsider {
+		case bean2.EnvironmentBasedKey:
+			key = fmt.Sprintf("%s_%s_%s_%s", entityProcessor.GetEntity(), entityProcessor.GetEnvironment(),
+				entityProcessor.GetAction(), entityProcessor.GetAccessType())
+		case bean2.ApplicationBasedKey:
+			key = fmt.Sprintf("%s_%s_%s_%s", entityProcessor.GetEntity(), entityProcessor.GetEntityName(),
+				entityProcessor.GetAction(), entityProcessor.GetAccessType())
+		default:
+			key = fmt.Sprintf("%s_%s_%s", entityProcessor.GetEntity(), entityProcessor.GetAction(),
+				entityProcessor.GetAccessType())
 		}
 	} else if len(entityProcessor.GetEntity()) > 0 {
 		if entityProcessor.GetEntity() == bean2.CLUSTER_ENTITIY {
