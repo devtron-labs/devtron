@@ -53,6 +53,11 @@ const (
 	ActionTrigger   = "trigger"
 	ActionNotify    = "notify"
 	ActionExec      = "exec"
+	// ActionCreateApp and ActionDeleteApp gate the application-entity lifecycle (create/delete an app),
+	// decoupled from ActionCreate/ActionDelete which also gate pipeline/workflow/config operations.
+	// admin/manager/super-admin keep app lifecycle via their wildcard (`*`) action policies.
+	ActionCreateApp = "createApp"
+	ActionDeleteApp = "deleteApp"
 
 	ClusterResourceRegex         = "%s/%s"    // {cluster}/{namespace}
 	ClusterObjectRegex           = "%s/%s/%s" // {groupName}/{kindName}/{objectName}
