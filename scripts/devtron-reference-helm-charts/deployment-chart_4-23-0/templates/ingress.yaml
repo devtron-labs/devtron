@@ -7,7 +7,7 @@
   {{- end }}
 {{- if and .Values.ingressInternal.className (not (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion)) }}
   {{- if not (hasKey .Values.ingressInternal.annotations "kubernetes.io/ingress.class") }}
-  {{- $_ := set .Values.ingressInternal.annotations "kubernetes.io/ingress.class" .Values.ingressInternal.className}}
+  {{- $_ := set .Values.ingressInternal.annotations "kubernetes.io/ingress.class" .Values.ingressInternal.className }}
   {{- end }}
 {{- end }}
 {{- end }}
