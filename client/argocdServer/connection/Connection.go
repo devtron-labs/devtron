@@ -19,8 +19,8 @@ package connection
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/devtron-labs/common-lib/async"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/client/argocdServer/bean"
@@ -150,7 +150,7 @@ func (impl *ArgoCDConnectionManagerImpl) getConnectionWithToken(connectionConfig
 	if len(token) > 0 {
 		option = append(option, grpc.WithPerRPCCredentials(TokenAuth{token: token}))
 	}
-	option = append(option, grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor, otelgrpc.UnaryClientInterceptor()), grpc.WithChainStreamInterceptor(grpc_prometheus.StreamClientInterceptor, otelgrpc.StreamClientInterceptor()))
+	option = append(option, grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor), grpc.WithChainStreamInterceptor(grpc_prometheus.StreamClientInterceptor), grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
 	conn, err := grpc.Dial(fmt.Sprintf("%s:%s", connectionConfig.Host, connectionConfig.Port), option...)
 	if err != nil {
 		return nil

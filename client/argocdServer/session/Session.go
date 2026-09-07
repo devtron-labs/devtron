@@ -18,7 +18,7 @@ package session
 
 import (
 	"context"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	"google.golang.org/grpc"
 	"time"
 )

@@ -13,7 +13,7 @@ import (
 // the number of milliseconds seconds since midnight 1 Jan 1970 UTC, leap seconds excluded.
 // As well as improved entropy characteristics over versions 1 or 6.
 //
-// see https://datatracker.ietf.org/doc/html/draft-peabody-dispatch-new-uuid-format-03#name-uuid-version-7
+// see https://datatracker.ietf.org/doc/html/rfc9562#name-uuid-version-7
 //
 // Implementations SHOULD utilize UUID version 7 over UUID version 1 and 6 if possible.
 //
@@ -83,7 +83,7 @@ var lastV7time int64
 const nanoPerMilli = 1000000
 
 // getV7Time returns the time in milliseconds and nanoseconds / 256.
-// The returned (milli << 12 + seq) is guarenteed to be greater than
+// The returned (milli << 12 + seq) is guaranteed to be greater than
 // (milli << 12 + seq) returned by any previous call to getV7Time.
 func getV7Time() (milli, seq int64) {
 	timeMu.Lock()

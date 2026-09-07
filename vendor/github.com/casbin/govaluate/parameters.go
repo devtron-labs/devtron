@@ -5,8 +5,8 @@ import (
 )
 
 /*
-	Parameters is a collection of named parameters that can be used by an EvaluableExpression to retrieve parameters
-	when an expression tries to use them.
+Parameters is a collection of named parameters that can be used by an EvaluableExpression to retrieve parameters
+when an expression tries to use them.
 */
 type Parameters interface {
 

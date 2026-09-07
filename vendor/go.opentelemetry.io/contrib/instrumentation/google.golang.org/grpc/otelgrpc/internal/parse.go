@@ -1,24 +1,14 @@
 // Copyright The OpenTelemetry Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
+// Package internal provides internal functionality for the otelgrpc package.
 package internal // import "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc/internal"
 
 import (
 	"strings"
 
 	"go.opentelemetry.io/otel/attribute"
-	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 )
 
 // ParseFullMethod returns a span name following the OpenTelemetry semantic
@@ -33,19 +23,5 @@ func ParseFullMethod(fullMethod string) (string, []attribute.KeyValue) {
 		return fullMethod, nil
 	}
 	name := fullMethod[1:]
-	pos := strings.LastIndex(name, "/")
-	if pos < 0 {
-		// Invalid format, does not follow `/package.service/method`.
-		return name, nil
-	}
-	service, method := name[:pos], name[pos+1:]
-
-	var attrs []attribute.KeyValue
-	if service != "" {
-		attrs = append(attrs, semconv.RPCService(service))
-	}
-	if method != "" {
-		attrs = append(attrs, semconv.RPCMethod(method))
-	}
-	return name, attrs
+	return name, []attribute.KeyValue{semconv.RPCMethod(name)}
 }
