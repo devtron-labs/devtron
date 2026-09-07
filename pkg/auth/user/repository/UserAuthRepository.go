@@ -74,7 +74,7 @@ type UserAuthRepository interface {
 	GetRoleForClusterEntity(cluster, namespace, group, kind, resource, action string) (RoleModel, error)
 	GetRoleForJobsEntity(entity, team, app, env, act string, workflow string) (RoleModel, error)
 	GetRoleForOtherEntity(team, app, env, act, accessType string, oldValues bool) (RoleModel, error)
-	GetRoleForExternalGitOpsEntity(app, env, act, accessType string) (RoleModel, error)
+	GetRoleForExternalGitOpsEntity(app, env, act, accessType string, oldValues bool) (RoleModel, error)
 	GetRoleForChartGroupEntity(entity, app, act, accessType string) (RoleModel, error)
 }
 
@@ -301,7 +301,7 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(roleFieldDto *bean
 			// instead of being clubbed into the team-keyed queries below.
 			switch accessType {
 			case bean2.APP_ACCESS_TYPE_ARGO, bean2.APP_ACCESS_TYPE_FLUX:
-				return impl.GetRoleForExternalGitOpsEntity(app, env, action, accessType)
+				return impl.GetRoleForExternalGitOpsEntity(app, env, action, accessType, oldValues)
 			}
 			return impl.GetRoleForOtherEntity(team, app, env, action, accessType, oldValues)
 		}
@@ -1171,8 +1171,11 @@ func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, ac
 	return model, err
 }
 
-func (impl UserAuthRepositoryImpl) GetRoleForExternalGitOpsEntity(app, env, act, accessType string) (RoleModel, error) {
+func (impl UserAuthRepositoryImpl) GetRoleForExternalGitOpsEntity(app, env, act, accessType string, oldValues bool) (RoleModel, error) {
 	var model RoleModel
+	if oldValues {
+		return model, nil
+	}
 	if len(act) == 0 || len(accessType) == 0 {
 		impl.Logger.Warnw("incomplete filter for external gitops role, returning empty role",
 			"app", app, "env", env, "action", act, "accessType", accessType)
