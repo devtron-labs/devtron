@@ -1,4 +1,5 @@
 ## Enhancements
+- feat: decouple app lifecycle actions; add indexes to improve CI query… (#7019)
 - feat: obfuscate secret in audit logs (#6994)
 ## Bugs
 ## Others
