@@ -1480,6 +1480,15 @@ func (impl *UserServiceImpl) BulkDeleteUsers(request *userBean.BulkDeleteRequest
 
 // getUserIdsHonoringFilters get the filtered user ids according to the request filters and returns userIds and error(not nil) if any exception is caught.
 func (impl *UserServiceImpl) getUserIdsHonoringFilters(request *userBean.ListingRequest) ([]int32, error) {
+	// a filter based bulk delete must always be scoped by at least one concrete filter; an empty/default
+	// filter must never be allowed to silently widen into "delete every user" (no filter => no filter based bulk delete).
+	if len(strings.TrimSpace(request.SearchKey)) == 0 && !isStatusFilterApplied(request) {
+		return nil, &util.ApiError{Code: "400", HttpStatusCode: http.StatusBadRequest, UserMessage: "at least one filter criteria (searchKey or status) is required for a filter based bulk delete"}
+	}
+	// applying the same normalization the listing path (GetAllWithFilters) applies before resolving the
+	// query, so that filter resolution for delete matches filter resolution for listing exactly.
+	impl.userCommonService.SetDefaultValuesIfNotPresent(request, false)
+	setStatusFilterType(request)
 	//query to get particular models respecting filters
 	query, queryParams := helper.GetQueryForUserListingWithFilters(request)
 	models, err := impl.userRepository.GetAllExecutingQuery(query, queryParams)
