@@ -373,6 +373,8 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 		if role, ok := roleIdVsRoleMap[userRoleModel.RoleId]; ok {
 			isValidAuth := impl.checkRbacForARole(role, token, managerAuth)
 			if !isValidAuth {
+				impl.logger.Warnw("not authorised to delete role, skipping", "roleId", role.Id,
+					"entity", role.Entity, "accessType", role.AccessType, "action", role.Action)
 				continue
 			}
 			toBeDeletedUserRolesIds = append(toBeDeletedUserRolesIds, userRoleModel.Id)
@@ -528,6 +530,8 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 		if role, ok := roleIdVsRoleMap[model.RoleId]; ok {
 			isValidAuth := impl.checkRbacForARole(role, token, managerAuth)
 			if !isValidAuth {
+				impl.logger.Warnw("not authorised to delete role, skipping", "roleId", role.Id,
+					"entity", role.Entity, "accessType", role.AccessType, "action", role.Action)
 				continue
 			}
 			toBeDeletedRoleGroupRoleMappingsIds = append(toBeDeletedRoleGroupRoleMappingsIds, model.Id)
@@ -548,7 +552,9 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 func (impl UserCommonServiceImpl) checkRbacForARole(role *repository.RoleModel, token string, managerAuth func(resource string, token string, object string) bool) bool {
 	isAuthorised := true
 	switch {
-	case role.Action == bean2.SUPER_ADMIN || role.AccessType == bean2.APP_ACCESS_TYPE_HELM || role.Entity == bean2.EntityJobs:
+	case role.Action == bean2.SUPER_ADMIN || role.AccessType == bean2.APP_ACCESS_TYPE_HELM ||
+		role.AccessType == bean2.APP_ACCESS_TYPE_ARGO || role.AccessType == bean2.APP_ACCESS_TYPE_FLUX ||
+		role.Entity == bean2.EntityJobs:
 		isValidAuth := managerAuth(casbin.ResourceGlobal, token, "*")
 		if !isValidAuth {
 			isAuthorised = false
