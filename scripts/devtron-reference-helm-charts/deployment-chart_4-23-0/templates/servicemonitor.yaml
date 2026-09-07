@@ -55,7 +55,7 @@ spec:
       tlsConfig:
       {{- toYaml .servicemonitor.tlsConfig | nindent 8 }}
       {{- end }}
-      {{- if .servicemonitor.metricRelabelings}}
+      {{- if .servicemonitor.metricRelabelings }}
       metricRelabelings:
 {{toYaml .servicemonitor.metricRelabelings | indent 8 }}
       {{- end }}
