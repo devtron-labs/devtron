@@ -744,6 +744,8 @@ serviceAccount:
   ##  
   annotations: {}
 
+automountServiceAccountToken: false
+
 tolerations: []
   #  - key: "key"
   #    operator: "Equal|Exists"
