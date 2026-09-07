@@ -47,7 +47,7 @@ spec:
       target:
         type: Utilization
         averageUtilization: {{ .TargetCPUUtilizationPercentage }}
-  {{- end}}  
+  {{- end }}  
   {{- if .TargetMemoryUtilizationPercentage  }}
   - type: ContainerResource  
     containerResource:
@@ -56,7 +56,7 @@ spec:
       target:
         type: Utilization
         averageUtilization: {{ .TargetMemoryUtilizationPercentage }}
-  {{- end}}
+  {{- end }}
   {{- end }}            
   {{- end }}  
   {{- if $.Values.autoscaling.TargetMemoryUtilizationPercentage }}
@@ -139,7 +139,7 @@ spec:
       target:
         type: Utilization
         averageUtilization: {{ .TargetMemoryUtilizationPercentage }}
-  {{- end}}
+  {{- end }}
   {{- end }}            
   {{- end }}  
   {{- if .autoscaling.TargetMemoryUtilizationPercentage }}
@@ -168,7 +168,7 @@ spec:
   {{- end }}
     {{- if and .autoscaling.extraMetrics (semverCompare ">=1.16-0" $.Capabilities.KubeVersion.GitVersion) }}
   {{- toYaml .autoscaling.extraMetrics | nindent 2 }}
-    {{- end}}
+    {{- end }}
   {{- if and .autoscaling.behavior (semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion) }}
   behavior:
     {{- toYaml .autoscaling.behavior | nindent 4 }}
