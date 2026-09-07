@@ -118,6 +118,7 @@ spec:
 {{- else  }}
       serviceAccountName: {{ template "serviceAccountName" . }}
 {{- end }}
+      automountServiceAccountToken: {{ $.Values.automountServiceAccountToken | default false }}
 {{- if $.Values.schedulerName }}
       schedulerName: {{ .Values.schedulerName }}
 {{- end }}      
