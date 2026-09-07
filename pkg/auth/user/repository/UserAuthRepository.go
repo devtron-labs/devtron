@@ -1149,10 +1149,6 @@ func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, ac
 
 		}
 		_, err = impl.dbConnection.Query(&model, query, queryParams...)
-	} else if team == "" && app == "" && env == "" && act == "" {
-		return model, nil
-	} else {
-		return model, nil
 	}
 	if err != nil {
 		impl.Logger.Errorw("error in getting role for other entity", "err", err, "app", app, "act", act, "accessType", accessType, "team", team)
