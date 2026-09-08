@@ -278,3 +278,13 @@ func (impl UserRepositoryImpl) CheckIfTokenExistsByTokenNameAndVersion(tokenName
 	exists, err := query.Exists()
 	return exists, err
 }
+
+func FilterActiveUserIds(users []UserModel) []int32 {
+	activeIds := make([]int32, 0, len(users))
+	for _, u := range users {
+		if u.Active {
+			activeIds = append(activeIds, u.Id)
+		}
+	}
+	return activeIds
+}
