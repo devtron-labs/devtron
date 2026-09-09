@@ -96,7 +96,12 @@ func (handler *ScopedVariableRestHandlerImpl) CreateVariables(w http.ResponseWri
 		return
 	}
 
-	payload := utils.ManifestToPayload(request.Manifest, userId)
+	payload, err := utils.ManifestToPayload(request.Manifest, userId)
+	if err != nil {
+		handler.logger.Errorw("invalid manifest in CreateVariables", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusNotAcceptable)
+		return
+	}
 
 	// not logging bean object as it contains sensitive data
 	handler.logger.Infow("request payload received for variables")
