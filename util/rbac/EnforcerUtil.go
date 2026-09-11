@@ -18,6 +18,7 @@ package rbac
 
 import (
 	"fmt"
+	bean3 "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/pkg/app/dbMigration"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
@@ -464,6 +465,8 @@ func (impl EnforcerUtilImpl) GetHelmObject(appId int, envId int) (string, string
 		impl.logger.Errorw("error on fetching data for rbac object", "err", err)
 		return fmt.Sprintf("%s/%s/%s", "", "", ""), ""
 	}
+	appNameForRbac := application.GetAppNameForRbac()
+	teamName := getTeamNameForHelmRbac(application)
 	clusterName := env.Cluster.ClusterName
 	namespace := env.Namespace
 
@@ -486,31 +489,26 @@ func (impl EnforcerUtilImpl) GetHelmObject(appId int, envId int) (string, string
 	}*/
 
 	if environmentIdentifier2 == "" {
-		return fmt.Sprintf("%s/%s/%s", application.Team.Name, environmentIdentifier, application.AppName), ""
+		return fmt.Sprintf("%s/%s/%s", teamName, environmentIdentifier, appNameForRbac), ""
 	}
 
-	return fmt.Sprintf("%s/%s/%s", application.Team.Name, environmentIdentifier, application.AppName),
-		fmt.Sprintf("%s/%s/%s", application.Team.Name, environmentIdentifier2, application.AppName)
+	return fmt.Sprintf("%s/%s/%s", teamName, environmentIdentifier, appNameForRbac),
+		fmt.Sprintf("%s/%s/%s", teamName, environmentIdentifier2, appNameForRbac)
 }
 
 func (impl EnforcerUtilImpl) GetHelmObjectByAppNameAndEnvId(appName string, envId int) (string, string) {
-	application, err := impl.appRepo.FindAppAndProjectByAppName(appName)
-	if err == pg.ErrMultiRows {
-		application, err = impl.dbMigration.FixMultipleAppsForInstalledApp(appName)
-		if err != nil {
-			impl.logger.Errorw("error on fetching data for rbac object", "appName", appName, "err", err)
-			return fmt.Sprintf("%s/%s/%s", "", "", ""), ""
-		}
-	}
-	if err != nil {
-		impl.logger.Errorw("error on fetching data for rbac object", "err", err)
-		return fmt.Sprintf("%s/%s/%s", "", "", ""), ""
-	}
 	env, err := impl.environmentRepository.FindById(envId)
 	if err != nil {
 		impl.logger.Errorw("error on fetching data for rbac object", "err", err)
 		return fmt.Sprintf("%s/%s/%s", "", "", ""), ""
 	}
+	application, err := impl.getAppForHelmRbac(appName, env.ClusterId, env.Namespace)
+	if err != nil {
+		impl.logger.Errorw("error on fetching data for rbac object", "appName", appName, "err", err)
+		return fmt.Sprintf("%s/%s/%s", "", "", ""), ""
+	}
+	appNameForRbac := application.GetAppNameForRbac()
+	teamName := getTeamNameForHelmRbac(application)
 	clusterName := env.Cluster.ClusterName
 	namespace := env.Namespace
 	environmentIdentifier := env.EnvironmentIdentifier
@@ -524,7 +522,7 @@ func (impl EnforcerUtilImpl) GetHelmObjectByAppNameAndEnvId(appName string, envI
 		}
 	}
 	if environmentIdentifier2 == "" {
-		return strings.ToLower(fmt.Sprintf("%s/%s/%s", application.Team.Name, environmentIdentifier, application.AppName)), ""
+		return strings.ToLower(fmt.Sprintf("%s/%s/%s", teamName, environmentIdentifier, appNameForRbac)), ""
 	}
 
 	//TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
@@ -532,8 +530,50 @@ func (impl EnforcerUtilImpl) GetHelmObjectByAppNameAndEnvId(appName string, envI
 	if !strings.HasPrefix(env.EnvironmentIdentifier, fmt.Sprintf("%s__", env.Cluster.ClusterName)) {
 		environmentIdentifier = fmt.Sprintf("%s__%s", env.Cluster.ClusterName, env.EnvironmentIdentifier)
 	}*/
-	return strings.ToLower(fmt.Sprintf("%s/%s/%s", application.Team.Name, environmentIdentifier, application.AppName)),
-		strings.ToLower(fmt.Sprintf("%s/%s/%s", application.Team.Name, environmentIdentifier2, application.AppName))
+	return strings.ToLower(fmt.Sprintf("%s/%s/%s", teamName, environmentIdentifier, appNameForRbac)),
+		strings.ToLower(fmt.Sprintf("%s/%s/%s", teamName, environmentIdentifier2, appNameForRbac))
+}
+
+// getTeamNameForHelmRbac returns the project name to be used while building a helm rbac object.
+// An external helm app can be linked to chart store without a project being assigned to it, in which case
+// team_id stays 0 and the joined Team row is empty. Permissions for such apps are granted under the
+// "unassigned" project, so that literal has to be used instead of an empty project name.
+func getTeamNameForHelmRbac(application *app.App) string {
+	if application.TeamId == 0 {
+		return repository3.UNASSIGNED_PROJECT
+	}
+	return application.Team.Name
+}
+
+// getAppForHelmRbac resolves the app row for a helm rbac object, given a name that may either be the
+// app_name stored in db or the display_name shown to the user.
+// For an external helm app linked to chart store, app_name is the unique identifier
+// (<releaseName>-<namespace>-<clusterId>) while callers here generally only have the release name, so the
+// identifier is reconstructed from the environment and tried first. The plain-name lookup is kept as a
+// fallback for regular chart store apps, for legacy rows created before the unique identifier existed, and
+// for callers that already pass the identifier.
+func (impl EnforcerUtilImpl) getAppForHelmRbac(appName string, clusterId int, namespace string) (*app.App, error) {
+	appIdentifier := &bean3.AppIdentifier{
+		ClusterId:   clusterId,
+		Namespace:   namespace,
+		ReleaseName: appName,
+	}
+	uniqueAppNameIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
+	application, err := impl.appRepo.FindAppAndProjectByAppName(uniqueAppNameIdentifier)
+	if err == pg.ErrMultiRows {
+		application, err = impl.dbMigration.FixMultipleAppsForInstalledApp(uniqueAppNameIdentifier)
+	}
+	if application == nil || err == pg.ErrNoRows {
+		impl.logger.Debugw("app not found by unique identifier, falling back to app name", "appIdentifier", uniqueAppNameIdentifier, "appName", appName)
+		application, err = impl.appRepo.FindAppAndProjectByAppName(appName)
+		if err == pg.ErrMultiRows {
+			application, err = impl.dbMigration.FixMultipleAppsForInstalledApp(appName)
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	return application, nil
 }
 
 func (impl EnforcerUtilImpl) GetHelmObjectByProjectIdAndEnvId(teamId int, envId int) (string, string) {
