@@ -49,25 +49,28 @@ type ScopedVariableService interface {
 	GetFormattedVariableForName(name string) string
 	GetMatchedScopedVariables(varScope []*resourceQualifiers.QualifierMapping) map[int][]*resourceQualifiers.QualifierMapping
 	GetScopeWithPriority(variableIdToVariableScopes map[int][]*resourceQualifiers.QualifierMapping) map[int]int
+	GetVariableUsage(variableName string) ([]*models.VariableUsage, error)
 }
 
 type ScopedVariableServiceImpl struct {
-	logger                   *zap.SugaredLogger
-	scopedVariableRepository repository2.ScopedVariableRepository
-	qualifierMappingService  resourceQualifiers.QualifierMappingService
-	VariableNameConfig       *VariableConfig
-	VariableCache            *cache.VariableCacheObj
-	asyncRunnable            *async.Runnable
+	logger                       *zap.SugaredLogger
+	scopedVariableRepository     repository2.ScopedVariableRepository
+	qualifierMappingService      resourceQualifiers.QualifierMappingService
+	variableEntityMappingService VariableEntityMappingService
+	VariableNameConfig           *VariableConfig
+	VariableCache                *cache.VariableCacheObj
+	asyncRunnable                *async.Runnable
 }
 
 func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository repository2.ScopedVariableRepository, appRepository app.AppRepository, environmentRepository repository3.EnvironmentRepository, devtronResourceSearchableKeyService read.DevtronResourceSearchableKeyService, clusterRepository repository.ClusterRepository,
-	qualifierMappingService resourceQualifiers.QualifierMappingService, asyncRunnable *async.Runnable) (*ScopedVariableServiceImpl, error) {
+	qualifierMappingService resourceQualifiers.QualifierMappingService, variableEntityMappingService VariableEntityMappingService, asyncRunnable *async.Runnable) (*ScopedVariableServiceImpl, error) {
 	scopedVariableService := &ScopedVariableServiceImpl{
-		logger:                   logger,
-		scopedVariableRepository: scopedVariableRepository,
-		qualifierMappingService:  qualifierMappingService,
-		VariableCache:            &cache.VariableCacheObj{CacheLock: &sync.Mutex{}},
-		asyncRunnable:            asyncRunnable,
+		logger:                       logger,
+		scopedVariableRepository:     scopedVariableRepository,
+		qualifierMappingService:      qualifierMappingService,
+		variableEntityMappingService: variableEntityMappingService,
+		VariableCache:                &cache.VariableCacheObj{CacheLock: &sync.Mutex{}},
+		asyncRunnable:                asyncRunnable,
 	}
 	cfg, err := GetVariableNameConfig()
 	if err != nil {
@@ -156,6 +159,10 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 		impl.logger.Errorw("error in variable payload validation", "err", err)
 		return err
 	}
+	err = impl.checkVariablesToBeDeletedForUsage(payload)
+	if err != nil {
+		return err
+	}
 
 	auditLog := resourceQualifiers.GetAuditLog(payload.UserId)
 	// Begin Transaction
@@ -206,6 +213,74 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 	}
 	loadVariableCache(impl.VariableNameConfig, impl)
 	return nil
+}
+
+// checkVariablesToBeDeletedForUsage blocks the save when it would delete (i.e. the payload no
+// longer contains) a variable that is still referenced by live configuration. The whole request
+// is rejected so that nothing is deleted partially.
+func (impl *ScopedVariableServiceImpl) checkVariablesToBeDeletedForUsage(payload models.Payload) error {
+	existingVariables, err := impl.scopedVariableRepository.GetAllVariableMetadata()
+	if err != nil {
+		impl.logger.Errorw("error in fetching existing variables for deletion check", "err", err)
+		return err
+	}
+	if len(existingVariables) == 0 {
+		return nil
+	}
+	payloadNames := make(map[string]bool, len(payload.Variables))
+	for _, variable := range payload.Variables {
+		payloadNames[variable.Definition.VarName] = true
+	}
+	variablesToBeDeleted := make([]string, 0)
+	for _, existing := range existingVariables {
+		if !payloadNames[existing.Name] {
+			variablesToBeDeleted = append(variablesToBeDeleted, existing.Name)
+		}
+	}
+	if len(variablesToBeDeleted) == 0 {
+		return nil
+	}
+	usages, err := impl.variableEntityMappingService.GetLiveVariableUsage(variablesToBeDeleted)
+	if err != nil {
+		impl.logger.Errorw("error in fetching variable usages for deletion check", "variables", variablesToBeDeleted, "err", err)
+		return err
+	}
+	if len(usages) == 0 {
+		return nil
+	}
+	blockedVariables := make([]string, 0)
+	seen := make(map[string]bool)
+	for _, usage := range usages {
+		if !seen[usage.VariableName] {
+			seen[usage.VariableName] = true
+			blockedVariables = append(blockedVariables, usage.VariableName)
+		}
+	}
+	slices.Sort(blockedVariables)
+	impl.logger.Warnw("variable deletion blocked, variables are in use", "variables", blockedVariables)
+	return &models.VariableDeletionBlockedError{
+		BlockedVariables: blockedVariables,
+		Usages:           usages,
+	}
+}
+
+// GetVariableUsage returns the live references of the given variable; when variableName is empty,
+// usages of all active variables are returned.
+func (impl *ScopedVariableServiceImpl) GetVariableUsage(variableName string) ([]*models.VariableUsage, error) {
+	variableNames := make([]string, 0)
+	if variableName != "" {
+		variableNames = append(variableNames, variableName)
+	} else {
+		existingVariables, err := impl.scopedVariableRepository.GetAllVariableMetadata()
+		if err != nil {
+			impl.logger.Errorw("error in fetching variables for usage lookup", "err", err)
+			return nil, err
+		}
+		for _, existing := range existingVariables {
+			variableNames = append(variableNames, existing.Name)
+		}
+	}
+	return impl.variableEntityMappingService.GetLiveVariableUsage(variableNames)
 }
 
 func (impl *ScopedVariableServiceImpl) storeVariableData(scopeIdToVarData map[int]string, auditLog sql.AuditLog, tx *pg.Tx) error {

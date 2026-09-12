@@ -3,6 +3,9 @@
 package mocks
 
 import (
+	pg "github.com/go-pg/pg"
+
+	models "github.com/devtron-labs/devtron/pkg/variables/models"
 	repository "github.com/devtron-labs/devtron/pkg/variables/repository"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -13,12 +16,12 @@ type VariableEntityMappingService struct {
 }
 
 // DeleteMappingsForEntities provides a mock function with given fields: entities, userId
-func (_m *VariableEntityMappingService) DeleteMappingsForEntities(entities []repository.Entity, userId int32) error {
-	ret := _m.Called(entities, userId)
+func (_m *VariableEntityMappingService) DeleteMappingsForEntities(entities []repository.Entity, userId int32, tx *pg.Tx) error {
+	ret := _m.Called(entities, userId, tx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func([]repository.Entity, int32) error); ok {
-		r0 = rf(entities, userId)
+	if rf, ok := ret.Get(0).(func([]repository.Entity, int32, *pg.Tx) error); ok {
+		r0 = rf(entities, userId, tx)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -52,13 +55,39 @@ func (_m *VariableEntityMappingService) GetAllMappingsForEntities(entities []rep
 	return r0, r1
 }
 
+// GetLiveVariableUsage provides a mock function with given fields: variableNames
+func (_m *VariableEntityMappingService) GetLiveVariableUsage(variableNames []string) ([]*models.VariableUsage, error) {
+	ret := _m.Called(variableNames)
+
+	var r0 []*models.VariableUsage
+	var r1 error
+	if rf, ok := ret.Get(0).(func([]string) ([]*models.VariableUsage, error)); ok {
+		return rf(variableNames)
+	}
+	if rf, ok := ret.Get(0).(func([]string) []*models.VariableUsage); ok {
+		r0 = rf(variableNames)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*models.VariableUsage)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func([]string) error); ok {
+		r1 = rf(variableNames)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // UpdateVariablesForEntity provides a mock function with given fields: variableNames, entity, userId
-func (_m *VariableEntityMappingService) UpdateVariablesForEntity(variableNames []string, entity repository.Entity, userId int32) error {
-	ret := _m.Called(variableNames, entity, userId)
+func (_m *VariableEntityMappingService) UpdateVariablesForEntity(variableNames []string, entity repository.Entity, userId int32, tx *pg.Tx) error {
+	ret := _m.Called(variableNames, entity, userId, tx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func([]string, repository.Entity, int32) error); ok {
-		r0 = rf(variableNames, entity, userId)
+	if rf, ok := ret.Get(0).(func([]string, repository.Entity, int32, *pg.Tx) error); ok {
+		r0 = rf(variableNames, entity, userId, tx)
 	} else {
 		r0 = ret.Error(0)
 	}

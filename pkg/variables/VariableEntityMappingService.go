@@ -19,6 +19,7 @@ package variables
 import (
 	mapset "github.com/deckarep/golang-set"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/variables/models"
 	"github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/pkg/variables/utils"
 	"github.com/go-pg/pg"
@@ -29,6 +30,7 @@ import (
 type VariableEntityMappingService interface {
 	UpdateVariablesForEntity(variableNames []string, entity repository.Entity, userId int32, tx *pg.Tx) error
 	GetAllMappingsForEntities(entities []repository.Entity) (map[repository.Entity][]string, error)
+	GetLiveVariableUsage(variableNames []string) ([]*models.VariableUsage, error)
 	DeleteMappingsForEntities(entities []repository.Entity, userId int32, tx *pg.Tx) error
 }
 
@@ -133,6 +135,55 @@ func (impl VariableEntityMappingServiceImpl) GetAllMappingsForEntities(entities 
 		entityIdToVariableNames[mapping.Entity] = vars
 	}
 	return entityIdToVariableNames, nil
+}
+
+func getUsageTypeForEntityType(entityType repository.EntityType) models.VariableUsageType {
+	switch entityType {
+	case repository.EntityTypeDeploymentTemplateAppLevel, repository.EntityTypeDeploymentTemplateEnvLevel:
+		return models.UsageTypeDeploymentTemplate
+	case repository.EntityTypeConfigMapAppLevel, repository.EntityTypeConfigMapEnvLevel:
+		return models.UsageTypeConfigMap
+	case repository.EntityTypeSecretAppLevel, repository.EntityTypeSecretEnvLevel:
+		return models.UsageTypeSecret
+	case repository.EntityTypePipelineStage:
+		return models.UsageTypePipelineStage
+	}
+	return ""
+}
+
+func (impl VariableEntityMappingServiceImpl) GetLiveVariableUsage(variableNames []string) ([]*models.VariableUsage, error) {
+	usages := make([]*models.VariableUsage, 0)
+	if len(variableNames) == 0 {
+		return usages, nil
+	}
+	usageRows, err := impl.variableEntityMappingRepository.GetLiveUsagesForVariableNames(variableNames)
+	if err != nil {
+		impl.logger.Errorw("error in fetching live usages for variables", "variableNames", variableNames, "err", err)
+		return nil, err
+	}
+	// the mapping table has no unique constraint, dedupe on (name, entityType, entityId)
+	seen := make(map[repository.Entity]map[string]bool)
+	for _, row := range usageRows {
+		entity := repository.GetEntity(row.EntityId, row.EntityType)
+		if seen[entity] == nil {
+			seen[entity] = make(map[string]bool)
+		}
+		if seen[entity][row.VariableName] {
+			continue
+		}
+		seen[entity][row.VariableName] = true
+		usages = append(usages, &models.VariableUsage{
+			VariableName: row.VariableName,
+			UsageType:    getUsageTypeForEntityType(row.EntityType),
+			AppId:        row.AppId,
+			AppName:      row.AppName,
+			EnvId:        row.EnvId,
+			EnvName:      row.EnvName,
+			PipelineName: row.PipelineName,
+			StageType:    row.StageType,
+		})
+	}
+	return usages, nil
 }
 
 func (impl VariableEntityMappingServiceImpl) DeleteMappingsForEntities(entities []repository.Entity, userId int32, tx *pg.Tx) error {
