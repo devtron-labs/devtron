@@ -278,4 +278,3 @@ func (impl UserRepositoryImpl) CheckIfTokenExistsByTokenNameAndVersion(tokenName
 	exists, err := query.Exists()
 	return exists, err
 }
-
