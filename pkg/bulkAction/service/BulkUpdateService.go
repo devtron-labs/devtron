@@ -1108,6 +1108,26 @@ type stopAppFunc func(ctx context.Context, req *bean5.StopAppRequest, userMetada
 
 // bulkHibernateCommon contains the common bulk-hibernate logic.
 func (impl BulkUpdateServiceImpl) bulkHibernateCommon(request *bean4.BulkApplicationForEnvironmentPayload, ctx context.Context, token string, checkAuthForBulkActions func(token, appObject, envObject string) bool, stopApp stopAppFunc, userMetadata *bean6.UserMetadata) (*bean4.BulkApplicationHibernateUnhibernateForEnvironmentResponse, error) {
+	// Validate confirmation name if provided
+	if request.ConfirmationName != nil {
+		var envName string
+		if len(request.EnvName) > 0 {
+			envName = request.EnvName
+		} else if request.EnvId != 0 {
+			// Fetch environment name by ID
+			env, err := impl.environmentRepository.FindById(request.EnvId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching environment by id", "envId", request.EnvId, "err", err)
+				return nil, fmt.Errorf("error fetching environment details: %v", err)
+			}
+			envName = env.Name
+		}
+		
+		if envName != "" && *request.ConfirmationName != envName {
+			return nil, fmt.Errorf("confirmation name does not match environment name")
+		}
+	}
+
 	// Fetch pipelines based on filters.
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
@@ -1279,6 +1299,26 @@ func (impl BulkUpdateServiceImpl) buildHibernateUnHibernateRequestForHelmPipelin
 
 func (impl BulkUpdateServiceImpl) BulkUnHibernate(ctx context.Context, request *bean4.BulkApplicationForEnvironmentPayload, checkAuthForBulkActions func(token string, appObject string, envObject string) bool,
 	userMetadata *bean6.UserMetadata) (*bean4.BulkApplicationHibernateUnhibernateForEnvironmentResponse, error) {
+	// Validate confirmation name if provided
+	if request.ConfirmationName != nil {
+		var envName string
+		if len(request.EnvName) > 0 {
+			envName = request.EnvName
+		} else if request.EnvId != 0 {
+			// Fetch environment name by ID
+			env, err := impl.environmentRepository.FindById(request.EnvId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching environment by id", "envId", request.EnvId, "err", err)
+				return nil, fmt.Errorf("error fetching environment details: %v", err)
+			}
+			envName = env.Name
+		}
+		
+		if envName != "" && *request.ConfirmationName != envName {
+			return nil, fmt.Errorf("confirmation name does not match environment name")
+		}
+	}
+
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
 	if len(request.AppIdIncludes) > 0 {
