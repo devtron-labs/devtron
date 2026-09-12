@@ -623,6 +623,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 			AfterDockerBuildScripts:  afterDockerBuildScripts,
 			ScanEnabled:              pipeline.ScanEnabled,
 			IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
+			AutoAbortPreviousBuilds:  pipeline.AutoAbortPreviousBuilds,
 			PipelineType:             common.PipelineType(pipeline.PipelineType),
 		}
 		ciEnvMapping, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(pipeline.Id)
@@ -779,6 +780,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineById(pipelineId int) (ciPi
 		AfterDockerBuildScripts:  afterDockerBuildScripts,
 		ScanEnabled:              pipeline.ScanEnabled,
 		IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
+		AutoAbortPreviousBuilds:  pipeline.AutoAbortPreviousBuilds,
 		PipelineType:             common.PipelineType(pipeline.PipelineType),
 	}
 	customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pipelineConfigBean.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
@@ -903,6 +905,7 @@ func (impl *CiPipelineConfigServiceImpl) GetTriggerViewCiPipeline(appId int) (*b
 			ParentCiPipeline:         pipeline.ParentCiPipeline,
 			ScanEnabled:              pipeline.ScanEnabled,
 			IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
+			AutoAbortPreviousBuilds:  pipeline.AutoAbortPreviousBuilds,
 			PipelineType:             common.PipelineType(pipeline.PipelineType),
 		}
 		if ciTemplateBean, ok := ciOverrideTemplateMap[pipeline.Id]; ok {
@@ -1742,6 +1745,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByEnvironment(request reso
 				ExternalCiConfig:         externalCiConfig,
 				ScanEnabled:              pipeline.ScanEnabled,
 				IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
+				AutoAbortPreviousBuilds:  pipeline.AutoAbortPreviousBuilds,
 				PipelineType:             common.PipelineType(pipeline.PipelineType),
 			}
 			parentPipelineAppId, ok := pipelineIdVsAppId[parentCiPipelineId]

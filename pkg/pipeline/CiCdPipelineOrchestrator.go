@@ -403,6 +403,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 		ParentCiPipeline:         createRequest.ParentCiPipeline,
 		ScanEnabled:              createRequest.ScanEnabled,
 		IsDockerConfigOverridden: createRequest.IsDockerConfigOverridden,
+		AutoAbortPreviousBuilds:  createRequest.AutoAbortPreviousBuilds,
 		AuditLog:                 sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
 	}
 
@@ -949,6 +950,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			ScanEnabled:              createRequest.ScanEnabled,
 			IsDockerConfigOverridden: ciPipeline.IsDockerConfigOverridden,
 			PipelineType:             string(ciPipeline.PipelineType),
+			AutoAbortPreviousBuilds:  ciPipeline.AutoAbortPreviousBuilds,
 			AuditLog:                 sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 		}
 		err = impl.ciPipelineRepository.Save(ciPipelineObject, tx)
