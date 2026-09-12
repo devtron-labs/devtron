@@ -545,33 +545,18 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 }
 
 func (impl UserCommonServiceImpl) checkRbacForARole(role *repository.RoleModel, token string, managerAuth func(resource string, token string, object string) bool) bool {
-	isAuthorised := true
 	switch {
 	case role.Action == bean2.SUPER_ADMIN || role.AccessType == bean2.APP_ACCESS_TYPE_HELM || role.Entity == bean2.EntityJobs:
-		isValidAuth := managerAuth(casbin.ResourceGlobal, token, "*")
-		if !isValidAuth {
-			isAuthorised = false
-		}
-
+		return managerAuth(casbin.ResourceGlobal, token, "*")
 	case len(role.Team) > 0:
-		// this is case of devtron app
-		rbacObject := fmt.Sprintf("%s", role.Team)
-		isValidAuth := managerAuth(casbin.ResourceUser, token, rbacObject)
-		if !isValidAuth {
-			isAuthorised = false
-		}
-
+		return managerAuth(casbin.ResourceUser, token, role.Team)
 	case role.Entity == bean2.CLUSTER_ENTITIY:
-		isValidAuth := impl.CheckRbacForClusterEntity(role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource, token, managerAuth)
-		if !isValidAuth {
-			isAuthorised = false
-		}
+		return impl.CheckRbacForClusterEntity(role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource, token, managerAuth)
 	case role.Entity == bean2.CHART_GROUP_ENTITY:
-		isAuthorised = true
+		return true
 	default:
-		isAuthorised = false
+		return false
 	}
-	return isAuthorised
 }
 
 func containsArr(s []string, e string) bool {
