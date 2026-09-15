@@ -6,6 +6,7 @@
 ## Bugs
 - fix: scope filter-based bulk user delete to match listing filters (#7021)
 ## Others
+- misc: Conditions saved with the plugin definition (plugin_step_condition) a… (#7035)
 - perf(sql): add index on ci_workflow's status - FindByStatusesIn (#7017)
 - fix(security): enforce caller RBAC in API token webhook endpoint (#7016)
 - misc: Main sync 5 aug 2026 oss (#7008)
