@@ -30,6 +30,10 @@ type VariableEntityMappingService interface {
 	UpdateVariablesForEntity(variableNames []string, entity repository.Entity, userId int32, tx *pg.Tx) error
 	GetAllMappingsForEntities(entities []repository.Entity) (map[repository.Entity][]string, error)
 	DeleteMappingsForEntities(entities []repository.Entity, userId int32, tx *pg.Tx) error
+	// GetDistinctEntityIdsByType returns every entity id of entityType that references any
+	// variable - e.g. every Git Material with a @{{VAR_NAME}} URL, for re-sync after a
+	// variable value changes.
+	GetDistinctEntityIdsByType(entityType repository.EntityType) ([]int, error)
 }
 
 type VariableEntityMappingServiceImpl struct {
@@ -133,6 +137,15 @@ func (impl VariableEntityMappingServiceImpl) GetAllMappingsForEntities(entities 
 		entityIdToVariableNames[mapping.Entity] = vars
 	}
 	return entityIdToVariableNames, nil
+}
+
+func (impl VariableEntityMappingServiceImpl) GetDistinctEntityIdsByType(entityType repository.EntityType) ([]int, error) {
+	entityIds, err := impl.variableEntityMappingRepository.GetDistinctEntityIdsByType(entityType)
+	if err != nil {
+		impl.logger.Errorw("error in getting distinct entity ids by type", "entityType", entityType, "err", err)
+		return nil, err
+	}
+	return entityIds, nil
 }
 
 func (impl VariableEntityMappingServiceImpl) DeleteMappingsForEntities(entities []repository.Entity, userId int32, tx *pg.Tx) error {

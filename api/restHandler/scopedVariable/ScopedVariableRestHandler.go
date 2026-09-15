@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/devtron-labs/common-lib/async"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -45,28 +46,32 @@ type ScopedVariableRestHandler interface {
 }
 
 type ScopedVariableRestHandlerImpl struct {
-	logger                *zap.SugaredLogger
-	userAuthService       user.UserService
-	validator             *validator.Validate
-	pipelineBuilder       pipeline.PipelineBuilder
-	enforcerUtil          rbac.EnforcerUtil
-	enforcer              casbin.Enforcer
-	scopedVariableService variables.ScopedVariableService
+	logger                         *zap.SugaredLogger
+	userAuthService                user.UserService
+	validator                      *validator.Validate
+	pipelineBuilder                pipeline.PipelineBuilder
+	enforcerUtil                   rbac.EnforcerUtil
+	enforcer                       casbin.Enforcer
+	scopedVariableService          variables.ScopedVariableService
+	gitMaterialVariableSyncService pipeline.GitMaterialVariableSyncService
+	asyncRunnable                  *async.Runnable
 }
 type JsonResponse struct {
 	Manifest   *models.ScopedVariableManifest `json:"manifest"`
 	JsonSchema string                         `json:"jsonSchema"`
 }
 
-func NewScopedVariableRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, pipelineBuilder pipeline.PipelineBuilder, enforcerUtil rbac.EnforcerUtil, enforcer casbin.Enforcer, scopedVariableService variables.ScopedVariableService) *ScopedVariableRestHandlerImpl {
+func NewScopedVariableRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, pipelineBuilder pipeline.PipelineBuilder, enforcerUtil rbac.EnforcerUtil, enforcer casbin.Enforcer, scopedVariableService variables.ScopedVariableService, gitMaterialVariableSyncService pipeline.GitMaterialVariableSyncService, asyncRunnable *async.Runnable) *ScopedVariableRestHandlerImpl {
 	return &ScopedVariableRestHandlerImpl{
-		logger:                logger,
-		userAuthService:       userAuthService,
-		validator:             validator,
-		pipelineBuilder:       pipelineBuilder,
-		enforcerUtil:          enforcerUtil,
-		enforcer:              enforcer,
-		scopedVariableService: scopedVariableService,
+		logger:                         logger,
+		userAuthService:                userAuthService,
+		validator:                      validator,
+		pipelineBuilder:                pipelineBuilder,
+		enforcerUtil:                   enforcerUtil,
+		enforcer:                       enforcer,
+		scopedVariableService:          scopedVariableService,
+		gitMaterialVariableSyncService: gitMaterialVariableSyncService,
+		asyncRunnable:                  asyncRunnable,
 	}
 }
 func (handler *ScopedVariableRestHandlerImpl) CreateVariables(w http.ResponseWriter, r *http.Request) {
@@ -115,6 +120,15 @@ func (handler *ScopedVariableRestHandlerImpl) CreateVariables(w http.ResponseWri
 		}
 		return
 	}
+	// CreateVariables replaces the entire variable set, so any Git Material referencing a
+	// scoped variable may need its git-sensor copy refreshed - run off-thread since each
+	// push to git-sensor can take up to its own timeout ceiling, and this must not block
+	// the response for a save that already succeeded above.
+	handler.asyncRunnable.Execute(func() {
+		if syncErr := handler.gitMaterialVariableSyncService.ResyncGitMaterialsForVariableChange(); syncErr != nil {
+			handler.logger.Errorw("error re-syncing git materials after variable change", "err", syncErr)
+		}
+	})
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
 }
 func (handler *ScopedVariableRestHandlerImpl) GetScopedVariables(w http.ResponseWriter, r *http.Request) {

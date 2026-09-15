@@ -30,6 +30,10 @@ type VariableEntityMappingRepository interface {
 	SaveVariableEntityMappings(tx *pg.Tx, mappings []*VariableEntityMapping) error
 	DeleteAllVariablesForEntities(tx *pg.Tx, entities []Entity, userId int32) error
 	DeleteVariablesForEntity(tx *pg.Tx, variableIDs []string, entity Entity, userId int32) error
+	// GetDistinctEntityIdsByType returns every non-deleted entity id of entityType that
+	// references any variable - used to find every Git Material that needs re-syncing
+	// after a scoped variable's value changes.
+	GetDistinctEntityIdsByType(entityType EntityType) ([]int, error)
 }
 
 func NewVariableEntityMappingRepository(logger *zap.SugaredLogger, dbConnection *pg.DB, TransactionUtilImpl *sql.TransactionUtilImpl) *VariableEntityMappingRepositoryImpl {
@@ -88,6 +92,20 @@ func (impl *VariableEntityMappingRepositoryImpl) DeleteVariablesForEntity(tx *pg
 		return err
 	}
 	return nil
+}
+
+func (impl *VariableEntityMappingRepositoryImpl) GetDistinctEntityIdsByType(entityType EntityType) ([]int, error) {
+	var entityIds []int
+	err := impl.dbConnection.Model((*VariableEntityMapping)(nil)).
+		ColumnExpr("DISTINCT entity_id").
+		Where("entity_type = ?", entityType).
+		Where("is_deleted = ?", false).
+		Select(&entityIds)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("err in getting distinct entity ids by type", "entityType", entityType, "err", err)
+		return nil, err
+	}
+	return entityIds, nil
 }
 
 func (impl *VariableEntityMappingRepositoryImpl) DeleteAllVariablesForEntities(tx *pg.Tx, entities []Entity, userId int32) error {
