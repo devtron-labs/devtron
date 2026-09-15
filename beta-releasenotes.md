@@ -1,4 +1,5 @@
 ## Enhancements
+- feat: migrate foreground delete on cd pipeline delete from ent to oss (#7037)
 - feat: resolve RBAC inconsistencies for helm apps with unique identifiers (#7034)
 - feat: Feat/prevent scope var deletion oss (#7027)
 - feat: decouple app lifecycle actions; add indexes to improve CI query… (#7019)
