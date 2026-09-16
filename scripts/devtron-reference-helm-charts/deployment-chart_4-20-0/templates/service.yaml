@@ -112,3 +112,82 @@ spec:
     {{- end }}
 {{- end }}
 {{- end }}
+{{- end }}
+
+---
+{{- if .Values.secondaryWorkload.service.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.secondaryWorkload.fullnameOverride | default (printf "%s-%s" (include ".Chart.Name .fullname" .) (.Values.secondaryWorkload.postfix | default "sec")) }}-service
+  labels:
+    app: {{ template ".Chart.Name .name" . }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    chart: {{ template ".Chart.Name .chart" . }}
+    release: {{ .Release.Name }}
+{{- if .Values.appLabels }}
+{{ toYaml .Values.appLabels | indent 4 }}
+{{- end }}
+{{- if .Values.secondaryWorkload.service.annotations }}
+  annotations:
+{{ toYaml .Values.secondaryWorkload.service.annotations | indent 4 }}
+{{- end}}
+spec:
+  type: {{ .Values.secondaryWorkload.service.type | default .Values.service.type | default "ClusterIP" }}
+{{- with .Values.secondaryWorkload.service.extraSpec }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+{{- if (eq (.Values.secondaryWorkload.service.type | default .Values.service.type | default "ClusterIP") "LoadBalancer") }}
+  {{- if .Values.secondaryWorkload.service.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.secondaryWorkload.service.loadBalancerIP }}
+  {{- end }}
+  {{- if .Values.secondaryWorkload.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges: 
+  {{- range .Values.secondaryWorkload.service.loadBalancerSourceRanges }}
+  - {{ . }}
+  {{- end }}
+  {{- end }}
+{{- end }}
+  ports:
+    {{- $containerPorts := .Values.secondaryWorkload.ContainerPort | default .Values.ContainerPort }}
+    {{- range $containerPorts }}
+      {{- if .servicePort }}
+    - port: {{ .servicePort }}
+      {{- else }}
+    - port: {{ .port }}
+       {{- end }}
+      {{- if .targetPort }}
+      targetPort: {{ .targetPort }}
+      {{- else if $.Values.appMetrics }}
+      targetPort: envoy-{{ .name }}
+      {{- else }}
+      targetPort: {{ .name }}
+      {{- end }}
+      protocol: {{ .protocol | default "TCP" }}
+      {{- if (and (eq ($.Values.secondaryWorkload.service.type | default $.Values.service.type | default "ClusterIP") "NodePort") .nodePort ) }}
+      nodePort: {{ .nodePort }}
+      {{- end }}
+      name: {{ .name }}
+    {{- end }}
+      {{- if $.Values.appMetrics }}
+    - port: 9901
+      name: envoy-admin
+      {{- end }}
+  selector:
+    {{- if .Values.secondaryWorkload.customPodLabels }}
+{{ toYaml .Values.secondaryWorkload.customPodLabels | indent 4 }}  
+    {{- else if .Values.customPodLabels }}
+{{ toYaml .Values.customPodLabels | indent 4 }}  
+    {{- else }}
+    app: {{ template ".Chart.Name .name" . }}
+    {{- end }}
+    workload: secondary
+{{- if .Values.secondaryWorkload.service.sessionAffinity.enabled }}
+  sessionAffinity: ClientIP
+{{- end }}
+{{- if .Values.secondaryWorkload.service.sessionAffinityConfig }}
+  sessionAffinityConfig:
+{{ toYaml .Values.secondaryWorkload.service.sessionAffinityConfig | indent 4 }}  
+{{- end }}      
+{{- end }}

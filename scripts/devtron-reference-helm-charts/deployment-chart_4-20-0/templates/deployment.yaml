@@ -202,7 +202,7 @@ spec:
 {{- end}}
 {{- end}}
       containers:
-        - name: {{ $.Chart.Name }}
+        - name: {{ $.Values.containerName | default $.Chart.Name }}
           image: "{{ .Values.server.deployment.image }}:{{ .Values.server.deployment.image_tag }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
           {{- if $.Values.containerSpec.lifecycle.enabled }}
@@ -642,7 +642,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include ".Chart.Name .fullname" $ }}-{{ $.Values.secondaryWorkload.postfix | default "sec" }}
+  name: {{ $.Values.secondaryWorkload.fullnameOverride | default (printf "%s-%s" (include ".Chart.Name .fullname" $) ($.Values.secondaryWorkload.postfix | default "sec")) }}
   labels:
     app: {{ template ".Chart.Name .name" $ }}
     chart: {{ template ".Chart.Name .chart" $ }}
@@ -655,15 +655,25 @@ metadata:
 {{- if .Values.appLabels }}
 {{ toYaml .Values.appLabels | indent 4 }}
 {{- end }}
+{{- if .Values.secondaryWorkload.deploymentLabels }}
+{{ toYaml .Values.secondaryWorkload.deploymentLabels | indent 4 }}
+{{- end }}
 
-{{- if .Values.deploymentAnnotations }}
+{{- if or .Values.deploymentAnnotations .Values.secondaryWorkload.deploymentAnnotations }}
   annotations:
+{{- if .Values.deploymentAnnotations }}
 {{ toYaml .Values.deploymentAnnotations | indent 4 }}
+{{- end }}
+{{- if .Values.secondaryWorkload.deploymentAnnotations }}
+{{ toYaml .Values.secondaryWorkload.deploymentAnnotations | indent 4 }}
+{{- end }}
 {{- end }}
 spec:
   selector:
     matchLabels:
-{{- if .Values.customMatchLabels  }}
+{{- if .Values.secondaryWorkload.customMatchLabels  }}
+{{ toYaml .Values.secondaryWorkload.customMatchLabels | indent 6 }}  
+{{- else if .Values.customMatchLabels  }}
 {{ toYaml .Values.customMatchLabels | indent 6 }}  
 {{- else }}
       app: {{ template ".Chart.Name .name" $ }}
@@ -673,9 +683,12 @@ spec:
   minReadySeconds: {{ $.Values.MinReadySeconds }}
   template:
     metadata:
-    {{- if .Values.podAnnotations }}
+    {{- if or .Values.podAnnotations .Values.secondaryWorkload.podAnnotations }}
       annotations:
       {{- range $key, $value := .Values.podAnnotations }}
+        {{ $key }}: {{ $value | quote }}
+      {{- end }}
+      {{- range $key, $value := .Values.secondaryWorkload.podAnnotations }}
         {{ $key }}: {{ $value | quote }}
       {{- end }}
     {{- end }}
@@ -692,6 +705,9 @@ spec:
 {{- end }}
 {{- if .Values.podLabels }}
 {{ toYaml .Values.podLabels | indent 8 }}
+{{- end }}
+{{- if .Values.secondaryWorkload.podLabels }}
+{{ toYaml .Values.secondaryWorkload.podLabels | indent 8 }}
 {{- end }}
     spec:
 {{- if $.Values.podExtraSpecs }}	
@@ -813,7 +829,7 @@ spec:
 {{- end}}
 {{- end}}
       containers:
-        - name: {{ $.Chart.Name }}
+        - name: {{ $.Values.secondaryWorkload.containerName | default $.Chart.Name }}
           image: "{{ .Values.server.deployment.image }}:{{ .Values.server.deployment.image_tag }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
           {{- if $.Values.containerSpec.lifecycle.enabled }}
