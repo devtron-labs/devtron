@@ -231,6 +231,13 @@ func (handler *HelmAppRestHandlerImpl) handleFluxApplicationHibernate(r *http.Re
 		return nil, err
 	}
 
+	// Validate confirmation name if provided
+	if hibernateRequest.ConfirmationName != nil {
+		if *hibernateRequest.ConfirmationName != appIdentifier.AppName {
+			return nil, errors.New("confirmation name does not match application name")
+		}
+	}
+
 	if !handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*") {
 		return nil, errors.New("unauthorized")
 	}
@@ -241,6 +248,13 @@ func (handler *HelmAppRestHandlerImpl) handleArgoApplicationHibernate(r *http.Re
 	appIdentifier, err := helper.DecodeExternalArgoAppId(*hibernateRequest.AppId)
 	if err != nil {
 		return nil, err
+	}
+
+	// Validate confirmation name if provided
+	if hibernateRequest.ConfirmationName != nil {
+		if *hibernateRequest.ConfirmationName != appIdentifier.AppName {
+			return nil, errors.New("confirmation name does not match application name")
+		}
 	}
 
 	if !handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*") {
@@ -255,6 +269,14 @@ func (handler *HelmAppRestHandlerImpl) handleHelmApplicationHibernate(r *http.Re
 	if err != nil {
 		return nil, err
 	}
+
+	// Validate confirmation name if provided
+	if hibernateRequest.ConfirmationName != nil {
+		if *hibernateRequest.ConfirmationName != appIdentifier.ReleaseName {
+			return nil, errors.New("confirmation name does not match application name")
+		}
+	}
+
 	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObjectByClusterIdNamespaceAndAppName(
 		appIdentifier.ClusterId,
 		appIdentifier.Namespace,
@@ -317,6 +339,14 @@ func (handler *HelmAppRestHandlerImpl) handleFluxApplicationUnHibernate(r *http.
 	if err != nil {
 		return nil, err
 	}
+
+	// Validate confirmation name if provided
+	if hibernateRequest.ConfirmationName != nil {
+		if *hibernateRequest.ConfirmationName != appIdentifier.AppName {
+			return nil, errors.New("confirmation name does not match application name")
+		}
+	}
+
 	if !handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*") {
 		return nil, errors.New("unauthorized")
 	}
@@ -327,6 +357,14 @@ func (handler *HelmAppRestHandlerImpl) handleArgoApplicationUnHibernate(r *http.
 	if err != nil {
 		return nil, err
 	}
+
+	// Validate confirmation name if provided
+	if hibernateRequest.ConfirmationName != nil {
+		if *hibernateRequest.ConfirmationName != appIdentifier.AppName {
+			return nil, errors.New("confirmation name does not match application name")
+		}
+	}
+
 	if !handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*") {
 		return nil, errors.New("unauthorized")
 	}
@@ -337,6 +375,13 @@ func (handler *HelmAppRestHandlerImpl) handleHelmApplicationUnHibernate(r *http.
 	appIdentifier, err := handler.helmAppService.DecodeAppId(*hibernateRequest.AppId)
 	if err != nil {
 		return nil, err
+	}
+
+	// Validate confirmation name if provided
+	if hibernateRequest.ConfirmationName != nil {
+		if *hibernateRequest.ConfirmationName != appIdentifier.ReleaseName {
+			return nil, errors.New("confirmation name does not match application name")
+		}
 	}
 
 	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObjectByClusterIdNamespaceAndAppName(
