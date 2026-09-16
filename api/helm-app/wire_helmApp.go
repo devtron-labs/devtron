@@ -41,4 +41,7 @@ var HelmAppWireSet = wire.NewSet(
 	gRPC.GetConfig,
 	rbac.NewEnforcerUtilHelmImpl,
 	wire.Bind(new(rbac.EnforcerUtilHelm), new(*rbac.EnforcerUtilHelmImpl)),
+
+	rbac.NewEnforcerUtilGitOpsImpl,
+	wire.Bind(new(rbac.EnforcerUtilGitOps), new(*rbac.EnforcerUtilGitOpsImpl)),
 )
