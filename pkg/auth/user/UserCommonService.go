@@ -787,7 +787,9 @@ func (impl UserCommonServiceImpl) GetUniqueKeyForAllEntity(entityProcessor Entit
 		default:
 			key = fmt.Sprintf("%s_%s_%s_%s", entityProcessor.GetTeam(), entityProcessor.GetAction(), entityProcessor.GetAccessType(), entityProcessor.GetEntity())
 		}
-	} else if entityProcessor.GetEntity() == bean2.ENTITY_APPS {
+	} else if entityProcessor.GetEntity() == bean2.ENTITY_APPS &&
+		(entityProcessor.GetAccessType() == bean2.APP_ACCESS_TYPE_ARGO ||
+			entityProcessor.GetAccessType() == bean2.APP_ACCESS_TYPE_FLUX) {
 		switch baseToConsider {
 		case bean2.EnvironmentBasedKey:
 			key = fmt.Sprintf("%s_%s_%s_%s", entityProcessor.GetEntity(), entityProcessor.GetEnvironment(),
