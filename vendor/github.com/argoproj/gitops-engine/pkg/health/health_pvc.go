@@ -3,10 +3,11 @@ package health
 import (
 	"fmt"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
 func getPVCHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
@@ -16,7 +17,7 @@ func getPVCHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
 		var pvc corev1.PersistentVolumeClaim
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &pvc)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured PersistentVolumeClaim to typed: %v", err)
+			return nil, fmt.Errorf("failed to convert unstructured PersistentVolumeClaim to typed: %w", err)
 		}
 		return getCorev1PVCHealth(&pvc)
 	default:

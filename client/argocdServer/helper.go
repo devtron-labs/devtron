@@ -3,7 +3,7 @@ package argocdServer
 import (
 	json2 "encoding/json"
 	errors3 "errors"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

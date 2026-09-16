@@ -29,7 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 
-	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
+	cluster3 "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
 	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
