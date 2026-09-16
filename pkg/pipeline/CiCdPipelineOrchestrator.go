@@ -627,9 +627,14 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 		}
 
 		savedTemplateOverride := savedTemplateOverrideBean.CiTemplateOverride
-		err = impl.createDockerRepoIfNeeded(createRequest.DockerConfigOverride.DockerRegistry, createRequest.DockerConfigOverride.DockerRepository)
+		resolvedDockerRepository, err := impl.resolveDockerRepositoryForEcr(resourceQualifiers.Scope{AppId: createRequest.AppId}, createRequest.DockerConfigOverride.DockerRepository)
 		if err != nil {
-			impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", createRequest.DockerConfigOverride.DockerRegistry, "dockerRegistry", createRequest.DockerConfigOverride.DockerRepository)
+			impl.logger.Errorw("error resolving docker repository", "err", err, "dockerRepository", createRequest.DockerConfigOverride.DockerRepository)
+			return nil, err
+		}
+		err = impl.createDockerRepoIfNeeded(createRequest.DockerConfigOverride.DockerRegistry, resolvedDockerRepository)
+		if err != nil {
+			impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", createRequest.DockerConfigOverride.DockerRegistry, "dockerRegistry", resolvedDockerRepository)
 			return nil, err
 		}
 		if savedTemplateOverride != nil && savedTemplateOverride.Id > 0 {
@@ -932,6 +937,7 @@ func (impl CiCdPipelineOrchestratorImpl) deleteCiEnvMapping(tx *pg.Tx, ciPipelin
 	return nil
 }
 func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfigRequest, templateId int) (*bean.CiConfigRequest, error) {
+	repoFieldScope := resourceQualifiers.Scope{AppId: createRequest.AppId}
 	//save pipeline in db start
 	for _, ciPipeline := range createRequest.CiPipelines {
 		argByte, err := json.Marshal(ciPipeline.DockerArgs)
@@ -1133,10 +1139,16 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 				UserId:             createRequest.UserId,
 			}
 			if !ciPipeline.IsExternal { //pipeline is not [linked, webhook] and overridden, then create template override
-				err = impl.createDockerRepoIfNeeded(ciPipeline.DockerConfigOverride.DockerRegistry, ciPipeline.DockerConfigOverride.DockerRepository)
+				resolvedDockerRepository, resolveErr := impl.resolveDockerRepositoryForEcr(repoFieldScope, ciPipeline.DockerConfigOverride.DockerRepository)
 				// silently ignoring the error, since we don't want to fail the pipeline creation
-				if err != nil {
-					impl.logger.Warnw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", ciPipeline.DockerConfigOverride.DockerRegistry, "dockerRegistry", ciPipeline.DockerConfigOverride.DockerRepository)
+				if resolveErr != nil {
+					impl.logger.Warnw("error resolving docker repository", "err", resolveErr, "dockerRepository", ciPipeline.DockerConfigOverride.DockerRepository)
+				} else {
+					err = impl.createDockerRepoIfNeeded(ciPipeline.DockerConfigOverride.DockerRegistry, resolvedDockerRepository)
+					// silently ignoring the error, since we don't want to fail the pipeline creation
+					if err != nil {
+						impl.logger.Warnw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", ciPipeline.DockerConfigOverride.DockerRegistry, "dockerRegistry", resolvedDockerRepository)
+					}
 				}
 				err := impl.ciTemplateService.Save(ciTemplateBean)
 				if err != nil {
@@ -1470,6 +1482,15 @@ func (impl CiCdPipelineOrchestratorImpl) CreateMaterials(createMaterialRequest *
 		}
 		materials = append(materials, inputMaterial)
 	}
+	repoFieldScope := resourceQualifiers.Scope{AppId: createMaterialRequest.AppId}
+	// validate every @{{VAR_NAME}} reference resolves before committing, so a typo'd/undefined
+	// variable can't leave a Git Material row with no matching git-sensor entry
+	for _, material := range materials {
+		if _, err = impl.resolveGitMaterialUrl(repoFieldScope, material.Url); err != nil {
+			impl.logger.Errorw("error validating git material url", "err", err)
+			return nil, err
+		}
+	}
 	// moving transaction before addRepositoryToGitSensor as commiting transaction after addRepositoryToGitSensor was causing problems
 	// in case request was cancelled data was getting saved in git sensor but not getting saved in orchestrator db. Same is done in update flow.
 	err = impl.transactionManager.CommitTx(tx)
@@ -1477,7 +1498,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateMaterials(createMaterialRequest *
 		impl.logger.Errorw("error in committing tx Create material", "err", err, "materials", materials)
 		return nil, err
 	}
-	err = impl.addRepositoryToGitSensor(materials, "", resourceQualifiers.Scope{AppId: createMaterialRequest.AppId})
+	err = impl.addRepositoryToGitSensor(materials, "", repoFieldScope)
 	if err != nil {
 		impl.logger.Errorw("error in updating to sensor", "err", err)
 		return nil, err
@@ -1497,6 +1518,15 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateMaterial(updateMaterialDTO *bean.
 		impl.logger.Errorw("err", "err", err)
 		return nil, err
 	}
+	repoFieldScope := resourceQualifiers.Scope{AppId: updateMaterialDTO.AppId}
+	// validate the @{{VAR_NAME}} reference resolves before committing, so a typo'd/undefined
+	// variable can't leave a Git Material row with no matching git-sensor entry
+	if updatedMaterial.Active {
+		if _, err = impl.resolveGitMaterialUrl(repoFieldScope, updatedMaterial.Url); err != nil {
+			impl.logger.Errorw("error validating git material url", "err", err)
+			return nil, err
+		}
+	}
 	err = impl.transactionManager.CommitTx(tx)
 	if err != nil {
 		impl.logger.Errorw("error in committing tx Create material", "err", err)
@@ -1504,12 +1534,23 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateMaterial(updateMaterialDTO *bean.
 	}
 
 	err = impl.updateRepositoryToGitSensor(updatedMaterial, "",
-		updateMaterialDTO.Material.CreateBackup, resourceQualifiers.Scope{AppId: updateMaterialDTO.AppId})
+		updateMaterialDTO.Material.CreateBackup, repoFieldScope)
 	if err != nil {
 		impl.logger.Errorw("error in updating to git-sensor", "err", err)
 		return nil, err
 	}
 	return updateMaterialDTO, nil
+}
+
+// resolveDockerRepositoryForEcr resolves a possible @{{VAR_NAME}} reference in the Container
+// Repository field, for the AWS ECR repo-creation call only - the DB column always keeps
+// whatever the user typed, resolution happens fresh at every trigger (see HandlerService.go).
+func (impl CiCdPipelineOrchestratorImpl) resolveDockerRepositoryForEcr(scope resourceQualifiers.Scope, dockerRepository string) (string, error) {
+	resolvedDockerRepository, _, err := impl.repoFieldVariableResolver.ResolveRepoFieldValue(scope, dockerRepository)
+	if err != nil {
+		return "", fmt.Errorf("error resolving docker repository: %w", err)
+	}
+	return resolvedDockerRepository, nil
 }
 
 // resolveGitMaterialUrl resolves a possible @{{VAR_NAME}} reference in the git material URL.
