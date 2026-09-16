@@ -66,6 +66,8 @@ const (
 const (
 	DEVTRON_APP          = "devtron-app"
 	APP_ACCESS_TYPE_HELM = "helm-app"
+	APP_ACCESS_TYPE_ARGO = "argo-app"
+	APP_ACCESS_TYPE_FLUX = "flux-app"
 	EmptyAccessType      = ""
 )
 

@@ -45,6 +45,12 @@ const (
 	ResourceAdmin   = "admin"
 	ResourceGlobal  = "global-resource"
 	ResourceHelmApp = "helm-app"
+
+	// ResourceArgoApp, ResourceFluxApp are used for app-level RBAC on external
+	// Argo CD / Flux CD applications. Object shape is <clusterName>__<namespace>/<appName>.
+	ResourceArgoApp = "argo-app"
+	ResourceFluxApp = "flux-app"
+
 	ActionGet       = "get"
 	ActionCreate    = "create"
 	ActionUpdate    = "update"
@@ -53,6 +59,11 @@ const (
 	ActionTrigger   = "trigger"
 	ActionNotify    = "notify"
 	ActionExec      = "exec"
+	// ActionCreateApp and ActionDeleteApp gate the application-entity lifecycle (create/delete an app),
+	// decoupled from ActionCreate/ActionDelete which also gate pipeline/workflow/config operations.
+	// admin/manager/super-admin keep app lifecycle via their wildcard (`*`) action policies.
+	ActionCreateApp = "createApp"
+	ActionDeleteApp = "deleteApp"
 
 	ClusterResourceRegex         = "%s/%s"    // {cluster}/{namespace}
 	ClusterObjectRegex           = "%s/%s/%s" // {groupName}/{kindName}/{objectName}

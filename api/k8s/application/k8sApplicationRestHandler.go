@@ -23,6 +23,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/common-lib/utils"
 	util3 "github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
@@ -52,14 +59,8 @@ import (
 	errors2 "github.com/juju/errors"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"io"
 	errors3 "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"net/http"
-	"regexp"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type K8sApplicationRestHandler interface {
@@ -91,6 +92,7 @@ type K8sApplicationRestHandlerImpl struct {
 	validator                  *validator.Validate
 	enforcerUtil               rbac.EnforcerUtil
 	enforcerUtilHelm           rbac.EnforcerUtilHelm
+	enforcerUtilGitOps         rbac.EnforcerUtilGitOps
 	helmAppService             client.HelmAppService
 	userService                user.UserService
 	k8sCommonService           k8s.K8sCommonService
@@ -99,7 +101,7 @@ type K8sApplicationRestHandlerImpl struct {
 	argoApplicationReadService read.ArgoApplicationReadService
 }
 
-func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationService application2.K8sApplicationService, pump connector.Pump, terminalSessionHandler terminal.TerminalSessionHandler, enforcer casbin.Enforcer, enforcerUtilHelm rbac.EnforcerUtilHelm, enforcerUtil rbac.EnforcerUtil, helmAppService client.HelmAppService, userService user.UserService, k8sCommonService k8s.K8sCommonService, validator *validator.Validate, envVariables *util.EnvironmentVariables, fluxAppService fluxApplication.FluxApplicationService, argoApplicationReadService read.ArgoApplicationReadService,
+func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationService application2.K8sApplicationService, pump connector.Pump, terminalSessionHandler terminal.TerminalSessionHandler, enforcer casbin.Enforcer, enforcerUtilHelm rbac.EnforcerUtilHelm, enforcerUtilGitOps rbac.EnforcerUtilGitOps, enforcerUtil rbac.EnforcerUtil, helmAppService client.HelmAppService, userService user.UserService, k8sCommonService k8s.K8sCommonService, validator *validator.Validate, envVariables *util.EnvironmentVariables, fluxAppService fluxApplication.FluxApplicationService, argoApplicationReadService read.ArgoApplicationReadService,
 ) *K8sApplicationRestHandlerImpl {
 	return &K8sApplicationRestHandlerImpl{
 		logger:                     logger,
@@ -109,6 +111,7 @@ func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationS
 		enforcer:                   enforcer,
 		validator:                  validator,
 		enforcerUtilHelm:           enforcerUtilHelm,
+		enforcerUtilGitOps:         enforcerUtilGitOps,
 		enforcerUtil:               enforcerUtil,
 		helmAppService:             helmAppService,
 		userService:                userService,
@@ -207,7 +210,20 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 
 	canUpdate := false
 	// Obfuscate secret if user does not have edit access
-	if request.AppIdentifier == nil && request.DevtronAppIdentifier == nil && request.AppType != bean2.ArgoAppType && request.ClusterId > 0 { // if the appType is not argoAppType,then verify logic w.r.t resource browser, when rbac for argoApp is introduced, handle rbac accordingly
+	if request.AppType == bean2.ArgoAppType && request.ExternalArgoAppIdentifier != nil {
+		// External Argo app: edit access is decided by the app-level permission, not by the
+		// resource-browser cluster entity. Without this an Argo admin would never see Secret
+		// values, because canUpdate would stay false and the manifest would be masked below.
+		rbacObject := handler.enforcerUtilGitOps.GetExternalGitOpsAppObject(request.ExternalArgoAppIdentifier.ClusterId,
+			request.ExternalArgoAppIdentifier.Namespace, request.ExternalArgoAppIdentifier.AppName)
+		canUpdate = len(rbacObject) > 0 &&
+			handler.enforcer.Enforce(token, casbin.ResourceArgoApp, casbin.ActionUpdate, rbacObject)
+	} else if request.AppType == bean2.FluxAppType && request.ExternalFluxAppIdentifier != nil {
+		rbacObject := handler.enforcerUtilGitOps.GetExternalGitOpsAppObject(request.ExternalFluxAppIdentifier.ClusterId,
+			request.ExternalFluxAppIdentifier.Namespace, request.ExternalFluxAppIdentifier.Name)
+		canUpdate = len(rbacObject) > 0 &&
+			handler.enforcer.Enforce(token, casbin.ResourceFluxApp, casbin.ActionUpdate, rbacObject)
+	} else if request.AppIdentifier == nil && request.DevtronAppIdentifier == nil && request.AppType != bean2.ArgoAppType && request.ClusterId > 0 { // if the appType is not argoAppType,then verify logic w.r.t resource browser
 		// Verify update access for Resource Browser
 		canUpdate = handler.k8sApplicationService.ValidateClusterResourceBean(r.Context(), request.ClusterId, resource.ManifestResponse.Manifest, request.K8sRequest.ResourceIdentifier.GroupVersionKind, handler.getRbacCallbackForResource(token, casbin.ActionUpdate))
 		if !canUpdate {
@@ -299,7 +315,8 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 			return
 		}
 		// RBAC enforcer applying
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		rbacObject := handler.enforcerUtilGitOps.GetExternalGitOpsAppObject(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.AppName)
+		if len(rbacObject) == 0 || !handler.enforcer.Enforce(token, casbin.ResourceArgoApp, casbin.ActionGet, rbacObject) {
 			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
@@ -326,7 +343,8 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 			return
 		}
 		// RBAC enforcer applying
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		rbacObject := handler.enforcerUtilGitOps.GetExternalGitOpsAppObject(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.Name)
+		if len(rbacObject) == 0 || !handler.enforcer.Enforce(token, casbin.ResourceFluxApp, casbin.ActionGet, rbacObject) {
 			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
@@ -718,7 +736,9 @@ func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.Re
 			return
 		}
 		//RBAC enforcer starts here
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		rbacObject := handler.enforcerUtilGitOps.GetExternalGitOpsAppObject(request.ExternalFluxAppIdentifier.ClusterId,
+			request.ExternalFluxAppIdentifier.Namespace, request.ExternalFluxAppIdentifier.Name)
+		if len(rbacObject) == 0 || !handler.enforcer.Enforce(token, casbin.ResourceFluxApp, casbin.ActionGet, rbacObject) {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
@@ -738,7 +758,8 @@ func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.Re
 		}
 
 		//RBAC enforcer starts here
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		rbacObject := handler.enforcerUtilGitOps.GetExternalGitOpsAppObject(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.AppName)
+		if len(rbacObject) == 0 || !handler.enforcer.Enforce(token, casbin.ResourceArgoApp, casbin.ActionGet, rbacObject) {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
@@ -803,7 +824,9 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 		//RBAC enforcer Ends
 	} else if resourceRequestBean.ExternalFluxAppIdentifier != nil {
 		// RBAC enforcer applying For external flux app
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+		rbacObject := handler.enforcerUtilGitOps.GetExternalGitOpsAppObject(resourceRequestBean.ExternalFluxAppIdentifier.ClusterId,
+			resourceRequestBean.ExternalFluxAppIdentifier.Namespace, resourceRequestBean.ExternalFluxAppIdentifier.Name)
+		if len(rbacObject) == 0 || !handler.enforcer.Enforce(token, casbin.ResourceFluxApp, casbin.ActionUpdate, rbacObject) {
 			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
@@ -811,7 +834,13 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 
 	} else if resourceRequestBean.ExternalArgoApplicationName != "" {
 		// RBAC enforcer applying For external Argo app
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+		if resourceRequestBean.ExternalArgoAppIdentifier == nil {
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+			return
+		}
+		rbacObject := handler.enforcerUtilGitOps.GetExternalGitOpsAppObject(resourceRequestBean.ExternalArgoAppIdentifier.ClusterId,
+			resourceRequestBean.ExternalArgoAppIdentifier.Namespace, resourceRequestBean.ExternalArgoAppIdentifier.AppName)
+		if len(rbacObject) == 0 || !handler.enforcer.Enforce(token, casbin.ResourceArgoApp, casbin.ActionUpdate, rbacObject) {
 			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
@@ -1125,14 +1154,18 @@ func (handler *K8sApplicationRestHandlerImpl) handleEphemeralRBAC(podName, names
 		//RBAC enforcer Ends
 	} else if resourceRequestBean.ExternalFluxAppIdentifier != nil {
 		//RBAC enforcer starts here
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		rbacObject := handler.enforcerUtilGitOps.GetExternalGitOpsAppObject(resourceRequestBean.ExternalFluxAppIdentifier.ClusterId,
+			resourceRequestBean.ExternalFluxAppIdentifier.Namespace, resourceRequestBean.ExternalFluxAppIdentifier.Name)
+		if len(rbacObject) == 0 || !handler.enforcer.Enforce(token, casbin.ResourceFluxApp, casbin.ActionUpdate, rbacObject) {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return resourceRequestBean
 		}
 		//RBAC enforcer ends here
 	} else if resourceRequestBean.ExternalArgoApplicationName != "" {
 		//RBAC enforcer starts here
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		rbacObject := handler.enforcerUtilGitOps.GetExternalGitOpsAppObject(resourceRequestBean.ExternalArgoAppIdentifier.ClusterId,
+			resourceRequestBean.ExternalArgoAppIdentifier.Namespace, resourceRequestBean.ExternalArgoAppIdentifier.AppName)
+		if len(rbacObject) == 0 || !handler.enforcer.Enforce(token, casbin.ResourceArgoApp, casbin.ActionUpdate, rbacObject) {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return resourceRequestBean
 		}
@@ -1179,7 +1212,11 @@ func (handler *K8sApplicationRestHandlerImpl) verifyRbacForAppRequests(token str
 			return false, err
 		}
 		//RBAC enforcer starts here
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, actionType, "*"); !ok {
+		rbacObject = handler.enforcerUtilGitOps.GetExternalGitOpsAppObject(argoAppIdentifier.ClusterId, argoAppIdentifier.Namespace, argoAppIdentifier.AppName)
+		if len(rbacObject) == 0 {
+			return false, nil
+		}
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceArgoApp, actionType, rbacObject); !ok {
 			return false, nil
 		}
 		return true, nil
@@ -1247,7 +1284,11 @@ func (handler *K8sApplicationRestHandlerImpl) verifyRbacForAppRequests(token str
 			return false, err
 		}
 		//RBAC enforcer starts here
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, actionType, "*"); !ok {
+		rbacObject = handler.enforcerUtilGitOps.GetExternalGitOpsAppObject(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.Name)
+		if len(rbacObject) == 0 {
+			return false, nil
+		}
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceFluxApp, actionType, rbacObject); !ok {
 			return false, nil
 		}
 		return true, nil
