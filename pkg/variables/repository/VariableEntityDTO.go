@@ -45,6 +45,9 @@ const (
 	EntityTypeConfigMapEnvLevel          EntityType = 5
 	EntityTypeSecretAppLevel             EntityType = 6
 	EntityTypeSecretEnvLevel             EntityType = 7
+	// EntityTypeGitMaterial tracks which Git Materials reference a scoped variable in their
+	// URL, so a variable value change can re-sync the affected materials to git-sensor.
+	EntityTypeGitMaterial EntityType = 9
 )
 
 func GetEntity(entityId int, entityType EntityType) Entity {
