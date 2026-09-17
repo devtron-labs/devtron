@@ -1,4 +1,5 @@
 ## Enhancements
+- feat: scoped variable support for git repo and container repo (#7036)
 - feat: RBAC support for external argo/flux apps (#7014)
 - feat: migrate foreground delete on cd pipeline delete from ent to oss (#7037)
 - feat: resolve RBAC inconsistencies for helm apps with unique identifiers (#7034)
