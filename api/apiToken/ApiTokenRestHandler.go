@@ -220,7 +220,15 @@ func (impl ApiTokenRestHandlerImpl) GetAllApiTokensForWebhook(w http.ResponseWri
 		return
 	}
 
-	// handle super-admin RBAC
+	// handle super-admin RBAC - this endpoint's only caller is the dashboard's
+	// webhook config modal, which is itself super-admin-only, so gate the
+	// whole endpoint the same way the other handlers in this file do.
+	token := r.Header.Get("token")
+	if !impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*") {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
 	v := r.URL.Query()
 	projectName := v.Get("projectName")
 	environmentName := v.Get("environmentName")

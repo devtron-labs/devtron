@@ -21,6 +21,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+
 	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
@@ -33,11 +38,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/fluxApplication"
 	bean2 "github.com/devtron-labs/devtron/pkg/fluxApplication/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/k8s/bean"
-	"io"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"net/http"
-	"strconv"
-	"strings"
 
 	"github.com/caarlos0/env/v6"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
@@ -369,6 +370,7 @@ func (impl *K8sApplicationServiceImpl) ValidateTerminalRequestQuery(r *http.Requ
 			}
 			resourceRequestBean.ExternalArgoApplicationName = appIdentifier.AppName
 			resourceRequestBean.ClusterId = appIdentifier.ClusterId
+			resourceRequestBean.ExternalArgoAppIdentifier = appIdentifier
 			request.ClusterId = appIdentifier.ClusterId
 			request.ExternalArgoApplicationName = appIdentifier.AppName
 			request.ExternalArgoApplicationNamespace = appIdentifier.Namespace
