@@ -2,7 +2,7 @@
 
 #### configure docker registry
 
-Please [setup docker registry](../user-guide/global-configurations/docker-registries.md) before deploying application.
+Please [setup docker registry](../user-guide/global-configurations/container-registries.md) before deploying application.
 
 ## Deploying Applications
 

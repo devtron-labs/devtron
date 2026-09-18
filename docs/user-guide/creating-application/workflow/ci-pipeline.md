@@ -250,7 +250,7 @@ You can use Devtron for deployments on Kubernetes while using an external CI too
 | Fields | Description |
 | --- | --- |
 | **Deploy to environment** | <ul><li>`Environment`: Provide the name of the [environment](../../global-configurations/cluster-and-environments.md#add-environment).</ul></li><ul><li>`Namespace`: Provide the [namespace](../../global-configurations/cluster-and-environments.md#add-environment).</ul></li> |
-| **When do you want to deploy** | You can deploy either in one of the following ways: <ul><li>`Automatic`: If you select automatic, your application will be deployed automatically everytime a new image is received.</ul></li> <ul><li>`Manual`: In case of manual, you have to select the image and deploy manually. </ul></li>|
+| **When do you want to deploy** | You can deploy either in one of the following ways: <ul><li>`Automatic`: If you select automatic, your application will be deployed automatically every time a new image is received.</ul></li> <ul><li>`Manual`: In case of manual, you have to select the image and deploy manually. </ul></li>|
 | **Deployment Strategy** | Configure the deployment preferences for this pipeline. |
 
 * Click **Create Pipeline**.
@@ -325,7 +325,7 @@ curl --location --request POST \
 
  ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/webhook-ci/execute-shell-jenkins-v2.jpg)
 
-  Now, you can access the images on the Devtron dashboard and deploy manually. In case, if you select **Automatic** deployment option, then your application will be deployed automatically everytime a new image is received.
+  Now, you can access the images on the Devtron dashboard and deploy manually. In case, if you select **Automatic** deployment option, then your application will be deployed automatically every time a new image is received.
 
   Similarly, you can also integrate with external source such as **CircleCI** by:
   
