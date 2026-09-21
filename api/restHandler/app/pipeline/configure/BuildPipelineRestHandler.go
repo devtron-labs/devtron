@@ -405,9 +405,27 @@ func (handler *PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWr
 		return
 	}
 
-	haveCiPatchAccess := handler.checkCiPatchAccess(token, resourceName, cdPipelines)
-	if !haveCiPatchAccess {
-		haveCiPatchAccess = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, resourceName) && handler.enforcer.Enforce(token, casbin.ResourceWorkflow, casbin.ActionCreate, workflowResourceName)
+	// Pipeline lifecycle (add/delete a CI pipeline) is gated by the dedicated lifecycle actions,
+	// independent of config/branch editing which keeps its existing access rules. Switch-CI is a
+	// creation flow and is treated as create. The jobs fallback is unchanged for all arms.
+	var haveCiPatchAccess bool
+	switch {
+	case patchRequest.Action == bean.CREATE || patchRequest.IsSwitchCiPipelineRequest():
+		haveCiPatchAccess = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreatePipeline, resourceName)
+		if !haveCiPatchAccess {
+			haveCiPatchAccess = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, resourceName) && handler.enforcer.Enforce(token, casbin.ResourceWorkflow, casbin.ActionCreate, workflowResourceName)
+		}
+	case patchRequest.Action == bean.DELETE:
+		haveCiPatchAccess = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDeletePipeline, resourceName)
+		if !haveCiPatchAccess {
+			haveCiPatchAccess = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, resourceName) && handler.enforcer.Enforce(token, casbin.ResourceWorkflow, casbin.ActionCreate, workflowResourceName)
+		}
+	default:
+		// UPDATE_PIPELINE / UPDATE_SOURCE: config/branch edit — existing access rules unchanged
+		haveCiPatchAccess = handler.checkCiPatchAccess(token, resourceName, cdPipelines)
+		if !haveCiPatchAccess {
+			haveCiPatchAccess = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, resourceName) && handler.enforcer.Enforce(token, casbin.ResourceWorkflow, casbin.ActionCreate, workflowResourceName)
+		}
 	}
 	if !haveCiPatchAccess {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
