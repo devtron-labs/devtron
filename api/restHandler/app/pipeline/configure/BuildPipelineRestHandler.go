@@ -141,7 +141,7 @@ func (handler *PipelineConfigRestHandlerImpl) CreateCiConfig(w http.ResponseWrit
 	}
 
 	token := r.Header.Get("token")
-	_, authorized := handler.getAppAndCheckAuthForAction(w, createRequest.AppId, token, casbin.ActionCreate)
+	_, authorized := handler.getAppAndCheckAuthForAction(w, createRequest.AppId, token, casbin.ActionCreatePipeline)
 	if !authorized {
 		return
 	}
