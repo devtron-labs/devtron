@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean/AppView"
-	bean2 "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
@@ -438,17 +437,9 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 		return []*AppView.AppEnvironmentContainer{}, 0, nil
 	}
 
-	// Currently AppStatus is available in Db for only ArgoApps
-	// We fetch AppStatus on the fly for Helm Apps from scoop, So AppStatus filter will be applied in last
-	// fun to check if "HIBERNATING" exists in fetchAppListingRequest.AppStatuses
-	isFilteredOnHibernatingStatus := impl.isFilteredOnHibernatingStatus(fetchAppListingRequest)
-	// remove ""HIBERNATING" from fetchAppListingRequest.AppStatuses
-	appStatusesFilter := make([]string, 0)
-	if isFilteredOnHibernatingStatus {
-		appStatusesFilter = fetchAppListingRequest.AppStatuses
-		fetchAppListingRequest.AppStatuses = []string{}
-	}
-
+	// "HIBERNATING" is persisted in app_status (see appStatus.UpdateStatusWithAppIdEnvId), so it is
+	// filtered in the db query itself along with the other statuses. Filtering it in memory here would
+	// only see the current page of an unfiltered listing and would also return a wrong total count.
 	appListingFilter := helper.AppListingFilter{
 		Environments:      fetchAppListingRequest.Environments,
 		Statuses:          fetchAppListingRequest.Statuses,
@@ -506,27 +497,7 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 		impl.Logger.Errorw("error, UpdateAppStatusForHelmTypePipelines", "envIds", envIds, "err", err)
 	}
 
-	// apply filter for "HIBERNATING" status
-	if isFilteredOnHibernatingStatus {
-		filteredContainers := make([]*AppView.AppEnvironmentContainer, 0)
-		for _, container := range envContainers {
-			if slices.Contains(appStatusesFilter, container.AppStatus) {
-				filteredContainers = append(filteredContainers, container)
-			}
-		}
-		envContainers = filteredContainers
-		appSize = len(filteredContainers)
-	}
 	return envContainers, appSize, nil
-}
-
-func (impl AppListingServiceImpl) isFilteredOnHibernatingStatus(fetchAppListingRequest FetchAppListingRequest) bool {
-	if fetchAppListingRequest.AppStatuses != nil && len(fetchAppListingRequest.AppStatuses) > 0 {
-		if slices.Contains(fetchAppListingRequest.AppStatuses, bean2.HIBERNATING) {
-			return true
-		}
-	}
-	return false
 }
 
 func (impl AppListingServiceImpl) ISLastReleaseStopType(appId, envId int) (bool, error) {
