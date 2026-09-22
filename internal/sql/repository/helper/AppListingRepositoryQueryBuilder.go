@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"golang.org/x/exp/slices"
 	"strings"
 )
 
@@ -32,6 +33,15 @@ const (
 	Job           AppType = 2 // jobs
 	// ExternalChartStoreApp app-type is not stored in db
 	ExternalChartStoreApp AppType = 3 // external helm app
+)
+
+const (
+	// appStatusHibernating mirrors client/argocdServer/bean.HIBERNATING / appStatus.HealthStatusHibernatingFilter.
+	// Not imported directly to avoid pulling those packages into the query-builder layer.
+	appStatusHibernating = "HIBERNATING"
+	// pipelineDeploymentAppTypeHelm mirrors internal/util.PIPELINE_DEPLOYMENT_TYPE_HELM, kept local for
+	// the same reason (this file already inlines the sibling "manifest_download" literal below).
+	pipelineDeploymentAppTypeHelm = "helm"
 )
 
 type AppListingRepositoryQueryBuilder struct {
@@ -318,18 +328,34 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appLi
 			}
 		}
 	}
+	// AppStatus is only ever persisted to app_status (aps.status) for pipelines whose status has been
+	// synced there - today that is effectively ArgoCD/GitOps pipelines (see
+	// appStatus.AppStatusServiceImpl.UpdateStatusWithAppIdEnvId). Helm pipelines' status is instead
+	// resolved on the fly at listing time (AppListingServiceImpl.updateAppStatusForHelmTypePipelines),
+	// so a Helm pipeline that hasn't been synced to app_status has aps.status = NULL here, and "aps.status
+	// IN (...)" alone would wrongly exclude it from a HIBERNATING search. In that case only, let such
+	// unsynced rows through instead of excluding them outright, so the caller can resolve their status
+	// on the fly and recheck it against the filter after fetch (see
+	// AppListingServiceImpl.reconcileAppsWithUnresolvedStatus) - without weakening the filter for any
+	// other status, which is still matched purely against the persisted column.
+	statusCondition := " aps.status IN (?) "
+	statusConditionParams := []interface{}{pg.In(appStatusExcludingNotDeployed)}
+	if slices.Contains(appStatusExcludingNotDeployed, appStatusHibernating) {
+		statusCondition = " (aps.status IN (?) or (p.deployment_app_type = ? and aps.status IS NULL)) "
+		statusConditionParams = []interface{}{pg.In(appStatusExcludingNotDeployed), pipelineDeploymentAppTypeHelm}
+	}
 	if isNotDeployedFilterApplied {
 		deploymentAppType := "manifest_download"
 		whereCondition += " and (p.deployment_app_created=? and (p.deployment_app_type <> ? or dc.deployment_app_type <> ? ) or a.id NOT IN (SELECT app_id from pipeline) "
 		queryParams = append(queryParams, false, deploymentAppType, deploymentAppType)
 		if len(appStatusExcludingNotDeployed) > 0 {
-			whereCondition += " or aps.status IN (?) "
-			queryParams = append(queryParams, pg.In(appStatusExcludingNotDeployed))
+			whereCondition += " or " + statusCondition
+			queryParams = append(queryParams, statusConditionParams...)
 		}
 		whereCondition += " ) "
 	} else if len(appStatusExcludingNotDeployed) > 0 {
-		whereCondition += " and aps.status IN (?) "
-		queryParams = append(queryParams, pg.In(appStatusExcludingNotDeployed))
+		whereCondition += " and " + statusCondition
+		queryParams = append(queryParams, statusConditionParams...)
 	}
 	// Tag filters are AND-combined for now as requested by product.
 	// Each row translates to a correlated EXISTS/NOT EXISTS on app_label.

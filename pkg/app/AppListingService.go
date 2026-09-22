@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean/AppView"
+	bean2 "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
@@ -437,9 +438,21 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 		return []*AppView.AppEnvironmentContainer{}, 0, nil
 	}
 
-	// "HIBERNATING" is persisted in app_status (see appStatus.UpdateStatusWithAppIdEnvId), so it is
-	// filtered in the db query itself along with the other statuses. Filtering it in memory here would
-	// only see the current page of an unfiltered listing and would also return a wrong total count.
+	// "HIBERNATING" is persisted in app_status (see appStatus.UpdateStatusWithAppIdEnvId) for pipelines
+	// whose status has been synced there - today that is effectively ArgoCD/GitOps pipelines. For those
+	// it is filtered+paginated in the db query itself along with the other statuses (see
+	// buildAppListingWhereCondition), so the count/pagination for that (majority) case is correct.
+	//
+	// Helm pipelines don't have their AppStatus persisted in app_status - it is instead fetched on the
+	// fly at listing time (impl.updateAppStatusForHelmTypePipelines, below), so a Helm pipeline that
+	// hasn't been synced to app_status has no way to be matched by the db-side "aps.status IN (...)"
+	// predicate. To avoid silently dropping such apps from a HIBERNATING search, the db query lets rows
+	// with no persisted app_status through instead of excluding them (buildAppListingWhereCondition),
+	// and reconcileAppsWithUnresolvedStatus below re-checks exactly those rows, once their status is
+	// resolved on the fly, against the requested filter - without touching the count/pagination that
+	// was already correctly computed in sql for the persisted-status rows.
+	isFilteredOnHibernatingStatus := impl.isFilteredOnHibernatingStatus(fetchAppListingRequest)
+
 	appListingFilter := helper.AppListingFilter{
 		Environments:      fetchAppListingRequest.Environments,
 		Statuses:          fetchAppListingRequest.Statuses,
@@ -462,6 +475,21 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app list", "error", err, "filter", appListingFilter)
 		return []*AppView.AppEnvironmentContainer{}, appSize, err
+	}
+
+	// A row whose app-status isn't persisted in db comes back with an empty AppStatus here (aps.status
+	// was NULL). Record which rows those are before updateAppStatusForHelmTypePipelines below
+	// potentially resolves an on-the-fly status for them, so that only those rows get rechecked against
+	// the requested filter afterwards - rows whose status was already persisted (and already correctly
+	// matched by the db query) are left exactly as sql returned them.
+	var containersWithUnresolvedStatus map[*AppView.AppEnvironmentContainer]bool
+	if isFilteredOnHibernatingStatus {
+		containersWithUnresolvedStatus = make(map[*AppView.AppEnvironmentContainer]bool)
+		for _, container := range envContainers {
+			if container.AppStatus == "" {
+				containersWithUnresolvedStatus[container] = true
+			}
+		}
 	}
 
 	envContainersMap := make(map[int][]*AppView.AppEnvironmentContainer)
@@ -497,7 +525,44 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 		impl.Logger.Errorw("error, UpdateAppStatusForHelmTypePipelines", "envIds", envIds, "err", err)
 	}
 
+	if isFilteredOnHibernatingStatus {
+		envContainers, appSize = impl.reconcileAppsWithUnresolvedStatus(envContainers, appSize, containersWithUnresolvedStatus, fetchAppListingRequest.AppStatuses)
+	}
+
 	return envContainers, appSize, nil
+}
+
+// reconcileAppsWithUnresolvedStatus drops rows whose app-status was not persisted in db (identified by
+// containersWithUnresolvedStatus, captured before the on-the-fly Helm status resolution) and that, once
+// resolved, do not actually match the requested app-status filter (appStatusesFilter). appSize is
+// decremented by exactly the number of rows dropped, so it is not recomputed wholesale - the count
+// contributed by rows whose status IS persisted in db (already correctly filtered and paginated in sql)
+// is left untouched.
+func (impl AppListingServiceImpl) reconcileAppsWithUnresolvedStatus(envContainers []*AppView.AppEnvironmentContainer, appSize int, containersWithUnresolvedStatus map[*AppView.AppEnvironmentContainer]bool, appStatusesFilter []string) ([]*AppView.AppEnvironmentContainer, int) {
+	if len(containersWithUnresolvedStatus) == 0 {
+		return envContainers, appSize
+	}
+	filteredContainers := make([]*AppView.AppEnvironmentContainer, 0, len(envContainers))
+	dropped := 0
+	for _, container := range envContainers {
+		if containersWithUnresolvedStatus[container] && !slices.Contains(appStatusesFilter, container.AppStatus) {
+			// unresolved status (e.g. a Helm pipeline not yet synced to app_status) that, even after the
+			// on-the-fly fetch above, doesn't match what was asked for - exclude it.
+			dropped++
+			continue
+		}
+		filteredContainers = append(filteredContainers, container)
+	}
+	return filteredContainers, appSize - dropped
+}
+
+func (impl AppListingServiceImpl) isFilteredOnHibernatingStatus(fetchAppListingRequest FetchAppListingRequest) bool {
+	if fetchAppListingRequest.AppStatuses != nil && len(fetchAppListingRequest.AppStatuses) > 0 {
+		if slices.Contains(fetchAppListingRequest.AppStatuses, bean2.HIBERNATING) {
+			return true
+		}
+	}
+	return false
 }
 
 func (impl AppListingServiceImpl) ISLastReleaseStopType(appId, envId int) (bool, error) {
