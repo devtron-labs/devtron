@@ -15,6 +15,7 @@
 package cel
 
 import (
+	"errors"
 	"fmt"
 
 	"google.golang.org/protobuf/proto"
@@ -25,6 +26,8 @@ import (
 
 	"github.com/google/cel-go/checker"
 	"github.com/google/cel-go/common/containers"
+	"github.com/google/cel-go/common/decls"
+	"github.com/google/cel-go/common/env"
 	"github.com/google/cel-go/common/functions"
 	"github.com/google/cel-go/common/types"
 	"github.com/google/cel-go/common/types/pb"
@@ -68,7 +71,65 @@ const (
 
 	// Enable escape syntax for field identifiers (`).
 	featureIdentEscapeSyntax
+
+	// Enable accessing fields by JSON names within protobuf messages
+	featureJSONFieldNames
 )
+
+var featureIDsToNames = map[int]string{
+	featureEnableMacroCallTracking:     "cel.feature.macro_call_tracking",
+	featureCrossTypeNumericComparisons: "cel.feature.cross_type_numeric_comparisons",
+	featureIdentEscapeSyntax:           "cel.feature.backtick_escape_syntax",
+	featureJSONFieldNames:              "cel.feature.json_field_names",
+}
+
+func featureNameByID(id int) (string, bool) {
+	name, found := featureIDsToNames[id]
+	return name, found
+}
+
+func featureIDByName(name string) (int, bool) {
+	for id, n := range featureIDsToNames {
+		if n == name {
+			return id, true
+		}
+	}
+	return 0, false
+}
+
+// limitID is used as a key for configurable limits. These are options that
+// support exporting to YAML environment config.
+type limitID int
+
+const (
+	_ = limitID(iota)
+	// The number of recursive calls permitted in parsing.
+	limitParseRecursionDepth
+	// The number of code points permitted in an input expression string.
+	limitCodePointSize
+	// The number of attempts to recover from a parse error.
+	limitParseErrorRecovery
+)
+
+var limitIDsToNames = map[limitID]string{
+	limitCodePointSize:       "cel.limit.expression_code_points",
+	limitParseErrorRecovery:  "cel.limit.parse_error_recovery",
+	limitParseRecursionDepth: "cel.limit.parse_recursion_depth",
+}
+
+func limitNameByID(id limitID) (string, bool) {
+	v, ok := limitIDsToNames[id]
+	return v, ok
+}
+
+func limitIDByName(name string) (limitID, bool) {
+	for k, v := range limitIDsToNames {
+		if v == name {
+			return k, true
+		}
+	}
+	return limitID(0), false
+}
 
 // EnvOption is a functional interface for configuring the environment.
 type EnvOption func(e *Env) (*Env, error)
@@ -112,6 +173,8 @@ func CustomTypeProvider(provider any) EnvOption {
 // Note: Declarations will by default be appended to the pre-existing declaration set configured
 // for the environment. The NewEnv call builds on top of the standard CEL declarations. For a
 // purely custom set of declarations use NewCustomEnv.
+//
+// Deprecated: use FunctionDecls and VariableDecls or FromConfig instead.
 func Declarations(decls ...*exprpb.Decl) EnvOption {
 	declOpts := []EnvOption{}
 	var err error
@@ -250,9 +313,9 @@ func Abbrevs(qualifiedNames ...string) EnvOption {
 	}
 }
 
-// customTypeRegistry is an internal-only interface containing the minimum methods required to support
+// protoTypeRegistry is an internal-only interface containing the minimum methods required to support
 // custom types. It is a subset of methods from ref.TypeRegistry.
-type customTypeRegistry interface {
+type protoTypeRegistry interface {
 	RegisterDescriptor(protoreflect.FileDescriptor) error
 	RegisterType(...ref.Type) error
 }
@@ -269,7 +332,7 @@ type customTypeRegistry interface {
 // Note: This option must be specified after the CustomTypeProvider option when used together.
 func Types(addTypes ...any) EnvOption {
 	return func(e *Env) (*Env, error) {
-		reg, isReg := e.provider.(customTypeRegistry)
+		reg, isReg := e.provider.(protoTypeRegistry)
 		if !isReg {
 			return nil, fmt.Errorf("custom types not supported by provider: %T", e.provider)
 		}
@@ -306,7 +369,7 @@ func Types(addTypes ...any) EnvOption {
 // extension or by re-using the same EnvOption with another NewEnv() call.
 func TypeDescs(descs ...any) EnvOption {
 	return func(e *Env) (*Env, error) {
-		reg, isReg := e.provider.(customTypeRegistry)
+		reg, isReg := e.provider.(protoTypeRegistry)
 		if !isReg {
 			return nil, fmt.Errorf("custom types not supported by provider: %T", e.provider)
 		}
@@ -354,7 +417,7 @@ func TypeDescs(descs ...any) EnvOption {
 	}
 }
 
-func registerFileSet(reg customTypeRegistry, fileSet *descpb.FileDescriptorSet) error {
+func registerFileSet(reg protoTypeRegistry, fileSet *descpb.FileDescriptorSet) error {
 	files, err := protodesc.NewFiles(fileSet)
 	if err != nil {
 		return fmt.Errorf("protodesc.NewFiles(%v) failed: %v", fileSet, err)
@@ -362,13 +425,22 @@ func registerFileSet(reg customTypeRegistry, fileSet *descpb.FileDescriptorSet) 
 	return registerFiles(reg, files)
 }
 
-func registerFiles(reg customTypeRegistry, files *protoregistry.Files) error {
+func registerFiles(reg protoTypeRegistry, files *protoregistry.Files) error {
 	var err error
 	files.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
 		err = reg.RegisterDescriptor(fd)
 		return err == nil
 	})
 	return err
+}
+
+// JSONFieldNames supports accessing protocol buffer fields by json-name.
+//
+// Enabling JSON field name support will create a copy of the types.Registry with fields indexed
+// by JSON name, and whether JSON name or Proto-style names are supported will be inferred from
+// the AST extensions metadata.
+func JSONFieldNames(enabled bool) EnvOption {
+	return features(featureJSONFieldNames, enabled)
 }
 
 // ProgramOption is a functional interface for configuring evaluation bindings and behaviors.
@@ -379,7 +451,15 @@ type ProgramOption func(p *prog) (*prog, error)
 // InterpretableDecorators can be used to inspect, alter, or replace the Program plan.
 func CustomDecorator(dec interpreter.InterpretableDecorator) ProgramOption {
 	return func(p *prog) (*prog, error) {
-		p.decorators = append(p.decorators, dec)
+		p.plannerOptions = append(p.plannerOptions, interpreter.CustomDecorator(dec))
+		return p, nil
+	}
+}
+
+// CustomDecoratorV2 appends an InterpreterDecoratorV2 to the program.
+func CustomDecoratorV2(dec interpreter.InterpretableDecoratorV2) ProgramOption {
+	return func(p *prog) (*prog, error) {
+		p.plannerOptions = append(p.plannerOptions, interpreter.CustomDecoratorV2(dec))
 		return p, nil
 	}
 }
@@ -401,10 +481,10 @@ func Functions(funcs ...*functions.Overload) ProgramOption {
 // variables with the same name provided to the Eval() call. If Globals is used in a Library with
 // a Lib EnvOption, vars may shadow variables provided by previously added libraries.
 //
-// The vars value may either be an `interpreter.Activation` instance or a `map[string]any`.
+// The vars value may either be an `cel.Activation` instance or a `map[string]any`.
 func Globals(vars any) ProgramOption {
 	return func(p *prog) (*prog, error) {
-		defaultVars, err := interpreter.NewActivation(vars)
+		defaultVars, err := NewActivation(vars)
 		if err != nil {
 			return nil, err
 		}
@@ -424,6 +504,180 @@ func OptimizeRegex(regexOptimizations ...*interpreter.RegexOptimization) Program
 		p.regexOptimizations = append(p.regexOptimizations, regexOptimizations...)
 		return p, nil
 	}
+}
+
+// ConfigOptionFactory declares a signature which accepts a configuration element, e.g. env.Extension
+// and optionally produces an EnvOption in response.
+//
+// If there are multiple ConfigOptionFactory values which could apply to the same configuration node
+// the first one that returns an EnvOption and a `true` response will be used, and the config node
+// will not be passed along to any other option factory.
+//
+// Only the *env.Extension type is provided at this time, but validators, optimizers, and other tuning
+// parameters may be supported in the future.
+type ConfigOptionFactory func(any) (EnvOption, bool)
+
+// FromConfig produces and applies a set of EnvOption values derived from an env.Config object.
+//
+// For configuration elements which refer to features outside of the `cel` package, an optional set of
+// ConfigOptionFactory values may be passed in to support the conversion from static configuration to
+// configured cel.Env value.
+//
+// Note: disabling the standard library will clear the EnvOptions values previously set for the
+// environment with the exception of propagating types and adapters over to the new environment.
+//
+// Note: to support custom types referenced in the configuration file, you must ensure that one of
+// the following options appears before the FromConfig option: Types, TypeDescs, or CustomTypeProvider
+// as the type provider configured at the time when the config is processed is the one used to derive
+// type references from the configuration.
+func FromConfig(config *env.Config, optFactories ...ConfigOptionFactory) EnvOption {
+	return func(e *Env) (*Env, error) {
+		if err := config.Validate(); err != nil {
+			return nil, err
+		}
+		opts, err := configToEnvOptions(config, e.CELTypeProvider(), optFactories)
+		if err != nil {
+			return nil, err
+		}
+		for _, o := range opts {
+			e, err = o(e)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return e, nil
+	}
+}
+
+// configToEnvOptions generates a set of EnvOption values (or error) based on a config, a type provider,
+// and an optional set of environment options.
+func configToEnvOptions(config *env.Config, provider types.Provider, optFactories []ConfigOptionFactory) ([]EnvOption, error) {
+	envOpts := []EnvOption{}
+	// Configure the standard lib subset.
+	if config.StdLib != nil {
+		envOpts = append(envOpts, func(e *Env) (*Env, error) {
+			if e.HasLibrary("cel.lib.std") {
+				return nil, errors.New("invalid subset of stdlib: create a custom env")
+			}
+			return e, nil
+		})
+		if !config.StdLib.Disabled {
+			envOpts = append(envOpts, StdLib(StdLibSubset(config.StdLib)))
+		}
+	} else {
+		envOpts = append(envOpts, StdLib())
+	}
+
+	// Configure the container
+	if config.Container != "" {
+		envOpts = append(envOpts, Container(config.Container))
+	}
+
+	// Configure abbreviations
+	for _, imp := range config.Imports {
+		envOpts = append(envOpts, Abbrevs(imp.Name))
+	}
+
+	// Configure features and common limits.
+	for _, feat := range config.Features {
+		// Note, if a feature is not found, it is skipped as it is possible the feature
+		// is not intended to be supported publicly. In the future, a refinement of
+		// to this strategy to report unrecognized features and validators should probably
+		// be covered as a standard ConfigOptionFactory
+		if id, found := featureIDByName(feat.Name); found {
+			envOpts = append(envOpts, features(id, feat.Enabled))
+		}
+	}
+
+	// Configure the context variable declaration
+	if config.ContextVariable != nil {
+		typeName := config.ContextVariable.TypeName
+		if _, found := provider.FindStructType(typeName); !found {
+			return nil, fmt.Errorf("invalid context proto type: %q", typeName)
+		}
+		// Attempt to instantiate the proto in order to reflect to its descriptor
+		msg := provider.NewValue(typeName, map[string]ref.Val{})
+		pbMsg, ok := msg.Value().(proto.Message)
+		if !ok {
+			return nil, fmt.Errorf("unsupported context type: %T", msg.Value())
+		}
+		envOpts = append(envOpts, DeclareContextProto(pbMsg.ProtoReflect().Descriptor()))
+	}
+
+	// Configure variables
+	if len(config.Variables) != 0 {
+		vars := make([]*decls.VariableDecl, 0, len(config.Variables))
+		for _, v := range config.Variables {
+			vDef, err := v.AsCELVariable(provider)
+			if err != nil {
+				return nil, err
+			}
+			vars = append(vars, vDef)
+		}
+		envOpts = append(envOpts, VariableDecls(vars...))
+	}
+
+	// Configure functions
+	if len(config.Functions) != 0 {
+		funcs := make([]*decls.FunctionDecl, 0, len(config.Functions))
+		for _, f := range config.Functions {
+			fnDef, err := f.AsCELFunction(provider)
+			if err != nil {
+				return nil, err
+			}
+			funcs = append(funcs, fnDef)
+		}
+		envOpts = append(envOpts, FunctionDecls(funcs...))
+	}
+
+	for _, limit := range config.Limits {
+		if id, found := limitIDByName(limit.Name); found {
+			envOpts = append(envOpts, setLimit(id, limit.Value))
+		}
+	}
+
+	// Configure validators
+	for _, val := range config.Validators {
+		if fac, found := astValidatorFactories[val.Name]; found {
+			envOpts = append(envOpts, func(e *Env) (*Env, error) {
+				validator, err := fac(val)
+				if err != nil {
+					return nil, fmt.Errorf("%w", err)
+				}
+				return ASTValidators(validator)(e)
+			})
+		} else if opt, handled := handleExtendedConfigOption(val, optFactories); handled {
+			envOpts = append(envOpts, opt)
+		}
+		// we don't error when the validator isn't found as it may be part
+		// of an extension library and enabled implicitly.
+	}
+
+	// Configure extensions
+	for _, ext := range config.Extensions {
+		// version number has been validated by the call to `Validate`
+		ver, _ := ext.VersionNumber()
+		if ext.Name == "optional" {
+			envOpts = append(envOpts, OptionalTypes(OptionalTypesVersion(ver)))
+		} else {
+			opt, handled := handleExtendedConfigOption(ext, optFactories)
+			if !handled {
+				return nil, fmt.Errorf("unrecognized extension: %s", ext.Name)
+			}
+			envOpts = append(envOpts, opt)
+		}
+	}
+
+	return envOpts, nil
+}
+
+func handleExtendedConfigOption(conf any, optFactories []ConfigOptionFactory) (EnvOption, bool) {
+	for _, optFac := range optFactories {
+		if opt, useOption := optFac(conf); useOption {
+			return opt, true
+		}
+	}
+	return nil, false
 }
 
 // EvalOption indicates an evaluation option that may affect the evaluation behavior or information
@@ -534,8 +788,11 @@ func fieldToCELType(field protoreflect.FieldDescriptor) (*Type, error) {
 	return nil, fmt.Errorf("field %s type %s not implemented", field.FullName(), field.Kind().String())
 }
 
-func fieldToVariable(field protoreflect.FieldDescriptor) (EnvOption, error) {
+func fieldToVariable(field protoreflect.FieldDescriptor, jsonFieldNames bool) (*decls.VariableDecl, error) {
 	name := string(field.Name())
+	if jsonFieldNames {
+		name = field.JSONName()
+	}
 	if field.IsMap() {
 		mapKey := field.MapKey()
 		mapValue := field.MapValue()
@@ -547,38 +804,49 @@ func fieldToVariable(field protoreflect.FieldDescriptor) (EnvOption, error) {
 		if err != nil {
 			return nil, err
 		}
-		return Variable(name, MapType(keyType, valueType)), nil
+		return decls.NewVariable(name, MapType(keyType, valueType)), nil
 	}
 	if field.IsList() {
 		elemType, err := fieldToCELType(field)
 		if err != nil {
 			return nil, err
 		}
-		return Variable(name, ListType(elemType)), nil
+		return decls.NewVariable(name, ListType(elemType)), nil
 	}
 	celType, err := fieldToCELType(field)
 	if err != nil {
 		return nil, err
 	}
-	return Variable(name, celType), nil
+	return decls.NewVariable(name, celType), nil
 }
 
 // DeclareContextProto returns an option to extend CEL environment with declarations from the given context proto.
 // Each field of the proto defines a variable of the same name in the environment.
 // https://github.com/google/cel-spec/blob/master/doc/langdef.md#evaluation-environment
+//
+// If using JSONFieldNames(), ensure that the option is set before DeclareContextProto is provided.
 func DeclareContextProto(descriptor protoreflect.MessageDescriptor) EnvOption {
 	return func(e *Env) (*Env, error) {
+		if e.contextProto != nil {
+			return nil, fmt.Errorf("context proto already declared as %q, got %q",
+				e.contextProto.FullName(), descriptor.FullName())
+		}
+		e.contextProto = descriptor
 		fields := descriptor.Fields()
+		vars := make([]*decls.VariableDecl, 0, fields.Len())
+		jsonFieldNames := e.HasFeature(featureJSONFieldNames)
 		for i := 0; i < fields.Len(); i++ {
 			field := fields.Get(i)
-			variable, err := fieldToVariable(field)
+			variable, err := fieldToVariable(field, jsonFieldNames)
 			if err != nil {
 				return nil, err
 			}
-			e, err = variable(e)
-			if err != nil {
-				return nil, err
-			}
+			vars = append(vars, variable)
+		}
+		var err error
+		e, err = VariableDecls(vars...)(e)
+		if err != nil {
+			return nil, err
 		}
 		return Types(dynamicpb.NewMessage(descriptor))(e)
 	}
@@ -588,11 +856,15 @@ func DeclareContextProto(descriptor protoreflect.MessageDescriptor) EnvOption {
 //
 // Consider using with `DeclareContextProto` to simplify variable type declarations and publishing when using
 // protocol buffers.
-func ContextProtoVars(ctx proto.Message) (interpreter.Activation, error) {
+//
+// Use the types.JSONFieldNames(true) option to populate the context proto vars using the JSON field names.
+func ContextProtoVars(ctx proto.Message, opts ...types.RegistryOption) (Activation, error) {
 	if ctx == nil || !ctx.ProtoReflect().IsValid() {
 		return interpreter.EmptyActivation(), nil
 	}
-	reg, err := types.NewRegistry(ctx)
+	regOpts := []types.RegistryOption{types.ProtoTypeDefs(ctx)}
+	regOpts = append(regOpts, opts...)
+	reg, err := types.NewProtoRegistry(regOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -602,17 +874,21 @@ func ContextProtoVars(ctx proto.Message) (interpreter.Activation, error) {
 	vars := make(map[string]any, fields.Len())
 	for i := 0; i < fields.Len(); i++ {
 		field := fields.Get(i)
-		sft, found := reg.FindStructFieldType(typeName, field.TextName())
+		fieldName := field.TextName()
+		if reg.JSONFieldNames() {
+			fieldName = field.JSONName()
+		}
+		sft, found := reg.FindStructFieldType(typeName, fieldName)
 		if !found {
-			return nil, fmt.Errorf("no such field: %s", field.TextName())
+			return nil, fmt.Errorf("no such field: %s", fieldName)
 		}
 		fieldVal, err := sft.GetFrom(ctx)
 		if err != nil {
 			return nil, err
 		}
-		vars[field.TextName()] = fieldVal
+		vars[fieldName] = fieldVal
 	}
-	return interpreter.NewActivation(vars)
+	return NewActivation(vars)
 }
 
 // EnableMacroCallTracking ensures that call expressions which are replaced by macros
@@ -646,22 +922,32 @@ func features(flag int, enabled bool) EnvOption {
 	}
 }
 
-// ParserRecursionLimit adjusts the AST depth the parser will tolerate.
-// Defaults defined in the parser package.
-func ParserRecursionLimit(limit int) EnvOption {
+func setLimit(id limitID, limit int) EnvOption {
+	if limit < 0 {
+		limit = -1
+	}
 	return func(e *Env) (*Env, error) {
-		e.prsrOpts = append(e.prsrOpts, parser.MaxRecursionDepth(limit))
+		e.limits[id] = limit
 		return e, nil
 	}
 }
 
-// ParserExpressionSizeLimit adjusts the number of code points the expression parser is allowed to parse.
+// ParserRecursionLimit adjusts the AST depth the parser will tolerate.
 // Defaults defined in the parser package.
+func ParserRecursionLimit(limit int) EnvOption {
+	return setLimit(limitParseRecursionDepth, limit)
+}
+
+// ParserErrorRecoveryLimit sets the number of attemtps the parser will take
+// to recover after encountering an error.
+func ParserErrorRecoveryLimit(limit int) EnvOption {
+	return setLimit(limitParseErrorRecovery, limit)
+}
+
+// ParserExpressionSizeLimit adjusts the number of code points the expression parser is allowed to parse.
+// Defaults are defined in the parser package. A negative value means unbounded.
 func ParserExpressionSizeLimit(limit int) EnvOption {
-	return func(e *Env) (*Env, error) {
-		e.prsrOpts = append(e.prsrOpts, parser.ExpressionSizeCodePointLimit(limit))
-		return e, nil
-	}
+	return setLimit(limitCodePointSize, limit)
 }
 
 // EnableHiddenAccumulatorName sets the parser to use the identifier '@result' for accumulators

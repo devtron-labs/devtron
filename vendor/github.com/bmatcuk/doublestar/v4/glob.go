@@ -29,7 +29,6 @@ import (
 //
 // Note: users should _not_ count on the returned error,
 // doublestar.ErrBadPattern, being equal to path.ErrBadPattern.
-//
 func Glob(fsys fs.FS, pattern string, opts ...GlobOption) ([]string, error) {
 	if !ValidatePattern(pattern) {
 		return nil, ErrBadPattern
@@ -107,7 +106,7 @@ func (g *glob) doGlob(fsys fs.FS, pattern string, m []string, firstSegment, befo
 	// characters. They would be equal if they are both -1, which means `dir`
 	// will be ".", and we know that doesn't have meta characters either.
 	if splitIdx <= patternStart {
-		return g.globDir(fsys, dir, pattern, matches, firstSegment, beforeMeta)
+		return g.globDir(fsys, unescapeMeta(dir), pattern, matches, firstSegment, beforeMeta)
 	}
 
 	var dirs []string
@@ -159,7 +158,7 @@ func (g *glob) globAlts(fsys fs.FS, pattern string, openingIdx, closingIdx int, 
 				nextIdx += patIdx
 			}
 
-			alt := buildAlt(d, pattern, startIdx, openingIdx, patIdx, nextIdx, afterIdx)
+			alt := buildAlt(escapeMeta(d), pattern, startIdx, openingIdx, patIdx, nextIdx, afterIdx)
 			matches, err = g.doGlob(fsys, alt, matches, firstSegment, beforeMeta)
 			if err != nil {
 				return
@@ -224,9 +223,22 @@ func (g *glob) globDir(fsys fs.FS, dir, pattern string, matches []string, canMat
 	}
 
 	var matched bool
+	checkForHidden := g.noHidden && couldUnintentionallyMatchHidden(pattern)
 	for _, info := range dirs {
 		name := info.Name()
-		matched, e = matchWithSeparator(pattern, name, '/', false)
+
+		// Skip hidden files when noHidden is set
+		if checkForHidden {
+			isHidden, err := isHiddenPath(name, info)
+			if e = g.forwardErrIfFailOnIOErrors(err); e != nil {
+				return
+			}
+			if isHidden {
+				continue
+			}
+		}
+
+		matched, e = matchWithSeparator(pattern, name, '/', false, g.caseInsensitive)
 		if e != nil {
 			return
 		}
@@ -269,6 +281,18 @@ func (g *glob) globDoubleStar(fsys fs.FS, dir string, matches []string, canMatch
 
 	for _, info := range dirs {
 		name := info.Name()
+
+		// Skip hidden files/directories when noHidden is set
+		if g.noHidden {
+			isHidden, err := isHiddenPath(name, info)
+			if err = g.forwardErrIfFailOnIOErrors(err); err != nil {
+				return nil, err
+			}
+			if isHidden {
+				continue
+			}
+		}
+
 		isDir, err := g.isDir(fsys, dir, name, info)
 		if err != nil {
 			return nil, err

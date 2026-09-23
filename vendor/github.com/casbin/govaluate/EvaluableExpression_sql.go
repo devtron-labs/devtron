@@ -18,19 +18,19 @@ Boolean values are considered to be "1" for true, "0" for false.
 
 Times are formatted according to this.QueryDateFormat.
 */
-func (this EvaluableExpression) ToSQLQuery() (string, error) {
+func (e EvaluableExpression) ToSQLQuery() (string, error) {
 
 	var stream *tokenStream
 	var transactions *expressionOutputStream
 	var transaction string
 	var err error
 
-	stream = newTokenStream(this.tokens)
+	stream = newTokenStream(e.tokens)
 	transactions = new(expressionOutputStream)
 
 	for stream.hasNext() {
 
-		transaction, err = this.findNextSQLString(stream, transactions)
+		transaction, err = e.findNextSQLString(stream, transactions)
 		if err != nil {
 			return "", err
 		}
@@ -41,7 +41,7 @@ func (this EvaluableExpression) ToSQLQuery() (string, error) {
 	return transactions.createString(" "), nil
 }
 
-func (this EvaluableExpression) findNextSQLString(stream *tokenStream, transactions *expressionOutputStream) (string, error) {
+func (e EvaluableExpression) findNextSQLString(stream *tokenStream, transactions *expressionOutputStream) (string, error) {
 
 	var token ExpressionToken
 	var ret string
@@ -55,7 +55,7 @@ func (this EvaluableExpression) findNextSQLString(stream *tokenStream, transacti
 	case PATTERN:
 		ret = fmt.Sprintf("'%s'", token.Value.(*regexp.Regexp).String())
 	case TIME:
-		ret = fmt.Sprintf("'%s'", token.Value.(time.Time).Format(this.QueryDateFormat))
+		ret = fmt.Sprintf("'%s'", token.Value.(time.Time).Format(e.QueryDateFormat))
 
 	case LOGICALOP:
 		switch logicalSymbols[token.Value.(string)] {
@@ -101,7 +101,7 @@ func (this EvaluableExpression) findNextSQLString(stream *tokenStream, transacti
 		case COALESCE:
 
 			left := transactions.rollback()
-			right, err := this.findNextSQLString(stream, transactions)
+			right, err := e.findNextSQLString(stream, transactions)
 			if err != nil {
 				return "", err
 			}
@@ -110,7 +110,7 @@ func (this EvaluableExpression) findNextSQLString(stream *tokenStream, transacti
 		case TERNARY_TRUE:
 			fallthrough
 		case TERNARY_FALSE:
-			return "", errors.New("Ternary operators are unsupported in SQL output")
+			return "", errors.New("ternary operators are unsupported in sql output")
 		}
 	case PREFIX:
 		switch prefixSymbols[token.Value.(string)] {
@@ -119,7 +119,7 @@ func (this EvaluableExpression) findNextSQLString(stream *tokenStream, transacti
 			ret = "NOT"
 		default:
 
-			right, err := this.findNextSQLString(stream, transactions)
+			right, err := e.findNextSQLString(stream, transactions)
 			if err != nil {
 				return "", err
 			}
@@ -133,7 +133,7 @@ func (this EvaluableExpression) findNextSQLString(stream *tokenStream, transacti
 		case EXPONENT:
 
 			left := transactions.rollback()
-			right, err := this.findNextSQLString(stream, transactions)
+			right, err := e.findNextSQLString(stream, transactions)
 			if err != nil {
 				return "", err
 			}
@@ -142,7 +142,7 @@ func (this EvaluableExpression) findNextSQLString(stream *tokenStream, transacti
 		case MODULUS:
 
 			left := transactions.rollback()
-			right, err := this.findNextSQLString(stream, transactions)
+			right, err := e.findNextSQLString(stream, transactions)
 			if err != nil {
 				return "", err
 			}
