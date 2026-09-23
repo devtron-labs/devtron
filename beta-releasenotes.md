@@ -10,6 +10,7 @@
 - fix: Hibernating filter in Devtron Apps list shows incomplete results (pager #2974) (#7049)
 - fix: scope filter-based bulk user delete to match listing filters (#7021)
 ## Others
+- chore: sync main into develop (23 Sep) (#7052)
 - misc: Release candidate v0.47.0 (#7045)
 - misc: main sync develop 16sep (#7039)
 - misc: Conditions saved with the plugin definition (plugin_step_condition) a… (#7035)
