@@ -461,7 +461,8 @@ func (handler BulkUpdateRestHandlerImpl) HandleCdPipelineBulkAction(w http.Respo
 		//check to avoid same rbac matching multiple times
 		if _, ok := appsHavingRbacChecked[impactedPipeline.App.AppName]; !ok {
 			resourceName := handler.enforcerUtil.GetAppRBACName(impactedPipeline.App.AppName)
-			if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName); !ok {
+			// bulk CD action only performs pipeline deletion (CD_BULK_DELETE); gate it as lifecycle delete
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDeletePipeline, resourceName); !ok {
 				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 				return
 			} else {

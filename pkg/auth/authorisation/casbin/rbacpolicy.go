@@ -64,6 +64,11 @@ const (
 	// admin/manager/super-admin keep app lifecycle via their wildcard (`*`) action policies.
 	ActionCreateApp = "createApp"
 	ActionDeleteApp = "deleteApp"
+	// ActionCreatePipeline and ActionDeletePipeline gate CI/CD pipeline and workflow lifecycle
+	// (create/delete), decoupled from ActionCreate/ActionUpdate/ActionDelete which continue to gate
+	// config editing. admin/manager/super-admin keep lifecycle via their wildcard (`*`) action policies.
+	ActionCreatePipeline = "createPipeline"
+	ActionDeletePipeline = "deletePipeline"
 
 	ClusterResourceRegex         = "%s/%s"    // {cluster}/{namespace}
 	ClusterObjectRegex           = "%s/%s/%s" // {groupName}/{kindName}/{objectName}

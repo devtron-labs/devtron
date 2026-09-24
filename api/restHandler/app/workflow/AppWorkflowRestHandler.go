@@ -102,7 +102,19 @@ func (handler AppWorkflowRestHandlerImpl) CreateAppWorkflow(w http.ResponseWrite
 	token := r.Header.Get("token")
 	//rbac block starts from here
 	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(request.AppId)
-	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceName, casbin.ActionCreate)
+	app, err := handler.pipelineBuilder.GetApp(request.AppId)
+	if err != nil {
+		handler.Logger.Errorw("error in fetching app for rbac", "err", err, "appId", request.AppId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// apps enforce the applications lifecycle action (createPipeline); jobs enforce the jobs resource only
+	var ok bool
+	if app.AppType == helper.Job {
+		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, resourceName)
+	} else {
+		ok = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreatePipeline, resourceName)
+	}
 	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -154,7 +166,7 @@ func (handler AppWorkflowRestHandlerImpl) DeleteAppWorkflow(w http.ResponseWrite
 	//rbac block starts from here
 	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	workflowResourceName := handler.enforcerUtil.GetRbacObjectNameByAppIdAndWorkflow(appId, appWorkflow.Name)
-	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, resourceName)
+	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDeletePipeline, resourceName)
 	if !ok {
 		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionDelete, resourceName) && handler.enforcer.Enforce(token, casbin.ResourceWorkflow, casbin.ActionDelete, workflowResourceName)
 	}
