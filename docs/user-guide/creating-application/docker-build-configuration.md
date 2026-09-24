@@ -116,7 +116,7 @@ If target platform is not set, Devtron will build image for architecture and ope
 The Target Platform feature might not work in minikube & microk8s clusters as of now.
 
  ### Docker Build Arguments 
-  It is is a collapsed view including the following parameters:
+  It is a collapsed view including the following parameters:
    * Key
    * Value
 
