@@ -39,6 +39,7 @@ type DeploymentServiceTypeConfig struct {
 	ShouldCheckNamespaceOnClone           bool `env:"SHOULD_CHECK_NAMESPACE_ON_CLONE" envDefault:"false"  description:"should we check if namespace exists or not while cloning app" deprecated:"false"`
 	ValidateExtAppChart                   bool `env:"VALIDATE_EXT_APP_CHART_TYPE" envDefault:"false" description:"validate external flux app chart" deprecated:"false"`
 	FeatureMigrateFluxApplicationEnable   bool `env:"FEATURE_MIGRATE_FLUX_APPLICATION_ENABLE" envDefault:"false" description:"enable flux application services" deprecated:"false"`
+	ForegroundDeleteCdPipeline            bool `env:"FOREGROUND_DELETE_CD_PIPELINE" envDefault:"false" description:"If enabled, deleting a CD pipeline will not delete the underlying deployed resource (helm release/argocd application/flux release) unless the request explicitly overrides it via payload." deprecated:"false"`
 }
 
 func (d *DeploymentServiceTypeConfig) IsFeatureMigrateArgoCdApplicationEnable() bool {
