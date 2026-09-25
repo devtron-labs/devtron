@@ -770,6 +770,16 @@ type CDPatchRequest struct {
 	UserId           int32                   `json:"-"`
 	ForceDelete      bool                    `json:"-"`
 	NonCascadeDelete bool                    `json:"-"`
+	ForegroundDelete *bool                   `json:"-"`
+}
+
+// GetForegroundDelete resolves the effective foreground-delete flag for this
+// request: the explicit query-param value if set, otherwise the provided env default.
+func (r *CDPatchRequest) GetForegroundDelete(envDefault bool) bool {
+	if r.ForegroundDelete != nil {
+		return *r.ForegroundDelete
+	}
+	return envDefault
 }
 
 type CdPatchAction int

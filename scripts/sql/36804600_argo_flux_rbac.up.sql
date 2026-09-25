@@ -60,7 +60,8 @@ VALUES
       "act": { "value": "get", "indexKeyMap": {} },
       "obj": { "value": "%", "indexKeyMap": { "0": "EnvObj" } } }
   ]
-}','now()','1','now()','1',true,false);
+}','now()','1','now()','1',true,false)
+ON CONFLICT ("entity", "access_type", "role") DO NOTHING;
 
 INSERT INTO "public"."rbac_role_data"
 ("entity","access_type","role","role_display_name","role_description","role_data",
@@ -108,4 +109,5 @@ VALUES
   "action":     { "value": "admin", "indexKeyMap": {} },
   "entity":     { "value": "%", "indexKeyMap": { "0": "Entity" } },
   "accessType": { "value": "flux-app", "indexKeyMap": {} }
-}','now()','1','now()','1',true,false);
+}','now()','1','now()','1',true,false)
+ON CONFLICT ("entity", "access_type", "role") DO NOTHING;
