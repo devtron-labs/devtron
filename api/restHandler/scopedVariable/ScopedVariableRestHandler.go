@@ -23,7 +23,9 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/devtron-labs/common-lib/async"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -42,31 +44,36 @@ type ScopedVariableRestHandler interface {
 	CreateVariables(w http.ResponseWriter, r *http.Request)
 	GetScopedVariables(w http.ResponseWriter, r *http.Request)
 	GetJsonForVariables(w http.ResponseWriter, r *http.Request)
+	GetVariableUsage(w http.ResponseWriter, r *http.Request)
 }
 
 type ScopedVariableRestHandlerImpl struct {
-	logger                *zap.SugaredLogger
-	userAuthService       user.UserService
-	validator             *validator.Validate
-	pipelineBuilder       pipeline.PipelineBuilder
-	enforcerUtil          rbac.EnforcerUtil
-	enforcer              casbin.Enforcer
-	scopedVariableService variables.ScopedVariableService
+	logger                         *zap.SugaredLogger
+	userAuthService                user.UserService
+	validator                      *validator.Validate
+	pipelineBuilder                pipeline.PipelineBuilder
+	enforcerUtil                   rbac.EnforcerUtil
+	enforcer                       casbin.Enforcer
+	scopedVariableService          variables.ScopedVariableService
+	gitMaterialVariableSyncService pipeline.GitMaterialVariableSyncService
+	asyncRunnable                  *async.Runnable
 }
 type JsonResponse struct {
 	Manifest   *models.ScopedVariableManifest `json:"manifest"`
 	JsonSchema string                         `json:"jsonSchema"`
 }
 
-func NewScopedVariableRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, pipelineBuilder pipeline.PipelineBuilder, enforcerUtil rbac.EnforcerUtil, enforcer casbin.Enforcer, scopedVariableService variables.ScopedVariableService) *ScopedVariableRestHandlerImpl {
+func NewScopedVariableRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, pipelineBuilder pipeline.PipelineBuilder, enforcerUtil rbac.EnforcerUtil, enforcer casbin.Enforcer, scopedVariableService variables.ScopedVariableService, gitMaterialVariableSyncService pipeline.GitMaterialVariableSyncService, asyncRunnable *async.Runnable) *ScopedVariableRestHandlerImpl {
 	return &ScopedVariableRestHandlerImpl{
-		logger:                logger,
-		userAuthService:       userAuthService,
-		validator:             validator,
-		pipelineBuilder:       pipelineBuilder,
-		enforcerUtil:          enforcerUtil,
-		enforcer:              enforcer,
-		scopedVariableService: scopedVariableService,
+		logger:                         logger,
+		userAuthService:                userAuthService,
+		validator:                      validator,
+		pipelineBuilder:                pipelineBuilder,
+		enforcerUtil:                   enforcerUtil,
+		enforcer:                       enforcer,
+		scopedVariableService:          scopedVariableService,
+		gitMaterialVariableSyncService: gitMaterialVariableSyncService,
+		asyncRunnable:                  asyncRunnable,
 	}
 }
 func (handler *ScopedVariableRestHandlerImpl) CreateVariables(w http.ResponseWriter, r *http.Request) {
@@ -94,7 +101,12 @@ func (handler *ScopedVariableRestHandlerImpl) CreateVariables(w http.ResponseWri
 		return
 	}
 
-	payload := utils.ManifestToPayload(request.Manifest, userId)
+	payload, err := utils.ManifestToPayload(request.Manifest, userId)
+	if err != nil {
+		handler.logger.Errorw("invalid manifest in CreateVariables", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusNotAcceptable)
+		return
+	}
 
 	// not logging bean object as it contains sensitive data
 	handler.logger.Infow("request payload received for variables")
@@ -108,14 +120,58 @@ func (handler *ScopedVariableRestHandlerImpl) CreateVariables(w http.ResponseWri
 	//RBAC enforcer Ends
 	err = handler.scopedVariableService.CreateVariables(payload)
 	if err != nil {
-		if errors.As(err, &models.ValidationError{}) {
+		var deletionBlockedErr *models.VariableDeletionBlockedError
+		if errors.As(err, &deletionBlockedErr) {
+			apiErr := &util2.ApiError{
+				HttpStatusCode:    http.StatusConflict,
+				Code:              strconv.Itoa(http.StatusConflict),
+				InternalMessage:   deletionBlockedErr.Error(),
+				UserMessage:       deletionBlockedErr.Error(),
+				UserDetailMessage: deletionBlockedErr.UsageSummary(20),
+			}
+			common.WriteJsonResp(w, apiErr, nil, http.StatusConflict)
+		} else if errors.As(err, &models.ValidationError{}) {
 			common.WriteJsonResp(w, err, nil, http.StatusNotAcceptable)
 		} else {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		}
 		return
 	}
+	// CreateVariables replaces the entire variable set, so any Git Material referencing a
+	// scoped variable may need its git-sensor copy refreshed - run off-thread since each
+	// push to git-sensor can take up to its own timeout ceiling, and this must not block
+	// the response for a save that already succeeded above.
+	handler.asyncRunnable.Execute(func() {
+		if syncErr := handler.gitMaterialVariableSyncService.ResyncGitMaterialsForVariableChange(); syncErr != nil {
+			handler.logger.Errorw("error re-syncing git materials after variable change", "err", syncErr)
+		}
+	})
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
+}
+
+func (handler *ScopedVariableRestHandlerImpl) GetVariableUsage(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.HandleUnauthorized(w, r)
+		return
+	}
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !isSuperAdmin {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+
+	variableName := r.URL.Query().Get("name")
+	usages, err := handler.scopedVariableService.GetVariableUsage(variableName)
+	if err != nil {
+		handler.logger.Errorw("service err, GetVariableUsage", "variableName", variableName, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, usages, http.StatusOK)
 }
 func (handler *ScopedVariableRestHandlerImpl) GetScopedVariables(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
