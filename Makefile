@@ -24,7 +24,7 @@ export
 
 build: clean wire
 	$(ENVVAR) GOOS=$(GOOS) go build -o devtron \
-			-ldflags="-X 'github.com/devtron-labs/devtron/util.GitCommit=${GIT_COMMIT}' \
+			-ldflags="-s -w -X 'github.com/devtron-labs/devtron/util.GitCommit=${GIT_COMMIT}' \
 			-X 'github.com/devtron-labs/devtron/util.BuildTime=${BUILD_TIME}' \
 			-X 'github.com/devtron-labs/devtron/util.ServerMode=${SERVER_MODE_FULL}'"
 
