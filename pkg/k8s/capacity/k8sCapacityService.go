@@ -281,7 +281,7 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByCluster(ctx cont
 			nodeResourceUsage[nodeMetrics.Name] = nodeMetrics.Usage
 		}
 	}
-	var nodeDetails []*bean.NodeCapacityDetail
+	nodeDetails := make([]*bean.NodeCapacityDetail, 0)
 	for _, node := range nodeList.Items {
 		nodeDetail, err := impl.getNodeDetail(ctx, &node, nodeResourceUsage, podList, true, cluster)
 		if err != nil {
