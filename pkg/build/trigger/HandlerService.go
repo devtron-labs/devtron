@@ -110,6 +110,7 @@ type HandlerServiceImpl struct {
 	customTagService             pipeline2.CustomTagService
 	config                       *types.CiConfig
 	scopedVariableManager        variables.ScopedVariableManager
+	repoFieldVariableResolver    variables.RepoFieldVariableResolver
 	ciCdPipelineOrchestrator     pipeline2.CiCdPipelineOrchestrator
 	buildxGlobalFlags            *BuildxGlobalFlags
 	attributeService             attributes.AttributesService
@@ -138,6 +139,7 @@ func NewHandlerServiceImpl(Logger *zap.SugaredLogger, workflowService executor.W
 	envRepository repository6.EnvironmentRepository,
 	appRepository appRepository.AppRepository,
 	scopedVariableManager variables.ScopedVariableManager,
+	repoFieldVariableResolver variables.RepoFieldVariableResolver,
 	customTagService pipeline2.CustomTagService,
 	ciCdPipelineOrchestrator pipeline2.CiCdPipelineOrchestrator, attributeService attributes.AttributesService,
 	pluginInputVariableParser pipeline2.PluginInputVariableParser,
@@ -171,6 +173,7 @@ func NewHandlerServiceImpl(Logger *zap.SugaredLogger, workflowService executor.W
 		envRepository:                envRepository,
 		appRepository:                appRepository,
 		scopedVariableManager:        scopedVariableManager,
+		repoFieldVariableResolver:    repoFieldVariableResolver,
 		customTagService:             customTagService,
 		ciCdPipelineOrchestrator:     ciCdPipelineOrchestrator,
 		buildxGlobalFlags:            buildxCacheFlags,
@@ -847,7 +850,7 @@ func (impl *HandlerServiceImpl) StartCiWorkflowAndPrepareWfRequest(trigger *type
 		trigger.RuntimeParameters = trigger.RuntimeParameters.AddSystemVariable(k, v)
 	}
 
-	workflowRequest, err := impl.buildWfRequestForCiPipeline(pipeline, trigger, ciMaterials, savedCiWf, ciWorkflowConfigNamespace, ciPipelineScripts, preCiSteps, postCiSteps, refPluginsData, isJob)
+	workflowRequest, err := impl.buildWfRequestForCiPipeline(pipeline, trigger, ciMaterials, savedCiWf, ciWorkflowConfigNamespace, ciPipelineScripts, preCiSteps, postCiSteps, refPluginsData, isJob, scope)
 	if err != nil {
 		impl.Logger.Errorw("make workflow req", "err", err)
 		return nil, nil, nil, err
@@ -1006,7 +1009,7 @@ func (impl *HandlerServiceImpl) buildDefaultArtifactLocation(savedWf *pipelineCo
 	return ArtifactLocation
 }
 
-func (impl *HandlerServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.CiPipeline, trigger *types.CiTriggerRequest, ciMaterials []*pipelineConfig.CiPipelineMaterial, savedWf *pipelineConfig.CiWorkflow, ciWorkflowConfigNamespace string, ciPipelineScripts []*pipelineConfig.CiPipelineScript, preCiSteps []*pipelineConfigBean.StepObject, postCiSteps []*pipelineConfigBean.StepObject, refPluginsData []*pipelineConfigBean.RefPluginObject, isJob bool) (*types.WorkflowRequest, error) {
+func (impl *HandlerServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.CiPipeline, trigger *types.CiTriggerRequest, ciMaterials []*pipelineConfig.CiPipelineMaterial, savedWf *pipelineConfig.CiWorkflow, ciWorkflowConfigNamespace string, ciPipelineScripts []*pipelineConfig.CiPipelineScript, preCiSteps []*pipelineConfigBean.StepObject, postCiSteps []*pipelineConfigBean.StepObject, refPluginsData []*pipelineConfigBean.RefPluginObject, isJob bool, scope resourceQualifiers.Scope) (*types.WorkflowRequest, error) {
 	var ciProjectDetails []pipelineConfigBean.CiProjectDetails
 	commitHashes := trigger.CommitHashes
 	for _, ciMaterial := range ciMaterials {
@@ -1015,8 +1018,15 @@ func (impl *HandlerServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineCo
 			continue
 		}
 		commitHashForPipelineId := commitHashes[ciMaterial.Id]
+		// git_material.url may hold a @{{VAR_NAME}} reference (never resolved into the DB, see
+		// RepoFieldVariableResolver) - resolve it fresh here rather than at Git Material save time
+		gitRepository, _, err := impl.repoFieldVariableResolver.ResolveRepoFieldValue(scope, ciMaterial.GitMaterial.Url)
+		if err != nil {
+			impl.Logger.Errorw("error resolving git material url", "gitMaterialId", ciMaterial.GitMaterial.Id, "err", err)
+			return nil, err
+		}
 		ciProjectDetail := pipelineConfigBean.CiProjectDetails{
-			GitRepository:   ciMaterial.GitMaterial.Url,
+			GitRepository:   gitRepository,
 			MaterialName:    ciMaterial.GitMaterial.Name,
 			CheckoutPath:    ciMaterial.GitMaterial.CheckoutPath,
 			FetchSubmodules: ciMaterial.GitMaterial.FetchSubmodules,
@@ -1040,7 +1050,6 @@ func (impl *HandlerServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineCo
 				CaCert:                ciMaterial.GitMaterial.GitProvider.CaCert,
 			},
 		}
-		var err error
 		ciProjectDetail, err = impl.updateCIProjectDetailWithCloningMode(pipeline.AppId, ciMaterial, ciProjectDetail)
 		if err != nil {
 			impl.Logger.Errorw("error, updateCIProjectDetailWithCloningMode", "pipelineId", pipeline.Id, "err", err)
@@ -1146,6 +1155,13 @@ func (impl *HandlerServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineCo
 			ciBuildConfigBean.BuildContextGitMaterialId = ciTemplate.BuildContextGitMaterialId
 		}
 
+	}
+	// ci_template(_override).docker_repository may hold a @{{VAR_NAME}} reference (never
+	// resolved at save time, so a variable value update takes effect on the next build)
+	dockerRepository, _, err = impl.repoFieldVariableResolver.ResolveRepoFieldValue(scope, dockerRepository)
+	if err != nil {
+		impl.Logger.Errorw("error resolving container repository", "pipelineId", pipeline.Id, "err", err)
+		return nil, err
 	}
 	if checkoutPath == "" {
 		checkoutPath = "./"
