@@ -182,16 +182,9 @@ func (impl *AppStoreApplicationVersionRepositoryImpl) FindWithFilter(filter *app
 	}
 	query = query + ";"
 
-	var err error
-	if len(filter.ChartRepoId) > 0 && len(filter.RegistryId) > 0 {
-		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, queryParams...)
-	} else if len(filter.RegistryId) > 0 {
-		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, queryParams...)
-	} else if len(filter.ChartRepoId) > 0 {
-		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, queryParams...)
-	} else {
-		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, queryParams...)
-	}
+	// The filter combination is already folded into query and queryParams by
+	// updateFindWithFilterQuery above, so the call is the same either way.
+	_, err := impl.dbConnection.Query(&appStoreWithVersion, query, queryParams...)
 	if err != nil {
 		return nil, err
 	}
