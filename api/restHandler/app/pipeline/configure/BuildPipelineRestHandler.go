@@ -410,13 +410,13 @@ func (handler *PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWr
 	// creation flow and is treated as create. The jobs fallback is unchanged for all arms.
 	var haveCiPatchAccess bool
 	switch {
-	case patchRequest.Action == bean.CREATE || patchRequest.IsSwitchCiPipelineRequest():
-		haveCiPatchAccess = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreatePipeline, resourceName)
+	case patchRequest.Action == bean.DELETE:
+		haveCiPatchAccess = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDeletePipeline, resourceName)
 		if !haveCiPatchAccess {
 			haveCiPatchAccess = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, resourceName) && handler.enforcer.Enforce(token, casbin.ResourceWorkflow, casbin.ActionCreate, workflowResourceName)
 		}
-	case patchRequest.Action == bean.DELETE:
-		haveCiPatchAccess = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDeletePipeline, resourceName)
+	case patchRequest.Action == bean.CREATE || patchRequest.IsSwitchCiPipelineRequest():
+		haveCiPatchAccess = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreatePipeline, resourceName)
 		if !haveCiPatchAccess {
 			haveCiPatchAccess = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, resourceName) && handler.enforcer.Enforce(token, casbin.ResourceWorkflow, casbin.ActionCreate, workflowResourceName)
 		}
