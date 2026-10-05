@@ -18,7 +18,7 @@ package main
 
 import (
 	"fmt"
-	_ "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	_ "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	_ "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	util2 "github.com/devtron-labs/devtron/util"
 	"log"

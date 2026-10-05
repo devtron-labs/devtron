@@ -21,15 +21,16 @@ func (schema *Schema) compilePattern(c RegexCompilerFunc) (cp RegexMatcher, err 
 		cp, err = regexp.Compile(intoGoRegexp(pattern))
 	}
 	if err != nil {
-		err = &SchemaError{
+		schemaErr := &SchemaError{
 			Schema:      schema,
 			SchemaField: "pattern",
 			Origin:      err,
 			Reason:      fmt.Sprintf("cannot compile pattern %q: %v", pattern, err),
 		}
+		err = newSchemaPatternRegexError(pattern, schemaErr, schema.Origin)
 		return
 	}
 
-	var _ bool = compiledPatterns.CompareAndSwap(pattern, nil, cp)
+	compiledPatterns.Store(pattern, cp)
 	return
 }

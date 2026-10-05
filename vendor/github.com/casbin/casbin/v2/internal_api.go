@@ -42,7 +42,7 @@ func (e *Enforcer) addPolicyWithoutNotify(sec string, ptype string, rule []strin
 
 	hasPolicy, err := e.model.HasPolicy(sec, ptype, rule)
 	if hasPolicy || err != nil {
-		return hasPolicy, err
+		return false, err
 	}
 
 	if e.shouldPersist() {
@@ -493,5 +493,7 @@ func (e *Enforcer) GetFieldIndex(ptype string, field string) (int, error) {
 
 func (e *Enforcer) SetFieldIndex(ptype string, field string, index int) {
 	assertion := e.model["p"][ptype]
+	assertion.FieldIndexMutex.Lock()
 	assertion.FieldIndexMap[field] = index
+	assertion.FieldIndexMutex.Unlock()
 }

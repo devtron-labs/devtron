@@ -279,6 +279,8 @@ func (e *Enforcer) SetWatcher(watcher persist.Watcher) error {
 func (e *Enforcer) GetRoleManager() rbac.RoleManager {
 	if e.rmMap != nil && e.rmMap["g"] != nil {
 		return e.rmMap["g"]
+	} else if e.condRmMap != nil && e.condRmMap["g"] != nil {
+		return e.condRmMap["g"]
 	} else {
 		return nil
 	}
@@ -288,6 +290,8 @@ func (e *Enforcer) GetRoleManager() rbac.RoleManager {
 func (e *Enforcer) GetNamedRoleManager(ptype string) rbac.RoleManager {
 	if e.rmMap != nil && e.rmMap[ptype] != nil {
 		return e.rmMap[ptype]
+	} else if e.condRmMap != nil && e.condRmMap[ptype] != nil {
+		return e.condRmMap[ptype]
 	} else {
 		return nil
 	}
@@ -564,6 +568,7 @@ func (e *Enforcer) EnableAcceptJsonRequest(acceptJsonRequest bool) {
 
 // BuildRoleLinks manually rebuild the role inheritance relations.
 func (e *Enforcer) BuildRoleLinks() error {
+	e.invalidateMatcherMap()
 	if e.rmMap == nil {
 		return errors.New("rmMap is nil")
 	}
@@ -654,7 +659,8 @@ func (e *Enforcer) enforce(matcher string, explains *[]string, rvals ...interfac
 	if matcher == "" {
 		expString = e.model["m"][mType].Value
 	} else {
-		expString = util.RemoveComments(util.EscapeAssertion(matcher))
+		// For custom matchers provided at runtime, escape backslashes in string literals
+		expString = util.EscapeStringLiterals(util.RemoveComments(util.EscapeAssertion(matcher)))
 	}
 
 	rTokens := make(map[string]int, len(e.model["r"][rType].Tokens))
@@ -907,6 +913,10 @@ func (e *Enforcer) AddNamedMatchingFunc(ptype, name string, fn rbac.MatchingFunc
 func (e *Enforcer) AddNamedDomainMatchingFunc(ptype, name string, fn rbac.MatchingFunc) bool {
 	if rm, ok := e.rmMap[ptype]; ok {
 		rm.AddDomainMatchingFunc(name, fn)
+		return true
+	}
+	if condRm, ok := e.condRmMap[ptype]; ok {
+		condRm.AddDomainMatchingFunc(name, fn)
 		return true
 	}
 	return false

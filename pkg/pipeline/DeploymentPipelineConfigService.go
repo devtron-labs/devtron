@@ -21,7 +21,7 @@ import (
 	"encoding/json"
 	errors3 "errors"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	commonBean2 "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	bean2 "github.com/devtron-labs/devtron/api/bean"

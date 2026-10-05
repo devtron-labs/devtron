@@ -3,8 +3,9 @@ package argocdServer
 import (
 	json2 "encoding/json"
 	errors3 "errors"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 )
 
 func createRequestForArgoCDSyncModeUpdateRequest(argoApplication *v1alpha1.Application, autoSyncEnabled bool) *v1alpha1.Application {
@@ -12,7 +13,9 @@ func createRequestForArgoCDSyncModeUpdateRequest(argoApplication *v1alpha1.Appli
 	var automated *v1alpha1.SyncPolicyAutomated
 	if autoSyncEnabled {
 		automated = &v1alpha1.SyncPolicyAutomated{
-			Prune: true,
+			// argo-cd v3.4 changed these fields to *bool; leaving Enabled nil
+			// keeps automated sync on, matching the pre-v3.4 behaviour.
+			Prune: ptr.To(true),
 		}
 	}
 	return &v1alpha1.Application{

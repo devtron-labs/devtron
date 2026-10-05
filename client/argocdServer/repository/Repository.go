@@ -18,8 +18,8 @@ package repository
 
 import (
 	"context"
-	repository2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	repository2 "github.com/argoproj/argo-cd/v3/pkg/apiclient/repository"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"go.uber.org/zap"

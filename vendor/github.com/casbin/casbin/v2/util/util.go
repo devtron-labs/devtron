@@ -24,7 +24,7 @@ import (
 
 var evalReg = regexp.MustCompile(`\beval\((?P<rule>[^)]*)\)`)
 
-var escapeAssertionRegex = regexp.MustCompile(`\b((r|p)[0-9]*)\.`)
+var escapeAssertionRegex = regexp.MustCompile(`([()\s|&,=!><+\-*/]|^)((r|p)[0-9]*)\.`)
 
 func JsonToMap(jsonStr string) (map[string]interface{}, error) {
 	result := make(map[string]interface{})
@@ -38,7 +38,12 @@ func JsonToMap(jsonStr string) (map[string]interface{}, error) {
 // EscapeAssertion escapes the dots in the assertion, because the expression evaluation doesn't support such variable names.
 func EscapeAssertion(s string) string {
 	s = escapeAssertionRegex.ReplaceAllStringFunc(s, func(m string) string {
-		return strings.Replace(m, ".", "_", 1)
+		// Replace only the last dot with underscore (preserve the prefix character)
+		lastDotIdx := strings.LastIndex(m, ".")
+		if lastDotIdx > 0 {
+			return m[:lastDotIdx] + "_"
+		}
+		return m
 	})
 	return s
 }
@@ -82,19 +87,21 @@ func Array2DEquals(a [][]string, b [][]string) bool {
 
 // SortArray2D  Sorts the two-dimensional string array.
 func SortArray2D(arr [][]string) {
-	if len(arr) != 0 {
-		sort.Slice(arr, func(i, j int) bool {
-			elementLen := len(arr[0])
-			for k := 0; k < elementLen; k++ {
-				if arr[i][k] < arr[j][k] {
-					return true
-				} else if arr[i][k] > arr[j][k] {
-					return false
-				}
-			}
-			return true
-		})
+	if len(arr) == 0 {
+		return
 	}
+	sort.Slice(arr, func(i, j int) bool {
+		minArrLen := len(arr[i])
+		if len(arr[j]) < minArrLen {
+			minArrLen = len(arr[j])
+		}
+		for k := 0; k < minArrLen; k++ {
+			if arr[i][k] != arr[j][k] {
+				return arr[i][k] < arr[j][k]
+			}
+		}
+		return len(arr[i]) < len(arr[j])
+	})
 }
 
 // SortedArray2DEquals determines whether two 2-dimensional string arrays are identical.
@@ -267,6 +274,41 @@ func GetEvalValue(s string) []string {
 		rules = append(rules, rule[1])
 	}
 	return rules
+}
+
+// EscapeStringLiterals escapes backslashes in string literals within an expression
+// to ensure consistent handling between govaluate (which interprets escape sequences)
+// and CSV parsing (which treats backslashes as literal characters).
+// This function doubles all backslashes within single-quoted and double-quoted strings.
+func EscapeStringLiterals(expr string) string {
+	var result strings.Builder
+	inString := false
+	var quote rune
+
+	for i := 0; i < len(expr); i++ {
+		ch := rune(expr[i])
+
+		if inString {
+			result.WriteRune(ch)
+			if ch == '\\' {
+				// Found a backslash inside a string - double it
+				result.WriteRune('\\')
+			} else if ch == quote {
+				// End of string literal
+				inString = false
+			}
+			continue
+		}
+
+		// Not inside a string literal
+		if ch == '\'' || ch == '"' {
+			inString = true
+			quote = ch
+		}
+		result.WriteRune(ch)
+	}
+
+	return result.String()
 }
 
 func RemoveDuplicateElement(s []string) []string {
