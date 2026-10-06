@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS idx_ci_artifact_external_ci_pipeline_id_id;
