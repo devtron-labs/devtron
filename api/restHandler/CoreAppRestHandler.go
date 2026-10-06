@@ -2277,8 +2277,13 @@ func (handler CoreAppRestHandlerImpl) CreateAppWorkflow(w http.ResponseWriter, r
 	}
 	createAppRequest.AppId = app.AppId
 	object := fmt.Sprintf("%s/%s", app.ProjectName, app.AppName)
-	// with admin roles, you have to access for all the apps of the project to create new app. (admin or manager with specific app permission can't create app.)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, object); !ok {
+	// Creating a workflow is pipeline lifecycle (createPipeline); a config-only request
+	// (environmentOverrides with no workflow) stays on create so dev-admin keeps config-edit access.
+	wfCreateAction := casbin.ActionCreate
+	if len(createAppRequest.AppWorkflows) > 0 {
+		wfCreateAction = casbin.ActionCreatePipeline
+	}
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, wfCreateAction, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
