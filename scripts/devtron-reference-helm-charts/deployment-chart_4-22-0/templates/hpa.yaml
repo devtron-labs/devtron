@@ -91,7 +91,17 @@ spec:
     {{- toYaml $.Values.autoscaling.behavior | nindent 4 }}
   {{- end }}
   {{- end }}
-{{- if and $.Values.secondaryWorkload.enabled $.Values.secondaryWorkload.autoscaling.enabled }}
+{{- $primaryAutoscaling := $.Values.autoscaling | default dict }}
+{{- $secAutoscaling := $.Values.secondaryWorkload.autoscaling | default dict }}
+{{- $secHpaEnabled := false }}
+{{- if $.Values.secondaryWorkload.enabled }}
+  {{- if hasKey $secAutoscaling "enabled" }}
+    {{- $secHpaEnabled = $secAutoscaling.enabled }}
+  {{- else }}
+    {{- $secHpaEnabled = $primaryAutoscaling.enabled }}
+  {{- end }}
+{{- end }}
+{{- if $secHpaEnabled }}
 ---
 {{- if semverCompare ">=1.23-0" .Capabilities.KubeVersion.GitVersion }}
 apiVersion: autoscaling/v2
@@ -102,76 +112,104 @@ apiVersion: autoscaling/v2beta1
 {{- end }}
 kind: HorizontalPodAutoscaler
 metadata:
+  {{- if and $secAutoscaling $secAutoscaling.name }}
+  name: {{ $secAutoscaling.name }}
+  {{- else }}
   name: {{ template ".Chart.Name .fullname" $ }}-{{ $.Values.secondaryWorkload.postfix | default "sec" }}-hpa
-  {{- if .Values.autoscaling.annotations }}
+  {{- end }}
+  {{- if and $secAutoscaling $secAutoscaling.annotations }}
   annotations:
-{{ toYaml .Values.autoscaling.annotations | indent 4 }}
+{{ toYaml $secAutoscaling.annotations | indent 4 }}
+  {{- else if $primaryAutoscaling.annotations }}
+  annotations:
+{{ toYaml $primaryAutoscaling.annotations | indent 4 }}
   {{- end }}
-  {{- if .Values.autoscaling.labels }}
   labels:
-{{ toYaml .Values.autoscaling.labels | indent 4 }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    app: {{ template ".Chart.Name .name" $ }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
+  {{- if and $secAutoscaling $secAutoscaling.labels }}
+{{ toYaml $secAutoscaling.labels | indent 4 }}
+  {{- else if $primaryAutoscaling.labels }}
+{{ toYaml $primaryAutoscaling.labels | indent 4 }}
   {{- end }}
+{{- if $.Values.appLabels }}
+{{ toYaml $.Values.appLabels | indent 4 }}
+{{- end }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
     name: {{ include ".Chart.Name .fullname" $ }}-{{ $.Values.secondaryWorkload.postfix | default "sec" }}
-  {{- with $.Values.secondaryWorkload }}
-  minReplicas: {{ .autoscaling.MinReplicas  }}
-  maxReplicas: {{ .autoscaling.MaxReplicas }}
+  minReplicas: {{ $secAutoscaling.MinReplicas | default $primaryAutoscaling.MinReplicas | default 1 }}
+  maxReplicas: {{ $secAutoscaling.MaxReplicas | default $primaryAutoscaling.MaxReplicas | default 2 }}
   metrics:
-  {{- if  .autoscaling.containerResource.enabled  }}
-  {{- with .autoscaling.containerResource }}
-  {{- if .TargetCPUUtilizationPercentage }}
-  - type: ContainerResource  
+  {{- $containerResource := $secAutoscaling.containerResource | default $primaryAutoscaling.containerResource | default dict }}
+  {{- if $containerResource.enabled }}
+  {{- if $containerResource.TargetCPUUtilizationPercentage }}
+  - type: ContainerResource
     containerResource:
       name: cpu
-      container: "{{ if $.Values.containerName }}{{ $.Values.containerName }}{{ else }}{{ $.Chart.Name }}{{ end }}"
+      container: "{{ if $.Values.secondaryWorkload.containerName }}{{ $.Values.secondaryWorkload.containerName }}{{ else if $.Values.containerName }}{{ $.Values.containerName }}{{ else }}{{ $.Chart.Name }}{{ end }}"
       target:
         type: Utilization
-        averageUtilization: {{ .TargetCPUUtilizationPercentage }}
-  {{- end}}  
-  {{- if .TargetMemoryUtilizationPercentage  }}
-  - type: ContainerResource  
+        averageUtilization: {{ $containerResource.TargetCPUUtilizationPercentage }}
+  {{- end }}
+  {{- if $containerResource.TargetMemoryUtilizationPercentage }}
+  - type: ContainerResource
     containerResource:
       name: memory
-      container: "{{ if $.Values.containerName }}{{ $.Values.containerName }}{{ else }}{{ $.Chart.Name }}{{ end }}"
+      container: "{{ if $.Values.secondaryWorkload.containerName }}{{ $.Values.secondaryWorkload.containerName }}{{ else if $.Values.containerName }}{{ $.Values.containerName }}{{ else }}{{ $.Chart.Name }}{{ end }}"
       target:
         type: Utilization
-        averageUtilization: {{ .TargetMemoryUtilizationPercentage }}
-  {{- end}}
-  {{- end }}            
-  {{- end }}  
-  {{- if .autoscaling.TargetMemoryUtilizationPercentage }}
+        averageUtilization: {{ $containerResource.TargetMemoryUtilizationPercentage }}
+  {{- end }}
+  {{- end }}
+  {{- $targetMemory := "" }}
+  {{- if hasKey $secAutoscaling "TargetMemoryUtilizationPercentage" }}
+    {{- $targetMemory = $secAutoscaling.TargetMemoryUtilizationPercentage }}
+  {{- else if hasKey $primaryAutoscaling "TargetMemoryUtilizationPercentage" }}
+    {{- $targetMemory = $primaryAutoscaling.TargetMemoryUtilizationPercentage }}
+  {{- end }}
+  {{- if $targetMemory }}
   - type: Resource
     resource:
       name: memory
       {{- if semverCompare ">=1.16-0" $.Capabilities.KubeVersion.GitVersion }}
       target:
         type: Utilization
-        averageUtilization: {{ .autoscaling.TargetMemoryUtilizationPercentage }}
+        averageUtilization: {{ $targetMemory }}
       {{- else }}
-      targetAverageUtilization: {{ .autoscaling.TargetMemoryUtilizationPercentage }}
+      targetAverageUtilization: {{ $targetMemory }}
       {{- end }}
   {{- end }}
-  {{- if .autoscaling.TargetCPUUtilizationPercentage }}
+  {{- $targetCPU := "" }}
+  {{- if hasKey $secAutoscaling "TargetCPUUtilizationPercentage" }}
+    {{- $targetCPU = $secAutoscaling.TargetCPUUtilizationPercentage }}
+  {{- else if hasKey $primaryAutoscaling "TargetCPUUtilizationPercentage" }}
+    {{- $targetCPU = $primaryAutoscaling.TargetCPUUtilizationPercentage }}
+  {{- end }}
+  {{- if $targetCPU }}
   - type: Resource
     resource:
       name: cpu
       {{- if semverCompare ">=1.16-0" $.Capabilities.KubeVersion.GitVersion }}
       target:
         type: Utilization
-        averageUtilization: {{ .autoscaling.TargetCPUUtilizationPercentage }}
+        averageUtilization: {{ $targetCPU }}
       {{- else }}
-      targetAverageUtilization: {{ .autoscaling.TargetCPUUtilizationPercentage }}
+      targetAverageUtilization: {{ $targetCPU }}
       {{- end }}
   {{- end }}
-    {{- if and .autoscaling.extraMetrics (semverCompare ">=1.16-0" $.Capabilities.KubeVersion.GitVersion) }}
-  {{- toYaml .autoscaling.extraMetrics | nindent 2 }}
-    {{- end}}
-  {{- if and .autoscaling.behavior (semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion) }}
+  {{- $extraMetrics := $secAutoscaling.extraMetrics | default $primaryAutoscaling.extraMetrics }}
+  {{- if and $extraMetrics (semverCompare ">=1.16-0" $.Capabilities.KubeVersion.GitVersion) }}
+  {{- toYaml $extraMetrics | nindent 2 }}
+  {{- end }}
+  {{- $behavior := $secAutoscaling.behavior | default $primaryAutoscaling.behavior }}
+  {{- if and $behavior (semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion) }}
   behavior:
-    {{- toYaml .autoscaling.behavior | nindent 4 }}
+    {{- toYaml $behavior | nindent 4 }}
   {{- end }}
-  {{- end }}
-  {{- end }}
+{{- end }}
