@@ -216,3 +216,18 @@ func TestUserUpdateService(t *testing.T) {
 	})
 
 }
+
+func TestBulkDeleteUsers(t *testing.T) {
+	t.Run("NilRequest", func(t *testing.T) {
+		sugaredLogger, err := util.NewSugardLogger()
+		assert.Nil(t, err)
+
+		userServiceImpl := &UserServiceImpl{
+			logger: sugaredLogger,
+		}
+
+		success, err := userServiceImpl.BulkDeleteUsers(nil)
+		assert.False(t, success)
+		assert.NotNil(t, err)
+	})
+}
