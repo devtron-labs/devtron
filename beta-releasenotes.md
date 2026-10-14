@@ -11,6 +11,7 @@
 - fix: Hibernating filter in Devtron Apps list shows incomplete results (pager #2974) (#7049)
 - fix: scope filter-based bulk user delete to match listing filters (#7021)
 ## Others
+- misc: docker build arg fix (#7057)
 - misc: oss changes - new composite primary key instead of single (#7054)
 - chore(deps): argo-cd v2->v3 + k8s 1.34 migration and Dependabot patches (#7051)
 - chore: sync main into develop (23 Sep) (#7052)
