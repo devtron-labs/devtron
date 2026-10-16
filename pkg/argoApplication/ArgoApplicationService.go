@@ -39,6 +39,7 @@ import (
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
+	"strings"
 )
 
 type ArgoApplicationService interface {
@@ -160,6 +161,10 @@ func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*b
 
 func getApplicationListDtos(resp *k8s.ClusterResourceListMap, clusterName string, clusterId int) []*bean.ArgoApplicationListDto {
 	appLists := make([]*bean.ArgoApplicationListDto, 0)
+	// BuildK8sObjectListTableData keys every row by the lower-cased printer column name,
+	// so the status columns have to be looked up in that casing.
+	syncStatusKey := strings.ToLower(k8sCommonBean.K8sResourceColumnDefinitionSyncStatus)
+	healthStatusKey := strings.ToLower(k8sCommonBean.K8sResourceColumnDefinitionHealthStatus)
 	if resp != nil {
 		appLists = make([]*bean.ArgoApplicationListDto, len(resp.Data))
 		for i, rowData := range resp.Data {
@@ -175,13 +180,13 @@ func getApplicationListDtos(resp *k8s.ClusterResourceListMap, clusterName string
 					appListDto.Name = nameStr
 				}
 			}
-			if rowData[k8sCommonBean.K8sResourceColumnDefinitionSyncStatus] != nil {
-				if syncStatusStr, ok := rowData[k8sCommonBean.K8sResourceColumnDefinitionSyncStatus].(string); ok {
+			if rowData[syncStatusKey] != nil {
+				if syncStatusStr, ok := rowData[syncStatusKey].(string); ok {
 					appListDto.SyncStatus = syncStatusStr
 				}
 			}
-			if rowData[k8sCommonBean.K8sResourceColumnDefinitionHealthStatus] != nil {
-				if healthStatusStr, ok := rowData[k8sCommonBean.K8sResourceColumnDefinitionHealthStatus].(string); ok {
+			if rowData[healthStatusKey] != nil {
+				if healthStatusStr, ok := rowData[healthStatusKey].(string); ok {
 					appListDto.HealthStatus = healthStatusStr
 				}
 			}
