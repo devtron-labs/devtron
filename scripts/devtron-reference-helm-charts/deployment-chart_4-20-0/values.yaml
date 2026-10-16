@@ -703,6 +703,8 @@ verticalPodScaling:
 
 secondaryWorkload:
   enabled: false
+  # Optional override for secondary workload's main container name
+  containerName: ""
   Spec:
     Affinity:
       Key: ""
@@ -711,6 +713,9 @@ secondaryWorkload:
   affinity: {}
   tolerations: []
   autoscaling:
-    enabled: false
+    MinReplicas: 1
+    MaxReplicas: 2
+    TargetCPUUtilizationPercentage: 90
+    TargetMemoryUtilizationPercentage: ""
     containerResource:
       enabled: false
