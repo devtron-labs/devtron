@@ -1158,8 +1158,6 @@ func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, ac
 
 		}
 		_, err = impl.dbConnection.Query(&model, query, queryParams...)
-	} else if team == "" && app == "" && env == "" && act == "" {
-		return model, nil
 	} else {
 		impl.Logger.Warnw("no query branch for the given role filter combination, returning empty role",
 			"team", team, "app", app, "env", env, "action", act, "accessType", accessType)
