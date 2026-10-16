@@ -38,7 +38,7 @@ spec:
 {{- if $.Values.kedaAutoscaling.cooldownPeriod }}
   cooldownPeriod: {{ $.Values.kedaAutoscaling.cooldownPeriod }}
 {{- end }}
-{{- if $.Values.kedaAutoscaling.idleReplicaCount }}
+{{- if ne $.Values.kedaAutoscaling.idleReplicaCount nil }}
   idleReplicaCount: {{ $.Values.kedaAutoscaling.idleReplicaCount }}
 {{- end }}
   minReplicaCount: {{ $.Values.kedaAutoscaling.minReplicaCount }}
