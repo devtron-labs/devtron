@@ -115,6 +115,9 @@ func (impl *CiTemplateReadServiceImpl) extractBuildConfigBean(templateOverride *
 			impl.Logger.Errorw("error occurred while parsing ci build config", "err", err)
 		}
 	}
+	// rows saved before args were stripped on write may still carry them; never serve them,
+	// so API clients can't echo them back and builds can't pick them up
+	ciBuildConfigBean.ClearDockerBuildArgs()
 	ciBuildConfigBean.GitMaterialId = templateOverride.GitMaterialId
 	ciBuildConfigBean.BuildContextGitMaterialId = templateOverride.BuildContextGitMaterialId
 	return ciBuildConfigBean, nil
