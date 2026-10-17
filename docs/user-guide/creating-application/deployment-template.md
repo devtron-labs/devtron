@@ -18,7 +18,7 @@ To configure a deployment chart for your application, do the following steps:
 
 {% hint style="warning" %}
 ### Who Can Perform This Action?
-Users need to have [Admin role](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) or above to select a chart.
+Users need to have [Admin role](../global-configurations/authorization/user-access.md#role-based-access-levels) or above to select a chart.
 {% endhint %}
 
 {% hint style="warning" %}
@@ -53,7 +53,7 @@ You can select an available custom chart as shown below. You can also view the d
 
 {% hint style="warning" %}
 ### Who Can Perform This Action?
-Users need to have [Admin role](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) or above to select a chart version.
+Users need to have [Admin role](../global-configurations/authorization/user-access.md#role-based-access-levels) or above to select a chart version.
 {% endhint %}
 
 Once you select a chart type, choose a chart version using which you wish to deploy the application.
@@ -72,7 +72,7 @@ Every chart version has its own YAML file that provides specifications for your 
 
 {% hint style="warning" %}
 ### Who Can Perform This Action?
-Users need to have [Admin role](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) or above to configure a chart. However, super-admins can lock keys in base deployment template to prevent non-super-admins from modifying them. Refer [Lock Deployment Configuration](../global-configurations/lock-deployment-config.md) to know more.
+Users need to have [Admin role](../global-configurations/authorization/user-access.md#role-based-access-levels) or above to configure a chart. However, super-admins can lock keys in base deployment template to prevent non-super-admins from modifying them. Refer [Lock Deployment Configuration](../global-configurations/lock-deployment-config.md) to know more.
 {% endhint %}
 
 ### Using Basic GUI
