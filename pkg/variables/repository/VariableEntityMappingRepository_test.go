@@ -32,14 +32,19 @@ func getDbConnAndLoggerService(t *testing.T) (*zap.SugaredLogger, *pg.DB) {
 	logger, err := utils.NewSugardLogger()
 	assert.Nil(t, err)
 	dbConnection, err := sql.NewDbConnection(cfg, logger)
-	assert.Nil(t, err)
+	if err != nil || dbConnection == nil {
+		t.Skipf("skipping DB test, database not reachable: %v", err)
+	}
+	if _, err = dbConnection.Exec("SELECT 1"); err != nil {
+		t.Skipf("skipping DB test, database not reachable: %v", err)
+	}
 
 	return logger, dbConnection
 }
 
 func getVariableEntityMappingRepositoryImpl(t *testing.T) *VariableEntityMappingRepositoryImpl {
 	logger, dbConnection := getDbConnAndLoggerService(t)
-	return NewVariableEntityMappingRepository(logger, dbConnection)
+	return NewVariableEntityMappingRepository(logger, dbConnection, sql.NewTransactionUtilImpl(dbConnection))
 }
 
 func TestVariableEntityMappingRepositoryImpl_DeleteAllVariablesForEntities(t *testing.T) {
@@ -68,7 +73,7 @@ func TestVariableEntityMappingRepositoryImpl_DeleteAllVariablesForEntities(t *te
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			impl := getVariableEntityMappingRepositoryImpl(t)
-			if err := impl.DeleteAllVariablesForEntities(tt.args.entities, tt.args.userId); (err != nil) != tt.wantErr {
+			if err := impl.DeleteAllVariablesForEntities(nil, tt.args.entities, tt.args.userId); (err != nil) != tt.wantErr {
 				t.Errorf("DeleteAllVariablesForEntities() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -223,4 +228,19 @@ func TestVariableEntityMappingRepositoryImpl_SaveVariableEntityMappings(t *testi
 			impl.CommitTx(tx)
 		})
 	}
+}
+
+func TestVariableEntityMappingRepositoryImpl_GetLiveUsagesForVariableNames(t *testing.T) {
+	t.Run("empty input returns empty without querying", func(t *testing.T) {
+		impl := getVariableEntityMappingRepositoryImpl(t)
+		usages, err := impl.GetLiveUsagesForVariableNames(nil)
+		assert.Nil(t, err)
+		assert.Empty(t, usages)
+	})
+	t.Run("query executes and returns empty for unknown variables", func(t *testing.T) {
+		impl := getVariableEntityMappingRepositoryImpl(t)
+		usages, err := impl.GetLiveUsagesForVariableNames([]string{"UNKNOWN_VARIABLE_FOR_TEST_1", "UNKNOWN_VARIABLE_FOR_TEST_2"})
+		assert.Nil(t, err)
+		assert.Empty(t, usages)
+	})
 }

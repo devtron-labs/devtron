@@ -80,6 +80,7 @@ func (impl *CommonBaseServiceImpl) EnvironmentVariableList() (*EnvironmentVariab
 	}
 	environmentVariableList.FeatureGitOpsFlags = featureGitOpsFlags
 	environmentVariableList.IsAirGapEnvironment = impl.globalEnvVariables.GlobalEnvVariables.IsAirGapEnvironment
+	environmentVariableList.ForegroundDeleteCdPipeline = impl.globalEnvVariables.DeploymentServiceTypeConfig.ForegroundDeleteCdPipeline
 	return environmentVariableList, nil
 }
 

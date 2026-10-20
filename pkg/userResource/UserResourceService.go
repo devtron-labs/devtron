@@ -2,23 +2,27 @@ package userResource
 
 import (
 	"context"
+	"net/http"
+
 	apiBean "github.com/devtron-labs/devtron/api/userResource/bean"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
+	argoApplication2 "github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	"github.com/devtron-labs/devtron/pkg/fluxApplication"
 	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	bean4 "github.com/devtron-labs/devtron/pkg/k8s/bean"
 	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/pkg/userResource/adapter"
 	bean5 "github.com/devtron-labs/devtron/pkg/userResource/bean"
 	"github.com/devtron-labs/devtron/pkg/userResource/helper"
 	"github.com/devtron-labs/devtron/util/commonEnforcementFunctionsUtil"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 type UserResourceService interface {
@@ -26,15 +30,17 @@ type UserResourceService interface {
 		params *apiBean.PathParams) (*bean5.UserResourceResponseDto, error)
 }
 type UserResourceServiceImpl struct {
-	logger                *zap.SugaredLogger
-	teamService           team.TeamService
-	envService            environment.EnvironmentService
-	clusterService        cluster.ClusterService
-	k8sApplicationService application2.K8sApplicationService
-	enforcerUtil          rbac.EnforcerUtil
-	rbacEnforcementUtil   commonEnforcementFunctionsUtil.CommonEnforcementUtil
-	enforcer              casbin.Enforcer
-	appService            app.AppCrudOperationService
+	logger                 *zap.SugaredLogger
+	teamService            team.TeamService
+	envService             environment.EnvironmentService
+	clusterService         cluster.ClusterService
+	k8sApplicationService  application2.K8sApplicationService
+	enforcerUtil           rbac.EnforcerUtil
+	rbacEnforcementUtil    commonEnforcementFunctionsUtil.CommonEnforcementUtil
+	enforcer               casbin.Enforcer
+	appService             app.AppCrudOperationService
+	argoApplicationService argoApplication2.ArgoApplicationService
+	fluxApplicationService fluxApplication.FluxApplicationService
 }
 
 func NewUserResourceServiceImpl(logger *zap.SugaredLogger,
@@ -45,17 +51,21 @@ func NewUserResourceServiceImpl(logger *zap.SugaredLogger,
 	enforcerUtil rbac.EnforcerUtil,
 	rbacEnforcementUtil commonEnforcementFunctionsUtil.CommonEnforcementUtil,
 	enforcer casbin.Enforcer,
-	appService app.AppCrudOperationService) *UserResourceServiceImpl {
+	appService app.AppCrudOperationService,
+	argoApplicationService argoApplication2.ArgoApplicationService,
+	fluxApplicationService fluxApplication.FluxApplicationService) *UserResourceServiceImpl {
 	return &UserResourceServiceImpl{
-		logger:                logger,
-		teamService:           teamService,
-		envService:            envService,
-		clusterService:        clusterService,
-		k8sApplicationService: k8sApplicationService,
-		enforcerUtil:          enforcerUtil,
-		rbacEnforcementUtil:   rbacEnforcementUtil,
-		enforcer:              enforcer,
-		appService:            appService,
+		logger:                 logger,
+		teamService:            teamService,
+		envService:             envService,
+		clusterService:         clusterService,
+		k8sApplicationService:  k8sApplicationService,
+		enforcerUtil:           enforcerUtil,
+		rbacEnforcementUtil:    rbacEnforcementUtil,
+		enforcer:               enforcer,
+		appService:             appService,
+		argoApplicationService: argoApplicationService,
+		fluxApplicationService: fluxApplicationService,
 	}
 }
 
@@ -121,7 +131,43 @@ func (impl *UserResourceServiceImpl) getHelmAppResourceOptions(context context.C
 	return bean5.NewResourceOptionsDto().WithTeamAppResp(apps), nil
 }
 
-func (impl *UserResourceServiceImpl) getHelmEnvResourceOptions(context context.Context, token string,
+func (impl *UserResourceServiceImpl) getArgoAppResourceOptions(context context.Context, token string,
+	reqBean *apiBean.ResourceOptionsReqDto, params *apiBean.PathParams) (*bean5.ResourceOptionsDto, error) {
+	clusterIds, err := helper.GetValidatedClusterIds(reqBean)
+	if err != nil {
+		impl.logger.Errorw("error encountered in getArgoAppResourceOptions", "err", err)
+		return nil, err
+	}
+	apps, err := impl.argoApplicationService.ListApplications(clusterIds)
+	if err != nil {
+		impl.logger.Errorw("error encountered in getArgoAppResourceOptions", "err", err)
+		return nil, err
+	}
+	appDtos := helper.FilterExternalGitOpsAppsByEnvIdentifier(
+		adapter.ArgoAppToExternalGitOpsApp(apps), reqBean.EnvironmentIdentifiers)
+
+	return bean5.NewResourceOptionsDto().WithExternalGitOpsAppResp(appDtos), nil
+}
+
+func (impl *UserResourceServiceImpl) getFluxAppResourceOptions(context context.Context, token string,
+	reqBean *apiBean.ResourceOptionsReqDto, params *apiBean.PathParams) (*bean5.ResourceOptionsDto, error) {
+	clusterIds, err := helper.GetValidatedClusterIds(reqBean)
+	if err != nil {
+		impl.logger.Errorw("error encountered in getFluxAppResourceOptions", "err", err)
+		return nil, err
+	}
+	apps, err := impl.fluxApplicationService.GetFluxApplicationList(context, clusterIds)
+	if err != nil {
+		impl.logger.Errorw("error encountered in getFluxAppResourceOptions", "err", err)
+		return nil, err
+	}
+	appDtos := helper.FilterExternalGitOpsAppsByEnvIdentifier(
+		adapter.FluxAppToExternalGitOpsApp(apps), reqBean.EnvironmentIdentifiers)
+
+	return bean5.NewResourceOptionsDto().WithExternalGitOpsAppResp(appDtos), nil
+}
+
+func (impl *UserResourceServiceImpl) getCombinedEnvResourceOptions(context context.Context, token string,
 	reqBean *apiBean.ResourceOptionsReqDto, params *apiBean.PathParams) (*bean5.ResourceOptionsDto, error) {
 
 	// get helm env resource options

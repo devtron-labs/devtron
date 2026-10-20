@@ -44,8 +44,9 @@ type DeploymentGroupAppWithEnv struct {
 }
 
 type CdPipelineDeleteEvent struct {
-	PipelineId  int   `json:"pipelineId"`
-	TriggeredBy int32 `json:"triggeredBy"`
+	PipelineId       int   `json:"pipelineId"`
+	TriggeredBy      int32 `json:"triggeredBy"`
+	ForegroundDelete bool  `json:"foregroundDelete"`
 }
 
 type CIPipelineGitWebhookEvent struct {

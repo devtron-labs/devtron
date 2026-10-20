@@ -46,5 +46,8 @@ func (impl ScopedVariableRouterImpl) InitScopedVariableRouter(router *mux.Router
 	router.Path("/variables/detail").
 		HandlerFunc(impl.scopedVariableRestHandler.GetJsonForVariables).
 		Methods("GET")
+	router.Path("/variables/usage").
+		HandlerFunc(impl.scopedVariableRestHandler.GetVariableUsage).
+		Methods("GET")
 
 }

@@ -29,12 +29,12 @@ func (_m *VariableEntityMappingRepository) CommitTx(tx *pg.Tx) error {
 }
 
 // DeleteAllVariablesForEntities provides a mock function with given fields: entities, userId
-func (_m *VariableEntityMappingRepository) DeleteAllVariablesForEntities(entities []repository.Entity, userId int32) error {
-	ret := _m.Called(entities, userId)
+func (_m *VariableEntityMappingRepository) DeleteAllVariablesForEntities(tx *pg.Tx, entities []repository.Entity, userId int32) error {
+	ret := _m.Called(tx, entities, userId)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func([]repository.Entity, int32) error); ok {
-		r0 = rf(entities, userId)
+	if rf, ok := ret.Get(0).(func(*pg.Tx, []repository.Entity, int32) error); ok {
+		r0 = rf(tx, entities, userId)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -54,6 +54,32 @@ func (_m *VariableEntityMappingRepository) DeleteVariablesForEntity(tx *pg.Tx, v
 	}
 
 	return r0
+}
+
+// GetLiveUsagesForVariableNames provides a mock function with given fields: variableNames
+func (_m *VariableEntityMappingRepository) GetLiveUsagesForVariableNames(variableNames []string) ([]*repository.VariableUsageRow, error) {
+	ret := _m.Called(variableNames)
+
+	var r0 []*repository.VariableUsageRow
+	var r1 error
+	if rf, ok := ret.Get(0).(func([]string) ([]*repository.VariableUsageRow, error)); ok {
+		return rf(variableNames)
+	}
+	if rf, ok := ret.Get(0).(func([]string) []*repository.VariableUsageRow); ok {
+		r0 = rf(variableNames)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*repository.VariableUsageRow)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func([]string) error); ok {
+		r1 = rf(variableNames)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // GetVariablesForEntities provides a mock function with given fields: entities

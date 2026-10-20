@@ -341,7 +341,7 @@ replace (
 	// Keep the left side unversioned: a versioned LHS stops matching whenever the
 	// require line is bumped, which silently un-pins this and breaks the linux build.
 	github.com/cyphar/filepath-securejoin => github.com/cyphar/filepath-securejoin v0.3.6 // indirect
-	github.com/devtron-labs/authenticator => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20260803100101-66fcb35e4b0e
-	github.com/devtron-labs/common-lib => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20260803100101-66fcb35e4b0e
+	github.com/devtron-labs/authenticator => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20260921111017-f0b3fba15081
+	github.com/devtron-labs/common-lib => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20260921111017-f0b3fba15081
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.61.0 => go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.46.1
 )

@@ -45,6 +45,12 @@ const (
 	ResourceAdmin   = "admin"
 	ResourceGlobal  = "global-resource"
 	ResourceHelmApp = "helm-app"
+
+	// ResourceArgoApp, ResourceFluxApp are used for app-level RBAC on external
+	// Argo CD / Flux CD applications. Object shape is <clusterName>__<namespace>/<appName>.
+	ResourceArgoApp = "argo-app"
+	ResourceFluxApp = "flux-app"
+
 	ActionGet       = "get"
 	ActionCreate    = "create"
 	ActionUpdate    = "update"

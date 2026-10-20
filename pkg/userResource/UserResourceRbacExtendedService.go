@@ -65,6 +65,24 @@ func (impl *UserResourceServiceImpl) enforceRbacForHelmAppsListing(token string,
 	return adapter.BuildUserResourceResponseDto(resourceOptions.TeamAppResp), nil
 }
 
+func (impl *UserResourceServiceImpl) enforceRbacForArgoAppsListing(token string, params *apiBean.PathParams, resourceOptions *bean.ResourceOptionsDto) (*bean.UserResourceResponseDto, error) {
+	isAuthorised := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*")
+	if !isAuthorised {
+		impl.logger.Errorw("user is unauthorized enforceRbacForArgoAppsListing")
+		return adapter.BuildNullDataUserResourceResponseDto(), nil
+	}
+	return adapter.BuildUserResourceResponseDto(resourceOptions.ExternalGitOpsAppResp), nil
+}
+
+func (impl *UserResourceServiceImpl) enforceRbacForFluxAppsListing(token string, params *apiBean.PathParams, resourceOptions *bean.ResourceOptionsDto) (*bean.UserResourceResponseDto, error) {
+	isAuthorised := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*")
+	if !isAuthorised {
+		impl.logger.Errorw("user is unauthorized enforceRbacForFluxAppsListing")
+		return adapter.BuildNullDataUserResourceResponseDto(), nil
+	}
+	return adapter.BuildUserResourceResponseDto(resourceOptions.ExternalGitOpsAppResp), nil
+}
+
 func (impl *UserResourceServiceImpl) enforceRbacForJobs(token string, params *apiBean.PathParams, resourceOptions *bean.ResourceOptionsDto) (*bean.UserResourceResponseDto, error) {
 	isAuthorised := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*")
 	if !isAuthorised {

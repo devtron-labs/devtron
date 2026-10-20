@@ -40,6 +40,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	util4 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"github.com/devtron-labs/devtron/pkg/plugin"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	variableEntity "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/util/beHelper"
 	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"golang.org/x/exp/slices"
@@ -92,6 +95,9 @@ type CiCdPipelineOrchestrator interface {
 	DeleteApp(appId int, userId int32) error
 	CreateMaterials(createMaterialRequest *bean.CreateMaterialDTO) (*bean.CreateMaterialDTO, error)
 	UpdateMaterial(updateMaterialRequest *bean.UpdateMaterialDTO) (*bean.UpdateMaterialDTO, error)
+	// ResyncGitMaterialToSensor re-resolves the material's @{{VAR_NAME}} URL (if any) and
+	// pushes the refreshed value to git-sensor - used after a scoped variable's value changes.
+	ResyncGitMaterialToSensor(materialId int) error
 	CreateCiConf(createRequest *bean.CiConfigRequest, templateId int) (*bean.CiConfigRequest, error)
 	CreateCDPipelines(pipelineRequest *bean.CDPipelineConfigObject, appId int, userId int32, tx *pg.Tx, appName string) (pipelineId int, err error)
 	UpdateCDPipeline(pipelineRequest *bean.CDPipelineConfigObject, userId int32, tx *pg.Tx) (pipeline *pipelineConfig.Pipeline, err error)
@@ -155,6 +161,8 @@ type CiCdPipelineOrchestratorImpl struct {
 	workflowCacheConfig           types.WorkflowCacheConfig
 	chartReadService              read2.ChartReadService
 	globalEnvVariables            *util2.GlobalEnvVariables
+	repoFieldVariableResolver     variables.RepoFieldVariableResolver
+	variableEntityMappingService  variables.VariableEntityMappingService
 }
 
 func NewCiCdPipelineOrchestrator(
@@ -187,7 +195,9 @@ func NewCiCdPipelineOrchestrator(
 	deploymentConfigService common.DeploymentConfigService,
 	deploymentConfigReadService read.DeploymentConfigReadService,
 	chartReadService read2.ChartReadService,
-	envVariables *util2.EnvironmentVariables) *CiCdPipelineOrchestratorImpl {
+	envVariables *util2.EnvironmentVariables,
+	repoFieldVariableResolver variables.RepoFieldVariableResolver,
+	variableEntityMappingService variables.VariableEntityMappingService) *CiCdPipelineOrchestratorImpl {
 	_, workflowCacheConfig, err := types.GetCiConfigWithWorkflowCacheConfig()
 	if err != nil {
 		logger.Errorw("Error in getting workflow cache config, continuing with default values", "err", err)
@@ -226,6 +236,8 @@ func NewCiCdPipelineOrchestrator(
 		workflowCacheConfig:           workflowCacheConfig,
 		chartReadService:              chartReadService,
 		globalEnvVariables:            envVariables.GlobalEnvVariables,
+		repoFieldVariableResolver:     repoFieldVariableResolver,
+		variableEntityMappingService:  variableEntityMappingService,
 	}
 }
 
@@ -615,9 +627,14 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 		}
 
 		savedTemplateOverride := savedTemplateOverrideBean.CiTemplateOverride
-		err = impl.createDockerRepoIfNeeded(createRequest.DockerConfigOverride.DockerRegistry, createRequest.DockerConfigOverride.DockerRepository)
+		resolvedDockerRepository, err := impl.resolveDockerRepositoryForEcr(resourceQualifiers.Scope{AppId: createRequest.AppId}, createRequest.DockerConfigOverride.DockerRepository)
 		if err != nil {
-			impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", createRequest.DockerConfigOverride.DockerRegistry, "dockerRegistry", createRequest.DockerConfigOverride.DockerRepository)
+			impl.logger.Errorw("error resolving docker repository", "err", err, "dockerRepository", createRequest.DockerConfigOverride.DockerRepository)
+			return nil, err
+		}
+		err = impl.createDockerRepoIfNeeded(createRequest.DockerConfigOverride.DockerRegistry, resolvedDockerRepository)
+		if err != nil {
+			impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", createRequest.DockerConfigOverride.DockerRegistry, "dockerRegistry", resolvedDockerRepository)
 			return nil, err
 		}
 		if savedTemplateOverride != nil && savedTemplateOverride.Id > 0 {
@@ -920,6 +937,7 @@ func (impl CiCdPipelineOrchestratorImpl) deleteCiEnvMapping(tx *pg.Tx, ciPipelin
 	return nil
 }
 func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfigRequest, templateId int) (*bean.CiConfigRequest, error) {
+	repoFieldScope := resourceQualifiers.Scope{AppId: createRequest.AppId}
 	//save pipeline in db start
 	for _, ciPipeline := range createRequest.CiPipelines {
 		argByte, err := json.Marshal(ciPipeline.DockerArgs)
@@ -1121,10 +1139,16 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 				UserId:             createRequest.UserId,
 			}
 			if !ciPipeline.IsExternal { //pipeline is not [linked, webhook] and overridden, then create template override
-				err = impl.createDockerRepoIfNeeded(ciPipeline.DockerConfigOverride.DockerRegistry, ciPipeline.DockerConfigOverride.DockerRepository)
+				resolvedDockerRepository, resolveErr := impl.resolveDockerRepositoryForEcr(repoFieldScope, ciPipeline.DockerConfigOverride.DockerRepository)
 				// silently ignoring the error, since we don't want to fail the pipeline creation
-				if err != nil {
-					impl.logger.Warnw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", ciPipeline.DockerConfigOverride.DockerRegistry, "dockerRegistry", ciPipeline.DockerConfigOverride.DockerRepository)
+				if resolveErr != nil {
+					impl.logger.Warnw("error resolving docker repository", "err", resolveErr, "dockerRepository", ciPipeline.DockerConfigOverride.DockerRepository)
+				} else {
+					err = impl.createDockerRepoIfNeeded(ciPipeline.DockerConfigOverride.DockerRegistry, resolvedDockerRepository)
+					// silently ignoring the error, since we don't want to fail the pipeline creation
+					if err != nil {
+						impl.logger.Warnw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", ciPipeline.DockerConfigOverride.DockerRegistry, "dockerRegistry", resolvedDockerRepository)
+					}
 				}
 				err := impl.ciTemplateService.Save(ciTemplateBean)
 				if err != nil {
@@ -1365,7 +1389,8 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) erro
 
 	impl.logger.Debug("deleting materials in git_sensor")
 	for _, m := range materials {
-		err = impl.updateRepositoryToGitSensor(m, "", false)
+		// m.Active is already false above, so updateRepositoryToGitSensor skips URL resolution - scope is unused here
+		err = impl.updateRepositoryToGitSensor(m, "", false, resourceQualifiers.Scope{})
 		if err != nil {
 			impl.logger.Errorw("error in updating to git-sensor", "err", err)
 			return err
@@ -1457,6 +1482,15 @@ func (impl CiCdPipelineOrchestratorImpl) CreateMaterials(createMaterialRequest *
 		}
 		materials = append(materials, inputMaterial)
 	}
+	repoFieldScope := resourceQualifiers.Scope{AppId: createMaterialRequest.AppId}
+	// validate every @{{VAR_NAME}} reference resolves before committing, so a typo'd/undefined
+	// variable can't leave a Git Material row with no matching git-sensor entry
+	for _, material := range materials {
+		if _, err = impl.resolveGitMaterialUrl(repoFieldScope, material.Url); err != nil {
+			impl.logger.Errorw("error validating git material url", "err", err)
+			return nil, err
+		}
+	}
 	// moving transaction before addRepositoryToGitSensor as commiting transaction after addRepositoryToGitSensor was causing problems
 	// in case request was cancelled data was getting saved in git sensor but not getting saved in orchestrator db. Same is done in update flow.
 	err = impl.transactionManager.CommitTx(tx)
@@ -1464,7 +1498,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateMaterials(createMaterialRequest *
 		impl.logger.Errorw("error in committing tx Create material", "err", err, "materials", materials)
 		return nil, err
 	}
-	err = impl.addRepositoryToGitSensor(materials, "")
+	err = impl.addRepositoryToGitSensor(materials, "", repoFieldScope)
 	if err != nil {
 		impl.logger.Errorw("error in updating to sensor", "err", err)
 		return nil, err
@@ -1484,6 +1518,15 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateMaterial(updateMaterialDTO *bean.
 		impl.logger.Errorw("err", "err", err)
 		return nil, err
 	}
+	repoFieldScope := resourceQualifiers.Scope{AppId: updateMaterialDTO.AppId}
+	// validate the @{{VAR_NAME}} reference resolves before committing, so a typo'd/undefined
+	// variable can't leave a Git Material row with no matching git-sensor entry
+	if updatedMaterial.Active {
+		if _, err = impl.resolveGitMaterialUrl(repoFieldScope, updatedMaterial.Url); err != nil {
+			impl.logger.Errorw("error validating git material url", "err", err)
+			return nil, err
+		}
+	}
 	err = impl.transactionManager.CommitTx(tx)
 	if err != nil {
 		impl.logger.Errorw("error in committing tx Create material", "err", err)
@@ -1491,7 +1534,7 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateMaterial(updateMaterialDTO *bean.
 	}
 
 	err = impl.updateRepositoryToGitSensor(updatedMaterial, "",
-		updateMaterialDTO.Material.CreateBackup)
+		updateMaterialDTO.Material.CreateBackup, repoFieldScope)
 	if err != nil {
 		impl.logger.Errorw("error in updating to git-sensor", "err", err)
 		return nil, err
@@ -1499,11 +1542,71 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateMaterial(updateMaterialDTO *bean.
 	return updateMaterialDTO, nil
 }
 
+// resolveDockerRepositoryForEcr resolves a possible @{{VAR_NAME}} reference in the Container
+// Repository field, for the AWS ECR repo-creation call only - the DB column always keeps
+// whatever the user typed, resolution happens fresh at every trigger (see HandlerService.go).
+func (impl CiCdPipelineOrchestratorImpl) resolveDockerRepositoryForEcr(scope resourceQualifiers.Scope, dockerRepository string) (string, error) {
+	resolvedDockerRepository, _, err := impl.repoFieldVariableResolver.ResolveRepoFieldValue(scope, dockerRepository)
+	if err != nil {
+		return "", fmt.Errorf("error resolving docker repository: %w", err)
+	}
+	return resolvedDockerRepository, nil
+}
+
+// resolveGitMaterialUrl resolves a possible @{{VAR_NAME}} reference in the git material URL.
+// git_material.url in the DB always stays as the user typed it - only the value sent to
+// git-sensor is resolved, so Application Templates keep the placeholder intact on clone.
+func (impl CiCdPipelineOrchestratorImpl) resolveGitMaterialUrl(scope resourceQualifiers.Scope, url string) (string, error) {
+	resolvedUrl, _, err := impl.repoFieldVariableResolver.ResolveRepoFieldValue(scope, url)
+	if err != nil {
+		return "", fmt.Errorf("error resolving git material url: %w", err)
+	}
+	return resolvedUrl, nil
+}
+
+// trackRepoFieldVariableMapping records (or clears) which scoped variable a Git Material's
+// URL references, so a variable value change can find and re-sync every affected material.
+func (impl CiCdPipelineOrchestratorImpl) trackRepoFieldVariableMapping(tx *pg.Tx, materialId int, url string, userId int32) error {
+	var variableNames []string
+	if variableName, ok := variables.ExtractVariableName(url); ok {
+		variableNames = []string{variableName}
+	}
+	entity := variableEntity.Entity{EntityType: variableEntity.EntityTypeGitMaterial, EntityId: materialId}
+	err := impl.variableEntityMappingService.UpdateVariablesForEntity(variableNames, entity, userId, tx)
+	if err != nil {
+		impl.logger.Errorw("error in tracking repo field variable mapping", "materialId", materialId, "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl CiCdPipelineOrchestratorImpl) ResyncGitMaterialToSensor(materialId int) error {
+	material, err := impl.materialRepository.FindById(materialId)
+	if err != nil {
+		impl.logger.Errorw("error in finding material for resync", "materialId", materialId, "err", err)
+		return err
+	}
+	if !material.Active {
+		return nil
+	}
+	scope := resourceQualifiers.Scope{AppId: material.AppId}
+	return impl.updateRepositoryToGitSensor(material, "", false, scope)
+}
+
 func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *repository6.GitMaterial,
-	cloningMode string, createBackup bool) error {
+	cloningMode string, createBackup bool, scope resourceQualifiers.Scope) error {
+	// deletion only needs the Deleted flag - skip resolution so a since-deleted variable can't block a delete
+	resolvedUrl := material.Url
+	var err error
+	if material.Active {
+		resolvedUrl, err = impl.resolveGitMaterialUrl(scope, material.Url)
+		if err != nil {
+			return err
+		}
+	}
 	sensorMaterial := &gitSensor.GitMaterial{
 		Name:             material.Name,
-		Url:              material.Url,
+		Url:              resolvedUrl,
 		Id:               material.Id,
 		GitProviderId:    material.GitProviderId,
 		CheckoutLocation: material.CheckoutPath,
@@ -1523,12 +1626,16 @@ func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *r
 	return impl.GitSensorClient.UpdateRepo(ctx, sensorMaterial)
 }
 
-func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*bean.GitMaterial, cloningMode string) error {
+func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*bean.GitMaterial, cloningMode string, scope resourceQualifiers.Scope) error {
 	var sensorMaterials []*gitSensor.GitMaterial
 	for _, material := range materials {
+		resolvedUrl, err := impl.resolveGitMaterialUrl(scope, material.Url)
+		if err != nil {
+			return err
+		}
 		sensorMaterial := &gitSensor.GitMaterial{
 			Name:            material.Name,
-			Url:             material.Url,
+			Url:             resolvedUrl,
 			Id:              material.Id,
 			GitProviderId:   material.GitProviderId,
 			Deleted:         false,
@@ -1690,6 +1797,11 @@ func (impl CiCdPipelineOrchestratorImpl) updateMaterial(tx *pg.Tx, updateMateria
 		return nil, err
 	}
 
+	err = impl.trackRepoFieldVariableMapping(tx, currentMaterial.Id, currentMaterial.Url, updateMaterialDTO.UserId)
+	if err != nil {
+		return nil, err
+	}
+
 	err = impl.gitMaterialHistoryService.CreateMaterialHistory(tx, currentMaterial)
 
 	return currentMaterial, nil
@@ -1712,6 +1824,10 @@ func (impl CiCdPipelineOrchestratorImpl) createMaterial(tx *pg.Tx, inputMaterial
 	err := impl.materialRepository.SaveMaterial(tx, material)
 	if err != nil {
 		impl.logger.Errorw("error in saving material", "material", material, "err", err)
+		return nil, err
+	}
+	err = impl.trackRepoFieldVariableMapping(tx, material.Id, material.Url, userId)
+	if err != nil {
 		return nil, err
 	}
 	err = impl.gitMaterialHistoryService.CreateMaterialHistory(tx, material)

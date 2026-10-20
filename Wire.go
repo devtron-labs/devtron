@@ -345,6 +345,9 @@ func InitializeApp() (*App, error) {
 		pipeline.NewCiCdPipelineOrchestrator,
 		wire.Bind(new(pipeline.CiCdPipelineOrchestrator), new(*pipeline.CiCdPipelineOrchestratorImpl)),
 
+		pipeline.NewGitMaterialVariableSyncServiceImpl,
+		wire.Bind(new(pipeline.GitMaterialVariableSyncService), new(*pipeline.GitMaterialVariableSyncServiceImpl)),
+
 		// scoped variables start
 		variables.NewScopedVariableServiceImpl,
 		wire.Bind(new(variables.ScopedVariableService), new(*variables.ScopedVariableServiceImpl)),
@@ -366,6 +369,9 @@ func InitializeApp() (*App, error) {
 
 		variables.NewScopedVariableCMCSManagerImpl,
 		wire.Bind(new(variables.ScopedVariableCMCSManager), new(*variables.ScopedVariableCMCSManagerImpl)),
+
+		variables.NewRepoFieldVariableResolverImpl,
+		wire.Bind(new(variables.RepoFieldVariableResolver), new(*variables.RepoFieldVariableResolverImpl)),
 
 		// end
 
