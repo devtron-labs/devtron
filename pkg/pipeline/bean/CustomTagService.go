@@ -43,6 +43,9 @@ var (
 const (
 	IMAGE_TAG_VARIABLE_NAME_X = "{X}"
 	IMAGE_TAG_VARIABLE_NAME_x = "{x}"
+	// IMAGE_TAG_VARIABLE_NAME_sha is replaced with the short commit sha of the git material the image is built from, CI pipelines only
+	IMAGE_TAG_VARIABLE_NAME_SHA = "{SHA}"
+	IMAGE_TAG_VARIABLE_NAME_sha = "{sha}"
 )
 
 type CustomTagArrayResponse map[int]map[string]*repository.CustomTag
