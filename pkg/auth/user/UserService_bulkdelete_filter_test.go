@@ -17,6 +17,8 @@
 package user
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
@@ -74,7 +76,8 @@ func TestGetUserIdsHonoringFilters_RejectsUnscopedFilter(t *testing.T) {
 
 // TestGetUserIdsHonoringFilters_MatchesListingQuery asserts that once a concrete filter is supplied, the
 // query getUserIdsHonoringFilters resolves is identical - query text and params - to the query the listing
-// endpoint (GetAllWithFilters) would build for the exact same input. This is the core of the fix: delete-side
+// endpoint (GetAllWithFilters) would build for the exact same input, other than pagination (see
+// TestGetUserIdsHonoringFilters_DoesNotPaginate). This is the core of the fix: delete-side
 // filter resolution can no longer diverge from listing-side filter resolution (e.g. via a missing default
 // page size), so the delete path's resolved id set only ever contains records actually matching the filter.
 func TestGetUserIdsHonoringFilters_MatchesListingQuery(t *testing.T) {
@@ -90,11 +93,58 @@ func TestGetUserIdsHonoringFilters_MatchesListingQuery(t *testing.T) {
 
 	// Build the query the listing endpoint would run for the exact same input, applying the exact
 	// same normalization GetAllWithFilters applies before calling the shared query builder.
+	// The listing endpoint paginates by default, whereas the delete path must intentionally NOT paginate
+	// (a filter based bulk delete applies to every matching user, not one page), so the delete path's
+	// request is the listing request with ShowAll forced on - nothing else may differ.
 	listingRequest := &bean.ListingRequest{SearchKey: "inactive-user"}
 	(&UserCommonServiceImpl{}).SetDefaultValuesIfNotPresent(listingRequest, false)
 	setStatusFilterType(listingRequest)
+	listingRequest.ShowAll = true
 	listingQuery, listingParams := helper.GetQueryForUserListingWithFilters(listingRequest)
 
-	assert.Equal(t, listingQuery, repo.gotQuery, "delete path query must match listing path query for the same filter")
-	assert.Equal(t, listingParams, repo.gotParams, "delete path query params must match listing path query params for the same filter")
+	assert.Equal(t, listingQuery, repo.gotQuery, "delete path query must match listing path query (minus pagination) for the same filter")
+	assert.Equal(t, listingParams, repo.gotParams, "delete path query params must match listing path query params (minus pagination) for the same filter")
+}
+
+// TestGetUserIdsHonoringFilters_DoesNotPaginate is a regression test for a filter based bulk delete being
+// silently capped to the first listing page. getUserIdsHonoringFilters applies the listing normalization,
+// which defaults Size to bean.DefaultSize (20) when unset, and the query builder then appends
+// "limit ? offset ?" unless ShowAll is set. A bulk delete such as {"listingRequest":{"searchKey":"abc"}}
+// therefore resolved (and deleted) only the first 20 matching users and left the rest behind.
+func TestGetUserIdsHonoringFilters_DoesNotPaginate(t *testing.T) {
+	const matchingUsers = 25 // deliberately more than the default page size
+	assert.Greater(t, matchingUsers, bean.DefaultSize, "test must use more matching users than the default page size")
+
+	models := make([]repository.UserModel, 0, matchingUsers)
+	wantIds := make([]int32, 0, matchingUsers)
+	for i := 1; i <= matchingUsers; i++ {
+		models = append(models, repository.UserModel{Id: int32(i), EmailId: fmt.Sprintf("abc-user-%d@example.com", i)})
+		wantIds = append(wantIds, int32(i))
+	}
+	repo := &fakeUserRepoForFilterTest{modelsToRet: models}
+	impl := newTestUserServiceForFilterTest(repo)
+
+	request := &bean.ListingRequest{SearchKey: "abc"}
+	ids, err := impl.getUserIdsHonoringFilters(request)
+
+	assert.NoError(t, err)
+	assert.True(t, repo.called)
+	assert.Equal(t, wantIds, ids, "every matching user must be resolved for deletion, not just the first page")
+	assert.True(t, request.ShowAll, "filter based bulk delete must force ShowAll so the query is not paginated")
+	assert.NotContains(t, repo.gotQuery, "limit ? offset ?", "delete path query must not be paginated")
+	// the only param is the search key pattern(s); size/offset must never be bound
+	assert.NotContains(t, repo.gotParams, bean.DefaultSize, "page size must not be bound as a query param")
+
+	// Proof the test would fail if the fix were reverted: the exact same input run through the same
+	// normalization WITHOUT ShowAll (the pre-fix behaviour) produces a paginated query bound to the
+	// default page size, which is what capped the delete to 20 users.
+	preFix := &bean.ListingRequest{SearchKey: "abc"}
+	(&UserCommonServiceImpl{}).SetDefaultValuesIfNotPresent(preFix, false)
+	setStatusFilterType(preFix)
+	assert.False(t, preFix.ShowAll)
+	preFixQuery, preFixParams := helper.GetQueryForUserListingWithFilters(preFix)
+	assert.Equal(t, bean.DefaultSize, preFix.Size)
+	assert.True(t, strings.Contains(preFixQuery, "limit ? offset ?"), "pre-fix query paginates by default")
+	assert.Contains(t, preFixParams, bean.DefaultSize, "pre-fix query binds the default page size")
+	assert.NotEqual(t, preFixQuery, repo.gotQuery, "fixed query must differ from the paginated pre-fix query")
 }
