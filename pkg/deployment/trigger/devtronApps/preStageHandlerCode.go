@@ -1092,8 +1092,12 @@ func (impl *HandlerServiceImpl) buildDefaultArtifactLocation(savedWf *pipelineCo
 }
 
 func ReplaceImageTagWithDigest(image, digest string) string {
-	imageWithoutTag := strings.Split(image, ":")[0]
-	imageWithDigest := fmt.Sprintf("%s@%s", imageWithoutTag, digest)
+	// the registry host can carry a port (registry.local:5000/app:v1), so a tag or a digest can only start inside the last path segment
+	nameStart := strings.LastIndex(image, "/") + 1
+	if end := strings.IndexAny(image[nameStart:], ":@"); end != -1 {
+		image = image[:nameStart+end]
+	}
+	imageWithDigest := fmt.Sprintf("%s@%s", image, digest)
 	return imageWithDigest
 }
 
