@@ -17,12 +17,13 @@
 package cluster
 
 import (
+	"errors"
 	apiBean "github.com/devtron-labs/devtron/api/bean/AppView"
+	"github.com/go-pg/pg"
 	"time"
 
 	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
@@ -60,30 +61,38 @@ func (impl *ClusterDescriptionServiceImpl) FindByClusterIdWithClusterDetails(clu
 	if err != nil {
 		return nil, err
 	}
-	clusterCreatedByUser, err := impl.userRepository.GetById(model.ClusterCreatedBy)
-	if err != nil {
+	clusterCreatedByUser, err := impl.userRepository.GetByIdIncludeDeleted(model.ClusterCreatedBy)
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in fetching user", "error", err)
 		return nil, err
 	}
-	noteUpdatedByUser, err := impl.userRepository.GetById(model.UpdatedBy)
-	if err != nil && err != pg.ErrNoRows {
+
+	noteUpdatedByUser, err := impl.userRepository.GetByIdIncludeDeleted(model.UpdatedBy)
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in fetching user", "error", err)
 		return nil, err
 	}
+
 	bean := &ClusterDescriptionBean{
 		ClusterId:        model.ClusterId,
 		ClusterName:      model.ClusterName,
 		Description:      model.ClusterDescription,
 		ServerUrl:        model.ServerUrl,
-		ClusterCreatedBy: clusterCreatedByUser.EmailId,
 		ClusterCreatedOn: model.ClusterCreatedOn,
 	}
+
+	if clusterCreatedByUser != nil {
+		bean.ClusterCreatedBy = clusterCreatedByUser.EmailId
+	}
+
 	if model.NoteId > 0 {
 		clusterNote := &apiBean.GenericNoteResponseBean{
 			Id:          model.NoteId,
 			Description: model.Note,
-			UpdatedBy:   noteUpdatedByUser.EmailId,
 			UpdatedOn:   model.UpdatedOn,
+		}
+		if noteUpdatedByUser != nil {
+			clusterNote.UpdatedBy = noteUpdatedByUser.EmailId
 		}
 		bean.ClusterNote = clusterNote
 	}
