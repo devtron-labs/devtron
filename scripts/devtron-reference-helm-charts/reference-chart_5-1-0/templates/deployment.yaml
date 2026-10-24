@@ -750,10 +750,12 @@ spec:
           - {{ . }}
           {{- end }}
           {{- end }}
+        {{- else if .Values.deployment.strategy.canary.trafficRouting.customTrafficRouting }}
+{{ toYaml .Values.deployment.strategy.canary.trafficRouting.customTrafficRouting | indent 8 }}
         {{- end }}
       {{- if .Values.deployment.strategy.canary.trafficRouting.managedRoutes }}
         managedRoutes:
- {{ toYaml .Values.deployment.strategy.canary.trafficRouting.managedRoutes | indent 10 }}   
+{{ toYaml .Values.deployment.strategy.canary.trafficRouting.managedRoutes | indent 10 }}   
       {{- end }}   
       {{- end }}
     {{- end }}
