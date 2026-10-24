@@ -1,6 +1,0 @@
-deployment:
-  strategy:
-    recreate: {}
-    rolling:
-      maxSurge: "25%"
-      maxUnavailable: 1
