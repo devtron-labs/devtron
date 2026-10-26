@@ -69,6 +69,7 @@ type ACDAuthConfig struct {
 	GitOpsSecretName                 string `env:"GITOPS_SECRET_NAME" envDefault:"devtron-gitops-secret" description:"devtron-gitops-secret"`
 	ResourceListForReplicas          string `env:"RESOURCE_LIST_FOR_REPLICAS" envDefault:"Deployment,Rollout,StatefulSet,ReplicaSet" description:"this holds the list of k8s resource names which support replicas key. this list used in hibernate/un hibernate process"`
 	ResourceListForReplicasBatchSize int    `env:"RESOURCE_LIST_FOR_REPLICAS_BATCH_SIZE" envDefault:"5" description:"this the batch size to control no of above resources can be parsed in one go to determine hibernate status"`
+	UseRepoCredsForNonTLSGitOps      bool   `env:"USE_REPO_CREDS_FOR_NON_TLS_GITOPS" envDefault:"true" description:"If true, store the non-TLS GitOps credential template as an ArgoCD repo-creds Secret via CreateRepoCreds instead of the legacy argocd-cm ConfigMap entry. Works on both ArgoCD v2 and v3 (the TLS-enabled branch already uses this unconditionally); required on v3, which no longer reads argocd-cm repo config. Default true since we've natively migrated to v3; flag kept as a rollback switch."`
 }
 
 func GetACDAuthConfig() (*ACDAuthConfig, error) {

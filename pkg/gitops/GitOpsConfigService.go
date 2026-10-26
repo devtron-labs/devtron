@@ -275,94 +275,135 @@ func (impl *GitOpsConfigServiceImpl) registerGitOpsClientConfig(ctx context.Cont
 			impl.logger.Errorw("error in adding ca cert to argo", "err", err)
 			return nil, err
 		}
+	} else if impl.aCDAuthConfig.UseRepoCredsForNonTLSGitOps {
+		if err := impl.registerRepoCredsForGitOpsConfig(ctx, request); err != nil {
+			return nil, err
+		}
 	} else {
-
-		clusterBean, err := impl.clusterReadService.FindOne(bean2.DefaultCluster)
-		if err != nil {
+		if err := impl.registerGitOpsClientConfigLegacyConfigMap(request); err != nil {
 			return nil, err
-		}
-		cfg := clusterBean.GetClusterConfig()
-
-		client, err := impl.K8sUtil.GetCoreV1Client(cfg)
-		if err != nil {
-			return nil, err
-		}
-		secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.GitOpsSecretName, client)
-		statusError, _ := err.(*k8sError.StatusError)
-		if err != nil && statusError.Status().Code != http.StatusNotFound {
-			impl.logger.Errorw("secret not found", "err", err)
-			return nil, err
-		}
-		data := make(map[string][]byte)
-		credentials := impl.gitCredentialService.GetCredentials(request)
-		data[gitOpsBean.USERNAME] = []byte(credentials.Username)
-		data[gitOpsBean.PASSWORD] = []byte(credentials.Token)
-
-		if secret == nil {
-			secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, impl.aCDAuthConfig.GitOpsSecretName, "", client, nil, nil)
-			if err != nil {
-				impl.logger.Errorw("err on creating secret", "err", err)
-				return nil, err
-			}
-		} else {
-			secret.Data = data
-			secret, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
-			if err != nil {
-				operationComplete := false
-				retryCount := 0
-				for !operationComplete && retryCount < 3 {
-					retryCount = retryCount + 1
-					secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.GitOpsSecretName, client)
-					if err != nil {
-						impl.logger.Errorw("secret not found", "err", err)
-						return nil, err
-					}
-					secret.Data = data
-					secret, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
-					if err != nil {
-						continue
-					} else {
-						operationComplete = true
-					}
-				}
-			}
-		}
-		err = impl.gitOperationService.UpdateGitHostUrlByProvider(request)
-		if err != nil {
-			return nil, err
-		}
-		operationComplete := false
-		retryCount := 0
-		for !operationComplete && retryCount < 3 {
-			retryCount = retryCount + 1
-
-			cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
-			if err != nil {
-				return nil, err
-			}
-			currentHost := request.Host
-			updatedData := impl.updateData(cm.Data, request, impl.aCDAuthConfig.GitOpsSecretName, currentHost)
-			data := cm.Data
-			if data == nil {
-				data = make(map[string]string, 0)
-			}
-			data["repository.credentials"] = updatedData["repository.credentials"]
-			cm.Data = data
-			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
-			if err != nil {
-				continue
-			} else {
-				operationComplete = true
-			}
-		}
-		if !operationComplete {
-			return nil, fmt.Errorf("resouce version not matched with config map attempted 3 times")
 		}
 	}
 	if err := impl.registerClustersInArgoCd(ctx); err != nil {
 		return nil, err
 	}
 	return request, nil
+}
+
+// registerRepoCredsForGitOpsConfig stores the GitOps credential template as an ArgoCD-native
+// repo-creds Secret via CreateRepoCreds, instead of the legacy argocd-cm ConfigMap entry.
+// ArgoCD v3 no longer reads argocd-cm for repo config, so this path is required there; it is
+// also safe on v2, which already supports this mechanism for TLS-enabled configs.
+func (impl *GitOpsConfigServiceImpl) registerRepoCredsForGitOpsConfig(ctx context.Context, request *apiBean.GitOpsConfigDto) error {
+	err := impl.gitOperationService.UpdateGitHostUrlByProvider(request)
+	if err != nil {
+		return err
+	}
+	credentials := impl.gitCredentialService.GetCredentials(request)
+	creds := &v1alpha1.RepoCreds{
+		URL:      request.Host,
+		Username: credentials.Username,
+		Password: credentials.Token,
+		Type:     "git",
+	}
+	_, err = impl.argoClientWrapperService.CreateRepoCreds(ctx, &repocreds2.RepoCredsCreateRequest{
+		Creds:  creds,
+		Upsert: true,
+	})
+	if err != nil {
+		impl.logger.Errorw("error in saving repo credential template to argocd", "err", err)
+		return err
+	}
+	return nil
+}
+
+// registerGitOpsClientConfigLegacyConfigMap is the pre-v3 non-TLS credential template path:
+// writes the credential into a shared Secret, then references it from argocd-cm's
+// repository.credentials key. Kept unchanged, callable via UseRepoCredsForNonTLSGitOps=false,
+// for rollback.
+func (impl *GitOpsConfigServiceImpl) registerGitOpsClientConfigLegacyConfigMap(request *apiBean.GitOpsConfigDto) error {
+	clusterBean, err := impl.clusterReadService.FindOne(bean2.DefaultCluster)
+	if err != nil {
+		return err
+	}
+	cfg := clusterBean.GetClusterConfig()
+
+	client, err := impl.K8sUtil.GetCoreV1Client(cfg)
+	if err != nil {
+		return err
+	}
+	secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.GitOpsSecretName, client)
+	statusError, _ := err.(*k8sError.StatusError)
+	if err != nil && statusError.Status().Code != http.StatusNotFound {
+		impl.logger.Errorw("secret not found", "err", err)
+		return err
+	}
+	data := make(map[string][]byte)
+	credentials := impl.gitCredentialService.GetCredentials(request)
+	data[gitOpsBean.USERNAME] = []byte(credentials.Username)
+	data[gitOpsBean.PASSWORD] = []byte(credentials.Token)
+
+	if secret == nil {
+		secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, impl.aCDAuthConfig.GitOpsSecretName, "", client, nil, nil)
+		if err != nil {
+			impl.logger.Errorw("err on creating secret", "err", err)
+			return err
+		}
+	} else {
+		secret.Data = data
+		secret, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
+		if err != nil {
+			operationComplete := false
+			retryCount := 0
+			for !operationComplete && retryCount < 3 {
+				retryCount = retryCount + 1
+				secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.GitOpsSecretName, client)
+				if err != nil {
+					impl.logger.Errorw("secret not found", "err", err)
+					return err
+				}
+				secret.Data = data
+				secret, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
+				if err != nil {
+					continue
+				} else {
+					operationComplete = true
+				}
+			}
+		}
+	}
+	err = impl.gitOperationService.UpdateGitHostUrlByProvider(request)
+	if err != nil {
+		return err
+	}
+	operationComplete := false
+	retryCount := 0
+	for !operationComplete && retryCount < 3 {
+		retryCount = retryCount + 1
+
+		cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+		if err != nil {
+			return err
+		}
+		currentHost := request.Host
+		updatedData := impl.updateData(cm.Data, request, impl.aCDAuthConfig.GitOpsSecretName, currentHost)
+		data := cm.Data
+		if data == nil {
+			data = make(map[string]string, 0)
+		}
+		data["repository.credentials"] = updatedData["repository.credentials"]
+		cm.Data = data
+		_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		if err != nil {
+			continue
+		} else {
+			operationComplete = true
+		}
+	}
+	if !operationComplete {
+		return fmt.Errorf("resouce version not matched with config map attempted 3 times")
+	}
+	return nil
 }
 
 func (impl *GitOpsConfigServiceImpl) registerClustersInArgoCd(ctx context.Context) error {
@@ -567,87 +608,97 @@ func (impl *GitOpsConfigServiceImpl) patchGitOpsClientConfig(model *repository.G
 			return err
 		}
 
+	} else if impl.aCDAuthConfig.UseRepoCredsForNonTLSGitOps {
+		return impl.registerRepoCredsForGitOpsConfig(context.Background(), request)
 	} else {
-		clusterBean, err := impl.clusterReadService.FindOne(bean2.DefaultCluster)
+		return impl.patchGitOpsClientConfigLegacyConfigMap(request)
+	}
+	return nil
+}
+
+// patchGitOpsClientConfigLegacyConfigMap is the pre-v3 non-TLS credential template update path,
+// counterpart to registerGitOpsClientConfigLegacyConfigMap. Kept unchanged, callable via
+// UseRepoCredsForNonTLSGitOps=false, for rollback.
+func (impl *GitOpsConfigServiceImpl) patchGitOpsClientConfigLegacyConfigMap(request *apiBean.GitOpsConfigDto) error {
+	clusterBean, err := impl.clusterReadService.FindOne(bean2.DefaultCluster)
+	if err != nil {
+		return err
+	}
+	cfg := clusterBean.GetClusterConfig()
+
+	client, err := impl.K8sUtil.GetCoreV1Client(cfg)
+	if err != nil {
+		return err
+	}
+
+	secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.GitOpsSecretName, client)
+	statusError, _ := err.(*k8sError.StatusError)
+	if err != nil && statusError.Status().Code != http.StatusNotFound {
+		impl.logger.Errorw("secret not found", "err", err)
+		return err
+	}
+	data := make(map[string][]byte)
+	credentials := impl.gitCredentialService.GetCredentials(request)
+	data[gitOpsBean.USERNAME] = []byte(credentials.Username)
+	data[gitOpsBean.PASSWORD] = []byte(credentials.Token)
+
+	if secret == nil {
+		secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, impl.aCDAuthConfig.GitOpsSecretName, "", client, nil, nil)
 		if err != nil {
+			impl.logger.Errorw("err on creating secret", "err", err)
 			return err
 		}
-		cfg := clusterBean.GetClusterConfig()
-
-		client, err := impl.K8sUtil.GetCoreV1Client(cfg)
+	} else {
+		secret.Data = data
+		secret, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
 		if err != nil {
-			return err
-		}
-
-		secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.GitOpsSecretName, client)
-		statusError, _ := err.(*k8sError.StatusError)
-		if err != nil && statusError.Status().Code != http.StatusNotFound {
-			impl.logger.Errorw("secret not found", "err", err)
-			return err
-		}
-		data := make(map[string][]byte)
-		credentials := impl.gitCredentialService.GetCredentials(request)
-		data[gitOpsBean.USERNAME] = []byte(credentials.Username)
-		data[gitOpsBean.PASSWORD] = []byte(credentials.Token)
-
-		if secret == nil {
-			secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, impl.aCDAuthConfig.GitOpsSecretName, "", client, nil, nil)
-			if err != nil {
-				impl.logger.Errorw("err on creating secret", "err", err)
-				return err
-			}
-		} else {
-			secret.Data = data
-			secret, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
-			if err != nil {
-				operationComplete := false
-				retryCount := 0
-				for !operationComplete && retryCount < 3 {
-					retryCount = retryCount + 1
-					secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.GitOpsSecretName, client)
-					if err != nil {
-						impl.logger.Errorw("secret not found", "err", err)
-						return err
-					}
-					secret.Data = data
-					secret, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
-					if err != nil {
-						continue
-					} else {
-						operationComplete = true
-					}
+			operationComplete := false
+			retryCount := 0
+			for !operationComplete && retryCount < 3 {
+				retryCount = retryCount + 1
+				secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.GitOpsSecretName, client)
+				if err != nil {
+					impl.logger.Errorw("secret not found", "err", err)
+					return err
 				}
-
+				secret.Data = data
+				secret, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
+				if err != nil {
+					continue
+				} else {
+					operationComplete = true
+				}
 			}
+
 		}
-		err = impl.gitOperationService.UpdateGitHostUrlByProvider(request)
+	}
+	err = impl.gitOperationService.UpdateGitHostUrlByProvider(request)
+	if err != nil {
+		return err
+	}
+	operationComplete := false
+	retryCount := 0
+	for !operationComplete && retryCount < 3 {
+		retryCount = retryCount + 1
+
+		cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
 		if err != nil {
 			return err
 		}
-		operationComplete := false
-		retryCount := 0
-		for !operationComplete && retryCount < 3 {
-			retryCount = retryCount + 1
-
-			cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
-			if err != nil {
-				return err
-			}
-			currentHost := request.Host
-			updatedData := impl.updateData(cm.Data, request, impl.aCDAuthConfig.GitOpsSecretName, currentHost)
-			data := cm.Data
-			data["repository.credentials"] = updatedData["repository.credentials"]
-			cm.Data = data
-			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
-			if err != nil {
-				continue
-			} else {
-				operationComplete = true
-			}
+		currentHost := request.Host
+		updatedData := impl.updateData(cm.Data, request, impl.aCDAuthConfig.GitOpsSecretName, currentHost)
+		data := cm.Data
+		data["repository.credentials"] = updatedData["repository.credentials"]
+		cm.Data = data
+		_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		if err != nil {
+			continue
+		} else {
+			operationComplete = true
 		}
-		if !operationComplete {
-			return fmt.Errorf("resouce version not matched with config map attempted 3 times")
-		}
+	}
+	if !operationComplete {
+		return fmt.Errorf("resouce version not matched with config map attempted 3 times")
 	}
 	return nil
 }
