@@ -60,6 +60,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	k8sError "k8s.io/apimachinery/pkg/api/errors"
+	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"sigs.k8s.io/yaml"
 )
 
@@ -332,55 +333,61 @@ func (impl *GitOpsConfigServiceImpl) registerGitOpsClientConfigLegacyConfigMap(r
 	if err != nil {
 		return err
 	}
+	credentials := impl.gitCredentialService.GetCredentials(request)
+	data := map[string][]byte{
+		gitOpsBean.USERNAME: []byte(credentials.Username),
+		gitOpsBean.PASSWORD: []byte(credentials.Token),
+	}
+	if err := impl.upsertGitOpsCredentialSecret(client, data); err != nil {
+		return err
+	}
+	if err := impl.gitOperationService.UpdateGitHostUrlByProvider(request); err != nil {
+		return err
+	}
+	return impl.updateRepoCredentialsConfigMap(client, request)
+}
+
+// upsertGitOpsCredentialSecret creates or updates the shared GitOps credential Secret,
+// retrying on write conflicts. Matches prior inline behavior exactly, including that
+// exhausting retries here falls through without an error (pre-existing behavior, preserved).
+func (impl *GitOpsConfigServiceImpl) upsertGitOpsCredentialSecret(client *corev1client.CoreV1Client, data map[string][]byte) error {
 	secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.GitOpsSecretName, client)
 	statusError, _ := err.(*k8sError.StatusError)
 	if err != nil && statusError.Status().Code != http.StatusNotFound {
 		impl.logger.Errorw("secret not found", "err", err)
 		return err
 	}
-	data := make(map[string][]byte)
-	credentials := impl.gitCredentialService.GetCredentials(request)
-	data[gitOpsBean.USERNAME] = []byte(credentials.Username)
-	data[gitOpsBean.PASSWORD] = []byte(credentials.Token)
-
 	if secret == nil {
-		secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, impl.aCDAuthConfig.GitOpsSecretName, "", client, nil, nil)
+		_, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, impl.aCDAuthConfig.GitOpsSecretName, "", client, nil, nil)
 		if err != nil {
 			impl.logger.Errorw("err on creating secret", "err", err)
 			return err
 		}
-	} else {
-		secret.Data = data
-		secret, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
+		return nil
+	}
+	secret.Data = data
+	if _, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client); err == nil {
+		return nil
+	}
+	for retryCount := 0; retryCount < 3; retryCount++ {
+		secret, err = impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.GitOpsSecretName, client)
 		if err != nil {
-			operationComplete := false
-			retryCount := 0
-			for !operationComplete && retryCount < 3 {
-				retryCount = retryCount + 1
-				secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.GitOpsSecretName, client)
-				if err != nil {
-					impl.logger.Errorw("secret not found", "err", err)
-					return err
-				}
-				secret.Data = data
-				secret, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
-				if err != nil {
-					continue
-				} else {
-					operationComplete = true
-				}
-			}
+			impl.logger.Errorw("secret not found", "err", err)
+			return err
+		}
+		secret.Data = data
+		if _, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client); err == nil {
+			return nil
 		}
 	}
-	err = impl.gitOperationService.UpdateGitHostUrlByProvider(request)
-	if err != nil {
-		return err
-	}
-	operationComplete := false
-	retryCount := 0
-	for !operationComplete && retryCount < 3 {
-		retryCount = retryCount + 1
+	return nil
+}
 
+// updateRepoCredentialsConfigMap merges this provider's credentials into argocd-cm's
+// repository.credentials key, retrying on write conflicts.
+func (impl *GitOpsConfigServiceImpl) updateRepoCredentialsConfigMap(client *corev1client.CoreV1Client, request *apiBean.GitOpsConfigDto) error {
+	operationComplete := false
+	for retryCount := 0; !operationComplete && retryCount < 3; retryCount++ {
 		cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
 		if err != nil {
 			return err
@@ -393,10 +400,7 @@ func (impl *GitOpsConfigServiceImpl) registerGitOpsClientConfigLegacyConfigMap(r
 		}
 		data["repository.credentials"] = updatedData["repository.credentials"]
 		cm.Data = data
-		_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
-		if err != nil {
-			continue
-		} else {
+		if _, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client); err == nil {
 			operationComplete = true
 		}
 	}
