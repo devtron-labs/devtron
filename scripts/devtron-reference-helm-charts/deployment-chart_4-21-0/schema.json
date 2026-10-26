@@ -1362,6 +1362,164 @@
       "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
       "description": "Wait for given period of time before scaling down the container",
       "title": "Wait For Seconds Before Scaling Down"
+    },
+    "secondaryWorkload": {
+      "type": "object",
+      "description": "secondary workload deployment configuration",
+      "title": "Secondary Workload",
+      "properties": {
+        "enabled": {
+          "type": [
+            "boolean",
+            "string"
+          ],
+          "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
+          "description": "used for enabling/disabling secondary workload",
+          "title": "Enabled"
+        },
+        "postfix": {
+          "type": "string",
+          "description": "postfix to distinguish secondary workload resources",
+          "title": "Postfix"
+        },
+        "containerName": {
+          "type": "string",
+          "description": "override for secondary workload's main container name",
+          "title": "Container Name"
+        },
+        "replicaCount": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
+          "description": "number of replicas for secondary workload",
+          "title": "Replica Count"
+        },
+        "affinity": {
+          "type": "object",
+          "description": "affinity rules for secondary workload pods",
+          "title": "Affinity"
+        },
+        "tolerations": {
+          "type": "array",
+          "items": {},
+          "description": "tolerations for secondary workload pods",
+          "title": "Tolerations"
+        },
+        "autoscaling": {
+          "type": "object",
+          "description": "autoscaling (HPA) settings for secondary workload",
+          "title": "Autoscaling",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "custom name for secondary workload HPA",
+              "title": "Name"
+            },
+            "enabled": {
+              "type": [
+                "boolean",
+                "string"
+              ],
+              "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
+              "description": "used for enabling/disabling autoscaling for secondary workload",
+              "title": "Enabled"
+            },
+            "MinReplicas": {
+              "type": [
+                "integer",
+                "string"
+              ],
+              "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
+              "description": "Minimum number of replicas allowed for scaling secondary workload",
+              "title": "Minimum Replicas"
+            },
+            "MaxReplicas": {
+              "type": [
+                "integer",
+                "string"
+              ],
+              "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
+              "description": "Maximum number of replicas allowed for scaling secondary workload",
+              "title": "Maximum Replicas"
+            },
+            "TargetCPUUtilizationPercentage": {
+              "type": [
+                "integer",
+                "string"
+              ],
+              "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
+              "description": "The target CPU utilization that is expected for secondary workload",
+              "title": "TargetCPUUtilizationPercentage"
+            },
+            "TargetMemoryUtilizationPercentage": {
+              "type": [
+                "integer",
+                "string"
+              ],
+              "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
+              "description": "The target memory utilization that is expected for secondary workload",
+              "title": "TargetMemoryUtilizationPercentage"
+            },
+            "behavior": {
+              "type": "object",
+              "description": "describes behavior and scaling policies for secondary workload HPA",
+              "title": "Behavior"
+            },
+            "labels": {
+              "type": "object",
+              "description": "labels for secondary workload HPA",
+              "title": "labels"
+            },
+            "annotations": {
+              "type": "object",
+              "description": "annotations for secondary workload HPA",
+              "title": "annotations"
+            },
+            "extraMetrics": {
+              "type": "array",
+              "items": {},
+              "description": "external metrics for secondary workload autoscaling",
+              "title": "Extra Metrics"
+            },
+            "containerResource": {
+              "type": "object",
+              "description": "container resource metrics for secondary workload autoscaling",
+              "title": "Container Resource",
+              "properties": {
+                "enabled": {
+                  "type": [
+                    "boolean",
+                    "string"
+                  ],
+                  "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
+                  "description": "enable container resource metrics",
+                  "title": "Enabled"
+                },
+                "TargetCPUUtilizationPercentage": {
+                  "type": [
+                    "integer",
+                    "string"
+                  ],
+                  "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
+                  "description": "target CPU utilization for container",
+                  "title": "TargetCPUUtilizationPercentage"
+                },
+                "TargetMemoryUtilizationPercentage": {
+                  "type": [
+                    "integer",
+                    "string"
+                  ],
+                  "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
+                  "description": "target memory utilization for container",
+                  "title": "TargetMemoryUtilizationPercentage"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }
