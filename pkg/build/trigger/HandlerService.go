@@ -1137,8 +1137,9 @@ func (impl *HandlerServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineCo
 		}
 		ciBuildConfigBean = templateOverrideBean.CiBuildConfig
 		// updating args coming from ciBaseBuildConfigEntity because it is not part of Ci override
-		if ciBuildConfigBean != nil && ciBuildConfigBean.DockerBuildConfig != nil && ciBaseBuildConfigBean != nil && ciBaseBuildConfigBean.DockerBuildConfig != nil {
-			ciBuildConfigBean.DockerBuildConfig.Args = ciBaseBuildConfigBean.DockerBuildConfig.Args
+		if err := adapter.InheritAppLevelDockerBuildArgs(ciBuildConfigBean, ciTemplate, ciBaseBuildConfigBean); err != nil {
+			impl.Logger.Errorw("error occurred while reading app level docker build args", "ciTemplateId", ciTemplate.Id, "err", err)
+			return nil, errors.New("error while parsing ci build config")
 		}
 		templateOverride := templateOverrideBean.CiTemplateOverride
 		checkoutPath = templateOverride.GitMaterial.CheckoutPath
