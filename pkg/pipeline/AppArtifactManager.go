@@ -21,7 +21,9 @@ import (
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
+	buildCommonBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean/common"
 	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"golang.org/x/exp/slices"
 	"sort"
 	"strings"
 
@@ -375,6 +377,56 @@ func (impl *AppArtifactManagerImpl) extractParentMetaDataByPipeline(pipeline *pi
 	return parentId, parentType, parentCdId, err
 }
 
+// sortArtifactsNewestFirst orders by row id; with useLinkedCiOrder, linked CI images follow the source build they copy, like the listing query
+func (impl *AppArtifactManagerImpl) sortArtifactsNewestFirst(ciArtifacts []bean2.CiArtifactBean, useLinkedCiOrder bool) {
+	linkedCiPipelineIds := make(map[int]bool)
+	if useLinkedCiOrder {
+		linkedCiPipelineIds = impl.getLinkedCiPipelineIds(ciArtifacts)
+	}
+	sortKey := func(artifact bean2.CiArtifactBean) int {
+		if artifact.ParentCiArtifact > 0 && linkedCiPipelineIds[artifact.CiPipelineId] {
+			return artifact.ParentCiArtifact
+		}
+		return artifact.Id
+	}
+	sort.SliceStable(ciArtifacts, func(i, j int) bool {
+		if keyI, keyJ := sortKey(ciArtifacts[i]), sortKey(ciArtifacts[j]); keyI != keyJ {
+			return keyI > keyJ
+		}
+		return ciArtifacts[i].Id > ciArtifacts[j].Id
+	})
+}
+
+// getLinkedCiPipelineIds returns the linked CI pipelines among the pipelines of copied artifacts
+func (impl *AppArtifactManagerImpl) getLinkedCiPipelineIds(ciArtifacts []bean2.CiArtifactBean) map[int]bool {
+	candidateIds := make([]int, 0)
+	for _, artifact := range ciArtifacts {
+		if artifact.ParentCiArtifact > 0 && artifact.CiPipelineId > 0 && !slices.Contains(candidateIds, artifact.CiPipelineId) {
+			candidateIds = append(candidateIds, artifact.CiPipelineId)
+		}
+	}
+	return impl.findLinkedCiPipelineIds(candidateIds)
+}
+
+// findLinkedCiPipelineIds returns which of the given pipelines are linked CI; on error none, so lists keep row id order
+func (impl *AppArtifactManagerImpl) findLinkedCiPipelineIds(ciPipelineIds []int) map[int]bool {
+	linkedCiPipelineIds := make(map[int]bool)
+	if len(ciPipelineIds) == 0 {
+		return linkedCiPipelineIds
+	}
+	ciPipelines, err := impl.CiPipelineRepository.FindByIdsIn(ciPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching ci pipelines for artifact ordering", "ciPipelineIds", ciPipelineIds, "err", err)
+		return linkedCiPipelineIds
+	}
+	for _, ciPipeline := range ciPipelines {
+		if ciPipeline.PipelineType == string(buildCommonBean.LINKED) {
+			linkedCiPipelineIds[ciPipeline.Id] = true
+		}
+	}
+	return linkedCiPipelineIds
+}
+
 func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, artifactListingFilterOpts *bean.ArtifactsListFilterOptions) (*bean2.CiArtifactResponse, error) {
 
 	// retrieve parent details
@@ -396,6 +448,9 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 	artifactListingFilterOpts.StageType = stage
 	artifactListingFilterOpts.SearchString = "%" + artifactListingFilterOpts.SearchString + "%"
 	artifactListingFilterOpts.UseCdStageQueryV2 = impl.config.UseArtifactListingQueryV2
+	if parentType == bean.CI_WORKFLOW_TYPE {
+		artifactListingFilterOpts.UseLinkedCiOrder = impl.findLinkedCiPipelineIds([]int{pipeline.CiPipelineId})[pipeline.CiPipelineId]
+	}
 	ciArtifactsRefs, latestWfArtifactId, latestWfArtifactStatus, totalCount, err := impl.BuildArtifactsList(artifactListingFilterOpts)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting artifacts for child cd stage", "err", err, "stage", stage)
@@ -408,9 +463,7 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 
 	//sorting ci artifacts on the basis of creation time
 	if ciArtifacts != nil {
-		sort.SliceStable(ciArtifacts, func(i, j int) bool {
-			return ciArtifacts[i].Id > ciArtifacts[j].Id
-		})
+		impl.sortArtifactsNewestFirst(ciArtifacts, artifactListingFilterOpts.UseLinkedCiOrder)
 
 		ciArtifacts, err = impl.setAdditionalDataInArtifacts(ciArtifacts, pipeline)
 		if err != nil {
@@ -589,6 +642,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 			CreatedTime:            formatDate(currentRunningArtifact.CreatedOn, bean2.LayoutRFC3339),
 			DataSource:             currentRunningArtifact.DataSource,
 			CiPipelineId:           currentRunningArtifact.PipelineId,
+			ParentCiArtifact:       currentRunningArtifact.ParentCiArtifact,
 			CredentialsSourceType:  currentRunningArtifact.CredentialsSourceType,
 			CredentialsSourceValue: currentRunningArtifact.CredentialSourceValue,
 		}

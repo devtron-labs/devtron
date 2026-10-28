@@ -24,6 +24,12 @@ import (
 
 const EmptyLikeRegex = "%%"
 
+// LinkedCiAwareOrderBy sorts newest first; a linked CI pipeline's images follow the source build they copy, not their own row id
+func LinkedCiAwareOrderBy(alias string) string {
+	return fmt.Sprintf("CASE WHEN %[1]s.parent_ci_artifact > 0 AND %[1]s.pipeline_id IN (SELECT id FROM ci_pipeline WHERE ci_pipeline_type = 'LINKED')"+
+		" THEN %[1]s.parent_ci_artifact ELSE %[1]s.id END DESC, %[1]s.id DESC", alias)
+}
+
 func BuildQueryForParentTypeCIOrWebhook(listingFilterOpts bean.ArtifactsListFilterOptions) (string, []interface{}) {
 	commonPaginatedQueryPart, commonPaginatedQueryParams := " cia.image LIKE ?", []interface{}{listingFilterOpts.SearchString}
 	orderByClause := " ORDER BY cia.id DESC"
@@ -46,6 +52,9 @@ func BuildQueryForParentTypeCIOrWebhook(listingFilterOpts bean.ArtifactsListFilt
 		countQuery := " SELECT count(cia.id)  as total_count"
 		totalCountQuery := countQuery + remainingQuery + commonPaginatedQueryPart
 		selectQuery = fmt.Sprintf("%s,(%s) ", selectQuery, totalCountQuery)
+		if listingFilterOpts.UseLinkedCiOrder {
+			orderByClause = " ORDER BY " + LinkedCiAwareOrderBy("cia")
+		}
 		finalQuery = selectQuery + remainingQuery + commonPaginatedQueryPart + orderByClause + limitOffsetQueryPart
 	} else if listingFilterOpts.ParentStageType == bean.WEBHOOK_WORKFLOW_TYPE {
 		selectQuery := " SELECT cia.* "

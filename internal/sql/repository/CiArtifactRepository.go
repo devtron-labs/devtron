@@ -124,7 +124,10 @@ type CiArtifactRepository interface {
 	GetArtifactsByCDPipelineAndRunnerType(cdPipelineId int, runnerType bean.WorkflowType) ([]CiArtifact, error)
 	SaveAll(artifacts []*CiArtifact) ([]*CiArtifact, error)
 	GetArtifactsByCiPipelineId(ciPipelineId int) ([]CiArtifact, error)
-	GetLatestArtifactsByCiPipelineId(ciPipelineId, limit int) ([]CiArtifact, error)
+	GetLatestOwnBuildArtifactsByCiPipelineId(tx *pg.Tx, ciPipelineId, limit int) ([]CiArtifact, error)
+	GetOldestParentCiArtifactId(tx *pg.Tx, ciPipelineId int) (int, error)
+	LockLinkedCiArtifactCopy(tx *pg.Tx, ciPipelineId int) error
+	SaveAllInTx(tx *pg.Tx, artifacts []*CiArtifact) error
 	GetArtifactsByCiPipelineIds(ciPipelineIds []int) ([]CiArtifact, error)
 	FinDByParentCiArtifactAndCiId(parentCiArtifact int, ciPipelineIds []int) ([]*CiArtifact, error)
 	GetLatest(cdPipelineId int) (int, error)
@@ -681,17 +684,42 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCiPipelineId(ciPipelineId int
 	return artifacts, err
 }
 
-func (impl CiArtifactRepositoryImpl) GetLatestArtifactsByCiPipelineId(ciPipelineId, limit int) ([]CiArtifact, error) {
+// GetLatestOwnBuildArtifactsByCiPipelineId returns the pipeline's latest build images, newest first, skipping plugin copies
+func (impl CiArtifactRepositoryImpl) GetLatestOwnBuildArtifactsByCiPipelineId(tx *pg.Tx, ciPipelineId, limit int) ([]CiArtifact, error) {
 	var artifacts []CiArtifact
-	err := impl.dbConnection.
-		Model(&artifacts).
+	err := tx.Model(&artifacts).
 		Column("ci_artifact.*").
 		Join("INNER JOIN ci_pipeline cp on cp.id=ci_artifact.pipeline_id").
 		Where("ci_artifact.pipeline_id = ?", ciPipelineId).
 		Where("cp.deleted = ?", false).
+		Where("COALESCE(ci_artifact.parent_ci_artifact, 0) = 0").
 		Order("ci_artifact.id DESC").Limit(limit).
 		Select()
 	return artifacts, err
+}
+
+// GetOldestParentCiArtifactId returns the smallest parent artifact id among the pipeline's images, 0 if it has none
+func (impl CiArtifactRepositoryImpl) GetOldestParentCiArtifactId(tx *pg.Tx, ciPipelineId int) (int, error) {
+	var oldestParentId int
+	_, err := tx.QueryOne(pg.Scan(&oldestParentId),
+		"SELECT COALESCE(MIN(parent_ci_artifact), 0) FROM ci_artifact WHERE pipeline_id = ? AND parent_ci_artifact > 0", ciPipelineId)
+	return oldestParentId, err
+}
+
+// LockLinkedCiArtifactCopy serialises artifact copies into one linked CI pipeline until the tx ends
+func (impl CiArtifactRepositoryImpl) LockLinkedCiArtifactCopy(tx *pg.Tx, ciPipelineId int) error {
+	_, err := tx.Exec("SELECT pg_advisory_xact_lock(hashtext('linked_ci_artifact_copy'), ?)", ciPipelineId)
+	return err
+}
+
+// SaveAllInTx inserts artifacts one by one, so ids follow the slice order
+func (impl CiArtifactRepositoryImpl) SaveAllInTx(tx *pg.Tx, artifacts []*CiArtifact) error {
+	for _, ciArtifact := range artifacts {
+		if _, err := tx.Model(ciArtifact).Insert(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (impl CiArtifactRepositoryImpl) GetArtifactsByCiPipelineIds(ciPipelineIds []int) ([]CiArtifact, error) {

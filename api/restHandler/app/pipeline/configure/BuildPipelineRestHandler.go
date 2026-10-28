@@ -43,6 +43,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -88,6 +89,10 @@ type DevtronAppBuildRestHandler interface {
 	GetSourceCiDownStreamFilters(w http.ResponseWriter, r *http.Request)
 	// GetSourceCiDownStreamInfo will fetch the deployment information of all the linked CIs for the given ciPipelineId
 	GetSourceCiDownStreamInfo(w http.ResponseWriter, r *http.Request)
+	// SyncLinkedCiArtifacts copies the source pipeline's latest images that the given linked CI pipeline is missing
+	SyncLinkedCiArtifacts(w http.ResponseWriter, r *http.Request)
+	// SyncLinkedCiArtifactsForSource syncs images into every linked CI of the given source pipeline
+	SyncLinkedCiArtifactsForSource(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppBuildMaterialRestHandler interface {
@@ -497,6 +502,10 @@ func (handler *PipelineConfigRestHandlerImpl) getCdPipelinesForCIPatchRbac(patch
 	componentId, componentType := patchRequest.PatchSourceInfo()
 
 	// the appWorkflowId can be taken from patchRequest.AppWorkflowId but doing this can make 2 sources of truth to find the workflow
+	return handler.getCdPipelinesInWorkflowOfComponent(componentType, componentId)
+}
+
+func (handler *PipelineConfigRestHandlerImpl) getCdPipelinesInWorkflowOfComponent(componentType string, componentId int) (cdPipelines []*pipelineConfig.Pipeline, err error) {
 	sourceAppWorkflowMapping, err := handler.appWorkflowService.FindWFMappingByComponent(componentType, componentId)
 	if err != nil {
 		handler.Logger.Errorw("error in finding the appWorkflowMapping using componentId and componentType", "componentType", componentType, "componentId", componentId, "err", err)
@@ -2312,6 +2321,87 @@ func (handler *PipelineConfigRestHandlerImpl) GetSourceCiDownStreamInfo(w http.R
 		return
 	}
 	common.WriteJsonResp(w, err, linkedCIDetails, http.StatusOK)
+}
+
+func (handler *PipelineConfigRestHandlerImpl) SyncLinkedCiArtifacts(w http.ResponseWriter, r *http.Request) {
+	userId, ok := handler.getUserIdOrUnauthorized(w, r)
+	if !ok {
+		return
+	}
+	ciPipelineId, err := strconv.Atoi(mux.Vars(r)["ciPipelineId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	ciPipeline, err := handler.ciPipelineRepository.FindOneWithMinData(ciPipelineId)
+	if util.IsErrNoRows(err) {
+		common.WriteJsonResp(w, util.NewApiError(http.StatusNotFound, "ci pipeline not found", fmt.Sprintf("ci pipeline %d not found", ciPipelineId)), nil, http.StatusNotFound)
+		return
+	} else if err != nil {
+		handler.Logger.Errorw("error in fetching ci pipeline", "ciPipelineId", ciPipelineId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if !handler.hasLinkedCiSyncAccess(r.Header.Get("token"), ciPipeline) {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	resp, err := handler.ciCdPipelineOrchestrator.SyncLinkedCiArtifacts(ciPipelineId, userId)
+	if err != nil {
+		handler.Logger.Errorw("service err, SyncLinkedCiArtifacts", "ciPipelineId", ciPipelineId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+
+func (handler *PipelineConfigRestHandlerImpl) SyncLinkedCiArtifactsForSource(w http.ResponseWriter, r *http.Request) {
+	userId, ok := handler.getUserIdOrUnauthorized(w, r)
+	if !ok {
+		return
+	}
+	ciPipelineId, err := strconv.Atoi(mux.Vars(r)["ciPipelineId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	sourceCiPipeline, err := handler.ciPipelineRepository.FindOneWithMinData(ciPipelineId)
+	if util.IsErrNoRows(err) {
+		common.WriteJsonResp(w, util.NewApiError(http.StatusNotFound, "ci pipeline not found", fmt.Sprintf("ci pipeline %d not found", ciPipelineId)), nil, http.StatusNotFound)
+		return
+	} else if err != nil {
+		handler.Logger.Errorw("error in fetching ci pipeline", "ciPipelineId", ciPipelineId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	token := r.Header.Get("token")
+	resourceName := handler.enforcerUtil.GetAppRBACName(sourceCiPipeline.App.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	resp, err := handler.ciCdPipelineOrchestrator.SyncLinkedCiArtifactsForSource(ciPipelineId, userId, func(linkedCiPipeline *pipelineConfig.CiPipeline) bool {
+		return handler.hasLinkedCiSyncAccess(token, linkedCiPipeline)
+	})
+	if err != nil {
+		handler.Logger.Errorw("service err, SyncLinkedCiArtifactsForSource", "ciPipelineId", ciPipelineId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+
+// hasLinkedCiSyncAccess applies the same access rule as editing the CI pipeline
+func (handler *PipelineConfigRestHandlerImpl) hasLinkedCiSyncAccess(token string, ciPipeline *pipelineConfig.CiPipeline) bool {
+	if ciPipeline.App == nil {
+		return false
+	}
+	cdPipelines, err := handler.getCdPipelinesInWorkflowOfComponent(appWorkflow.CIPIPELINE, ciPipeline.Id)
+	if err != nil && !util.IsErrNoRows(err) {
+		handler.Logger.Errorw("error in finding cd pipelines of ci pipeline workflow", "ciPipelineId", ciPipeline.Id, "err", err)
+		return false
+	}
+	return handler.checkCiPatchAccess(token, handler.enforcerUtil.GetAppRBACName(ciPipeline.App.AppName), cdPipelines)
 }
 
 func (handler *PipelineConfigRestHandlerImpl) GetAppMetadataListByEnvironment(w http.ResponseWriter, r *http.Request) {

@@ -1,0 +1,295 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Linked CI image sync
+  description: |
+    Copies a source CI pipeline's existing images into its Linked CI pipelines, so images built before a link was created
+    become deployable without rebuilding (issue #2988).
+
+    What a sync copies, for one Linked CI pipeline:
+    - Only the source pipeline's own build images. Images produced by post-build plugins (for example Copy Container Image) are never copied.
+    - At most the source's latest `LINKED_CI_ARTIFACT_COPY_LIMIT` images (default 10), and only those older than the oldest image the
+      Linked CI pipeline already has. After a sync the Linked CI pipeline holds the source's latest N images; images it already has are never duplicated.
+    - Copies keep the image, digest, commit info and original build time. Nothing is rebuilt, nothing is pushed to a registry, and no deployment is triggered.
+    - Calling it again is safe: it returns `copiedCount: 0` when nothing is missing. Concurrent calls for the same pipeline are serialised.
+
+    The sync APIs work whether or not `ENABLE_LINKED_CI_ARTIFACT_COPY` is set; that flag only controls the automatic copy when a Linked CI
+    pipeline is created. Setting `LINKED_CI_ARTIFACT_COPY_LIMIT` to 0 or less makes both copy nothing.
+
+    Related behaviour change (no API change): image lists of a Linked CI pipeline (CD image list `GET /orchestrator/app/cd-pipeline/{id}/material`,
+    image promotion list for a CI node) are ordered by the source build each image copies, newest first, so backfilled images appear below newer builds.
+    Lists of all other pipelines keep their existing order.
+paths:
+  /orchestrator/app/ci-pipeline/{ciPipelineId}/linked-ci/sync-artifacts:
+    post:
+      summary: Sync images into one Linked CI pipeline
+      description: |
+        Copies the source pipeline's latest images that this Linked CI pipeline is missing (see the rules above).
+        Requires the same permission as editing this CI pipeline: app admin when its workflow has no CD pipeline,
+        otherwise edit access on at least one environment of the workflow's CD pipelines.
+      operationId: SyncLinkedCiArtifacts
+      security:
+        - TokenAuth: []
+      parameters:
+        - name: ciPipelineId
+          in: path
+          required: true
+          description: id of the Linked CI pipeline to fill
+          schema:
+            type: integer
+            example: 489
+      responses:
+        "200":
+          description: Sync finished. `copiedCount` is 0 when nothing was missing.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  status:
+                    type: string
+                    example: OK
+                  result:
+                    $ref: "#/components/schemas/LinkedCiArtifactSyncResult"
+              example:
+                code: 200
+                status: OK
+                result:
+                  ciPipelineId: 489
+                  parentCiPipelineId: 411
+                  appId: 376
+                  appName: payments-eu
+                  copiedCount: 4
+        "400":
+          description: The id is not a number, or the pipeline is not a Linked CI pipeline (regular CI, job, Linked CD).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                code: 400
+                status: Bad Request
+                errors:
+                  - code: "400"
+                    internalMessage: ci pipeline 277 is not a linked CI pipeline
+                    userMessage: ci pipeline is not a linked CI pipeline
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: No active CI pipeline with this id (missing, deleted or inactive).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                code: 404
+                status: Not Found
+                errors:
+                  - code: "404"
+                    internalMessage: ci pipeline 99999999 not found
+                    userMessage: ci pipeline not found
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /orchestrator/app/ci-pipeline/{ciPipelineId}/linked-ci/downstream/sync-artifacts:
+    post:
+      summary: Sync images into every Linked CI pipeline of a source CI pipeline
+      description: |
+        Runs the single sync for each active Linked CI pipeline whose source is this pipeline, in pipeline id order.
+        Requires view access on the source pipeline's app. Linked CI pipelines the caller cannot edit are skipped
+        and only counted in `unauthorizedCount`, so their ids and app names are not returned.
+        One child failing does not stop the others: its result carries `error` instead.
+      operationId: SyncLinkedCiArtifactsForSource
+      security:
+        - TokenAuth: []
+      parameters:
+        - name: ciPipelineId
+          in: path
+          required: true
+          description: id of the source CI pipeline
+          schema:
+            type: integer
+            example: 277
+      responses:
+        "200":
+          description: Bulk sync finished. `results` is an empty list when the source has no Linked CI pipelines.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  status:
+                    type: string
+                    example: OK
+                  result:
+                    $ref: "#/components/schemas/LinkedCiArtifactBulkSyncResult"
+              example:
+                code: 200
+                status: OK
+                result:
+                  sourceCiPipelineId: 277
+                  results:
+                    - ciPipelineId: 280
+                      parentCiPipelineId: 277
+                      appId: 270
+                      appName: payments-us
+                      copiedCount: 0
+                    - ciPipelineId: 488
+                      parentCiPipelineId: 277
+                      appId: 271
+                      appName: payments-eu
+                      copiedCount: 7
+                    - ciPipelineId: 493
+                      parentCiPipelineId: 277
+                      appId: 272
+                      appName: payments-apac
+                      copiedCount: 0
+                      error: failed to sync images
+                  unauthorizedCount: 1
+        "400":
+          description: The id is not a number.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: No CI pipeline with this id.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                code: 404
+                status: Not Found
+                errors:
+                  - code: "404"
+                    internalMessage: ci pipeline 99999999 not found
+                    userMessage: ci pipeline not found
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  securitySchemes:
+    TokenAuth:
+      type: apiKey
+      in: header
+      name: token
+      description: Devtron session or API token
+
+  responses:
+    Unauthenticated:
+      description: No valid token.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 401
+              result:
+                type: string
+                example: UN-AUTHENTICATED
+    Forbidden:
+      description: The caller lacks the required permission.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            code: 403
+            status: Forbidden
+            errors:
+              - code: "000"
+                internalMessage: "[{unauthorized user}]"
+                userMessage: Unauthorized User
+    InternalError:
+      description: Unexpected server error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    LinkedCiArtifactSyncResult:
+      type: object
+      required:
+        - ciPipelineId
+        - parentCiPipelineId
+        - appId
+        - appName
+        - copiedCount
+      properties:
+        ciPipelineId:
+          type: integer
+          description: Linked CI pipeline id
+        parentCiPipelineId:
+          type: integer
+          description: Source CI pipeline id
+        appId:
+          type: integer
+          description: App of the Linked CI pipeline
+        appName:
+          type: string
+          description: App name of the Linked CI pipeline
+        copiedCount:
+          type: integer
+          minimum: 0
+          description: Number of images copied by this call
+        error:
+          type: string
+          description: Only in bulk results, set when this pipeline failed to sync
+          example: failed to sync images
+
+    LinkedCiArtifactBulkSyncResult:
+      type: object
+      required:
+        - sourceCiPipelineId
+        - results
+        - unauthorizedCount
+      properties:
+        sourceCiPipelineId:
+          type: integer
+          description: Source CI pipeline id from the path
+        results:
+          type: array
+          description: One entry per Linked CI pipeline the caller can edit, in pipeline id order
+          items:
+            $ref: "#/components/schemas/LinkedCiArtifactSyncResult"
+        unauthorizedCount:
+          type: integer
+          minimum: 0
+          description: Linked CI pipelines skipped because the caller cannot edit them
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+        status:
+          type: string
+          description: HTTP status text
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+              internalMessage:
+                type: string
+              userMessage:
+                type: string

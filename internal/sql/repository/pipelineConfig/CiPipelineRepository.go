@@ -144,6 +144,7 @@ type CiPipelineRepository interface {
 	GetChildrenCiCount(parentCiPipelineId int) (int, error)
 	FindByParentCiPipelineId(parentCiPipelineId int) ([]*CiPipeline, error)
 	FindByParentIdAndType(parentCiPipelineId int, pipelineType string) ([]*CiPipeline, error)
+	FindLinkedCiByParentCiPipelineId(parentCiPipelineId int) ([]*CiPipeline, error)
 
 	FetchParentCiPipelinesForDG() ([]*ciPipeline.CiPipelinesMap, error)
 	FetchCiPipelinesForDG(parentId int, childCiPipelineIds []int) (*CiPipeline, int, error)
@@ -203,6 +204,20 @@ func (impl *CiPipelineRepositoryImpl) FindByParentCiPipelineId(parentCiPipelineI
 	err := impl.dbConnection.Model(&ciPipelines).
 		Where("parent_ci_pipeline = ?", parentCiPipelineId).
 		Where("active = ?", true).
+		Select()
+	return ciPipelines, err
+}
+
+// FindLinkedCiByParentCiPipelineId returns the parent's active linked CI pipelines with their app
+func (impl *CiPipelineRepositoryImpl) FindLinkedCiByParentCiPipelineId(parentCiPipelineId int) ([]*CiPipeline, error) {
+	var ciPipelines []*CiPipeline
+	err := impl.dbConnection.Model(&ciPipelines).
+		Column("ci_pipeline.*", "App").
+		Where("ci_pipeline.parent_ci_pipeline = ?", parentCiPipelineId).
+		Where("ci_pipeline.ci_pipeline_type = ?", buildCommonBean.LINKED).
+		Where("ci_pipeline.active = ?", true).
+		Where("ci_pipeline.deleted = ?", false).
+		Order("ci_pipeline.id ASC").
 		Select()
 	return ciPipelines, err
 }

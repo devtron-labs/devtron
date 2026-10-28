@@ -134,4 +134,7 @@ type ArtifactsListFilterOptions struct {
 
 	// UseCdStageQueryV2 is to set query version
 	UseCdStageQueryV2 bool
+
+	// UseLinkedCiOrder lists a linked CI pipeline's images by the source build they copy
+	UseLinkedCiOrder bool
 }
