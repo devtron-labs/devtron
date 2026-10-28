@@ -1,4 +1,5 @@
 ## Enhancements
+- feat: custom image tag with git commit hash (#7071)
 - feat: add artifact_id indexes on release_tags and image_comments (#7055)
 - feat: scoped variable support for git repo and container repo (#7036)
 - feat: RBAC support for external argo/flux apps (#7014)
