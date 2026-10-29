@@ -13,6 +13,7 @@
 - fix: Hibernating filter in Devtron Apps list shows incomplete results (pager #2974) (#7049)
 - fix: scope filter-based bulk user delete to match listing filters (#7021)
 ## Others
+- chore: reserve migration 37804800 / event id 17 for audit log notifications (#7072)
 - chore: renumber 37x04600 migrations into strict gapless sequence (#7061)
 - feat(rbac): dev-admin cannot create/delete pipelines & workflows (#7043)
 - misc: docker build arg fix (#7057)
