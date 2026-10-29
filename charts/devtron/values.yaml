@@ -103,7 +103,7 @@ components:
   devtron:
     registry: ""
     image: "hyperion:0874dcaf-280-39287"
-    cicdImage: "devtron:c6520431-434-39444"
+    cicdImage: "devtron:d12a1cfa-434-39870"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     healthPort: 8080
