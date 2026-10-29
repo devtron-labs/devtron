@@ -1122,6 +1122,7 @@ func (impl *HandlerServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineCo
 	var dockerfilePath string
 	var dockerRepository string
 	var checkoutPath string
+	var dockerfileGitMaterialId int
 	var ciBuildConfigBean *buildBean.CiBuildConfigBean
 	dockerRegistry := &repository3.DockerArtifactStore{}
 	ciBaseBuildConfigEntity := ciTemplate.CiBuildConfig
@@ -1143,11 +1144,13 @@ func (impl *HandlerServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineCo
 		}
 		templateOverride := templateOverrideBean.CiTemplateOverride
 		checkoutPath = templateOverride.GitMaterial.CheckoutPath
+		dockerfileGitMaterialId = templateOverride.GitMaterialId
 		dockerfilePath = templateOverride.DockerfilePath
 		dockerRepository = templateOverride.DockerRepository
 		dockerRegistry = templateOverride.DockerRegistry
 	} else {
 		checkoutPath = ciTemplate.GitMaterial.CheckoutPath
+		dockerfileGitMaterialId = ciTemplate.GitMaterialId
 		dockerfilePath = ciTemplate.DockerfilePath
 		dockerRegistry = ciTemplate.DockerRegistry
 		dockerRepository = ciTemplate.DockerRepository
@@ -1173,7 +1176,8 @@ func (impl *HandlerServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineCo
 		return nil, err
 	}
 	if customTag.Id != 0 && customTag.Enabled == true {
-		imagePathReservation, err := impl.customTagService.GenerateImagePath(pipelineConfigBean.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id), dockerRegistry.RegistryURL, dockerRepository)
+		commitSha := getCommitShaForCustomTag(ciMaterials, commitHashes, dockerfileGitMaterialId)
+		imagePathReservation, err := impl.customTagService.GenerateImagePath(pipelineConfigBean.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id), dockerRegistry.RegistryURL, dockerRepository, commitSha)
 		if err != nil {
 			if errors.Is(err, pipelineConfigBean.ErrImagePathInUse) {
 				errMsg := pipelineConfigBean.ImageTagUnavailableMessage
@@ -1567,6 +1571,23 @@ func (impl *HandlerServiceImpl) buildImageTag(commitHashes map[int]pipelineConfi
 	// replace / with underscore, as docker image tag doesn't support slash. it gives error
 	dockerImageTag = strings.ReplaceAll(dockerImageTag, "/", "_")
 	return dockerImageTag
+}
+
+// getCommitShaForCustomTag returns the short commit of the git material holding the Dockerfile, used for {SHA} in custom image tags
+func getCommitShaForCustomTag(ciMaterials []*pipelineConfig.CiPipelineMaterial, commitHashes map[int]pipelineConfig.GitCommit, dockerfileGitMaterialId int) string {
+	for _, ciMaterial := range ciMaterials {
+		if ciMaterial == nil || ciMaterial.GitMaterialId != dockerfileGitMaterialId {
+			continue
+		}
+		gitCommit := commitHashes[ciMaterial.Id]
+		commit := gitCommit.Commit
+		if commit == "" {
+			commit = gitCommit.WebhookData.Data[bean.WEBHOOK_SELECTOR_TARGET_CHECKOUT_NAME]
+		}
+		// replace / with underscore, as docker image tag doesn't support slash
+		return strings.ReplaceAll(_getTruncatedImageTag(commit), "/", "_")
+	}
+	return ""
 }
 
 func getUpdatedDockerImageTagWithCommitOrCheckOutData(dockerImageTag, commitOrCheckOutData string) string {

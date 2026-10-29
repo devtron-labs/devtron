@@ -92,8 +92,13 @@ func (model Model) AddDef(sec string, key string, value string) bool {
 		ast.Value = util.RemoveComments(util.EscapeAssertion(ast.Value))
 	}
 
-	if sec == "m" && strings.Contains(ast.Value, "in") {
-		ast.Value = strings.Replace(strings.Replace(ast.Value, "[", "(", -1), "]", ")", -1)
+	if sec == "m" {
+		// Escape backslashes in string literals to match CSV parsing behavior
+		ast.Value = util.EscapeStringLiterals(ast.Value)
+
+		if strings.Contains(ast.Value, "in") {
+			ast.Value = strings.Replace(strings.Replace(ast.Value, "[", "(", -1), "]", ")", -1)
+		}
 	}
 
 	_, ok := model[sec]
@@ -419,9 +424,14 @@ func (model Model) Copy() Model {
 
 func (model Model) GetFieldIndex(ptype string, field string) (int, error) {
 	assertion := model["p"][ptype]
+
+	assertion.FieldIndexMutex.RLock()
 	if index, ok := assertion.FieldIndexMap[field]; ok {
+		assertion.FieldIndexMutex.RUnlock()
 		return index, nil
 	}
+	assertion.FieldIndexMutex.RUnlock()
+
 	pattern := fmt.Sprintf("%s_"+field, ptype)
 	index := -1
 	for i, token := range assertion.Tokens {
@@ -433,6 +443,10 @@ func (model Model) GetFieldIndex(ptype string, field string) (int, error) {
 	if index == -1 {
 		return index, fmt.Errorf(field + " index is not set, please use enforcer.SetFieldIndex() to set index")
 	}
+
+	assertion.FieldIndexMutex.Lock()
 	assertion.FieldIndexMap[field] = index
+	assertion.FieldIndexMutex.Unlock()
+
 	return index, nil
 }

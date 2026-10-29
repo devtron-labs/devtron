@@ -45,11 +45,16 @@ func (t Time) UnixTime() (sec, nsec int64) {
 func GetTime() (Time, uint16, error) {
 	defer timeMu.Unlock()
 	timeMu.Lock()
-	return getTime()
+	return getTime(nil)
 }
 
-func getTime() (Time, uint16, error) {
-	t := timeNow()
+func getTime(customTime *time.Time) (Time, uint16, error) {
+	var t time.Time
+	if customTime == nil { // When not provided, use the current time
+		t = timeNow()
+	} else {
+		t = *customTime
+	}
 
 	// If we don't have a clock sequence already, set one.
 	if clockSeq == 0 {
@@ -113,7 +118,9 @@ func (uuid UUID) Time() Time {
 	var t Time
 	switch uuid.Version() {
 	case 6:
-		time := binary.BigEndian.Uint64(uuid[:8]) // Ignore uuid[6] version b0110
+		time := int64(binary.BigEndian.Uint32(uuid[0:4])) << 28
+		time |= int64(binary.BigEndian.Uint16(uuid[4:6])) << 12
+		time |= int64(binary.BigEndian.Uint16(uuid[6:8]) & 0xfff)
 		t = Time(time)
 	case 7:
 		time := binary.BigEndian.Uint64(uuid[:8])

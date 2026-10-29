@@ -110,8 +110,9 @@ func (a *mapActivation) ResolveName(name string) (any, bool) {
 // hierarchicalActivation which implements Activation and contains a parent and
 // child activation.
 type hierarchicalActivation struct {
-	parent Activation
-	child  Activation
+	parent        Activation
+	child         Activation
+	poolAllocated bool
 }
 
 // Parent implements the Activation interface method.
@@ -127,10 +128,28 @@ func (a *hierarchicalActivation) ResolveName(name string) (any, bool) {
 	return a.parent.ResolveName(name)
 }
 
+// Unwrap returns the parent activation, stripping the local child scope.
+// This allows global disambiguation to skip past locally introduced variables.
+func (a *hierarchicalActivation) Unwrap() Activation {
+	return a.parent
+}
+
+// AsPartialActivation checks the child first via direct type assertion (to
+// avoid recursion through the folder → frame → hierarchicalActivation cycle),
+// then walks the parent hierarchy via the free function.
+func (a *hierarchicalActivation) AsPartialActivation() (PartialActivation, bool) {
+	if pv, ok := a.child.(partialActivationConverter); ok {
+		if p, ok := pv.AsPartialActivation(); ok {
+			return p, true
+		}
+	}
+	return AsPartialActivation(a.parent)
+}
+
 // NewHierarchicalActivation takes two activations and produces a new one which prioritizes
 // resolution in the child first and parent(s) second.
 func NewHierarchicalActivation(parent Activation, child Activation) Activation {
-	return &hierarchicalActivation{parent, child}
+	return &hierarchicalActivation{parent: parent, child: child, poolAllocated: false}
 }
 
 // NewPartialActivation returns an Activation which contains a list of AttributePattern values
@@ -158,7 +177,8 @@ type PartialActivation interface {
 
 // partialActivationConverter indicates whether an Activation implementation supports conversion to a PartialActivation
 type partialActivationConverter interface {
-	asPartialActivation() (PartialActivation, bool)
+	// AsPartialActivation converts the current activation to a PartialActivation
+	AsPartialActivation() (PartialActivation, bool)
 }
 
 // partActivation is the default implementations of the PartialActivation interface.
@@ -172,19 +192,20 @@ func (a *partActivation) UnknownAttributePatterns() []*AttributePattern {
 	return a.unknowns
 }
 
-// asPartialActivation returns the partActivation as a PartialActivation interface.
-func (a *partActivation) asPartialActivation() (PartialActivation, bool) {
+// AsPartialActivation returns the partActivation as a PartialActivation interface.
+func (a *partActivation) AsPartialActivation() (PartialActivation, bool) {
 	return a, true
 }
 
-func asPartialActivation(vars Activation) (PartialActivation, bool) {
+// AsPartialActivation walks the activation hierarchy and returns the first PartialActivation, if found.
+func AsPartialActivation(vars Activation) (PartialActivation, bool) {
 	// Only internal activation instances may implement this interface
 	if pv, ok := vars.(partialActivationConverter); ok {
-		return pv.asPartialActivation()
+		return pv.AsPartialActivation()
 	}
 	// Since Activations may be hierarchical, test whether a parent converts to a PartialActivation
 	if vars.Parent() != nil {
-		return asPartialActivation(vars.Parent())
+		return AsPartialActivation(vars.Parent())
 	}
 	return nil, false
 }

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	errors2 "errors"
 	"fmt"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	k8sUtil "github.com/devtron-labs/common-lib/utils/k8s"
 	bean4 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"

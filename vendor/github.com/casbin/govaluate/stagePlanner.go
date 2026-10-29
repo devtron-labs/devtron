@@ -186,6 +186,7 @@ func planStages(tokens []ExpressionToken) (*evaluationStage, error) {
 	if err != nil {
 		return nil, err
 	}
+	stream.close()
 
 	// while we're now fully-planned, we now need to re-order same-precedence operators.
 	// this could probably be avoided with a different planning method
@@ -389,10 +390,23 @@ func planValue(stream *tokenStream) (*evaluationStage, error) {
 	switch token.Kind {
 
 	case CLAUSE:
+		var prev ExpressionToken
+		if stream.index > 1 {
+			prev = stream.tokens[stream.index-2]
+		}
 
 		ret, err = planTokens(stream)
 		if err != nil {
 			return nil, err
+		}
+
+		// clauses with single elements don't trigger SEPARATE stage planner
+		// this ensures that when used as part of an "in" comparison, the array requirement passes
+		if prev.Kind == COMPARATOR && prev.Value == "in" && ret.symbol == LITERAL {
+			// We need to copy this in case we are using the cached value...
+			tmp := *ret
+			tmp.operator = ensureSliceStage(ret.operator)
+			ret = &tmp
 		}
 
 		// advance past the CLAUSE_CLOSE token. We know that it's a CLAUSE_CLOSE, because at parse-time we check for unbalanced parens.
@@ -417,7 +431,7 @@ func planValue(stream *tokenStream) (*evaluationStage, error) {
 		return nil, nil
 
 	case VARIABLE:
-		operator = makeParameterStage(token.Value.(string))
+		return getParameterStage(token.Value.(string))
 
 	case NUMERIC:
 		fallthrough
@@ -426,11 +440,9 @@ func planValue(stream *tokenStream) (*evaluationStage, error) {
 	case PATTERN:
 		fallthrough
 	case BOOLEAN:
-		symbol = LITERAL
-		operator = makeLiteralStage(token.Value)
+		return getConstantStage(token.Value)
 	case TIME:
-		symbol = LITERAL
-		operator = makeLiteralStage(float64(token.Value.(time.Time).Unix()))
+		return getConstantStage(float64(token.Value.(time.Time).Unix()))
 
 	case PREFIX:
 		stream.rewind()

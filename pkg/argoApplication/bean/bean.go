@@ -17,7 +17,7 @@
 package bean
 
 import (
-	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	application2 "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"

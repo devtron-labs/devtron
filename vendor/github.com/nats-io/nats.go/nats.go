@@ -47,7 +47,7 @@ import (
 
 // Default Constants
 const (
-	Version                   = "1.42.0"
+	Version                   = "1.43.0"
 	DefaultURL                = "nats://127.0.0.1:4222"
 	DefaultPort               = 4222
 	DefaultMaxReconnect       = 60
@@ -2290,6 +2290,21 @@ func (nc *Conn) ConnectedAddr() string {
 		return _EMPTY_
 	}
 	return nc.conn.RemoteAddr().String()
+}
+
+// LocalAddr returns the local network address of the connection
+func (nc *Conn) LocalAddr() string {
+	if nc == nil {
+		return _EMPTY_
+	}
+
+	nc.mu.RLock()
+	defer nc.mu.RUnlock()
+
+	if nc.status != CONNECTED {
+		return _EMPTY_
+	}
+	return nc.conn.LocalAddr().String()
 }
 
 // ConnectedServerId reports the connected server's Id

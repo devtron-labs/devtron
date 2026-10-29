@@ -1,6 +1,6 @@
 # uuid
 The uuid package generates and inspects UUIDs based on
-[RFC 4122](https://datatracker.ietf.org/doc/html/rfc4122)
+[RFC 9562](https://datatracker.ietf.org/doc/html/rfc9562)
 and DCE 1.1: Authentication and Security Services. 
 
 This package is based on the github.com/pborman/uuid package (previously named
@@ -18,4 +18,4 @@ go get github.com/google/uuid
 
 Full `go doc` style documentation for the package can be viewed online without
 installing this package by using the GoDoc site here: 
-http://pkg.go.dev/github.com/google/uuid
+https://pkg.go.dev/github.com/google/uuid
