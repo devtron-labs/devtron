@@ -9,6 +9,7 @@
 - feat: decouple app lifecycle actions; add indexes to improve CI query… (#7019)
 - feat: obfuscate secret in audit logs (#6994)
 ## Bugs
+- fix: linked ci artifact backfill support - oss (#7074)
 - fix: filter-based bulk user delete no longer capped to first page of 20 users (#7067)
 - fix: Hibernating filter in Devtron Apps list shows incomplete results (pager #2974) (#7049)
 - fix: scope filter-based bulk user delete to match listing filters (#7021)
