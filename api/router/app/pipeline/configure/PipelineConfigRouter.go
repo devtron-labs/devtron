@@ -89,6 +89,8 @@ func (router PipelineConfigRouterImpl) InitPipelineConfigRouter(configRouter *mu
 
 	configRouter.Path("/ci-pipeline/{ciPipelineId}/linked-ci/downstream/env").HandlerFunc(router.restHandler.GetSourceCiDownStreamFilters).Methods("GET")
 	configRouter.Path("/ci-pipeline/{ciPipelineId}/linked-ci/downstream/cd").HandlerFunc(router.restHandler.GetSourceCiDownStreamInfo).Methods("GET")
+	configRouter.Path("/ci-pipeline/{ciPipelineId}/linked-ci/downstream/sync-artifacts").HandlerFunc(router.restHandler.SyncLinkedCiArtifactsForSource).Methods("POST")
+	configRouter.Path("/ci-pipeline/{ciPipelineId}/linked-ci/sync-artifacts").HandlerFunc(router.restHandler.SyncLinkedCiArtifacts).Methods("POST")
 
 	configRouter.Path("/cd-pipeline/{cd_pipeline_id}/material").HandlerFunc(router.restHandler.GetArtifactsByCDPipeline).Methods("GET")
 	configRouter.Path("/cd-pipeline/{cd_pipeline_id}/material/rollback").HandlerFunc(router.restHandler.GetArtifactsForRollback).Methods("GET")

@@ -49,6 +49,7 @@ import (
 	"net/http"
 	"path"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -125,6 +126,10 @@ type CiCdPipelineOrchestrator interface {
 	GetSourceCiPipelineForArtifact(ciPipeline pipelineConfig.CiPipeline) (*pipelineConfig.CiPipeline, error)
 	GetGitCommitEnvVarDataForCICDStage(gitTriggers map[int]pipelineConfig.GitCommit) (map[string]string, *gitSensor.WebhookAndCiData, error)
 	GetWorkflowCacheConfig(appType helper.AppType, pipelineType string, pipelineWorkflowCacheConfig common2.WorkflowCacheConfigType) bean.WorkflowCacheConfig
+	// SyncLinkedCiArtifacts copies the source pipeline's latest images that the linked CI pipeline is missing
+	SyncLinkedCiArtifacts(ciPipelineId int, userId int32) (*bean2.LinkedCiArtifactSyncResponse, error)
+	// SyncLinkedCiArtifactsForSource syncs every linked CI pipeline of the source for which hasAccess is true
+	SyncLinkedCiArtifactsForSource(sourceCiPipelineId int, userId int32, hasAccess func(linkedCiPipeline *pipelineConfig.CiPipeline) bool) (*bean2.LinkedCiArtifactBulkSyncResponse, error)
 }
 
 type CiCdPipelineOrchestratorImpl struct {
@@ -1189,9 +1194,9 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 		}
 
 		// Copy artifacts from parent CI pipeline if this is a linked CI pipeline
-		if ciPipeline.ParentCiPipeline > 0 && ciPipeline.PipelineType == buildCommonBean.LINKED {
+		if ciPipeline.ParentCiPipeline > 0 && ciPipeline.PipelineType == buildCommonBean.LINKED && impl.globalEnvVariables.EnableLinkedCiArtifactCopy {
 			go func() {
-				err = impl.copyArtifactsFromParentCiPipeline(ciPipeline.ParentCiPipeline, ciPipeline.Id, createRequest.UserId)
+				_, err := impl.copyArtifactsFromParentCiPipeline(ciPipeline.ParentCiPipeline, ciPipeline.Id, createRequest.UserId)
 				if err != nil {
 					impl.logger.Errorw("error in copying artifacts from parent CI pipeline",
 						"parentCiPipelineId", ciPipeline.ParentCiPipeline,
@@ -2644,34 +2649,60 @@ func (impl *CiCdPipelineOrchestratorImpl) GetWorkflowCacheConfig(appType helper.
 	}
 }
 
-// copyArtifactsFromParentCiPipeline copies existing artifacts from parent CI pipeline to linked CI pipeline during pipeline creation
-func (impl *CiCdPipelineOrchestratorImpl) copyArtifactsFromParentCiPipeline(parentCiPipelineId, childCiPipelineId int, userId int32) error {
-	if !impl.globalEnvVariables.EnableLinkedCiArtifactCopy {
-		impl.logger.Debugw("Linked CI artifact copying is disabled", "parentCiPipelineId", parentCiPipelineId, "childCiPipelineId", childCiPipelineId)
-		return nil
-	}
+// copyArtifactsFromParentCiPipeline copies the parent's latest build images that the linked CI pipeline is missing
+func (impl *CiCdPipelineOrchestratorImpl) copyArtifactsFromParentCiPipeline(parentCiPipelineId, childCiPipelineId int, userId int32) (int, error) {
 	limit := impl.globalEnvVariables.LinkedCiArtifactCopyLimit
 	if limit <= 0 {
-		return nil
+		return 0, nil
 	}
-
 	impl.logger.Infow("Starting, copyArtifactsFromParentCiPipeline", "parentCiPipelineId", parentCiPipelineId,
 		"childCiPipelineId", childCiPipelineId, "limit", limit)
-
-	parentArtifacts, err := impl.CiArtifactRepository.GetLatestArtifactsByCiPipelineId(parentCiPipelineId, limit)
+	tx, err := impl.transactionManager.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in starting transaction", "childCiPipelineId", childCiPipelineId, "err", err)
+		return 0, err
+	}
+	defer impl.transactionManager.RollbackTx(tx)
+	err = impl.CiArtifactRepository.LockLinkedCiArtifactCopy(tx, childCiPipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in locking linked ci pipeline for artifact copy", "childCiPipelineId", childCiPipelineId, "err", err)
+		return 0, err
+	}
+	oldestParentArtifactId, err := impl.CiArtifactRepository.GetOldestParentCiArtifactId(tx, childCiPipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching oldest copied artifact of child ci pipeline", "childCiPipelineId", childCiPipelineId, "err", err)
+		return 0, err
+	}
+	parentArtifacts, err := impl.CiArtifactRepository.GetLatestOwnBuildArtifactsByCiPipelineId(tx, parentCiPipelineId, limit)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("error in fetching artifacts from parent CI pipeline", "parentCiPipelineId", parentCiPipelineId, "err", err)
-		return err
+		return 0, err
 	}
-
-	if len(parentArtifacts) == 0 {
-		impl.logger.Infow("No artifacts found in parent CI pipeline", "parentCiPipelineId", parentCiPipelineId)
-		return nil
+	childArtifacts := buildLinkedCiArtifactCopies(parentArtifacts, oldestParentArtifactId, childCiPipelineId, userId)
+	if len(childArtifacts) == 0 {
+		return 0, nil
 	}
+	err = impl.CiArtifactRepository.SaveAllInTx(tx, childArtifacts)
+	if err != nil {
+		impl.logger.Errorw("error in saving copied artifacts for child ci pipeline", "childCiPipelineId", childCiPipelineId, "err", err)
+		return 0, err
+	}
+	err = impl.transactionManager.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing copied artifacts for child ci pipeline", "childCiPipelineId", childCiPipelineId, "err", err)
+		return 0, err
+	}
+	return len(childArtifacts), nil
+}
 
-	var childArtifacts []*repository.CiArtifact
-	for i := len(parentArtifacts); i > 0; i-- {
-		parentArtifact := parentArtifacts[i-1] //reversing order into new array because postgres will save the array as it is thus causing our actual order to reverse
+// buildLinkedCiArtifactCopies maps parent images older than oldestParentArtifactId (all, if 0) to child rows, oldest first
+func buildLinkedCiArtifactCopies(parentArtifacts []repository.CiArtifact, oldestParentArtifactId, childCiPipelineId int, userId int32) []*repository.CiArtifact {
+	childArtifacts := make([]*repository.CiArtifact, 0, len(parentArtifacts))
+	now := time.Now()
+	for _, parentArtifact := range parentArtifacts {
+		if oldestParentArtifactId > 0 && parentArtifact.Id >= oldestParentArtifactId {
+			continue
+		}
 		childArtifact := &repository.CiArtifact{
 			Image:              parentArtifact.Image,
 			ImageDigest:        parentArtifact.ImageDigest,
@@ -2683,9 +2714,9 @@ func (impl *CiCdPipelineOrchestratorImpl) copyArtifactsFromParentCiPipeline(pare
 			ScanEnabled:        parentArtifact.ScanEnabled,
 			TargetPlatforms:    parentArtifact.TargetPlatforms,
 			AuditLog: sql.AuditLog{
-				CreatedOn: time.Now(),
+				CreatedOn: parentArtifact.CreatedOn, // keeps the original build time shown in the image list
 				CreatedBy: userId,
-				UpdatedOn: time.Now(),
+				UpdatedOn: now,
 				UpdatedBy: userId,
 			},
 		}
@@ -2694,12 +2725,75 @@ func (impl *CiCdPipelineOrchestratorImpl) copyArtifactsFromParentCiPipeline(pare
 		}
 		childArtifacts = append(childArtifacts, childArtifact)
 	}
-	if len(childArtifacts) > 0 {
-		_, err = impl.CiArtifactRepository.SaveAll(childArtifacts)
-		if err != nil {
-			impl.logger.Errorw("error in saving copied artifacts for child ci pipeline", "childCiPipelineId", childCiPipelineId, "err", err)
-			return err
-		}
+	// insert oldest first so the child's row ids follow the parent's build order
+	sort.SliceStable(childArtifacts, func(i, j int) bool {
+		return childArtifacts[i].ParentCiArtifact < childArtifacts[j].ParentCiArtifact
+	})
+	return childArtifacts
+}
+
+func isLinkedCiPipeline(ciPipeline *pipelineConfig.CiPipeline) bool {
+	return ciPipeline.ParentCiPipeline > 0 && ciPipeline.PipelineType == string(buildCommonBean.LINKED)
+}
+
+func (impl *CiCdPipelineOrchestratorImpl) SyncLinkedCiArtifacts(ciPipelineId int, userId int32) (*bean2.LinkedCiArtifactSyncResponse, error) {
+	ciPipeline, err := impl.ciPipelineRepository.FindOneWithMinData(ciPipelineId)
+	if util.IsErrNoRows(err) || (err == nil && !ciPipeline.Active) {
+		return nil, util.NewApiError(http.StatusNotFound, "ci pipeline not found", fmt.Sprintf("ci pipeline %d not found", ciPipelineId))
+	} else if err != nil {
+		impl.logger.Errorw("error in fetching ci pipeline", "ciPipelineId", ciPipelineId, "err", err)
+		return nil, err
 	}
-	return nil
+	if !isLinkedCiPipeline(ciPipeline) {
+		return nil, util.NewApiError(http.StatusBadRequest, "ci pipeline is not a linked CI pipeline", fmt.Sprintf("ci pipeline %d is not a linked CI pipeline", ciPipelineId))
+	}
+	resp, err := impl.syncLinkedCiArtifacts(ciPipeline, userId)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (impl *CiCdPipelineOrchestratorImpl) SyncLinkedCiArtifactsForSource(sourceCiPipelineId int, userId int32, hasAccess func(linkedCiPipeline *pipelineConfig.CiPipeline) bool) (*bean2.LinkedCiArtifactBulkSyncResponse, error) {
+	linkedCiPipelines, err := impl.ciPipelineRepository.FindLinkedCiByParentCiPipelineId(sourceCiPipelineId)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in fetching linked ci pipelines", "sourceCiPipelineId", sourceCiPipelineId, "err", err)
+		return nil, err
+	}
+	resp := &bean2.LinkedCiArtifactBulkSyncResponse{
+		SourceCiPipelineId: sourceCiPipelineId,
+		Results:            make([]*bean2.LinkedCiArtifactSyncResponse, 0, len(linkedCiPipelines)),
+	}
+	for _, linkedCiPipeline := range linkedCiPipelines {
+		if !hasAccess(linkedCiPipeline) {
+			resp.UnauthorizedCount++
+			continue
+		}
+		result, err := impl.syncLinkedCiArtifacts(linkedCiPipeline, userId)
+		if err != nil {
+			result.Error = "failed to sync images"
+		}
+		resp.Results = append(resp.Results, result)
+	}
+	return resp, nil
+}
+
+// syncLinkedCiArtifacts always returns a result; err is set when the copy failed
+func (impl *CiCdPipelineOrchestratorImpl) syncLinkedCiArtifacts(linkedCiPipeline *pipelineConfig.CiPipeline, userId int32) (*bean2.LinkedCiArtifactSyncResponse, error) {
+	result := &bean2.LinkedCiArtifactSyncResponse{
+		CiPipelineId:       linkedCiPipeline.Id,
+		ParentCiPipelineId: linkedCiPipeline.ParentCiPipeline,
+		AppId:              linkedCiPipeline.AppId,
+	}
+	if linkedCiPipeline.App != nil {
+		result.AppName = linkedCiPipeline.App.AppName
+	}
+	copiedCount, err := impl.copyArtifactsFromParentCiPipeline(linkedCiPipeline.ParentCiPipeline, linkedCiPipeline.Id, userId)
+	if err != nil {
+		impl.logger.Errorw("error in syncing artifacts of linked ci pipeline", "ciPipelineId", linkedCiPipeline.Id,
+			"parentCiPipelineId", linkedCiPipeline.ParentCiPipeline, "err", err)
+		return result, err
+	}
+	result.CopiedCount = copiedCount
+	return result, nil
 }
