@@ -221,6 +221,7 @@ func (c *ArgoApplicationServiceExtendedImpl) getResourceTreeUsingArgoClient(ctx 
 		return nil, nil, err
 	}
 	responses := c.parseResult(rtResp, acdQueryRequest.Query, ctx, asc, err)
+	rtResp.Nodes = removeDeletedPodNodes(rtResp.Nodes, responses)
 	podMetadata := c.buildPodMetadata(rtResp, responses)
 	return rtResp, podMetadata, nil
 }
@@ -360,7 +361,7 @@ func (c *ArgoApplicationServiceExtendedImpl) parseResult(resp *v1alpha1.Applicat
 		select {
 		case msg, ok := <-response:
 			if ok {
-				if msg.Error == nil {
+				if msg.Error == nil || isDeletedPodResult(&msg) {
 					responses = append(responses, &msg)
 				}
 			}
@@ -948,4 +949,35 @@ func updateNodeHealthStatus(resp *v1alpha1.ApplicationTree, application *v1alpha
 		}
 	}
 	return resp
+}
+
+// isDeletedPodResult tells if argo returned k8s NotFound for a pod it still lists in its cached tree
+func isDeletedPodResult(result *argoApplication.Result) bool {
+	if result == nil || result.Error == nil || result.Request == nil ||
+		result.Request.GetKind() != "Pod" || result.Request.GetGroup() != "" {
+		return false
+	}
+	clientCode, _ := util2.GetClientDetailedError(result.Error)
+	return clientCode.IsNotFoundCode()
+}
+
+// removeDeletedPodNodes drops pod nodes which no longer exist in the cluster
+func removeDeletedPodNodes(nodes []v1alpha1.ResourceNode, results []*argoApplication.Result) []v1alpha1.ResourceNode {
+	deletedPods := make(map[string]bool)
+	for _, result := range results {
+		if isDeletedPodResult(result) {
+			deletedPods[result.Request.GetNamespace()+"/"+result.Request.GetResourceName()] = true
+		}
+	}
+	if len(deletedPods) == 0 {
+		return nodes
+	}
+	liveNodes := make([]v1alpha1.ResourceNode, 0, len(nodes))
+	for _, node := range nodes {
+		if node.Kind == "Pod" && node.Group == "" && deletedPods[node.Namespace+"/"+node.Name] {
+			continue
+		}
+		liveNodes = append(liveNodes, node)
+	}
+	return liveNodes
 }
