@@ -1,3 +1,5 @@
+## v2.2.1
+
 ## Enhancements
 - feat: custom image tag with git commit hash (#7071)
 - feat: add artifact_id indexes on release_tags and image_comments (#7055)
@@ -33,3 +35,5 @@
 - refactor: centralize git credential resolution via GitCredentialService (#7001)
 - chore(deps): patch Dependabot security alerts without breaking build (#6983)
 - misc: migrarion fix (#6995)
+
+

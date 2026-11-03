@@ -1,0 +1,39 @@
+## v2.2.1
+
+## Enhancements
+- feat: custom image tag with git commit hash (#7071)
+- feat: add artifact_id indexes on release_tags and image_comments (#7055)
+- feat: scoped variable support for git repo and container repo (#7036)
+- feat: RBAC support for external argo/flux apps (#7014)
+- feat: migrate foreground delete on cd pipeline delete from ent to oss (#7037)
+- feat: resolve RBAC inconsistencies for helm apps with unique identifiers (#7034)
+- feat: Feat/prevent scope var deletion oss (#7027)
+- feat: decouple app lifecycle actions; add indexes to improve CI query… (#7019)
+- feat: obfuscate secret in audit logs (#6994)
+## Bugs
+- fix: remove deleted pods from argo cd resource tree - oss (#7075)
+- fix: linked ci artifact backfill support - oss (#7074)
+- fix: filter-based bulk user delete no longer capped to first page of 20 users (#7067)
+- fix: Hibernating filter in Devtron Apps list shows incomplete results (pager #2974) (#7049)
+- fix: scope filter-based bulk user delete to match listing filters (#7021)
+## Others
+- chore: Release candidate v0.48.0 (#7073)
+- chore: reserve migration 37804800 / event id 17 for audit log notifications (#7072)
+- chore: renumber 37x04600 migrations into strict gapless sequence (#7061)
+- feat(rbac): dev-admin cannot create/delete pipelines & workflows (#7043)
+- misc: docker build arg fix (#7057)
+- misc: oss changes - new composite primary key instead of single (#7054)
+- chore(deps): argo-cd v2->v3 + k8s 1.34 migration and Dependabot patches (#7051)
+- chore: sync main into develop (23 Sep) (#7052)
+- misc: Release candidate v0.47.0 (#7045)
+- misc: main sync develop 16sep (#7039)
+- misc: Conditions saved with the plugin definition (plugin_step_condition) a… (#7035)
+- perf(sql): add index on ci_workflow's status - FindByStatusesIn (#7017)
+- fix(security): enforce caller RBAC in API token webhook endpoint (#7016)
+- misc: Main sync 5 aug 2026 oss (#7008)
+- chore: update GitHub configurations and ownership assignments (#7005)
+- refactor: centralize git credential resolution via GitCredentialService (#7001)
+- chore(deps): patch Dependabot security alerts without breaking build (#6983)
+- misc: migrarion fix (#6995)
+
+
