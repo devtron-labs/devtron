@@ -17,7 +17,7 @@
 package kubernetesResourceAuditLogs
 
 import (
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"

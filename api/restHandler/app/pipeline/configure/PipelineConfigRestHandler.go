@@ -336,7 +336,11 @@ func (handler *PipelineConfigRestHandlerImpl) DeleteACDAppWithNonCascade(w http.
 	}
 	// rbac enforcer applying
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
+	appAction := casbin.ActionGet
+	if forceDelete { // force=true deletes the CD pipeline -> pipeline lifecycle
+		appAction = casbin.ActionDeletePipeline
+	}
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, appAction, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}

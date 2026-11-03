@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/util"

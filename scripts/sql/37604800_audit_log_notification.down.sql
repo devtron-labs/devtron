@@ -1,0 +1,1 @@
+-- No-op. See 37804800_audit_log_notification.up.sql.
