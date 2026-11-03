@@ -277,7 +277,7 @@ func TestCiTemplateService(t *testing.T) {
 		assert.True(t, err == nil, err)
 		mockedCiTemplateOverrideRepository := mocks.NewCiTemplateOverrideRepository(t)
 		mockedBuildConfigService := pipelineMocks.NewCiBuildConfigService(t)
-		ciTemplateServiceImpl := NewCiTemplateServiceImpl(sugaredLogger, mockedBuildConfigService, nil, mockedCiTemplateOverrideRepository)
+		ciTemplateServiceImpl := NewCiTemplateServiceImpl(sugaredLogger, mockedBuildConfigService, nil, mockedCiTemplateOverrideRepository, noopVariableEntityMappingService{})
 		mockedCiTemplateBean := &bean2.CiTemplateBean{}
 		materialId := 3
 		mockedTemplateOverrideId := 1
@@ -322,7 +322,7 @@ func TestCiTemplateService(t *testing.T) {
 		assert.True(t, err == nil, err)
 		mockedCiTemplateRepository := mocks.NewCiTemplateRepository(t)
 		mockedBuildConfigService := pipelineMocks.NewCiBuildConfigService(t)
-		ciTemplateServiceImpl := NewCiTemplateServiceImpl(sugaredLogger, mockedBuildConfigService, mockedCiTemplateRepository, nil)
+		ciTemplateServiceImpl := NewCiTemplateServiceImpl(sugaredLogger, mockedBuildConfigService, mockedCiTemplateRepository, nil, noopVariableEntityMappingService{})
 		mockedCiTemplateBean := &bean2.CiTemplateBean{}
 		materialId := 3
 		mockedTemplateId := 1
@@ -366,7 +366,7 @@ func TestCiTemplateService(t *testing.T) {
 		assert.True(t, err == nil, err)
 		mockedCiTemplateRepository := mocks.NewCiTemplateRepository(t)
 		mockedBuildConfigService := pipelineMocks.NewCiBuildConfigService(t)
-		ciTemplateServiceImpl := NewCiTemplateServiceImpl(sugaredLogger, mockedBuildConfigService, mockedCiTemplateRepository, nil)
+		ciTemplateServiceImpl := NewCiTemplateServiceImpl(sugaredLogger, mockedBuildConfigService, mockedCiTemplateRepository, nil, noopVariableEntityMappingService{})
 		mockedCiTemplateBean := &bean2.CiTemplateBean{}
 		materialId := 3
 		mockedTemplateId := 7
@@ -418,7 +418,7 @@ func TestCiTemplateService(t *testing.T) {
 		ciTemplateRepositoryImpl := pipelineConfig.NewCiTemplateRepositoryImpl(db, sugaredLogger)
 		ciTemplateOverrideRepositoryImpl := pipelineConfig.NewCiTemplateOverrideRepositoryImpl(db, sugaredLogger)
 		ciTemplateReadServiceImpl := pipeline.NewCiTemplateReadServiceImpl(sugaredLogger, ciTemplateRepositoryImpl, ciTemplateOverrideRepositoryImpl)
-		ciTemplateServiceImpl := NewCiTemplateServiceImpl(sugaredLogger, ciBuildConfigServiceImpl, ciTemplateRepositoryImpl, ciTemplateOverrideRepositoryImpl)
+		ciTemplateServiceImpl := NewCiTemplateServiceImpl(sugaredLogger, ciBuildConfigServiceImpl, ciTemplateRepositoryImpl, ciTemplateOverrideRepositoryImpl, noopVariableEntityMappingService{})
 		_, err = ciTemplateReadServiceImpl.FindTemplateOverrideByCiPipelineId(1)
 		appId := 1
 		ciTemplateBean, err := ciTemplateReadServiceImpl.FindByAppId(appId)

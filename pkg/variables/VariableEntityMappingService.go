@@ -160,6 +160,8 @@ func getUsageTypeForEntityType(entityType repository.EntityType) models.Variable
 		return models.UsageTypeSecret
 	case repository.EntityTypePipelineStage:
 		return models.UsageTypePipelineStage
+	case repository.EntityTypeContainerRepositoryAppLevel, repository.EntityTypeContainerRepositoryPipelineLevel:
+		return models.UsageTypeContainerRepository
 	}
 	return ""
 }
