@@ -1489,6 +1489,10 @@ func (impl *UserServiceImpl) getUserIdsHonoringFilters(request *userBean.Listing
 	// query, so that filter resolution for delete matches filter resolution for listing exactly.
 	impl.userCommonService.SetDefaultValuesIfNotPresent(request, false)
 	setStatusFilterType(request)
+	// a filter based bulk delete must apply to every user matching the filter, not just one listing page.
+	// SetDefaultValuesIfNotPresent above sets the default listing page size (bean2.DefaultSize), which would
+	// make the query builder append "limit ? offset ?" and silently cap the delete to the first page of users.
+	request.ShowAll = true
 	//query to get particular models respecting filters
 	query, queryParams := helper.GetQueryForUserListingWithFilters(request)
 	models, err := impl.userRepository.GetAllExecutingQuery(query, queryParams)

@@ -50,6 +50,9 @@ func (impl CiTemplateServiceImpl) Save(ciTemplateBean *bean.CiTemplateBean) erro
 	ciTemplateOverrideId := 0
 
 	buildConfig := ciTemplateBean.CiBuildConfig
+	if ciTemplateOverride != nil {
+		buildConfig.ClearDockerBuildArgs()
+	}
 	err := impl.CiBuildConfigService.Save(ciTemplateId, ciTemplateOverrideId, buildConfig, ciTemplateBean.UserId)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while saving ci build config", "config", buildConfig, "err", err)
@@ -86,6 +89,8 @@ func (impl CiTemplateServiceImpl) Update(ciTemplateBean *bean.CiTemplateBean) er
 		ciTemplateId = ciTemplate.Id
 	} else {
 		ciTemplateOverrideId = ciTemplateOverride.Id
+		// the full build_metadata is rewritten from the request, so args echoed back by a client are dropped here
+		ciBuildConfig.ClearDockerBuildArgs()
 	}
 	_, err := impl.CiBuildConfigService.UpdateOrSave(ciTemplateId, ciTemplateOverrideId, ciBuildConfig, ciTemplateBean.UserId)
 	if err != nil {
