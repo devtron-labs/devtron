@@ -546,6 +546,31 @@ devtronEnterprise:
     healthPort: 8000
     configs: {}
     secrets: {}
+  auditService:
+    enabled: false
+    registry: ""
+    image: "audit:4cabc285-1245-39891"
+    imagePullPolicy: IfNotPresent
+    port: 8080
+    healthPort: 8080
+    healthPath: /health
+    configs:
+      PG_DATABASE: audit
+      APP: audit-logs
+      SERVER_HTTP_PORT: "8080"
+      SERVER_SHUTDOWN_TIMEOUT: 30s
+      NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
+      AUDIT_ENRICHMENT_GRPC_ENABLED: "true"
+      ORCHESTRATOR_CLIENT_URL: devtron-service.devtroncd:9006
+    secrets: {}
+    resources: {}
+    podSecurityContext:
+      runAsGroup: 1000
+      runAsUser: 1000
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      runAsUser: 1000
   scoop:
     enabled: false
     registry: ""

@@ -93,8 +93,8 @@ spec:
         path: /grafana
         pathType: {{ .pathType }}
 {{- if $.Values.devtronEnterprise }}
-{{- if and $.Values.devtronEnterprise.enabled $.Values.devtronEnterprise.athenaApi }}
-{{- if $.Values.devtronEnterprise.athenaApi.enabled }}
+{{- if and $.Values.devtronEnterprise.enabled ( or $.Values.devtronEnterprise.athenaApi $.Values.devtronEnterprise.auditService) }}
+{{- if or $.Values.devtronEnterprise.athenaApi.enabled $.Values.devtronEnterprise.auditService.enabled }}
       - backend:
           service:
             name: devtron-service

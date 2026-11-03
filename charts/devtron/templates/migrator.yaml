@@ -702,3 +702,105 @@ spec:
   backoffLimit: 20
   activeDeadlineSeconds: 1500
 {{- end }}
+{{- if and $.Values.devtronEnterprise.enabled $.Values.devtronEnterprise.auditService.enabled }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+  name: postgresql-migrate-audit-{{ randAlphaNum 5 | lower }}
+  namespace: devtroncd
+spec:
+  activeDeadlineSeconds: 1500
+  backoffLimit: 20
+  completions: 1
+  parallelism: 1
+  template:
+    spec:
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.migrator.nodeSelector "tolerations" $.Values.components.migrator.tolerations "imagePullSecrets" $.Values.components.migrator.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      serviceAccountName: default
+      containers:
+        - command:
+            - /bin/sh
+            - -c
+            - |
+              if [ "$MIGRATE_TO_VERSION" = "0" ]; then
+                migrate -path "$SCRIPT_LOCATION" -database "postgres://$DB_USER_NAME:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=disable" up;
+              else
+                echo "$MIGRATE_TO_VERSION";
+                migrate -path "$SCRIPT_LOCATION" -database "postgres://$DB_USER_NAME:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=disable" goto "$MIGRATE_TO_VERSION";
+              fi
+          env:
+            - name: SCRIPT_LOCATION
+              value: /shared/sql/
+            - name: DB_TYPE
+              value: postgres
+            - name: DB_NAME
+              value: audit
+            - name: MIGRATE_TO_VERSION
+              value: "0"
+          envFrom:
+            - secretRef:
+                name: postgresql-migrator
+            - configMapRef:
+                name: audit-service-cm
+            - configMapRef:
+                name: devtron-common-cm
+          {{- if .image }}        
+          image: {{ include "common.image" (dict "component" $.Values.components.migrator "global" $.Values.global) }}
+          {{- else }}
+          image: migrate/migrate
+          {{- end }} 
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          imagePullPolicy: IfNotPresent
+          name: postgresql-migrate-audit
+          volumeMounts:
+            - mountPath: /shared
+              name: shared-volume
+      initContainers:
+        - command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Checking if database $DB_NAME exists..."
+              DB_EXISTS=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER_NAME" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'")
+
+              if [ "$DB_EXISTS" = "1" ]; then
+                echo "Database $DB_NAME already exists."
+              else
+                echo "Database $DB_NAME does not exist. Creating it now..."
+                PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER_NAME" -d postgres -c "CREATE DATABASE $DB_NAME;"
+                echo "Database $DB_NAME successfully created."
+              fi
+          envFrom:
+            - secretRef:
+                name: postgresql-migrator
+            - configMapRef:
+                name: audit-service-cm
+            - configMapRef:
+                name: devtron-common-cm
+          image: postgres:14
+          imagePullPolicy: IfNotPresent
+          name: check-and-create-db
+        - command:
+            - /bin/sh
+            - -c
+            - |
+              mkdir -p /shared/sql
+              cp -r scripts/sql/* /shared/sql/
+          image: {{ include "common.image" (dict "component" $.Values.devtronEnterprise.auditService "global" $.Values.global) }}
+          imagePullPolicy: IfNotPresent
+          name: init-devtron
+          volumeMounts:
+            - mountPath: /shared
+              name: shared-volume
+      restartPolicy: OnFailure
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - emptyDir: {}
+          name: shared-volume
+{{- end }}

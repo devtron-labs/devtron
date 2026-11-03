@@ -27,6 +27,9 @@ data:
   FEATURE_AI_INTEGRATION_ENABLE: "true"
   FEATURE_ATHENA_DEBUG_MODE_ENABLE: "true"
 {{- end }}
+{{- if $.Values.devtronEnterprise.auditService.enabled }}
+  FEATURE_AUDIT_LOG_ENABLE: "true"
+{{- end }}
 {{- end }}
 {{- if .config }}
   GA_ENABLED: {{ .config.analytics | default "false" | quote }}
