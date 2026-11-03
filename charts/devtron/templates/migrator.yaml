@@ -707,8 +707,6 @@ spec:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  annotations:
-    argocd.argoproj.io/hook: PreSync
   name: postgresql-migrate-audit-{{ randAlphaNum 5 | lower }}
   namespace: devtroncd
 spec:
@@ -726,18 +724,16 @@ spec:
             - -c
             - |
               if [ "$MIGRATE_TO_VERSION" = "0" ]; then
-                migrate -path "$SCRIPT_LOCATION" -database "postgres://$DB_USER_NAME:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=disable" up;
+                migrate -path "$SCRIPT_LOCATION" -database "postgres://$PG_USER:$PG_PASSWORD@$PG_ADDR:$PG_PORT/$PG_DATABASE?sslmode=disable" up;
               else
                 echo "$MIGRATE_TO_VERSION";
-                migrate -path "$SCRIPT_LOCATION" -database "postgres://$DB_USER_NAME:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=disable" goto "$MIGRATE_TO_VERSION";
+                migrate -path "$SCRIPT_LOCATION" -database "postgres://$PG_USER:$PG_PASSWORD@$PG_ADDR:$PG_PORT/$PG_DATABASE?sslmode=disable" goto "$MIGRATE_TO_VERSION";
               fi
           env:
             - name: SCRIPT_LOCATION
               value: /shared/sql/
             - name: DB_TYPE
               value: postgres
-            - name: DB_NAME
-              value: audit
             - name: MIGRATE_TO_VERSION
               value: "0"
           envFrom:
@@ -766,15 +762,15 @@ spec:
             - /bin/sh
             - -c
             - |
-              echo "Checking if database $DB_NAME exists..."
-              DB_EXISTS=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U postgres -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'")
+              echo "Checking if database $PG_DATABASE exists..."
+              DB_EXISTS=$(PGPASSWORD="$PG_PASSWORD" psql -h "$PG_ADDR" -p "$PG_PORT" -U "$PG_USER" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$PG_DATABASE'")
 
               if [ "$DB_EXISTS" = "1" ]; then
-                echo "Database $DB_NAME already exists."
+                echo "Database $PG_DATABASE already exists."
               else
-                echo "Database $DB_NAME does not exist. Creating it now..."
-                PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U postgres -d postgres -c "CREATE DATABASE $DB_NAME;"
-                echo "Database $DB_NAME successfully created."
+                echo "Database $PG_DATABASE does not exist. Creating it now..."
+                PGPASSWORD="$PG_PASSWORD" psql -h "$PG_ADDR" -p "$PG_PORT" -U "$PG_USER" -d postgres -c "CREATE DATABASE $PG_DATABASE;"
+                echo "Database $PG_DATABASE successfully created."
               fi
           envFrom:
             - secretRef:

@@ -8,7 +8,7 @@ metadata:
   name: audit-service-cm
   namespace: devtroncd
 data:
-{{ toYaml $.Values.devtronEnterprise.auditService.config | indent 2 }}
+{{ toYaml (mergeOverwrite (deepCopy $.Values.global.dbConfig) ( .configs | default dict)) | indent 2 }}
 ---
 apiVersion: v1
 kind: Service
