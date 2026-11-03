@@ -1,0 +1,96 @@
+{{- if and $.Values.devtronEnterprise.enabled $.Values.devtronEnterprise.auditService.enabled }}
+{{- with $.Values.devtronEnterprise.auditService }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app: audit-service
+  name: audit-service-cm
+  namespace: devtroncd
+data:
+{{ toYaml (mergeOverwrite (deepCopy $.Values.global.dbConfig) ( $.Values.devtronEnterprise.auditService.config | default dict)) | indent 2 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: audit-service
+  namespace: devtroncd
+  labels:
+    app: audit-service
+spec:
+  type: ClusterIP
+  ports:
+    - name: app
+      targetPort: app
+      protocol: TCP
+      port: 80
+  selector:
+    app: audit-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: audit-service
+  namespace: devtroncd
+  labels:
+    app: audit-service
+spec:
+  selector:
+    matchLabels:
+      app: audit-service
+  replicas: 1
+  minReadySeconds: 60
+  template:
+    metadata:
+      labels:
+        app: audit-service
+    spec:
+      {{- include "common.schedulerConfig" (dict "nodeSelector" .nodeSelector "tolerations" .tolerations "imagePullSecrets" .imagePullSecrets "global" $.Values.global) | indent 6 }}
+      {{- include "common.podSecurityContext" (dict "podSecurityContext" .podSecurityContext "global" $.Values.global) | indent 6 }}
+      terminationGracePeriodSeconds: 30
+      restartPolicy: Always
+      serviceAccountName: devtron
+      containers:
+      - name: audit-service
+        image: {{ include "common.image" (dict "component" $.Values.devtronEnterprise.auditService "global" $.Values.global) }}
+        {{- if .imagePullPolicy }}
+        imagePullPolicy: {{ .imagePullPolicy }}
+        {{- end }}
+        {{- include "common.containerSecurityContext" (dict "containerSecurityContext" .containerSecurityContext "global" $.Values.global) | indent 8 }}
+        ports:
+          - name: app
+            containerPort: {{ .port }}
+            protocol: TCP
+        {{- if .resources }}
+        resources:
+        {{- toYaml .resources | nindent 10 }}
+        {{- end }}
+        envFrom:
+          - configMapRef:
+              name: audit-service-cm
+          - secretRef:
+              name: audit-service-secret
+          - configMapRef:
+              name: devtron-common-cm
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: {{ .healthPath }}
+            port: {{ .healthPort }}
+            scheme: HTTP
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: {{ .healthPath }}
+            port: {{ .healthPort }}
+            scheme: HTTP
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+{{- end }}
+{{- end }}
