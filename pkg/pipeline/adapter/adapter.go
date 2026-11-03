@@ -178,6 +178,34 @@ func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs st
 	return ciBuildConfigBean, nil
 }
 
+// InheritAppLevelDockerBuildArgs sets the app level docker build args on the build config override of a
+// CI pipeline, replacing any args it carries: build args are not part of the override, an overridden
+// pipeline builds with the app level args (pipeline level args are merged on top by OverrideCiBuildConfig).
+// appLevelBuildConfig is the converted ciTemplate.CiBuildConfig; it is nil for legacy templates
+// that have no ci_build_config row, whose args still live in ci_template.args.
+func InheritAppLevelDockerBuildArgs(overrideBuildConfig *bean2.CiBuildConfigBean, ciTemplate *pipelineConfig.CiTemplate, appLevelBuildConfig *bean2.CiBuildConfigBean) error {
+	if overrideBuildConfig == nil || overrideBuildConfig.DockerBuildConfig == nil {
+		return nil
+	}
+	if appLevelBuildConfig != nil {
+		var appLevelArgs map[string]string
+		// app level build may not be dockerfile based (e.g. buildpack), then there are no docker build args to inherit
+		if appLevelBuildConfig.DockerBuildConfig != nil {
+			appLevelArgs = appLevelBuildConfig.DockerBuildConfig.Args
+		}
+		overrideBuildConfig.DockerBuildConfig.Args = appLevelArgs
+		return nil
+	}
+	appLevelArgs := map[string]string{}
+	if ciTemplate != nil && ciTemplate.Args != "" {
+		if err := json.Unmarshal([]byte(ciTemplate.Args), &appLevelArgs); err != nil {
+			return err
+		}
+	}
+	overrideBuildConfig.DockerBuildConfig.Args = appLevelArgs
+	return nil
+}
+
 func mergeMap(oldDockerArgs map[string]string, ciLevelDockerArgs map[string]string) map[string]string {
 	dockerArgs := make(map[string]string)
 	for key, value := range oldDockerArgs {
