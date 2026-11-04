@@ -235,15 +235,15 @@ components:
   # Change below values for nats
   nats:
     registry: ""
-    image: nats:2.9.3-alpine
+    image: nats:2.14.9-alpine
     reloader:
-      image: nats-server-config-reloader:0.6.2
+      image: nats-server-config-reloader:0.25.0
       imagePullPolicy: IfNotPresent
     metrics:
-      image: prometheus-nats-exporter:0.9.0
+      image: prometheus-nats-exporter:0.20.3
       imagePullPolicy: IfNotPresent
     natsBox:
-      image: nats-box
+      image: nats-box:0.20.1
     serviceMonitor:
       enabled: false
     persistence:
