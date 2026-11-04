@@ -33,7 +33,7 @@ type CustomTagService interface {
 	GetCustomTagByEntityKeyAndValue(entityKey int, entityValue string) (*repository.CustomTag, error)
 	GetActiveCustomTagByEntityKeyAndValue(entityKey int, entityValue string) (*repository.CustomTag, error)
 	GetActiveCustomTagByValues(entityValues []string) (pipelineBean.CustomTagArrayResponse, error)
-	GenerateImagePath(entityKey int, entityValue string, dockerRegistryURL string, dockerRepo string) (*repository.ImagePathReservation, error)
+	GenerateImagePath(entityKey int, entityValue string, dockerRegistryURL string, dockerRepo string, commitSha string) (*repository.ImagePathReservation, error)
 	DeleteCustomTagIfExists(tag bean.CustomTag) error
 	DeactivateImagePathReservation(id int) error
 	GetCustomTag(entityKey int, entityValue string) (*repository.CustomTag, string, error)
@@ -69,12 +69,17 @@ func (impl *CustomTagServiceImpl) CreateOrUpdateCustomTag(tag *bean.CustomTag) e
 		if err := validateTagPattern(tag.TagPattern); err != nil {
 			return err
 		}
+		if tag.EntityKey != pipelineBean.EntityTypeCiPipelineId && hasShaVariable(tag.TagPattern) {
+			return fmt.Errorf("variable with format {sha} or {SHA} is only supported for CI pipelines")
+		}
 	}
+	tagPattern := strings.ReplaceAll(tag.TagPattern, pipelineBean.IMAGE_TAG_VARIABLE_NAME_X, pipelineBean.IMAGE_TAG_VARIABLE_NAME_x)
+	tagPattern = strings.ReplaceAll(tagPattern, pipelineBean.IMAGE_TAG_VARIABLE_NAME_SHA, pipelineBean.IMAGE_TAG_VARIABLE_NAME_sha)
 	var customTagData repository.CustomTag
 	customTagData = repository.CustomTag{
 		EntityKey:            tag.EntityKey,
 		EntityValue:          tag.EntityValue,
-		TagPattern:           strings.ReplaceAll(tag.TagPattern, pipelineBean.IMAGE_TAG_VARIABLE_NAME_X, pipelineBean.IMAGE_TAG_VARIABLE_NAME_x),
+		TagPattern:           tagPattern,
 		AutoIncreasingNumber: tag.AutoIncreasingNumber,
 		Metadata:             tag.Metadata,
 		Active:               true,
@@ -124,18 +129,18 @@ func (impl *CustomTagServiceImpl) GetActiveCustomTagByValues(entityValues []stri
 	return response, err
 }
 
-func (impl *CustomTagServiceImpl) GenerateImagePath(entityKey int, entityValue string, dockerRegistryURL string, dockerRepo string) (*repository.ImagePathReservation, error) {
+func (impl *CustomTagServiceImpl) GenerateImagePath(entityKey int, entityValue string, dockerRegistryURL string, dockerRepo string, commitSha string) (*repository.ImagePathReservation, error) {
 	connection := impl.customTagRepository.GetConnection()
 	tx, err := connection.Begin()
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 	defer tx.Rollback()
 	customTagData, err := impl.customTagRepository.IncrementAndFetchByEntityKeyAndValue(tx, entityKey, entityValue)
 	if err != nil {
 		return nil, err
 	}
-	tag, err := validateAndConstructTag(customTagData)
+	tag, err := validateAndConstructTag(customTagData, commitSha)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +167,8 @@ func (impl *CustomTagServiceImpl) GenerateImagePath(entityKey int, entityValue s
 	return imagePathReservation, nil
 }
 
-func validateAndConstructTag(customTagData *repository.CustomTag) (string, error) {
+// validateAndConstructTag resolves {x} with the counter and {sha} with commitSha; commitSha is required only if the pattern has {sha}
+func validateAndConstructTag(customTagData *repository.CustomTag, commitSha string) (string, error) {
 	err := validateTagPattern(customTagData.TagPattern)
 	if err != nil {
 		return "", err
@@ -170,7 +176,11 @@ func validateAndConstructTag(customTagData *repository.CustomTag) (string, error
 	if customTagData.AutoIncreasingNumber < 0 {
 		return "", fmt.Errorf("counter {x} can not be negative")
 	}
+	if hasShaVariable(customTagData.TagPattern) && len(commitSha) == 0 {
+		return "", fmt.Errorf("commit sha not found for variable {sha} in image tag")
+	}
 	dockerImageTag := strings.ReplaceAll(customTagData.TagPattern, pipelineBean.IMAGE_TAG_VARIABLE_NAME_x, strconv.Itoa(customTagData.AutoIncreasingNumber-1)) //-1 because number is already incremented, current value will be used next time
+	dockerImageTag = strings.ReplaceAll(dockerImageTag, pipelineBean.IMAGE_TAG_VARIABLE_NAME_sha, commitSha)
 	if !isValidDockerImageTag(dockerImageTag) {
 		return dockerImageTag, fmt.Errorf("invalid docker tag")
 	}
@@ -193,15 +203,26 @@ func validateTagPattern(customTagPattern string) error {
 		return fmt.Errorf("only one variable with format {x} or {X} allowed")
 	}
 
+	shaCount := strings.Count(customTagPattern, pipelineBean.IMAGE_TAG_VARIABLE_NAME_SHA) + strings.Count(customTagPattern, pipelineBean.IMAGE_TAG_VARIABLE_NAME_sha)
+	if shaCount > 1 {
+		return fmt.Errorf("only one variable with format {sha} or {SHA} allowed")
+	}
+
 	// replacing variable with 1 (dummy value) and checking if resulting string is valid tag
 	tagWithDummyValue := strings.ReplaceAll(customTagPattern, pipelineBean.IMAGE_TAG_VARIABLE_NAME_x, "1")
 	tagWithDummyValue = strings.ReplaceAll(tagWithDummyValue, pipelineBean.IMAGE_TAG_VARIABLE_NAME_X, "1")
+	tagWithDummyValue = strings.ReplaceAll(tagWithDummyValue, pipelineBean.IMAGE_TAG_VARIABLE_NAME_SHA, "abcdef12")
+	tagWithDummyValue = strings.ReplaceAll(tagWithDummyValue, pipelineBean.IMAGE_TAG_VARIABLE_NAME_sha, "abcdef12")
 
 	if !isValidDockerImageTag(tagWithDummyValue) {
 		return fmt.Errorf("not a valid image tag")
 	}
 
 	return nil
+}
+
+func hasShaVariable(tagPattern string) bool {
+	return strings.Contains(tagPattern, pipelineBean.IMAGE_TAG_VARIABLE_NAME_SHA) || strings.Contains(tagPattern, pipelineBean.IMAGE_TAG_VARIABLE_NAME_sha)
 }
 
 func isValidDockerImageTag(tag string) bool {
@@ -226,7 +247,8 @@ func (impl *CustomTagServiceImpl) GetCustomTag(entityKey int, entityValue string
 	if customTagData != nil && len(customTagData.TagPattern) == 0 {
 		return customTagData, dockerTag, nil
 	}
-	dockerTag, err = validateAndConstructTag(customTagData)
+	// {sha} is CI-only, rejected while saving pre/post CD tags
+	dockerTag, err = validateAndConstructTag(customTagData, "")
 	if err != nil {
 		return nil, "", err
 	}

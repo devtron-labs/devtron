@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/devtron-labs/common-lib/utils/secretScanner"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/util"
@@ -92,6 +93,8 @@ func (impl LoggingMiddlewareImpl) LoggingMiddleware(next http.Handler) http.Hand
 		// Calculate response time
 		auditLogDto.ResponseTime = time.Since(startTime)
 		auditLogDto.ApiResponseCode = d.Status()
+		auditLogDto.RequestPayload = []byte(secretScanner.MaskCredentialKeyValues(string(auditLogDto.RequestPayload)))
+
 		LogRequest(auditLogDto)
 	})
 }

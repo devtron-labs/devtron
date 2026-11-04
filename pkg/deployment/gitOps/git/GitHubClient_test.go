@@ -8,18 +8,20 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/caarlos0/env"
-	"github.com/devtron-labs/devtron/api/bean"
-	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
-	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/commandManager"
-	validationBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation/bean"
-	"github.com/stretchr/testify/assert"
-	"k8s.io/apimachinery/pkg/util/rand"
 	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/caarlos0/env"
+	"github.com/devtron-labs/devtron/api/bean"
+	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
+	"github.com/devtron-labs/devtron/internal/util"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/commandManager"
+	validationBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation/bean"
+	"github.com/stretchr/testify/assert"
+	"k8s.io/apimachinery/pkg/util/rand"
 )
 
 func TestGitHubProvider(t *testing.T) {
@@ -43,7 +45,7 @@ func newGitHubTestConfig() (*gitHubTestConfig, error) {
 }
 
 func (github *gitHubTestConfig) getProvider() string {
-	return GITHUB_PROVIDER
+	return bean2.GITHUB_PROVIDER
 }
 
 func (github *gitHubTestConfig) getHost() string {

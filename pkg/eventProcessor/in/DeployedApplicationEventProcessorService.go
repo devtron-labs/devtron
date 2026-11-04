@@ -21,7 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -281,7 +281,7 @@ func (impl *DeployedApplicationEventProcessorImpl) updateDevtronAppArgoAppDelete
 		impl.logger.Infow("Deployment delete not requested for app, not deleting app from DB", "appName", application.Name, "app", application)
 		return nil
 	}
-	_, err = impl.pipelineBuilder.DeleteCdPipeline(&pipelineModel, context.Background(), bean.FORCE_DELETE, false, 1)
+	_, err = impl.pipelineBuilder.DeleteCdPipeline(&pipelineModel, context.Background(), bean.FORCE_DELETE, false, false, 1)
 	if err != nil {
 		impl.logger.Errorw("error in deleting cd pipeline", "err", err)
 		return err

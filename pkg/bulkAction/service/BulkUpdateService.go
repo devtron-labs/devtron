@@ -109,6 +109,7 @@ type BulkUpdateServiceImpl struct {
 	deployedAppService               deployedApp.DeployedAppService
 	cdPipelineEventPublishService    out.CDPipelineEventPublishService
 	ciHandlerService                 trigger.HandlerService
+	envVariables                     *util2.EnvironmentVariables
 	*BulkUpdateServiceEntImpl
 }
 
@@ -131,6 +132,7 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository repository.BulkEditRepository
 	deployedAppService deployedApp.DeployedAppService,
 	cdPipelineEventPublishService out.CDPipelineEventPublishService,
 	ciHandlerService trigger.HandlerService,
+	envVariables *util2.EnvironmentVariables,
 	bulkUpdateServiceEntImpl *BulkUpdateServiceEntImpl,
 ) *BulkUpdateServiceImpl {
 	return &BulkUpdateServiceImpl{
@@ -153,6 +155,7 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository repository.BulkEditRepository
 		deployedAppService:               deployedAppService,
 		cdPipelineEventPublishService:    cdPipelineEventPublishService,
 		ciHandlerService:                 ciHandlerService,
+		envVariables:                     envVariables,
 		BulkUpdateServiceEntImpl:         bulkUpdateServiceEntImpl,
 	}
 }
@@ -1750,7 +1753,7 @@ func (impl BulkUpdateServiceImpl) PerformBulkDeleteActionOnCdPipelines(impactedP
 		}
 		if !dryRun {
 			// Delete Cd pipeline
-			deleteResponse, err := impl.pipelineBuilder.DeleteCdPipeline(pipeline, ctx, deleteAction, true, userId)
+			deleteResponse, err := impl.pipelineBuilder.DeleteCdPipeline(pipeline, ctx, deleteAction, true, impl.envVariables.DeploymentServiceTypeConfig.ForegroundDeleteCdPipeline, userId)
 			if err != nil {
 				impl.logger.Errorw("error in deleting cd pipeline", "err", err, "pipelineId", pipeline.Id)
 				respDto.DeletionResult = fmt.Sprintf("Not able to delete pipeline, %v", err)

@@ -177,7 +177,9 @@ func (impl EnforcerUtilHelmImpl) GetAppRBACNameByInstalledAppId(installedAppVers
 		impl.logger.Errorw("error in fetching installed app version data", "err", err)
 		return fmt.Sprintf("%s/%s/%s", "", "", ""), fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
-	rbacOne := fmt.Sprintf("%s/%s/%s", InstalledApp.App.Team.Name, InstalledApp.Environment.EnvironmentIdentifier, InstalledApp.App.AppName)
+	appNameForRbac := InstalledApp.App.GetAppNameForRbac()
+	teamName := getTeamNameForHelmRbac(&InstalledApp.App)
+	rbacOne := fmt.Sprintf("%s/%s/%s", teamName, InstalledApp.Environment.EnvironmentIdentifier, appNameForRbac)
 
 	if InstalledApp.Environment.IsVirtualEnvironment {
 		return rbacOne, ""
@@ -186,7 +188,7 @@ func (impl EnforcerUtilHelmImpl) GetAppRBACNameByInstalledAppId(installedAppVers
 	var rbacTwo string
 	if !InstalledApp.Environment.IsVirtualEnvironment {
 		if InstalledApp.Environment.EnvironmentIdentifier != InstalledApp.Environment.Cluster.ClusterName+"__"+InstalledApp.Environment.Namespace {
-			rbacTwo = fmt.Sprintf("%s/%s/%s", InstalledApp.App.Team.Name, InstalledApp.Environment.Cluster.ClusterName+"__"+InstalledApp.Environment.Namespace, InstalledApp.App.AppName)
+			rbacTwo = fmt.Sprintf("%s/%s/%s", teamName, InstalledApp.Environment.Cluster.ClusterName+"__"+InstalledApp.Environment.Namespace, appNameForRbac)
 			return rbacOne, rbacTwo
 		}
 	}
@@ -205,6 +207,6 @@ func (impl EnforcerUtilHelmImpl) GetAppRBACNameByInstalledAppIdAndTeamId(install
 		impl.logger.Errorw("error in fetching project by teamID", "err", err)
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
-	rbac := fmt.Sprintf("%s/%s/%s", project.Name, installedApp.Environment.EnvironmentIdentifier, installedApp.App.AppName)
+	rbac := fmt.Sprintf("%s/%s/%s", project.Name, installedApp.Environment.EnvironmentIdentifier, installedApp.App.GetAppNameForRbac())
 	return rbac
 }

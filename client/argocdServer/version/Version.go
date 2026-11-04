@@ -18,7 +18,7 @@ package version
 
 import (
 	"context"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/version"
 	"github.com/golang/protobuf/ptypes/empty"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"

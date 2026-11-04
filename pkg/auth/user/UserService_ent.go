@@ -119,6 +119,13 @@ func setStatusFilterType(request *userBean.ListingRequest) {
 	return
 }
 
+// isStatusFilterApplied reports whether the request carries a concrete status filter.
+// the OSS ListingRequest has no status filtering concept, so this is always false here;
+// an enterprise build that adds status filtering should override this accordingly.
+func isStatusFilterApplied(request *userBean.ListingRequest) bool {
+	return false
+}
+
 func setCurrentTimeInUserInfo(request *userBean.ListingRequest) {
 	return
 }

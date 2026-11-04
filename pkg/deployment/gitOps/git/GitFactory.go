@@ -20,6 +20,8 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/adapter"
@@ -28,7 +30,6 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
-	"time"
 )
 
 type GitFactory struct {
@@ -39,7 +40,10 @@ type GitFactory struct {
 }
 
 type ClientHelperObject struct {
-	Config *bean.GitConfig
+	Client              GitOpsClient
+	GitOpsHelper        *GitOpsHelper
+	ClientCreationError error
+	Config              *bean.GitConfig
 }
 
 func (factory *GitFactory) Reload(gitOpsConfigReadService config.GitOpsConfigReadService) (err error) {

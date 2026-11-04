@@ -5,6 +5,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
+	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/pkg/fluxApplication"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -20,26 +21,34 @@ type FluxApplicationRestHandlerImpl struct {
 	fluxApplicationService fluxApplication.FluxApplicationService
 	logger                 *zap.SugaredLogger
 	enforcer               casbin.Enforcer
+	enforcerUtilGitOps     rbac.EnforcerUtilGitOps
 }
 
 func NewFluxApplicationRestHandlerImpl(fluxApplicationService fluxApplication.FluxApplicationService,
-	logger *zap.SugaredLogger, enforcer casbin.Enforcer) *FluxApplicationRestHandlerImpl {
+	logger *zap.SugaredLogger, enforcer casbin.Enforcer,
+	enforcerUtilGitOps rbac.EnforcerUtilGitOps) *FluxApplicationRestHandlerImpl {
 	return &FluxApplicationRestHandlerImpl{
 		fluxApplicationService: fluxApplicationService,
 		logger:                 logger,
 		enforcer:               enforcer,
+		enforcerUtilGitOps:     enforcerUtilGitOps,
 	}
 
 }
 
+// checkFluxAppAuth builds the RBAC object from the app identity and enforces on it. Passed into
+// the service because the app list is streamed and cannot be filtered after the fact.
+func (handler *FluxApplicationRestHandlerImpl) checkFluxAppAuth(token string, clusterName string, namespace string, appName string) bool {
+	object := handler.enforcerUtilGitOps.GetExternalGitOpsAppObjectByClusterName(clusterName, namespace, appName)
+	if len(object) == 0 {
+		return false
+	}
+	return handler.enforcer.Enforce(token, casbin.ResourceFluxApp, casbin.ActionGet, object)
+}
+
 func (handler *FluxApplicationRestHandlerImpl) ListFluxApplications(w http.ResponseWriter, r *http.Request) {
 
-	//handle super-admin RBAC
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
 	v := r.URL.Query()
 	clusterIdString := v.Get("clusterIds")
 	var clusterIds []int
@@ -59,7 +68,7 @@ func (handler *FluxApplicationRestHandlerImpl) ListFluxApplications(w http.Respo
 		return
 	}
 	handler.logger.Debugw("extracted ClusterIds successfully ", "clusterIds", clusterIds)
-	handler.fluxApplicationService.ListFluxApplications(r.Context(), clusterIds, noStream, w)
+	handler.fluxApplicationService.ListFluxApplications(r.Context(), clusterIds, noStream, w, token, handler.checkFluxAppAuth)
 }
 
 func (handler *FluxApplicationRestHandlerImpl) GetApplicationDetail(w http.ResponseWriter, r *http.Request) {
@@ -76,12 +85,14 @@ func (handler *FluxApplicationRestHandlerImpl) GetApplicationDetail(w http.Respo
 		return
 	}
 
-	// handle super-admin RBAC
+	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+	object := handler.enforcerUtilGitOps.GetExternalGitOpsAppObject(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.Name)
+	if len(object) == 0 || !handler.enforcer.Enforce(token, casbin.ResourceFluxApp, casbin.ActionGet, object) {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
+	//RBAC enforcer Ends
 
 	res, err := handler.fluxApplicationService.GetFluxAppDetail(r.Context(), appIdentifier)
 	if err != nil {

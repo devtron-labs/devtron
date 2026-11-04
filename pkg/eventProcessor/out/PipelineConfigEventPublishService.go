@@ -24,7 +24,7 @@ import (
 )
 
 type PipelineConfigEventPublishService interface {
-	PublishCDPipelineDelete(pipelineId int, triggeredBy int32) error
+	PublishCDPipelineDelete(pipelineId int, triggeredBy int32, foregroundDelete bool) error
 }
 
 type PipelineConfigEventPublishServiceImpl struct {
@@ -41,11 +41,12 @@ func NewPipelineConfigEventPublishServiceImpl(logger *zap.SugaredLogger,
 
 }
 
-func (impl *PipelineConfigEventPublishServiceImpl) PublishCDPipelineDelete(pipelineId int, triggeredBy int32) error {
+func (impl *PipelineConfigEventPublishServiceImpl) PublishCDPipelineDelete(pipelineId int, triggeredBy int32, foregroundDelete bool) error {
 	impl.logger.Infow("cd pipeline delete event handle", "pipelineId", pipelineId, "triggeredBy", triggeredBy)
 	req := &bean.CdPipelineDeleteEvent{
-		PipelineId:  pipelineId,
-		TriggeredBy: triggeredBy,
+		PipelineId:       pipelineId,
+		TriggeredBy:      triggeredBy,
+		ForegroundDelete: foregroundDelete,
 	}
 	data, err := json.Marshal(req)
 	if err != nil {

@@ -15,17 +15,25 @@ type UserResourceResponseDto struct {
 	Data interface{} `json:"data"`
 }
 type ResourceOptionsDto struct {
-	TeamsResp            []bean2.TeamRequest
-	HelmEnvResp          []*bean.ClusterEnvDto
-	ClusterResp          []bean3.ClusterBean
-	NameSpaces           []string
-	ApiResourcesResp     *k8s.GetAllApiResourcesResponse
-	ClusterResourcesResp *k8s.ClusterResourceListMap
-	TeamAppResp          []*app.TeamAppBean
-	EnvResp              []bean.EnvironmentBean
-	ChartGroupResp       *chartGroup.ChartGroupList
-	JobsResp             []*AppView.JobContainer
-	AppWfsResp           *bean4.WorkflowNamesResponse
+	TeamsResp             []bean2.TeamRequest
+	HelmEnvResp           []*bean.ClusterEnvDto
+	ClusterResp           []bean3.ClusterBean
+	NameSpaces            []string
+	ApiResourcesResp      *k8s.GetAllApiResourcesResponse
+	ClusterResourcesResp  *k8s.ClusterResourceListMap
+	TeamAppResp           []*app.TeamAppBean
+	EnvResp               []bean.EnvironmentBean
+	ChartGroupResp        *chartGroup.ChartGroupList
+	JobsResp              []*AppView.JobContainer
+	AppWfsResp            *bean4.WorkflowNamesResponse
+	ExternalGitOpsAppResp []*ExternalGitOpsAppDto
+}
+
+type ExternalGitOpsAppDto struct {
+	AppName     string `json:"appName"`
+	Namespace   string `json:"namespace"`
+	ClusterId   int    `json:"clusterId"`
+	ClusterName string `json:"clusterName"`
 }
 
 func NewResourceOptionsDto() *ResourceOptionsDto {
@@ -78,6 +86,11 @@ func (r *ResourceOptionsDto) WithAppWfsResp(appWfsResp *bean4.WorkflowNamesRespo
 	return r
 }
 
+func (r *ResourceOptionsDto) WithExternalGitOpsAppResp(externalGitOpsAppResp []*ExternalGitOpsAppDto) *ResourceOptionsDto {
+	r.ExternalGitOpsAppResp = externalGitOpsAppResp
+	return r
+}
+
 type Version string
 type UserResourceKind string
 
@@ -95,6 +108,10 @@ const (
 	ClusterNamespaces      UserResourceKind = "cluster/namespaces"
 	ClusterApiResources    UserResourceKind = "cluster/apiResources"
 	ClusterResources       UserResourceKind = "cluster/resources"
+	KindArgoEnvironment    UserResourceKind = "environment/argo"
+	KindFluxEnvironment    UserResourceKind = "environment/flux"
+	KindArgoApplication    UserResourceKind = Application + "/argo"
+	KindFluxApplication    UserResourceKind = Application + "/flux"
 )
 
 const (

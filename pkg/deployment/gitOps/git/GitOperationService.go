@@ -20,6 +20,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
+	"os"
+	"path"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/common-lib/utils/retryFunc"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
@@ -35,14 +43,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/chart"
-	"net/url"
-	"os"
-	"path"
-	"path/filepath"
-	"regexp"
 	"sigs.k8s.io/yaml"
-	"strings"
-	"time"
 )
 
 type GitOperationService interface {

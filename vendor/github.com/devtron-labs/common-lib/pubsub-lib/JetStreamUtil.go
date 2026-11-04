@@ -139,6 +139,9 @@ const (
 	STORAGE_VELERO_POST_INSTALLATION_TOPIC             string = "STORAGE_VELERO_POST_INSTALLATION_TOPIC"
 	STORAGE_VELERO_POST_INSTALLATION_GROUP             string = "STORAGE_VELERO_POST_INSTALLATION_GROUP"
 	STORAGE_VELERO_POST_INSTALLATION_DURABLE           string = "STORAGE_VELERO_POST_INSTALLATION_DURABLE"
+	AUDIT_LOG_TOPIC                                    string = "AUDIT_LOG_TOPIC"
+	AUDIT_LOG_GROUP                                    string = "AUDIT_LOG_GROUP"
+	AUDIT_LOG_DURABLE                                  string = "AUDIT_LOG_DURABLE"
 )
 
 type NatsTopic struct {
@@ -199,6 +202,7 @@ var natsTopicMapping = map[string]NatsTopic{
 	STORAGE_MODULE_TOPIC:                             {topicName: STORAGE_MODULE_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: STORAGE_MODULE_GROUP, consumerName: STORAGE_MODULE_DURABLE},
 	STORAGE_VELERO_INSTALL_TOPIC:                     {topicName: STORAGE_VELERO_INSTALL_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: STORAGE_VELERO_INSTALL_GROUP, consumerName: STORAGE_VELERO_INSTALL_DURABLE},
 	STORAGE_VELERO_POST_INSTALLATION_TOPIC:           {topicName: STORAGE_VELERO_POST_INSTALLATION_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: STORAGE_VELERO_POST_INSTALLATION_GROUP, consumerName: STORAGE_VELERO_POST_INSTALLATION_DURABLE},
+	AUDIT_LOG_TOPIC:                                  {topicName: AUDIT_LOG_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: AUDIT_LOG_GROUP, consumerName: AUDIT_LOG_DURABLE},
 }
 
 var NatsStreamWiseConfigMapping = map[string]NatsStreamConfig{
@@ -246,6 +250,7 @@ var NatsConsumerWiseConfigMapping = map[string]NatsConsumerConfig{
 	STORAGE_MODULE_DURABLE:                             {},
 	STORAGE_VELERO_INSTALL_DURABLE:                     {},
 	STORAGE_VELERO_POST_INSTALLATION_DURABLE:           {},
+	AUDIT_LOG_DURABLE:                                  {},
 }
 
 // getConsumerConfigMap will fetch the consumer wise config from the json string

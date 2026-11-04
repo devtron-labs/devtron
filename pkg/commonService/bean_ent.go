@@ -17,5 +17,6 @@
 package commonService
 
 type EnvironmentVariableListEnt struct {
-	IsAirGapEnvironment bool `json:"isAirGapEnvironment"`
+	IsAirGapEnvironment        bool `json:"isAirGapEnvironment"`
+	ForegroundDeleteCdPipeline bool `json:"foregroundDeleteCdPipeline"`
 }

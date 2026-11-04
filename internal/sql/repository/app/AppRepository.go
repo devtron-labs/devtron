@@ -53,6 +53,18 @@ func (app *App) IsAppJobOrExternalType() bool {
 	return len(app.DisplayName) > 0
 }
 
+// GetAppNameForRbac returns the app name that rbac objects are built with.
+// For an external helm app linked to chart store, app_name holds the unique identifier
+// (<releaseName>-<namespace>-<clusterId>) while display_name holds the release name. Rbac policies are
+// always created against the release name, as that is what is shown to the user, so display_name must
+// win whenever it is set.
+func (app *App) GetAppNameForRbac() string {
+	if len(app.DisplayName) > 0 {
+		return app.DisplayName
+	}
+	return app.AppName
+}
+
 type AppRepository interface {
 	SaveWithTxn(pipelineGroup *App, tx *pg.Tx) error
 	Update(app *App) error

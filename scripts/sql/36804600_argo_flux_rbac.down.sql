@@ -1,0 +1,2 @@
+DELETE FROM "public"."rbac_policy_data" WHERE entity='apps' AND access_type IN ('argo-app','flux-app');
+DELETE FROM "public"."rbac_role_data"   WHERE entity='apps' AND access_type IN ('argo-app','flux-app');

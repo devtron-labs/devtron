@@ -894,11 +894,16 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDPipelineDeleteEvent() error {
 		}
 		if util3.IsHelmApp(deploymentAppType) || util3.IsAcdApp(deploymentAppType) {
 			impl.RemoveReleaseContextForPipeline(cdPipelineDeleteEvent.PipelineId, cdPipelineDeleteEvent.TriggeredBy)
-			// there is a possibility that when the pipeline was deleted, async request nats message was not consumed completely and could have led to dangling deployment app
-			// trying to delete deployment app once
-			err = impl.cdPipelineConfigService.DeleteHelmTypePipelineDeploymentApp(context.Background(), true, pipeline)
-			if err != nil {
-				impl.logger.Errorw("error, DeleteHelmTypePipelineDeploymentApp", "pipelineId", pipeline.Id)
+			if cdPipelineDeleteEvent.ForegroundDelete {
+				impl.logger.Infow("foreground delete: skipping deployment app deletion in async delete event, detaching pipeline",
+					"pipelineId", pipeline.Id, "deploymentAppName", pipeline.DeploymentAppName)
+			} else {
+				// there is a possibility that when the pipeline was deleted, async request nats message was not consumed completely and could have led to dangling deployment app
+				// trying to delete deployment app once
+				err = impl.cdPipelineConfigService.DeleteHelmTypePipelineDeploymentApp(context.Background(), true, pipeline)
+				if err != nil {
+					impl.logger.Errorw("error, DeleteHelmTypePipelineDeploymentApp", "pipelineId", pipeline.Id)
+				}
 			}
 		}
 	}

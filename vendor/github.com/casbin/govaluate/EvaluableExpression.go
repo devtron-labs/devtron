@@ -3,6 +3,7 @@ package govaluate
 import (
 	"errors"
 	"fmt"
+	"sync"
 )
 
 const isoDateFormat string = "2006-01-02T15:04:05.999999999Z0700"
@@ -11,8 +12,8 @@ const shortCircuitHolder int = -1
 var DUMMY_PARAMETERS = MapParameters(map[string]interface{}{})
 
 /*
-	EvaluableExpression represents a set of ExpressionTokens which, taken together,
-	are an expression that can be evaluated down into a single value.
+EvaluableExpression represents a set of ExpressionTokens which, taken together,
+are an expression that can be evaluated down into a single value.
 */
 type EvaluableExpression struct {
 
@@ -38,8 +39,8 @@ type EvaluableExpression struct {
 }
 
 /*
-	Parses a new EvaluableExpression from the given [expression] string.
-	Returns an error if the given expression has invalid syntax.
+Parses a new EvaluableExpression from the given [expression] string.
+Returns an error if the given expression has invalid syntax.
 */
 func NewEvaluableExpression(expression string) (*EvaluableExpression, error) {
 
@@ -48,8 +49,8 @@ func NewEvaluableExpression(expression string) (*EvaluableExpression, error) {
 }
 
 /*
-	Similar to [NewEvaluableExpression], except that instead of a string, an already-tokenized expression is given.
-	This is useful in cases where you may be generating an expression automatically, or using some other parser (e.g., to parse from a query language)
+Similar to [NewEvaluableExpression], except that instead of a string, an already-tokenized expression is given.
+This is useful in cases where you may be generating an expression automatically, or using some other parser (e.g., to parse from a query language)
 */
 func NewEvaluableExpressionFromTokens(tokens []ExpressionToken) (*EvaluableExpression, error) {
 
@@ -84,8 +85,8 @@ func NewEvaluableExpressionFromTokens(tokens []ExpressionToken) (*EvaluableExpre
 }
 
 /*
-	Similar to [NewEvaluableExpression], except enables the use of user-defined functions.
-	Functions passed into this will be available to the expression.
+Similar to [NewEvaluableExpression], except enables the use of user-defined functions.
+Functions passed into this will be available to the expression.
 */
 func NewEvaluableExpressionWithFunctions(expression string, functions map[string]ExpressionFunction) (*EvaluableExpression, error) {
 
@@ -126,50 +127,64 @@ func NewEvaluableExpressionWithFunctions(expression string, functions map[string
 }
 
 /*
-	Same as `Eval`, but automatically wraps a map of parameters into a `govalute.Parameters` structure.
+Same as `Eval`, but automatically wraps a map of parameters into a `govalute.Parameters` structure.
 */
-func (this EvaluableExpression) Evaluate(parameters map[string]interface{}) (interface{}, error) {
+func (e EvaluableExpression) Evaluate(parameters map[string]interface{}) (interface{}, error) {
 
 	if parameters == nil {
-		return this.Eval(nil)
+		return e.Eval(nil)
 	}
 
-	return this.Eval(MapParameters(parameters))
+	return e.Eval(MapParameters(parameters))
+}
+
+var sanitizedParamsPool = sync.Pool{
+	New: func() interface{} {
+		return &sanitizedParameters{}
+	},
 }
 
 /*
-	Runs the entire expression using the given [parameters].
-	e.g., If the expression contains a reference to the variable "foo", it will be taken from `parameters.Get("foo")`.
+Runs the entire expression using the given [parameters].
+e.g., If the expression contains a reference to the variable "foo", it will be taken from `parameters.Get("foo")`.
 
-	This function returns errors if the combination of expression and parameters cannot be run,
-	such as if a variable in the expression is not present in [parameters].
+This function returns errors if the combination of expression and parameters cannot be run,
+such as if a variable in the expression is not present in [parameters].
 
-	In all non-error circumstances, this returns the single value result of the expression and parameters given.
-	e.g., if the expression is "1 + 1", this will return 2.0.
-	e.g., if the expression is "foo + 1" and parameters contains "foo" = 2, this will return 3.0
+In all non-error circumstances, this returns the single value result of the expression and parameters given.
+e.g., if the expression is "1 + 1", this will return 2.0.
+e.g., if the expression is "foo + 1" and parameters contains "foo" = 2, this will return 3.0
 */
-func (this EvaluableExpression) Eval(parameters Parameters) (interface{}, error) {
+func (e EvaluableExpression) Eval(parameters Parameters) (interface{}, error) {
 
-	if this.evaluationStages == nil {
+	if e.evaluationStages == nil {
 		return nil, nil
 	}
 
+	free := false
 	if parameters != nil {
-		parameters = &sanitizedParameters{parameters}
+		free = true
+		tmp := sanitizedParamsPool.Get().(*sanitizedParameters)
+		tmp.orig = parameters
+		parameters = tmp
 	} else {
 		parameters = DUMMY_PARAMETERS
 	}
 
-	return this.evaluateStage(this.evaluationStages, parameters)
+	ret, err := e.evaluateStage(e.evaluationStages, parameters)
+	if free {
+		sanitizedParamsPool.Put(parameters)
+	}
+	return ret, err
 }
 
-func (this EvaluableExpression) evaluateStage(stage *evaluationStage, parameters Parameters) (interface{}, error) {
+func (e EvaluableExpression) evaluateStage(stage *evaluationStage, parameters Parameters) (interface{}, error) {
 
 	var left, right interface{}
 	var err error
 
 	if stage.leftStage != nil {
-		left, err = this.evaluateStage(stage.leftStage, parameters)
+		left, err = e.evaluateStage(stage.leftStage, parameters)
 		if err != nil {
 			return nil, err
 		}
@@ -202,13 +217,13 @@ func (this EvaluableExpression) evaluateStage(stage *evaluationStage, parameters
 	}
 
 	if right != shortCircuitHolder && stage.rightStage != nil {
-		right, err = this.evaluateStage(stage.rightStage, parameters)
+		right, err = e.evaluateStage(stage.rightStage, parameters)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	if this.ChecksTypes {
+	if e.ChecksTypes {
 		if stage.typeCheck == nil {
 
 			err = typeCheck(stage.leftTypeCheck, left, stage.symbol, stage.typeErrorFormat)
@@ -247,30 +262,37 @@ func typeCheck(check stageTypeCheck, value interface{}, symbol OperatorSymbol, f
 }
 
 /*
-	Returns an array representing the ExpressionTokens that make up this expression.
+Returns an array representing the ExpressionTokens that make up this expression.
 */
-func (this EvaluableExpression) Tokens() []ExpressionToken {
+func (e EvaluableExpression) Tokens() []ExpressionToken {
 
-	return this.tokens
+	return e.tokens
 }
 
 /*
-	Returns the original expression used to create this EvaluableExpression.
+Returns the original expression used to create this EvaluableExpression.
 */
-func (this EvaluableExpression) String() string {
+func (e EvaluableExpression) String() string {
 
-	return this.inputExpression
+	return e.inputExpression
 }
 
 /*
-	Returns an array representing the variables contained in this EvaluableExpression.
+Returns an array representing the variables contained in this EvaluableExpression.
 */
-func (this EvaluableExpression) Vars() []string {
+func (e EvaluableExpression) Vars() []string {
 	var varlist []string
-	for _, val := range this.Tokens() {
+	for _, val := range e.Tokens() {
 		if val.Kind == VARIABLE {
 			varlist = append(varlist, val.Value.(string))
 		}
 	}
 	return varlist
+}
+
+/*
+Removes the tokens from the EvaluableExpression. This will cause the Tokens() and Vars() functions to no longer operate, but will save memory.
+*/
+func (e *EvaluableExpression) CleanupTokens() {
+	e.tokens = e.tokens[:0]
 }

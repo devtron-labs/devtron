@@ -19,6 +19,8 @@ package commandManager
 import (
 	"context"
 	"time"
+
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 )
 
 const TLS_FOLDER = "/tmp/tls"
@@ -60,4 +62,5 @@ func (gitCtx GitContext) WithTimeout(timeoutSeconds int) (GitContext, context.Ca
 // BasicAuth represent a HTTP basic auth
 type BasicAuth struct {
 	Username, Password string
+	AuthMode           constants.AuthMode
 }

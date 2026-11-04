@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS idx_variable_entity_mapping_variable_name;

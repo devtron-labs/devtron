@@ -38,3 +38,14 @@ var SystemVariables = []SystemVariableName{
 
 const AllExistingAndFutureNonProdEnvsInt = -1
 const AllExistingAndFutureProdEnvsInt = -2
+
+// IsSystemVariable reports whether name refers to a system variable, as opposed to a
+// user-defined variable.
+func IsSystemVariable(name string) bool {
+	for _, systemVariable := range SystemVariables {
+		if name == string(systemVariable) {
+			return true
+		}
+	}
+	return false
+}

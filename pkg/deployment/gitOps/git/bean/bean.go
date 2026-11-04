@@ -18,6 +18,7 @@ package bean
 
 import (
 	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	git "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/commandManager"
 )
 
@@ -35,6 +36,7 @@ type GitConfig struct {
 	BitbucketProjectKey  string
 
 	IsActiveConfig bool //flag to check if the gitOps config is active
+	AuthMode       constants.AuthMode
 
 	EnableTLSVerification bool
 	CaCert                string
@@ -52,11 +54,39 @@ type PushChartToGitRequestDTO struct {
 	UserId            int32
 }
 
-func (cfg GitConfig) GetAuth() *git.BasicAuth {
-	return &git.BasicAuth{
-		Username: cfg.GitUserName,
-		Password: cfg.GitToken,
+func bitBucketGitOpsHelperClient(cfg GitConfig) *git.BasicAuth {
+	username := cfg.GitUserName
+
+	// Bitbucket Cloud tokens use a fixed git-over-HTTPS username, not the account name:
+	//   - access token  -> `x-token-auth:<token>`              (REST API uses Bearer)
+	//   - API token      -> `x-bitbucket-api-token-auth:<token>` (REST API uses Basic email:token)
+	switch cfg.AuthMode {
+	case constants.AUTH_MODE_ACCESS_TOKEN:
+		username = BITBUCKET_ACCESS_TOKEN_USERNAME
+	case constants.AUTH_MODE_API_TOKEN:
+		username = BITBUCKET_API_TOKEN_USERNAME
 	}
+
+	return &git.BasicAuth{
+		Username: username,
+		Password: cfg.GitToken,
+		AuthMode: cfg.AuthMode,
+	}
+}
+
+func (cfg GitConfig) GetAuth() *git.BasicAuth {
+	username := cfg.GitUserName
+
+	if cfg.GitProvider == BITBUCKET_PROVIDER {
+		return bitBucketGitOpsHelperClient(cfg)
+	}
+
+	return &git.BasicAuth{
+		Username: username,
+		Password: cfg.GitToken,
+		AuthMode: cfg.AuthMode,
+	}
+
 }
 
 func (cfg GitConfig) GetTLSConfig() *bean.TLSConfig {

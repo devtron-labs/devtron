@@ -19,13 +19,14 @@ package commandManager
 import (
 	"context"
 	"fmt"
-	"github.com/devtron-labs/common-lib/git-manager"
-	"github.com/devtron-labs/devtron/util"
-	"go.uber.org/zap"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/devtron-labs/common-lib/git-manager"
+	"github.com/devtron-labs/devtron/util"
+	"go.uber.org/zap"
 )
 
 type GitCommandManagerBase interface {

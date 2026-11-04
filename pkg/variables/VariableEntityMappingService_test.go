@@ -67,7 +67,7 @@ func TestVariableEntityMappingServiceImpl_DeleteMappingsForEntities(t *testing.T
 				logger:                          tt.fields.logger,
 				variableEntityMappingRepository: tt.fields.variableEntityMappingRepository,
 			}
-			if err := impl.DeleteMappingsForEntities(tt.args.entities, tt.args.userId); (err != nil) != tt.wantErr {
+			if err := impl.DeleteMappingsForEntities(tt.args.entities, tt.args.userId, nil); (err != nil) != tt.wantErr {
 				t.Errorf("DeleteMappingsForEntities() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -133,7 +133,7 @@ func TestVariableEntityMappingServiceImpl_UpdateVariablesForEntity(t *testing.T)
 				logger:                          tt.fields.logger,
 				variableEntityMappingRepository: tt.fields.variableEntityMappingRepository,
 			}
-			if err := impl.UpdateVariablesForEntity(tt.args.variableNames, tt.args.entity, tt.args.userId); (err != nil) != tt.wantErr {
+			if err := impl.UpdateVariablesForEntity(tt.args.variableNames, tt.args.entity, tt.args.userId, nil); (err != nil) != tt.wantErr {
 				t.Errorf("UpdateVariablesForEntity() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

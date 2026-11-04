@@ -1,6 +1,5 @@
 package bean
 
-import "C"
 import (
 	"encoding/json"
 	"fmt"

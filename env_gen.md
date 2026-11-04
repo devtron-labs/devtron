@@ -15,6 +15,7 @@
  | FEATURE_MIGRATE_ARGOCD_APPLICATION_ENABLE | bool |false | enable migration of external argocd application to devtron pipeline |  | false |
  | FEATURE_MIGRATE_FLUX_APPLICATION_ENABLE | bool |false | enable flux application services |  | false |
  | FLUX_CD_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME | string |120 | eligible time for checking flux app status periodically and update in db, value is in seconds., default is 120, if wfr is updated within configured time i.e. FLUX_CD_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME then do not include for this cron cycle. |  | false |
+ | FOREGROUND_DELETE_CD_PIPELINE | bool |false | If enabled, deleting a CD pipeline will not delete the underlying deployed resource (helm release/argocd application/flux release) unless the request explicitly overrides it via payload. |  | false |
  | HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME | string |120 | eligible time for checking helm app status periodically and update in db, value is in seconds., default is 120, if wfr is updated within configured time i.e. HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME then do not include for this cron cycle. |  | false |
  | IS_INTERNAL_USE | bool |true | If enabled then cd pipeline and helm apps will not need the deployment app type mandatorily. Couple this flag with HIDE_GITOPS_OR_HELM_OPTION (in Dashborad) and if gitops is configured and allowed for the env, pipeline/ helm app will gitops else no-gitops. |  | false |
  | MIGRATE_DEPLOYMENT_CONFIG_DATA | bool |false | migrate deployment config data from charts table to deployment_config table |  | false |
@@ -329,6 +330,8 @@
  | PG_PASSWORD | string |{password} | password for postgres, associated with PG_USER | confidential ;) | false |
  | PG_PORT | string |5432 | port of postgresql service | 5432 | false |
  | PG_READ_TIMEOUT | int64 |30 | Time out for read operation in postgres |  | false |
+ | PG_SSL_MODE | string | | ssl mode for postgres connection | disable, require, verify-ca, verify-full | false |
+ | PG_SSL_ROOT_CERT | string | | path to the PEM CA bundle, required for verify-ca/verify-full ssl modes (for AWS RDS use the downloaded global-bundle.pem) | /etc/devtron/certs/rds-ca-bundle.pem | false |
  | PG_USER | string |postgres | user for postgres | postgres | false |
  | PG_WRITE_TIMEOUT | int64 |30 | Time out for write operation in postgres |  | false |
 

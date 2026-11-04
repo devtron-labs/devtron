@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean/AppView"
-	bean2 "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
@@ -438,16 +437,17 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 		return []*AppView.AppEnvironmentContainer{}, 0, nil
 	}
 
-	// Currently AppStatus is available in Db for only ArgoApps
-	// We fetch AppStatus on the fly for Helm Apps from scoop, So AppStatus filter will be applied in last
-	// fun to check if "HIBERNATING" exists in fetchAppListingRequest.AppStatuses
-	isFilteredOnHibernatingStatus := impl.isFilteredOnHibernatingStatus(fetchAppListingRequest)
-	// remove ""HIBERNATING" from fetchAppListingRequest.AppStatuses
-	appStatusesFilter := make([]string, 0)
-	if isFilteredOnHibernatingStatus {
-		appStatusesFilter = fetchAppListingRequest.AppStatuses
-		fetchAppListingRequest.AppStatuses = []string{}
-	}
+	// NOTE on "HIBERNATING": it is an ordinary value persisted in app_status.status
+	// (appStatus.UpdateStatusWithAppIdEnvId normalises Suspended/Hibernated to it), so it is
+	// filterable in SQL exactly like every other app status and is applied below, before
+	// LIMIT/OFFSET, by buildAppListingWhereCondition.
+	//
+	// TODO (helm pipelines): Helm-type (non-GitOps) CD pipelines never get an app_status row --
+	// their status is only known by querying the running release. So a hibernated helm-pipeline
+	// app cannot be matched by this filter today. The fix is to persist their status into
+	// app_status from the status-sync worker (after which the predicate below covers them for
+	// free), NOT to fan out live status calls during a list request -- that is what
+	// updateAppStatusForHelmTypePipelines did and it was removed from this path for slowness.
 
 	appListingFilter := helper.AppListingFilter{
 		Environments:      fetchAppListingRequest.Environments,
@@ -506,27 +506,7 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 		impl.Logger.Errorw("error, UpdateAppStatusForHelmTypePipelines", "envIds", envIds, "err", err)
 	}
 
-	// apply filter for "HIBERNATING" status
-	if isFilteredOnHibernatingStatus {
-		filteredContainers := make([]*AppView.AppEnvironmentContainer, 0)
-		for _, container := range envContainers {
-			if slices.Contains(appStatusesFilter, container.AppStatus) {
-				filteredContainers = append(filteredContainers, container)
-			}
-		}
-		envContainers = filteredContainers
-		appSize = len(filteredContainers)
-	}
 	return envContainers, appSize, nil
-}
-
-func (impl AppListingServiceImpl) isFilteredOnHibernatingStatus(fetchAppListingRequest FetchAppListingRequest) bool {
-	if fetchAppListingRequest.AppStatuses != nil && len(fetchAppListingRequest.AppStatuses) > 0 {
-		if slices.Contains(fetchAppListingRequest.AppStatuses, bean2.HIBERNATING) {
-			return true
-		}
-	}
-	return false
 }
 
 func (impl AppListingServiceImpl) ISLastReleaseStopType(appId, envId int) (bool, error) {

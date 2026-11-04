@@ -33,6 +33,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
+	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/util/stringsUtil"
 	"golang.org/x/exp/maps"
 
@@ -140,7 +141,7 @@ func (handler *PipelineConfigRestHandlerImpl) CreateCiConfig(w http.ResponseWrit
 	}
 
 	token := r.Header.Get("token")
-	_, authorized := handler.getAppAndCheckAuthForAction(w, createRequest.AppId, token, casbin.ActionCreate)
+	_, authorized := handler.getAppAndCheckAuthForAction(w, createRequest.AppId, token, casbin.ActionCreatePipeline)
 	if !authorized {
 		return
 	}
@@ -404,9 +405,27 @@ func (handler *PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWr
 		return
 	}
 
-	haveCiPatchAccess := handler.checkCiPatchAccess(token, resourceName, cdPipelines)
-	if !haveCiPatchAccess {
-		haveCiPatchAccess = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, resourceName) && handler.enforcer.Enforce(token, casbin.ResourceWorkflow, casbin.ActionCreate, workflowResourceName)
+	// Pipeline lifecycle (add/delete a CI pipeline) is gated by the dedicated lifecycle actions,
+	// independent of config/branch editing which keeps its existing access rules. Switch-CI is a
+	// creation flow and is treated as create. The jobs fallback is unchanged for all arms.
+	var haveCiPatchAccess bool
+	switch {
+	case patchRequest.Action == bean.DELETE:
+		haveCiPatchAccess = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDeletePipeline, resourceName)
+		if !haveCiPatchAccess {
+			haveCiPatchAccess = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, resourceName) && handler.enforcer.Enforce(token, casbin.ResourceWorkflow, casbin.ActionCreate, workflowResourceName)
+		}
+	case patchRequest.Action == bean.CREATE || patchRequest.IsSwitchCiPipelineRequest():
+		haveCiPatchAccess = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreatePipeline, resourceName)
+		if !haveCiPatchAccess {
+			haveCiPatchAccess = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, resourceName) && handler.enforcer.Enforce(token, casbin.ResourceWorkflow, casbin.ActionCreate, workflowResourceName)
+		}
+	default:
+		// UPDATE_PIPELINE / UPDATE_SOURCE: config/branch edit — existing access rules unchanged
+		haveCiPatchAccess = handler.checkCiPatchAccess(token, resourceName, cdPipelines)
+		if !haveCiPatchAccess {
+			haveCiPatchAccess = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, resourceName) && handler.enforcer.Enforce(token, casbin.ResourceWorkflow, casbin.ActionCreate, workflowResourceName)
+		}
 	}
 	if !haveCiPatchAccess {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
@@ -1363,6 +1382,11 @@ func (handler *PipelineConfigRestHandlerImpl) CreateMaterial(w http.ResponseWrit
 		return
 	}
 	for _, gitMaterial := range createMaterialDto.Material {
+		// a @{{VAR_NAME}} reference isn't a real URL yet - skip the format check here,
+		// RepoFieldVariableResolver validates and resolves it before use
+		if variables.IsFullVariableReference(gitMaterial.Url) {
+			continue
+		}
 		validationResult, err := handler.ValidateGitMaterialUrl(gitMaterial.GitProviderId, gitMaterial.Url)
 		if err != nil {
 			handler.Logger.Errorw("service err, CreateMaterial", "err", err, "CreateMaterial", createMaterialDto)
@@ -1409,16 +1433,20 @@ func (handler *PipelineConfigRestHandlerImpl) UpdateMaterial(w http.ResponseWrit
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	validationResult, err := handler.ValidateGitMaterialUrl(updateMaterialDto.Material.GitProviderId, updateMaterialDto.Material.Url)
-	if err != nil {
-		handler.Logger.Errorw("service err, UpdateMaterial", "err", err, "UpdateMaterial", updateMaterialDto)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	} else {
-		if !validationResult {
-			handler.Logger.Errorw("validation err, UpdateMaterial : invalid git material url", "err", err, "gitMaterialUrl", updateMaterialDto.Material.Url, "UpdateMaterial", updateMaterialDto)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	// a @{{VAR_NAME}} reference isn't a real URL yet - skip the format check here,
+	// RepoFieldVariableResolver validates and resolves it before use
+	if !variables.IsFullVariableReference(updateMaterialDto.Material.Url) {
+		validationResult, err := handler.ValidateGitMaterialUrl(updateMaterialDto.Material.GitProviderId, updateMaterialDto.Material.Url)
+		if err != nil {
+			handler.Logger.Errorw("service err, UpdateMaterial", "err", err, "UpdateMaterial", updateMaterialDto)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
+		} else {
+			if !validationResult {
+				handler.Logger.Errorw("validation err, UpdateMaterial : invalid git material url", "err", err, "gitMaterialUrl", updateMaterialDto.Material.Url, "UpdateMaterial", updateMaterialDto)
+				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+				return
+			}
 		}
 	}
 	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(updateMaterialDto.AppId)

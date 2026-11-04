@@ -19,6 +19,11 @@ package generateManifest
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"regexp"
+	"strconv"
+	"sync"
+
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
@@ -53,11 +58,7 @@ import (
 	"golang.org/x/exp/maps"
 	chart2 "helm.sh/helm/v3/pkg/chart"
 	"k8s.io/utils/pointer"
-	"net/http"
-	"regexp"
 	"sigs.k8s.io/yaml"
-	"strconv"
-	"sync"
 )
 
 // TODO: Prakash, move this interface to pkg/deployment/manifest/deploymentTemplate, both are same
@@ -488,7 +489,7 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 	if len(request.DeploymentAppName) != 0 {
 		releaseName = request.DeploymentAppName
 	}
-	mergedValuesYaml := impl.patchReleaseAttributes(request, valuesYaml)
+	mergedValuesYaml := impl.patchReleaseAttributes(request, valuesYaml, refChartPath)
 	installReleaseRequest := &gRPC.InstallReleaseRequest{
 		AppName:         request.AppName,
 		ChartName:       refChart.Name,
@@ -530,7 +531,7 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 	return response, nil
 }
 
-func (impl DeploymentTemplateServiceImpl) patchReleaseAttributes(request *DeploymentTemplateRequest, valuesYaml string) (mergedValuesYaml string) {
+func (impl DeploymentTemplateServiceImpl) patchReleaseAttributes(request *DeploymentTemplateRequest, valuesYaml string, refChartPath string) (mergedValuesYaml string) {
 	mergedValuesYaml = valuesYaml
 
 	valuesJsonByte, err := yaml.YAMLToJSON([]byte(valuesYaml))
@@ -539,14 +540,13 @@ func (impl DeploymentTemplateServiceImpl) patchReleaseAttributes(request *Deploy
 		return
 	}
 
-	chartDto, err := impl.chartReadService.GetByAppIdAndChartRefId(request.AppId, request.ChartRefId)
+	imageDescriptorTemplate, err := impl.resolveImageDescriptorTemplate(request.AppId, request.ChartRefId, refChartPath)
 	if err != nil {
-		impl.Logger.Errorw("error in getting the chart using appId and chartRefId", "appId", request.AppId, "chartRefId", request.ChartRefId, "err", err)
 		return
 	}
 
 	releaseAttributeJson, err := app.NewReleaseAttributes("", "", request.PipelineName, "",
-		request.AppId, request.EnvId, 0, pointer.Bool(false)).RenderJson(chartDto.ImageDescriptorTemplate)
+		request.AppId, request.EnvId, 0, pointer.Bool(false)).RenderJson(imageDescriptorTemplate)
 
 	if err != nil {
 		impl.Logger.Errorw("error in rendering release attributes into image descriptor template ", "releaseAttributeJson", releaseAttributeJson, "err", err)
@@ -565,6 +565,12 @@ func (impl DeploymentTemplateServiceImpl) patchReleaseAttributes(request *Deploy
 	}
 
 	mergedValuesYaml = string(mergedYamlBytes)
+
+	// Read release-values.yaml straight from the reference chart dir so the manifest
+	// can be rendered before an app-level chart is saved (chartDto.ReleaseOverride is
+	// only populated post-save).
+	releaseOverrideJson := impl.readReleaseValuesJsonFromRefChart(refChartPath)
+	mergedValuesYaml = impl.mergeReleaseOverrideIntoValuesYaml(mergedValuesYaml, releaseOverrideJson)
 
 	return mergedValuesYaml
 }

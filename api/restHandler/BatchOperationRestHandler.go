@@ -100,7 +100,7 @@ func (handler BatchOperationRestHandlerImpl) Operate(w http.ResponseWriter, r *h
 			return
 		}
 		rbacString := handler.enforcerUtil.GetProjectAdminRBACNameBYAppName(*workflow.Destination.App)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, rbacString); !ok {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreatePipeline, rbacString); !ok {
 			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}

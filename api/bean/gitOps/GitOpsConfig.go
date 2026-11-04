@@ -17,8 +17,10 @@
 package gitOps
 
 import (
-	"github.com/devtron-labs/devtron/api/bean"
 	"time"
+
+	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 )
 
 type GitOpsConfigDto struct {
@@ -36,6 +38,7 @@ type GitOpsConfigDto struct {
 	AllowCustomRepository bool            `json:"allowCustomRepository"`
 	EnableTLSVerification bool            `json:"enableTLSVerification"`
 	TLSConfig             *bean.TLSConfig `json:"tlsConfig"`
+	AuthMode              AuthMode        `json:"authMode"`
 
 	IsCADataPresent      bool `json:"isCADataPresent"`
 	IsTLSCertDataPresent bool `json:"isTLSCertDataPresent"`
@@ -47,6 +50,39 @@ type GitOpsConfigDto struct {
 	UserEmailId    string `json:"-"`
 	Description    string `json:"-"`
 	UserId         int32  `json:"-"`
+}
+
+type AuthMode string
+
+const (
+	PASSWORD     AuthMode = "PASSWORD"
+	ACCESS_TOKEN AuthMode = "ACCESS_TOKEN"
+	API_TOKEN    AuthMode = "API_TOKEN"
+)
+
+func (auth AuthMode) IsPassword() bool {
+	return auth == PASSWORD || auth == "" //empty for backward compatibility
+}
+
+func (auth AuthMode) IsAccessToken() bool {
+	return auth == ACCESS_TOKEN
+}
+
+func (auth AuthMode) IsApiToken() bool {
+	return auth == API_TOKEN
+}
+
+func (auth AuthMode) ToInternalAuthMode() constants.AuthMode {
+
+	switch auth {
+	case PASSWORD:
+		return constants.AUTH_MODE_USERNAME_PASSWORD
+	case ACCESS_TOKEN:
+		return constants.AUTH_MODE_ACCESS_TOKEN
+	case API_TOKEN:
+		return constants.AUTH_MODE_API_TOKEN
+	}
+	return ""
 }
 
 func (dto GitOpsConfigDto) GetHostUrl() string {

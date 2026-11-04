@@ -41,6 +41,15 @@ type CiBuildConfigBean struct {
 	PipelineType              string             `json:"pipelineType"`
 }
 
+// ClearDockerBuildArgs drops docker build args from a CI pipeline's build config override.
+// Build args are not part of the override: an overridden pipeline builds with the app level
+// args, with the pipeline's own docker args applied on top at trigger time.
+func (b *CiBuildConfigBean) ClearDockerBuildArgs() {
+	if b != nil && b.DockerBuildConfig != nil {
+		b.DockerBuildConfig.Args = nil
+	}
+}
+
 type DockerBuildConfig struct {
 	DockerfilePath         string              `json:"dockerfileRelativePath,omitempty"`
 	DockerfileContent      string              `json:"dockerfileContent"`

@@ -34,9 +34,7 @@ jobs:
 
           if [[ "$state" != "closed" ]] && [[ "$created_at" < "$TWO_DAYS_AGO" ]]; then
             issue_number=$(echo "$issue" | jq -r '.number')
-            assignee1="vikramdevtron"
-            assignee2="kripanshdevtron"
-            assignee3="vivek-devtron"
+            assignee1="vivek-devtron"
 
             curl -X POST \
               -H "Authorization: token ${{ secrets.GH_SYSTEMSDT_TOKEN }}" \

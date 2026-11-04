@@ -1,0 +1,6 @@
+-- No-op. Reserves event id 17 ('AUDIT_LOG') in the shared migration sequence.
+-- Audit log notifications are a devtron-enterprise-only feature; this file exists
+-- solely so this migration number (and the event id it would otherwise insert)
+-- can't be independently reused by a future OSS migration, which would collide
+-- when devtron-enterprise's develop branch (already at this migration) merges
+-- this repo's develop in.
