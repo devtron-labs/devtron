@@ -296,8 +296,7 @@ type jsOpts struct {
 }
 
 const (
-	defaultRequestWait  = 5 * time.Second
-	defaultAccountCheck = 20 * time.Second
+	defaultRequestWait = 5 * time.Second
 )
 
 // JetStream returns a JetStreamContext for messaging and stream management.
@@ -446,13 +445,21 @@ func StreamListFilter(subject string) JSOpt {
 }
 
 func (js *js) apiSubj(subj string) string {
-	if js.opts.pre == _EMPTY_ {
+	return apiSubjWithPrefix(js.opts.pre, subj)
+}
+
+func apiSubjWithPrefix(pre, subj string) string {
+	if pre == _EMPTY_ {
 		return subj
 	}
 	var b strings.Builder
-	b.WriteString(js.opts.pre)
+	b.WriteString(pre)
 	b.WriteString(subj)
 	return b.String()
+}
+
+func (o *jsOpts) apiSubj(subj string) string {
+	return apiSubjWithPrefix(o.pre, subj)
 }
 
 // PubOpt configures options for publishing JetStream messages.
@@ -1132,7 +1139,7 @@ func (js *js) PublishMsgAsync(m *Msg, opts ...PubOpt) (PubAckFuture, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := js.nc.publish(m.Subject, reply, hdr, m.Data); err != nil {
+	if err := js.nc.publish(m.Subject, reply, false, hdr, m.Data); err != nil {
 		js.clearPAF(id)
 		return nil, err
 	}
@@ -1948,7 +1955,6 @@ func (js *js) subscribe(subj, queue string, cb MsgHandler, ch chan *Msg, isSync,
 		} else if consName == "" {
 			consName = getHash(nuid.Next())
 		}
-		var info *ConsumerInfo
 		if o.ctx != nil {
 			info, err = js.upsertConsumer(stream, consName, ccreq.Config, Context(o.ctx))
 		} else {
@@ -1960,7 +1966,11 @@ func (js *js) subscribe(subj, queue string, cb MsgHandler, ch chan *Msg, isSync,
 				cleanUpSub()
 				return nil, err
 			}
-			if consumer == _EMPTY_ ||
+			lookupConsumer := consumer
+			if lookupConsumer == _EMPTY_ {
+				lookupConsumer = consName
+			}
+			if lookupConsumer == _EMPTY_ ||
 				(apiErr.ErrorCode != JSErrCodeConsumerAlreadyExists && apiErr.ErrorCode != JSErrCodeConsumerNameExists) {
 				cleanUpSub()
 				if errors.Is(apiErr, ErrStreamNotFound) {
@@ -1973,7 +1983,7 @@ func (js *js) subscribe(subj, queue string, cb MsgHandler, ch chan *Msg, isSync,
 				cleanUpSub()
 			}
 
-			info, err = js.ConsumerInfo(stream, consumer)
+			info, err = js.ConsumerInfo(stream, lookupConsumer)
 			if err != nil {
 				return nil, err
 			}
@@ -2030,10 +2040,7 @@ func (js *js) subscribe(subj, queue string, cb MsgHandler, ch chan *Msg, isSync,
 	// If maxap is greater than the default sub's pending limit, use that.
 	if maxap > DefaultSubPendingMsgsLimit {
 		// For bytes limit, use the min of maxp*1MB or DefaultSubPendingBytesLimit
-		bl := maxap * 1024 * 1024
-		if bl < DefaultSubPendingBytesLimit {
-			bl = DefaultSubPendingBytesLimit
-		}
+		bl := max(maxap*1024*1024, DefaultSubPendingBytesLimit)
 		if err := sub.SetPendingLimits(maxap, bl); err != nil {
 			return nil, err
 		}
@@ -2263,8 +2270,13 @@ func (sub *Subscription) resetOrderedConsumer(sseq uint64) {
 		jsi.cmeta = _EMPTY_
 		jsi.fcr, jsi.fcd = _EMPTY_, 0
 		jsi.deliver = newDeliver
-		// Reset consumer request for starting policy.
-		cfg := jsi.ccreq.Config
+		// Reset consumer request for starting policy. Take a value copy of the
+		// ConsumerConfig so concurrent activityCheck-spawned resets don't race
+		// on a shared *ConsumerConfig — a later goroutine's writes here would
+		// otherwise overlap an earlier goroutine's json.Marshal in
+		// upsertConsumer below (called outside sub.mu).
+		cfgCopy := *jsi.ccreq.Config
+		cfg := &cfgCopy
 		cfg.DeliverSubject = newDeliver
 		cfg.DeliverPolicy = DeliverByStartSequencePolicy
 		cfg.OptStartSeq = sseq
@@ -2835,8 +2847,15 @@ func ConsumerFilterSubjects(subjects ...string) SubOpt {
 func (sub *Subscription) ConsumerInfo() (*ConsumerInfo, error) {
 	sub.mu.Lock()
 	// TODO(dlc) - Better way to mark especially if we attach.
-	if sub.jsi == nil || sub.jsi.consumer == _EMPTY_ {
+	if sub.jsi == nil {
 		sub.mu.Unlock()
+		return nil, ErrTypeSubscription
+	} else if sub.jsi.consumer == _EMPTY_ {
+		ordered := sub.jsi.ordered
+		sub.mu.Unlock()
+		if ordered {
+			return nil, ErrConsumerInfoOnOrderedReset
+		}
 		return nil, ErrTypeSubscription
 	}
 
@@ -3108,10 +3127,7 @@ func (sub *Subscription) Fetch(batch int, opts ...PullOpt) ([]*Msg, error) {
 			}
 
 			// Make our request expiration a bit shorter than the current timeout.
-			expiresDiff := time.Duration(float64(ttl) * 0.1)
-			if expiresDiff > 5*time.Second {
-				expiresDiff = 5 * time.Second
-			}
+			expiresDiff := min(time.Duration(float64(ttl)*0.1), 5*time.Second)
 			expires := ttl - expiresDiff
 
 			nr.Batch = batch - len(msgs)
@@ -3392,10 +3408,7 @@ func (sub *Subscription) FetchBatch(batch int, opts ...PullOpt) (MessageBatch, e
 	ttl = time.Until(deadline)
 
 	// Make our request expiration a bit shorter than the current timeout.
-	expiresDiff := time.Duration(float64(ttl) * 0.1)
-	if expiresDiff > 5*time.Second {
-		expiresDiff = 5 * time.Second
-	}
+	expiresDiff := min(time.Duration(float64(ttl)*0.1), 5*time.Second)
 	expires := ttl - expiresDiff
 
 	connStatusChanged := nc.StatusChanged()
@@ -3510,12 +3523,12 @@ func (o *pullOpts) checkCtxErr(err error) error {
 func (js *js) getConsumerInfo(stream, consumer string) (*ConsumerInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), js.opts.wait)
 	defer cancel()
-	return js.getConsumerInfoContext(ctx, stream, consumer)
+	return js.getConsumerInfoContext(ctx, stream, consumer, js.opts)
 }
 
-func (js *js) getConsumerInfoContext(ctx context.Context, stream, consumer string) (*ConsumerInfo, error) {
+func (js *js) getConsumerInfoContext(ctx context.Context, stream, consumer string, o *jsOpts) (*ConsumerInfo, error) {
 	ccInfoSubj := fmt.Sprintf(apiConsumerInfoT, stream, consumer)
-	resp, err := js.apiRequestWithContext(ctx, js.apiSubj(ccInfoSubj), nil)
+	resp, err := js.apiRequestWithContext(ctx, o.apiSubj(ccInfoSubj), nil)
 	if err != nil {
 		if errors.Is(err, ErrNoResponders) {
 			err = ErrJetStreamNotEnabled
@@ -3556,7 +3569,7 @@ func (js *js) apiRequestWithContext(ctx context.Context, subj string, data []byt
 	}
 	if js.opts.shouldTrace {
 		ctrace := js.opts.ctrace
-		if ctrace.RequestSent != nil {
+		if ctrace.ResponseReceived != nil {
 			ctrace.ResponseReceived(subj, resp.Data, resp.Header)
 		}
 	}
@@ -3746,6 +3759,13 @@ const (
 	// AckExplicitPolicy requires ack or nack for all messages.
 	AckExplicitPolicy
 
+	// AckFlowControlPolicy functions like AckAllPolicy, but acks based on
+	// responses to flow control. Used by durable stream sourcing and
+	// mirroring against an existing durable push consumer.
+	//
+	// This feature requires nats-server v2.14.0 or later.
+	AckFlowControlPolicy
+
 	// For configuration mismatch check
 	ackPolicyNotSet = 99
 )
@@ -3762,6 +3782,8 @@ func (p *AckPolicy) UnmarshalJSON(data []byte) error {
 		*p = AckAllPolicy
 	case jsonString("explicit"):
 		*p = AckExplicitPolicy
+	case jsonString("flow_control"):
+		*p = AckFlowControlPolicy
 	default:
 		return fmt.Errorf("nats: can not unmarshal %q", data)
 	}
@@ -3777,6 +3799,8 @@ func (p AckPolicy) MarshalJSON() ([]byte, error) {
 		return json.Marshal("all")
 	case AckExplicitPolicy:
 		return json.Marshal("explicit")
+	case AckFlowControlPolicy:
+		return json.Marshal("flow_control")
 	default:
 		return nil, fmt.Errorf("nats: unknown acknowledgement policy %v", p)
 	}
@@ -3790,6 +3814,8 @@ func (p AckPolicy) String() string {
 		return "AckAll"
 	case AckExplicitPolicy:
 		return "AckExplicit"
+	case AckFlowControlPolicy:
+		return "AckFlowControl"
 	case ackPolicyNotSet:
 		return "Not Initialized"
 	default:

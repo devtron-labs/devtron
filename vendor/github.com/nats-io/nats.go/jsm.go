@@ -367,8 +367,10 @@ type Tier struct {
 
 // APIStats reports on API calls to JetStream for this account.
 type APIStats struct {
-	Total  uint64 `json:"total"`
-	Errors uint64 `json:"errors"`
+	Level    int    `json:"level"`
+	Total    uint64 `json:"total"`
+	Errors   uint64 `json:"errors"`
+	Inflight uint64 `json:"inflight,omitempty"`
 }
 
 // AccountLimits includes the JetStream limits of the current account.
@@ -404,7 +406,7 @@ func (js *js) AccountInfo(opts ...JSOpt) (*AccountInfo, error) {
 		defer cancel()
 	}
 
-	resp, err := js.apiRequestWithContext(o.ctx, js.apiSubj(apiAccountInfo), nil)
+	resp, err := js.apiRequestWithContext(o.ctx, o.apiSubj(apiAccountInfo), nil)
 	if err != nil {
 		// todo maybe nats server should never have no responder on this subject and always respond if they know there is no js to be had
 		if errors.Is(err, ErrNoResponders) {
@@ -531,7 +533,7 @@ func (js *js) upsertConsumer(stream, consumerName string, cfg *ConsumerConfig, o
 		}
 	}
 
-	resp, err := js.apiRequestWithContext(o.ctx, js.apiSubj(ccSubj), req)
+	resp, err := js.apiRequestWithContext(o.ctx, o.apiSubj(ccSubj), req)
 	if err != nil {
 		if errors.Is(err, ErrNoResponders) {
 			err = ErrJetStreamNotEnabled
@@ -551,6 +553,10 @@ func (js *js) upsertConsumer(stream, consumerName string, cfg *ConsumerConfig, o
 			return nil, ErrConsumerNotFound
 		}
 		return nil, info.Error
+	}
+
+	if info.Error == nil && info.ConsumerInfo == nil {
+		return nil, ErrConsumerCreationResponseEmpty
 	}
 
 	// check whether multiple filter subjects (if used) are reflected in the returned ConsumerInfo
@@ -605,7 +611,7 @@ func (js *js) DeleteConsumer(stream, consumer string, opts ...JSOpt) error {
 		defer cancel()
 	}
 
-	dcSubj := js.apiSubj(fmt.Sprintf(apiConsumerDeleteT, stream, consumer))
+	dcSubj := o.apiSubj(fmt.Sprintf(apiConsumerDeleteT, stream, consumer))
 	r, err := js.apiRequestWithContext(o.ctx, dcSubj, nil)
 	if err != nil {
 		return err
@@ -639,7 +645,7 @@ func (js *js) ConsumerInfo(stream, consumer string, opts ...JSOpt) (*ConsumerInf
 	if cancel != nil {
 		defer cancel()
 	}
-	return js.getConsumerInfoContext(o.ctx, stream, consumer)
+	return js.getConsumerInfoContext(o.ctx, stream, consumer, o)
 }
 
 // consumerLister fetches pages of ConsumerInfo objects. This object is not
@@ -914,7 +920,7 @@ func (js *js) AddStream(cfg *StreamConfig, opts ...JSOpt) (*StreamInfo, error) {
 		return nil, err
 	}
 
-	csSubj := js.apiSubj(fmt.Sprintf(apiStreamCreateT, cfg.Name))
+	csSubj := o.apiSubj(fmt.Sprintf(apiStreamCreateT, cfg.Name))
 	r, err := js.apiRequestWithContext(o.ctx, csSubj, req)
 	if err != nil {
 		return nil, err
@@ -995,7 +1001,7 @@ func (js *js) StreamInfo(stream string, opts ...JSOpt) (*StreamInfo, error) {
 			}
 		}
 
-		siSubj := js.apiSubj(fmt.Sprintf(apiStreamInfoT, stream))
+		siSubj := o.apiSubj(fmt.Sprintf(apiStreamInfoT, stream))
 
 		r, err := js.apiRequestWithContext(o.ctx, siSubj, req)
 		if err != nil {
@@ -1089,9 +1095,13 @@ type StreamState struct {
 // ClusterInfo shows information about the underlying set of servers
 // that make up the stream or consumer.
 type ClusterInfo struct {
-	Name     string      `json:"name,omitempty"`
-	Leader   string      `json:"leader,omitempty"`
-	Replicas []*PeerInfo `json:"replicas,omitempty"`
+	Name        string      `json:"name,omitempty"`
+	RaftGroup   string      `json:"raft_group,omitempty"`
+	Leader      string      `json:"leader,omitempty"`
+	LeaderSince *time.Time  `json:"leader_since,omitempty"`
+	SystemAcc   bool        `json:"system_account,omitempty"`
+	TrafficAcc  string      `json:"traffic_account,omitempty"`
+	Replicas    []*PeerInfo `json:"replicas,omitempty"`
 }
 
 // PeerInfo shows information about all the peers in the cluster that
@@ -1125,7 +1135,7 @@ func (js *js) UpdateStream(cfg *StreamConfig, opts ...JSOpt) (*StreamInfo, error
 		return nil, err
 	}
 
-	usSubj := js.apiSubj(fmt.Sprintf(apiStreamUpdateT, cfg.Name))
+	usSubj := o.apiSubj(fmt.Sprintf(apiStreamUpdateT, cfg.Name))
 	r, err := js.apiRequestWithContext(o.ctx, usSubj, req)
 	if err != nil {
 		return nil, err
@@ -1179,7 +1189,7 @@ func (js *js) DeleteStream(name string, opts ...JSOpt) error {
 		defer cancel()
 	}
 
-	dsSubj := js.apiSubj(fmt.Sprintf(apiStreamDeleteT, name))
+	dsSubj := o.apiSubj(fmt.Sprintf(apiStreamDeleteT, name))
 	r, err := js.apiRequestWithContext(o.ctx, dsSubj, nil)
 	if err != nil {
 		return err
@@ -1255,7 +1265,7 @@ func (js *js) getMsg(name string, mreq *apiMsgGetRequest, opts ...JSOpt) (*RawSt
 	var apiSubj string
 	if o.directGet && mreq.LastFor != _EMPTY_ {
 		apiSubj = apiDirectMsgGetLastBySubjectT
-		dsSubj := js.apiSubj(fmt.Sprintf(apiSubj, name, mreq.LastFor))
+		dsSubj := o.apiSubj(fmt.Sprintf(apiSubj, name, mreq.LastFor))
 		r, err := js.apiRequestWithContext(o.ctx, dsSubj, nil)
 		if err != nil {
 			return nil, err
@@ -1275,7 +1285,7 @@ func (js *js) getMsg(name string, mreq *apiMsgGetRequest, opts ...JSOpt) (*RawSt
 		return nil, err
 	}
 
-	dsSubj := js.apiSubj(fmt.Sprintf(apiSubj, name))
+	dsSubj := o.apiSubj(fmt.Sprintf(apiSubj, name))
 	r, err := js.apiRequestWithContext(o.ctx, dsSubj, req)
 	if err != nil {
 		return nil, err
@@ -1406,7 +1416,7 @@ func (js *js) DeleteMsg(name string, seq uint64, opts ...JSOpt) error {
 		defer cancel()
 	}
 
-	return js.deleteMsg(o.ctx, name, &msgDeleteRequest{Seq: seq, NoErase: true})
+	return js.deleteMsg(o, name, &msgDeleteRequest{Seq: seq, NoErase: true})
 }
 
 // SecureDeleteMsg deletes a message from a stream. The deleted message is overwritten with random data
@@ -1420,10 +1430,10 @@ func (js *js) SecureDeleteMsg(name string, seq uint64, opts ...JSOpt) error {
 		defer cancel()
 	}
 
-	return js.deleteMsg(o.ctx, name, &msgDeleteRequest{Seq: seq})
+	return js.deleteMsg(o, name, &msgDeleteRequest{Seq: seq})
 }
 
-func (js *js) deleteMsg(ctx context.Context, stream string, req *msgDeleteRequest) error {
+func (js *js) deleteMsg(o *jsOpts, stream string, req *msgDeleteRequest) error {
 	if err := checkStreamName(stream); err != nil {
 		return err
 	}
@@ -1432,8 +1442,8 @@ func (js *js) deleteMsg(ctx context.Context, stream string, req *msgDeleteReques
 		return err
 	}
 
-	dsSubj := js.apiSubj(fmt.Sprintf(apiMsgDeleteT, stream))
-	r, err := js.apiRequestWithContext(ctx, dsSubj, reqJSON)
+	dsSubj := o.apiSubj(fmt.Sprintf(apiMsgDeleteT, stream))
+	r, err := js.apiRequestWithContext(o.ctx, dsSubj, reqJSON)
 	if err != nil {
 		return err
 	}
@@ -1495,7 +1505,7 @@ func (js *js) purgeStream(stream string, req *StreamPurgeRequest, opts ...JSOpt)
 		}
 	}
 
-	psSubj := js.apiSubj(fmt.Sprintf(apiStreamPurgeT, stream))
+	psSubj := o.apiSubj(fmt.Sprintf(apiStreamPurgeT, stream))
 	r, err := js.apiRequestWithContext(o.ctx, psSubj, b)
 	if err != nil {
 		return err
@@ -1739,7 +1749,7 @@ func (jsc *js) StreamNameBySubject(subj string, opts ...JSOpt) (string, error) {
 		return _EMPTY_, err
 	}
 
-	resp, err := jsc.apiRequestWithContext(o.ctx, jsc.apiSubj(apiStreams), j)
+	resp, err := jsc.apiRequestWithContext(o.ctx, o.apiSubj(apiStreams), j)
 	if err != nil {
 		if errors.Is(err, ErrNoResponders) {
 			err = ErrJetStreamNotEnabled
@@ -1778,6 +1788,11 @@ func getJSContextOpts(defs *jsOpts, opts ...JSOpt) (*jsOpts, context.CancelFunc,
 	if o.pre == _EMPTY_ {
 		o.pre = defs.pre
 	}
-
+	if o.ctx != nil {
+		// if context does not have a deadline, use timeout from js context
+		if _, hasDeadline := o.ctx.Deadline(); !hasDeadline {
+			o.ctx, cancel = context.WithTimeout(o.ctx, defs.wait)
+		}
+	}
 	return &o, cancel, nil
 }
