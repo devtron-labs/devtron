@@ -24,11 +24,12 @@ import (
 type VariableUsageType string
 
 const (
-	UsageTypeDeploymentTemplate VariableUsageType = "deploymentTemplate"
-	UsageTypeConfigMap          VariableUsageType = "configMap"
-	UsageTypeSecret             VariableUsageType = "secret"
-	UsageTypePipelineStage      VariableUsageType = "pipelineStage"
-	UsageTypeInfraConfig        VariableUsageType = "infraConfig"
+	UsageTypeDeploymentTemplate  VariableUsageType = "deploymentTemplate"
+	UsageTypeConfigMap           VariableUsageType = "configMap"
+	UsageTypeSecret              VariableUsageType = "secret"
+	UsageTypePipelineStage       VariableUsageType = "pipelineStage"
+	UsageTypeInfraConfig         VariableUsageType = "infraConfig"
+	UsageTypeContainerRepository VariableUsageType = "containerRepository"
 )
 
 // VariableUsage is one live reference of a scoped variable in saved configuration.
