@@ -174,7 +174,14 @@ func (impl ApiTokenServiceImpl) GetAllActiveApiTokens() ([]*openapi.ApiToken, er
 			apiToken.Token = &apiTokenFromDb.Token
 		}
 		if latestAuditLog != nil {
-			lastUsedAtStr := latestAuditLog.CreatedOn.String()
+			// the user_audit row is updated in place on every usage, so updated_on holds the latest usage;
+			// created_on only holds the first usage and is used as fallback for rows written before
+			// updated_on was added to user_audit
+			lastUsedAt := latestAuditLog.UpdatedOn
+			if lastUsedAt.IsZero() {
+				lastUsedAt = latestAuditLog.CreatedOn
+			}
+			lastUsedAtStr := lastUsedAt.String()
 			apiToken.LastUsedAt = &lastUsedAtStr
 			apiToken.LastUsedByIp = &latestAuditLog.ClientIp
 		}
