@@ -718,6 +718,9 @@ secondaryWorkload:
   affinity: {}
   tolerations: []
   autoscaling:
-    enabled: false
+    MinReplicas: 1
+    MaxReplicas: 2
+    TargetCPUUtilizationPercentage: 90
+    TargetMemoryUtilizationPercentage: ""
     containerResource:
       enabled: false
