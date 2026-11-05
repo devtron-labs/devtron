@@ -53,7 +53,7 @@ Check out the below video to experience the full power of the **Kubernetes Dashb
 
 Out of the box, Devtron's Kubernetes Dashboard includes:
 - [Helm Application Management](https://docs.dashboard.devtron.ai/user-guide/helm-apps) to streamline deploying, configuration, and management of Helm apps 
-- [Resource Browser](https://docs.dashboard.devtron.ai/user-guide/resource-browser) to visualize and manage different cluster resources like Nodes, Pods, ConfigMaps, Custom Resource Definations (CRDs), etc
+- [Resource Browser](https://docs.dashboard.devtron.ai/user-guide/resource-browser) to visualize and manage different cluster resources like Nodes, Pods, ConfigMaps, Custom Resource Definitions (CRDs), etc
 - [Single Sign On (SSO)](https://docs.dashboard.devtron.ai/operator-guide/authorization/sso-login-services) to simplify onboarding and authenticating team members.
 - [Fine Grained RBAC](https://docs.dashboard.devtron.ai/operator-guide/authorization) to control the level of access users have to different Dashboard and Cluster resources.
 

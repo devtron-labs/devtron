@@ -253,7 +253,7 @@ If you are getting an error message of "invalid username or password" or you wan
 
 `Solution:`
 
-1. Make sure you are on latest version or atleast you are using devtron version v0.6.9 or above. You can check your devtron version using `kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync.data}' | grep "^LTAG=" | cut -d"=" -f2-`
+1. Make sure you are on latest version or at least you are using devtron version v0.6.9 or above. You can check your devtron version using `kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync.data}' | grep "^LTAG=" | cut -d"=" -f2-`
 1. Take a backup of devtron secret using `kubectl get secret devtron-secret -n devtroncd -o yaml > devtron-secret-backup.yaml`
 2. Edit devtron secret using `kubectl edit secret devtron-secret -n devtroncd` and remove the key value pairs of ADMIN_PASSWORD, admin.password and admin.passwordMtime
 3. Restart argocd dex server to create new admin password for devtron using `kubectl delete po -n devtroncd -l app.kubernetes.io/name=argocd-dex-server`
@@ -589,7 +589,7 @@ Below is a sample annotation for your reference.
 kubectl.kubernetes.io/last-applied-configuration: | {"apiVersion":"v1","data":{"foo":"bar"},"kind":"ConfigMap","metadata":{"annotations":{},"creationTimestamp":"2019-08-12T18:38:34Z","labels":{"argocd.argoproj.io/instance":"deploy-test-cd-argo"},"name":"test-cm-1154","namespace":"argo"}}
 ```
 
-You may take the help of JSON validators to identify where the unintended human error has occured in the JSON. Rectifying the same should resolve this issue.
+You may take the help of JSON validators to identify where the unintended human error has occurred in the JSON. Rectifying the same should resolve this issue.
 
 {% hint style="info" %}
 The annotation `kubectl.kubernetes.io/last-applied-configuration:` is automatically added to each object when you run `kubectl apply`. 
