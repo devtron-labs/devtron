@@ -166,7 +166,7 @@ func InitClusterNoteService() {
 	prePostCiScriptHistoryService := history.NewPrePostCiScriptHistoryServiceImpl(logger, nil)
 	pipelineStageService := NewPipelineStageService(logger, nil, nil, nil, nil, nil, nil)
 	ciTemplateOverrideRepository := pipelineConfig.NewCiTemplateOverrideRepositoryImpl(conn, logger)
-	ciTemplateService := *NewCiTemplateServiceImpl(logger, nil, nil, nil)
+	ciTemplateService := *NewCiTemplateServiceImpl(logger, nil, nil, nil, noopVariableEntityMappingService{})
 	gitMaterialHistoryService := history.NewGitMaterialHistoryServiceImpl(nil, logger)
 	ciPipelineHistoryService := history.NewCiPipelineHistoryServiceImpl(ciPipelineHistoryRepository, logger, ciPipelineRepository)
 	dockerArtifactStoreRepository := repository2.NewDockerArtifactStoreRepositoryImpl(conn)

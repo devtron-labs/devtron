@@ -45,6 +45,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	variableEntity "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
@@ -1275,6 +1276,12 @@ func (impl *CiPipelineConfigServiceImpl) UpdateCiTemplate(updateRequest *bean.Ci
 				_, err = impl.ciTemplateOverrideRepository.Update(ciTemplateOverride)
 				if err != nil {
 					impl.logger.Errorw("error in updating ci template for ci_job", "err", err)
+				}
+				// this path updates ci_template_override directly rather than through
+				// CiTemplateService.Update, so the variable-usage mapping needs updating here too
+				err = impl.ciTemplateService.TrackContainerRepositoryUsage(variableEntity.EntityTypeContainerRepositoryPipelineLevel, ciTemplateOverride.Id, ciTemplateOverride.DockerRepository, updateRequest.UserId)
+				if err != nil {
+					impl.logger.Errorw("error in tracking container repository variable mapping for ci_job", "err", err)
 				}
 			}
 		}

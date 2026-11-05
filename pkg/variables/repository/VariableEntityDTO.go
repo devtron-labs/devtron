@@ -48,6 +48,12 @@ const (
 	// EntityTypeGitMaterial tracks which Git Materials reference a scoped variable in their
 	// URL, so a variable value change can re-sync the affected materials to git-sensor.
 	EntityTypeGitMaterial EntityType = 9
+	// EntityTypeContainerRepositoryAppLevel tracks which app-level CI templates
+	// (ci_template.docker_repository) reference a scoped variable.
+	EntityTypeContainerRepositoryAppLevel EntityType = 10
+	// EntityTypeContainerRepositoryPipelineLevel tracks which per-pipeline CI template
+	// overrides (ci_template_override.docker_repository) reference a scoped variable.
+	EntityTypeContainerRepositoryPipelineLevel EntityType = 11
 )
 
 func GetEntity(entityId int, entityType EntityType) Entity {

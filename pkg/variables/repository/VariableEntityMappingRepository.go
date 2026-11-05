@@ -143,6 +143,23 @@ INNER JOIN config_map_env_level cmel ON cmel.id = vem.entity_id AND cmel.deleted
 INNER JOIN app a ON a.id = cmel.app_id AND a.active = true
 INNER JOIN environment e ON e.id = cmel.environment_id AND e.active = true
 WHERE vem.entity_type IN (5, 7) AND vem.is_deleted = false AND vem.variable_name IN (?)
+UNION ALL
+SELECT vem.variable_name, vem.entity_type, vem.entity_id,
+       a.id, COALESCE(NULLIF(a.display_name, ''), a.app_name),
+       NULL, NULL, NULL, NULL
+FROM variable_entity_mapping vem
+INNER JOIN ci_template ct ON ct.id = vem.entity_id AND ct.active = true
+INNER JOIN app a ON a.id = ct.app_id AND a.active = true
+WHERE vem.entity_type = 10 AND vem.is_deleted = false AND vem.variable_name IN (?)
+UNION ALL
+SELECT vem.variable_name, vem.entity_type, vem.entity_id,
+       a.id, COALESCE(NULLIF(a.display_name, ''), a.app_name),
+       NULL, NULL, cp.name, NULL
+FROM variable_entity_mapping vem
+INNER JOIN ci_template_override cto ON cto.id = vem.entity_id AND cto.active = true
+INNER JOIN ci_pipeline cp ON cp.id = cto.ci_pipeline_id AND cp.deleted = false AND cp.is_docker_config_overridden = true
+INNER JOIN app a ON a.id = cp.app_id AND a.active = true
+WHERE vem.entity_type = 11 AND vem.is_deleted = false AND vem.variable_name IN (?)
 `
 
 func (impl *VariableEntityMappingRepositoryImpl) GetLiveUsagesForVariableNames(variableNames []string) ([]*VariableUsageRow, error) {
@@ -151,7 +168,7 @@ func (impl *VariableEntityMappingRepositoryImpl) GetLiveUsagesForVariableNames(v
 		return usages, nil
 	}
 	names := pg.In(variableNames)
-	_, err := impl.dbConnection.Query(&usages, liveVariableUsageQuery, names, names, names, names, names)
+	_, err := impl.dbConnection.Query(&usages, liveVariableUsageQuery, names, names, names, names, names, names, names)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("err in getting live usages for variable names", "variableNames", variableNames, "err", err)
 		return nil, err
