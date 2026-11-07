@@ -267,14 +267,16 @@ func (impl *SystemWorkflowExecutorImpl) createCmAndSecrets(template bean.Workflo
 		impl.addToUnstructuredList(configMap, templateList)
 		_, err = impl.k8sUtil.CreateConfigMap(createdJob.Namespace, &configMap, client)
 		if err != nil {
-			impl.logger.Errorw("error occurred while creating cm, but ignoring", "err", err)
+			impl.logger.Errorw("error occurred while creating cm", "err", err)
+			return err
 		}
 	}
 	for _, secret := range secrets {
 		impl.addToUnstructuredList(secret, templateList)
 		_, err = impl.k8sUtil.CreateSecretData(createdJob.Namespace, &secret, client)
 		if err != nil {
-			impl.logger.Errorw("error occurred while creating secret, but ignoring", "err", err)
+			impl.logger.Errorw("error occurred while creating secret", "err", err)
+			return err
 		}
 	}
 	return nil
