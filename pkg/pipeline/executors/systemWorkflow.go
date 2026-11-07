@@ -171,8 +171,17 @@ func (impl *SystemWorkflowExecutorImpl) GetWorkflowStatus(workflowName string, n
 		return nil, err
 	}
 	status := ""
-	if len(wf.Status.Conditions) > 0 {
-		status = string(wf.Status.Conditions[0].Type)
+	for _, condition := range wf.Status.Conditions {
+		if condition.Status != corev1.ConditionTrue {
+			continue
+		}
+		if condition.Type == v1.JobComplete || condition.Type == v1.JobFailed {
+			status = string(condition.Type)
+			break
+		}
+		if status == "" {
+			status = string(condition.Type)
+		}
 	}
 	wfStatus := &types2.WorkflowStatus{
 		Status: status,
