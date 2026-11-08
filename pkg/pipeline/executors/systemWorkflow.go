@@ -69,6 +69,15 @@ func (impl *SystemWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Wo
 	err = impl.createCmAndSecrets(workflowTemplate, createdJob, templatesList)
 	if err != nil {
 		impl.logger.Errorw("error occurred while creating cm and secret", "WorkflowRunnerId", workflowTemplate.WorkflowRunnerId, "err", err)
+		// Suspended Jobs never finish, so their TTL cannot clean up partial setup.
+		// Owned dependencies are collected with this exact Job; preserve the setup error.
+		propagation := v12.DeletePropagationBackground
+		if cleanupErr := clientset.BatchV1().Jobs(workflowTemplate.Namespace).Delete(ctx, createdJob.Name, v12.DeleteOptions{
+			PropagationPolicy: &propagation,
+			Preconditions:     &v12.Preconditions{UID: &createdJob.UID},
+		}); cleanupErr != nil {
+			impl.logger.Errorw("error occurred while cleaning up suspended job", "WorkflowRunnerId", workflowTemplate.WorkflowRunnerId, "jobName", createdJob.Name, "err", cleanupErr)
+		}
 		return nil, err
 	}
 
@@ -171,8 +180,17 @@ func (impl *SystemWorkflowExecutorImpl) GetWorkflowStatus(workflowName string, n
 		return nil, err
 	}
 	status := ""
-	if len(wf.Status.Conditions) > 0 {
-		status = string(wf.Status.Conditions[0].Type)
+	for _, condition := range wf.Status.Conditions {
+		if condition.Status != corev1.ConditionTrue {
+			continue
+		}
+		if condition.Type == v1.JobComplete || condition.Type == v1.JobFailed {
+			status = string(condition.Type)
+			break
+		}
+		if status == "" {
+			status = string(condition.Type)
+		}
 	}
 	wfStatus := &types2.WorkflowStatus{
 		Status: status,
@@ -267,14 +285,16 @@ func (impl *SystemWorkflowExecutorImpl) createCmAndSecrets(template bean.Workflo
 		impl.addToUnstructuredList(configMap, templateList)
 		_, err = impl.k8sUtil.CreateConfigMap(createdJob.Namespace, &configMap, client)
 		if err != nil {
-			impl.logger.Errorw("error occurred while creating cm, but ignoring", "err", err)
+			impl.logger.Errorw("error occurred while creating cm", "err", err)
+			return err
 		}
 	}
 	for _, secret := range secrets {
 		impl.addToUnstructuredList(secret, templateList)
 		_, err = impl.k8sUtil.CreateSecretData(createdJob.Namespace, &secret, client)
 		if err != nil {
-			impl.logger.Errorw("error occurred while creating secret, but ignoring", "err", err)
+			impl.logger.Errorw("error occurred while creating secret", "err", err)
+			return err
 		}
 	}
 	return nil
