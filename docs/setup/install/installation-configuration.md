@@ -42,6 +42,39 @@ You can configure the following properties:
 | **CI\_NODE\_TAINTS\_KEY** | Key for toleration if nodegroup chosen for CIs have some taints | NA |
 | **CI\_NODE\_TAINTS\_VALUE** | Value for toleration if nodegroup chosen for CIs have some taints | NA |
 
+### Volumes for Manual Chart Synchronization
+
+Manual chart synchronization creates a new `app-manual-sync-job`. Volumes mounted
+on the Devtron server are not inherited by this Job. When PostgreSQL uses a
+private certificate authority, the chart-sync container needs its own mount at
+the path configured in `PG_SSL_ROOT_CERT`.
+
+Configure these optional environment variables on the Devtron server through
+your installation's persistent `devtron-cm` configuration:
+
+| Parameter | Description | Default |
+| :--- | :--- | :--- |
+| `APP_SYNC_JOB_VOLUMES` | JSON array of Kubernetes Pod volumes | No additional volumes |
+| `APP_SYNC_JOB_VOLUME_MOUNTS` | JSON array of Kubernetes volume mounts for the chart-sync container | No additional mounts |
+
+For example, given an existing Secret named `postgresql-root-ca` with a `ca.crt`
+key in the Job namespace, use these ConfigMap data entries:
+
+```yaml
+PG_SSL_MODE: "verify-full"
+PG_SSL_ROOT_CERT: "/etc/postgresql/ca.crt"
+APP_SYNC_JOB_VOLUMES: '[{"name":"database-ca","secret":{"secretName":"postgresql-root-ca","items":[{"key":"ca.crt","path":"ca.crt"}]}}]'
+APP_SYNC_JOB_VOLUME_MOUNTS: '[{"name":"database-ca","mountPath":"/etc/postgresql","readOnly":true}]'
+```
+
+Every mount must reference a volume in `APP_SYNC_JOB_VOLUMES`. Malformed JSON,
+invalid typed values, or an unmatched mount cause the manual sync request to
+return an error before replacing the existing Job. Kubernetes validates the
+remaining Pod configuration when the Job is created. Referenced Secrets and
+ConfigMaps must already exist in the Job namespace. These options do not create
+Secrets, mount volumes on the Devtron server, or change the scheduled chart-sync
+Job or CronJob; configure those workloads separately.
+
 ### Storage for Logs and Cache
 
 #### `AWS SPECIFIC`

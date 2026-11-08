@@ -38,6 +38,8 @@ type ServerEnvConfig struct {
 	AppSyncImage                                string `env:"APP_SYNC_IMAGE" envDefault:"quay.io/devtron/chart-sync:1227622d-132-3775" description:"For the app sync image, this image will be used in app-manual sync job"`
 	AppSyncServiceAccount                       string `env:"APP_SYNC_SERVICE_ACCOUNT" envDefault:"chart-sync" description:"Service account to be used in app sync Job"`
 	AppSyncJobResourcesObj                      string `env:"APP_SYNC_JOB_RESOURCES_OBJ" description:"To pass the resource of app sync"`
+	AppSyncJobVolumes                           string `env:"APP_SYNC_JOB_VOLUMES" description:"Optional JSON array of Kubernetes volumes for manual chart-sync Jobs"`
+	AppSyncJobVolumeMounts                      string `env:"APP_SYNC_JOB_VOLUME_MOUNTS" description:"Optional JSON array of Kubernetes volume mounts for the manual chart-sync container"`
 	ModuleMetaDataApiUrl                        string `env:"MODULE_METADATA_API_URL" envDefault:"https://api.devtron.ai/module?name=%s" description:"Modules list and meta info will be fetched from this server, that is central api server of devtron."`
 	ParallelismLimitForTagProcessing            int    `env:"PARALLELISM_LIMIT_FOR_TAG_PROCESSING" description:"App manual sync job parallel tag processing count."`
 	AppSyncJobShutDownWaitDuration              int    `env:"APP_SYNC_SHUTDOWN_WAIT_DURATION" envDefault:"120"`
