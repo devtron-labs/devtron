@@ -20,7 +20,11 @@ import (
 )
 
 func TestSystemWorkflowDependentCreationErrors(t *testing.T) {
-	for _, deniedResource := range []string{"", "configmaps", "secrets"} {
+	for _, scenario := range []struct {
+		deniedResource string
+		cleanupFails   bool
+	}{{"", false}, {"configmaps", false}, {"secrets", false}, {"configmaps", true}, {"secrets", true}} {
+		deniedResource := scenario.deniedResource
 		deny := deniedResource != ""
 		var mu sync.Mutex
 		calls := []string{}
@@ -66,6 +70,22 @@ func TestSystemWorkflowDependentCreationErrors(t *testing.T) {
 				json.NewEncoder(w).Encode(v)
 				return
 			}
+			if r.Method == "DELETE" && strings.HasSuffix(r.URL.Path, "/jobs/fixture-job") {
+				var options meta.DeleteOptions
+				if err := json.NewDecoder(r.Body).Decode(&options); err != nil {
+					t.Errorf("decode cleanup options: %v", err)
+				}
+				if options.Preconditions == nil || options.Preconditions.UID == nil || *options.Preconditions.UID != job.UID || options.PropagationPolicy == nil || *options.PropagationPolicy != meta.DeletePropagationBackground {
+					t.Errorf("cleanup must collect dependents of the exact created Job: %+v", options)
+				}
+				if scenario.cleanupFails {
+					w.WriteHeader(403)
+					json.NewEncoder(w).Encode(meta.Status{TypeMeta: meta.TypeMeta{Kind: "Status", APIVersion: "v1"}, Status: "Failure", Reason: meta.StatusReasonForbidden, Code: 403, Message: "synthetic cleanup failure"})
+					return
+				}
+				json.NewEncoder(w).Encode(meta.Status{TypeMeta: meta.TypeMeta{Kind: "Status", APIVersion: "v1"}, Status: "Success"})
+				return
+			}
 			if r.Method == "PATCH" && strings.HasSuffix(r.URL.Path, "/jobs/fixture-job") {
 				no := false
 				job.Spec.Suspend = &no
@@ -87,8 +107,11 @@ func TestSystemWorkflowDependentCreationErrors(t *testing.T) {
 			Secrets:    []api.ConfigSecretMap{{Name: "fixture-secret", Data: json.RawMessage(`{"value":"c3ludGhldGlj"}`)}}}
 		objects, runErr := ex.ExecuteWorkflow(template)
 		server.Close()
-		patch := false
+		patch, cleanup := false, false
 		for _, c := range calls {
+			if c == "DELETE /apis/batch/v1/namespaces/executor-fixture/jobs/fixture-job" {
+				cleanup = true
+			}
 			if c == "PATCH /apis/batch/v1/namespaces/executor-fixture/jobs/fixture-job" {
 				patch = true
 			}
@@ -101,11 +124,11 @@ func TestSystemWorkflowDependentCreationErrors(t *testing.T) {
 		if runErr != nil {
 			row["error"] = runErr.Error()
 		}
-		if !deny && (runErr != nil || !patch || count != 3) {
+		if !deny && (runErr != nil || !patch || cleanup || count != 3) {
 			t.Fatalf("success control failed: %v", row)
 		}
-		if deny && (runErr == nil || patch) {
-			t.Fatalf("dependent creation failure must not unsuspend: %v", row)
+		if deny && (runErr == nil || patch || !cleanup || !strings.Contains(runErr.Error(), "synthetic namespaced role denies dependent creation")) {
+			t.Fatalf("dependent failure must preserve setup error, clean up and never unsuspend: %v", row)
 		}
 	}
 }

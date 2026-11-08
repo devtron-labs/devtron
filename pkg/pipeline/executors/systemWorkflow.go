@@ -69,6 +69,15 @@ func (impl *SystemWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Wo
 	err = impl.createCmAndSecrets(workflowTemplate, createdJob, templatesList)
 	if err != nil {
 		impl.logger.Errorw("error occurred while creating cm and secret", "WorkflowRunnerId", workflowTemplate.WorkflowRunnerId, "err", err)
+		// Suspended Jobs never finish, so their TTL cannot clean up partial setup.
+		// Owned dependencies are collected with this exact Job; preserve the setup error.
+		propagation := v12.DeletePropagationBackground
+		if cleanupErr := clientset.BatchV1().Jobs(workflowTemplate.Namespace).Delete(ctx, createdJob.Name, v12.DeleteOptions{
+			PropagationPolicy: &propagation,
+			Preconditions:     &v12.Preconditions{UID: &createdJob.UID},
+		}); cleanupErr != nil {
+			impl.logger.Errorw("error occurred while cleaning up suspended job", "WorkflowRunnerId", workflowTemplate.WorkflowRunnerId, "jobName", createdJob.Name, "err", cleanupErr)
+		}
 		return nil, err
 	}
 
