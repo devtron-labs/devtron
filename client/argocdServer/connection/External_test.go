@@ -73,6 +73,28 @@ func externalCertificate(t *testing.T, ip string) (tls.Certificate, []byte) {
 	return certificate, certificatePEM
 }
 
+func externalTLSServer(t *testing.T, certificateIP string, expectedToken *atomic.Value) (*httptest.Server, []byte, *atomic.Int64) {
+	t.Helper()
+	certificate, ca := externalCertificate(t, certificateIP)
+	var calls atomic.Int64
+	server := grpc.NewServer(grpc.UnaryInterceptor(func(ctx context.Context, request interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		calls.Add(1)
+		incoming, _ := metadata.FromIncomingContext(ctx)
+		if values := incoming.Get("token"); len(values) != 1 || values[0] != expectedToken.Load().(string) {
+			return nil, status.Error(codes.Unauthenticated, "invalid fixture token")
+		}
+		return handler(ctx, request)
+	}))
+	healthpb.RegisterHealthServer(server, externalHealthServer{})
+	httpServer := httptest.NewUnstartedServer(server)
+	httpServer.EnableHTTP2 = true
+	httpServer.TLS = &tls.Config{Certificates: []tls.Certificate{certificate}}
+	httpServer.StartTLS()
+	t.Cleanup(httpServer.Close)
+	t.Cleanup(server.Stop)
+	return httpServer, ca, &calls
+}
+
 func TestExternalArgoTLSAndToken(t *testing.T) {
 	for _, test := range []struct {
 		name, certificateIP, trust, token string
@@ -86,25 +108,9 @@ func TestExternalArgoTLSAndToken(t *testing.T) {
 		{"empty token", "127.0.0.1", "server", "", false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			certificate, ca := externalCertificate(t, test.certificateIP)
-			var calls atomic.Int64
 			var expectedToken atomic.Value
 			expectedToken.Store("fixture-first")
-			server := grpc.NewServer(grpc.UnaryInterceptor(func(ctx context.Context, request interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-				calls.Add(1)
-				incoming, _ := metadata.FromIncomingContext(ctx)
-				if values := incoming.Get("token"); len(values) != 1 || values[0] != expectedToken.Load().(string) {
-					return nil, status.Error(codes.Unauthenticated, "invalid fixture token")
-				}
-				return handler(ctx, request)
-			}))
-			healthpb.RegisterHealthServer(server, externalHealthServer{})
-			httpServer := httptest.NewUnstartedServer(server)
-			httpServer.EnableHTTP2 = true
-			httpServer.TLS = &tls.Config{Certificates: []tls.Certificate{certificate}}
-			httpServer.StartTLS()
-			t.Cleanup(httpServer.Close)
-			t.Cleanup(server.Stop)
+			httpServer, ca, calls := externalTLSServer(t, test.certificateIP, &expectedToken)
 			host, port, err := net.SplitHostPort(strings.TrimPrefix(httpServer.URL, "https://"))
 			require.NoError(t, err)
 			config := &bean.Config{Host: host, Port: port, TokenFile: filepath.Join(t.TempDir(), "token")}
