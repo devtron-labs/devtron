@@ -1,16 +1,19 @@
 # Argo CD application placement
 
-`CD_NAMESPACE` selects the namespace of the Argo CD control-plane resources,
-including newly created Applications and repository credentials. It defaults to
-`devtroncd`, preserving bundled installations. Devtron installation settings
-such as `ACD_NAMESPACE` can remain separate when Argo CD is installed elsewhere.
+`ACD_NAMESPACE` is the existing Argo CD namespace setting used by chart-store
+Applications, repository resources and default Application lookups. Pipeline
+Application creation now honors that same setting instead of always using
+`devtroncd`. The default remains `devtroncd`. The connection/account bootstrap
+setting `CD_NAMESPACE` retains its existing behavior and is not a replacement for
+`ACD_NAMESPACE`.
 
 `ARGO_APPLICATION_PROJECT` selects the AppProject assigned to newly created
 pipeline and chart-store Applications. Its default is `default`. Namespace and
-project names are validated during configuration loading. Application workload
-destinations, Git repositories and synchronization policy retain their existing
-inputs. Changing these settings does not migrate or recreate existing Applications.
+project names are validated during deployment configuration loading. Application
+workload destinations, Git repositories and synchronization policy retain their
+existing inputs. Changing these settings does not migrate or recreate existing
+Applications. Existing repository and Application lookup configuration is unchanged.
 
 The platform owner supplies the AppProject's repository, destination and resource
-constraints and the required Kubernetes/Argo permissions. Placement configuration
+constraints and required Kubernetes/Argo permissions. Placement configuration
 does not grant access, adopt an existing Git writer or provision another Argo CD.

@@ -53,7 +53,7 @@ import (
 )
 
 type ACDConfig struct {
-	ApplicationNamespace      string `env:"CD_NAMESPACE" envDefault:"devtroncd" description:"Namespace of the Argo CD application and repository resources"`
+	ApplicationNamespace      string `env:"ACD_NAMESPACE" envDefault:"devtroncd" description:"Namespace of the Argo CD application and repository resources"`
 	ApplicationProject        string `env:"ARGO_APPLICATION_PROJECT" envDefault:"default" description:"Argo CD AppProject assigned to newly created applications"`
 	ArgoCDAutoSyncEnabled     bool   `env:"ARGO_AUTO_SYNC_ENABLED" envDefault:"true" description:"If enabled all argocd application will have auto sync enabled" example:"true" deprecated:"false"` // will gradually switch this flag to false in enterprise
 	RegisterRepoMaxRetryCount int    `env:"ARGO_REPO_REGISTER_RETRY_COUNT" envDefault:"4" description:"Retry count for registering a GitOps repository to ArgoCD" example:"3" deprecated:"false"`
