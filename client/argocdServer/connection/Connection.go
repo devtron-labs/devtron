@@ -18,6 +18,7 @@ package connection
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -39,6 +40,7 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -83,6 +85,7 @@ type ArgoCDConnectionManagerImpl struct {
 	runTimeConfig           *k8s.RuntimeConfig
 	argoCDConfigGetter      config2.ArgoCDConfigGetter
 	asyncRunnable           *async.Runnable
+	externalTLS             credentials.TransportCredentials
 }
 
 func NewArgoCDConnectionManagerImpl(Logger *zap.SugaredLogger,
@@ -110,11 +113,20 @@ func NewArgoCDConnectionManagerImpl(Logger *zap.SugaredLogger,
 		argoCDConfigGetter:      argoCDConfigGetter,
 		asyncRunnable:           asyncRunnable,
 	}
-	if !runTimeConfig.LocalDevMode {
-		grpcConfig, err := argoCDConfigGetter.GetGRPCConfig()
-		if err != nil {
-			Logger.Errorw("error in GetAllGRPCConfigs", "error", err)
+	grpcConfig, err := argoCDConfigGetter.GetGRPCConfig()
+	if err != nil {
+		return nil, err
+	}
+	if grpcConfig.ConnectionConfig.TokenFile != "" || grpcConfig.ConnectionConfig.CAFile != "" {
+		argoUserServiceImpl.externalTLS = credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12})
+		if grpcConfig.ConnectionConfig.CAFile != "" {
+			argoUserServiceImpl.externalTLS, err = credentials.NewClientTLSFromFile(grpcConfig.ConnectionConfig.CAFile, "")
+			if err != nil {
+				return nil, fmt.Errorf("load Argo CD CA bundle: %w", err)
+			}
 		}
+	}
+	if !runTimeConfig.LocalDevMode {
 		runnableFunc := func() {
 			argoUserServiceImpl.ValidateGitOpsAndGetOrUpdateArgoCdUserDetail(grpcConfig)
 		}
@@ -124,6 +136,9 @@ func NewArgoCDConnectionManagerImpl(Logger *zap.SugaredLogger,
 }
 
 func (impl *ArgoCDConnectionManagerImpl) ValidateGitOpsAndGetOrUpdateArgoCdUserDetail(grpcConfig *bean.ArgoGRPCConfig) string {
+	if grpcConfig.ConnectionConfig.TokenFile != "" {
+		return ""
+	}
 	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err != nil || !gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled() {
 		return ""
@@ -134,6 +149,9 @@ func (impl *ArgoCDConnectionManagerImpl) ValidateGitOpsAndGetOrUpdateArgoCdUserD
 
 // GetConnection - this function will call only for acd connection
 func (impl *ArgoCDConnectionManagerImpl) GetGrpcClientConnection(grpcConfig *bean.ArgoGRPCConfig) *grpc.ClientConn {
+	if grpcConfig.ConnectionConfig.TokenFile != "" {
+		return impl.getConnectionWithToken(grpcConfig.ConnectionConfig, "")
+	}
 	//TODO: acdAuthConfig should be passed as arg in function
 	token, err := impl.getLatestDevtronArgoCdUserToken(grpcConfig)
 	if err != nil {
@@ -144,10 +162,16 @@ func (impl *ArgoCDConnectionManagerImpl) GetGrpcClientConnection(grpcConfig *bea
 
 func (impl *ArgoCDConnectionManagerImpl) getConnectionWithToken(connectionConfig *bean.Config, token string) *grpc.ClientConn {
 	//TODO: config should be passed to this function as argument
-	settings := impl.getArgoCdSettings()
 	var option []grpc.DialOption
-	option = append(option, grpc.WithTransportCredentials(GetTLS(settings.Certificate)))
-	if len(token) > 0 {
+	transport := impl.externalTLS
+	if transport == nil {
+		settings := impl.getArgoCdSettings()
+		transport = GetTLS(settings.Certificate)
+	}
+	option = append(option, grpc.WithTransportCredentials(transport))
+	if connectionConfig.TokenFile != "" {
+		option = append(option, grpc.WithPerRPCCredentials(TokenAuth{tokenFile: connectionConfig.TokenFile}))
+	} else if len(token) > 0 {
 		option = append(option, grpc.WithPerRPCCredentials(TokenAuth{token: token}))
 	}
 	option = append(option, grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor), grpc.WithChainStreamInterceptor(grpc_prometheus.StreamClientInterceptor), grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
@@ -214,6 +238,9 @@ func (impl *ArgoCDConnectionManagerImpl) getLatestDevtronArgoCdUserToken(grpcCon
 }
 
 func (impl *ArgoCDConnectionManagerImpl) GetOrUpdateArgoCdUserDetail(grpcConfig *bean.ArgoGRPCConfig) string {
+	if grpcConfig.ConnectionConfig.TokenFile != "" {
+		return ""
+	}
 
 	token := ""
 	var (

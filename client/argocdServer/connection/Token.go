@@ -16,21 +16,38 @@
 
 package connection
 
-import "context"
+import (
+	"context"
+	"fmt"
+	"os"
+	"strings"
+)
 
 type TokenAuth struct {
-	token string
+	token     string
+	tokenFile string
 }
 
 // Return value is mapped to request headers.
 func (t TokenAuth) GetRequestMetadata(ctx context.Context, in ...string) (map[string]string, error) {
+	token := t.token
+	if t.tokenFile != "" {
+		contents, err := os.ReadFile(t.tokenFile)
+		if err != nil {
+			return nil, fmt.Errorf("read Argo CD API token file: %w", err)
+		}
+		token = strings.TrimSpace(string(contents))
+		if token == "" {
+			return nil, fmt.Errorf("Argo CD API token file is empty")
+		}
+	}
 	return map[string]string{
-		"token": t.token,
+		"token": token,
 	}, nil
 }
 
-func (TokenAuth) RequireTransportSecurity() bool {
-	return false
+func (t TokenAuth) RequireTransportSecurity() bool {
+	return t.tokenFile != ""
 }
 
 var tokenAuth TokenAuth
