@@ -171,10 +171,10 @@ func (impl *FullModeDeploymentServiceImpl) createInArgo(ctx context.Context, cha
 	}
 	appReq := &argocdServer.AppTemplate{
 		ApplicationName: argocdAppName,
-		Namespace:       impl.aCDAuthConfig.ACDConfigMapNamespace,
+		Namespace:       impl.acdConfig.ApplicationNamespace,
 		TargetNamespace: appNamespace,
 		TargetServer:    envModel.ClusterServerUrl,
-		Project:         "default",
+		Project:         impl.acdConfig.ApplicationProject,
 		ValuesFile:      fmt.Sprintf("values.yaml"),
 		RepoPath:        chartGitAttribute.ChartLocation,
 		RepoUrl:         chartGitAttribute.RepoUrl,

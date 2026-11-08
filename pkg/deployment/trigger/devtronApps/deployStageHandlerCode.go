@@ -1185,14 +1185,12 @@ func (impl *HandlerServiceImpl) createArgoApplicationIfRequired(ctx context.Cont
 		if appNamespace == "" {
 			appNamespace = "default"
 		}
-		namespace := argocdServer.DevtronInstalationNs
-
 		appRequest := &argocdServer.AppTemplate{
 			ApplicationName: argoAppName,
-			Namespace:       namespace,
+			Namespace:       impl.ACDConfig.ApplicationNamespace,
 			TargetNamespace: appNamespace,
 			TargetServer:    envModel.Cluster.ServerUrl,
-			Project:         "default",
+			Project:         impl.ACDConfig.ApplicationProject,
 			ValuesFile:      helper.GetValuesFileForEnv(envModel.Id),
 			RepoPath:        deploymentConfig.GetChartLocation(),
 			RepoUrl:         deploymentConfig.GetRepoURL(),

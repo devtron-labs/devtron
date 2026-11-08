@@ -49,12 +49,15 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 type ACDConfig struct {
-	ArgoCDAutoSyncEnabled     bool `env:"ARGO_AUTO_SYNC_ENABLED" envDefault:"true" description:"If enabled all argocd application will have auto sync enabled" example:"true" deprecated:"false"` // will gradually switch this flag to false in enterprise
-	RegisterRepoMaxRetryCount int  `env:"ARGO_REPO_REGISTER_RETRY_COUNT" envDefault:"4" description:"Retry count for registering a GitOps repository to ArgoCD" example:"3" deprecated:"false"`
-	RegisterRepoMaxRetryDelay int  `env:"ARGO_REPO_REGISTER_RETRY_DELAY" envDefault:"5" description:"Delay (in Seconds) between the retries for registering a GitOps repository to ArgoCD" example:"5" deprecated:"false"`
+	ApplicationNamespace      string `env:"CD_NAMESPACE" envDefault:"devtroncd" description:"Namespace of the Argo CD application and repository resources"`
+	ApplicationProject        string `env:"ARGO_APPLICATION_PROJECT" envDefault:"default" description:"Argo CD AppProject assigned to newly created applications"`
+	ArgoCDAutoSyncEnabled     bool   `env:"ARGO_AUTO_SYNC_ENABLED" envDefault:"true" description:"If enabled all argocd application will have auto sync enabled" example:"true" deprecated:"false"` // will gradually switch this flag to false in enterprise
+	RegisterRepoMaxRetryCount int    `env:"ARGO_REPO_REGISTER_RETRY_COUNT" envDefault:"4" description:"Retry count for registering a GitOps repository to ArgoCD" example:"3" deprecated:"false"`
+	RegisterRepoMaxRetryDelay int    `env:"ARGO_REPO_REGISTER_RETRY_DELAY" envDefault:"5" description:"Delay (in Seconds) between the retries for registering a GitOps repository to ArgoCD" example:"5" deprecated:"false"`
 }
 
 func (config *ACDConfig) IsManualSyncEnabled() bool {
@@ -70,6 +73,12 @@ func GetACDDeploymentConfig() (*ACDConfig, error) {
 	err := env.Parse(cfg)
 	if err != nil {
 		return nil, err
+	}
+	if errors := validation.IsDNS1123Label(cfg.ApplicationNamespace); len(errors) != 0 {
+		return nil, fmt.Errorf("invalid Argo CD application namespace: %s", strings.Join(errors, "; "))
+	}
+	if errors := validation.IsDNS1123Subdomain(cfg.ApplicationProject); len(errors) != 0 {
+		return nil, fmt.Errorf("invalid Argo CD application project: %s", strings.Join(errors, "; "))
 	}
 	return cfg, err
 }

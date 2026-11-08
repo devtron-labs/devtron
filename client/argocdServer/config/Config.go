@@ -84,7 +84,7 @@ func (impl *ArgoCDConfigGetterImpl) GetK8sConfig() (*bean.ArgoK8sConfig, error) 
 	}
 	k8sConfig := &bean.ArgoK8sConfig{
 		RestConfig:       restConfig,
-		AcdNamespace:     impl.ACDAuthConfig.ACDConfigMapNamespace,
+		AcdNamespace:     impl.config.Namespace,
 		AcdConfigMapName: impl.ACDAuthConfig.ACDConfigMapName,
 	}
 	return k8sConfig, nil
