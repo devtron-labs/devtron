@@ -21,6 +21,7 @@ import (
 
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
+	"go.uber.org/zap/zapcore"
 )
 
 type GitOpsConfigDto struct {
@@ -50,6 +51,18 @@ type GitOpsConfigDto struct {
 	UserEmailId    string `json:"-"`
 	Description    string `json:"-"`
 	UserId         int32  `json:"-"`
+}
+
+// MarshalLogObject records configuration identity without tokens, TLS material
+// or hosts that may include authentication information.
+func (c GitOpsConfigDto) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	enc.AddInt("id", c.Id)
+	enc.AddString("provider", c.Provider)
+	enc.AddBool("active", c.Active)
+	enc.AddBool("allowCustomRepository", c.AllowCustomRepository)
+	enc.AddBool("enableTLSVerification", c.EnableTLSVerification)
+	enc.AddString("authMode", string(c.AuthMode))
+	return nil
 }
 
 type AuthMode string
