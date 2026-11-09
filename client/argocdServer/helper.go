@@ -4,7 +4,6 @@ import (
 	json2 "encoding/json"
 	errors3 "errors"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 )
 
@@ -18,19 +17,12 @@ func createRequestForArgoCDSyncModeUpdateRequest(argoApplication *v1alpha1.Appli
 			Prune: ptr.To(true),
 		}
 	}
-	return &v1alpha1.Application{
-		ObjectMeta: v1.ObjectMeta{
-			Name:      argoApplication.Name,
-			Namespace: DevtronInstalationNs,
-		},
-		Spec: v1alpha1.ApplicationSpec{
-			Destination: argoApplication.Spec.Destination,
-			Source:      argoApplication.Spec.Source,
-			SyncPolicy: &v1alpha1.SyncPolicy{
-				Automated:   automated,
-				SyncOptions: argoApplication.Spec.SyncPolicy.SyncOptions,
-				Retry:       argoApplication.Spec.SyncPolicy.Retry,
-			}}}
+	updated := argoApplication.DeepCopy()
+	if updated.Spec.SyncPolicy == nil {
+		updated.Spec.SyncPolicy = &v1alpha1.SyncPolicy{}
+	}
+	updated.Spec.SyncPolicy.Automated = automated
+	return updated
 }
 
 func isArgoAppSyncModeMigrationNeeded(argoApplication *v1alpha1.Application, acdConfig *ACDConfig) bool {
