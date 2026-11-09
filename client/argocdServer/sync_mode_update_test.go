@@ -19,6 +19,9 @@ func TestSyncModeUpdatePreservesApplication(t *testing.T) {
 				SyncPolicy:  &v1alpha1.SyncPolicy{SyncOptions: v1alpha1.SyncOptions{"CreateNamespace=true"}, Retry: &v1alpha1.RetryStrategy{Limit: 3}},
 			},
 		}
+		if !enabled {
+			app.Spec.SyncPolicy.Automated = &v1alpha1.SyncPolicyAutomated{}
+		}
 		before := app.DeepCopy()
 		updated := createRequestForArgoCDSyncModeUpdateRequest(app, enabled)
 		require.Equal(t, enabled, updated.Spec.SyncPolicy.Automated != nil)
