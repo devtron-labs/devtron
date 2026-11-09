@@ -355,15 +355,15 @@ func (impl *DeploymentConfigServiceImpl) UpdateChartLocationInDeploymentConfig(t
 
 func (impl *DeploymentConfigServiceImpl) GetAllArgoAppInfosByDeploymentAppNames(deploymentAppNames []string) ([]*bean.DevtronArgoCdAppInfo, error) {
 	allDevtronManagedArgoAppsInfo := make([]*bean.DevtronArgoCdAppInfo, 0)
-	linkedReleaseConfig, err := impl.getAllEnvLevelConfigsForLinkedReleases()
+	releaseConfig, err := impl.getAllEnvLevelConfigsForArgoApps()
 	if err != nil {
-		impl.logger.Errorw("error while fetching linked release configs", "deploymentAppNames", deploymentAppNames, "error", err)
+		impl.logger.Errorw("error while fetching Argo release configs", "deploymentAppNames", deploymentAppNames, "error", err)
 		return allDevtronManagedArgoAppsInfo, err
 	}
-	linkedReleaseConfigMap := make(map[string]*bean.DeploymentConfig)
-	for _, config := range linkedReleaseConfig {
+	releaseConfigMap := make(map[string]*bean.DeploymentConfig)
+	for _, config := range releaseConfig {
 		uniqueKey := fmt.Sprintf("%d-%d", config.AppId, config.EnvironmentId)
-		linkedReleaseConfigMap[uniqueKey] = config
+		releaseConfigMap[uniqueKey] = config
 	}
 	devtronArgoAppsInfo, err := impl.pipelineRepository.GetAllArgoAppInfoByDeploymentAppNames(deploymentAppNames)
 	if err != nil {
@@ -373,13 +373,13 @@ func (impl *DeploymentConfigServiceImpl) GetAllArgoAppInfosByDeploymentAppNames(
 	for _, acdAppInfo := range devtronArgoAppsInfo {
 		uniqueKey := fmt.Sprintf("%d-%d", acdAppInfo.AppId, acdAppInfo.EnvironmentId)
 		var devtronArgoCdAppInfo *bean.DevtronArgoCdAppInfo
-		if config, ok := linkedReleaseConfigMap[uniqueKey]; ok &&
-			config.IsAcdRelease() && config.IsLinkedRelease() {
+		if config, ok := releaseConfigMap[uniqueKey]; ok &&
+			config.IsAcdRelease() && config.GetApplicationObjectNamespace() != "" {
 			acdAppClusterId := config.GetApplicationObjectClusterId()
 			acdDefaultNamespace := config.GetApplicationObjectNamespace()
 			devtronArgoCdAppInfo = adapter.GetDevtronArgoCdAppInfo(acdAppInfo.DeploymentAppName, acdAppClusterId, acdDefaultNamespace)
 		} else {
-			devtronArgoCdAppInfo = adapter.GetDevtronArgoCdAppInfo(acdAppInfo.DeploymentAppName, clusterBean.DefaultClusterId, impl.acdAuthConfig.ACDConfigMapNamespace)
+			devtronArgoCdAppInfo = adapter.GetDevtronArgoCdAppInfo(acdAppInfo.DeploymentAppName, clusterBean.DefaultClusterId, argocdServer.DevtronInstalationNs)
 		}
 		allDevtronManagedArgoAppsInfo = append(allDevtronManagedArgoAppsInfo, devtronArgoCdAppInfo)
 	}
@@ -539,7 +539,7 @@ func (impl *DeploymentConfigServiceImpl) parseReleaseConfigForHelmApps(appId int
 			ArgoCDSpec: bean.ArgoCDSpec{
 				Metadata: bean.ApplicationMetadata{
 					ClusterId: clusterBean.DefaultClusterId,
-					Namespace: argocdServer.DevtronInstalationNs,
+					Namespace: impl.acdAuthConfig.ACDConfigMapNamespace,
 				},
 				Spec: bean.ApplicationSpec{
 					Destination: &bean.Destination{
@@ -579,14 +579,17 @@ func (impl *DeploymentConfigServiceImpl) getAllAppLevelConfigsWithCustomGitOpsUR
 	return configs, nil
 }
 
-func (impl *DeploymentConfigServiceImpl) getAllEnvLevelConfigsForLinkedReleases() ([]*bean.DeploymentConfig, error) {
-	dbConfigs, err := impl.deploymentConfigRepository.GetAllEnvLevelConfigsWithReleaseMode(util2.PIPELINE_RELEASE_MODE_LINK)
+func (impl *DeploymentConfigServiceImpl) getAllEnvLevelConfigsForArgoApps() ([]*bean.DeploymentConfig, error) {
+	dbConfigs, err := impl.deploymentConfigRepository.GetAllConfigsForActiveApps()
 	if err != nil {
-		impl.logger.Errorw("error in getting all env level configs with custom gitops url", "err", err)
+		impl.logger.Errorw("error in getting active Argo deployment configs", "err", err)
 		return nil, err
 	}
 	configs := make([]*bean.DeploymentConfig, 0)
 	for _, dbConfig := range dbConfigs {
+		if dbConfig.EnvironmentId == 0 || dbConfig.DeploymentAppType != util2.PIPELINE_DEPLOYMENT_TYPE_ACD {
+			continue
+		}
 		config, err := adapter.ConvertDeploymentConfigDbObjToDTO(dbConfig)
 		if err != nil {
 			impl.logger.Error("error in converting dbObj to dto", "err", err)

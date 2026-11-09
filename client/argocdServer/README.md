@@ -17,3 +17,9 @@ Applications. Existing repository and Application lookup configuration is unchan
 The platform owner supplies the AppProject's repository, destination and resource
 constraints and required Kubernetes/Argo permissions. Placement configuration
 does not grant access, adopt an existing Git writer or provision another Argo CD.
+
+New pipeline deployment metadata records the same configured Application namespace.
+Discovery uses recorded placement for managed and linked pipelines, preserving
+legacy pipeline placement when no metadata is available. Chart-store discovery
+and duplicate-link checks retain the configured Argo CD namespace. Changing the
+sync mode preserves the fetched Application metadata, project and sources.

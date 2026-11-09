@@ -680,6 +680,10 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 
 func (impl *CdPipelineConfigServiceImpl) parseReleaseConfigForACDApp(app *app2.App, AppDeploymentConfig *bean4.DeploymentConfig, env *repository6.Environment) (*bean4.ReleaseConfiguration, error) {
 
+	acdConfig, err := argocdServer.GetACDDeploymentConfig()
+	if err != nil {
+		return nil, err
+	}
 	envOverride, err := impl.envConfigOverrideService.FindLatestChartForAppByAppIdAndEnvId(nil, app.Id, env.Id)
 	if err != nil && !errors2.IsNotFound(err) {
 		impl.logger.Errorw("error in fetch")
@@ -709,7 +713,7 @@ func (impl *CdPipelineConfigServiceImpl) parseReleaseConfigForACDApp(app *app2.A
 		ArgoCDSpec: bean4.ArgoCDSpec{
 			Metadata: bean4.ApplicationMetadata{
 				ClusterId: bean3.DefaultClusterId,
-				Namespace: argocdServer.DevtronInstalationNs,
+				Namespace: acdConfig.ApplicationNamespace,
 			},
 			Spec: bean4.ApplicationSpec{
 				Destination: &bean4.Destination{
@@ -1116,8 +1120,12 @@ func (impl *CdPipelineConfigServiceImpl) ValidateIfAcdAppAlreadyLinked(acdAppNam
 		}
 	}
 	if installedApp != nil {
-		// installed app found
-		if bean3.DefaultClusterId == applicationObjectClusterId && argocdServer.DevtronInstalationNs == applicationObjectNamespace {
+		acdConfig, err := argocdServer.GetACDDeploymentConfig()
+		if err != nil {
+			return err
+		}
+		// Chart-store Applications use the configured Argo CD namespace.
+		if bean3.DefaultClusterId == applicationObjectClusterId && acdConfig.ApplicationNamespace == applicationObjectNamespace {
 			return pipelineConfigBean.LinkFailedError{
 				Reason:      pipelineConfigBean.ApplicationAlreadyPresent,
 				UserMessage: pipelineConfigBean.HelmAppAlreadyPresentMsg,
@@ -3247,7 +3255,7 @@ func (impl *CdPipelineConfigServiceImpl) checkIfNsExistsForEnvIds(envIds []*int)
 	environmentList, err := impl.environmentRepository.FindByIds(envIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment", "err", err)
-		return fmt.Errorf("error in fetching environment err:", err)
+		return fmt.Errorf("error in fetching environment: %w", err)
 	}
 	clusterIdToNsMap := make(map[int]string, 0)
 	for _, environment := range environmentList {
