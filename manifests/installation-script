@@ -1,4 +1,4 @@
-LTAG="v2.2.0";
+LTAG="v2.2.1";
 REPO_RAW_URL="https://raw.githubusercontent.com/devtron-labs/devtron/";
 shebang = `#!/bin/bash
 `;

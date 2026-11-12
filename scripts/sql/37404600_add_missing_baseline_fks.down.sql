@@ -1,0 +1,2 @@
+ALTER TABLE pipeline_config_override DROP CONSTRAINT IF EXISTS pipeline_config_override_cd_workflow_id_fkey;
+ALTER TABLE ci_artifact DROP CONSTRAINT IF EXISTS ci_artifact_parent_ci_artifact_fkey;

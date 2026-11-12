@@ -27,6 +27,12 @@ spec:
     {{- end }}
     protocol: TCP
     targetPort: devtron
+{{- if or $.Values.devtronEnterprise.athenaApi.enabled $.Values.devtronEnterprise.auditService.enabled }}
+  - name: grpc
+    port: 9006
+    protocol: TCP
+    targetPort: 9006
+{{- end }}
 {{- if .loadBalancerSourceRanges }}
   loadBalancerSourceRanges:
 {{ toYaml .loadBalancerSourceRanges | nindent 4}}
