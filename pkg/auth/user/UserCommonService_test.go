@@ -1,9 +1,10 @@
 package user
 
 import (
+	"testing"
+
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
-	"testing"
 )
 
 func TestCheckRbacForARole(t *testing.T) {
