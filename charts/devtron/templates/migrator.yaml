@@ -702,3 +702,101 @@ spec:
   backoffLimit: 20
   activeDeadlineSeconds: 1500
 {{- end }}
+{{- if and $.Values.devtronEnterprise.enabled $.Values.devtronEnterprise.auditService.enabled }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgresql-migrate-audit-{{ randAlphaNum 5 | lower }}
+  namespace: devtroncd
+spec:
+  activeDeadlineSeconds: 1500
+  backoffLimit: 20
+  completions: 1
+  parallelism: 1
+  template:
+    spec:
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.migrator.nodeSelector "tolerations" $.Values.components.migrator.tolerations "imagePullSecrets" $.Values.components.migrator.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      serviceAccountName: default
+      containers:
+        - command:
+            - /bin/sh
+            - -c
+            - |
+              if [ "$MIGRATE_TO_VERSION" = "0" ]; then
+                migrate -path "$SCRIPT_LOCATION" -database "postgres://$PG_USER:$PG_PASSWORD@$PG_ADDR:$PG_PORT/$PG_DATABASE?sslmode=disable" up;
+              else
+                echo "$MIGRATE_TO_VERSION";
+                migrate -path "$SCRIPT_LOCATION" -database "postgres://$PG_USER:$PG_PASSWORD@$PG_ADDR:$PG_PORT/$PG_DATABASE?sslmode=disable" goto "$MIGRATE_TO_VERSION";
+              fi
+          env:
+            - name: SCRIPT_LOCATION
+              value: /shared/sql/
+            - name: DB_TYPE
+              value: postgres
+            - name: MIGRATE_TO_VERSION
+              value: "0"
+          envFrom:
+            - secretRef:
+                name: postgresql-migrator
+            - configMapRef:
+                name: audit-service-cm
+            - configMapRef:
+                name: devtron-common-cm
+          {{- if .image }}        
+          image: {{ include "common.image" (dict "component" $.Values.components.migrator "global" $.Values.global) }}
+          {{- else }}
+          image: migrate/migrate
+          {{- end }} 
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          imagePullPolicy: IfNotPresent
+          name: postgresql-migrate-audit
+          volumeMounts:
+            - mountPath: /shared
+              name: shared-volume
+      initContainers:
+        - command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Checking if database $PG_DATABASE exists..."
+              DB_EXISTS=$(PGPASSWORD="$PG_PASSWORD" psql -h "$PG_ADDR" -p "$PG_PORT" -U "$PG_USER" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$PG_DATABASE'")
+
+              if [ "$DB_EXISTS" = "1" ]; then
+                echo "Database $PG_DATABASE already exists."
+              else
+                echo "Database $PG_DATABASE does not exist. Creating it now..."
+                PGPASSWORD="$PG_PASSWORD" psql -h "$PG_ADDR" -p "$PG_PORT" -U "$PG_USER" -d postgres -c "CREATE DATABASE $PG_DATABASE;"
+                echo "Database $PG_DATABASE successfully created."
+              fi
+          envFrom:
+            - secretRef:
+                name: postgresql-migrator
+            - configMapRef:
+                name: audit-service-cm
+            - configMapRef:
+                name: devtron-common-cm
+          image: postgres:14
+          imagePullPolicy: IfNotPresent
+          name: check-and-create-db
+        - command:
+            - /bin/sh
+            - -c
+            - |
+              mkdir -p /shared/sql
+              cp -r scripts/sql/* /shared/sql/
+          image: {{ include "common.image" (dict "component" $.Values.devtronEnterprise.auditService "global" $.Values.global) }}
+          imagePullPolicy: IfNotPresent
+          name: init-devtron
+          volumeMounts:
+            - mountPath: /shared
+              name: shared-volume
+      restartPolicy: OnFailure
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - emptyDir: {}
+          name: shared-volume
+{{- end }}
