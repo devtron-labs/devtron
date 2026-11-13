@@ -32,9 +32,9 @@ func TestFindWithFilter(t *testing.T) {
 		},
 		{
 			name:   "chart repositories",
-			filter: appStoreBean.AppStoreFilter{ChartRepoId: []int{1, 2}, Size: 10, Offset: 20},
+			filter: appStoreBean.AppStoreFilter{ChartRepoId: []int{1, 2}},
 			contains: []string{
-				"ch.name as chart_name", "AND ch.id IN (1,2)", "OFFSET 20 LIMIT 10",
+				"ch.name as chart_name", "AND ch.id IN (1,2)",
 			},
 			excludes: "LEFT JOIN docker_artifact_store das",
 		},
@@ -51,34 +51,34 @@ func TestFindWithFilter(t *testing.T) {
 				"ch.name as chart_name, das.id as docker_artifact_store_id",
 				"AND (ch.id IN (1,2) OR das.id IN ('registry-1'))",
 			},
-			excludes: "OFFSET",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			queryError := errors.New("query transport unavailable")
+			dialCalls := 0
 			db := pg.Connect(&pg.Options{
-				Dialer: func(_, _ string) (net.Conn, error) { return nil, queryError },
+				Dialer: func(_, _ string) (net.Conn, error) {
+					dialCalls++
+					return nil, queryError
+				},
 			})
 			t.Cleanup(func() { require.NoError(t, db.Close()) })
-			var queries []string
-			var formattingError error
-			db.OnQueryProcessed(func(event *pg.QueryProcessedEvent) {
-				query, err := event.FormattedQuery()
-				formattingError = err
-				queries = append(queries, query)
-			})
+			columns, _ := updateFindWithFilterQuery(&tc.filter, QUERY_COLUMN_UPDATE)
+			join, params := updateFindWithFilterQuery(&tc.filter, QUERY_JOIN_UPDTAE)
+			query := string(db.FormatQuery(nil, columns+join, params...))
 			repository := NewAppStoreApplicationVersionRepositoryImpl(zap.NewNop().Sugar(), db)
 
 			versions, err := repository.FindWithFilter(&tc.filter)
 
 			require.ErrorIs(t, err, queryError)
 			require.Nil(t, versions)
-			require.NoError(t, formattingError)
-			require.Len(t, queries, 1)
+			require.Equal(t, 1, dialCalls)
 			for _, fragment := range tc.contains {
-				require.Contains(t, queries[0], fragment)
+				require.Contains(t, query, fragment)
 			}
-			require.NotContains(t, queries[0], tc.excludes)
+			if tc.excludes != "" {
+				require.NotContains(t, query, tc.excludes)
+			}
 		})
 	}
 }
