@@ -72,3 +72,11 @@ func TestCheckRbacForARole(t *testing.T) {
 		})
 	}
 }
+
+func TestMergeGroupsPreservesLiteralNames(t *testing.T) {
+	impl := UserServiceImpl{}
+
+	groups := impl.mergeGroups([]string{"team%v"}, []string{"team%0v", "team%v"})
+
+	require.Equal(t, []string{"team%v", "team%0v"}, groups)
+}
