@@ -306,7 +306,6 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(roleFieldDto *bean
 			return impl.GetRoleForOtherEntity(team, app, env, action, accessType, oldValues)
 		}
 	}
-	return RoleModel{}, nil
 }
 
 func (impl UserAuthRepositoryImpl) CreateUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (*UserRoleModel, error) {
