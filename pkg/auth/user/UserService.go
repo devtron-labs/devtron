@@ -744,11 +744,11 @@ func (impl *UserServiceImpl) mergeGroups(oldGroups []string, newGroups []string)
 	keysMap := make(map[string]bool)
 	for _, group := range oldGroups {
 		groups = append(groups, group)
-		key := fmt.Sprintf(group)
+		key := group
 		keysMap[key] = true
 	}
 	for _, group := range newGroups {
-		key := fmt.Sprintf(group)
+		key := group
 		if _, ok := keysMap[key]; !ok {
 			groups = append(groups, group)
 		}
