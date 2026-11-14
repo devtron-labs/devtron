@@ -23,6 +23,7 @@ import (
 	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type GitOpsConfigRepository interface {
@@ -65,6 +66,17 @@ type GitOpsConfig struct {
 	CaCert                string                      `sql:"ca_cert"`
 	AuthMode              constants.AuthMode          `sql:"auth_mode"`
 	sql.AuditLog
+}
+
+// MarshalLogObject keeps credentials out of structured repository error logs.
+func (c GitOpsConfig) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	enc.AddInt("id", c.Id)
+	enc.AddString("provider", c.Provider)
+	enc.AddBool("active", c.Active)
+	enc.AddBool("allowCustomRepository", c.AllowCustomRepository)
+	enc.AddBool("enableTLSVerification", c.EnableTLSVerification)
+	enc.AddString("authMode", string(c.AuthMode))
+	return nil
 }
 
 func NewGitOpsConfigRepositoryImpl(logger *zap.SugaredLogger, dbConnection *pg.DB, variables *globalUtil.EnvironmentVariables) *GitOpsConfigRepositoryImpl {
