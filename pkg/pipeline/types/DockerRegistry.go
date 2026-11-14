@@ -18,6 +18,7 @@ package types
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	"go.uber.org/zap/zapcore"
 )
 
 type DockerArtifactStoreBean struct {
@@ -53,3 +54,22 @@ type DockerRegistryIpsConfigBean struct {
 }
 
 type DisabledFields string
+
+// MarshalLogObject keeps credentials out of structured request logs. Use an
+// allowlist because URLs and provider-specific configuration can also contain secrets.
+func (r DockerArtifactStoreBean) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	enc.AddString("id", r.Id)
+	enc.AddString("registryType", string(r.RegistryType))
+	enc.AddBool("isPublic", r.IsPublic)
+	enc.AddBool("isDefault", r.IsDefault)
+	enc.AddBool("active", r.Active)
+	return nil
+}
+
+// MarshalLogObject preserves pull-configuration identity without its credential.
+func (r DockerRegistryIpsConfigBean) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	enc.AddInt("id", r.Id)
+	enc.AddString("credentialType", string(r.CredentialType))
+	enc.AddBool("active", r.Active)
+	return nil
+}
