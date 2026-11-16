@@ -135,7 +135,6 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean2.RoleGroup) (*bea
 			}
 			return request, err
 		}
-		model.Id = model.Id
 		//Starts Role and Mapping
 
 		var policies = make([]bean3.Policy, 0)
