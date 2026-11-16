@@ -16,9 +16,16 @@
 
 package bean
 
+import (
+	"fmt"
+	"strings"
+	"unicode"
+)
+
 const (
 	HostUrlKey                     string = "url"
 	API_SECRET_KEY                 string = "apiTokenSecret"
+	ENCRYPTION_KEY                 string = "encryptionKey"
 	ENFORCE_DEPLOYMENT_TYPE_CONFIG string = "enforceDeploymentTypeConfig"
 	PRIORITY_DEPLOYMENT_CONDITION  string = "priorityDeploymentCondition"
 	UserPreferencesResourcesKey           = "resources"
@@ -27,6 +34,20 @@ const (
 // InternalOnlyKeys are the internal attribute keys - cannot be read or written via API
 var InternalOnlyKeys = map[string]bool{
 	API_SECRET_KEY: true,
+	ENCRYPTION_KEY: true,
+}
+
+// IsInternalOnlyKey checks if the given key is an internal-only attribute key
+func IsInternalOnlyKey(key string) bool {
+	return InternalOnlyKeys[strings.TrimSpace(key)]
+}
+
+// ValidateAttributeKey checks that the attribute key does not contain control characters
+func ValidateAttributeKey(key string) error {
+	if strings.IndexFunc(key, unicode.IsControl) >= 0 {
+		return fmt.Errorf("invalid attribute key: %q", key)
+	}
+	return nil
 }
 
 type AttributesDto struct {
