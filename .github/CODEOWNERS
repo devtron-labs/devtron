@@ -1,17 +1,8 @@
 #ALL
-* @prakarsh-dt @vivek-devtron
-
-#Helm Charts
-charts/devtron/ @prakarsh-dt @vivek-devtron
-scripts/devtron-reference-helm-charts @prakarsh-dt @vivek-devtron
-CHANGELOG/ @prakarsh-dt @vivek-devtron
-
-#Migration scripts
-scripts/sql @prakarsh-dt @vivek-devtron
-scripts/utilities @prakarsh-dt @vivek-devtron
+* @devtron-labs/be-codeowners
 
 #Github Specific
-.github/ @prakarsh-dt @tayalrishabh96 @pawan-59 @vivek-devtron
+.github/ @devtron-labs/be-codeowners @devtron-labs/devops-codeowners
 
-#swagger api specs 
-specs/ @prakarsh-dt @pawan-59 @vivek-devtron
+#swagger api specs
+specs/ @devtron-labs/be-codeowners @devtron-labs/devops-codeowners
