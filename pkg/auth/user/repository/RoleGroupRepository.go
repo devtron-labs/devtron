@@ -382,6 +382,17 @@ func (impl RoleGroupRepositoryImpl) GetRoleGroupRoleMappingIdsByGroupIds(groupId
 	return Id, nil
 }
 
+func (impl RoleGroupRepositoryImpl) GetRoleGroupsByIds(ids []int32) ([]*RoleGroup, error) {
+	var roleGroups []*RoleGroup
+	if len(ids) == 0 {
+		return roleGroups, nil
+	}
+	err := impl.dbConnection.Model(&roleGroups).
+		Where("id IN (?)", pg.In(ids)).
+		Select()
+	return roleGroups, err
+}
+
 func (impl RoleGroupRepositoryImpl) DeleteRoleGroupRoleMappingByIds(ids []int, tx *pg.Tx) error {
 	var userRoleModel *RoleGroupRoleMapping
 	_, err := tx.Model(userRoleModel).
