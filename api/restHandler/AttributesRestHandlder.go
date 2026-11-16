@@ -62,7 +62,7 @@ func NewAttributesRestHandlerImpl(logger *zap.SugaredLogger, enforcer casbin.Enf
 
 // isInternalOnlyKey checks if the given key is internal-only and should not be exposed
 func (handler AttributesRestHandlerImpl) isInternalOnlyKey(key string) bool {
-	return bean.InternalOnlyKeys[key]
+	return bean.IsInternalOnlyKey(key)
 }
 
 // filterInternalAttributes removes internal-only attributes from the list
@@ -84,6 +84,10 @@ func (handler AttributesRestHandlerImpl) AddAttributes(w http.ResponseWriter, r 
 	err = decoder.Decode(&dto)
 	if err != nil {
 		handler.logger.Errorw("request err, AddAttributes", "err", err, "payload", dto)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	if err = bean.ValidateAttributeKey(dto.Key); err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -126,6 +130,10 @@ func (handler AttributesRestHandlerImpl) UpdateAttributes(w http.ResponseWriter,
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	if err = bean.ValidateAttributeKey(dto.Key); err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 
 	token := r.Header.Get("token")
 
@@ -138,6 +146,18 @@ func (handler AttributesRestHandlerImpl) UpdateAttributes(w http.ResponseWriter,
 
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	existing, err := handler.attributesService.GetById(dto.Id)
+	if err != nil {
+		handler.logger.Errorw("service err, UpdateAttributes", "err", err, "id", dto.Id)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if existing != nil && handler.isInternalOnlyKey(existing.Key) {
+		handler.logger.Warnw("attempt to edit internal-only attribute", "key", existing.Key, "userId", userId)
+		common.WriteJsonResp(w, fmt.Errorf("forbidden: cannot edit attribute with key: %q", existing.Key), nil, http.StatusForbidden)
 		return
 	}
 
@@ -227,6 +247,10 @@ func (handler AttributesRestHandlerImpl) GetAttributesByKey(w http.ResponseWrite
 
 	vars := mux.Vars(r)
 	key := vars["key"]
+	if err = bean.ValidateAttributeKey(key); err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 
 	// Check if the key is internal-only (not allowed to be read via API)
 	if handler.isInternalOnlyKey(key) {
