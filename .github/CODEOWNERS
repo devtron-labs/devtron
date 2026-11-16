@@ -1,17 +1,8 @@
 #ALL
-* @devtron-labs/be-codeowners @devtron-labs/devops-codeowners
-
-#Helm Charts
-charts/devtron/ @devtron-labs/be-codeowners @devtron-labs/devops-codeowners
-scripts/devtron-reference-helm-charts @devtron-labs/be-codeowners @devtron-labs/devops-codeowners
-CHANGELOG/ @devtron-labs/be-codeowners @devtron-labs/devops-codeowners
-
-#Migration scripts
-scripts/sql @devtron-labs/be-codeowners @devtron-labs/devops-codeowners
-scripts/utilities @devtron-labs/be-codeowners @devtron-labs/devops-codeowners
+* @devtron-labs/be-codeowners
 
 #Github Specific
 .github/ @devtron-labs/be-codeowners @devtron-labs/devops-codeowners
 
-#swagger api specs 
+#swagger api specs
 specs/ @devtron-labs/be-codeowners @devtron-labs/devops-codeowners
