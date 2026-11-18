@@ -140,7 +140,11 @@ func (impl *EventRESTClientImpl) buildFinalPayload(event Event, cdPipeline *pipe
 			payload.AppName = ciPipeline.App.AppName
 			payload.PipelineName = ciPipeline.Name
 		}
-		payload.BuildHistoryLink = fmt.Sprintf("/dashboard/app/%d/ci-details/%d/%d/artifacts", event.AppId, event.PipelineId, event.CiWorkflowRunnerId)
+		ciDetailsTab := "artifacts"
+		if event.EventTypeId == int(util.Fail) {
+			ciDetailsTab = "logs"
+		}
+		payload.BuildHistoryLink = fmt.Sprintf("/dashboard/app/%d/ci-details/%d/%d/%s", event.AppId, event.PipelineId, event.CiWorkflowRunnerId, ciDetailsTab)
 	}
 	return payload
 }
