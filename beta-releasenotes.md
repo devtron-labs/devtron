@@ -1,5 +1,6 @@
 ## Enhancements
 ## Bugs
+- fix: load logs page for failed CI builds from slack notification (#7094)
 - fix: attribute key validation in attributes api - oss (#7093)
 - fix: container repo deletion protection for scoped variables (#7078)
 ## Others
