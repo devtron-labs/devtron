@@ -17,9 +17,14 @@
 package chartRepo
 
 import (
-	"bytes"
+	"encoding/json"
+	"fmt"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"text/template"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type AppSyncConfig struct {
@@ -30,6 +35,8 @@ type AppSyncConfig struct {
 	AppSyncServiceAccount            string
 	ParallelismLimitForTagProcessing int
 	AppSyncJobShutDownWaitDuration   int
+	Volumes                          []corev1.Volume
+	VolumeMounts                     []corev1.VolumeMount
 }
 
 type ChartProviderConfig struct {
@@ -37,108 +44,87 @@ type ChartProviderConfig struct {
 	IsOCIRegistry   bool
 }
 
-func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, appSyncServiceAccount string, chartProviderConfig *ChartProviderConfig, ParallelismLimitForTagProcessing, AppSyncJobShutDownWaitDuration int) []byte {
-	cfg, _ := sql.GetConfig()
+func manualAppSyncJobByteArr(
+	dockerImage, appSyncJobResourcesObj, appSyncServiceAccount string,
+	chartProviderConfig *ChartProviderConfig,
+	parallelismLimitForTagProcessing, appSyncJobShutDownWaitDuration int,
+	volumes, volumeMounts string,
+) ([]byte, error) {
+	if chartProviderConfig == nil {
+		return nil, fmt.Errorf("chart sync provider config is required")
+	}
+	cfg, err := sql.GetConfig()
+	if err != nil {
+		return nil, fmt.Errorf("get chart sync database config: %w", err)
+	}
 	configValues := AppSyncConfig{
-		DbConfig:                         sql.Config{Addr: cfg.Addr, Database: cfg.Database, User: cfg.User, Password: cfg.Password, SslMode: cfg.SslMode, SslRootCert: cfg.SslRootCert},
+		DbConfig:                         *cfg,
 		DockerImage:                      dockerImage,
 		AppSyncJobResourcesObj:           appSyncJobResourcesObj,
 		ChartProviderConfig:              chartProviderConfig,
 		AppSyncServiceAccount:            appSyncServiceAccount,
-		ParallelismLimitForTagProcessing: ParallelismLimitForTagProcessing,
-		AppSyncJobShutDownWaitDuration:   AppSyncJobShutDownWaitDuration,
+		ParallelismLimitForTagProcessing: parallelismLimitForTagProcessing,
+		AppSyncJobShutDownWaitDuration:   appSyncJobShutDownWaitDuration,
 	}
-	temp := template.New("manualAppSyncJobByteArr")
-	temp, _ = temp.Parse(`{"apiVersion": "batch/v1",
-  "kind": "Job",
-  "metadata": {
-    "labels": {
-       "app": "app-manual-sync-job",
-       "component": "devtron"
-    },
-    "name": "app-manual-sync-job",
-    "namespace": "devtroncd"
-  },
-  "spec": {
-    "template": {
-      "metadata": {
-        "labels": {
-          "app": "app-manual-sync-job",
-          "component": "devtron"
-        }
-      },
-      "spec": {
-		"serviceAccount": "{{.AppSyncServiceAccount}}",
-        "containers": [
-          {
-            "name": "chart-sync",
-            "image": "{{.DockerImage}}",
- 			"ports": [
-              {
-                "containerPort": 8080,
-                "name": "metrics",
-                "protocol": "TCP"
-              }
-            ],
-			{{if .AppSyncJobResourcesObj}}
-			"resources": {{.AppSyncJobResourcesObj}},
-            {{end}}
-            "env": [
-              {
-                "name": "PG_ADDR",
-                "value": "{{.DbConfig.Addr}}"
-              },
-              {
-                "name": "PG_DATABASE",
-                "value": "{{.DbConfig.Database}}"
-              },
-              {
-                "name": "PG_USER",
-                "value": "{{.DbConfig.User}}"
-              },
-              {
-                "name": "PG_PASSWORD",
-                "value": "{{.DbConfig.Password}}"
-              },
-              {
-                "name": "PG_SSL_MODE",
-                "value": "{{.DbConfig.SslMode}}"
-              },
-              {
-                "name": "PG_SSL_ROOT_CERT",
-                "value": "{{.DbConfig.SslRootCert}}"
-              },
-			  {
-                "name": "CHART_PROVIDER_ID",
-                "value": "{{.ChartProviderConfig.ChartProviderId}}"
-			  },
-			  {
-                "name": "IS_OCI_REGISTRY",
-                "value": "{{.ChartProviderConfig.IsOCIRegistry}}"
-			  },
-              {
-				"name": "PARALLELISM_LIMIT_FOR_TAG_PROCESSING",
-     			"value": "{{.ParallelismLimitForTagProcessing}}"
-              },
-			  {
-				"name": "APP_SYNC_SHUTDOWN_WAIT_DURATION",
-     			"value": "{{.AppSyncJobShutDownWaitDuration}}"
-              }
-            ]
-          }
-        ],
-        "restartPolicy": "OnFailure"
-      }
-    },
-    "backoffLimit": 4,
-    "activeDeadlineSeconds": 15000
-  }
-}`)
-
-	var manualAppSyncJobBufferBytes bytes.Buffer
-	if err := temp.Execute(&manualAppSyncJobBufferBytes, configValues); err != nil {
-		return nil
+	container := corev1.Container{
+		Name: "chart-sync", Image: configValues.DockerImage,
+		Ports: []corev1.ContainerPort{{ContainerPort: 8080, Name: "metrics", Protocol: corev1.ProtocolTCP}},
+		Env: []corev1.EnvVar{
+			{Name: "PG_ADDR", Value: configValues.DbConfig.Addr},
+			{Name: "PG_DATABASE", Value: configValues.DbConfig.Database},
+			{Name: "PG_USER", Value: configValues.DbConfig.User},
+			{Name: "PG_PASSWORD", Value: configValues.DbConfig.Password},
+			{Name: "PG_SSL_MODE", Value: configValues.DbConfig.SslMode},
+			{Name: "PG_SSL_ROOT_CERT", Value: configValues.DbConfig.SslRootCert},
+			{Name: "CHART_PROVIDER_ID", Value: configValues.ChartProviderConfig.ChartProviderId},
+			{Name: "IS_OCI_REGISTRY", Value: strconv.FormatBool(configValues.ChartProviderConfig.IsOCIRegistry)},
+			{Name: "PARALLELISM_LIMIT_FOR_TAG_PROCESSING", Value: strconv.Itoa(configValues.ParallelismLimitForTagProcessing)},
+			{Name: "APP_SYNC_SHUTDOWN_WAIT_DURATION", Value: strconv.Itoa(configValues.AppSyncJobShutDownWaitDuration)},
+		},
 	}
-	manualAppSyncJobByteArr := []byte(manualAppSyncJobBufferBytes.String())
-	return manualAppSyncJobByteArr
+	for _, field := range []struct {
+		name, value string
+		target      interface{}
+	}{
+		{"APP_SYNC_JOB_RESOURCES_OBJ", configValues.AppSyncJobResourcesObj, &container.Resources},
+		{"APP_SYNC_JOB_VOLUMES", volumes, &configValues.Volumes},
+		{"APP_SYNC_JOB_VOLUME_MOUNTS", volumeMounts, &configValues.VolumeMounts},
+	} {
+		if field.value != "" {
+			if err := json.Unmarshal([]byte(field.value), field.target); err != nil {
+				return nil, fmt.Errorf("parse %s: %w", field.name, err)
+			}
+		}
+	}
+	for _, mount := range configValues.VolumeMounts {
+		found := false
+		for _, volume := range configValues.Volumes {
+			if volume.Name == mount.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf("chart sync volume mount %q has no matching volume", mount.Name)
+		}
+	}
+	container.VolumeMounts = configValues.VolumeMounts
+	backoffLimit, activeDeadlineSeconds := int32(4), int64(15000)
+	labels := map[string]string{"app": "app-manual-sync-job", "component": "devtron"}
+	job := batchv1.Job{
+		TypeMeta:   metav1.TypeMeta{APIVersion: "batch/v1", Kind: "Job"},
+		ObjectMeta: metav1.ObjectMeta{Name: "app-manual-sync-job", Namespace: "devtroncd", Labels: labels},
+		Spec: batchv1.JobSpec{
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{Labels: labels},
+				Spec: corev1.PodSpec{
+					ServiceAccountName: configValues.AppSyncServiceAccount,
+					Containers:         []corev1.Container{container}, Volumes: configValues.Volumes,
+					RestartPolicy: corev1.RestartPolicyOnFailure,
+				},
+			},
+			BackoffLimit: &backoffLimit, ActiveDeadlineSeconds: &activeDeadlineSeconds,
+		},
+	}
+	return json.Marshal(job)
 }
