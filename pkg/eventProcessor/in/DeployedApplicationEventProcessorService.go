@@ -88,86 +88,85 @@ func NewDeployedApplicationEventProcessorImpl(logger *zap.SugaredLogger,
 	return deployedApplicationEventProcessorImpl
 }
 
-func (impl *DeployedApplicationEventProcessorImpl) SubscribeArgoAppUpdate() error {
-	callback := func(msg *model.PubSubMsg) {
-		applicationDetail := bean3.ApplicationDetail{}
-		err := json.Unmarshal([]byte(msg.Data), &applicationDetail)
+func (impl *DeployedApplicationEventProcessorImpl) handleArgoAppUpdate(msg *model.PubSubMsg) {
+	applicationDetail := bean3.ApplicationDetail{}
+	err := json.Unmarshal([]byte(msg.Data), &applicationDetail)
+	if err != nil {
+		impl.logger.Errorw("unmarshal error on app update status", "err", err)
+		return
+	}
+	app := applicationDetail.Application
+	if app == nil {
+		return
+	}
+	if applicationDetail.StatusTime.IsZero() {
+		applicationDetail.StatusTime = time.Now()
+	}
+	isAppStoreApplication := false
+	pipelines, err := impl.pipelineRepository.GetArgoPipelineByArgoAppName(app.ObjectMeta.Name)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipeline from Pipeline Repository", "err", err, "appName", app.ObjectMeta.Name)
+		return
+	}
+	if len(pipelines) == 0 {
+		impl.logger.Infow("this app not found in pipeline table looking in installed_apps table", "appName", app.ObjectMeta.Name)
+		// if not found in pipeline table then search in installed_apps table
+		installedAppModel, err := impl.installedAppReadService.GetInstalledAppByGitOpsAppName(app.ObjectMeta.Name)
+		if errors.Is(err, pg.ErrNoRows) {
+			// Argo also publishes updates for applications that Devtron does not manage.
+			return
+		}
 		if err != nil {
-			impl.logger.Errorw("unmarshal error on app update status", "err", err)
+			impl.logger.Errorw("error in getting all gitops deployment app names from installed_apps ", "err", err)
 			return
 		}
-		app := applicationDetail.Application
-		if app == nil {
+		if installedAppModel.Id > 0 {
+			// app found in installed_apps table hence setting flag to true
+			isAppStoreApplication = true
+		} else {
+			// app neither found in installed_apps nor in pipeline table hence returning
 			return
 		}
-		if applicationDetail.StatusTime.IsZero() {
-			applicationDetail.StatusTime = time.Now()
-		}
-		isAppStoreApplication := false
-		pipelines, err := impl.pipelineRepository.GetArgoPipelineByArgoAppName(app.ObjectMeta.Name)
-		if err != nil {
-			impl.logger.Errorw("error in fetching pipeline from Pipeline Repository", "err", err, "appName", app.ObjectMeta.Name)
-			return
-		}
-		if len(pipelines) == 0 {
-			impl.logger.Infow("this app not found in pipeline table looking in installed_apps table", "appName", app.ObjectMeta.Name)
-			// if not found in pipeline table then search in installed_apps table
-			installedAppModel, err := impl.installedAppReadService.GetInstalledAppByGitOpsAppName(app.ObjectMeta.Name)
-			if err == pg.ErrNoRows {
-				// no installed_apps found
-				impl.logger.Errorw("no installed apps found", "err", err)
-				return
-			}
+	}
+	isSucceeded, _, pipelineOverride, err := impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, applicationDetail.ClusterId, applicationDetail.StatusTime, isAppStoreApplication)
+	if err != nil {
+		impl.logger.Errorw("error on application status update", "err", err, "msg", string(msg.Data))
+		// TODO - check update for charts - fix this call
+		if err == pg.ErrNoRows {
+			// if not found in charts (which is for devtron apps) try to find in installed app (which is for devtron charts)
+			_, err := impl.installedAppService.UpdateInstalledAppVersionStatus(app)
 			if err != nil {
-				impl.logger.Errorw("error in getting all gitops deployment app names from installed_apps ", "err", err)
-				return
-			}
-			if installedAppModel.Id > 0 {
-				// app found in installed_apps table hence setting flag to true
-				isAppStoreApplication = true
-			} else {
-				// app neither found in installed_apps nor in pipeline table hence returning
+				impl.logger.Errorw("error on application status update", "err", err, "msg", string(msg.Data))
 				return
 			}
 		}
-		isSucceeded, _, pipelineOverride, err := impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, applicationDetail.ClusterId, applicationDetail.StatusTime, isAppStoreApplication)
-		if err != nil {
-			impl.logger.Errorw("error on application status update", "err", err, "msg", string(msg.Data))
-			// TODO - check update for charts - fix this call
-			if err == pg.ErrNoRows {
-				// if not found in charts (which is for devtron apps) try to find in installed app (which is for devtron charts)
-				_, err := impl.installedAppService.UpdateInstalledAppVersionStatus(app)
-				if err != nil {
-					impl.logger.Errorw("error on application status update", "err", err, "msg", string(msg.Data))
-					return
-				}
-			}
-			// return anyway whether updates or failure, no further processing for charts status update
-			return
-		}
-
-		// invoke DagExecutor, for cd success which will trigger post stage if exist.
-		if isSucceeded {
-			impl.logger.Debugw("git hash history", "list", app.Status.History)
-			triggerContext := bean2.TriggerContext{
-				ReferenceId: pointer.String(msg.MsgId),
-			}
-			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(triggerContext, pipelineOverride)
-			if err != nil {
-				impl.logger.Errorw("deployment success event error", "pipelineOverride", pipelineOverride, "err", err)
-				return
-			}
-		}
-		impl.logger.Debugw("application status update completed", "app", app.Name)
+		// return anyway whether updates or failure, no further processing for charts status update
+		return
 	}
 
+	// invoke DagExecutor, for cd success which will trigger post stage if exist.
+	if isSucceeded {
+		impl.logger.Debugw("git hash history", "list", app.Status.History)
+		triggerContext := bean2.TriggerContext{
+			ReferenceId: pointer.String(msg.MsgId),
+		}
+		err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(triggerContext, pipelineOverride)
+		if err != nil {
+			impl.logger.Errorw("deployment success event error", "pipelineOverride", pipelineOverride, "err", err)
+			return
+		}
+	}
+	impl.logger.Debugw("application status update completed", "app", app.Name)
+}
+
+func (impl *DeployedApplicationEventProcessorImpl) SubscribeArgoAppUpdate() error {
 	// add required logging here
 	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
 		return "", nil
 	}
 
 	validations := impl.cdWorkflowCommonService.GetTriggerValidateFuncs()
-	err := impl.pubSubClient.Subscribe(pubsub.APPLICATION_STATUS_UPDATE_TOPIC, callback, loggerFunc, validations...)
+	err := impl.pubSubClient.Subscribe(pubsub.APPLICATION_STATUS_UPDATE_TOPIC, impl.handleArgoAppUpdate, loggerFunc, validations...)
 	if err != nil {
 		impl.logger.Error(err)
 		return err

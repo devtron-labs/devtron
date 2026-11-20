@@ -1,8 +1,11 @@
 package read
 
 import (
+	"errors"
+
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/read/adapter"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/read/bean"
+	"github.com/go-pg/pg"
 )
 
 type InstalledAppReadService interface {
@@ -40,7 +43,9 @@ func (impl *InstalledAppReadServiceImpl) GetInstalledAppByGitHash(gitHash string
 func (impl *InstalledAppReadServiceImpl) GetInstalledAppByGitOpsAppName(acdAppName string) (*bean.InstalledAppMin, error) {
 	installedAppModel, err := impl.installedAppRepository.GetInstalledAppByGitOpsAppName(acdAppName)
 	if err != nil {
-		impl.logger.Errorw("error while fetching installed app by GitOps app name", "acdAppName", acdAppName, "error", err)
+		if !errors.Is(err, pg.ErrNoRows) {
+			impl.logger.Errorw("error while fetching installed app by GitOps app name", "acdAppName", acdAppName, "error", err)
+		}
 		return nil, err
 	}
 	return adapter.GetInstalledAppInternal(installedAppModel).GetInstalledAppMin(), nil
