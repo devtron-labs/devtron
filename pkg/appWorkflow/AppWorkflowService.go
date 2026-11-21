@@ -365,9 +365,9 @@ func (impl AppWorkflowServiceImpl) FindAllAppWorkflowMapping(workflowIds []int) 
 			impl.Logger.Errorw("error occurred while filtering out delete request pipelines", "cdPipelineIds", cdPipelineIds, "err", err)
 			return nil, err
 		}
-		for _, workflowMapping := range workflowMappingDtos {
-			if workflowMapping.Type == "CD_PIPELINE" && cdPipelineIdMap[workflowMapping.ComponentId] {
-				workflowMapping.DeploymentAppDeleteRequest = true
+		for i := range workflowMappingDtos {
+			if workflowMappingDtos[i].Type == bean4.CD_PIPELINE_TYPE && cdPipelineIdMap[workflowMappingDtos[i].ComponentId] {
+				workflowMappingDtos[i].DeploymentAppDeleteRequest = true
 			}
 		}
 	}
