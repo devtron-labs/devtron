@@ -19,6 +19,8 @@ type HibernateRequest struct {
 	// helm app id
 	AppId     *string                  `json:"appId,omitempty"`
 	Resources *[]HibernateTargetObject `json:"resources,omitempty"`
+	// confirmation name - should match app name for additional confirmation
+	ConfirmationName *string `json:"confirmationName,omitempty"`
 }
 
 // NewHibernateRequest instantiates a new HibernateRequest object
@@ -102,6 +104,38 @@ func (o *HibernateRequest) SetResources(v []HibernateTargetObject) {
 	o.Resources = &v
 }
 
+// GetConfirmationName returns the ConfirmationName field value if set, zero value otherwise.
+func (o *HibernateRequest) GetConfirmationName() string {
+	if o == nil || o.ConfirmationName == nil {
+		var ret string
+		return ret
+	}
+	return *o.ConfirmationName
+}
+
+// GetConfirmationNameOk returns a tuple with the ConfirmationName field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *HibernateRequest) GetConfirmationNameOk() (*string, bool) {
+	if o == nil || o.ConfirmationName == nil {
+		return nil, false
+	}
+	return o.ConfirmationName, true
+}
+
+// HasConfirmationName returns a boolean if a field has been set.
+func (o *HibernateRequest) HasConfirmationName() bool {
+	if o != nil && o.ConfirmationName != nil {
+		return true
+	}
+
+	return false
+}
+
+// SetConfirmationName gets a reference to the given string and assigns it to the ConfirmationName field.
+func (o *HibernateRequest) SetConfirmationName(v string) {
+	o.ConfirmationName = &v
+}
+
 func (o HibernateRequest) MarshalJSON() ([]byte, error) {
 	toSerialize := map[string]interface{}{}
 	if o.AppId != nil {
@@ -109,6 +143,9 @@ func (o HibernateRequest) MarshalJSON() ([]byte, error) {
 	}
 	if o.Resources != nil {
 		toSerialize["resources"] = o.Resources
+	}
+	if o.ConfirmationName != nil {
+		toSerialize["confirmationName"] = o.ConfirmationName
 	}
 	return json.Marshal(toSerialize)
 }
