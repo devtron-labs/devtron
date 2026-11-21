@@ -36,3 +36,42 @@ spec:
 {{- end }}
 {{- end }}
 {{- end }}
+---
+{{- with .Values.istio }}
+{{- if and .enable .destinationRule.enabled $.Values.secondaryWorkload.istio.destinationRule.enabled }}
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  {{- if $.Values.secondaryWorkload.istio.destinationRule.name }}
+  name: {{ $.Values.secondaryWorkload.istio.destinationRule.name }}
+  {{- else }}
+  name: {{ $.Values.secondaryWorkload.fullnameOverride | default (printf "%s-%s" (include ".Chart.Name .fullname" $) ($.Values.secondaryWorkload.postfix | default "sec")) }}-destinationrule
+  {{- end }}
+  labels:
+    app: {{ template ".Chart.Name .name" $ }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
+{{- if $.Values.appLabels }}
+{{ toYaml $.Values.appLabels | indent 4 }}
+{{- end }}
+    {{- if $.Values.secondaryWorkload.istio.destinationRule.labels }}
+{{ toYaml $.Values.secondaryWorkload.istio.destinationRule.labels | indent 4 }}
+    {{- end }}
+{{- if $.Values.secondaryWorkload.istio.destinationRule.annotations }}
+  annotations:
+{{ toYaml $.Values.secondaryWorkload.istio.destinationRule.annotations | indent 4 }}
+{{- end }}
+spec:
+  host: "{{ $.Values.secondaryWorkload.fullnameOverride | default (printf "%s-%s" (include ".Chart.Name .fullname" $) ($.Values.secondaryWorkload.postfix | default "sec")) }}-service.{{ $.Release.Namespace }}.svc.cluster.local"
+{{- if $.Values.secondaryWorkload.istio.destinationRule.subsets }}
+  subsets:
+{{ toYaml $.Values.secondaryWorkload.istio.destinationRule.subsets | indent 4 }}
+{{- end }}
+{{- if $.Values.secondaryWorkload.istio.destinationRule.trafficPolicy }}
+  trafficPolicy:
+{{ toYaml $.Values.secondaryWorkload.istio.destinationRule.trafficPolicy | indent 4 }}
+{{- end }}
+{{- end }}
+{{- end }}
