@@ -138,3 +138,4 @@ example of DEX_CONFIG is
 **Please Note:**
 Ensure that the cluster has access to the DEFAULT_CACHE_BUCKET, DEFAULT_BUILD_LOGS_BUCKET, CHARTMUSEUM_STORAGE_AMAZON_BUCKET and AWS secrets backends (SSM & secrets manager)
 
+The main Devtron deployment probe timings can be customized with `components.devtron.livenessProbe` and `components.devtron.readinessProbe` in the chart `values.yaml`.

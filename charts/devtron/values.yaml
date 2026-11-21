@@ -107,6 +107,18 @@ components:
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     healthPort: 8080
+    livenessProbe:
+      failureThreshold: 3
+      initialDelaySeconds: 20
+      periodSeconds: 10
+      successThreshold: 1
+      timeoutSeconds: 5
+    readinessProbe:
+      failureThreshold: 3
+      initialDelaySeconds: 20
+      periodSeconds: 10
+      successThreshold: 1
+      timeoutSeconds: 5
     podSecurityContext:
       fsGroup: 1001
       runAsGroup: 1001
