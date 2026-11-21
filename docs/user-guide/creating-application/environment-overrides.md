@@ -33,7 +33,7 @@ This will save you the trouble to manually create deployment files separately fo
 
 {% hint style="warning" %}
 ### Who Can Perform This Action?
-Users need to have [Admin role](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and applications) to change perform environment override.
+Users need to have [Admin role](../global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and applications) to change perform environment override.
 {% endhint %}
 
 Go to **App Configuration** → **Environment Overrides**. For each environment you can override the following configurations:
