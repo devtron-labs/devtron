@@ -1,0 +1,292 @@
+{
+  "ConfigMaps": {
+    "enabled": true,
+    "maps": [
+      {
+        "data": {
+          "a": "b"
+        },
+        "esoSecretData": {},
+        "external": false,
+        "externalType": "",
+        "filePermission": "",
+        "mountPath": "",
+        "name": "abc",
+        "roleARN": "",
+        "subPath": false,
+        "type": "environment"
+      }
+    ]
+  },
+  "ConfigSecrets": {
+    "enabled": true,
+    "secrets": [
+      {
+        "data": {
+          "access-key": "QUtJQVdQVENFV0w1Wk4zVFBSRzY=",
+          "secret-access-key": "dkJ1bXRJL1YyZFUrQmVrSnM4QkVsblJnQzlRbEZueVZqL0dEdUc4Ng=="
+        },
+        "esoSecretData": {},
+        "external": false,
+        "externalType": "",
+        "filePermission": "",
+        "mountPath": "",
+        "name": "auth-aws",
+        "roleARN": "",
+        "subPath": false,
+        "type": "environment"
+      },
+      {
+        "esoSecretData": {
+          "esoData": [
+            {
+              "key": "ajay-secret-aws",
+              "property": "mob",
+              "secretKey": "mymob"
+            },
+            {
+              "key": "ajay-secret-aws",
+              "property": "pin",
+              "secretKey": "mypin"
+            }
+          ],
+          "secretStore": {
+            "aws": {
+              "auth": {
+                "secretRef": {
+                  "accessKeyIDSecretRef": {
+                    "key": "access-key",
+                    "name": "auth-aws-1"
+                  },
+                  "secretAccessKeySecretRef": {
+                    "key": "secret-access-key",
+                    "name": "auth-aws-1"
+                  }
+                }
+              },
+              "region": "ap-south-1",
+              "service": "SecretsManager"
+            }
+          }
+        },
+        "external": true,
+        "externalType": "ESO_AWSSecretsManager",
+        "filePermission": "",
+        "mountPath": "",
+        "name": "external-secret-aws",
+        "roleARN": "",
+        "subPath": false,
+        "type": "environment"
+      }
+    ]
+  },
+  "ContainerPort": [
+    {
+      "envoyPort": 8799,
+      "idleTimeout": "1800s",
+      "name": "app",
+      "port": 80,
+      "servicePort": 80,
+      "supportStreaming": false,
+      "useHTTP2": false
+    }
+  ],
+  "EnvVariables": [],
+  "GracePeriod": 30,
+  "LivenessProbe": {
+    "Path": "",
+    "command": [],
+    "failureThreshold": 3,
+    "httpHeaders": [],
+    "initialDelaySeconds": 20,
+    "periodSeconds": 10,
+    "port": 8080,
+    "scheme": "",
+    "successThreshold": 1,
+    "tcp": false,
+    "timeoutSeconds": 5
+  },
+  "MaxSurge": 1,
+  "MaxUnavailable": 0,
+  "MinReadySeconds": 60,
+  "ReadinessProbe": {
+    "Path": "",
+    "command": [],
+    "failureThreshold": 3,
+    "httpHeaders": [],
+    "initialDelaySeconds": 20,
+    "periodSeconds": 10,
+    "port": 8080,
+    "scheme": "",
+    "successThreshold": 1,
+    "tcp": false,
+    "timeoutSeconds": 5
+  },
+  "Spec": {
+    "Affinity": {
+      "Values": "nodes",
+      "key": ""
+    }
+  },
+  "app": "1",
+  "appLabels": {},
+  "appMetrics": false,
+  "args": {
+    "enabled": false,
+    "value": [
+      "/bin/sh",
+      "-c",
+      "touch /tmp/healthy; sleep 30; rm -rf /tmp/healthy; sleep 600"
+    ]
+  },
+  "autoscaling": {
+    "MaxReplicas": 2,
+    "MinReplicas": 1,
+    "TargetCPUUtilizationPercentage": 90,
+    "TargetMemoryUtilizationPercentage": 80,
+    "annotations": {},
+    "behavior": {},
+    "enabled": false,
+    "extraMetrics": [],
+    "labels": {}
+  },
+  "command": {
+    "enabled": false,
+    "value": [],
+    "workingDir": {}
+  },
+  "containerSecurityContext": {},
+  "containers": [],
+  "dbMigrationConfig": {
+    "enabled": false
+  },
+  "deployment": {
+    "strategy": {
+      "blueGreen": {
+        "autoPromotionEnabled": false,
+        "autoPromotionSeconds": 30,
+        "previewReplicaCount": 1,
+        "scaleDownDelaySeconds": 30
+      }
+    }
+  },
+  "deploymentType": "BLUE-GREEN",
+  "env": "1",
+  "envoyproxy": {
+    "configMapName": "",
+    "image": "quay.io/devtron/envoy:v1.14.1",
+    "resources": {
+      "limits": {
+        "cpu": "50m",
+        "memory": "50Mi"
+      },
+      "requests": {
+        "cpu": "50m",
+        "memory": "50Mi"
+      }
+    }
+  },
+  "hostAliases": [],
+  "image": {
+    "pullPolicy": "IfNotPresent"
+  },
+  "imagePullSecrets": [],
+  "ingress": {
+    "annotations": {},
+    "className": "",
+    "enabled": false,
+    "hosts": [
+      {
+        "host": "chart-example1.local",
+        "pathType": "ImplementationSpecific",
+        "paths": [
+          "/example1"
+        ]
+      }
+    ],
+    "labels": {},
+    "tls": []
+  },
+  "ingressInternal": {
+    "annotations": {},
+    "className": "",
+    "enabled": false,
+    "hosts": [
+      {
+        "host": "chart-example1.internal",
+        "pathType": "ImplementationSpecific",
+        "paths": [
+          "/example1"
+        ]
+      },
+      {
+        "host": "chart-example2.internal",
+        "pathType": "ImplementationSpecific",
+        "paths": [
+          "/example2",
+          "/example2/healthz"
+        ]
+      }
+    ],
+    "tls": []
+  },
+  "initContainers": [],
+  "kedaAutoscaling": {
+    "advanced": {},
+    "authenticationRef": {},
+    "enabled": false,
+    "envSourceContainerName": "",
+    "maxReplicaCount": 2,
+    "minReplicaCount": 1,
+    "triggerAuthentication": {
+      "enabled": false,
+      "name": "",
+      "spec": {}
+    },
+    "triggers": []
+  },
+  "pauseForSecondsBeforeSwitchActive": 30,
+  "pipelineName": "cd-1-fpji",
+  "podAnnotations": {},
+  "podLabels": {},
+  "podSecurityContext": {},
+  "prometheus": {
+    "release": "monitoring"
+  },
+  "rawYaml": [],
+  "releaseVersion": "6",
+  "replicaCount": 1,
+  "resources": {
+    "limits": {
+      "cpu": "0.05",
+      "memory": "50Mi"
+    },
+    "requests": {
+      "cpu": "0.01",
+      "memory": "10Mi"
+    }
+  },
+  "secret": {
+    "data": {},
+    "enabled": false
+  },
+  "server": {
+    "deployment": {
+      "image": "aju121/test12",
+      "image_tag": "63118bf2-1-1"
+    }
+  },
+  "service": {
+    "annotations": {},
+    "loadBalancerSourceRanges": [],
+    "type": "ClusterIP"
+  },
+  "servicemonitor": {
+    "additionalLabels": {}
+  },
+  "tolerations": [],
+  "topologySpreadConstraints": [],
+  "volumeMounts": [],
+  "volumes": [],
+  "waitForSecondsBeforeScalingDown": 30
+}
