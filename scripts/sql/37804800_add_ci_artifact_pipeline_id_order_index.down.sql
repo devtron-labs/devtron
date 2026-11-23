@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS idx_ci_artifact_pipeline_id_id;
+DROP INDEX IF EXISTS idx_ci_artifact_component_id_data_source_id;
