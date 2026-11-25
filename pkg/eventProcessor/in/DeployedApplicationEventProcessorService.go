@@ -113,9 +113,9 @@ func (impl *DeployedApplicationEventProcessorImpl) SubscribeArgoAppUpdate() erro
 			impl.logger.Infow("this app not found in pipeline table looking in installed_apps table", "appName", app.ObjectMeta.Name)
 			// if not found in pipeline table then search in installed_apps table
 			installedAppModel, err := impl.installedAppReadService.GetInstalledAppByGitOpsAppName(app.ObjectMeta.Name)
-			if err == pg.ErrNoRows {
-				// no installed_apps found
-				impl.logger.Errorw("no installed apps found", "err", err)
+			if errors.Is(err, pg.ErrNoRows) {
+				// app not managed by Devtron, nothing to update
+				impl.logger.Debugw("no installed app found for argo app, skipping status update", "appName", app.ObjectMeta.Name)
 				return
 			}
 			if err != nil {
