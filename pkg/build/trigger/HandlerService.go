@@ -1175,7 +1175,11 @@ func (impl *HandlerServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineCo
 		return nil, err
 	}
 	if customTag.Id != 0 && customTag.Enabled == true {
-		commitSha := getCommitShaForCustomTag(ciMaterials, commitHashes, dockerfileGitMaterialId)
+		var commitSha string
+		// resolve the commit only when the pattern uses {sha}; tag webhooks need a git-sensor call
+		if hasShaVariable(customTag.TagPattern) {
+			commitSha = getCommitShaForCustomTag(ciMaterials, commitHashes, dockerfileGitMaterialId, impl.getCommitForWebhookTag)
+		}
 		imagePathReservation, err := impl.customTagService.GenerateImagePath(pipelineConfigBean.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id), dockerRegistry.RegistryURL, dockerRepository, commitSha)
 		if err != nil {
 			if errors.Is(err, pipelineConfigBean.ErrImagePathInUse) {
@@ -1573,7 +1577,8 @@ func (impl *HandlerServiceImpl) buildImageTag(commitHashes map[int]pipelineConfi
 }
 
 // getCommitShaForCustomTag returns the short commit of the git material holding the Dockerfile, used for {SHA} in custom image tags
-func getCommitShaForCustomTag(ciMaterials []*pipelineConfig.CiPipelineMaterial, commitHashes map[int]pipelineConfig.GitCommit, dockerfileGitMaterialId int) string {
+func getCommitShaForCustomTag(ciMaterials []*pipelineConfig.CiPipelineMaterial, commitHashes map[int]pipelineConfig.GitCommit, dockerfileGitMaterialId int,
+	resolveTagCommit func(pipelineMaterialId int, tag string) string) string {
 	for _, ciMaterial := range ciMaterials {
 		if ciMaterial == nil || ciMaterial.GitMaterialId != dockerfileGitMaterialId {
 			continue
@@ -1582,11 +1587,32 @@ func getCommitShaForCustomTag(ciMaterials []*pipelineConfig.CiPipelineMaterial, 
 		commit := gitCommit.Commit
 		if commit == "" {
 			commit = gitCommit.WebhookData.Data[bean.WEBHOOK_SELECTOR_TARGET_CHECKOUT_NAME]
+			// tag events (not PR merged) carry the tag name in target checkout, not a commit
+			if commit != "" && gitCommit.WebhookData.EventActionType != bean.WEBHOOK_EVENT_MERGED_ACTION_TYPE {
+				commit = resolveTagCommit(ciMaterial.Id, commit)
+			}
 		}
 		// replace / with underscore, as docker image tag doesn't support slash
 		return strings.ReplaceAll(_getTruncatedImageTag(commit), "/", "_")
 	}
 	return ""
+}
+
+// getCommitForWebhookTag returns the commit the tag points to, or "" if git-sensor can't resolve it
+func (impl *HandlerServiceImpl) getCommitForWebhookTag(pipelineMaterialId int, tag string) string {
+	commit, err := impl.gitSensorClient.GetCommitMetadata(context.Background(), &gitSensor.CommitMetadataRequest{
+		PipelineMaterialId: pipelineMaterialId,
+		GitTag:             tag,
+	})
+	if err != nil || commit == nil {
+		impl.Logger.Errorw("error in resolving commit for webhook tag", "pipelineMaterialId", pipelineMaterialId, "tag", tag, "err", err)
+		return ""
+	}
+	return commit.Commit
+}
+
+func hasShaVariable(tagPattern string) bool {
+	return strings.Contains(tagPattern, pipelineConfigBean.IMAGE_TAG_VARIABLE_NAME_SHA) || strings.Contains(tagPattern, pipelineConfigBean.IMAGE_TAG_VARIABLE_NAME_sha)
 }
 
 func getUpdatedDockerImageTagWithCommitOrCheckOutData(dockerImageTag, commitOrCheckOutData string) string {
