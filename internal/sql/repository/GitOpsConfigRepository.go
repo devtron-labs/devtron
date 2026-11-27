@@ -23,6 +23,7 @@ import (
 	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type GitOpsConfigRepository interface {
@@ -65,6 +66,19 @@ type GitOpsConfig struct {
 	CaCert                string                      `sql:"ca_cert"`
 	AuthMode              constants.AuthMode          `sql:"auth_mode"`
 	sql.AuditLog
+}
+
+// MarshalLogObject keeps credentials such as the token and TLS data out of logs
+// when the model is logged as a field, e.g. logger.Errorw("...", "data", model).
+// It logs the same safe fields as GitOpsConfigDto; see the notes there.
+func (model GitOpsConfig) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	enc.AddInt("id", model.Id)
+	enc.AddString("provider", model.Provider)
+	enc.AddBool("active", model.Active)
+	enc.AddString("authMode", string(model.AuthMode))
+	enc.AddBool("allowCustomRepository", model.AllowCustomRepository)
+	enc.AddBool("enableTLSVerification", model.EnableTLSVerification)
+	return nil
 }
 
 func NewGitOpsConfigRepositoryImpl(logger *zap.SugaredLogger, dbConnection *pg.DB, variables *globalUtil.EnvironmentVariables) *GitOpsConfigRepositoryImpl {
