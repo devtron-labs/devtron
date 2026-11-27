@@ -18,6 +18,7 @@ package repository
 
 import (
 	"github.com/go-pg/pg"
+	"go.uber.org/zap/zapcore"
 )
 
 type DockerRegistryIpsConfig struct {
@@ -29,6 +30,17 @@ type DockerRegistryIpsConfig struct {
 	AppliedClusterIdsCsv  string                          `sql:"applied_cluster_ids_csv"` // -1 means all_cluster
 	IgnoredClusterIdsCsv  string                          `sql:"ignored_cluster_ids_csv"`
 	Active                bool                            `sql:"active,notnull"`
+}
+
+// MarshalLogObject keeps the image-pull credential out of logs when the model is
+// logged as a field, e.g. logger.Infow("...", "ipsConfig", ipsConfig).
+// The value receiver covers both config and &config; never log a nil pointer.
+func (config DockerRegistryIpsConfig) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	enc.AddInt("id", config.Id)
+	enc.AddString("dockerArtifactStoreId", config.DockerArtifactStoreId)
+	enc.AddString("credentialType", string(config.CredentialType))
+	enc.AddBool("active", config.Active)
+	return nil
 }
 
 type DockerRegistryIpsCredentialType string

@@ -18,6 +18,7 @@ package types
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	"go.uber.org/zap/zapcore"
 )
 
 type DockerArtifactStoreBean struct {
@@ -50,6 +51,33 @@ type DockerRegistryIpsConfigBean struct {
 	AppliedClusterIdsCsv string                                     `json:"appliedClusterIdsCsv,omitempty"`
 	IgnoredClusterIdsCsv string                                     `json:"ignoredClusterIdsCsv,omitempty"`
 	Active               bool                                       `json:"active,omitempty"`
+}
+
+// MarshalLogObject decides what zap writes when a registry is logged as a field,
+// e.g. logger.Infow("...", "payload", bean). Without it zap writes every JSON
+// field, including credentials such as the password, AWS keys and certificate.
+//
+// Only safe fields are listed, so a field added later stays out of logs by default.
+// RegistryURL is left out because a URL can contain credentials (https://user:token@host).
+// The value receiver covers both bean and &bean. A nil *DockerArtifactStoreBean panics
+// in zap, so never log a pointer that can be nil. API JSON is not affected.
+func (bean DockerArtifactStoreBean) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	enc.AddString("id", bean.Id)
+	enc.AddString("registryType", string(bean.RegistryType))
+	enc.AddBool("isOCICompliantRegistry", bean.IsOCICompliantRegistry)
+	enc.AddBool("isPublic", bean.IsPublic)
+	enc.AddBool("isDefault", bean.IsDefault)
+	enc.AddBool("active", bean.Active)
+	return nil
+}
+
+// MarshalLogObject keeps the image-pull credential out of logs.
+// It works the same way as DockerArtifactStoreBean's; see the notes there.
+func (bean DockerRegistryIpsConfigBean) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	enc.AddInt("id", bean.Id)
+	enc.AddString("credentialType", string(bean.CredentialType))
+	enc.AddBool("active", bean.Active)
+	return nil
 }
 
 type DisabledFields string

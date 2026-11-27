@@ -26,6 +26,7 @@ import (
 
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -65,6 +66,19 @@ type DockerArtifactStore struct {
 	IpsConfig              *DockerRegistryIpsConfig
 	OCIRegistryConfig      []*OCIRegistryConfig
 	sql.AuditLog
+}
+
+// MarshalLogObject keeps credentials such as the password, AWS keys and certificate
+// out of logs when the model is logged as a field, e.g. logger.Infow("...", "repository", store).
+// Only safe fields are listed; nested configs are left out.
+// The value receiver covers both store and &store; never log a nil pointer.
+func (store DockerArtifactStore) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	enc.AddString("id", store.Id)
+	enc.AddString("registryType", string(store.RegistryType))
+	enc.AddBool("isOCICompliantRegistry", store.IsOCICompliantRegistry)
+	enc.AddBool("isDefault", store.IsDefault)
+	enc.AddBool("active", store.Active)
+	return nil
 }
 
 type ChartDeploymentCount struct {
