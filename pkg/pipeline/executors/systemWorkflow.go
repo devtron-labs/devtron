@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/pointer"
 )
@@ -69,6 +70,8 @@ func (impl *SystemWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Wo
 	err = impl.createCmAndSecrets(workflowTemplate, createdJob, templatesList)
 	if err != nil {
 		impl.logger.Errorw("error occurred while creating cm and secret", "WorkflowRunnerId", workflowTemplate.WorkflowRunnerId, "err", err)
+		// job is still suspended, delete it so it does not linger with a partial set of cm/secrets
+		impl.deleteSuspendedJob(ctx, clientset, createdJob)
 		return nil, err
 	}
 
@@ -83,6 +86,15 @@ func (impl *SystemWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Wo
 	createdJob.Spec.Suspend = pointer.BoolPtr(false)
 	impl.addToUnstructuredList(createdJob, templatesList)
 	return templatesList, nil
+}
+
+// deleteSuspendedJob removes a never-resumed job; foreground deletion also removes its owned cm/secrets.
+func (impl *SystemWorkflowExecutorImpl) deleteSuspendedJob(ctx context.Context, clientset kubernetes.Interface, job *v1.Job) {
+	propagationPolicy := v12.DeletePropagationForeground
+	err := clientset.BatchV1().Jobs(job.Namespace).Delete(ctx, job.Name, v12.DeleteOptions{PropagationPolicy: &propagationPolicy})
+	if err != nil && !errors.IsNotFound(err) {
+		impl.logger.Errorw("error occurred while deleting suspended job", "jobName", job.Name, "namespace", job.Namespace, "err", err)
+	}
 }
 
 func (impl *SystemWorkflowExecutorImpl) addToUnstructuredList(template interface{}, templateList *unstructured.UnstructuredList) {
@@ -170,14 +182,25 @@ func (impl *SystemWorkflowExecutorImpl) GetWorkflowStatus(workflowName string, n
 		}
 		return nil, err
 	}
-	status := ""
-	if len(wf.Status.Conditions) > 0 {
-		status = string(wf.Status.Conditions[0].Type)
-	}
 	wfStatus := &types2.WorkflowStatus{
-		Status: status,
+		Status: getJobStatus(wf.Status.Conditions),
 	}
 	return wfStatus, nil
+}
+
+// getJobStatus returns an active Complete/Failed condition if present, else the latest active condition.
+func getJobStatus(conditions []v1.JobCondition) string {
+	status := ""
+	for _, condition := range conditions {
+		if condition.Status != corev1.ConditionTrue {
+			continue
+		}
+		if condition.Type == v1.JobComplete || condition.Type == v1.JobFailed {
+			return string(condition.Type)
+		}
+		status = string(condition.Type)
+	}
+	return status
 }
 
 func (impl *SystemWorkflowExecutorImpl) getJobTemplate(workflowTemplate bean.WorkflowTemplate) *v1.Job {
@@ -267,14 +290,24 @@ func (impl *SystemWorkflowExecutorImpl) createCmAndSecrets(template bean.Workflo
 		impl.addToUnstructuredList(configMap, templateList)
 		_, err = impl.k8sUtil.CreateConfigMap(createdJob.Namespace, &configMap, client)
 		if err != nil {
-			impl.logger.Errorw("error occurred while creating cm, but ignoring", "err", err)
+			if !errors.IsAlreadyExists(err) {
+				impl.logger.Errorw("error occurred while creating cm", "WorkflowRunnerId", template.WorkflowRunnerId, "name", configMap.Name, "err", err)
+				return err
+			}
+			// an existing cm still lets the pod start, so this is not treated as a failure
+			impl.logger.Warnw("cm already exists, skipping create", "WorkflowRunnerId", template.WorkflowRunnerId, "name", configMap.Name)
 		}
 	}
 	for _, secret := range secrets {
 		impl.addToUnstructuredList(secret, templateList)
 		_, err = impl.k8sUtil.CreateSecretData(createdJob.Namespace, &secret, client)
 		if err != nil {
-			impl.logger.Errorw("error occurred while creating secret, but ignoring", "err", err)
+			if !errors.IsAlreadyExists(err) {
+				impl.logger.Errorw("error occurred while creating secret", "WorkflowRunnerId", template.WorkflowRunnerId, "name", secret.Name, "err", err)
+				return err
+			}
+			// an existing secret still lets the pod start, so this is not treated as a failure
+			impl.logger.Warnw("secret already exists, skipping create", "WorkflowRunnerId", template.WorkflowRunnerId, "name", secret.Name)
 		}
 	}
 	return nil
